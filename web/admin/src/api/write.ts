@@ -16,6 +16,7 @@ import type {
   MediaWrite,
   ResourceTemplateWrite,
   ResourceWrite,
+  SiteBlockAttachmentWrite,
   SiteBlockWrite,
   SitePageWrite,
   SitePermissionWrite,
@@ -174,12 +175,24 @@ export const encodeSiteThemeSettings = (
   settings: Readonly<Record<string, JsonValue>>,
 ): WireBody => ({ 'o:theme_settings': settings });
 
+const encodeAttachment = (
+  attachment: SiteBlockAttachmentWrite,
+): Record<string, unknown> => ({
+  'o:item': attachment.item === null ? null : ref(attachment.item),
+  'o:media': attachment.media === null ? null : ref(attachment.media),
+  'o:caption': attachment.caption,
+});
+
 const encodeBlock = (block: SiteBlockWrite): Record<string, unknown> => ({
   'o:layout': block.layout,
   'o:data': block.data,
   // A present null would store a null; the update treats an absent member as
   // the block's absent layout data.
   ...(block.layoutData === null ? {} : { 'o:layout_data': block.layoutData }),
+  // A full PUT that omits the list clears the block's attachments.
+  ...(block.attachments === undefined
+    ? {}
+    : { 'o:attachment': block.attachments.map(encodeAttachment) }),
 });
 
 /** `SitePageAdapter::hydrate`. A `PUT` replaces `o:block` with the list sent. */

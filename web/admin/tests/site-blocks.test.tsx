@@ -38,6 +38,7 @@ const draft = (layout: string): BlockDraft => ({
   layout,
   data: '{}',
   layoutData: '',
+  attachments: [],
 });
 
 const optionValues = (): readonly (string | null)[] =>

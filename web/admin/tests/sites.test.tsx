@@ -194,8 +194,12 @@ describe('site page edit', () => {
       'o:layout': null,
       'o:layout_data': [],
       'o:block': [
-        { 'o:layout': 'html', 'o:data': { html: '<p>First block.</p>' } },
-        { 'o:layout': 'pageTitle', 'o:data': [] },
+        {
+          'o:layout': 'html',
+          'o:data': { html: '<p>First block.</p>' },
+          'o:attachment': [],
+        },
+        { 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] },
       ],
     });
   });
@@ -220,8 +224,12 @@ describe('site page edit', () => {
     );
     const body = requestBody(put);
     expect(body['o:block']).toEqual([
-      { 'o:layout': 'pageTitle', 'o:data': [] },
-      { 'o:layout': 'html', 'o:data': { html: '<p>First block.</p>' } },
+      { 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] },
+      {
+        'o:layout': 'html',
+        'o:data': { html: '<p>First block.</p>' },
+        'o:attachment': [],
+      },
     ]);
   });
 
@@ -280,7 +288,7 @@ describe('site page create', () => {
       'o:is_public': true,
       'o:layout': null,
       'o:layout_data': [],
-      'o:block': [{ 'o:layout': 'pageTitle', 'o:data': [] }],
+      'o:block': [{ 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] }],
     });
     expect(window.location.hash).toBe('#/sites/1/pages/1');
     window.location.hash = '';

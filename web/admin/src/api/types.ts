@@ -347,6 +347,17 @@ export interface Site {
 }
 
 /**
+ * One `o:attachment` entry (`SiteBlockAttachmentRepresentation::jsonSerialize`):
+ * the item and the media it may name, plus the caption. A missing item or media
+ * is `null`, and the media is only stored when it belongs to the item.
+ */
+export interface SiteBlockAttachment {
+  readonly item: ResourceRef<ItemId> | null;
+  readonly media: ResourceRef<MediaId> | null;
+  readonly caption: string;
+}
+
+/**
  * One entry of a site page's `o:block`
  * (`SitePageBlockRepresentation::jsonSerialize`). `data` is the layout's own
  * payload; `layoutData` is the block's layout metadata, absent upstream as
@@ -357,6 +368,8 @@ export interface SitePageBlock {
   readonly layout: string;
   readonly data: JsonValue;
   readonly layoutData: JsonValue | null;
+  /** The block's `site_block_attachment` rows, in position order. */
+  readonly attachments: readonly SiteBlockAttachment[];
 }
 
 /**
@@ -378,15 +391,25 @@ export interface SitePage {
   readonly modified: string | null;
 }
 
+/** One `o:attachment` entry as a write accepts it. The ids are resolved server-side. */
+export interface SiteBlockAttachmentWrite {
+  readonly item: ItemId | null;
+  readonly media: MediaId | null;
+  readonly caption: string;
+}
+
 /**
  * A block as `POST`/`PUT` accepts it. `layoutData` is omitted from the body
  * when null, because a present null would store a null rather than the column's
- * absent value.
+ * absent value. `attachments` is optional because a caller that does not know
+ * about attachments must still compile; a full write that omits it clears the
+ * block's stored attachments.
  */
 export interface SiteBlockWrite {
   readonly layout: string;
   readonly data: JsonValue;
   readonly layoutData: JsonValue | null;
+  readonly attachments?: readonly SiteBlockAttachmentWrite[];
 }
 
 /** `SiteAdapter::hydrate` members. `owner` is only read on create. */

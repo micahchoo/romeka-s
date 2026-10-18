@@ -34,6 +34,7 @@ import type {
   ResourceTemplate,
   ResourceTemplateProperty,
   Site,
+  SiteBlockAttachment,
   SiteId,
   SiteItemSet,
   SitePage,
@@ -719,12 +720,38 @@ export const parseSite: Parser<Site> = (raw, path = []) => {
   };
 };
 
+const parseSiteBlockAttachment = (raw: unknown, path: Path = []): SiteBlockAttachment => {
+  const object = asRecord(raw, path);
+  return {
+    item: nullableField(object, 'o:item', path, (value, fieldPath) =>
+      asRef(value, fieldPath, brandId<'ItemId'>),
+    ),
+    media: nullableField(object, 'o:media', path, (value, fieldPath) =>
+      asRef(value, fieldPath, brandId<'MediaId'>),
+    ),
+    caption: asString(field(object, 'o:caption', path), [...path, 'o:caption']),
+  };
+};
+
+/** A block's `o:attachment` list. An absent member is the empty list. */
+const parseSiteBlockAttachments = (
+  object: Record<string, unknown>,
+  path: Path,
+): readonly SiteBlockAttachment[] => {
+  const value = object['o:attachment'];
+  if (value === undefined || value === null) {
+    return [];
+  }
+  return parseListOf(parseSiteBlockAttachment)(value, [...path, 'o:attachment']);
+};
+
 const parseSitePageBlock = (raw: unknown, path: Path = []): SitePageBlock => {
   const object = asRecord(raw, path);
   return {
     layout: asString(field(object, 'o:layout', path), [...path, 'o:layout']),
     data: asJsonValue(field(object, 'o:data', path), [...path, 'o:data']),
     layoutData: nullableField(object, 'o:layout_data', path, asJsonValue),
+    attachments: parseSiteBlockAttachments(object, path),
   };
 };
 

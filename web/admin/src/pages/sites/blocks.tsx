@@ -5,20 +5,22 @@
  */
 import type { ReactElement } from 'react';
 import { parseJsonObjectOrArrayText, parseJsonText } from '../../api/parse';
-import type { JsonValue, SiteBlockWrite, SitePageBlock } from '../../api/types';
+import type { JsonValue, SiteBlockAttachmentWrite, SiteBlockWrite, SitePageBlock } from '../../api/types';
 import { formatJson } from '../../app/json';
 import { toError } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { Translator } from '../../i18n';
 import { blockLayoutOptions } from './blockRegistry';
 
-/** One editable block: the layout plus its two JSON members as text. */
+/** One editable block: the layout, its two JSON members as text, and the attachments it carries. */
 export interface BlockDraft {
   readonly key: number;
   readonly layout: string;
   readonly data: string;
   /** Empty means the block has no layout data, so the member is not sent. */
   readonly layoutData: string;
+  /** Not edited here; a full write must send them or the server clears them. */
+  readonly attachments: readonly SiteBlockAttachmentWrite[];
 }
 
 export const blocksFromPage = (blocks: readonly SitePageBlock[]): readonly BlockDraft[] =>
@@ -27,6 +29,11 @@ export const blocksFromPage = (blocks: readonly SitePageBlock[]): readonly Block
     layout: block.layout,
     data: formatJson(block.data),
     layoutData: block.layoutData === null ? '' : formatJson(block.layoutData),
+    attachments: block.attachments.map((attachment) => ({
+      item: attachment.item === null ? null : attachment.item.id,
+      media: attachment.media === null ? null : attachment.media.id,
+      caption: attachment.caption,
+    })),
   }));
 
 const nextKey = (blocks: readonly BlockDraft[]): number =>
@@ -35,7 +42,7 @@ const nextKey = (blocks: readonly BlockDraft[]): number =>
 /** A new block: an empty HTML payload, the layout most edits start from. */
 export const addBlock = (blocks: readonly BlockDraft[]): readonly BlockDraft[] => [
   ...blocks,
-  { key: nextKey(blocks), layout: 'html', data: '{}', layoutData: '' },
+  { key: nextKey(blocks), layout: 'html', data: '{}', layoutData: '', attachments: [] },
 ];
 
 export const updateBlock = (
@@ -105,7 +112,12 @@ export const toBlockWrites = (drafts: readonly BlockDraft[]): BlockWrites => {
         };
       }
     }
-    blocks.push({ layout: draft.layout, data, layoutData });
+    blocks.push({
+      layout: draft.layout,
+      data,
+      layoutData,
+      attachments: draft.attachments,
+    });
   }
   return { blocks, error: null };
 };
