@@ -14,6 +14,7 @@ import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
 import { VocabulariesPage } from '../src/pages/vocabularies/page';
 import { loadFixture } from './loadFixture';
 import {
+  detached,
   first,
   installFetch,
   jsonResponse,
@@ -40,10 +41,10 @@ const referenceRoutes: Readonly<Record<string, () => Response>> = {
 };
 
 const withFixture =
-  (routes: Readonly<Record<string, () => Response>>): Handler =>
-  (url) => {
+  (routes: Readonly<Record<string, Handler>>): Handler =>
+  (url, init) => {
     const handler = routes[url.pathname];
-    return handler === undefined ? notFound() : handler();
+    return handler === undefined ? notFound() : handler(url, init);
   };
 
 const sent = (
@@ -157,7 +158,12 @@ describe('vocabulary edit and delete', () => {
     const fetchMock = installFetch(
       withFixture({
         ...detailRoutes,
-        '/api/vocabularies/3': () => jsonResponse(loadFixture('vocabulary-3.json')),
+        '/api/vocabularies/3': (_url, init) =>
+          jsonResponse(
+            init?.method === 'DELETE'
+              ? detached(loadFixture('vocabulary-3.json'))
+              : loadFixture('vocabulary-3.json'),
+          ),
       }),
     );
     render(<VocabulariesPage param="3" />);
@@ -287,7 +293,12 @@ describe('property create, edit and delete', () => {
     const fetchMock = installFetch(
       withFixture({
         ...referenceRoutes,
-        '/api/properties/1': () => jsonResponse(loadFixture('property-1.json')),
+        '/api/properties/1': (_url, init) =>
+          jsonResponse(
+            init?.method === 'DELETE'
+              ? detached(loadFixture('property-1.json'))
+              : loadFixture('property-1.json'),
+          ),
         '/api/vocabularies/1': () => jsonResponse(loadFixture('vocabulary-1.json')),
       }),
     );
@@ -360,7 +371,12 @@ describe('resource class create, edit and delete', () => {
     const fetchMock = installFetch(
       withFixture({
         ...referenceRoutes,
-        '/api/resource_classes/13': () => jsonResponse(loadFixture('resource-class-13.json')),
+        '/api/resource_classes/13': (_url, init) =>
+          jsonResponse(
+            init?.method === 'DELETE'
+              ? detached(loadFixture('resource-class-13.json'))
+              : loadFixture('resource-class-13.json'),
+          ),
         '/api/vocabularies/2': () => jsonResponse(loadFixture('vocabulary-2.json')),
       }),
     );

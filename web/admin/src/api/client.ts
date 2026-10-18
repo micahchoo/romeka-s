@@ -6,6 +6,7 @@
 import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import type { ApiKey } from './auth';
 import {
+  assertDetached,
   parseApiErrors,
   parseApiResource,
   parseAsset,
@@ -369,31 +370,32 @@ export class ApiClient {
 
   /**
    * Delete one row. `Api\Manager::finalize` renders the entity the adapter
-   * removed, so a delete answers with the representation a read returned a
-   * moment earlier and the caller parses it the same way.
+   * removed, so the answer is the detached entity, not a live resource
+   * (`crates/omeka-api/src/write/detached.rs`). Every caller discards it, so the
+   * method returns nothing and the boundary only checks the detached shape.
    */
-  async deleteItem(id: ItemId): Promise<Item> {
-    return parseItem(await this.deleteJson(`/api/items/${String(id)}`));
+  async deleteItem(id: ItemId): Promise<void> {
+    await this.deleteJson(`/api/items/${String(id)}`);
   }
 
-  async deleteItemSet(id: ItemSetId): Promise<ItemSet> {
-    return parseItemSet(await this.deleteJson(`/api/item_sets/${String(id)}`));
+  async deleteItemSet(id: ItemSetId): Promise<void> {
+    await this.deleteJson(`/api/item_sets/${String(id)}`);
   }
 
-  async deleteMedia(id: MediaId): Promise<Media> {
-    return parseMedia(await this.deleteJson(`/api/media/${String(id)}`));
+  async deleteMedia(id: MediaId): Promise<void> {
+    await this.deleteJson(`/api/media/${String(id)}`);
   }
 
-  async deleteUser(id: UserId): Promise<User> {
-    return parseUser(await this.deleteJson(`/api/users/${String(id)}`));
+  async deleteUser(id: UserId): Promise<void> {
+    await this.deleteJson(`/api/users/${String(id)}`);
   }
 
-  async deleteSite(id: SiteId): Promise<Site> {
-    return parseSite(await this.deleteJson(`/api/sites/${String(id)}`));
+  async deleteSite(id: SiteId): Promise<void> {
+    await this.deleteJson(`/api/sites/${String(id)}`);
   }
 
-  async deleteSitePage(id: PageId): Promise<SitePage> {
-    return parseSitePage(await this.deleteJson(`/api/site_pages/${String(id)}`));
+  async deleteSitePage(id: PageId): Promise<void> {
+    await this.deleteJson(`/api/site_pages/${String(id)}`);
   }
 
   async getAsset(id: AssetId): Promise<Asset> {
@@ -405,8 +407,8 @@ export class ApiClient {
     return parseAsset(await this.writeJson('PUT', `/api/assets/${String(id)}`, encodeAsset(write)));
   }
 
-  async deleteAsset(id: AssetId): Promise<Asset> {
-    return parseAsset(await this.deleteJson(`/api/assets/${String(id)}`));
+  async deleteAsset(id: AssetId): Promise<void> {
+    await this.deleteJson(`/api/assets/${String(id)}`);
   }
 
   async getJob(id: Job['id']): Promise<Job> {
@@ -422,8 +424,8 @@ export class ApiClient {
     return parseJob(await this.writeJson('PATCH', `/api/jobs/${String(id)}`, {}));
   }
 
-  async deleteJob(id: Job['id']): Promise<Job> {
-    return parseJob(await this.deleteJson(`/api/jobs/${String(id)}`));
+  async deleteJob(id: Job['id']): Promise<void> {
+    await this.deleteJson(`/api/jobs/${String(id)}`);
   }
 
   async createVocabulary(write: VocabularyWrite): Promise<Vocabulary> {
@@ -447,8 +449,8 @@ export class ApiClient {
     );
   }
 
-  async deleteVocabulary(id: VocabularyId): Promise<Vocabulary> {
-    return parseVocabulary(await this.deleteJson(`/api/vocabularies/${String(id)}`));
+  async deleteVocabulary(id: VocabularyId): Promise<void> {
+    await this.deleteJson(`/api/vocabularies/${String(id)}`);
   }
 
   async createResourceClass(write: VocabularyMemberWrite): Promise<ResourceClass> {
@@ -467,8 +469,8 @@ export class ApiClient {
     );
   }
 
-  async deleteResourceClass(id: ClassId): Promise<ResourceClass> {
-    return parseResourceClass(await this.deleteJson(`/api/resource_classes/${String(id)}`));
+  async deleteResourceClass(id: ClassId): Promise<void> {
+    await this.deleteJson(`/api/resource_classes/${String(id)}`);
   }
 
   async createProperty(write: VocabularyMemberWrite): Promise<Property> {
@@ -487,8 +489,8 @@ export class ApiClient {
     );
   }
 
-  async deleteProperty(id: PropertyId): Promise<Property> {
-    return parseProperty(await this.deleteJson(`/api/properties/${String(id)}`));
+  async deleteProperty(id: PropertyId): Promise<void> {
+    await this.deleteJson(`/api/properties/${String(id)}`);
   }
 
   async createResourceTemplate(write: ResourceTemplateWrite): Promise<ResourceTemplate> {
@@ -510,8 +512,8 @@ export class ApiClient {
     );
   }
 
-  async deleteResourceTemplate(id: TemplateId): Promise<ResourceTemplate> {
-    return parseResourceTemplate(await this.deleteJson(`/api/resource_templates/${String(id)}`));
+  async deleteResourceTemplate(id: TemplateId): Promise<void> {
+    await this.deleteJson(`/api/resource_templates/${String(id)}`);
   }
 
   async listDataTypes(query: ResourceQuery = {}): Promise<ApiPage<DataType>> {
@@ -722,7 +724,7 @@ export class ApiClient {
     return readJsonBody(response);
   }
 
-  private async deleteJson(path: string): Promise<unknown> {
+  private async deleteJson(path: string): Promise<void> {
     const response = await this.fetchFn(this.apiUrl(path), {
       method: 'DELETE',
       headers: { Accept: 'application/json' },
@@ -731,7 +733,7 @@ export class ApiClient {
     if (!response.ok) {
       throw await this.apiError(response);
     }
-    return readJsonBody(response);
+    assertDetached(await readJsonBody(response));
   }
 
   private async get(url: string): Promise<Response> {

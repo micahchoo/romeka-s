@@ -23,7 +23,17 @@ import { setSession } from '../src/api/session';
 import { AuthBadge, SignInPanel } from '../src/app/auth';
 import { ItemsList } from '../src/pages/items/list';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, listResponse, noContent, requestUrl, route } from './stub';
+import {
+  detached,
+  first,
+  installFetch,
+  jsonResponse,
+  listResponse,
+  noContent,
+  requestUrl,
+  route,
+  type Handler,
+} from './stub';
 
 const IDENTITY = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6';
 const CREDENTIAL = 'q7R8s9T0u1V2w3X4y5Z6a7B8c9D0e1F2';
@@ -44,10 +54,11 @@ const mustId = <T,>(value: T | null): T => {
   return value;
 };
 
-const apiRoutes = (): Readonly<Record<string, () => Response>> => ({
+const apiRoutes = (): Readonly<Record<string, Handler>> => ({
   '/api': () => jsonResponse(loadFixture('api-root.json')),
   '/api/items': () => listResponse(loadFixture('items-page.json'), 2),
-  [`/api/users/${String(USER_ID)}`]: () => jsonResponse(userJson()),
+  [`/api/users/${String(USER_ID)}`]: (_url, init) =>
+    jsonResponse(init?.method === 'DELETE' ? detached(userJson()) : userJson()),
   '/api/users': () => jsonResponse(userJson()),
 });
 

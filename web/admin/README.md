@@ -182,7 +182,7 @@ the rule and hides the edit and delete controls for those two.
 | `updateAsset` | `PUT /api/assets/<id>` | `Asset` |
 | `updateJob` | `PATCH /api/jobs/<id>` | `Job` |
 | `createPasswordLink` | `POST /api/users/<id>/password-link` | `PasswordLink` (`{key, link, sent}`) |
-| `deleteItem` / `deleteItemSet` / `deleteMedia` / `deleteUser` / `deleteSite` / `deleteSitePage` / `deleteVocabulary` / `deleteProperty` / `deleteResourceClass` / `deleteResourceTemplate` / `deleteAsset` / `deleteJob` | `DELETE /api/<resource>/<id>` | the removed resource |
+| `deleteItem` / `deleteItemSet` / `deleteMedia` / `deleteUser` / `deleteSite` / `deleteSitePage` / `deleteVocabulary` / `deleteProperty` / `deleteResourceClass` / `deleteResourceTemplate` / `deleteAsset` / `deleteJob` | `DELETE /api/<resource>/<id>` | the detached answer (`o:id` is null) |
 
 Two write endpoints have no form, each for the reason the API documents
 (`crates/omeka-api/README.md`, "Two creates are excluded"):
@@ -199,10 +199,12 @@ row, checks the admin grant and answers its representation. The job detail's for
 no control and names why; the request still runs and the row comes back unchanged.
 
 Every write sends `Content-Type: application/json` and parses its response through `parse.ts`, so a
-write returns the same type a read does. A delete sends no body and parses the removed row the API
-renders in its answer (`Api\Manager::finalize`). An error body maps to `ApiError` the way a read
-error does, including the 403 a caller without permission gets and the 404 a missing row gets; the
-delete control shows the API's message and leaves the page in place.
+write returns the same type a read does. A delete sends no body and answers the detached entity
+`Api\Manager::finalize` renders once the flush has cleared its identifier, so `o:id` is null and `@id`
+is the collection URL. No caller reads that body, so the twelve `delete*` methods return `void` and the
+boundary only checks the answer is the detached shape (`assertDetached` in `parse.ts`). An error body
+maps to `ApiError` the way a read error does, including the 403 a caller without permission gets and
+the 404 a missing row gets; the delete control shows the API's message and leaves the page in place.
 
 A `PUT` replaces every member the adapter hydrates, so the forms send the full resource: visibility,
 owner, class, template, thumbnail and every value. A create with no chosen owner omits `o:owner` so

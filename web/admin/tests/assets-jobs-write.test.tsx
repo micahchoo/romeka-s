@@ -12,6 +12,7 @@ import { AssetsPage } from '../src/pages/assets/page';
 import { JobsPage } from '../src/pages/jobs/page';
 import { loadFixture } from './loadFixture';
 import {
+  detached,
   first,
   installFetch,
   jsonResponse,
@@ -53,10 +54,10 @@ const notFound = (): Response =>
   jsonResponse({ errors: { error: 'Unexpected request' } }, { status: 404 });
 
 const withFixture =
-  (routes: Readonly<Record<string, () => Response>>): Handler =>
-  (url) => {
+  (routes: Readonly<Record<string, Handler>>): Handler =>
+  (url, init) => {
     const handler = routes[url.pathname];
-    return handler === undefined ? notFound() : handler();
+    return handler === undefined ? notFound() : handler(url, init);
   };
 
 const sent = (
@@ -144,7 +145,8 @@ describe('the asset detail view', () => {
   it('asset_delete_sends_delete_and_returns_to_the_list', async () => {
     const fetchMock = installFetch(
       withFixture({
-        '/api/assets/1': () => jsonResponse(asset()),
+        '/api/assets/1': (_url, init) =>
+          jsonResponse(init?.method === 'DELETE' ? detached(asset()) : asset()),
       }),
     );
     render(<AssetsPage param="1" />);
@@ -208,7 +210,8 @@ describe('the job detail view', () => {
   it('job_delete_sends_delete_and_returns_to_the_list', async () => {
     const fetchMock = installFetch(
       withFixture({
-        '/api/jobs/1': () => jsonResponse(job()),
+        '/api/jobs/1': (_url, init) =>
+          jsonResponse(init?.method === 'DELETE' ? detached(job()) : job()),
       }),
     );
     render(<JobsPage param="1" />);
