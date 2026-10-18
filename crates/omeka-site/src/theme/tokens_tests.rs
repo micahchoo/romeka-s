@@ -128,6 +128,27 @@ fn stored_values_override_the_defaults() {
     assert_eq!(tokens.surface.as_str(), DARK_SURFACE);
     assert_eq!(tokens.text.as_str(), DARK_TEXT);
     assert_eq!(tokens.muted.as_str(), DARK_MUTED);
+    assert_eq!(tokens.link.as_str(), DARK_LINK);
+    assert_eq!(tokens.accent.as_str(), DARK_ACCENT);
+}
+
+/// The type scale clamps: a large ratio grows the page's `h1` to a bound rather
+/// than without end, so one rail does not dominate the page.
+#[test]
+fn heading_sizes_are_clamped() {
+    let large = ThemeSettings::from_value(&json!({"type_ratio": 160})).css();
+    assert!(large.contains("--font-size-h1: 3.2em;"), "{large}");
+    assert!(large.contains("--font-size-h2: 2.4em;"), "{large}");
+    assert!(large.contains("--font-size-h3: 1.8em;"), "{large}");
+    assert!(large.contains("--font-size-h4: 1.4em;"), "{large}");
+
+    let small = ThemeSettings::from_value(&json!({"type_ratio": 110})).css();
+    assert!(small.contains("--font-size-h1: 1.6em;"), "{small}");
+    assert!(small.contains("--font-size-h2: 1.35em;"), "{small}");
+
+    // The default ratio sits inside the bounds, so the clamp changes nothing.
+    let default = ThemeSettings::from_value(&Value::Null).css();
+    assert!(default.contains("--font-size-h1: 2.4414em;"), "{default}");
 }
 
 /// A token outside the accepted set takes its default, so no stored string
@@ -170,7 +191,7 @@ fn css_emits_the_tokens_as_custom_properties() {
         "--color-link: #1a5d8f;",
         "--font-heading: \"Gill Sans\", \"Trebuchet MS\", Calibri, sans-serif;",
         "--font-size-base: 18px;",
-        "--font-size-h1: 5.0625em;",
+        "--font-size-h1: 3.2em;",
         "--line-height: 1.4;",
         "--space-1: 0.125rem;",
         "--radius: 6px;",

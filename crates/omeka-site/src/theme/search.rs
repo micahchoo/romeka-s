@@ -44,15 +44,15 @@ pub(crate) fn search_form(ctx: &RenderContext<'_>, labels: &SearchLabels) -> Str
     let action = ctx.settings.search_type().form_action(&ctx.site.slug);
     let needle = query_value(&ctx.query, "fulltext_search").unwrap_or("");
     format!(
-        "<form action=\"{action}\" id=\"search-form\" aria-label=\"{search}\" role=\"search\">\n\
-         <input type=\"text\" id=\"fulltext-search\" name=\"fulltext_search\" value=\"{value}\" aria-label=\"{query}\" aria-labelledby=\"search-form fulltext-search\">\n\
-         <button id=\"search-submit\" type=\"submit\" aria-label=\"{submit}\" title=\"{submit}\"><span class=\"o-icon-search\" aria-hidden=\"true\"></span></button>\n\
+        "<form action=\"{action}\" id=\"search-form\" role=\"search\" aria-label=\"{search}\">\n\
+         <label class=\"visually-hidden\" for=\"fulltext-search\">{query}</label>\n\
+         <input type=\"text\" id=\"fulltext-search\" name=\"fulltext_search\" value=\"{value}\">\n\
+         <button id=\"search-submit\" type=\"submit\"><span class=\"o-icon-search\" aria-hidden=\"true\"></span><span class=\"search-submit-label\">{search}</span></button>\n\
          </form>",
         action = escape_html(&action),
         search = escape_html(labels.search),
         value = escape_html(needle),
         query = escape_html(labels.query),
-        submit = escape_html(labels.submit),
     )
 }
 
