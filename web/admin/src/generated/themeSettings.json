@@ -1,0 +1,164 @@
+{
+  "settings": [
+    {
+      "key": "color_scheme",
+      "labelKey": "themeSetting.colorScheme",
+      "kind": "choice",
+      "choices": [
+        "light",
+        "dark",
+        "auto"
+      ],
+      "default": "light"
+    },
+    {
+      "key": "brand_color",
+      "labelKey": "themeSetting.brandColor",
+      "kind": "colour",
+      "default": "#6aa9d6",
+      "dark": "#6aa9d6"
+    },
+    {
+      "key": "accent_color",
+      "labelKey": "themeSetting.accentColor",
+      "kind": "colour",
+      "default": "#b45309",
+      "dark": "#b45309"
+    },
+    {
+      "key": "background_color",
+      "labelKey": "themeSetting.backgroundColor",
+      "kind": "colour",
+      "default": "#ffffff",
+      "dark": "#12161a"
+    },
+    {
+      "key": "surface_color",
+      "labelKey": "themeSetting.surfaceColor",
+      "kind": "colour",
+      "default": "#f5f7f8",
+      "dark": "#1b2126"
+    },
+    {
+      "key": "text_color",
+      "labelKey": "themeSetting.textColor",
+      "kind": "colour",
+      "default": "#222222",
+      "dark": "#e8ecef"
+    },
+    {
+      "key": "muted_color",
+      "labelKey": "themeSetting.mutedColor",
+      "kind": "colour",
+      "default": "#5a6470",
+      "dark": "#9aa6b2"
+    },
+    {
+      "key": "link_color",
+      "labelKey": "themeSetting.linkColor",
+      "kind": "colour",
+      "default": "#1a5d8f",
+      "dark": "#1a5d8f"
+    },
+    {
+      "key": "heading_font",
+      "labelKey": "themeSetting.headingFont",
+      "kind": "font",
+      "choices": [
+        "system-sans",
+        "system-serif",
+        "humanist",
+        "geometric",
+        "transitional-serif",
+        "mono"
+      ],
+      "default": "system-serif"
+    },
+    {
+      "key": "body_font",
+      "labelKey": "themeSetting.bodyFont",
+      "kind": "font",
+      "choices": [
+        "system-sans",
+        "system-serif",
+        "humanist",
+        "geometric",
+        "transitional-serif",
+        "mono"
+      ],
+      "default": "system-sans"
+    },
+    {
+      "key": "base_font_size",
+      "labelKey": "themeSetting.baseFontSize",
+      "kind": "number",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16
+    },
+    {
+      "key": "type_ratio",
+      "labelKey": "themeSetting.typeRatio",
+      "kind": "number",
+      "min": 110,
+      "max": 160,
+      "step": 5,
+      "default": 125
+    },
+    {
+      "key": "density",
+      "labelKey": "themeSetting.density",
+      "kind": "choice",
+      "choices": [
+        "compact",
+        "comfortable",
+        "spacious"
+      ],
+      "default": "comfortable"
+    },
+    {
+      "key": "corner_radius",
+      "labelKey": "themeSetting.cornerRadius",
+      "kind": "number",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "key": "header_layout",
+      "labelKey": "themeSetting.headerLayout",
+      "kind": "choice",
+      "choices": [
+        "logo-left",
+        "centred"
+      ],
+      "default": "logo-left"
+    },
+    {
+      "key": "logo",
+      "labelKey": "themeSetting.logo",
+      "kind": "asset",
+      "default": null
+    },
+    {
+      "key": "banner",
+      "labelKey": "themeSetting.banner",
+      "kind": "asset",
+      "default": null
+    },
+    {
+      "key": "banner_text",
+      "labelKey": "themeSetting.bannerText",
+      "kind": "text",
+      "default": null
+    },
+    {
+      "key": "footer_text",
+      "labelKey": "themeSetting.footerText",
+      "kind": "html",
+      "default": null
+    }
+  ]
+}

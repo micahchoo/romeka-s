@@ -12,6 +12,10 @@
 /// The bundled theme's stylesheet.
 pub const STYLE_CSS: &str = include_str!("style.css");
 
+/// The placeholder a resource without a thumbnail shows
+/// (`application/asset/img/default.png` upstream).
+pub const PLACEHOLDER_SVG: &str = include_str!("placeholder.svg");
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -452,6 +456,42 @@ mod tests {
             }
         }
         assert!(missing.is_empty(), "classes with no rule: {missing:?}");
+    }
+
+    /// The sheet names no colour of its own. Colours arrive only as the custom
+    /// properties the frame emits from the site's tokens, so a hard-coded value
+    /// here would ignore the Theme page.
+    #[test]
+    fn style_css_has_no_hard_coded_colour() {
+        let bytes = STYLE_CSS.as_bytes();
+        for (index, byte) in bytes.iter().enumerate() {
+            if *byte != b'#' {
+                continue;
+            }
+            let hex: String = STYLE_CSS[index + 1..]
+                .chars()
+                .take_while(char::is_ascii_hexdigit)
+                .take(6)
+                .collect();
+            assert!(
+                hex.len() < 3,
+                "a hex colour `#{hex}` at byte {index}; colours live in the tokens"
+            );
+        }
+        let lower = STYLE_CSS.to_ascii_lowercase();
+        for functional in ["rgb(", "rgba(", "hsl(", "hsla("] {
+            assert!(!lower.contains(functional), "{functional} in the sheet");
+        }
+        // The design values do come from properties.
+        for property in [
+            "var(--color-text)",
+            "var(--font-body)",
+            "var(--font-size-base)",
+            "var(--space-3)",
+            "var(--radius)",
+        ] {
+            assert!(STYLE_CSS.contains(property), "{property} missing");
+        }
     }
 
     /// The sheet's rules are balanced, no rule is empty, and every rule

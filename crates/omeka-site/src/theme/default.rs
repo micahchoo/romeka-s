@@ -48,24 +48,31 @@ use crate::nav::{find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::search;
-use crate::theme::style::STYLE_CSS;
+use crate::theme::style::{PLACEHOLDER_SVG, STYLE_CSS};
 use crate::theme::{AssetKind, Theme, ThemeAsset, ThemeInfo};
 use crate::view::{
     BrowseView, ErrorView, IiifViewerView, RenderContext, ResourceView, Thumbnail, View,
 };
 use omeka_core::resource::ResourceKind;
 
-/// The bundled theme's manifest: the id `site.theme` stores, the settings it
-/// reads, and the one file it ships.
+/// The bundled theme's manifest: the id `site.theme` stores, the design tokens
+/// it reads, and the files it ships.
 pub static DEFAULT_INFO: ThemeInfo = ThemeInfo {
     name: "default",
     label: "Default",
-    settings: &[],
-    assets: &[ThemeAsset {
-        path: "css/style.css",
-        kind: AssetKind::Stylesheet,
-        content: STYLE_CSS,
-    }],
+    settings: crate::theme::tokens::SETTINGS,
+    assets: &[
+        ThemeAsset {
+            path: "css/style.css",
+            kind: AssetKind::Stylesheet,
+            content: STYLE_CSS,
+        },
+        ThemeAsset {
+            path: "img/placeholder.svg",
+            kind: AssetKind::Image,
+            content: PLACEHOLDER_SVG,
+        },
+    ],
 };
 
 /// The bundled theme.
@@ -217,7 +224,7 @@ fn layout_with_head(
     let nav_menu =
         crate::nav::render_menu_with_id(&ctx.nav, None, "navigation", Some("top-nav-contents"));
     let mut theme_assets = String::new();
-    for asset in info.assets {
+    for asset in info.assets.iter().filter(|asset| asset.kind.is_head()) {
         theme_assets.push_str(
             &asset
                 .kind
@@ -225,6 +232,14 @@ fn layout_with_head(
         );
         theme_assets.push('\n');
     }
+    // The design tokens as custom properties, one `<style>` in the head. Every
+    // value is validated at the storage boundary, so nothing a curator stored
+    // reaches the sheet as CSS.
+    let tokens = ctx.theme_settings.css();
+    let header = ctx.theme_settings.header_layout.class();
+    let logo = logo_markup(ctx);
+    let banner = banner_markup(ctx);
+    let footer_text = footer_text(ctx);
     // `Module.php:188-203` prepends the favicon to `headLink` on `view.layout`.
     let favicon = match &ctx.favicon_url {
         Some(url) => format!("<link rel=\"icon\" href=\"{}\">\n", escape_html(url)),
@@ -250,23 +265,30 @@ fn layout_with_head(
          <title>{title}</title>\n\
          {robots}\
          {favicon}\
+         <style>\n{tokens}</style>\n\
          {theme_assets}\
          {head_extra}\
          </head>\n\
          <body class=\"minimal {body}\">\n\
          <a id=\"skipnav\" href=\"#content\">{skip}</a>\n\
          {user_bar}\
-         <header>\n\
-         {site_title}\n\
+         {banner}\
+         <header class=\"{header}\">\n\
+         {logo}{site_title}\n\
          <nav id=\"top-nav\">\n{nav_menu}\n</nav>\n\
          <div id=\"search\">{search_form}</div>\n\
          </header>\n\
          <div id=\"content\" role=\"main\">\n\
          {content}\n</div>\n\
-         <footer>\n<span class=\"powered-by\">{powered_by}</span>\n</footer>\n\
+         <footer>\n{footer_text}<span class=\"powered-by\">{powered_by}</span>\n</footer>\n\
          </body>\n</html>",
         lang = tr.locale().tag(),
         body = escape_html(body_class),
+        header = header,
+        logo = logo,
+        banner = banner,
+        footer_text = footer_text,
+        tokens = tokens,
         site_title = site_title,
         nav_menu = nav_menu,
         skip = escape_html(tr.messages().skip_to_main),
@@ -276,6 +298,66 @@ fn layout_with_head(
         search_form = search::search_form(ctx, tr.search_labels()),
         powered_by = escape_html(tr.messages().powered_by),
     )
+}
+
+/// The logo the header links home, when the site's token names an asset the
+/// caller can resolve. A missing or unreadable asset renders no logo rather
+/// than a broken image.
+fn logo_markup(ctx: &RenderContext<'_>) -> String {
+    let Some(url) = ctx
+        .theme_settings
+        .logo
+        .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .and_then(|asset| asset.url)
+    else {
+        return String::new();
+    };
+    format!(
+        "<a class=\"site-logo\" href=\"{}\"><img src=\"{}\" alt=\"{}\"></a>\n",
+        escape_html(&site_url(&ctx.site.slug)),
+        escape_html(&url),
+        escape_html(&ctx.site.title)
+    )
+}
+
+/// The site-wide banner: the stored image, the stored text, or both.
+fn banner_markup(ctx: &RenderContext<'_>) -> String {
+    let image = ctx
+        .theme_settings
+        .banner
+        .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .and_then(|asset| asset.url);
+    let text = ctx.theme_settings.banner_text.as_deref();
+    if image.is_none() && text.is_none() {
+        return String::new();
+    }
+    let mut out = String::from("<div class=\"site-banner\">");
+    if let Some(url) = image {
+        out.push_str(&format!(
+            "<img class=\"site-banner-image\" src=\"{}\" alt=\"\">",
+            escape_html(&url)
+        ));
+    }
+    if let Some(text) = text {
+        out.push_str(&format!(
+            "<p class=\"site-banner-text\">{}</p>",
+            escape_html(text)
+        ));
+    }
+    out.push_str("</div>\n");
+    out
+}
+
+/// The footer's HTML, purified at render the way an `html` block is, so a row
+/// stored before the write path purified it still cannot execute.
+fn footer_text(ctx: &RenderContext<'_>) -> String {
+    match ctx.theme_settings.footer_text.as_deref() {
+        Some(html) => format!(
+            "<div class=\"footer-text\">{}</div>\n",
+            omeka_core::purify::purify(html)
+        ),
+        None => String::new(),
+    }
 }
 
 /// `common/user-bar.phtml`: the admin bar a signed-in caller sees, or a login
@@ -505,7 +587,7 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
     out.push_str("</div>");
     out.push_str("<ul class=\"resource-list\">");
     for resource in &browse.resources {
-        out.push_str(&render_resource(browse.kind, resource));
+        out.push_str(&render_resource(browse.kind, resource, ctx));
     }
     out.push_str("</ul>");
     out.push_str(&pagination(
@@ -519,7 +601,10 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
 }
 
 /// One `li` of a browse list (`view/omeka/site/item/browse.phtml`).
-fn render_resource(kind: ResourceKind, resource: &ResourceView) -> String {
+///
+/// A resource without a thumbnail shows the theme's placeholder, the way
+/// upstream's `thumbnail` helper falls back to `default.png`.
+fn render_resource(kind: ResourceKind, resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let thumbnail = resource
         .thumbnail
         .clone()
@@ -530,7 +615,12 @@ fn render_resource(kind: ResourceKind, resource: &ResourceView) -> String {
                 escape_html(&alt)
             )
         })
-        .unwrap_or_default();
+        .unwrap_or_else(|| {
+            format!(
+                "<img src=\"{}/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">",
+                ctx.asset_base.trim_end_matches('/')
+            )
+        });
     let mut out = format!(
         "<li class=\"{} resource\">",
         escape_html(controller_for(kind))

@@ -137,7 +137,12 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("<ul class=\"resource-list preview\">");
     for resource in &page.resources {
-        out.push_str(&render_resource(resource, kind, &components));
+        out.push_str(&render_resource(
+            resource,
+            kind,
+            &components,
+            ctx.asset_base.trim_end_matches('/'),
+        ));
     }
     out.push_str("</ul>");
     if let Some(link_text) = data.link_text.as_deref().filter(|text| !text.is_empty()) {
@@ -152,18 +157,30 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     out
 }
 
-fn render_resource(resource: &ResourceView, kind: ResourceKind, components: &[String]) -> String {
+fn render_resource(
+    resource: &ResourceView,
+    kind: ResourceKind,
+    components: &[String],
+    asset_base: &str,
+) -> String {
     let show_thumbnail = components.iter().any(|c| c == "thumbnail");
     let show_heading = components.iter().any(|c| c == "resource-heading");
     let show_body = components.iter().any(|c| c == "resource-body");
 
     let mut content = String::new();
-    if show_thumbnail && let Some(thumbnail) = &resource.thumbnail {
-        content.push_str(&format!(
-            "<img src=\"{}\" alt=\"{}\">",
-            escape_html(&thumbnail.url),
-            escape_html(&thumbnail.alt)
-        ));
+    if show_thumbnail {
+        // Upstream's `thumbnail` helper falls back to `default.png`; the port
+        // falls back to the theme's placeholder asset.
+        content.push_str(&match &resource.thumbnail {
+            Some(thumbnail) => format!(
+                "<img src=\"{}\" alt=\"{}\">",
+                escape_html(&thumbnail.url),
+                escape_html(&thumbnail.alt)
+            ),
+            None => format!(
+                "<img src=\"{asset_base}/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">"
+            ),
+        });
     }
     if show_heading {
         content.push_str(&format!(
