@@ -5,11 +5,12 @@
 //! `ApiController::contextAction` builds the context document.
 
 use omeka_db::ids::{PageId, SiteId, UserId};
-use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo};
+use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci};
 use omeka_db::rows::{SiteBlockRow, SitePageRow, SiteRow, UserRow};
 
-use super::params::{Sort, SortField, Window, ordered_page, sorted_page};
-use super::query::{fulltext_matches, relevance_page};
+use super::paging::{Limit, Window, ordered_page, sorted_page};
+use super::params::{Sort, SortField};
+use super::query::{fulltext_matches, id_filter, id_matches, relevance_page};
 use super::response::link_header;
 use super::{Api, db_error, iso8601, not_found, parse_id, resource_ref, resource_ref_opt, system};
 use crate::errors::ApiError;
@@ -24,6 +25,7 @@ use crate::wire::{JsonLdType, NavLink};
 
 pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = UserFilter {
         email: params.get("email").map(str::to_string),
@@ -32,6 +34,7 @@ pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         is_active: params.bool("is_active"),
         site_id: params.id("site_id"),
     };
+    let ids = id_filter(params);
     let rows = UserRepo::new(api.pool())
         .list(&filter, &Paging::default())
         .await
@@ -39,11 +42,17 @@ pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     let needle = search_needle(params);
     let rows: Vec<UserRow> = rows
         .into_iter()
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| {
             matches(&row.name, needle.as_deref()) || matches(&row.email, needle.as_deref())
         })
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_user(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_user(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| user_doc(api.base(), row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -98,6 +107,7 @@ fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
 
 pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = SiteFilter {
         owner_id: params.id("owner_id"),
@@ -105,6 +115,7 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         exclude_id: params.id("exclude_id"),
         assign_new_items: params.bool("assign_new_items"),
     };
+    let ids = id_filter(params);
     let rows = SiteRepo::new(api.pool())
         .list(&filter, &Paging::default())
         .await
@@ -113,9 +124,10 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     let rows: Vec<SiteRow> = rows
         .into_iter()
         .filter(|row| api.sees(row.is_public, row.owner_id))
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| matches(&row.title, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_site(sort));
+    let (total, page) = sorted_page(rows, &sort, &limit, cmp_site(sort));
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(site_doc(api, row).await?);
@@ -307,17 +319,19 @@ pub fn api_root(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     Ok(ApiResponse::document(serialize(&documents)?))
 }
 
-/// `GET /api/api_resources`: the same listing, paginated like any collection.
+/// `GET /api/api_resources` (`ApiResourceAdapter::search`).
+///
+/// Upstream builds the listing in adapter-registration order and ignores the
+/// query, and its plain `Response` reports no total, so the answer carries no
+/// `Omeka-S-Total-Results` and no page window. The port sorts by name, which is
+/// what `GET /api` does for the same listing.
 pub fn search_api_resources(api: &Api<'_>, params: &Params) -> ApiResponse {
     let window = Window::from_params(params);
-    let sort = Sort::from_params(params);
     let rows = api_resource_docs(api);
-    let (total, page) = sorted_page(rows, &sort, &window, |a, b| a.o_id.cmp(&b.o_id));
-    let body = serialize(&page).unwrap_or_else(|_| "[]".to_string());
-    ApiResponse::listing(
+    let body = serialize(&rows).unwrap_or_else(|_| "[]".to_string());
+    ApiResponse::collection(
         body,
-        total,
-        link_header(api.base(), "api_resources", params, &window, total),
+        link_header(api.base(), "api_resources", params, &window, 0),
     )
 }
 
@@ -371,20 +385,19 @@ const DATA_TYPE_CLASS: &str = "Omeka\\Api\\Resource";
 
 /// `GET /api/data_types` (`DataTypeAdapter::search`).
 ///
-/// Upstream ignores the sort parameters and returns the registration order, so
-/// the comparator is always `Equal` and the sort is stable.
+/// Upstream returns the registered data types in registration order and ignores
+/// the query, and its plain `Response` reports no total, so the answer carries
+/// no `Omeka-S-Total-Results` and no page window.
 pub fn search_data_types(api: &Api<'_>, params: &Params) -> ApiResponse {
     let window = Window::from_params(params);
     let rows: Vec<crate::wire::data_type::DataType> = DATA_TYPES
         .iter()
         .map(|(name, label)| data_type_doc(api, name, label))
         .collect();
-    let (total, page) = ordered_page(rows, false, &window, |_, _| std::cmp::Ordering::Equal);
-    let body = serialize(&page).unwrap_or_else(|_| "[]".to_string());
-    ApiResponse::listing(
+    let body = serialize(&rows).unwrap_or_else(|_| "[]".to_string());
+    ApiResponse::collection(
         body,
-        total,
-        link_header(api.base(), "data_types", params, &window, total),
+        link_header(api.base(), "data_types", params, &window, 0),
     )
 }
 
@@ -422,7 +435,9 @@ fn data_type_doc(api: &Api<'_>, name: &str, label: &str) -> crate::wire::data_ty
 /// walks, so it is ignored; reported as a gap.
 pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let rows = system::page_rows(api.pool()).await?;
+    let ids = id_filter(params);
     let site_id = match (params.id::<SiteId>("site_id"), params.get("site_slug")) {
         (Some(id), _) => Some(id),
         (None, Some(slug)) => SiteRepo::new(api.pool())
@@ -445,6 +460,7 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
     let rows: Vec<SitePageRow> = rows
         .into_iter()
         .filter(|row| !unknown_site && site_id.is_none_or(|id| row.site_id == id))
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| params.get("slug").is_none_or(|slug| row.slug == slug))
         .filter(|row| {
             params
@@ -466,14 +482,14 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
         (Some(hits), true) => relevance_page(
             rows,
             Sort::from_params(params).descending,
-            &window,
+            &limit,
             |row| row.id.0,
             |row| hits.get(&row.id.0).copied().unwrap_or(0.0),
         ),
         _ => ordered_page(
             rows,
             Sort::from_params(params).descending,
-            &window,
+            &limit,
             cmp_site_page(sort_by),
         ),
     };
@@ -493,10 +509,10 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
 /// `AbstractEntityAdapter::search` appends.
 fn cmp_site_page(field: &str) -> impl Fn(&SitePageRow, &SitePageRow) -> std::cmp::Ordering + '_ {
     move |a, b| match field {
-        "title" => a.title.cmp(&b.title).then(a.id.cmp(&b.id)),
+        "title" => compare_text_ci(&a.title, &b.title).then(a.id.cmp(&b.id)),
         "created" => a.created.cmp(&b.created).then(a.id.cmp(&b.id)),
         "modified" => a.modified.cmp(&b.modified).then(a.id.cmp(&b.id)),
-        "slug" => a.slug.cmp(&b.slug).then(a.id.cmp(&b.id)),
+        "slug" => compare_text_ci(&a.slug, &b.slug).then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),
     }
 }
@@ -528,16 +544,19 @@ fn matches(text: &str, needle: Option<&str>) -> bool {
     }
 }
 
-fn cmp_user(sort: Sort) -> impl Fn(&UserRow, &UserRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.name.cmp(&b.name),
+/// `UserAdapter::$sortFields`, whose text field is not a shared [`SortField`]
+/// name: `name` orders by name. `ordered_page`'s stable sort keeps the `id`
+/// tiebreak `AbstractEntityAdapter::search` appends.
+fn cmp_user(field: &str) -> impl Fn(&UserRow, &UserRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "name" => compare_text_ci(&a.name, &b.name),
         _ => a.id.cmp(&b.id),
     }
 }
 
 fn cmp_site(sort: Sort) -> impl Fn(&SiteRow, &SiteRow) -> std::cmp::Ordering {
     move |a, b| match sort.field {
-        SortField::Title => a.title.cmp(&b.title),
+        SortField::Title => compare_text_ci(&a.title, &b.title),
         SortField::Created => a.created.cmp(&b.created),
         SortField::Modified => a.modified.cmp(&b.modified),
         SortField::IsPublic => a.is_public.cmp(&b.is_public),

@@ -306,7 +306,14 @@ async fn deleting_a_vocabulary_removes_its_members() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.body, created.body, "delete and create differ");
+    let detached = deleted.json();
+    assert!(
+        detached["o:id"].is_null(),
+        "the detached vocabulary kept its id: {}",
+        deleted.body
+    );
+    assert_eq!(detached["@id"], "http://localhost/api/vocabularies");
+    assert_eq!(detached["o:label"], created.json()["o:label"]);
 
     let read = send(app, get(&format!("/api/vocabularies/{id}"), false)).await;
     assert_eq!(read.status, StatusCode::NOT_FOUND);
@@ -378,7 +385,14 @@ async fn create_update_and_delete_a_resource_class() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.body, updated.body, "delete and update differ");
+    let detached = deleted.json();
+    assert!(
+        detached["o:id"].is_null(),
+        "the detached class kept its id: {}",
+        deleted.body
+    );
+    assert_eq!(detached["@id"], "http://localhost/api/resource_classes");
+    assert_eq!(detached["o:term"], updated.json()["o:term"]);
     let read = send(app, get(&format!("/api/resource_classes/{id}"), false)).await;
     assert_eq!(read.status, StatusCode::NOT_FOUND);
 }
@@ -485,7 +499,14 @@ async fn create_update_and_delete_a_resource_template() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.body, updated.body, "delete and update differ");
+    let detached = deleted.json();
+    assert!(
+        detached["o:id"].is_null(),
+        "the detached template kept its id: {}",
+        deleted.body
+    );
+    assert_eq!(detached["@id"], "http://localhost/api/resource_templates");
+    assert_eq!(detached["o:label"], updated.json()["o:label"]);
     let read = send(app, get(&format!("/api/resource_templates/{id}"), false)).await;
     assert_eq!(read.status, StatusCode::NOT_FOUND);
 }

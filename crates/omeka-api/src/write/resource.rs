@@ -11,7 +11,7 @@
 //! A referenced id that does not exist is a 404, because upstream `findEntity`
 //! throws `NotFoundException` before the row is written.
 
-use omeka_db::ids::{AssetId, ClassId, TemplateId, UserId};
+use omeka_db::ids::{AssetId, ClassId, ResourceId, TemplateId, UserId};
 use omeka_db::repos::{ClassRepo, TemplateRepo, UserRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
 use serde_json::json;
@@ -26,6 +26,24 @@ use crate::write::values::{self, ValueInput};
 pub struct Hydrated {
     pub resource: NewResource,
     pub values: Vec<ValueInput>,
+    /// `ValueHydrator` line 162: a partial update whose body named no valid
+    /// value leaves every stored value alone. A create, a full update, and a
+    /// partial update that named one all replace the stored set.
+    pub keep_stored_values: bool,
+}
+
+/// Write the values one hydration produced, unless the write keeps the stored
+/// set (`ValueHydrator` line 162).
+pub async fn store_values(
+    api: &Api<'_>,
+    resource: ResourceId,
+    values: &[ValueInput],
+    keep_stored_values: bool,
+) -> Result<(), ApiError> {
+    if keep_stored_values {
+        return Ok(());
+    }
+    values::store(api, resource, values).await
 }
 
 /// Hydrate the shared resource columns.
@@ -39,7 +57,20 @@ pub async fn hydrate(
     existing: Option<&ResourceRow>,
     partial: bool,
 ) -> Result<Hydrated, ApiError> {
-    let values = values::collect(api, payload, control)?;
+    hydrate_at(api, payload, control, existing, partial, 0).await
+}
+
+/// `hydrate` with the annotation nesting depth the caller is at.
+pub(crate) async fn hydrate_at(
+    api: &Api<'_>,
+    payload: &Payload,
+    control: &[&str],
+    existing: Option<&ResourceRow>,
+    partial: bool,
+    depth: u8,
+) -> Result<Hydrated, ApiError> {
+    let values = values::collect_at(api, payload, control, depth).await?;
+    let keep_stored_values = partial && values.is_empty();
 
     let is_public = match (partial, payload.get("o:is_public")) {
         (true, None) => existing.map(|row| row.is_public).unwrap_or(true),
@@ -77,6 +108,7 @@ pub async fn hydrate(
             created: existing.map(|row| row.created),
         },
         values,
+        keep_stored_values,
     })
 }
 

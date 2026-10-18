@@ -27,6 +27,7 @@ use crate::write::body::Payload;
 use crate::write::resource::not_found as ref_not_found;
 
 const SITE_CLASS: &str = "Omeka\\Entity\\Site";
+const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
 
 const CONTROL: &[&str] = &[
     "o:theme",
@@ -48,7 +49,7 @@ const CONTROL: &[&str] = &[
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
     // A site body carries no property terms; a term key is an unknown member.
-    crate::write::values::collect(api, payload, CONTROL)?;
+    crate::write::values::collect(api, payload, CONTROL).await?;
     let title = payload
         .str_member("o:title")
         .unwrap_or("")
@@ -74,6 +75,11 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .map(crate::write::body::php_json)
         .unwrap_or_else(default_navigation);
     let owner = owner(api, payload).await?;
+    // Resolve every reference the body names before the first insert, so a
+    // failure leaves nothing (`SiteAdapter::hydrate` runs before the flush).
+    let permissions = permissions(api, payload).await?;
+    let item_sets = site_item_sets(api, payload, false).await?;
+    named_pages(api, payload).await?;
     let row = SiteRepo::new(api.pool())
         .create(&NewSite {
             owner_id: owner,
@@ -101,8 +107,8 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     // Upstream hydrates the membership members on create as well as update
     // (`SiteAdapter::hydrate`): a create body that names permissions replaces
     // the caller's grant.
-    hydrate_permissions(api, row.id, payload).await?;
-    hydrate_item_sets(api, row.id, payload, false).await?;
+    apply_permissions(api, row.id, permissions.as_deref()).await?;
+    apply_item_sets(api, row.id, item_sets.as_deref()).await?;
     hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
     welcome_page(api, row.id).await?;
     api.read_member("sites", &row.id.0.to_string()).await
@@ -114,13 +120,23 @@ pub async fn update(
     payload: &Payload,
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
-    crate::write::values::collect(api, payload, CONTROL)?;
+    crate::write::values::collect(api, payload, CONTROL).await?;
     let id = parse_id(SITE_CLASS, raw_id)?;
     let repo = SiteRepo::new(api.pool());
     let Some(mut row) = repo.get(SiteId(id)).await.map_err(db_error)? else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
     api.authorize_site_update(row.owner_id)?;
+    // Resolve every reference the body names before the first write, so a
+    // failure leaves the stored row unchanged (`SiteAdapter::hydrate` runs
+    // before the flush).
+    let permissions = permissions(api, payload).await?;
+    let item_sets = site_item_sets(api, payload, partial).await?;
+    let pages = if !partial || payload.has("o:page") {
+        Some(named_pages(api, payload).await?)
+    } else {
+        None
+    };
     // A full `PUT` resets every member `shouldHydrate` covers; a `PATCH` keeps
     // the members it omits.
     if !partial || payload.has("o:title") {
@@ -166,8 +182,11 @@ pub async fn update(
     }
     validate(api, Some(&row), &row.title, &row.theme, &row.slug).await?;
     repo.update(&row).await.map_err(db_error)?;
-    hydrate_permissions(api, row.id, payload).await?;
-    hydrate_item_sets(api, row.id, payload, partial).await?;
+    apply_permissions(api, row.id, permissions.as_deref()).await?;
+    apply_item_sets(api, row.id, item_sets.as_deref()).await?;
+    if let Some(pages) = pages {
+        retain_pages(api, row.id, &pages).await?;
+    }
     hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
     api.read_member("sites", raw_id).await
 }
@@ -208,23 +227,21 @@ async fn owner(api: &Api<'_>, payload: &Payload) -> Result<Option<UserId>, ApiEr
     Ok(Some(id))
 }
 
-/// `SiteAdapter::hydrate` for `o:site_permission`.
+/// `SiteAdapter::hydrate` for `o:site_permission`, the resolve half.
 ///
 /// Upstream acts only when the member is present and is an array, even on a
-/// full `PUT` where every other member resets. Each entry with a
-/// `o:user.o:id` and an `o:role` upserts that user's role; a permission the
-/// body does not retain is removed. An unknown user is a 404, as upstream's
-/// `findEntity` throws.
-async fn hydrate_permissions(
+/// full `PUT` where every other member resets, so `None` means "leave the
+/// stored permissions alone" and `Some` carries the entries the body retains.
+/// Each entry with a `o:user.o:id` and an `o:role` names that user's role; an
+/// unknown user is a 404, as upstream's `findEntity` throws.
+async fn permissions(
     api: &Api<'_>,
-    site: SiteId,
     payload: &Payload,
-) -> Result<(), ApiError> {
+) -> Result<Option<Vec<(UserId, String)>>, ApiError> {
     let Some(entries) = payload.get("o:site_permission").and_then(Value::as_array) else {
-        return Ok(());
+        return Ok(None);
     };
-    let repo = SiteRepo::new(api.pool());
-    let mut retained: Vec<UserId> = Vec::with_capacity(entries.len());
+    let mut wanted = Vec::with_capacity(entries.len());
     for entry in entries {
         let Some(user_id) = entry
             .get("o:user")
@@ -245,10 +262,28 @@ async fn hydrate_permissions(
         {
             return Err(ref_not_found("Omeka\\Entity\\User", user_id));
         }
-        repo.set_permission(site, user, role)
+        wanted.push((user, role.to_string()));
+    }
+    Ok(Some(wanted))
+}
+
+/// `SiteAdapter::hydrate` for `o:site_permission`, the write half: upsert each
+/// retained entry and remove every permission the body does not retain.
+async fn apply_permissions(
+    api: &Api<'_>,
+    site: SiteId,
+    wanted: Option<&[(UserId, String)]>,
+) -> Result<(), ApiError> {
+    let Some(wanted) = wanted else {
+        return Ok(());
+    };
+    let repo = SiteRepo::new(api.pool());
+    let mut retained: Vec<UserId> = Vec::with_capacity(wanted.len());
+    for (user, role) in wanted {
+        repo.set_permission(site, *user, role)
             .await
             .map_err(db_error)?;
-        retained.push(user);
+        retained.push(*user);
     }
     for permission in repo.list_permissions(site).await.map_err(db_error)? {
         if !retained.contains(&permission.user_id) {
@@ -260,29 +295,25 @@ async fn hydrate_permissions(
     Ok(())
 }
 
-/// `SiteAdapter::hydrate` for `o:site_item_set`.
+/// `SiteAdapter::hydrate` for `o:site_item_set`, the resolve half.
 ///
-/// The body's order is the stored position, so the first entry gets position 1.
 /// A full `PUT` that omits the member clears every attachment (upstream
-/// defaults the value to `[]`); a `PATCH` leaves them. An unknown item set is a
-/// 404.
-async fn hydrate_item_sets(
+/// defaults the value to `[]`); a `PATCH` that omits it leaves them, which is
+/// `None` here. An unknown item set is a 404.
+async fn site_item_sets(
     api: &Api<'_>,
-    site: SiteId,
     payload: &Payload,
     partial: bool,
-) -> Result<(), ApiError> {
+) -> Result<Option<Vec<ItemSetId>>, ApiError> {
     if partial && !payload.has("o:site_item_set") {
-        return Ok(());
+        return Ok(None);
     }
     let empty = Vec::new();
     let entries = payload
         .get("o:site_item_set")
         .and_then(Value::as_array)
         .unwrap_or(&empty);
-    let repo = SiteRepo::new(api.pool());
-    let mut retained: Vec<ItemSetId> = Vec::with_capacity(entries.len());
-    let mut position = 1_i64;
+    let mut wanted = Vec::with_capacity(entries.len());
     for entry in entries {
         let Some(item_set_id) = entry
             .get("o:item_set")
@@ -300,17 +331,71 @@ async fn hydrate_item_sets(
         {
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", item_set_id));
         }
-        repo.add_item_set(site, item_set, Some(position))
+        wanted.push(item_set);
+    }
+    Ok(Some(wanted))
+}
+
+/// `SiteAdapter::hydrate` for `o:site_item_set`, the write half: the body's
+/// order is the stored position, so the first entry gets position 1, and an
+/// attachment the body does not name is removed. `None` leaves them all.
+async fn apply_item_sets(
+    api: &Api<'_>,
+    site: SiteId,
+    wanted: Option<&[ItemSetId]>,
+) -> Result<(), ApiError> {
+    let Some(wanted) = wanted else {
+        return Ok(());
+    };
+    let repo = SiteRepo::new(api.pool());
+    for (index, item_set) in wanted.iter().enumerate() {
+        repo.add_item_set(site, *item_set, Some(index as i64 + 1))
             .await
             .map_err(db_error)?;
-        retained.push(item_set);
-        position += 1;
     }
     for attached in repo.list_item_sets(site).await.map_err(db_error)? {
-        if !retained.contains(&attached.item_set_id) {
+        if !wanted.contains(&attached.item_set_id) {
             repo.remove_item_set(site, attached.item_set_id)
                 .await
                 .map_err(db_error)?;
+        }
+    }
+    Ok(())
+}
+
+/// `SiteAdapter::hydrate` for `o:page`, the resolve half: the pages the body
+/// names by `o:id`. An unknown page is the 404 `findEntity` throws.
+async fn named_pages(api: &Api<'_>, payload: &Payload) -> Result<Vec<PageId>, ApiError> {
+    let mut wanted = Vec::new();
+    for entry in payload.entries("o:page") {
+        let Some(value) = entry.get("o:id") else {
+            continue;
+        };
+        let Some(raw) = value.as_u64() else {
+            return Err(not_found(PAGE_CLASS, &value.to_string()));
+        };
+        let page = PageId(raw);
+        if SiteRepo::new(api.pool())
+            .get_page(page)
+            .await
+            .map_err(db_error)?
+            .is_none()
+        {
+            return Err(ref_not_found(PAGE_CLASS, raw));
+        }
+        wanted.push(page);
+    }
+    Ok(wanted)
+}
+
+/// `SiteAdapter::hydrate` for `o:page`, the write half: a full `PUT` (or a
+/// `PATCH` that carries the member) removes every page the body does not name.
+/// Upstream adds nothing here; on create the welcome page is the only one.
+async fn retain_pages(api: &Api<'_>, site: SiteId, wanted: &[PageId]) -> Result<(), ApiError> {
+    let repo = SiteRepo::new(api.pool());
+    for page in repo.list_pages(site).await.map_err(db_error)? {
+        if !wanted.contains(&page.id) {
+            repo.delete_page(page.id).await.map_err(db_error)?;
         }
     }
     Ok(())

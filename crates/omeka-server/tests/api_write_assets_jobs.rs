@@ -99,7 +99,14 @@ async fn deleting_an_asset_removes_the_stored_file() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.body, before.body, "delete and read differ");
+    let asset = deleted.json();
+    assert!(
+        asset["o:id"].is_null(),
+        "the detached asset kept its id: {}",
+        deleted.body
+    );
+    assert_eq!(asset["@id"], "http://localhost/api/assets");
+    assert_eq!(asset["o:name"], before.json()["o:name"]);
     assert!(!store.exists(&path), "the asset file survived at {path}");
 }
 

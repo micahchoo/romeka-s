@@ -162,15 +162,33 @@ impl Params {
     /// PHP `parse_str` turns all three into an array; the scalar form arrives
     /// here as a repeated name because this parser keeps the raw pairs.
     pub fn list(&self, name: &str) -> Vec<String> {
-        let list_key = format!("{name}[]");
         let mut values = Vec::new();
         for (key, value) in self.decoded_pairs() {
-            let bracketed =
-                single_index(&key, name).is_some() || bracket_index(&key, name).is_some();
-            if key == name || key == list_key || bracketed {
+            if is_list_member(&key, name) {
                 values.push(value);
             }
         }
+        values
+    }
+
+    /// The `id` parameter's values as PHP `parse_str` builds them, with the
+    /// scalar comma form split the way `AbstractEntityAdapter::buildBaseQuery`
+    /// splits it.
+    ///
+    /// A bare `id=1,2` is one string that splits on commas. `id[]=1,2` is an
+    /// array whose single element is the string `1,2`, and does not split. Every
+    /// value is trimmed and an empty one dropped, which is the `array_filter` on
+    /// `strlen` that guard ends with.
+    pub fn id_values(&self) -> Vec<String> {
+        let mut values = Vec::new();
+        for (key, value) in self.decoded_pairs() {
+            if key == "id" {
+                values.extend(value.split(',').map(|part| part.trim().to_string()));
+            } else if is_list_member(&key, "id") {
+                values.push(value.trim().to_string());
+            }
+        }
+        values.retain(|value| !value.is_empty());
         values
     }
 
@@ -186,6 +204,15 @@ impl Params {
     pub fn sort_order_is_default(&self) -> bool {
         self.sort_by_is_default() && matches!(self.get("sort_order"), None | Some(""))
     }
+}
+
+/// Whether `key` is one of the three forms PHP `parse_str` turns into an
+/// element of the array parameter `name`: `name`, `name[]` or `name[index]`.
+fn is_list_member(key: &str, name: &str) -> bool {
+    key == name
+        || key == format!("{name}[]")
+        || single_index(key, name).is_some()
+        || bracket_index(key, name).is_some()
 }
 
 /// The index of a `name[index]` key.
@@ -222,44 +249,6 @@ fn set_or_append(pairs: &mut Vec<(String, String)>, name: &str, value: &str) {
         *existing = value.to_string();
     } else {
         pairs.push((name.to_string(), value.to_string()));
-    }
-}
-
-/// The window one list request reads: `page` and `per_page` turned into a
-/// `LIMIT`/`OFFSET` pair.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Window {
-    pub page: i64,
-    pub per_page: i64,
-    pub offset: i64,
-}
-
-impl Window {
-    pub fn from_params(params: &Params) -> Self {
-        let page = params.int("page").unwrap_or(1).max(1);
-        let per_page = params.int("per_page").unwrap_or(DEFAULT_PER_PAGE).max(1);
-        Self {
-            page,
-            per_page,
-            // A page and per_page this large reach the arithmetic from the
-            // query string alone. Upstream `Paginator::getOffset` multiplies
-            // PHP ints, and PHP turns that overflow into a float instead of
-            // failing. Saturating keeps the same no-crash behaviour and leaves
-            // every pair whose product fits unchanged.
-            offset: per_page.saturating_mul(page - 1),
-        }
-    }
-
-    /// `Paginator::getPageCount`, `(int) ceil($totalCount / $perPage)`.
-    pub fn page_count(&self, total: i64) -> i64 {
-        if total <= 0 {
-            0
-        } else {
-            // Ceiling division over u64, where `div_ceil` is exact and the
-            // usual `(total + per_page - 1) / per_page` overflows for a total
-            // or a per_page near `i64::MAX`. Both values are positive here.
-            (total as u64).div_ceil(self.per_page as u64) as i64
-        }
     }
 }
 
@@ -306,86 +295,10 @@ impl Sort {
     }
 }
 
-/// Order `rows`, then slice the requested window out of them.
-///
-/// `cmp` is the `id`-ascending comparison; the field and direction from [`Sort`]
-/// are applied on top. `total` is the count before slicing, which is what
-/// `Omeka-S-Total-Results` carries.
-///
-/// This is the list endpoints' in-memory fallback. The handlers load every row
-/// the SQL filter matches, drop the rows the actor may not see, order the rest
-/// and slice the page. Moving the window into SQL needs a repository call that
-/// renders the same `WHERE` (the advanced-search rows plus the ACL visibility
-/// filter) with an `ORDER BY`, a `LIMIT`/`OFFSET` and a `COUNT` for the total;
-/// `omeka-db` has no such call and this wave does not own that crate. The cost
-/// grows with the item set rather than the page: the perf harness measured
-/// about 2.2 us per item in the set at 1000 items, against a page of 25.
-pub fn sorted_page<T>(
-    rows: Vec<T>,
-    sort: &Sort,
-    window: &Window,
-    cmp: impl Fn(&T, &T) -> std::cmp::Ordering,
-) -> (i64, Vec<T>) {
-    ordered_page(rows, sort.descending, window, cmp)
-}
-
-/// Order `rows` by `cmp`, then slice the requested window out of them.
-///
-/// The adapters whose sort fields are not the resource fields (`assets`,
-/// `jobs`) pick their comparator themselves, so they need the direction
-/// without a [`Sort`].
-pub fn ordered_page<T>(
-    mut rows: Vec<T>,
-    descending: bool,
-    window: &Window,
-    cmp: impl Fn(&T, &T) -> std::cmp::Ordering,
-) -> (i64, Vec<T>) {
-    rows.sort_by(&cmp);
-    if descending {
-        rows.reverse();
-    }
-    let total = rows.len() as i64;
-    let start = window.offset.max(0) as usize;
-    let page = rows
-        .into_iter()
-        .skip(start)
-        .take(window.per_page as usize)
-        .collect();
-    (total, page)
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
-
     use super::*;
-
-    #[test]
-    fn defaults_match_the_paginator() {
-        let params = Params::parse("");
-        let window = Window::from_params(&params);
-        assert_eq!(window.page, 1);
-        assert_eq!(window.per_page, DEFAULT_PER_PAGE);
-        assert_eq!(window.offset, 0);
-        let sort = Sort::from_params(&params);
-        assert_eq!(sort.field, SortField::Id);
-        assert!(!sort.descending);
-    }
-
-    #[test]
-    fn page_and_per_page_clamp_to_one() {
-        let window = Window::from_params(&Params::parse("page=0&per_page=-3"));
-        assert_eq!(window.page, 1);
-        assert_eq!(window.per_page, 1);
-        assert_eq!(window.offset, 0);
-    }
-
-    #[test]
-    fn offset_is_per_page_times_page_minus_one() {
-        let window = Window::from_params(&Params::parse("page=3&per_page=10"));
-        assert_eq!(window.offset, 20);
-        assert_eq!(window.page_count(25), 3);
-    }
 
     #[test]
     fn sort_order_only_accepts_desc() {
@@ -431,5 +344,27 @@ mod tests {
         assert!(!Params::parse("sort_by=title").sort_by_is_default());
         assert!(Params::parse("sort_by=").sort_order_is_default());
         assert!(!Params::parse("sort_by=title").sort_order_is_default());
+    }
+
+    #[test]
+    fn the_id_list_splits_the_scalar_comma_form_only() {
+        assert_eq!(
+            Params::parse("id=1,2").id_values(),
+            vec!["1".to_string(), "2".to_string()]
+        );
+        assert_eq!(
+            Params::parse("id[]=1,2").id_values(),
+            vec!["1,2".to_string()]
+        );
+        assert_eq!(
+            Params::parse("id[]=1&id[]=2").id_values(),
+            vec!["1".to_string(), "2".to_string()]
+        );
+        assert_eq!(
+            Params::parse("id[0]=1&id[1]=2").id_values(),
+            vec!["1".to_string(), "2".to_string()]
+        );
+        assert!(Params::parse("id[]=%20&other=1").id_values().is_empty());
+        assert!(Params::parse("other=1").id_values().is_empty());
     }
 }

@@ -214,10 +214,10 @@ List parameters (`GET /api/api_resources`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `page` | integer | `Window::from_params (paging.rs)` |
+| `per_page` | integer | `Window::from_params (paging.rs)` |
+| `sort_by` | string | `link_pairs (php.rs)` |
+| `sort_order` | string | `link_pairs (php.rs)` |
 
 Response members of `ApiResource` (`crates/omeka-api/src/wire/api_resource.rs`).
 
@@ -248,11 +248,13 @@ List parameters (`GET /api/assets`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | integer | `owner_matches (system.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `search_assets (system.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_assets (system.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -297,8 +299,10 @@ List parameters (`GET /api/data_types`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer | `Window::from_params (paging.rs)` |
+| `per_page` | integer | `Window::from_params (paging.rs)` |
+| `sort_by` | string | `link_pairs (php.rs)` |
+| `sort_order` | string | `link_pairs (php.rs)` |
 
 Response members of `DataType` (`crates/omeka-api/src/wire/data_type.rs`).
 
@@ -336,17 +340,19 @@ List parameters (`GET /api/item_sets`).
 | `is_open` | boolean | `search_item_sets (resources.rs)` |
 | `is_public` | boolean | `search_item_sets (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_item_sets (resources.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `search_item_sets (resources.rs)` |
 | `resource_class_id` | table id | `search_item_sets (resources.rs)` |
 | `resource_template_id` | table id | `search_item_sets (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -408,17 +414,19 @@ List parameters (`GET /api/items`).
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
 | `is_public` | boolean | `search_items (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_items (resources.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `search_items (resources.rs)` |
 | `resource_class_id` | table id | `search_items (resources.rs)` |
 | `resource_template_id` | table id | `search_items (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -481,10 +489,12 @@ List parameters (`GET /api/jobs`).
 | Parameter | Kind | Read by |
 | --- | --- | --- |
 | `class` | string | `class_matches (system.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `search_jobs (system.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_jobs (system.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `status` | string | `status_matches (system.rs)` |
 
 Request body members (`POST` and `PUT`).
@@ -535,19 +545,21 @@ List parameters (`GET /api/media`).
 | `is_public` | boolean | `search_media (resources.rs)` |
 | `item_id` | table id | `search_media (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `media_type` | string | `search_media (resources.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_media (resources.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `search_media (resources.rs)` |
 | `renderer` | string | `search_media (resources.rs)` |
 | `resource_class_id` | table id | `search_media (resources.rs)` |
 | `resource_template_id` | table id | `search_media (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -623,8 +635,10 @@ List parameters (`GET /api/modules`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer | `Window::from_params (paging.rs)` |
+| `per_page` | integer | `Window::from_params (paging.rs)` |
+| `sort_by` | string | `link_pairs (php.rs)` |
+| `sort_order` | string | `link_pairs (php.rs)` |
 
 Response members of `Module` (`crates/omeka-api/src/wire/module.rs`).
 
@@ -657,14 +671,19 @@ List parameters (`GET /api/properties`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `local_name` | string | `search_properties (vocab.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_properties (vocab.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `search` | string | `search_needle (vocab.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_properties (vocab.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `term` | string | `MemberFilter::from_params (vocab.rs)` |
 | `vocabulary_id` | table id | `search_properties (vocab.rs)` |
+| `vocabulary_namespace_uri` | string | `MemberFilter::from_params (vocab.rs)` |
+| `vocabulary_prefix` | string | `MemberFilter::from_params (vocab.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -707,14 +726,19 @@ List parameters (`GET /api/resource_classes`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `local_name` | string | `search_classes (vocab.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_classes (vocab.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `search` | string | `search_needle (vocab.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_classes (vocab.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `term` | string | `MemberFilter::from_params (vocab.rs)` |
 | `vocabulary_id` | table id | `search_classes (vocab.rs)` |
+| `vocabulary_namespace_uri` | string | `MemberFilter::from_params (vocab.rs)` |
+| `vocabulary_prefix` | string | `MemberFilter::from_params (vocab.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -757,11 +781,13 @@ List parameters (`GET /api/resource_templates`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `search` | string | `search_needle (vocab.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_templates (vocab.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -823,14 +849,16 @@ List parameters (`GET /api/resources`).
 | Parameter | Kind | Read by |
 | --- | --- | --- |
 | `is_public` | boolean | `search_resources (resources_generic.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `owner_matches (resources_generic.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `resource_class_id` | table id | `class_matches (resources_generic.rs)` |
 | `resource_template_id` | table id | `template_matches (resources_generic.rs)` |
 | `search` | string | `search_resources (resources_generic.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 No response document of its own: the adapter delegates to the target resource.
 
@@ -854,13 +882,15 @@ List parameters (`GET /api/site_pages`).
 | --- | --- | --- |
 | `fulltext_search` | string | `search_site_pages (meta.rs)` |
 | `is_public` | boolean | `search_site_pages (meta.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `site_id` | table id | `search_site_pages (meta.rs)` |
 | `site_slug` | string | `search_site_pages (meta.rs)` |
 | `slug` | string | `search_site_pages (meta.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `search_site_pages (meta.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_site_pages (meta.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -937,13 +967,15 @@ List parameters (`GET /api/sites`).
 | --- | --- | --- |
 | `assign_new_items` | boolean | `search_sites (meta.rs)` |
 | `exclude_id` | table id | `search_sites (meta.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_sites (meta.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `search` | string | `search_needle (meta.rs)` |
 | `slug` | string | `search_sites (meta.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -1034,14 +1066,16 @@ List parameters (`GET /api/users`).
 | --- | --- | --- |
 | `email` | string | `search_users (meta.rs)` |
 | `is_active` | boolean | `search_users (meta.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `name` | string | `search_users (meta.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `role` | string | `search_users (meta.rs)` |
 | `search` | string | `search_needle (meta.rs)` |
 | `site_id` | table id | `search_users (meta.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_users (meta.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 
@@ -1088,12 +1122,14 @@ List parameters (`GET /api/value_annotations`).
 | Parameter | Kind | Read by |
 | --- | --- | --- |
 | `is_public` | boolean | `search_value_annotations (resources.rs)` |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_value_annotations (resources.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `search` | string | `search_needle (resources.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Response members of `ValueAnnotation` (`crates/omeka-api/src/wire/value_annotation.rs`).
 
@@ -1135,14 +1171,16 @@ List parameters (`GET /api/vocabularies`).
 
 | Parameter | Kind | Read by |
 | --- | --- | --- |
+| `limit` | string | `Limit::from_params (paging.rs)` |
 | `namespace_uri` | string | `search_vocabularies (vocab.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
 | `owner_id` | table id | `search_vocabularies (vocab.rs)` |
-| `page` | integer | `Window::from_params (params.rs)` |
-| `per_page` | integer | `Window::from_params (params.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `prefix` | string | `search_vocabularies (vocab.rs)` |
 | `search` | string | `search_needle (vocab.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)` |
-| `sort_order` | string | `Sort::from_params (params.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_vocabularies (vocab.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
 

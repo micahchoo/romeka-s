@@ -6,18 +6,22 @@
 //! `AbstractVocabularyMemberRepresentation::term` is `prefix:localName`, which
 //! is why these builders read the [`Catalog`](super::catalog::Catalog).
 
+use std::collections::HashMap;
+
 use omeka_db::ids::{ClassId, PropertyId, TemplateId, VocabularyId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, VocabularyFilter,
-    VocabularyRepo,
+    VocabularyRepo, compare_text_ci,
 };
 use omeka_db::rows::{ClassRow, PropertyRow, TemplateRow, VocabularyRow};
 
-use super::params::{Sort, SortField, Window, sorted_page};
+use super::paging::{Limit, Window, sorted_page};
+use super::params::Params;
+use super::query::{id_filter, id_matches};
 use super::response::link_header;
 use super::{Api, db_error, not_found, parse_id, resource_ref, resource_ref_opt};
 use crate::errors::ApiError;
-use crate::read::params::Params;
+use crate::read::params::Sort;
 use crate::read::response::{ApiResponse, serialize};
 use crate::wire::JsonLdType;
 use crate::wire::resource_template::ResourceTemplateProperty;
@@ -26,12 +30,14 @@ use crate::wire::resource_template::ResourceTemplateProperty;
 
 pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = VocabularyFilter {
         owner_id: params.id("owner_id"),
         namespace_uri: params.get("namespace_uri").map(str::to_string),
         prefix: params.get("prefix").map(str::to_string),
     };
+    let ids = id_filter(params);
     let rows = VocabularyRepo::new(api.pool())
         .list(&filter, &Paging::default())
         .await
@@ -39,11 +45,17 @@ pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiRe
     let needle = search_needle(params);
     let rows: Vec<VocabularyRow> = rows
         .into_iter()
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| {
             matches(&row.label, needle.as_deref()) || matches(&row.prefix, needle.as_deref())
         })
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_vocabulary(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_vocabulary(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| vocabulary_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -88,12 +100,15 @@ fn vocabulary_doc(api: &Api<'_>, row: &VocabularyRow) -> crate::wire::vocabulary
 
 pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = ClassFilter {
         owner_id: params.id("owner_id"),
         vocabulary_id: params.id("vocabulary_id"),
         local_name: params.get("local_name").map(str::to_string),
     };
+    let vocabularies = vocabulary_members(api, params).await?;
+    let ids = id_filter(params);
     let rows = ClassRepo::new(api.pool())
         .list(&filter, &Paging::default())
         .await
@@ -101,9 +116,16 @@ pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiRespons
     let needle = search_needle(params);
     let rows: Vec<ClassRow> = rows
         .into_iter()
+        .filter(|row| id_matches(&ids, row.id.0))
+        .filter(|row| member_matches(vocabularies.as_ref(), row.vocabulary_id, &row.local_name))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_class(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_class(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| class_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -146,12 +168,15 @@ fn class_doc(api: &Api<'_>, row: &ClassRow) -> crate::wire::resource_class::Reso
 
 pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = PropertyFilter {
         owner_id: params.id("owner_id"),
         vocabulary_id: params.id("vocabulary_id"),
         local_name: params.get("local_name").map(str::to_string),
     };
+    let vocabularies = vocabulary_members(api, params).await?;
+    let ids = id_filter(params);
     let rows = PropertyRepo::new(api.pool())
         .list(&filter, &Paging::default())
         .await
@@ -159,9 +184,16 @@ pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResp
     let needle = search_needle(params);
     let rows: Vec<PropertyRow> = rows
         .into_iter()
+        .filter(|row| id_matches(&ids, row.id.0))
+        .filter(|row| member_matches(vocabularies.as_ref(), row.vocabulary_id, &row.local_name))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_property(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_property(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| property_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -204,7 +236,9 @@ fn property_doc(api: &Api<'_>, row: &PropertyRow) -> crate::wire::property::Prop
 
 pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
+    let ids = id_filter(params);
     let rows = TemplateRepo::new(api.pool())
         .list()
         .await
@@ -212,9 +246,15 @@ pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     let needle = search_needle(params);
     let rows: Vec<TemplateRow> = rows
         .into_iter()
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &window, cmp_template(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_template(params.get("sort_by").unwrap_or("id")),
+    );
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(template_doc(api, row).await?);
@@ -288,6 +328,122 @@ async fn template_doc(
 
 // --------------------------------------------------------------- helpers
 
+/// The vocabulary filters `PropertyAdapter::buildQuery` and
+/// `ResourceClassAdapter::buildQuery` apply to a vocabulary member.
+///
+/// `vocabulary_prefix` and `vocabulary_namespace_uri` are equalities on the
+/// member's vocabulary row, and `term` is `prefix:localName` narrowed to the
+/// one property or class a valid JSON-LD term names. `vocabulary_id` and
+/// `local_name` are equalities on the member itself and reach the repository's
+/// own filter, so they are not here.
+struct MemberFilter {
+    prefix: Option<String>,
+    namespace_uri: Option<String>,
+    term: Option<(String, String)>,
+}
+
+impl MemberFilter {
+    /// `None` when the request asked for none of the three, so the vocabulary
+    /// table is not read.
+    fn from_params(params: &Params) -> Option<Self> {
+        let prefix = params.get("vocabulary_prefix").map(str::to_string);
+        let namespace_uri = params.get("vocabulary_namespace_uri").map(str::to_string);
+        let term = params.get("term").and_then(term_parts);
+        if prefix.is_none() && namespace_uri.is_none() && term.is_none() {
+            return None;
+        }
+        Some(Self {
+            prefix,
+            namespace_uri,
+            term,
+        })
+    }
+
+    fn matches(&self, vocabulary: &VocabularyRow, local_name: &str) -> bool {
+        if let Some(prefix) = &self.prefix
+            && &vocabulary.prefix != prefix
+        {
+            return false;
+        }
+        if let Some(uri) = &self.namespace_uri
+            && &vocabulary.namespace_uri != uri
+        {
+            return false;
+        }
+        if let Some((prefix, name)) = &self.term
+            && (&vocabulary.prefix != prefix || local_name != name)
+        {
+            return false;
+        }
+        true
+    }
+}
+
+/// `Vocabulary::TERM_REGEX`, `^[a-z0-9_-]+:[a-z0-9_-]+$`, as the two parts a
+/// valid term splits into. Anything else leaves the `term` parameter ignored,
+/// which is the `isTerm` guard.
+fn term_parts(term: &str) -> Option<(String, String)> {
+    let (prefix, local_name) = term.split_once(':')?;
+    if !is_term_part(prefix) || !is_term_part(local_name) {
+        return None;
+    }
+    Some((prefix.to_string(), local_name.to_string()))
+}
+
+fn is_term_part(text: &str) -> bool {
+    !text.is_empty()
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+/// The vocabulary row of every member a `vocabulary_prefix`,
+/// `vocabulary_namespace_uri` or `term` filter can match, or `None` when the
+/// request asked for none of them.
+async fn vocabulary_members(
+    api: &Api<'_>,
+    params: &Params,
+) -> Result<Option<VocabularyMembers>, ApiError> {
+    let Some(filter) = MemberFilter::from_params(params) else {
+        return Ok(None);
+    };
+    let rows = VocabularyRepo::new(api.pool())
+        .list(&VocabularyFilter::default(), &Paging::default())
+        .await
+        .map_err(db_error)?;
+    Ok(Some(VocabularyMembers {
+        filter,
+        rows: rows.into_iter().map(|row| (row.id, row)).collect(),
+    }))
+}
+
+/// The requested vocabulary filters and the rows they read.
+struct VocabularyMembers {
+    filter: MemberFilter,
+    rows: HashMap<VocabularyId, VocabularyRow>,
+}
+
+impl VocabularyMembers {
+    /// Whether a member row passes every requested filter. A row whose
+    /// vocabulary is missing matches nothing, which is what the inner join
+    /// `buildQuery` builds does.
+    fn matches(&self, vocabulary: VocabularyId, local_name: &str) -> bool {
+        self.rows
+            .get(&vocabulary)
+            .is_some_and(|row| self.filter.matches(row, local_name))
+    }
+}
+
+/// Whether a member row passes the requested vocabulary filters. `None` means
+/// the request asked for none, so every row passes.
+fn member_matches(
+    members: Option<&VocabularyMembers>,
+    vocabulary: VocabularyId,
+    local_name: &str,
+) -> bool {
+    members.is_none_or(|members| members.matches(vocabulary, local_name))
+}
+
 fn search_needle(params: &Params) -> Option<String> {
     params
         .get("search")
@@ -302,30 +458,34 @@ fn matches(text: &str, needle: Option<&str>) -> bool {
     }
 }
 
-fn cmp_vocabulary(sort: Sort) -> impl Fn(&VocabularyRow, &VocabularyRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+/// `VocabularyAdapter::$sortFields`: the label sorts through the collation. The
+/// field name is the adapter's own, not a shared sort-field name.
+fn cmp_vocabulary(
+    field: &str,
+) -> impl Fn(&VocabularyRow, &VocabularyRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_class(sort: Sort) -> impl Fn(&ClassRow, &ClassRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_class(field: &str) -> impl Fn(&ClassRow, &ClassRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_property(sort: Sort) -> impl Fn(&PropertyRow, &PropertyRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_property(field: &str) -> impl Fn(&PropertyRow, &PropertyRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_template(sort: Sort) -> impl Fn(&TemplateRow, &TemplateRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_template(field: &str) -> impl Fn(&TemplateRow, &TemplateRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }

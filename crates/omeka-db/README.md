@@ -65,6 +65,21 @@ upgrade and uninstall. `asset`, `session`, `password_creation` and `site_block_a
 the reads and writes their callers make. The rest of the evidence is in `tests/`, one file per
 repository group.
 
+A value annotation is a `resource` row of the `value_annotation` kind plus the `value_annotation`
+identity row, and `value.value_annotation_id` points at it (`migrations/0001_init.sql`, `Entity/Value.php`
+line 67). `ResourceRepo::create_annotation` writes both rows in one transaction, so a crash never
+leaves a bare annotation. `ResourceRepo::delete` removes the annotation's values and its `resource`
+row, and the reference from the value clears through `ON DELETE SET NULL`. The api layer deletes an
+annotation with the value that carried it, because upstream maps the pair `orphanRemoval`.
+
+### Ordering text
+
+`repos::compare_text_ci` and `repos::compare_opt_text_ci` are the one rule a caller applies to order
+text the way upstream does. The rule is an ASCII case fold that matches SQLite's `COLLATE NOCASE`,
+so a Rust comparator and a `COLLATE NOCASE` clause agree. A sorter that orders by a resource title,
+a user name or a vocabulary label calls this instead of comparing bytes, and the limits in
+[Known differences](#known-differences) carry to every caller.
+
 ## Schema and migrations
 
 `migrations/0001_init.sql` is the SQLite translation of upstream
@@ -110,7 +125,12 @@ returns. The suite skips loudly rather than failing.
   reported with a higher score as a better match, and the two orders differ. `DESIGN.md` excludes
   ranking particulars from differential matching. MySQL also drops tokens shorter than
   `innodb_ft_min_token_size` (3 by default) and FTS5 keeps them.
-- Case folding. SQLite `COLLATE NOCASE` folds ASCII only; MySQL `utf8mb4_unicode_ci` folds more.
+- Text order and case folding. Upstream orders text through MySQL's `utf8mb4_unicode_ci`, which
+  folds case and accents. The port's one rule is `repos::compare_text_ci`, an ASCII case fold that
+  matches SQLite's `COLLATE NOCASE`, so a Rust sorter and a `COLLATE NOCASE` clause answer the same
+  order. Two gaps stay against upstream: accents do not fold (`A` and `Á` never tie), and a
+  non-ASCII case pair does not fold (`İ` and `i` stay distinct). `SCHEMA-NOTES.md` divergence 7
+  records the same limit for the column collations the migration carries.
 - Length limits. SQLite has none; MySQL enforces the upstream `varchar(n)` and prefix index widths.
 - The MySQL suite needs a server that grants `CREATE DATABASE` to the URL's user.
 

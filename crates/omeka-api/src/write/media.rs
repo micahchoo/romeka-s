@@ -89,7 +89,13 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         })
         .await
         .map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
     // `Module::saveFulltext`'s media branch: the item's text includes its media.
     fulltext::reindex(api, "items", ResourceId(row.item_id.0)).await?;
@@ -125,7 +131,13 @@ pub async fn update(
         row.alt_text = payload.str_member("o:alt_text").map(str::to_string);
     }
     repo.update(&row).await.map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
     fulltext::reindex(api, "items", ResourceId(row.item_id.0)).await?;
     api.read_member("media", raw_id).await
@@ -153,6 +165,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 /// reference (`ON DELETE SET NULL`).
 pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError> {
     crate::write::files::delete_media_files(api.store(), row)?;
+    values::clear(api, row.resource.id).await?;
     MediaRepo::new(api.pool())
         .delete(row.id())
         .await

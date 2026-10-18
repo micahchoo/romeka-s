@@ -17,6 +17,30 @@ semantic versioning.
 - Added two rows to [`docs/compat.md`](docs/compat.md) for the deliberate differences: a write that
   names an unknown property term answers 422, and `GET /api` answers JSON-LD rather than HTML.
 
+### Fixed
+
+- A `PATCH` that names no value object keeps every stored value; one that names a valid value still
+  replaces the whole set, as upstream's `ValueHydrator` does.
+- Every reference a body names resolves before the first write, so a refused reference leaves the
+  stored row untouched and answers the 404 `findEntity` throws.
+- A site `PUT` removes every page its `o:page` list omits, and so does a `PATCH` that carries the
+  member.
+- A `DELETE` answers the detached entity, with `o:id` null and `@id` the collection URL, the shape
+  `Api\Manager::finalize` renders after the flush.
+- An email that is not `local-part@hostname` answers the Laminas `INVALID_FORMAT` message.
+- The `id` filter narrows every entity collection, and `resource_classes` and `properties` read
+  `term`, `vocabulary_prefix` and `vocabulary_namespace_uri`.
+- A non-numeric `page` leaves a list unbounded, because `SetBrowseDefaults` writes `page=1` only
+  when the caller sent none.
+- `api_resources`, `data_types` and `modules` answer no `Omeka-S-Total-Results` header and ignore
+  the page window, because their adapter answers a plain `Response`.
+- The `Link` header renders nested and repeated parameters the way Laminas does, through the
+  request array `read/php.rs` rebuilds.
+- Text sorts order through one case-fold rule (`repos::compare_text_ci` in `omeka-db`) that matches
+  SQLite's `COLLATE NOCASE`, so a Rust comparator and a `COLLATE NOCASE` clause agree.
+- A value object's `@annotation` reads and writes a `value_annotation` resource, dropped when the
+  value that carried it leaves the set.
+
 ## [0.1.0] - 2026-10-17
 
 The import. Romeka S is the Omeka S port's tree under its own name, with the same data model, the

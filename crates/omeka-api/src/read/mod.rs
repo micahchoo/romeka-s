@@ -18,6 +18,8 @@ pub mod query;
 pub mod response;
 
 mod meta;
+mod paging;
+mod php;
 #[cfg(test)]
 mod probe;
 mod relations;
@@ -44,7 +46,8 @@ use crate::jsonld::{self, BaseUrl};
 use crate::routes::Operation;
 use crate::wire::{JsonLdDate, ResourceRef, ThumbnailDisplayUrls};
 
-pub use params::{Params, Sort, SortField, Window};
+pub use paging::Window;
+pub use params::{Params, Sort, SortField};
 pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
 
 use catalog::Catalog;

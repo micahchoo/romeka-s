@@ -11,7 +11,10 @@ use serde::Serialize;
 
 use crate::errors::ApiError;
 use crate::jsonld::{self, BaseUrl};
-use crate::read::params::{Params, Window};
+
+use super::paging::Window;
+use super::params::Params;
+use super::php;
 
 /// `ApiJsonStrategy::$formats['jsonld']`.
 pub const JSONLD_CONTENT_TYPE: &str = "application/ld+json";
@@ -57,6 +60,24 @@ impl ApiResponse {
             body,
         }
     }
+
+    /// A list document from an adapter that reports no total, so the answer
+    /// carries no `Omeka-S-Total-Results`.
+    ///
+    /// `ApiController::getList` adds the header only when
+    /// `Response::getTotalResults()` is not `null`. `ApiResourceAdapter`,
+    /// `DataTypeAdapter` and `ModuleAdapter` extend `AbstractAdapter` and build
+    /// a plain `Response`, so their collections have no total. The `Link` header
+    /// still comes from the paginator, whose total count is 0 for them.
+    pub fn collection(body: String, link: HeaderValue) -> Self {
+        let mut headers = base_headers();
+        headers.insert(header::LINK, link);
+        Self {
+            status: StatusCode::OK,
+            headers,
+            body,
+        }
+    }
 }
 
 fn base_headers() -> HeaderMap {
@@ -83,9 +104,9 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<String, ApiError> {
 ///
 /// For each of `first`, `prev`, `next`, `last` that exists, a
 /// `<url>; rel="<rel>"` entry, joined with `, `. The URL is the request path
-/// with the browse-defaults query (`Params::browse_pairs`) and `page` set to
-/// that page number. An empty list produces an empty header value, which is
-/// what `addHeaderLine` emits when `implode` has nothing to join.
+/// with the browse-defaults query ([`php::link_pairs`]) and `page` set to that
+/// page number. An empty list produces an empty header value, which is what
+/// `addHeaderLine` emits when `implode` has nothing to join.
 pub fn link_header(
     base: &BaseUrl,
     resource: &str,
@@ -128,7 +149,7 @@ pub fn link_header(
 /// The request path with the browse-defaults query and `page` set, for one link
 /// entry.
 fn page_url(base: &BaseUrl, resource: &str, params: &Params, page: i64) -> String {
-    let pairs = params.browse_pairs(page);
+    let pairs = php::link_pairs(params, page);
     let query: Vec<String> = pairs
         .iter()
         .map(|(name, value)| format!("{name}={value}"))

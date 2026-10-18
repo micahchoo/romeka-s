@@ -17,10 +17,13 @@
 use std::cmp::Ordering;
 
 use omeka_db::ids::{AssetId, JobId, UserId};
+use omeka_db::repos::{compare_opt_text_ci, compare_text_ci};
 use omeka_db::rows::{AssetRow, JobRow, ModuleRow, ResourceRow, SitePageRow, resource_type};
 use sqlx::SqlitePool;
 
-use super::params::{Params, Sort, Window, ordered_page};
+use super::paging::{Limit, Window, ordered_page};
+use super::params::{Params, Sort};
+use super::query::{id_filter, id_matches};
 use super::response::link_header;
 use super::{Api, db_error, not_found, parse_id, resource_ref_opt};
 use crate::errors::ApiError;
@@ -33,16 +36,19 @@ const ASSET_CLASS: &str = "Omeka\\Entity\\Asset";
 
 pub async fn search_assets(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
+    let ids = id_filter(params);
     let rows = asset_rows(api.pool()).await?;
     let rows: Vec<AssetRow> = rows
         .into_iter()
         .filter(|row| owner_matches(row.owner_id, params))
+        .filter(|row| id_matches(&ids, row.id.0))
         .collect();
     let sort_by = params.get("sort_by").unwrap_or("id");
     let (total, page) = ordered_page(
         rows,
         Sort::from_params(params).descending,
-        &window,
+        &limit,
         cmp_asset(sort_by),
     );
     let documents: Vec<_> = page.iter().map(|row| asset_doc(api, row)).collect();
@@ -104,9 +110,10 @@ fn owner_matches(owner: Option<UserId>, params: &Params) -> bool {
 /// to `id`.
 fn cmp_asset(field: &str) -> impl Fn(&AssetRow, &AssetRow) -> Ordering + '_ {
     move |a, b| match field {
-        "media_type" => a.media_type.cmp(&b.media_type).then(a.id.cmp(&b.id)),
-        "name" => a.name.cmp(&b.name).then(a.id.cmp(&b.id)),
-        "extension" => a.extension.cmp(&b.extension).then(a.id.cmp(&b.id)),
+        "media_type" => compare_text_ci(&a.media_type, &b.media_type).then(a.id.cmp(&b.id)),
+        "name" => compare_text_ci(&a.name, &b.name).then(a.id.cmp(&b.id)),
+        "extension" => compare_opt_text_ci(a.extension.as_deref(), b.extension.as_deref())
+            .then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),
     }
 }
@@ -144,17 +151,20 @@ const JOB_CLASS: &str = "Omeka\\Entity\\Job";
 
 pub async fn search_jobs(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
+    let ids = id_filter(params);
     let rows = job_rows(api.pool()).await?;
     let rows: Vec<JobRow> = rows
         .into_iter()
         .filter(|row| class_matches(&row.class, params))
         .filter(|row| status_matches(row.status.as_deref(), params))
+        .filter(|row| id_matches(&ids, row.id.0))
         .collect();
     let sort_by = params.get("sort_by").unwrap_or("id");
     let (total, page) = ordered_page(
         rows,
         Sort::from_params(params).descending,
-        &window,
+        &limit,
         cmp_job(sort_by),
     );
     let documents: Vec<_> = page.iter().map(|row| job_doc(api, row)).collect();
@@ -208,8 +218,10 @@ fn status_matches(status: Option<&str>, params: &Params) -> bool {
 /// `AbstractEntityAdapter::sortQuery` uses for an unmapped field.
 fn cmp_job(field: &str) -> impl Fn(&JobRow, &JobRow) -> Ordering + '_ {
     move |a, b| match field {
-        "status" => a.status.cmp(&b.status).then(a.id.cmp(&b.id)),
-        "class" => a.class.cmp(&b.class).then(a.id.cmp(&b.id)),
+        "status" => {
+            compare_opt_text_ci(a.status.as_deref(), b.status.as_deref()).then(a.id.cmp(&b.id))
+        }
+        "class" => compare_text_ci(&a.class, &b.class).then(a.id.cmp(&b.id)),
         "started" => a.started.cmp(&b.started).then(a.id.cmp(&b.id)),
         "ended" => a.ended.cmp(&b.ended).then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),
@@ -247,13 +259,15 @@ async fn job_row(pool: &SqlitePool, id: JobId) -> Result<Option<JobRow>, ApiErro
 pub async fn search_modules(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
     let rows = module_rows(api.pool()).await?;
-    let (total, page) = ordered_page(rows, false, &window, |a, b| a.id.cmp(&b.id));
+    // `ModuleAdapter::search` returns the registered modules and ignores the
+    // query, so no window is applied and the plain `Response` it builds carries
+    // no total (`ApiController::getList`).
+    let (_, page) = ordered_page(rows, false, &Limit::ALL, |a, b| a.id.cmp(&b.id));
     let documents: Vec<_> = page.iter().map(|row| module_doc(api, row)).collect();
     let body = serialize(&documents)?;
-    Ok(ApiResponse::listing(
+    Ok(ApiResponse::collection(
         body,
-        total,
-        link_header(api.base(), "modules", params, &window, total),
+        link_header(api.base(), "modules", params, &window, 0),
     ))
 }
 

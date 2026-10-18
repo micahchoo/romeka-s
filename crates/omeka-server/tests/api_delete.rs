@@ -86,11 +86,12 @@ async fn keyed_user(pool: &SqlitePool, role: &str) -> (u64, String, String) {
     (user.id.0, identity, credential)
 }
 
-/// `ApiController::delete` answers with the removed row's representation
-/// (`Api\Manager::finalize`), so the delete body is the body a read returned a
-/// moment earlier, and the read afterwards is a 404.
+/// `ApiController::delete` answers with the detached entity
+/// (`Api\Manager::finalize` renders it after the flush), so the body keeps the
+/// read's members but loses the id and points `@id` at the collection, and the
+/// read afterwards is a 404.
 #[tokio::test]
-async fn delete_an_item_answers_its_representation_then_reads_404() {
+async fn delete_an_item_answers_the_detached_entity_then_reads_404() {
     let (app, seed) = seeded_router().await;
     let before = send(
         app.clone(),
@@ -98,6 +99,7 @@ async fn delete_an_item_answers_its_representation_then_reads_404() {
     )
     .await;
     assert_eq!(before.status, StatusCode::OK, "{}", before.body);
+    assert_eq!(before.json()["o:id"], seed.item.0);
 
     let deleted = send(
         app.clone(),
@@ -105,7 +107,14 @@ async fn delete_an_item_answers_its_representation_then_reads_404() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.body, before.body, "delete and read differ");
+    let item = deleted.json();
+    assert!(
+        item["o:id"].is_null(),
+        "delete kept the id: {}",
+        deleted.body
+    );
+    assert_eq!(item["@id"], "http://localhost/api/items");
+    assert_eq!(item["o:title"], before.json()["o:title"]);
 
     let read = send(app, get(&format!("/api/items/{}", seed.item.0), false)).await;
     assert_eq!(read.status, StatusCode::NOT_FOUND);
@@ -279,7 +288,11 @@ async fn an_author_may_delete_their_own_item() {
     );
     let answer = send(app.clone(), request("DELETE", &uri)).await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
-    assert_eq!(answer.json()["o:id"], item.id().0);
+    assert!(
+        answer.json()["o:id"].is_null(),
+        "the detached item kept its id: {}",
+        answer.body
+    );
 
     // The admin's item is untouched.
     let other = send(app, get(&format!("/api/items/{}", seed.item.0), false)).await;
@@ -351,7 +364,11 @@ async fn deleting_a_private_site_page_leaves_its_site() {
     )
     .await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.json()["o:id"], page);
+    assert!(
+        deleted.json()["o:id"].is_null(),
+        "the detached page kept its id: {}",
+        deleted.body
+    );
     assert_eq!(deleted.json()["o:is_public"], false);
 
     let read = send(app.clone(), get(&format!("/api/site_pages/{page}"), false)).await;
@@ -470,7 +487,11 @@ async fn deleting_a_user_removes_its_keys_and_clears_the_owner() {
     );
     let deleted = send(app.clone(), request("DELETE", &uri)).await;
     assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
-    assert_eq!(deleted.json()["o:id"], seed.user.0);
+    assert!(
+        deleted.json()["o:id"].is_null(),
+        "the detached user kept its id: {}",
+        deleted.body
+    );
     assert_eq!(
         count(
             &pool,

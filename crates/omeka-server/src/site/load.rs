@@ -21,6 +21,7 @@ use omeka_db::ids as db;
 use omeka_db::repos::{
     FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo,
     MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo,
+    compare_text_ci,
 };
 use omeka_db::rows::{
     ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow, ValueRow,
@@ -742,7 +743,9 @@ fn site_view(row: &SiteRow) -> Option<SiteView> {
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {
     match sort {
-        SiteSort::Alpha => rows.sort_by(|a, b| a.title.cmp(&b.title).then(a.id.0.cmp(&b.id.0))),
+        SiteSort::Alpha => {
+            rows.sort_by(|a, b| compare_text_ci(&a.title, &b.title).then(a.id.0.cmp(&b.id.0)))
+        }
         SiteSort::Oldest => {
             rows.sort_by(|a, b| a.created.cmp(&b.created).then(a.id.0.cmp(&b.id.0)))
         }
