@@ -21,13 +21,14 @@
 //! untouched.
 //!
 //! What does not move is listed in `README.md`. The largest losses are upstream ids (the target
-//! gets its own), `modified` timestamps (a repository create writes `created` into both), assets
-//! (no `asset` repository), value annotations (no repository read) and `site_block_attachment`
-//! (no repository).
+//! gets its own), `modified` timestamps (a repository create writes `created` into both), value
+//! annotations (no repository read) and the `module`, `job` and `session` tables.
 //!
-//! Runtime `sqlx` queries only, and only through `omeka-db`'s repositories. The one query this
-//! crate writes itself reads `INFORMATION_SCHEMA.COLUMNS` from the source, which is schema
-//! introspection of a foreign database, not port storage SQL.
+//! Runtime `sqlx` queries only, and almost all through `omeka-db`'s repositories. The queries this
+//! crate writes itself are the exceptions: the source's `INFORMATION_SCHEMA.COLUMNS` column check,
+//! the `item_site` read and write (no repository exists), and the `resource_class`, `property` and
+//! `password_creation` reads, which cast a binary-collated text column `omeka-db` cannot decode.
+//! The README names each gap.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
@@ -36,6 +37,7 @@ mod error;
 mod map;
 mod read;
 mod report;
+mod store;
 mod write;
 
 pub use error::MigrateError;
@@ -66,6 +68,13 @@ pub async fn migrate_from_upstream(
 
     let target = omeka_db::open_file(target_path).await?;
     omeka_db::migrate(&target).await?;
+    // Refuse a populated target before the file copy touches its store.
     write::ensure_empty(&target, target_path).await?;
+
+    if let Some(source_files) = &options.source_files {
+        let target_files = store::target_store_root(target_path, options.target_files.as_deref());
+        store::copy_asset_files(&data.assets, source_files, &target_files)?;
+    }
+
     write::Writer::live(&target).run(&data).await
 }

@@ -12,14 +12,16 @@
 use std::collections::HashMap;
 
 use omeka_db::ids::{
-    ClassId, ItemId, ItemSetId, MediaId, PageId, PropertyId, ResourceId, SiteId, TemplateId,
-    UserId, VocabularyId,
+    AssetId, BlockId, ClassId, ItemId, ItemSetId, MediaId, PageId, PropertyId, ResourceId, SiteId,
+    TemplateId, UserId, VocabularyId,
 };
 use omeka_db::rows::{
-    ApiKeyRow, ClassRow, ItemRow, ItemSetRow, MediaRow, NewApiKey, NewClass, NewItem, NewItemSet,
-    NewMedia, NewProperty, NewResource, NewSite, NewSiteBlock, NewSitePage, NewTemplate,
-    NewTemplateProperty, NewUser, NewValue, NewVocabulary, PropertyRow, ResourceRow, SiteBlockRow,
-    SitePageRow, SiteRow, TemplatePropertyRow, TemplateRow, UserRow, ValueRow, VocabularyRow,
+    ApiKeyRow, AssetRow, ClassRow, ItemRow, ItemSetRow, MediaRow, NewApiKey, NewAsset, NewClass,
+    NewItem, NewItemSet, NewMedia, NewPasswordCreation, NewProperty, NewResource, NewSite,
+    NewSiteBlock, NewSiteBlockAttachment, NewSitePage, NewTemplate, NewTemplateProperty, NewUser,
+    NewValue, NewVocabulary, PasswordCreationRow, PropertyRow, ResourceRow, SiteBlockAttachmentRow,
+    SiteBlockRow, SitePageRow, SiteRow, TemplatePropertyRow, TemplateRow, UserRow, ValueRow,
+    VocabularyRow,
 };
 use serde_json::Value;
 
@@ -27,6 +29,7 @@ use serde_json::Value;
 #[derive(Debug, Default)]
 pub(crate) struct IdMap {
     user: HashMap<u64, UserId>,
+    asset: HashMap<u64, AssetId>,
     vocabulary: HashMap<u64, VocabularyId>,
     class: HashMap<u64, ClassId>,
     property: HashMap<u64, PropertyId>,
@@ -37,6 +40,7 @@ pub(crate) struct IdMap {
     media: HashMap<u64, MediaId>,
     site: HashMap<u64, SiteId>,
     page: HashMap<u64, PageId>,
+    block: HashMap<u64, BlockId>,
 }
 
 /// One map accessor per table, so a reference reads as `ids.user(src)`.
@@ -50,6 +54,7 @@ macro_rules! accessor {
 
 impl IdMap {
     accessor!(user, user, UserId);
+    accessor!(asset, asset, AssetId);
     accessor!(vocabulary, vocabulary, VocabularyId);
     accessor!(class, class, ClassId);
     accessor!(property, property, PropertyId);
@@ -60,9 +65,14 @@ impl IdMap {
     accessor!(media, media, MediaId);
     accessor!(site, site, SiteId);
     accessor!(page, page, PageId);
+    accessor!(block, block, BlockId);
 
     pub(crate) fn insert_user(&mut self, source: u64, target: UserId) {
         self.user.insert(source, target);
+    }
+
+    pub(crate) fn insert_asset(&mut self, source: u64, target: AssetId) {
+        self.asset.insert(source, target);
     }
 
     pub(crate) fn insert_vocabulary(&mut self, source: u64, target: VocabularyId) {
@@ -104,6 +114,10 @@ impl IdMap {
     pub(crate) fn insert_page(&mut self, source: u64, target: PageId) {
         self.page.insert(source, target);
     }
+
+    pub(crate) fn insert_block(&mut self, source: u64, target: BlockId) {
+        self.block.insert(source, target);
+    }
 }
 
 /// Map a nullable foreign key. `None` stays `None`; a `Some` id with no mapping makes the row
@@ -118,14 +132,16 @@ fn map_opt<T: Copy>(
     }
 }
 
-/// The `resource` half of any resource kind. `thumbnail_id` is dropped: the port has no `asset`
-/// repository yet, so a source asset id has nothing to point at.
+/// The `resource` half of any resource kind.
+///
+/// A `thumbnail_id` whose asset was skipped reads as absent, the way the source's
+/// `ON DELETE SET NULL` would leave it, rather than skipping the resource.
 fn new_resource(row: &ResourceRow, ids: &IdMap) -> Option<NewResource> {
     Some(NewResource {
         owner_id: map_opt(|id| ids.user(id), row.owner_id)?,
         resource_class_id: map_opt(|id| ids.class(id), row.resource_class_id)?,
         resource_template_id: map_opt(|id| ids.template(id), row.resource_template_id)?,
-        thumbnail_id: None,
+        thumbnail_id: row.thumbnail_id.and_then(|id| ids.asset(id.0)),
         title: row.title.clone(),
         is_public: row.is_public,
         created: Some(row.created),
@@ -141,6 +157,17 @@ pub(crate) fn new_user(row: &UserRow) -> NewUser {
         is_active: row.is_active,
         created: Some(row.created),
     }
+}
+
+pub(crate) fn new_asset(row: &AssetRow, ids: &IdMap) -> Option<NewAsset> {
+    Some(NewAsset {
+        owner_id: map_opt(|id| ids.user(id), row.owner_id)?,
+        name: row.name.clone(),
+        media_type: row.media_type.clone(),
+        storage_id: row.storage_id.clone(),
+        extension: row.extension.clone(),
+        alt_text: row.alt_text.clone(),
+    })
 }
 
 pub(crate) fn new_vocabulary(row: &VocabularyRow, ids: &IdMap) -> Option<NewVocabulary> {
@@ -255,7 +282,7 @@ pub(crate) fn new_value(row: &ValueRow, ids: &IdMap) -> Option<NewValue> {
 
 pub(crate) fn new_site(row: &SiteRow, ids: &IdMap) -> Option<NewSite> {
     Some(NewSite {
-        thumbnail_id: None,
+        thumbnail_id: row.thumbnail_id.and_then(|id| ids.asset(id.0)),
         // `site.homepage_id` points forward at a page the run has not written yet.
         homepage_id: None,
         owner_id: map_opt(|id| ids.user(id), row.owner_id)?,
@@ -288,9 +315,37 @@ pub(crate) fn new_site_block(row: &SiteBlockRow, ids: &IdMap) -> Option<NewSiteB
     Some(NewSiteBlock {
         page_id: ids.page(row.page_id.0)?,
         layout: row.layout.clone(),
-        data: row.data.clone(),
-        layout_data: row.layout_data.clone(),
+        data: remap_block_data(&row.layout, &row.data, ids),
+        layout_data: remap_block_layout_data(row.layout_data.as_ref(), ids),
         position: row.position,
+    })
+}
+
+/// One `site_block_attachment`: the block, item and media references are remapped. A reference whose
+/// row was skipped drops the attachment.
+pub(crate) fn new_site_block_attachment(
+    row: &SiteBlockAttachmentRow,
+    ids: &IdMap,
+) -> Option<NewSiteBlockAttachment> {
+    Some(NewSiteBlockAttachment {
+        block_id: ids.block(row.block_id.0)?,
+        item_id: map_opt(|id| ids.item(id), row.item_id)?,
+        media_id: map_opt(|id| ids.media(id), row.media_id)?,
+        caption: row.caption.clone(),
+        position: row.position,
+    })
+}
+
+/// A `password_creation` row, with its user remapped.
+pub(crate) fn new_password_creation(
+    row: &PasswordCreationRow,
+    ids: &IdMap,
+) -> Option<NewPasswordCreation> {
+    Some(NewPasswordCreation {
+        id: row.id.clone(),
+        user_id: ids.user(row.user_id.0)?,
+        activate: row.activate,
+        created: Some(row.created),
     })
 }
 
@@ -357,6 +412,128 @@ fn json_id(value: &Value) -> Option<u64> {
         Value::String(text) => text.parse().ok(),
         _ => None,
     }
+}
+
+/// Rewrite the ids a block stores inside its `data`, for the two layouts that carry one.
+///
+/// Upstream's `asset` block stores an array of slots with an asset id under `id` and a page id
+/// under `page` (`BlockLayout/Asset.php::prepareAssetAttachments`), and `listOfPages` stores a page
+/// tree in the `pagelist` JSON string (`BlockLayout/ListOfPages.php`). Every other layout's `data`
+/// is copied unchanged. An id whose row was skipped is left as the source wrote it, which is what
+/// `site.navigation` does with a missing page.
+pub(crate) fn remap_block_data(layout: &str, data: &Value, ids: &IdMap) -> Value {
+    match layout {
+        "asset" => remap_asset_slots(data, ids),
+        "listOfPages" => remap_page_list(data, ids),
+        _ => data.clone(),
+    }
+}
+
+fn remap_asset_slots(data: &Value, ids: &IdMap) -> Value {
+    let Value::Array(slots) = data else {
+        return data.clone();
+    };
+    Value::Array(
+        slots
+            .iter()
+            .map(|slot| {
+                let Value::Object(fields) = slot else {
+                    return slot.clone();
+                };
+                let mut rewritten = fields.clone();
+                if let Some(asset) = fields
+                    .get("id")
+                    .and_then(json_id)
+                    .and_then(|id| ids.asset(id))
+                {
+                    rewritten.insert("id".to_string(), Value::from(asset.0));
+                }
+                if let Some(page) = fields
+                    .get("page")
+                    .and_then(json_id)
+                    .and_then(|id| ids.page(id))
+                {
+                    rewritten.insert("page".to_string(), Value::from(page.0));
+                }
+                Value::Object(rewritten)
+            })
+            .collect(),
+    )
+}
+
+fn remap_page_list(data: &Value, ids: &IdMap) -> Value {
+    let Value::Object(fields) = data else {
+        return data.clone();
+    };
+    let Some(Value::String(pagelist)) = fields.get("pagelist") else {
+        return data.clone();
+    };
+    let Ok(nodes) = serde_json::from_str::<Value>(pagelist) else {
+        return data.clone();
+    };
+    let mut rewritten = fields.clone();
+    rewritten.insert(
+        "pagelist".to_string(),
+        Value::String(remap_page_nodes(&nodes, ids).to_string()),
+    );
+    Value::Object(rewritten)
+}
+
+fn remap_page_nodes(nodes: &Value, ids: &IdMap) -> Value {
+    let Value::Array(items) = nodes else {
+        return nodes.clone();
+    };
+    Value::Array(
+        items
+            .iter()
+            .map(|node| remap_page_node(node, ids))
+            .collect(),
+    )
+}
+
+fn remap_page_node(node: &Value, ids: &IdMap) -> Value {
+    let Value::Object(fields) = node else {
+        return node.clone();
+    };
+    let mut rewritten = fields.clone();
+    if let Some(Value::Array(children)) = fields.get("children") {
+        rewritten.insert(
+            "children".to_string(),
+            Value::Array(
+                children
+                    .iter()
+                    .map(|child| remap_page_node(child, ids))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(Value::Object(data)) = fields.get("data") {
+        let mut data = data.clone();
+        if let Some(page) = data.get("id").and_then(json_id).and_then(|id| ids.page(id)) {
+            data.insert("id".to_string(), Value::from(page.0));
+        }
+        rewritten.insert("data".to_string(), Value::Object(data));
+    }
+    Value::Object(rewritten)
+}
+
+/// Rewrite the `background_image_asset` in a block's `layout_data`
+/// (`Form/BlockLayoutDataForm.php` and `View/Helper/AbstractLayout.php`). Every other member is
+/// copied unchanged.
+pub(crate) fn remap_block_layout_data(layout_data: Option<&Value>, ids: &IdMap) -> Option<Value> {
+    let data = layout_data?;
+    let Value::Object(fields) = data else {
+        return Some(data.clone());
+    };
+    let mut rewritten = fields.clone();
+    if let Some(asset) = fields
+        .get("background_image_asset")
+        .and_then(json_id)
+        .and_then(|id| ids.asset(id))
+    {
+        rewritten.insert("background_image_asset".to_string(), Value::from(asset.0));
+    }
+    Some(Value::Object(rewritten))
 }
 
 #[cfg(test)]
@@ -453,5 +630,61 @@ mod tests {
             mapped.value_annotation_id, None,
             "the annotation is dropped"
         );
+    }
+
+    #[test]
+    fn block_asset_and_page_ids_follow_their_maps() {
+        let mut ids = IdMap::default();
+        ids.insert_asset(77, AssetId(1));
+        ids.insert_page(40, PageId(1));
+        let data = serde_json::json!([
+            {"id": 77, "page": 40, "caption": "Logo"},
+            {"id": "", "page": ""}
+        ]);
+
+        let rewritten = remap_block_data("asset", &data, &ids);
+
+        assert_eq!(rewritten[0]["id"], serde_json::json!(1));
+        assert_eq!(rewritten[0]["page"], serde_json::json!(1));
+        assert_eq!(rewritten[0]["caption"], serde_json::json!("Logo"));
+        assert_eq!(
+            rewritten[1]["id"],
+            serde_json::json!(""),
+            "an empty slot stays empty"
+        );
+
+        let layout_data = serde_json::json!({
+            "background_image_asset": 77,
+            "background_color": "#ffffff"
+        });
+        let rewritten =
+            remap_block_layout_data(Some(&layout_data), &ids).expect("layout data maps");
+        assert_eq!(rewritten["background_image_asset"], serde_json::json!(1));
+        assert_eq!(rewritten["background_color"], serde_json::json!("#ffffff"));
+    }
+
+    #[test]
+    fn list_of_pages_ids_follow_the_page_map() {
+        let ids = page_map(&[(40, 1), (41, 2)]);
+        let data = serde_json::json!({
+            "pagelist": "[{\"text\":\"About\",\"data\":{\"id\":40},\
+                \"children\":[{\"text\":\"Sub\",\"data\":{\"id\":\"41\"}}]}]"
+        });
+
+        let rewritten = remap_block_data("listOfPages", &data, &ids);
+        let nodes: Value =
+            serde_json::from_str(rewritten["pagelist"].as_str().expect("a pagelist string"))
+                .expect("the pagelist is JSON");
+
+        assert_eq!(nodes[0]["data"]["id"], serde_json::json!(1));
+        assert_eq!(nodes[0]["children"][0]["data"]["id"], serde_json::json!(2));
+        assert_eq!(nodes[0]["text"], serde_json::json!("About"));
+    }
+
+    #[test]
+    fn another_layouts_data_is_copied_unchanged() {
+        let ids = IdMap::default();
+        let data = serde_json::json!({"html": "<p>x</p>"});
+        assert_eq!(remap_block_data("html", &data, &ids), data);
     }
 }

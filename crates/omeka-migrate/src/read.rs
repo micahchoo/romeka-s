@@ -5,25 +5,29 @@
 //! repository's `list` with a default filter returns the whole table in id order; a child table is
 //! read once per parent, matching the repository's per-parent read methods.
 //!
-//! Tables the port does not serve are not read: `setting`, `module`, `job`, `session`, `asset`,
-//! `site_block_attachment`, `password_creation`, `user_setting`, `site_setting`, `item_site` and
-//! `fulltext_search` have no repository, and `fulltext_search` is an index the port rebuilds.
-//! `value_annotation` is the one served table with no read path: `omeka-db` creates an annotation
-//! but never lists one, so the source data cannot hold any.
+//! A few tables are read with SQL this crate writes: `item_site` has a row struct and no repository,
+//! and `resource_class`, `property` and `password_creation` carry a binary-collated text column that
+//! `omeka-db`'s MySQL text reader cannot decode, so the reads cast it. Both reasons are explained
+//! below. `module`, `job`, `session` and
+//! `fulltext_search` are not read; the README's known losses says why. `value_annotation` is the one
+//! served table with no read path at all: `omeka-db` creates an annotation but never lists one, so
+//! the source data cannot hold any.
 
 use sqlx::MySql;
 use sqlx::MySqlPool;
 
 use omeka_db::ids::ResourceId;
 use omeka_db::repos::{
-    ApiKeyRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging,
-    SiteFilter, SiteRepo, TemplateRepo, UserFilter, UserRepo, ValueRepo, VocabularyFilter,
-    VocabularyRepo,
+    ApiKeyRepo, AssetFilter, AssetRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
+    MediaFilter, MediaRepo, Paging, SettingRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo,
+    SiteSettingRepo, TemplateRepo, UserFilter, UserRepo, UserSettingRepo, ValueRepo,
+    VocabularyFilter, VocabularyRepo,
 };
 use omeka_db::rows::{
-    ApiKeyRow, ClassRow, ItemItemSetRow, ItemRow, ItemSetRow, MediaRow, PropertyRow, SiteBlockRow,
-    SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, TemplatePropertyRow, TemplateRow,
-    UserRow, ValueRow, VocabularyRow,
+    ApiKeyRow, AssetRow, ClassRow, ItemItemSetRow, ItemRow, ItemSetRow, ItemSiteRow, MediaRow,
+    PasswordCreationRow, PropertyRow, SettingRow, SiteBlockAttachmentRow, SiteBlockRow,
+    SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, SiteSettingRow, TemplatePropertyRow,
+    TemplateRow, UserRow, UserSettingRow, ValueRow, VocabularyRow,
 };
 
 use crate::error::MigrateError;
@@ -36,6 +40,7 @@ use crate::error::MigrateError;
 #[derive(Debug, Default)]
 pub(crate) struct SourceData {
     pub(crate) users: Vec<UserRow>,
+    pub(crate) assets: Vec<AssetRow>,
     pub(crate) vocabularies: Vec<VocabularyRow>,
     pub(crate) classes: Vec<ClassRow>,
     pub(crate) properties: Vec<PropertyRow>,
@@ -49,8 +54,14 @@ pub(crate) struct SourceData {
     pub(crate) sites: Vec<SiteRow>,
     pub(crate) pages: Vec<SitePageRow>,
     pub(crate) blocks: Vec<SiteBlockRow>,
+    pub(crate) block_attachments: Vec<SiteBlockAttachmentRow>,
     pub(crate) site_item_sets: Vec<SiteItemSetRow>,
     pub(crate) site_permissions: Vec<SitePermissionRow>,
+    pub(crate) item_sites: Vec<ItemSiteRow>,
+    pub(crate) settings: Vec<SettingRow>,
+    pub(crate) site_settings: Vec<SiteSettingRow>,
+    pub(crate) user_settings: Vec<UserSettingRow>,
+    pub(crate) password_creations: Vec<PasswordCreationRow>,
     pub(crate) api_keys: Vec<ApiKeyRow>,
 }
 
@@ -58,12 +69,29 @@ pub(crate) struct SourceData {
 pub(crate) async fn read_source(source: &MySqlPool) -> Result<SourceData, MigrateError> {
     let (users, vocabularies, classes, properties, templates, template_properties) =
         read_catalog(source).await?;
+    let assets = AssetRepo::<MySql>::new(source)
+        .list(&AssetFilter::default(), &Paging::default())
+        .await?;
     let (items, item_sets, media, values, item_item_sets) = read_resources(source).await?;
-    let (sites, pages, blocks, site_item_sets, site_permissions) = read_sites(source).await?;
+    let (sites, pages, blocks, block_attachments, site_item_sets, site_permissions) =
+        read_sites(source).await?;
+    let item_sites = read_item_sites(source).await?;
+    let settings = SettingRepo::<MySql>::new(source).list().await?;
+    let mut site_settings = Vec::new();
+    let mut user_settings = Vec::new();
+    let mut password_creations = Vec::new();
+    for site in &sites {
+        site_settings.extend(SiteSettingRepo::<MySql>::new(source).list(site.id).await?);
+    }
+    for user in &users {
+        user_settings.extend(UserSettingRepo::<MySql>::new(source).list(user.id).await?);
+    }
+    password_creations.extend(read_password_creations(source).await?);
     let api_keys = read_api_keys(source, &users).await?;
 
     Ok(SourceData {
         users,
+        assets,
         vocabularies,
         classes,
         properties,
@@ -77,8 +105,14 @@ pub(crate) async fn read_source(source: &MySqlPool) -> Result<SourceData, Migrat
         sites,
         pages,
         blocks,
+        block_attachments,
         site_item_sets,
         site_permissions,
+        item_sites,
+        settings,
+        site_settings,
+        user_settings,
+        password_creations,
         api_keys,
     })
 }
@@ -157,6 +191,25 @@ async fn read_properties(source: &MySqlPool) -> Result<Vec<PropertyRow>, Migrate
     Ok(properties)
 }
 
+/// `password_creation.id` is `varchar(32) ... utf8mb4_bin`, the third binary-collated text column
+/// this crate reads with a cast for the reason above. `PasswordCreationRepo::get_for_user` selects
+/// the column without one, so a real server rejects it the same way `ClassRepo::list` does.
+const PASSWORD_CREATION_COLUMNS: &str = "SELECT CAST(id AS CHAR) AS id, user_id, created, activate
+     FROM password_creation ORDER BY user_id";
+
+async fn read_password_creations(
+    source: &MySqlPool,
+) -> Result<Vec<PasswordCreationRow>, MigrateError> {
+    let rows = sqlx::query(PASSWORD_CREATION_COLUMNS)
+        .fetch_all(source)
+        .await?;
+    let mut creations = Vec::with_capacity(rows.len());
+    for row in &rows {
+        creations.push(PasswordCreationRow::from_db_row::<MySql>(row)?);
+    }
+    Ok(creations)
+}
+
 type Resources = (
     Vec<ItemRow>,
     Vec<ItemSetRow>,
@@ -214,11 +267,12 @@ type Sites = (
     Vec<SiteRow>,
     Vec<SitePageRow>,
     Vec<SiteBlockRow>,
+    Vec<SiteBlockAttachmentRow>,
     Vec<SiteItemSetRow>,
     Vec<SitePermissionRow>,
 );
 
-/// Sites, their pages and blocks, their item set pool and their permissions.
+/// Sites, their pages, blocks and block attachments, their item set pool and their permissions.
 async fn read_sites(source: &MySqlPool) -> Result<Sites, MigrateError> {
     let sites = SiteRepo::<MySql>::new(source)
         .list(&SiteFilter::default(), &Paging::default())
@@ -230,8 +284,17 @@ async fn read_sites(source: &MySqlPool) -> Result<Sites, MigrateError> {
     }
 
     let mut blocks = Vec::new();
+    let mut block_attachments = Vec::new();
     for page in &pages {
-        blocks.extend(SiteRepo::<MySql>::new(source).list_blocks(page.id).await?);
+        let page_blocks = SiteRepo::<MySql>::new(source).list_blocks(page.id).await?;
+        for block in &page_blocks {
+            block_attachments.extend(
+                SiteBlockAttachmentRepo::<MySql>::new(source)
+                    .list_for_block(block.id)
+                    .await?,
+            );
+        }
+        blocks.extend(page_blocks);
     }
 
     let mut site_item_sets = Vec::new();
@@ -249,7 +312,27 @@ async fn read_sites(source: &MySqlPool) -> Result<Sites, MigrateError> {
         );
     }
 
-    Ok((sites, pages, blocks, site_item_sets, site_permissions))
+    Ok((
+        sites,
+        pages,
+        blocks,
+        block_attachments,
+        site_item_sets,
+        site_permissions,
+    ))
+}
+
+/// Every `item_site` membership. `omeka-db` serves the row struct but has no `item_site`
+/// repository, so this crate reads the table itself.
+async fn read_item_sites(source: &MySqlPool) -> Result<Vec<ItemSiteRow>, MigrateError> {
+    let rows = sqlx::query("SELECT item_id, site_id FROM item_site ORDER BY item_id, site_id")
+        .fetch_all(source)
+        .await?;
+    let mut memberships = Vec::with_capacity(rows.len());
+    for row in &rows {
+        memberships.push(ItemSiteRow::from_db_row::<MySql>(row)?);
+    }
+    Ok(memberships)
 }
 
 /// Every API key, read once per owner.

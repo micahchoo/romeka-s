@@ -12,8 +12,16 @@ workspace = true
 [dependencies]
 omeka-core = { path = "../omeka-core" }
 omeka-db = { path = "../omeka-db", features = ["mysql"] }
+omeka-media = { path = "../omeka-media" }
 serde.workspace = true
 serde_json.workspace = true
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "mysql"] }
 thiserror.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+axum = "0.8"
+http-body-util = "0.1"
+omeka-api = { path = "../omeka-api" }
+omeka-server = { path = "../omeka-server" }
+tower = { version = "0.5", features = ["util"] }

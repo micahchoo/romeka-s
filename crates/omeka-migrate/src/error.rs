@@ -26,4 +26,10 @@ pub enum MigrateError {
     /// The target already holds rows. Writing into it would collide with the unique keys.
     #[error("the target `{path}` already holds `{table}` rows; migrate into an empty database")]
     TargetNotEmpty { path: PathBuf, table: &'static str },
+    /// Copying an asset file between the two stores failed.
+    #[error("the file store: {0}")]
+    Store(#[from] omeka_media::store::StoreError),
+    /// The source store has no file for an asset row.
+    #[error("the source store has no file for asset `{storage_id}` at `{path}`")]
+    MissingAssetFile { storage_id: String, path: PathBuf },
 }

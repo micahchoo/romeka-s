@@ -1616,13 +1616,19 @@ dependencies = [
 name = "omeka-migrate"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "http-body-util",
+ "omeka-api",
  "omeka-core",
  "omeka-db",
+ "omeka-media",
+ "omeka-server",
  "serde",
  "serde_json",
  "sqlx",
  "thiserror",
  "tokio",
+ "tower",
 ]
 
 [[package]]

@@ -15,21 +15,25 @@ use sqlx::SqlitePool;
 
 use omeka_db::ids::MediaId;
 use omeka_db::repos::{
-    ApiKeyRepo, ClassRepo, ItemFilter, ItemRepo, ItemSetRepo, MediaRepo, Paging, PropertyRepo,
-    SiteRepo, TemplateRepo, UserFilter, UserRepo, ValueRepo, VocabularyRepo,
+    ApiKeyRepo, AssetRepo, ClassRepo, ItemFilter, ItemRepo, ItemSetRepo, MediaRepo, Paging,
+    PasswordCreationRepo, PropertyRepo, SettingRepo, SiteBlockAttachmentRepo, SiteRepo,
+    SiteSettingRepo, TemplateRepo, UserFilter, UserRepo, UserSettingRepo, ValueRepo,
+    VocabularyRepo,
 };
 use omeka_db::rows::{
-    ApiKeyRow, ClassRow, ItemItemSetRow, ItemRow, ItemSetRow, MediaRow, PropertyRow, SiteBlockRow,
-    SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, TemplatePropertyRow, TemplateRow,
-    UserRow, ValueRow, VocabularyRow,
+    ApiKeyRow, AssetRow, ClassRow, ItemItemSetRow, ItemRow, ItemSetRow, ItemSiteRow, MediaRow,
+    PasswordCreationRow, PropertyRow, SettingRow, SiteBlockAttachmentRow, SiteBlockRow,
+    SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, SiteSettingRow, TemplatePropertyRow,
+    TemplateRow, UserRow, UserSettingRow, ValueRow, VocabularyRow,
 };
 
 use crate::MigrationReport;
 use crate::error::MigrateError;
 use crate::map::{
-    IdMap, new_api_key, new_class, new_item, new_item_set, new_media, new_property, new_site,
-    new_site_block, new_site_page, new_template, new_template_property, new_user, new_value,
-    new_vocabulary, remap_navigation,
+    IdMap, new_api_key, new_asset, new_class, new_item, new_item_set, new_media,
+    new_password_creation, new_property, new_site, new_site_block, new_site_block_attachment,
+    new_site_page, new_template, new_template_property, new_user, new_value, new_vocabulary,
+    remap_navigation,
 };
 use crate::read::SourceData;
 use crate::report::Ledger;
@@ -69,6 +73,8 @@ impl<'a> Writer<'a> {
     /// Write every table in dependency order and return the report.
     pub(crate) async fn run(mut self, data: &SourceData) -> Result<MigrationReport, MigrateError> {
         self.users(&data.users).await?;
+        self.assets(&data.assets).await?;
+        self.password_creations(&data.password_creations).await?;
         self.vocabularies(&data.vocabularies).await?;
         self.classes(&data.classes).await?;
         self.properties(&data.properties).await?;
@@ -82,8 +88,13 @@ impl<'a> Writer<'a> {
         self.sites(&data.sites).await?;
         self.pages(&data.pages).await?;
         self.blocks(&data.blocks).await?;
+        self.site_block_attachments(&data.block_attachments).await?;
         self.site_item_sets(&data.site_item_sets).await?;
         self.site_permissions(&data.site_permissions).await?;
+        self.item_sites(&data.item_sites).await?;
+        self.settings(&data.settings).await?;
+        self.site_settings(&data.site_settings).await?;
+        self.user_settings(&data.user_settings).await?;
         self.api_keys(&data.api_keys).await?;
         self.finish_items().await?;
         self.finish_sites().await?;
@@ -101,6 +112,41 @@ impl<'a> Writer<'a> {
             };
             self.ids.insert_user(row.id.0, target_id);
             self.ledger.written("user");
+        }
+        Ok(())
+    }
+
+    async fn assets(&mut self, rows: &[AssetRow]) -> Result<(), MigrateError> {
+        self.ledger.read("asset", rows.len() as u64);
+        for row in rows {
+            let Some(new) = new_asset(row, &self.ids) else {
+                self.ledger.skipped("asset");
+                continue;
+            };
+            let target_id = match self.target {
+                Some(target) => AssetRepo::new(target).create(&new).await?.id,
+                None => row.id,
+            };
+            self.ids.insert_asset(row.id.0, target_id);
+            self.ledger.written("asset");
+        }
+        Ok(())
+    }
+
+    async fn password_creations(
+        &mut self,
+        rows: &[PasswordCreationRow],
+    ) -> Result<(), MigrateError> {
+        self.ledger.read("password_creation", rows.len() as u64);
+        for row in rows {
+            let Some(new) = new_password_creation(row, &self.ids) else {
+                self.ledger.skipped("password_creation");
+                continue;
+            };
+            if let Some(target) = self.target {
+                PasswordCreationRepo::new(target).create(&new).await?;
+            }
+            self.ledger.written("password_creation");
         }
         Ok(())
     }
@@ -348,10 +394,30 @@ impl<'a> Writer<'a> {
                 self.ledger.skipped("site_page_block");
                 continue;
             };
-            if let Some(target) = self.target {
-                SiteRepo::new(target).add_block(&new).await?;
-            }
+            let target_id = match self.target {
+                Some(target) => SiteRepo::new(target).add_block(&new).await?.id,
+                None => row.id,
+            };
+            self.ids.insert_block(row.id.0, target_id);
             self.ledger.written("site_page_block");
+        }
+        Ok(())
+    }
+
+    async fn site_block_attachments(
+        &mut self,
+        rows: &[SiteBlockAttachmentRow],
+    ) -> Result<(), MigrateError> {
+        self.ledger.read("site_block_attachment", rows.len() as u64);
+        for row in rows {
+            let Some(new) = new_site_block_attachment(row, &self.ids) else {
+                self.ledger.skipped("site_block_attachment");
+                continue;
+            };
+            if let Some(target) = self.target {
+                SiteBlockAttachmentRepo::new(target).create(&new).await?;
+            }
+            self.ledger.written("site_block_attachment");
         }
         Ok(())
     }
@@ -391,6 +457,73 @@ impl<'a> Writer<'a> {
                     .await?;
             }
             self.ledger.written("site_permission");
+        }
+        Ok(())
+    }
+
+    /// `item_site` has no `omeka-db` repository, so this is the one write the crate makes itself.
+    async fn item_sites(&mut self, rows: &[ItemSiteRow]) -> Result<(), MigrateError> {
+        self.ledger.read("item_site", rows.len() as u64);
+        for row in rows {
+            let (Some(item), Some(site)) =
+                (self.ids.item(row.item_id.0), self.ids.site(row.site_id.0))
+            else {
+                self.ledger.skipped("item_site");
+                continue;
+            };
+            if let Some(target) = self.target {
+                sqlx::query("INSERT INTO item_site (item_id, site_id) VALUES (?, ?)")
+                    .bind(item.0 as i64)
+                    .bind(site.0 as i64)
+                    .execute(target)
+                    .await?;
+            }
+            self.ledger.written("item_site");
+        }
+        Ok(())
+    }
+
+    async fn settings(&mut self, rows: &[SettingRow]) -> Result<(), MigrateError> {
+        self.ledger.read("setting", rows.len() as u64);
+        for row in rows {
+            if let Some(target) = self.target {
+                SettingRepo::new(target).set(&row.id, &row.value).await?;
+            }
+            self.ledger.written("setting");
+        }
+        Ok(())
+    }
+
+    async fn site_settings(&mut self, rows: &[SiteSettingRow]) -> Result<(), MigrateError> {
+        self.ledger.read("site_setting", rows.len() as u64);
+        for row in rows {
+            let Some(site) = self.ids.site(row.site_id.0) else {
+                self.ledger.skipped("site_setting");
+                continue;
+            };
+            if let Some(target) = self.target {
+                SiteSettingRepo::new(target)
+                    .set(site, &row.id, &row.value)
+                    .await?;
+            }
+            self.ledger.written("site_setting");
+        }
+        Ok(())
+    }
+
+    async fn user_settings(&mut self, rows: &[UserSettingRow]) -> Result<(), MigrateError> {
+        self.ledger.read("user_setting", rows.len() as u64);
+        for row in rows {
+            let Some(user) = self.ids.user(row.user_id.0) else {
+                self.ledger.skipped("user_setting");
+                continue;
+            };
+            if let Some(target) = self.target {
+                UserSettingRepo::new(target)
+                    .set(user, &row.id, &row.value)
+                    .await?;
+            }
+            self.ledger.written("user_setting");
         }
         Ok(())
     }
@@ -468,11 +601,16 @@ pub(crate) async fn ensure_empty(target: &SqlitePool, path: &Path) -> Result<(),
 mod tests {
     use super::*;
     use omeka_db::ids::{
-        AnnotationId, AssetId, BlockId, ItemId, ItemSetId, PageId, PropertyId, ResourceId, SiteId,
-        SiteItemSetId, SitePermissionId, UserId, ValueId, VocabularyId,
+        AnnotationId, AssetId, AttachmentId, BlockId, ItemId, ItemSetId, PageId, PropertyId,
+        ResourceId, SiteId, SiteItemSetId, SitePermissionId, UserId, ValueId, VocabularyId,
     };
-    use omeka_db::repos::MediaFilter;
-    use omeka_db::rows::{ItemItemSetRow, ItemSetRow, SiteItemSetRow, SitePermissionRow};
+    use omeka_db::repos::{
+        AssetFilter, MediaFilter, SettingRepo, SiteSettingRepo, UserSettingRepo,
+    };
+    use omeka_db::rows::{
+        AssetRow, ItemItemSetRow, ItemSetRow, ItemSiteRow, PasswordCreationRow, SettingRow,
+        SiteBlockAttachmentRow, SiteItemSetRow, SitePermissionRow, SiteSettingRow, UserSettingRow,
+    };
     use serde_json::json;
     use sqlx::types::chrono::NaiveDateTime;
 
@@ -512,10 +650,47 @@ mod tests {
         }
     }
 
+    /// An asset row with a stored file, owned by the user in `sample`.
+    fn asset(id: u64, storage_id: &str) -> AssetRow {
+        AssetRow {
+            id: AssetId(id),
+            owner_id: Some(UserId(2)),
+            name: "logo.png".to_string(),
+            media_type: "image/png".to_string(),
+            storage_id: storage_id.to_string(),
+            extension: Some("png".to_string()),
+            alt_text: None,
+        }
+    }
+
     /// A source with gaps in every id sequence, so a target that renumbers exposes every reference.
     fn sample() -> SourceData {
+        let mut helmet_resource = resource(7, 2, "Bronze helmet");
+        helmet_resource.thumbnail_id = Some(AssetId(77));
+        let mut site_row = SiteRow {
+            id: SiteId(30),
+            thumbnail_id: Some(AssetId(77)),
+            homepage_id: Some(PageId(40)),
+            owner_id: Some(UserId(2)),
+            slug: "museum".to_string(),
+            theme: "default".to_string(),
+            title: "The Museum".to_string(),
+            summary: None,
+            navigation: json!([
+                {"type": "page", "links": [], "data": {"id": 40, "label": null}},
+                {"type": "browse", "data": {"query": "helmets"}}
+            ]),
+            item_pool: json!([]),
+            created: at("2024-01-03 00:00:00"),
+            modified: None,
+            is_public: true,
+            assign_new_items: false,
+        };
+        site_row.thumbnail_id = Some(AssetId(77));
+
         SourceData {
             users: vec![user(2, "ada"), user(5, "grace")],
+            assets: vec![asset(77, "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678")],
             vocabularies: vec![VocabularyRow {
                 id: VocabularyId(3),
                 owner_id: Some(UserId(2)),
@@ -533,7 +708,7 @@ mod tests {
                 comment: None,
             }],
             items: vec![ItemRow {
-                resource: resource(7, 2, "Bronze helmet"),
+                resource: helmet_resource,
                 primary_media_id: Some(MediaId(11)),
             }],
             item_sets: vec![ItemSetRow {
@@ -588,44 +763,65 @@ mod tests {
                 item_id: ItemId(7),
                 item_set_id: ItemSetId(8),
             }],
-            sites: vec![SiteRow {
-                id: SiteId(30),
-                thumbnail_id: Some(AssetId(77)),
-                homepage_id: Some(PageId(40)),
-                owner_id: Some(UserId(2)),
-                slug: "museum".to_string(),
-                theme: "default".to_string(),
-                title: "The Museum".to_string(),
-                summary: None,
-                navigation: json!([
-                    {"type": "page", "links": [], "data": {"id": 40, "label": null}},
-                    {"type": "browse", "data": {"query": "helmets"}}
-                ]),
-                item_pool: json!([]),
-                created: at("2024-01-03 00:00:00"),
-                modified: None,
-                is_public: true,
-                assign_new_items: false,
-            }],
-            pages: vec![SitePageRow {
-                id: PageId(40),
-                site_id: SiteId(30),
-                slug: "about".to_string(),
-                title: "About".to_string(),
-                is_public: true,
-                layout: None,
-                layout_data: None,
-                created: at("2024-01-03 00:00:01"),
-                modified: None,
-            }],
-            blocks: vec![SiteBlockRow {
-                id: BlockId(50),
-                page_id: PageId(40),
-                layout: "html".to_string(),
-                data: json!({"html": "<p>Hello</p>"}),
-                layout_data: None,
-                position: 0,
-            }],
+            sites: vec![site_row],
+            pages: vec![
+                SitePageRow {
+                    id: PageId(40),
+                    site_id: SiteId(30),
+                    slug: "about".to_string(),
+                    title: "About".to_string(),
+                    is_public: true,
+                    layout: None,
+                    layout_data: None,
+                    created: at("2024-01-03 00:00:01"),
+                    modified: None,
+                },
+                SitePageRow {
+                    id: PageId(41),
+                    site_id: SiteId(30),
+                    slug: "contents".to_string(),
+                    title: "Contents".to_string(),
+                    is_public: true,
+                    layout: None,
+                    layout_data: None,
+                    created: at("2024-01-03 00:00:02"),
+                    modified: None,
+                },
+            ],
+            blocks: vec![
+                SiteBlockRow {
+                    id: BlockId(50),
+                    page_id: PageId(40),
+                    layout: "html".to_string(),
+                    data: json!({"html": "<p>Hello</p>"}),
+                    layout_data: None,
+                    position: 0,
+                },
+                SiteBlockRow {
+                    id: BlockId(51),
+                    page_id: PageId(40),
+                    layout: "media".to_string(),
+                    data: json!({"media_display": "thumbnail"}),
+                    layout_data: None,
+                    position: 1,
+                },
+                SiteBlockRow {
+                    id: BlockId(52),
+                    page_id: PageId(40),
+                    layout: "asset".to_string(),
+                    data: json!([{"id": 77, "page": 40, "alt_link_title": "", "caption": "Logo"}]),
+                    layout_data: Some(json!({"background_image_asset": 77})),
+                    position: 2,
+                },
+                SiteBlockRow {
+                    id: BlockId(53),
+                    page_id: PageId(41),
+                    layout: "listOfPages".to_string(),
+                    data: json!({"pagelist": "[{\"text\":\"About\",\"data\":{\"id\":40},\"children\":[]}]"}),
+                    layout_data: None,
+                    position: 0,
+                },
+            ],
             site_item_sets: vec![SiteItemSetRow {
                 id: SiteItemSetId(60),
                 site_id: SiteId(30),
@@ -646,6 +842,38 @@ mod tests {
                 last_ip: None,
                 last_accessed: None,
                 created: at("2024-01-04 00:00:00"),
+            }],
+            block_attachments: vec![SiteBlockAttachmentRow {
+                id: AttachmentId(80),
+                block_id: BlockId(51),
+                item_id: Some(ItemId(7)),
+                media_id: Some(MediaId(11)),
+                caption: "A helmet".to_string(),
+                position: 1,
+            }],
+            item_sites: vec![ItemSiteRow {
+                item_id: ItemId(7),
+                site_id: SiteId(30),
+            }],
+            settings: vec![SettingRow {
+                id: "administrator_email".to_string(),
+                value: json!("ada@example.org"),
+            }],
+            site_settings: vec![SiteSettingRow {
+                id: "attachment_link_type".to_string(),
+                site_id: SiteId(30),
+                value: json!("original"),
+            }],
+            user_settings: vec![UserSettingRow {
+                id: "default_locale".to_string(),
+                user_id: UserId(5),
+                value: json!("fr"),
+            }],
+            password_creations: vec![PasswordCreationRow {
+                id: "reset-key".to_string(),
+                user_id: UserId(5),
+                created: at("2024-01-05 00:00:00"),
+                activate: true,
             }],
             classes: vec![],
             templates: vec![],
@@ -681,9 +909,25 @@ mod tests {
         assert_eq!(item.resource.title.as_deref(), Some("Bronze helmet"));
         assert_eq!(item.resource.owner_id, Some(UserId(1)));
         assert_eq!(
+            item.resource.thumbnail_id,
+            Some(AssetId(1)),
+            "the item's thumbnail points at the asset's new id"
+        );
+        assert_eq!(
             item.primary_media_id,
             Some(MediaId(3)),
             "the item points at the media's new id"
+        );
+
+        let assets = AssetRepo::new(&pool)
+            .list(&AssetFilter::default(), &Paging::default())
+            .await
+            .expect("list assets");
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].id, AssetId(1));
+        assert_eq!(
+            assets[0].storage_id,
+            "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
         );
 
         let media = MediaRepo::new(&pool)
@@ -720,6 +964,11 @@ mod tests {
             .await
             .expect("list sites");
         assert_eq!(sites[0].id, SiteId(1));
+        assert_eq!(
+            sites[0].thumbnail_id,
+            Some(AssetId(1)),
+            "the site's thumbnail points at the asset's new id"
+        );
         assert_eq!(sites[0].homepage_id, Some(PageId(1)));
         assert_eq!(
             sites[0].navigation[0]["data"]["id"],
@@ -743,6 +992,100 @@ mod tests {
             .expect("list blocks");
         assert_eq!(blocks[0].page_id, PageId(1));
         assert_eq!(blocks[0].data["html"], json!("<p>Hello</p>"));
+
+        let asset_block = blocks
+            .iter()
+            .find(|block| block.layout == "asset")
+            .expect("the asset block moved");
+        assert_eq!(
+            asset_block.data[0]["id"],
+            json!(1),
+            "the asset block's asset id is remapped"
+        );
+        assert_eq!(
+            asset_block.data[0]["page"],
+            json!(1),
+            "the asset block's page id is remapped"
+        );
+        assert_eq!(
+            asset_block.layout_data.as_ref().expect("layout data")["background_image_asset"],
+            json!(1),
+            "the block background asset is remapped"
+        );
+
+        let contents = SiteRepo::new(&pool)
+            .list_pages(SiteId(1))
+            .await
+            .expect("list pages")
+            .into_iter()
+            .find(|page| page.slug == "contents")
+            .expect("the contents page moved");
+        let list_block = SiteRepo::new(&pool)
+            .list_blocks(contents.id)
+            .await
+            .expect("list the contents blocks")
+            .into_iter()
+            .find(|block| block.layout == "listOfPages")
+            .expect("the list of pages block moved");
+        let pagelist: serde_json::Value = serde_json::from_str(
+            list_block.data["pagelist"]
+                .as_str()
+                .expect("a pagelist string"),
+        )
+        .expect("the pagelist is JSON");
+        assert_eq!(
+            pagelist[0]["data"]["id"],
+            json!(1),
+            "the list of pages page id is remapped"
+        );
+
+        let attachments = SiteBlockAttachmentRepo::new(&pool)
+            .list_for_block(BlockId(2))
+            .await
+            .expect("list attachments");
+        assert_eq!(attachments.len(), 1);
+        assert_eq!(attachments[0].block_id, BlockId(2));
+        assert_eq!(
+            attachments[0].item_id,
+            Some(ItemId(1)),
+            "the attachment's item is remapped"
+        );
+        assert_eq!(
+            attachments[0].media_id,
+            Some(MediaId(3)),
+            "the attachment's media is remapped"
+        );
+        assert_eq!(attachments[0].caption, "A helmet");
+
+        let site_items: Vec<(i64, i64)> =
+            sqlx::query_as("SELECT item_id, site_id FROM item_site ORDER BY item_id")
+                .fetch_all(&pool)
+                .await
+                .expect("read item_site");
+        assert_eq!(site_items, vec![(1, 1)], "the site membership is remapped");
+
+        let setting = SettingRepo::new(&pool)
+            .get("administrator_email")
+            .await
+            .expect("read a global setting");
+        assert_eq!(setting, Some(json!("ada@example.org")));
+        let site_setting = SiteSettingRepo::new(&pool)
+            .get(SiteId(1), "attachment_link_type")
+            .await
+            .expect("read a site setting");
+        assert_eq!(site_setting, Some(json!("original")));
+        let user_setting = UserSettingRepo::new(&pool)
+            .get(UserId(2), "default_locale")
+            .await
+            .expect("read a user setting");
+        assert_eq!(user_setting, Some(json!("fr")));
+        let reset = omeka_db::repos::PasswordCreationRepo::new(&pool)
+            .get_for_user(UserId(2))
+            .await
+            .expect("read the password key")
+            .expect("the password key moved");
+        assert_eq!(reset.id, "reset-key");
+        assert!(reset.activate);
 
         let memberships = SiteRepo::new(&pool)
             .list_item_sets(SiteId(1))
@@ -777,6 +1120,21 @@ mod tests {
 
         assert_eq!(report.table("value").map(|t| t.skipped), Some(1));
         assert_eq!(report.table("item").map(|t| t.written), Some(1));
+        for table in [
+            "asset",
+            "site_block_attachment",
+            "item_site",
+            "setting",
+            "site_setting",
+            "user_setting",
+            "password_creation",
+        ] {
+            assert_eq!(
+                report.table(table).map(|t| t.written),
+                Some(1),
+                "{table} moved"
+            );
+        }
         assert_eq!(report.totals().2, 1, "exactly one row is skipped");
         assert!(!report.dry_run);
     }
