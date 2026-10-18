@@ -22,7 +22,6 @@ use crate::write::access;
 use crate::write::body::{Payload, php_json};
 use crate::write::fulltext;
 use crate::write::resource::{self, not_found as ref_not_found};
-use crate::write::values;
 
 const MEDIA_CLASS: &str = "Omeka\\Entity\\Media";
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
@@ -89,7 +88,13 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         })
         .await
         .map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
     // `Module::saveFulltext`'s media branch: the item's text includes its media.
     fulltext::reindex(api, "items", ResourceId(row.item_id.0)).await?;
@@ -125,7 +130,13 @@ pub async fn update(
         row.alt_text = payload.str_member("o:alt_text").map(str::to_string);
     }
     repo.update(&row).await.map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
     fulltext::reindex(api, "items", ResourceId(row.item_id.0)).await?;
     api.read_member("media", raw_id).await

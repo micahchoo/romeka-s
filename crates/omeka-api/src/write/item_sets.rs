@@ -14,7 +14,6 @@ use crate::write::access;
 use crate::write::body::Payload;
 use crate::write::fulltext;
 use crate::write::resource;
-use crate::write::values;
 
 const ITEM_SET_CLASS: &str = "Omeka\\Entity\\ItemSet";
 
@@ -36,7 +35,13 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         })
         .await
         .map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "item_sets", row.resource.id).await?;
     api.read_member("item_sets", &row.resource.id.0.to_string())
         .await
@@ -60,7 +65,13 @@ pub async fn update(
         row.is_open = payload.bool_member("o:is_open", false);
     }
     repo.update(&row).await.map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     fulltext::reindex(api, "item_sets", row.resource.id).await?;
     api.read_member("item_sets", raw_id).await
 }
