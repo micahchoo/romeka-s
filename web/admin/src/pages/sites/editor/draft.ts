@@ -39,7 +39,15 @@ import {
   spanOf,
   takeNode,
 } from './groups';
-import { defaultsFor, schemaFor, validateFields } from './schema';
+import { defaultsFor, romkaSchemaFor, schemaFor, settingsDefaults, validateFields } from './schema';
+import {
+  carrierOf,
+  newCarrier,
+  romkaFor,
+  settingsOf,
+  withSettings,
+  withoutPlainHash,
+} from './romeka';
 import {
   contentEquals,
   dataObject,
@@ -145,6 +153,13 @@ export type DraftAction =
       readonly value: JsonValue;
     }
   | {
+      readonly type: 'setRomkaSetting';
+      readonly blockKey: BlockKey;
+      readonly field: string;
+      readonly value: JsonValue;
+    }
+  | { readonly type: 'useRomkaVersion'; readonly blockKey: BlockKey }
+  | {
       readonly type: 'setAttachments';
       readonly blockKey: BlockKey;
       readonly attachments: readonly BlockAttachment[];
@@ -209,13 +224,25 @@ const commit = (
   };
 };
 
-const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): BlockDraft => ({
-  key,
-  layout,
-  data: defaultsFor(registry, layout),
-  layoutData: null,
-  attachments: [],
-});
+const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): BlockDraft => {
+  const romka = romkaSchemaFor(registry, layout);
+  if (romka !== undefined) {
+    return {
+      key,
+      layout: romka.carrier,
+      data: { html: '' },
+      layoutData: newCarrier(romka.name, settingsDefaults(registry, romka.name)),
+      attachments: [],
+    };
+  }
+  return {
+    key,
+    layout,
+    data: defaultsFor(registry, layout),
+    layoutData: null,
+    attachments: [],
+  };
+};
 
 /** A blank page, the create form's starting state. */
 export const emptyDraft = (registry: BlockRegistry = BLOCK_REGISTRY): PageDraft => {
@@ -392,8 +419,44 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         `layoutData:${action.blockKey}:${action.key}`,
       );
     }
-    case 'setAttachments': {
+    case 'setRomkaSetting': {
       const target = state.blocks.find((block) => block.key === action.blockKey);
+      if (target === undefined || romkaFor(state.registry, target) === undefined) {
+        return state;
+      }
+      const settings = { ...settingsOf(target), [action.field]: action.value };
+      const next: BlockDraft = {
+        ...target,
+        layoutData:
+          target.layoutData === null
+            ? null
+            : withSettings(target.layoutData, settings),
+      };
+      return commit(
+        state,
+        {
+          ...contentOf(state),
+          blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
+        },
+        state.nextKey,
+        `romkaSetting:${action.blockKey}:${action.field}`,
+      );
+    }
+    case 'useRomkaVersion': {
+      const target = state.blocks.find((block) => block.key === action.blockKey);
+      if (target === undefined || target.layoutData === null || carrierOf(target) === null) {
+        return state;
+      }
+      const next: BlockDraft = {
+        ...target,
+        layoutData: withoutPlainHash(target.layoutData),
+      };
+      return commit(state, {
+        ...contentOf(state),
+        blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
+      });
+    }
+    case 'setAttachments': {      const target = state.blocks.find((block) => block.key === action.blockKey);
       if (target === undefined) {
         return state;
       }
@@ -478,6 +541,11 @@ export const validate = (state: PageDraft): readonly ValidationIssue[] => {
   const issues: ValidationIssue[] =
     state.title.trim() === '' ? [{ kind: 'required', blockKey: null, field: 'title' }] : [];
   for (const block of state.blocks) {
+    const romka = romkaFor(state.registry, block);
+    if (romka !== undefined) {
+      issues.push(...validateFields(block.key, romka.fields, settingsOf(block), ''));
+      continue;
+    }
     const schema = schemaFor(state.registry, block.layout);
     if (schema === undefined) {
       continue;

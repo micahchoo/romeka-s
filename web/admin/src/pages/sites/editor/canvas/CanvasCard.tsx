@@ -39,6 +39,8 @@ export interface CanvasCardProps {
   readonly label: string;
   readonly summary: string;
   readonly issues: readonly ValidationIssue[];
+  /** Whether the carrier's stored html was edited outside Romeka. */
+  readonly mismatch: boolean;
   readonly selected: boolean;
   readonly picked: boolean;
   readonly grid: boolean;
@@ -59,6 +61,7 @@ export const CanvasCard = ({
   label,
   summary,
   issues,
+  mismatch,
   selected,
   picked,
   grid,
@@ -237,6 +240,21 @@ export const CanvasCard = ({
         {issues.length === 0 ? null : (
           <span className="canvas-badge">{t('canvas.issues', { count: issues.length })}</span>
         )}
+        {mismatch ? (
+          <>
+            <span className="canvas-badge canvas-badge-edited">{t('canvas.romkaMismatch')}</span>
+            <button
+              type="button"
+              className="canvas-romka-restore"
+              onClick={() => {
+                dispatch({ type: 'useRomkaVersion', blockKey: block.key });
+                onAnnounce(t('canvas.romkaRestored', { label }));
+              }}
+            >
+              {t('canvas.romkaUse')}
+            </button>
+          </>
+        ) : null}
         <div className="canvas-menu">
           <button
             type="button"

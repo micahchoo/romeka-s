@@ -142,6 +142,13 @@ pub(crate) async fn load_blocks(
         if let Some(id) = block.layout_data.background_image_asset {
             load_asset(loader, id, &mut loaded).await?;
         }
+        // A Romeka block's settings name their own assets (the hero's
+        // background), and its rich render reads them through `read_asset`.
+        if let Some(carrier) = &block.layout_data.romeka {
+            for id in omeka_site::blocks::romeka::asset_refs(carrier) {
+                load_asset(loader, id, &mut loaded).await?;
+            }
+        }
     }
     Ok(loaded)
 }

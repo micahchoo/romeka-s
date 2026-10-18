@@ -17,6 +17,10 @@ indexmap = { version = "2", features = ["serde"] }
 # (`Omeka\Stdlib\HtmlPurifier`).
 omeka-core = { path = "../omeka-core" }
 omeka-db = { path = "../omeka-db" }
+# The site-page write regenerates a Romeka block's plain rendering through the
+# block's own plain renderer (`omeka-site/src/blocks/romeka.rs`), so the two
+# cannot drift. `omeka-site` holds no I/O, so this stays a value dependency.
+omeka-site = { path = "../omeka-site" }
 # media delete removes the stored bytes (`Module::deleteMediaFiles`), so the
 # delete handler reaches `omeka-media`'s store. Imports flow api -> media -> core.
 omeka-media = { path = "../omeka-media" }

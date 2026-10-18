@@ -76,6 +76,25 @@ The kinds are upstream's form elements: `Text`, `Html`, `Integer { min, max }`, 
 attachments list is stored as rows beside `data`, so its key is not a `data` member. The hidden
 members a form does not present (`oembed.url_old`, `oembed.oembed`) are not fields.
 
+### Romeka blocks
+
+A Romeka block is an upstream block with a plain rendering upstream can show, plus the block's own
+settings under `o:layout_data.romeka`. `blocks::romeka` owns the rule. `RomkaBlock` carries a name, a
+catalogue label, a `LayoutSchema` in the same format as an upstream layout, a rich renderer and a
+plain renderer. `plain` has no default, so a block without one does not compile. `ROMKA_BLOCKS` holds
+the registry; `hero` is its first entry.
+
+`romeka::plain_hash` hashes the stored plain rendering with FNV-1a 64. `Html::render` calls
+`render_carrier`: a carrier whose hash matches renders the rich form, and one whose hash does not, or
+is absent, renders the stored html, purified. The admin repeats the hash
+(`web/admin/src/pages/sites/editor/romeka.ts`) to mark the block, and
+`web/admin/src/generated/blocks.json` carries a worked sample both sides test against.
+
+`blocks::schema::registry` lists the Romeka registry beside the upstream layouts, each entry with its
+carrier, so the admin picker offers them and its form uses the block's own fields. The site write
+(`omeka-api/src/write/site_pages.rs::carry_block`) regenerates the plain rendering from `plain` and
+records the hash. `docs/compat.md` states the one-way rule this implements.
+
 ### Views
 
 | `view::View` | upstream view |

@@ -1540,6 +1540,7 @@ dependencies = [
  "omeka-db",
  "omeka-media",
  "omeka-plugin",
+ "omeka-site",
  "proptest",
  "serde",
  "serde_json",

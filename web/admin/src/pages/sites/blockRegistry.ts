@@ -25,6 +25,22 @@ export const BLOCK_LAYOUTS: readonly BlockLayoutOption[] = BLOCK_REGISTRY.layout
   labelKey: layout.label,
 }));
 
+/** Every registered Romeka block, in the registry's order. */
+export const ROMKA_BLOCKS: readonly BlockLayoutOption[] = BLOCK_REGISTRY.romeka.map((block) => ({
+  name: block.name,
+  labelKey: block.label,
+}));
+
+/**
+ * What the insert picker offers: the upstream layouts and the Romeka blocks.
+ * Choosing a Romeka block stores an upstream carrier, which the draft model
+ * builds from `block.carrier`.
+ */
+export const BLOCK_PICKER_OPTIONS: readonly BlockLayoutOption[] = [
+  ...BLOCK_LAYOUTS,
+  ...ROMKA_BLOCKS,
+];
+
 /**
  * The options for one block, keeping a stored layout the registry does not
  * register as its own entry so an unknown layout is never silently switched.

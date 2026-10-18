@@ -33,7 +33,7 @@ export const BlockPicker = ({
 }: BlockPickerProps): ReactElement => {
   const { t } = useTranslator();
   const [query, setQuery] = useState('');
-  const options = registry.layouts.filter((layout) =>
+  const options = [...registry.layouts, ...registry.romeka].filter((layout) =>
     matches(t(layout.label), layout.name, query),
   );
   const searchId = `canvas-picker-search-${String(index)}`;

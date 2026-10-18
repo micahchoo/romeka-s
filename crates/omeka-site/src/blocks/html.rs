@@ -31,7 +31,13 @@ impl BlockLayout for Html {
         "HTML"
     }
 
-    fn render(&self, block: &SiteBlock, _ctx: &RenderContext<'_>) -> String {
+    fn render(&self, block: &SiteBlock, ctx: &RenderContext<'_>) -> String {
+        if let Some(render) = crate::blocks::romeka::render_carrier(block, ctx) {
+            return match render {
+                crate::blocks::romeka::CarrierRender::Rich(html)
+                | crate::blocks::romeka::CarrierRender::Edited(html) => html,
+            };
+        }
         match &block.data {
             BlockData::Html { html } => omeka_core::purify::purify(html),
             _ => String::new(),

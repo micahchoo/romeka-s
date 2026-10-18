@@ -12,11 +12,16 @@ import { useTranslator } from '../../../../i18n';
 import { blockLayoutOptions } from '../../blockRegistry';
 import type { DraftAction, BlockDraft, PageDraft, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { isJsonArray, isJsonObject, layoutDataObject } from '../values';
 
 const BlockForm = lazy(() =>
   import('../fields').then((module) => ({ default: module.BlockForm })),
+);
+
+const RomkaForm = lazy(() =>
+  import('../fields').then((module) => ({ default: module.RomkaForm })),
 );
 
 const LayoutDataForm = lazy(() =>
@@ -93,6 +98,7 @@ export const Inspector = ({
 }: InspectorProps): ReactElement => {
   const { t } = useTranslator();
   const schema = schemaFor(draft.registry, block.layout);
+  const romka = romkaFor(draft.registry, block);
   const layoutData = draft.registry.blockLayoutData;
   const position = draft.blocks.findIndex((entry) => entry.key === block.key) + 1;
 
@@ -102,29 +108,46 @@ export const Inspector = ({
         {t('editor.inspector')}
         {position > 0 ? `: ${String(position)}` : ''}
       </h2>
-      <p>
-        <label htmlFor={`block-layout-${block.key}`}>{t('editor.blockLayout')}</label>
-        <select
-          id={`block-layout-${block.key}`}
-          value={block.layout}
-          onChange={(event) => {
-            dispatch({ type: 'setLayout', blockKey: block.key, layout: event.target.value });
-          }}
-        >
-          {blockLayoutOptions(block.layout).map((option) => (
-            <option key={option.name} value={option.name}>
-              {t(option.labelKey)}
-            </option>
-          ))}
-        </select>
-      </p>
+      {romka === undefined ? (
+        <p>
+          <label htmlFor={`block-layout-${block.key}`}>{t('editor.blockLayout')}</label>
+          <select
+            id={`block-layout-${block.key}`}
+            value={block.layout}
+            onChange={(event) => {
+              dispatch({ type: 'setLayout', blockKey: block.key, layout: event.target.value });
+            }}
+          >
+            {blockLayoutOptions(block.layout).map((option) => (
+              <option key={option.name} value={option.name}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </p>
+      ) : (
+        <p className="field-note">
+          {t('editor.romkaBlock', { name: t(romka.label) })} {t('editor.romkaGenerated')}
+        </p>
+      )}
       <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
-        {schema === undefined ? (
-          <UnknownData block={block} dispatch={dispatch} />
+        {romka === undefined ? (
+          schema === undefined ? (
+            <UnknownData block={block} dispatch={dispatch} />
+          ) : (
+            <BlockForm
+              block={block}
+              schema={schema}
+              issues={issues}
+              siteId={siteId}
+              dispatch={dispatch}
+              options={options}
+            />
+          )
         ) : (
-          <BlockForm
+          <RomkaForm
             block={block}
-            schema={schema}
+            romka={romka}
             issues={issues}
             siteId={siteId}
             dispatch={dispatch}
