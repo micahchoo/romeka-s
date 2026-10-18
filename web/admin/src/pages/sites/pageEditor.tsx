@@ -26,7 +26,7 @@ import {
 
 /** A new page starts with the page title block upstream's editor seeds. */
 const NEW_PAGE_BLOCKS: readonly BlockDraft[] = [
-  { key: 0, layout: 'pageTitle', data: '[]', layoutData: '' },
+  { key: 0, layout: 'pageTitle', data: '[]', layoutData: '', attachments: [] },
 ];
 
 const PageEditor = ({
