@@ -387,6 +387,19 @@ const parseValueGroups = (
   return groups;
 };
 
+/**
+ * A `DELETE` answers the entity the flush removed. Doctrine clears its
+ * identifier, so the document carries `o:id` null and the collection `@id`
+ * (`crates/omeka-api/src/write/detached.rs`). Nothing consumes the body, so the
+ * boundary only confirms the answer is that shape.
+ */
+export const assertDetached = (raw: unknown, path: Path = []): void => {
+  const object = asRecord(raw, path);
+  if (object['o:id'] !== null) {
+    throw new ParseError([...path, 'o:id'], 'null');
+  }
+};
+
 const parseEntityCore = <IdT extends number>(
   object: Record<string, unknown>,
   path: Path,
