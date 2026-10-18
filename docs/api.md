@@ -994,6 +994,7 @@ Request body members (`POST` and `PUT`).
 | `o:site_permission` | control member | `crates/omeka-api/src/write/sites.rs` |
 | `o:site_item_set` | control member | `crates/omeka-api/src/write/sites.rs` |
 | `o:theme_settings` | control member | `crates/omeka-api/src/write/sites.rs` |
+| `o:site_settings` | control member | `crates/omeka-api/src/write/sites.rs` |
 | `o:owner` | control member | `crates/omeka-api/src/write/sites.rs` |
 | `o:thumbnail` | control member | `crates/omeka-api/src/write/sites.rs` |
 | any property term (`prefix:local_name`) | list of value objects | `crates/omeka-api/src/write/values.rs` |
@@ -1026,6 +1027,7 @@ One site document. Sites are not resource entities, so the common `o:is_public` 
 | `o:site_permission` | `site_permission` | `Vec<SitePermission>` |  |
 | `o:site_item_set` | `site_item_set` | `Vec<SiteItemSet>` |  |
 | `o:theme_settings` | `theme_settings` | `Option<serde_json::Value>` | omitted when unset; the document byte-identical to upstream's for a site that has none. |
+| `o:site_settings` | `site_settings` | `Option<serde_json::Value>` | omitted when unset; byte-identical to upstream's for a site with no settings. |
 | `o:site_item` | `site_item` | `ApiUrl` |  |
 | (flattened) | `extensions` | `IndexMap<String, serde_json::Value>` | flattens the value map into this object; map serializes empty. A later module unit fills it. |
 

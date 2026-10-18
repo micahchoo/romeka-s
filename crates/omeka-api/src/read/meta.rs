@@ -4,6 +4,8 @@
 //! the documents; `ApiController::getList` with no resource builds the root and
 //! `ApiController::contextAction` builds the context document.
 
+use std::collections::HashMap;
+
 use omeka_db::ids::{PageId, SiteId, UserId};
 use omeka_db::repos::{
     Paging, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci,
@@ -128,16 +130,23 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| matches(&row.title, needle.as_deref()))
         .collect();
+    let mut permissions: HashMap<u64, bool> = HashMap::new();
     let mut rows: Vec<SiteRow> = Vec::with_capacity(candidates.len());
     for row in candidates {
-        if site_visible(api, &row).await? {
+        let permission = has_site_permission(api, row.id).await?;
+        permissions.insert(row.id.0, permission);
+        if api
+            .actor()
+            .sees_site(row.is_public, row.owner_id, permission)
+        {
             rows.push(row);
         }
     }
     let (total, page) = sorted_page(rows, &sort, &limit, cmp_site(sort));
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
-        documents.push(site_doc(api, row).await?);
+        let permission = permissions.get(&row.id.0).copied().unwrap_or(false);
+        documents.push(site_doc(api, row, permission).await?);
     }
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -156,18 +165,28 @@ pub async fn read_site(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiEr
     else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
-    if !site_visible(api, &row).await? {
+    let permission = has_site_permission(api, row.id).await?;
+    if !api
+        .actor()
+        .sees_site(row.is_public, row.owner_id, permission)
+    {
         return Err(not_found(SITE_CLASS, raw_id));
     }
-    site_document(api, &row).await
+    site_document(api, &row, permission).await
 }
 
 /// The `Site` document for a row, as `read_site` answers it. A delete answers
 /// with the row it removed, including its pages and permissions, which
-/// `site_doc` reads before the rows are gone.
-pub(crate) async fn site_document(api: &Api<'_>, row: &SiteRow) -> Result<ApiResponse, ApiError> {
+/// `site_doc` reads before the rows are gone. `permission` is whether the actor
+/// holds a site permission; the caller reads it once so a listing does not run
+/// the permission query twice per row.
+pub(crate) async fn site_document(
+    api: &Api<'_>,
+    row: &SiteRow,
+    permission: bool,
+) -> Result<ApiResponse, ApiError> {
     Ok(ApiResponse::document(serialize(
-        &site_doc(api, row).await?,
+        &site_doc(api, row, permission).await?,
     )?))
 }
 
@@ -185,35 +204,53 @@ async fn has_site_permission(api: &Api<'_>, site: SiteId) -> Result<bool, ApiErr
         .map_err(db_error)
 }
 
-/// Whether the actor may read the site (`AclFactory` grants `read` on
-/// `Omeka\Entity\Site` through public, ownership or a site permission).
-async fn site_visible(api: &Api<'_>, row: &SiteRow) -> Result<bool, ApiError> {
-    let permission = has_site_permission(api, row.id).await?;
-    Ok(api
-        .actor()
-        .sees_site(row.is_public, row.owner_id, permission))
+/// The site facts a page-visibility test reads, loaded once per site so a page
+/// listing does not repeat the site read and the permission query for every
+/// row.
+struct SiteAccess {
+    is_public: bool,
+    owner_id: Option<UserId>,
+    permission: bool,
+}
+
+/// The site's visibility facts, `None` when no such site exists.
+async fn site_access(api: &Api<'_>, site: SiteId) -> Result<Option<SiteAccess>, ApiError> {
+    let Some(row) = SiteRepo::new(api.pool())
+        .get(site)
+        .await
+        .map_err(db_error)?
+    else {
+        return Ok(None);
+    };
+    let permission = has_site_permission(api, site).await?;
+    Ok(Some(SiteAccess {
+        is_public: row.is_public,
+        owner_id: row.owner_id,
+        permission,
+    }))
 }
 
 /// Whether the actor may read the page (`SitePageVisibilityFilter`: a public
 /// page of a public site, the site's owner, or a site permission).
 async fn site_page_visible(api: &Api<'_>, row: &SitePageRow) -> Result<bool, ApiError> {
-    let Some(site) = SiteRepo::new(api.pool())
-        .get(row.site_id)
-        .await
-        .map_err(db_error)?
-    else {
+    let Some(access) = site_access(api, row.site_id).await? else {
         return Ok(false);
     };
-    let permission = has_site_permission(api, row.site_id).await?;
-    Ok(api
-        .actor()
-        .sees_site_page(row.is_public, site.is_public, site.owner_id, permission))
+    Ok(api.actor().sees_site_page(
+        row.is_public,
+        access.is_public,
+        access.owner_id,
+        access.permission,
+    ))
 }
 
-async fn site_doc(api: &Api<'_>, row: &SiteRow) -> Result<crate::wire::site::Site, ApiError> {
+async fn site_doc(
+    api: &Api<'_>,
+    row: &SiteRow,
+    permission: bool,
+) -> Result<crate::wire::site::Site, ApiError> {
     let base = api.base();
     let repo = SiteRepo::new(api.pool());
-    let permission = has_site_permission(api, row.id).await?;
     let pages: Vec<_> = repo
         .list_pages(row.id)
         .await
@@ -268,6 +305,7 @@ async fn site_doc(api: &Api<'_>, row: &SiteRow) -> Result<crate::wire::site::Sit
         site_permission: permissions,
         site_item_set: item_sets,
         theme_settings: crate::theme_settings::load(api.pool(), row.id, &row.theme).await?,
+        site_settings: crate::site_settings::load(api.pool(), row.id).await?,
         site_item: base.items_for_site(row.id.0),
         extensions: Default::default(),
     })
@@ -541,8 +579,23 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
     // permission. The test is async (it reads the site and its permissions), so
     // it runs after the cheap filters.
     let mut rows: Vec<SitePageRow> = Vec::with_capacity(candidates.len());
+    let mut distinct: Vec<u64> = candidates.iter().map(|row| row.site_id.0).collect();
+    distinct.sort_unstable();
+    distinct.dedup();
+    let mut cache: HashMap<u64, Option<SiteAccess>> = HashMap::new();
+    for site in distinct {
+        cache.insert(site, site_access(api, SiteId::from(site)).await?);
+    }
     for row in candidates {
-        if site_page_visible(api, &row).await? {
+        let Some(access) = cache.get(&row.site_id.0).and_then(Option::as_ref) else {
+            continue;
+        };
+        if api.actor().sees_site_page(
+            row.is_public,
+            access.is_public,
+            access.owner_id,
+            access.permission,
+        ) {
             rows.push(row);
         }
     }

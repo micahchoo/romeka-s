@@ -7,7 +7,7 @@ import { SiteList } from './list';
 import { SiteNavigationPage } from './navigation';
 import { SitePageEditor } from './pageEditor';
 import { SiteResourcesPage } from './resources';
-import { SiteThemePage } from './theme';
+import { SiteSettingsPage } from './settings';
 import { SiteUsersPage } from './users';
 
 /**
@@ -46,7 +46,8 @@ export const SitesPage = ({
       case 'users':
         return <SiteUsersPage key={String(siteId)} siteId={siteId} />;
       case 'theme':
-        return <SiteThemePage key={String(siteId)} siteId={siteId} />;
+      case 'settings':
+        return <SiteSettingsPage key={String(siteId)} siteId={siteId} />;
       default:
         return <p role="alert">{t('route.noSiteRoute', { param })}</p>;
     }

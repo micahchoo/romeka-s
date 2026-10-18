@@ -1,6 +1,6 @@
 /**
  * The site-admin workflows the SPA reaches through sub-pages: navigation,
- * resources, user permissions and theme settings.
+ * resources, user permissions and site settings.
  *
  * The run drives the real server and the real database, so a reload that shows
  * a saved value proves the write reached storage and the read served it back,
@@ -18,7 +18,7 @@ const siteHash = (url: string): string => {
   return match[1];
 };
 
-test('the site admin saves theme settings, navigation and permissions', async ({
+test('the site admin saves site settings, navigation and permissions', async ({
   page,
   diagnostics,
 }) => {
@@ -27,8 +27,8 @@ test('the site admin saves theme settings, navigation and permissions', async ({
   const detail = siteHash(page.url());
   diagnostics.reset();
 
-  // Theme settings: the map is stored under the theme key and read back.
-  await page.goto(`/#${detail}/theme`);
+  // Site settings: each key is stored as a `site_setting` row and read back.
+  await page.goto(`/#${detail}/settings`);
   const installationTitle = page.getByLabel('Installation title');
   await expect(installationTitle).toBeVisible();
   await installationTitle.fill('E2E Library');

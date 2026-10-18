@@ -9,9 +9,11 @@
 //! unique slug and a theme, and rejects a navigation tree, item pool or
 //! homepage it cannot store (`SiteAdapter::validateNavigation`).
 //!
-//! `o:theme_settings` is a port addition. Upstream stores the site's theme
-//! settings in `site_setting` and edits them through a server-rendered form, so
-//! no API member carries them. See [`crate::theme_settings`].
+//! `o:theme_settings` and `o:site_settings` are port additions. Upstream
+//! stores the theme's own settings in `site_setting` under `theme_settings_
+//! <theme>` and each site setting as its own row, and edits both through a
+//! server-rendered form, so no API member carries them. See
+//! [`crate::theme_settings`] and [`crate::site_settings`].
 
 use omeka_db::ids::{ItemSetId, PageId, SiteId, UserId};
 use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
@@ -42,6 +44,7 @@ const CONTROL: &[&str] = &[
     "o:site_permission",
     "o:site_item_set",
     "o:theme_settings",
+    "o:site_settings",
     "o:owner",
     "o:thumbnail",
 ];
@@ -125,6 +128,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
     hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
+    hydrate_site_settings(api, row.id, payload).await?;
     site_defaults::welcome_page(api, row.id).await?;
     api.read_member("sites", &row.id.0.to_string()).await
 }
@@ -216,6 +220,7 @@ pub async fn update(
         retain_pages(api, row.id, &pages).await?;
     }
     hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
+    hydrate_site_settings(api, row.id, payload).await?;
     api.read_member("sites", raw_id).await
 }
 
@@ -233,7 +238,16 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
         return Err(not_found(SITE_CLASS, raw_id));
     };
     access::owned_entity(api.actor(), SITE_CLASS, row.owner_id)?;
-    let answer = crate::read::site_document(api, &row).await?;
+    // The document carries the permission-filtered page list; read the
+    // permission once here so `site_document` does not query it again.
+    let permission = match api.actor().user() {
+        Some(user) => SiteRepo::new(api.pool())
+            .has_permission(row.id, user)
+            .await
+            .map_err(db_error)?,
+        None => false,
+    };
+    let answer = crate::read::site_document(api, &row, permission).await?;
     repo.delete(row.id).await.map_err(db_error)?;
     Ok(answer)
 }
@@ -467,6 +481,25 @@ async fn homepage(api: &Api<'_>, payload: &Payload) -> Result<Option<PageId>, Ap
         return Err(ref_not_found(PAGE_CLASS, raw));
     }
     Ok(Some(page))
+}
+
+/// The site settings member, a port addition.
+///
+/// Upstream saves each field of `SiteSettingsForm` as its own `site_setting`
+/// row and edits them through a server-rendered form. The site write accepts
+/// `o:site_settings` when present: an object upserts each key (a `null` value
+/// removes that key), `null` removes them all, and an absent member leaves the
+/// stored rows alone, so a `PATCH` from one admin form does not clear the rest.
+async fn hydrate_site_settings(
+    api: &Api<'_>,
+    site: SiteId,
+    payload: &Payload,
+) -> Result<(), ApiError> {
+    let Some(value) = payload.get("o:site_settings") else {
+        return Ok(());
+    };
+    let value = (!value.is_null()).then_some(value);
+    crate::site_settings::store(api.pool(), site, value).await
 }
 
 /// `SiteAdapter::validateEntity`.

@@ -207,6 +207,7 @@ fn json_from(stored: &str, column: &'static str) -> Result<Value, DbError> {
 }
 
 /// A binary-collated text column as the UTF-8 text it holds.
+#[cfg(feature = "mysql")]
 fn utf8(bytes: Vec<u8>, column: &'static str) -> Result<String, DbError> {
     String::from_utf8(bytes).map_err(|error| DbError::Column {
         column,

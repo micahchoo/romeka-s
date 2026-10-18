@@ -45,7 +45,6 @@ use crate::blocks;
 use crate::html::{Attr, escape_html, hyperlink, open_tag, pagination};
 use crate::i18n::{Messages, Translator};
 use crate::nav::{find_item_by_page, nav_path, render_menu};
-use crate::settings::SETTINGS;
 use crate::slug::{controller_for, resource_action_url};
 use crate::theme::search;
 use crate::theme::style::STYLE_CSS;
@@ -56,12 +55,12 @@ use crate::view::{
 };
 use omeka_core::resource::ResourceKind;
 
-/// The bundled theme's manifest: the id `site.theme` stores, the site settings
-/// it reads, and the one file it ships.
+/// The bundled theme's manifest: the id `site.theme` stores, the settings it
+/// reads, and the one file it ships.
 pub static DEFAULT_INFO: ThemeInfo = ThemeInfo {
     name: "default",
     label: "Default",
-    settings: &SETTINGS,
+    settings: &[],
     assets: &[ThemeAsset {
         path: "css/style.css",
         kind: AssetKind::Stylesheet,
@@ -87,37 +86,49 @@ impl Theme for DefaultTheme {
                 info,
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
-                "page",
+                &page_body_class(ctx),
                 &page_view(ctx),
             ),
-            View::Browse(browse) => layout(
-                info,
-                ctx,
-                Some(&browse.title),
-                &format!("{} resource browse", controller_for(browse.kind)),
-                &browse_view(browse, ctx, tr),
-            ),
-            View::Item(item) => layout(
-                info,
-                ctx,
-                Some(&item.title),
-                "item resource show",
-                &item_view(item, tr),
-            ),
-            View::ItemSet(item_set) => layout(
-                info,
-                ctx,
-                Some(&item_set.title),
-                "item-set resource browse",
-                &item_set_view(item_set, tr),
-            ),
-            View::Media(media) => layout(
-                info,
-                ctx,
-                Some(&media.title),
-                "media resource show",
-                &media_view(media, tr),
-            ),
+            View::Browse(browse) => {
+                let mut content = browse_view(browse, ctx, tr);
+                for resource in &browse.resources {
+                    content.push_str(&jsonld_script(ctx, resource.jsonld.as_deref()));
+                }
+                layout(
+                    info,
+                    ctx,
+                    Some(&browse.title),
+                    &format!("{} resource browse", controller_for(browse.kind)),
+                    &content,
+                )
+            }
+            View::Item(item) => {
+                let mut content = item_view(item, tr);
+                content.push_str(&jsonld_script(ctx, item.jsonld.as_deref()));
+                layout(info, ctx, Some(&item.title), "item resource show", &content)
+            }
+            View::ItemSet(item_set) => {
+                let mut content = item_set_view(item_set, tr);
+                content.push_str(&jsonld_script(ctx, item_set.jsonld.as_deref()));
+                layout(
+                    info,
+                    ctx,
+                    Some(&item_set.title),
+                    "item-set resource browse",
+                    &content,
+                )
+            }
+            View::Media(media) => {
+                let mut content = media_view(media, tr);
+                content.push_str(&jsonld_script(ctx, media.jsonld.as_deref()));
+                layout(
+                    info,
+                    ctx,
+                    Some(&media.title),
+                    "media resource show",
+                    &content,
+                )
+            }
             View::Search(results) => layout(
                 info,
                 ctx,
@@ -210,11 +221,31 @@ fn layout_with_head(
         );
         theme_assets.push('\n');
     }
+    // `Module.php:188-203` prepends the favicon to `headLink` on `view.layout`.
+    let favicon = match &ctx.favicon_url {
+        Some(url) => format!("<link rel=\"icon\" href=\"{}\">\n", escape_html(url)),
+        None => String::new(),
+    };
+    // `Module.php:925-931`: an item, item-set or media not in the site is
+    // `noindex`.
+    let robots = if ctx.noindex {
+        "<meta name=\"robots\" content=\"noindex\">\n"
+    } else {
+        ""
+    };
+    // `UserBar.php:35-43`: `-1` never, `1` always, otherwise only when signed in.
+    let user_bar = if ctx.settings.shows_user_bar(ctx.signed_in) {
+        user_bar(ctx, tr)
+    } else {
+        String::new()
+    };
     format!(
         "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n\
          <meta charset=\"utf-8\">\n\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
          <title>{title}</title>\n\
+         {robots}\
+         {favicon}\
          <link rel=\"stylesheet\" href=\"{assets}/css/fonts.css\">\n\
          <link rel=\"stylesheet\" href=\"{assets}/css/iconfonts.css\">\n\
          {theme_assets}\
@@ -223,6 +254,8 @@ fn layout_with_head(
          {head_extra}\
          </head>\n\
          <body class=\"minimal {body}\">\n\
+         <a id=\"skipnav\" href=\"#content\">{skip}</a>\n\
+         {user_bar}\
          <div class=\"site-search\">{search_form}</div>\n\
          <div id=\"content\" role=\"main\">\n\
          {site_title}\n{content}\n</div>\n\
@@ -231,9 +264,86 @@ fn layout_with_head(
         lang = tr.locale().tag(),
         body = escape_html(body_class),
         site_title = site_title,
+        skip = escape_html(tr.messages().skip_to_main),
+        user_bar = user_bar,
+        robots = robots,
+        favicon = favicon,
         search_form = search::search_form(ctx, tr.search_labels()),
         powered_by = escape_html(tr.messages().powered_by),
     )
+}
+
+/// `common/user-bar.phtml`: the admin bar a signed-in caller sees, or a login
+/// link when `show_user_bar` is `1` and nobody is signed in.
+fn user_bar(ctx: &RenderContext<'_>, tr: Translator) -> String {
+    let messages = tr.messages();
+    if ctx.signed_in {
+        let name = ctx.user_name.as_deref().unwrap_or("");
+        format!(
+            "<nav id=\"user-bar\" aria-label=\"{label}\">\
+             <div class=\"user-links\">\
+             <span class=\"user-id\">{signed_in} {name}</span> \
+             <a href=\"/logout\" class=\"logout\">{logout}</a>\
+             </div></nav>\n",
+            label = escape_html(messages.user_bar_label),
+            signed_in = escape_html(messages.signed_in_as),
+            name = escape_html(name),
+            logout = escape_html(messages.log_out),
+        )
+    } else {
+        format!(
+            "<nav id=\"user-bar\" aria-label=\"{label}\">\
+             <a href=\"/login\" class=\"login\">{login}</a></nav>\n",
+            label = escape_html(messages.user_bar_label),
+            login = escape_html(messages.log_in),
+        )
+    }
+}
+
+/// `Controller/Site/PageController.php:41-43`: `page {layout_data.class}
+/// site-page-{slug}`, with every character outside `[a-zA-Z0-9-]` in the slug
+/// replaced by `-`.
+fn page_body_class(ctx: &RenderContext<'_>) -> String {
+    let mut class = String::from("page");
+    if let Some(page) = ctx.page {
+        if let Some(extra) = page.layout_data.class.as_deref().filter(|c| !c.is_empty()) {
+            class.push(' ');
+            class.push_str(&sanitize_class(extra));
+        }
+        class.push_str(" site-page-");
+        class.push_str(&sanitize_class(page.slug.as_str()));
+    }
+    class
+}
+
+/// `preg_replace('([^a-zA-Z0-9\-])', '-', $value)`.
+fn sanitize_class(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect()
+}
+
+/// `Module.php` `view.show.after` / `view.browse.after`: the resource's
+/// embedded JSON-LD in a script, unless the site's `disable_jsonld_embed` is
+/// set. The `<` is escaped so a title cannot close the script element.
+fn jsonld_script(ctx: &RenderContext<'_>, document: Option<&str>) -> String {
+    if ctx.settings.disable_jsonld_embed() {
+        return String::new();
+    }
+    match document {
+        Some(json) => format!(
+            "<script type=\"application/ld+json\">{}</script>\n",
+            json.replace('<', "\\u003c")
+        ),
+        None => String::new(),
+    }
 }
 
 /// `view/omeka/site/index/index.phtml`.

@@ -41,6 +41,7 @@
   "o:site_item_set": [
     { "o:item_set": { "@id": "http://localhost/api/item_sets/2", "o:id": 2 } }
   ],
-  "o:theme_settings": { "installation_title": "Library", "show_page_pagination": false },
+  "o:theme_settings": { "logo": 7 },
+  "o:site_settings": { "installation_title": "Library", "show_page_pagination": false },
   "o:site_item": { "@id": "http://localhost/api/items?site_id=1" }
 }

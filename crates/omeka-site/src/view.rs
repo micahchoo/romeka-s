@@ -64,6 +64,11 @@ pub struct ResourceView {
     /// For a media resource, the item it belongs to (`Media::item()`), for the
     /// media view's "Part of" line.
     pub parent_item: Option<ResourceRef>,
+    /// The resource's embedded JSON-LD document, a compact JSON object the show
+    /// and browse views print in a `application/ld+json` script (`Module.php`
+    /// `view.show.after` / `view.browse.after`, honouring
+    /// `disable_jsonld_embed`). `None` when the caller did not build one.
+    pub jsonld: Option<String>,
 }
 
 impl ResourceView {
@@ -87,6 +92,7 @@ impl ResourceView {
             media: Vec::new(),
             primary_media: None,
             parent_item: None,
+            jsonld: None,
         }
     }
 }
@@ -453,6 +459,18 @@ pub struct RenderContext<'a> {
     pub iiif_viewer_url: String,
     /// The request path, for pagination and canonical links. Default empty.
     pub current_path: String,
+    /// The favicon URL the layout links as `rel="icon"`, resolved from the
+    /// `favicon` setting (`Module.php:188-203`). `None` when the setting is
+    /// unset or names an asset the caller cannot resolve.
+    pub favicon_url: Option<String>,
+    /// Whether the caller is signed in, for the user bar
+    /// (`View/Helper/UserBar.php:35-43`).
+    pub signed_in: bool,
+    /// The signed-in caller's display name, for the user bar.
+    pub user_name: Option<String>,
+    /// Whether the shown resource is not in this site, so the document carries
+    /// `<meta name="robots" content="noindex">` (`Module.php:925-931`).
+    pub noindex: bool,
     /// The resource lookup.
     pub resources: &'a dyn ResourceProvider,
 }
@@ -473,6 +491,10 @@ impl<'a> RenderContext<'a> {
             asset_base: "/assets".to_string(),
             iiif_viewer_url: "/iiif-viewer".to_string(),
             current_path: String::new(),
+            favicon_url: None,
+            signed_in: false,
+            user_name: None,
+            noindex: false,
             resources,
         }
     }

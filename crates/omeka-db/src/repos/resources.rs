@@ -417,6 +417,20 @@ where
             .map(|raw| Ok(SiteId::from(new_id(raw)?)))
             .collect()
     }
+
+    /// Whether the item is attached to the site (`item_site`). Upstream's
+    /// `noindexItem` reads `$resource->sites()` for the same question
+    /// (`Module.php:925-931`).
+    pub async fn in_site(&self, item_id: ItemId, site_id: SiteId) -> Result<bool, DbError> {
+        let count: i64 = sqlx::query_scalar::<DB, i64>(
+            "SELECT COUNT(*) FROM item_site WHERE item_id = ? AND site_id = ?",
+        )
+        .bind(bind_id(item_id))
+        .bind(bind_id(site_id))
+        .fetch_one(self.pool)
+        .await?;
+        Ok(count > 0)
+    }
 }
 
 const ITEM_SET_COLUMNS: &str = "SELECT resource.*, item_set.is_open FROM item_set

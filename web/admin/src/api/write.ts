@@ -175,6 +175,11 @@ export const encodeSiteThemeSettings = (
   settings: Readonly<Record<string, JsonValue>>,
 ): WireBody => ({ 'o:theme_settings': settings });
 
+/** The site settings map, a port addition (`o:site_settings`). */
+export const encodeSiteSettings = (
+  settings: Readonly<Record<string, JsonValue>>,
+): WireBody => ({ 'o:site_settings': settings });
+
 const encodeAttachment = (
   attachment: SiteBlockAttachmentWrite,
 ): Record<string, unknown> => ({

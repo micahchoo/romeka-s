@@ -716,6 +716,7 @@ export const parseSite: Parser<Site> = (raw, path = []) => {
       [...path, 'o:site_item_set'],
     ),
     themeSettings: optionalJsonValue(object, 'o:theme_settings', path),
+    siteSettings: optionalJsonValue(object, 'o:site_settings', path),
     siteItemsUrl: asNullableUrlId(object, 'o:site_item', path),
   };
 };

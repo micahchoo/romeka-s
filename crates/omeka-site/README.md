@@ -23,9 +23,10 @@ A caller does three things.
 port bundles one, `default`, listed in `theme::THEMES`.
 
 A theme is a `Theme` implementation plus a `ThemeInfo` manifest. The manifest carries the name a site
-stores, the `site_setting` keys the theme reads (`settings::SETTINGS` for the bundled theme), and the
-files the theme ships with their bytes. A second theme implements `Theme`, adds itself to `THEMES`,
-and changes nothing else in the crate.
+stores, the theme's own settings (its `theme.ini` `[config]` spec upstream; the bundled theme declares
+none), and the files the theme ships with their bytes. The site settings every core site view reads
+are separate, in `settings::SITE_SETTINGS`, stored as individual `site_setting` rows. A second theme
+implements `Theme`, adds itself to `THEMES`, and changes nothing else in the crate.
 
 ### The bundled theme's stylesheet
 

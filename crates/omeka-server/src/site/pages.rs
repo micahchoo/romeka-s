@@ -24,7 +24,7 @@ use omeka_site::search::{FormOption, SearchHit, SiteRef};
 use omeka_site::slug::{page_url, site_url};
 use sqlx::SqlitePool;
 
-use super::load::{BrowseScope, display_title, site_from_row};
+use super::load::{Access, BrowseScope, display_title, site_from_row};
 
 /// The select options the advanced search form offers.
 pub(crate) struct FormOptions {
@@ -48,23 +48,40 @@ pub(crate) async fn page_hits(
     site: &Site,
     scope: BrowseScope,
     needle: &str,
+    access: &Access<'_>,
 ) -> Result<Vec<SearchHit>, DbError> {
     let ranks = page_ranks(pool, needle).await?;
-    let sites = match scope {
-        BrowseScope::Site => vec![PageSite::of(site)],
-        BrowseScope::AnySite => public_page_sites(pool).await?,
-    };
     let mut hits: Vec<(f64, SearchHit)> = Vec::new();
-    for site in &sites {
-        for row in SiteRepo::new(pool).list_pages(site.id).await? {
-            if !row.is_public {
-                continue;
+    match scope {
+        BrowseScope::Site => {
+            let page_site = PageSite::of(site);
+            for row in SiteRepo::new(pool).list_pages(page_site.id).await? {
+                // `SitePageVisibilityFilter` reads with the actor, so an owner
+                // sees their private page on their own site's browse.
+                if !access.sees_site_page(row.is_public) {
+                    continue;
+                }
+                let Some(rank) = page_rank(&ranks, &row) else {
+                    continue;
+                };
+                if let Some(hit) = page_hit(&page_site, &row) {
+                    hits.push((rank, hit));
+                }
             }
-            let Some(rank) = page_rank(&ranks, &row) else {
-                continue;
-            };
-            if let Some(hit) = page_hit(site, &row) {
-                hits.push((rank, hit));
+        }
+        BrowseScope::AnySite => {
+            for page_site in public_page_sites(pool).await? {
+                for row in SiteRepo::new(pool).list_pages(page_site.id).await? {
+                    if !row.is_public {
+                        continue;
+                    }
+                    let Some(rank) = page_rank(&ranks, &row) else {
+                        continue;
+                    };
+                    if let Some(hit) = page_hit(&page_site, &row) {
+                        hits.push((rank, hit));
+                    }
+                }
             }
         }
     }

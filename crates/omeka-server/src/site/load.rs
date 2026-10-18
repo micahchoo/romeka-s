@@ -32,6 +32,7 @@ use omeka_db::rows::{
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::nav::PageRef;
 use omeka_site::search::SearchHit;
+use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, resource_show_url, site_url};
 use omeka_site::view::{
     BrowseQuery, BrowseView, MediaRef, ResourcePage, ResourceRef, ResourceView, SiteQuery,
@@ -150,6 +151,7 @@ pub(crate) struct Loader<'a> {
     catalog: &'a Catalog,
     site: &'a Site,
     access: &'a Access<'a>,
+    settings: &'a SiteSettings,
 }
 
 /// The visibility facts one site render reads: the asking actor and what the
@@ -189,6 +191,7 @@ impl<'a> Loader<'a> {
         catalog: &'a Catalog,
         site: &'a Site,
         access: &'a Access<'a>,
+        settings: &'a SiteSettings,
     ) -> Self {
         Self {
             pool,
@@ -196,6 +199,7 @@ impl<'a> Loader<'a> {
             catalog,
             site,
             access,
+            settings,
         }
     }
 
@@ -219,6 +223,24 @@ impl<'a> Loader<'a> {
 
     pub(crate) fn db_block_id(&self, block: BlockId) -> db::BlockId {
         db::BlockId::from(block.get())
+    }
+
+    /// Whether the item is attached to this site (`item_site`), for the
+    /// `noindex` meta (`Module.php:807-811`).
+    pub(crate) async fn item_in_site(&self, item: db::ItemId) -> Result<bool, DbError> {
+        ItemRepo::new(self.pool)
+            .in_site(item, self.db_site_id())
+            .await
+    }
+
+    /// Whether the item set is attached to this site (`site_item_set`), for the
+    /// `noindex` meta (`Module.php:819-826`).
+    pub(crate) async fn item_set_in_site(&self, item_set: db::ItemSetId) -> Result<bool, DbError> {
+        Ok(SiteRepo::new(self.pool)
+            .list_item_sets(self.db_site_id())
+            .await?
+            .iter()
+            .any(|row| row.item_set_id == item_set))
     }
 
     /// The site's visible pages as navigation resolution needs them. A page
@@ -264,6 +286,25 @@ impl<'a> Loader<'a> {
         Ok(page)
     }
 
+    /// The `application/ld+json` document a show or browse view embeds
+    /// (`Module.php`'s `embeddedJsonLd`). The port builds the identifying
+    /// members from the row; it does not reproduce the full API representation.
+    fn jsonld(&self, kind: ResourceKind, row: &ResourceRow) -> String {
+        let (resource, jsonld_type) = match kind {
+            ResourceKind::Item => ("items", "o:Item"),
+            ResourceKind::ItemSet => ("item_sets", "o:ItemSet"),
+            ResourceKind::Media => ("media", "o:Media"),
+        };
+        serde_json::json!({
+            "@context": self.base.api_context(),
+            "@id": self.base.api_resource(resource, row.id.0),
+            "@type": [jsonld_type],
+            "o:id": row.id.0,
+            "o:title": display_title(row),
+        })
+        .to_string()
+    }
+
     /// A resource view for its loaded row.
     async fn view_of(&self, row: &LoadedRow) -> Result<ResourceView, DbError> {
         match row {
@@ -271,6 +312,50 @@ impl<'a> Loader<'a> {
             LoadedRow::ItemSet(row) => self.item_set_resource_view(row).await,
             LoadedRow::Media(row) => self.media_resource_view(row).await,
         }
+    }
+
+    /// A browse list entry. `item/browse.phtml:43-47` prints the value of the
+    /// site's `browse_heading_property_term` as the heading and of
+    /// `browse_body_property_term` as the body, falling back to the display
+    /// title and description when the resource has no such value.
+    async fn browse_resource(&self, row: &LoadedRow) -> Result<ResourceView, DbError> {
+        let mut view = self.view_of(row).await?;
+        if let Some(term) = self.settings.browse_heading_property_term()
+            && let Some(value) = self.value_for_term(row.resource(), term).await?
+        {
+            view.title = value;
+        }
+        if let Some(term) = self.settings.browse_body_property_term() {
+            view.description = self.value_for_term(row.resource(), term).await?;
+        }
+        Ok(view)
+    }
+
+    /// The first public value of a property term, as the browse view prints it.
+    /// With `filter_locale_values` set, only a value whose language is empty or
+    /// the site's locale counts (`item/browse.phtml:7-9`).
+    async fn value_for_term(
+        &self,
+        row: &ResourceRow,
+        term: &str,
+    ) -> Result<Option<String>, DbError> {
+        let locale = self.settings.locale().tag();
+        let filter_locale = self.settings.filter_locale_values();
+        for value in ValueRepo::new(self.pool).list_for_resource(row.id).await? {
+            if !value.is_public {
+                continue;
+            }
+            if filter_locale && !value.lang.as_deref().is_none_or(|lang| lang == locale) {
+                continue;
+            }
+            let Some(info) = self.catalog.property(value.property_id) else {
+                continue;
+            };
+            if info.term == term {
+                return Ok(Some(self.value_text(&value).await?));
+            }
+        }
+        Ok(None)
     }
 
     /// An item as the item view shows it.
@@ -446,24 +531,14 @@ impl<'a> Loader<'a> {
         };
         let rows: Vec<LoadedRow> = match kind {
             ResourceKind::Item => ItemRepo::new(self.pool)
-                .list_filtered(
-                    &ItemFilter {
-                        is_public: Some(true),
-                        ..ItemFilter::default()
-                    },
-                    &search.filter,
-                    &Paging::default(),
-                )
+                .list_filtered(&ItemFilter::default(), &search.filter, &Paging::default())
                 .await?
                 .into_iter()
                 .map(LoadedRow::Item)
                 .collect(),
             ResourceKind::ItemSet => ItemSetRepo::new(self.pool)
                 .list_filtered(
-                    &ItemSetFilter {
-                        is_public: Some(true),
-                        ..ItemSetFilter::default()
-                    },
+                    &ItemSetFilter::default(),
                     &search.filter,
                     &Paging::default(),
                 )
@@ -472,19 +547,23 @@ impl<'a> Loader<'a> {
                 .map(LoadedRow::ItemSet)
                 .collect(),
             ResourceKind::Media => MediaRepo::new(self.pool)
-                .list_filtered(
-                    &MediaFilter {
-                        is_public: Some(true),
-                        ..MediaFilter::default()
-                    },
-                    &search.filter,
-                    &Paging::default(),
-                )
+                .list_filtered(&MediaFilter::default(), &search.filter, &Paging::default())
                 .await?
                 .into_iter()
                 .map(|row| LoadedRow::Media(Box::new(row)))
                 .collect(),
         };
+        // `ResourceVisibilityFilter` reads with the actor: a public row, the
+        // caller's own row, or anything a `view-all` role may read. Reading the
+        // public rows only would hide an owner's private items on their site.
+        let rows: Vec<LoadedRow> = rows
+            .into_iter()
+            .filter(|row| {
+                let resource = row.resource();
+                self.access
+                    .sees_resource(resource.is_public, resource.owner_id)
+            })
+            .collect();
         let rows: Vec<LoadedRow> = match &ranks {
             Some(ranks) => rows
                 .into_iter()
@@ -524,7 +603,7 @@ impl<'a> Loader<'a> {
             .skip(page.saturating_sub(1).saturating_mul(per_page))
             .take(per_page)
         {
-            resources.push(self.view_of(&row).await?);
+            resources.push(self.browse_resource(&row).await?);
         }
         Ok(BrowseView {
             kind,
@@ -563,10 +642,40 @@ impl<'a> Loader<'a> {
         if filtered.ranks.is_some() && filtered.sort_by_default {
             // `Module::searchFulltext` replaces the sort with relevance.
             order_rows(&mut rows, None, filtered.ranks.as_ref(), true);
-        } else if kind == ResourceKind::Item {
-            rows.sort_by_key(|row| std::cmp::Reverse(row.resource().id));
+        } else {
+            let sort = self.effective_sort(kind, &effective);
+            order_rows(&mut rows, Some(&sort), None, false);
         }
         Ok(rows)
+    }
+
+    /// The sort a browse starts with: the query's `sort_by`/`sort_order` when it
+    /// names them, otherwise the kind's stored default
+    /// (`Stdlib/Browse.php:167-170`).
+    fn effective_sort(&self, kind: ResourceKind, query: &[(String, String)]) -> (String, String) {
+        let find = |key: &str| {
+            query
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value.clone())
+        };
+        let default = match kind {
+            ResourceKind::Item => {
+                let defaults = self.settings.browse_defaults_items();
+                (defaults.sort_by, defaults.sort_order)
+            }
+            // `Site\ItemSetController::browseAction` does not call
+            // `setDefaults`, so the item-set browse has no stored default and
+            // the adapter orders `omeka_root.id` ASC
+            // (`AbstractEntityAdapter.php:244-297`). The brief's "created desc"
+            // is not what upstream does on this route.
+            ResourceKind::ItemSet => ("id".to_string(), "asc".to_string()),
+            ResourceKind::Media => ("id".to_string(), "asc".to_string()),
+        };
+        (
+            find("sort_by").unwrap_or(default.0),
+            find("sort_order").unwrap_or(default.1),
+        )
     }
 
     /// The hits and the total one search page's section shows for a resource
@@ -664,6 +773,7 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let url = resource_show_url(&self.site.slug, controller_for(kind), row.id.0);
         let mut view = ResourceView::new(ResourceId::new(row.id.0), kind, url, display_title(row));
+        view.jsonld = Some(self.jsonld(kind, row));
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
         view.description = description;
