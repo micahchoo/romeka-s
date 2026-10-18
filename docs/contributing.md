@@ -1,71 +1,68 @@
 # Contributing
 
-Audience: an agent or a developer about to change this repository.
+Audience: a developer or an agent about to change this repository.
 
-[`../AGENTS.md`](../AGENTS.md) is the rulebook and [`../PLAN.md`](../PLAN.md) is the sequencing. This page says how the
-two fit together and what a change has to carry to be accepted. When this page and those two disagree, they win.
+[`../CONTRIBUTING.md`](../CONTRIBUTING.md) is the human guide and [`../AGENTS.md`](../AGENTS.md) is the
+rulebook an agent follows. This page says how the documentation set works, and what a change to it
+has to carry. When this page and those two disagree, they win.
 
-## How work is organized
+## The checks
 
-The port is built by one coordinator and one agent per unit of work.
+Run these before you send a change. CI runs the same commands
+([`../.github/workflows/ci.yml`](../.github/workflows/ci.yml)):
 
-- [`../PLAN.md`](../PLAN.md) sequences the units into waves, names the owner and the acceptance of each one, and keeps a
-  dated log of what landed and what a merge taught the coordinator.
-- Each unit has a brief, `../briefs/<unit>.md`, written before the unit's worktree exists. The brief names the goal, the
-  scope, the deliverables, the acceptance, the verify command and what is forbidden.
-- [`../ROADMAP.md`](../ROADMAP.md) ranks the whole territory that is not in flight yet.
+```
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 
-## Your workspace
+cd web/admin
+npm run typecheck && npm run lint && npm test && npm run build && npm run e2e
+npm run perf:check
 
-- One git worktree per unit, `../spike-2-wt/<unit>`, on branch `s2/<unit>`. The unit named in your brief is the only
-  place you write.
-- One owner per crate, and one owner per verification artifact. Never move or edit another owner's files.
-- [`../DESIGN.md`](../DESIGN.md) is frozen and coordinator-owned: the architecture, the data shapes, the crate
-  boundaries and the exclusions. If it is wrong, say so in your report; the coordinator edits it.
-- [`../source/omeka-s`](../README.md) (the upstream clone) is the fidelity reference. Read it, never write it, never
-  build it.
-- The workspace manifest, `Cargo.lock`, `DESIGN.md`, `PLAN.md`, `VERIFY.md`, `AGENTS.md` and `verify.sh` are
-  coordinator-owned. Put the proposed diff in your report instead of editing them.
+./docs/gen.sh --check
+```
 
-## Commands
+Two of them are worth knowing the reason for.
 
-[`../AGENTS.md`](../AGENTS.md) has the full list. The four that cost the most when ignored:
+- `npm run e2e` builds the SPA, installs a temporary database, starts the server and drives a real
+  browser through the admin and the public site. It is the only check that covers the SPA and the
+  server together, so a change to the wire, the router or a page needs it. It also writes
+  `web/admin/perf/summary.json`, which `npm run perf:check` reads for the timings.
+- `./docs/gen.sh --check` fails when `docs/api.md` no longer matches `crates/omeka-api/src`. Treat
+  that as a build failure: the reference is generated from the source and never edited by hand.
 
-- Export a private `CARGO_TARGET_DIR` under `/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/<unit>` before
-  building. Six agents share the workspace, and a shared target directory serialises them.
-- Scope every cargo command to your crate (`cargo test -p omeka-core`, `cargo clippy -p omeka-core --all-targets -- -D
-  warnings`). Never run a workspace-wide cargo command, and never `cargo clean`.
-- Keep everything non-interactive. Wrap a slow command in `timeout`, use `npm ci` when a lockfile exists, and let tests
-  pick ephemeral ports.
-- Never commit `Cargo.lock`, `source/`, `target/`, `node_modules/` or a database file.
+## Documentation rules
 
-## What an accepted change carries
+- `api.md` is generated. Change the source, run `cd docs && ./gen.sh`, and commit both. The
+  generator's contract is in [`gen/README.md`](gen/README.md).
+- A page names its audience in one line at the top.
+- A number lives in the artifact that measures it, not in a page that quotes it. Link the artifact.
+  `web/admin/PERF.md` is the exception, because it is the decision log for its own numbers.
+- A page that describes code names the source file it was read from.
+- A deliberate difference from upstream gets a row in [`compat.md`](compat.md), with the file that
+  carries it. That page is the list of differences the product states about itself, and a difference
+  that is not there is one a reviewer has to find.
 
-1. The deliverable the brief names, in the paths the brief names.
-2. The brief's acceptance, run for real. [`../VERIFY.md`](../VERIFY.md) sets the standard: a claim needs a proof the
-   checker reruns, a verdict is VERIFIED, NOT VERIFIED or INCONCLUSIVE, and inconclusive is not a pass.
-3. Tests that assert what a caller observes, named for the upstream file or behaviour they freeze where one exists.
-4. One commit per coherent step, message `s2(<crate-or-area>): what changed` in the imperative. No AI attribution, no
-   co-author trailers.
-5. A report in the format [`../AGENTS.md`](../AGENTS.md) gives: status, the files written, the exact commands with the
-   tail of their output, what you verified, your deviations from the brief, and follow-ups.
+## The generator, and the one check that cannot run here
 
-The coordinator reads the diff, re-runs the commands, and confirms on the real artifact. A report is a claim, not
-proof.
+[`gen/`](gen/) holds the generator behind `api.md`, in Python with no packages. `./gen.sh` writes the
+file and `./gen.sh --check` compares it. The generator reads only the crate, so it runs anywhere.
 
-## Merge rules
+[`gen/check_wire.py`](gen/check_wire.py) cross-checks the parsed members against the captured upstream
+documents under `verification/fixtures/api/`. That directory is not in this repository, so the
+cross-check cannot run here and the two `omeka-api` test targets that read the same documents fail.
+[`gen/check_routes.py`](gen/check_routes.py) needs a running server and an installed database; its
+docstring has the commands.
 
-- The coordinator merges one verified unit at a time onto `main`. Agents never merge, rebase or push.
-- A unit that consumes a crate another unit owns is sequenced after that unit, or the shared surface is frozen before
-  both start. [`../PLAN.md`](../PLAN.md) records what happened when that rule was broken: two units each passed alone
-  and the merged workspace did not compile.
-- The gate is `./verify.sh`, and it must be green before a wave closes. `git diff --quiet` after a generator run is
-  part of it for any unit that generates a file.
+## What a change carries
 
-## Documentation-specific rules
-
-- [`api.md`](api.md) is generated. Change the source under `../crates/omeka-api/src/`, run `cd docs && ./gen.sh`, and
-  commit both. The generator's contract is in [`gen/README.md`](gen/README.md).
-- Documentation links the artifact that carries a number or a list. It does not copy it, because a copy drifts and the
-  link does not. The acceptance report, the scoreboard and the matrices are the artifacts.
-- A document here names its audience in one line at the top.
+1. The behaviour change, in the crate or the page that owns it.
+2. A test that asserts what a caller observes, with real values. Where it freezes upstream behaviour,
+   name it after the upstream file or the behaviour.
+3. The generated files, regenerated, when the change touches what they are generated from.
+4. A row in [`compat.md`](compat.md) when the change is a deliberate difference from upstream.
+5. One commit per coherent step, message `s2(<area>): what changed` in the imperative. No AI
+   attribution and no co-author trailers.
+6. The commands you ran, and their output, in the pull request or the report. A claim needs a proof
+   the reviewer can rerun; a report is a claim, not proof.

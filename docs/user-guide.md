@@ -2,93 +2,121 @@
 
 Audience: an administrator working in the admin application, or a visitor reading a public site.
 
-This guide assumes an installed instance is already running. To get one running, see
-[`operator-guide.md`](operator-guide.md). For the HTTP surface the application uses, see [`api.md`](api.md).
+This guide assumes an installed instance is running. To get one running, read
+[`operator-guide.md`](operator-guide.md). For the HTTP surface the application uses, read
+[`api.md`](api.md).
 
 ## Install an instance
 
-One command creates the database, applies the schema, and seeds the defaults: four vocabularies with their classes and
-properties, the `Base Resource` template, the global administrator, and the small settings block.
+One command creates the database, applies the schema, and seeds the defaults: four vocabularies with
+their classes and properties, the `Base Resource` template, the global administrator, and the small
+settings block.
 
 ```
-omeka install -d /var/lib/omeka/omeka.db --email you@example.org --name "Your Name" --password 'a password'
+romeka install -d /var/lib/romeka/romeka.db --email you@example.org --name "Your Name" --password 'a password'
 ```
 
-Every step is idempotent. Running the same command again inserts nothing new, which is also how the schema is brought
-up to date after an upgrade. The flags are listed in [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md).
+Every step is idempotent. Running it again inserts nothing new, which is also how the schema is
+brought up to date after an upgrade. The flags are in
+[`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md).
 
-Start the server and open the admin application in a browser:
+Start the process, and put a static origin in front of it for the admin application:
 
 ```
-omeka serve -d /var/lib/omeka/omeka.db --host 127.0.0.1 --port 8080
+romeka serve -d /var/lib/romeka/romeka.db --host 127.0.0.1 --port 8080 --base-url http://127.0.0.1:8080
 ```
 
-The application and the media files are served by a static origin in front of the port, not by the port itself. The
-[operator guide](operator-guide.md) says what that origin must do.
+The process serves the API and the public site; the origin serves the admin bundle and the media
+files and forwards `/api`, `/health` and `/s/`. What the origin has to do is in the
+[operator guide](operator-guide.md).
 
 ## Sign in
 
-There is no password login for the admin application. The login is an API key pair, minted from the command line:
+The header's sign-in panel carries two forms.
+
+**The API key pair.** Mint one from the command line:
 
 ```
-omeka key add -d /var/lib/omeka/omeka.db --owner you@example.org
+romeka key add -d /var/lib/romeka/romeka.db --owner you@example.org
 ```
 
-The command prints the identity and the credential once each. Paste both into the sign-in form in the header. The pair
-is 32 alphanumeric characters per half; a malformed half is refused before any request leaves the browser.
+The command prints the identity and the credential once each. Paste both into the key form. Each half
+is 32 alphanumeric characters, and a malformed half is refused before any request leaves the browser.
+The pair is kept in the browser's `localStorage`, so a reload keeps you signed in; signing out clears
+it. A 403 from a page renders the sign-in form beside the message, and the header shows
+`Signed in as <identity>`. The pair is the same two parameters upstream expects, so a key minted here
+works against an Omeka S server and the reverse ([`../web/admin/README.md`](../web/admin/README.md)).
 
-The pair is kept in the browser's `localStorage` under `omeka.apiKey`, so a reload keeps you signed in. Signing out
-clears it. The credential half is never rendered or logged, and the header shows `Signed in as <identity>`. The same
-two parameters are what upstream expects, so a key minted here works against an upstream server and the reverse
-(`../web/admin/README.md`).
+**A password.** An account with a password signs in by email and password, and the session lives in an
+`HttpOnly` cookie. This is the form an invited person uses after following their invite link.
 
-A page that needs a permission you do not hold answers 403 and renders the sign-in form beside the message.
+## Invite people, and reset a forgotten password
+
+Two ways to onboard a person.
+
+From the command line, `romeka user add -d ... --email E --name N` creates an inactive, passwordless
+account and prints a one-time set-password link. With `--password`, the account is created active with
+that password instead. The link is `<base-url>/#/password/<key>`, and it expires two weeks after it is
+minted; only the last link minted for an account works.
+
+In the application, the Users page invites by the same route and shows the link with a copy control
+on the user's page. The forgot-password form on the sign-in panel mints a reset link the same way.
+
+With no SMTP relay configured, the link goes to the request log and is returned to the administrator
+rather than mailed, which is what makes an installation without mail usable. Configure the relay with
+`ROMEKA_SMTP_*` if you want the mail to be sent
+([`../crates/omeka-server/README.md`](../crates/omeka-server/README.md)).
 
 ## The admin pages
 
-The application is a hash-routed single page, pointed at the same `/api` endpoints upstream serves.
+The application is a hash-routed single page pointed at the same `/api` endpoints.
 
 | Page | What it does |
 | --- | --- |
 | Dashboard | resource counts and the site list |
 | Items | list, create, open one item, edit its values, title, visibility, class, template, owner and item-set membership, delete it |
 | Item sets | list, create, edit, delete |
-| Media | list with a preview column, open one media to see the image, its parsed fields, its file derivatives and its values, edit alt text, language and visibility, delete |
-| Users | list, create, edit role and active flag, delete |
-| Vocabularies, properties, resource classes, resource templates, modules, jobs, assets | one browse list per API resource |
+| Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
+| Users | list, invite, edit role and active flag, mint a password link, delete |
+| Sites and pages | list sites, create one, edit its theme settings, navigation, page blocks and user permissions; edit a page's blocks |
+| Vocabularies, properties, resource classes, resource templates | one browse list each, a detail view per row, and the create, edit and delete forms the API supports |
+| Assets, jobs, modules | one browse list each; assets and jobs have a detail view with the update and delete controls |
 | Query | the advanced search form; `Preview` runs a real search and lists the matches |
 | Columns | which columns a browse table shows, in page state only |
-| Settings | the global settings form; the port serves no settings endpoint, so it does not persist |
+| Settings | the global settings form. The API serves no settings resource, so this page does not persist |
 | System information | the version from the response header, and the registered API resource names |
 
-Media create is not offered in the application, and a web upload does not exist: `POST /api/media` sets the row's
-fields but stores no file. A file arrives through `omeka import media` below, which also writes the three thumbnail
-sizes. Values are not editable in the media form either.
+Media create is not offered in the application and there is no web upload: `POST /api/media` sets a
+row's fields but stores no file. A file arrives through `romeka import media`, which also writes the
+three thumbnail sizes. Values are not editable in the media form either.
+[`../web/admin/README.md`](../web/admin/README.md) has the full route list.
 
-## Import data
-
-Three commands, all reading the upstream shapes.
+## Import and export
 
 ```
-omeka import template -d DB --file TEMPLATE.json
-omeka import csv      -d DB --file ITEMS.csv --item-set ID
-omeka import media    -d DB --source DIR --item-set ID
+romeka import template -d DB --file TEMPLATE.json
+romeka import csv      -d DB --file ITEMS.csv --item-set ID
+romeka import media    -d DB --source DIR [--item-set ID] [--store DIR]
+
+romeka export jsonld   -d DB --out DIR --resource items
+romeka export csv      -d DB --out items.csv --columns dcterms:title,dcterms:identifier
 ```
 
-The CSV header names properties as `prefix:local_name` (`dcterms:title`). Each later row is one item: a non-empty cell
-becomes a literal value, and two columns with the same term become two values. The first non-empty `dcterms:title` cell
-becomes the item's title. A row whose column count differs from the header is reported and skipped, and the exit code is
-1 when any row failed.
+The CSV header names properties as `prefix:local_name` (`dcterms:title`). Each later row is one item:
+a non-empty cell becomes a literal value, and two columns with the same term become two values. The
+first non-empty `dcterms:title` cell becomes the item's title. A row whose column count differs from
+the header is reported and skipped, and the exit code is 1 when any row failed.
 
-For media, the join key is `dcterms:identifier`: a file is linked to the item whose identifier literal equals the
-manifest's `identifier`, restricted to `--item-set` when you give one. With `--source DIR` and no manifest, the command
-walks that directory. A second run skips a file whose `(item, source)` pair already exists, so it is safe to repeat.
-Images get the three thumbnail sizes; anything else is stored without thumbnails. `omeka media thumbnails` backfills
-thumbnails for rows that are missing them. The full rules are in
-[`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md).
+For media, the join key is `dcterms:identifier`: a file is linked to the item whose identifier
+literal equals the manifest's `identifier`, restricted to `--item-set` when you give one. With
+`--source DIR` and no manifest, the command walks that directory. A second run skips a file whose
+`(item, source)` pair already exists, so it is safe to repeat. Images get the three thumbnail sizes;
+anything else is stored without thumbnails, and `romeka media thumbnails` backfills the rows that are
+missing them. The full rules are in [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md).
 
-The real-data run that exercises all three commands against the Gawan Museum Trust collection is
-[`../verification/acceptance/report.md`](../verification/acceptance/report.md).
+`export jsonld` writes the same documents `/api/<resource>` serves, so it is the wire format rather
+than a second one. `export csv` writes one row per item, and its column set is this product's: it
+reads back through `romeka import csv`.
 
 ## The public site
 
@@ -97,39 +125,45 @@ Every public path sits under the site's slug.
 | Path | Renders |
 | --- | --- |
 | `/s/<slug>` | the site's home page, or a redirect to its home page |
+| `/s/<slug>/page` | the page browse |
 | `/s/<slug>/page/<page-slug>` | one page and its blocks |
 | `/s/<slug>/item` | the item browse |
 | `/s/<slug>/item/<id>` | one item |
+| `/s/<slug>/item/search` | the advanced item search form |
 | `/s/<slug>/item-set` | the item-set browse |
 | `/s/<slug>/item-set/<id>` | one item set |
 | `/s/<slug>/media/<id>` | one media |
+| `/s/<slug>/search` | the site search |
+| `/s/<slug>/cross-site-search`, `/results`, `/items`, `/item-sets`, `/site-pages` | the search across every public site |
+| `/assets/<path>` | a file the bundled theme ships |
 
-The home page, a page and a browse carry the site's navigation. Twenty block layouts are implemented, the ones the
-upstream page editor offers. A page slug matches case-insensitively.
+The home page, a page and a browse carry the site's navigation. Sixteen block layouts are
+implemented, the ones the upstream page editor offers. A page slug matches case-insensitively.
 
-A missing site, page or resource is a 404 page; a resource or site that is not public is a 403 page. Both are rendered
-by the bundled theme.
-
-Not served yet, and answering 404: page browse (`/s/<slug>/page`), cross-site search, the generic resource search, and
-media browse. Serving theme assets depends on the static origin, which is described in the
-[operator guide](operator-guide.md); theme work is tracked in [`../ROADMAP.md`](../ROADMAP.md).
+A missing site, page or resource is a 404 page; a site, page or resource that is not public is a 403
+page. Both are rendered by the bundled theme. A GET is the only method served on these paths;
+anything else is a 405.
 
 ## Search
 
-The query page builds the advanced search upstream defines: `search` for a free-text match over any value, and repeated
-`property[i][property|type|text|joiner]` rows for a narrowed search. The accepted parameters per resource, with the
-source function that reads each, are in [`api.md`](api.md#routes). A fulltext index backs `fulltext_search`; its ranking
-differs from MySQL's, which [`../DESIGN.md`](../DESIGN.md) excludes from differential matching.
+The admin's query page and the public search forms build the advanced search the API defines:
+`search` for a free-text match over any value, `fulltext_search` for the index, and repeated
+`property[i][property|type|text|joiner]` rows for a narrowed search. The accepted parameters per
+resource, with the source function that reads each, are in [`api.md`](api.md#routes).
 
-The public site's own search pages are not ported yet.
+A write keeps the fulltext index in step, so a value you save is findable immediately. The whole
+index is rebuilt by the `IndexFulltextSearch` job, which is a `job` row with class
+`Omeka\Job\IndexFulltextSearch`; the API's job create is not built at this commit, so there is no
+supported command that enqueues one, and `romeka job run <id>` runs a row that already exists
+([`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md), Jobs). Its ranking is SQLite
+FTS5's, which differs from MySQL's ([`compat.md`](compat.md)).
 
 ## What is limited, and why
 
-- No password login and no session cookie. The API key is the only credential
-  ([`../crates/omeka-api/src/auth.rs`](../crates/omeka-api/src/auth.rs)).
-- No settings endpoint, so the settings page does not persist.
-- Media files and their thumbnails come from `omeka import media` and `omeka media thumbnails`. The API stores no
-  uploaded file (`../crates/omeka-api/README.md`).
-- Modules and themes from the wider ecosystem are out: the port has Rust registries instead of a PHP module loader
-  ([`../DESIGN.md`](../DESIGN.md), Exclusions).
-- Mail is not delivered; the interface and a log transport exist.
+- The settings page does not persist, because the API serves no settings resource.
+- Media files and their thumbnails come from the command line. The API stores no uploaded file
+  ([`../crates/omeka-api/README.md`](../crates/omeka-api/README.md)).
+- Modules and themes from the wider PHP ecosystem are out: extension here is a Rust registry
+  ([`compat.md`](compat.md)).
+- Live external services (oEmbed, YouTube, remote IIIF) are not called.
+- Full translation catalogues are not ported; two locales ship.

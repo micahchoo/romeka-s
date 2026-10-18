@@ -1,12 +1,36 @@
-# reference clone, reproducible from the URL + SHA in README.md
-source/
-# agent build output; Cargo.lock is committed at the wave-1 freeze
+# Cargo.lock is committed. `packaging/Dockerfile` builds with `--locked`.
+
+# Build output. Set CARGO_TARGET_DIR outside the checkout when several worktrees
+# build at once.
 target/
+**/target/
+
+# Node packages and the built admin bundle.
 node_modules/
-dist/
+**/node_modules/
+web/admin/dist/
+
+# A database and a file store written by a server started from this directory.
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+files/
+
+# Local configuration and secrets.
+deploy/.env
+.env
+
+# Logs.
 logs/
-nohup.out
+*.log
+
+# A clone of upstream Omeka S, kept beside the checkout as the fidelity
+# reference. Never committed.
+source/
+
+# Python bytecode from the documentation generator.
+__pycache__/
+
 .DS_Store

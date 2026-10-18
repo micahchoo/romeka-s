@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the generated handler column with live responses from the port.
+"""Compare the generated handler column with live responses from the server.
 
 Reads the route table out of `api.md`, sends every row's request to a running
 instance with a global-admin key, and checks the rows that make an exact claim:
@@ -9,9 +9,9 @@ instance with a global-admin key, and checks the rows that make an exact claim:
 It creates rows (a create with an empty body mostly succeeds), so point it at a
 throwaway database and a port nobody else is using:
 
-  omeka install -d /tmp/proof/omeka.db --email a@b.c --name A --password x
-  omeka key add -d /tmp/proof/omeka.db --owner a@b.c
-  omeka serve -d /tmp/proof/omeka.db --port 18081 &
+  romeka install -d /tmp/proof/romeka.db --email a@b.c --name A --password x
+  romeka key add -d /tmp/proof/romeka.db --owner a@b.c
+  romeka serve -d /tmp/proof/romeka.db --port 18081 &
   ./check_routes.py http://127.0.0.1:18081 <identity> <credential>
 
 The two root rows of the table are skipped: they are not per-resource.

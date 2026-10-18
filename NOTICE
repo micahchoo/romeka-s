@@ -1,0 +1,28 @@
+Romeka S
+Copyright (C) 2026 the Romeka S contributors
+
+This product is a fork of Omeka S.
+
+  Upstream project:  Omeka S
+  Upstream URL:      https://github.com/omeka/omeka-s
+  Upstream license:  GNU General Public License, version 3
+  Fork point:        5e413f009c447f4b587803ab23a9cec7d228f6e8
+  Copyright:         the Omeka S contributors
+
+The Rust crates under `crates/` and the TypeScript admin under `web/` are a reimplementation rather
+than a copy of upstream's PHP application. They keep upstream's data model and API compatible: the
+`o:` JSON-LD prefix, the `/api` surface, the member names and the database schema are upstream's, so
+a client written for Omeka S and a database written by Omeka S keep working. The license, the
+provenance and this statement are the whole of the attribution requirement, and the upstream project
+is credited in the license text and in `README.md` as well.
+
+The default vocabularies in `crates/omeka-cli/data/default-vocabularies.json` are extracted, at the
+fork point, from the RDF files of the four vocabularies upstream installs:
+
+  Dublin Core (dcterms)          http://purl.org/dc/terms/
+  Dublin Core Type (dctype)      http://purl.org/dc/dcmitype/
+  Bibliographic Ontology (bibo)  http://purl.org/ontology/bibo/
+  Friend of a Friend (foaf)      http://xmlns.com/foaf/0.1/
+
+Each vocabulary keeps the license of its own project. The extracted file holds the terms, their
+labels and their comments, and nothing else.
