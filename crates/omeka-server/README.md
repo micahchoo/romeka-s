@@ -251,15 +251,19 @@ A handler does three things and nothing else.
    by slug through `omeka_db::repos::SiteRepo`, and stop on a missing row or a
    non-public site.
 2. Load rows into `omeka-site` values. `site/load.rs` turns a `SiteRow` into
-   `Site`, a `SitePageRow` plus its blocks into `SitePage`, and a resource row
-   plus its values into `ResourceView`. `site/provider.rs` runs the searches a
-   page's blocks will ask for before rendering, because `ResourceProvider` is
-   synchronous and `omeka-db` is async.
+   `Site`, a `SitePageRow` plus its blocks into `SitePage`, a resource row plus
+   its values into `ResourceView`, and a `MediaRow` into the `MediaRef` the
+   media block shows. `site/provider.rs` runs the searches a page's blocks will
+   ask for, and loads each media or item-with-metadata block's
+   `site_block_attachment` rows with the item views and media refs they resolve
+   to, because `ResourceProvider` is synchronous and `omeka-db` is async.
 3. Render through the bundled theme and copy the document onto the wire. The
    theme owns all HTML and escaping; the server never builds markup.
 
 Known gaps, each a repository the port does not have yet: no `site_setting`
 repository, so every setting keeps its upstream default; `ItemFilter` carries no
-`site_id`, so a browse-preview shows every public resource; `site_block_
-attachment` has no repository, so the item-with-metadata, media and asset blocks
-render empty; and a site thumbnail is never shown for want of an asset lookup.
+`site_id`, so a browse-preview shows every public resource; the `asset` block's
+asset lookup is not ported, so it renders no asset; and a site thumbnail is
+never shown for want of an asset lookup. The `media` block's caption is escaped
+at render rather than purified on write, because `omeka-api` has no
+`HtmlPurifier`; an attachment's `o:caption` is stored as received.

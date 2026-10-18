@@ -13,8 +13,8 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::catalog::Catalog;
 use omeka_api::read::params::Params;
 use omeka_api::read::query::SearchQuery;
-use omeka_core::ids::{BlockId, PageId, ResourceId, SiteId};
-use omeka_core::resource::ResourceKind;
+use omeka_core::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
+use omeka_core::resource::{Media, ResourceKind, Timestamp};
 use omeka_core::site::{
     BlockLayout, BlockLayoutData, PageLayout, PageLayoutData, Site, SiteBlock, SitePage, Slug,
 };
@@ -33,10 +33,16 @@ use omeka_site::nav::PageRef;
 use omeka_site::search::SearchHit;
 use omeka_site::slug::{controller_for, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch,
-    SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, MediaRef, ResourcePage, ResourceRef, ResourceView, SiteQuery,
+    SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 use sqlx::SqlitePool;
+
+use omeka_media::data::MediaData;
+use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
+use omeka_media::render::{
+    MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
+};
 
 use super::SiteError;
 
@@ -167,6 +173,10 @@ impl<'a> Loader<'a> {
         db::SiteId::from(self.site.id.get())
     }
 
+    pub(crate) fn db_block_id(&self, block: BlockId) -> db::BlockId {
+        db::BlockId::from(block.get())
+    }
+
     /// The site's pages as navigation resolution needs them. A page whose stored
     /// slug fails `Slug::parse` is skipped, as it can never resolve to a URL.
     pub(crate) async fn page_refs(&self) -> Result<Vec<PageRef>, DbError> {
@@ -223,9 +233,74 @@ impl<'a> Loader<'a> {
         if let Some(media_id) = media_id {
             let alt = view.title.clone();
             view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
+            if let Some(media_row) = MediaRepo::new(self.pool).get(media_id).await? {
+                let item_url = view.url.clone();
+                view.primary_media = Some(
+                    self.media_ref(&media_row, &item_url, &media_options(None, None))
+                        .await?,
+                );
+            }
         }
         self.add_item_lists(row, &mut view).await?;
         Ok(view)
+    }
+
+    /// A media as the media block shows it: the stored or fallback thumbnail
+    /// (`MediaRepresentation::thumbnailUrl`), the original file URL, the display
+    /// title and the renderer's markup wrapped as `view/helper/media.phtml`
+    /// wraps it (`Media` view helper).
+    pub(crate) async fn media_ref(
+        &self,
+        row: &MediaRow,
+        item_url: &str,
+        options: &RenderOptions,
+    ) -> Result<MediaRef, DbError> {
+        let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
+        let view = MediaView::new(
+            media_core(row),
+            MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
+            self.render_env(),
+            item_url.to_string(),
+            media_url.clone(),
+        );
+        let thumbnail = view
+            .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
+            .map(|url| Thumbnail::new(url.to_string(), row.alt_text.clone().unwrap_or_default()));
+        // The renderer registries are built here rather than held on the loader:
+        // a `RendererRegistry` is not `Send`, and a value that lives across an
+        // `await` would make the site handler's future non-`Send`.
+        let renderers = RendererRegistry::with_defaults();
+        let file_renderers = FileRendererRegistry::with_defaults();
+        let rendered = renderers.render(
+            &row.renderer,
+            &MediaRendererView {
+                file_renderers: &file_renderers,
+            },
+            &view,
+            options,
+        );
+        Ok(MediaRef {
+            url: media_url,
+            original_url: view.original_url.clone(),
+            title: view.display_title.clone(),
+            thumbnail,
+            embed: Some(format!(
+                "<div class=\"media-render {}\">{}</div>",
+                row.renderer, rendered
+            )),
+        })
+    }
+
+    /// The environment the media renderers read, from the request base URL. The
+    /// IIIF and oEmbed settings are not ported to the site settings yet, so the
+    /// renderer defaults stand.
+    fn render_env(&self) -> RenderEnv {
+        RenderEnv {
+            server_url: self.base.as_str().to_string(),
+            file_base_uri: format!("{}/files", self.base.as_str()),
+            asset_base_path: "/application/asset".to_string(),
+            ..RenderEnv::default()
+        }
     }
 
     /// A public item set as the item-set view shows it.
@@ -661,6 +736,50 @@ pub(crate) fn display_title(row: &ResourceRow) -> String {
     row.title
         .clone()
         .unwrap_or_else(|| "[Untitled]".to_string())
+}
+
+/// A `media` row as the core media value the renderers read. The columns the
+/// media subsystem does not use (owner, class, template, thumbnail, language)
+/// are left at their defaults.
+fn media_core(row: &MediaRow) -> Media {
+    let mut media = Media::new(
+        MediaId::new(row.id().0),
+        ItemId::new(row.item_id.0),
+        row.ingester.clone(),
+        row.renderer.clone(),
+        Timestamp::from_naive(row.resource.created),
+    );
+    media.core.title = row.resource.title.clone();
+    media.core.is_public = row.resource.is_public;
+    media.core.modified = row.resource.modified.map(Timestamp::from_naive);
+    media.source = row.source.clone();
+    media.media_type = row.media_type.clone();
+    media.storage_id = row.storage_id.clone();
+    media.extension = row.extension.clone();
+    media.sha256 = row.sha256.clone();
+    media.size = row.size;
+    media.has_original = row.has_original;
+    media.has_thumbnails = row.has_thumbnails;
+    media.position = row.position;
+    // `altTextResolved` is null without alt text, but `Thumbnail` always writes
+    // an `alt` attribute, so the empty string stands in for the null here.
+    media.alt_text = Some(row.alt_text.clone().unwrap_or_default());
+    media
+}
+
+/// The renderer options a media block passes: `thumbnail_type` (default
+/// `square`) and the `attachment_link_type` site setting (default `item`).
+/// `None` stands for the default.
+pub(crate) fn media_options(thumbnail_type: Option<&str>, link: Option<&str>) -> RenderOptions {
+    RenderOptions {
+        thumbnail_type: Some(
+            thumbnail_type
+                .and_then(ThumbnailType::parse)
+                .unwrap_or(ThumbnailType::Square),
+        ),
+        link: Some(link.and_then(LinkType::parse).unwrap_or(LinkType::Item)),
+        ..RenderOptions::default()
+    }
 }
 
 /// The medium thumbnail of a media file, `None` without thumbnails or a stored
