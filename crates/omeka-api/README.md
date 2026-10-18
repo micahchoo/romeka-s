@@ -137,9 +137,11 @@ table in `omeka-db`.
 
 `src/write/` holds one module per resource. A write parses the body at the
 boundary (`write::body::Payload`), checks general adapter access, hydrates and
-persists through `omeka-db`, then answers through `Api::read_member` or, for a
-delete, through the same row-to-document function a read uses, so the response
-is byte-identical to a `GET` of the row. `write::vocab` holds `vocabularies`,
+persists through `omeka-db`, then answers through `Api::read_member`, so a
+create or update response is byte-identical to a `GET` of the row. A delete
+answers the same document detached (`write::detached`), because
+`Api\Manager::finalize` renders the entity the adapter returns after the flush
+has cleared its id. `write::vocab` holds `vocabularies`,
 `resource_classes` and `properties`, and `write::vocab_member` holds the
 columns and validation the two member kinds share; `write::templates` holds
 `resource_templates`. `POST` and `PUT`/`PATCH` are built for:
@@ -149,7 +151,7 @@ columns and validation the two member kinds share; `write::templates` holds
 | items | yes | yes | `o:item_set` membership replaced on a full `PUT`; inline `o:media` and `o:site` not built |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | ingester/renderer/item/data set on create only; no file ingest |
-| sites | yes | yes | create adds a welcome page and a site-admin permission |
+| sites | yes | yes | create adds a welcome page and a site-admin permission; a `PUT` removes every page `o:page` does not name |
 | site_pages | yes | yes | blocks replaced; `o:data` `{}` is stored as `[]` (PHP `json_decode(..., true)`) |
 | users | yes | yes | new users are inactive and have no password |
 | vocabularies | yes | yes | `o:class` and `o:property` list their members; an unlisted member is removed |
@@ -165,10 +167,20 @@ columns and validation the two member kinds share; `write::templates` holds
 sites, site_pages, vocabularies, resource_classes, properties,
 resource_templates, assets and jobs. `ApiController::delete` hands the id to
 `Api::delete`, which checks the adapter grant, finds the row, checks the entity
-privilege, removes it, and answers 200 with the removed row's representation
-(`Api\Manager::finalize` renders the entity the adapter returns). The response
-body therefore equals the `GET` body from a moment earlier, and the same `GET`
-is a 404 afterwards. A missing row is the same 404 message a read gives.
+privilege, removes it, and answers 200 with the detached entity
+(`Api\Manager::finalize` renders the entity the adapter returns after the
+flush), and the same `GET` is a 404 afterwards. A missing row is the same 404
+message a read gives.
+
+`write::detached` rewrites the live document into that shape: `o:id` is null,
+`@id` is the collection URL, `@reverse` is absent (upstream builds it only when
+the id is set), and each association the delete cascaded away reads as a
+detached reference. So an item's `o:media` and `o:primary_media` keep their
+places with a null id, an item set's `o:items` link drops its `item_set_id`
+query, and a site's pages become detached references. A lazy collection that
+never loaded reads empty, so an item's `o:item_set` and `o:site` are `[]`. A
+reference to a row that survives keeps its id, such as `o:owner` or a
+resource-valued value.
 
 Cascade and refusal rules, each taken from the PHP:
 
@@ -211,7 +223,10 @@ its `has_thumbnails` column is false, and falls back to the column alone when no
 store is bound.
 
 Accepted members, per resource (a member with no value keeps the stored one on
-`PATCH`, and resets to the upstream default on `PUT`):
+`PATCH`, and resets to the upstream default on `PUT`). A `PATCH` whose body
+names no value object keeps every stored value (`ValueHydrator` line 162); one
+that names a valid value replaces the whole set, so a `PATCH` that names a
+title drops every other value, as upstream does:
 
 - common resource entities (items, item_sets, media): `o:is_public`,
   `o:owner`, `o:resource_class`, `o:resource_template`, `o:thumbnail`, plus one
@@ -224,10 +239,19 @@ Accepted members, per resource (a member with no value keeps the stored one on
 - media: `o:ingester` (required on create), `o:item` (required), `data`,
   `o:source`, `position`, `o:lang`, `o:alt_text`.
 - sites: `o:slug`, `o:theme`, `o:title`, `o:summary`, `o:navigation`,
-  `o:homepage`, `o:item_pool`, `o:is_public`, `o:assign_new_items`.
+  `o:homepage`, `o:item_pool`, `o:is_public`, `o:assign_new_items`,
+  `o:page`, `o:site_permission`, `o:site_item_set`. `o:page` names the pages to
+  keep: on a `PUT`, and on a `PATCH` that carries the member, every page the
+  list omits is removed. On create the list is only checked and the welcome page
+  is still added. `o:homepage` is stored without a lookup, so an unknown page id
+  there fails on the foreign key rather than as a 404; reported as a gap.
 - site_pages: `o:site` (create), `o:title`, `o:slug`, `o:is_public`,
   `o:layout`, `o:layout_data`, `o:block`.
-- users: `o:name`, `o:email`, `o:role`, `o:is_active`.
+- users: `o:name`, `o:email`, `o:role`, `o:is_active`. An email that is not
+  `local-part@hostname` answers the Laminas `INVALID_FORMAT` message,
+  `The input is not a valid email address. Use the basic format
+  local-part@hostname`; the validator's other messages are not reproduced, and
+  reported as a gap.
 - vocabularies: `o:namespace_uri`, `o:prefix`, `o:label`, `o:comment`,
   `o:class`, `o:property`. A class or property entry names its `o:id` to keep a
   member, or carries a class/property body to create one. A member the list
@@ -242,6 +266,17 @@ Accepted members, per resource (a member with no value keeps the stored one on
 
 A top-level key that is not one of these and not a known property term is a
 422 validation error keyed by that member.
+
+Every reference a body names is resolved before the first write, so a failure
+leaves the stored row untouched. The references are a value object's
+`value_resource_id`, a site's users, item sets and pages, an item's
+`o:item_set`, a media's `o:item`, an owner, a class and a template. An unknown
+reference answers the 404 `findEntity` throws, naming the class and the numeric
+id, for example
+`{"errors":{"error":"Omeka\\Entity\\ItemSet entity with criteria {\"id\":999999} not found"}}`.
+An unknown value resource answers
+`{"errors":{"error":"Resource not found with id 999999."}}`, the message
+`DataType\Resource\AbstractResource::hydrate` throws at the same point.
 
 `AbstractEntityAdapter::hydrateOwner` is shared by every owned row
 (`write::resource::owner_member`): an absent `o:owner`, or one that names no
