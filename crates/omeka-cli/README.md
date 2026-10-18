@@ -1,14 +1,14 @@
 # omeka-cli
 
-The Romeka S command line (`romeka`) and the job runner. The crate is the CLI
-owner in `DESIGN.md`: `install`, `user`, `key`, `import`, `export`, `media`,
-`backup`/`restore`, `serve`, plus the job trait, a synchronous dispatcher, and
-the four upstream jobs. It reads and writes the database only through `omeka-db`
-repositories (and `src/store.rs` for the four tables those repositories do not
-cover).
+Romeka S is a fork of Omeka S. This crate owns the command line, `romeka`, and
+the job runner. The crate is the CLI owner in `DESIGN.md`: `install`, `user`,
+`key`, `import`, `export`, `media`, `backup`/`restore`, `serve`, plus the job
+trait, a synchronous dispatcher, and the four upstream jobs. It reads and writes
+the database only through `omeka-db` repositories (and `src/store.rs` for the
+four tables those repositories do not cover).
 
-Romeka S is a fork of Omeka S. The four jobs, the invite flow and the install
-seed mirror the upstream PHP classes named in the module docs.
+The four jobs, the invite flow and the install seed mirror the upstream PHP
+classes named in the module docs.
 
 ## Commands
 

@@ -1,10 +1,8 @@
 # Romeka S admin
 
-A strict-TypeScript admin SPA for Romeka S. It is built with Vite and React 19 and talks to the
-existing `/api` JSON-LD endpoints. Nothing here builds or modifies the PHP application.
-
-Romeka S is a fork of Omeka S. The client speaks upstream's `/api` members as they
-are, and many fixtures under `tests/fixtures/` are the shapes frozen in
+Romeka S is a fork of Omeka S. This directory holds the strict-TypeScript admin SPA: it is built with Vite and React
+19 and talks to the existing `/api` JSON-LD endpoints. Nothing here builds or modifies the PHP application. The client
+speaks upstream's `/api` members as they are, and many fixtures under `tests/fixtures/` are the shapes frozen in
 upstream's captured API documents.
 
 ## Commands

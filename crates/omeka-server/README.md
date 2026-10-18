@@ -1,11 +1,8 @@
 # omeka-server
 
-The HTTP surface of Romeka S: an axum app around the rules in `omeka-api` (the `/api`
-JSON-LD read and write endpoints) and the public site routes served through
-`omeka-site`.
-
-Romeka S is a fork of Omeka S. The `/api` answers keep upstream's members and the
-public site routes keep upstream's paths.
+Romeka S is a fork of Omeka S. This crate is the HTTP surface: an axum app around the rules in `omeka-api` (the
+`/api` JSON-LD read and write endpoints) and the public site routes served through `omeka-site`. The `/api` answers
+keep upstream's members and the public site routes keep upstream's paths.
 
 ## Configuration
 

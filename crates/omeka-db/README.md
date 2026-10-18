@@ -1,11 +1,8 @@
 # omeka-db
 
-The storage layer for Romeka S. It owns the schema, the row structs and the repositories,
-and it is the only crate in the workspace that holds SQL.
-
-Romeka S is a fork of Omeka S. The schema follows upstream's install SQL, and the
-`mysql` backend exists so a deployment can run against an Omeka S database that
-already exists.
+Romeka S is a fork of Omeka S. This crate is the storage layer: it owns the schema, the row structs and the
+repositories, and it is the only crate in the workspace that holds SQL. The schema
+follows upstream's install SQL.
 
 Two engines are behind one repository API. SQLite is the default and needs no feature. MySQL is the
 second backend, behind the `mysql` feature, so the port can run against an Omeka S database that

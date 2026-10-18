@@ -1,9 +1,7 @@
 # omeka-migrate
 
-The adoption path. An Omeka S install holds its data in MySQL, in upstream's own schema. Romeka S
-stores the same tables in SQLite. This crate reads the source and writes the target.
-
-Romeka S is a fork of Omeka S. The migration keeps upstream's table and column names, so a
+Romeka S is a fork of Omeka S. This crate is the adoption path: migration reads an Omeka S install in MySQL, in
+upstream's own schema, and writes the same tables into SQLite. It keeps upstream's table and column names, so a
 migrated install reads back the records it held before.
 
 ```rust

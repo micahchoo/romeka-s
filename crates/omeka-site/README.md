@@ -1,12 +1,11 @@
 # omeka-site
 
-The public site layer of Romeka S. It turns stored site, page, block and resource values into one HTML
-document. It holds no database, no HTTP and no async code: every stored value arrives in a
+Romeka S is a fork of Omeka S. This crate is the public site layer: it turns stored site, page, block and resource
+values into one HTML document. It holds no database, no HTTP and no async code: every stored value arrives in a
 `RenderContext`, so a page render is a plain function a test can call with literal values.
 
-Romeka S is a fork of Omeka S. The bundled theme ports upstream's layout and site
-views. Upstream reference is `source/omeka-s/application` at the frozen SHA, read
-only, and each module cites the file it ports.
+The bundled theme ports upstream's layout and site views. Upstream reference is `source/omeka-s/application` at the
+frozen SHA, read only, and each module cites the file it ports.
 
 ## The render contract
 

@@ -1,12 +1,12 @@
 # omeka-api
 
-The `/api` REST layer of Romeka S: wire types, the JSON-LD serializer, the route
-table, error documents, adapter registry, API key parsing, and the read and write
-endpoints over `omeka-db`. `omeka-server` turns these into axum responses.
+Romeka S is a fork of Omeka S. This crate holds the `/api` REST layer: wire
+types, the JSON-LD serializer, the route table, error documents, adapter
+registry, API key parsing, and the read and write endpoints over `omeka-db`.
+`omeka-server` turns these into axum responses.
 
-Romeka S is a fork of Omeka S. This crate keeps upstream's wire member names,
-member order and error documents, so a client written against Omeka S reads the
-same answers here.
+The wire keeps upstream's member names, member order and error documents, so a
+client written against Omeka S reads the same answers here.
 
 ## Wire types are mirrors (wave 1)
 
