@@ -324,7 +324,7 @@ To add a string, add the key to `en`; `tsc` then fails until `es` has it. To add
 
 These are the upstream details the parsers depend on. They are read from the PHP representations at
 `application/src/Api/Representation/*.php` (omeka-s 5e413f0) and the golden fixtures in
-`verification/fixtures/api/`.
+`fixtures/api/` at the repository root.
 
 - A value's `type` is the data-type name (`literal`, `uri`, `resource:item`, and so on).
 - A resource value carries `value_resource_name` and `value_resource_id`, and its `url` is `null` in

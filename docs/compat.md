@@ -49,6 +49,8 @@ a gap that was discovered.
 | There is no `site_setting` repository yet, so the site-search settings a caller sets are not read back and some blocks render with the defaults. | [`crates/omeka-server/README.md`](../crates/omeka-server/README.md) |
 | `/s/<slug>/item-set/<id>` renders the item-set view. Upstream's `site/item-set` route reaches the item browse. | [`crates/omeka-server/README.md`](../crates/omeka-server/README.md) |
 | The bundled theme's asset base is `/assets`, the same path prefix the admin bundle builds its chunks under, so one origin serving both collides on it. | [`docs/operator-guide.md`](operator-guide.md), Known limitations |
+| A write body whose value names an unknown property term answers 422, with the errors document keyed by that term. Upstream's value hydrator sets a null property and answers 500. | [`crates/omeka-api/src/write/values.rs`](../crates/omeka-api/src/write/values.rs) |
+| `GET /api` answers the JSON-LD resource listing. Upstream renders an HTML page from `omeka/api/root` at the same route. | [`crates/omeka-api/src/read/meta.rs`](../crates/omeka-api/src/read/meta.rs) |
 
 ## What compatibility does not cover
 
@@ -60,19 +62,19 @@ a gap that was discovered.
 - A JSON-LD `@context` served from upstream's URL: `@context` points at this server's
   `/api-context`.
 
-## Where the evidence is, and what is missing here
+## Where the evidence is
 
-The differential evidence this fork was built against lives in the port's own repository, not in this
-one: the captured upstream documents, the behaviour ledger, the scenario diffs and the Docker oracle
-are not in this tree. Because of that, two test targets fail here rather than skip:
-`crates/omeka-api/tests/golden.rs` and `crates/omeka-api/tests/property_wire.rs` read
-`verification/fixtures/api/*.json`, which does not exist here yet. `cargo test --workspace` is red on
-those two targets until the captured documents land.
+The differential evidence this fork was built against lives in the port's own repository: the
+behaviour ledger, the scenario diffs and the Docker oracle are not in this tree. The captured upstream
+documents the API tests read are, under [`fixtures/api/`](../fixtures/api/README.md).
+`crates/omeka-api/tests/golden.rs` parses each one into its wire type and asserts the serializer
+byte-equals the file, and `crates/omeka-api/tests/property_wire.rs` reads the same set.
+`cargo test --workspace` passes every target, those two included.
 
 What you can run and read in this repository:
 
 ```
-cargo test --workspace                          # everything except the two fixture targets
+cargo test --workspace                          # the whole workspace, fixture targets included
 cd web/admin && npm ci && npm run e2e           # the admin and the public site in a browser
 cd docs && ./gen.sh --check                     # the API reference is current
 crates/omeka-cli/scripts/verify-backup.sh       # backup and restore, byte for byte

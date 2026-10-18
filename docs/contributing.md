@@ -44,14 +44,14 @@ Two of them are worth knowing the reason for.
   carries it. That page is the list of differences the product states about itself, and a difference
   that is not there is one a reviewer has to find.
 
-## The generator, and the one check that cannot run here
+## The generator, and the checks around it
 
 [`gen/`](gen/) holds the generator behind `api.md`, in Python with no packages. `./gen.sh` writes the
 file and `./gen.sh --check` compares it. The generator reads only the crate, so it runs anywhere.
 
 [`gen/check_wire.py`](gen/check_wire.py) cross-checks the parsed members against the captured upstream
-documents under `verification/fixtures/api/`. That directory is not in this repository, so the
-cross-check cannot run here and the two `omeka-api` test targets that read the same documents fail.
+documents under `fixtures/api/`, the same set the two `omeka-api` test targets read. It exits
+non-zero when it finds no fixture, so an empty set cannot pass vacuously.
 [`gen/check_routes.py`](gen/check_routes.py) needs a running server and an installed database; its
 docstring has the commands.
 
