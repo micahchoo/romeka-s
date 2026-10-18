@@ -2,6 +2,9 @@
 # Start Romeka S: install the database when it is absent, serve it on loopback,
 # and run Caddy in front for TLS, the admin SPA and the media bytes.
 #
+# ROMEEKA_MODE=install runs the install and the schema migrations against an
+# existing database and stops, which is what DEPLOY.md's upgrade procedure uses.
+#
 # The same script is the container entrypoint, so every setting it reads is an
 # environment variable the deployment sets (see deploy/.env.example).
 set -euo pipefail
@@ -57,19 +60,17 @@ mkdir -p "$(dirname "$DB")" "$STORE"
 cd "$(dirname "$STORE")"
 
 # `romeka install` creates the schema, seeds the default vocabularies and the
-# Base Resource template, and writes the first global_admin. It also rewrites the
-# settings rows it owns, installation_title among them, so it must NOT run on
-# every start: a container restart would undo every settings change an
-# administrator made. An absent database is the signal; DEPLOY.md's upgrade
-# procedure runs install explicitly.
-if [ ! -s "$DB" ]; then
+# Base Resource template, writes the first global_admin, and runs the schema
+# migrations, which is what an upgrade is. It also rewrites the settings rows it
+# owns, installation_title among them, so it is not run on every start: a restart
+# would undo every settings change an administrator made.
+install() {
     for name in ROMEEKA_ADMIN_EMAIL ROMEEKA_ADMIN_NAME ROMEEKA_ADMIN_PASSWORD; do
         if [ -z "${!name:-}" ]; then
-            echo "romeka: $name is not set and $DB is empty, so there is no administrator to create" >&2
+            echo "romeka: $name is not set, so there is no administrator to create" >&2
             exit 1
         fi
     done
-    echo "romeka: $DB is empty, installing" >&2
     romeka install -d "$DB" \
         --email "$ROMEEKA_ADMIN_EMAIL" \
         --name "$ROMEEKA_ADMIN_NAME" \
@@ -77,7 +78,28 @@ if [ ! -s "$DB" ]; then
         --title "${ROMEEKA_TITLE:-Romeka S}" \
         --time-zone "${ROMEEKA_TIME_ZONE:-UTC}" \
         --locale "${ROMEEKA_LOCALE:-en}"
-fi
+}
+
+case "${ROMEEKA_MODE:-serve}" in
+    serve)
+        # An absent or empty database is the first start.
+        if [ ! -s "$DB" ]; then
+            echo "romeka: $DB is empty, installing" >&2
+            install
+        fi
+        ;;
+    install)
+        # DEPLOY.md's upgrade runs this against an existing database, in a
+        # one-off container, with the service stopped.
+        echo "romeka: installing into $DB" >&2
+        install
+        exit 0
+        ;;
+    *)
+        echo "romeka: ROMEEKA_MODE must be serve or install, not ${ROMEEKA_MODE}" >&2
+        exit 1
+        ;;
+esac
 
 echo "romeka: serving $HOST:$PORT with base URL $BASE_URL, the origin on :80 and :443" >&2
 romeka serve -d "$DB" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" &
