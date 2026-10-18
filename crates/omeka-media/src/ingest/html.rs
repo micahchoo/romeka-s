@@ -67,6 +67,7 @@ impl MutableIngester for Html {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ingest::HtmlPurifier;
     use crate::testing::{Harness, ReplacePurifier, media_row};
 
     /// `Ingester/Html.php:62`: the stored payload is the purified fragment.
@@ -85,6 +86,26 @@ mod tests {
             draft.data,
             MediaData::Html(HtmlData {
                 html: "<p>x</p>".to_string()
+            })
+        );
+    }
+
+    /// `Ingester/Html.php:62`: the production purifier the port wires in drops a
+    /// script and keeps the allowed markup.
+    #[test]
+    fn html_ingest_with_the_core_purifier_drops_script() {
+        let harness = Harness::new("html-ingest-core").with_purifier(HtmlPurifier);
+        let env = harness.env();
+        let request = IngestRequest::from_value(
+            serde_json::json!({"html": "<p>ok</p><script>alert(1)</script>"}),
+        );
+        let mut draft = MediaDraft::new(media_row(1, "html", "html"));
+        let mut errors = ErrorStore::default();
+        Html.ingest(&mut draft, &request, &env, &mut errors);
+        assert_eq!(
+            draft.data,
+            MediaData::Html(HtmlData {
+                html: "<p>ok</p>".to_string()
             })
         );
     }

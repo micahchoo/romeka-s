@@ -212,12 +212,29 @@ fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
         };
         blocks.push(Block {
             layout: layout.to_string(),
-            data,
+            data: purify_html_block(layout, data),
             layout_data: object.get("o:layout_data").map(php_json),
             attachments: parse_attachments(object),
         });
     }
     Ok(blocks)
+}
+
+/// `BlockLayout\Html::onHydrate` (`Site/BlockLayout/Html.php:31`): the `html`
+/// layout's body passes through `Stdlib\HtmlPurifier` before it is stored, so
+/// `block-layout/html.phtml` can echo it raw. No other layout purifies.
+fn purify_html_block(layout: &str, data: Value) -> Value {
+    if layout != "html" {
+        return data;
+    }
+    let Value::Object(mut map) = data else {
+        return data;
+    };
+    if let Some(Value::String(html)) = map.get("html") {
+        let purified = omeka_core::purify::purify(html);
+        map.insert("html".to_string(), Value::String(purified));
+    }
+    Value::Object(map)
 }
 
 /// `SitePageAdapter::hydrateAttachments` input: every object entry of
@@ -244,11 +261,11 @@ fn parse_attachments(object: &serde_json::Map<String, Value>) -> Vec<RawAttachme
                     .and_then(Value::as_object)
                     .and_then(|media| media.get("o:id"))
                     .and_then(Value::as_u64),
-                caption: entry
-                    .get("o:caption")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string(),
+                // `SitePageAdapter::hydrateAttachments` (`Api/Adapter/SitePageAdapter.php:326`)
+                // purifies every caption.
+                caption: omeka_core::purify::purify(
+                    entry.get("o:caption").and_then(Value::as_str).unwrap_or(""),
+                ),
             })
         })
         .collect()

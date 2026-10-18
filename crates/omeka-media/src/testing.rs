@@ -82,7 +82,8 @@ impl HttpFetch for FakeHttp {
     }
 }
 
-/// A purifier that returns its input, standing in for `HtmlPurifier`.
+/// A purifier that returns its input, standing in for the production
+/// [`crate::ingest::HtmlPurifier`] where a test does not care about the call.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PassthroughPurifier;
 

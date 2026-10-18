@@ -264,6 +264,4 @@ Known gaps, each a repository the port does not have yet: no `site_setting`
 repository, so every setting keeps its upstream default; `ItemFilter` carries no
 `site_id`, so a browse-preview shows every public resource; the `asset` block's
 asset lookup is not ported, so it renders no asset; and a site thumbnail is
-never shown for want of an asset lookup. The `media` block's caption is escaped
-at render rather than purified on write, because `omeka-api` has no
-`HtmlPurifier`; an attachment's `o:caption` is stored as received.
+never shown for want of an asset lookup.

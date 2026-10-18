@@ -10,6 +10,10 @@ description = "The Romeka S domain core: typed entities, value rules and the per
 workspace = true
 
 [dependencies]
+# The HTML sanitizer behind `purify`. Upstream calls `ezyang/htmlpurifier`
+# through `Stdlib/HtmlPurifier.php`; `ammonia` is the maintained Rust equivalent
+# (MIT OR Apache-2.0, GPL-3.0 compatible).
+ammonia = "4"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

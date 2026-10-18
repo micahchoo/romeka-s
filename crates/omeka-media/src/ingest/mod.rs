@@ -217,6 +217,17 @@ pub trait Purifier {
     fn purify(&self, html: &str) -> String;
 }
 
+/// The purifier the port runs in production: [`omeka_core::purify::purify`],
+/// the port of `Stdlib\HtmlPurifier`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct HtmlPurifier;
+
+impl Purifier for HtmlPurifier {
+    fn purify(&self, html: &str) -> String {
+        omeka_core::purify::purify(html)
+    }
+}
+
 /// Every external dependency an ingester may use.
 pub struct IngestEnv<'a> {
     /// The file store.
