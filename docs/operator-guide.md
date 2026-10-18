@@ -2,45 +2,67 @@
 
 Audience: whoever starts, watches and backs up an installed instance.
 
-Read [`user-guide.md`](user-guide.md) for what an administrator does inside the application. This page is about the
-process, its ports, its data on disk, its backups and the gate that checks the code.
+For what an administrator does inside the application, read [`user-guide.md`](user-guide.md). For a
+production deployment, with the image, the compose file, a TLS proxy and the rollback procedure, read
+[`../deploy/DEPLOY.md`](../deploy/DEPLOY.md). This page is the process itself.
 
 ## What runs
 
-The application is two processes.
+One binary.
 
-1. `omeka serve`: the API (`/api`, `/api-context`), the liveness route (`/health`), and the public site under `/s/`.
-2. A static origin: it serves the built admin application (`web/admin/dist`), serves the media files the API links to,
-   and forwards `/api`, `/api-context`, `/health` and `/s/` to the port. The end-to-end harness in
-   `web/admin/e2e/harness` is one working example: it serves the bundle and the file store and forwards those paths
-   (`../web/admin/README.md`).
+`romeka serve` answers the `/api` routes, the account routes (`/api/login`, `/api/logout`,
+`/api/me`, `/api/password`, `/api/password/forgot`), the public site under `/s/`, the bundled theme's
+files under `/assets/`, and two probes: `/health` for liveness and `/ready`, which runs a query and
+answers 503 while storage is unreachable ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs)).
 
-The port serves no admin bundle and no media bytes itself. If the origin does not forward `/api`, the admin application
-gets the origin's 404 for every page.
+It serves no admin bundle and no stored media bytes. A static origin in front serves the built admin
+application at `/` and the media files under `/files/`. That is the arrangement the packaged
+deployment uses, and [`packaging/nginx.conf.template`](../packaging/nginx.conf.template) is the
+working example. `web/admin/e2e/harness/proxy.ts` is another one, in Node.
 
-A packaged form (a container image, a compose file, a systemd unit and a smoke script) is a separate unit, specified in
-[`../briefs/packaging.md`](../briefs/packaging.md). It has not landed in this tree yet; the packaging directory does not
-exist at this commit.
+## Flags, environment and the config file
 
-## Ports and addressing
+`romeka serve` takes the address, the base URL and the database. Everything else comes from the
+environment or from a file: the log level, the body cap, the request timeout and the mail settings.
+Precedence is defaults, then the file, then the environment, then the two flags the command sets
+itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/config.rs)).
 
-| Setting | Default | Notes |
+| Flag | Default | Notes |
 | --- | --- | --- |
-| `omeka serve --host` | `127.0.0.1` | loopback only unless you change it |
-| `omeka serve --port` | `8080` | |
-| `omeka serve --base-url` | `http://<host>:<port>` | the prefix of every `@id` the API emits; set it when a client reaches the server through another host name or port |
-| `GET /health` | | answers `{"status":"ok"}`; not part of the upstream API |
+| `-d PATH` | required | the SQLite database file |
+| `--host` | `127.0.0.1` | loopback unless you change it |
+| `--port` | `8080` | |
+| `--base-url` | `http://<host>:<port>` | the prefix of every `@id`, of every `Link`, and the origin a cookie write must match |
 
-`--base-url` matters more than it looks. Every resource link, every `@id`, and the `Link` pagination header are built
-from it, so a value that does not match the address a client uses produces links that point somewhere else
-([`../crates/omeka-server/README.md`](../crates/omeka-server/README.md)).
+| Variable | Default | What it sets |
+| --- | --- | --- |
+| `ROMEKA_CONFIG` | none | a config file to read after the defaults, before the environment |
+| `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | `127.0.0.1`, `8123` | the address, unless `--host` / `--port` overrides it |
+| `ROMEKA_BASE_URL` | `http://localhost:8123` | unless `--base-url` overrides it |
+| `ROMEKA_LOG` | `info` | the tracing filter |
+| `ROMEKA_MAX_BODY_BYTES` | `268435456` | the request body cap, 256 MiB |
+| `ROMEKA_REQUEST_TIMEOUT_SECS` | `30` | per-request timeout |
+| `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT` | none | an SMTP relay. With no host, mail goes to the log |
+| `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS` | none, none, `starttls` | relay credentials and transport security |
+| `ROMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | the envelope sender |
+
+Two traps. `--base-url` is not cosmetic: every resource link, every `@id` and the `Link` pagination
+header are built from it, and the write path checks that a state-changing request carrying the
+session cookie comes from that origin. A base URL that names a different host or scheme than the
+browser uses breaks sign-in in a way that looks like a bug
+([`../crates/omeka-api/src/origin.rs`](../crates/omeka-api/src/origin.rs)). And with no SMTP host the
+invite and reset links are written to the request log and returned to the administrator, which is how
+an installation without mail still onboards people.
 
 ## Data on disk
 
-The database is one SQLite file, given by `-d`. The server opens it with `PRAGMA foreign_keys=ON`, a five second busy
-timeout, WAL journaling and a five connection pool ([`../crates/omeka-db/src/lib.rs`](../crates/omeka-db/src/lib.rs)).
+The database is one SQLite file. The process opens it with foreign keys on, a five second busy
+timeout, write-ahead logging and a five connection pool
+([`../crates/omeka-db/src/lib.rs`](../crates/omeka-db/src/lib.rs)). Because it is in WAL mode, recent
+commits live in the `-wal` sidecar until a checkpoint, which is why the backup tool copies through
+the database API rather than the filesystem.
 
-The file store is a directory tree:
+The file store is a directory tree, `files` beside the database by default:
 
 ```
 original/<storage_id>.<extension>     the stored file
@@ -49,74 +71,97 @@ medium/<storage_id>.jpg
 square/<storage_id>.jpg
 ```
 
-Two things to know, both of them easy to get wrong.
-
-- `omeka install` is what applies the schema. `omeka serve` opens the file but does not migrate it. Serving a path with
-  no schema fails on the first query. Running `omeka install` again against an existing database applies any new
-  migrations and inserts nothing else, so that is also the upgrade step.
-- The server's store root is the constant `files`, resolved against the process working directory, and it is not
-  configurable: `omeka serve` has no store flag ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs)).
-  The import commands default their store to `files` **beside the database file**
-  ([`../crates/omeka-cli/src/commands/media.rs`](../crates/omeka-cli/src/commands/media.rs)). Start the server from the
-  directory that holds the database, or pass `--store` to every import command, or the media links will 404 while the
-  rows exist.
+- `romeka install` is what applies the schema and the migrations. `romeka serve` opens the file and
+  does not migrate it, so serving a path with no schema fails on the first query. Running `install`
+  again against an existing database applies anything new and inserts nothing else, which makes it
+  the upgrade step too.
+- The server's store root is the constant `files`, resolved against the process working directory,
+  and it is not configurable: `serve` has no store flag. The import commands default their store to
+  `files` beside the database file. Start the server from the directory that holds the database, or
+  pass `--store` to every import, or media rows will exist while their files 404
+  ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs),
+  [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
 
 ## Backup and restore
 
-The database and the store must be copied together. A media row that names a file the archive lacks is a broken restore,
-and the reverse is wasted bytes.
+```
+romeka backup  -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --out backup.tar
+romeka restore -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --in backup.tar
+```
 
-Today there is no `backup` command. The safe manual procedure is:
+`backup` writes one uncompressed tar holding a consistent copy of the database, every file under the
+store, and a `manifest.json` with the commit, the row counts and a checksum per file. The database
+copy comes from SQLite's `VACUUM INTO`, not a file copy, so the archive holds one point in time with
+no `-wal` frames missing and no torn page. Before writing, it checks that every media row's original
+and thumbnails are present in the store and refuses the run when one is not, so an archive never
+holds a media row without its file. `restore` refuses an occupied target unless `--force`, verifies
+every checksum against the manifest, removes a stale `-wal` and `-shm`, and reports the counts it
+measured after writing ([`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
 
-1. Stop the server, so nothing is writing.
-2. Copy the database file and the whole store directory.
-3. Start the server again.
+`crates/omeka-cli/scripts/verify-backup.sh` proves the cycle end to end with the built binary and the
+system `tar`, including that a second restore without `--force` is refused.
 
-A copy taken while the server runs is not safe: the database is in WAL mode, so recent commits live in the `-wal`
-sidecar file, and the store can change between the two copies.
+## The static origin
 
-The backup unit specified in [`../briefs/backup.md`](../briefs/backup.md) adds `omeka backup` and `omeka restore`, with
-a consistent database copy, the store, and a manifest of the commit, counts and checksums. When it lands, this section
-should point at its README instead of repeating it.
+The origin does four things. It serves the built admin application at `/`, from
+`web/admin/dist`. It serves the media store under `/files/`. It forwards `/api` (which covers
+`/api-context`), `/health`, `/ready`, `/s/` and `/assets/` to the process. And it falls back to
+`index.html` for an unknown path, because the admin is a hash-routed single page.
 
-Never write into the acceptance collection `/mnt/Ghar/2TA/BHC006_GAWANMUSEUMTRUST`; it is a read-only source
-([`../VERIFY.md`](../VERIFY.md)).
+Two things to know before you write one.
 
-## The gate
+- **`/assets/` collides.** The bundled theme links its stylesheet at `/assets/css/style.css`, and the
+  admin bundle builds its own chunks under `assets/` too. One origin serving both has one URL prefix
+  for two file sets: serve the SPA's files there and the public site renders unstyled, forward to the
+  process and the admin's chunks 404. The shipped nginx
+  ([`packaging/nginx.conf.template`](../packaging/nginx.conf.template)) serves the SPA's files, which
+  is the first of those two, and it forwards neither `/assets/` nor `/ready`. Until one of the two
+  paths moves, an origin that has to be correct for both needs a rule that separates them.
+- **The process may be reached over loopback.** Forward the client's `Host` and `X-Forwarded-For`:
+  login limits count by address, and the address comes from `X-Real-IP`, then the last
+  `X-Forwarded-For` entry, then the socket peer.
 
-`./verify.sh` is the one command that answers whether the code is in a good state.
+## Upgrade and roll back
 
-| Mode | Runs |
-| --- | --- |
-| `./verify.sh --rust` | `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` |
-| `./verify.sh --ts` | `npm ci`, typecheck, lint, tests and build in `web/admin` |
-| `./verify.sh --verification` | the upstream matrix, the behaviour ledger, the scenario diff against a started oracle, and the port-against-goldens diff |
-| `./verify.sh` | all three |
+1. `romeka backup -d ... --store ... --out before-upgrade.tar`
+2. Stop the service.
+3. Install the new binary and run `romeka install -d ... ` against the same database. It applies the
+   migrations and inserts nothing else.
+4. Start the service and check `/ready`.
+5. To roll back, restore `before-upgrade.tar` with `--force` into the same paths, put the old binary
+   back, and start it.
 
-CI runs the same gate through [`../verification/ci/run.sh`](../verification/ci/run.sh), keeps the log, publishes a stage
-table and fails the build on any red stage ([`../.github/workflows/verify.yml`](../.github/workflows/verify.yml)). The
-generated scoreboard is [`../verification/report.md`](../verification/report.md).
+A migration that only adds cannot be undone by the old binary, which is why the rollback step is the
+restore and not just an older binary.
 
-What green means is defined in [`../VERIFY.md`](../VERIFY.md), not here: five layers, an oracle diff, a behaviour
-ledger, a real-data run, and the rule that a ported row needs a proof the checker reruns itself. Read that page before
-claiming anything from a green run.
+## Checks on a checkout
 
-The documentation has its own check. `cd docs && ./gen.sh && git diff --quiet` regenerates the API reference and fails
-when the committed file is stale.
+```
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 
-## Checking against upstream
+cd web/admin && npm ci && npm run typecheck && npm run lint && npm test && npm run build && npm run e2e
+cd web/admin && npm run perf:check
 
-[`../oracle/README.md`](../oracle/README.md) runs upstream Omeka S at the frozen commit (PHP and MariaDB in Docker) as
-the reference server, with `up.sh`, `smoke.sh` and a documented reset. The scenario diff uses it; a normal deployment
-does not need it.
+cd docs && ./gen.sh --check
+```
+
+`cargo test --workspace` fails on two `omeka-api` targets, `golden` and `property_wire`, which read
+the captured upstream documents under `verification/fixtures/api/`; that directory is not in this
+repository yet. Every other target is green. [`compat.md`](compat.md) says what that means for a
+compatibility claim.
 
 ## Troubleshooting
 
 | Symptom | Cause, and what to do |
 | --- | --- |
-| Every request is a 500 whose body names a missing table | the schema was never applied: run `omeka install` against the same database |
-| Every authenticated page answers 403 | the key is missing, malformed, unknown, or its owner is inactive; the port answers no 401 ([`api.md`](api.md)) |
+| Every request is a 500 whose body names a missing table | the schema was never applied: run `romeka install` against the same database |
+| Every authenticated page answers 403 | the key is missing, malformed, unknown, or its owner is inactive. No route answers 401 ([`api.md`](api.md), Errors) |
+| Sign-in appears to succeed and the next write is refused | `--base-url` names a different origin than the browser used, so the write fails the same-origin check |
 | API links point at the wrong host or port | set `--base-url` to the address clients use |
-| Media pages load but their images 404 | the server's store root is `<working directory>/files`; start it from the database's directory or point the imports at the same directory |
-| The admin application answers 404 for everything | the static origin is not forwarding `/api` to the port |
-| `omeka serve` exits with an address error | the port is already in use, or `--host` is not an address |
+| Media pages load but their images 404 | the store root is `<working directory>/files`; start the server from the database's directory or import with the same `--store` |
+| The admin application answers 404 for everything | the static origin is not forwarding `/api` to the process |
+| The public site renders without styling | the origin is serving the SPA's `assets` files instead of forwarding `/assets/` to the process |
+| `/ready` answers 503 | the database is unreachable. `/health` still answers 200, because it touches no shared state |
+| `romeka serve` exits with an address error | the port is in use, or `--host` is not an address |

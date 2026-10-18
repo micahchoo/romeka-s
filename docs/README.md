@@ -1,43 +1,39 @@
-# The port's documentation
+# The documentation
 
-Audience: anyone who has to use, run or change this repository and wants to know which document answers their question.
+Audience: anyone who has to use, run or change Romeka S and wants to know which page answers their
+question.
 
-## The documents here
+## The pages here
 
-| Document | Audience | What it covers |
+| Page | Audience | What it covers |
 | --- | --- | --- |
-| [`user-guide.md`](user-guide.md) | an administrator in the SPA, or a visitor to a public site | install, sign in, the admin pages, importing data, the public site, search |
-| [`operator-guide.md`](operator-guide.md) | whoever runs the process | the two processes, ports, the database and the file store, backup and restore, the gate, packaging |
+| [`user-guide.md`](user-guide.md) | an administrator in the admin app, or a visitor to a public site | install, sign in, the admin pages, importing data, the public site, search |
+| [`operator-guide.md`](operator-guide.md) | whoever runs the process | the process, ports, the database and the file store, backup and restore, the static origin, the checks |
 | [`api.md`](api.md) | a developer integrating over HTTP | every route and method, the accepted parameters, the response and request members, the access rules, the errors |
-| [`compat.md`](compat.md) | a reviewer or an operator deciding whether to switch | where the port stands against upstream, and where the evidence lives |
-| [`contributing.md`](contributing.md) | an agent or a developer changing this repository | the brief, worktree, acceptance and merge rules |
+| [`compat.md`](compat.md) | someone deciding how far Romeka S can stand in for an Omeka S installation | what is compatible and what deliberately differs, each difference against the file that carries it |
 | [`gen/README.md`](gen/README.md) | whoever edits the API reference | the generator behind `api.md`, and how to rerun it |
 
-`api.md` is generated. Never edit it by hand. Run `./gen.sh` here after any change under
-`crates/omeka-api/src/`, and commit the regenerated file.
+`api.md` is generated. Never edit it by hand. Run `./gen.sh` here after a change under
+`crates/omeka-api/src/`, and commit the regenerated file with the change. `./gen.sh --check` fails
+while the committed file is stale, and CI runs it.
 
-## The rest of the repository
-
-These are the sources of truth for the port, and these documents point at them rather than repeat them.
+## Around the repository
 
 | Path | What it is |
 | --- | --- |
-| [`../README.md`](../README.md) | what the port is, and the map of the repository |
-| [`../DESIGN.md`](../DESIGN.md) | the frozen target: crate layout, data shapes, the REST contract, decisions, exclusions |
-| [`../VERIFY.md`](../VERIFY.md) | how "the port is complete" is defined and checked, layer by layer |
-| [`../PLAN.md`](../PLAN.md) | the work program, wave by wave, with the log |
-| [`../ROADMAP.md`](../ROADMAP.md) | the maximal scope and the ranking |
-| [`../AGENTS.md`](../AGENTS.md) | the rules every agent in this repository follows |
-| [`../briefs/`](../briefs/) | one brief per unit of work |
-| [`../crates/`](../crates/) | the Rust workspace; each crate with a README is documented there |
-| [`../web/admin/README.md`](../web/admin/README.md) | the admin application: layout, routes, wire shapes, tests |
-| [`../verification/`](../verification/) | the matrices, the ledger, the scenario diff, the acceptance run |
-| [`../oracle/README.md`](../oracle/README.md) | the upstream reference server in Docker |
-| [`../research/`](../research/) | the upstream inventory the port was planned from |
+| [`../README.md`](../README.md) | what Romeka S is, the quick start, and what is ported and what is not |
+| [`../NOTICE`](../NOTICE) | the fork point, the upstream attribution and the license |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | how to build, test and send a change |
+| [`../AGENTS.md`](../AGENTS.md) | the rules an agent working in this repository follows |
+| [`../deploy/DEPLOY.md`](../deploy/DEPLOY.md) | the production deployment: image, compose, TLS proxy, backup, upgrade, rollback |
+| [`../crates/`](../crates/) | the Rust workspace, one README per crate |
+| [`../web/admin/README.md`](../web/admin/README.md) | the admin SPA: layout, routes, wire shapes, tests, and the performance log |
+| [`../packaging/README.md`](../packaging/README.md) | the container image and the systemd unit |
 
-## Keeping these documents true
+## Keeping these pages true
 
-- Numbers and per-file details live in the artifact that generates them, not in prose here. A
-  document links the artifact.
-- Anything that describes code names the source file it was read from.
-- `../AGENTS.md` says the rules; these pages say what a user or an operator sees.
+- A number lives in the artifact that measures it, not in a page that quotes it. `web/admin/PERF.md`
+  is the exception, because it is the decision log for its own numbers.
+- A page that describes code names the source file it was read from.
+- What the product is compatible with, and where it deliberately differs, is
+  [`compat.md`](compat.md). A change that adds a difference adds a row there.
