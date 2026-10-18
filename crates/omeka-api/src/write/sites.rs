@@ -21,12 +21,13 @@ use serde_json::{Value, json};
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
-use crate::write::body::Payload;
+use crate::write::body::{self, Payload, ref_row};
 use crate::write::resource::not_found as ref_not_found;
 use crate::write::site_defaults;
 
 const SITE_CLASS: &str = "Omeka\\Entity\\Site";
 const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
+const USER_CLASS: &str = "Omeka\\Entity\\User";
 
 const CONTROL: &[&str] = &[
     "o:theme",
@@ -239,18 +240,29 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 }
 
 /// The site owner: the body's `o:owner`, or the caller on create.
+///
+/// `AbstractEntityAdapter::hydrateOwner` with a null stored owner: a numeric id
+/// that is not zero names a user and must exist, anything else on a create
+/// leaves the caller as the owner.
 async fn owner(api: &Api<'_>, payload: &Payload) -> Result<Option<UserId>, ApiError> {
-    let Some(raw) = payload.ref_id("o:owner") else {
+    let Some(raw) = payload.numeric_ref("o:owner") else {
         return Ok(api.actor().user());
     };
-    let id = UserId(raw);
+    let integer = crate::write::body::cast_int(raw).unwrap_or(0);
+    if integer == 0 {
+        return Ok(api.actor().user());
+    }
+    if integer < 0 {
+        return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
+    }
+    let id = UserId(integer as u64);
     if omeka_db::repos::UserRepo::new(api.pool())
         .get(id)
         .await
         .map_err(db_error)?
         .is_none()
     {
-        return Err(ref_not_found("Omeka\\Entity\\User", raw));
+        return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
     }
     Ok(Some(id))
 }
@@ -271,15 +283,14 @@ async fn permissions(
     };
     let mut wanted = Vec::with_capacity(entries.len());
     for entry in entries {
-        let Some(user_id) = entry
-            .get("o:user")
-            .and_then(|user| user.get("o:id"))
-            .and_then(Value::as_u64)
-        else {
+        let Some(raw_user) = entry.get("o:user").and_then(body::object_id) else {
             continue;
         };
         let Some(role) = entry.get("o:role").and_then(Value::as_str) else {
             continue;
+        };
+        let Some(user_id) = ref_row(raw_user) else {
+            return Err(ref_not_found(USER_CLASS, raw_user));
         };
         let user = UserId(user_id);
         if UserRepo::new(api.pool())
@@ -288,7 +299,7 @@ async fn permissions(
             .map_err(db_error)?
             .is_none()
         {
-            return Err(ref_not_found("Omeka\\Entity\\User", user_id));
+            return Err(ref_not_found(USER_CLASS, raw_user));
         }
         wanted.push((user, role.to_string()));
     }
@@ -343,12 +354,11 @@ async fn site_item_sets(
         .unwrap_or(&empty);
     let mut wanted = Vec::with_capacity(entries.len());
     for entry in entries {
-        let Some(item_set_id) = entry
-            .get("o:item_set")
-            .and_then(|item_set| item_set.get("o:id"))
-            .and_then(Value::as_u64)
-        else {
+        let Some(raw) = entry.get("o:item_set").and_then(body::object_id) else {
             continue;
+        };
+        let Some(item_set_id) = ref_row(raw) else {
+            return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         };
         let item_set = ItemSetId(item_set_id);
         if ItemSetRepo::new(api.pool())
@@ -357,7 +367,7 @@ async fn site_item_sets(
             .map_err(db_error)?
             .is_none()
         {
-            return Err(ref_not_found("Omeka\\Entity\\ItemSet", item_set_id));
+            return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         }
         wanted.push(item_set);
     }
@@ -396,13 +406,13 @@ async fn apply_item_sets(
 async fn named_pages(api: &Api<'_>, payload: &Payload) -> Result<Vec<PageId>, ApiError> {
     let mut wanted = Vec::new();
     for entry in payload.entries("o:page") {
-        let Some(value) = entry.get("o:id") else {
+        let Some(raw) = entry.id() else {
             continue;
         };
-        let Some(raw) = value.as_u64() else {
-            return Err(not_found(PAGE_CLASS, &value.to_string()));
+        let Some(id) = ref_row(raw) else {
+            return Err(ref_not_found(PAGE_CLASS, raw));
         };
-        let page = PageId(raw);
+        let page = PageId(id);
         if SiteRepo::new(api.pool())
             .get_page(page)
             .await
@@ -454,10 +464,13 @@ async fn hydrate_theme_settings(
 /// A member without a numeric `o:id` clears the homepage. An id upstream's
 /// `site_pages` adapter cannot find is the 404 its `findEntity` throws.
 async fn homepage(api: &Api<'_>, payload: &Payload) -> Result<Option<PageId>, ApiError> {
-    let Some(raw) = payload.ref_id("o:homepage") else {
+    let Some(raw) = payload.numeric_ref("o:homepage") else {
         return Ok(None);
     };
-    let page = PageId(raw);
+    let Some(id) = ref_row(raw) else {
+        return Err(ref_not_found(PAGE_CLASS, raw));
+    };
+    let page = PageId(id);
     if SiteRepo::new(api.pool())
         .get_page(page)
         .await

@@ -21,7 +21,7 @@ use omeka_db::rows::{NewVocabulary, VocabularyRow};
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
-use crate::write::body::Payload;
+use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
 use crate::write::vocab_member::{self, Member, MemberInput, MemberRow, VocabularyTarget};
 
@@ -505,11 +505,9 @@ async fn plan_members(
     let mut retained: Vec<u64> = Vec::new();
     for entry in payload.entries(key) {
         // A vocabulary list entry carries its id at the top level
-        // (`VocabularyAdapter::hydrate`: `$classData['o:id']`), not inside a
-        // reference, so it is read as a member and not through `ref_id`.
-        let id = entry
-            .int_member("o:id")
-            .and_then(|raw| u64::try_from(raw).ok());
+        // (`VocabularyAdapter::hydrate`: `$classData['o:id']`), read with
+        // `isset` and then compared against the stored ids.
+        let id = entry.id().and_then(ref_row);
         match id {
             Some(id) => {
                 retained.push(id);

@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access::{self, SiteRole};
-use crate::write::body::Payload;
+use crate::write::body::{self, Payload, array_key, ref_row};
 use crate::write::fulltext;
 use crate::write::media;
 use crate::write::resource::{self, not_found as ref_not_found};
@@ -101,7 +101,11 @@ pub async fn update(
     let sites = sites(api, payload, false, partial, &existing_sites).await?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
-    row.primary_media_id = primary_media(api, payload, &row).await?;
+    // `shouldHydrate($request, 'o:primary_media')`: a partial update that does
+    // not name the member keeps the stored primary media.
+    if !partial || payload.has("o:primary_media") {
+        row.primary_media_id = primary_media(api, payload, &row).await?;
+    }
     repo.update(&row).await.map_err(db_error)?;
     resource::store_values(
         api,
@@ -186,14 +190,13 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
     };
     let mut ids = Vec::new();
     for item in array {
-        let raw = item
-            .get("o:id")
-            .and_then(|value| value.as_u64())
-            .or_else(|| item.as_u64());
-        let Some(raw) = raw else {
+        let Some(raw) = body::entry_ref(item) else {
             continue;
         };
-        let id = ItemSetId(raw);
+        let Some(id) = ref_row(raw) else {
+            return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
+        };
+        let id = ItemSetId(id);
         if ItemSetRepo::new(api.pool())
             .get(id)
             .await
@@ -230,33 +233,6 @@ async fn apply_item_sets(
 struct SitePlan {
     attach: Vec<SiteId>,
     detach: Vec<SiteId>,
-}
-
-/// A site reference as `ItemAdapter::hydrate` reads one: `{"o:id": N}` or a
-/// bare numeric. An object whose `o:id` is not numeric still names a site, and
-/// the lookup then answers 404, as `findEntity` does.
-enum SiteRef {
-    Id(u64),
-    Unknown(String),
-}
-
-fn site_ref(entry: &Value) -> Option<SiteRef> {
-    if let Some(object) = entry.as_object() {
-        let id = object.get("o:id")?;
-        return Some(match numeric(id) {
-            Some(raw) => SiteRef::Id(raw),
-            None => SiteRef::Unknown(id.to_string()),
-        });
-    }
-    numeric(entry).map(SiteRef::Id)
-}
-
-fn numeric(value: &Value) -> Option<u64> {
-    value.as_u64().or_else(|| {
-        value
-            .as_str()
-            .and_then(|raw| raw.trim().parse::<u64>().ok())
-    })
 }
 
 /// Resolve the membership changes one write makes, before it writes anything.
@@ -298,13 +274,13 @@ async fn sites(
     let mut retained: Vec<SiteId> = Vec::new();
     let mut attach: Vec<SiteId> = Vec::new();
     for entry in named.into_iter().flatten() {
-        let Some(reference) = site_ref(entry) else {
+        let Some(raw) = body::entry_ref(entry) else {
             continue;
         };
-        let site = match reference {
-            SiteRef::Id(raw) => SiteId(raw),
-            SiteRef::Unknown(raw) => return Err(crate::read::not_found(SITE_CLASS, &raw)),
+        let Some(id) = ref_row(raw) else {
+            return Err(ref_not_found(SITE_CLASS, raw));
         };
+        let site = SiteId(id);
         if !retained.contains(&site) {
             retained.push(site);
         }
@@ -312,7 +288,7 @@ async fn sites(
             continue;
         }
         let Some(row) = repo.get(site).await.map_err(db_error)? else {
-            return Err(ref_not_found(SITE_CLASS, site.0));
+            return Err(ref_not_found(SITE_CLASS, raw));
         };
         if can_assign(api, &row).await? || (is_create && row.assign_new_items) {
             attach.push(site);
@@ -373,16 +349,24 @@ async fn apply_sites(api: &Api<'_>, item: ItemId, plan: Option<SitePlan>) -> Res
 }
 
 /// `ItemAdapter::hydrate`'s `o:primary_media`: the named media when it belongs
-/// to this item, otherwise `None`.
+/// to this item. A numeric id that names no media of the item is the
+/// `Primary media must belong to this item.` validation error upstream adds to
+/// its error store.
+///
+/// The id indexes `$itemMedia` (`ItemAdapter.php:182`), a plain PHP array keyed
+/// by media id, so `"12.0"` and `"+12"` name no media even though they are
+/// numeric, while a whole float such as `12.0` does.
 async fn primary_media(
     api: &Api<'_>,
     payload: &Payload,
     row: &ItemRow,
 ) -> Result<Option<MediaId>, ApiError> {
-    let Some(raw) = payload.ref_id("o:primary_media") else {
+    let Some(raw) = payload.numeric_ref("o:primary_media") else {
         return Ok(None);
     };
-    let wanted = MediaId(raw);
+    let wanted = array_key(raw)
+        .and_then(|id| u64::try_from(id).ok())
+        .map(MediaId);
     let media = MediaRepo::new(api.pool())
         .list(
             &omeka_db::repos::MediaFilter {
@@ -393,5 +377,19 @@ async fn primary_media(
         )
         .await
         .map_err(db_error)?;
-    Ok(media.iter().find(|m| m.id() == wanted).map(|_| wanted))
+    match wanted {
+        Some(wanted) if media.iter().any(|media| media.id() == wanted) => Ok(Some(wanted)),
+        _ => Err(primary_media_error()),
+    }
+}
+
+/// The 422 `ItemAdapter::hydrate` raises for an `o:primary_media` that names no
+/// media of the item.
+fn primary_media_error() -> ApiError {
+    let mut errors = ValidationErrors::new();
+    errors.insert(
+        "o:primary_media".to_string(),
+        vec!["Primary media must belong to this item.".to_string()],
+    );
+    ApiError::Validation(errors)
 }
