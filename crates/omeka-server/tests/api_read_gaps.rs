@@ -4,7 +4,7 @@
 //!
 //! Every test drives the router over a seeded temp database, the same way
 //! `api_read.rs` does. The upstream shapes are the frozen fixtures under
-//! `verification/fixtures/api/`.
+//! `fixtures/api/`.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

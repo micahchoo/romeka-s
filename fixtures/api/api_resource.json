@@ -1,0 +1,8 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/api_resources/items",
+  "@type": [
+    "o:ApiResource"
+  ],
+  "o:id": "items"
+}

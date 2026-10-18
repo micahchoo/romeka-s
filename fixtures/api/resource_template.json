@@ -1,0 +1,69 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/resource_templates/2",
+  "@type": [
+    "o:ResourceTemplate"
+  ],
+  "o:id": 2,
+  "o:label": "Photograph",
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:resource_class": {
+    "@id": "http://localhost/api/resource_classes/4",
+    "o:id": 4
+  },
+  "o:title_property": {
+    "@id": "http://localhost/api/properties/1",
+    "o:id": 1
+  },
+  "o:description_property": {
+    "@id": "http://localhost/api/properties/4",
+    "o:id": 4
+  },
+  "o:resource_template_property": [
+    {
+      "o:property": {
+        "@id": "http://localhost/api/properties/1",
+        "o:id": 1
+      },
+      "o:alternate_label": null,
+      "o:alternate_comment": null,
+      "o:data_type": [
+        "literal"
+      ],
+      "o:is_required": true,
+      "o:is_private": false,
+      "o:default_lang": null
+    },
+    {
+      "o:property": {
+        "@id": "http://localhost/api/properties/4",
+        "o:id": 4
+      },
+      "o:alternate_label": "Caption",
+      "o:alternate_comment": null,
+      "o:data_type": [
+        "literal"
+      ],
+      "o:is_required": false,
+      "o:is_private": false,
+      "o:default_lang": "en"
+    },
+    {
+      "o:property": {
+        "@id": "http://localhost/api/properties/13",
+        "o:id": 13
+      },
+      "o:alternate_label": null,
+      "o:alternate_comment": null,
+      "o:data_type": [
+        "resource:item"
+      ],
+      "o:is_required": false,
+      "o:is_private": false,
+      "o:default_lang": null
+    }
+  ]
+}

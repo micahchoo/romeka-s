@@ -1,12 +1,12 @@
 //! Golden tests: each fixture parses into its wire type, serializes back, and
 //! must byte-equal the file.
 //!
-//! The fixtures are the frozen shape (`verification/fixtures/api/`). If a
+//! The fixtures are the frozen shape (`fixtures/api/`). If a
 //! field is added, renamed, or reordered, one of these tests fails with the
 //! two documents side by side.
 //!
 //! Derivation of every fixture from the PHP representations is in
-//! `verification/fixtures/api/README.md`; the files themselves carry no
+//! `fixtures/api/README.md`; the files themselves carry no
 //! annotations because they must round-trip byte-equal.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -20,7 +20,7 @@ where
     T: serde::Serialize + serde::de::DeserializeOwned,
 {
     let path = format!(
-        "{}/../../verification/fixtures/api/{fixture}",
+        "{}/../../fixtures/api/{fixture}",
         env!("CARGO_MANIFEST_DIR")
     );
     let frozen = std::fs::read_to_string(&path).unwrap_or_else(|err| {

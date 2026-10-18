@@ -1,0 +1,45 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/value_annotations/1",
+  "@type": [
+    "o:ValueAnnotation"
+  ],
+  "o:id": 1,
+  "o:is_public": true,
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:resource_class": null,
+  "o:resource_template": null,
+  "o:thumbnail": null,
+  "o:title": "Editorial note",
+  "thumbnail_display_urls": {
+    "large": null,
+    "medium": null,
+    "square": null
+  },
+  "o:created": {
+    "@value": "2024-03-05T14:00:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null,
+  "dcterms:title": [
+    {
+      "type": "literal",
+      "property_id": 1,
+      "property_label": "Title",
+      "is_public": true,
+      "@value": "Editorial note"
+    }
+  ],
+  "dcterms:description": [
+    {
+      "type": "literal",
+      "property_id": 4,
+      "property_label": "Description",
+      "is_public": true,
+      "@value": "Reviewed against the print edition."
+    }
+  ]
+}

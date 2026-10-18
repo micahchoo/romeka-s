@@ -1,7 +1,7 @@
 //! Shared test fixtures: a migrated in-memory database seeded through
 //! `omeka-db`, and the `oneshot` request helper.
 //!
-//! Seed data mirrors the golden fixtures under `verification/fixtures/api/`
+//! Seed data mirrors the golden fixtures under `fixtures/api/`
 //! (an admin user, one item with a title value, one item set, one upload media
 //! with thumbnails) so a response can be read against the frozen shape.
 
@@ -361,7 +361,7 @@ pub struct SystemSeed {
 }
 
 /// Insert one asset, one job and one module, mirroring the values in
-/// `verification/fixtures/api/{asset,job,module}.json`.
+/// `fixtures/api/{asset,job,module}.json`.
 pub async fn seed_system(pool: &SqlitePool, seed: &Seed) -> SystemSeed {
     let asset: i64 = sqlx::query_scalar(
         "INSERT INTO asset (owner_id, name, media_type, storage_id, extension, alt_text) \

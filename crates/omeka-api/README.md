@@ -15,7 +15,7 @@ read and write endpoints speak in `omeka-db` rows and map at the boundary.
 Serialization is `serde_json` over structs whose field order is the insertion
 order the PHP representation produces. That order is frozen by the golden
 fixtures: parse fixture, serialize, byte-equal the file
-(`tests/golden.rs`, fixtures under `verification/fixtures/api/`).
+(`tests/golden.rs`, fixtures under `fixtures/api/`).
 
 Reason for matching PHP order instead of sorting keys: a human can diff a
 port response against a PHP response after only whitespace normalization, and

@@ -1,0 +1,13 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/users/1",
+  "@type": [
+    "o:User"
+  ],
+  "o:id": 1,
+  "o:name": "Admin",
+  "o:email": "admin@example.com",
+  "o:created": "2024-01-01T00:00:00+00:00",
+  "o:role": "global_admin",
+  "o:is_active": true
+}

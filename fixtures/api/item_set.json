@@ -1,0 +1,40 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/item_sets/1",
+  "@type": [
+    "o:ItemSet"
+  ],
+  "o:id": 1,
+  "o:is_public": true,
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:resource_class": null,
+  "o:resource_template": null,
+  "o:thumbnail": null,
+  "o:title": "Featured photographs",
+  "thumbnail_display_urls": {
+    "large": null,
+    "medium": null,
+    "square": null
+  },
+  "o:created": {
+    "@value": "2024-02-10T08:15:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null,
+  "o:is_open": true,
+  "o:items": {
+    "@id": "http://localhost/api/items?item_set_id=1"
+  },
+  "dcterms:title": [
+    {
+      "type": "literal",
+      "property_id": 1,
+      "property_label": "Title",
+      "is_public": true,
+      "@value": "Featured photographs"
+    }
+  ]
+}

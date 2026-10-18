@@ -1,7 +1,7 @@
 //! Generated coverage for the wire layer.
 //!
 //! `golden.rs` freezes fifteen fixed documents. These tests cover the space
-//! around them. Every file under `verification/fixtures/api/` is read, parsed
+//! around them. Every file under `fixtures/api/` is read, parsed
 //! as its wire type and printed back byte for byte, and a file with no
 //! registered type fails the test instead of being skipped. A generated value
 //! inserted into an item's value map must survive serialize, parse and
@@ -36,7 +36,7 @@ use serde::de::DeserializeOwned;
 /// The frozen fixtures, as `golden.rs` reads them.
 fn fixtures_dir() -> String {
     format!(
-        "{}/../../verification/fixtures/api",
+        "{}/../../fixtures/api",
         env!("CARGO_MANIFEST_DIR")
     )
 }
