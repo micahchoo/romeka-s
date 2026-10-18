@@ -82,6 +82,19 @@ takes a `boundary` `Content-Type`, parses the `data` field as JSON and the
 (`AssetAdapter::hydrate`). A JSON body, or a multipart body with no `file`
 field, answers `{"errors":{"file":["No file was uploaded"]}}`.
 
+A `POST /api/media` create runs the ingester `o:ingester` names, through
+`omeka-media`'s registry, so `MediaAdapter::hydrate` and the ingester together
+write the row: the ingester reads the request content (`ingest_url`, `html`,
+`o:source`, `file_index`, `start`, `end`), fetches, stores and thumbnails a
+file, and returns the typed payload; the adapter stores `data`, `o:source`,
+`position`, `o:lang` and `o:alt_text` and takes the owner from the item. A name
+no ingester registered answers 422 `Media must set a valid ingester.`, the way
+`Ingester\Fallback` is refused. The same create runs for each inline `o:media`
+entry of an item create, so a CSV import or a script can post an item and its
+media in one request. The ingesters are synchronous, so each runs on
+`tokio::task::spawn_blocking`: a `url` or `iiif` create waits for its fetch
+without holding the async worker that carries every other request.
+
 ## Read endpoints
 
 `src/read/` holds one module per resource group: `resources` (items, item_sets,
@@ -191,9 +204,9 @@ columns and validation the two member kinds share; `write::templates` holds
 
 | resource | POST | PUT/PATCH | notes |
 | --- | --- | --- | --- |
-| items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` not built |
+| items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` built on create only |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
-| media | yes | yes | ingester/renderer/item/data set on create only; no file ingest |
+| media | yes | yes | the create runs the ingester named by `o:ingester` and stores the file and payload it produced |
 | sites | yes | yes | create adds a welcome page and a site-admin permission; a `PUT` removes every page `o:page` does not name |
 | site_pages | yes | yes | blocks replaced; `o:data` `{}` is stored as `[]` (PHP `json_decode(..., true)`) |
 | users | yes | yes | new users are inactive and have no password |
@@ -278,15 +291,26 @@ title drops every other value, as upstream does:
   `property_id` (`"auto"` takes the term from its key), `type`
   (`literal`/`uri`/`resource*`), and its object (`@value`, `@id`, or
   `value_resource_id`). A value object may also carry `@annotation`.
-- items: `o:item_set`, `o:primary_media`, `o:site`. On a create that does not
-  name `o:site`, the item joins every site whose `assign_new_items` is true; a
-  named site is joined when the caller may assign items there
+- items: `o:item_set`, `o:primary_media`, `o:site`, `o:media`. On a create that
+  does not name `o:site`, the item joins every site whose `assign_new_items` is
+  true; a named site is joined when the caller may assign items there
   (`AclFactory`'s `can-assign-items`: the site's owner or a site `admin` or
   `editor`), or, on a create, when the site assigns new items. A `PUT` replaces
   the membership, dropping the sites the caller may assign and the body omits.
+  `o:media` builds the media on a create: each entry runs the media create the
+  standalone route runs, so its ingester ingests, and the entry takes the
+  position of its index in the array unless it names `position`. An entry that
+  names an `o:id` is `Media must belong to this item.`, and every failure
+  answers under `o:media` as one entry per failing media. A write that names the
+  member on an update is not handled yet.
 - item_sets: `o:is_open`.
 - media: `o:ingester` (required on create), `o:item` (required), `data`,
-  `o:source`, `position`, `o:lang`, `o:alt_text`.
+  `o:source`, `position`, `o:lang`, `o:alt_text`, and the parameters the
+  ingester reads out of the body: `html` for `html`, `ingest_url` and
+  `store_original` for `url`, `file_index` for `upload`, `o:source` for
+  `oembed`/`youtube`/`iiif`/`iiif_presentation`, and `start`/`end` for
+  `youtube`. `o:renderer` is read on no write; the renderer comes from the
+  ingester.
 - sites: `o:slug`, `o:theme`, `o:title`, `o:summary`, `o:navigation`,
   `o:homepage`, `o:item_pool`, `o:is_public`, `o:assign_new_items`,
   `o:page`, `o:site_permission`, `o:site_item_set`, `o:thumbnail`. `o:page`

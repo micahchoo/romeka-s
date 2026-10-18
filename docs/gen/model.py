@@ -403,6 +403,7 @@ ERROR_PHRASES = {
     "MethodNotAllowed": "the method is not routed on that path shape",
     "UnsupportedMediaType": "a write body whose Content-Type is neither JSON nor multipart",
     "Validation": "a body member failed validation, keyed by member",
+    "MergedValidation": "a body member failed validation, with one entry per failing sub-entity",
     "NotImplemented": "a route with no handler yet",
     "Internal": "a storage failure, or an adapter operation with no handler",
 }

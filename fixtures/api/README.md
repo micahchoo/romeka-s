@@ -102,8 +102,10 @@ no template, no media: `thumbnail_display_urls` has all three keys with
   this fixture has thumbnails so all three keys are present (measured). Note
   for wave 2: an empty PHP list serializes as `[]`, while an empty Rust map
   serializes as `{}`; the port must decide the empty-thumbnails shape then.
-- `data` is the raw `data` column; for the upload ingester it is `null`
-  (measured: no data is stored on upload).
+- `data` is the raw `data` column. Doctrine 2's `JsonArrayType` hydrates a NULL
+  column as `[]`, so a media that stored no payload answers `[]`, not `null`
+  (measured: the oracle answers `[]` for a media whose `media.data` is NULL, and
+  `Ingester\Upload` stores none).
 - `thumbnail_display_urls` mirrors `thumbnail_urls` because
   `MediaRepresentation::primaryMedia()` returns `$this` (measured).
 

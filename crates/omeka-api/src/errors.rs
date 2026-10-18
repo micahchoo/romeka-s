@@ -24,6 +24,25 @@ pub struct GeneralError {
 /// `ErrorStore::getErrors()`: `{"<key>": ["<message>", ...]}`.
 pub type ValidationErrors = BTreeMap<String, Vec<String>>;
 
+/// One entry of an `ErrorStore::mergeErrors($store, $key)` array.
+///
+/// `mergeErrors` with a key appends the whole nested error store under that
+/// key, so the array mixes plain messages (`ItemAdapter`'s `Media must belong
+/// to this item.`) with one nested store per failing sub-entity (a media whose
+/// ingester refused the request).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedError {
+    /// A message added directly under the outer key.
+    Message(String),
+    /// A sub-entity's whole error store.
+    Errors(ValidationErrors),
+}
+
+/// `ErrorStore::mergeErrors($store, $key)`: `{"<key>": [<entry>, ...]}`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergedErrors(pub BTreeMap<String, Vec<NestedError>>);
+
 /// Wire error document: `{"errors": ...}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ErrorDocument {
@@ -44,14 +63,24 @@ impl ErrorDocument {
             errors: ErrorPayload::Validation(errors),
         }
     }
+
+    /// `ErrorStore::mergeErrors($store, $key)`, one key deep.
+    pub fn merged(key: impl Into<String>, errors: Vec<NestedError>) -> Self {
+        let mut map = BTreeMap::new();
+        map.insert(key.into(), errors);
+        Self {
+            errors: ErrorPayload::Merged(MergedErrors(map)),
+        }
+    }
 }
 
-/// The two error shapes the renderer emits, kept distinguishable in Rust.
+/// The three error shapes the renderer emits, kept distinguishable in Rust.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ErrorPayload {
     General(GeneralError),
     Validation(ValidationErrors),
+    Merged(MergedErrors),
 }
 
 /// The typed 501 body for a handler wave 1 does not build.
@@ -110,6 +139,11 @@ pub enum ApiError {
     UnsupportedMediaType { message: String },
     #[error("validation failed")]
     Validation(ValidationErrors),
+    #[error("validation failed")]
+    MergedValidation {
+        key: String,
+        errors: Vec<NestedError>,
+    },
     #[error("{0}")]
     NotImplemented(NotImplemented),
     #[error("internal error: {message}")]
@@ -145,6 +179,7 @@ impl ApiError {
             Self::MethodNotAllowed { .. } => StatusCode::METHOD_NOT_ALLOWED,
             Self::UnsupportedMediaType { .. } => StatusCode::UNSUPPORTED_MEDIA_TYPE,
             Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::MergedValidation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             Self::Internal { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -160,6 +195,9 @@ impl ApiError {
             | Self::Internal { message } => ErrorDocument::general(message.clone()),
             Self::MethodNotAllowed { .. } => ErrorDocument::general(METHOD_NOT_ALLOWED_MESSAGE),
             Self::Validation(errors) => ErrorDocument::validation(errors.clone()),
+            Self::MergedValidation { key, errors } => {
+                ErrorDocument::merged(key.clone(), errors.clone())
+            }
             Self::NotImplemented(body) => ErrorDocument::general(body.errors.error.clone()),
         }
     }

@@ -45,10 +45,11 @@ use crate::write::multipart::UploadedFile;
 
 /// Dispatch a create to the resource handler.
 ///
-/// `file` carries the upload of a multipart `POST`, which only `assets`
-/// reads. Every other create ignores it. `jobs` still has no arm: a job's
-/// required `class` comes from the dispatcher, not a body, so it stays a 501;
-/// see [`jobs`].
+/// `file` carries the upload of a multipart `POST`. `assets` reads it for the
+/// asset's own bytes; `items` and `media` hand it to the ingester a media row
+/// names, so an inline `o:media` entry can ingest it. Every other create
+/// ignores it. `jobs` still has no arm: a job's required `class` comes from the
+/// dispatcher, not a body, so it stays a 501; see [`jobs`].
 pub async fn create(
     api: &Api<'_>,
     resource: &str,
@@ -56,9 +57,9 @@ pub async fn create(
     file: Option<UploadedFile>,
 ) -> Result<ApiResponse, ApiError> {
     match resource {
-        "items" => items::create(api, payload).await,
+        "items" => items::create(api, payload, file.as_ref()).await,
         "item_sets" => item_sets::create(api, payload).await,
-        "media" => media::create(api, payload).await,
+        "media" => media::create(api, payload, file.as_ref()).await,
         "sites" => sites::create(api, payload).await,
         "site_pages" => site_pages::create(api, payload).await,
         "users" => users::create(api, payload).await,

@@ -497,7 +497,14 @@ pub(crate) fn media_doc(
         alt_text: row.alt_text.clone(),
         original_url,
         thumbnail_urls,
-        data: row.data.clone(),
+        // `MediaRepresentation::mediaData` returns the `data` column, which
+        // Doctrine 2's `JsonArrayType` hydrates as `[]` when the column is NULL,
+        // so a media that stored no payload answers `[]` and not `null`.
+        data: Some(
+            row.data
+                .clone()
+                .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
+        ),
         values: value_map(api, relations, resource.id, resource.resource_template_id),
         reverse: reverse_map(api, relations, resource.id),
         cnt_chars,

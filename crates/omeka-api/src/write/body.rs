@@ -178,6 +178,32 @@ impl Payload {
     pub fn members(&self) -> impl Iterator<Item = (&String, &Value)> {
         self.object.iter()
     }
+
+    /// The whole body as a JSON object, in body order.
+    ///
+    /// An upstream ingester reads `Request::getContent()` directly, so the
+    /// media write hands it the body as it arrived rather than the value
+    /// objects the shared hydrate reads.
+    pub fn object(&self) -> &Map<String, Value> {
+        &self.object
+    }
+
+    /// The body re-encoded the way PHP round-trips it: `php_json` over every
+    /// member, in body order. This is the `data` an ingester that keeps the
+    /// whole request stores (`Ingester\Html::ingest`).
+    pub fn php_object(&self) -> Map<String, Value> {
+        self.object
+            .iter()
+            .map(|(key, value)| (key.clone(), php_json(value)))
+            .collect()
+    }
+
+    /// A member read the way a bare PHP `if ($value)` reads it: absent, `null`,
+    /// `false`, `0`, an empty string, `"0"` and an empty array or object are
+    /// all false.
+    pub fn truthy(&self, key: &str) -> bool {
+        self.object.get(key).is_some_and(|value| !is_empty(value))
+    }
 }
 
 /// `isset($object['o:id'])`: the `o:id` of a JSON object, when it is present
