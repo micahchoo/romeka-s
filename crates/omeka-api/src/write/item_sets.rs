@@ -14,6 +14,7 @@ use crate::write::access;
 use crate::write::body::Payload;
 use crate::write::fulltext;
 use crate::write::resource;
+use crate::write::values;
 
 const ITEM_SET_CLASS: &str = "Omeka\\Entity\\ItemSet";
 
@@ -88,6 +89,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     };
     access::resource_entity(api.actor(), ITEM_SET_CLASS, row.resource.owner_id)?;
     let answer = crate::read::item_set_document(api, &row).await?;
+    values::clear(api, row.resource.id).await?;
     repo.delete(row.id()).await.map_err(db_error)?;
     fulltext::remove(api, "item_sets", row.resource.id).await?;
     Ok(answer)

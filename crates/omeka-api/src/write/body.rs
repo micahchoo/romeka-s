@@ -34,6 +34,12 @@ impl Payload {
         }
     }
 
+    /// Build a payload from an already-decoded JSON object, for a nested body
+    /// the API hydrates the way it hydrates a request (a value annotation).
+    pub fn from_object(object: Map<String, Value>) -> Self {
+        Self { object }
+    }
+
     pub fn has(&self, key: &str) -> bool {
         self.object.contains_key(key)
     }

@@ -17,6 +17,7 @@ use crate::write::body::Payload;
 use crate::write::fulltext;
 use crate::write::media;
 use crate::write::resource::{self, not_found as ref_not_found};
+use crate::write::values;
 
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
 
@@ -123,6 +124,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     for media in media_rows(api, row.id()).await? {
         media::remove(api, &media).await?;
     }
+    values::clear(api, row.resource.id).await?;
     repo.delete(row.id()).await.map_err(db_error)?;
     fulltext::remove(api, "items", row.resource.id).await?;
     Ok(answer)

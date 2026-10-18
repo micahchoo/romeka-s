@@ -57,7 +57,19 @@ pub async fn hydrate(
     existing: Option<&ResourceRow>,
     partial: bool,
 ) -> Result<Hydrated, ApiError> {
-    let values = values::collect(api, payload, control).await?;
+    hydrate_at(api, payload, control, existing, partial, 0).await
+}
+
+/// `hydrate` with the annotation nesting depth the caller is at.
+pub(crate) async fn hydrate_at(
+    api: &Api<'_>,
+    payload: &Payload,
+    control: &[&str],
+    existing: Option<&ResourceRow>,
+    partial: bool,
+    depth: u8,
+) -> Result<Hydrated, ApiError> {
+    let values = values::collect_at(api, payload, control, depth).await?;
     let keep_stored_values = partial && values.is_empty();
 
     let is_public = match (partial, payload.get("o:is_public")) {

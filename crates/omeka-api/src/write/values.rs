@@ -7,15 +7,35 @@
 //! object with no usable property or object is ignored, as upstream ignores an
 //! invalid value. `ResourceTitleHydrator` then takes the resource title from the
 //! title property's first non-empty value.
+//!
+//! An object may also carry `@annotation` (`ValueHydrator` lines 134-153). A
+//! non-empty one is hydrated as a `value_annotations` resource with its own
+//! values and stored beside the value; a value that carried one and no longer
+//! does takes its annotation with it, as `orphanRemoval` does upstream.
 
-use omeka_db::ids::{PropertyId, ResourceId, TemplateId};
+use omeka_db::ids::{AnnotationId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{ResourceRepo, TemplateRepo, ValueRepo};
-use omeka_db::rows::NewValue;
+use omeka_db::rows::{NewResource, NewValue};
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, db_error};
 use crate::write::body::Payload;
+use crate::write::resource;
+
+/// The nesting cap the read side uses for `@annotation` (read/values.rs). A
+/// write deeper than this would not survive a read, so it is not stored.
+const MAX_ANNOTATION_DEPTH: u8 = 8;
+
+/// The members the shared resource hydrate reads. A value annotation is a plain
+/// resource of the `value_annotations` adapter.
+const ANNOTATION_CONTROL: &[&str] = &[
+    "o:is_public",
+    "o:owner",
+    "o:resource_class",
+    "o:resource_template",
+    "o:thumbnail",
+];
 
 /// Top-level members that are never property terms. JSON-LD keywords are
 /// ignored the way upstream ignores them (it only reads the members it knows).
@@ -35,6 +55,16 @@ pub struct ValueInput {
     pub data: ValueKind,
     pub lang: Option<String>,
     pub is_public: bool,
+    pub annotation: Option<Box<Annotation>>,
+}
+
+/// A `value_annotation`: the resource a value carries. `ValueHydrator` hydrates
+/// it with the `value_annotations` adapter, which is the shared resource
+/// adapter, so it is a resource row plus its own values.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Annotation {
+    pub resource: NewResource,
+    pub values: Vec<ValueInput>,
 }
 
 /// The three data type shapes the port hydrates.
@@ -60,6 +90,16 @@ pub async fn collect(
     payload: &Payload,
     control: &[&str],
 ) -> Result<Vec<ValueInput>, ApiError> {
+    collect_at(api, payload, control, 0).await
+}
+
+/// `collect` with the annotation nesting depth the caller is at.
+pub(crate) async fn collect_at(
+    api: &Api<'_>,
+    payload: &Payload,
+    control: &[&str],
+    depth: u8,
+) -> Result<Vec<ValueInput>, ApiError> {
     let mut inputs = Vec::new();
     let mut errors = ValidationErrors::new();
     for (key, value) in payload.members() {
@@ -77,7 +117,7 @@ pub async fn collect(
             continue;
         };
         for item in array {
-            if let Some(input) = parse_one(api, key, item) {
+            if let Some(input) = parse_one(api, key, item, depth).await? {
                 if let ValueKind::Resource(id) = &input.data {
                     ensure_resource(api, *id).await?;
                 }
@@ -110,8 +150,13 @@ async fn ensure_resource(api: &Api<'_>, id: ResourceId) -> Result<(), ApiError> 
     Ok(())
 }
 
-fn parse_one(api: &Api<'_>, term: &str, value: &Value) -> Option<ValueInput> {
-    let object = value.as_object()?;
+/// The scalar half of one value object; `None` when the object names no usable
+/// property, type or object (`ValueHydrator` ignores an invalid value).
+fn parse_scalar(
+    api: &Api<'_>,
+    term: &str,
+    object: &serde_json::Map<String, Value>,
+) -> Option<(PropertyId, ValueKind, Option<String>, bool)> {
     let property = match object.get("property_id") {
         Some(Value::String(name)) if name == "auto" => api.catalog().property_id(term)?,
         Some(Value::Number(number)) => PropertyId(number.as_u64()?),
@@ -143,12 +188,47 @@ fn parse_one(api: &Api<'_>, term: &str, value: &Value) -> Option<ValueInput> {
             ValueKind::Literal(text)
         }
     };
-    Some(ValueInput {
+    Some((property, data, lang, is_public))
+}
+
+async fn parse_one(
+    api: &Api<'_>,
+    term: &str,
+    value: &Value,
+    depth: u8,
+) -> Result<Option<ValueInput>, ApiError> {
+    let Some(object) = value.as_object() else {
+        return Ok(None);
+    };
+    let Some((property, data, lang, is_public)) = parse_scalar(api, term, object) else {
+        return Ok(None);
+    };
+    let annotation = match object.get("@annotation") {
+        Some(Value::Object(map)) if !map.is_empty() && depth < MAX_ANNOTATION_DEPTH => {
+            let payload = Payload::from_object(map.clone());
+            let hydrated = Box::pin(resource::hydrate_at(
+                api,
+                &payload,
+                ANNOTATION_CONTROL,
+                None,
+                false,
+                depth + 1,
+            ))
+            .await?;
+            Some(Box::new(Annotation {
+                resource: hydrated.resource,
+                values: hydrated.values,
+            }))
+        }
+        _ => None,
+    };
+    Ok(Some(ValueInput {
         property,
         data,
         lang,
         is_public,
-    })
+        annotation,
+    }))
 }
 
 /// Replace a resource's values with `inputs`.
@@ -160,6 +240,17 @@ pub async fn store(
     clear(api, resource).await?;
     let repo = ValueRepo::new(api.pool());
     for input in inputs {
+        let annotation_id = match &input.annotation {
+            Some(annotation) => {
+                let row = ResourceRepo::new(api.pool())
+                    .create_annotation(&annotation.resource)
+                    .await
+                    .map_err(db_error)?;
+                Box::pin(store(api, row.resource.id, &annotation.values)).await?;
+                Some(row.id())
+            }
+            None => None,
+        };
         let (r#type, value, uri, value_resource_id) = match &input.data {
             ValueKind::Literal(text) => ("literal", Some(text.clone()), None, None),
             ValueKind::Uri { uri, label } => ("uri", label.clone(), Some(uri.clone()), None),
@@ -169,7 +260,7 @@ pub async fn store(
             resource_id: resource,
             property_id: input.property,
             value_resource_id,
-            value_annotation_id: None,
+            value_annotation_id: annotation_id,
             r#type: r#type.to_string(),
             lang: input.lang.clone(),
             value,
@@ -182,7 +273,7 @@ pub async fn store(
     Ok(())
 }
 
-/// Delete every value on a resource.
+/// Delete every value on a resource, and each value's annotation resource.
 pub async fn clear(api: &Api<'_>, resource: ResourceId) -> Result<(), ApiError> {
     let rows = ValueRepo::new(api.pool())
         .list_for_resource(resource)
@@ -190,8 +281,30 @@ pub async fn clear(api: &Api<'_>, resource: ResourceId) -> Result<(), ApiError> 
         .map_err(db_error)?;
     let repo = ValueRepo::new(api.pool());
     for row in rows {
+        delete_annotation(api, row.value_annotation_id).await?;
         repo.delete(row.id).await.map_err(db_error)?;
     }
+    Ok(())
+}
+
+/// Delete a value's annotation resource, and the annotations of the values the
+/// annotation itself carries, before the annotation row goes.
+async fn delete_annotation(api: &Api<'_>, id: Option<AnnotationId>) -> Result<(), ApiError> {
+    let Some(id) = id else {
+        return Ok(());
+    };
+    let resource = id.as_resource();
+    let rows = ValueRepo::new(api.pool())
+        .list_for_resource(resource)
+        .await
+        .map_err(db_error)?;
+    for row in rows {
+        Box::pin(delete_annotation(api, row.value_annotation_id)).await?;
+    }
+    ResourceRepo::new(api.pool())
+        .delete(resource)
+        .await
+        .map_err(db_error)?;
     Ok(())
 }
 

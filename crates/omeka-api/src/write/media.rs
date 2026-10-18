@@ -22,6 +22,7 @@ use crate::write::access;
 use crate::write::body::{Payload, php_json};
 use crate::write::fulltext;
 use crate::write::resource::{self, not_found as ref_not_found};
+use crate::write::values;
 
 const MEDIA_CLASS: &str = "Omeka\\Entity\\Media";
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
@@ -164,6 +165,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 /// reference (`ON DELETE SET NULL`).
 pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError> {
     crate::write::files::delete_media_files(api.store(), row)?;
+    values::clear(api, row.resource.id).await?;
     MediaRepo::new(api.pool())
         .delete(row.id())
         .await
