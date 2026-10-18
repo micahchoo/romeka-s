@@ -24,12 +24,60 @@
 use omeka_core::site::{BlockData, MediaData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, attachments, choice, option};
 use crate::html::escape_html;
 use crate::view::{AttachmentRef, MediaRef, RenderContext, ResourceView, Thumbnail};
 
 /// The `media` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Media;
+
+/// `BlockLayout/Media.php::form`, `blockThumbnailTypeSelect` and
+/// `blockShowTitleSelect`. The empty value is a real choice: upstream's
+/// "Vertical" and "Embed media".
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        attachments("blockField.media.attachments", true),
+        choice(
+            "layout",
+            "blockField.media.layout",
+            &[
+                option("", "blockChoice.vertical"),
+                option("horizontal", "blockChoice.horizontal"),
+            ],
+        )
+        .default_text(""),
+        choice(
+            "media_display",
+            "blockField.media.media_display",
+            &[
+                option("", "blockChoice.embed"),
+                option("thumbnail", "blockChoice.thumbnail"),
+            ],
+        )
+        .default_text(""),
+        choice(
+            "thumbnail_type",
+            "blockField.media.thumbnail_type",
+            &[
+                option("large", "blockChoice.size_large"),
+                option("medium", "blockChoice.size_medium"),
+                option("square", "blockChoice.size_square"),
+            ],
+        )
+        .default_text("square"),
+        choice(
+            "show_title_option",
+            "blockField.media.show_title_option",
+            &[
+                option("item_title", "blockChoice.item_title"),
+                option("file_name", "blockChoice.file_name"),
+                option("no_title", "blockChoice.no_title"),
+            ],
+        )
+        .default_text("item_title"),
+    ],
+};
 
 impl BlockLayout for Media {
     fn name(&self) -> &'static str {
@@ -55,6 +103,10 @@ impl BlockLayout for Media {
         }
         out.push_str("</div>");
         out
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

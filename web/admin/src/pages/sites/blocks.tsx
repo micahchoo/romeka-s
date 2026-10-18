@@ -10,7 +10,7 @@ import { formatJson } from '../../app/json';
 import { toError } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { Translator } from '../../i18n';
-import { blockLayoutOptions } from './layouts';
+import { blockLayoutOptions } from './blockRegistry';
 
 /** One editable block: the layout plus its two JSON members as text. */
 export interface BlockDraft {

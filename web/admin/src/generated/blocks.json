@@ -1,0 +1,674 @@
+{
+  "layouts": [
+    {
+      "name": "pageTitle",
+      "label": "layout.pageTitle",
+      "fields": []
+    },
+    {
+      "name": "media",
+      "label": "layout.media",
+      "fields": [
+        {
+          "key": "attachments",
+          "label": "blockField.media.attachments",
+          "type": "attachments",
+          "media": true
+        },
+        {
+          "key": "layout",
+          "label": "blockField.media.layout",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.vertical"
+            },
+            {
+              "value": "horizontal",
+              "label": "blockChoice.horizontal"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "media_display",
+          "label": "blockField.media.media_display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.embed"
+            },
+            {
+              "value": "thumbnail",
+              "label": "blockChoice.thumbnail"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "thumbnail_type",
+          "label": "blockField.media.thumbnail_type",
+          "type": "choice",
+          "options": [
+            {
+              "value": "large",
+              "label": "blockChoice.size_large"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.size_medium"
+            },
+            {
+              "value": "square",
+              "label": "blockChoice.size_square"
+            }
+          ],
+          "default": "square"
+        },
+        {
+          "key": "show_title_option",
+          "label": "blockField.media.show_title_option",
+          "type": "choice",
+          "options": [
+            {
+              "value": "item_title",
+              "label": "blockChoice.item_title"
+            },
+            {
+              "value": "file_name",
+              "label": "blockChoice.file_name"
+            },
+            {
+              "value": "no_title",
+              "label": "blockChoice.no_title"
+            }
+          ],
+          "default": "item_title"
+        }
+      ]
+    },
+    {
+      "name": "browsePreview",
+      "label": "layout.browsePreview",
+      "fields": [
+        {
+          "key": "resource_type",
+          "label": "blockField.browsePreview.resource_type",
+          "type": "choice",
+          "options": [
+            {
+              "value": "items",
+              "label": "blockChoice.items"
+            },
+            {
+              "value": "item_sets",
+              "label": "blockChoice.item_sets"
+            },
+            {
+              "value": "media",
+              "label": "blockChoice.media"
+            }
+          ],
+          "default": "items"
+        },
+        {
+          "key": "query",
+          "label": "blockField.browsePreview.query",
+          "type": "itemQuery",
+          "default": ""
+        },
+        {
+          "key": "limit",
+          "label": "blockField.browsePreview.limit",
+          "type": "integer",
+          "default": 12
+        },
+        {
+          "key": "components",
+          "label": "blockField.browsePreview.components",
+          "type": "choice",
+          "options": [
+            {
+              "value": "resource-heading",
+              "label": "blockChoice.resource-heading"
+            },
+            {
+              "value": "resource-body",
+              "label": "blockChoice.resource-body"
+            },
+            {
+              "value": "thumbnail",
+              "label": "blockChoice.thumbnail"
+            }
+          ],
+          "multiple": true,
+          "default": [
+            "resource-heading",
+            "resource-body",
+            "thumbnail"
+          ]
+        },
+        {
+          "key": "heading",
+          "label": "blockField.browsePreview.heading",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "link-text",
+          "label": "blockField.browsePreview.link-text",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "listOfSites",
+      "label": "layout.listOfSites",
+      "fields": [
+        {
+          "key": "sort",
+          "label": "blockField.listOfSites.sort",
+          "type": "choice",
+          "options": [
+            {
+              "value": "alpha",
+              "label": "blockChoice.alpha"
+            },
+            {
+              "value": "oldest",
+              "label": "blockChoice.oldest"
+            },
+            {
+              "value": "newest",
+              "label": "blockChoice.newest"
+            }
+          ],
+          "default": "alpha"
+        },
+        {
+          "key": "limit",
+          "label": "blockField.listOfSites.limit",
+          "type": "integer",
+          "min": 0
+        },
+        {
+          "key": "pagination",
+          "label": "blockField.listOfSites.pagination",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "summaries",
+          "label": "blockField.listOfSites.summaries",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "thumbnails",
+          "label": "blockField.listOfSites.thumbnails",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "exclude_current",
+          "label": "blockField.listOfSites.exclude_current",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "tableOfContents",
+      "label": "layout.tableOfContents",
+      "fields": [
+        {
+          "key": "depth",
+          "label": "blockField.tableOfContents.depth",
+          "type": "integer",
+          "min": 1,
+          "default": 1
+        }
+      ]
+    },
+    {
+      "name": "lineBreak",
+      "label": "layout.lineBreak",
+      "fields": [
+        {
+          "key": "break_type",
+          "label": "blockField.lineBreak.break_type",
+          "type": "choice",
+          "options": [
+            {
+              "value": "transparent",
+              "label": "blockChoice.transparent"
+            },
+            {
+              "value": "opaque",
+              "label": "blockChoice.opaque"
+            }
+          ],
+          "default": "transparent"
+        }
+      ]
+    },
+    {
+      "name": "itemWithMetadata",
+      "label": "layout.itemWithMetadata",
+      "fields": [
+        {
+          "key": "attachments",
+          "label": "blockField.itemWithMetadata.attachments",
+          "type": "attachments"
+        }
+      ]
+    },
+    {
+      "name": "pageDateTime",
+      "label": "layout.pageDateTime",
+      "fields": [
+        {
+          "key": "display",
+          "label": "blockField.pageDateTime.display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "created_modified",
+              "label": "blockChoice.created_modified"
+            },
+            {
+              "value": "created",
+              "label": "blockChoice.created"
+            },
+            {
+              "value": "modified",
+              "label": "blockChoice.modified"
+            }
+          ],
+          "default": "created_modified"
+        },
+        {
+          "key": "date_format",
+          "label": "blockField.pageDateTime.date_format",
+          "type": "choice",
+          "options": [
+            {
+              "value": "none",
+              "label": "blockChoice.date_none"
+            },
+            {
+              "value": "short",
+              "label": "blockChoice.date_short"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.date_medium"
+            },
+            {
+              "value": "long",
+              "label": "blockChoice.date_long"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.date_full"
+            }
+          ],
+          "default": "medium"
+        },
+        {
+          "key": "time_format",
+          "label": "blockField.pageDateTime.time_format",
+          "type": "choice",
+          "options": [
+            {
+              "value": "none",
+              "label": "blockChoice.date_none"
+            },
+            {
+              "value": "short",
+              "label": "blockChoice.date_short"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.date_medium"
+            },
+            {
+              "value": "long",
+              "label": "blockChoice.date_long"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.date_full"
+            }
+          ],
+          "default": "none"
+        }
+      ]
+    },
+    {
+      "name": "blockGroup",
+      "label": "layout.blockGroup",
+      "fields": [
+        {
+          "key": "span",
+          "label": "blockField.blockGroup.span",
+          "type": "integer",
+          "min": 0,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "name": "iiifPresentation",
+      "label": "layout.iiifPresentation",
+      "fields": [
+        {
+          "key": "manifest_url",
+          "label": "blockField.iiifPresentation.manifest_url",
+          "type": "text"
+        },
+        {
+          "key": "title",
+          "label": "blockField.iiifPresentation.title",
+          "type": "text"
+        },
+        {
+          "key": "show_title",
+          "label": "blockField.iiifPresentation.show_title",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "iiifImage",
+      "label": "layout.iiifImage",
+      "fields": [
+        {
+          "key": "image_url",
+          "label": "blockField.iiifImage.image_url",
+          "type": "text"
+        },
+        {
+          "key": "title",
+          "label": "blockField.iiifImage.title",
+          "type": "text"
+        },
+        {
+          "key": "show_title",
+          "label": "blockField.iiifImage.show_title",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "asset",
+      "label": "layout.asset",
+      "fields": [
+        {
+          "key": "attachments",
+          "label": "blockField.asset.attachments",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "id",
+              "label": "blockField.asset.id",
+              "type": "assetRef"
+            },
+            {
+              "key": "page",
+              "label": "blockField.asset.page",
+              "type": "pageRef"
+            },
+            {
+              "key": "alt_link_title",
+              "label": "blockField.asset.alt_link_title",
+              "type": "text"
+            },
+            {
+              "key": "caption",
+              "label": "blockField.asset.caption",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "html",
+      "label": "layout.html",
+      "fields": [
+        {
+          "key": "html",
+          "label": "blockField.html.html",
+          "type": "html"
+        }
+      ]
+    },
+    {
+      "name": "listOfPages",
+      "label": "layout.listOfPages",
+      "fields": [
+        {
+          "key": "pagelist",
+          "label": "blockField.listOfPages.pagelist",
+          "type": "pageList"
+        }
+      ]
+    },
+    {
+      "name": "oembed",
+      "label": "layout.oembed",
+      "fields": [
+        {
+          "key": "url",
+          "label": "blockField.oembed.url",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "refresh",
+          "label": "blockField.oembed.refresh",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "blockLayoutData": {
+    "fields": [
+      {
+        "key": "template_name",
+        "label": "blockLayoutData.template_name",
+        "type": "text"
+      },
+      {
+        "key": "class",
+        "label": "blockLayoutData.class",
+        "type": "text"
+      },
+      {
+        "key": "grid_column_position",
+        "label": "blockLayoutData.grid_column_position",
+        "type": "text"
+      },
+      {
+        "key": "grid_column_span",
+        "label": "blockLayoutData.grid_column_span",
+        "type": "text"
+      },
+      {
+        "key": "alignment_block",
+        "label": "blockLayoutData.alignment_block",
+        "type": "choice",
+        "options": [
+          {
+            "value": "left",
+            "label": "blockChoice.left"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "right",
+            "label": "blockChoice.right"
+          }
+        ]
+      },
+      {
+        "key": "alignment_text",
+        "label": "blockLayoutData.alignment_text",
+        "type": "choice",
+        "options": [
+          {
+            "value": "left",
+            "label": "blockChoice.left"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "right",
+            "label": "blockChoice.right"
+          },
+          {
+            "value": "justify",
+            "label": "blockChoice.justify"
+          }
+        ]
+      },
+      {
+        "key": "max_width",
+        "label": "blockLayoutData.max_width",
+        "type": "text"
+      },
+      {
+        "key": "min_height",
+        "label": "blockLayoutData.min_height",
+        "type": "text"
+      },
+      {
+        "key": "padding_top",
+        "label": "blockLayoutData.padding_top",
+        "type": "text"
+      },
+      {
+        "key": "padding_right",
+        "label": "blockLayoutData.padding_right",
+        "type": "text"
+      },
+      {
+        "key": "padding_bottom",
+        "label": "blockLayoutData.padding_bottom",
+        "type": "text"
+      },
+      {
+        "key": "padding_left",
+        "label": "blockLayoutData.padding_left",
+        "type": "text"
+      },
+      {
+        "key": "background_color",
+        "label": "blockLayoutData.background_color",
+        "type": "text"
+      },
+      {
+        "key": "background_image_asset",
+        "label": "blockLayoutData.background_image_asset",
+        "type": "assetRef"
+      },
+      {
+        "key": "background_image_position_y",
+        "label": "blockLayoutData.background_image_position_y",
+        "type": "choice",
+        "options": [
+          {
+            "value": "top",
+            "label": "blockChoice.top"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "bottom",
+            "label": "blockChoice.bottom"
+          }
+        ]
+      },
+      {
+        "key": "background_image_position_x",
+        "label": "blockLayoutData.background_image_position_x",
+        "type": "choice",
+        "options": [
+          {
+            "value": "left",
+            "label": "blockChoice.left"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "right",
+            "label": "blockChoice.right"
+          }
+        ]
+      },
+      {
+        "key": "background_image_size",
+        "label": "blockLayoutData.background_image_size",
+        "type": "choice",
+        "options": [
+          {
+            "value": "cover",
+            "label": "blockChoice.cover"
+          },
+          {
+            "value": "contain",
+            "label": "blockChoice.contain"
+          }
+        ]
+      }
+    ]
+  },
+  "pageLayoutData": {
+    "fields": [
+      {
+        "key": "template_name",
+        "label": "pageLayoutData.template_name",
+        "type": "text"
+      },
+      {
+        "key": "class",
+        "label": "pageLayoutData.class",
+        "type": "text"
+      },
+      {
+        "key": "grid_columns",
+        "label": "pageLayoutData.grid_columns",
+        "type": "integer",
+        "min": 0
+      },
+      {
+        "key": "grid_column_gap",
+        "label": "pageLayoutData.grid_column_gap",
+        "type": "integer",
+        "min": 0,
+        "default": 10
+      },
+      {
+        "key": "grid_row_gap",
+        "label": "pageLayoutData.grid_row_gap",
+        "type": "integer",
+        "min": 0,
+        "default": 10
+      }
+    ]
+  }
+}

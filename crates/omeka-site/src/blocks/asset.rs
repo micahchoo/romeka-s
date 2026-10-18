@@ -13,6 +13,7 @@
 use omeka_core::site::{AssetAttachment, BlockData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, asset_ref, page_ref, repeat, text};
 use crate::html::escape_html;
 use crate::slug::page_url;
 use crate::view::{AssetView, RenderContext, Thumbnail};
@@ -20,6 +21,21 @@ use crate::view::{AssetView, RenderContext, Thumbnail};
 /// The `asset` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Asset;
+
+/// `BlockLayout/Asset.php::form` and `common/asset-block-form.phtml`: a repeat
+/// group keyed by slot index, one `id`, `page`, `alt_link_title` and `caption`
+/// per attachment.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[repeat(
+        "blockField.asset.attachments",
+        &[
+            asset_ref("id", "blockField.asset.id"),
+            page_ref("page", "blockField.asset.page"),
+            text("alt_link_title", "blockField.asset.alt_link_title"),
+            text("caption", "blockField.asset.caption"),
+        ],
+    )],
+};
 
 impl BlockLayout for Asset {
     fn name(&self) -> &'static str {
@@ -35,6 +51,10 @@ impl BlockLayout for Asset {
             return String::new();
         };
         render_attachments(attachments, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

@@ -6,6 +6,7 @@
 use omeka_core::site::SiteBlock;
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{EMPTY, LayoutSchema};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
@@ -27,6 +28,12 @@ impl BlockLayout for PageTitle {
             Some(page) => format!("<h2>{}</h2>", escape_html(&page.title)),
             None => String::new(),
         }
+    }
+
+    /// `BlockLayout/PageTitle.php::form` shows the page title as text; the
+    /// block stores nothing.
+    fn schema(&self) -> &'static LayoutSchema {
+        &EMPTY
     }
 }
 

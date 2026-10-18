@@ -55,6 +55,25 @@ bundles no block templates. `background_image_asset` needs the asset's URL, whic
 `ResourceProvider::read_asset` lookup supplies; no asset repository backs it yet, so the class is
 emitted and the `background-image` style appears only when a caller resolves the asset.
 
+### The block field registry
+
+Each layout declares the `data` fields its upstream form edits as a `blocks::schema::LayoutSchema`,
+beside its renderer, and returns it from `BlockLayout::schema`. `blocks::schema::registry` collects
+them, in the registry's order, with the schemas of a block's and a page's `layout_data`, and
+serialises them to `web/admin/src/generated/blocks.json`. The admin reads that file instead of
+mirroring the registry, so adding a layout is one module (plus its catalogue keys in
+`web/admin/src/i18n`).
+
+A test writes the file and fails when it differs from the registry, so the boundary is enforced
+rather than conventional. Regenerate with `UPDATE_GENERATED=1 cargo test -p omeka-site`. A second
+test fails when a schema names a `data` key its layout's parse does not read.
+
+The kinds are upstream's form elements: `Text`, `Html`, `Integer { min, max }`, `Boolean`,
+`Choice { options, multiple }` with `ChoiceOption` values, `PageRef`, `AssetRef`, `ItemQuery`,
+`Attachments { media }`, `Repeat { fields }` and `PageList` for the `listOfPages` tree. An
+attachments list is stored as rows beside `data`, so its key is not a `data` member. The hidden
+members a form does not present (`oembed.url_old`, `oembed.oembed`) are not fields.
+
 ### Views
 
 | `view::View` | upstream view |

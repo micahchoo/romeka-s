@@ -397,6 +397,17 @@ fn kind_name(value: &JsonValue) -> &'static str {
     }
 }
 
+/// The `data` keys a layout's build reads, including the `asset` slots that
+/// [`fields`] leaves to [`parse_asset_slots`]. A schema field must name one of
+/// these, so the two cannot drift.
+#[cfg(test)]
+pub(crate) fn data_keys(layout: &BlockLayout) -> Vec<&'static str> {
+    if matches!(layout, BlockLayout::Asset) {
+        return vec!["id", "page", "alt_link_title", "caption"];
+    }
+    fields(layout).iter().map(|field| field.key).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

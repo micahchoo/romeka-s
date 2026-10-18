@@ -12,12 +12,23 @@
 use omeka_core::site::{BlockData, IiifData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, boolean, text};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
 /// The `iiifImage` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IiifImage;
+
+/// `BlockLayout/IiifImage.php::form`: `image_url`, `title` and the `show_title`
+/// checkbox.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        text("image_url", "blockField.iiifImage.image_url"),
+        text("title", "blockField.iiifImage.title"),
+        boolean("show_title", "blockField.iiifImage.show_title").default_bool(false),
+    ],
+};
 
 impl BlockLayout for IiifImage {
     fn name(&self) -> &'static str {
@@ -33,6 +44,10 @@ impl BlockLayout for IiifImage {
             return String::new();
         };
         render_viewer(block, data, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

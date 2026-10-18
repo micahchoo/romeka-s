@@ -20,12 +20,52 @@
 use omeka_core::site::{BlockData, PageDateTimeData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, choice, option};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
 /// The `pageDateTime` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PageDateTime;
+
+/// `BlockLayout/PageDateTime.php::form`: three radio groups, whose defaults are
+/// the class's `$defaultData`.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        choice(
+            "display",
+            "blockField.pageDateTime.display",
+            &[
+                option("created_modified", "blockChoice.created_modified"),
+                option("created", "blockChoice.created"),
+                option("modified", "blockChoice.modified"),
+            ],
+        )
+        .default_text("created_modified"),
+        choice(
+            "date_format",
+            "blockField.pageDateTime.date_format",
+            DATE_FORMATS,
+        )
+        .default_text("medium"),
+        choice(
+            "time_format",
+            "blockField.pageDateTime.time_format",
+            DATE_FORMATS,
+        )
+        .default_text("none"),
+    ],
+};
+
+/// The date-format options `BlockLayout/PageDateTime.php` and the time-format
+/// options share.
+const DATE_FORMATS: &[crate::blocks::schema::ChoiceOption] = &[
+    option("none", "blockChoice.date_none"),
+    option("short", "blockChoice.date_short"),
+    option("medium", "blockChoice.date_medium"),
+    option("long", "blockChoice.date_long"),
+    option("full", "blockChoice.date_full"),
+];
 
 impl BlockLayout for PageDateTime {
     fn name(&self) -> &'static str {
@@ -41,6 +81,10 @@ impl BlockLayout for PageDateTime {
             return String::new();
         };
         render_block(data, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

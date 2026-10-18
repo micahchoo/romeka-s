@@ -18,6 +18,7 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, page_list};
 use crate::slug::page_url;
 use crate::view::RenderContext;
 
@@ -56,6 +57,12 @@ impl PageNodeData {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ListOfPages;
 
+/// `BlockLayout/ListOfPages.php::form`: the `pagelist` tree, which the admin's
+/// jsTree writes as a JSON string into one hidden member.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[page_list("pagelist", "blockField.listOfPages.pagelist")],
+};
+
 impl BlockLayout for ListOfPages {
     fn name(&self) -> &'static str {
         "listOfPages"
@@ -70,6 +77,10 @@ impl BlockLayout for ListOfPages {
             return String::new();
         };
         render_block(pagelist.as_deref().unwrap_or_default(), ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 
