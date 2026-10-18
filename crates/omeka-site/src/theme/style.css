@@ -922,8 +922,14 @@ footer {
   display: flex;
   min-height: 22rem;
   overflow: hidden;
-  background: #1c2733;
-  color: #fff;
+  background: var(--color-brand);
+  color: var(--color-text);
+}
+
+/* Over a photograph the copy sits on a dark scrim in every colour scheme, so
+   these two are fixed keywords, not tokens: no token describes a photo. */
+.romeka-hero:has(.romeka-hero-background) {
+  color: white;
 }
 
 .romeka-hero-background {
@@ -937,7 +943,7 @@ footer {
 .romeka-hero-overlay {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: black;
 }
 
 .romeka-hero-overlay-none .romeka-hero-overlay {
@@ -1006,15 +1012,15 @@ footer {
 .romeka-hero-cta {
   display: inline-block;
   padding: 0.65rem 1.25rem;
-  border-radius: 0.25rem;
-  background: #fff;
-  color: #12222f;
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
   font-weight: 600;
   text-decoration: none;
 }
 
 .romeka-hero-cta:hover,
 .romeka-hero-cta:focus {
-  background: #e8eef5;
-  color: #12222f;
+  background: var(--color-surface);
+  color: var(--color-text);
 }
