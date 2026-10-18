@@ -31,6 +31,7 @@ and never asks which engine it is running on. Those pieces are:
 | `LIKE ... ESCAPE` | `ESCAPE '\'` | `ESCAPE '\\'` |
 | ignore a duplicate attach | `INSERT OR IGNORE` | `INSERT IGNORE` |
 | replace on a duplicate key | `ON CONFLICT (...) DO UPDATE SET x = excluded.x` | `ON DUPLICATE KEY UPDATE x = VALUES(x)` |
+| quote a reserved name | bare name | backticked (`value`, which MariaDB reserves) |
 | full-text search | `MATCH` on the FTS5 mirror, `bm25` negated | `MATCH ... AGAINST`, score as the server reports it |
 
 Everything else is shared: table names, column names, `?` placeholders, the join and filter shapes,
@@ -61,9 +62,10 @@ instantiations and both satisfy the bounds.
 offer upstream's `get`, `set`, `delete` and a list, and the two target tables key their rows by
 `(id, site_id)` or `(id, user_id)`. `job` carries the runner's writes: `start`, `set_status`,
 `request_stop`, `append_log`, `clear_pid` and `finish`. `module` carries install, activate,
-upgrade and uninstall. `asset`, `session`, `password_creation` and `site_block_attachment` carry
-the reads and writes their callers make. The rest of the evidence is in `tests/`, one file per
-repository group.
+upgrade and uninstall. `item_site` is `ItemSiteRepo`: `create` attaches an item to a site and
+`list` reads every membership, which is the shape the migrator needs. `asset`, `session`,
+`password_creation` and `site_block_attachment` carry the reads and writes their callers make. The
+rest of the evidence is in `tests/`, one file per repository group.
 
 A value annotation is a `resource` row of the `value_annotation` kind plus the `value_annotation`
 identity row, and `value.value_annotation_id` points at it (`migrations/0001_init.sql`, `Entity/Value.php`
@@ -109,6 +111,17 @@ docker run -d --name omeka-mysqlbackend-mysql \
   mysql:8.0 --default-authentication-plugin=mysql_native_password
 
 ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
+  cargo test -p omeka-db --features mysql
+```
+
+The same suite passes against MariaDB 11. MariaDB reserves `VALUE`, so that run is what exercises
+the backend's quoted `value` insert.
+
+```sh
+docker run -d --name omeka-mariadb-test \
+  -e MARIADB_ROOT_PASSWORD=secret -p 127.0.0.1:13318:3306 mariadb:11
+
+ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13318 \
   cargo test -p omeka-db --features mysql
 ```
 

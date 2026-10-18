@@ -24,11 +24,9 @@
 //! gets its own), `modified` timestamps (a repository create writes `created` into both), value
 //! annotations (no repository read) and the `module`, `job` and `session` tables.
 //!
-//! Runtime `sqlx` queries only, and almost all through `omeka-db`'s repositories. The queries this
-//! crate writes itself are the exceptions: the source's `INFORMATION_SCHEMA.COLUMNS` column check,
-//! the `item_site` read and write (no repository exists), and the `resource_class`, `property` and
-//! `password_creation` reads, which cast a binary-collated text column `omeka-db` cannot decode.
-//! The README names each gap.
+//! Runtime `sqlx` queries only, and almost all through `omeka-db`'s repositories. The one query this
+//! crate writes itself is the source's `INFORMATION_SCHEMA.COLUMNS` column check, which no
+//! repository owns. The README names the losses that remain.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 

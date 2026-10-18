@@ -17,13 +17,14 @@ mod common;
 
 use omeka_db::ids::{ItemId, PropertyId, ResourceId};
 use omeka_db::repos::{
-    FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo, JobRepo, MatchKind, ModuleRepo, Paging,
-    PropertyRepo, QueryFilter, SessionRepo, SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo,
-    UserRepo, UserSettingRepo, ValueQuery, ValueRepo, VocabularyRepo,
+    ClassFilter, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo, JobRepo, MatchKind,
+    ModuleRepo, Paging, PasswordCreationRepo, PropertyFilter, PropertyRepo, QueryFilter,
+    SessionRepo, SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserRepo, UserSettingRepo,
+    ValueQuery, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
-    FulltextSearchRow, NewItem, NewItemSet, NewJob, NewProperty, NewSite, NewSiteBlock,
-    NewSitePage, NewUser, NewValue, NewVocabulary,
+    FulltextSearchRow, NewClass, NewItem, NewItemSet, NewJob, NewPasswordCreation, NewProperty,
+    NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue, NewVocabulary,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -196,6 +197,87 @@ async fn a_created_datetime_round_trips_through_mysql_datetime() {
         "the returned instant is the stored one"
     );
     assert_eq!(stored.modified, user.modified);
+
+    db.cleanup().await;
+}
+
+/// The three `utf8mb4_bin` columns (`property.local_name`, `resource_class.local_name` and
+/// `password_creation.id`) reach sqlx as `VARBINARY`. Each read goes through `Backend::text`, which
+/// must decode the column's bytes as the UTF-8 text they hold.
+#[tokio::test]
+async fn binary_collated_text_columns_decode_to_their_text() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let vocabulary = VocabularyRepo::<MySql>::new(&db.pool)
+        .create(&NewVocabulary {
+            owner_id: None,
+            namespace_uri: "http://purl.org/dc/terms/".to_string(),
+            prefix: "dcterms".to_string(),
+            label: "Dublin Core".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create vocabulary");
+
+    ClassRepo::<MySql>::new(&db.pool)
+        .create(&NewClass {
+            owner_id: None,
+            vocabulary_id: vocabulary.id,
+            local_name: "Text".to_string(),
+            label: "Text".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create class");
+    let classes = ClassRepo::<MySql>::new(&db.pool)
+        .list(&ClassFilter::default(), &Paging::default())
+        .await
+        .expect("list classes");
+    assert_eq!(classes[0].local_name, "Text");
+
+    PropertyRepo::<MySql>::new(&db.pool)
+        .create(&NewProperty {
+            owner_id: None,
+            vocabulary_id: vocabulary.id,
+            local_name: "title".to_string(),
+            label: "Title".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create property");
+    let properties = PropertyRepo::<MySql>::new(&db.pool)
+        .list(&PropertyFilter::default(), &Paging::default())
+        .await
+        .expect("list properties");
+    assert_eq!(properties[0].local_name, "title");
+
+    let user = UserRepo::<MySql>::new(&db.pool)
+        .create(&NewUser {
+            email: "ada@example.org".to_string(),
+            name: "Ada".to_string(),
+            password_hash: None,
+            role: "editor".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .expect("create user");
+    PasswordCreationRepo::<MySql>::new(&db.pool)
+        .create(&NewPasswordCreation {
+            id: "ResetKey".to_string(),
+            user_id: user.id,
+            activate: true,
+            created: None,
+        })
+        .await
+        .expect("create password key");
+    let stored = PasswordCreationRepo::<MySql>::new(&db.pool)
+        .get("ResetKey")
+        .await
+        .expect("read the password key")
+        .expect("the key is there");
+    assert_eq!(stored.id, "ResetKey");
 
     db.cleanup().await;
 }

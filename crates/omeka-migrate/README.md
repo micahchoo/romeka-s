@@ -21,7 +21,8 @@ println!("{report}");
    upstream's `application/data/migrations/`, so a source older than the frozen SHA keeps older
    columns, and the migrator refuses it rather than dropping a field.
 2. It reads every table the port serves through `omeka-db`'s MySQL repositories, so MySQL
-   datetimes, JSON columns and booleans decode through the same row structs a SQLite read uses.
+   datetimes, JSON columns, booleans and binary-collated text decode through the same row structs a
+   SQLite read uses.
 3. It writes them through `omeka-db`'s SQLite repositories in dependency order, remapping every
    reference through an id map. A target that already holds rows is refused.
 4. When `MigrateOptions::source_files` names the source install's `files` directory, it copies each
@@ -43,8 +44,7 @@ total                         11       11        0
 
 ## Table mapping
 
-Every port table keeps its upstream name. The write path is the repository that owns it, except
-`item_site`, which has a row struct and no repository.
+Every port table keeps its upstream name. The write path is the repository that owns it.
 
 | upstream table | write path |
 | --- | --- |
@@ -67,7 +67,7 @@ Every port table keeps its upstream name. The write path is the repository that 
 | `site_block_attachment` | `SiteBlockAttachmentRepo::create` |
 | `site_item_set` | `SiteRepo::add_item_set` |
 | `site_permission` | `SiteRepo::set_permission` |
-| `item_site` | the migrator's own `INSERT`, because `omeka-db` has no repository |
+| `item_site` | `ItemSiteRepo::create` |
 | `setting` | `SettingRepo::set` |
 | `site_setting` | `SiteSettingRepo::set` |
 | `user_setting` | `UserSettingRepo::set` |
@@ -143,20 +143,6 @@ Most columns copy straight across. The exceptions are below.
 7. **Memory.** The read pass holds the whole source in memory before the write pass, so a very large
    install needs a matching amount of RAM.
 
-## An `omeka-db` decoding gap this unit found
-
-`property.local_name` and `resource_class.local_name` are `varchar(190) ... utf8mb4_bin`, and
-`password_creation.id` is `varchar(32) ... utf8mb4_bin`. sqlx reports a binary-collated text column
-to the row layer as `VARBINARY`, and `omeka-db`'s MySQL text reader decodes a `String`, so
-`PropertyRepo::list`, `ClassRepo::list` and `PasswordCreationRepo::get_for_user` fail against a real
-server with `Column { column: "local_name", reason: "mismatched types; Rust type String (as SQL type
-VARCHAR) is not compatible with SQL type VARBINARY" }`. Measured on MySQL 8.0.46.
-
-Until `omeka-db` decodes a binary-collated text column, this crate reads those three tables itself
-with `CAST(<column> AS CHAR)` and parses each row through the same `from_db_row`. The proposed
-`omeka-db` fix is in the unit report: `Backend::text` for MySQL should fall back to decoding
-`Vec<u8>` and converting to UTF-8, as the row layer already does for a SQLite row that holds bytes.
-
 ## Running the tests
 
 ```sh
@@ -184,6 +170,8 @@ ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13317 \
   cargo test -p omeka-migrate --test mysql
 ```
 
+The same suite passes against MariaDB 11, using the MariaDB container's port in place of 13317.
+
 With no variable set, or a server that does not answer, the helper prints `SKIP` with the reason and
 each test returns.
 
@@ -193,6 +181,3 @@ each test returns.
   the command surface.
 - The port-versus-upstream differential `ROADMAP.md` wave 9 names, which diffs both APIs row by row
   after an import.
-- The `omeka-db` decoding fix above, after which the three cast reads can go.
-- An `omeka-db` repository for `item_site`, after which the migrator's own `INSERT` can go. The crate
-  report names the gap: `item_site` is the one served table with a row struct and no repository.

@@ -17,14 +17,15 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use omeka_db::repos::{
-    ApiKeyRepo, AssetFilter, AssetRepo, ItemFilter, ItemRepo, ItemSetRepo, MediaFilter, MediaRepo,
-    Paging, PasswordCreationRepo, PropertyRepo, SettingRepo, SiteBlockAttachmentRepo, SiteFilter,
-    SiteRepo, SiteSettingRepo, UserFilter, UserRepo, UserSettingRepo, ValueRepo, VocabularyRepo,
+    ApiKeyRepo, AssetFilter, AssetRepo, ItemFilter, ItemRepo, ItemSetRepo, ItemSiteRepo,
+    MediaFilter, MediaRepo, Paging, PasswordCreationRepo, PropertyRepo, SettingRepo,
+    SiteBlockAttachmentRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserFilter, UserRepo,
+    UserSettingRepo, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
-    NewApiKey, NewAsset, NewItem, NewItemSet, NewMedia, NewPasswordCreation, NewProperty,
-    NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage, NewUser, NewValue,
-    NewVocabulary,
+    ItemSiteRow, NewApiKey, NewAsset, NewItem, NewItemSet, NewMedia, NewPasswordCreation,
+    NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage, NewUser,
+    NewValue, NewVocabulary,
 };
 use omeka_migrate::{MigrateError, MigrateOptions, migrate_from_upstream};
 use sqlx::{MySql, MySqlPool};
@@ -364,10 +365,11 @@ async fn seed(pool: &MySqlPool) {
     ]);
     sites.update(&site_row).await.expect("link the page");
 
-    sqlx::query("INSERT INTO item_site (item_id, site_id) VALUES (?, ?)")
-        .bind(item.id().0 as i64)
-        .bind(site.id.0 as i64)
-        .execute(pool)
+    ItemSiteRepo::<MySql>::new(pool)
+        .create(&ItemSiteRow {
+            item_id: item.id(),
+            site_id: site.id,
+        })
         .await
         .expect("attach the item to the site");
 
@@ -561,14 +563,16 @@ async fn a_small_upstream_source_migrates_into_a_sqlite_target() {
     assert_eq!(attachments[0].media_id, Some(media[0].id()));
     assert_eq!(attachments[0].caption, "A helmet");
 
-    let site_items: Vec<(i64, i64)> =
-        sqlx::query_as("SELECT item_id, site_id FROM item_site ORDER BY item_id")
-            .fetch_all(&target)
-            .await
-            .expect("read item_site");
+    let site_items = ItemSiteRepo::new(&target)
+        .list()
+        .await
+        .expect("read item_site");
     assert_eq!(
         site_items,
-        vec![(item.0 as i64, sites[0].id.0 as i64)],
+        vec![ItemSiteRow {
+            item_id: item,
+            site_id: sites[0].id,
+        }],
         "the item is in the site pool"
     );
 

@@ -37,21 +37,24 @@ where
     }
 
     pub async fn create(&self, new: &NewValue) -> Result<ValueRow, DbError> {
-        let query = sqlx::query(
-            "INSERT INTO value
+        // MariaDB reserves `VALUE`, so the table name after `INSERT INTO` must be quoted there.
+        let table = DB::quote_identifier("value");
+        let sql = format!(
+            "INSERT INTO {table}
                  (resource_id, property_id, value_resource_id, value_annotation_id, type, lang,
                   value, uri, is_public)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(bind_id(new.resource_id))
-        .bind(bind_id(new.property_id))
-        .bind(bind_opt_id(new.value_resource_id))
-        .bind(bind_opt_id(new.value_annotation_id))
-        .bind(&new.r#type)
-        .bind(&new.lang)
-        .bind(&new.value)
-        .bind(&new.uri)
-        .bind(new.is_public);
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        let query = sqlx::query(&sql)
+            .bind(bind_id(new.resource_id))
+            .bind(bind_id(new.property_id))
+            .bind(bind_opt_id(new.value_resource_id))
+            .bind(bind_opt_id(new.value_annotation_id))
+            .bind(&new.r#type)
+            .bind(&new.lang)
+            .bind(&new.value)
+            .bind(&new.uri)
+            .bind(new.is_public);
         let id = insert_id(query, self.pool).await?;
         Ok(ValueRow {
             id: ValueId::from(id),
