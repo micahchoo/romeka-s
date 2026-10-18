@@ -1,11 +1,19 @@
 //! `POST` and `PUT` for `items`.
 //!
 //! `ItemAdapter::validateRequest` rejects a non-array `o:item_set` or
-//! `o:media`; `hydrate` then sets `o:primary_media`, the item-set membership
-//! and the site membership on top of the shared resource hydration. A full
-//! `PUT` replaces all three, so an omitted `o:item_set` or `o:site` empties the
-//! membership. Inline `o:media` rows are not built yet and are reported as a
-//! gap.
+//! `o:media`; `hydrate` then sets `o:primary_media`, the inline media, the
+//! item-set membership and the site membership on top of the shared resource
+//! hydration. A full `PUT` replaces the memberships, so an omitted `o:item_set`
+//! or `o:site` empties it. Inline `o:media` is built on a create only; a write
+//! that names the member on an update is not handled yet.
+//!
+//! `o:media` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:296-345`):
+//! each entry is hydrated through the media adapter's own create, so the
+//! ingester named in the entry runs and the entry takes the position of its
+//! index in the array. An entry that names an `o:id` names a media the item does
+//! not have, and a create has no media, so it is the `Media must belong to this
+//! item.` error. Every failure answers under `o:media` as one entry per failing
+//! media.
 //!
 //! `o:site` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:233-276`)
 //! exactly: a create that does not name the member takes every site whose
@@ -17,12 +25,13 @@ use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, SiteFilter, Site
 use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
 use serde_json::Value;
 
-use crate::errors::{ApiError, ValidationErrors};
+use crate::errors::{ApiError, NestedError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access::{self, SiteRole};
 use crate::write::body::{self, Payload, array_key, ref_row};
 use crate::write::fulltext;
 use crate::write::media;
+use crate::write::multipart::UploadedFile;
 use crate::write::resource::{self, not_found as ref_not_found};
 use crate::write::values;
 
@@ -45,15 +54,24 @@ const CONTROL: &[&str] = &[
 pub async fn create(
     api: &Api<'_>,
     payload: &Payload,
+    file: Option<&UploadedFile>,
 ) -> Result<crate::read::ApiResponse, ApiError> {
     validate_request(payload)?;
     let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
+    // `ItemAdapter::hydrate` reads `o:primary_media` before `o:item_set`,
+    // `o:site` and `o:media`, against the media that already belong to the
+    // item. A create has none, so a numeric id names no media and is the
+    // validation error.
+    let primary = primary_media_on_create(payload)?;
     let item_sets = item_sets(api, payload).await?;
     let sites = sites(api, payload, true, false, &[]).await?;
+    // Every inline entry is resolved before the item row is written, so a body
+    // whose media cannot ingest leaves no item behind.
+    let inline = inline_media(api, payload, file).await?;
     let row = ItemRepo::new(api.pool())
         .create(&NewItem {
             resource: hydrated.resource,
-            primary_media_id: None,
+            primary_media_id: primary,
         })
         .await
         .map_err(db_error)?;
@@ -71,6 +89,9 @@ pub async fn create(
             .map_err(db_error)?;
     }
     apply_sites(api, row.id(), sites).await?;
+    for prepared in inline {
+        media::insert(api, &row, prepared).await?;
+    }
     fulltext::reindex(api, "items", row.resource.id).await?;
     api.read_member("items", &row.resource.id.0.to_string())
         .await
@@ -171,8 +192,10 @@ fn validate_request(payload: &Payload) -> Result<(), ApiError> {
         );
     }
     if payload.has("o:media") && !payload.get("o:media").is_some_and(|v| v.is_array()) {
+        // The key is `o:item_set` upstream, a copy-paste bug in
+        // `ItemAdapter::validateRequest` that a client reads in the document.
         errors.insert(
-            "o:media".to_string(),
+            "o:item_set".to_string(),
             vec!["Media must be an array".to_string()],
         );
     }
@@ -180,6 +203,68 @@ fn validate_request(payload: &Payload) -> Result<(), ApiError> {
         Ok(())
     } else {
         Err(ApiError::Validation(errors))
+    }
+}
+
+/// `ItemAdapter::hydrate`'s `o:media` on a create.
+///
+/// An entry that names an `o:id` names a media of another item, or of none: the
+/// item carries no media yet, so upstream records `Media must belong to this
+/// item.` directly under `o:media`. Every other entry is a new media, and
+/// `hydrateEntity` runs the media adapter's whole create over it, so the same
+/// ingester runs and the same errors answer. Upstream collects one entry per
+/// failure, a plain message where the entry named an id and the entry's own
+/// error store otherwise.
+async fn inline_media(
+    api: &Api<'_>,
+    payload: &Payload,
+    file: Option<&UploadedFile>,
+) -> Result<Vec<media::Prepared>, ApiError> {
+    let Some(array) = payload.get("o:media").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    let mut prepared = Vec::new();
+    let mut errors: Vec<NestedError> = Vec::new();
+    // `ItemAdapter::hydrate`: the array index is the default position, and a
+    // `position` member the entry carries wins over it.
+    let mut position: i64 = 1;
+    for entry in array {
+        let Some(object) = entry.as_object() else {
+            position += 1;
+            continue;
+        };
+        let entry = Payload::from_object(object.clone());
+        // `isset($mediaData['o:id'])`: a present `null` names no media, so the
+        // entry is a new one.
+        if entry.id().is_some() {
+            errors.push(NestedError::Message(
+                "Media must belong to this item.".to_string(),
+            ));
+        } else {
+            match media::prepare(api, &entry, file, Some(position)).await {
+                Ok(media) => prepared.push(media),
+                Err(ApiError::Validation(sub)) => errors.push(NestedError::Errors(sub)),
+                Err(other) => return Err(other),
+            }
+        }
+        position += 1;
+    }
+    if errors.is_empty() {
+        Ok(prepared)
+    } else {
+        Err(ApiError::MergedValidation {
+            key: "o:media".to_string(),
+            errors,
+        })
+    }
+}
+
+/// `ItemAdapter::hydrate`'s `o:primary_media` on a create: the item carries no
+/// media yet, so a numeric id names none and is the validation error.
+fn primary_media_on_create(payload: &Payload) -> Result<Option<MediaId>, ApiError> {
+    match payload.numeric_ref("o:primary_media") {
+        Some(_) => Err(primary_media_error()),
+        None => Ok(None),
     }
 }
 

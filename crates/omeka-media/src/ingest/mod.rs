@@ -328,7 +328,12 @@ pub fn ingest_file(
         .source_name
         .as_deref()
         .and_then(extension_from_source_name);
-    let media_type = file.media_type.clone();
+    // `TempFile::getMediaType` sniffs the bytes with `finfo`; a boundary that
+    // already knows the type (the CLI, reading the source name) supplies it.
+    let media_type = file
+        .media_type
+        .clone()
+        .or_else(|| Some(crate::media_type::detected_media_type(&file.bytes)));
     draft.row.storage_id = Some(storage_id.clone());
 
     if flags.store_original || flags.hydrate_metadata {

@@ -103,7 +103,7 @@ pub(crate) async fn collect_at(
     let mut inputs = Vec::new();
     let mut errors = ValidationErrors::new();
     for (key, value) in payload.members() {
-        if control.contains(&key.as_str()) || JSONLD_KEYWORDS.contains(&key.as_str()) {
+        if is_control(api, key, control) {
             continue;
         }
         if !api.catalog().knows_term(key) {
@@ -130,6 +130,18 @@ pub(crate) async fn collect_at(
     } else {
         Err(ApiError::Validation(errors))
     }
+}
+
+/// Whether a top-level member is control rather than a property term.
+///
+/// The `o:` namespace is the API's own: the hydrators read the members they
+/// name and ignore every other `o:` member, and no vocabulary is registered
+/// under the prefix `o`, so an `o:` member states no property value. A member
+/// the catalog does know as a term is never skipped this way.
+fn is_control(api: &Api<'_>, key: &str, control: &[&str]) -> bool {
+    control.contains(&key)
+        || JSONLD_KEYWORDS.contains(&key)
+        || (key.starts_with("o:") && !api.catalog().knows_term(key))
 }
 
 /// `DataType\Resource\AbstractResource::hydrate`: the named value resource must

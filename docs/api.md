@@ -574,12 +574,20 @@ Request body members (`POST` and `PUT`).
 | `o:resource_template` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:thumbnail` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:ingester` | control member | `crates/omeka-api/src/write/media.rs` |
+| `o:renderer` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:item` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:source` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:lang` | control member | `crates/omeka-api/src/write/media.rs` |
 | `o:alt_text` | control member | `crates/omeka-api/src/write/media.rs` |
 | `data` | control member | `crates/omeka-api/src/write/media.rs` |
 | `position` | control member | `crates/omeka-api/src/write/media.rs` |
+| `html` | control member | `crates/omeka-api/src/write/media.rs` |
+| `ingest_url` | control member | `crates/omeka-api/src/write/media.rs` |
+| `store_original` | control member | `crates/omeka-api/src/write/media.rs` |
+| `file_index` | control member | `crates/omeka-api/src/write/media.rs` |
+| `refresh_oembed` | control member | `crates/omeka-api/src/write/media.rs` |
+| `start` | control member | `crates/omeka-api/src/write/media.rs` |
+| `end` | control member | `crates/omeka-api/src/write/media.rs` |
 | any property term (`prefix:local_name`) | list of value objects | `crates/omeka-api/src/write/values.rs` |
 | value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
 
@@ -1384,6 +1392,7 @@ An error body is `{"errors": {"<field>": "<message>"}}`, or a list of messages f
 | `ApiError::MethodNotAllowed` | 405 | the method is not routed on that path shape |
 | `ApiError::UnsupportedMediaType` | 415 | a write body whose Content-Type is neither JSON nor multipart |
 | `ApiError::Validation` | 422 | a body member failed validation, keyed by member |
+| `ApiError::MergedValidation` | 422 | a body member failed validation, with one entry per failing sub-entity |
 | `ApiError::NotImplemented` | 501 | a route with no handler yet |
 | `ApiError::Internal` | 500 | a storage failure, or an adapter operation with no handler |
 
