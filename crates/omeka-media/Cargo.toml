@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "The Romeka S media subsystem: file store, ingesters, renderers and thumbnails."
 
 [lints]
 workspace = true

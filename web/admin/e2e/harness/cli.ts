@@ -1,9 +1,9 @@
 /**
- * The `omeka` binary the harness drives.
+ * The `romeka` binary the harness drives.
  *
- * `OMEKA_BIN` is used as given. Otherwise the workspace is asked to build
+ * `ROMEKA_BIN` is used as given. Otherwise the workspace is asked to build
  * `omeka-cli` on every run, because cargo is incremental, so a warm target pays a
- * fraction of a second while a stale `debug/omeka` can never serve the specs.
+ * fraction of a second while a stale `debug/romeka` can never serve the specs.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -12,17 +12,17 @@ import { join } from 'node:path';
 import { REPO_ROOT } from './state';
 
 export const cliPath = (): string => {
-  const override = process.env.OMEKA_BIN;
+  const override = process.env.ROMEKA_BIN;
   if (override !== undefined && override !== '') {
     return override;
   }
   const targetDir = process.env.CARGO_TARGET_DIR ?? join(REPO_ROOT, 'target');
-  return join(targetDir, 'debug', 'omeka');
+  return join(targetDir, 'debug', 'romeka');
 };
 
 /** Build `omeka-cli` and return the binary. */
 export const ensureCli = (): string => {
-  const override = process.env.OMEKA_BIN;
+  const override = process.env.ROMEKA_BIN;
   if (override !== undefined && override !== '') {
     return override;
   }
@@ -34,11 +34,11 @@ export const ensureCli = (): string => {
   return binary;
 };
 
-/** Run one `omeka` command to completion and return its stdout. */
+/** Run one `romeka` command to completion and return its stdout. */
 export const runCli = (binary: string, args: readonly string[], cwd: string): string =>
   execFileSync(binary, [...args], { cwd, encoding: 'utf8' });
 
-/** The `--key_identity=...` / `--key_credential=...` pair `omeka key add` prints once. */
+/** The `--key_identity=...` / `--key_credential=...` pair `romeka key add` prints once. */
 export interface MintedKey {
   readonly identity: string;
   readonly credential: string;
@@ -50,7 +50,7 @@ const lineValue = (output: string, name: string): string => {
     .map((entry) => entry.trim())
     .find((entry) => entry.startsWith(`${name}=`));
   if (line === undefined) {
-    throw new Error(`omeka key add printed no ${name}: ${output}`);
+    throw new Error(`romeka key add printed no ${name}: ${output}`);
   }
   return line.slice(name.length + 1);
 };

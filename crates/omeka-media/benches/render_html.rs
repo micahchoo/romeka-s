@@ -24,7 +24,7 @@ use omeka_media::testing::media_row;
 use omeka_media::text::{escape_html, html_entity_decode, hyperlink, strip_tags, urlencode};
 
 /// A page of stored HTML, the shape the purifier leaves in `media.data.html`.
-const FRAGMENT: &str = "<h2>About the port</h2>\n<p>Omeka S is a web publication \
+const FRAGMENT: &str = "<h2>About the port</h2>\n<p>Romeka S is a web publication \
 system &mdash; it has sites, pages and blocks &amp; typed values. The port keeps \
 &quot;upstream behaviour&quot; where the tests can see it.</p>\n<ul><li>Items</li>\
 <li>Item sets</li><li>Media</li></ul>\n<p>Read <a href=\"https://example.org/a?x=1&amp;y=2\">\

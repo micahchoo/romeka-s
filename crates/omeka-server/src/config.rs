@@ -8,7 +8,7 @@
 //! exports, so the container's settings reach the server unchanged.
 //!
 //! Precedence, lowest first: defaults, the file, the environment, then the
-//! arguments `omeka serve` passes. The command line always passes a host, a
+//! arguments `romeka serve` passes. The command line always passes a host, a
 //! port and a base URL, so those three come from the command line in practice;
 //! the log level and the limits come from the file and the environment.
 
@@ -36,34 +36,34 @@ pub const DEFAULT_MAX_BODY_BYTES: usize = 256 * 1024 * 1024;
 pub const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 
 /// Variable naming the JSON config file. Unset means no file is read.
-pub const CONFIG_FILE_ENV: &str = "OMEKA_CONFIG";
+pub const CONFIG_FILE_ENV: &str = "ROMEKA_CONFIG";
 /// Interface to bind.
-pub const HOST_ENV: &str = "OMEKA_API_HOST";
+pub const HOST_ENV: &str = "ROMEKA_API_HOST";
 /// Port to bind.
-pub const PORT_ENV: &str = "OMEKA_API_PORT";
+pub const PORT_ENV: &str = "ROMEKA_API_PORT";
 /// Origin for the JSON-LD `@id`s and generated links.
-pub const BASE_URL_ENV: &str = "OMEKA_BASE_URL";
+pub const BASE_URL_ENV: &str = "ROMEKA_BASE_URL";
 /// Log level name.
-pub const LOG_LEVEL_ENV: &str = "OMEKA_LOG";
+pub const LOG_LEVEL_ENV: &str = "ROMEKA_LOG";
 /// Largest accepted request body, in bytes.
-pub const MAX_BODY_BYTES_ENV: &str = "OMEKA_MAX_BODY_BYTES";
+pub const MAX_BODY_BYTES_ENV: &str = "ROMEKA_MAX_BODY_BYTES";
 /// Request timeout, in seconds.
-pub const REQUEST_TIMEOUT_ENV: &str = "OMEKA_REQUEST_TIMEOUT_SECS";
+pub const REQUEST_TIMEOUT_ENV: &str = "ROMEKA_REQUEST_TIMEOUT_SECS";
 /// SMTP relay host. Unset means no mail leaves the process.
-pub const SMTP_HOST_ENV: &str = "OMEKA_SMTP_HOST";
+pub const SMTP_HOST_ENV: &str = "ROMEKA_SMTP_HOST";
 /// SMTP relay port. Unset means the port the TLS mode implies.
-pub const SMTP_PORT_ENV: &str = "OMEKA_SMTP_PORT";
+pub const SMTP_PORT_ENV: &str = "ROMEKA_SMTP_PORT";
 /// SMTP user name.
-pub const SMTP_USER_ENV: &str = "OMEKA_SMTP_USER";
+pub const SMTP_USER_ENV: &str = "ROMEKA_SMTP_USER";
 /// SMTP password.
-pub const SMTP_PASSWORD_ENV: &str = "OMEKA_SMTP_PASSWORD";
+pub const SMTP_PASSWORD_ENV: &str = "ROMEKA_SMTP_PASSWORD";
 /// SMTP TLS mode: `starttls`, `tls` or `none`.
-pub const SMTP_TLS_ENV: &str = "OMEKA_SMTP_TLS";
+pub const SMTP_TLS_ENV: &str = "ROMEKA_SMTP_TLS";
 /// Envelope sender of every message the server sends.
-pub const MAIL_FROM_ENV: &str = "OMEKA_MAIL_FROM";
+pub const MAIL_FROM_ENV: &str = "ROMEKA_MAIL_FROM";
 
 /// Envelope sender when nothing overrides it.
-pub const DEFAULT_MAIL_FROM: &str = "no-reply@omeka.invalid";
+pub const DEFAULT_MAIL_FROM: &str = "no-reply@romeka.invalid";
 
 /// Everything the server needs to bind and serve.
 #[derive(Debug, Clone, PartialEq)]
@@ -126,7 +126,7 @@ impl std::str::FromStr for MailTls {
     }
 }
 
-/// The mail settings, from `OMEKA_SMTP_*` and `OMEKA_MAIL_FROM`.
+/// The mail settings, from `ROMEKA_SMTP_*` and `ROMEKA_MAIL_FROM`.
 ///
 /// A `host` is what turns mail on: with none, the server uses the log transport
 /// and every message goes to the log, which is the default because a deployment
@@ -213,14 +213,14 @@ impl Config {
         Ok(config)
     }
 
-    /// The interface and port `omeka serve` was told to use override both the
+    /// The interface and port `romeka serve` was told to use override both the
     /// file and the environment.
     pub fn set_address(&mut self, addr: std::net::SocketAddr) {
         self.host = addr.ip().to_string();
         self.port = addr.port();
     }
 
-    /// The base URL `omeka serve` was told to use overrides both the file and
+    /// The base URL `romeka serve` was told to use overrides both the file and
     /// the environment.
     pub fn set_base_url(&mut self, base: BaseUrl) {
         self.base_url = base;
@@ -489,7 +489,7 @@ mod tests {
     #[test]
     fn a_missing_file_is_a_read_error() {
         let error =
-            Config::from_sources(no_env, Some(Path::new("/nonexistent/omeka.json"))).unwrap_err();
+            Config::from_sources(no_env, Some(Path::new("/nonexistent/romeka.json"))).unwrap_err();
         assert!(matches!(error, ConfigError::Read { .. }), "{error}");
     }
 
@@ -546,7 +546,7 @@ mod tests {
                 SMTP_USER_ENV => Some("mailer".to_string()),
                 SMTP_PASSWORD_ENV => Some("secret".to_string()),
                 SMTP_TLS_ENV => Some("tls".to_string()),
-                MAIL_FROM_ENV => Some("omeka@example.org".to_string()),
+                MAIL_FROM_ENV => Some("romeka@example.org".to_string()),
                 _ => None,
             },
             None,
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(config.mail.user.as_deref(), Some("mailer"));
         assert_eq!(config.mail.password.as_deref(), Some("secret"));
         assert_eq!(config.mail.tls, MailTls::Tls);
-        assert_eq!(config.mail.from, "omeka@example.org");
+        assert_eq!(config.mail.from, "romeka@example.org");
     }
 
     #[test]

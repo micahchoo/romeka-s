@@ -1,4 +1,4 @@
-//! Behaviour tests for `omeka export`.
+//! Behaviour tests for `romeka export`.
 
 use super::*;
 use crate::testing::seeded_db;

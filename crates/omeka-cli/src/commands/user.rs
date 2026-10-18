@@ -1,11 +1,11 @@
-//! `omeka user`: add, invite, list, set a password and grant admin.
+//! `romeka user`: add, invite, list, set a password and grant admin.
 //!
 //! Rows speak the `user` table (`Entity/User.php`). The role column holds one of
 //! the six `Role` wire names; `--role` is validated at this boundary so a typo
 //! fails loudly instead of writing an unknown role the permission matrix cannot
 //! map.
 //!
-//! **Invite.** `omeka user add` with no `--password` is upstream's admin "add
+//! **Invite.** `romeka user add` with no `--password` is upstream's admin "add
 //! user": the account starts inactive and holds no password, a one-time key is
 //! minted with `activate` set, and the command prints the set-password link.
 //! `Admin\UserController::addAction` mails that link; the CLI prints it, so an
@@ -26,7 +26,7 @@ use omeka_server::mail::SET_PASSWORD_PATH;
 
 use crate::error::CliError;
 
-/// Input for `omeka user add`.
+/// Input for `romeka user add`.
 #[derive(Debug, Clone)]
 pub struct AddOptions {
     pub database: PathBuf,
@@ -39,14 +39,14 @@ pub struct AddOptions {
     pub base_url: String,
 }
 
-/// Input for `omeka user list`.
+/// Input for `romeka user list`.
 #[derive(Debug, Clone)]
 pub struct ListOptions {
     pub database: PathBuf,
     pub role: Option<String>,
 }
 
-/// Input for `omeka user set-password`.
+/// Input for `romeka user set-password`.
 #[derive(Debug, Clone)]
 pub struct SetPasswordOptions {
     pub database: PathBuf,
@@ -54,14 +54,14 @@ pub struct SetPasswordOptions {
     pub password: String,
 }
 
-/// Input for `omeka user grant-admin`.
+/// Input for `romeka user grant-admin`.
 #[derive(Debug, Clone)]
 pub struct GrantAdminOptions {
     pub database: PathBuf,
     pub email: String,
 }
 
-/// What `omeka user add` did.
+/// What `romeka user add` did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddedUser {
     pub user: UserRow,

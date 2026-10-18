@@ -84,7 +84,7 @@ import type { WireBody } from './write';
 declare global {
   interface Window {
     /** Base URL for API requests, injected by the server. Empty means same origin. */
-    readonly OMEKA_BASE?: string;
+    readonly ROMEKA_BASE?: string;
   }
 }
 
@@ -227,7 +227,7 @@ const readJsonBody = async (response: Response): Promise<unknown> => {
   return parseJson(text);
 };
 
-export const defaultBaseUrl = (): string => window.OMEKA_BASE ?? '';
+export const defaultBaseUrl = (): string => window.ROMEKA_BASE ?? '';
 
 const defaultFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
 
@@ -585,7 +585,7 @@ export class ApiClient {
   }
 
   /**
-   * `LoginController::loginAction`. The answer sets the `omeka_session` cookie,
+   * `LoginController::loginAction`. The answer sets the `romeka_session` cookie,
    * which is `httpOnly`, so the caller learns the user from the body and never
    * from the cookie. 401 is a wrong email or password, 403 a deactivated user
    * and 429 the login limit, and each arrives as an `ApiError`.

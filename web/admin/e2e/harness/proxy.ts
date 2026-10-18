@@ -3,7 +3,7 @@
  * and the port's own routes.
  *
  * The SPA asks for `/api` on the origin it was loaded from
- * (`src/api/client.ts::defaultBaseUrl`), and `omeka serve` renders its JSON-LD
+ * (`src/api/client.ts::defaultBaseUrl`), and `romeka serve` renders its JSON-LD
  * links from the base URL it was started with. Both point at this origin, so the
  * browser sees one origin for the app, the API, the files and the public site.
  * That is the arrangement a reverse proxy would produce in production.
@@ -38,7 +38,7 @@ export interface ProxyOptions {
   readonly distRoot: string;
   /** The file store root, served under `/files`. */
   readonly storeRoot: string;
-  /** Origin of the running `omeka serve`. */
+  /** Origin of the running `romeka serve`. */
   readonly target: string;
   readonly identity: string;
   readonly credential: string;

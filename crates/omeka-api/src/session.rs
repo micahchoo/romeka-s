@@ -42,7 +42,7 @@ use crate::errors::ApiError;
 use crate::token;
 
 /// The session cookie name. A later product rename changes this prefix only.
-pub const COOKIE_NAME: &str = "omeka_session";
+pub const COOKIE_NAME: &str = "romeka_session";
 
 /// Seconds of inactivity after which a session row stops authenticating.
 pub const SESSION_LIFETIME_SECS: i64 = 14 * 24 * 60 * 60;
@@ -352,12 +352,12 @@ mod tests {
 
     #[test]
     fn a_cookie_header_carries_the_token() {
-        assert_eq!(cookie_token("omeka_session=abc"), Some("abc"));
+        assert_eq!(cookie_token("romeka_session=abc"), Some("abc"));
         assert_eq!(
-            cookie_token("locale=en; omeka_session=abc; other=1"),
+            cookie_token("locale=en; romeka_session=abc; other=1"),
             Some("abc")
         );
-        assert_eq!(cookie_token("omeka_session="), Some(""));
+        assert_eq!(cookie_token("romeka_session="), Some(""));
         assert_eq!(cookie_token("other=1"), None);
         assert_eq!(cookie_token(""), None);
     }
@@ -366,15 +366,15 @@ mod tests {
     fn the_cookie_attributes_are_the_agreed_ones() {
         assert_eq!(
             set_cookie("abc", false),
-            "omeka_session=abc; Path=/; HttpOnly; SameSite=Lax"
+            "romeka_session=abc; Path=/; HttpOnly; SameSite=Lax"
         );
         assert_eq!(
             set_cookie("abc", true),
-            "omeka_session=abc; Path=/; HttpOnly; SameSite=Lax; Secure"
+            "romeka_session=abc; Path=/; HttpOnly; SameSite=Lax; Secure"
         );
         assert_eq!(
             clear_cookie(false),
-            "omeka_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+            "romeka_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
         );
         assert!(clear_cookie(true).ends_with("; Secure"));
     }

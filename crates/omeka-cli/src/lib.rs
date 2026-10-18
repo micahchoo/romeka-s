@@ -1,4 +1,4 @@
-//! The Omeka S command line and job runner.
+//! The Romeka S command line and job runner.
 //!
 //! Commands mirror the upstream admin workflows that have a CLI meaning:
 //! `install` (the install tasks), `user` (accounts), `key` (API keys),

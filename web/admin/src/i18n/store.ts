@@ -17,7 +17,7 @@ import { createTranslator } from './translator';
 import type { Translator } from './translator';
 
 /** The `localStorage` key. Namespaced, because the origin may host other apps. */
-export const LOCALE_STORAGE = 'omeka.locale';
+export const LOCALE_STORAGE = 'romeka.locale';
 
 type Listener = () => void;
 

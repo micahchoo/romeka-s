@@ -146,7 +146,7 @@ mod tests {
     fn iiif_renderer_uses_the_asset_base_path() {
         let registry = FileRendererRegistry::with_defaults();
         let env = RenderEnv {
-            asset_base_path: "/omeka/application/asset".to_string(),
+            asset_base_path: "/romeka/application/asset".to_string(),
             ..RenderEnv::default()
         };
         let html = Iiif.render(
@@ -156,7 +156,7 @@ mod tests {
         );
         assert!(
             html.contains(
-                "data-prefix-url=\"/omeka/application/asset/vendor/openseadragon/images/\""
+                "data-prefix-url=\"/romeka/application/asset/vendor/openseadragon/images/\""
             ),
             "{html}"
         );

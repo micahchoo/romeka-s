@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "The Romeka S migration path out of an upstream Omeka S MySQL install."
 
 [lints]
 workspace = true

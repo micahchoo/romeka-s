@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "The Romeka S extension seam: the plugin traits and their registries."
 
 [lints]
 workspace = true

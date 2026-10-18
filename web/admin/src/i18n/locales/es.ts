@@ -10,7 +10,7 @@
 import type { Catalogue } from '../catalogue';
 
 export const es: Catalogue = {
-  'app.title': 'Administración de Omeka S',
+  'app.title': 'Administración de Romeka S',
   'shell.navLabel': 'Páginas de administración',
   'shell.noPage': 'No existe esa página. Vaya al panel de administración.',
   'group.content': 'Contenido',

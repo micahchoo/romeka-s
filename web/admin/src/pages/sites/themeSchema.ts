@@ -29,7 +29,7 @@ export const THEME_SETTINGS_SCHEMA: readonly ThemeSettingSpec[] = [
     key: 'installation_title',
     labelKey: 'themeSetting.installationTitle',
     kind: 'text',
-    defaultValue: 'Omeka S',
+    defaultValue: 'Romeka S',
   },
   {
     key: 'locale',

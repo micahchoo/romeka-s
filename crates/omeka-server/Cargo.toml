@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "The Romeka S HTTP surface: the /api router and the public site routes."
 
 [dependencies]
 axum = "0.8"

@@ -380,7 +380,7 @@ describe('site theme settings', () => {
 
   it('theme_schema_defaults_are_the_accessor_defaults', () => {
     const drafts = themeSettingDrafts(null);
-    expect(drafts['installation_title']).toBe('Omeka S');
+    expect(drafts['installation_title']).toBe('Romeka S');
     expect(drafts['locale']).toBe('en');
     expect(drafts['show_page_pagination']).toBe(true);
     // An unset default renders an empty control and stores nothing.

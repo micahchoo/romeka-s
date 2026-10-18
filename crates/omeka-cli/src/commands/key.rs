@@ -1,4 +1,4 @@
-//! `omeka key`: mint, list and revoke API keys.
+//! `romeka key`: mint, list and revoke API keys.
 //!
 //! An API key is a row of `api_key` (`Entity/ApiKey.php`). The identity is 32
 //! alphanumeric characters and is the primary key. The credential is 32 more and
@@ -28,7 +28,7 @@ use crate::error::CliError;
 /// cost still verifies; this one matches the oracle.
 const BCRYPT_COST: u32 = 10;
 
-/// Input for `omeka key add`.
+/// Input for `romeka key add`.
 #[derive(Debug, Clone)]
 pub struct AddOptions {
     pub database: PathBuf,
@@ -37,20 +37,20 @@ pub struct AddOptions {
     pub label: String,
 }
 
-/// Input for `omeka key list`.
+/// Input for `romeka key list`.
 #[derive(Debug, Clone)]
 pub struct ListOptions {
     pub database: PathBuf,
 }
 
-/// Input for `omeka key revoke`.
+/// Input for `romeka key revoke`.
 #[derive(Debug, Clone)]
 pub struct RevokeOptions {
     pub database: PathBuf,
     pub identity: String,
 }
 
-/// What `omeka key add` prints once: the pair an API client sends.
+/// What `romeka key add` prints once: the pair an API client sends.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MintedKey {
     pub identity: String,
@@ -58,7 +58,7 @@ pub struct MintedKey {
     pub owner_email: String,
 }
 
-/// One row of `omeka key list`. There is no credential field to omit.
+/// One row of `romeka key list`. There is no credential field to omit.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeySummary {
     pub identity: String,

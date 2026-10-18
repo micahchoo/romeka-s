@@ -279,7 +279,7 @@ mod tests {
     use super::*;
 
     fn store() -> FileStore {
-        FileStore::new("/srv/omeka/files", "/files")
+        FileStore::new("/srv/romeka/files", "/files")
     }
 
     /// `TempFile::store` with `storeOriginal`:
@@ -317,7 +317,7 @@ mod tests {
         let storage_path = FileStore::storage_path(StorePrefix::Original, "abc123", Some("jpg"));
         assert_eq!(
             store.local_path(&storage_path).expect("path"),
-            PathBuf::from("/srv/omeka/files/original/abc123.jpg")
+            PathBuf::from("/srv/romeka/files/original/abc123.jpg")
         );
         assert_eq!(store.uri(&storage_path), "/files/original/abc123.jpg");
     }
@@ -339,7 +339,7 @@ mod tests {
     /// `Local::put` then `getUri`: the bytes land where the URI says they do.
     #[test]
     fn put_writes_bytes_under_the_store_root() {
-        let root = std::env::temp_dir().join(format!("omeka-media-store-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("romeka-media-store-{}", std::process::id()));
         let store = FileStore::new(&root, "/files");
         let storage_path = FileStore::storage_path(StorePrefix::Original, "abc123", Some("txt"));
         store.put(b"hello", &storage_path).expect("put");
@@ -355,7 +355,7 @@ mod tests {
     /// existence check on the target never sees a partial write.
     #[test]
     fn put_atomic_writes_the_target_and_no_temporary_file() {
-        let root = std::env::temp_dir().join(format!("omeka-media-atomic-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("romeka-media-atomic-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let store = FileStore::new(&root, "/files");
         let storage_path = FileStore::storage_path(

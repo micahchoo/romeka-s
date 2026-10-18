@@ -1,13 +1,13 @@
 //! The MySQL end to end suite: a real upstream-shaped source, migrated into SQLite.
 //!
-//! Gated on a reachable server, the same way `omeka-db`'s MySQL suite is. `OMEKA_MYSQL_URL` names
+//! Gated on a reachable server, the same way `omeka-db`'s MySQL suite is. `ROMEKA_MYSQL_URL` names
 //! a server, not a database (`mysql://root:secret@127.0.0.1:3306`); each test creates its own
 //! database from upstream's own schema, seeds a small fixture through the port's repositories, and
 //! drops the database again. With no variable set, or a server that does not answer, the helper
 //! prints why and the test returns: the suite skips loudly.
 //!
 //! ```text
-//! OMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:3306 \
+//! ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:3306 \
 //!   cargo test -p omeka-migrate --test mysql
 //! ```
 
@@ -45,10 +45,10 @@ impl Source {
 }
 
 fn server_url() -> Option<String> {
-    match std::env::var("OMEKA_MYSQL_URL") {
+    match std::env::var("ROMEKA_MYSQL_URL") {
         Ok(url) if !url.trim().is_empty() => Some(url.trim().to_string()),
         _ => {
-            eprintln!("SKIP: OMEKA_MYSQL_URL is not set, so the MySQL suite did not run");
+            eprintln!("SKIP: ROMEKA_MYSQL_URL is not set, so the MySQL suite did not run");
             None
         }
     }
@@ -246,7 +246,7 @@ fn target_path(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.subsec_nanos());
     std::env::temp_dir().join(format!(
-        "omeka-migrate-{}-{seq}-{nanos}-{name}.sqlite",
+        "romeka-migrate-{}-{seq}-{nanos}-{name}.sqlite",
         std::process::id()
     ))
 }

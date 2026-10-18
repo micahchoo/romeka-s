@@ -1,4 +1,4 @@
-//! `omeka import media`: copy files into the store and link them to items.
+//! `romeka import media`: copy files into the store and link them to items.
 //!
 //! Upstream ingests a media file through `Media/Ingester/Upload.php`, which sets
 //! `media.source` from the uploaded file name (`Ingester/Upload.php:61`) and hands
@@ -73,7 +73,7 @@ const MEDIA_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "tif", "tiff", "nef", "mp4", "mov", "mp3", "wav", "pdf",
 ];
 
-/// Input for `omeka import media`.
+/// Input for `romeka import media`.
 #[derive(Debug, Clone)]
 pub struct MediaOptions {
     /// SQLite database file.

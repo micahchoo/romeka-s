@@ -1,4 +1,4 @@
-//! `omeka media thumbnails`: backfill the thumbnails a media row is missing.
+//! `romeka media thumbnails`: backfill the thumbnails a media row is missing.
 //!
 //! The import command makes thumbnails for the files it stores. Rows a later
 //! run finds already imported are skipped there, so a store that predates the
@@ -30,7 +30,7 @@ use omeka_media::thumbnailer::{ThumbnailOutcome, generate_thumbnails, thumbnail_
 
 use crate::error::CliError;
 
-/// Input for `omeka media thumbnails`.
+/// Input for `romeka media thumbnails`.
 #[derive(Debug, Clone)]
 pub struct ThumbnailOptions {
     /// SQLite database file.
@@ -207,7 +207,7 @@ mod tests {
     use crate::testing::{TempDb, png_rgb, seeded_db};
 
     /// Store an original and insert a media row that points at it, without
-    /// thumbnails. This is the shape `omeka import media` leaves when the
+    /// thumbnails. This is the shape `romeka import media` leaves when the
     /// thumbnailer did not run.
     async fn row_without_thumbnails(
         db: &TempDb,

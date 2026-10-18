@@ -1,4 +1,4 @@
-//! `omeka backup`: one archive holding a consistent database copy and the store.
+//! `romeka backup`: one archive holding a consistent database copy and the store.
 //!
 //! The database copy comes from `VACUUM INTO`, which writes a complete SQLite
 //! file from a read transaction. It sees one point in time even while the server
@@ -30,11 +30,11 @@ use crate::error::CliError;
 use crate::tar::TarWriter;
 
 /// The database copy's name inside the staging directory.
-const EXPORT_NAME: &str = "omeka.db";
+const EXPORT_NAME: &str = "romeka.db";
 /// The half-written archive's name inside the staging directory.
 const ARCHIVE_NAME: &str = "archive.tar";
 
-/// Input for `omeka backup`.
+/// Input for `romeka backup`.
 #[derive(Debug, Clone)]
 pub struct BackupOptions {
     /// SQLite database file.
@@ -72,7 +72,7 @@ pub struct BackupReport {
 pub async fn run(options: &BackupOptions) -> Result<BackupReport, CliError> {
     require_file(&options.database, "database")?;
     require_dir(&options.store, "store")?;
-    let staging = Staging::new_beside(&options.out, "omeka-backup")?;
+    let staging = Staging::new_beside(&options.out, "romeka-backup")?;
     let report = build(options, &staging).await?;
     std::fs::rename(staging.path(ARCHIVE_NAME), &options.out)?;
     staging.retire();
@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(report.counts["media"], 2);
 
         let target = tempfile::tempdir().expect("target dir");
-        let target_db = target.path().join("omeka.db");
+        let target_db = target.path().join("romeka.db");
         let target_store = target.path().join("files");
         let restore_options = RestoreOptions {
             database: target_db.clone(),
@@ -391,7 +391,7 @@ mod tests {
         std::fs::write(target_store.join("stale.txt"), b"stale").expect("stale");
 
         restore::run(&RestoreOptions {
-            database: target.path().join("omeka.db"),
+            database: target.path().join("romeka.db"),
             store: target_store.clone(),
             input: archive,
             force: true,

@@ -11,7 +11,7 @@
 //! **Two transports.** [`Log`] is the default: it writes the whole message to
 //! the request log, which is what a container deployment with no relay gets and
 //! what a test asserts on. [`Smtp`](smtp::Smtp) hands the message to a relay
-//! over `lettre`. [`Mailer::from_config`] picks one from the `OMEKA_SMTP_*`
+//! over `lettre`. [`Mailer::from_config`] picks one from the `ROMEKA_SMTP_*`
 //! settings: a host means SMTP, no host means the log. A host whose TLS settings
 //! cannot be built logs the error and falls back to the log transport, so a
 //! misconfigured relay does not stop the server from starting.
@@ -105,7 +105,7 @@ impl Transport for Log {
 
     fn send(&self, message: &Message) -> Result<Delivery, MailError> {
         tracing::info!(
-            target: "omeka::mail",
+            target: "romeka::mail",
             from = %message.from,
             to = %message.to,
             subject = %message.subject,
@@ -138,7 +138,7 @@ impl Mailer {
                 Ok(transport) => Self::with_transport(Arc::new(transport), from, base),
                 Err(error) => {
                     tracing::error!(
-                        target: "omeka::mail",
+                        target: "romeka::mail",
                         %error,
                         "the smtp transport cannot be built; mail goes to the log"
                     );
@@ -211,7 +211,7 @@ impl Mailer {
             "Greetings!\n\n\
              A user has been created for you on {installation_title} at {site}\n\n\
              Your username is your email: {email}\n\n\
-             Click this link to set a password and begin using Omeka S:\n{link}\n\n\
+             Click this link to set a password and begin using Romeka S:\n{link}\n\n\
              Your activation link will expire on {expires}. If you have not completed the user \
              activation process by the time the link expires, you will need to request another \
              activation email from your site administrator.",
@@ -239,7 +239,7 @@ impl Mailer {
         match outcome {
             Ok(result) => result,
             Err(error) => {
-                tracing::error!(target: "omeka::mail", %error, "the mail task did not run");
+                tracing::error!(target: "romeka::mail", %error, "the mail task did not run");
                 Err(MailError::Smtp(error.to_string()))
             }
         }
@@ -340,15 +340,15 @@ mod tests {
     }
 
     fn mailer_with(transport: Arc<dyn Transport>) -> Mailer {
-        Mailer::with_transport(transport, "no-reply@omeka.invalid".to_string(), base())
+        Mailer::with_transport(transport, "no-reply@romeka.invalid".to_string(), base())
     }
 
     #[tokio::test]
     async fn no_host_configured_selects_the_log_transport() {
         let mailer = Mailer::from_config(&MailConfig::default(), base());
         assert_eq!(mailer.kind(), TransportKind::Log);
-        let message = mailer.reset_message(&user().await, "KEY", "Omeka S", EXPIRES);
-        assert_eq!(message.from, "no-reply@omeka.invalid");
+        let message = mailer.reset_message(&user().await, "KEY", "Romeka S", EXPIRES);
+        assert_eq!(message.from, "no-reply@romeka.invalid");
     }
 
     #[test]
@@ -434,7 +434,7 @@ mod tests {
         );
         let sent = recording.sent.lock().unwrap();
         assert_eq!(sent.len(), 1);
-        assert_eq!(sent[0].from, "no-reply@omeka.invalid");
+        assert_eq!(sent[0].from, "no-reply@romeka.invalid");
         assert!(sent[0].body.contains("/#/password/KEY123"));
     }
 

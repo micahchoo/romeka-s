@@ -21,7 +21,7 @@ struct TempStore {
 
 impl TempStore {
     fn new(tag: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("omeka-thumb-{tag}-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("romeka-thumb-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         Self {
             store: FileStore::new(&root, "/files"),

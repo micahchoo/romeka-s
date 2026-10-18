@@ -20,10 +20,10 @@ use omeka_core::site::{BlockData, BlockLayout, Slug, is_valid_slug, slugify};
 use omeka_core::template::{ResourceTemplate, TemplateProp, normalize_data_types};
 
 /// A page title that slugifies to a plain dashed string.
-const TITLE: &str = "About the Omeka S Port";
+const TITLE: &str = "About the Romeka S Port";
 
 /// A longer body of text, with punctuation and runs of separators.
-const BODY: &str = "Omeka S is a web publication system. It has many sites; \
+const BODY: &str = "Romeka S is a web publication system. It has many sites; \
 each site has pages, and each page has blocks. Blocks are typed, and each \
 block carries its own data object (a JSON object, stored in one column).";
 
@@ -73,7 +73,7 @@ fn site_rules(c: &mut Criterion) {
     assert!(Slug::parse("about the port").is_err());
     assert!(Slug::parse("").is_err());
     assert!(is_valid_slug("about-the-port") && !is_valid_slug("about the port"));
-    assert_eq!(slugify(TITLE), "about-the-omeka-s-port");
+    assert_eq!(slugify(TITLE), "about-the-romeka-s-port");
     assert_eq!(slugify("Café — Über Ångström").matches('-').count(), 3);
     assert_eq!(
         BlockLayout::from_wire_name("browsePreview"),

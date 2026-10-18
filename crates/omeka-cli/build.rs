@@ -20,7 +20,7 @@ fn main() {
         println!("cargo:rerun-if-changed={path}");
     }
     let commit = git(manifest, &["rev-parse", "HEAD"]).unwrap_or_else(|| "unknown".to_string());
-    println!("cargo:rustc-env=OMEKA_COMMIT={commit}");
+    println!("cargo:rustc-env=ROMEKA_COMMIT={commit}");
 }
 
 fn git(manifest: &str, args: &[&str]) -> Option<String> {

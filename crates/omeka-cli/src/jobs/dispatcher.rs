@@ -62,12 +62,12 @@ pub struct Dispatcher<'a> {
     pool: &'a SqlitePool,
     database: &'a Path,
     /// The program to run `job run <id>` with. `None` means this executable,
-    /// which is the port's own `omeka` binary.
+    /// which is the port's own `romeka` binary.
     program: Option<PathBuf>,
 }
 
 impl<'a> Dispatcher<'a> {
-    /// A dispatcher that starts `omeka job run <id>` from this executable.
+    /// A dispatcher that starts `romeka job run <id>` from this executable.
     #[must_use]
     pub fn new(pool: &'a SqlitePool, database: &'a Path) -> Self {
         Self {
@@ -78,7 +78,7 @@ impl<'a> Dispatcher<'a> {
     }
 
     /// A dispatcher that starts `job run <id>` with a named program. The
-    /// process tests point this at the built `omeka` binary.
+    /// process tests point this at the built `romeka` binary.
     #[must_use]
     pub fn with_program(
         pool: &'a SqlitePool,
@@ -115,7 +115,7 @@ impl<'a> Dispatcher<'a> {
         let program = match &self.program {
             Some(program) => program.clone(),
             None => std::env::current_exe().map_err(|error| {
-                JobError::Runtime(format!("cannot find the omeka executable: {error}"))
+                JobError::Runtime(format!("cannot find the romeka executable: {error}"))
             })?,
         };
         Command::new(program)

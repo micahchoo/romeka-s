@@ -33,7 +33,7 @@ async fn update_an_asset() {
     .await;
     assert_eq!(read.status, StatusCode::OK, "{}", read.body);
 
-    let update = r#"{"o:name":"Renamed logo","o:alt_text":"The Omeka S logo."}"#;
+    let update = r#"{"o:name":"Renamed logo","o:alt_text":"The Romeka S logo."}"#;
     let updated = send(
         app.clone(),
         json_request(
@@ -46,7 +46,7 @@ async fn update_an_asset() {
     assert_eq!(updated.status, StatusCode::OK, "{}", updated.body);
     let document = updated.json();
     assert_eq!(document["o:name"], "Renamed logo");
-    assert_eq!(document["o:alt_text"], "The Omeka S logo.");
+    assert_eq!(document["o:alt_text"], "The Romeka S logo.");
     assert_eq!(document["o:filename"], format!("{ASSET_STORAGE_ID}.png"));
     assert_eq!(document["o:owner"]["o:id"], seed.user.0);
 
