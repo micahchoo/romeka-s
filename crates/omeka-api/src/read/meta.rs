@@ -123,12 +123,17 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         .await
         .map_err(db_error)?;
     let needle = search_needle(params);
-    let rows: Vec<SiteRow> = rows
+    let candidates: Vec<SiteRow> = rows
         .into_iter()
-        .filter(|row| api.sees(row.is_public, row.owner_id))
         .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| matches(&row.title, needle.as_deref()))
         .collect();
+    let mut rows: Vec<SiteRow> = Vec::with_capacity(candidates.len());
+    for row in candidates {
+        if site_visible(api, &row).await? {
+            rows.push(row);
+        }
+    }
     let (total, page) = sorted_page(rows, &sort, &limit, cmp_site(sort));
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
@@ -151,7 +156,7 @@ pub async fn read_site(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiEr
     else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
-    if !api.sees(row.is_public, row.owner_id) {
+    if !site_visible(api, &row).await? {
         return Err(not_found(SITE_CLASS, raw_id));
     }
     site_document(api, &row).await
@@ -168,14 +173,56 @@ pub(crate) async fn site_document(api: &Api<'_>, row: &SiteRow) -> Result<ApiRes
 
 const SITE_CLASS: &str = "Omeka\\Entity\\Site";
 
+/// Whether the actor holds any permission on the site
+/// (`HasSitePermissionAssertion('viewer')` accepts every site role).
+async fn has_site_permission(api: &Api<'_>, site: SiteId) -> Result<bool, ApiError> {
+    let Some(user) = api.actor().user() else {
+        return Ok(false);
+    };
+    SiteRepo::new(api.pool())
+        .has_permission(site, user)
+        .await
+        .map_err(db_error)
+}
+
+/// Whether the actor may read the site (`AclFactory` grants `read` on
+/// `Omeka\Entity\Site` through public, ownership or a site permission).
+async fn site_visible(api: &Api<'_>, row: &SiteRow) -> Result<bool, ApiError> {
+    let permission = has_site_permission(api, row.id).await?;
+    Ok(api
+        .actor()
+        .sees_site(row.is_public, row.owner_id, permission))
+}
+
+/// Whether the actor may read the page (`SitePageVisibilityFilter`: a public
+/// page of a public site, the site's owner, or a site permission).
+async fn site_page_visible(api: &Api<'_>, row: &SitePageRow) -> Result<bool, ApiError> {
+    let Some(site) = SiteRepo::new(api.pool())
+        .get(row.site_id)
+        .await
+        .map_err(db_error)?
+    else {
+        return Ok(false);
+    };
+    let permission = has_site_permission(api, row.site_id).await?;
+    Ok(api
+        .actor()
+        .sees_site_page(row.is_public, site.is_public, site.owner_id, permission))
+}
+
 async fn site_doc(api: &Api<'_>, row: &SiteRow) -> Result<crate::wire::site::Site, ApiError> {
     let base = api.base();
     let repo = SiteRepo::new(api.pool());
+    let permission = has_site_permission(api, row.id).await?;
     let pages: Vec<_> = repo
         .list_pages(row.id)
         .await
         .map_err(db_error)?
         .into_iter()
+        .filter(|page| {
+            api.actor()
+                .sees_site_page(page.is_public, row.is_public, row.owner_id, permission)
+        })
         .map(|page| resource_ref(base, "site_pages", page.id.0))
         .collect();
     let permissions: Vec<SitePermission> = repo
@@ -238,10 +285,10 @@ pub async fn read_site_page(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, 
         return Err(not_found(PAGE_CLASS, raw_id));
     };
     // `AclFactory::addRulesForAllRoles` grants `read` on `Omeka\Entity\SitePage`
-    // only through `SitePageIsPublicAssertion` (or ownership, or a site role),
-    // so a non-public page is not readable by an anonymous caller. The port's
-    // actor carries no site role, so the public flag is the whole test here.
-    if !api.sees(row.is_public, None) {
+    // through `SitePageIsPublicAssertion` (a public page of a public site), and
+    // the per-role grants add site ownership and site permissions; the admin
+    // roles hold `view-all` and bypass the test.
+    if !site_page_visible(api, &row).await? {
         return Err(not_found(PAGE_CLASS, raw_id));
     }
     site_page_document(api, &row).await
@@ -473,7 +520,7 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
         .map(str::trim)
         .filter(|needle| !needle.is_empty());
     let matches = fulltext_matches(api, "site_pages", fulltext).await?;
-    let rows: Vec<SitePageRow> = rows
+    let candidates: Vec<SitePageRow> = rows
         .into_iter()
         .filter(|row| !unknown_site && site_id.is_none_or(|id| row.site_id == id))
         .filter(|row| id_matches(&ids, row.id.0))
@@ -483,16 +530,22 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
                 .bool("is_public")
                 .is_none_or(|want| row.is_public == want)
         })
-        // `SitePageVisibilityFilter`: a visitor sees a public page. Upstream
-        // also requires the page's site to be public; the port's member read
-        // tests only the page flag, so the list does the same.
-        .filter(|row| api.sees(row.is_public, None))
         .filter(|row| {
             matches
                 .as_ref()
                 .is_none_or(|hits| hits.contains_key(&row.id.0))
         })
         .collect();
+    // `SitePageVisibilityFilter`: a page is visible when it is public on a
+    // public site, the caller owns its site, or the caller holds a site
+    // permission. The test is async (it reads the site and its permissions), so
+    // it runs after the cheap filters.
+    let mut rows: Vec<SitePageRow> = Vec::with_capacity(candidates.len());
+    for row in candidates {
+        if site_page_visible(api, &row).await? {
+            rows.push(row);
+        }
+    }
     let sort_by = params.get("sort_by").unwrap_or("id");
     let (total, page) = match (&matches, params.sort_by_is_default()) {
         (Some(hits), true) => relevance_page(

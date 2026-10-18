@@ -302,14 +302,18 @@ fn breadcrumbs(path: &[&crate::nav::NavItem]) -> String {
     out
 }
 
-/// `common/site-page-pagination.phtml`: Prev and Next links to the neighbouring
-/// pages of this site, in the order the caller supplied them.
+/// `common/site-page-pagination.phtml` through
+/// `View\Helper\SitePagePagination`: Prev and Next links to the pages linked in
+/// the navigation, in navigation order. A page that the navigation does not
+/// link has no pagination, and a hidden page is not a neighbour because it is
+/// not in `ctx.pages`.
 fn page_pagination(page_id: omeka_core::ids::PageId, ctx: &RenderContext<'_>) -> String {
-    let Some(index) = ctx.pages.iter().position(|page| page.id == page_id) else {
+    let linked = linked_pages(&ctx.nav, &ctx.pages);
+    let Some(index) = linked.iter().position(|page| page.id == page_id) else {
         return String::new();
     };
-    let prev = index.checked_sub(1).and_then(|i| ctx.pages.get(i));
-    let next = ctx.pages.get(index + 1);
+    let prev = index.checked_sub(1).and_then(|i| linked.get(i));
+    let next = linked.get(index + 1);
     if prev.is_none() && next.is_none() {
         return String::new();
     }
@@ -331,6 +335,35 @@ fn page_pagination(page_id: omeka_core::ids::PageId, ctx: &RenderContext<'_>) ->
     }
     out.push_str("</div>");
     out
+}
+
+/// The pages the navigation links, in the order `linkedPages()` walks them: a
+/// depth-first pass that adds each page link the tree resolves, once. Only
+/// pages the caller can see are in `pages`, so a hidden page never enters the
+/// sequence.
+fn linked_pages<'a>(
+    nav: &'a [crate::nav::NavItem],
+    pages: &'a [crate::nav::PageRef],
+) -> Vec<&'a crate::nav::PageRef> {
+    let mut out: Vec<&crate::nav::PageRef> = Vec::new();
+    collect_linked(nav, pages, &mut out);
+    out
+}
+
+fn collect_linked<'a>(
+    nav: &'a [crate::nav::NavItem],
+    pages: &'a [crate::nav::PageRef],
+    out: &mut Vec<&'a crate::nav::PageRef>,
+) {
+    for item in nav {
+        if let Some(id) = item.page
+            && let Some(page) = pages.iter().find(|page| page.id == id)
+            && !out.iter().any(|linked| linked.id == id)
+        {
+            out.push(page);
+        }
+        collect_linked(&item.children, pages, out);
+    }
 }
 
 /// `view/omeka/site/item/browse.phtml` and its item-set and page siblings.

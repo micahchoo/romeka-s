@@ -129,22 +129,25 @@ async fn unknown_slug_is_404_with_the_error_page() {
     );
 }
 
-/// `view/error/403.phtml`: a page that exists but is not public is a 403.
+/// `view/error/404.phtml`: a page that exists but the caller cannot see is a
+/// 404, because upstream's `SitePageVisibilityFilter` removes it from the read
+/// rather than denying access.
 #[tokio::test]
-async fn non_public_page_is_403() {
+async fn non_public_page_is_404() {
     let (pool, _seed) = site_pool().await;
     let answer = send(router(pool), get("/s/museum/page/notes", false)).await;
-    assert_eq!(answer.status, StatusCode::FORBIDDEN);
+    assert_eq!(answer.status, StatusCode::NOT_FOUND);
     assert!(
-        answer.body.contains("<h1>Forbidden</h1>"),
+        answer.body.contains("<h1>Page not found</h1>"),
         "{}",
         answer.body
     );
 }
 
-/// `view/error/403.phtml`: a site that is not public is a 403.
+/// `view/error/404.phtml`: a site the caller cannot see is a 404, because
+/// `prepareSite` reads it through the same visibility the API applies.
 #[tokio::test]
-async fn non_public_site_is_403() {
+async fn non_public_site_is_404() {
     let (pool, _seed) = seeded_pool().await;
     SiteRepo::new(&pool)
         .create(&NewSite {
@@ -157,17 +160,18 @@ async fn non_public_site_is_403() {
         .await
         .unwrap();
     let answer = send(router(pool), get("/s/private", false)).await;
-    assert_eq!(answer.status, StatusCode::FORBIDDEN);
+    assert_eq!(answer.status, StatusCode::NOT_FOUND);
     assert!(
-        answer.body.contains("<h1>Forbidden</h1>"),
+        answer.body.contains("<h1>Page not found</h1>"),
         "{}",
         answer.body
     );
 }
 
-/// `view/error/403.phtml`: an item that is not public is a 403.
+/// `view/error/404.phtml`: an item the caller cannot see is a 404, because
+/// `ResourceVisibilityFilter` removes it from the read.
 #[tokio::test]
-async fn non_public_item_is_403() {
+async fn non_public_item_is_404() {
     let (pool, seed) = site_pool().await;
     let item = ItemRepo::new(&pool)
         .create(&NewItem {
@@ -183,9 +187,9 @@ async fn non_public_item_is_403() {
         .unwrap();
     let path = format!("/s/museum/item/{}", item.id().0);
     let answer = send(router(pool), get(&path, false)).await;
-    assert_eq!(answer.status, StatusCode::FORBIDDEN);
+    assert_eq!(answer.status, StatusCode::NOT_FOUND);
     assert!(
-        answer.body.contains("<h1>Forbidden</h1>"),
+        answer.body.contains("<h1>Page not found</h1>"),
         "{}",
         answer.body
     );
@@ -547,7 +551,7 @@ async fn site_route_table() {
         ("/s/museum".to_string(), StatusCode::FOUND),
         ("/s/museum/page/welcome".to_string(), StatusCode::OK),
         ("/s/museum/page/WELCOME".to_string(), StatusCode::OK),
-        ("/s/museum/page/notes".to_string(), StatusCode::FORBIDDEN),
+        ("/s/museum/page/notes".to_string(), StatusCode::NOT_FOUND),
         ("/s/museum/page/missing".to_string(), StatusCode::NOT_FOUND),
         (format!("/s/museum/item/{}", seed.item.0), StatusCode::OK),
         ("/s/museum/item".to_string(), StatusCode::OK),

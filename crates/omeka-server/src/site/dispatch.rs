@@ -8,6 +8,7 @@ mod search;
 
 use axum::http::Uri;
 
+use omeka_api::auth::Actor;
 use omeka_api::read::catalog::Catalog;
 use omeka_core::ids::PageId;
 use omeka_core::resource::{ResourceKind, Timestamp};
@@ -26,26 +27,42 @@ use omeka_site::theme::{DefaultTheme, Theme};
 use omeka_site::view::{NoResources, RenderContext, ResourceProvider, View};
 use sqlx::SqlitePool;
 
-use super::load::{self, BrowseScope, Loader};
+use super::load::{self, Access, BrowseScope, Loader};
 use super::provider;
 use super::{Outcome, SiteError, route_slug};
 
 use crate::AppState;
 
-pub(crate) async fn dispatch(state: &AppState, uri: &Uri) -> Result<Outcome, SiteError> {
+/// Resolve a public path and render it, filtering every read by the actor's
+/// visibility the way upstream's `prepareSite` and the visibility filters do.
+pub(crate) async fn dispatch(
+    state: &AppState,
+    uri: &Uri,
+    actor: &Actor,
+) -> Result<Outcome, SiteError> {
     let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
     let slug = route_slug(&route);
     let row = SiteRepo::new(&state.pool)
         .get_by_slug(slug.as_str())
         .await?
         .ok_or(SiteError::NotFound)?;
-    if !row.is_public {
-        return Err(SiteError::Forbidden);
+    // A site the caller cannot see is not found, matching a private site's API
+    // read: `MvcListeners::prepareSite` reads the site through the same
+    // visibility the API applies, so a hidden site never reaches a controller.
+    let site_permission = site_permission(&state.pool, row.id, actor).await?;
+    if !actor.sees_site(row.is_public, row.owner_id, site_permission) {
+        return Err(SiteError::NotFound);
     }
 
     let site = load::site_from_row(&row)?;
     let catalog = load_catalog(&state.pool).await?;
-    let loader = Loader::new(&state.pool, &state.base, &catalog, &site);
+    let access = Access {
+        actor,
+        site_is_public: row.is_public,
+        site_owner: row.owner_id,
+        site_permission,
+    };
+    let loader = Loader::new(&state.pool, &state.base, &catalog, &site, &access);
     let pages = loader.page_refs().await?;
     // A corrupt navigation blob renders an empty menu, not a 500;
     // `parse_navigation` is the storage boundary.
@@ -152,13 +169,14 @@ fn home(common: &Common<'_>) -> Result<Outcome, SiteError> {
     Ok(Outcome::Html(render_index(&ctx)))
 }
 
-/// `Site\PageController::showAction`: the page of this site with this slug.
+/// `Site\PageController::showAction`: the page of this site with this slug. A
+/// page the caller cannot see is a 404 (`SitePageVisibilityFilter`), not a 403.
 async fn show_page(common: &Common<'_>, page_slug: &str) -> Result<Outcome, SiteError> {
     let Some(row) = common.loader.page_row(page_slug).await? else {
         return Err(SiteError::NotFound);
     };
-    if !row.is_public {
-        return Err(SiteError::Forbidden);
+    if !common.loader.access().sees_site_page(row.is_public) {
+        return Err(SiteError::NotFound);
     }
     let page = common.loader.page_from_row(&row).await?;
     // The snapshot runs before the context exists, so no `RenderContext` lives
@@ -206,7 +224,8 @@ async fn browse_scoped(
 }
 
 /// `Site\ItemController::showAction`, `Site\ItemSetController` and
-/// `Site\MediaController::showAction`: read the resource by id.
+/// `Site\MediaController::showAction`: read the resource by id. A resource the
+/// caller cannot see is a 404 (`Db\Filter\ResourceVisibilityFilter`), not a 403.
 async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome, SiteError> {
     let Some(kind) = kind_for_controller(controller) else {
         return Err(SiteError::NotFound);
@@ -217,7 +236,7 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
                 .get(db::ItemId::from(id))
                 .await?
                 .ok_or(SiteError::NotFound)?;
-            require_public(&row.resource)?;
+            require_visible(common, &row.resource)?;
             common.loader.item_resource_view(&row).await?
         }
         ResourceKind::ItemSet => {
@@ -225,7 +244,7 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
                 .get(db::ItemSetId::from(id))
                 .await?
                 .ok_or(SiteError::NotFound)?;
-            require_public(&row.resource)?;
+            require_visible(common, &row.resource)?;
             common.loader.item_set_resource_view(&row).await?
         }
         ResourceKind::Media => {
@@ -233,7 +252,7 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
                 .get(db::MediaId::from(id))
                 .await?
                 .ok_or(SiteError::NotFound)?;
-            require_public(&row.resource)?;
+            require_visible(common, &row.resource)?;
             common.loader.media_resource_view(&row).await?
         }
     };
@@ -246,11 +265,15 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
     Ok(Outcome::Html(DefaultTheme.render(&view, &ctx)))
 }
 
-fn require_public(row: &ResourceRow) -> Result<(), SiteError> {
-    if row.is_public {
+fn require_visible(common: &Common<'_>, row: &ResourceRow) -> Result<(), SiteError> {
+    if common
+        .loader
+        .access()
+        .sees_resource(row.is_public, row.owner_id)
+    {
         Ok(())
     } else {
-        Err(SiteError::Forbidden)
+        Err(SiteError::NotFound)
     }
 }
 
@@ -283,4 +306,17 @@ async fn load_catalog(pool: &SqlitePool) -> Result<Catalog, SiteError> {
             reason: error.to_string(),
         })
     })
+}
+
+/// Whether the actor holds a permission on the site
+/// (`HasSitePermissionAssertion('viewer')` accepts every site role).
+async fn site_permission(
+    pool: &SqlitePool,
+    site: db::SiteId,
+    actor: &Actor,
+) -> Result<bool, SiteError> {
+    let Some(user) = actor.user() else {
+        return Ok(false);
+    };
+    Ok(SiteRepo::new(pool).has_permission(site, user).await?)
 }

@@ -443,7 +443,7 @@ async fn a_delete_answers_a_site_with_detached_pages() {
 
     let before = send(
         app.clone(),
-        get(&format!("/api/sites/{}", seed.site), false),
+        request("GET", &keyed(&format!("/api/sites/{}", seed.site))),
     )
     .await;
     let pages = before.json()["o:page"].as_array().unwrap().len();

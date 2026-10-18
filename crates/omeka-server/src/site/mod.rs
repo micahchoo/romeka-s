@@ -20,10 +20,11 @@ mod provider;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderValue, Method, StatusCode, Uri, header};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::any;
 
+use omeka_api::auth::Actor;
 use omeka_core::ids::SiteId;
 use omeka_core::site::{Site, Slug};
 use omeka_site::slug::{PublicRoute, parse_public_path};
@@ -50,22 +51,34 @@ pub(crate) enum Outcome {
 /// A public route that could not be served.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum SiteError {
-    /// No site, page or resource at this path (`view/error/404.phtml`).
+    /// No site, page or resource at this path, or one the caller cannot see
+    /// (`view/error/404.phtml`). Upstream answers a hidden site, page or
+    /// resource with the same 404, because the visibility filters remove it
+    /// from the read.
     #[error("not found")]
     NotFound,
-    /// The site or resource is not public (`view/error/403.phtml`).
-    #[error("forbidden")]
-    Forbidden,
     /// A storage failure, answered with the generic 500 document.
     #[error(transparent)]
     Internal(#[from] omeka_db::DbError),
 }
 
-async fn handle(State(state): State<AppState>, method: Method, uri: Uri) -> Response {
+async fn handle(
+    State(state): State<AppState>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
     if method != Method::GET {
         return method_not_allowed();
     }
-    match dispatch::dispatch(&state, &uri).await {
+    let actor = match crate::session_actor(&state, &headers).await {
+        Ok(Some(actor)) => actor,
+        Ok(None) => Actor::anonymous(),
+        // A storage failure while reading the session is the site layer's
+        // generic 500, not the API's JSON error document.
+        Err(_) => return crate::empty_internal_error(),
+    };
+    match dispatch::dispatch(&state, &uri, &actor).await {
         Ok(outcome) => outcome_response(outcome),
         Err(error) => error_response(&uri, error),
     }
@@ -108,10 +121,6 @@ fn error_response(uri: &Uri, error: SiteError) -> Response {
         SiteError::NotFound => html_response(
             StatusCode::NOT_FOUND,
             render_error(uri.path(), &ErrorView::not_found()),
-        ),
-        SiteError::Forbidden => html_response(
-            StatusCode::FORBIDDEN,
-            render_error(uri.path(), &ErrorView::forbidden()),
         ),
         SiteError::Internal(_) => crate::empty_internal_error(),
     }

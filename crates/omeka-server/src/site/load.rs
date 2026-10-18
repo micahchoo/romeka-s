@@ -143,12 +143,43 @@ impl LoadedRow {
 }
 
 /// The read side of one site render: the pool, the base URL, the property
-/// catalog and the site being served.
+/// catalog, the site being served, and the caller's visibility facts.
 pub(crate) struct Loader<'a> {
     pool: &'a SqlitePool,
     base: &'a BaseUrl,
     catalog: &'a Catalog,
     site: &'a Site,
+    access: &'a Access<'a>,
+}
+
+/// The visibility facts one site render reads: the asking actor and what the
+/// site grants that actor. Upstream's `SitePageVisibilityFilter` and
+/// `ResourceVisibilityFilter` read exactly these facts for every page and
+/// resource a render touches.
+#[derive(Clone, Copy)]
+pub(crate) struct Access<'a> {
+    pub(crate) actor: &'a omeka_api::auth::Actor,
+    pub(crate) site_is_public: bool,
+    pub(crate) site_owner: Option<db::UserId>,
+    pub(crate) site_permission: bool,
+}
+
+impl Access<'_> {
+    /// Whether the caller may see a page of the site this access belongs to
+    /// (`SitePageVisibilityFilter`).
+    pub(crate) fn sees_site_page(&self, page_is_public: bool) -> bool {
+        self.actor.sees_site_page(
+            page_is_public,
+            self.site_is_public,
+            self.site_owner,
+            self.site_permission,
+        )
+    }
+
+    /// Whether the caller may see a resource (`ResourceVisibilityFilter`).
+    pub(crate) fn sees_resource(&self, is_public: bool, owner: Option<db::UserId>) -> bool {
+        self.actor.sees_resource(is_public, owner)
+    }
 }
 
 impl<'a> Loader<'a> {
@@ -157,13 +188,20 @@ impl<'a> Loader<'a> {
         base: &'a BaseUrl,
         catalog: &'a Catalog,
         site: &'a Site,
+        access: &'a Access<'a>,
     ) -> Self {
         Self {
             pool,
             base,
             catalog,
             site,
+            access,
         }
+    }
+
+    /// The caller's visibility facts for this site render.
+    pub(crate) fn access(&self) -> &Access<'a> {
+        self.access
     }
 
     pub(crate) fn pool(&self) -> &'a SqlitePool {
@@ -183,13 +221,20 @@ impl<'a> Loader<'a> {
         db::BlockId::from(block.get())
     }
 
-    /// The site's pages as navigation resolution needs them. A page whose stored
-    /// slug fails `Slug::parse` is skipped, as it can never resolve to a URL.
+    /// The site's visible pages as navigation resolution needs them. A page
+    /// whose stored slug fails `Slug::parse` is skipped, as it can never resolve
+    /// to a URL, and a page the caller cannot see (`SitePageVisibilityFilter`)
+    /// is dropped so it never reaches the navigation, the table of contents or
+    /// the pagination.
     pub(crate) async fn page_refs(&self) -> Result<Vec<PageRef>, DbError> {
         let rows = SiteRepo::new(self.pool)
             .list_pages(self.db_site_id())
             .await?;
-        Ok(rows.iter().filter_map(page_ref).collect())
+        Ok(rows
+            .iter()
+            .filter(|row| self.access.sees_site_page(row.is_public))
+            .filter_map(page_ref)
+            .collect())
     }
 
     /// The page of this site whose stored slug is `slug`.
@@ -228,26 +273,32 @@ impl<'a> Loader<'a> {
         }
     }
 
-    /// A public item as the item view shows it.
+    /// An item as the item view shows it.
+    ///
+    /// `ItemRepresentation::primaryMedia` reads the primary media through the
+    /// visibility filter, so a hidden primary media yields no media rather than
+    /// falling through; with no primary media it takes the first media the
+    /// caller can see (`ItemRepresentation::media`).
     pub(crate) async fn item_resource_view(&self, row: &ItemRow) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Item, &row.resource).await?;
-        let media_id = match row.primary_media_id {
-            Some(id) => Some(id),
-            // `ItemRepresentation::primaryMedia` falls back to the first media.
-            None => self.first_media_id(row.id()).await?,
+        let media = match row.primary_media_id {
+            Some(id) => MediaRepo::new(self.pool).get(id).await?.filter(|media| {
+                self.access
+                    .sees_resource(media.resource.is_public, media.resource.owner_id)
+            }),
+            None => self.first_media(row.id()).await?,
         };
-        if let Some(media_id) = media_id {
+        if let Some(media_row) = media {
             let alt = view.title.clone();
+            let media_id = media_row.id();
             if view.thumbnail.is_none() {
                 view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
             }
-            if let Some(media_row) = MediaRepo::new(self.pool).get(media_id).await? {
-                let item_url = view.url.clone();
-                view.primary_media = Some(
-                    self.media_ref(&media_row, &item_url, &media_options(None, None))
-                        .await?,
-                );
-            }
+            let item_url = view.url.clone();
+            view.primary_media = Some(
+                self.media_ref(&media_row, &item_url, &media_options(None, None))
+                    .await?,
+            );
         }
         self.add_item_lists(row, &mut view).await?;
         Ok(view)
@@ -695,10 +746,16 @@ impl<'a> Loader<'a> {
             .unwrap_or_default())
     }
 
-    /// The item's item sets and media, for the item-with-metadata block.
+    /// The item's item sets and media, for the item-with-metadata block. A
+    /// hidden item set or media row is dropped, matching
+    /// `ResourceVisibilityFilter` on the related entities.
     async fn add_item_lists(&self, row: &ItemRow, view: &mut ResourceView) -> Result<(), DbError> {
         for id in ItemRepo::new(self.pool).list_item_sets(row.id()).await? {
-            if let Some(set) = ItemSetRepo::new(self.pool).get(id).await? {
+            if let Some(set) = ItemSetRepo::new(self.pool).get(id).await?
+                && self
+                    .access
+                    .sees_resource(set.resource.is_public, set.resource.owner_id)
+            {
                 view.item_sets.push(ResourceRef {
                     url: resource_show_url(&self.site.slug, "item-set", set.id().0),
                     title: display_title(&set.resource),
@@ -716,6 +773,12 @@ impl<'a> Loader<'a> {
             )
             .await?;
         for entry in media {
+            if !self
+                .access
+                .sees_resource(entry.resource.is_public, entry.resource.owner_id)
+            {
+                continue;
+            }
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: display_title(&entry.resource),
@@ -725,7 +788,9 @@ impl<'a> Loader<'a> {
         Ok(())
     }
 
-    async fn first_media_id(&self, item_id: db::ItemId) -> Result<Option<db::MediaId>, DbError> {
+    /// The item's first media row the caller can see, `ItemRepresentation`'s
+    /// primary-media fallback under `ResourceVisibilityFilter`.
+    async fn first_media(&self, item_id: db::ItemId) -> Result<Option<MediaRow>, DbError> {
         Ok(MediaRepo::new(self.pool)
             .list(
                 &MediaFilter {
@@ -735,8 +800,11 @@ impl<'a> Loader<'a> {
                 &Paging::default(),
             )
             .await?
-            .first()
-            .map(MediaRow::id))
+            .into_iter()
+            .find(|media| {
+                self.access
+                    .sees_resource(media.resource.is_public, media.resource.owner_id)
+            }))
     }
 
     async fn thumbnail_for(

@@ -387,15 +387,30 @@ pub(crate) async fn actor_for(
     uri: &Uri,
     headers: &HeaderMap,
 ) -> Result<auth::Actor, ApiError> {
+    if let Some(actor) = session_actor(state, headers).await? {
+        return Ok(actor);
+    }
+    let params = Params::parse(uri.query().unwrap_or(""));
+    auth::authenticate_with(&state.pool, &state.auth_cache, params.pairs()).await
+}
+
+/// The actor the request's session cookie names, `None` when it carries no live
+/// session.
+///
+/// The public site routes read only this: `MvcListeners::authenticateApiKey`
+/// runs the key pair on `/api` routes alone (`__KEYAUTH__`), so a key in a `/s`
+/// query string is not an identity upstream.
+pub(crate) async fn session_actor(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<Option<auth::Actor>, ApiError> {
     let token = headers
         .get(header::COOKIE)
         .and_then(|value| value.to_str().ok())
         .and_then(session::cookie_token);
-    if let Some(user) = omeka_api::login::current_user(&state.pool, token).await? {
-        return Ok(auth::Actor::new(user.id, user.role));
-    }
-    let params = Params::parse(uri.query().unwrap_or(""));
-    auth::authenticate_with(&state.pool, &state.auth_cache, params.pairs()).await
+    Ok(omeka_api::login::current_user(&state.pool, token)
+        .await?
+        .map(|user| auth::Actor::new(user.id, user.role)))
 }
 
 /// Turn one resolution into a response.
