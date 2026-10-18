@@ -17,6 +17,7 @@
 
 mod assets;
 mod attachments;
+mod collation;
 mod fulltext;
 mod jobs;
 mod media;
@@ -34,6 +35,7 @@ mod vocabularies;
 
 pub use assets::{AssetFilter, AssetOwner, AssetRepo};
 pub use attachments::SiteBlockAttachmentRepo;
+pub use collation::{compare_opt_text_ci, compare_text_ci};
 pub use fulltext::{FulltextMatch, FulltextRepo, has_word, match_expression};
 pub use jobs::{JobFilter, JobRepo};
 pub use media::{MediaFilter, MediaRepo};
