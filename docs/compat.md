@@ -69,22 +69,29 @@ fork point, with a page posted through `/api` and read back:
 | an extra key in block or page `o:layout_data` | stores it unchanged | ignores it; the known keys apply |
 | a block whose `o:layout` upstream does not know | stores it unchanged | an empty `<div class="block block-<layout>">`; the content is gone |
 
-So an extra key degrades and an unknown layout does not. Three consequences follow, and every
-block added to this product obeys them:
+So an extra key degrades and an unknown layout does not. An upstream admin save is the second test.
+Measured on the oracle, a page saved once through `admin/site/s/<site>/page/<page>/edit`:
 
-- A block this product adds is stored under an upstream layout, usually `html`. Its own settings sit
-  under `o:data.romeka`, which upstream ignores.
-- The upstream part of that block, such as `o:data.html`, is the plain rendering. Romeka S writes it
-  from the block's own renderer on every save, so nobody writes the fallback by hand and it cannot drift
-  from the rich block.
+| Where the extra key was | After the upstream admin save |
+| --- | --- |
+| block `o:data` | dropped: the form rebuilds `o:data` from its fields |
+| block `o:layout_data` | kept: the form carries it as one hidden JSON field (`view/common/block-layout.phtml`) |
+| page `o:layout_data` | dropped: the form rebuilds it from `PageLayoutDataForm` |
+
+Every block this product adds obeys four consequences:
+
+- It is stored under an upstream layout, usually `html`. Its own settings sit under
+  `o:layout_data.romeka`, which upstream ignores and its admin keeps.
+- The upstream part of the block, such as `o:data.html`, is the plain rendering. Romeka S writes it
+  from the block's own renderer on every save, so nobody writes the fallback by hand.
+- `o:layout_data.romeka` records a hash of the plain rendering it wrote. When the stored plain
+  rendering no longer matches, someone edited the block outside this product: Romeka S renders the
+  edited plain HTML and its editor marks the block, rather than overwrite that edit with the rich one.
 - A block that has no plain rendering (a live search, an interactive map) writes a plain statement of
   what is missing and a link to this product's page, never nothing.
 
-Upstream's admin builds `o:data` from the block's form fields (`application/src/Site/BlockLayout/Html.php`
-names one, `o:data[html]`), so a save there keeps the plain rendering and drops `o:data.romeka`. That
-is why the rule is one-way. The block's `o:layout_data` travels through that form as one hidden JSON
-field (`application/view/common/block-layout.phtml`), so it may survive an upstream save; that has
-not been measured.
+Page-level settings of this product do not go in page `o:layout_data`, because an upstream save drops
+them.
 
 ## What compatibility does not cover
 
