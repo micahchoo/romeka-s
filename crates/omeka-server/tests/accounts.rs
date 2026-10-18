@@ -490,10 +490,16 @@ async fn the_login_limit_trips_with_the_documented_window() {
         "{}",
         answer.body
     );
-    assert_eq!(
-        header(&answer, "retry-after"),
-        Some("300"),
-        "the documented five minute window"
+    // The header counts whole seconds left in the window, so a run that crosses
+    // a second boundary between the trip and the answer reads one less. Assert
+    // the window, not the boundary.
+    let retry_after = header(&answer, "retry-after").expect("a retry-after header");
+    let seconds: u64 = retry_after
+        .parse()
+        .expect("retry-after is a whole number of seconds");
+    assert!(
+        (299..=300).contains(&seconds),
+        "the documented five minute window, read as {retry_after}"
     );
     // The limit is checked before the password is, so even the right one is
     // refused while the window is open.
