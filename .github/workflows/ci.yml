@@ -1,0 +1,101 @@
+# The product's CI. Five jobs: the Rust workspace, the admin SPA, the browser suite that
+# drives the two together, the generated documentation, and the container image.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rust (fmt, clippy, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # edition 2024 needs a current stable. `rustfmt` and `clippy` are the two
+      # components the gate runs.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # Caches the cargo home and the target directory, keyed on the lockfile.
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test
+        run: cargo test --workspace
+
+  admin:
+    name: admin (typecheck, lint, unit tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/admin/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: the bundle and the chunk budgets
+        run: npm run perf:check
+
+  e2e:
+    name: admin end to end (browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: web/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/admin/package-lock.json
+      - run: npm ci
+      - name: install the browser
+        run: npx playwright install --with-deps chromium
+      # Builds the SPA, installs a temporary database, starts the server and
+      # drives the admin and the public site in a browser.
+      - run: npm run e2e
+
+  docs:
+    name: docs (the generated API reference)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # Fails when docs/api.md no longer matches crates/omeka-api/src.
+      - name: api.md is current
+        run: ./docs/gen.sh --check
+
+  image:
+    name: image (docker build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -f packaging/Dockerfile -t romeka-s:ci .
