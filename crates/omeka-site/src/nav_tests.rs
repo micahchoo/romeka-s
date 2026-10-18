@@ -171,3 +171,24 @@ fn render_menu_links_are_escaped_and_depth_limited() {
     assert!(!top_only.contains(">Child</a>"), "{top_only}");
     assert_eq!(render_menu(&[], None, "navigation"), "");
 }
+
+/// `Link/Url.php::toZend`: a URL link with `target_blank` renders the anchor
+/// with `target="_blank"`, and one without it renders no target attribute.
+#[test]
+fn render_menu_marks_a_target_blank_url_link() {
+    let stored = json!([
+        {"type": "url", "data": {
+            "label": "Elsewhere",
+            "url": "https://example.com/x",
+            "target_blank": true
+        }},
+        {"type": "url", "data": {"label": "Here", "url": "/x"}}
+    ]);
+    let items = resolve(&parse_navigation(&stored).unwrap(), &site(), &pages());
+    let menu = render_menu(&items, None, "navigation");
+    assert!(
+        menu.contains("<a href=\"https://example.com/x\" target=\"_blank\">Elsewhere</a>"),
+        "{menu}"
+    );
+    assert!(menu.contains("<a href=\"/x\">Here</a>"), "{menu}");
+}

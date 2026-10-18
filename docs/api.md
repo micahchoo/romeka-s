@@ -189,10 +189,10 @@ Create, update and delete (`write::access::adapter` in `crates/omeka-api/src/wri
 | `properties` | the admin roles | the admin roles | the admin roles |
 | `jobs` | the admin roles | the admin roles | the admin roles |
 | `users` | the admin roles | `researcher`, `author`, `reviewer`, `editor`, `site_admin`, `global_admin` | the admin roles |
-| `sites` | the admin roles | the admin roles | any caller |
-| `site_pages` | the admin roles | the admin roles | any caller |
+| `sites` | any caller | any caller | any caller |
+| `site_pages` | any caller | any caller | any caller |
 
-Delete then checks the entity rule: `write::access::resource_entity` for items, item sets, media and assets (an editor or an admin role may remove any row, an author or a reviewer only a row they own), `owned_entity` for sites and site pages (an admin role any row, everyone else only their own, so an anonymous caller is refused), `user_entity` for users (an admin may not remove their own account, and a site admin may not remove another admin), and `vocabulary_entity` for vocabularies (a global admin any row, a site admin only one they added). Update carries `resource_entity_update`: a reviewer and up may change any row of items, item sets, media, assets and resource templates, and an author only a row they own.
+Delete then checks the entity rule: `write::access::resource_entity` for items, item sets, media and assets (an editor or an admin role may remove any row, an author or a reviewer only a row they own), `owned_entity` for sites and site pages (an admin role any row, everyone else only their own, so an anonymous caller is refused; a `site_permission` role of `admin` also grants a site update and `editor` or `admin` a page write or delete), `user_entity` for users (an admin may not remove their own account, and a site admin may not remove another admin), and `vocabulary_entity` for vocabularies (a global admin any row, a site admin only one they added). Update carries `resource_entity_update`: a reviewer and up may change any row of items, item sets, media, assets and resource templates, and an author only a row they own.
 
 ## Resources
 

@@ -136,8 +136,5 @@ returns. The suite skips loudly rather than failing.
 
 ## Follow-ups
 
-- Every table the port serves has a repository. `item_site` is the one exception: its row struct
-  exists and a caller that attaches an item to a site still writes the row itself. See
-  `SCHEMA-NOTES.md`.
 - The MySQL migration does not replay upstream's `application/data/migrations/`. An install older
   than the frozen SHA keeps its older columns, exactly as upstream would leave them.

@@ -135,6 +135,9 @@ pub trait Backend: Database {
     /// `item_item_set`: attach an item to an item set unless the row is already there.
     fn insert_item_item_set() -> &'static str;
 
+    /// `item_site`: attach an item to a site unless the row is already there.
+    fn insert_item_site() -> &'static str;
+
     /// `site_item_set`: attach an item set to a site, replacing the position on a repeat.
     fn upsert_site_item_set() -> &'static str;
 
@@ -271,6 +274,10 @@ impl Backend for sqlx::Sqlite {
         "INSERT OR IGNORE INTO item_item_set (item_id, item_set_id) VALUES (?, ?)"
     }
 
+    fn insert_item_site() -> &'static str {
+        "INSERT OR IGNORE INTO item_site (item_id, site_id) VALUES (?, ?)"
+    }
+
     fn upsert_site_item_set() -> &'static str {
         "INSERT INTO site_item_set (site_id, item_set_id, position) VALUES (?, ?, ?)
          ON CONFLICT (site_id, item_set_id) DO UPDATE SET position = excluded.position"
@@ -397,6 +404,10 @@ impl Backend for sqlx::MySql {
 
     fn insert_item_item_set() -> &'static str {
         "INSERT IGNORE INTO item_item_set (item_id, item_set_id) VALUES (?, ?)"
+    }
+
+    fn insert_item_site() -> &'static str {
+        "INSERT IGNORE INTO item_site (item_id, site_id) VALUES (?, ?)"
     }
 
     fn upsert_site_item_set() -> &'static str {

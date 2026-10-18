@@ -141,5 +141,3 @@ first, then `resource`, so both the value's `resource_id` and any pointing value
 
 - The `resource_type` prefix index and the FULLTEXT behaviour are the only MySQL-specific index
   features; both are handled above.
-- `item_site` is the one served table with a row struct and no repository, so a caller that attaches
-  an item to a site writes the row itself. Every other table the port serves has a repository.

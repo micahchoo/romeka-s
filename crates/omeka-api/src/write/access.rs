@@ -12,6 +12,7 @@
 //! handler the caller named.
 
 use omeka_db::ids::UserId;
+use omeka_db::rows::SitePermissionRow;
 
 use crate::auth::Actor;
 use crate::read::{entity_denied, permission_denied};
@@ -75,12 +76,12 @@ const ADAPTER_WRITES: &[(&str, Grant, Grant, Grant)] = &[
         Grant::Roles(USER_WRITE_ROLES),
         Grant::Admins,
     ),
-    // `AclFactory::addRulesForSites` grants both adapters to every role; the
-    // entity assertion is what refuses an anonymous caller. The port keeps its
-    // admin-only rule for site and page create and update, which is stricter
-    // than the upstream entity rule that admits an editor. Reported as a gap.
-    ("sites", Grant::Admins, Grant::Admins, Grant::AnyRole),
-    ("site_pages", Grant::Admins, Grant::Admins, Grant::AnyRole),
+    // `AclFactory::addRulesForSites` grants both adapters to every role, the
+    // anonymous request included; the entity assertion is what refuses a
+    // write. Both admin roles hold every privilege through
+    // `addRulesForSiteAdmin` and `addRulesForGlobalAdmin`.
+    ("sites", Grant::AnyRole, Grant::AnyRole, Grant::AnyRole),
+    ("site_pages", Grant::AnyRole, Grant::AnyRole, Grant::AnyRole),
 ];
 
 /// `AclFactory`'s resource entity adapters: `ItemAdapter`, `ItemSetAdapter`,
@@ -241,6 +242,44 @@ pub fn user_entity(
 /// `Acl::isAdminRole`.
 pub fn is_admin_role(role: Option<&str>) -> bool {
     matches!(role, Some("global_admin" | "site_admin"))
+}
+
+/// A site permission role, numbered the way [`HasSitePermissionAssertion`]
+/// numbers it: `admin` 1, `editor` 2, `viewer` 3. A lower number is the
+/// stronger role, so `stored <= required` is "at least this role".
+///
+/// [`HasSitePermissionAssertion`]: https://github.com/omeka/omeka-s/blob/5e413f009c447f4b587803ab23a9cec7d228f6e8/application/src/Permissions/Assertion/HasSitePermissionAssertion.php
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SiteRole {
+    Admin,
+    Editor,
+    Viewer,
+}
+
+impl SiteRole {
+    /// The assertion's `getRoleNumber`, whose `default` case is `viewer`.
+    fn of(role: &str) -> Self {
+        match role {
+            "admin" => Self::Admin,
+            "editor" => Self::Editor,
+            _ => Self::Viewer,
+        }
+    }
+}
+
+/// `HasSitePermissionAssertion`: `user` holds at least `required` on the site
+/// the permissions belong to.
+///
+/// An anonymous caller holds no site permission, which the assertion says
+/// explicitly before it reads the collection.
+pub fn has_site_permission(
+    permissions: &[SitePermissionRow],
+    user: UserId,
+    required: SiteRole,
+) -> bool {
+    permissions
+        .iter()
+        .any(|permission| permission.user_id == user && SiteRole::of(&permission.role) <= required)
 }
 
 fn allow(
