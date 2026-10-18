@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/backup}"
 export CARGO_TARGET_DIR
-OMEKA="$CARGO_TARGET_DIR/debug/romeka"
+ROMEKA="$CARGO_TARGET_DIR/debug/romeka"
 
 DATABASE=""
 STORE=""
@@ -51,7 +51,7 @@ if [ -z "$DATABASE" ]; then
     echo "[1/6] build a database and a store"
     DATABASE="$OUT/romeka.db"
     STORE="$OUT/files"
-    "$OMEKA" install -d "$DATABASE" --email verify@example.org --name Verify --password verify-password-1 >/dev/null
+    "$ROMEKA" install -d "$DATABASE" --email verify@example.org --name Verify --password verify-password-1 >/dev/null
     STORAGE_ID="$(printf 'a%.0s' {1..40})"
     printf 'original bytes\n' > "$OUT/original.bin"
     SHA="$(sha256sum "$OUT/original.bin" | cut -d' ' -f1)"
@@ -76,7 +76,7 @@ fi
 
 echo "[2/6] back up"
 ARCHIVE="$OUT/backup.tar"
-"$OMEKA" backup -d "$DATABASE" --store "$STORE" --out "$ARCHIVE"
+"$ROMEKA" backup -d "$DATABASE" --store "$STORE" --out "$ARCHIVE"
 
 echo "[3/6] read the archive with the system tar"
 LISTING="$(tar tf "$ARCHIVE")"
@@ -100,7 +100,7 @@ check "the database copy matches its manifest" \
 
 echo "[5/6] restore into a fresh directory"
 RESTORED="$OUT/restored"
-"$OMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE"
+"$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE"
 check "the restored item count" "$(sqlite3 "$RESTORED/romeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
 SOURCE_FILES="$(find "$STORE" -type f | wc -l)"
 check "the restored store file count" "$(find "$RESTORED/files" -type f | wc -l)" "$SOURCE_FILES"
@@ -112,13 +112,13 @@ while IFS= read -r file; do
 done < <(find "$STORE" -type f)
 
 echo "[6/6] a second restore without --force is refused, with --force it lands"
-if "$OMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" 2>"$OUT/refused.log"; then
+if "$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" 2>"$OUT/refused.log"; then
     echo "FAIL: the second restore was not refused" >&2
     exit 1
 fi
 grep -q -- "--force" "$OUT/refused.log"
 echo "ok: the refusal names --force"
-"$OMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" --force >/dev/null
+"$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" --force >/dev/null
 check "the forced restore keeps the item count" "$(sqlite3 "$RESTORED/romeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
 
 echo "archive $(stat -c %s "$ARCHIVE") bytes at $ARCHIVE"
