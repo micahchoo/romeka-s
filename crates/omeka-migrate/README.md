@@ -76,7 +76,8 @@ Most columns copy straight across. The exceptions are below.
 - **`created`.** Copied into the target `created`.
 - **`modified`.** Not carried. A repository create writes one instant into both `created` and
   `modified`, so the target `modified` equals the source `created`.
-- **`resource.thumbnail_id` and `site.thumbnail_id`.** Dropped. The port has no `asset` repository.
+- **`resource.thumbnail_id` and `site.thumbnail_id`.** Dropped, because the migrator does not copy
+  `asset` rows yet. `omeka-db` reads and writes them.
 - **`item.primary_media_id`.** Remapped and set after the media pass, because it points forward at a
   media row.
 - **`site.homepage_id`.** Remapped and set after the page pass, for the same reason.
@@ -97,7 +98,8 @@ Most columns copy straight across. The exceptions are below.
    intact, but an external link to `o:id` 42 will not find the same row.
 2. **`modified` timestamps.** See above. An item or site whose forward reference is set by an
    `update` gets `modified` set to the migration time.
-3. **Assets.** `asset` rows do not move, so `resource.thumbnail_id` and `site.thumbnail_id` are
+3. **Assets.** `asset` rows do not move yet (`omeka-db` has the repository; the migrator does not
+   call it), so `resource.thumbnail_id` and `site.thumbnail_id` are
    dropped. A thumbnail URL an import wrote into a JSON column still points at a file the port did
    not copy.
 4. **Value annotations.** `omeka-db` creates a `value_annotation` but has no read for one, so the
@@ -109,10 +111,11 @@ Most columns copy straight across. The exceptions are below.
 6. **Ids inside block `data` JSON.** Only `site.navigation` page ids are rewritten. Any other id a
    block stores in its `data` is left as the source wrote it.
 7. **`fulltext_search`.** Not migrated. The port rebuilds the index with its own job.
-8. **Repo-less tables.** `setting`, `module`, `job`, `session`, `asset`, `site_block_attachment`,
-   `password_creation`, `user_setting`, `site_setting` and `item_site` have no repository, so they do
-   not move. Site and user settings are the notable omission; the port has no settings read or write
-   yet.
+8. **Tables the migrator does not copy.** `setting`, `module`, `job`, `session`, `asset`,
+   `site_block_attachment`, `password_creation`, `user_setting`, `site_setting` and `item_site` do not
+   move. `omeka-db` has a repository for each now; the migrator has not been extended to call them.
+   Site settings, assets, block attachments and `item_site` (site membership) are the notable
+   omissions: a migrated site arrives without its settings, thumbnails, attachments or item pool.
 9. **Memory.** The read pass holds the whole source in memory before the write pass, so a very large
    install needs a matching amount of RAM.
 
