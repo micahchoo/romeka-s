@@ -478,6 +478,103 @@
       ]
     }
   ],
+  "romeka": [
+    {
+      "name": "hero",
+      "label": "romeka.hero",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "heading",
+          "label": "romekaField.hero.heading",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "subheading",
+          "label": "romekaField.hero.subheading",
+          "type": "text"
+        },
+        {
+          "key": "body",
+          "label": "romekaField.hero.body",
+          "type": "html"
+        },
+        {
+          "key": "background",
+          "label": "romekaField.hero.background",
+          "type": "assetRef"
+        },
+        {
+          "key": "overlay",
+          "label": "romekaField.hero.overlay",
+          "type": "choice",
+          "options": [
+            {
+              "value": "none",
+              "label": "romekaChoice.none"
+            },
+            {
+              "value": "light",
+              "label": "romekaChoice.light"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.medium"
+            },
+            {
+              "value": "strong",
+              "label": "romekaChoice.strong"
+            }
+          ],
+          "default": "medium"
+        },
+        {
+          "key": "alignment",
+          "label": "romekaField.hero.alignment",
+          "type": "choice",
+          "options": [
+            {
+              "value": "left",
+              "label": "blockChoice.left"
+            },
+            {
+              "value": "center",
+              "label": "blockChoice.center"
+            },
+            {
+              "value": "right",
+              "label": "blockChoice.right"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "key": "cta_label",
+          "label": "romekaField.hero.cta_label",
+          "type": "text"
+        },
+        {
+          "key": "cta_page",
+          "label": "romekaField.hero.cta_page",
+          "type": "pageRef"
+        },
+        {
+          "key": "cta_url",
+          "label": "romekaField.hero.cta_url",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "romekaVersion": 2,
+  "romekaHash": {
+    "algorithm": "fnv1a-64-canonical",
+    "input": "<h2>Romeka &amp; Co</h2><p>Hello <em>world</em>.</p><img src=\"/files/asset/a.png\" alt=\"A shelf\"><a href=\"/s/main/page/about\">About</a>",
+    "hash": "a0c959c15e3669c7",
+    "legacyAlgorithm": "fnv1a-64",
+    "legacyHash": "6e7e975fcc7e3e6f"
+  },
   "blockLayoutData": {
     "fields": [
       {

@@ -72,9 +72,32 @@ export interface BlockLayoutSchema extends LayoutSchema {
   readonly label: MessageKey;
 }
 
+/** One registered Romeka block, as the admin reads it. */
+export interface RomkaBlockSchema extends LayoutSchema {
+  readonly name: string;
+  readonly label: MessageKey;
+  /** The upstream layout the block is stored under. */
+  readonly carrier: string;
+}
+
+/** The plain-hash algorithm and one worked sample the hash test checks against. */
+export interface RomkaHash {
+  readonly algorithm: string;
+  readonly input: string;
+  readonly hash: string;
+  /** The raw-byte algorithm's name. */
+  readonly legacyAlgorithm: string;
+  /** The raw-byte hash of the sample input, as carrier version 1 stored it. */
+  readonly legacyHash: string;
+}
+
 /** The whole block registry. */
 export interface BlockRegistry {
   readonly layouts: readonly BlockLayoutSchema[];
+  readonly romeka: readonly RomkaBlockSchema[];
+  /** The carrier version a new carrier writes. */
+  readonly romekaVersion: number;
+  readonly romekaHash: RomkaHash;
   readonly blockLayoutData: LayoutSchema;
   readonly pageLayoutData: LayoutSchema;
 }
@@ -110,6 +133,14 @@ const parseBound = (value: unknown, path: Path): number | null => {
   if (value === undefined) {
     return null;
   }
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new ParseError(path, 'integer');
+  }
+  return value;
+};
+
+/** A required integer, e.g. the carrier version. */
+const parseInteger = (value: unknown, path: Path): number => {
   if (typeof value !== 'number' || !Number.isInteger(value)) {
     throw new ParseError(path, 'integer');
   }
@@ -218,6 +249,30 @@ const parseLayout = (value: unknown, path: Path): BlockLayoutSchema => {
   };
 };
 
+const parseRomka = (value: unknown, path: Path): RomkaBlockSchema => {
+  const layout = parseLayout(value, path);
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return {
+    ...layout,
+    carrier: parseString(value.carrier, [...path, 'carrier']),
+  };
+};
+
+const parseRomkaHash = (value: unknown, path: Path): RomkaHash => {
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return {
+    algorithm: parseString(value.algorithm, [...path, 'algorithm']),
+    input: parseString(value.input, [...path, 'input']),
+    hash: parseString(value.hash, [...path, 'hash']),
+    legacyAlgorithm: parseString(value.legacyAlgorithm, [...path, 'legacyAlgorithm']),
+    legacyHash: parseString(value.legacyHash, [...path, 'legacyHash']),
+  };
+};
+
 /** Narrows the generated `blocks.json` into the typed registry. */
 export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
   if (!isRecord(raw)) {
@@ -225,6 +280,9 @@ export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
   }
   return {
     layouts: parseListOf(parseLayout)(raw.layouts, ['layouts']),
+    romeka: parseListOf(parseRomka)(raw.romeka, ['romeka']),
+    romekaVersion: parseInteger(raw.romekaVersion, ['romekaVersion']),
+    romekaHash: parseRomkaHash(raw.romekaHash, ['romekaHash']),
     blockLayoutData: parseSchema(raw.blockLayoutData, ['blockLayoutData']),
     pageLayoutData: parseSchema(raw.pageLayoutData, ['pageLayoutData']),
   };

@@ -18,7 +18,7 @@
 
 use serde::Serialize;
 
-use super::{layout_id, layouts};
+use super::{layout_id, layouts, romeka};
 
 /// A layout's editable `data` members, in the order its form shows them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -431,12 +431,62 @@ pub struct LayoutEntry {
     pub schema: LayoutSchema,
 }
 
+/// One registered Romeka block as the admin reads it.
+#[derive(Debug, Serialize)]
+pub struct RomkaEntry {
+    /// The name `o:layout_data.romeka.block` holds.
+    pub name: &'static str,
+    /// The catalogue key for the block's label (`romeka.<name>`).
+    pub label: &'static str,
+    /// The upstream layout that stores the block.
+    pub carrier: &'static str,
+    /// The settings fields, flattened beside the entry's name.
+    #[serde(flatten)]
+    pub schema: LayoutSchema,
+}
+
+/// The plain-hash algorithm and one worked example.
+///
+/// The admin recomputes the hash of a stored plain rendering to mark a block
+/// that was edited outside Romeka S. It ships this sample so its own
+/// implementation is tested against the generator's, not against a copied
+/// constant. `hash` is the canonical-content hash and `legacyHash` is the
+/// raw-byte hash a carrier version 1 stored.
+#[derive(Debug, Serialize)]
+pub struct RomkaHash {
+    /// The canonical algorithm's name (`fnv1a-64-canonical`).
+    pub algorithm: &'static str,
+    /// The sample input.
+    pub input: &'static str,
+    /// The canonical hash of the sample input, as this crate computes it.
+    pub hash: String,
+    /// The legacy algorithm's name (`fnv1a-64`).
+    #[serde(rename = "legacyAlgorithm")]
+    pub legacy_algorithm: &'static str,
+    /// The raw-byte hash of the sample input.
+    #[serde(rename = "legacyHash")]
+    pub legacy_hash: String,
+}
+
+/// The sample the admin hashes in its test.
+pub const HASH_SAMPLE: &str = "<h2>Romeka &amp; Co</h2><p>Hello <em>world</em>.</p>\
+     <img src=\"/files/asset/a.png\" alt=\"A shelf\">\
+     <a href=\"/s/main/page/about\">About</a>";
+
 /// The whole registry, as `web/admin/src/generated/blocks.json` holds it.
 #[derive(Debug, Serialize)]
 pub struct Registry {
     /// Every registered layout, in upstream's order. The fallback is not a
     /// layout the admin offers, so it is absent.
     pub layouts: Vec<LayoutEntry>,
+    /// Every registered Romeka block, in registry order.
+    pub romeka: Vec<RomkaEntry>,
+    /// The carrier version a new carrier writes.
+    #[serde(rename = "romekaVersion")]
+    pub romeka_version: i64,
+    /// The plain-hash algorithm and a worked sample.
+    #[serde(rename = "romekaHash")]
+    pub romeka_hash: RomkaHash,
     /// The schema of a block's `o:layout_data`.
     #[serde(rename = "blockLayoutData")]
     pub block_layout_data: LayoutSchema,
@@ -457,8 +507,26 @@ pub fn registry() -> Registry {
             schema: *layout.schema(),
         })
         .collect();
+    let romeka_entries = romeka::blocks()
+        .iter()
+        .map(|block| RomkaEntry {
+            name: block.name(),
+            label: block.label(),
+            carrier: block.carrier(),
+            schema: *block.schema(),
+        })
+        .collect();
     Registry {
         layouts: entries,
+        romeka: romeka_entries,
+        romeka_version: romeka::CARRIER_VERSION,
+        romeka_hash: RomkaHash {
+            algorithm: "fnv1a-64-canonical",
+            input: HASH_SAMPLE,
+            hash: romeka::plain_hash(HASH_SAMPLE),
+            legacy_algorithm: "fnv1a-64",
+            legacy_hash: romeka::byte_hash(HASH_SAMPLE),
+        },
         block_layout_data: BLOCK_LAYOUT_DATA,
         page_layout_data: PAGE_LAYOUT_DATA,
     }
@@ -524,6 +592,20 @@ mod tests {
                 empty,
                 "{name} schema emptiness"
             );
+        }
+    }
+
+    /// The registry lists every registered Romeka block, with the carrier and
+    /// the catalogue key the admin reads.
+    #[test]
+    fn the_registry_lists_every_romeka_block() {
+        let listed: Vec<&str> = registry().romeka.iter().map(|entry| entry.name).collect();
+        let names: Vec<&str> = romeka::blocks().iter().map(|block| block.name()).collect();
+        assert_eq!(listed, names);
+        for entry in &registry().romeka {
+            assert_eq!(entry.label, format!("romeka.{}", entry.name));
+            assert_eq!(entry.carrier, "html", "{} carrier", entry.name);
+            assert!(!entry.schema.fields.is_empty(), "{} fields", entry.name);
         }
     }
 

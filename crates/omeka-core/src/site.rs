@@ -367,6 +367,57 @@ pub struct BlockLayoutData {
     /// `background_image_size`, `cover` or `contain`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub background_image_size: Option<String>,
+    /// `romeka`, the carrier a Romeka block stores under an upstream layout.
+    /// Upstream ignores it and its admin keeps it (see `docs/compat.md`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub romeka: Option<RomkaCarrier>,
+}
+
+/// The `o:layout_data.romeka` member of a Romeka block's carrier.
+///
+/// A Romeka block is stored under an upstream layout, usually `html`, with its
+/// own settings here. `plain_hash` is the hash of the block's stored plain
+/// rendering (`o:data.html`); a mismatch means the plain rendering was edited
+/// outside Romeka S, and the block renders that edit rather than the rich form.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RomkaCarrier {
+    /// `block`, the registered Romeka block name.
+    pub block: String,
+    /// `v`, the carrier version.
+    pub v: i64,
+    /// `settings`, the block's own settings, as the block reads them.
+    #[serde(default)]
+    pub settings: JsonValue,
+    /// `plain_hash`, the hash of the plain rendering this product wrote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plain_hash: Option<String>,
+}
+
+impl RomkaCarrier {
+    /// Read `o:layout_data.romeka`. A value that is not an object, or that
+    /// names no block, reads as absent: upstream's own layout data is the only
+    /// data such a block then has.
+    #[must_use]
+    pub fn parse(data: &JsonValue) -> Option<Self> {
+        let object = data.as_object()?;
+        let block = object.get("block").and_then(JsonValue::as_str)?;
+        if block.is_empty() {
+            return None;
+        }
+        let settings = object
+            .get("settings")
+            .cloned()
+            .unwrap_or_else(|| JsonValue::Object(serde_json::Map::new()));
+        Some(Self {
+            block: block.to_string(),
+            v: object.get("v").and_then(de_json_i64).unwrap_or(1),
+            settings,
+            plain_hash: object
+                .get("plain_hash")
+                .and_then(JsonValue::as_str)
+                .map(str::to_string),
+        })
+    }
 }
 
 impl BlockLayoutData {
@@ -391,6 +442,7 @@ impl BlockLayoutData {
             background_image_position_y: opt_text(data, "background_image_position_y"),
             background_image_position_x: opt_text(data, "background_image_position_x"),
             background_image_size: opt_text(data, "background_image_size"),
+            romeka: data.get("romeka").and_then(RomkaCarrier::parse),
         }
     }
 }

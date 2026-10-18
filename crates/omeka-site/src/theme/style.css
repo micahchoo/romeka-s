@@ -786,3 +786,107 @@ footer {
 .query-text {
   min-width: 8rem;
 }
+
+/* The Romeka hero: a banner that fills the content column, with the background
+   image behind a dimming overlay and the copy above both. */
+.romeka-hero {
+  position: relative;
+  display: flex;
+  min-height: 22rem;
+  overflow: hidden;
+  background: #1c2733;
+  color: #fff;
+}
+
+.romeka-hero-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.romeka-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.romeka-hero-overlay-none .romeka-hero-overlay {
+  opacity: 0;
+}
+
+.romeka-hero-overlay-light .romeka-hero-overlay {
+  opacity: 0.25;
+}
+
+.romeka-hero-overlay-medium .romeka-hero-overlay {
+  opacity: 0.45;
+}
+
+.romeka-hero-overlay-strong .romeka-hero-overlay {
+  opacity: 0.65;
+}
+
+.romeka-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+  max-width: 48rem;
+  padding: 3rem 2rem;
+}
+
+.romeka-hero-align-left .romeka-hero-content {
+  align-items: flex-start;
+  margin-right: auto;
+  text-align: left;
+}
+
+.romeka-hero-align-center .romeka-hero-content {
+  align-items: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.romeka-hero-align-right .romeka-hero-content {
+  align-items: flex-end;
+  margin-left: auto;
+  text-align: right;
+}
+
+.romeka-hero-heading {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.romeka-hero-subheading {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.romeka-hero-body {
+  max-width: 40rem;
+}
+
+.romeka-hero-body a {
+  color: inherit;
+}
+
+.romeka-hero-cta {
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.25rem;
+  background: #fff;
+  color: #12222f;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.romeka-hero-cta:hover,
+.romeka-hero-cta:focus {
+  background: #e8eef5;
+  color: #12222f;
+}

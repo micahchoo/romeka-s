@@ -18,6 +18,7 @@ import { BlockPicker } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
 import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
+import { romkaState } from '../romekaHash';
 import { blockSummary, layoutLabel } from './summary';
 import './canvas.css';
 
@@ -159,7 +160,7 @@ export const PageCanvas = ({
   );
 
   const renderCard = (block: BlockDraft): ReactElement => {
-    const label = layoutLabel(draft.registry, block.layout, t);
+    const label = layoutLabel(draft.registry, block, t);
     return (
       <CanvasCard
         key={block.key}
@@ -168,6 +169,7 @@ export const PageCanvas = ({
         label={label}
         summary={blockSummary(block, draft.title, t)}
         issues={issuesByBlock.get(block.key) ?? []}
+        mismatch={romkaState(draft.registry, block) === 'edited'}
         selected={selectedKey === block.key}
         picked={pickedKey === block.key}
         grid={grid}

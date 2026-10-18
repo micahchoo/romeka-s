@@ -24,7 +24,9 @@ pub(crate) mod test_support;
 pub mod asset;
 pub mod block_group;
 pub mod browse_preview;
+pub mod canonical;
 pub mod fallback;
+pub mod hero;
 pub mod html;
 pub mod iiif_image;
 pub mod iiif_presentation;
@@ -37,6 +39,7 @@ pub mod media;
 pub mod oembed;
 pub mod page_date_time;
 pub mod page_title;
+pub mod romeka;
 pub mod table_of_contents;
 
 use omeka_core::site::{BlockData, BlockLayout as LayoutId, SiteBlock, SitePage};

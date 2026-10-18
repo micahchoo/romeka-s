@@ -178,11 +178,37 @@ mod tests {
             block("blockGroup", json!({"span": "1"})),
             block("html", json!({"html": "<p>Grouped copy</p>"})),
             block("myModuleLayout", json!({"x": 1})),
+            romeka_hero(),
         ];
         for (index, block) in blocks.iter_mut().enumerate() {
             block.position = index as i64 + 1;
         }
         blocks
+    }
+
+    /// A Romeka hero carrier whose plain hash matches, so the rich banner and
+    /// every class it emits is part of the coverage check.
+    fn romeka_hero() -> omeka_core::site::SiteBlock {
+        let plain = "<h2>Hero</h2>";
+        block_with_layout(
+            "html",
+            json!({"html": plain}),
+            json!({"romeka": {
+                "block": "hero",
+                "v": 1,
+                "settings": {
+                    "heading": "Hero",
+                    "subheading": "A subheading",
+                    "body": "<p>Body copy</p>",
+                    "background": 3,
+                    "overlay": "medium",
+                    "alignment": "center",
+                    "cta_label": "Browse",
+                    "cta_page": 3
+                },
+                "plain_hash": crate::blocks::romeka::plain_hash(plain)
+            }}),
+        )
     }
 
     fn nav() -> Vec<NavItem> {
@@ -485,6 +511,8 @@ mod tests {
             "list-of-sites",
             "break",
             "list-of-pages-link",
+            "romeka-hero",
+            "romeka-hero-cta",
             "page-layout-grid",
             "grid-template-columns-12",
             "grid-position-auto",

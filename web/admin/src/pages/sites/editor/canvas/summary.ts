@@ -5,6 +5,7 @@
 import type { Translator } from '../../../../i18n';
 import type { BlockRegistry } from '../../blockSchema';
 import type { BlockDraft } from '../draft';
+import { carrierOf, romkaFor } from '../romeka';
 import { dataObject } from '../values';
 
 const MAX_SUMMARY = 80;
@@ -31,6 +32,13 @@ export const blockSummary = (
   t: Translate,
 ): string => {
   const data = dataObject(block);
+  const carrier = carrierOf(block);
+  if (carrier !== null) {
+    const text = clip(asText(carrier.settings.heading).trim());
+    if (text !== '') {
+      return text;
+    }
+  }
   if (block.layout === 'html') {
     const text = clip(plainText(asText(data.html)));
     if (text !== '') {
@@ -49,8 +57,17 @@ export const blockSummary = (
   return '';
 };
 
-/** The catalogue label for a layout, or the unknown marker for one not registered. */
-export const layoutLabel = (registry: BlockRegistry, layout: string, t: Translate): string => {
-  const entry = registry.layouts.find((candidate) => candidate.name === layout);
-  return entry === undefined ? t('layout.unknown', { name: layout }) : t(entry.label);
+/** The catalogue label for a block: its Romeka block when it carries one, else
+ * its layout, else the unknown marker. */
+export const layoutLabel = (
+  registry: BlockRegistry,
+  block: BlockDraft,
+  t: Translate,
+): string => {
+  const romka = romkaFor(registry, block);
+  if (romka !== undefined) {
+    return t(romka.label);
+  }
+  const entry = registry.layouts.find((candidate) => candidate.name === block.layout);
+  return entry === undefined ? t('layout.unknown', { name: block.layout }) : t(entry.label);
 };

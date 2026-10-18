@@ -106,11 +106,22 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
     let mut blocks = if payload.has("o:block") {
         let mut parsed = Vec::new();
         for block in parse_blocks(payload)? {
+            // The same carrier step a write runs, so a preview renders exactly
+            // what a save would store: the plain rendering regenerated from the
+            // block's own renderer, with its hash recorded.
+            let (data, layout_data) = super::site_pages::carry_block(
+                api,
+                site,
+                &block.layout,
+                block.data,
+                block.layout_data,
+            )
+            .await?;
             let attachments = resolve_attachments(api, &block.attachments).await?;
             parsed.push(PreviewBlock {
                 layout: block.layout,
-                data: block.data,
-                layout_data: block.layout_data,
+                data,
+                layout_data,
                 attachments,
             });
         }

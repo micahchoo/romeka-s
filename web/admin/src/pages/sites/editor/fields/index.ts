@@ -5,5 +5,7 @@
  */
 export { BlockForm } from './BlockForm';
 export type { BlockFormProps } from './BlockForm';
+export { RomkaForm } from './RomkaForm';
+export type { RomkaFormProps } from './RomkaForm';
 export { LayoutDataForm } from './LayoutDataForm';
 export type { LayoutDataFormProps } from './LayoutDataForm';

@@ -4,7 +4,7 @@
  * layout's form and its validation cannot disagree.
  */
 import type { JsonValue } from '../../../api/types';
-import type { BlockField, BlockLayoutSchema, BlockRegistry } from '../blockSchema';
+import type { BlockField, BlockLayoutSchema, BlockRegistry, RomkaBlockSchema } from '../blockSchema';
 import type { BlockKey, ValidationIssue } from './draft';
 import { isJsonArray, isJsonObject } from './values';
 
@@ -14,21 +14,37 @@ export const schemaFor = (
 ): BlockLayoutSchema | undefined =>
   registry.layouts.find((entry) => entry.name === layout);
 
-export const defaultsFor = (
+/** The registered Romeka block named `name`, `undefined` for any other name. */
+export const romkaSchemaFor = (
   registry: BlockRegistry,
-  layout: string,
-): Readonly<Record<string, JsonValue>> => {
-  const schema = schemaFor(registry, layout);
+  name: string,
+): RomkaBlockSchema | undefined => registry.romeka.find((entry) => entry.name === name);
+
+const defaultsFrom = (fields: readonly BlockField[]): Readonly<Record<string, JsonValue>> => {
   const data: Record<string, JsonValue> = {};
-  if (schema === undefined) {
-    return data;
-  }
-  for (const field of schema.fields) {
+  for (const field of fields) {
     if (field.default !== null) {
       data[field.key] = field.default;
     }
   }
   return data;
+};
+
+export const defaultsFor = (
+  registry: BlockRegistry,
+  layout: string,
+): Readonly<Record<string, JsonValue>> => {
+  const schema = schemaFor(registry, layout);
+  return schema === undefined ? {} : defaultsFrom(schema.fields);
+};
+
+/** The settings a new Romeka block starts from. */
+export const settingsDefaults = (
+  registry: BlockRegistry,
+  name: string,
+): Readonly<Record<string, JsonValue>> => {
+  const schema = romkaSchemaFor(registry, name);
+  return schema === undefined ? {} : defaultsFrom(schema.fields);
 };
 
 const integerValue = (value: JsonValue): number | null => {
