@@ -10,11 +10,18 @@
 use omeka_core::site::{BlockData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, html};
 use crate::view::RenderContext;
 
 /// The `html` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Html;
+
+/// `BlockLayout/Html.php::form`: one `html` textarea
+/// (`application/src/Site/BlockLayout/Html.php`).
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[html("html", "blockField.html.html")],
+};
 
 impl BlockLayout for Html {
     fn name(&self) -> &'static str {
@@ -30,6 +37,10 @@ impl BlockLayout for Html {
             BlockData::Html { html } => html.clone(),
             _ => String::new(),
         }
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

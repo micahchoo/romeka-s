@@ -13,11 +13,18 @@
 use omeka_core::site::SiteBlock;
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, integer_min};
 use crate::view::RenderContext;
 
 /// The `blockGroup` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BlockGroup;
+
+/// `BlockLayout/BlockGroup.php::form`: one hidden `span`, the number of blocks
+/// the group wraps.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[integer_min("span", "blockField.blockGroup.span", 0).default_int(0)],
+};
 
 impl BlockLayout for BlockGroup {
     fn name(&self) -> &'static str {
@@ -30,6 +37,10 @@ impl BlockLayout for BlockGroup {
 
     fn render(&self, _block: &SiteBlock, _ctx: &RenderContext<'_>) -> String {
         String::new()
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

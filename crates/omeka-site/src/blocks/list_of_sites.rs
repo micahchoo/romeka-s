@@ -16,12 +16,34 @@
 use omeka_core::site::{BlockData, ListOfSitesData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, boolean, choice, integer_min, option};
 use crate::html::escape_html;
 use crate::view::{RenderContext, SiteQuery, SiteSort, SiteView};
 
 /// The `listOfSites` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ListOfSites;
+
+/// `BlockLayout/ListOfSites.php::form` and its `$defaults`.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        choice(
+            "sort",
+            "blockField.listOfSites.sort",
+            &[
+                option("alpha", "blockChoice.alpha"),
+                option("oldest", "blockChoice.oldest"),
+                option("newest", "blockChoice.newest"),
+            ],
+        )
+        .default_text("alpha"),
+        integer_min("limit", "blockField.listOfSites.limit", 0),
+        boolean("pagination", "blockField.listOfSites.pagination").default_bool(false),
+        boolean("summaries", "blockField.listOfSites.summaries").default_bool(true),
+        boolean("thumbnails", "blockField.listOfSites.thumbnails").default_bool(true),
+        boolean("exclude_current", "blockField.listOfSites.exclude_current").default_bool(true),
+    ],
+};
 
 impl BlockLayout for ListOfSites {
     fn name(&self) -> &'static str {
@@ -37,6 +59,10 @@ impl BlockLayout for ListOfSites {
             return String::new();
         };
         render_block(data, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

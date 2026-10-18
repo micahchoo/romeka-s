@@ -11,12 +11,23 @@
 use omeka_core::site::{BlockData, IiifData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, boolean, text};
 use crate::html::{escape_html, query_string};
 use crate::view::RenderContext;
 
 /// The `iiifPresentation` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IiifPresentation;
+
+/// `BlockLayout/IiifPresentation.php::form`: `manifest_url`, `title` and the
+/// `show_title` checkbox.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        text("manifest_url", "blockField.iiifPresentation.manifest_url"),
+        text("title", "blockField.iiifPresentation.title"),
+        boolean("show_title", "blockField.iiifPresentation.show_title").default_bool(false),
+    ],
+};
 
 impl BlockLayout for IiifPresentation {
     fn name(&self) -> &'static str {
@@ -32,6 +43,10 @@ impl BlockLayout for IiifPresentation {
             return String::new();
         };
         render_viewer(data, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

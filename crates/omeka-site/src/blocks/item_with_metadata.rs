@@ -16,6 +16,7 @@
 use omeka_core::site::{BlockData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, attachments};
 use crate::html::escape_html;
 use crate::i18n::Messages;
 use crate::view::{RenderContext, ResourceRef, ResourceView};
@@ -23,6 +24,15 @@ use crate::view::{RenderContext, ResourceRef, ResourceView};
 /// The `itemWithMetadata` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ItemWithMetadata;
+
+/// `BlockLayout/ItemWithMetadata.php::form`: `blockAttachmentsForm($block,
+/// true)`, the item-only attachments list.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[attachments(
+        "blockField.itemWithMetadata.attachments",
+        false,
+    )],
+};
 
 impl BlockLayout for ItemWithMetadata {
     fn name(&self) -> &'static str {
@@ -59,6 +69,10 @@ impl BlockLayout for ItemWithMetadata {
         }
         out.push_str("</div>");
         out
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

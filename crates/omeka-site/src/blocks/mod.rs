@@ -16,6 +16,7 @@
 //! adds the wrapper classes and inline styles [`layout`] derives from them.
 
 pub mod parse;
+pub mod schema;
 
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -71,6 +72,17 @@ pub trait BlockLayout: Sync {
 
     /// Render the block to an HTML fragment (`render`).
     fn render(&self, block: &SiteBlock, ctx: &RenderContext<'_>) -> String;
+
+    /// The `data` fields this layout edits, declared beside its renderer from
+    /// the layout's upstream form. [`schema::registry`] carries them to the
+    /// admin, which generates its block forms from them.
+    ///
+    /// The default is [`schema::EMPTY`]: a layout that lives outside this
+    /// crate (a plugin's) has no schema the admin can render. Every registered
+    /// layout declares its own, and a test fails if one leaves it empty.
+    fn schema(&self) -> &'static schema::LayoutSchema {
+        &schema::EMPTY
+    }
 }
 
 /// The registry, in the order `module.config.php` lists (`invokables` then

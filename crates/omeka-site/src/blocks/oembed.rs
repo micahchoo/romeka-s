@@ -13,12 +13,23 @@
 use omeka_core::site::{BlockData, OembedData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, boolean, text};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
 /// The `oembed` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Oembed;
+
+/// `BlockLayout/Oembed.php::form`: the required `url` and the `refresh`
+/// checkbox. `url_old` and `oembed` are hidden members the class writes from
+/// the fetch, not fields the admin edits, so the schema leaves them out.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        text("url", "blockField.oembed.url").required(),
+        boolean("refresh", "blockField.oembed.refresh").default_bool(false),
+    ],
+};
 
 impl BlockLayout for Oembed {
     fn name(&self) -> &'static str {
@@ -34,6 +45,10 @@ impl BlockLayout for Oembed {
             return String::new();
         };
         format!("<div>{}</div>", render_oembed(data))
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

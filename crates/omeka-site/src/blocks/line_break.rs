@@ -7,12 +7,26 @@
 use omeka_core::site::{BlockData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, choice, option};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
 /// The `lineBreak` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LineBreak;
+
+/// `BlockLayout/LineBreak.php::form`: one `break_type` select.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[choice(
+        "break_type",
+        "blockField.lineBreak.break_type",
+        &[
+            option("transparent", "blockChoice.transparent"),
+            option("opaque", "blockChoice.opaque"),
+        ],
+    )
+    .default_text("transparent")],
+};
 
 impl BlockLayout for LineBreak {
     fn name(&self) -> &'static str {
@@ -30,6 +44,10 @@ impl BlockLayout for LineBreak {
             }
             _ => String::new(),
         }
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

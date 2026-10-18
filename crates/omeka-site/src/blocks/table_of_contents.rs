@@ -9,12 +9,18 @@
 use omeka_core::site::{BlockData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{LayoutSchema, integer_min};
 use crate::nav::{find_item_by_page, render_menu};
 use crate::view::RenderContext;
 
 /// The `tableOfContents` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TableOfContents;
+
+/// `BlockLayout/TableOfContents.php::form`: one `depth` number, minimum 1.
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[integer_min("depth", "blockField.tableOfContents.depth", 1).default_int(1)],
+};
 
 impl BlockLayout for TableOfContents {
     fn name(&self) -> &'static str {
@@ -30,6 +36,10 @@ impl BlockLayout for TableOfContents {
             return String::new();
         };
         render_block(*depth, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

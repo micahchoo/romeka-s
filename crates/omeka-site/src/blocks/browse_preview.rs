@@ -17,6 +17,9 @@ use omeka_core::resource::ResourceKind;
 use omeka_core::site::{BlockData, BrowsePreviewData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{
+    LayoutSchema, choice, integer, item_query, multi_choice, option, text,
+};
 use crate::html::{escape_html, hyperlink, query_string};
 use crate::slug::{controller_for, resource_browse_url};
 use crate::view::{BrowseQuery, RenderContext, ResourceView};
@@ -29,6 +32,37 @@ const DEFAULT_LIMIT: usize = 12;
 /// The `browsePreview` block.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BrowsePreview;
+
+/// `BlockLayout/BrowsePreview.php::form` and its `$defaults`. `link-text`
+/// starts empty rather than at the class's translated "Browse all".
+const SCHEMA: LayoutSchema = LayoutSchema {
+    fields: &[
+        choice(
+            "resource_type",
+            "blockField.browsePreview.resource_type",
+            &[
+                option("items", "blockChoice.items"),
+                option("item_sets", "blockChoice.item_sets"),
+                option("media", "blockChoice.media"),
+            ],
+        )
+        .default_text("items"),
+        item_query("query", "blockField.browsePreview.query").default_text(""),
+        integer("limit", "blockField.browsePreview.limit").default_int(12),
+        multi_choice(
+            "components",
+            "blockField.browsePreview.components",
+            &[
+                option("resource-heading", "blockChoice.resource-heading"),
+                option("resource-body", "blockChoice.resource-body"),
+                option("thumbnail", "blockChoice.thumbnail"),
+            ],
+        )
+        .default_list(&["resource-heading", "resource-body", "thumbnail"]),
+        text("heading", "blockField.browsePreview.heading").default_text(""),
+        text("link-text", "blockField.browsePreview.link-text"),
+    ],
+};
 
 impl BlockLayout for BrowsePreview {
     fn name(&self) -> &'static str {
@@ -44,6 +78,10 @@ impl BlockLayout for BrowsePreview {
             return String::new();
         };
         render_block(data, ctx)
+    }
+
+    fn schema(&self) -> &'static LayoutSchema {
+        &SCHEMA
     }
 }
 

@@ -8,6 +8,7 @@
 use omeka_core::site::SiteBlock;
 
 use crate::blocks::BlockLayout;
+use crate::blocks::schema::{EMPTY, LayoutSchema};
 use crate::view::RenderContext;
 
 /// The layout for an unregistered name.
@@ -25,6 +26,12 @@ impl BlockLayout for Fallback {
 
     fn render(&self, _block: &SiteBlock, _ctx: &RenderContext<'_>) -> String {
         String::new()
+    }
+
+    /// `BlockLayout/Fallback.php::form` shows no field the admin can edit; the
+    /// stored data travels through as one hidden value.
+    fn schema(&self) -> &'static LayoutSchema {
+        &EMPTY
     }
 }
 
