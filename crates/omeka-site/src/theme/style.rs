@@ -18,7 +18,7 @@ mod tests {
 
     use super::*;
     use crate::blocks::test_support::{
-        TestResources, block, block_with_layout, context, item, resource_ref, site,
+        TestResources, block, block_with_layout, context, item, literal_value, resource_ref, site,
     };
     use crate::nav::{NavItem, PageRef};
     use crate::search::{
@@ -28,7 +28,7 @@ mod tests {
     use crate::theme::{DefaultTheme, Theme};
     use crate::view::{
         AssetView, AttachmentRef, BrowseView, ErrorView, MediaRef, ResourceRef, ResourceView,
-        SiteView, Thumbnail, ValueRef, View,
+        SiteView, Thumbnail, View,
     };
     use omeka_core::ids::{AssetId, ItemId, PageId, SiteId};
     use omeka_core::resource::ResourceKind;
@@ -87,10 +87,7 @@ mod tests {
         resources.browse.push(browsed);
 
         let mut attached = item(7, "An attached item", "/s/main/item/7");
-        attached.values = vec![ValueRef {
-            property: "Title".to_string(),
-            value: "An attached item".to_string(),
-        }];
+        attached.values = vec![literal_value(1, "Title", "An attached item")];
         attached.item_sets = vec![resource_ref("A set", "/s/main/item-set/2")];
         attached.media = vec![ResourceRef {
             url: "/s/main/media/9".to_string(),

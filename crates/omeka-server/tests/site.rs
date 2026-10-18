@@ -12,10 +12,13 @@ use axum::http::{StatusCode, header};
 use common::{
     get, header as header_value, request, router, seed_system, seeded_pool, send, site_pool,
 };
-use omeka_db::ids::UserId;
-use omeka_db::repos::{ItemRepo, SiteBlockAttachmentRepo, SiteRepo};
+use omeka_db::ids::{SiteId, UserId};
+use omeka_db::repos::{
+    ItemRepo, PropertyRepo, SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo, ValueRepo,
+};
 use omeka_db::rows::{
-    NewItem, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
+    NewItem, NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
+    NewValue,
 };
 
 /// The storage id `common::seed_system` gives the seeded asset.
@@ -230,9 +233,26 @@ async fn item_show_renders_the_item_values() {
     assert!(answer.body.contains("<h3>Item</h3>"), "{}", answer.body);
     assert!(answer.body.contains("<dt>Title</dt>"), "{}", answer.body);
     assert!(
-        answer
-            .body
-            .contains("<dd class=\"value\">A picture of a cat</dd>"),
+        answer.body.contains(
+            "<dd class=\"value literal\" lang=\"\"><span class=\"value-content\">A picture of a cat</span></dd>"
+        ),
+        "{}",
+        answer.body
+    );
+    // The item's media render, its item set and its media list are the default
+    // resource page blocks, in the bundled theme's order.
+    assert!(
+        answer.body.contains("<div class=\"media-embeds\">"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains("<dl class=\"item-sets\">"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains("<dl class=\"media-list\">"),
         "{}",
         answer.body
     );
@@ -521,16 +541,171 @@ async fn item_with_metadata_block_renders_its_attachment() {
         "{body}"
     );
     assert!(
-        body.contains("<dd class=\"value\">A picture of a cat</dd>"),
+        body.contains(
+            "<dd class=\"value literal\" lang=\"\"><span class=\"value-content\">A picture of a cat</span></dd>"
+        ),
         "{body}"
     );
+    // `linkPretty('square')`: the media's square thumbnail inside the link.
     assert!(
         body.contains(&format!(
-            "<a href=\"/s/museum/media/{}\" class=\"resource-link\"><span class=\"resource-name\">A photo</span></a>",
+            "<a href=\"/s/museum/media/{}\" class=\"resource-link\"><img src=",
             seed.media.0
         )),
         "{body}"
     );
+    assert!(
+        body.contains("<span class=\"resource-name\">A photo</span>"),
+        "{body}"
+    );
+}
+
+/// The frame renders the default theme's header: the site title links home, the
+/// top navigation lists the visible pages, and the search form sits in
+/// `#search`. The core assets the port's theme does not need are not linked.
+#[tokio::test]
+async fn frame_renders_the_header_navigation_and_search() {
+    let (pool, _seed) = site_pool().await;
+    let answer = send(router(pool), get("/s/museum/page/welcome", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    let body = &answer.body;
+    assert!(
+        body.contains("<h1 class=\"site-title\"><a href=\"/s/museum\">Museum</a></h1>"),
+        "{body}"
+    );
+    assert!(body.contains("<nav id=\"top-nav\">"), "{body}");
+    assert!(
+        body.contains("<ul class=\"navigation\" id=\"top-nav-contents\">"),
+        "{body}"
+    );
+    assert!(
+        body.contains("<a href=\"/s/museum/page/welcome\">Welcome</a>"),
+        "{body}"
+    );
+    // The hidden `notes` page is not in the navigation.
+    assert!(!body.contains("/s/museum/page/notes"), "{body}");
+    assert!(body.contains("<div id=\"search\">"), "{body}");
+    for missing in ["/css/fonts.css", "/css/iconfonts.css", "/js/global.js"] {
+        assert!(!body.contains(missing), "{missing} in {body}");
+    }
+}
+
+/// `common/resource-values.phtml` and `DataType\Uri` / `DataType\Resource`:
+/// a URI value renders a labelled link in a new tab, a resource value a pretty
+/// link to the resource's site page.
+#[tokio::test]
+async fn item_show_links_uri_and_resource_values() {
+    let (pool, seed) = site_pool().await;
+    let property = PropertyRepo::new(&pool)
+        .create(&NewProperty {
+            owner_id: None,
+            vocabulary_id: seed.vocabulary,
+            local_name: "subject".to_string(),
+            label: "Subject".to_string(),
+            comment: None,
+        })
+        .await
+        .unwrap();
+    ValueRepo::new(&pool)
+        .create(&NewValue {
+            resource_id: seed.item.as_resource(),
+            property_id: property.id,
+            value_resource_id: None,
+            value_annotation_id: None,
+            r#type: "uri".to_string(),
+            lang: None,
+            value: Some("A catalog".to_string()),
+            uri: Some("https://example.org/catalog".to_string()),
+            is_public: true,
+        })
+        .await
+        .unwrap();
+    ValueRepo::new(&pool)
+        .create(&NewValue {
+            resource_id: seed.item.as_resource(),
+            property_id: property.id,
+            value_resource_id: Some(seed.item_set.as_resource()),
+            value_annotation_id: None,
+            r#type: "resource:item_set".to_string(),
+            lang: None,
+            value: None,
+            uri: None,
+            is_public: true,
+        })
+        .await
+        .unwrap();
+
+    let path = format!("/s/museum/item/{}", seed.item.0);
+    let answer = send(router(pool), get(&path, false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    let body = &answer.body;
+    assert!(body.contains("<dt>Subject</dt>"), "{body}");
+    assert!(
+        body.contains("<dd class=\"value uri\" lang=\"\">"),
+        "{body}"
+    );
+    assert!(
+        body.contains(
+            "<a href=\"https://example.org/catalog\" class=\"uri-value-link\" target=\"_blank\">A catalog</a>"
+        ),
+        "{body}"
+    );
+    assert!(
+        body.contains("<dd class=\"value resource item_sets\" lang=\"\">"),
+        "{body}"
+    );
+    assert!(
+        body.contains(&format!(
+            "<a href=\"/s/museum/item-set/{}\" class=\"resource-link\">",
+            seed.item_set.0
+        )),
+        "{body}"
+    );
+    assert!(
+        body.contains("<span class=\"resource-name\">Featured photographs</span>"),
+        "{body}"
+    );
+}
+
+/// `media/show.phtml` and the `mediaRender` block: a media page renders the
+/// media's own renderer markup, then its values.
+#[tokio::test]
+async fn media_show_renders_the_media_and_its_values() {
+    let (pool, seed) = site_pool().await;
+    let path = format!("/s/museum/media/{}", seed.media.0);
+    let answer = send(router(pool), get(&path, false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    let body = &answer.body;
+    assert!(body.contains("<div class=\"media-render file\">"), "{body}");
+    assert!(body.contains("<dt>Title</dt>"), "{body}");
+    assert!(
+        body.contains(
+            "<dd class=\"value literal\" lang=\"\"><span class=\"value-content\">A photo</span></dd>"
+        ),
+        "{body}"
+    );
+}
+
+/// `Site\ItemController::browseAction` with `browse_attached_items`: the browse
+/// query carries `site_attachments_only`, so an item attached to the site but to
+/// no block drops out.
+#[tokio::test]
+async fn browse_attached_items_narrows_the_item_browse() {
+    let (pool, seed) = site_pool().await;
+    let item_path = format!("/s/museum/item/{}", seed.item.0);
+    let answer = send(router(pool.clone()), get("/s/museum/item", false)).await;
+    assert!(answer.body.contains(&item_path), "{}", answer.body);
+
+    SiteSettingRepo::new(&pool)
+        .set(
+            SiteId::from(seed.site),
+            "browse_attached_items",
+            &serde_json::json!(true),
+        )
+        .await
+        .unwrap();
+    let answer = send(router(pool), get("/s/museum/item", false)).await;
+    assert!(!answer.body.contains(&item_path), "{}", answer.body);
 }
 
 /// Only `GET` reaches the site routes; another method is a 405 with `Allow`.

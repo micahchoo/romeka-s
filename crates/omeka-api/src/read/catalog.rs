@@ -38,8 +38,9 @@ use crate::errors::ApiError;
 
 /// The properties a document can print: the ones a value or a resource template
 /// names. An id outside this set is never passed to [`Catalog::property`].
-const REFERENCED_PROPERTIES: &str = "SELECT id, vocabulary_id, local_name, label FROM property \
-     WHERE id IN (SELECT property_id FROM value \
+const REFERENCED_PROPERTIES: &str = "SELECT p.id, p.vocabulary_id, p.local_name, p.label, v.label FROM property p \
+     JOIN vocabulary v ON v.id = p.vocabulary_id \
+     WHERE p.id IN (SELECT property_id FROM value \
                   UNION SELECT property_id FROM resource_template_property)";
 
 /// The classes a document can print: the ones a resource names.
@@ -47,7 +48,8 @@ const REFERENCED_CLASSES: &str = "SELECT id, vocabulary_id, local_name FROM reso
      WHERE id IN (SELECT resource_class_id FROM resource \
                   WHERE resource_class_id IS NOT NULL)";
 
-const ALL_PROPERTIES: &str = "SELECT id, vocabulary_id, local_name, label FROM property";
+const ALL_PROPERTIES: &str = "SELECT p.id, p.vocabulary_id, p.local_name, p.label, v.label FROM property p \
+     JOIN vocabulary v ON v.id = p.vocabulary_id";
 
 const ALL_CLASSES: &str = "SELECT id, vocabulary_id, local_name FROM resource_class";
 
@@ -58,6 +60,9 @@ const PREFIXES: &str = "SELECT id, prefix FROM vocabulary";
 pub struct PropertyInfo {
     pub term: String,
     pub label: String,
+    /// The label of the vocabulary the property belongs to
+    /// (`$property->vocabulary()->label()`).
+    pub vocabulary_label: String,
 }
 
 /// Vocabulary prefixes plus the property and resource class terms a request can
@@ -212,11 +217,13 @@ async fn load_properties(
         let vocabulary = u64::try_from(int_at(&row, 1)?).unwrap_or(0);
         let local_name = text_at(&row, 2)?;
         let label = text_at(&row, 3)?;
+        let vocabulary_label = text_at(&row, 4)?;
         map.insert(
             id,
             PropertyInfo {
                 term: term_of(prefixes, vocabulary, &local_name),
                 label,
+                vocabulary_label,
             },
         );
     }

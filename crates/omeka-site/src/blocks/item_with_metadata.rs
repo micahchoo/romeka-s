@@ -18,7 +18,7 @@ use omeka_core::site::{BlockData, SiteBlock};
 use crate::blocks::BlockLayout;
 use crate::blocks::schema::{LayoutSchema, attachments};
 use crate::html::escape_html;
-use crate::i18n::Messages;
+use crate::resource_page::link_pretty;
 use crate::view::{RenderContext, ResourceRef, ResourceView};
 
 /// The `itemWithMetadata` block.
@@ -62,10 +62,9 @@ impl BlockLayout for ItemWithMetadata {
                 })
             })
             .collect();
-        let messages = ctx.translator().messages();
         let mut out = String::from("<div class=\"item-with-metadata\">");
         for item in &items {
-            out.push_str(&render_item(item, messages));
+            out.push_str(&render_item(item, ctx));
         }
         out.push_str("</div>");
         out
@@ -76,9 +75,10 @@ impl BlockLayout for ItemWithMetadata {
     }
 }
 
-fn render_item(item: &ResourceView, messages: &Messages) -> String {
+fn render_item(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let mut out = String::from("<div class=\"resource show\">");
-    out.push_str(&render_values(item));
+    out.push_str(&crate::resource_page::values(item, &ctx.settings));
+    let messages = ctx.translator().messages();
     if !item.item_sets.is_empty() {
         out.push_str(&render_list(
             "item-sets",
@@ -99,22 +99,6 @@ fn render_item(item: &ResourceView, messages: &Messages) -> String {
     out
 }
 
-fn render_values(item: &ResourceView) -> String {
-    if item.values.is_empty() {
-        return String::new();
-    }
-    let mut out = String::from("<dl class=\"values\">");
-    for value in &item.values {
-        out.push_str(&format!(
-            "<div class=\"property\"><dt>{}</dt><dd class=\"value\">{}</dd></div>",
-            escape_html(&value.property),
-            escape_html(&value.value)
-        ));
-    }
-    out.push_str("</dl>");
-    out
-}
-
 fn render_list(class: &str, label: &str, entries: &[ResourceRef], with_thumbnails: bool) -> String {
     let mut out = format!(
         "<dl class=\"{class}\"><div class=\"property\"><dt>{}</dt>",
@@ -122,7 +106,7 @@ fn render_list(class: &str, label: &str, entries: &[ResourceRef], with_thumbnail
     );
     for entry in entries {
         let link = if with_thumbnails {
-            pretty_link(entry)
+            link_pretty(entry)
         } else {
             crate::html::hyperlink(&entry.title, Some(&entry.url), &[])
         };
@@ -132,33 +116,13 @@ fn render_list(class: &str, label: &str, entries: &[ResourceRef], with_thumbnail
     out
 }
 
-/// `AbstractResourceEntityRepresentation::linkPretty`: a thumbnail and a
-/// `resource-name` span inside the link.
-fn pretty_link(entry: &ResourceRef) -> String {
-    let thumbnail = entry
-        .thumbnail
-        .as_ref()
-        .map(|thumbnail| {
-            format!(
-                "<img src=\"{}\" alt=\"{}\">",
-                escape_html(&thumbnail.url),
-                escape_html(&thumbnail.alt)
-            )
-        })
-        .unwrap_or_default();
-    format!(
-        "<a href=\"{}\" class=\"resource-link\">{}<span class=\"resource-name\">{}</span></a>",
-        escape_html(&entry.url),
-        thumbnail,
-        escape_html(&entry.title)
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blocks::test_support::{TestResources, block, context, item, resource_ref, site};
-    use crate::view::{AttachmentRef, ResourceRef, ValueRef};
+    use crate::blocks::test_support::{
+        TestResources, block, context, item, literal_value, resource_ref, site,
+    };
+    use crate::view::{AttachmentRef, ResourceRef};
     use omeka_core::ids::{BlockId, ItemId};
     use serde_json::json;
 
@@ -169,10 +133,7 @@ mod tests {
         let site = site();
         let mut resources = TestResources::default();
         let mut item_view = item(4, "An item", "/s/main/item/4");
-        item_view.values = vec![ValueRef {
-            property: "Title".to_string(),
-            value: "An item".to_string(),
-        }];
+        item_view.values = vec![literal_value(1, "Title", "An item")];
         item_view
             .item_sets
             .push(resource_ref("A set", "/s/main/item-set/2"));
@@ -193,7 +154,7 @@ mod tests {
         let ctx = context(&site, &resources);
         assert_eq!(
             ItemWithMetadata.render(&block, &ctx),
-            "<div class=\"item-with-metadata\"><div class=\"resource show\"><dl class=\"values\"><div class=\"property\"><dt>Title</dt><dd class=\"value\">An item</dd></div></dl><dl class=\"item-sets\"><div class=\"property\"><dt>Item sets</dt><dd class=\"value\"><a href=\"/s/main/item-set/2\">A set</a></dd></div></dl><dl class=\"media-list\"><div class=\"property\"><dt>Media</dt><dd class=\"value\"><a href=\"/s/main/media/9\" class=\"resource-link\"><span class=\"resource-name\">A file</span></a></dd></div></dl></div></div>"
+            "<div class=\"item-with-metadata\"><div class=\"resource show\"><dl class=\"values\"><div class=\"property\"><dt>Title</dt><dd class=\"value literal\" lang=\"\"><span class=\"value-content\">An item</span></dd></div></dl><dl class=\"item-sets\"><div class=\"property\"><dt>Item sets</dt><dd class=\"value\"><a href=\"/s/main/item-set/2\">A set</a></dd></div></dl><dl class=\"media-list\"><div class=\"property\"><dt>Media</dt><dd class=\"value\"><a href=\"/s/main/media/9\" class=\"resource-link\"><span class=\"resource-name\">A file</span></a></dd></div></dl></div></div>"
         );
     }
 

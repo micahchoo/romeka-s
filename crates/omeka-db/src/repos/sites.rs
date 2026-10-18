@@ -14,7 +14,7 @@ use super::{
 };
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{BlockId, ItemSetId, PageId, SiteId, UserId};
+use crate::ids::{BlockId, ItemId, ItemSetId, PageId, SiteId, UserId};
 use crate::rows::{NewSite, NewSiteBlock, NewSitePage, SiteBlockRow, SitePageRow, SiteRow};
 use crate::time;
 
@@ -241,6 +241,28 @@ where
             .bind(bind_id(site_id))
             .fetch_all(self.pool)
             .await?;
+        rows.iter().map(SitePageRow::from_db_row::<DB>).collect()
+    }
+
+    /// The pages of a site that attach an item through a block
+    /// (`ItemRepresentation::sitePages` searches `site_pages` with `site_id` and
+    /// `item_id`). Distinct, because an item may attach through several blocks.
+    pub async fn list_pages_attaching_item(
+        &self,
+        site_id: SiteId,
+        item_id: ItemId,
+    ) -> Result<Vec<SitePageRow>, DbError> {
+        let rows = sqlx::query(
+            "SELECT DISTINCT site_page.* FROM site_page
+             JOIN site_page_block ON site_page_block.page_id = site_page.id
+             JOIN site_block_attachment ON site_block_attachment.block_id = site_page_block.id
+             WHERE site_page.site_id = ? AND site_block_attachment.item_id = ?
+             ORDER BY site_page.id",
+        )
+        .bind(bind_id(site_id))
+        .bind(bind_id(item_id))
+        .fetch_all(self.pool)
+        .await?;
         rows.iter().map(SitePageRow::from_db_row::<DB>).collect()
     }
 
