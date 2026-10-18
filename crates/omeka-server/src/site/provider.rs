@@ -310,7 +310,7 @@ async fn load_attachments(
         };
         let item_view = match &item_row {
             Some(item_row) => {
-                let view = loader.item_resource_view(item_row).await?;
+                let view = loader.item_resource_view_with(item_row, options).await?;
                 push_resource(loaded, ResourceKind::Item, item_row.id().0, &view);
                 Some(view)
             }

@@ -1,5 +1,6 @@
 use super::*;
-use crate::blocks::test_support::{TestResources, context, item, site};
+use crate::blocks::test_support::{TestResources, context, item, literal_value, site};
+use crate::view::ResourceRef;
 
 /// The layout writes the document frame from `view/layout/layout.phtml`:
 /// doctype, head, the installation title, the asset base, and the footer.
@@ -49,7 +50,7 @@ fn layout_heading_is_the_site_title_for_every_view() {
     ];
     for document in documents {
         assert!(
-            document.contains("<h1 class=\"site-title\">Main Site</h1>"),
+            document.contains("<h1 class=\"site-title\"><a href=\"/s/main\">Main Site</a></h1>"),
             "{document}"
         );
     }
@@ -64,31 +65,35 @@ fn layout_escapes_the_site_title() {
     let ctx = context(&site, &resources);
     let document = DefaultTheme.render(&View::Index, &ctx);
     assert!(
-        document.contains("<h1 class=\"site-title\">Main &amp; &lt;b&gt;Site&lt;/b&gt;</h1>"),
+        document.contains(
+            "<h1 class=\"site-title\"><a href=\"/s/main\">Main &amp; &lt;b&gt;Site&lt;/b&gt;</a></h1>"
+        ),
         "{document}"
     );
 }
 
-/// The head links the core assets and then every asset in the theme's
-/// manifest, under the render context's asset base.
+/// The head links the theme's own manifest assets, and the core assets the
+/// port's theme does not need (`fonts.css`, `iconfonts.css`, jQuery,
+/// `global.js`) are not linked.
 #[test]
 fn layout_links_the_theme_manifest_assets() {
     let site = site();
     let resources = TestResources::default();
     let ctx = context(&site, &resources);
     let document = DefaultTheme.render(&View::Index, &ctx);
-    let fonts = document.find("/css/fonts.css").expect("core fonts.css");
-    let icons = document.find("/css/iconfonts.css").expect("core iconfonts");
-    let scripts = document
-        .find("/vendor/jquery/jquery.min.js")
-        .expect("core jquery");
-    assert!(fonts < icons && icons < scripts, "{document}");
     for asset in DefaultTheme.info().assets {
         let element = asset
             .kind
             .element(&format!("{}/{}", ctx.asset_base, asset.path));
-        let link_at = document.find(&element).expect("a theme asset element");
-        assert!(icons < link_at && link_at < scripts, "{document}");
+        assert!(document.contains(&element), "{document}");
+    }
+    for missing in [
+        "/css/fonts.css",
+        "/css/iconfonts.css",
+        "/vendor/jquery/jquery.min.js",
+        "/js/global.js",
+    ] {
+        assert!(!document.contains(missing), "{missing} in {document}");
     }
 }
 
@@ -114,10 +119,7 @@ fn item_view_matches_upstream_item_show() {
     let resources = TestResources::default();
     let ctx = context(&site, &resources);
     let mut resource = item(4, "An item", "/s/main/item/4");
-    resource.values.push(crate::view::ValueRef {
-        property: "Title".to_string(),
-        value: "An item".to_string(),
-    });
+    resource.values.push(literal_value(1, "Title", "An item"));
     let document = DefaultTheme.render(&View::Item(&resource), &ctx);
     assert!(
         document.contains("<title>An item · Romeka S</title>"),
@@ -132,7 +134,9 @@ fn item_view_matches_upstream_item_show() {
         "{document}"
     );
     assert!(
-        document.contains("<dd class=\"value\">An item</dd>"),
+        document.contains(
+            "<dd class=\"value literal\" lang=\"\"><span class=\"value-content\">An item</span></dd>"
+        ),
         "{document}"
     );
 }

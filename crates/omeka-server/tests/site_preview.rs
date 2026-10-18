@@ -137,7 +137,8 @@ async fn preview_renders_unsaved_blocks_and_the_page_grid() {
         "the block span did not apply"
     );
     assert!(
-        answer.body.contains("class=\"site-title\">Vis public</h1>"),
+        answer.body.contains("<h1 class=\"site-title\"><a href=")
+            && answer.body.contains(">Vis public</a></h1>"),
         "the site frame is missing"
     );
     assert_eq!(header(&answer, "cache-control"), Some("no-store"));

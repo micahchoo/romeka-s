@@ -31,12 +31,13 @@ use omeka_db::rows::{
 };
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::nav::PageRef;
+use omeka_site::resource_page::link_pretty;
 use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
-use omeka_site::slug::{controller_for, resource_show_url, site_url};
+use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, MediaRef, ResourcePage, ResourceRef, ResourceView, SiteQuery,
-    SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, LinkedResource, MediaRef, ResourcePage, ResourceRef, ResourceView,
+    SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 use sqlx::SqlitePool;
 
@@ -365,6 +366,18 @@ impl<'a> Loader<'a> {
     /// falling through; with no primary media it takes the first media the
     /// caller can see (`ItemRepresentation::media`).
     pub(crate) async fn item_resource_view(&self, row: &ItemRow) -> Result<ResourceView, DbError> {
+        self.item_resource_view_with(row, &media_options(None, None))
+            .await
+    }
+
+    /// An item as the item view shows it, with the primary media rendered under
+    /// the given options. The media block's attachments use this so an
+    /// item-only attachment honours the block's `thumbnail_type` and link type.
+    pub(crate) async fn item_resource_view_with(
+        &self,
+        row: &ItemRow,
+        options: &RenderOptions,
+    ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Item, &row.resource).await?;
         let media = match row.primary_media_id {
             Some(id) => MediaRepo::new(self.pool).get(id).await?.filter(|media| {
@@ -380,10 +393,7 @@ impl<'a> Loader<'a> {
                 view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
             }
             let item_url = view.url.clone();
-            view.primary_media = Some(
-                self.media_ref(&media_row, &item_url, &media_options(None, None))
-                    .await?,
-            );
+            view.primary_media = Some(self.media_ref(&media_row, &item_url, options).await?);
         }
         self.add_item_lists(row, &mut view).await?;
         Ok(view)
@@ -465,13 +475,23 @@ impl<'a> Loader<'a> {
         if view.thumbnail.is_none() {
             view.thumbnail = media_thumbnail(self.base, row, &alt);
         }
-        if let Some(item) = ItemRepo::new(self.pool).get(row.item_id).await? {
-            view.parent_item = Some(ResourceRef {
-                url: resource_show_url(&self.site.slug, "item", item.id().0),
-                title: display_title(&item.resource),
-                thumbnail: None,
-            });
-        }
+        let item_url = match ItemRepo::new(self.pool).get(row.item_id).await? {
+            Some(item) => {
+                let url = resource_show_url(&self.site.slug, "item", item.id().0);
+                view.parent_item = Some(ResourceRef {
+                    url: url.clone(),
+                    title: display_title(&item.resource),
+                    thumbnail: None,
+                });
+                url
+            }
+            None => String::new(),
+        };
+        // `mediaRender.phtml`: `$resource->render()` on the media itself.
+        view.media_embeds.push(
+            self.media_ref(row, &item_url, &media_options(None, None))
+                .await?,
+        );
         Ok(view)
     }
 
@@ -629,6 +649,15 @@ impl<'a> Loader<'a> {
             BrowseScope::Site => {
                 if !effective.iter().any(|(key, _)| key == "site_id") {
                     effective.push(("site_id".to_string(), self.site.id.get().to_string()));
+                }
+                // `Site\ItemController::browseAction`: the browse is narrowed to
+                // items attached to a block when `browse_attached_items` is on.
+                if self.settings.browse_attached_items()
+                    && !effective
+                        .iter()
+                        .any(|(key, _)| key == "site_attachments_only")
+                {
+                    effective.push(("site_attachments_only".to_string(), "1".to_string()));
                 }
             }
             BrowseScope::AnySite => {
@@ -794,28 +823,97 @@ impl<'a> Loader<'a> {
         row: &ResourceRow,
     ) -> Result<(Vec<ValueRef>, Option<String>), DbError> {
         let all = ValueRepo::new(self.pool).list_for_resource(row.id).await?;
-        let public: Vec<&ValueRow> = all
-            .iter()
-            .filter(|value| value.is_public && self.catalog.property(value.property_id).is_some())
-            .collect();
+        let locale = self.settings.locale().tag();
+        let filter_locale = self.settings.filter_locale_values();
+        let exclude = self.settings.exclude_resources_not_in_site();
+        let mut public: Vec<&ValueRow> = Vec::new();
+        for value in &all {
+            if !value.is_public || self.catalog.property(value.property_id).is_none() {
+                continue;
+            }
+            // `resource-values.phtml` keeps a value whose language is empty or
+            // the site's locale when `filter_locale_values` is on.
+            if filter_locale
+                && !value
+                    .lang
+                    .as_deref()
+                    .is_none_or(|lang| lang.is_empty() || lang.eq_ignore_ascii_case(locale))
+            {
+                continue;
+            }
+            // `displayValues` drops a referenced item or item set that is not
+            // assigned to the site when `exclude_resources_not_in_site` is on.
+            if exclude && self.value_resource_not_in_site(value).await? {
+                continue;
+            }
+            public.push(value);
+        }
         let template = self.template_properties(row.resource_template_id).await?;
         let ordered = order_values(public, template.as_deref(), self.catalog);
 
         let mut values = Vec::with_capacity(ordered.len());
         let mut description = None;
         for value in ordered {
-            let info = self.catalog.property(value.property_id);
-            let text = self.value_text(value).await?;
-            if description.is_none() && info.is_some_and(|info| info.term == "dcterms:description")
-            {
-                description = Some(text.clone());
+            let Some(info) = self.catalog.property(value.property_id) else {
+                continue;
+            };
+            let value_ref = self.value_ref(value, info).await?;
+            if description.is_none() && info.term == "dcterms:description" {
+                description = Some(value_ref.value.clone());
             }
-            values.push(ValueRef {
-                property: info.map(|info| info.label.clone()).unwrap_or_default(),
-                value: text,
-            });
+            values.push(value_ref);
         }
         Ok((values, description))
+    }
+
+    /// One value as the theme renders it: its plain text, its `asHtml()` markup
+    /// and the class and language the `<dd>` carries.
+    async fn value_ref(
+        &self,
+        value: &ValueRow,
+        info: &omeka_api::read::catalog::PropertyInfo,
+    ) -> Result<ValueRef, DbError> {
+        let (text, html, class) = match value.r#type.as_str() {
+            // `DataType\Uri::render`: a link with the stored label, else the URI.
+            "uri" => {
+                let uri = value.uri.clone().unwrap_or_default();
+                let label = value.value.clone().unwrap_or_default();
+                let text = if label.is_empty() { uri.clone() } else { label };
+                let html = crate::site::load::link_new_tab(&text, &uri);
+                (text, html, "uri".to_string())
+            }
+            // `DataType\Resource\AbstractResource::render`: `linkPretty('square')`.
+            name if name.starts_with("resource") => match value.value_resource_id {
+                Some(id) => match self.value_resource_ref(id).await? {
+                    Some((kind, reference)) => {
+                        let text = reference.title.clone();
+                        let html = link_pretty(&reference);
+                        (text, html, format!("resource {}", resource_name(kind)))
+                    }
+                    None => (String::new(), String::new(), "resource".to_string()),
+                },
+                None => (String::new(), String::new(), "resource".to_string()),
+            },
+            // `DataType\Literal::render`: escaped text with newlines as `<br />`.
+            _ => {
+                let text = value.value.clone().unwrap_or_default();
+                (
+                    text.clone(),
+                    nl2br(&omeka_site::html::escape_html(&text)),
+                    "literal".to_string(),
+                )
+            }
+        };
+        Ok(ValueRef {
+            property_id: value.property_id.0,
+            property: info.label.clone(),
+            property_term: info.term.clone(),
+            vocabulary: info.vocabulary_label.clone(),
+            value: text,
+            html,
+            lang: value.lang.clone().filter(|lang| !lang.is_empty()),
+            class,
+        })
     }
 
     /// The template's properties in `list_properties` order, `None` when the
@@ -856,11 +954,28 @@ impl<'a> Loader<'a> {
             .unwrap_or_default())
     }
 
-    /// The item's item sets and media, for the item-with-metadata block. A
+    /// The item's item sets, media and site pages, plus the resources that link
+    /// to it, for the resource page blocks and the item-with-metadata block. A
     /// hidden item set or media row is dropped, matching
     /// `ResourceVisibilityFilter` on the related entities.
     async fn add_item_lists(&self, row: &ItemRow, view: &mut ResourceView) -> Result<(), DbError> {
+        let exclude = self.settings.exclude_resources_not_in_site();
+        // `ItemSets.php`: only item sets assigned to the site when
+        // `exclude_resources_not_in_site` is on.
+        let site_item_sets: Vec<db::ItemSetId> = if exclude {
+            SiteRepo::new(self.pool)
+                .list_item_sets(self.db_site_id())
+                .await?
+                .into_iter()
+                .map(|entry| entry.item_set_id)
+                .collect()
+        } else {
+            Vec::new()
+        };
         for id in ItemRepo::new(self.pool).list_item_sets(row.id()).await? {
+            if exclude && !site_item_sets.contains(&id) {
+                continue;
+            }
             if let Some(set) = ItemSetRepo::new(self.pool).get(id).await?
                 && self
                     .access
@@ -882,6 +997,7 @@ impl<'a> Loader<'a> {
                 &Paging::default(),
             )
             .await?;
+        let item_url = view.url.clone();
         for entry in media {
             if !self
                 .access
@@ -889,13 +1005,211 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
+            let title = display_title(&entry.resource);
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
-                title: display_title(&entry.resource),
-                thumbnail: None,
+                title: title.clone(),
+                thumbnail: square_thumbnail(self.base, &entry, &title),
+            });
+            view.media_embeds.push(
+                self.media_ref(&entry, &item_url, &media_options(None, None))
+                    .await?,
+            );
+        }
+        for page in SiteRepo::new(self.pool)
+            .list_pages_attaching_item(self.db_site_id(), row.id())
+            .await?
+        {
+            if let Ok(slug) = Slug::parse(&page.slug) {
+                view.site_pages.push(ResourceRef {
+                    url: page_url(&self.site.slug, &slug),
+                    title: page.title.clone(),
+                    thumbnail: None,
+                });
+            }
+        }
+        view.linked_resources = self.linked_resources(row.resource.id).await?;
+        Ok(())
+    }
+
+    /// The resources whose values point at this resource, for the
+    /// `linkedResources` block (`subjectValues`).
+    async fn linked_resources(&self, id: db::ResourceId) -> Result<Vec<LinkedResource>, DbError> {
+        let exclude = self.settings.exclude_resources_not_in_site();
+        let mut out = Vec::new();
+        for value in ValueRepo::new(self.pool)
+            .list_pointing_at(id, &Paging::default())
+            .await?
+        {
+            if !value.is_public {
+                continue;
+            }
+            let Some((kind, resource)) = self.value_resource_ref(value.resource_id).await? else {
+                continue;
+            };
+            if exclude
+                && matches!(kind, ResourceKind::Item | ResourceKind::ItemSet)
+                && !self.resource_in_site(value.resource_id, kind).await?
+            {
+                continue;
+            }
+            let property = self
+                .catalog
+                .property(value.property_id)
+                .map(|info| info.label.clone())
+                .unwrap_or_default();
+            out.push(LinkedResource {
+                property,
+                kind,
+                resource,
             });
         }
-        Ok(())
+        Ok(out)
+    }
+
+    /// A resource a value points at, as its pretty link needs it. `None` when
+    /// the row is gone or the caller cannot see it.
+    async fn value_resource_ref(
+        &self,
+        id: db::ResourceId,
+    ) -> Result<Option<(ResourceKind, ResourceRef)>, DbError> {
+        if let Some(row) = ItemRepo::new(self.pool).get(db::ItemId::from(id.0)).await? {
+            if !self
+                .access
+                .sees_resource(row.resource.is_public, row.resource.owner_id)
+            {
+                return Ok(None);
+            }
+            let title = display_title(&row.resource);
+            let thumbnail = self.item_square_thumbnail(&row, &title).await?;
+            return Ok(Some((
+                ResourceKind::Item,
+                ResourceRef {
+                    url: resource_show_url(&self.site.slug, "item", id.0),
+                    title,
+                    thumbnail,
+                },
+            )));
+        }
+        if let Some(row) = ItemSetRepo::new(self.pool)
+            .get(db::ItemSetId::from(id.0))
+            .await?
+        {
+            if !self
+                .access
+                .sees_resource(row.resource.is_public, row.resource.owner_id)
+            {
+                return Ok(None);
+            }
+            let thumbnail = match row.resource.thumbnail_id {
+                Some(asset) => self.asset_thumbnail(asset).await?,
+                None => None,
+            };
+            return Ok(Some((
+                ResourceKind::ItemSet,
+                ResourceRef {
+                    url: resource_show_url(&self.site.slug, "item-set", id.0),
+                    title: display_title(&row.resource),
+                    thumbnail,
+                },
+            )));
+        }
+        if let Some(row) = MediaRepo::new(self.pool)
+            .get(db::MediaId::from(id.0))
+            .await?
+        {
+            if !self
+                .access
+                .sees_resource(row.resource.is_public, row.resource.owner_id)
+            {
+                return Ok(None);
+            }
+            let title = display_title(&row.resource);
+            let thumbnail = square_thumbnail(self.base, &row, &title);
+            return Ok(Some((
+                ResourceKind::Media,
+                ResourceRef {
+                    url: resource_show_url(&self.site.slug, "media", id.0),
+                    title,
+                    thumbnail,
+                },
+            )));
+        }
+        Ok(None)
+    }
+
+    /// Whether a value's resource is not assigned to this site, for
+    /// `exclude_resources_not_in_site`. Only items and item sets carry the
+    /// membership upstream checks.
+    async fn value_resource_not_in_site(&self, value: &ValueRow) -> Result<bool, DbError> {
+        let Some(id) = value.value_resource_id else {
+            return Ok(false);
+        };
+        for kind in [ResourceKind::Item, ResourceKind::ItemSet] {
+            if self.resource_exists(id, kind).await? {
+                return Ok(!self.resource_in_site(id, kind).await?);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Whether a resource of a kind has this id.
+    async fn resource_exists(
+        &self,
+        id: db::ResourceId,
+        kind: ResourceKind,
+    ) -> Result<bool, DbError> {
+        Ok(match kind {
+            ResourceKind::Item => ItemRepo::new(self.pool)
+                .get(db::ItemId::from(id.0))
+                .await?
+                .is_some(),
+            ResourceKind::ItemSet => ItemSetRepo::new(self.pool)
+                .get(db::ItemSetId::from(id.0))
+                .await?
+                .is_some(),
+            ResourceKind::Media => MediaRepo::new(self.pool)
+                .get(db::MediaId::from(id.0))
+                .await?
+                .is_some(),
+        })
+    }
+
+    /// Whether a resource is attached to this site (`item_site` for an item, a
+    /// media's item for a media, `site_item_set` for an item set).
+    async fn resource_in_site(
+        &self,
+        id: db::ResourceId,
+        kind: ResourceKind,
+    ) -> Result<bool, DbError> {
+        match kind {
+            ResourceKind::Item => self.item_in_site(db::ItemId::from(id.0)).await,
+            ResourceKind::ItemSet => self.item_set_in_site(db::ItemSetId::from(id.0)).await,
+            ResourceKind::Media => match MediaRepo::new(self.pool)
+                .get(db::MediaId::from(id.0))
+                .await?
+            {
+                Some(media) => self.item_in_site(media.item_id).await,
+                None => Ok(false),
+            },
+        }
+    }
+
+    /// The square thumbnail a resource value links, from the item's primary (or
+    /// first) media.
+    async fn item_square_thumbnail(
+        &self,
+        row: &ItemRow,
+        alt: &str,
+    ) -> Result<Option<Thumbnail>, DbError> {
+        let media = match row.primary_media_id {
+            Some(id) => MediaRepo::new(self.pool).get(id).await?.filter(|media| {
+                self.access
+                    .sees_resource(media.resource.is_public, media.resource.owner_id)
+            }),
+            None => self.first_media(row.id()).await?,
+        };
+        Ok(media.and_then(|media| square_thumbnail(self.base, &media, alt)))
     }
 
     /// The item's first media row the caller can see, `ItemRepresentation`'s
@@ -1011,14 +1325,61 @@ pub(crate) fn media_options(thumbnail_type: Option<&str>, link: Option<&str>) ->
 /// The medium thumbnail of a media file, `None` without thumbnails or a stored
 /// path (`FileRenderer/*` exposes `medium/{storage_id}.jpg`).
 fn media_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
+    thumbnail_at(base, media, "medium", alt)
+}
+
+/// The square thumbnail of a media file, the size `linkPretty('square')` asks
+/// for (`FileRenderer/*` exposes `square/{storage_id}.jpg`).
+fn square_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
+    thumbnail_at(base, media, "square", alt)
+}
+
+fn thumbnail_at(base: &BaseUrl, media: &MediaRow, size: &str, alt: &str) -> Option<Thumbnail> {
     if !media.has_thumbnails {
         return None;
     }
     let storage_id = media.storage_id.as_deref()?;
     Some(Thumbnail::new(
-        base.file_url(&format!("medium/{storage_id}.jpg")),
+        base.file_url(&format!("{size}/{storage_id}.jpg")),
         alt,
     ))
+}
+
+/// `Hyperlink` with a new tab, `DataType\Uri::render`'s `class="uri-value-link"
+/// target="_blank"`.
+fn link_new_tab(text: &str, href: &str) -> String {
+    omeka_site::html::hyperlink(
+        text,
+        Some(href),
+        &[
+            omeka_site::html::Attr::text("class", "uri-value-link"),
+            omeka_site::html::Attr::text("target", "_blank"),
+        ],
+    )
+}
+
+/// PHP's `nl2br`: `<br />` before every newline, keeping the newline.
+fn nl2br(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\r' => {
+                out.push_str("<br />");
+                out.push('\r');
+                if chars.peek() == Some(&'\n') {
+                    out.push('\n');
+                    chars.next();
+                }
+            }
+            '\n' => {
+                out.push_str("<br />");
+                out.push('\n');
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
 }
 
 /// Order values as `displayValues` does.

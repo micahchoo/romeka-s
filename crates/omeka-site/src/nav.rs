@@ -410,14 +410,38 @@ fn query_string_option(query: &Option<String>) -> Option<String> {
 /// `aria` attributes, translated `title`) is not reproduced.
 #[must_use]
 pub fn render_menu(items: &[NavItem], max_depth: Option<usize>, class: &str) -> String {
+    render_menu_with_id(items, max_depth, class, None)
+}
+
+/// [`render_menu`] with the `id` the default theme passes for its top
+/// navigation (`renderMenu(null, ['id' => 'top-nav-contents'])`).
+#[must_use]
+pub fn render_menu_with_id(
+    items: &[NavItem],
+    max_depth: Option<usize>,
+    class: &str,
+    id: Option<&str>,
+) -> String {
     if items.is_empty() {
         return String::new();
     }
-    render_list(items, 0, max_depth, class)
+    render_list(items, 0, max_depth, class, id)
 }
 
-fn render_list(items: &[NavItem], level: usize, max_depth: Option<usize>, class: &str) -> String {
-    let mut out = format!("<ul class=\"{class}\">");
+fn render_list(
+    items: &[NavItem],
+    level: usize,
+    max_depth: Option<usize>,
+    class: &str,
+    id: Option<&str>,
+) -> String {
+    let mut out = match id {
+        Some(id) => format!(
+            "<ul class=\"{class}\" id=\"{}\">",
+            crate::html::escape_html(id)
+        ),
+        None => format!("<ul class=\"{class}\">"),
+    };
     for item in items {
         out.push_str("<li>");
         // `Link/Url.php::toZend` sets `target` to `_blank` for a URL link the
@@ -438,6 +462,7 @@ fn render_list(items: &[NavItem], level: usize, max_depth: Option<usize>, class:
                 level + 1,
                 max_depth,
                 "navigation",
+                None,
             ));
         }
         out.push_str("</li>");

@@ -23,6 +23,7 @@ use omeka_db::rows::{ResourceRow, SiteRow};
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::nav::{self, NavItem, PageRef};
 use omeka_site::render::{render_index, render_page};
+use omeka_site::resource_page::ResourcePageBlocks;
 use omeka_site::search::SearchResource;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{PublicRoute, kind_for_controller, page_url, parse_public_path};
@@ -125,6 +126,9 @@ struct SiteData {
     /// not set one (`PaginatorFactory.php:20`).
     global_per_page: usize,
     favicon_url: Option<String>,
+    /// The site's stored `resource_page_blocks` theme setting, `None` when the
+    /// theme's default applies.
+    resource_page_blocks: Option<ResourcePageBlocks>,
 }
 
 impl SiteData {
@@ -142,6 +146,11 @@ impl SiteData {
         let settings = settings::load(&state.pool, row.id).await?;
         let global_per_page = global_per_page(&state.pool).await?;
         let favicon_url = favicon_url(&state.pool, &state.base, settings.favicon()).await?;
+        // `Manager::getResourcePageBlocks`: the site administrator's stored
+        // `resource_page_blocks` (the theme's own settings row) wins over the
+        // theme's default.
+        let resource_page_blocks =
+            theme_resource_page_blocks(&state.pool, row.id, &row.theme).await?;
         Ok(Some(Self {
             row,
             site,
@@ -149,6 +158,7 @@ impl SiteData {
             settings,
             global_per_page,
             favicon_url,
+            resource_page_blocks,
         }))
     }
 }
@@ -159,6 +169,9 @@ struct Common<'a> {
     pages: Vec<PageRef>,
     nav: Vec<NavItem>,
     settings: &'a SiteSettings,
+    /// The site's stored `resource_page_blocks` theme setting, `None` when the
+    /// theme's default applies.
+    resource_page_blocks: Option<ResourcePageBlocks>,
     /// The global `pagination_per_page` setting, the fallback when the site does
     /// not set one (`PaginatorFactory.php:20`).
     global_per_page: usize,
@@ -204,6 +217,7 @@ impl<'a> Common<'a> {
             pages,
             nav,
             settings: &data.settings,
+            resource_page_blocks: data.resource_page_blocks.clone(),
             global_per_page: data.global_per_page,
             theme,
             favicon_url: data.favicon_url.clone(),
@@ -235,6 +249,7 @@ impl<'a> Common<'a> {
         ctx.settings = self.settings.clone();
         ctx.nav = self.nav.clone();
         ctx.pages = self.pages.clone();
+        ctx.resource_page_blocks = self.resource_page_blocks.clone();
         ctx.query = self.query.clone();
         ctx.current_path = self.current_path.clone();
         ctx.favicon_url = self.favicon_url.clone();
@@ -464,6 +479,31 @@ async fn load_catalog(pool: &SqlitePool) -> Result<Catalog, SiteError> {
             reason: error.to_string(),
         })
     })
+}
+
+/// The site's stored `resource_page_blocks`, from its theme settings row. `None`
+/// when no row stores the map or it carries no `resource_page_blocks` member, so
+/// the theme's default applies.
+async fn theme_resource_page_blocks(
+    pool: &SqlitePool,
+    site: db::SiteId,
+    theme: &str,
+) -> Result<Option<ResourcePageBlocks>, SiteError> {
+    let value = omeka_api::theme_settings::load(pool, site, theme)
+        .await
+        .map_err(|error| {
+            SiteError::Internal(DbError::Column {
+                column: "theme_settings",
+                reason: error.to_string(),
+            })
+        })?;
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.get("resource_page_blocks").is_none() {
+        return Ok(None);
+    }
+    Ok(Some(ResourcePageBlocks::parse(&value)))
 }
 
 /// Whether the actor holds a permission on the site

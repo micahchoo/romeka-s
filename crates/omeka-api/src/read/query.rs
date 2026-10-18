@@ -77,6 +77,7 @@ impl SearchQuery {
         filter.site_id = params.id::<SiteId>("site_id");
         filter.in_sites = params.bool("in_sites");
         filter.has_media = params.bool("has_media");
+        filter.site_attachments_only = params.bool("site_attachments_only").unwrap_or(false);
         filter.media_visibility = visibility;
         filter.item_set_ids = ids(&params.list("item_set_id"));
         filter.not_item_set_ids = ids(&params.list("not_item_set_id"));

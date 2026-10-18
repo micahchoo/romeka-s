@@ -98,6 +98,10 @@ pub struct QueryFilter {
     pub in_sites: Option<bool>,
     /// `has_media`: items with media (true) or without (false).
     pub has_media: Option<bool>,
+    /// `site_attachments_only`: items attached to a block on a page of the
+    /// `site_id` site (`ItemAdapter::buildQuery`). Only meaningful with
+    /// `site_id`.
+    pub site_attachments_only: bool,
     /// The media rows the `has_media` test counts.
     pub media_visibility: MediaVisibility,
     /// `item_set_id`: items in any of these sets.
@@ -113,6 +117,7 @@ impl QueryFilter {
             && self.site_id.is_none()
             && self.in_sites.is_none()
             && self.has_media.is_none()
+            && !self.site_attachments_only
             && self.item_set_ids.is_empty()
             && self.not_item_set_ids.is_empty()
     }
@@ -134,6 +139,19 @@ impl QueryFilter {
             );
             statement.bind(bind_id(site_id))?;
             statement.push(")");
+            if self.site_attachments_only {
+                // `ItemAdapter::buildQuery`: the item is attached to a block on
+                // a page of this site.
+                statement.push(
+                    " AND EXISTS (SELECT 1 FROM site_block_attachment
+                       JOIN site_page_block ON site_page_block.id = site_block_attachment.block_id
+                       JOIN site_page ON site_page.id = site_page_block.page_id
+                       WHERE site_block_attachment.item_id = resource.id
+                         AND site_page.site_id = ",
+                );
+                statement.bind(bind_id(site_id))?;
+                statement.push(")");
+            }
         } else if let Some(in_sites) = self.in_sites {
             statement.push(" AND ").push(if in_sites {
                 "EXISTS (SELECT 1 FROM item_site WHERE item_site.item_id = resource.id)"
