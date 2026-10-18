@@ -866,3 +866,162 @@ code {
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* The page editor shell: a toolbar, the canvas, the inspector and the live
+ * preview in one grid. The inspector keeps its width, the canvas takes what is
+ * left, and the preview joins them as a third column in split view. */
+.editor {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.editor-toolbar > button,
+.editor-toolbar a {
+  padding: var(--space-1) var(--space-2);
+}
+
+.editor-dirty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.editor-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.editor-issues {
+  color: var(--danger);
+}
+
+.editor-preview-toggle {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.editor-preview-toggle button[aria-pressed='true'],
+.editor-preview-widths button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.editor-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 22rem);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.editor--preview-split .editor-main {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr) minmax(300px, 22rem);
+}
+
+.editor--preview-full .editor-main {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 22rem);
+}
+
+@media (max-width: 1100px) {
+  .editor-main,
+  .editor--preview-split .editor-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.editor-canvas,
+.editor-inspector {
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.editor-inspector {
+  max-height: calc(100vh - 12rem);
+  overflow: auto;
+}
+
+.editor-preview {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.editor-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.editor-preview-widths {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.editor-preview-status {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.editor-preview-frame {
+  margin: 0 auto;
+  width: 100%;
+  min-height: 70vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.editor-preview-frame iframe {
+  display: block;
+  width: 100%;
+  min-height: 70vh;
+  border: 0;
+  background: var(--surface);
+}
+
+.editor-preview-empty {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--text-muted);
+}
+
+.page-settings,
+.block-inspector {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.page-settings h2,
+.block-inspector h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.page-grid-fields {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.editor-canvas .canvas-toolbar {
+  margin-bottom: var(--space-3);
+}

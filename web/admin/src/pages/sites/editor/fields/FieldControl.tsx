@@ -13,6 +13,7 @@ import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
+import type { EditorOptions } from '../options';
 import { AssetPicker } from './AssetPicker';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
@@ -48,6 +49,8 @@ interface ControlProps {
   readonly blockKey: BlockKey | null;
   readonly idPrefix: string;
   readonly path: string;
+  /** The editor's shared lists, so a control makes no request of its own. */
+  readonly options?: EditorOptions;
 }
 
 /** A label, its control and an error under it, the shape every scalar field has. */
@@ -243,6 +246,7 @@ const PageRefControl = ({
   onChange,
   error,
   siteId,
+  options,
 }: ControlProps & { readonly field: FieldOf<'pageRef'> }): ReactElement => {
   const { t } = useTranslator();
   return (
@@ -254,6 +258,7 @@ const PageRefControl = ({
         value={asText(value)}
         required={field.required}
         onChange={onChange}
+        {...(options?.pages === undefined ? {} : { pages: options.pages })}
       />
       {error}
     </>
@@ -288,6 +293,7 @@ const ItemQueryControl = ({
   value,
   onChange,
   error,
+  options,
 }: ControlProps & { readonly field: FieldOf<'itemQuery'> }): ReactElement => {
   const { t } = useTranslator();
   return (
@@ -298,6 +304,8 @@ const ItemQueryControl = ({
         value={asText(value)}
         required={field.required}
         onChange={onChange}
+        {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
+        {...(options?.classes === undefined ? {} : { classes: options.classes })}
       />
       {error}
     </>
@@ -306,10 +314,17 @@ const ItemQueryControl = ({
 
 const RepeatControl = (props: ControlProps & { readonly field: FieldOf<'repeat'> }): ReactElement => {
   const { t } = useTranslator();
-  const { field, value, onChange, issues, blockKey, siteId, idPrefix, path, error } = props;
+  const { field, value, onChange, issues, blockKey, siteId, idPrefix, path, error, options } = props;
   const entries = Array.isArray(value) ? value : [];
   const renderControl: RenderControl = (nested) => (
-    <FieldControl {...nested} issues={issues} blockKey={blockKey} siteId={siteId} idPrefix={idPrefix} />
+    <FieldControl
+      {...nested}
+      issues={issues}
+      blockKey={blockKey}
+      siteId={siteId}
+      idPrefix={idPrefix}
+      {...(options === undefined ? {} : { options })}
+    />
   );
   return (
     <>
@@ -333,6 +348,7 @@ const PageListControl = ({
   onChange,
   error,
   siteId,
+  options,
 }: ControlProps & { readonly field: FieldOf<'pageList'> }): ReactElement => {
   const { t } = useTranslator();
   return (
@@ -342,6 +358,7 @@ const PageListControl = ({
         label={t(field.label)}
         value={asText(value)}
         siteId={siteId}
+        {...(options?.pages === undefined ? {} : { pages: options.pages })}
         onChange={onChange}
       />
       {error}
@@ -360,6 +377,8 @@ export interface FieldControlProps {
   readonly blockKey: BlockKey | null;
   readonly siteId: SiteId;
   readonly idPrefix: string;
+  /** The editor's shared lists, so a control makes no request of its own. */
+  readonly options?: EditorOptions;
 }
 
 export const FieldControl = (props: FieldControlProps): ReactElement | null => {

@@ -8,6 +8,7 @@ import type { SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import type { BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
+import type { EditorOptions } from '../options';
 import { dataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
@@ -20,6 +21,8 @@ export interface BlockFormProps {
   readonly issues: readonly ValidationIssue[];
   readonly siteId: SiteId;
   readonly dispatch: (action: DraftAction) => void;
+  /** The editor's shared lists, so the controls make no requests of their own. */
+  readonly options?: EditorOptions;
 }
 
 export const BlockForm = ({
@@ -28,6 +31,7 @@ export const BlockForm = ({
   issues,
   siteId,
   dispatch,
+  options,
 }: BlockFormProps): ReactElement => {
   const { t } = useTranslator();
   if (schema === undefined) {
@@ -63,6 +67,7 @@ export const BlockForm = ({
             blockKey={block.key}
             siteId={siteId}
             idPrefix={idPrefix}
+            {...(options === undefined ? {} : { options })}
           />
         ),
       )}

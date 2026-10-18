@@ -9,12 +9,17 @@
  * uses the header.
  */
 import type { ReactElement, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../../../api/client';
 import type { ResourceQuery } from '../../../../api/client';
+import type { ItemSet, ResourceClass } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import type { MessageKey } from '../../../../i18n';
 import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
+
+/** How long the builder waits before it asks for a match count. */
+const COUNT_DELAY_MS = 400;
 
 /** The sort fields `AbstractResourceEntityAdapter` orders items by, and their labels. */
 const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageKey | null }[] = [
@@ -30,7 +35,24 @@ export interface ItemQueryFieldProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly required?: boolean;
+  /** The lists when the editor already loaded them; the control then makes no request. */
+  readonly itemSets?: readonly ItemSet[];
+  readonly classes?: readonly ResourceClass[];
 }
+
+/** A value that settles after `delay` without a change, so a typed query is one request. */
+const useSettled = (value: string, delay: number): string => {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSettled(value);
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+  return settled;
+};
 
 /** The list request one stored query makes: one row, for the total header. */
 const countQuery = (value: string): ResourceQuery => {
@@ -106,6 +128,8 @@ export const ItemQueryField = ({
   value,
   onChange,
   required = false,
+  itemSets,
+  classes,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator();
   const pairs = parseQuery(value);
@@ -114,9 +138,23 @@ export const ItemQueryField = ({
   const resourceClass = queryValue(pairs, QUERY_KEYS.resourceClass);
   const sortBy = queryValue(pairs, QUERY_KEYS.sortBy);
   const sortOrder = queryValue(pairs, QUERY_KEYS.sortOrder);
-  const itemSets = useAsync(() => api.listItemSets({ perPage: 200, sortBy: 'title' }), []);
-  const classes = useAsync(() => api.listResourceClasses({ perPage: 200, sortBy: 'label' }), []);
-  const matches = useAsync(() => api.listItems(countQuery(value)).then((page) => page.total), [value]);
+  const itemSetState = useAsync(
+    async (): Promise<readonly ItemSet[]> =>
+      itemSets ?? (await api.listItemSets({ perPage: 200, sortBy: 'title' })).items,
+    [itemSets],
+  );
+  const classState = useAsync(
+    async (): Promise<readonly ResourceClass[]> =>
+      classes ?? (await api.listResourceClasses({ perPage: 200, sortBy: 'label' })).items,
+    [classes],
+  );
+  const counted = useSettled(value, COUNT_DELAY_MS);
+  const matches = useAsync(
+    () => api.listItems(countQuery(counted)).then((page) => page.total),
+    [counted],
+  );
+  const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
+  const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
 
   const set = (key: string, next: string): void => {
     onChange(formatQuery(withQueryValue(pairs, key, next)));
@@ -147,14 +185,10 @@ export const ItemQueryField = ({
           onChange={(next) => {
             set(QUERY_KEYS.itemSet, next);
           }}
-          options={
-            itemSets.status === 'ready'
-              ? itemSets.data.items.map((entry) => ({
-                  id: entry.id,
-                  label: entry.title ?? t('common.untitled'),
-                }))
-              : []
-          }
+          options={itemSetOptions.map((entry) => ({
+            id: entry.id,
+            label: entry.title ?? t('common.untitled'),
+          }))}
         />
       </QueryRow>
       <QueryRow id={`${id}-class`} label={t('query.resourceClass')}>
@@ -164,11 +198,10 @@ export const ItemQueryField = ({
           onChange={(next) => {
             set(QUERY_KEYS.resourceClass, next);
           }}
-          options={
-            classes.status === 'ready'
-              ? classes.data.items.map((entry) => ({ id: entry.id, label: entry.label ?? entry.term }))
-              : []
-          }
+          options={classOptions.map((entry) => ({
+            id: entry.id,
+            label: entry.label ?? entry.term,
+          }))}
         />
       </QueryRow>
       <QueryRow id={`${id}-sort-by`} label={t('query.sort')}>
