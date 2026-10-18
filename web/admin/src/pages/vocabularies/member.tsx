@@ -43,7 +43,7 @@ export interface MemberKind<MemberT extends VocabularyMemberRow> {
   readonly loadingKey: MessageKey;
   readonly create: (write: VocabularyMemberWrite) => Promise<MemberT>;
   readonly update: (id: MemberT['id'], write: VocabularyMemberWrite) => Promise<MemberT>;
-  readonly remove: (id: MemberT['id']) => Promise<MemberT>;
+  readonly remove: (id: MemberT['id']) => Promise<void>;
 }
 
 export const PROPERTY_KIND: MemberKind<Property> = {
