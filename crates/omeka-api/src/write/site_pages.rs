@@ -39,7 +39,7 @@ struct Block {
 }
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
-    crate::write::values::collect(api, payload, CONTROL)?;
+    crate::write::values::collect(api, payload, CONTROL).await?;
     let Some(raw_site) = payload.ref_id("o:site") else {
         return Err(validation("o:site", "A page must belong to a site."));
     };
@@ -90,7 +90,7 @@ pub async fn update(
     payload: &Payload,
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
-    crate::write::values::collect(api, payload, CONTROL)?;
+    crate::write::values::collect(api, payload, CONTROL).await?;
     let id = parse_id(PAGE_CLASS, raw_id)?;
     let repo = SiteRepo::new(api.pool());
     let Some(mut page) = repo.get_page(PageId(id)).await.map_err(db_error)? else {

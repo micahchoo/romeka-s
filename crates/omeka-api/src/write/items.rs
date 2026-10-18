@@ -17,7 +17,6 @@ use crate::write::body::Payload;
 use crate::write::fulltext;
 use crate::write::media;
 use crate::write::resource::{self, not_found as ref_not_found};
-use crate::write::values;
 
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
 
@@ -48,7 +47,13 @@ pub async fn create(
         })
         .await
         .map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
     for id in item_sets {
         ItemRepo::new(api.pool())
             .add_to_item_set(row.id(), id)
@@ -73,13 +78,26 @@ pub async fn update(
         return Err(not_found(ITEM_CLASS, raw_id));
     };
     api.authorize_resource(ITEM_CLASS, row.resource.owner_id)?;
+    // Every reference the body names is checked before the first write, so a
+    // failure leaves the stored row unchanged: upstream hydrates (and so
+    // resolves every `findEntity`) before its single flush.
+    let wanted_item_sets = if !partial || payload.has("o:item_set") {
+        Some(item_sets(api, payload).await?)
+    } else {
+        None
+    };
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     row.primary_media_id = primary_media(api, payload, &row).await?;
     repo.update(&row).await.map_err(db_error)?;
-    values::store(api, row.resource.id, &hydrated.values).await?;
-    if !partial || payload.has("o:item_set") {
-        let wanted = item_sets(api, payload).await?;
+    resource::store_values(
+        api,
+        row.resource.id,
+        &hydrated.values,
+        hydrated.keep_stored_values,
+    )
+    .await?;
+    if let Some(wanted) = wanted_item_sets {
         apply_item_sets(api, row.id(), &wanted).await?;
     }
     fulltext::reindex(api, "items", row.resource.id).await?;

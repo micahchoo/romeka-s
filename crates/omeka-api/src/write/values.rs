@@ -9,7 +9,7 @@
 //! title property's first non-empty value.
 
 use omeka_db::ids::{PropertyId, ResourceId, TemplateId};
-use omeka_db::repos::{TemplateRepo, ValueRepo};
+use omeka_db::repos::{ResourceRepo, TemplateRepo, ValueRepo};
 use omeka_db::rows::NewValue;
 use serde_json::Value;
 
@@ -50,7 +50,12 @@ pub enum ValueKind {
 /// A top-level key that is not a control member and not a known property term
 /// is a validation error keyed by that member. An array member with no valid
 /// value object contributes nothing.
-pub fn collect(
+///
+/// A resource-valued object is checked against the `resource` table here,
+/// before anything is written. `DataType\Resource\AbstractResource::hydrate`
+/// throws `NotFoundException` at the same point in upstream, and because that
+/// runs during hydration the flush never happens.
+pub async fn collect(
     api: &Api<'_>,
     payload: &Payload,
     control: &[&str],
@@ -73,6 +78,9 @@ pub fn collect(
         };
         for item in array {
             if let Some(input) = parse_one(api, key, item) {
+                if let ValueKind::Resource(id) = &input.data {
+                    ensure_resource(api, *id).await?;
+                }
                 inputs.push(input);
             }
         }
@@ -82,6 +90,24 @@ pub fn collect(
     } else {
         Err(ApiError::Validation(errors))
     }
+}
+
+/// `DataType\Resource\AbstractResource::hydrate`: the named value resource must
+/// exist, and a missing one is the 404 `EntityManager::find` leaves to the
+/// exception strategy.
+async fn ensure_resource(api: &Api<'_>, id: ResourceId) -> Result<(), ApiError> {
+    if ResourceRepo::new(api.pool())
+        .get(id)
+        .await
+        .map_err(db_error)?
+        .is_none()
+    {
+        return Err(ApiError::not_found(format!(
+            "Resource not found with id {}.",
+            id.0
+        )));
+    }
+    Ok(())
 }
 
 fn parse_one(api: &Api<'_>, term: &str, value: &Value) -> Option<ValueInput> {
