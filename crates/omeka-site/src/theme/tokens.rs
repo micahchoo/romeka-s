@@ -285,6 +285,22 @@ pub const DARK_SURFACE: &str = "#1b2126";
 pub const DARK_TEXT: &str = "#e8ecef";
 /// The muted text the dark scheme uses when no colour is stored.
 pub const DARK_MUTED: &str = "#9aa6b2";
+/// The link the dark scheme uses when no colour is stored. The light default
+/// is too dark to clear AA on [`DARK_BACKGROUND`], so the dark scheme carries
+/// its own.
+pub const DARK_LINK: &str = "#8ab6e8";
+/// The accent the dark scheme uses when no colour is stored.
+pub const DARK_ACCENT: &str = "#e8b27a";
+
+/// The bounds the type scale clamps to, per heading level, as multiples of the
+/// base size: `(level, power, min, max)`. A large ratio grows the small
+/// headings but not the page's `h1`, which would otherwise dominate it.
+const HEADING_BOUNDS: [(&str, i32, f64, f64); 4] = [
+    ("h1", 4, 1.6, 3.2),
+    ("h2", 3, 1.35, 2.4),
+    ("h3", 2, 1.15, 1.8),
+    ("h4", 1, 1.0, 1.4),
+];
 
 /// The narrowest base font size the theme offers.
 pub const MIN_BASE_SIZE: u32 = 12;
@@ -361,7 +377,7 @@ impl ThemeSettings {
         let mut out = Self {
             color_scheme: scheme,
             brand: color(DEFAULT_BRAND),
-            accent: color(DEFAULT_ACCENT),
+            accent: color(if dark { DARK_ACCENT } else { DEFAULT_ACCENT }),
             background: color(if dark {
                 DARK_BACKGROUND
             } else {
@@ -370,7 +386,7 @@ impl ThemeSettings {
             surface: color(if dark { DARK_SURFACE } else { DEFAULT_SURFACE }),
             text: color(if dark { DARK_TEXT } else { DEFAULT_TEXT }),
             muted: color(if dark { DARK_MUTED } else { DEFAULT_MUTED }),
-            link: color(DEFAULT_LINK),
+            link: color(if dark { DARK_LINK } else { DEFAULT_LINK }),
             heading_font: FontStack::SystemSerif,
             body_font: FontStack::SystemSans,
             base_size: 16,
@@ -453,11 +469,9 @@ impl ThemeSettings {
             self.base_size
         ));
         let ratio = self.ratio();
-        for (level, power) in [("h1", 4), ("h2", 3), ("h3", 2), ("h4", 1)] {
-            out.push_str(&format!(
-                "  --font-size-{level}: {}em;\n",
-                decimal(ratio.powi(power))
-            ));
+        for (level, power, min, max) in HEADING_BOUNDS {
+            let size = ratio.powi(power).clamp(min, max);
+            out.push_str(&format!("  --font-size-{level}: {}em;\n", decimal(size)));
         }
         out.push_str(&format!(
             "  --line-height: {};\n",
@@ -481,6 +495,8 @@ impl ThemeSettings {
                 ("surface", DARK_SURFACE),
                 ("text", DARK_TEXT),
                 ("muted", DARK_MUTED),
+                ("link", DARK_LINK),
+                ("accent", DARK_ACCENT),
             ] {
                 out.push_str(&format!("    --color-{name}: {value};\n"));
             }

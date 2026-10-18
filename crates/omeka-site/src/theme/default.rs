@@ -44,7 +44,7 @@
 use crate::blocks;
 use crate::html::{Attr, escape_html, hyperlink, pagination};
 use crate::i18n::Translator;
-use crate::nav::{find_item_by_page, nav_path, render_menu};
+use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::search;
@@ -220,9 +220,10 @@ fn layout_with_head(
     );
     // `$site->publicNav()->menu()->renderMenu(null, ['id' => 'top-nav-contents'])`.
     // `ctx.nav` is resolved from the pages the caller may see, so a hidden page
-    // never reaches the menu.
-    let nav_menu =
-        crate::nav::render_menu_with_id(&ctx.nav, None, "navigation", Some("top-nav-contents"));
+    // never reaches the menu. The theme builds the list here so the current
+    // page carries `aria-current` and the items carry their own classes.
+    let nav_menu = header_menu(ctx);
+    let menu_label = "Menu";
     let mut theme_assets = String::new();
     for asset in info.assets.iter().filter(|asset| asset.kind.is_head()) {
         theme_assets.push_str(
@@ -270,13 +271,18 @@ fn layout_with_head(
          {head_extra}\
          </head>\n\
          <body class=\"minimal {body}\">\n\
-         <a id=\"skipnav\" href=\"#content\">{skip}</a>\n\
+         <a class=\"skip-link\" id=\"skipnav\" href=\"#content\">{skip}</a>\n\
          {user_bar}\
          {banner}\
          <header class=\"{header}\">\n\
+         <div class=\"header-inner\">\n\
          {logo}{site_title}\n\
-         <nav id=\"top-nav\">\n{nav_menu}\n</nav>\n\
+         <details class=\"nav-menu\">\n\
+         <summary class=\"nav-menu-toggle\"><span class=\"nav-menu-icon\" aria-hidden=\"true\"></span>{menu_label}</summary>\n\
+         <nav id=\"top-nav\" aria-label=\"{menu_label}\">\n{nav_menu}\n</nav>\n\
+         </details>\n\
          <div id=\"search\">{search_form}</div>\n\
+         </div>\n\
          </header>\n\
          <div id=\"content\" role=\"main\">\n\
          {content}\n</div>\n\
@@ -291,6 +297,7 @@ fn layout_with_head(
         tokens = tokens,
         site_title = site_title,
         nav_menu = nav_menu,
+        menu_label = escape_html(menu_label),
         skip = escape_html(tr.messages().skip_to_main),
         user_bar = user_bar,
         robots = robots,
@@ -298,6 +305,58 @@ fn layout_with_head(
         search_form = search::search_form(ctx, tr.search_labels()),
         powered_by = escape_html(tr.messages().powered_by),
     )
+}
+
+/// The page the header's own navigation is showing, for `aria-current`.
+///
+/// A page matches the node whose target page is this page. The site index has
+/// no page, so the home link is current when the request is the site root.
+fn nav_item_is_current(item: &NavItem, ctx: &RenderContext<'_>) -> bool {
+    match ctx.page {
+        Some(page) => item.page == Some(page.id),
+        None => item.page.is_none() && item.url == site_url(&ctx.site.slug),
+    }
+}
+
+/// The frame's primary navigation: a resolved `<ul>` with the current page
+/// marked and child pages nested one level, the "second row" the header shows
+/// without JavaScript.
+fn header_menu(ctx: &RenderContext<'_>) -> String {
+    if ctx.nav.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("<ul class=\"navigation\" id=\"top-nav-contents\">");
+    render_nav_items(&ctx.nav, ctx, 0, &mut out);
+    out.push_str("</ul>");
+    out
+}
+
+fn render_nav_items(items: &[NavItem], ctx: &RenderContext<'_>, depth: usize, out: &mut String) {
+    for item in items {
+        let current = nav_item_is_current(item, ctx);
+        let mut classes = vec!["nav-item"];
+        if !item.children.is_empty() {
+            classes.push("has-children");
+        }
+        if current {
+            classes.push("current");
+        }
+        out.push_str(&format!("<li class=\"{}\">", classes.join(" ")));
+        let mut attributes = Vec::new();
+        if item.target_blank {
+            attributes.push(Attr::text("target", "_blank"));
+        }
+        if current {
+            attributes.push(Attr::text("aria-current", "page"));
+        }
+        out.push_str(&hyperlink(&item.label, Some(&item.url), &attributes));
+        if !item.children.is_empty() && depth < 1 {
+            out.push_str("<ul class=\"navigation\">");
+            render_nav_items(&item.children, ctx, depth + 1, out);
+            out.push_str("</ul>");
+        }
+        out.push_str("</li>");
+    }
 }
 
 /// The logo the header links home, when the site's token names an asset the
@@ -680,7 +739,11 @@ fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
             hyperlink(&parent.title, Some(&parent.url), &[])
         ));
     }
+    // The media renderer's markup has no wrapper of its own, so the page wraps
+    // the file and its values together and the sheet lays them side by side.
+    out.push_str("<div class=\"media-page\">");
     out.push_str(&render_blocks(media, ctx));
+    out.push_str("</div>");
     out
 }
 

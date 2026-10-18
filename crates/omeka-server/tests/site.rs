@@ -573,13 +573,22 @@ async fn frame_renders_the_header_navigation_and_search() {
         body.contains("<h1 class=\"site-title\"><a href=\"/s/museum\">Museum</a></h1>"),
         "{body}"
     );
-    assert!(body.contains("<nav id=\"top-nav\">"), "{body}");
+    // The frame labels the primary navigation and wraps it in a `details` that
+    // collapses it on narrow screens without a script.
+    assert!(
+        body.contains("<nav id=\"top-nav\" aria-label=\"Menu\">"),
+        "{body}"
+    );
+    assert!(
+        body.contains("<summary class=\"nav-menu-toggle\">"),
+        "{body}"
+    );
     assert!(
         body.contains("<ul class=\"navigation\" id=\"top-nav-contents\">"),
         "{body}"
     );
     assert!(
-        body.contains("<a href=\"/s/museum/page/welcome\">Welcome</a>"),
+        body.contains("<a href=\"/s/museum/page/welcome\" aria-current=\"page\">Welcome</a>"),
         "{body}"
     );
     // The hidden `notes` page is not in the navigation.
