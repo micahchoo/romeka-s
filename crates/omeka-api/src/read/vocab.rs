@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use omeka_db::ids::{ClassId, PropertyId, TemplateId, VocabularyId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, VocabularyFilter,
-    VocabularyRepo,
+    VocabularyRepo, compare_text_ci,
 };
 use omeka_db::rows::{ClassRow, PropertyRow, TemplateRow, VocabularyRow};
 
@@ -21,7 +21,7 @@ use super::query::{id_filter, id_matches};
 use super::response::link_header;
 use super::{Api, db_error, not_found, parse_id, resource_ref, resource_ref_opt};
 use crate::errors::ApiError;
-use crate::read::params::{Sort, SortField};
+use crate::read::params::Sort;
 use crate::read::response::{ApiResponse, serialize};
 use crate::wire::JsonLdType;
 use crate::wire::resource_template::ResourceTemplateProperty;
@@ -50,7 +50,12 @@ pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiRe
             matches(&row.label, needle.as_deref()) || matches(&row.prefix, needle.as_deref())
         })
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &limit, cmp_vocabulary(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_vocabulary(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| vocabulary_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -115,7 +120,12 @@ pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiRespons
         .filter(|row| member_matches(vocabularies.as_ref(), row.vocabulary_id, &row.local_name))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &limit, cmp_class(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_class(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| class_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -178,7 +188,12 @@ pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResp
         .filter(|row| member_matches(vocabularies.as_ref(), row.vocabulary_id, &row.local_name))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &limit, cmp_property(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_property(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| property_doc(api, row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -234,7 +249,12 @@ pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| matches(&row.label, needle.as_deref()))
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &limit, cmp_template(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_template(params.get("sort_by").unwrap_or("id")),
+    );
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(template_doc(api, row).await?);
@@ -438,30 +458,34 @@ fn matches(text: &str, needle: Option<&str>) -> bool {
     }
 }
 
-fn cmp_vocabulary(sort: Sort) -> impl Fn(&VocabularyRow, &VocabularyRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+/// `VocabularyAdapter::$sortFields`: the label sorts through the collation. The
+/// field name is the adapter's own, not a shared sort-field name.
+fn cmp_vocabulary(
+    field: &str,
+) -> impl Fn(&VocabularyRow, &VocabularyRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_class(sort: Sort) -> impl Fn(&ClassRow, &ClassRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_class(field: &str) -> impl Fn(&ClassRow, &ClassRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_property(sort: Sort) -> impl Fn(&PropertyRow, &PropertyRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_property(field: &str) -> impl Fn(&PropertyRow, &PropertyRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }
 
-fn cmp_template(sort: Sort) -> impl Fn(&TemplateRow, &TemplateRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.label.cmp(&b.label),
+fn cmp_template(field: &str) -> impl Fn(&TemplateRow, &TemplateRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "label" => compare_text_ci(&a.label, &b.label),
         _ => a.id.cmp(&b.id),
     }
 }

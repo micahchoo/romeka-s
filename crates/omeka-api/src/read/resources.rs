@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 use omeka_db::ids::{AssetId, ClassId, ItemId, ItemSetId, MediaId, ResourceId};
 use omeka_db::repos::{
     ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging, ResourceRepo,
+    compare_opt_text_ci,
 };
 use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_media::ThumbnailType;
@@ -785,7 +786,9 @@ fn matches_search(title: Option<&str>, needle: Option<&str>) -> bool {
 
 fn cmp_item(sort: Sort) -> impl Fn(&ItemRow, &ItemRow) -> Ordering {
     move |a, b| match sort.field {
-        SortField::Title => a.resource.title.cmp(&b.resource.title),
+        SortField::Title => {
+            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
+        }
         SortField::Created => a.resource.created.cmp(&b.resource.created),
         SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
         SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),
@@ -795,7 +798,9 @@ fn cmp_item(sort: Sort) -> impl Fn(&ItemRow, &ItemRow) -> Ordering {
 
 fn cmp_item_set(sort: Sort) -> impl Fn(&ItemSetRow, &ItemSetRow) -> Ordering {
     move |a, b| match sort.field {
-        SortField::Title => a.resource.title.cmp(&b.resource.title),
+        SortField::Title => {
+            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
+        }
         SortField::Created => a.resource.created.cmp(&b.resource.created),
         SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
         SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),
@@ -805,7 +810,9 @@ fn cmp_item_set(sort: Sort) -> impl Fn(&ItemSetRow, &ItemSetRow) -> Ordering {
 
 fn cmp_media(sort: Sort) -> impl Fn(&MediaRow, &MediaRow) -> Ordering {
     move |a, b| match sort.field {
-        SortField::Title => a.resource.title.cmp(&b.resource.title),
+        SortField::Title => {
+            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
+        }
         SortField::Created => a.resource.created.cmp(&b.resource.created),
         SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
         SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),

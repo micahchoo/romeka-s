@@ -17,6 +17,7 @@
 use std::cmp::Ordering;
 
 use omeka_db::ids::{AssetId, JobId, UserId};
+use omeka_db::repos::{compare_opt_text_ci, compare_text_ci};
 use omeka_db::rows::{AssetRow, JobRow, ModuleRow, ResourceRow, SitePageRow, resource_type};
 use sqlx::SqlitePool;
 
@@ -109,9 +110,10 @@ fn owner_matches(owner: Option<UserId>, params: &Params) -> bool {
 /// to `id`.
 fn cmp_asset(field: &str) -> impl Fn(&AssetRow, &AssetRow) -> Ordering + '_ {
     move |a, b| match field {
-        "media_type" => a.media_type.cmp(&b.media_type).then(a.id.cmp(&b.id)),
-        "name" => a.name.cmp(&b.name).then(a.id.cmp(&b.id)),
-        "extension" => a.extension.cmp(&b.extension).then(a.id.cmp(&b.id)),
+        "media_type" => compare_text_ci(&a.media_type, &b.media_type).then(a.id.cmp(&b.id)),
+        "name" => compare_text_ci(&a.name, &b.name).then(a.id.cmp(&b.id)),
+        "extension" => compare_opt_text_ci(a.extension.as_deref(), b.extension.as_deref())
+            .then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),
     }
 }
@@ -216,8 +218,10 @@ fn status_matches(status: Option<&str>, params: &Params) -> bool {
 /// `AbstractEntityAdapter::sortQuery` uses for an unmapped field.
 fn cmp_job(field: &str) -> impl Fn(&JobRow, &JobRow) -> Ordering + '_ {
     move |a, b| match field {
-        "status" => a.status.cmp(&b.status).then(a.id.cmp(&b.id)),
-        "class" => a.class.cmp(&b.class).then(a.id.cmp(&b.id)),
+        "status" => {
+            compare_opt_text_ci(a.status.as_deref(), b.status.as_deref()).then(a.id.cmp(&b.id))
+        }
+        "class" => compare_text_ci(&a.class, &b.class).then(a.id.cmp(&b.id)),
         "started" => a.started.cmp(&b.started).then(a.id.cmp(&b.id)),
         "ended" => a.ended.cmp(&b.ended).then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),

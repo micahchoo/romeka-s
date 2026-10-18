@@ -5,7 +5,7 @@
 //! `ApiController::contextAction` builds the context document.
 
 use omeka_db::ids::{PageId, SiteId, UserId};
-use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo};
+use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci};
 use omeka_db::rows::{SiteBlockRow, SitePageRow, SiteRow, UserRow};
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
@@ -47,7 +47,12 @@ pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
             matches(&row.name, needle.as_deref()) || matches(&row.email, needle.as_deref())
         })
         .collect();
-    let (total, page) = sorted_page(rows, &sort, &limit, cmp_user(sort));
+    let (total, page) = sorted_page(
+        rows,
+        &sort,
+        &limit,
+        cmp_user(params.get("sort_by").unwrap_or("id")),
+    );
     let documents: Vec<_> = page.iter().map(|row| user_doc(api.base(), row)).collect();
     let body = serialize(&documents)?;
     Ok(ApiResponse::listing(
@@ -504,10 +509,10 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
 /// `AbstractEntityAdapter::search` appends.
 fn cmp_site_page(field: &str) -> impl Fn(&SitePageRow, &SitePageRow) -> std::cmp::Ordering + '_ {
     move |a, b| match field {
-        "title" => a.title.cmp(&b.title).then(a.id.cmp(&b.id)),
+        "title" => compare_text_ci(&a.title, &b.title).then(a.id.cmp(&b.id)),
         "created" => a.created.cmp(&b.created).then(a.id.cmp(&b.id)),
         "modified" => a.modified.cmp(&b.modified).then(a.id.cmp(&b.id)),
-        "slug" => a.slug.cmp(&b.slug).then(a.id.cmp(&b.id)),
+        "slug" => compare_text_ci(&a.slug, &b.slug).then(a.id.cmp(&b.id)),
         _ => a.id.cmp(&b.id),
     }
 }
@@ -539,16 +544,19 @@ fn matches(text: &str, needle: Option<&str>) -> bool {
     }
 }
 
-fn cmp_user(sort: Sort) -> impl Fn(&UserRow, &UserRow) -> std::cmp::Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => a.name.cmp(&b.name),
+/// `UserAdapter::$sortFields`, whose text field is not a shared [`SortField`]
+/// name: `name` orders by name. `ordered_page`'s stable sort keeps the `id`
+/// tiebreak `AbstractEntityAdapter::search` appends.
+fn cmp_user(field: &str) -> impl Fn(&UserRow, &UserRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "name" => compare_text_ci(&a.name, &b.name),
         _ => a.id.cmp(&b.id),
     }
 }
 
 fn cmp_site(sort: Sort) -> impl Fn(&SiteRow, &SiteRow) -> std::cmp::Ordering {
     move |a, b| match sort.field {
-        SortField::Title => a.title.cmp(&b.title),
+        SortField::Title => compare_text_ci(&a.title, &b.title),
         SortField::Created => a.created.cmp(&b.created),
         SortField::Modified => a.modified.cmp(&b.modified),
         SortField::IsPublic => a.is_public.cmp(&b.is_public),
