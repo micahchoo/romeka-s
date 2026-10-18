@@ -25,7 +25,7 @@ const KEY_LENGTH = 32;
 const KEY_CHARS = /^[A-Za-z0-9]+$/;
 
 /** The `localStorage` key. Namespaced, because the origin may host other apps. */
-export const KEY_STORAGE = 'omeka.apiKey';
+export const KEY_STORAGE = 'romeka.apiKey';
 
 /** A validated key pair. */
 export interface ApiKey {

@@ -66,7 +66,7 @@ async fn page_show_renders_every_block_in_position_order() {
         answer.body
     );
     assert!(
-        answer.body.contains("<title>Welcome · Omeka S</title>"),
+        answer.body.contains("<title>Welcome · Romeka S</title>"),
         "{}",
         answer.body
     );

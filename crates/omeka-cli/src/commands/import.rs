@@ -1,4 +1,4 @@
-//! `omeka import`: a resource template from JSON, and items from CSV.
+//! `romeka import`: a resource template from JSON, and items from CSV.
 //!
 //! ## Resource template JSON
 //!
@@ -41,14 +41,14 @@ use omeka_db::rows::{
 use crate::csv;
 use crate::error::CliError;
 
-/// Input for `omeka import template`.
+/// Input for `romeka import template`.
 #[derive(Debug, Clone)]
 pub struct TemplateOptions {
     pub database: PathBuf,
     pub file: PathBuf,
 }
 
-/// Input for `omeka import csv`.
+/// Input for `romeka import csv`.
 #[derive(Debug, Clone)]
 pub struct CsvOptions {
     pub database: PathBuf,

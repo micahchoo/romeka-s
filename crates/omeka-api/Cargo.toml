@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "The Romeka S /api REST layer: wire types, JSON-LD and the read and write endpoints."
 
 [dependencies]
 # `bcrypt` verifies the key credential the way upstream `password_verify` does

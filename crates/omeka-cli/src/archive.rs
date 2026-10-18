@@ -4,7 +4,7 @@
 //! The archive is a tar (see [`crate::tar`]) with three kinds of entry:
 //!
 //! ```text
-//! omeka.db          a consistent SQLite copy, from `VACUUM INTO`
+//! romeka.db          a consistent SQLite copy, from `VACUUM INTO`
 //! store/<path>      every file under the store root, at its store-relative path
 //! manifest.json     the commit, the counts and the checksums
 //! ```
@@ -39,11 +39,11 @@ use crate::error::CliError;
 use crate::tar::hex_encode;
 
 /// The manifest's `format` value.
-pub const FORMAT: &str = "omeka-backup";
+pub const FORMAT: &str = "romeka-backup";
 /// The manifest layout this build writes and reads.
 pub const FORMAT_VERSION: u32 = 1;
 /// The archive entry holding the database copy.
-pub const DATABASE_ENTRY: &str = "omeka.db";
+pub const DATABASE_ENTRY: &str = "romeka.db";
 /// The archive directory holding the store.
 pub const STORE_DIR: &str = "store";
 /// The archive entry holding the manifest.
@@ -51,7 +51,7 @@ pub const MANIFEST_ENTRY: &str = "manifest.json";
 
 /// The commit this binary was built from, or `unknown` outside a checkout.
 /// `build.rs` runs `git rev-parse HEAD`.
-pub const COMMIT: &str = env!("OMEKA_COMMIT");
+pub const COMMIT: &str = env!("ROMEKA_COMMIT");
 
 /// The tables whose row counts the manifest records, in the order it records
 /// them. Upstream's resource graph, with the vocabulary tables and the sites.
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn collect_store_files_is_sorted_and_path_relative() {
-        let directory = std::env::temp_dir().join(format!("omeka-archive-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("romeka-archive-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(directory.join("original")).expect("create");
         std::fs::create_dir_all(directory.join("square")).expect("create");

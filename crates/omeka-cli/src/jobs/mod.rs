@@ -3,7 +3,7 @@
 //!
 //! Upstream `Dispatcher` composes a `job` row and sends it to a
 //! `DispatchStrategy`. The port keeps the two upstream strategies: the
-//! dispatcher starts `omeka job run <id>` in a new process (the
+//! dispatcher starts `romeka job run <id>` in a new process (the
 //! `DispatchStrategy\PhpCli` behaviour), and that process runs the job
 //! synchronously (`DispatchStrategy\Synchronous`, `perform-job.php`). So a long
 //! job does not hold the caller, and the row moves through `starting`,

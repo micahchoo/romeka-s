@@ -1,4 +1,4 @@
-//! `omeka restore`: write an archive back into a database and a store.
+//! `romeka restore`: write an archive back into a database and a store.
 //!
 //! Nothing touches the target until the archive has been read, its manifest
 //! parsed, and every checksum re-computed against the bytes on disk. The whole
@@ -34,7 +34,7 @@ const WAL_SUFFIX: &str = "-wal";
 /// The suffix the shared-memory sidecar carries beside a database file.
 const SHM_SUFFIX: &str = "-shm";
 
-/// Input for `omeka restore`.
+/// Input for `romeka restore`.
 #[derive(Debug, Clone)]
 pub struct RestoreOptions {
     /// The SQLite database file to write.
@@ -103,7 +103,7 @@ fn staging_beside(store: &Path) -> Result<Staging, CliError> {
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     std::fs::create_dir_all(parent)?;
-    Staging::new_beside(store, "omeka-restore")
+    Staging::new_beside(store, "romeka-restore")
 }
 
 /// A reason the target cannot be written, or `None` when it is empty.
@@ -337,7 +337,7 @@ fn sidecar(path: &Path, suffix: &str) -> PathBuf {
 
 fn unique_sibling(path: &Path, tag: &str) -> PathBuf {
     let name = path.file_name().map_or_else(
-        || "omeka.db".to_string(),
+        || "romeka.db".to_string(),
         |name| name.to_string_lossy().into_owned(),
     );
     path.with_file_name(format!(".{name}.{tag}.{}.tmp", std::process::id()))
@@ -384,7 +384,7 @@ mod tests {
     fn empty_target() -> (tempfile::TempDir, RestoreOptions) {
         let directory = tempfile::tempdir().expect("target dir");
         let options = RestoreOptions {
-            database: directory.path().join("omeka.db"),
+            database: directory.path().join("romeka.db"),
             store: directory.path().join("files"),
             input: directory.path().join("archive.tar"),
             force: false,
@@ -504,7 +504,7 @@ mod tests {
     #[test]
     fn occupied_names_the_database_then_the_store() {
         let directory = tempfile::tempdir().expect("dir");
-        let database = directory.path().join("omeka.db");
+        let database = directory.path().join("romeka.db");
         let store = directory.path().join("files");
         std::fs::write(&database, b"db").expect("write db");
         let reason = occupied(&database, &store).expect("occupied");
@@ -524,14 +524,14 @@ mod tests {
 
     #[test]
     fn sidecars_sit_beside_the_database_file() {
-        let path = Path::new("/srv/omeka/omeka.db");
+        let path = Path::new("/srv/romeka/romeka.db");
         assert_eq!(
             sidecar(path, WAL_SUFFIX),
-            PathBuf::from("/srv/omeka/omeka.db-wal")
+            PathBuf::from("/srv/romeka/romeka.db-wal")
         );
         assert_eq!(
             sidecar(path, SHM_SUFFIX),
-            PathBuf::from("/srv/omeka/omeka.db-shm")
+            PathBuf::from("/srv/romeka/romeka.db-shm")
         );
     }
 

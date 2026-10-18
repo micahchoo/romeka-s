@@ -445,7 +445,7 @@ pub fn expires_at(created: NaiveDateTime) -> NaiveDateTime {
 /// Upstream gates the invite with the `activate-user` privilege, which
 /// `AclFactory` grants the two admin roles over another user and denies over the
 /// actor's own account (`IsSelfAssertion`); an administrator resets their own
-/// password with a key minted by `omeka user add` or with the forgot route.
+/// password with a key minted by `romeka user add` or with the forgot route.
 ///
 /// # Errors
 /// An [`ApiError`]: 404 for an id that names no user, 403 for a caller who is

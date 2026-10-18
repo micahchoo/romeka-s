@@ -1,5 +1,5 @@
 //! End-to-end tests for the `job` commands over a real database file and a real
-//! child process. Each starts the built `omeka` binary, so the process boundary
+//! child process. Each starts the built `romeka` binary, so the process boundary
 //! and the row the child writes are exercised, not a stand-in.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -27,7 +27,7 @@ struct TempDb {
 
 async fn temp_db() -> TempDb {
     let directory = tempfile::tempdir().expect("temp dir");
-    let path = directory.path().join("omeka.db");
+    let path = directory.path().join("romeka.db");
     let pool = open_file(&path).await.expect("open temp database");
     migrate(&pool).await.expect("migrate temp database");
     TempDb {
@@ -37,8 +37,8 @@ async fn temp_db() -> TempDb {
     }
 }
 
-fn omeka() -> &'static str {
-    env!("CARGO_BIN_EXE_omeka")
+fn romeka() -> &'static str {
+    env!("CARGO_BIN_EXE_romeka")
 }
 
 /// Poll the row until its status is terminal, or fail after 30 seconds.
@@ -72,11 +72,11 @@ async fn the_job_command_runs_a_stored_row() {
     .await
     .unwrap();
 
-    let output = Command::new(omeka())
+    let output = Command::new(romeka())
         .args(["job", "run", &job_id.0.to_string(), "--database"])
         .arg(&db.path)
         .output()
-        .expect("start omeka job run");
+        .expect("start romeka job run");
 
     assert!(
         output.status.success(),
@@ -104,11 +104,11 @@ async fn a_failed_job_records_the_reason_and_show_prints_it() {
     .await
     .unwrap();
 
-    let run = Command::new(omeka())
+    let run = Command::new(romeka())
         .args(["job", "run", &job_id.0.to_string(), "--database"])
         .arg(&db.path)
         .output()
-        .expect("start omeka job run");
+        .expect("start romeka job run");
     assert!(!run.status.success(), "a failed job exits nonzero");
 
     let row = store::job_get(&db.pool, job_id)
@@ -121,11 +121,11 @@ async fn a_failed_job_records_the_reason_and_show_prints_it() {
         "the failure reason is stored"
     );
 
-    let show = Command::new(omeka())
+    let show = Command::new(romeka())
         .args(["job", "show", &job_id.0.to_string(), "--database"])
         .arg(&db.path)
         .output()
-        .expect("start omeka job show");
+        .expect("start romeka job show");
     let stdout = String::from_utf8_lossy(&show.stdout);
     assert!(
         show.status.success(),
@@ -156,7 +156,7 @@ async fn a_dispatched_job_finishes_after_the_client_goes_away() {
             .unwrap();
     }
 
-    let id = Dispatcher::with_program(&db.pool, &db.path, omeka())
+    let id = Dispatcher::with_program(&db.pool, &db.path, romeka())
         .dispatch(&BatchDelete, serde_json::json!({"resource": "items"}))
         .await
         .expect("dispatch");
@@ -187,11 +187,11 @@ async fn the_stop_command_refuses_a_job_that_is_not_running() {
     .await
     .unwrap();
 
-    let output = Command::new(omeka())
+    let output = Command::new(romeka())
         .args(["job", "stop", &job_id.0.to_string(), "--database"])
         .arg(&db.path)
         .output()
-        .expect("start omeka job stop");
+        .expect("start romeka job stop");
 
     assert!(
         !output.status.success(),

@@ -42,7 +42,7 @@ test('signing in from the header stores the key, survives a reload and reaches t
   // The key lives in localStorage, so a reload keeps the session.
   await page.reload();
   await expect(page.getByText(`Signed in as ${keyIdentity}`)).toBeVisible();
-  const stored = await page.evaluate(() => window.localStorage.getItem('omeka.apiKey'));
+  const stored = await page.evaluate(() => window.localStorage.getItem('romeka.apiKey'));
   expect(stored?.includes(keyIdentity)).toBe(true);
   await expectClean(diagnostics, 'reload signed in');
 
@@ -61,7 +61,7 @@ test('signing in from the header stores the key, survives a reload and reaches t
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByText('Signed out')).toBeVisible();
-  expect(await page.evaluate(() => window.localStorage.getItem('omeka.apiKey'))).toBeNull();
+  expect(await page.evaluate(() => window.localStorage.getItem('romeka.apiKey'))).toBeNull();
   await expectClean(diagnostics, 'sign out');
 
   // Signed out, the same request carries neither parameter.
@@ -133,7 +133,7 @@ test('the password form signs in, keeps the session across a reload and signs ou
 
   // The session cookie is httpOnly, so nothing the page can read says it exists.
   const cookies = await page.evaluate(() => document.cookie);
-  expect(cookies).not.toContain('omeka_session');
+  expect(cookies).not.toContain('romeka_session');
 
   await page.reload();
   await expect(page.getByText(`Signed in as ${adminName}`)).toBeVisible();

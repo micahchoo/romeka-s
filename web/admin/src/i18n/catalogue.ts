@@ -10,7 +10,7 @@
  */
 export const en = {
   // Application shell and navigation.
-  'app.title': 'Omeka S admin',
+  'app.title': 'Romeka S admin',
   'shell.navLabel': 'Admin pages',
   'shell.noPage': 'No such page. Go to the admin dashboard.',
   'group.content': 'Content',
@@ -58,7 +58,7 @@ export const en = {
   // Shared list surface (`src/app/list.tsx`).
   'list.loading': 'Loading {resource}...',
   'list.pager': 'Page {page} of {lastPage} ({total} {resource}) ',
-  'list.empty': 'Omeka could not find any {resource}.',
+  'list.empty': 'Romeka could not find any {resource}.',
   'list.tableLabel': '{resource} table',
 
   // Loading states that are not a resource list.

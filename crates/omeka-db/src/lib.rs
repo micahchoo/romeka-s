@@ -1,4 +1,4 @@
-//! `omeka-db`: the storage layer for the Omeka S port, over SQLite or MySQL.
+//! `omeka-db`: the storage layer for Romeka S, over SQLite or MySQL.
 //!
 //! Upstream is PHP with Doctrine and MySQL (`application/data/install/schema.sql` at the frozen
 //! SHA). This crate keeps the upstream table and column names, the upstream foreign-key delete

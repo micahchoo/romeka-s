@@ -1,12 +1,12 @@
 //! The MySQL backend: the behaviour the SQLite suites freeze, against a real server.
 //!
-//! Gated on the `mysql` feature and on a reachable server. `OMEKA_MYSQL_URL` names a server, not a
+//! Gated on the `mysql` feature and on a reachable server. `ROMEKA_MYSQL_URL` names a server, not a
 //! database (`mysql://root:secret@127.0.0.1:3306`); each test creates and drops its own database.
 //! With no server the helper prints why and every test returns, so the suite skips loudly instead
 //! of failing. Run it with
 //!
 //! ```text
-//! OMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:3306 \
+//! ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:3306 \
 //!   cargo test -p omeka-db --features mysql --test mysql
 //! ```
 
@@ -93,16 +93,16 @@ fn contains(property: PropertyId, text: &str) -> QueryFilter {
 #[test]
 fn the_test_url_keeps_the_authority_and_replaces_the_database() {
     assert_eq!(
-        common::with_database("mysql://root:secret@127.0.0.1:3306", "omeka_test_1"),
-        "mysql://root:secret@127.0.0.1:3306/omeka_test_1"
+        common::with_database("mysql://root:secret@127.0.0.1:3306", "romeka_test_1"),
+        "mysql://root:secret@127.0.0.1:3306/romeka_test_1"
     );
     assert_eq!(
-        common::with_database("mysql://root@db:3306/omeka", "omeka_test_2"),
-        "mysql://root@db:3306/omeka_test_2"
+        common::with_database("mysql://root@db:3306/omeka", "romeka_test_2"),
+        "mysql://root@db:3306/romeka_test_2"
     );
     assert_eq!(
-        common::with_database("mysql://root@db:3306?ssl-mode=disabled", "omeka_test_3"),
-        "mysql://root@db:3306/omeka_test_3?ssl-mode=disabled"
+        common::with_database("mysql://root@db:3306?ssl-mode=disabled", "romeka_test_3"),
+        "mysql://root@db:3306/romeka_test_3?ssl-mode=disabled"
     );
 }
 

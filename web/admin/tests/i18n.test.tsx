@@ -148,17 +148,17 @@ describe('shell locale switch', () => {
     );
 
     render(<Shell />);
-    await screen.findByText('Omeka S admin');
+    await screen.findByText('Romeka S admin');
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'es' } });
 
-    expect(await screen.findByText('Administración de Omeka S')).toBeInTheDocument();
+    expect(await screen.findByText('Administración de Romeka S')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Elementos' })).toBeInTheDocument();
     expect(window.localStorage.getItem(LOCALE_STORAGE)).toBe('es');
 
     fireEvent.change(screen.getByLabelText('Idioma'), { target: { value: 'en' } });
 
-    expect(await screen.findByText('Omeka S admin')).toBeInTheDocument();
+    expect(await screen.findByText('Romeka S admin')).toBeInTheDocument();
     expect(window.localStorage.getItem(LOCALE_STORAGE)).toBe('en');
   });
 });

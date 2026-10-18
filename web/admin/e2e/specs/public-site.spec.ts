@@ -25,5 +25,5 @@ test('the public site renders the page the admin shows', async ({ page }) => {
   expect(welcome?.status()).toBe(200);
   await expect(page).toHaveTitle(/Welcome/);
   await expect(page.getByText('Welcome to your new site.')).toBeVisible();
-  await expect(page.getByText('Powered by Omeka S')).toBeVisible();
+  await expect(page.getByText('Powered by Romeka S')).toBeVisible();
 });

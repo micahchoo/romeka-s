@@ -186,7 +186,7 @@ async fn forgot_password(
             {
                 // Upstream logs the mail failure and still tells the caller to
                 // check their email (`forgotPasswordAction:174`).
-                tracing::warn!(target: "omeka::mail", %error, "the reset mail did not go out");
+                tracing::warn!(target: "romeka::mail", %error, "the reset mail did not go out");
             }
             no_content()
         }
@@ -221,7 +221,7 @@ async fn password_link(
                 .await
                 .map(|delivery| delivery == crate::mail::Delivery::Sent)
                 .unwrap_or_else(|error| {
-                    tracing::warn!(target: "omeka::mail", %error, "the activation mail did not go out");
+                    tracing::warn!(target: "romeka::mail", %error, "the activation mail did not go out");
                     false
                 });
             json(
@@ -255,7 +255,7 @@ pub(crate) async fn same_origin_write(
     let carries_cookie = session_token(request.headers()).is_some();
     if state_changing && carries_cookie && !origin::is_same_origin(request.headers(), &base) {
         tracing::warn!(
-            target: "omeka::auth",
+            target: "romeka::auth",
             origin = request.headers().get(ORIGIN).and_then(|value| value.to_str().ok()),
             referer = request.headers().get(REFERER).and_then(|value| value.to_str().ok()),
             "a cookie-authenticated write came from another origin"
@@ -362,7 +362,7 @@ async fn installation_title(pool: &sqlx::SqlitePool) -> String {
         .ok()
         .flatten()
         .and_then(|value| value.as_str().map(str::to_string))
-        .unwrap_or_else(|| "Omeka S".to_string())
+        .unwrap_or_else(|| "Romeka S".to_string())
 }
 
 fn bad_body() -> Response {
@@ -400,14 +400,14 @@ fn set_cookie(response: &mut Response, value: &str) {
             // Every attribute in the value is a literal, and the token is
             // alphanumeric, so a rejected value means the token is not one this
             // module minted.
-            tracing::error!(target: "omeka::auth", "the session cookie value is not a header value");
+            tracing::error!(target: "romeka::auth", "the session cookie value is not a header value");
         }
     }
 }
 
 fn auth_error(error: AuthError) -> Response {
     if matches!(error, AuthError::Internal { .. }) {
-        tracing::error!(target: "omeka::auth", %error, "the login route failed");
+        tracing::error!(target: "romeka::auth", %error, "the login route failed");
     }
     let status = error.status();
     let mut response = crate::document_response(status, &error.document());
@@ -421,7 +421,7 @@ fn auth_error(error: AuthError) -> Response {
 
 fn set_password_error(error: SetPasswordError) -> Response {
     if matches!(error, SetPasswordError::Internal { .. }) {
-        tracing::error!(target: "omeka::auth", %error, "the set-password route failed");
+        tracing::error!(target: "romeka::auth", %error, "the set-password route failed");
     }
     crate::document_response(error.status(), &error.document())
 }

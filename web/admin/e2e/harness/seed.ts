@@ -43,7 +43,7 @@ export const JOB_SPARE_CLASS = 'Omeka\\Job\\BatchUpdate';
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGM4ISf3Hx9mGBkKAFNGgMHUn6b2AAAAAElFTkSuQmCC';
 
-/** The media directory `omeka import media` reads. */
+/** The media directory `romeka import media` reads. */
 export const mediaDir = (workDir: string): string => join(workDir, 'media');
 /** The file store root, which the harness origin serves under `/files`. */
 export const storeRoot = (workDir: string): string => join(workDir, 'files');
@@ -105,7 +105,7 @@ export interface Seeded {
 export interface SeededSystem {
   readonly assetId: number;
   readonly jobId: number;
-  /** The administrator `omeka install` created, the owner of both rows. */
+  /** The administrator `romeka install` created, the owner of both rows. */
   readonly adminId: number;
 }
 

@@ -1,8 +1,8 @@
-//! `omeka export`: the JSON-LD the read layer serves, and a CSV of item values.
+//! `romeka export`: the JSON-LD the read layer serves, and a CSV of item values.
 //!
 //! ## JSON-LD
 //!
-//! `omeka export jsonld` writes the documents `/api/{resource}` answers, built
+//! `romeka export jsonld` writes the documents `/api/{resource}` answers, built
 //! by `omeka-api`'s read layer, so no second serializer exists. To an existing
 //! directory it writes one file per document, `<resource>-<o:id>.json`; to any
 //! other path it writes one JSON array. The `@id` of every document is built
@@ -18,12 +18,12 @@
 //!
 //! - One row per item, one header cell per value column.
 //! - A cell names a property as `prefix:local_name`, the term
-//!   [`crate::terms::resolve_property`] resolves and `omeka import csv` reads.
+//!   [`crate::terms::resolve_property`] resolves and `romeka import csv` reads.
 //! - The default column set is every property that holds a value on any
 //!   exported item: `dcterms:title` first, then the rest by term. `--columns`
 //!   names them instead, in the order given.
 //! - A property with several values on any item gets one column per value, and
-//!   the header repeats the term. `omeka import csv` reads two cells with the
+//!   the header repeats the term. `romeka import csv` reads two cells with the
 //!   same term as two values, so repetition is what makes a multi-valued item
 //!   round-trip.
 //! - Values flatten to text: a literal is its `@value`, a URI its `@id`, a
@@ -49,7 +49,7 @@ use crate::csv;
 use crate::error::CliError;
 use crate::terms;
 
-/// Input for `omeka export jsonld`.
+/// Input for `romeka export jsonld`.
 #[derive(Debug, Clone)]
 pub struct JsonldOptions {
     pub database: PathBuf,
@@ -57,11 +57,11 @@ pub struct JsonldOptions {
     /// An [`export::resources`] name.
     pub resource: String,
     pub item_set: Option<u64>,
-    /// The origin every `@id` is built from, as `omeka serve --base-url`.
+    /// The origin every `@id` is built from, as `romeka serve --base-url`.
     pub base_url: String,
 }
 
-/// Input for `omeka export csv`.
+/// Input for `romeka export csv`.
 #[derive(Debug, Clone)]
 pub struct CsvOptions {
     pub database: PathBuf,
@@ -72,7 +72,7 @@ pub struct CsvOptions {
     pub columns: Vec<String>,
 }
 
-/// The outcome of `omeka export jsonld`.
+/// The outcome of `romeka export jsonld`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsonldReport {
     pub resource: String,
@@ -82,7 +82,7 @@ pub struct JsonldReport {
     pub per_file: bool,
 }
 
-/// The outcome of `omeka export csv`.
+/// The outcome of `romeka export csv`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CsvReport {
     pub items: usize,
@@ -277,7 +277,7 @@ struct Column {
 /// The header and its repeats.
 ///
 /// `dcterms:title` leads the derived set because it is the item's denormalised
-/// title, which `omeka import csv` reads from the first non-empty title cell.
+/// title, which `romeka import csv` reads from the first non-empty title cell.
 fn columns(rows: &[ItemRow], requested: &[String]) -> Vec<Column> {
     let terms = column_terms(rows, requested);
     let mut columns = Vec::new();

@@ -1,5 +1,5 @@
 /**
- * The media pages render the stored files. `omeka import media` writes the
+ * The media pages render the stored files. `romeka import media` writes the
  * original plus the three thumbnails, so the browse cell shows the square
  * derivative and the show page the large one beside the original in the
  * derivative list. These specs prove each URL resolves on this run's origin and

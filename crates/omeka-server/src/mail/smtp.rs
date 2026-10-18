@@ -1,9 +1,9 @@
-//! The SMTP transport: a `lettre` relay, selected by `OMEKA_SMTP_HOST`.
+//! The SMTP transport: a `lettre` relay, selected by `ROMEKA_SMTP_HOST`.
 //!
 //! Upstream takes one of Laminas' transports from `mail.transport`, and the
 //! port's equivalent is the setting set in [`crate::config::MailConfig`]:
-//! `OMEKA_SMTP_HOST` with `OMEKA_SMTP_PORT`, `OMEKA_SMTP_USER`,
-//! `OMEKA_SMTP_PASSWORD`, `OMEKA_SMTP_TLS` and `OMEKA_MAIL_FROM`.
+//! `ROMEKA_SMTP_HOST` with `ROMEKA_SMTP_PORT`, `ROMEKA_SMTP_USER`,
+//! `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS` and `ROMEKA_MAIL_FROM`.
 //!
 //! The TLS mode picks the builder. `starttls` connects in the clear on port 587
 //! and requires the STARTTLS command before it will send, which is

@@ -1,8 +1,9 @@
 # omeka-plugin
 
-The port's extension seam. DESIGN decision 4 rejects dynamic PHP module loading and names Rust
-registries as the seam for block layouts, media adapters, jobs, data types and API adapters. This crate
-holds the traits a third party implements and the registry that holds the implementations.
+Romeka S is a fork of Omeka S. This crate is the extension seam: DESIGN decision 4 rejects dynamic PHP module loading
+and names Rust registries as the seam for block layouts, media adapters, jobs, data types and API adapters. It holds
+the traits a third party implements and the registry that holds the implementations, and the trait methods carry the
+same names as the upstream interfaces they replace.
 
 ## The contract
 

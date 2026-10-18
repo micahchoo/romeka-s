@@ -27,8 +27,8 @@ const HEALTH_INTERVAL_MS = 100;
 const skip = (name: string): boolean => process.env[name] === '1';
 
 const buildApp = (): void => {
-  if (skip('OMEKA_E2E_SKIP_BUILD')) {
-    console.log('e2e harness: skipping the SPA build (OMEKA_E2E_SKIP_BUILD=1)');
+  if (skip('ROMEKA_E2E_SKIP_BUILD')) {
+    console.log('e2e harness: skipping the SPA build (ROMEKA_E2E_SKIP_BUILD=1)');
     return;
   }
   execFileSync('npm', ['run', 'build'], { cwd: APP_ROOT, stdio: 'inherit' });
@@ -58,7 +58,7 @@ const waitForHealth = async (serverUrl: string): Promise<void> => {
 };
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  const workDir = mkdtempSync(join(tmpdir(), 'omeka-e2e-work-'));
+  const workDir = mkdtempSync(join(tmpdir(), 'romeka-e2e-work-'));
   prepareWorkDir(workDir);
   const dbPath = join(workDir, 'db.sqlite');
 
@@ -85,7 +85,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // direct insert cannot race the server's connection.
   const system = seedSystem(workDir, dbPath, ADMIN_EMAIL);
 
-  // `omeka serve` cannot report an ephemeral port, so it is told to listen on one
+  // `romeka serve` cannot report an ephemeral port, so it is told to listen on one
   // the probe just released. The origin then binds its own port and takes the
   // server's URL as its forwarding target.
   const serverPort = await freePort();

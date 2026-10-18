@@ -1,4 +1,4 @@
-//! The `omeka` binary: clap parsing and command dispatch.
+//! The `romeka` binary: clap parsing and command dispatch.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -32,23 +32,23 @@ fn main() -> ExitCode {
     {
         Ok(runtime) => runtime,
         Err(error) => {
-            eprintln!("omeka: cannot start the async runtime: {error}");
+            eprintln!("romeka: cannot start the async runtime: {error}");
             return ExitCode::FAILURE;
         }
     };
     match runtime.block_on(dispatch(&matches)) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("omeka: {error}");
+            eprintln!("romeka: {error}");
             ExitCode::FAILURE
         }
     }
 }
 
 fn build_app<'a, 'b>() -> App<'a, 'b> {
-    App::new("omeka")
+    App::new("romeka")
         .version(env!("CARGO_PKG_VERSION"))
-        .about("Omeka S command line")
+        .about("Romeka S command line")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(install_command())
         .subcommand(user_command())
@@ -103,7 +103,7 @@ fn install_command<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name("title")
                 .long("title")
                 .takes_value(true)
-                .default_value("Omeka S"),
+                .default_value("Romeka S"),
         )
         .arg(
             Arg::with_name("time-zone")

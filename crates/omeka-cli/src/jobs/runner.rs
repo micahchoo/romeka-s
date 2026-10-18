@@ -3,7 +3,7 @@
 //! This is the port of `application/data/scripts/perform-job.php` plus
 //! `Omeka\Job\DispatchStrategy\Synchronous`. It loads the row, records the
 //! process id and `in_progress`, enters the job, then writes the ending.
-//! `omeka job run <id>` calls it; the dispatcher starts that command in a new
+//! `romeka job run <id>` calls it; the dispatcher starts that command in a new
 //! process so a long job does not hold the caller.
 
 use serde_json::Value;

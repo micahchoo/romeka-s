@@ -189,7 +189,7 @@ const KeySignIn = ({ onSignedIn }: SignInProps): ReactElement => {
         <button type="submit">{t('auth.submit')}</button>
       </p>
       <p className="sign-in-hint">
-        {t('auth.hint')} <code>omeka key add</code>.
+        {t('auth.hint')} <code>romeka key add</code>.
       </p>
     </form>
   );

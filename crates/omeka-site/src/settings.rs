@@ -19,7 +19,8 @@ use crate::search::{SearchResource, SearchType};
 /// the default the upstream caller passes.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SiteSettings {
-    /// `installation_title`, default `Omeka S` (`view/layout/layout.phtml`).
+    /// `installation_title`, default `Romeka S`; upstream defaults to
+    /// `Omeka S` (`view/layout/layout.phtml`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub installation_title: Option<String>,
     /// `locale`, default `en`: the site's rendering locale
@@ -68,10 +69,10 @@ pub struct SiteSettings {
 }
 
 impl SiteSettings {
-    /// `$view->siteSetting('installation_title', 'Omeka S')`.
+    /// `$view->siteSetting('installation_title', 'Romeka S')`.
     #[must_use]
     pub fn installation_title(&self) -> &str {
-        self.installation_title.as_deref().unwrap_or("Omeka S")
+        self.installation_title.as_deref().unwrap_or("Romeka S")
     }
 
     /// `$view->siteSetting('locale')` as a shipped locale. An unset or unknown
@@ -203,7 +204,7 @@ pub static SETTINGS: [ThemeSetting; 13] = [
         key: "installation_title",
         label: "Installation title",
         kind: SettingKind::Text,
-        default: SettingDefault::Text("Omeka S"),
+        default: SettingDefault::Text("Romeka S"),
     },
     ThemeSetting {
         key: "locale",
@@ -287,7 +288,7 @@ mod tests {
     #[test]
     fn settings_defaults_match_upstream_callers() {
         let settings = SiteSettings::default();
-        assert_eq!(settings.installation_title(), "Omeka S");
+        assert_eq!(settings.installation_title(), "Romeka S");
         assert_eq!(settings.locale(), Locale::En);
         assert_eq!(settings.attachment_link_type(), "item");
         assert_eq!(settings.iiif_viewer_theme(), "light");

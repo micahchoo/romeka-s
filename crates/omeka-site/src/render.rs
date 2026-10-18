@@ -120,7 +120,7 @@ mod tests {
         assert!(!document.contains("<script>alert"), "{document}");
         assert!(
             document.contains(
-                "<title>&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt; · Omeka S</title>"
+                "<title>&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt; · Romeka S</title>"
             ),
             "{document}"
         );
@@ -154,7 +154,7 @@ mod tests {
         let document = render_iiif_viewer(None, &ctx);
         assert!(document.contains("<h1>Page not found</h1>"), "{document}");
         assert!(
-            document.contains("<title>Page not found · Omeka S</title>"),
+            document.contains("<title>Page not found · Romeka S</title>"),
             "{document}"
         );
     }

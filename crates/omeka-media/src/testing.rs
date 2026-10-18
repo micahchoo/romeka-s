@@ -161,8 +161,10 @@ impl Harness {
     pub fn new(tag: &str) -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let root =
-            std::env::temp_dir().join(format!("omeka-media-{tag}-{}-{unique}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "romeka-media-{tag}-{}-{unique}",
+            std::process::id()
+        ));
         Self {
             store: FileStore::new(&root, "/files"),
             http: FakeHttp::new(),

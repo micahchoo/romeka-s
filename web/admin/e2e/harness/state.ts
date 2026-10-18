@@ -24,9 +24,9 @@ export const DIST_ROOT: string = join(APP_ROOT, 'dist');
 export interface Harness {
   /** The origin the browser loads: the built SPA, the file store and the API. */
   readonly baseUrl: string;
-  /** The origin `omeka serve` bound. */
+  /** The origin `romeka serve` bound. */
   readonly serverUrl: string;
-  /** The SQLite database `omeka install` wrote. */
+  /** The SQLite database `romeka install` wrote. */
   readonly dbPath: string;
   /** The file store root, served under `/files`. */
   readonly storeRoot: string;
@@ -40,19 +40,19 @@ export interface Harness {
   readonly assetId: number;
   /** The seeded job the write spec updates and deletes. */
   readonly jobId: number;
-  /** The administrator `omeka install` created, for the password sign-in specs. */
+  /** The administrator `romeka install` created, for the password sign-in specs. */
   readonly adminName: string;
   readonly adminEmail: string;
   readonly adminPassword: string;
 }
 
 const stateDir = (): string => {
-  const override = process.env.OMEKA_E2E_STATE_DIR;
+  const override = process.env.ROMEKA_E2E_STATE_DIR;
   if (override !== undefined && override !== '') {
     return override;
   }
   const key = createHash('sha256').update(REPO_ROOT).digest('hex').slice(0, 12);
-  return join(tmpdir(), `omeka-e2e-${key}`);
+  return join(tmpdir(), `romeka-e2e-${key}`);
 };
 
 export const stateFile = (): string => join(stateDir(), 'harness.json');

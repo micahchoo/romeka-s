@@ -1,4 +1,4 @@
-//! The `/api` REST layer of the Omeka S port: wire types, routing rules, the
+//! The `/api` REST layer of Romeka S: wire types, routing rules, the
 //! read endpoints that turn `omeka-db` rows into JSON-LD documents, and the
 //! write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) that hydrate, persist or
 //! remove them.

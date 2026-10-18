@@ -1,4 +1,4 @@
-//! `omeka serve`: start the HTTP server.
+//! `romeka serve`: start the HTTP server.
 //!
 //! `omeka-server` owns the router and the socket. This command opens the SQLite
 //! database, parses the base URL used in the JSON-LD links, and hands both to

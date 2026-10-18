@@ -1,8 +1,9 @@
 # omeka-media
 
-The media subsystem: the file store and its storage path rule, one ingester and one renderer per upstream class, the
-file renderers, the three thumbnail types, the `media.data` payloads and the oEmbed service. `src/lib.rs` documents the
-module map and the one network seam (`http::HttpFetch`).
+Romeka S is a fork of Omeka S. This crate holds the media subsystem: the file store and its storage path rule, one
+ingester and one renderer per upstream class, the file renderers, the three thumbnail types, the `media.data` payloads
+and the oEmbed service. `src/lib.rs` documents the module map and the one network seam (`http::HttpFetch`), and each
+ingester, renderer and thumbnailer names the upstream PHP class it mirrors.
 
 ## Benchmarks
 

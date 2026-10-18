@@ -1,7 +1,7 @@
 //! A small ustar tar reader and writer, and the SHA-256 digests the archive
 //! manifest carries.
 //!
-//! `omeka backup` writes a plain (uncompressed) tar. The system `tar` can list
+//! `romeka backup` writes a plain (uncompressed) tar. The system `tar` can list
 //! and extract the archive, which matters more for a backup an operator has to
 //! inspect than the bytes a compressor would save. Neither a compression crate
 //! nor an archive crate is pulled in for that reason.
@@ -519,7 +519,7 @@ mod tests {
 
     #[test]
     fn file_digest_matches_sha256_hex_of_the_bytes() {
-        let directory = std::env::temp_dir().join(format!("omeka-tar-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("romeka-tar-{}", std::process::id()));
         std::fs::create_dir_all(&directory).expect("create dir");
         let path = directory.join("bytes.bin");
         std::fs::write(&path, b"hello").expect("write");

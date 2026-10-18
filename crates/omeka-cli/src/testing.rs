@@ -22,7 +22,7 @@ pub struct TempDb {
 /// A fresh migrated database.
 pub async fn temp_db() -> TempDb {
     let directory = tempfile::tempdir().expect("temp dir");
-    let path = directory.path().join("omeka.db");
+    let path = directory.path().join("romeka.db");
     let pool = open_file(&path).await.expect("open temp database");
     migrate(&pool).await.expect("migrate temp database");
     TempDb {

@@ -142,7 +142,7 @@ async fn login_controller_login_action_signs_in_and_sets_a_cookie() {
     );
 
     let value = header(&answer, "set-cookie").expect("a Set-Cookie header");
-    assert!(value.contains("omeka_session="), "{value}");
+    assert!(value.contains("romeka_session="), "{value}");
     assert!(value.contains("HttpOnly"), "{value}");
     assert!(value.contains("SameSite=Lax"), "{value}");
     assert!(value.contains("Path=/"), "{value}");

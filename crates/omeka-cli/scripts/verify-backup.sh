@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end check of `omeka backup` and `omeka restore`.
+# End-to-end check of `romeka backup` and `romeka restore`.
 #
 #   scripts/verify-backup.sh [--database FILE --store DIR] [--out DIR]
 #
@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/backup}"
 export CARGO_TARGET_DIR
-OMEKA="$CARGO_TARGET_DIR/debug/omeka"
+ROMEKA="$CARGO_TARGET_DIR/debug/romeka"
 
 DATABASE=""
 STORE=""
@@ -49,9 +49,9 @@ cargo build --manifest-path "$ROOT/Cargo.toml" -p omeka-cli >/dev/null
 
 if [ -z "$DATABASE" ]; then
     echo "[1/6] build a database and a store"
-    DATABASE="$OUT/omeka.db"
+    DATABASE="$OUT/romeka.db"
     STORE="$OUT/files"
-    "$OMEKA" install -d "$DATABASE" --email verify@example.org --name Verify --password verify-password-1 >/dev/null
+    "$ROMEKA" install -d "$DATABASE" --email verify@example.org --name Verify --password verify-password-1 >/dev/null
     STORAGE_ID="$(printf 'a%.0s' {1..40})"
     printf 'original bytes\n' > "$OUT/original.bin"
     SHA="$(sha256sum "$OUT/original.bin" | cut -d' ' -f1)"
@@ -76,16 +76,16 @@ fi
 
 echo "[2/6] back up"
 ARCHIVE="$OUT/backup.tar"
-"$OMEKA" backup -d "$DATABASE" --store "$STORE" --out "$ARCHIVE"
+"$ROMEKA" backup -d "$DATABASE" --store "$STORE" --out "$ARCHIVE"
 
 echo "[3/6] read the archive with the system tar"
 LISTING="$(tar tf "$ARCHIVE")"
-grep -qx omeka.db <<<"$LISTING"
+grep -qx romeka.db <<<"$LISTING"
 grep -qx manifest.json <<<"$LISTING"
 grep -q '^store/' <<<"$LISTING"
 mkdir -p "$OUT/manifest"
 tar xf "$ARCHIVE" -C "$OUT/manifest" manifest.json
-check "the manifest names the format" "$(jq -r .format "$OUT/manifest/manifest.json")" "omeka-backup"
+check "the manifest names the format" "$(jq -r .format "$OUT/manifest/manifest.json")" "romeka-backup"
 check "the manifest names the commit" "$(jq -r '.commit | length > 0' "$OUT/manifest/manifest.json")" "true"
 check "the manifest carries the store checksum" "$(jq -r '.store.checksum | length' "$OUT/manifest/manifest.json")" "64"
 COUNTED="$(jq -r '.counts.item' "$OUT/manifest/manifest.json")"
@@ -93,15 +93,15 @@ check "the counts come from the archived copy" "$COUNTED" "$(sqlite3 "$DATABASE"
 
 echo "[4/6] extract the database copy and compare it"
 mkdir -p "$OUT/extracted"
-tar xf "$ARCHIVE" -C "$OUT/extracted" omeka.db
+tar xf "$ARCHIVE" -C "$OUT/extracted" romeka.db
 check "the database copy matches its manifest" \
-    "$(sha256sum "$OUT/extracted/omeka.db" | cut -d' ' -f1)" \
+    "$(sha256sum "$OUT/extracted/romeka.db" | cut -d' ' -f1)" \
     "$(jq -r .database.sha256 "$OUT/manifest/manifest.json")"
 
 echo "[5/6] restore into a fresh directory"
 RESTORED="$OUT/restored"
-"$OMEKA" restore -d "$RESTORED/omeka.db" --store "$RESTORED/files" --in "$ARCHIVE"
-check "the restored item count" "$(sqlite3 "$RESTORED/omeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
+"$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE"
+check "the restored item count" "$(sqlite3 "$RESTORED/romeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
 SOURCE_FILES="$(find "$STORE" -type f | wc -l)"
 check "the restored store file count" "$(find "$RESTORED/files" -type f | wc -l)" "$SOURCE_FILES"
 while IFS= read -r file; do
@@ -112,14 +112,14 @@ while IFS= read -r file; do
 done < <(find "$STORE" -type f)
 
 echo "[6/6] a second restore without --force is refused, with --force it lands"
-if "$OMEKA" restore -d "$RESTORED/omeka.db" --store "$RESTORED/files" --in "$ARCHIVE" 2>"$OUT/refused.log"; then
+if "$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" 2>"$OUT/refused.log"; then
     echo "FAIL: the second restore was not refused" >&2
     exit 1
 fi
 grep -q -- "--force" "$OUT/refused.log"
 echo "ok: the refusal names --force"
-"$OMEKA" restore -d "$RESTORED/omeka.db" --store "$RESTORED/files" --in "$ARCHIVE" --force >/dev/null
-check "the forced restore keeps the item count" "$(sqlite3 "$RESTORED/omeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
+"$ROMEKA" restore -d "$RESTORED/romeka.db" --store "$RESTORED/files" --in "$ARCHIVE" --force >/dev/null
+check "the forced restore keeps the item count" "$(sqlite3 "$RESTORED/romeka.db" 'SELECT COUNT(*) FROM item;')" "$COUNTED"
 
 echo "archive $(stat -c %s "$ARCHIVE") bytes at $ARCHIVE"
 echo "VERIFIED"

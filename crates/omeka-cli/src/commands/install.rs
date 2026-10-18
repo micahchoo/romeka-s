@@ -1,4 +1,4 @@
-//! `omeka install`: build a database and seed it, mirroring the install tasks.
+//! `romeka install`: build a database and seed it, mirroring the install tasks.
 //!
 //! Upstream `InstallController` runs pre-checks then these tasks
 //! (`application/config/module.config.php:188-193`): create the schema, record
@@ -58,7 +58,7 @@ const BASE_RESOURCE_PROPERTIES: &[(&str, &str, Option<&str>)] = &[
     ("dcterms", "temporal", None),
 ];
 
-/// Operator input for `omeka install`.
+/// Operator input for `romeka install`.
 #[derive(Debug, Clone)]
 pub struct InstallOptions {
     pub database: PathBuf,
@@ -408,7 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn install_fails_on_an_uncreatable_database_path() {
-        let options = options(PathBuf::from("/nonexistent-directory-xyz/omeka.db"));
+        let options = options(PathBuf::from("/nonexistent-directory-xyz/romeka.db"));
         let error = run(&options).await.expect_err("bad path is an error");
         assert!(matches!(error, CliError::Db(_)), "got {error:?}");
     }

@@ -12,7 +12,7 @@ use crate::CliError;
 use crate::jobs::{JobStatus, Runner};
 use crate::store;
 
-/// Run one stored job in this process (`omeka job run <id>`).
+/// Run one stored job in this process (`romeka job run <id>`).
 ///
 /// # Errors
 /// A database error, or the job's own failure after its row is marked `error`.
@@ -49,24 +49,24 @@ pub async fn stop(options: &StopOptions) -> Result<bool, CliError> {
     Ok(store::job_request_stop(&pool, JobId::from(options.id)).await?)
 }
 
-/// Input for `omeka job run`.
+/// Input for `romeka job run`.
 pub struct RunOptions {
     pub database: PathBuf,
     pub id: u64,
 }
 
-/// Input for `omeka job list`.
+/// Input for `romeka job list`.
 pub struct ListOptions {
     pub database: PathBuf,
 }
 
-/// Input for `omeka job show`.
+/// Input for `romeka job show`.
 pub struct ShowOptions {
     pub database: PathBuf,
     pub id: u64,
 }
 
-/// Input for `omeka job stop`.
+/// Input for `romeka job stop`.
 pub struct StopOptions {
     pub database: PathBuf,
     pub id: u64,

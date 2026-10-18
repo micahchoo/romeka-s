@@ -27,7 +27,7 @@ pub fn test_path(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.subsec_nanos());
     std::env::temp_dir().join(format!(
-        "omeka-db-{}-{seq}-{nanos}-{name}.sqlite",
+        "romeka-db-{}-{seq}-{nanos}-{name}.sqlite",
         std::process::id()
     ))
 }
@@ -202,7 +202,7 @@ pub async fn assert_foreign_key(
 
 /// One test's MySQL database, or `None` when no server answers.
 ///
-/// The suite reads `OMEKA_MYSQL_URL`, a server URL with no database
+/// The suite reads `ROMEKA_MYSQL_URL`, a server URL with no database
 /// (`mysql://root:secret@127.0.0.1:3306`). Each call creates its own database, named from the
 /// process id and a counter, so tests never share state. [`MysqlTest::cleanup`] drops it again.
 /// With no variable set, or a server that does not answer or refuses `CREATE DATABASE`, the helper
@@ -230,10 +230,10 @@ impl MysqlTest {
 /// The server URL for the MySQL suite, or `None` when the variable is unset.
 #[cfg(feature = "mysql")]
 pub fn mysql_url() -> Option<String> {
-    match std::env::var("OMEKA_MYSQL_URL") {
+    match std::env::var("ROMEKA_MYSQL_URL") {
         Ok(url) if !url.trim().is_empty() => Some(url.trim().to_string()),
         _ => {
-            eprintln!("SKIP: OMEKA_MYSQL_URL is not set, so the MySQL suite did not run");
+            eprintln!("SKIP: ROMEKA_MYSQL_URL is not set, so the MySQL suite did not run");
             None
         }
     }
@@ -264,7 +264,7 @@ pub async fn mysql() -> Option<MysqlTest> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let base = mysql_url()?;
     let seq = NEXT.fetch_add(1, Ordering::Relaxed);
-    let name = format!("omeka_test_{}_{seq}", std::process::id());
+    let name = format!("romeka_test_{}_{seq}", std::process::id());
 
     let admin = match omeka_db::open_mysql(&base).await {
         Ok(pool) => pool,

@@ -1,4 +1,4 @@
-//! The Omeka S domain core: typed entities, value rules, the data-type
+//! The Romeka S domain core: typed entities, value rules, the data-type
 //! registry and the permission matrix, ported from upstream PHP.
 //!
 //! Upstream reference: `source/omeka-s/application/src` (read only). Each

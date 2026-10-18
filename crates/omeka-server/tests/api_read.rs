@@ -122,7 +122,7 @@ async fn media_member_emits_the_three_thumbnail_urls_from_the_store_files() {
 /// A temporary store root unique to one test process and tag.
 fn temp_store_root(tag: &str) -> std::path::PathBuf {
     let root =
-        std::env::temp_dir().join(format!("omeka-server-thumbs-{tag}-{}", std::process::id()));
+        std::env::temp_dir().join(format!("romeka-server-thumbs-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     root
 }

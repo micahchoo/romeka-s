@@ -18,7 +18,7 @@ decided it, and the verdict.
 - Where a change is compared against the code it replaces, the runs are
   interleaved (A, B, A, B, ...) in one session and both sides are rebuilt from
   source, so machine drift favours neither.
-- The API behind every timing is the debug `omeka` the e2e harness starts. The
+- The API behind every timing is the debug `romeka` the e2e harness starts. The
   bundle numbers are the gzip size of the built initial payload and of each lazy
   chunk, which are deterministic.
 - Baseline is commit `eda75f7`.
@@ -41,7 +41,7 @@ below.
 
 ## The limiter behind three of the five paths
 
-Measured against a debug `omeka` on a temporary database, seven interleaved
+Measured against a debug `romeka` on a temporary database, seven interleaved
 rounds of each shape. One `curl` process per shape with `--parallel`, timed with
 a wall clock around the process, so process start-up is paid by every side.
 

@@ -120,7 +120,7 @@ pub struct Messages {
 
 /// The English catalogue, the source language.
 pub static EN: Messages = Messages {
-    powered_by: "Powered by Omeka S",
+    powered_by: "Powered by Romeka S",
     no_pages: "This site has no pages.",
     prev: "Prev",
     next: "Next",
@@ -138,7 +138,7 @@ pub static EN: Messages = Messages {
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
 /// message id is the same.
 pub static ES: Messages = Messages {
-    powered_by: "Funciona con Omeka S",
+    powered_by: "Funciona con Romeka S",
     no_pages: "Este sitio no tiene páginas.",
     prev: "Ant",
     next: "Siguiente",
@@ -672,11 +672,11 @@ mod tests {
     fn messages_are_present_in_both_locales() {
         assert_eq!(
             Locale::En.translator().messages().powered_by,
-            "Powered by Omeka S"
+            "Powered by Romeka S"
         );
         assert_eq!(
             Locale::Es.translator().messages().powered_by,
-            "Funciona con Omeka S"
+            "Funciona con Romeka S"
         );
         assert_ne!(
             Locale::En.translator().messages().item_sets,

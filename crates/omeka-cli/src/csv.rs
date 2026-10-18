@@ -1,5 +1,5 @@
-//! A small RFC 4180 CSV reader and writer for `omeka import csv` and
-//! `omeka export csv`.
+//! A small RFC 4180 CSV reader and writer for `romeka import csv` and
+//! `romeka export csv`.
 //!
 //! The workspace has no CSV crate and the CLI may not fetch one, so both halves
 //! are here. Reading handles quoted fields, doubled quotes inside a quoted

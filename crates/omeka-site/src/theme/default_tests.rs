@@ -13,7 +13,7 @@ fn layout_matches_upstream_layout() {
         document.starts_with("<!DOCTYPE html>\n<html lang=\"en\">"),
         "{document}"
     );
-    assert!(document.contains("<title>Omeka S</title>"), "{document}");
+    assert!(document.contains("<title>Romeka S</title>"), "{document}");
     assert!(
         document.contains("href=\"/assets/css/style.css\""),
         "{document}"
@@ -27,7 +27,7 @@ fn layout_matches_upstream_layout() {
         "{document}"
     );
     assert!(
-        document.contains("<span class=\"powered-by\">Powered by Omeka S</span>"),
+        document.contains("<span class=\"powered-by\">Powered by Romeka S</span>"),
         "{document}"
     );
 }
@@ -120,7 +120,7 @@ fn item_view_matches_upstream_item_show() {
     });
     let document = DefaultTheme.render(&View::Item(&resource), &ctx);
     assert!(
-        document.contains("<title>An item · Omeka S</title>"),
+        document.contains("<title>An item · Romeka S</title>"),
         "{document}"
     );
     assert!(
@@ -173,7 +173,7 @@ fn iiif_viewer_matches_the_media_renderer_container() {
     );
     let document = DefaultTheme.render(&View::IiifViewer(&view), &ctx);
     assert!(
-        document.contains("<title>A map · Omeka S</title>"),
+        document.contains("<title>A map · Romeka S</title>"),
         "{document}"
     );
     assert!(
@@ -242,8 +242,9 @@ fn iiif_viewer_escapes_the_title_and_tile_source() {
     );
     let document = DefaultTheme.render(&View::IiifViewer(&view), &ctx);
     assert!(
-        document
-            .contains("<title>&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt; · Omeka S</title>"),
+        document.contains(
+            "<title>&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt; · Romeka S</title>"
+        ),
         "{document}"
     );
     assert!(!document.contains("<script>alert"), "{document}");
@@ -306,7 +307,7 @@ fn error_views_match_upstream_error_templates() {
     let not_found = ErrorView::not_found();
     let document = DefaultTheme.render(&View::Error(&not_found), &ctx);
     assert!(
-        document.contains("<title>Page not found · Omeka S</title>"),
+        document.contains("<title>Page not found · Romeka S</title>"),
         "{document}"
     );
     assert!(
@@ -343,13 +344,13 @@ fn layout_and_labels_render_in_the_site_locale() {
         document.starts_with("<!DOCTYPE html>\n<html lang=\"es\">"),
         "{document}"
     );
-    assert!(document.contains("<title>Omeka S</title>"), "{document}");
+    assert!(document.contains("<title>Romeka S</title>"), "{document}");
     assert!(
         document.contains("<p>Este sitio no tiene páginas.</p>"),
         "{document}"
     );
     assert!(
-        document.contains("<span class=\"powered-by\">Funciona con Omeka S</span>"),
+        document.contains("<span class=\"powered-by\">Funciona con Romeka S</span>"),
         "{document}"
     );
 
