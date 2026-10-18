@@ -310,9 +310,17 @@ mod tests {
         ctx.nav = nav();
 
         let page = about_page();
-        let mut documents = vec![crate::render::render_page(&page, &mut ctx)];
+        let mut documents = vec![crate::render::render_page(
+            &crate::theme::DefaultTheme,
+            &page,
+            &mut ctx,
+        )];
         let grid = grid_page();
-        documents.push(crate::render::render_page(&grid, &mut ctx));
+        documents.push(crate::render::render_page(
+            &crate::theme::DefaultTheme,
+            &grid,
+            &mut ctx,
+        ));
 
         let mut browse = BrowseView {
             kind: ResourceKind::Item,

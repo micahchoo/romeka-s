@@ -343,6 +343,12 @@ export interface Site {
    * here so the SPA can render the theme settings form.
    */
   readonly themeSettings: JsonValue | null;
+  /**
+   * The site's settings map, a port addition. Upstream stores each key as its
+   * own `site_setting` row; the port serves the map here so the SPA can render
+   * the settings form. Absent when the site stores none.
+   */
+  readonly siteSettings: JsonValue | null;
   readonly siteItemsUrl: string | null;
 }
 

@@ -214,9 +214,10 @@ the query; the cross-site search puts `in_sites`.
 
 The `site_setting` keys the search reads are `search_type` (which the frame's
 form posts to), `search_resource_names` (the sections a results page renders)
-and `browse_attached_items` (which adds `site_attachments_only`). There is no
-`site_setting` repository yet, so every site renders with the defaults
-(`sitewide`, `site_pages` and `items`); the columns are ready for the reader.
+and `browse_attached_items` (which adds `site_attachments_only`). The site
+loader reads them, and the rest of `SITE_SETTINGS`, from the `site_setting`
+rows (`site/settings.rs`); the page size is the site `pagination_per_page`,
+then the global setting, then 25.
 
 Not ported, all answering 404: `media` browse (its controller has no browse
 action), and `/:controller/:id` with an action other than `show`.
@@ -263,9 +264,8 @@ A handler does three things and nothing else.
 3. Render through the bundled theme and copy the document onto the wire. The
    theme owns all HTML and escaping; the server never builds markup.
 
-Known gaps, each a repository the port does not have yet: no `site_setting`
-repository, so every setting keeps its upstream default; `ItemFilter` carries no
-`site_id`, so a browse-preview shows every public resource; and an
+Known gaps, each a repository the port does not have yet: `ItemFilter` carries
+no `site_id`, so a browse-preview shows every public resource; and an
 item-with-metadata block's item-set and media list thumbnails are not resolved,
 so those lists render without images. The `asset` block and a block's
 `background_image_asset` both resolve through the asset repository, and a

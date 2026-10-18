@@ -42,6 +42,7 @@ mod limits;
 mod logging;
 pub mod mail;
 mod serve;
+pub mod settings_upgrade;
 mod site;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};

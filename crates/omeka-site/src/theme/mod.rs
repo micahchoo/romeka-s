@@ -21,9 +21,10 @@
 //!
 //! - `name`, the value `site.theme` stores, which is the theme's directory name
 //!   upstream (`Omeka\Site\Theme\Theme::getId`);
-//! - `settings`, the `site_setting` keys the theme reads, as
-//!   [`crate::settings::SETTINGS`] for the bundled theme, so a settings editor
-//!   knows what to offer;
+//! - `settings`, the theme's own settings (its `theme.ini` `[config]` spec
+//!   upstream), stored under `theme_settings_<name>`. The bundled theme
+//!   declares none; the site settings every core view reads are separate, in
+//!   [`crate::settings::SITE_SETTINGS`];
 //! - `assets`, the files the theme ships with their bytes, so a caller serves
 //!   them from [`THEMES`] without a filesystem, and the document frame links
 //!   them (upstream reads a theme's `asset/` directory).
@@ -37,7 +38,7 @@ pub mod style;
 
 pub use default::{DEFAULT_INFO, DefaultTheme};
 
-use crate::settings::ThemeSetting;
+use crate::settings::SiteSettingSpec;
 use crate::view::{RenderContext, View};
 
 /// A public site theme.
@@ -112,8 +113,10 @@ pub struct ThemeInfo {
     pub name: &'static str,
     /// The display name (`theme.ini` `name`, defaulting to the id).
     pub label: &'static str,
-    /// The `site_setting` keys the theme reads.
-    pub settings: &'static [ThemeSetting],
+    /// The theme's own settings, its `theme.ini` `[config]` spec upstream. A
+    /// site stores them under `theme_settings_<name>`, one JSON map, separate
+    /// from the site settings a `site_setting` row holds per key.
+    pub settings: &'static [SiteSettingSpec],
     /// The theme's own files.
     pub assets: &'static [ThemeAsset],
 }
@@ -167,7 +170,9 @@ mod tests {
         let info = themes()[0].info();
         assert_eq!(info.name, "default");
         assert_eq!(info.label, "Default");
-        assert_eq!(info.settings, &crate::settings::SETTINGS);
+        // The bundled theme is the core site views ported to Rust; it declares
+        // no settings of its own, only the site settings every view reads.
+        assert!(info.settings.is_empty());
         assert_eq!(info.assets.len(), 1);
     }
 

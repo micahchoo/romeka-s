@@ -5,24 +5,29 @@
 
 use omeka_core::site::SitePage;
 
-use crate::theme::{DefaultTheme, Theme};
+use crate::theme::Theme;
 use crate::view::{ErrorView, IiifViewerView, RenderContext, View};
 
 /// Render a page's blocks, in `position` order, into a full HTML document.
 ///
 /// The context must carry the site, the settings, the navigation and the
 /// resource provider; this call sets [`RenderContext::page`] to `page`.
-/// [`crate::theme::default::DefaultTheme`] renders the document.
+/// `theme` renders the document, so a site's own theme is what the caller
+/// resolves from `site.theme`.
 #[must_use]
-pub fn render_page<'a>(page: &'a SitePage, ctx: &mut RenderContext<'a>) -> String {
+pub fn render_page<'a>(
+    theme: &dyn Theme,
+    page: &'a SitePage,
+    ctx: &mut RenderContext<'a>,
+) -> String {
     ctx.page = Some(page);
-    DefaultTheme.render(&View::Page, ctx)
+    theme.render(&View::Page, ctx)
 }
 
 /// Render the site index, the view a site with no pages shows.
 #[must_use]
-pub fn render_index(ctx: &RenderContext<'_>) -> String {
-    DefaultTheme.render(&View::Index, ctx)
+pub fn render_index(theme: &dyn Theme, ctx: &RenderContext<'_>) -> String {
+    theme.render(&View::Index, ctx)
 }
 
 /// Render any view through a caller-chosen theme.
@@ -39,10 +44,14 @@ pub fn render(theme: &dyn Theme, view: &View<'_>, ctx: &RenderContext<'_>) -> St
 /// same document a missing resource renders (`view/error/404.phtml`). A held
 /// media arrives as an [`IiifViewerView`] built from its stored IIIF document.
 #[must_use]
-pub fn render_iiif_viewer(media: Option<IiifViewerView>, ctx: &RenderContext<'_>) -> String {
+pub fn render_iiif_viewer(
+    theme: &dyn Theme,
+    media: Option<IiifViewerView>,
+    ctx: &RenderContext<'_>,
+) -> String {
     match media {
-        Some(media) => DefaultTheme.render(&View::IiifViewer(&media), ctx),
-        None => DefaultTheme.render(&View::Error(&ErrorView::not_found()), ctx),
+        Some(media) => theme.render(&View::IiifViewer(&media), ctx),
+        None => theme.render(&View::Error(&ErrorView::not_found()), ctx),
     }
 }
 
@@ -51,6 +60,7 @@ mod tests {
     use super::*;
     use crate::blocks::test_support::{block, context, site};
     use crate::nav::PageRef;
+    use crate::theme::DefaultTheme;
     use crate::view::NoResources;
     use omeka_core::ids::{PageId, SiteId};
     use omeka_core::site::{BlockLayout, SitePage, Slug};
@@ -87,7 +97,7 @@ mod tests {
             title: "Welcome".to_string(),
             is_public: true,
         }];
-        let document = render_page(&page, &mut ctx);
+        let document = render_page(&DefaultTheme, &page, &mut ctx);
 
         let title_at = document.find("<h2>Welcome</h2>").expect("title fragment");
         let html_at = document.find("<p>Body copy</p>").expect("html fragment");
@@ -111,7 +121,7 @@ mod tests {
             ..page.clone()
         };
         let mut ctx = context(&site, &NoResources);
-        let document = render_page(&hostile, &mut ctx);
+        let document = render_page(&DefaultTheme, &hostile, &mut ctx);
 
         assert!(
             document.contains("<h2>&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt;</h2>"),
@@ -144,14 +154,14 @@ mod tests {
             "A map",
             r#"{"@id":"https://example.org/iiif/7"}"#,
         );
-        let document = render_iiif_viewer(Some(media), &ctx);
+        let document = render_iiif_viewer(&DefaultTheme, Some(media), &ctx);
         assert!(document.contains("id=\"iiif-7\""), "{document}");
         assert!(
             document.contains("https://example.org/iiif/7"),
             "{document}"
         );
 
-        let document = render_iiif_viewer(None, &ctx);
+        let document = render_iiif_viewer(&DefaultTheme, None, &ctx);
         assert!(document.contains("<h1>Page not found</h1>"), "{document}");
         assert!(
             document.contains("<title>Page not found · Romeka S</title>"),
@@ -164,7 +174,7 @@ mod tests {
     fn index_renders_without_a_page() {
         let site = site();
         let ctx = context(&site, &NoResources);
-        let document = render_index(&ctx);
+        let document = render_index(&DefaultTheme, &ctx);
         assert!(
             document.contains("<p>This site has no pages.</p>"),
             "{document}"

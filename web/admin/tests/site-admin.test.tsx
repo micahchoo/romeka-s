@@ -17,7 +17,8 @@ import {
   navigationJson,
   removeNavigationLink,
 } from '../src/pages/sites/navigation';
-import { themeSettingDrafts, themeSettingsJson } from '../src/pages/sites/themeSchema';
+import { siteSettingDrafts, siteSettingsWire } from '../src/pages/sites/siteSettingsSchema';
+import { SITE_SETTINGS_REGISTRY } from '../src/pages/sites/siteSettingsRegistry';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
 
@@ -106,9 +107,9 @@ describe('site detail', () => {
       'href',
       '#/sites/1/navigation',
     );
-    expect(within(nav).getByRole('link', { name: 'Theme settings' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Site settings' })).toHaveAttribute(
       'href',
-      '#/sites/1/theme',
+      '#/sites/1/settings',
     );
   });
 });
@@ -338,8 +339,8 @@ describe('site users', () => {
   });
 });
 
-describe('site theme settings', () => {
-  it('theme_settings_patch_the_map_with_the_schema_defaults_filled_in', async () => {
+describe('site settings', () => {
+  it('site_settings_patch_the_map_with_the_schema_defaults_filled_in', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
         return jsonResponse(site());
@@ -349,7 +350,7 @@ describe('site theme settings', () => {
       }
       return notFound();
     });
-    render(<SitesPage param="1" rest={['1', 'theme']} />);
+    render(<SitesPage param="1" rest={['1', 'settings']} />);
 
     const title = await screen.findByLabelText('Installation title');
     expect(title).toHaveValue('Library');
@@ -364,29 +365,25 @@ describe('site theme settings', () => {
         (request) => request.init?.method === 'PATCH',
       ),
     );
-    expect(requestBody(patch)).toEqual({
-      'o:theme_settings': {
-        installation_title: 'Archive',
-        locale: 'en',
-        attachment_link_type: 'item',
-        browse_attached_items: false,
-        filter_locale_values: false,
-        exclude_resources_not_in_site: false,
-        iiif_viewer_theme: 'light',
-        show_page_pagination: true,
-      },
+    const body = requestBody(patch);
+    expect(body).not.toHaveProperty('o:theme_settings');
+    expect(body['o:site_settings']).toMatchObject({
+      installation_title: 'Archive',
+      locale: 'en',
+      attachment_link_type: 'item',
+      show_page_pagination: true,
     });
   });
 
-  it('theme_schema_defaults_are_the_accessor_defaults', () => {
-    const drafts = themeSettingDrafts(null);
+  it('site_schema_defaults_are_the_accessor_defaults', () => {
+    const drafts = siteSettingDrafts(SITE_SETTINGS_REGISTRY, {});
     expect(drafts['installation_title']).toBe('Romeka S');
     expect(drafts['locale']).toBe('en');
     expect(drafts['show_page_pagination']).toBe(true);
-    // An unset default renders an empty control and stores nothing.
+    // An unset default renders an empty control and stores null.
     expect(drafts['subnav_display']).toBe('');
-    expect(themeSettingsJson(drafts)).not.toHaveProperty('subnav_display');
-    const stored = themeSettingDrafts({ installation_title: 'Library' });
+    expect(siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts)['subnav_display']).toBeNull();
+    const stored = siteSettingDrafts(SITE_SETTINGS_REGISTRY, { installation_title: 'Library' });
     expect(stored['installation_title']).toBe('Library');
   });
 });

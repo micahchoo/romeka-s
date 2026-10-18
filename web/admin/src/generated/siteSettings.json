@@ -1,0 +1,214 @@
+{
+  "settings": [
+    {
+      "key": "installation_title",
+      "labelKey": "siteSetting.installationTitle",
+      "kind": "text",
+      "default": "Romeka S"
+    },
+    {
+      "key": "locale",
+      "labelKey": "siteSetting.locale",
+      "kind": "choice",
+      "choices": [
+        "en",
+        "es"
+      ],
+      "default": "en"
+    },
+    {
+      "key": "attachment_link_type",
+      "labelKey": "siteSetting.attachmentLinkType",
+      "kind": "choice",
+      "choices": [
+        "item",
+        "media",
+        "original"
+      ],
+      "default": "item"
+    },
+    {
+      "key": "browse_attached_items",
+      "labelKey": "siteSetting.browseAttachedItems",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "browse_heading_property_term",
+      "labelKey": "siteSetting.browseHeadingPropertyTerm",
+      "kind": "text",
+      "default": null
+    },
+    {
+      "key": "browse_body_property_term",
+      "labelKey": "siteSetting.browseBodyPropertyTerm",
+      "kind": "text",
+      "default": null
+    },
+    {
+      "key": "filter_locale_values",
+      "labelKey": "siteSetting.filterLocaleValues",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "exclude_resources_not_in_site",
+      "labelKey": "siteSetting.excludeResourcesNotInSite",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "iiif_viewer_theme",
+      "labelKey": "siteSetting.iiifViewerTheme",
+      "kind": "choice",
+      "choices": [
+        "light",
+        "dark"
+      ],
+      "default": "light"
+    },
+    {
+      "key": "subnav_display",
+      "labelKey": "siteSetting.subnavDisplay",
+      "kind": "choice",
+      "choices": [
+        "show",
+        "hide"
+      ],
+      "default": null
+    },
+    {
+      "key": "show_page_pagination",
+      "labelKey": "siteSetting.showPagePagination",
+      "kind": "boolean",
+      "default": true
+    },
+    {
+      "key": "search_type",
+      "labelKey": "siteSetting.searchType",
+      "kind": "choice",
+      "choices": [
+        "sitewide",
+        "cross-site"
+      ],
+      "default": "sitewide"
+    },
+    {
+      "key": "search_resource_names",
+      "labelKey": "siteSetting.searchResourceNames",
+      "kind": "multiChoice",
+      "choices": [
+        "site_pages",
+        "items",
+        "item_sets"
+      ],
+      "default": [
+        "site_pages",
+        "items"
+      ]
+    },
+    {
+      "key": "show_user_bar",
+      "labelKey": "siteSetting.showUserBar",
+      "kind": "choice",
+      "choices": [
+        "-1",
+        "0",
+        "1"
+      ],
+      "default": "0"
+    },
+    {
+      "key": "disable_jsonld_embed",
+      "labelKey": "siteSetting.disableJsonldEmbed",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "favicon",
+      "labelKey": "siteSetting.favicon",
+      "kind": "text",
+      "default": null
+    },
+    {
+      "key": "show_locale_label",
+      "labelKey": "siteSetting.showLocaleLabel",
+      "kind": "boolean",
+      "default": true
+    },
+    {
+      "key": "pagination_per_page",
+      "labelKey": "siteSetting.paginationPerPage",
+      "kind": "number",
+      "default": null
+    },
+    {
+      "key": "browse_defaults_public_items",
+      "labelKey": "siteSetting.browseDefaultsPublicItems",
+      "kind": "sort",
+      "sortBy": "id",
+      "sortOrder": "desc"
+    },
+    {
+      "key": "show_attached_pages",
+      "labelKey": "siteSetting.showAttachedPages",
+      "kind": "boolean",
+      "default": true
+    },
+    {
+      "key": "property_label_information",
+      "labelKey": "siteSetting.propertyLabelInformation",
+      "kind": "choice",
+      "choices": [
+        "none",
+        "vocab",
+        "term"
+      ],
+      "default": "none"
+    },
+    {
+      "key": "show_value_annotations",
+      "labelKey": "siteSetting.showValueAnnotations",
+      "kind": "choice",
+      "choices": [
+        "collapsed",
+        "expanded"
+      ],
+      "default": null
+    },
+    {
+      "key": "item_media_embed",
+      "labelKey": "siteSetting.itemMediaEmbed",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "vocabulary_scope",
+      "labelKey": "siteSetting.vocabularyScope",
+      "kind": "choice",
+      "choices": [
+        "sitewide",
+        "cross-site"
+      ],
+      "default": null
+    },
+    {
+      "key": "search_apply_templates",
+      "labelKey": "siteSetting.searchApplyTemplates",
+      "kind": "text",
+      "default": null
+    },
+    {
+      "key": "search_restrict_templates",
+      "labelKey": "siteSetting.searchRestrictTemplates",
+      "kind": "boolean",
+      "default": false
+    },
+    {
+      "key": "iiif_viewer_sidebar",
+      "labelKey": "siteSetting.iiifViewerSidebar",
+      "kind": "boolean",
+      "default": false
+    }
+  ]
+}

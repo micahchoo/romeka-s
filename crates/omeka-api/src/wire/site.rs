@@ -53,7 +53,7 @@ pub struct Site {
     pub site_permission: Vec<SitePermission>,
     #[serde(rename = "o:site_item_set")]
     pub site_item_set: Vec<SiteItemSet>,
-    /// The site's theme settings map, a port addition.
+    /// The theme's own settings map, a port addition.
     ///
     /// Upstream stores the map in `site_setting` under `theme_settings_<theme>`
     /// and edits it through a server-rendered form, so no API member carries
@@ -66,6 +66,19 @@ pub struct Site {
         skip_serializing_if = "Option::is_none"
     )]
     pub theme_settings: Option<serde_json::Value>,
+    /// The site's site-settings map, a port addition.
+    ///
+    /// Upstream stores each key as its own `site_setting` row and edits them
+    /// through a server-rendered form, so no API member carries them. The SPA
+    /// needs the map to render the site settings form, so the site document
+    /// names it. Absent when the site stores none, which keeps the document
+    /// byte-identical to upstream's for a site with no settings.
+    #[serde(
+        rename = "o:site_settings",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub site_settings: Option<serde_json::Value>,
     #[serde(rename = "o:site_item")]
     pub site_item: ApiUrl,
     /// Seam for `o-module-*` keys. Upstream modules attach them through the

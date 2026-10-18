@@ -14,15 +14,11 @@ use omeka_site::search::{
     SearchSection, cross_site_form_action,
 };
 use omeka_site::slug::{resource_action_url, resource_browse_url};
-use omeka_site::theme::{DefaultTheme, Theme};
 use omeka_site::view::{NoResources, View};
 
 use super::super::pages;
 use super::{BrowseScope, Common, Outcome, SiteError, query_usize};
 
-/// The `per_page` a public list falls back to, the same default the site browse
-/// uses.
-const DEFAULT_PER_PAGE: usize = 10;
 /// `IndexController::searchAction` and `CrossSiteSearchController::resultsAction`
 /// search every section with `limit` 10.
 const SECTION_LIMIT: usize = 10;
@@ -75,7 +71,14 @@ async fn section(
                 .await?
         }
         None => {
-            let hits = pages::page_hits(common.loader.pool(), common.site, scope, needle).await?;
+            let hits = pages::page_hits(
+                common.loader.pool(),
+                common.site,
+                scope,
+                needle,
+                common.loader.access(),
+            )
+            .await?;
             let total = hits.len();
             (truncate(hits, SECTION_LIMIT), total)
         }
@@ -190,6 +193,7 @@ async fn cross_site_list(
                 common.site,
                 BrowseScope::AnySite,
                 &needle,
+                common.loader.access(),
             )
             .await?
         }
@@ -214,6 +218,7 @@ pub(super) async fn page_browse(common: &Common<'_>) -> Result<Outcome, SiteErro
         common.site,
         BrowseScope::Site,
         &needle,
+        common.loader.access(),
     )
     .await?;
     let total = hits.len();
@@ -277,7 +282,7 @@ fn needle(common: &Common<'_>) -> String {
 /// The one-based page and the page size a list request asks for.
 fn window(common: &Common<'_>) -> (usize, usize) {
     let per_page = query_usize(&common.query, "per_page")
-        .unwrap_or(DEFAULT_PER_PAGE)
+        .unwrap_or(common.per_page())
         .max(1);
     let page = query_usize(&common.query, "page").unwrap_or(1).max(1);
     (page, per_page)
@@ -305,5 +310,5 @@ fn slice(
 /// provider: the search views read their values from the view itself.
 fn render(view: &View<'_>, common: &Common<'_>) -> Outcome {
     let ctx = common.context(None, &NoResources);
-    Outcome::Html(DefaultTheme.render(view, &ctx))
+    Outcome::Html(common.theme.render(view, &ctx))
 }

@@ -16,6 +16,7 @@ mod dispatch;
 mod load;
 mod pages;
 mod provider;
+mod settings;
 
 use axum::Router;
 use axum::body::Body;

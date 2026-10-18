@@ -116,6 +116,16 @@ pub struct Messages {
     pub created: &'static str,
     /// `block-layout/page-date-time.phtml`.
     pub modified: &'static str,
+    /// `common/user-bar.phtml`: the bar's aria label.
+    pub user_bar_label: &'static str,
+    /// `common/user-bar.phtml`: the "Signed in as %s" prefix.
+    pub signed_in_as: &'static str,
+    /// `common/user-bar.phtml`: the logout link.
+    pub log_out: &'static str,
+    /// `common/user-bar.phtml`: the login link.
+    pub log_in: &'static str,
+    /// `view/layout/layout.phtml`: the skip link.
+    pub skip_to_main: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -133,6 +143,11 @@ pub static EN: Messages = Messages {
     part_of: "Part of",
     created: "Created",
     modified: "Modified",
+    user_bar_label: "Omeka User",
+    signed_in_as: "Signed in as",
+    log_out: "Logout",
+    log_in: "Log in",
+    skip_to_main: "Skip to main content",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -151,6 +166,11 @@ pub static ES: Messages = Messages {
     part_of: "Parte de",
     created: "Creado",
     modified: "Modificado",
+    user_bar_label: "Usuario de Omeka",
+    signed_in_as: "Sesión iniciada como",
+    log_out: "Cerrar sesión",
+    log_in: "Iniciar sesión",
+    skip_to_main: "Saltar al contenido principal",
 };
 
 /// The labels the public search reads: the sitewide search form, the advanced

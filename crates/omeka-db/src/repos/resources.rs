@@ -16,7 +16,7 @@ use super::{
 };
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, TemplateId, UserId};
+use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, SiteId, TemplateId, UserId};
 use crate::rows::{
     ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, ResourceRow, ValueAnnotationRow,
     resource_type,
@@ -380,6 +380,20 @@ where
         ids.into_iter()
             .map(|raw| Ok(ItemSetId::from(new_id(raw)?)))
             .collect()
+    }
+
+    /// Whether the item is attached to the site (`item_site`). Upstream's
+    /// `noindexItem` reads `$resource->sites()` for the same question
+    /// (`Module.php:925-931`).
+    pub async fn in_site(&self, item_id: ItemId, site_id: SiteId) -> Result<bool, DbError> {
+        let count: i64 = sqlx::query_scalar::<DB, i64>(
+            "SELECT COUNT(*) FROM item_site WHERE item_id = ? AND site_id = ?",
+        )
+        .bind(bind_id(item_id))
+        .bind(bind_id(site_id))
+        .fetch_one(self.pool)
+        .await?;
+        Ok(count > 0)
     }
 }
 

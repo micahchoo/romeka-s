@@ -79,6 +79,9 @@ pub struct InstallReport {
     pub properties_inserted: usize,
     pub template_created: bool,
     pub user_created: bool,
+    /// The site settings the upgrade moved out of a theme blob into their own
+    /// rows, zero on a fresh install.
+    pub settings_moved: usize,
 }
 
 /// Create the file, migrate, and seed it.
@@ -94,6 +97,9 @@ pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
     let template_created = install_base_resource_template(&pool).await?;
     let user_created = install_admin_user(&pool, options).await?;
     install_default_settings(&pool, options).await?;
+    // The upgrade step: an install that predates the per-row site settings
+    // holds them in the theme blob. This moves them out, once.
+    let settings_moved = omeka_server::settings_upgrade::run(&pool).await?;
 
     Ok(InstallReport {
         database: options.database.clone(),
@@ -102,6 +108,7 @@ pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
         properties_inserted: counts.2,
         template_created,
         user_created,
+        settings_moved,
     })
 }
 
