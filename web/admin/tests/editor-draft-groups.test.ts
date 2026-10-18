@@ -261,11 +261,9 @@ describe('the group span invariant under random edits', () => {
           index: Math.floor(random() * (state.blocks.length + 1)),
           blocks: [
             {
-              key: at(state.blocks, 0).key,
               layout: 'lineBreak',
               data: { break_type: 'opaque' },
               layoutData: null,
-              attachments: [],
             },
           ],
         });

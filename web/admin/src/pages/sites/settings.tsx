@@ -12,7 +12,7 @@
  * theme declares none, so this page does not show them.
  */
 import type { ReactElement } from 'react';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import { isRecord } from '../../api/parse';
 import { encodeSiteSettings } from '../../api/write';
@@ -25,6 +25,11 @@ import { useTranslator } from '../../i18n';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
 import { siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
+
+/** The template manager is its own chunk, loaded when the user opens it. */
+const TemplateManager = lazy(() =>
+  import('./TemplateManager').then((module) => ({ default: module.TemplateManager })),
+);
 
 const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
   const value = site.siteSettings;
@@ -251,6 +256,55 @@ const SiteSettingsEditor = ({
   );
 };
 
+/** The settings form and the on-demand template manager. The manager is a lazy
+ * chunk, so the settings route does not carry it until the user opens it. */
+const SiteSettingsLoaded = ({
+  siteId,
+  site,
+}: {
+  readonly siteId: SiteId;
+  readonly site: Site;
+}): ReactElement => {
+  const { t } = useTranslator();
+  const [managing, setManaging] = useState(false);
+  return (
+    <>
+      <SiteSettingsEditor key={String(siteId)} siteId={siteId} site={site} />
+      <p>
+        <button
+          type="button"
+          onClick={() => {
+            setManaging(true);
+          }}
+        >
+          {t('template.manage')}
+        </button>
+      </p>
+      <Suspense
+        fallback={
+          <div className="template-dialog-backdrop">
+            <div
+              className="template-dialog template-dialog-loading"
+              role="status"
+              aria-label={t('loading.site')}
+            />
+          </div>
+        }
+      >
+        {managing ? (
+          <TemplateManager
+            siteId={siteId}
+            siteSettings={site.siteSettings}
+            onClose={() => {
+              setManaging(false);
+            }}
+          />
+        ) : null}
+      </Suspense>
+    </>
+  );
+};
+
 /** Loads the site and its settings, then renders the form. */
 export const SiteSettingsPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
@@ -261,5 +315,5 @@ export const SiteSettingsPage = ({ siteId }: { readonly siteId: SiteId }): React
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return <SiteSettingsEditor key={String(siteId)} siteId={siteId} site={state.data} />;
+  return <SiteSettingsLoaded key={String(siteId)} siteId={siteId} site={state.data} />;
 };

@@ -211,6 +211,7 @@ describe('site page create', () => {
     });
     render(<SitesPage param="1" rest={['1', 'pages', 'new']} />);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Start blank' }));
     fireEvent.change(await screen.findByLabelText('Title'), {
       target: { value: 'Second page' },
     });

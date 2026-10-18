@@ -4,9 +4,10 @@
  */
 import type { Translator } from '../../../../i18n';
 import type { BlockRegistry } from '../../blockSchema';
-import type { BlockDraft } from '../draft';
+import type { TemplateBlock } from '../../templates';
+import type { BlockDraft, LayoutData } from '../draft';
 import { carrierOf, romkaFor } from '../romeka';
-import { dataObject } from '../values';
+import { dataObject, readLayoutData } from '../values';
 
 const MAX_SUMMARY = 80;
 
@@ -61,7 +62,7 @@ export const blockSummary = (
  * its layout, else the unknown marker. */
 export const layoutLabel = (
   registry: BlockRegistry,
-  block: BlockDraft,
+  block: { readonly layout: string; readonly layoutData: LayoutData | null },
   t: Translate,
 ): string => {
   const romka = romkaFor(registry, block);
@@ -71,3 +72,17 @@ export const layoutLabel = (
   const entry = registry.layouts.find((candidate) => candidate.name === block.layout);
   return entry === undefined ? t('layout.unknown', { name: block.layout }) : t(entry.label);
 };
+
+/** The labels of a template's blocks, one per block, for its chooser card. */
+export const templateOutline = (
+  registry: BlockRegistry,
+  blocks: readonly TemplateBlock[],
+  t: Translate,
+): readonly string[] =>
+  blocks.map((block) =>
+    layoutLabel(
+      registry,
+      { layout: block.layout, layoutData: readLayoutData(block.layoutData) },
+      t,
+    ),
+  );

@@ -19,7 +19,7 @@ test('the editor adds, moves and saves a block and the public page shows it', as
 
   // A new HTML block goes in at the end of the page.
   await page.getByRole('button', { name: /Insert block at position/ }).last().click();
-  const picker = page.getByRole('dialog', { name: 'Choose a block layout' });
+  const picker = page.getByRole('dialog', { name: 'Insert a block or template' });
   await picker.getByRole('button', { name: 'HTML', exact: true }).click();
 
   // The shell selects the new block, so its form is the inspector.

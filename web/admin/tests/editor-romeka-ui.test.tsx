@@ -17,7 +17,13 @@ const Harness = ({ initial }: { readonly initial: PageDraft }): ReactElement => 
   const [draft, dispatch] = useReducer(draftReducer, initial);
   const [selected, setSelected] = useState<BlockKey | null>(null);
   return (
-    <PageCanvas draft={draft} selectedKey={selected} onSelect={setSelected} dispatch={dispatch} />
+    <PageCanvas
+      draft={draft}
+      siteSettings={null}
+      selectedKey={selected}
+      onSelect={setSelected}
+      dispatch={dispatch}
+    />
   );
 };
 

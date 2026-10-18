@@ -41,6 +41,7 @@ pub mod page_date_time;
 pub mod page_title;
 pub mod romeka;
 pub mod table_of_contents;
+pub mod templates;
 
 use omeka_core::site::{BlockData, BlockLayout as LayoutId, SiteBlock, SitePage};
 

@@ -48,6 +48,7 @@ import {
   withSettings,
   withoutPlainHash,
 } from './romeka';
+import type { SavedTemplate, TemplateBlock, TemplateContent } from '../templates';
 import {
   contentEquals,
   dataObject,
@@ -168,7 +169,8 @@ export type DraftAction =
   | { readonly type: 'setPage'; readonly field: 'isPublic'; readonly value: boolean }
   | { readonly type: 'setPageLayout'; readonly layout: PageLayoutName }
   | { readonly type: 'setPageLayoutData'; readonly key: string; readonly value: JsonValue }
-  | { readonly type: 'insertBlocks'; readonly index: number; readonly blocks: readonly BlockDraft[] }
+  | { readonly type: 'applyTemplate'; readonly template: TemplateContent }
+  | { readonly type: 'insertBlocks'; readonly index: number; readonly blocks: readonly TemplateBlock[] }
   | { readonly type: 'undo' }
   | { readonly type: 'redo' }
   | { readonly type: 'markSaved' };
@@ -248,6 +250,15 @@ const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): Bloc
   };
 };
 
+/** A block from a template: a fresh key and no attachments. */
+const draftBlock = (index: number, block: TemplateBlock): BlockDraft => ({
+  key: blockKey(index),
+  layout: block.layout,
+  data: readData(block.data),
+  layoutData: readLayoutData(block.layoutData),
+  attachments: [],
+});
+
 /** A blank page, the create form's starting state. */
 export const emptyDraft = (registry: BlockRegistry = BLOCK_REGISTRY): PageDraft => {
   const content = emptyContent();
@@ -318,6 +329,28 @@ export const toPageWrite = (draft: PageContent, siteId: SiteId): SitePageWrite =
   layout: draft.layout === 'grid' ? 'grid' : null,
   layoutData: draft.layoutData,
   blocks: toApi(draft),
+});
+
+/**
+ * The draft as a saved template. The blocks are canonical, carry no attachments
+ * and no carrier plain hash, so the next save regenerates the Romeka rendering.
+ */
+export const toSavedTemplate = (
+  draft: PageContent,
+  id: string,
+  name: string,
+  description: string,
+): SavedTemplate => ({
+  id,
+  name,
+  description,
+  layout: draft.layout,
+  layoutData: draft.layoutData,
+  blocks: canonicalBlocks(draft.blocks).map((block) => ({
+    layout: block.layout,
+    data: block.data,
+    layoutData: block.layoutData === null ? null : withoutPlainHash(block.layoutData),
+  })),
 });
 
 /** The reducer. */
@@ -493,13 +526,27 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         state.nextKey,
         `pageLayoutData:${action.key}`,
       );
+    case 'applyTemplate': {
+      const keyed = action.template.blocks.map((block, offset) =>
+        draftBlock(state.nextKey + offset, block),
+      );
+      return commit(
+        state,
+        {
+          ...contentOf(state),
+          layout: action.template.layout,
+          layoutData: readData(action.template.layoutData),
+          blocks: canonicalBlocks(keyed),
+        },
+        state.nextKey + keyed.length,
+      );
+    }
     case 'insertBlocks': {
-      const keyed = action.blocks.map((block, offset) => ({
-        ...block,
-        key: blockKey(state.nextKey + offset),
-      }));
+      const keyed = action.blocks.map((block, offset) =>
+        draftBlock(state.nextKey + offset, block),
+      );
       const blocks = insertTemplates(parseNodes(state.blocks), action.index, parseNodes(keyed));
-      return commit(state, { ...contentOf(state), blocks }, state.nextKey + action.blocks.length);
+      return commit(state, { ...contentOf(state), blocks }, state.nextKey + keyed.length);
     }
     case 'undo': {
       const previous = state.past[state.past.length - 1];

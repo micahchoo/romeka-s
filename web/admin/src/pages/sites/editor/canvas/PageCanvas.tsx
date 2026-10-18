@@ -10,6 +10,10 @@
 import { Fragment, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react';
 import { useTranslator } from '../../../../i18n';
+import type { JsonValue } from '../../../../api/types';
+import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
+import type { TemplateChoice } from '../../templates';
+import { BUILTIN_TEMPLATES } from '../../templateRegistry';
 import type { BlockDraft, BlockKey, DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { validate } from '../draft';
 import { parseNodes } from '../groups';
@@ -24,6 +28,8 @@ import './canvas.css';
 
 export interface PageCanvasProps {
   readonly draft: PageDraft;
+  /** The site's `o:site_settings`, which carry its saved templates. */
+  readonly siteSettings: JsonValue | null;
   readonly selectedKey: BlockKey | null;
   readonly onSelect: (key: BlockKey | null) => void;
   readonly dispatch: (action: DraftAction) => void;
@@ -32,20 +38,24 @@ export interface PageCanvasProps {
 interface InsertPointProps {
   readonly index: number;
   readonly registry: PageDraft['registry'];
+  readonly templates: readonly TemplateChoice[];
   readonly open: boolean;
   readonly onOpen: () => void;
   readonly onClose: () => void;
   readonly onChoose: (layout: string, index: number) => void;
+  readonly onChooseTemplate: (template: TemplateChoice, index: number) => void;
   readonly onDropIndex: (index: number) => void;
 }
 
 const InsertPoint = ({
   index,
   registry,
+  templates,
   open,
   onOpen,
   onClose,
   onChoose,
+  onChooseTemplate,
   onDropIndex,
 }: InsertPointProps): ReactElement => {
   const { t } = useTranslator();
@@ -70,7 +80,14 @@ const InsertPoint = ({
         {t('canvas.insert')}
       </button>
       {open ? (
-        <BlockPicker registry={registry} index={index} onChoose={onChoose} onClose={onClose} />
+        <BlockPicker
+          registry={registry}
+          templates={templates}
+          index={index}
+          onChoose={onChoose}
+          onChooseTemplate={onChooseTemplate}
+          onClose={onClose}
+        />
       ) : null}
     </li>
   );
@@ -78,11 +95,16 @@ const InsertPoint = ({
 
 export const PageCanvas = ({
   draft,
+  siteSettings,
   selectedKey,
   onSelect,
   dispatch,
 }: PageCanvasProps): ReactElement => {
   const { t } = useTranslator();
+  const templates: readonly TemplateChoice[] = [
+    ...builtinChoices(BUILTIN_TEMPLATES, t),
+    ...savedChoices(savedTemplates(siteSettings)),
+  ];
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const [draggingKey, setDraggingKey] = useState<BlockKey | null>(null);
   const [pickedKey, setPickedKey] = useState<BlockKey | null>(null);
@@ -125,6 +147,11 @@ export const PageCanvas = ({
     setPickerIndex(null);
   };
 
+  const chooseTemplate = (template: TemplateChoice, index: number): void => {
+    dispatch({ type: 'insertBlocks', index, blocks: template.blocks });
+    setPickerIndex(null);
+  };
+
   const setPageNumber = (key: string, text: string): void => {
     const value = Number.parseInt(text, 10);
     dispatch({ type: 'setPageLayoutData', key, value: Number.isNaN(value) ? 0 : value });
@@ -147,6 +174,7 @@ export const PageCanvas = ({
       key={`insert-${String(index)}`}
       index={index}
       registry={draft.registry}
+      templates={templates}
       open={pickerIndex === index}
       onOpen={() => {
         setPickerIndex(index);
@@ -155,6 +183,7 @@ export const PageCanvas = ({
         setPickerIndex(null);
       }}
       onChoose={choose}
+      onChooseTemplate={chooseTemplate}
       onDropIndex={dropAt}
     />
   );

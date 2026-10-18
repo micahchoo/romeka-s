@@ -12,9 +12,11 @@ import {
   nextBlockKey,
   toApi,
   toPageWrite,
+  toSavedTemplate,
   validate,
 } from '../src/pages/sites/editor/draft';
-import type { BlockDraft, ValidationIssue } from '../src/pages/sites/editor/draft';
+import type { ValidationIssue } from '../src/pages/sites/editor/draft';
+import type { TemplateBlock, TemplateContent } from '../src/pages/sites/templates';
 import {
   apply,
   at,
@@ -294,32 +296,69 @@ describe('page members', () => {
   });
 });
 
-describe('insertBlocks', () => {
-  it('inserts template blocks in order with fresh keys', () => {
+describe('templates', () => {
+  it('inserts a template in order with fresh keys', () => {
     const state = load([rawBlock('html', { html: 'a' })]);
-    const templateKey = at(state.blocks, 0).key;
-    const template: readonly BlockDraft[] = [
-      {
-        key: templateKey,
-        layout: 'pageTitle',
-        data: {},
-        layoutData: null,
-        attachments: [],
-      },
-      {
-        key: templateKey,
-        layout: 'lineBreak',
-        data: { break_type: 'opaque' },
-        layoutData: null,
-        attachments: [],
-      },
+    const blocks: readonly TemplateBlock[] = [
+      { layout: 'pageTitle', data: {}, layoutData: null },
+      { layout: 'lineBreak', data: { break_type: 'opaque' }, layoutData: null },
     ];
-    const next = draftReducer(state, { type: 'insertBlocks', index: 1, blocks: template });
+    const next = draftReducer(state, { type: 'insertBlocks', index: 1, blocks });
     expect(layouts(next)).toEqual(['html', 'pageTitle', 'lineBreak']);
     const keys = next.blocks.map((block) => block.key);
     expect(new Set(keys).size).toBe(3);
     expect(at(next.blocks, 1).data).toEqual({});
     expect(at(next.blocks, 2).data).toEqual({ break_type: 'opaque' });
+  });
+
+  it('applies a template to the page layout, its layout data and its blocks', () => {
+    const template: TemplateContent = {
+      id: 'gallery',
+      layout: 'grid',
+      layoutData: { grid_columns: 3 },
+      blocks: [
+        { layout: 'media', data: {}, layoutData: { grid_column_span: '1' } },
+        { layout: 'media', data: {}, layoutData: { grid_column_span: '1' } },
+      ],
+    };
+    const next = draftReducer(emptyDraft(), { type: 'applyTemplate', template });
+    expect(next.layout).toBe('grid');
+    expect(next.layoutData).toEqual({ grid_columns: 3 });
+    expect(layouts(next)).toEqual(['media', 'media']);
+    expect(at(next.blocks, 0).layoutData).toEqual({ grid_column_span: '1' });
+    // A template's blocks carry no attachments.
+    expect(at(next.blocks, 0).attachments).toEqual([]);
+  });
+
+  it('stores a draft as a saved template without attachments or a plain hash', () => {
+    const state = load([
+      rawBlock(
+        'html',
+        { html: '<p>x</p>' },
+        {
+          'o:layout_data': {
+            romeka: { block: 'hero', v: 1, settings: { heading: 'Hi' }, plain_hash: 'abc' },
+          },
+          'o:attachment': [
+            { 'o:item': { '@id': 'http://localhost/api/items/5', 'o:id': 5 }, 'o:media': null, 'o:caption': 'c' },
+          ],
+        },
+      ),
+    ]);
+    expect(toSavedTemplate(state, 't1', 'My template', 'A description')).toEqual({
+      id: 't1',
+      name: 'My template',
+      description: 'A description',
+      layout: 'normal',
+      layoutData: [],
+      blocks: [
+        {
+          layout: 'html',
+          data: { html: '<p>x</p>' },
+          layoutData: { romeka: { block: 'hero', v: 1, settings: { heading: 'Hi' } } },
+        },
+      ],
+    });
   });
 });
 
