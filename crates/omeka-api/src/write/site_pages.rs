@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::routes::Operation;
-use crate::write::body::{Payload, php_json};
+use crate::write::body::{self, Payload, php_json, ref_row};
 use crate::write::fulltext;
 use crate::write::resource::not_found as ref_not_found;
 
@@ -52,11 +52,17 @@ struct RawAttachment {
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
     crate::write::values::collect(api, payload, CONTROL).await?;
-    let Some(raw_site) = payload.ref_id("o:site") else {
+    // `isset($data['o:site']['o:id'])`: a present value is looked up with no
+    // `is_numeric` guard, so a non-numeric one is a 404 rather than a missing
+    // site.
+    let Some(raw_site) = payload.present_ref("o:site") else {
         return Err(validation("o:site", "A page must belong to a site."));
     };
+    let Some(site_id) = ref_row(raw_site) else {
+        return Err(ref_not_found("Omeka\\Entity\\Site", raw_site));
+    };
     let Some(site) = SiteRepo::new(api.pool())
-        .get(SiteId(raw_site))
+        .get(SiteId(site_id))
         .await
         .map_err(db_error)?
     else {
@@ -252,16 +258,17 @@ fn parse_attachments(object: &serde_json::Map<String, Value>) -> Vec<RawAttachme
         .filter_map(|value| {
             let entry = value.as_object()?;
             Some(RawAttachment {
+                // `findEntity` on the item id, with its `NotFoundException`
+                // caught and read as "no item".
                 item: entry
                     .get("o:item")
-                    .and_then(Value::as_object)
-                    .and_then(|item| item.get("o:id"))
-                    .and_then(Value::as_u64),
+                    .and_then(body::object_id)
+                    .and_then(ref_row),
+                // `$item->getMedia()->get($id)`, the same numeric reading.
                 media: entry
                     .get("o:media")
-                    .and_then(Value::as_object)
-                    .and_then(|media| media.get("o:id"))
-                    .and_then(Value::as_u64),
+                    .and_then(body::object_id)
+                    .and_then(ref_row),
                 // `SitePageAdapter::hydrateAttachments` (`Api/Adapter/SitePageAdapter.php:326`)
                 // purifies every caption.
                 caption: omeka_core::purify::purify(

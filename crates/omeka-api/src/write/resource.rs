@@ -14,11 +14,11 @@
 use omeka_db::ids::{AssetId, ClassId, ResourceId, TemplateId, UserId};
 use omeka_db::repos::{AssetRepo, ClassRepo, TemplateRepo, UserRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
-use serde_json::json;
+use serde_json::Value;
 
 use crate::errors::ApiError;
 use crate::read::{Api, db_error};
-use crate::write::body::Payload;
+use crate::write::body::{Payload, ref_row};
 use crate::write::values::{self, ValueInput};
 
 /// The shared resource half of one create or update.
@@ -140,45 +140,62 @@ async fn owner(
 
 /// `AbstractEntityAdapter::hydrateOwner` for any entity that carries an owner.
 ///
-/// An absent `o:owner`, or a member that names no `o:id`, keeps the stored
-/// owner (`{"o:owner":{}}` says nothing about the owner). An explicit
-/// `{"o:owner":{"o:id":null}}` clears it, and a named id must exist
-/// (`findEntity` throws). A create with no usable id belongs to the caller.
+/// A member that names no `o:id` at all, `{"o:owner":{}}` among them, says
+/// nothing about the owner. An `o:id` that is present but not numeric, an
+/// explicit null included, reads as a null id, which clears the owner on an
+/// update. A numeric id is cast with `(int)`, and upstream acts on it only when
+/// it differs from the stored one: `0` clears the owner, anything else must
+/// exist (`findEntity` throws). A create with no usable id belongs to the
+/// caller.
 pub(crate) async fn owner_member(
     api: &Api<'_>,
     payload: &Payload,
     create: bool,
     stored: Option<UserId>,
 ) -> Result<Option<UserId>, ApiError> {
+    // `array_key_exists('o:id', $data['o:owner'])`, not `isset`: an explicit
+    // null enters the branch upstream.
     let names_id = payload
         .get("o:owner")
-        .and_then(|value| value.get("o:id"))
-        .is_some();
-    match (names_id, payload.ref_id("o:owner")) {
-        (true, Some(id)) => {
-            let id = UserId(id);
-            if UserRepo::new(api.pool())
-                .get(id)
-                .await
-                .map_err(db_error)?
-                .is_none()
-            {
-                return Err(not_found("Omeka\\Entity\\User", id.0));
-            }
-            Ok(Some(id))
-        }
-        // An explicit `o:id: null` clears the owner on an update. On a create
-        // the new entity has no owner yet, so the default below applies.
-        (true, None) if !create => Ok(None),
-        // No usable id: a create belongs to the caller, an update keeps what is
-        // stored.
-        _ => Ok(if create { api.actor().user() } else { stored }),
+        .and_then(Value::as_object)
+        .is_some_and(|owner| owner.contains_key("o:id"));
+    if !names_id {
+        return Ok(if create { api.actor().user() } else { stored });
     }
+    let Some(raw) = payload.numeric_ref("o:owner") else {
+        return Ok(None);
+    };
+    let integer = crate::write::body::cast_int(raw).unwrap_or(0);
+    if integer == 0 {
+        // `$newOwnerId ? ... : null`: a zero id clears the owner, and a create
+        // then falls back to the caller.
+        return Ok(if create { api.actor().user() } else { None });
+    }
+    if integer < 0 {
+        // `findEntity((int) $id)`: the criteria is the cast integer, not the
+        // string the body carried.
+        return Err(not_found(USER_CLASS, &Value::from(integer)));
+    }
+    let id = UserId(integer as u64);
+    if UserRepo::new(api.pool())
+        .get(id)
+        .await
+        .map_err(db_error)?
+        .is_none()
+    {
+        return Err(not_found(USER_CLASS, &Value::from(integer)));
+    }
+    Ok(Some(id))
 }
 
+const USER_CLASS: &str = "Omeka\\Entity\\User";
+
 async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiError> {
-    let Some(id) = payload.ref_id("o:resource_class") else {
+    let Some(raw) = payload.numeric_ref("o:resource_class") else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(not_found(CLASS_CLASS, raw));
     };
     let id = ClassId(id);
     if ClassRepo::new(api.pool())
@@ -187,14 +204,19 @@ async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiE
         .map_err(db_error)?
         .is_none()
     {
-        return Err(not_found("Omeka\\Entity\\ResourceClass", id.0));
+        return Err(not_found(CLASS_CLASS, raw));
     }
     Ok(Some(id))
 }
 
+const CLASS_CLASS: &str = "Omeka\\Entity\\ResourceClass";
+
 async fn template(api: &Api<'_>, payload: &Payload) -> Result<Option<TemplateId>, ApiError> {
-    let Some(id) = payload.ref_id("o:resource_template") else {
+    let Some(raw) = payload.numeric_ref("o:resource_template") else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(not_found(TEMPLATE_CLASS, raw));
     };
     let id = TemplateId(id);
     if TemplateRepo::new(api.pool())
@@ -203,17 +225,22 @@ async fn template(api: &Api<'_>, payload: &Payload) -> Result<Option<TemplateId>
         .map_err(db_error)?
         .is_none()
     {
-        return Err(not_found("Omeka\\Entity\\ResourceTemplate", id.0));
+        return Err(not_found(TEMPLATE_CLASS, raw));
     }
     Ok(Some(id))
 }
+
+const TEMPLATE_CLASS: &str = "Omeka\\Entity\\ResourceTemplate";
 
 /// `AbstractEntityAdapter::hydrateThumbnail` for `o:thumbnail`: a numeric id
 /// that names no asset is the 404 `findEntity` throws, and a member that names
 /// no usable id clears the thumbnail.
 pub(crate) async fn asset(api: &Api<'_>, payload: &Payload) -> Result<Option<AssetId>, ApiError> {
-    let Some(id) = payload.ref_id("o:thumbnail") else {
+    let Some(raw) = payload.numeric_ref("o:thumbnail") else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(not_found(ASSET_CLASS, raw));
     };
     let id = AssetId(id);
     if AssetRepo::new(api.pool())
@@ -222,14 +249,18 @@ pub(crate) async fn asset(api: &Api<'_>, payload: &Payload) -> Result<Option<Ass
         .map_err(db_error)?
         .is_none()
     {
-        return Err(not_found("Omeka\\Entity\\Asset", id.0));
+        return Err(not_found(ASSET_CLASS, raw));
     }
     Ok(Some(id))
 }
 
-/// `AbstractEntityAdapter::findEntity` for a body-supplied id: the criteria
-/// value is the integer the body carried.
-pub fn not_found(class: &str, id: u64) -> ApiError {
-    let criteria = json!({ "id": id });
-    ApiError::not_found(format!("{class} entity with criteria {criteria} not found"))
+const ASSET_CLASS: &str = "Omeka\\Entity\\Asset";
+
+/// `AbstractEntityAdapter::findEntity` for a body-supplied reference: the
+/// criteria is the value the body carried, printed as `json_encode` prints it.
+pub fn not_found(class: &str, raw: &Value) -> ApiError {
+    ApiError::not_found(format!(
+        "{class} entity with criteria {} not found",
+        crate::write::body::ref_criteria(raw)
+    ))
 }

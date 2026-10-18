@@ -16,7 +16,7 @@ use omeka_db::rows::{ClassRow, NewClass, NewProperty, PropertyRow};
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, db_error, not_found};
-use crate::write::body::Payload;
+use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
 use crate::write::resource::not_found as ref_not_found;
 
@@ -153,8 +153,11 @@ pub(crate) async fn hydrate(
 
 /// The stored vocabulary a create names, or `None` when it names none.
 async fn vocabulary(api: &Api<'_>, payload: &Payload) -> Result<Option<VocabularyId>, ApiError> {
-    let Some(id) = payload.ref_id("o:vocabulary") else {
+    let Some(raw) = payload.numeric_ref("o:vocabulary") else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(ref_not_found("Omeka\\Entity\\Vocabulary", raw));
     };
     let id = VocabularyId(id);
     if VocabularyRepo::new(api.pool())
@@ -163,7 +166,7 @@ async fn vocabulary(api: &Api<'_>, payload: &Payload) -> Result<Option<Vocabular
         .map_err(db_error)?
         .is_none()
     {
-        return Err(ref_not_found("Omeka\\Entity\\Vocabulary", id.0));
+        return Err(ref_not_found("Omeka\\Entity\\Vocabulary", raw));
     }
     Ok(Some(id))
 }

@@ -336,3 +336,67 @@ fn a_json_list_is_rejected_even_though_upstream_accepts_it() {
     assert!(matches!(&err, ApiError::BadRequest { .. }), "{err:?}");
     assert_eq!(err.status(), http::StatusCode::BAD_REQUEST);
 }
+
+/// The numerics behind a reference id: PHP `is_numeric`, MySQL's reading of the
+/// string in a comparison with the id column, and PHP's `(int)` cast. The rows
+/// are the grammar the HTTP table in `crates/omeka-server/tests/reference_ids.rs`
+/// exercises end to end.
+#[test]
+fn reference_numbers_are_read_as_php_and_mysql_read_them() {
+    use omeka_api::write::body::{cast_int, is_numeric, ref_row};
+
+    let cases: [(&str, bool, Option<u64>, Option<i64>); 17] = [
+        ("12", true, Some(12), Some(12)),
+        (" 12", true, Some(12), Some(12)),
+        ("12 ", true, Some(12), Some(12)),
+        ("12.0", true, Some(12), Some(12)),
+        ("12.5", true, None, Some(12)),
+        ("12.", true, Some(12), Some(12)),
+        (".5", true, None, Some(0)),
+        ("1e3", true, Some(1000), Some(1000)),
+        ("1.5e3", true, Some(1500), Some(1500)),
+        ("-1", true, None, Some(-1)),
+        ("0", true, None, Some(0)),
+        ("0.0", true, None, Some(0)),
+        ("1e", false, Some(1), None),
+        ("12abc", false, Some(12), None),
+        ("abc", false, None, None),
+        ("", false, None, None),
+        ("0x10", false, None, None),
+    ];
+    for (text, numeric, row, cast) in cases {
+        let value = Json::String(text.to_string());
+        assert_eq!(is_numeric(&value), numeric, "is_numeric({text:?})");
+        assert_eq!(ref_row(&value), row, "ref_row({text:?})");
+        assert_eq!(cast_int(&value), cast, "cast_int({text:?})");
+    }
+}
+
+/// PHP's array-offset coercion, the key `o:primary_media` indexes the item's
+/// media with: only a whole number and a canonical integer string match an id.
+#[test]
+fn array_keys_follow_php_array_offset_coercion() {
+    use omeka_api::write::body::array_key;
+
+    for (text, key) in [
+        ("12", Some(12)),
+        ("-12", Some(-12)),
+        ("0", Some(0)),
+        (" 12", None),
+        ("12 ", None),
+        ("12.0", None),
+        ("+12", None),
+        ("012", None),
+        ("1e3", None),
+        ("", None),
+    ] {
+        assert_eq!(
+            array_key(&Json::String(text.to_string())),
+            key,
+            "array_key({text:?})"
+        );
+    }
+    assert_eq!(array_key(&Json::from(12.5)), Some(12));
+    assert_eq!(array_key(&Json::Bool(true)), Some(1));
+    assert_eq!(array_key(&Json::Null), None);
+}

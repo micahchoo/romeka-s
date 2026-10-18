@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
-use crate::write::body::{Payload, php_json};
+use crate::write::body::{Payload, php_json, ref_row};
 use crate::write::fulltext;
 use crate::write::resource::{self, not_found as ref_not_found};
 use crate::write::values;
@@ -180,13 +180,17 @@ pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError
 }
 
 /// The item a create names. `MediaAdapter::validateEntity` rejects a media with
-/// no item; a named item that does not exist is a 404.
+/// no item; a named item that does not exist is a 404. The id is read with
+/// `isset`, so a present non-numeric value reaches the lookup and is a 404.
 async fn item(api: &Api<'_>, payload: &Payload) -> Result<omeka_db::rows::ItemRow, ApiError> {
-    let Some(raw) = payload.ref_id("o:item") else {
+    let Some(raw) = payload.present_ref("o:item") else {
         return Err(validation("o:item", "Media must belong to an item."));
     };
+    let Some(id) = ref_row(raw) else {
+        return Err(ref_not_found(ITEM_CLASS, raw));
+    };
     let Some(item) = ItemRepo::new(api.pool())
-        .get(ItemId(raw))
+        .get(ItemId(id))
         .await
         .map_err(db_error)?
     else {

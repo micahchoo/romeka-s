@@ -20,7 +20,7 @@ use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, db_error};
-use crate::write::body::Payload;
+use crate::write::body::{Payload, is_numeric, ref_row};
 use crate::write::resource;
 
 /// The nesting cap the read side uses for `@annotation` (read/values.rs). A
@@ -150,17 +150,33 @@ async fn ensure_resource(api: &Api<'_>, id: ResourceId) -> Result<(), ApiError> 
     Ok(())
 }
 
+/// The scalar half of one value object: its property, its object, its language
+/// and its visibility.
+type Scalar = (PropertyId, ValueKind, Option<String>, bool);
+
 /// The scalar half of one value object; `None` when the object names no usable
-/// property, type or object (`ValueHydrator` ignores an invalid value).
+/// property, type or object (`ValueHydrator` ignores an invalid value). A
+/// resource object whose `value_resource_id` is numeric but names no row is the
+/// 404 `DataType\Resource\AbstractResource::hydrate` throws.
 fn parse_scalar(
     api: &Api<'_>,
     term: &str,
     object: &serde_json::Map<String, Value>,
-) -> Option<(PropertyId, ValueKind, Option<String>, bool)> {
+) -> Result<Option<Scalar>, ApiError> {
     let property = match object.get("property_id") {
-        Some(Value::String(name)) if name == "auto" => api.catalog().property_id(term)?,
-        Some(Value::Number(number)) => PropertyId(number.as_u64()?),
-        _ => return None,
+        Some(Value::String(name)) if name == "auto" => {
+            let Some(property) = api.catalog().property_id(term) else {
+                return Ok(None);
+            };
+            property
+        }
+        Some(Value::Number(number)) => {
+            let Some(id) = number.as_u64() else {
+                return Ok(None);
+            };
+            PropertyId(id)
+        }
+        _ => return Ok(None),
     };
     let is_public = object
         .get("is_public")
@@ -172,25 +188,46 @@ fn parse_scalar(
         .map(str::to_string);
     let data = match object.get("type").and_then(Value::as_str).unwrap_or("") {
         "uri" => {
-            let uri = object.get("@id").and_then(Value::as_str)?.to_string();
+            let Some(uri) = object.get("@id").and_then(Value::as_str) else {
+                return Ok(None);
+            };
             let label = object
                 .get("o:label")
                 .and_then(Value::as_str)
                 .map(str::to_string);
-            ValueKind::Uri { uri, label }
+            ValueKind::Uri {
+                uri: uri.to_string(),
+                label,
+            }
         }
         kind if kind.starts_with("resource") => {
-            let id = object.get("value_resource_id").and_then(Value::as_u64)?;
+            // `AbstractResource::isValid` requires `is_numeric`, so a value
+            // that is not numeric is ignored rather than looked up.
+            let Some(raw) = object.get("value_resource_id") else {
+                return Ok(None);
+            };
+            if !is_numeric(raw) {
+                return Ok(None);
+            }
+            let Some(id) = ref_row(raw) else {
+                return Err(ApiError::not_found(format!(
+                    "Resource not found with id {}.",
+                    crate::write::body::php_display(raw)
+                )));
+            };
             ValueKind::Resource(ResourceId(id))
         }
         _ => {
-            let text = object.get("@value").and_then(Value::as_str)?.to_string();
-            ValueKind::Literal(text)
+            let Some(text) = object.get("@value").and_then(Value::as_str) else {
+                return Ok(None);
+            };
+            ValueKind::Literal(text.to_string())
         }
     };
-    Some((property, data, lang, is_public))
+    Ok(Some((property, data, lang, is_public)))
 }
 
+/// A value as PHP interpolates it into a message string.
 async fn parse_one(
     api: &Api<'_>,
     term: &str,
@@ -200,7 +237,7 @@ async fn parse_one(
     let Some(object) = value.as_object() else {
         return Ok(None);
     };
-    let Some((property, data, lang, is_public)) = parse_scalar(api, term, object) else {
+    let Some((property, data, lang, is_public)) = parse_scalar(api, term, object)? else {
         return Ok(None);
     };
     let annotation = match object.get("@annotation") {
