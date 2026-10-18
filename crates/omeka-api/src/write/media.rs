@@ -5,7 +5,8 @@
 //! takes the owner from the item. `position`, `o:lang` and `o:alt_text` hydrate
 //! on every write. The ingester pipeline that would turn an upload into a file
 //! is `omeka-media`'s work, not this handler's; the API stores the ingester,
-//! renderer and `data` it was handed.
+//! renderer and `data` it was handed, except that the `html` ingester's body is
+//! purified here the way `Media\Ingester\Html::ingest` purifies it.
 //!
 //! `Ingester\Html::getRenderer` and its siblings map the ingester name to the
 //! renderer name; `Ingester\Fallback` has no renderer, so an unknown ingester is
@@ -71,6 +72,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     } else {
         item.resource.owner_id
     };
+    let data = data(payload, &ingester);
     let row = omeka_db::repos::MediaRepo::new(api.pool())
         .create(&NewMedia {
             resource: omeka_db::rows::NewResource {
@@ -80,7 +82,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             item_id: item.id(),
             ingester,
             renderer: renderer.to_string(),
-            data: data(payload),
+            data,
             source: payload.str_member("o:source").map(str::to_string),
             position: payload.int_member("position"),
             lang: payload.str_member("o:lang").map(str::to_string),
@@ -194,8 +196,22 @@ async fn item(api: &Api<'_>, payload: &Payload) -> Result<omeka_db::rows::ItemRo
     Ok(item)
 }
 
-fn data(payload: &Payload) -> Option<Value> {
-    payload.get("data").map(php_json)
+/// The stored `data` member. The `html` ingester purifies its body the way
+/// `Media\Ingester\Html::ingest` does (`Media/Ingester/Html.php:49`); every
+/// other ingester stores the payload as received.
+fn data(payload: &Payload, ingester: &str) -> Option<Value> {
+    let data = payload.get("data").map(php_json)?;
+    if ingester != "html" {
+        return Some(data);
+    }
+    let Value::Object(mut map) = data else {
+        return Some(data);
+    };
+    if let Some(Value::String(html)) = map.get("html") {
+        let purified = omeka_core::purify::purify(html);
+        map.insert("html".to_string(), Value::String(purified));
+    }
+    Some(Value::Object(map))
 }
 
 fn validation(key: &str, message: &str) -> ApiError {

@@ -55,7 +55,9 @@ use omeka_db::repos::{ItemFilter, ItemRepo, MediaFilter, MediaRepo, Paging, Valu
 use omeka_db::rows::{NewMedia, NewResource};
 use omeka_media::data::MediaData;
 use omeka_media::http::{FetchError, HttpFetch, HttpResponse};
-use omeka_media::ingest::{IngestEnv, IngestFile, IngestFlags, MediaDraft, Purifier, ingest_file};
+use omeka_media::ingest::{
+    HtmlPurifier, IngestEnv, IngestFile, IngestFlags, MediaDraft, ingest_file,
+};
 use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::FileStore;
 use omeka_media::thumbnailer::ImageThumbnailer;
@@ -186,7 +188,7 @@ pub async fn run(options: &MediaOptions) -> Result<MediaReport, CliError> {
         .get(INGESTER)
         .renderer();
     let network = NoNetwork;
-    let purifier = Passthrough;
+    let purifier = HtmlPurifier;
     let thumbnailer = ImageThumbnailer;
     let oembed = Oembed::new(OembedAllowList::shipped());
     let env = IngestEnv {
@@ -548,9 +550,11 @@ fn identifier_keys(text: &str) -> [String; 2] {
 
 /// The media ingest seams this command supplies.
 ///
-/// The upload path touches neither the network nor the HTML purifier, so the
-/// stubs refuse the first and return the second unchanged. Thumbnails come from
-/// [`ImageThumbnailer`], the port of `File/Thumbnailer/Gd.php`.
+/// The upload path touches neither the network nor a purifier body, but the
+/// ingester seam still gets the real one ([`HtmlPurifier`]) so a future html
+/// ingest cannot store raw markup. The network stub refuses every fetch.
+/// Thumbnails come from [`ImageThumbnailer`], the port of
+/// `File/Thumbnailer/Gd.php`.
 struct NoNetwork;
 
 impl HttpFetch for NoNetwork {
@@ -558,14 +562,6 @@ impl HttpFetch for NoNetwork {
         Err(FetchError::new(
             "the media import path reads local files and does not fetch over the network",
         ))
-    }
-}
-
-struct Passthrough;
-
-impl Purifier for Passthrough {
-    fn purify(&self, html: &str) -> String {
-        html.to_string()
     }
 }
 

@@ -105,9 +105,11 @@ theme, so its frame carries the form.
 
 ### What escapes
 
-Everything the views print is escaped except two fragments upstream trusts: a stored `html` block's
-body and a provider's oEmbed `html`. `html::escape_html` mirrors `Laminas\View\Helper\EscapeHtml`
-(`ENT_QUOTES`, no `ENT_HTML5`, so a single quote is `&#039;`).
+Everything the views print is escaped except the fragments upstream trusts, which are purified
+instead. A stored `html` block's body and a media block attachment's `caption` both pass through
+`omeka_core::purify` (the port of `Stdlib\HtmlPurifier`) before they are emitted raw, and a
+provider's oEmbed `html` is emitted as received. `html::escape_html` mirrors
+`Laminas\View\Helper\EscapeHtml` (`ENT_QUOTES`, no `ENT_HTML5`, so a single quote is `&#039;`).
 
 ## Routes
 

@@ -50,6 +50,7 @@ a gap that was discovered.
 | `/s/<slug>/item-set/<id>` renders the item-set view. Upstream's `site/item-set` route reaches the item browse. | [`crates/omeka-server/README.md`](../crates/omeka-server/README.md) |
 | The bundled theme's asset base is `/assets`, the same path prefix the admin bundle builds its chunks under, so one origin serving both collides on it. | [`docs/operator-guide.md`](operator-guide.md), Known limitations |
 | A write body whose value names an unknown property term answers 422, with the errors document keyed by that term. Upstream's value hydrator sets a null property and answers 500. | [`crates/omeka-api/src/write/values.rs`](../crates/omeka-api/src/write/values.rs) |
+| Stored HTML (html blocks, attachment captions, html media) is purified with `ammonia` against HTMLPurifier's default allowed set, at write and again at render, so rows written before the fix or copied by the migrator are covered too. The kept tags match upstream's; links gain `rel="noreferrer noopener"`, void elements are not self-closed, CSS values are not normalised, and `use_htmlpurifier` is not consulted: purification is always on. | [`crates/omeka-core/src/purify.rs`](../crates/omeka-core/src/purify.rs) |
 | `GET /api` answers the JSON-LD resource listing. Upstream renders an HTML page from `omeka/api/root` at the same route. | [`crates/omeka-api/src/read/meta.rs`](../crates/omeka-api/src/read/meta.rs) |
 
 ## Site pages: the one-way rule

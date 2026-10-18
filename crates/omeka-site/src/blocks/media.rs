@@ -15,8 +15,7 @@
 //! entry follows `show_title_option`: `item_title` links the item, `file_name`
 //! prints the media title, `no_title` prints no heading.
 //!
-//! Three departures. The template echoes the caption unescaped and the port
-//! escapes it. An unknown `attachment_link_type` falls back to the item URL
+//! Two departures. An unknown `attachment_link_type` falls back to the item URL
 //! where upstream throws. And the stored `thumbnail_type` (`square` by default)
 //! picks the thumbnail size upstream; the port's provider supplies one
 //! thumbnail per media, so the port places that one.
@@ -151,9 +150,12 @@ fn render_attachment(attachment: &Resolved, data: &MediaData, ctx: &RenderContex
         _ => {}
     }
     if !attachment.caption.is_empty() {
+        // `file.phtml` echoes the caption raw; upstream purified it on write
+        // (`SitePageAdapter::hydrateAttachments`). The render purifies again so
+        // a row stored before that write path did still cannot execute.
         out.push_str(&format!(
             "<div class=\"caption\">{}</div>",
-            escape_html(&attachment.caption)
+            omeka_core::purify::purify(&attachment.caption)
         ));
     }
     out.push_str("</div>");

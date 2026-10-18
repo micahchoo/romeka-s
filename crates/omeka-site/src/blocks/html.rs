@@ -2,10 +2,9 @@
 //!
 //! The template echoes the stored `html` with no escaping. That is safe only
 //! because `onHydrate` runs the value through `Stdlib\HtmlPurifier` before it is
-//! stored, so the site layer emits what the storage boundary already cleansed.
-//! A caller that stores block data without purifying it reopens that hole; the
-//! port has no purifier in `omeka-site`, and `RenderContext` never injects raw
-//! HTML elsewhere.
+//! stored. `RenderContext` never injects raw HTML elsewhere, and the renderer
+//! purifies again so a row stored before the write path purified, or copied by
+//! the migrator, still cannot execute.
 
 use omeka_core::site::{BlockData, SiteBlock};
 
@@ -27,7 +26,7 @@ impl BlockLayout for Html {
 
     fn render(&self, block: &SiteBlock, _ctx: &RenderContext<'_>) -> String {
         match &block.data {
-            BlockData::Html { html } => html.clone(),
+            BlockData::Html { html } => omeka_core::purify::purify(html),
             _ => String::new(),
         }
     }
@@ -56,5 +55,21 @@ mod tests {
         let site = site();
         let ctx = context(&site, &crate::view::NoResources);
         assert_eq!(Html.render(&block, &ctx), "");
+    }
+
+    /// A body stored before the write path purified (or copied by the migrator)
+    /// is purified again at render, so it still cannot execute.
+    #[test]
+    fn html_render_purifies_a_dangerous_stored_body() {
+        let block = block(
+            "html",
+            json!({"html": "<p>ok</p><script>alert(1)</script><img src=x onerror=alert(2)>"}),
+        );
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let out = Html.render(&block, &ctx);
+        assert!(!out.contains("<script"), "{out}");
+        assert!(!out.contains("onerror"), "{out}");
+        assert!(out.contains("<p>ok</p>"), "{out}");
     }
 }

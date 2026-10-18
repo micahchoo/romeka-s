@@ -13,6 +13,9 @@ bcrypt = "0.17"
 chrono.workspace = true
 http = "1"
 indexmap = { version = "2", features = ["serde"] }
+# The HTML sanitizer the site-page and html-media write paths run
+# (`Omeka\Stdlib\HtmlPurifier`).
+omeka-core = { path = "../omeka-core" }
 omeka-db = { path = "../omeka-db" }
 # media delete removes the stored bytes (`Module::deleteMediaFiles`), so the
 # delete handler reaches `omeka-media`'s store. Imports flow api -> media -> core.

@@ -18,6 +18,7 @@
 //!   `Site/BlockLayout/*`, `Api/Adapter/SiteSlugTrait.php`).
 //! - [`datatypes`]: the data-type registry and conversion targets
 //!   (`DataType/*`, `Service/DataType/Database.php`).
+//! - [`purify`]: the HTML sanitizer (`Stdlib/HtmlPurifier.php`, `ezyang/htmlpurifier`).
 //! - [`permissions`]: the ACL rules (`Service/AclFactory.php`,
 //!   `Permissions/Acl.php`, `Permissions/Assertion/*`).
 //!
@@ -39,6 +40,7 @@
 pub mod datatypes;
 pub mod ids;
 pub mod permissions;
+pub mod purify;
 pub mod resource;
 pub mod site;
 pub mod template;

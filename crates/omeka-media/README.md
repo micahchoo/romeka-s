@@ -65,7 +65,8 @@ One session, `bench` profile, 32 cores, rustc 1.93.1. The load average was 5.0 a
 end, on a box six agents share. Each row is a median of 50 samples (30 for the thumbnail transform) with criterion's
 95% confidence interval for the median. Iterations is the total number of timed units criterion executed; for the
 benches that take a fresh case per unit (`ingest/*`, `put/*`, `generate_thumbnails/*`) the setup runs outside the timed
-region.
+region. One row is later than the rest: `media_render/html` was re-measured after the HTML renderer began purifying the
+stored fragment, on a much busier box (load average 22), so its absolute value is an upper bound.
 
 | bench | median | 95% CI | sd | samples | iterations | limiter |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -86,7 +87,7 @@ region.
 | `media_ingest_parse_boundary/media_data_parse_oembed` | 258.79 ns | 257.79 ns to 262.01 ns | 26.74 ns | 50 | 7688250 | a `Map` clone of the response object |
 | `media_render/file_thumbnail` | 507.88 ns | 506.02 ns to 510.19 ns | 11.45 ns | 50 | 3904050 | the media-type miss, the extension miss, then the thumbnail renderer and its `<img>` assembly |
 | `media_render/file_video` | 454.86 ns | 454.16 ns to 456.61 ns | 8.21 ns | 50 | 4379625 | the media-type alias lookup, then the video renderer's `format!` |
-| `media_render/html` | 18.38 ns | 18.37 ns to 18.39 ns | 0.07 ns | 50 | 108480825 | the payload `String` clone |
+| `media_render/html` | 7.195 us | 7.190 us to 7.197 us | 16.61 ns | 50 | 276675 | the purifier re-parse of the stored fragment, now the whole cost |
 | `media_render/html_fulltext` | 355.64 ns | 311.00 ns to 404.61 ns | 110.82 ns | 50 | 8522100 | `strip_tags` then `html_entity_decode` over the stored fragment |
 | `media_render/iiif` | 4.300 us | 4.238 us to 4.475 us | 733.36 ns | 50 | 473025 | the info document is re-serialised with sorted keys (a `BTreeMap` build) and escaped; 4.30 us against 0.67 us for a plain `to_string` of the same document |
 | `media_render/iiif_document_serialize` | 665.17 ns | 654.07 ns to 677.21 ns | 184.33 ns | 50 | 2785875 | a plain `to_string` of the 1 KB info document, the floor under the iiif renderer |

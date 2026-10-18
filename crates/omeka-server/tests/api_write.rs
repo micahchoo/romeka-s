@@ -92,6 +92,29 @@ async fn create_and_update_item_set() {
 }
 
 #[tokio::test]
+async fn create_media_purifies_an_html_ingester_body() {
+    let (app, seed) = seeded_router().await;
+    let body = format!(
+        r#"{{"o:ingester":"html","o:item":{{"o:id":{}}},"o:is_public":true,
+           "data":{{"html":"<p>ok</p><script>alert(1)</script>"}}}}"#,
+        seed.item.0
+    );
+    let created = send(
+        app.clone(),
+        json_request("POST", &keyed("/api/media"), &body),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let chars = created.json()["o-cnt:chars"].as_str().unwrap().to_string();
+    assert!(!chars.contains("<script"), "{chars}");
+    assert!(chars.contains("<p>ok</p>"), "{chars}");
+
+    let id = created.json()["o:id"].as_u64().unwrap();
+    let read = send(app, common::get(&format!("/api/media/{id}"), false)).await;
+    assert_eq!(read.json()["o-cnt:chars"], chars, "{}", read.body);
+}
+
+#[tokio::test]
 async fn create_and_update_media() {
     let (app, seed) = seeded_router().await;
     let body = format!(
