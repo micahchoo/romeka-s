@@ -1,0 +1,202 @@
+//! The live preview body: the same checks a `site_pages` write makes, with the
+//! values answered instead of stored.
+//!
+//! `POST /s/:site-slug/preview` renders a page an editor has not saved yet. It
+//! must fail exactly where `PUT /api/site_pages/:id` would fail and build
+//! exactly what the write would store, so this module composes the write's own
+//! pieces ([`super::site_pages::parse_blocks`], `validate`, `slug_or_auto`,
+//! `resolve_attachments`) and hands the result to the site renderer.
+//!
+//! It lives beside `site_pages` rather than inside it because `docs/api.md` is
+//! generated from the write modules the `/api` dispatch names, and `o:id` is a
+//! member of this route only: the write does not read it.
+
+use chrono::NaiveDateTime;
+use omeka_db::ids::{PageId, SiteId, UserId};
+use omeka_db::repos::{SiteBlockAttachmentRepo, SiteRepo};
+use omeka_db::rows::SitePageRow;
+use serde_json::Value;
+
+use crate::errors::ApiError;
+use crate::read::{Api, db_error};
+use crate::routes::Operation;
+use crate::write::body::{Payload, php_json};
+use crate::write::resource::not_found as ref_not_found;
+use crate::write::site_pages::{
+    CONTROL, PAGE_CLASS, ResolvedAttachment, parse_blocks, resolve_attachments, slug_or_auto,
+    validate,
+};
+
+/// A page assembled from a preview body, with nothing written to storage.
+///
+/// [`preview`] checks exactly what a write checks, then answers the values a
+/// render reads instead of handing them to the repositories.
+pub struct Preview {
+    /// The page's site: the site the route names.
+    pub site: SiteId,
+    /// The edited page's id, `None` for a new page.
+    pub id: Option<PageId>,
+    /// The edited row's `created`, `None` for a new page.
+    pub created: Option<NaiveDateTime>,
+    /// The edited row's `modified`, `None` for a new page.
+    pub modified: Option<NaiveDateTime>,
+    /// `o:title` as an update stores it.
+    pub title: String,
+    /// `o:slug`, or the title's automatic slug.
+    pub slug: String,
+    /// `o:is_public`.
+    pub is_public: bool,
+    /// `o:layout` as stored.
+    pub layout: Option<String>,
+    /// `o:layout_data` in the shape the storage boundary keeps.
+    pub layout_data: Option<Value>,
+    /// The page's blocks in order, each with its attachments resolved.
+    pub blocks: Vec<PreviewBlock>,
+}
+
+/// One block of a [`Preview`]: the members the write stores, with the block's
+/// attachments already resolved.
+pub struct PreviewBlock {
+    /// `o:layout`.
+    pub layout: String,
+    /// `o:data`, purified when the layout is `html`.
+    pub data: Value,
+    /// `o:layout_data`.
+    pub layout_data: Option<Value>,
+    /// The block's attachments.
+    pub attachments: Vec<ResolvedAttachment>,
+}
+
+/// Build the page a preview body describes, checking exactly what the write
+/// checks and writing nothing.
+///
+/// `site` is the site the request route names. An edit names its page with
+/// `o:id` and is authorized against that page's site, which must be `site`; a
+/// new page is authorized as an add-page to `site`. Title, slug and block
+/// validation are the write's own, so a body that would fail a write fails the
+/// same way here.
+pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<Preview, ApiError> {
+    crate::write::values::collect(api, payload, &preview_control()).await?;
+    let repo = SiteRepo::new(api.pool());
+    let existing = match payload_id(payload) {
+        Some(raw_id) => {
+            let Some(page) = repo.get_page(PageId(raw_id)).await.map_err(db_error)? else {
+                return Err(ref_not_found(PAGE_CLASS, raw_id));
+            };
+            // The route's site renders the preview, so a page of another site
+            // is not found here even for a caller who may edit it.
+            if page.site_id != site {
+                return Err(ref_not_found(PAGE_CLASS, raw_id));
+            }
+            let owner = site_owner(api, site).await?;
+            api.authorize_site_page(Operation::Update, site, owner)
+                .await?;
+            Some(page)
+        }
+        None => {
+            let owner = site_owner(api, site).await?;
+            api.authorize_site_add_page(site, owner).await?;
+            None
+        }
+    };
+
+    let mut blocks = if payload.has("o:block") {
+        let mut parsed = Vec::new();
+        for block in parse_blocks(payload)? {
+            let attachments = resolve_attachments(api, &block.attachments).await?;
+            parsed.push(PreviewBlock {
+                layout: block.layout,
+                data: block.data,
+                layout_data: block.layout_data,
+                attachments,
+            });
+        }
+        parsed
+    } else if let Some(row) = existing.as_ref() {
+        // `update` leaves the blocks alone when the body carries no `o:block`,
+        // so the preview renders the stored blocks.
+        stored_blocks(api, row).await?
+    } else {
+        Vec::new()
+    };
+    if blocks.is_empty() && existing.is_none() {
+        blocks.push(PreviewBlock {
+            layout: "pageTitle".to_string(),
+            data: Value::Array(Vec::new()),
+            layout_data: None,
+            attachments: Vec::new(),
+        });
+    }
+
+    let title = payload
+        .str_member("o:title")
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let slug = slug_or_auto(payload, &title);
+    validate(api, existing.as_ref(), site, &title, &slug).await?;
+
+    Ok(Preview {
+        site,
+        id: existing.as_ref().map(|row| row.id),
+        created: existing.as_ref().map(|row| row.created),
+        modified: existing.as_ref().and_then(|row| row.modified),
+        title,
+        slug,
+        is_public: payload.bool_member("o:is_public", true),
+        layout: payload.str_member("o:layout").map(str::to_string),
+        layout_data: payload.get("o:layout_data").map(php_json),
+        blocks,
+    })
+}
+
+/// The members a preview body may carry: the write's control list plus
+/// `o:id`, which names the page being edited.
+fn preview_control() -> Vec<&'static str> {
+    let mut control: Vec<&'static str> = CONTROL.to_vec();
+    control.push("o:id");
+    control
+}
+
+/// The owner the site grants a page write, for the site privilege check.
+async fn site_owner(api: &Api<'_>, site: SiteId) -> Result<Option<UserId>, ApiError> {
+    Ok(SiteRepo::new(api.pool())
+        .get(site)
+        .await
+        .map_err(db_error)?
+        .and_then(|row| row.owner_id))
+}
+
+/// The page a preview body names, `o:id` as a plain number or as an `o:id`
+/// reference.
+fn payload_id(payload: &Payload) -> Option<u64> {
+    payload
+        .int_member("o:id")
+        .and_then(|value| u64::try_from(value).ok())
+        .or_else(|| payload.ref_id("o:id"))
+}
+
+/// The stored blocks of a page, in position order, with their stored
+/// attachments.
+async fn stored_blocks(api: &Api<'_>, page: &SitePageRow) -> Result<Vec<PreviewBlock>, ApiError> {
+    let repo = SiteRepo::new(api.pool());
+    let attachments = SiteBlockAttachmentRepo::new(api.pool());
+    let mut blocks = Vec::new();
+    for row in repo.list_blocks(page.id).await.map_err(db_error)? {
+        let rows = attachments.list_for_block(row.id).await.map_err(db_error)?;
+        blocks.push(PreviewBlock {
+            layout: row.layout,
+            data: row.data,
+            layout_data: row.layout_data,
+            attachments: rows
+                .into_iter()
+                .map(|row| ResolvedAttachment {
+                    item: row.item_id,
+                    media: row.media_id,
+                    caption: row.caption,
+                })
+                .collect(),
+        });
+    }
+    Ok(blocks)
+}

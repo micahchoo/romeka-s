@@ -11,10 +11,15 @@
 //! error, so an unknown slug is a 404 before any controller runs. The port does
 //! the same: [`dispatch`] resolves the slug first and every failure becomes a
 //! [`SiteError`].
+//!
+//! [`handle`] also serves the admin editor's live preview
+//! (`POST /s/:site-slug/preview`, [`preview`]), which is a Romeka addition: it
+//! checks a page write's body, renders it in memory and writes nothing.
 
 mod dispatch;
 mod load;
 mod pages;
+mod preview;
 mod provider;
 mod settings;
 
@@ -35,6 +40,10 @@ use omeka_site::view::{ErrorView, NoResources, RenderContext, View};
 use crate::AppState;
 
 /// The `/s` routes, mounted into [`crate::build_router`].
+///
+/// The `POST` preview is dispatched from [`handle`] rather than registered as a
+/// second route, because a router cannot hold a named segment beside the
+/// catch-all this path needs for every other public route.
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/s", any(handle))
@@ -68,7 +77,13 @@ async fn handle(
     method: Method,
     uri: Uri,
     headers: HeaderMap,
+    body: crate::limits::Payload,
 ) -> Response {
+    if method == Method::POST
+        && let Some(site) = preview::path_site(uri.path())
+    {
+        return preview::run(&state, &site, &uri, &headers, &body.0).await;
+    }
     if method != Method::GET {
         return method_not_allowed();
     }
