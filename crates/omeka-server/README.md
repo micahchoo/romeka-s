@@ -238,8 +238,10 @@ answers with that content.
 The body is the JSON object `PUT /api/site_pages/:id` takes (`o:title`,
 `o:slug`, `o:is_public`, `o:layout`, `o:layout_data`, `o:block` with
 `o:attachment`), plus `o:id` of the page when editing. A body with no `o:block`
-previews the page's stored blocks, which is what an update does. Credentials are
-the admin SPA's: the session cookie, the API key pair in the query string, or
+previews the page's stored blocks, which is what an update does. An optional
+`o:theme_settings` map overrides the site's stored design tokens for that render
+only, which is how the admin Theme page previews an unsaved palette. Credentials
+are the admin SPA's: the session cookie, the API key pair in the query string, or
 neither, which the access check refuses.
 
 The status is the one the page write would answer: 403 when the caller may not

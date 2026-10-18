@@ -550,3 +550,112 @@ async fn preview_answers_only_to_post() {
         Some("text/html; charset=utf-8")
     );
 }
+
+/// A preview carrying `o:theme_settings` renders with the body's design tokens
+/// and stores nothing: the site keeps its own map, and the public page renders
+/// the stored tokens.
+#[tokio::test]
+async fn preview_renders_the_theme_override_without_storing_it() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool.clone());
+    let before: i64 = sqlx::query_scalar("SELECT count(*) FROM site_setting")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+    let mut body = page_body(
+        Some(seed.public_page),
+        "vis-pub-public",
+        "Vis public page",
+        json!([{"o:layout": "pageTitle", "o:data": {}}]),
+    );
+    body["o:theme_settings"] = json!({
+        "brand_color": "#cc3300",
+        "heading_font": "geometric",
+        "footer_text": "<p>Custom footer</p>",
+        "banner_text": "Open daily"
+    });
+    let answer = send(
+        app.clone(),
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer.body.contains("--color-brand: #cc3300;"),
+        "the override did not reach the sheet"
+    );
+    assert!(
+        answer.body.contains("--font-heading: Futura"),
+        "the heading font override did not apply"
+    );
+    assert!(
+        answer
+            .body
+            .contains("<div class=\"footer-text\"><p>Custom footer</p></div>"),
+        "the footer override did not render"
+    );
+    assert!(
+        answer
+            .body
+            .contains("<p class=\"site-banner-text\">Open daily</p>"),
+        "the banner override did not render"
+    );
+
+    let after: i64 = sqlx::query_scalar("SELECT count(*) FROM site_setting")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(after, before, "the preview stored the override");
+
+    let page = send(app, common::get("/s/vis-pub/page/vis-pub-public", false)).await;
+    assert_eq!(page.status, StatusCode::OK);
+    assert!(
+        page.body.contains("--color-brand: #6aa9d6;"),
+        "the public page should keep the default brand"
+    );
+    assert!(
+        !page.body.contains("#cc3300"),
+        "the override leaked into the public page"
+    );
+}
+
+/// A hostile `o:theme_settings` value takes its token's default, so a preview
+/// body cannot inject CSS the way a stored value cannot.
+#[tokio::test]
+async fn preview_theme_override_validates_the_tokens() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+
+    let mut body = page_body(
+        Some(seed.public_page),
+        "vis-pub-public",
+        "Vis public page",
+        json!([{"o:layout": "pageTitle", "o:data": {}}]),
+    );
+    body["o:theme_settings"] = json!({"brand_color": "}</style><script>alert(1)</script>"});
+    let answer = send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer.body.contains("--color-brand: #6aa9d6;"),
+        "the hostile colour did not fall back"
+    );
+    assert!(
+        !answer.body.contains("<script>alert(1)</script>"),
+        "the hostile value reached the document"
+    );
+}

@@ -27,8 +27,10 @@ use omeka_site::resource_page::ResourcePageBlocks;
 use omeka_site::search::SearchResource;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{PublicRoute, kind_for_controller, page_url, parse_public_path};
+use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::theme::{DefaultTheme, Theme, theme_for};
 use omeka_site::view::{NoResources, RenderContext, ResourceProvider, View};
+use serde_json::Value;
 use sqlx::SqlitePool;
 
 use super::load::{self, Access, BrowseScope, Loader, thumbnail_for_asset};
@@ -70,7 +72,7 @@ pub(crate) async fn dispatch(
         &access,
         &data.settings,
     );
-    let common = Common::load(state, uri, &data, &loader, actor).await?;
+    let common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
 
     match route {
         PublicRoute::Home { .. } => home(&common),
@@ -129,6 +131,8 @@ struct SiteData {
     /// The site's stored `resource_page_blocks` theme setting, `None` when the
     /// theme's default applies.
     resource_page_blocks: Option<ResourcePageBlocks>,
+    /// The theme's design tokens, read from the same stored map and validated.
+    theme_settings: ThemeSettings,
 }
 
 impl SiteData {
@@ -148,9 +152,14 @@ impl SiteData {
         let favicon_url = favicon_url(&state.pool, &state.base, settings.favicon()).await?;
         // `Manager::getResourcePageBlocks`: the site administrator's stored
         // `resource_page_blocks` (the theme's own settings row) wins over the
-        // theme's default.
-        let resource_page_blocks =
-            theme_resource_page_blocks(&state.pool, row.id, &row.theme).await?;
+        // theme's default. The same row carries the design tokens.
+        let stored_theme = theme_settings_value(&state.pool, row.id, &row.theme).await?;
+        let resource_page_blocks = stored_theme
+            .as_ref()
+            .filter(|value| value.get("resource_page_blocks").is_some())
+            .map(ResourcePageBlocks::parse);
+        let theme_settings =
+            ThemeSettings::from_value(stored_theme.as_ref().unwrap_or(&Value::Null));
         Ok(Some(Self {
             row,
             site,
@@ -159,6 +168,7 @@ impl SiteData {
             global_per_page,
             favicon_url,
             resource_page_blocks,
+            theme_settings,
         }))
     }
 }
@@ -178,6 +188,8 @@ struct Common<'a> {
     /// The theme `site.theme` names, or the bundled default when it names no
     /// bundled theme.
     theme: &'static dyn Theme,
+    /// The theme's design tokens, validated.
+    theme_settings: ThemeSettings,
     favicon_url: Option<String>,
     signed_in: bool,
     user_name: Option<String>,
@@ -195,6 +207,7 @@ impl<'a> Common<'a> {
         data: &'a SiteData,
         loader: &'a Loader<'a>,
         actor: &Actor,
+        theme_settings: &ThemeSettings,
     ) -> Result<Self, SiteError> {
         let pages = loader.page_refs().await?;
         // A corrupt navigation blob renders an empty menu, not a 500;
@@ -220,6 +233,7 @@ impl<'a> Common<'a> {
             resource_page_blocks: data.resource_page_blocks.clone(),
             global_per_page: data.global_per_page,
             theme,
+            theme_settings: theme_settings.clone(),
             favicon_url: data.favicon_url.clone(),
             signed_in: actor.user().is_some(),
             user_name,
@@ -247,6 +261,7 @@ impl<'a> Common<'a> {
         let mut ctx = RenderContext::new(self.site, resources);
         ctx.page = page;
         ctx.settings = self.settings.clone();
+        ctx.theme_settings = self.theme_settings.clone();
         ctx.nav = self.nav.clone();
         ctx.pages = self.pages.clone();
         ctx.resource_page_blocks = self.resource_page_blocks.clone();
@@ -295,12 +310,29 @@ async fn show_page(common: &Common<'_>, page_slug: &str) -> Result<Outcome, Site
         common.site.id,
         common.settings,
         &common.query,
+        &common.theme_settings,
     )
     .await?;
     let mut ctx = common.context(Some(&page), &loaded);
     ctx.page_created = Some(Timestamp::from_naive(row.created));
     ctx.page_modified = row.modified.map(Timestamp::from_naive);
     Ok(Outcome::Html(render_page(common.theme, &page, &mut ctx)))
+}
+
+/// The values a preview render reads: the unsaved page and its attachments, the
+/// page's timestamps, and the body's theme tokens when it carries any.
+pub(crate) struct PreviewPage<'a> {
+    /// The page the body describes.
+    pub(crate) page: &'a SitePage,
+    /// Each block's resolved attachments, keyed by render block id.
+    pub(crate) attachments: &'a [(BlockId, Vec<ResolvedAttachment>)],
+    /// The edited row's `created`, `None` for a new page.
+    pub(crate) created: Option<Timestamp>,
+    /// The edited row's `modified`, `None` when unknown.
+    pub(crate) modified: Option<Timestamp>,
+    /// `o:theme_settings` from the body, which overrides the stored tokens for
+    /// this render only.
+    pub(crate) theme_settings: Option<&'a ThemeSettings>,
 }
 
 /// Render a page assembled from a preview body.
@@ -313,10 +345,7 @@ pub(crate) async fn render_preview(
     state: &AppState,
     uri: &Uri,
     actor: &Actor,
-    page: &SitePage,
-    attachments: &[(BlockId, Vec<ResolvedAttachment>)],
-    created: Option<Timestamp>,
-    modified: Option<Timestamp>,
+    preview: &PreviewPage<'_>,
 ) -> Result<Outcome, SiteError> {
     let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
     let slug = route_slug(&route);
@@ -338,28 +367,36 @@ pub(crate) async fn render_preview(
         &access,
         &data.settings,
     );
-    let common = Common::load(state, uri, &data, &loader, actor).await?;
+    // The body's tokens win over the stored ones for this render only; nothing
+    // is written.
+    let theme_settings = preview.theme_settings.unwrap_or(&data.theme_settings);
+    let common = Common::load(state, uri, &data, &loader, actor, theme_settings).await?;
     let loaded = provider::load_preview_blocks(
         common.loader,
-        page,
+        preview.page,
         common.site.id,
         common.settings,
         // The saved page is fetched with no query, so the preview resolves the
         // same block searches without the credentials this request carries.
         &[],
-        attachments,
+        preview.attachments,
+        theme_settings,
     )
     .await?;
-    let mut ctx = common.context(Some(page), &loaded);
+    let mut ctx = common.context(Some(preview.page), &loaded);
     // The document is the one the saved page will serve, so the path is the
     // page's own and the request's query is dropped: a preview request carries
     // credentials there, not a page query, and a block that builds a link from
     // it must not copy them.
-    ctx.current_path = page_url(&common.site.slug, &page.slug);
+    ctx.current_path = page_url(&common.site.slug, &preview.page.slug);
     ctx.query = Vec::new();
-    ctx.page_created = created;
-    ctx.page_modified = modified;
-    Ok(Outcome::Html(render_page(common.theme, page, &mut ctx)))
+    ctx.page_created = preview.created;
+    ctx.page_modified = preview.modified;
+    Ok(Outcome::Html(render_page(
+        common.theme,
+        preview.page,
+        &mut ctx,
+    )))
 }
 
 /// `Site\ItemController::browseAction` and `Site\ItemSetController::browseAction`.
@@ -481,29 +518,21 @@ async fn load_catalog(pool: &SqlitePool) -> Result<Catalog, SiteError> {
     })
 }
 
-/// The site's stored `resource_page_blocks`, from its theme settings row. `None`
-/// when no row stores the map or it carries no `resource_page_blocks` member, so
-/// the theme's default applies.
-async fn theme_resource_page_blocks(
+/// The site's stored theme settings map, from its `theme_settings_<theme>` row.
+/// `None` when no row stores one, so the theme's defaults apply.
+async fn theme_settings_value(
     pool: &SqlitePool,
     site: db::SiteId,
     theme: &str,
-) -> Result<Option<ResourcePageBlocks>, SiteError> {
-    let value = omeka_api::theme_settings::load(pool, site, theme)
+) -> Result<Option<serde_json::Value>, SiteError> {
+    omeka_api::theme_settings::load(pool, site, theme)
         .await
         .map_err(|error| {
             SiteError::Internal(DbError::Column {
                 column: "theme_settings",
                 reason: error.to_string(),
             })
-        })?;
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    if value.get("resource_page_blocks").is_none() {
-        return Ok(None);
-    }
-    Ok(Some(ResourcePageBlocks::parse(&value)))
+        })
 }
 
 /// Whether the actor holds a permission on the site

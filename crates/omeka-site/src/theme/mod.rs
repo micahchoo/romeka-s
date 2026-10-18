@@ -23,7 +23,8 @@
 //!   upstream (`Omeka\Site\Theme\Theme::getId`);
 //! - `settings`, the theme's own settings (its `theme.ini` `[config]` spec
 //!   upstream), stored under `theme_settings_<name>`. The bundled theme
-//!   declares none; the site settings every core view reads are separate, in
+//!   declares its design tokens here ([`tokens::SETTINGS`]); the site settings
+//!   every core view reads are separate, in
 //!   [`crate::settings::SITE_SETTINGS`];
 //! - `assets`, the files the theme ships with their bytes, so a caller serves
 //!   them from [`THEMES`] without a filesystem, and the document frame links
@@ -35,10 +36,12 @@
 pub mod default;
 pub mod search;
 pub mod style;
+pub mod tokens;
+pub mod tokens_schema;
 
 pub use default::{DEFAULT_INFO, DefaultTheme};
+pub use tokens::ThemeSettings;
 
-use crate::settings::SiteSettingSpec;
 use crate::view::{RenderContext, View};
 
 /// A public site theme.
@@ -67,6 +70,9 @@ pub enum AssetKind {
     Stylesheet,
     /// A script, loaded from the head and served as `application/javascript`.
     Script,
+    /// An image a view references by URL, served as `image/svg+xml`. The frame
+    /// does not link it; a view does.
+    Image,
 }
 
 impl AssetKind {
@@ -76,7 +82,14 @@ impl AssetKind {
         match self {
             Self::Stylesheet => "text/css",
             Self::Script => "application/javascript",
+            Self::Image => "image/svg+xml",
         }
+    }
+
+    /// Whether the document frame loads the asset from the head.
+    #[must_use]
+    pub const fn is_head(self) -> bool {
+        matches!(self, Self::Stylesheet | Self::Script)
     }
 
     /// The element that loads the asset with the `href` the caller built.
@@ -85,6 +98,7 @@ impl AssetKind {
         match self {
             Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
+            Self::Image => String::new(),
         }
     }
 }
@@ -113,10 +127,11 @@ pub struct ThemeInfo {
     pub name: &'static str,
     /// The display name (`theme.ini` `name`, defaulting to the id).
     pub label: &'static str,
-    /// The theme's own settings, its `theme.ini` `[config]` spec upstream. A
-    /// site stores them under `theme_settings_<name>`, one JSON map, separate
-    /// from the site settings a `site_setting` row holds per key.
-    pub settings: &'static [SiteSettingSpec],
+    /// The theme's own settings, its `theme.ini` `[config]` spec upstream, and
+    /// the design tokens this theme renders. A site stores them under
+    /// `theme_settings_<name>`, one JSON map, separate from the site settings a
+    /// `site_setting` row holds per key.
+    pub settings: &'static [tokens::ThemeSettingSpec],
     /// The theme's own files.
     pub assets: &'static [ThemeAsset],
 }
@@ -170,14 +185,13 @@ mod tests {
         let info = themes()[0].info();
         assert_eq!(info.name, "default");
         assert_eq!(info.label, "Default");
-        // The bundled theme is the core site views ported to Rust; it declares
-        // no settings of its own, only the site settings every view reads.
-        assert!(info.settings.is_empty());
-        assert_eq!(info.assets.len(), 1);
+        // The bundled theme declares its design tokens as its own settings.
+        assert_eq!(info.settings, tokens::SETTINGS);
+        assert_eq!(info.assets.len(), 2);
     }
 
-    /// The bundled theme ships its own stylesheet, and a path it does not ship
-    /// has no asset. The asset's bytes are the sheet the module includes.
+    /// The bundled theme ships its own stylesheet and the placeholder image a
+    /// resource without a thumbnail shows.
     #[test]
     fn theme_asset_serves_the_bundled_stylesheet() {
         let asset = theme_asset("default", "css/style.css").expect("the stylesheet");
@@ -185,11 +199,16 @@ mod tests {
         assert_eq!(asset.kind.media_type(), "text/css");
         assert_eq!(asset.content, style::STYLE_CSS);
         assert!(!asset.content.is_empty());
+        let placeholder = theme_asset("default", "img/placeholder.svg").expect("the placeholder");
+        assert_eq!(placeholder.kind, AssetKind::Image);
+        assert_eq!(placeholder.kind.media_type(), "image/svg+xml");
+        assert!(placeholder.content.starts_with("<svg"));
         assert!(theme_asset("default", "css/missing.css").is_none());
         assert!(theme_asset("other", "css/style.css").is_none());
     }
 
-    /// The element an asset is loaded with follows its kind.
+    /// The element an asset is loaded with follows its kind, and an image is
+    /// not loaded from the head.
     #[test]
     fn asset_kind_picks_the_element() {
         assert_eq!(
@@ -201,5 +220,8 @@ mod tests {
             "<script src=\"/assets/js/global.js\"></script>"
         );
         assert_eq!(AssetKind::Script.media_type(), "application/javascript");
+        assert_eq!(AssetKind::Image.element("/assets/img/placeholder.svg"), "");
+        assert!(!AssetKind::Image.is_head());
+        assert!(AssetKind::Stylesheet.is_head());
     }
 }

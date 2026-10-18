@@ -26,6 +26,7 @@ use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
 use omeka_db::rows::AssetRow;
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::settings::SiteSettings;
+use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::view::{
     AssetView, AttachmentRef, BrowseQuery, MediaRef, ResourcePage, ResourceProvider, ResourceView,
     SiteQuery, SiteSearch, SiteSort,
@@ -105,6 +106,7 @@ pub(crate) async fn load_blocks(
     site: SiteId,
     settings: &SiteSettings,
     request_query: &[(String, String)],
+    theme_settings: &ThemeSettings,
 ) -> Result<LoadedResources, DbError> {
     load_blocks_from(
         loader,
@@ -112,6 +114,7 @@ pub(crate) async fn load_blocks(
         site,
         settings,
         request_query,
+        theme_settings,
         &AttachmentSource::Stored,
     )
     .await
@@ -126,6 +129,7 @@ pub(crate) async fn load_preview_blocks(
     settings: &SiteSettings,
     request_query: &[(String, String)],
     attachments: &[(BlockId, Vec<ResolvedAttachment>)],
+    theme_settings: &ThemeSettings,
 ) -> Result<LoadedResources, DbError> {
     load_blocks_from(
         loader,
@@ -133,6 +137,7 @@ pub(crate) async fn load_preview_blocks(
         site,
         settings,
         request_query,
+        theme_settings,
         &AttachmentSource::Preview(attachments),
     )
     .await
@@ -195,9 +200,18 @@ async fn load_blocks_from(
     site: SiteId,
     settings: &SiteSettings,
     request_query: &[(String, String)],
+    theme_settings: &ThemeSettings,
     source: &AttachmentSource<'_>,
 ) -> Result<LoadedResources, DbError> {
     let mut loaded = LoadedResources::default();
+    // The frame's logo and banner are assets the blocks never name, so the
+    // snapshot loads them for `RenderContext::resources.read_asset`.
+    for id in [theme_settings.logo, theme_settings.banner]
+        .into_iter()
+        .flatten()
+    {
+        load_asset(loader, AssetId::new(id), &mut loaded).await?;
+    }
     for block in &page.blocks {
         match &block.data {
             BlockData::BrowsePreview(data) => {

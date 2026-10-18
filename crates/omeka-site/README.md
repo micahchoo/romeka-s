@@ -23,22 +23,38 @@ A caller does three things.
 port bundles one, `default`, listed in `theme::THEMES`.
 
 A theme is a `Theme` implementation plus a `ThemeInfo` manifest. The manifest carries the name a site
-stores, the theme's own settings (its `theme.ini` `[config]` spec upstream; the bundled theme declares
-none), and the files the theme ships with their bytes. The site settings every core site view reads
-are separate, in `settings::SITE_SETTINGS`, stored as individual `site_setting` rows. A second theme
+stores, the theme's own settings (its `theme.ini` `[config]` spec upstream), and the files the theme
+ships with their bytes. The bundled theme declares its design tokens there:
+`theme::tokens::SETTINGS` is the schema, and a site's stored map
+(`theme_settings_<theme>`, served as `o:theme_settings`) is read through
+`theme::ThemeSettings::from_value`, which validates each token at the boundary and falls
+back to the token's default. The site settings every core site view reads are separate, in
+`settings::SITE_SETTINGS`, stored as individual `site_setting` rows. A second theme
 implements `Theme`, adds itself to `THEMES`, and changes nothing else in the crate.
+
+### Design tokens
+
+The bundled theme is edited by tokens, not code. `theme::tokens::SETTINGS` declares the
+palette, the two font stacks (curated system stacks, so no font file is requested), the type
+scale, the density, the corner radius, the header layout, the logo and banner assets, and the
+footer text. `ThemeSettings::css` emits them as CSS custom properties in one `<style>` in the
+head, and `theme/style.css` uses those properties everywhere and names no colour of its own.
+`theme::tokens::registry()` is serialised to `web/admin/src/generated/themeSettings.json`,
+which the admin Theme page renders and a Rust test keeps byte-identical. A resource without a
+thumbnail shows the theme's `img/placeholder.svg`, the port's stand-in for upstream's
+`default.png`.
 
 ### The bundled theme's stylesheet
 
 `theme::style::STYLE_CSS` is the bundled theme's own CSS, held as data (`theme/style.css`). The
 theme's manifest lists it at `css/style.css`, and the document frame emits a `<link>` for every
-manifest asset under `RenderContext::asset_base`, between the core `fonts.css`/`iconfonts.css` links
-and the core scripts. The head carries no other stylesheet, so the caller serves
-`{asset_base}/css/style.css` from `theme::theme_asset("default", "css/style.css")` and the page is
-styled. The sheet's block rules are the subset of upstream `application/asset/css/page-blocks.css`
-that applies to the markup this port emits, its page-grid rules are
-`application/asset/css/page-grid.css`, and it adds a rule for every block wrapper class no upstream
-rule names. A stored block `class` is arbitrary, so only a registered layout's wrapper has a rule.
+manifest asset whose kind is a head asset, under `RenderContext::asset_base`. The head carries no
+other stylesheet, so the caller serves `{asset_base}/css/style.css` from
+`theme::theme_asset("default", "css/style.css")` and the page is styled. The sheet's block rules are
+the subset of upstream `application/asset/css/page-blocks.css` that applies to the markup this port
+emits, its page-grid rules are `application/asset/css/page-grid.css`, and it adds a rule for every
+block wrapper class no upstream rule names. A stored block `class` is arbitrary, so only a
+registered layout's wrapper has a rule.
 
 ### Page blocks
 

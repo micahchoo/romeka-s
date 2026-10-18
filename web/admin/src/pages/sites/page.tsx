@@ -19,9 +19,17 @@ const SitePageEditor = lazy(() =>
 );
 
 /**
+ * The Theme page is its own chunk: it carries the token controls, the contrast
+ * readout and the preview panel, which the sites list does not need.
+ */
+const SiteThemePage = lazy(() =>
+  import('./theme').then((module) => ({ default: module.SiteThemePage })),
+);
+
+/**
  * `#/sites` lists, `#/sites/new` creates, `#/sites/<id>` edits a site,
- * `#/sites/<id>/navigation`, `/resources`, `/users` and `/theme` edit one
- * member group each, `#/sites/<id>/pages/new` adds a page and
+ * `#/sites/<id>/navigation`, `/resources`, `/users`, `/theme` and `/settings`
+ * edit one member group each, `#/sites/<id>/pages/new` adds a page and
  * `#/sites/<id>/pages/<pageId>` edits one.
  */
 export const SitesPage = ({
@@ -54,6 +62,11 @@ export const SitesPage = ({
       case 'users':
         return <SiteUsersPage key={String(siteId)} siteId={siteId} />;
       case 'theme':
+        return (
+          <Suspense fallback={<p role="status">{t('loading.site')}</p>}>
+            <SiteThemePage key={String(siteId)} siteId={siteId} />
+          </Suspense>
+        );
       case 'settings':
         return <SiteSettingsPage key={String(siteId)} siteId={siteId} />;
       default:

@@ -81,12 +81,22 @@ fn layout_links_the_theme_manifest_assets() {
     let resources = TestResources::default();
     let ctx = context(&site, &resources);
     let document = DefaultTheme.render(&View::Index, &ctx);
-    for asset in DefaultTheme.info().assets {
+    for asset in DefaultTheme
+        .info()
+        .assets
+        .iter()
+        .filter(|asset| asset.kind.is_head())
+    {
         let element = asset
             .kind
             .element(&format!("{}/{}", ctx.asset_base, asset.path));
         assert!(document.contains(&element), "{document}");
     }
+    // A view-referenced image is shipped but not linked from the head.
+    assert!(
+        !document.contains("/img/placeholder.svg"),
+        "the placeholder is not a head asset: {document}"
+    );
     for missing in [
         "/css/fonts.css",
         "/css/iconfonts.css",
@@ -401,6 +411,143 @@ fn media_and_browse_links_render_in_the_site_locale() {
     let document = DefaultTheme.render(&View::Browse(&browse), &ctx);
     assert!(
         document.contains("class=\"advanced-search\">Búsqueda avanzada</a>"),
+        "{document}"
+    );
+}
+
+/// The frame emits the design tokens as custom properties in a `<style>` in
+/// the head, and a curated token reaches CSS under its own name.
+#[test]
+fn layout_emits_the_theme_tokens_as_custom_properties() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "brand_color": "#cc3300",
+        "heading_font": "geometric",
+        "density": "compact"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+
+    assert!(document.contains("<style>\n:root {"), "{document}");
+    assert!(document.contains("--color-brand: #cc3300;"), "{document}");
+    assert!(
+        document
+            .contains("--font-heading: Futura, \"Century Gothic\", \"Avenir Next\", sans-serif;"),
+        "{document}"
+    );
+    assert!(document.contains("--space-1: 0.125rem;"), "{document}");
+    // The sheet link still follows the style block, so the tokens win.
+    let style_at = document.find("<style>").expect("style block");
+    let sheet_at = document.find("css/style.css").expect("stylesheet link");
+    assert!(style_at < sheet_at, "{document}");
+}
+
+/// The header layout token sets the header's class, so the sheet can centre or
+/// left-align the logo and navigation.
+#[test]
+fn layout_honours_the_header_layout_token() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "header_layout": "centred"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(
+        document.contains("<header class=\"header-centred\">"),
+        "{document}"
+    );
+    assert!(
+        !document.contains("<header class=\"header-logo-left\">"),
+        "{document}"
+    );
+}
+
+/// The logo and banner tokens resolve to their assets, and a missing asset
+/// renders nothing rather than a broken image.
+#[test]
+fn layout_renders_the_logo_and_banner_assets() {
+    let site = site();
+    let mut resources = TestResources::default();
+    resources.assets.insert(
+        3,
+        crate::view::AssetView {
+            id: omeka_core::ids::AssetId::new(3),
+            title: "A logo".to_string(),
+            url: Some("/files/original/3.png".to_string()),
+            thumbnail: None,
+        },
+    );
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "logo": 3,
+        "banner": 4,
+        "banner_text": "Open daily <10am>"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(
+        document.contains(
+            "<a class=\"site-logo\" href=\"/s/main\"><img src=\"/files/original/3.png\" alt=\"Main Site\"></a>"
+        ),
+        "{document}"
+    );
+    // Asset 4 is not in the provider, so only the banner text renders.
+    assert!(
+        document.contains("<div class=\"site-banner\">"),
+        "{document}"
+    );
+    assert!(!document.contains("site-banner-image"), "{document}");
+    assert!(
+        document.contains("<p class=\"site-banner-text\">Open daily &lt;10am&gt;</p>"),
+        "{document}"
+    );
+}
+
+/// The footer text token renders purified HTML, and a hostile value cannot
+/// execute.
+#[test]
+fn layout_purifies_the_footer_text() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "footer_text": "<p>Friends</p><script>alert(1)</script>"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(
+        document.contains("<div class=\"footer-text\"><p>Friends</p></div>"),
+        "{document}"
+    );
+    assert!(
+        !document.contains("<script>alert(1)</script>"),
+        "{document}"
+    );
+}
+
+/// A resource with no thumbnail shows the theme's placeholder image, the way
+/// upstream's thumbnail helper falls back to `default.png`.
+#[test]
+fn browse_renders_the_placeholder_for_a_resource_without_a_thumbnail() {
+    let site = site();
+    let resources = TestResources::default();
+    let ctx = context(&site, &resources);
+    let mut without = item(4, "An item", "/s/main/item/4");
+    without.thumbnail = None;
+    let browse = BrowseView {
+        kind: ResourceKind::Item,
+        title: "Items".to_string(),
+        resources: vec![without],
+        total: 1,
+        query: Vec::new(),
+        page: 1,
+        per_page: 1,
+    };
+    let document = DefaultTheme.render(&View::Browse(&browse), &ctx);
+    assert!(
+        document.contains(
+            "<img src=\"/assets/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">"
+        ),
         "{document}"
     );
 }

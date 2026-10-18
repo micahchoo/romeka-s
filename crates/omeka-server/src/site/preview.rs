@@ -37,6 +37,7 @@ use omeka_core::site::{
 };
 use omeka_db::repos::SiteRepo;
 use omeka_site::blocks::parse::parse_block_data;
+use omeka_site::theme::tokens::ThemeSettings;
 
 use super::{Outcome, SiteError, dispatch};
 use crate::AppState;
@@ -99,7 +100,26 @@ pub(crate) async fn run(
         .collect();
     let created = preview.created.map(Timestamp::from_naive);
     let modified = preview.modified.map(Timestamp::from_naive);
-    match dispatch::render_preview(state, uri, &actor, &page, &attachments, created, modified).await
+    // `o:theme_settings` in the body overrides the stored tokens for this
+    // render only. It is parsed the same way the stored map is and is never
+    // written.
+    let theme_override = preview
+        .theme_settings
+        .as_ref()
+        .map(ThemeSettings::from_value);
+    match dispatch::render_preview(
+        state,
+        uri,
+        &actor,
+        &dispatch::PreviewPage {
+            page: &page,
+            attachments: &attachments,
+            created,
+            modified,
+            theme_settings: theme_override.as_ref(),
+        },
+    )
+    .await
     {
         Ok(Outcome::Html(html)) => html_response(html),
         // The frame renders a page; a redirect here would be a bug, not a page.

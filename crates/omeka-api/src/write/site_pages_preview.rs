@@ -50,6 +50,9 @@ pub struct Preview {
     pub layout: Option<String>,
     /// `o:layout_data` in the shape the storage boundary keeps.
     pub layout_data: Option<Value>,
+    /// `o:theme_settings` as the request carries it, `None` when the preview
+    /// keeps the site's stored tokens. The preview never stores this.
+    pub theme_settings: Option<Value>,
     /// The page's blocks in order, each with its attachments resolved.
     pub blocks: Vec<PreviewBlock>,
 }
@@ -149,15 +152,18 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
         is_public: payload.bool_member("o:is_public", true),
         layout: payload.str_member("o:layout").map(str::to_string),
         layout_data: payload.get("o:layout_data").map(php_json),
+        theme_settings: payload.get("o:theme_settings").map(php_json),
         blocks,
     })
 }
 
 /// The members a preview body may carry: the write's control list plus
-/// `o:id`, which names the page being edited.
+/// `o:id`, which names the page being edited, and `o:theme_settings`, the theme
+/// tokens to render with instead of the site's stored ones (never stored).
 fn preview_control() -> Vec<&'static str> {
     let mut control: Vec<&'static str> = CONTROL.to_vec();
     control.push("o:id");
+    control.push("o:theme_settings");
     control
 }
 

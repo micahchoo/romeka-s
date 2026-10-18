@@ -18,6 +18,7 @@ use crate::nav::{NavItem, PageRef};
 use crate::resource_page::ResourcePageBlocks;
 use crate::search::{AdvancedSearchForm, CrossSitePage, SearchList, SearchResults};
 use crate::settings::SiteSettings;
+use crate::theme::ThemeSettings;
 
 /// A thumbnail image, as `Laminas`'s `thumbnail` helper returns it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -491,6 +492,8 @@ pub struct RenderContext<'a> {
     pub page_modified: Option<Timestamp>,
     /// The site settings the templates read.
     pub settings: SiteSettings,
+    /// The bundled theme's design tokens, validated at the storage boundary.
+    pub theme_settings: ThemeSettings,
     /// The resolved site navigation, for menus and the table of contents.
     pub nav: Vec<NavItem>,
     /// The site's pages, for navigation resolution.
@@ -534,6 +537,7 @@ impl<'a> RenderContext<'a> {
             page_created: None,
             page_modified: None,
             settings: SiteSettings::default(),
+            theme_settings: ThemeSettings::default(),
             nav: Vec::new(),
             pages: Vec::new(),
             resource_page_blocks: None,

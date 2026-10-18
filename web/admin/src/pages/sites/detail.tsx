@@ -83,6 +83,7 @@ const SITE_SECTIONS: readonly { readonly segment: string; readonly labelKey: Mes
   { segment: 'navigation', labelKey: 'page.navigation' },
   { segment: 'resources', labelKey: 'page.siteResources' },
   { segment: 'users', labelKey: 'page.siteUsers' },
+  { segment: 'theme', labelKey: 'page.siteTheme' },
   { segment: 'settings', labelKey: 'page.siteSettings' },
 ];
 
