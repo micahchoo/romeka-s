@@ -1,0 +1,79 @@
+# The origin in front of the server: TLS for {$ROMEKA_DOMAIN}, the admin SPA
+# and the media bytes as files, and the server's own routes forwarded.
+#
+# Caddy reads the environment itself, so this file needs no rendering. It uses
+# ROMEKA_DOMAIN, ROMEKA_ACME_EMAIL, ROMEKA_DIST, ROMEKA_STORE,
+# ROMEKA_API_HOST and ROMEKA_API_PORT, all of which deploy/compose.yaml sets
+# from deploy/.env.example.
+#
+# It listens on :80 and :443 inside the container. compose publishes those two
+# ports on the host; nothing else leaves the container.
+{
+	# Nothing outside this container talks to the admin API, and a config edit
+	# is a container restart.
+	admin off
+	# The container is non-root with a read-only root filesystem, so the local
+	# CA's root certificate can never be installed into the system trust store.
+	# This turns the failed attempt into nothing: the internal CA is only used
+	# for a localhost deployment.
+	skip_install_trust
+	# The ACME account contact. Only a certificate-expiry notice uses it.
+	email {$ROMEKA_ACME_EMAIL}
+}
+
+# Automatic HTTPS: Caddy obtains and renews the certificate for this name,
+# answers the ACME challenge on :80, and stores the account and the certificate
+# under $XDG_DATA_HOME/caddy, which is the romeka-caddy volume. Losing that
+# volume re-issues every certificate, and a CA rate-limits that.
+{$ROMEKA_DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+
+	root * {$ROMEKA_DIST}
+
+	# The SPA's bundle lives under the same /assets prefix as the bundled
+	# theme's files (`crates/omeka-server/src/assets.rs` serves /assets/<path>
+	# from the theme registry). A file the bundle ships wins; every other path
+	# under the prefix is the theme's, or a 404 from the server.
+	@spa_asset {
+		path /assets/*
+		file {path}
+	}
+	handle @spa_asset {
+		file_server
+	}
+
+	# The server's routes, forwarded unchanged. The Origin, Referer and Cookie
+	# headers reach it untouched on purpose: the session cookie is SameSite=Lax,
+	# and the server refuses a cookie-carrying write whose Origin is not the
+	# configured base URL, so a proxy that rewrites Origin breaks sign-in.
+	# Caddy sets X-Forwarded-For to the address it saw, and the server's login
+	# limit reads the last entry of that header.
+	# Caddy streams the body to the server and sets no size limit of its own, so
+	# the server's max_body_bytes is the one cap on an upload.
+	@app path /api /api/* /api-context /assets/* /health /ready /s /s/*
+	handle @app {
+		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
+	}
+
+	# The store the server wrote: /files/original/<name>.<ext> and the thumbnail
+	# directories. A miss is a 404 here, never the SPA shell.
+	handle_path /files/* {
+		root * {$ROMEKA_STORE}
+		file_server
+	}
+
+	# Everything else is the admin SPA. A path that names a file is served or
+	# 404s; a path with no extension falls back to the shell, so a reload of an
+	# SPA route lands on the app rather than a 404.
+	handle {
+		@extensionless not path_regexp extension \.[^/]+$
+		handle @extensionless {
+			try_files {path} /index.html
+			file_server
+		}
+		handle {
+			file_server
+		}
+	}
+}

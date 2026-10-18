@@ -1,32 +1,28 @@
 # Build context for packaging/Dockerfile. BuildKit reads the ignore file named
-# after the Dockerfile, so the filter stays next to the Dockerfile it belongs
-# to and the repository root needs no second one.
+# after the Dockerfile, so the filter stays next to the Dockerfile it belongs to
+# and the repository root needs no second one.
 #
-# The two build stages read Cargo.toml, Cargo.lock, crates/ and web/admin/.
+# The stages read Cargo.toml, Cargo.lock, crates/, web/admin/ and deploy/Caddyfile.
 # Everything else is dropped to keep the context small.
 
 .git
 .gitignore
 .github
 
-# Reference clone and build output.
+# The reference clone and build output.
 source
 target
 **/target
 **/node_modules
 **/dist
 
-# Not read by the build.
-oracle
-verification
-research
+# Read by no stage.
 briefs
-packaging/smoke.sh
+docs
+deploy/.env.example
+deploy/DEPLOY.md
+deploy/backup.sh
+deploy/restore.sh
+deploy/compose.yaml
+deploy/smoke.sh
 packaging/README.md
-
-*.db
-*.sqlite
-*.sqlite3
-logs
-nohup.out
-.DS_Store

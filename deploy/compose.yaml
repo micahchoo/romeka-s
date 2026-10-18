@@ -1,0 +1,80 @@
+# Romeka S as one service: the server, with the Caddy origin that terminates TLS
+# and serves the admin SPA and the media bytes to the browser.
+#
+#     cd deploy && docker compose up -d --build
+#
+# Every setting comes from .env beside this file; .env.example is the template
+# and DEPLOY.md is the runbook.
+#
+# There is no mail service. With no ROMEKA_SMTP_HOST the server writes the
+# invitation and password-reset links to its log and returns them to the
+# administrator, so a deployment with no relay still onboards users.
+
+name: romeka-s
+
+services:
+  romeka:
+    build:
+      context: ..
+      dockerfile: packaging/Dockerfile
+    # The image an operator rolls back to is named here, so a rollback points at
+    # the previous tag instead of rebuilding it.
+    image: ${ROMEKA_IMAGE:-romeka-s:local}
+    environment:
+      # Where this deployment answers, and who to tell about the certificate.
+      ROMEKA_DOMAIN: ${ROMEKA_DOMAIN:-}
+      ROMEKA_BASE_URL: ${ROMEKA_BASE_URL:-}
+      ROMEKA_ACME_EMAIL: ${ROMEKA_ACME_EMAIL:-}
+      # The first administrator, read only when the database is empty.
+      ROMEKA_ADMIN_EMAIL: ${ROMEKA_ADMIN_EMAIL:-}
+      ROMEKA_ADMIN_NAME: ${ROMEKA_ADMIN_NAME:-}
+      ROMEKA_ADMIN_PASSWORD: ${ROMEKA_ADMIN_PASSWORD:-}
+      ROMEKA_TITLE: ${ROMEKA_TITLE:-}
+      ROMEKA_TIME_ZONE: ${ROMEKA_TIME_ZONE:-}
+      ROMEKA_LOCALE: ${ROMEKA_LOCALE:-}
+      # Server settings, passed to the server as they are.
+      ROMEKA_LOG: ${ROMEKA_LOG:-}
+      ROMEKA_MAX_BODY_BYTES: ${ROMEKA_MAX_BODY_BYTES:-}
+      ROMEKA_REQUEST_TIMEOUT_SECS: ${ROMEKA_REQUEST_TIMEOUT_SECS:-}
+      # Mail is optional. Empty values for the server's own settings are dropped
+      # by the entrypoint, so an unset relay is an absent relay.
+      ROMEKA_SMTP_HOST: ${ROMEKA_SMTP_HOST:-}
+      ROMEKA_SMTP_PORT: ${ROMEKA_SMTP_PORT:-}
+      ROMEKA_SMTP_USER: ${ROMEKA_SMTP_USER:-}
+      ROMEKA_SMTP_PASSWORD: ${ROMEKA_SMTP_PASSWORD:-}
+      ROMEKA_SMTP_TLS: ${ROMEKA_SMTP_TLS:-}
+      ROMEKA_MAIL_FROM: ${ROMEKA_MAIL_FROM:-}
+      # The paths the volumes are mounted at. The image sets these defaults; the
+      # mount below is what makes them true.
+      ROMEKA_DB: ${ROMEKA_DB:-/db/romeka.db}
+      ROMEKA_STORE: ${ROMEKA_STORE:-/data/files}
+    ports:
+      # 443 is the site. 80 answers the ACME challenge and redirects.
+      - "${ROMEKA_HTTP_PORT:-80}:80"
+      - "${ROMEKA_HTTPS_PORT:-443}:443"
+    volumes:
+      # The database with its -wal and -shm sidecars, so the whole directory is
+      # one volume and a backup never splits them.
+      - romeka-db:/db
+      # The media store. The volume holds the store root's parent as well,
+      # because `romeka restore` stages its work beside the store.
+      - romeka-files:/data
+      # The ACME account and the certificate. Losing this volume re-issues every
+      # certificate, and a CA rate-limits that.
+      - romeka-caddy:/srv/caddy
+      # The origin config, so an edit needs a restart rather than a rebuild.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # The image carries the HEALTHCHECK (packaging/Dockerfile). It fetches
+    # /health from the server, and `docker compose ps` reports the result.
+    #
+    # Nothing outside the three volumes and /tmp is written, so the rest of the
+    # filesystem is read-only.
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+volumes:
+  romeka-db:
+  romeka-files:
+  romeka-caddy:
