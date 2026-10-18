@@ -27,6 +27,8 @@ semantic versioning.
   member.
 - A `DELETE` answers the detached entity, with `o:id` null and `@id` the collection URL, the shape
   `Api\Manager::finalize` renders after the flush.
+- The admin's delete controls consume that detached answer, so the twelve `delete*` methods return
+  `void` and the boundary only checks the shape (`assertDetached` in `web/admin/src/api/parse.ts`).
 - An email that is not `local-part@hostname` answers the Laminas `INVALID_FORMAT` message.
 - The `id` filter narrows every entity collection, and `resource_classes` and `properties` read
   `term`, `vocabulary_prefix` and `vocabulary_namespace_uri`.
