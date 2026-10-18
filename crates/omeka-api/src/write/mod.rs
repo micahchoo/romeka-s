@@ -18,6 +18,7 @@
 pub mod access;
 pub mod assets;
 pub mod body;
+pub mod detached;
 pub mod files;
 pub mod fulltext;
 pub mod item_sets;
@@ -88,13 +89,15 @@ pub async fn update(
     }
 }
 
-/// Dispatch a delete to the resource handler.
+/// Dispatch a delete to the resource handler, then detach the document.
 ///
 /// The adapter-level grant is checked by [`crate::read::Api::delete`] before
 /// this runs, as `Api\Manager::execute` checks it before the adapter's own
-/// `delete`.
+/// `delete`. Every handler answers the row's live document (the values and
+/// pages are gone after the removal), so [`detached`] rewrites it into the
+/// entity `Api\Manager::finalize` renders once the flush has detached it.
 pub async fn delete(api: &Api<'_>, resource: &str, raw_id: &str) -> Result<ApiResponse, ApiError> {
-    match resource {
+    let answer = match resource {
         "items" => items::delete(api, raw_id).await,
         "item_sets" => item_sets::delete(api, raw_id).await,
         "media" => media::delete(api, raw_id).await,
@@ -108,7 +111,8 @@ pub async fn delete(api: &Api<'_>, resource: &str, raw_id: &str) -> Result<ApiRe
         "assets" => assets::delete(api, raw_id).await,
         "jobs" => jobs::delete(api, raw_id).await,
         other => Err(not_implemented(other, Operation::Delete)),
-    }
+    }?;
+    detached::detach(answer, resource, api.base())
 }
 
 fn not_implemented(resource: &str, operation: Operation) -> ApiError {
