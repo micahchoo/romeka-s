@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::errors::ApiError;
 use crate::read::{Api, db_error};
 use crate::routes::Operation;
-use crate::write::body::{Payload, php_json};
+use crate::write::body::{Payload, php_json, ref_row};
 use crate::write::resource::not_found as ref_not_found;
 use crate::write::site_pages::{
     CONTROL, PAGE_CLASS, ResolvedAttachment, parse_blocks, resolve_attachments, slug_or_auto,
@@ -78,15 +78,18 @@ pub struct PreviewBlock {
 pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<Preview, ApiError> {
     crate::write::values::collect(api, payload, &preview_control()).await?;
     let repo = SiteRepo::new(api.pool());
-    let existing = match payload_id(payload) {
-        Some(raw_id) => {
-            let Some(page) = repo.get_page(PageId(raw_id)).await.map_err(db_error)? else {
-                return Err(ref_not_found(PAGE_CLASS, raw_id));
+    let existing = match payload.id() {
+        Some(raw) => {
+            let Some(id) = ref_row(raw) else {
+                return Err(ref_not_found(PAGE_CLASS, raw));
+            };
+            let Some(page) = repo.get_page(PageId(id)).await.map_err(db_error)? else {
+                return Err(ref_not_found(PAGE_CLASS, raw));
             };
             // The route's site renders the preview, so a page of another site
             // is not found here even for a caller who may edit it.
             if page.site_id != site {
-                return Err(ref_not_found(PAGE_CLASS, raw_id));
+                return Err(ref_not_found(PAGE_CLASS, raw));
             }
             let owner = site_owner(api, site).await?;
             api.authorize_site_page(Operation::Update, site, owner)
@@ -165,15 +168,6 @@ async fn site_owner(api: &Api<'_>, site: SiteId) -> Result<Option<UserId>, ApiEr
         .await
         .map_err(db_error)?
         .and_then(|row| row.owner_id))
-}
-
-/// The page a preview body names, `o:id` as a plain number or as an `o:id`
-/// reference.
-fn payload_id(payload: &Payload) -> Option<u64> {
-    payload
-        .int_member("o:id")
-        .and_then(|value| u64::try_from(value).ok())
-        .or_else(|| payload.ref_id("o:id"))
 }
 
 /// The stored blocks of a page, in position order, with their stored
