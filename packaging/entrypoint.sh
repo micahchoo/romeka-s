@@ -1,72 +1,97 @@
 #!/usr/bin/env bash
-# Start the port and its static origin as one service.
+# Start Romeka S: install the database when it is absent, serve it on loopback,
+# and run Caddy in front for TLS, the admin SPA and the media bytes.
 #
-# The same script runs as the container entrypoint and as the systemd unit's
-# ExecStart, so the container and a bare-metal install resolve the same paths
-# and render the same origin config.
-#
-# It converges on a running service from any prior state: `omeka install`
-# creates an absent database and seeds it, and is a no-op on one already seeded.
-# The database and the store live on paths the caller mounts, never inside the
-# installed tree.
+# The same script is the container entrypoint, so every setting it reads is an
+# environment variable the deployment sets (see deploy/.env.example).
 set -euo pipefail
 
-DB="${OMEKA_DB:-/data/omeka.db}"
-STORE="${OMEKA_STORE:-/data/files}"
-DIST="${OMEKA_DIST:-/app/dist}"
-API_HOST="${OMEKA_API_HOST:-127.0.0.1}"
-API_PORT="${OMEKA_API_PORT:-8123}"
-PUBLIC_PORT="${OMEKA_PUBLIC_PORT:-8080}"
-BASE_URL="${OMEKA_BASE_URL:-http://localhost:${PUBLIC_PORT}}"
-TEMPLATE="${OMEKA_NGINX_TEMPLATE:-/etc/omeka/nginx.conf.template}"
-CONF="${OMEKA_NGINX_CONF:-/tmp/nginx.conf}"
+DB="${ROMEEKA_DB:-/db/romeka.db}"
+STORE="${ROMEEKA_STORE:-/data/files}"
+DIST="${ROMEEKA_DIST:-/srv/dist}"
+CADDYFILE="${ROMEEKA_CADDYFILE:-/etc/caddy/Caddyfile}"
+HOST="${ROMEEKA_API_HOST:-127.0.0.1}"
+PORT="${ROMEEKA_API_PORT:-8123}"
+BASE_URL="${ROMEEKA_BASE_URL:-}"
+DOMAIN="${ROMEEKA_DOMAIN:-}"
 
-if [ ! -f "$TEMPLATE" ]; then
-    echo "omeka: missing nginx template $TEMPLATE" >&2
+# A container that cannot say where it is cannot serve cookies or JSON-LD links.
+if [ -z "$BASE_URL" ]; then
+    echo "romeka: ROMEEKA_BASE_URL is not set" >&2
+    exit 1
+fi
+if [ -z "$DOMAIN" ]; then
+    echo "romeka: ROMEEKA_DOMAIN is not set" >&2
+    exit 1
+fi
+# Caddy's `email` option needs a value to parse, so an empty contact is a
+# configuration error rather than a silent default addressed to a stranger.
+if [ -z "${ROMEEKA_ACME_EMAIL:-}" ]; then
+    echo "romeka: ROMEEKA_ACME_EMAIL is not set" >&2
     exit 1
 fi
 if [ ! -d "$DIST" ]; then
-    echo "omeka: missing admin bundle $DIST" >&2
+    echo "romeka: missing the admin bundle at $DIST" >&2
+    exit 1
+fi
+if [ ! -f "$CADDYFILE" ]; then
+    echo "romeka: missing the origin config at $CADDYFILE" >&2
     exit 1
 fi
 
-mkdir -p "$(dirname "$DB")" "$STORE"
+# An empty value in the environment means "not configured", but the server reads
+# any value present, empty or not: an empty ROMEKA_SMTP_HOST would build a relay
+# at "" and log an error on every start. Drop the empty ones so absence reaches
+# the server as absence.
+for name in ROMEEKA_LOG ROMEEKA_MAX_BODY_BYTES ROMEEKA_REQUEST_TIMEOUT_SECS \
+    ROMEEKA_SMTP_HOST ROMEEKA_SMTP_PORT ROMEEKA_SMTP_USER ROMEEKA_SMTP_PASSWORD \
+    ROMEEKA_SMTP_TLS ROMEEKA_MAIL_FROM; do
+    if [ -z "${!name:-}" ]; then
+        unset "$name"
+    fi
+done
 
-# Idempotent: a second run against a seeded database inserts nothing.
-if [ "${OMEKA_SKIP_INSTALL:-0}" != "1" ]; then
-    omeka install -d "$DB" \
-        --email "${OMEKA_ADMIN_EMAIL:-admin@example.com}" \
-        --name "${OMEKA_ADMIN_NAME:-Admin}" \
-        --password "${OMEKA_ADMIN_PASSWORD:-changeme}" \
-        --title "${OMEKA_TITLE:-Omeka S}"
+mkdir -p "$(dirname "$DB")" "$STORE"
+# The server reads and writes the store as `files` relative to its working
+# directory, so it starts in the store's parent and that is the path it serves.
+cd "$(dirname "$STORE")"
+
+# `romeka install` creates the schema, seeds the default vocabularies and the
+# Base Resource template, and writes the first global_admin. It also rewrites the
+# settings rows it owns, installation_title among them, so it must NOT run on
+# every start: a container restart would undo every settings change an
+# administrator made. An absent database is the signal; DEPLOY.md's upgrade
+# procedure runs install explicitly.
+if [ ! -s "$DB" ]; then
+    for name in ROMEEKA_ADMIN_EMAIL ROMEEKA_ADMIN_NAME ROMEEKA_ADMIN_PASSWORD; do
+        if [ -z "${!name:-}" ]; then
+            echo "romeka: $name is not set and $DB is empty, so there is no administrator to create" >&2
+            exit 1
+        fi
+    done
+    echo "romeka: $DB is empty, installing" >&2
+    romeka install -d "$DB" \
+        --email "$ROMEEKA_ADMIN_EMAIL" \
+        --name "$ROMEEKA_ADMIN_NAME" \
+        --password "$ROMEEKA_ADMIN_PASSWORD" \
+        --title "${ROMEEKA_TITLE:-Romeka S}" \
+        --time-zone "${ROMEEKA_TIME_ZONE:-UTC}" \
+        --locale "${ROMEEKA_LOCALE:-en}"
 fi
 
-# A path holding sed's metacharacters stays literal in the render.
-escape() {
-    printf '%s' "$1" | sed -e 's/[&\\|]/\\&/g'
-}
-
-# Render before anything starts, so a bad path fails the start on its own.
-sed \
-    -e "s|@PUBLIC_PORT@|$(escape "$PUBLIC_PORT")|g" \
-    -e "s|@DIST@|$(escape "$DIST")|g" \
-    -e "s|@STORE@|$(escape "$STORE")|g" \
-    -e "s|@BACKEND@|$(escape "${API_HOST}:${API_PORT}")|g" \
-    "$TEMPLATE" > "$CONF"
-
-echo "omeka: serving the port on ${API_HOST}:${API_PORT}, the origin on :${PUBLIC_PORT}" >&2
-omeka serve -d "$DB" --host "$API_HOST" --port "$API_PORT" --base-url "$BASE_URL" &
+echo "romeka: serving $HOST:$PORT with base URL $BASE_URL, the origin on :80 and :443" >&2
+romeka serve -d "$DB" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" &
 serve_pid=$!
 
-nginx -c "$CONF" -g 'daemon off;' &
-nginx_pid=$!
+caddy run --config "$CADDYFILE" --adapter caddyfile &
+caddy_pid=$!
 
 shutdown() {
-    kill "$serve_pid" "$nginx_pid" 2>/dev/null || true
-    wait "$serve_pid" "$nginx_pid" 2>/dev/null || true
+    kill "$serve_pid" "$caddy_pid" 2>/dev/null || true
+    wait "$serve_pid" "$caddy_pid" 2>/dev/null || true
 }
 trap shutdown EXIT TERM INT
 
-# Exit when either process dies so the restart policy sees a stop, not a
-# half-dead service answering with 502.
-wait -n "$serve_pid" "$nginx_pid"
+# Exit when either process dies, so the restart policy sees a stop rather than a
+# half-dead service answering 502.
+wait -n "$serve_pid" "$caddy_pid"
