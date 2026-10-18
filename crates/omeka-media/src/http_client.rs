@@ -51,7 +51,7 @@ pub const DEFAULT_MAX_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_REDIRECTS: usize = 5;
 
 /// The user agent, as `Laminas\Http\Client` sends its own.
-const USER_AGENT: &str = concat!("omeka-s-port/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("romeka-s/", env!("CARGO_PKG_VERSION"));
 
 /// A blocking HTTP/1.1 client over rustls, behind [`HttpFetch`].
 ///
