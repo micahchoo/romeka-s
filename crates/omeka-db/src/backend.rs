@@ -25,6 +25,8 @@
 //! instantiations and both satisfy those bounds, so the restatement is a compile-time obligation
 //! and never a runtime branch.
 
+use std::borrow::Cow;
+
 use chrono::NaiveDateTime;
 use serde_json::Value;
 use sqlx::{ColumnIndex, Database, Decode, Row, Type};
@@ -53,6 +55,17 @@ pub trait Backend: Database {
     /// SQLite spells it `-1`. MySQL rejects a negative `LIMIT`, so it gets the largest signed
     /// value a MySQL `LIMIT` accepts.
     fn no_limit() -> i64;
+
+    /// An identifier as this engine needs it written in a statement.
+    ///
+    /// SQLite accepts the bare name, and so does MySQL except where MariaDB reserves it. MariaDB
+    /// reserves `VALUE`, and its parser reads `INSERT INTO value` as the row-list keyword and
+    /// rejects the statement with error 1064. The MySQL spelling therefore backticks a name, the
+    /// way upstream's own `schema.sql` does. Only the `value` table's `INSERT INTO` position needs
+    /// it; every read and update the port writes with the bare name is accepted by MariaDB.
+    fn quote_identifier(name: &'static str) -> Cow<'static, str> {
+        Cow::Borrowed(name)
+    }
 
     /// A `NOT NULL` character column.
     fn text(row: &Self::Row, column: &'static str) -> Result<String, DbError>;
@@ -190,6 +203,14 @@ fn json_from(stored: &str, column: &'static str) -> Result<Value, DbError> {
     serde_json::from_str(stored).map_err(|error| DbError::Column {
         column,
         reason: format!("`{stored}` is not JSON: {error}"),
+    })
+}
+
+/// A binary-collated text column as the UTF-8 text it holds.
+fn utf8(bytes: Vec<u8>, column: &'static str) -> Result<String, DbError> {
+    String::from_utf8(bytes).map_err(|error| DbError::Column {
+        column,
+        reason: format!("binary-collated text is not UTF-8: {error}"),
     })
 }
 
@@ -355,12 +376,32 @@ impl Backend for sqlx::MySql {
         i64::MAX
     }
 
+    fn quote_identifier(name: &'static str) -> Cow<'static, str> {
+        Cow::Owned(format!("`{name}`"))
+    }
+
+    /// A binary collation makes sqlx report a text column as `VARBINARY`, so the `String` decode is
+    /// refused. `password_creation.id`, `property.local_name` and `resource_class.local_name` are
+    /// `utf8mb4_bin`, yet their bytes are the UTF-8 text they hold, so decode those bytes instead.
     fn text(row: &Self::Row, column: &'static str) -> Result<String, DbError> {
-        decode::<Self, String>(row, column)
+        match decode::<Self, String>(row, column) {
+            Ok(text) => Ok(text),
+            Err(text_error) => match decode::<Self, Vec<u8>>(row, column) {
+                Ok(bytes) => utf8(bytes, column),
+                Err(_) => Err(text_error),
+            },
+        }
     }
 
     fn opt_text(row: &Self::Row, column: &'static str) -> Result<Option<String>, DbError> {
-        decode::<Self, Option<String>>(row, column)
+        match decode::<Self, Option<String>>(row, column) {
+            Ok(text) => Ok(text),
+            Err(text_error) => match decode::<Self, Option<Vec<u8>>>(row, column) {
+                Ok(Some(bytes)) => utf8(bytes, column).map(Some),
+                Ok(None) => Ok(None),
+                Err(_) => Err(text_error),
+            },
+        }
     }
 
     fn int(row: &Self::Row, column: &'static str) -> Result<i64, DbError> {

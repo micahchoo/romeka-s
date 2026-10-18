@@ -5,8 +5,10 @@
 
 mod common;
 
-use omeka_db::repos::{ItemRepo, ItemSetRepo, SiteFilter, SiteRepo, UserRepo};
-use omeka_db::rows::{NewItem, NewItemSet, NewSite, NewSiteBlock, NewSitePage, NewUser};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, ItemSiteRepo, SiteFilter, SiteRepo, UserRepo};
+use omeka_db::rows::{
+    ItemSiteRow, NewItem, NewItemSet, NewSite, NewSiteBlock, NewSitePage, NewUser,
+};
 use sqlx::SqlitePool;
 
 async fn new_site(pool: &SqlitePool, slug: &str) -> omeka_db::rows::SiteRow {
@@ -361,4 +363,28 @@ async fn deleting_a_site_removes_every_child_row() {
     );
     assert!(UserRepo::new(&pool).get(user.id).await.unwrap().is_some());
     assert!(ItemRepo::new(&pool).get(item.id()).await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn item_site_memberships_attach_once_and_list_in_order() {
+    let pool = common::memory().await;
+    let site = new_site(&pool, "heritage").await;
+    let item = ItemRepo::new(&pool)
+        .create(&NewItem::default())
+        .await
+        .unwrap();
+    let memberships = ItemSiteRepo::new(&pool);
+    let row = ItemSiteRow {
+        item_id: item.id(),
+        site_id: site.id,
+    };
+
+    memberships.create(&row).await.unwrap();
+    memberships.create(&row).await.unwrap();
+
+    assert_eq!(
+        memberships.list().await.unwrap(),
+        vec![row],
+        "attaching twice keeps one membership"
+    );
 }

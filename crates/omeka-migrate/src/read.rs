@@ -5,21 +5,18 @@
 //! repository's `list` with a default filter returns the whole table in id order; a child table is
 //! read once per parent, matching the repository's per-parent read methods.
 //!
-//! A few tables are read with SQL this crate writes: `item_site` has a row struct and no repository,
-//! and `resource_class`, `property` and `password_creation` carry a binary-collated text column that
-//! `omeka-db`'s MySQL text reader cannot decode, so the reads cast it. Both reasons are explained
-//! below. `module`, `job`, `session` and
-//! `fulltext_search` are not read; the README's known losses says why. `value_annotation` is the one
-//! served table with no read path at all: `omeka-db` creates an annotation but never lists one, so
-//! the source data cannot hold any.
+//! `module`, `job`, `session` and `fulltext_search` are not read; the README's known losses says
+//! why. `value_annotation` is the one served table with no read path at all: `omeka-db` creates an
+//! annotation but never lists one, so the source data cannot hold any.
 
 use sqlx::MySql;
 use sqlx::MySqlPool;
 
 use omeka_db::ids::ResourceId;
 use omeka_db::repos::{
-    ApiKeyRepo, AssetFilter, AssetRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaFilter, MediaRepo, Paging, SettingRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo,
+    ApiKeyRepo, AssetFilter, AssetRepo, ClassFilter, ClassRepo, ItemFilter, ItemRepo,
+    ItemSetFilter, ItemSetRepo, ItemSiteRepo, MediaFilter, MediaRepo, Paging, PasswordCreationRepo,
+    PropertyFilter, PropertyRepo, SettingRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo,
     SiteSettingRepo, TemplateRepo, UserFilter, UserRepo, UserSettingRepo, ValueRepo,
     VocabularyFilter, VocabularyRepo,
 };
@@ -75,7 +72,7 @@ pub(crate) async fn read_source(source: &MySqlPool) -> Result<SourceData, Migrat
     let (items, item_sets, media, values, item_item_sets) = read_resources(source).await?;
     let (sites, pages, blocks, block_attachments, site_item_sets, site_permissions) =
         read_sites(source).await?;
-    let item_sites = read_item_sites(source).await?;
+    let item_sites = ItemSiteRepo::<MySql>::new(source).list().await?;
     let settings = SettingRepo::<MySql>::new(source).list().await?;
     let mut site_settings = Vec::new();
     let mut user_settings = Vec::new();
@@ -85,8 +82,13 @@ pub(crate) async fn read_source(source: &MySqlPool) -> Result<SourceData, Migrat
     }
     for user in &users {
         user_settings.extend(UserSettingRepo::<MySql>::new(source).list(user.id).await?);
+        if let Some(row) = PasswordCreationRepo::<MySql>::new(source)
+            .get_for_user(user.id)
+            .await?
+        {
+            password_creations.push(row);
+        }
     }
-    password_creations.extend(read_password_creations(source).await?);
     let api_keys = read_api_keys(source, &users).await?;
 
     Ok(SourceData {
@@ -135,8 +137,12 @@ async fn read_catalog(source: &MySqlPool) -> Result<Catalog, MigrateError> {
     let vocabularies = VocabularyRepo::<MySql>::new(source)
         .list(&VocabularyFilter::default(), all)
         .await?;
-    let classes = read_classes(source).await?;
-    let properties = read_properties(source).await?;
+    let classes = ClassRepo::<MySql>::new(source)
+        .list(&ClassFilter::default(), all)
+        .await?;
+    let properties = PropertyRepo::<MySql>::new(source)
+        .list(&PropertyFilter::default(), all)
+        .await?;
 
     let templates = TemplateRepo::<MySql>::new(source).list().await?;
     let mut template_properties = Vec::new();
@@ -156,58 +162,6 @@ async fn read_catalog(source: &MySqlPool) -> Result<Catalog, MigrateError> {
         templates,
         template_properties,
     ))
-}
-
-/// `resource_class` and `property` carry `local_name` in `utf8mb4_bin`, and sqlx reports a
-/// binary-collated column to the row layer as `VARBINARY`. `omeka-db`'s MySQL text reader decodes a
-/// `String`, so `ClassRepo::list` and `PropertyRepo::list` fail on those two tables against a real
-/// server. Until `omeka-db` decodes a binary-collated text column, this crate reads the two tables
-/// itself with `CAST(local_name AS CHAR)`, which reports the column as the text it holds, and parses
-/// each row through the same `from_db_row` the repositories use. Reported to the coordinator as an
-/// `omeka-db` fix.
-const CLASS_COLUMNS: &str = "SELECT id, owner_id, vocabulary_id,
-         CAST(local_name AS CHAR) AS local_name, label, comment
-     FROM resource_class ORDER BY id";
-
-const PROPERTY_COLUMNS: &str = "SELECT id, owner_id, vocabulary_id,
-         CAST(local_name AS CHAR) AS local_name, label, comment
-     FROM property ORDER BY id";
-
-async fn read_classes(source: &MySqlPool) -> Result<Vec<ClassRow>, MigrateError> {
-    let rows = sqlx::query(CLASS_COLUMNS).fetch_all(source).await?;
-    let mut classes = Vec::with_capacity(rows.len());
-    for row in &rows {
-        classes.push(ClassRow::from_db_row::<MySql>(row)?);
-    }
-    Ok(classes)
-}
-
-async fn read_properties(source: &MySqlPool) -> Result<Vec<PropertyRow>, MigrateError> {
-    let rows = sqlx::query(PROPERTY_COLUMNS).fetch_all(source).await?;
-    let mut properties = Vec::with_capacity(rows.len());
-    for row in &rows {
-        properties.push(PropertyRow::from_db_row::<MySql>(row)?);
-    }
-    Ok(properties)
-}
-
-/// `password_creation.id` is `varchar(32) ... utf8mb4_bin`, the third binary-collated text column
-/// this crate reads with a cast for the reason above. `PasswordCreationRepo::get_for_user` selects
-/// the column without one, so a real server rejects it the same way `ClassRepo::list` does.
-const PASSWORD_CREATION_COLUMNS: &str = "SELECT CAST(id AS CHAR) AS id, user_id, created, activate
-     FROM password_creation ORDER BY user_id";
-
-async fn read_password_creations(
-    source: &MySqlPool,
-) -> Result<Vec<PasswordCreationRow>, MigrateError> {
-    let rows = sqlx::query(PASSWORD_CREATION_COLUMNS)
-        .fetch_all(source)
-        .await?;
-    let mut creations = Vec::with_capacity(rows.len());
-    for row in &rows {
-        creations.push(PasswordCreationRow::from_db_row::<MySql>(row)?);
-    }
-    Ok(creations)
 }
 
 type Resources = (
@@ -320,19 +274,6 @@ async fn read_sites(source: &MySqlPool) -> Result<Sites, MigrateError> {
         site_item_sets,
         site_permissions,
     ))
-}
-
-/// Every `item_site` membership. `omeka-db` serves the row struct but has no `item_site`
-/// repository, so this crate reads the table itself.
-async fn read_item_sites(source: &MySqlPool) -> Result<Vec<ItemSiteRow>, MigrateError> {
-    let rows = sqlx::query("SELECT item_id, site_id FROM item_site ORDER BY item_id, site_id")
-        .fetch_all(source)
-        .await?;
-    let mut memberships = Vec::with_capacity(rows.len());
-    for row in &rows {
-        memberships.push(ItemSiteRow::from_db_row::<MySql>(row)?);
-    }
-    Ok(memberships)
 }
 
 /// Every API key, read once per owner.

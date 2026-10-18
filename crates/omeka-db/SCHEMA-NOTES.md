@@ -14,6 +14,10 @@ exists. Nothing is translated there: on MySQL the port's tables, columns, indexe
 are the install's own. The type and divergence tables below describe what the SQLite schema had to
 change to say the same thing. `README.md` documents the backend seam.
 
+The port's own SQL writes identifiers bare. MariaDB reserves `VALUE`, so the MySQL backend quotes
+the `value` table in its `INSERT INTO` (error 1064 otherwise); SQLite, MySQL 8 and MariaDB 11 all
+accept every other name the repositories write without quotes.
+
 ## Migration semantics
 
 `0001_init.sql` translates `schema.sql` alone. `schema.sql` is the full install schema of the current

@@ -15,8 +15,8 @@ use sqlx::SqlitePool;
 
 use omeka_db::ids::MediaId;
 use omeka_db::repos::{
-    ApiKeyRepo, AssetRepo, ClassRepo, ItemFilter, ItemRepo, ItemSetRepo, MediaRepo, Paging,
-    PasswordCreationRepo, PropertyRepo, SettingRepo, SiteBlockAttachmentRepo, SiteRepo,
+    ApiKeyRepo, AssetRepo, ClassRepo, ItemFilter, ItemRepo, ItemSetRepo, ItemSiteRepo, MediaRepo,
+    Paging, PasswordCreationRepo, PropertyRepo, SettingRepo, SiteBlockAttachmentRepo, SiteRepo,
     SiteSettingRepo, TemplateRepo, UserFilter, UserRepo, UserSettingRepo, ValueRepo,
     VocabularyRepo,
 };
@@ -461,7 +461,7 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    /// `item_site` has no `omeka-db` repository, so this is the one write the crate makes itself.
+    /// `item_site` memberships, written through the repository that owns the table.
     async fn item_sites(&mut self, rows: &[ItemSiteRow]) -> Result<(), MigrateError> {
         self.ledger.read("item_site", rows.len() as u64);
         for row in rows {
@@ -472,10 +472,11 @@ impl<'a> Writer<'a> {
                 continue;
             };
             if let Some(target) = self.target {
-                sqlx::query("INSERT INTO item_site (item_id, site_id) VALUES (?, ?)")
-                    .bind(item.0 as i64)
-                    .bind(site.0 as i64)
-                    .execute(target)
+                ItemSiteRepo::new(target)
+                    .create(&ItemSiteRow {
+                        item_id: item,
+                        site_id: site,
+                    })
                     .await?;
             }
             self.ledger.written("item_site");
@@ -1057,12 +1058,18 @@ mod tests {
         );
         assert_eq!(attachments[0].caption, "A helmet");
 
-        let site_items: Vec<(i64, i64)> =
-            sqlx::query_as("SELECT item_id, site_id FROM item_site ORDER BY item_id")
-                .fetch_all(&pool)
-                .await
-                .expect("read item_site");
-        assert_eq!(site_items, vec![(1, 1)], "the site membership is remapped");
+        let site_items = ItemSiteRepo::new(&pool)
+            .list()
+            .await
+            .expect("read item_site");
+        assert_eq!(
+            site_items,
+            vec![ItemSiteRow {
+                item_id: ItemId(1),
+                site_id: SiteId(1),
+            }],
+            "the site membership is remapped"
+        );
 
         let setting = SettingRepo::new(&pool)
             .get("administrator_email")
