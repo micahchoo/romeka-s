@@ -35,10 +35,7 @@ use serde::de::DeserializeOwned;
 
 /// The frozen fixtures, as `golden.rs` reads them.
 fn fixtures_dir() -> String {
-    format!(
-        "{}/../../fixtures/api",
-        env!("CARGO_MANIFEST_DIR")
-    )
+    format!("{}/../../fixtures/api", env!("CARGO_MANIFEST_DIR"))
 }
 
 fn read_fixture(name: &str) -> String {
