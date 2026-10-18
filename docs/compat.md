@@ -40,7 +40,8 @@ a gap that was discovered.
 | No route answers 401. A missing, malformed, unknown or inactive API key leaves the caller anonymous, and the access check answers 403. | [`api.md`](api.md), Errors |
 | A write route with no handler answers 501. Upstream throws `OperationNotImplementedException`, which its JSON strategy maps to 500, so a caller cannot tell "not built" from "failed" there. | [`crates/omeka-api/README.md`](../crates/omeka-api/README.md) |
 | `GET /api/data_types/<unknown>` answers 404 where upstream throws and answers 500. | [`crates/omeka-api/src/read/meta.rs`](../crates/omeka-api/src/read/meta.rs) |
-| `POST /api/assets` (needs a multipart boundary) and `POST /api/jobs` (upstream fails at flush for every body) are unbuilt. | [`crates/omeka-api/README.md`](../crates/omeka-api/README.md) |
+| `POST /api/jobs` (upstream fails at flush for every body) is unbuilt. `POST /api/assets` is built and takes a multipart body. | [`crates/omeka-api/README.md`](../crates/omeka-api/README.md) |
+| A file's media type comes from the `image` crate's magic-byte sniff plus a UTF-8 text guess, not `finfo`'s libmagic, so a rejected, non-image upload can name a different media type in its error. | [`crates/omeka-media/src/media_type.rs`](../crates/omeka-media/src/media_type.rs) |
 | `romeka import media` derives `media_type` from the file extension. Upstream sniffs the content with `finfo` and applies its alias table. | [`crates/omeka-cli/README.md`](../crates/omeka-cli/README.md) |
 | Thumbnails come from the `image` crate, not GD. The two strategies and the JPEG output are kept, so a derivative can differ in bytes while matching in size. | [`crates/omeka-cli/README.md`](../crates/omeka-cli/README.md) |
 | Fulltext search runs on SQLite FTS5, whose ranking differs from MySQL's. | [`crates/omeka-db/README.md`](../crates/omeka-db/README.md) |

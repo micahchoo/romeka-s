@@ -14,13 +14,16 @@
 //! The item-with-metadata and media blocks read their content from
 //! `site_block_attachment`, so the snapshot carries each block's attachments
 //! together with the item views and media refs they resolve to. The asset block
-//! reads its `data` list and the asset repository is not ported, so
-//! `read_asset` stays empty.
+//! reads its `data` list and a block's `layout_data` names a background asset
+//! (`background_image_asset`), so the snapshot also carries the assets those
+//! name, keyed by id for the synchronous [`ResourceProvider::read_asset`].
 
-use omeka_core::ids::{BlockId, MediaId, SiteId};
+use omeka_core::ids::{AssetId, BlockId, MediaId, SiteId};
 use omeka_core::resource::ResourceKind;
 use omeka_core::site::{BlockData, BrowsePreviewData, ListOfSitesData, SitePage};
-use omeka_db::repos::{ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
+use omeka_db::ids as db;
+use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
+use omeka_db::rows::AssetRow;
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::settings::SiteSettings;
 use omeka_site::view::{
@@ -28,7 +31,7 @@ use omeka_site::view::{
     SiteQuery, SiteSearch, SiteSort,
 };
 
-use super::load::{Loader, media_options};
+use super::load::{Loader, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
 
 /// `BlockLayout/BrowsePreview.php::form`: the default `limit`.
@@ -43,6 +46,7 @@ pub(crate) struct LoadedResources {
     attachments: Vec<(BlockId, Vec<AttachmentRef>)>,
     resources: Vec<(ResourceKind, u64, ResourceView)>,
     media: Vec<(MediaId, MediaRef)>,
+    assets: Vec<(AssetId, AssetView)>,
 }
 
 impl ResourceProvider for LoadedResources {
@@ -76,8 +80,11 @@ impl ResourceProvider for LoadedResources {
             .map(|(_, media)| media.clone())
     }
 
-    fn read_asset(&self, _id: omeka_core::ids::AssetId) -> Option<AssetView> {
-        None
+    fn read_asset(&self, id: AssetId) -> Option<AssetView> {
+        self.assets
+            .iter()
+            .find(|(stored, _)| *stored == id)
+            .map(|(_, view)| view.clone())
     }
 
     fn attachments(&self, block: BlockId) -> Vec<AttachmentRef> {
@@ -121,10 +128,49 @@ pub(crate) async fn load_blocks(
                 let options = media_options(None, None);
                 load_attachments(loader, block.id, &options, &mut loaded).await?;
             }
+            BlockData::Asset(attachments) => {
+                for attachment in attachments {
+                    if let Some(id) = attachment.id {
+                        load_asset(loader, id, &mut loaded).await?;
+                    }
+                }
+            }
             _ => {}
+        }
+        // `AbstractLayout::getBlockInlineStyles` searches the background asset
+        // for every block whose `layout_data` names one.
+        if let Some(id) = block.layout_data.background_image_asset {
+            load_asset(loader, id, &mut loaded).await?;
         }
     }
     Ok(loaded)
+}
+
+/// Keep one asset in the snapshot unless it is already there.
+async fn load_asset(
+    loader: &Loader<'_>,
+    id: AssetId,
+    loaded: &mut LoadedResources,
+) -> Result<(), DbError> {
+    if loaded.assets.iter().any(|(stored, _)| *stored == id) {
+        return Ok(());
+    }
+    let row: Option<AssetRow> = AssetRepo::new(loader.pool())
+        .get(db::AssetId::from(id.get()))
+        .await?;
+    if let Some(row) = row {
+        let thumbnail = thumbnail_for_asset(loader.base(), &row);
+        loaded.assets.push((
+            id,
+            AssetView {
+                id,
+                title: row.name.clone(),
+                url: Some(thumbnail.url.clone()),
+                thumbnail: Some(thumbnail),
+            },
+        ));
+    }
+    Ok(())
 }
 
 /// Load one block's `site_block_attachment` rows, the item views and media refs

@@ -12,7 +12,7 @@ use omeka_db::repos::{
     ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging, ResourceRepo,
     compare_opt_text_ci,
 };
-use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
+use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_media::ThumbnailType;
 use omeka_media::thumbnailer::thumbnail_path;
 
@@ -185,7 +185,7 @@ pub(crate) fn item_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: thumbnails(api, resource.thumbnail_id, primary),
+        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, primary),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         // `ItemRepresentation::primaryMedia`: the stored primary media when it
@@ -322,7 +322,7 @@ pub(crate) fn item_set_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: thumbnails(api, resource.thumbnail_id, primary),
+        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, primary),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         is_open: row.is_open,
@@ -475,7 +475,7 @@ pub(crate) fn media_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: media_display_urls(api, row),
+        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, Some(row)),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         ingester: row.ingester.clone(),
@@ -688,17 +688,37 @@ fn jsonld_type(api: &Api<'_>, primary: &str, class: Option<ClassId>) -> JsonLdTy
 /// display URL for each type, otherwise nothing.
 fn thumbnails(
     api: &Api<'_>,
+    relations: &Relations,
     custom: Option<AssetId>,
     primary: Option<&MediaRow>,
 ) -> ThumbnailDisplayUrls {
-    if custom.is_some() {
-        // A custom thumbnail is an `asset` row and no asset repository exists
-        // yet, so the port cannot build its `assetUrl`. Reported as a gap.
-        return empty_thumbnail_urls();
+    if let Some(id) = custom {
+        // `AssetRepresentation::thumbnail` returns the asset itself, so every
+        // type shows its `assetUrl`.
+        let Some(asset) = relations.asset(id.0) else {
+            return empty_thumbnail_urls();
+        };
+        let url = api
+            .base()
+            .file_url(&format!("asset/{}", asset_filename(asset)));
+        return ThumbnailDisplayUrls {
+            large: Some(url.clone()),
+            medium: Some(url.clone()),
+            square: Some(url),
+        };
     }
     match primary {
         Some(media) => media_display_urls(api, media),
         None => empty_thumbnail_urls(),
+    }
+}
+
+/// `Entity\Asset::getFilename`: the storage id plus the extension when there is
+/// one.
+fn asset_filename(row: &AssetRow) -> String {
+    match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
+        _ => row.storage_id.clone(),
     }
 }
 

@@ -7,7 +7,8 @@ mod common;
 
 use axum::http::StatusCode;
 use common::{
-    append_key, get, json_request, request, router_with_store, seed_system, seeded_pool, send,
+    append_key, get, json_request, multipart_asset_request, multipart_data_request,
+    multipart_file_request, request, router_with_store, seed_system, seeded_pool, send,
 };
 use omeka_media::store::{FileStore, StorePrefix};
 
@@ -176,27 +177,19 @@ async fn delete_a_job_then_read_404() {
     );
 }
 
-/// The two creates the port leaves unbuilt: an asset needs a multipart file the
-/// boundary cannot carry, and a job's required `class` comes from the
-/// dispatcher, not a body.
+/// A job's required `class` comes from the dispatcher, not a body, so
+/// `POST /api/jobs` stays unbuilt.
 #[tokio::test]
-async fn the_unbuilt_creates_stay_501() {
+async fn the_unbuilt_job_create_stays_501() {
     let (pool, seed) = seeded_pool().await;
     seed_system(&pool, &seed).await;
     let app = common::router(pool);
-    for (uri, adapter) in [
-        ("/api/assets", "assets"),
-        ("/api/assets/1", "assets"),
-        ("/api/jobs", "jobs"),
-        ("/api/jobs/1", "jobs"),
-    ] {
+    for uri in ["/api/jobs", "/api/jobs/1"] {
         let answer = send(app.clone(), json_request("POST", &keyed(uri), "{}")).await;
         assert_eq!(answer.status, StatusCode::NOT_IMPLEMENTED, "{uri}");
         assert_eq!(
             answer.body,
-            format!(
-                r#"{{"errors":{{"error":"The {adapter} adapter does not implement the create operation."}}}}"#
-            ),
+            r#"{"errors":{"error":"The jobs adapter does not implement the create operation."}}"#,
             "{uri}"
         );
     }
@@ -232,5 +225,152 @@ async fn an_anonymous_asset_write_is_403() {
     assert_eq!(
         delete.body,
         r#"{"errors":{"error":"Permission denied for the current user to delete the Omeka\\Api\\Adapter\\AssetAdapter resource."}}"#
+    );
+}
+
+/// A PNG signature, the magic bytes `finfo` and `image::guess_format` both read
+/// as `image/png`.
+const PNG_BYTES: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01";
+
+/// `AssetAdapter::hydrate` on create stores the uploaded file under the `asset`
+/// prefix, names the row from `o:name`, and answers the stored representation.
+#[tokio::test]
+async fn create_an_asset_from_a_multipart_upload() {
+    let (pool, seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store.clone());
+
+    let answer = send(
+        app.clone(),
+        multipart_asset_request(
+            &keyed("/api/assets"),
+            "logo.png",
+            PNG_BYTES,
+            r#"{"o:name":"The logo","o:alt_text":"A round logo"}"#,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    let document = answer.json();
+    assert_eq!(document["o:name"], "The logo");
+    assert_eq!(document["o:alt_text"], "A round logo");
+    assert_eq!(document["o:media_type"], "image/png");
+    assert_eq!(document["o:owner"]["o:id"], seed.user.0);
+    let filename = document["o:filename"].as_str().expect("filename");
+    assert!(filename.ends_with(".png"), "{filename}");
+    assert_eq!(
+        store.read(&format!("asset/{filename}")).expect("stored"),
+        PNG_BYTES,
+        "the upload did not land at asset/{filename}"
+    );
+
+    let id = document["o:id"].as_u64().expect("id");
+    let read = send(app, get(&format!("/api/assets/{id}"), false)).await;
+    assert_eq!(read.body, answer.body, "create and read differ");
+}
+
+/// `o:name` absent falls back to the client file name; `o:alt_text` absent is
+/// null. Both are `AssetAdapter::hydrate` on create.
+#[tokio::test]
+async fn create_names_an_asset_from_the_client_file() {
+    let (pool, _seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store);
+    let answer = send(
+        app,
+        multipart_asset_request(&keyed("/api/assets"), "photo.png", PNG_BYTES, "{}"),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    let document = answer.json();
+    assert_eq!(document["o:name"], "photo.png");
+    assert!(document["o:alt_text"].is_null(), "{}", answer.body);
+}
+
+/// A create with no `file` field answers the upstream 422, whether the body is
+/// JSON or a multipart body whose only field is `data`.
+#[tokio::test]
+async fn create_an_asset_without_a_file_is_422() {
+    let (pool, _seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store);
+
+    let json = send(
+        app.clone(),
+        json_request("POST", &keyed("/api/assets"), "{}"),
+    )
+    .await;
+    assert_eq!(json.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(json.body, r#"{"errors":{"file":["No file was uploaded"]}}"#);
+
+    let multipart = send(app, multipart_data_request(&keyed("/api/assets"), "{}")).await;
+    assert_eq!(multipart.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        multipart.body,
+        r#"{"errors":{"file":["No file was uploaded"]}}"#
+    );
+}
+
+/// A multipart body with no `data` field decodes as invalid JSON, the upstream
+/// 400 (`jsonDecode(null)`).
+#[tokio::test]
+async fn create_without_a_data_field_is_400() {
+    let (pool, _seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store);
+    let answer = send(
+        app,
+        multipart_file_request(&keyed("/api/assets"), "logo.png", PNG_BYTES),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::BAD_REQUEST);
+    assert_eq!(answer.body, r#"{"errors":{"error":"JSON: Syntax error"}}"#);
+}
+
+/// `Omeka\File\Validator` reports the media type then the resolved extension,
+/// both under `file`, for a file outside both whitelists.
+#[tokio::test]
+async fn create_rejects_a_non_whitelisted_upload() {
+    let (pool, _seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store);
+    let answer = send(
+        app,
+        multipart_asset_request(&keyed("/api/assets"), "note.txt", b"hello text\n", "{}"),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        answer.body,
+        r#"{"errors":{"file":["Error validating \"note.txt\". Cannot store files with the media type \"text/plain\".","Error validating \"note.txt\". Cannot store files with the resolved extension \"txt\"."]}}"#
+    );
+}
+
+/// `AssetAdapter::validateEntity` refuses a create whose `o:name` is empty.
+#[tokio::test]
+async fn create_with_an_empty_name_is_422() {
+    let (pool, _seed) = seeded_pool().await;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool, store);
+    let answer = send(
+        app,
+        multipart_asset_request(
+            &keyed("/api/assets"),
+            "logo.png",
+            PNG_BYTES,
+            r#"{"o:name":""}"#,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        answer.body,
+        r#"{"errors":{"o:name":["An asset must have a name."]}}"#
     );
 }

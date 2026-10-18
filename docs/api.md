@@ -49,9 +49,9 @@ One row per (resource, path, method) in `crates/omeka-api/src/routes.rs`. The ha
 | api_resources | PATCH | /api/{resource}/{id} | patch (partial update) | 501: no handler yet |
 | api_resources | DELETE | /api/{resource}/{id} | delete | 501: no handler yet |
 | assets | GET | /api/{resource} | search | served (search) |
-| assets | POST | /api/{resource} | create | 501: no handler yet |
+| assets | POST | /api/{resource} | create | served (create) |
 | assets | GET | /api/{resource}/{id} | read | served (read) |
-| assets | POST | /api/{resource}/{id} | create | 501: no handler yet |
+| assets | POST | /api/{resource}/{id} | create | served (create) |
 | assets | PUT | /api/{resource}/{id} | update | served (update) |
 | assets | PATCH | /api/{resource}/{id} | patch (partial update) | served (partial update) |
 | assets | DELETE | /api/{resource}/{id} | delete | served (delete) |
@@ -237,9 +237,9 @@ Omeka\Api\Representation\AssetRepresentation, registered by `crates/omeka-api/sr
 | Method | Path | Operation | Handler |
 | --- | --- | --- | --- |
 | GET | /api/{resource} | search | served (search) |
-| POST | /api/{resource} | create | 501: no handler yet |
+| POST | /api/{resource} | create | served (create) |
 | GET | /api/{resource}/{id} | read | served (read) |
-| POST | /api/{resource}/{id} | create | 501: no handler yet |
+| POST | /api/{resource}/{id} | create | served (create) |
 | PUT | /api/{resource}/{id} | update | served (update) |
 | PATCH | /api/{resource}/{id} | patch (partial update) | served (partial update) |
 | DELETE | /api/{resource}/{id} | delete | served (delete) |
@@ -260,8 +260,8 @@ Request body members (`POST` and `PUT`).
 
 | Member | Kind | Read by |
 | --- | --- | --- |
-| `o:name` | presence only | `crates/omeka-api/src/write/assets.rs` |
-| `o:alt_text` | presence only | `crates/omeka-api/src/write/assets.rs` |
+| `o:name` | any JSON | `crates/omeka-api/src/write/assets.rs` |
+| `o:alt_text` | any JSON | `crates/omeka-api/src/write/assets.rs` |
 | value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
 
 Response members of `Asset` (`crates/omeka-api/src/wire/asset.rs`).

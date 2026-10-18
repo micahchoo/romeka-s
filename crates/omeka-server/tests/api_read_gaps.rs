@@ -86,6 +86,32 @@ async fn assets_filter_by_owner_id() {
     assert_eq!(nobody.json().as_array().unwrap().len(), 0);
 }
 
+/// `AbstractRepresentation::thumbnailDisplayUrl`: a resource whose
+/// `resource.thumbnail_id` names an asset shows the asset's `assetUrl` for
+/// every thumbnail type.
+#[tokio::test]
+async fn a_resource_custom_thumbnail_shows_the_asset_url() {
+    let (pool, seed) = seeded_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    let items = omeka_db::repos::ItemRepo::new(&pool);
+    let mut item = items.get(seed.item).await.unwrap().unwrap();
+    item.resource.thumbnail_id = Some(omeka_db::ids::AssetId::from(system.asset));
+    items.update(&item).await.unwrap();
+
+    let answer = send(
+        router(pool),
+        get(&format!("/api/items/{}", seed.item.0), false),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK);
+    let document = answer.json();
+    assert_eq!(document["o:thumbnail"]["o:id"], system.asset);
+    let url = format!("http://localhost/files/asset/{}", asset_filename());
+    for kind in ["large", "medium", "square"] {
+        assert_eq!(document["thumbnail_display_urls"][kind], url, "{kind}");
+    }
+}
+
 // ------------------------------------------------------------------- jobs
 
 #[tokio::test]

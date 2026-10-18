@@ -326,7 +326,7 @@ async fn write(
     };
     let result = match id {
         Some(id) => api.update(resource, id, body, partial).await,
-        None => api.create(resource, body).await,
+        None => api.create(resource, body, content_type(headers)).await,
     };
     finish(result)
 }
@@ -340,6 +340,13 @@ fn content_type_is_json(headers: &HeaderMap) -> bool {
             value.starts_with("application/json") || value.starts_with("multipart/form-data")
         })
         .unwrap_or(false)
+}
+
+/// The raw `Content-Type` header, so a multipart create keeps its boundary.
+fn content_type(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
 }
 
 fn media_type(headers: &HeaderMap) -> Option<&str> {

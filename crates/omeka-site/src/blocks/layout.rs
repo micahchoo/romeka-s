@@ -293,9 +293,9 @@ fn push_length(styles: &mut Vec<String>, name: &str, value: Option<&str>) {
 }
 
 /// `Laminas\Escaper\Escaper::escapeCss` as the background-image URL uses it:
-/// every byte outside `[A-Za-z0-9]` becomes `\` and its lowercase hex, then a
-/// space. Inferred from Laminas's documented behaviour; the vendor tree is not
-/// in this checkout.
+/// every byte outside `[A-Za-z0-9]` becomes `\` and its uppercase hex, then a
+/// space. Measured against the oracle, which renders `\3A`, `\2F` and `\2E` for
+/// `:`, `/` and `.`; the vendor tree is not in this checkout.
 fn escape_css(value: &str) -> String {
     let mut out = String::with_capacity(value.len() * 2);
     for byte in value.bytes() {
@@ -303,7 +303,7 @@ fn escape_css(value: &str) -> String {
             out.push(char::from(byte));
         } else {
             out.push('\\');
-            out.push_str(&format!("{byte:x}"));
+            out.push_str(&format!("{byte:X}"));
             out.push(' ');
         }
     }
@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(prepare_length("40rem"), "40rem");
         assert_eq!(
             escape_css("/files/original/4.jpg"),
-            "\\2f files\\2f original\\2f 4\\2e jpg"
+            "\\2F files\\2F original\\2F 4\\2E jpg"
         );
     }
 
@@ -375,7 +375,7 @@ mod tests {
         );
         assert_eq!(
             block_inline_styles(&block, &ctx),
-            ["background-image: url(\"\\2f files\\2f original\\2f 4\\2e jpg\")"]
+            ["background-image: url(\"\\2F files\\2F original\\2F 4\\2E jpg\")"]
         );
 
         let ctx = context(&site, &crate::view::NoResources);

@@ -14,6 +14,51 @@
 use serde_json::{Map, Value};
 
 use crate::errors::ApiError;
+use crate::write::multipart::{Multipart, UploadedFile};
+
+/// A create body: JSON, or the `data` and `file` fields of a multipart
+/// request (`ApiController::processPostData`).
+///
+/// Only `POST` reads a file, so only `Api::create` takes this shape; `update`
+/// keeps the JSON-only path.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RequestBody {
+    /// A JSON body, the `application/json` path.
+    Json(Payload),
+    /// A `multipart/form-data` body, split into its `data` payload and its
+    /// optional upload.
+    Multipart {
+        payload: Payload,
+        file: Option<UploadedFile>,
+    },
+}
+
+impl RequestBody {
+    /// Parse a request body at the boundary. A `multipart/form-data` content
+    /// type selects the multipart path, anything else the JSON path, exactly
+    /// as `ApiController::processPostData` matches the header.
+    pub fn parse(content_type: Option<&str>, bytes: &[u8]) -> Result<Self, ApiError> {
+        match content_type {
+            Some(value) if is_multipart(value) => {
+                let multipart = Multipart::parse(value, bytes);
+                Ok(Self::Multipart {
+                    payload: multipart.payload()?,
+                    file: multipart.file,
+                })
+            }
+            _ => Ok(Self::Json(Payload::parse(bytes)?)),
+        }
+    }
+}
+
+/// Whether a content type selects the multipart path.
+fn is_multipart(content_type: &str) -> bool {
+    content_type.split(';').next().is_some_and(|media_type| {
+        media_type
+            .trim()
+            .eq_ignore_ascii_case("multipart/form-data")
+    })
+}
 
 /// A parsed JSON object body.
 #[derive(Debug, Clone, PartialEq)]

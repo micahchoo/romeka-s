@@ -189,11 +189,27 @@ impl<'a> Api<'a> {
 
     /// `ApiController::create`: parse the body, check access, and let the
     /// resource handler write the row.
-    pub async fn create(&self, resource: &str, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
-        let payload = crate::write::body::Payload::parse(bytes)?;
+    ///
+    /// `content_type` selects the JSON or multipart path, so a multipart
+    /// `POST /api/assets` reaches the file the adapter needs
+    /// (`ApiController::processPostData`).
+    pub async fn create(
+        &self,
+        resource: &str,
+        bytes: &[u8],
+        content_type: Option<&str>,
+    ) -> Result<ApiResponse, ApiError> {
+        let body = crate::write::body::RequestBody::parse(content_type, bytes)?;
         self.allow_write(resource, Operation::Create)?;
         self.fill_catalog().await?;
-        crate::write::create(self, resource, &payload).await
+        match body {
+            crate::write::body::RequestBody::Json(payload) => {
+                crate::write::create(self, resource, &payload, None).await
+            }
+            crate::write::body::RequestBody::Multipart { payload, file } => {
+                crate::write::create(self, resource, &payload, file).await
+            }
+        }
     }
 
     /// `ApiController::update` and `::patch`: parse the body, check access, and

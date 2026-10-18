@@ -52,8 +52,9 @@ wrapper carries `block-group-grid grid-position-1 grid-span-{n}`.
 
 `layout_data.template_name` (the theme block-template key) is carried and not rendered: the port
 bundles no block templates. `background_image_asset` needs the asset's URL, which the
-`ResourceProvider::read_asset` lookup supplies; no asset repository backs it yet, so the class is
-emitted and the `background-image` style appears only when a caller resolves the asset.
+`ResourceProvider::read_asset` lookup supplies; the bundled theme's provider resolves the id through
+the `asset` repository and fills `background-image: url(...)`, so the class is emitted and the style
+appears whenever the asset exists.
 
 ### The block field registry
 

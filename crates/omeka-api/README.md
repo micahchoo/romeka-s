@@ -59,26 +59,28 @@ A handler the port does not build answers 501 with
 operation."}}`. Upstream has no 501; an adapter that lacks an operation
 throws `OperationNotImplementedException`, which `ApiJsonStrategy` maps to
 500. The port uses 501 so a caller can tell "not built yet" apart from
-"failed". `DELETE` is built for items, item_sets, media, users, sites,
-site_pages, vocabularies, resource_classes, properties, resource_templates,
-assets and jobs; `POST /api/assets` and `POST /api/jobs` are the two creates
-the port leaves unbuilt, for the reasons below.
+"failed". The port builds create, update and delete for items, item_sets,
+media, sites, site_pages, users, vocabularies, resource_classes, properties,
+resource_templates, assets and jobs, except `POST /api/jobs`, the one create
+left unbuilt for the reason below.
 
 An adapter whose registered `operations` list does not contain the requested
 operation refuses it upstream, so the read layer answers the upstream 500 with
 the same sentence instead of a 501.
 
-Two creates are excluded, each with its upstream source:
+One create is excluded, with its upstream source:
 
-- `POST /api/assets`: `AssetAdapter::hydrate` reads the uploaded file out of
-  `$request->getFileData()` and answers `{"errors":{"file":["No file was
-  uploaded"]}}` without one. The port's write boundary parses JSON only, so a
-  multipart body never reaches the handler. The endpoint needs a multipart
-  boundary before it can be built.
 - `POST /api/jobs`: `JobAdapter::hydrate` is empty, while `job.class` is
   `NOT NULL` (`Entity/Job.php:56`). Upstream's create therefore fails at flush
   with a database error for every body. The port leaves the 501 rather than
   reproduce a 500 for each request.
+
+`POST /api/assets` is built. Upstream reads the upload out of a
+`multipart/form-data` body (`ApiController::processPostData`), so the create
+takes a `boundary` `Content-Type`, parses the `data` field as JSON and the
+`file` field as the upload, and stores the bytes under the `asset` prefix
+(`AssetAdapter::hydrate`). A JSON body, or a multipart body with no `file`
+field, answers `{"errors":{"file":["No file was uploaded"]}}`.
 
 ## Read endpoints
 
@@ -198,7 +200,7 @@ columns and validation the two member kinds share; `write::templates` holds
 | vocabularies | yes | yes | `o:class` and `o:property` list their members; an unlisted member is removed |
 | resource_classes, properties | yes | yes | `o:vocabulary` read on create only |
 | resource_templates | yes | yes | `o:resource_template_property` replaced when the body carries it |
-| assets | no | yes | `o:name` and `o:alt_text` only; the create needs a multipart file |
+| assets | yes | yes | create takes a multipart `file` and `data` field; update writes `o:name` and `o:alt_text` |
 | jobs | no | yes | the empty `job` hydrate writes nothing; the create needs a `class` |
 | all others | 501 | 501 | |
 
@@ -302,7 +304,8 @@ title drops every other value, as upstream does:
   `o:vocabulary` on create only.
 - resource_templates: `o:resource_class`, `o:label`, `o:title_property`,
   `o:description_property`, `o:resource_template_property`.
-- assets: `o:name`, `o:alt_text`.
+- assets: on create the multipart `file` (with `o:name` and `o:alt_text`); on
+  update `o:name` and `o:alt_text`.
 - jobs: no member changes a row.
 
 A top-level key that is not one of these and not a known property term is a

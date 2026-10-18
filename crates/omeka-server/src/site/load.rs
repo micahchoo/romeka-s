@@ -21,12 +21,13 @@ use omeka_core::site::{
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
-    FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo,
-    MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo,
-    compare_text_ci,
+    AssetRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter,
+    MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo, TemplateRepo,
+    ValueRepo, compare_text_ci,
 };
 use omeka_db::rows::{
-    ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow, ValueRow,
+    AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
+    ValueRow,
 };
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::nav::PageRef;
@@ -169,6 +170,11 @@ impl<'a> Loader<'a> {
         self.pool
     }
 
+    /// The request base URL, for building a stored file's URL.
+    pub(crate) fn base(&self) -> &'a BaseUrl {
+        self.base
+    }
+
     fn db_site_id(&self) -> db::SiteId {
         db::SiteId::from(self.site.id.get())
     }
@@ -232,7 +238,9 @@ impl<'a> Loader<'a> {
         };
         if let Some(media_id) = media_id {
             let alt = view.title.clone();
-            view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
+            if view.thumbnail.is_none() {
+                view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
+            }
             if let Some(media_row) = MediaRepo::new(self.pool).get(media_id).await? {
                 let item_url = view.url.clone();
                 view.primary_media = Some(
@@ -318,7 +326,9 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let alt = view.title.clone();
-        view.thumbnail = media_thumbnail(self.base, row, &alt);
+        if view.thumbnail.is_none() {
+            view.thumbnail = media_thumbnail(self.base, row, &alt);
+        }
         if let Some(item) = ItemRepo::new(self.pool).get(row.item_id).await? {
             view.parent_item = Some(ResourceRef {
                 url: resource_show_url(&self.site.slug, "item", item.id().0),
@@ -555,10 +565,43 @@ impl<'a> Loader<'a> {
             let offset = query.page.map_or(0, |page| (page.max(1) - 1) * limit);
             rows = rows.into_iter().skip(offset).take(limit).collect();
         }
-        Ok(SiteSearch {
-            sites: rows.iter().filter_map(site_view).collect(),
-            total,
-        })
+        let mut sites = Vec::with_capacity(rows.len());
+        for row in &rows {
+            if let Some(view) = self.site_view(row).await? {
+                sites.push(view);
+            }
+        }
+        Ok(SiteSearch { sites, total })
+    }
+
+    /// A `site` row as the list-of-sites block shows it. `SiteRepresentation::thumbnail`
+    /// is the asset `site.thumbnail_id` names, `None` when there is none.
+    async fn site_view(&self, row: &SiteRow) -> Result<Option<SiteView>, DbError> {
+        let Ok(slug) = Slug::parse(&row.slug) else {
+            return Ok(None);
+        };
+        let thumbnail = match row.thumbnail_id {
+            Some(id) => self.asset_thumbnail(id).await?,
+            None => None,
+        };
+        Ok(Some(SiteView {
+            id: SiteId::new(row.id.0),
+            title: row.title.clone(),
+            url: site_url(&slug),
+            summary: row.summary.clone(),
+            thumbnail,
+        }))
+    }
+
+    /// The thumbnail a resource or site shows when its `thumbnail_id` names an
+    /// asset: the asset's own file URL and alt text
+    /// (`AbstractRepresentation::thumbnailDisplayUrl`).
+    async fn asset_thumbnail(&self, id: db::AssetId) -> Result<Option<Thumbnail>, DbError> {
+        Ok(AssetRepo::new(self.pool)
+            .get(id)
+            .await?
+            .as_ref()
+            .map(|row| thumbnail_for_asset(self.base, row)))
     }
 
     /// The shared fields of every resource view: id, kind, URL, title, values
@@ -573,6 +616,11 @@ impl<'a> Loader<'a> {
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
         view.description = description;
+        // `AbstractResourceEntityRepresentation::thumbnail`: a custom
+        // `thumbnail_id` asset wins over the primary media.
+        if let Some(id) = row.thumbnail_id {
+            view.thumbnail = self.asset_thumbnail(id).await?;
+        }
         Ok(view)
     }
 
@@ -853,18 +901,23 @@ fn compare_resources(
     }
 }
 
-/// A `site` row as the list-of-sites block shows it.
-fn site_view(row: &SiteRow) -> Option<SiteView> {
-    let slug = Slug::parse(&row.slug).ok()?;
-    Some(SiteView {
-        id: SiteId::new(row.id.0),
-        title: row.title.clone(),
-        url: site_url(&slug),
-        summary: row.summary.clone(),
-        // `site.thumbnail_id` is an asset id and the port has no asset
-        // repository yet, so a site thumbnail is never shown (gap).
-        thumbnail: None,
-    })
+/// The thumbnail an asset shows: `AssetRepresentation::thumbnail` returns the
+/// asset itself, so the image is the asset's file URL and the alt is its
+/// alt text (`AbstractRepresentation::thumbnailAltText`).
+pub(crate) fn thumbnail_for_asset(base: &BaseUrl, row: &AssetRow) -> Thumbnail {
+    Thumbnail::new(
+        asset_url(base, row),
+        row.alt_text.clone().unwrap_or_default(),
+    )
+}
+
+/// `AssetRepresentation::assetUrl`: the stored file under `asset/<filename>`.
+fn asset_url(base: &BaseUrl, row: &AssetRow) -> String {
+    let filename = match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
+        _ => row.storage_id.clone(),
+    };
+    base.file_url(&format!("asset/{filename}"))
 }
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {

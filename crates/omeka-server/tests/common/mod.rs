@@ -349,11 +349,12 @@ async fn seed(pool: &SqlitePool) -> Seed {
     }
 }
 
-/// Rows for the resources `omeka-db` keeps as tables but no repository writes:
-/// one asset, one job and one module.
+/// Rows for the resources `omeka-db` keeps as tables that the fixture writes
+/// with raw SQL: one asset, one job and one module.
 ///
-/// The insert statements are here because there is no repository to call.
-/// `api_read_gaps.rs` reads them back through the `/api` handlers.
+/// The inserts pin the exact ids, storage id and values the golden fixtures
+/// under `fixtures/api/` carry, which a repository create cannot. `api_read_gaps.rs`
+/// and `api_write_assets_jobs.rs` read them back through the `/api` handlers.
 pub struct SystemSeed {
     pub asset: u64,
     pub job: u64,
@@ -557,6 +558,89 @@ pub fn json_request(method: &str, uri: &str, body: &str) -> Request<Body> {
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
+}
+
+/// The boundary a multipart asset upload uses.
+pub const MULTIPART_BOUNDARY: &str = "----RomekaTestBoundary";
+
+/// Build a `multipart/form-data` `POST` with a `data` JSON field and a `file`
+/// upload, the shape `ApiController::processPostData` reads.
+pub fn multipart_asset_request(
+    uri: &str,
+    filename: &str,
+    bytes: &[u8],
+    data: &str,
+) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={MULTIPART_BOUNDARY}"),
+        )
+        .body(Body::from(multipart_body(filename, bytes, data)))
+        .unwrap()
+}
+
+/// A multipart body with a `data` field and a `file` upload.
+pub fn multipart_body(filename: &str, bytes: &[u8], data: &str) -> Vec<u8> {
+    let mut body = Vec::new();
+    push_multipart_part(
+        &mut body,
+        "Content-Disposition: form-data; name=\"data\"",
+        data.as_bytes(),
+    );
+    push_multipart_part(
+        &mut body,
+        &format!(
+            "Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream"
+        ),
+        bytes,
+    );
+    body.extend_from_slice(format!("--{MULTIPART_BOUNDARY}--\r\n").as_bytes());
+    body
+}
+
+/// Build a `multipart/form-data` `POST` with a `data` field and no `file`.
+pub fn multipart_data_request(uri: &str, data: &str) -> Request<Body> {
+    let mut body = Vec::new();
+    push_multipart_part(
+        &mut body,
+        "Content-Disposition: form-data; name=\"data\"",
+        data.as_bytes(),
+    );
+    body.extend_from_slice(format!("--{MULTIPART_BOUNDARY}--\r\n").as_bytes());
+    multipart_request(uri, body)
+}
+
+/// Build a `multipart/form-data` `POST` with a `file` upload and no `data`.
+pub fn multipart_file_request(uri: &str, filename: &str, bytes: &[u8]) -> Request<Body> {
+    let mut body = Vec::new();
+    push_multipart_part(
+        &mut body,
+        &format!("Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\""),
+        bytes,
+    );
+    body.extend_from_slice(format!("--{MULTIPART_BOUNDARY}--\r\n").as_bytes());
+    multipart_request(uri, body)
+}
+
+fn multipart_request(uri: &str, body: Vec<u8>) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={MULTIPART_BOUNDARY}"),
+        )
+        .body(Body::from(body))
+        .unwrap()
+}
+
+fn push_multipart_part(body: &mut Vec<u8>, headers: &str, content: &[u8]) {
+    body.extend_from_slice(format!("--{MULTIPART_BOUNDARY}\r\n{headers}\r\n\r\n").as_bytes());
+    body.extend_from_slice(content);
+    body.extend_from_slice(b"\r\n");
 }
 
 /// Append the seeded API key as `key_identity` and `key_credential`.

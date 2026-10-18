@@ -410,7 +410,7 @@ async fn site_create_hydrates_the_membership_and_settings_it_sends() {
     });
     let response = api(&seed)
         .await
-        .create("sites", body.to_string().as_bytes())
+        .create("sites", body.to_string().as_bytes(), None)
         .await
         .expect("create");
     let document = document(&response);
