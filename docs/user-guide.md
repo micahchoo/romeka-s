@@ -137,7 +137,7 @@ Every public path sits under the site's slug.
 | `/s/<slug>/cross-site-search`, `/results`, `/items`, `/item-sets`, `/site-pages` | the search across every public site |
 | `/assets/<path>` | a file the bundled theme ships |
 
-The home page, a page and a browse carry the site's navigation. Twenty block layouts are
+The home page, a page and a browse carry the site's navigation. Sixteen block layouts are
 implemented, the ones the upstream page editor offers. A page slug matches case-insensitively.
 
 A missing site, page or resource is a 404 page; a site, page or resource that is not public is a 403

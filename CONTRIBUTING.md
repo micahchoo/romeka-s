@@ -65,7 +65,8 @@ are changing first.
 - **Rust.** No `unwrap()` or `expect()` outside tests (clippy denies both). Errors are `thiserror`
   types. Repository SQL is runtime `sqlx::query`, so no database is needed to compile.
 - **TypeScript follows `web/admin/tsconfig.json`.** No `any`, no non-null `!`, and no `as` on data
-  that arrived from outside. Parse it in `src/api/parse.ts` and let the types carry it from there.
+  that arrived from outside. Parse it in `web/admin/src/api/parse.ts` and let the types carry it from
+  there.
 - **Tests assert what a caller observes**, with real values. Where a test freezes upstream behaviour,
   name it after the upstream file or the behaviour, the way the existing tests do.
 - **One commit per coherent step**, message `s2(<area>): what changed` in the imperative. Do not put

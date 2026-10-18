@@ -83,7 +83,7 @@ under `target/` or `dist/`, a log, or any file over about 2000 lines.
 - Rust: edition 2024, errors through `thiserror`, no `unwrap()` or `expect()` outside tests (clippy
   denies both), and repository SQL through runtime `sqlx::query` so no database is needed to compile.
 - TypeScript follows `web/admin/tsconfig.json`: no `any`, no non-null `!`, no `as` on data from
-  outside the process. Parse it at the boundary in `src/api/parse.ts`.
+  outside the process. Parse it at the boundary in `web/admin/src/api/parse.ts`.
 - Validation lives at boundaries: the HTTP parse, the DB row parse, the block JSON parse. Inside,
   types are trusted and nothing re-validates.
 - Tests assert what a caller observes, with real values. Where a test freezes upstream behaviour,

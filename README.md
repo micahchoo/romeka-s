@@ -106,15 +106,15 @@ itself, each against the file that carries it.
 ## Speed
 
 Measured on this box by `npm run e2e`, which drives the built SPA against a real server in a browser
-and records `web/admin/perf/summary.json`. Medians of five runs at commit `4bb3cb2`:
+and records the run in `web/admin/perf/summary.json`, commit included. Medians of five runs:
 
 | Path | Median |
 | --- | --- |
-| first contentful paint | 44.0 ms |
-| items list render | 6.9 ms |
-| item detail render | 6.8 ms |
-| item create round trip | 11.2 ms |
-| route navigation | 0.8 ms |
+| first contentful paint | 48.0 ms |
+| items list render | 5.8 ms |
+| item detail render | 5.4 ms |
+| item create round trip | 8.8 ms |
+| route navigation | 0.6 ms |
 
 The initial payload is 88411 B of JavaScript gzip and 2353 B of CSS gzip, against a 102400 B budget
 and a 10240 B per-chunk ceiling. `npm run perf:check` fails the build when either moves past its
