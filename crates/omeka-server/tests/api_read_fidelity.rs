@@ -159,7 +159,11 @@ async fn id_array_filter_narrows_the_property_search() {
 async fn property_term_filter_matches_upstream() {
     let (pool, seed) = seeded_pool().await;
     let _other = a_second_property(&pool, seed.vocabulary.0).await;
-    let answer = send(router(pool), get("/api/properties?term=dcterms:title", true)).await;
+    let answer = send(
+        router(pool),
+        get("/api/properties?term=dcterms:title", true),
+    )
+    .await;
 
     assert_eq!(answer.status, axum::http::StatusCode::OK);
     assert_eq!(header(&answer, "omeka-s-total-results"), Some("1"));
@@ -240,7 +244,13 @@ async fn a_non_numeric_page_does_not_open_a_window() {
     let (pool, seed) = seeded_pool().await;
     let second = picture_item(&pool, "A second picture", seed.user).await;
     let third = picture_item(&pool, "A third picture", seed.user).await;
-    let set = item_set_holding(&pool, "Fidelity set", seed.user, &[seed.item.0, second, third]).await;
+    let set = item_set_holding(
+        &pool,
+        "Fidelity set",
+        seed.user,
+        &[seed.item.0, second, third],
+    )
+    .await;
 
     let unbounded = send(
         router(pool.clone()),
@@ -257,7 +267,11 @@ async fn a_non_numeric_page_does_not_open_a_window() {
     assert!(link.contains("page=1"), "link was {link}");
 
     // A numeric page keeps the window; `page=0` and a negative page clamp to 1.
-    for query in ["page=1&per_page=1", "page=0&per_page=1", "page=-1&per_page=1"] {
+    for query in [
+        "page=1&per_page=1",
+        "page=0&per_page=1",
+        "page=-1&per_page=1",
+    ] {
         let bounded = send(
             router(pool.clone()),
             get(&format!("/api/items?item_set_id={set}&{query}"), true),
@@ -288,7 +302,11 @@ async fn collections_without_a_total_carry_no_total_header() {
     assert_eq!(header(&data_types, "omeka-s-total-results"), None);
     assert_eq!(documents(&data_types).len(), 6);
 
-    let paged = send(router(pool.clone()), get("/api/data_types?per_page=2", false)).await;
+    let paged = send(
+        router(pool.clone()),
+        get("/api/data_types?per_page=2", false),
+    )
+    .await;
     assert_eq!(header(&paged, "omeka-s-total-results"), None);
     assert_eq!(documents(&paged).len(), 6);
 
@@ -318,15 +336,16 @@ async fn link_header_indexes_and_encodes_array_parameters() {
     let answer = send(router(pool), get(&uri, true)).await;
 
     let link = header(&answer, "link").unwrap();
+    let (_, query) = link.split_once("/api/items?").expect("a link query");
     assert!(
-        link.contains(&format!("id%5B0%5D={}&id%5B1%5D={}", seed.item.0, second)),
+        query.starts_with(&format!(
+            "id%5B0%5D={}&id%5B1%5D={}&sort_by=id&sort_order=asc&",
+            seed.item.0, second
+        )),
         "link was {link}"
     );
-    assert!(!link.contains("id[]="), "link was {link}");
-    assert!(
-        link.contains("sort_by=id&sort_order=asc&page=1"),
-        "link was {link}"
-    );
+    assert!(!query.contains("id[]="), "link was {link}");
+    assert!(query.contains("page=1"), "link was {link}");
 }
 
 /// The same encoding for a nested array and for a value that needs escaping:

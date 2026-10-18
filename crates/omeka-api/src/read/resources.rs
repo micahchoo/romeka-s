@@ -15,8 +15,11 @@ use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource
 use omeka_media::ThumbnailType;
 use omeka_media::thumbnailer::thumbnail_path;
 
-use super::params::{Sort, SortField, Window, ordered_page, sorted_page};
-use super::query::{SearchQuery, fulltext_matches, media_visibility, relevance_page};
+use super::paging::{Limit, Window, ordered_page, sorted_page};
+use super::params::{Sort, SortField};
+use super::query::{
+    SearchQuery, fulltext_matches, id_filter, id_matches, media_visibility, relevance_page,
+};
 use super::relations::{Page, Relations};
 use super::response::link_header;
 use super::values::{reverse_map, value_map};
@@ -34,6 +37,7 @@ use crate::wire::{JsonLdType, ResourceRef, ThumbnailDisplayUrls, ThumbnailUrls};
 
 pub async fn search_items(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = ItemFilter {
         owner_id: params.id("owner_id"),
@@ -48,11 +52,11 @@ pub async fn search_items(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         api.fill_catalog().await?;
     }
     let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
-    let (total, page) = if window::eligible(&filter, &search, &sort) {
-        let read = window::read(api, &filter, &search, &window).await?;
+    let (total, page) = if window::eligible(&filter, &search, &sort, &limit) {
+        let read = window::read(api, &filter, &search, &limit).await?;
         (read.total, read.rows)
     } else {
-        in_memory_page(api, &filter, &search, &sort, &window, params).await?
+        in_memory_page(api, &filter, &search, &sort, &limit, params).await?
     };
     let relations = Relations::load(
         api,
@@ -81,7 +85,7 @@ async fn in_memory_page(
     filter: &ItemFilter,
     search: &SearchQuery,
     sort: &Sort,
-    window: &Window,
+    limit: &Limit,
     params: &Params,
 ) -> Result<(i64, Vec<ItemRow>), ApiError> {
     let rows = ItemRepo::new(api.pool())
@@ -92,6 +96,7 @@ async fn in_memory_page(
     let rows: Vec<ItemRow> = rows
         .into_iter()
         .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
+        .filter(|row| id_matches(&search.ids, row.id().0))
         .filter(|row| {
             matches
                 .as_ref()
@@ -102,11 +107,11 @@ async fn in_memory_page(
         (Some(hits), true) => relevance_page(
             rows,
             sort.descending,
-            window,
+            limit,
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         ),
-        _ => sorted_page(rows, sort, window, cmp_item(*sort)),
+        _ => sorted_page(rows, sort, limit, cmp_item(*sort)),
     })
 }
 
@@ -197,6 +202,7 @@ pub(crate) fn item_doc(
 
 pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = ItemSetFilter {
         owner_id: params.id("owner_id"),
@@ -219,6 +225,7 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     let rows: Vec<ItemSetRow> = rows
         .into_iter()
         .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
+        .filter(|row| id_matches(&search.ids, row.id().0))
         .filter(|row| {
             matches
                 .as_ref()
@@ -229,11 +236,11 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         (Some(hits), true) => relevance_page(
             rows,
             sort.descending,
-            &window,
+            &limit,
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         ),
-        _ => sorted_page(rows, &sort, &window, cmp_item_set(sort)),
+        _ => sorted_page(rows, &sort, &limit, cmp_item_set(sort)),
     };
     let relations = Relations::load(
         api,
@@ -339,6 +346,7 @@ fn item_set_primary_media<'r>(
 
 pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let filter = MediaFilter {
         item_id: params.id("item_id"),
@@ -364,6 +372,7 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     let rows: Vec<MediaRow> = rows
         .into_iter()
         .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
+        .filter(|row| id_matches(&search.ids, row.id().0))
         .filter(|row| {
             matches
                 .as_ref()
@@ -374,11 +383,11 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         (Some(hits), true) => relevance_page(
             rows,
             sort.descending,
-            &window,
+            &limit,
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         ),
-        _ => sorted_page(rows, &sort, &window, cmp_media(sort)),
+        _ => sorted_page(rows, &sort, &limit, cmp_media(sort)),
     };
     let relations = Relations::load(
         api,
@@ -524,11 +533,14 @@ pub async fn search_value_annotations(
     params: &Params,
 ) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let rows = system::annotation_rows(api.pool()).await?;
     let needle = search_needle(params);
+    let ids = id_filter(params);
     let rows: Vec<ValueAnnotationRow> = rows
         .into_iter()
         .filter(|row| api.sees(row.is_public, row.owner_id))
+        .filter(|row| id_matches(&ids, row.id.0))
         .filter(|row| {
             params
                 .bool("is_public")
@@ -547,7 +559,7 @@ pub async fn search_value_annotations(
     let (total, page) = ordered_page(
         rows,
         Sort::from_params(params).descending,
-        &window,
+        &limit,
         |a, b| a.resource.id.cmp(&b.resource.id),
     );
     let relations = Relations::load(

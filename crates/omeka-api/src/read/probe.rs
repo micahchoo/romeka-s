@@ -31,7 +31,8 @@ use omeka_db::{migrate, open_file};
 use sqlx::SqlitePool;
 
 use super::catalog::Catalog;
-use super::params::{Params, Window, sorted_page};
+use super::paging::{Limit, sorted_page};
+use super::params::Params;
 use super::query::SearchQuery;
 use super::relations::{Page, Relations};
 use super::{Api, resources};
@@ -279,7 +280,7 @@ async fn list_cost_split() {
         .expect("probe api");
     let query = format!("item_set_id={}&per_page={PER_PAGE}", set.0);
     let params = Params::parse(&query);
-    let window = Window::from_params(&params);
+    let limit = Limit::from_params(&params);
     let search = SearchQuery::parse(
         &params,
         api.catalog(),
@@ -322,7 +323,8 @@ async fn list_cost_split() {
     assert!(super::window::eligible(
         &filter,
         &search,
-        &super::params::Sort::from_params(&params)
+        &super::params::Sort::from_params(&params),
+        &limit
     ));
 
     let mut samples = Vec::with_capacity(RUNS);
@@ -367,7 +369,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let page = super::window::read(&api, &filter, &search, &window)
+        let page = super::window::read(&api, &filter, &search, &limit)
             .await
             .expect("window");
         assert_eq!(page.total as usize, ITEMS);
@@ -386,7 +388,7 @@ async fn list_cost_split() {
         let (total, page) = sorted_page(
             rows.clone(),
             &super::params::Sort::from_params(&params),
-            &window,
+            &limit,
             id_cmp,
         );
         assert_eq!(total as usize, ITEMS);
@@ -398,7 +400,7 @@ async fn list_cost_split() {
     let (_, page) = sorted_page(
         rows,
         &super::params::Sort::from_params(&params),
-        &window,
+        &limit,
         id_cmp,
     );
     let targets: Vec<(u64, Option<omeka_db::ids::TemplateId>)> = page

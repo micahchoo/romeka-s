@@ -86,9 +86,8 @@ Two creates are excluded, each with its upstream source:
 media, value_annotations), `resources_generic` (the `resources` adapter),
 `vocab` (vocabularies, classes, properties, templates), `meta` (users, sites,
 site_pages, api_resources, data_types, root, context) and `system` (assets,
-jobs, modules). Every collection answers with the `Link` and
-`Omeka-S-Total-Results` headers and the browse-default query (`page`,
-`per_page`, `sort_by`, `sort_order`); every member answers one document.
+jobs, modules). Every member answers one document; the collection headers are
+described below.
 
 `src/read/export.rs` serves `romeka export jsonld`: it lists the searchable
 adapters (`resources()`), opens the list window so one call returns every row,
@@ -101,16 +100,58 @@ serializer; the CLI writes the documents this module reads.
 | value_annotations | yes | yes | no `sortFields` upstream, so `sort_by` is ignored |
 | assets | yes | yes | `owner_id` filter; no visibility flag on the table |
 | jobs | yes | yes | `class` and `status` filters; `sort_by=owner_email` falls back to `id` |
-| modules | yes | yes | state is `active`/`not_active`; `o:ini` carries `name` and `version` |
+| modules | yes | yes | state is `active`/`not_active`; `o:ini` carries `name` and `version`; no total header, no window |
 | vocabularies | yes | yes | |
-| resource_classes, properties | yes | yes | `vocabulary_id`, `local_name` filters |
+| resource_classes, properties | yes | yes | `vocabulary_id`, `local_name`, `vocabulary_prefix`, `vocabulary_namespace_uri`, `term` filters |
 | resource_templates | yes | yes | |
 | users | yes | yes | list needs an authenticated key |
 | sites | yes | yes | |
 | site_pages | yes | yes | `site_id`, `site_slug`, `slug`, `is_public` filters |
-| api_resources | yes | yes | the member echoes any id |
-| data_types | yes | yes | the six registered names, in registration order |
+| api_resources | yes | yes | the member echoes any id; no total header, no window |
+| data_types | yes | yes | the six registered names, in registration order; no total header, no window |
 | resources | yes | yes | every resource kind in one page; see below |
+
+### Query parameters
+
+`id` narrows every entity collection, exactly as `AbstractEntityAdapter::buildBaseQuery`
+applies it before each adapter's own `buildQuery`. `id[]=1&id[]=2`, `id[0]=1`,
+`id=1,2` and a repeated `id` all read as the same list. `SearchQuery::ids`
+carries it, the SQL window renders it as `resource.id IN (...)`, and the
+in-memory list paths apply `query::id_matches` to the rows they loaded. The
+non-entity adapters (`api_resources`, `data_types`, `modules`) extend
+`AbstractAdapter` and have no base query, so `id` is ignored there.
+
+`resource_classes` and `properties` also read `vocabulary_prefix`,
+`vocabulary_namespace_uri` and `term` (`vocab::MemberFilter`): the first two are
+equalities on the member's vocabulary row, and `term` is a `prefix:localName`
+that passes `Vocabulary::TERM_REGEX` and narrows to that one member. `term`
+elsewhere is not a filter.
+
+### The list window and the `Link` header
+
+The window is `AbstractEntityAdapter::limitQuery`: `page` and `per_page` apply
+only when `page` is numeric (`SetBrowseDefaults` writes `page=1` when the caller
+sent none). A non-numeric `page` leaves the query unbounded, apart from numeric
+`limit` and `offset`. `paging::Limit` is that decision and `paging::Window` is
+the paginator `ApiController::getList` reads for the links, whose page count is
+`ceil(total / per_page)`.
+
+`Link` is built by `response::link_header` from `php::link_pairs`, which
+rebuilds the PHP request array and renders it the way Laminas does: a nested
+parameter keeps its bracket notation (`property%5B0%5D%5Bproperty%5D=1`), an
+array is indexed from zero, and a space is `%20`. `read/php.rs` documents the
+two Laminas steps.
+
+A collection whose adapter answers a plain `Response` has no
+`Omeka-S-Total-Results`: `ApiController::getList` adds the header only when
+`Response::getTotalResults()` is not null. That is `api_resources`,
+`data_types` and `modules` (`ApiResponse::collection`), and it also means their
+searches ignore the page window, so they always answer every registered row.
+Every other collection uses `ApiResponse::listing` and carries the header.
+
+`GET /api` answers the JSON-LD resource listing. Upstream answers an HTML page
+there (`view/omeka/api/root.phtml`); this is a deliberate divergence, recorded
+in the unit report rather than here.
 
 `read/resources_generic.rs` is `ResourceAdapter`. Its `search` returns a page
 of `Resource` rows whatever their kind, ordered by `id` (`ResourceAdapter`

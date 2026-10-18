@@ -18,7 +18,9 @@ use omeka_db::ids::{ItemSetId, PropertyId, SiteId};
 use omeka_db::repos::{FulltextRepo, Joiner, MatchKind, MediaVisibility, QueryFilter, ValueQuery};
 
 use super::catalog::Catalog;
-use super::params::{Params, Window};
+use super::paging::Limit;
+use super::params::Params;
+use super::php::php_int_cast;
 use super::{Api, db_error};
 use crate::auth::Actor;
 use crate::errors::ApiError;
@@ -44,6 +46,10 @@ pub struct SearchQuery {
     /// `fulltext_search`, trimmed. `None` when the parameter is absent or
     /// blank, which `Module::searchFulltext` treats as no fulltext filter.
     pub fulltext: Option<String>,
+    /// `id`, the base filter `AbstractEntityAdapter::buildBaseQuery` applies to
+    /// every resource search. `None` when the request sent no usable id, which
+    /// `QueryFilter` cannot carry because it lives in `omeka-db`.
+    pub ids: Option<Vec<i64>>,
 }
 
 impl SearchQuery {
@@ -79,12 +85,35 @@ impl SearchQuery {
             .map(str::trim)
             .filter(|needle| !needle.is_empty())
             .map(str::to_string);
-        Self { filter, fulltext }
+        Self {
+            filter,
+            fulltext,
+            ids: id_filter(params),
+        }
     }
 
     /// Whether the request asked for a fulltext search.
     pub fn has_fulltext(&self) -> bool {
         self.fulltext.is_some()
+    }
+}
+
+/// `AbstractEntityAdapter::buildBaseQuery`'s `id` filter: the request's id
+/// values cast to the integers MySQL compares an `id` column against. `None`
+/// when the request sent no id at all, so no narrowing applies.
+pub fn id_filter(params: &Params) -> Option<Vec<i64>> {
+    let values = params.id_values();
+    if values.is_empty() {
+        return None;
+    }
+    Some(values.iter().map(|value| php_int_cast(value)).collect())
+}
+
+/// Whether a row's id survives the request's `id` filter.
+pub fn id_matches(ids: &Option<Vec<i64>>, id: u64) -> bool {
+    match ids {
+        None => true,
+        Some(ids) => i64::try_from(id).is_ok_and(|id| ids.contains(&id)),
     }
 }
 
@@ -204,7 +233,7 @@ pub async fn fulltext_matches(
 pub fn relevance_page<T>(
     rows: Vec<T>,
     descending: bool,
-    window: &Window,
+    limit: &Limit,
     id: impl Fn(&T) -> u64,
     rank: impl Fn(&T) -> f64,
 ) -> (i64, Vec<T>) {
@@ -219,12 +248,12 @@ pub fn relevance_page<T>(
         })
     });
     let total = rows.len() as i64;
-    let start = window.offset.max(0) as usize;
-    let page = rows
-        .into_iter()
-        .skip(start)
-        .take(window.per_page as usize)
-        .collect();
+    let start = limit.offset.max(0) as usize;
+    let taken = rows.into_iter().skip(start);
+    let page = match limit.max {
+        Some(max) => taken.take(max.max(0) as usize).collect(),
+        None => taken.collect(),
+    };
     (total, page)
 }
 
@@ -366,13 +395,12 @@ mod tests {
 
     #[test]
     fn relevance_page_orders_by_score_then_id() {
-        let window = Window {
-            page: 1,
-            per_page: 25,
+        let limit = Limit {
+            max: Some(25),
             offset: 0,
         };
         let rows = vec![(1u64, 0.5f64), (2, 2.0), (3, 0.5)];
-        let (total, page) = relevance_page(rows, false, &window, |row| row.0, |row| row.1);
+        let (total, page) = relevance_page(rows, false, &limit, |row| row.0, |row| row.1);
         assert_eq!(total, 3);
         assert_eq!(
             page.iter().map(|row| row.0).collect::<Vec<_>>(),
@@ -380,7 +408,7 @@ mod tests {
         );
 
         let rows = vec![(1u64, 0.5f64), (2, 2.0), (3, 0.5)];
-        let (_, page) = relevance_page(rows, true, &window, |row| row.0, |row| row.1);
+        let (_, page) = relevance_page(rows, true, &limit, |row| row.0, |row| row.1);
         assert_eq!(
             page.iter().map(|row| row.0).collect::<Vec<_>>(),
             vec![2, 3, 1]

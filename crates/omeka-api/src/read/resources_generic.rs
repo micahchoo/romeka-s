@@ -30,12 +30,14 @@ use omeka_db::rows::{
     ItemRow, ItemSetRow, MediaRow, ResourceRow, ValueAnnotationRow, resource_type,
 };
 
-use super::params::{Sort, Window, ordered_page};
+use super::paging::{Limit, Window, ordered_page};
+use super::params::Params;
+use super::query::{id_filter, id_matches};
 use super::relations::Relations;
 use super::response::link_header;
 use super::{Api, db_error, not_found, parse_id, resources, system};
 use crate::errors::ApiError;
-use crate::read::params::Params;
+use crate::read::params::Sort;
 use crate::read::response::{ApiResponse, serialize};
 use crate::routes::Operation;
 
@@ -83,10 +85,12 @@ impl KindRow {
 /// `ResourceAdapter::search`: one page over every resource kind.
 pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
+    let limit = Limit::from_params(params);
     let needle = params
         .get("search")
         .filter(|needle| !needle.is_empty())
         .map(str::to_lowercase);
+    let ids = id_filter(params);
     let rows: Vec<KindRow> = all_rows(api).await?;
     let rows: Vec<KindRow> = rows
         .into_iter()
@@ -94,6 +98,7 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
             let resource = row.resource();
             api.sees(resource.is_public, resource.owner_id)
         })
+        .filter(|row| id_matches(&ids, row.id()))
         .filter(|row| owner_matches(row.resource().owner_id, params))
         .filter(|row| class_matches(row.resource().resource_class_id, params))
         .filter(|row| template_matches(row.resource().resource_template_id, params))
@@ -107,7 +112,7 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     let (total, page) = ordered_page(
         rows,
         Sort::from_params(params).descending,
-        &window,
+        &limit,
         |a, b| a.id().cmp(&b.id()),
     );
     let relations = Relations::load_many(api, page.iter().map(KindRow::resource)).await?;
