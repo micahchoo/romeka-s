@@ -121,6 +121,7 @@ mod tests {
             AssetView {
                 id: AssetId::new(4),
                 title: "Logo".to_string(),
+                url: None,
                 thumbnail: Some(Thumbnail::new("/files/square/4.jpg", "Logo")),
             },
         );
@@ -147,6 +148,7 @@ mod tests {
             AssetView {
                 id: AssetId::new(4),
                 title: "Logo".to_string(),
+                url: None,
                 thumbnail: Some(Thumbnail::new("/files/square/4.jpg", "Logo")),
             },
         );

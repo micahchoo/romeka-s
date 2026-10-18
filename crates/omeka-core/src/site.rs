@@ -15,6 +15,10 @@
 //! manager dispatches. Layouts whose content lives in `site_page_block_attachment`
 //! rows (item-with-metadata, media, asset) carry only their scalar options here.
 //!
+//! [`PageLayoutData`] and [`BlockLayoutData`] parse the page's and the block's
+//! `layout_data` JSON. Every member is optional and wrong kinds read as absent,
+//! because `layoutDataValue` returns a default for a missing key.
+//!
 //! DESIGN.md omits two upstream facts, and upstream wins:
 //! - `site.owner_id` is nullable (`ON DELETE SET NULL`, `schema.sql:231`), so
 //!   [`Site::owner`] is an `Option`.
@@ -180,12 +184,16 @@ pub struct SitePage {
     pub title: String,
     /// `site_page.is_public`, true by default (`SitePage::$isPublic = true`).
     pub is_public: bool,
+    /// `site_page.layout`, the normal flow or a column grid.
+    pub layout: PageLayout,
+    /// `site_page.layout_data`, the grid's columns and gaps.
+    pub layout_data: PageLayoutData,
     /// `site_page_block` rows, ordered by `position`.
     pub blocks: Vec<SiteBlock>,
 }
 
 impl SitePage {
-    /// A public page with no blocks.
+    /// A public page with the normal flow layout and no blocks.
     #[must_use]
     pub fn new(id: PageId, site: SiteId, slug: Slug, title: impl Into<String>) -> Self {
         Self {
@@ -194,7 +202,88 @@ impl SitePage {
             slug,
             title: title.into(),
             is_public: true,
+            layout: PageLayout::Normal,
+            layout_data: PageLayoutData::default(),
             blocks: Vec::new(),
+        }
+    }
+}
+
+/// `site_page.layout`: the normal flow or a CSS grid
+/// (`View/Helper/PageLayout.php::render` switches on the name).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PageLayout {
+    /// The empty string or any unregistered name: normal flow.
+    #[default]
+    Normal,
+    /// `grid`: a grid of `grid_columns` columns with the stored gaps.
+    Grid,
+}
+
+impl PageLayout {
+    /// Read the stored `site_page.layout` value; only `grid` selects the grid,
+    /// every other value (including `NULL`) is the normal flow.
+    #[must_use]
+    pub fn from_stored(stored: Option<&str>) -> Self {
+        match stored {
+            Some("grid") => Self::Grid,
+            _ => Self::Normal,
+        }
+    }
+
+    /// The value `site_page.layout` stores.
+    #[must_use]
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Normal => "",
+            Self::Grid => "grid",
+        }
+    }
+}
+
+impl Serialize for PageLayout {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.wire_name())
+    }
+}
+
+/// `site_page.layout_data` (`Form/PageLayoutDataForm.php` and the grid branch
+/// of `View/Helper/PageLayout.php::render`).
+///
+/// `PageLayout::render` reads only the grid members; `template_name` and
+/// `class` round-trip from storage but the port does not act on them.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct PageLayoutData {
+    /// `template_name`, a theme page template (`PageLayout::render` ignores it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_name: Option<String>,
+    /// `class`, a styling class on the page (`PageLayout::render` ignores it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+    /// `grid_columns`, the column count (`(int)` cast).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_columns: Option<i64>,
+    /// `grid_column_gap`, pixels between columns, default 10.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_column_gap: Option<i64>,
+    /// `grid_row_gap`, pixels between rows, default 10.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_row_gap: Option<i64>,
+}
+
+impl PageLayoutData {
+    /// Read `site_page.layout_data`. A value that is not an object, or a member
+    /// of the wrong kind, reads as absent, the way `layoutDataValue` reads a
+    /// missing key. PHP forms submit numbers as strings, so a grid member
+    /// accepts either.
+    #[must_use]
+    pub fn parse(data: &JsonValue) -> Self {
+        Self {
+            template_name: opt_text(data, "template_name"),
+            class: opt_text(data, "class"),
+            grid_columns: data.get("grid_columns").and_then(de_json_i64),
+            grid_column_gap: data.get("grid_column_gap").and_then(de_json_i64),
+            grid_row_gap: data.get("grid_row_gap").and_then(de_json_i64),
         }
     }
 }
@@ -211,6 +300,125 @@ pub struct SiteBlock {
     pub position: i64,
     /// `site_page_block.data`, parsed by the block's layout.
     pub data: BlockData,
+    /// `site_page_block.layout_data`, the block's placement and styling.
+    pub layout_data: BlockLayoutData,
+}
+
+/// `site_page_block.layout_data` (`View/Helper/AbstractLayout.php` and
+/// `Form/BlockLayoutDataForm.php`).
+///
+/// Every member is optional and read with the shape upstream reads it: text
+/// members take a JSON string only, because `getBlockInlineStyles` guards the
+/// CSS lengths with `is_string`, and the grid placement members take a string
+/// or a number because `getBlockClasses` compares them loosely. `parse` never
+/// fails: a member of the wrong kind reads as absent, which is what
+/// `layoutDataValue` does for a missing key.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct BlockLayoutData {
+    /// `template_name`, a theme block template (`BlockLayout::render` ignores
+    /// it in this port).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_name: Option<String>,
+    /// `class`, an extra class on the block's wrapper.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+    /// `grid_column_position`, `auto` or a one-based column.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_column_position: Option<String>,
+    /// `grid_column_span`, the number of columns the block spans.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_column_span: Option<String>,
+    /// `alignment_block`, `left`, `right` or `center`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment_block: Option<String>,
+    /// `alignment_text`, `left`, `center`, `right` or `justify`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment_text: Option<String>,
+    /// `max_width`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_width: Option<String>,
+    /// `min_height`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_height: Option<String>,
+    /// `padding_top`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub padding_top: Option<String>,
+    /// `padding_right`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub padding_right: Option<String>,
+    /// `padding_bottom`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub padding_bottom: Option<String>,
+    /// `padding_left`, a CSS length.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub padding_left: Option<String>,
+    /// `background_color`, a CSS `<hex-color>`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_color: Option<String>,
+    /// `background_image_asset`, the asset shown behind the block.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_image_asset: Option<AssetId>,
+    /// `background_image_position_y`, `top`, `center` or `bottom`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_image_position_y: Option<String>,
+    /// `background_image_position_x`, `left`, `center` or `right`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_image_position_x: Option<String>,
+    /// `background_image_size`, `cover` or `contain`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_image_size: Option<String>,
+}
+
+impl BlockLayoutData {
+    /// Read `site_page_block.layout_data`.
+    #[must_use]
+    pub fn parse(data: &JsonValue) -> Self {
+        Self {
+            template_name: opt_text(data, "template_name"),
+            class: opt_text(data, "class"),
+            grid_column_position: opt_scalar_text(data, "grid_column_position"),
+            grid_column_span: opt_scalar_text(data, "grid_column_span"),
+            alignment_block: opt_text(data, "alignment_block"),
+            alignment_text: opt_text(data, "alignment_text"),
+            max_width: opt_text(data, "max_width"),
+            min_height: opt_text(data, "min_height"),
+            padding_top: opt_text(data, "padding_top"),
+            padding_right: opt_text(data, "padding_right"),
+            padding_bottom: opt_text(data, "padding_bottom"),
+            padding_left: opt_text(data, "padding_left"),
+            background_color: opt_text(data, "background_color"),
+            background_image_asset: opt_asset_id(data, "background_image_asset"),
+            background_image_position_y: opt_text(data, "background_image_position_y"),
+            background_image_position_x: opt_text(data, "background_image_position_x"),
+            background_image_size: opt_text(data, "background_image_size"),
+        }
+    }
+}
+
+/// A text member: a JSON string only, as `is_string` guards it upstream.
+fn opt_text(data: &JsonValue, key: &str) -> Option<String> {
+    data.get(key)
+        .and_then(JsonValue::as_str)
+        .map(str::to_string)
+}
+
+/// A member that may arrive as text or as a number (PHP forms and JSON
+/// numbers): the grid placement members.
+fn opt_scalar_text(data: &JsonValue, key: &str) -> Option<String> {
+    match data.get(key)? {
+        JsonValue::String(text) => Some(text.clone()),
+        JsonValue::Number(number) => Some(number.to_string()),
+        _ => None,
+    }
+}
+
+/// An id member: a JSON number, or a numeric string as the asset form submits.
+fn opt_asset_id(data: &JsonValue, key: &str) -> Option<AssetId> {
+    match data.get(key)? {
+        JsonValue::Number(number) => number.as_u64().map(AssetId::new),
+        JsonValue::String(text) => text.trim().parse::<u64>().ok().map(AssetId::new),
+        _ => None,
+    }
 }
 
 /// A registered block layout (`application/config/module.config.php:805-825`).
@@ -879,5 +1087,91 @@ mod tests {
         let parsed = BlockData::parse(&layout, &data).unwrap();
         assert_eq!(parsed, BlockData::Fallback(data.clone()));
         assert_eq!(parsed.to_json(), data);
+    }
+
+    /// `PageLayout::render` switches on `site_page.layout`; only `grid` is the
+    /// grid and everything else, `NULL` included, is the normal flow.
+    #[test]
+    fn page_layout_reads_only_grid_as_the_grid() {
+        assert_eq!(PageLayout::from_stored(Some("grid")), PageLayout::Grid);
+        assert_eq!(PageLayout::from_stored(None), PageLayout::Normal);
+        assert_eq!(PageLayout::from_stored(Some("")), PageLayout::Normal);
+        assert_eq!(PageLayout::from_stored(Some("other")), PageLayout::Normal);
+        assert_eq!(PageLayout::Grid.wire_name(), "grid");
+        assert_eq!(PageLayout::Normal.wire_name(), "");
+    }
+
+    /// `PageLayoutDataForm.php` keys: the grid members accept a number or a
+    /// numeric string, `template_name` and `class` are strings, and a member of
+    /// another kind reads as absent.
+    #[test]
+    fn page_layout_data_parses_form_and_stored_shapes() {
+        let data = serde_json::json!({
+            "template_name": "full",
+            "class": "home",
+            "grid_columns": "6",
+            "grid_column_gap": 20,
+            "grid_row_gap": null
+        });
+        let parsed = PageLayoutData::parse(&data);
+        assert_eq!(parsed.template_name.as_deref(), Some("full"));
+        assert_eq!(parsed.class.as_deref(), Some("home"));
+        assert_eq!(parsed.grid_columns, Some(6));
+        assert_eq!(parsed.grid_column_gap, Some(20));
+        assert_eq!(parsed.grid_row_gap, None);
+
+        let parsed = PageLayoutData::parse(&serde_json::json!({"grid_columns": false}));
+        assert_eq!(parsed.grid_columns, None);
+        assert_eq!(
+            PageLayoutData::parse(&serde_json::json!("nope")),
+            PageLayoutData::default()
+        );
+
+        let serialised = serde_json::to_value(&parsed).unwrap();
+        assert_eq!(serialised, serde_json::json!({}));
+    }
+
+    /// `AbstractLayout::getBlockClasses` / `getBlockInlineStyles` read these
+    /// members: text members are strings, the grid placement takes a string or a
+    /// number, and `background_image_asset` takes an id or a numeric string.
+    #[test]
+    fn block_layout_data_parses_form_and_stored_shapes() {
+        let data = serde_json::json!({
+            "class": "r-hero",
+            "grid_column_position": 3,
+            "grid_column_span": "6",
+            "alignment_block": "center",
+            "alignment_text": "justify",
+            "max_width": "40rem",
+            "min_height": 200,
+            "padding_top": "1em",
+            "background_color": "#ffeeee",
+            "background_image_asset": "4",
+            "background_image_position_y": "top",
+            "background_image_position_x": "right",
+            "background_image_size": "cover"
+        });
+        let parsed = BlockLayoutData::parse(&data);
+        assert_eq!(parsed.class.as_deref(), Some("r-hero"));
+        assert_eq!(parsed.grid_column_position.as_deref(), Some("3"));
+        assert_eq!(parsed.grid_column_span.as_deref(), Some("6"));
+        assert_eq!(parsed.alignment_block.as_deref(), Some("center"));
+        assert_eq!(parsed.alignment_text.as_deref(), Some("justify"));
+        assert_eq!(parsed.max_width.as_deref(), Some("40rem"));
+        // A number on a text member reads as absent, as `is_string` ignores it.
+        assert_eq!(parsed.min_height, None);
+        assert_eq!(parsed.padding_top.as_deref(), Some("1em"));
+        assert_eq!(parsed.background_color.as_deref(), Some("#ffeeee"));
+        assert_eq!(parsed.background_image_asset, Some(AssetId::new(4)));
+        assert_eq!(parsed.background_image_position_y.as_deref(), Some("top"));
+        assert_eq!(parsed.background_image_position_x.as_deref(), Some("right"));
+        assert_eq!(parsed.background_image_size.as_deref(), Some("cover"));
+
+        let empty = BlockLayoutData::parse(&serde_json::json!("nope"));
+        assert_eq!(empty, BlockLayoutData::default());
+        assert_eq!(
+            serde_json::to_value(BlockLayoutData::default()).unwrap(),
+            serde_json::json!({})
+        );
     }
 }

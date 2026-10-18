@@ -3,9 +3,11 @@
 
 use std::collections::BTreeMap;
 
-use omeka_core::ids::{AssetId, BlockId, MediaId, SiteId};
+use omeka_core::ids::{AssetId, BlockId, MediaId, PageId, SiteId};
 use omeka_core::resource::{ResourceKind, Timestamp};
-use omeka_core::site::{Site, SiteBlock, Slug};
+use omeka_core::site::{
+    BlockLayoutData, PageLayout, PageLayoutData, Site, SiteBlock, SitePage, Slug,
+};
 use serde_json::Value as JsonValue;
 
 use crate::view::{
@@ -24,8 +26,20 @@ pub(crate) fn site() -> Site {
 }
 
 /// A stored block: layout name plus `data` JSON parsed through the boundary
-/// parser, so a test exercises the same validation a caller gets.
+/// parser, so a test exercises the same validation a caller gets. The layout
+/// data is empty.
 pub(crate) fn block(layout: &str, data: JsonValue) -> SiteBlock {
+    let mut block = block_with_layout(layout, data, JsonValue::Null);
+    block.layout_data = BlockLayoutData::default();
+    block
+}
+
+/// A stored block with its `layout_data`, parsed the way the loader parses it.
+pub(crate) fn block_with_layout(
+    layout: &str,
+    data: JsonValue,
+    layout_data: JsonValue,
+) -> SiteBlock {
     let layout_id = omeka_core::site::BlockLayout::from_wire_name(layout);
     let data = crate::blocks::parse::parse_block_data(&layout_id, &data).unwrap();
     SiteBlock {
@@ -33,7 +47,23 @@ pub(crate) fn block(layout: &str, data: JsonValue) -> SiteBlock {
         layout: layout_id,
         position: 1,
         data,
+        layout_data: BlockLayoutData::parse(&layout_data),
     }
+}
+
+/// A page whose blocks are given, in the order supplied, with the stored page
+/// layout and layout data.
+pub(crate) fn page(layout: PageLayout, layout_data: JsonValue, blocks: Vec<SiteBlock>) -> SitePage {
+    let mut page = SitePage::new(
+        PageId::new(2),
+        SiteId::new(1),
+        Slug::parse("welcome").unwrap(),
+        "Welcome",
+    );
+    page.layout = layout;
+    page.layout_data = PageLayoutData::parse(&layout_data);
+    page.blocks = blocks;
+    page
 }
 
 /// A timestamp for a fixed instant, `2026-10-16 09:30:00`.

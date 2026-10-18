@@ -274,7 +274,7 @@ fn page_view(ctx: &RenderContext<'_>) -> String {
         ));
     }
     out.push_str("<div class=\"blocks\">");
-    out.push_str(&blocks::render_page_blocks(&page.blocks, ctx));
+    out.push_str(&blocks::render_page_blocks(page, ctx));
     out.push_str("</div>");
     if ctx.settings.show_page_pagination() {
         out.push_str(&page_pagination(page.id, ctx));

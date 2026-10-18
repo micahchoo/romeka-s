@@ -6,7 +6,9 @@
 //! [`render_page_blocks`](crate::blocks::render_page_blocks) reproduces: a
 //! `blockGroup` opens a `block block-blockGroup` wrapper around the `span`
 //! blocks that follow it on the same page. The admin form carries the `span`,
-//! which is the only thing this layout stores.
+//! which is the only thing this layout stores; the wrapper's classes and styles
+//! come from the group's `layout_data` and, on a grid page, from the page's
+//! column count.
 
 use omeka_core::site::SiteBlock;
 

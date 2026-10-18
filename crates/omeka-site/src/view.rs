@@ -129,13 +129,17 @@ pub struct MediaRef {
     pub embed: Option<String>,
 }
 
-/// An asset, as the asset block shows it.
+/// An asset, as the asset block shows it. The background of a block names an
+/// asset by id, so this carries the URL the background-image style uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssetView {
     /// The asset id.
     pub id: AssetId,
     /// The display title.
     pub title: String,
+    /// The asset's file URL (`AssetRepresentation::assetUrl`), `None` when the
+    /// caller cannot resolve one. No asset repository stores these yet.
+    pub url: Option<String>,
     /// The square thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
 }

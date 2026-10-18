@@ -10,6 +10,10 @@
 //!
 //! [`parse`] validates a block's `data` JSON at the storage boundary and names
 //! the failing path and the kind it expected.
+//!
+//! [`render_page_blocks`] reproduces `View/Helper/PageLayout::render`: it reads
+//! the page's `layout` and `layout_data`, and each block's `layout_data`, and
+//! adds the wrapper classes and inline styles [`layout`] derives from them.
 
 pub mod parse;
 
@@ -24,6 +28,7 @@ pub mod html;
 pub mod iiif_image;
 pub mod iiif_presentation;
 pub mod item_with_metadata;
+pub mod layout;
 pub mod line_break;
 pub mod list_of_pages;
 pub mod list_of_sites;
@@ -33,7 +38,7 @@ pub mod page_date_time;
 pub mod page_title;
 pub mod table_of_contents;
 
-use omeka_core::site::{BlockData, BlockLayout as LayoutId, SiteBlock};
+use omeka_core::site::{BlockData, BlockLayout as LayoutId, SiteBlock, SitePage};
 
 use crate::view::RenderContext;
 
@@ -125,17 +130,17 @@ pub fn render_block(block: &SiteBlock, ctx: &RenderContext<'_>) -> String {
 /// `blocks-inner` element, with a `blockGroup` opening a wrapper around the
 /// blocks that follow it, for the number of blocks its `span` names.
 ///
-/// Upstream takes the wrapper's classes and inline styles from the block's
-/// layout data (`class`, alignment, background, padding, grid placement). Core
-/// carries no layout data, so a group wrapper is `block block-{layout}`, its
-/// `style` is empty, and the page layout is the default `normal` (`site_page`
-/// has no `layout` column either).
+/// Each block is wrapped the way `BlockLayout::render` wraps it, with the
+/// classes and inline styles `AbstractLayout` derives from the block's layout
+/// data, and the page element carries the page layout's own classes. The page
+/// layout data and every block's layout data come from the page.
 #[must_use]
-pub fn render_page_blocks(blocks: &[SiteBlock], ctx: &RenderContext<'_>) -> String {
-    let mut ordered: Vec<&SiteBlock> = blocks.iter().collect();
+pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
+    let mut ordered: Vec<&SiteBlock> = page.blocks.iter().collect();
     ordered.sort_by_key(|block| block.position);
 
-    let mut out = String::from("<div class=\"blocks-inner page-layout-normal\" style=\"\">");
+    let columns = page.layout_data.grid_columns.unwrap_or(0);
+    let mut out = layout::page_open(page.layout, &page.layout_data);
     let mut in_group = false;
     let mut span = 0_i64;
     let mut counted = 0_i64;
@@ -149,13 +154,12 @@ pub fn render_page_blocks(blocks: &[SiteBlock], ctx: &RenderContext<'_>) -> Stri
             in_group = true;
             span = group_span(block);
             counted = 0;
-            let class = match block.layout.wire_name() {
-                Some(name) => format!("block block-{name}"),
-                None => "block".to_string(),
-            };
-            out.push_str(&format!("<div class=\"{class}\" style=\"\">"));
+            out.push_str(&layout::group_open(block, page.layout, columns, ctx));
         } else {
-            out.push_str(&render_block(block, ctx));
+            let classes = layout::block_classes(block, page.layout, columns);
+            let styles = layout::block_inline_styles(block, ctx);
+            let body = render_block(block, ctx);
+            out.push_str(&layout::block_wrapper(&classes, &styles, &body));
         }
         if in_group {
             if counted == span {
@@ -196,6 +200,9 @@ pub fn layout_id(name: &str) -> Option<LayoutId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::blocks::test_support::{block, block_with_layout, context, page, site};
+    use omeka_core::site::{BlockLayoutData, PageLayout};
+    use serde_json::json;
 
     /// `module.config.php:805-825`: the registry holds every registered id, in
     /// upstream's order, plus the fallback. Each label is core's label, which
@@ -240,23 +247,35 @@ mod tests {
         assert_eq!(layout_for("myModuleLayout").name(), "fallback");
     }
 
-    /// `PageLayout::render`: the blocks sit inside `blocks-inner`, and a
-    /// `blockGroup` with `span` 1 wraps the one block that follows it.
+    /// `BlockLayout::render` wraps every block in `block block-{layout}` with the
+    /// inline styles its layout data names, and `PageLayout::render` wraps them
+    /// in `blocks-inner page-layout-normal`.
     #[test]
-    fn page_layout_matches_upstream_page_layout_helper() {
-        let site = test_support::site();
-        let ctx = test_support::context(&site, &crate::view::NoResources);
-        let mut first = test_support::block("html", serde_json::json!({"html": "<p>One</p>"}));
+    fn normal_page_wraps_each_block_like_block_layout_render() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut first = block("html", json!({"html": "<p>One</p>"}));
         first.position = 1;
-        let mut group = test_support::block("blockGroup", serde_json::json!({"span": "1"}));
+        let mut group = block("blockGroup", json!({"span": "1"}));
         group.position = 2;
-        let mut grouped = test_support::block("html", serde_json::json!({"html": "<p>Two</p>"}));
+        let mut grouped = block("html", json!({"html": "<p>Two</p>"}));
         grouped.position = 3;
-        let mut last = test_support::block("html", serde_json::json!({"html": "<p>Three</p>"}));
+        let mut last = block("html", json!({"html": "<p>Three</p>"}));
         last.position = 4;
+        let page = page(
+            PageLayout::Normal,
+            json!({}),
+            vec![group, last, first, grouped],
+        );
         assert_eq!(
-            render_page_blocks(&[group, last, first, grouped], &ctx),
-            "<div class=\"blocks-inner page-layout-normal\" style=\"\"><p>One</p><div class=\"block block-blockGroup\" style=\"\"><p>Two</p></div><p>Three</p></div>"
+            render_page_blocks(&page, &ctx),
+            "<div class=\"blocks-inner page-layout-normal\" style=\"\">\
+             <div class=\"block block-html\" style=\"\"><p>One</p></div>\
+             <div class=\"block block-blockGroup\" style=\"\">\
+             <div class=\"block block-html\" style=\"\"><p>Two</p></div>\
+             </div>\
+             <div class=\"block block-html\" style=\"\"><p>Three</p></div>\
+             </div>"
         );
     }
 
@@ -264,15 +283,19 @@ mod tests {
     /// `PageLayout::render` closes an unterminated group.
     #[test]
     fn page_layout_closes_an_unterminated_group() {
-        let site = test_support::site();
-        let ctx = test_support::context(&site, &crate::view::NoResources);
-        let mut group = test_support::block("blockGroup", serde_json::json!({"span": "5"}));
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut group = block("blockGroup", json!({"span": "5"}));
         group.position = 1;
-        let mut trailing = test_support::block("html", serde_json::json!({"html": "<p>Two</p>"}));
+        let mut trailing = block("html", json!({"html": "<p>Two</p>"}));
         trailing.position = 2;
+        let page = page(PageLayout::Normal, json!({}), vec![group, trailing]);
         assert_eq!(
-            render_page_blocks(&[group, trailing], &ctx),
-            "<div class=\"blocks-inner page-layout-normal\" style=\"\"><div class=\"block block-blockGroup\" style=\"\"><p>Two</p></div></div>"
+            render_page_blocks(&page, &ctx),
+            "<div class=\"blocks-inner page-layout-normal\" style=\"\">\
+             <div class=\"block block-blockGroup\" style=\"\">\
+             <div class=\"block block-html\" style=\"\"><p>Two</p></div>\
+             </div></div>"
         );
     }
 
@@ -280,17 +303,216 @@ mod tests {
     /// rather than nesting it, as `PageLayout::render` does.
     #[test]
     fn page_layout_groups_do_not_overlap() {
-        let site = test_support::site();
-        let ctx = test_support::context(&site, &crate::view::NoResources);
-        let mut first = test_support::block("blockGroup", serde_json::json!({"span": "0"}));
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut first = block("blockGroup", json!({"span": "0"}));
         first.position = 1;
-        let mut second = test_support::block("blockGroup", serde_json::json!({"span": "1"}));
+        let mut second = block("blockGroup", json!({"span": "1"}));
         second.position = 2;
-        let mut body = test_support::block("html", serde_json::json!({"html": "<p>Body</p>"}));
+        let mut body = block("html", json!({"html": "<p>Body</p>"}));
         body.position = 3;
+        let page = page(PageLayout::Normal, json!({}), vec![first, second, body]);
         assert_eq!(
-            render_page_blocks(&[first, second, body], &ctx),
-            "<div class=\"blocks-inner page-layout-normal\" style=\"\"><div class=\"block block-blockGroup\" style=\"\"></div><div class=\"block block-blockGroup\" style=\"\"><p>Body</p></div></div>"
+            render_page_blocks(&page, &ctx),
+            "<div class=\"blocks-inner page-layout-normal\" style=\"\">\
+             <div class=\"block block-blockGroup\" style=\"\"></div>\
+             <div class=\"block block-blockGroup\" style=\"\">\
+             <div class=\"block block-html\" style=\"\"><p>Body</p></div>\
+             </div></div>"
+        );
+    }
+
+    /// The measured upstream output for a grid page: the page element carries
+    /// `page-layout-grid grid-template-columns-12` and the pixel gaps, and each
+    /// block carries its grid placement, class, background and padding.
+    #[test]
+    fn grid_page_renders_upstream_page_and_block_markup() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut hero = block_with_layout(
+            "html",
+            json!({"html": "<p>Hero</p>"}),
+            json!({
+                "class": "r-hero",
+                "grid_column_span": "6",
+                "background_color": "#ffeeee",
+                "padding_top": "1em"
+            }),
+        );
+        hero.position = 1;
+        let mut group = block_with_layout(
+            "blockGroup",
+            json!({"span": "1"}),
+            json!({"padding_left": "8px"}),
+        );
+        group.position = 2;
+        let mut inner = block("html", json!({"html": "<p>Inside</p>"}));
+        inner.position = 3;
+        let page = page(
+            PageLayout::Grid,
+            json!({"grid_columns": 12, "grid_column_gap": 10, "grid_row_gap": 10}),
+            vec![hero, group, inner],
+        );
+        assert_eq!(
+            render_page_blocks(&page, &ctx),
+            "<div class=\"blocks-inner page-layout-grid grid-template-columns-12\" \
+             style=\"column-gap: 10px; row-gap: 10px;\">\
+             <div class=\"block block-html grid-position-auto grid-span-6 r-hero has-background\" \
+             style=\"background-color: #ffeeee; padding-top: 1em\"><p>Hero</p></div>\
+             <div class=\"block block-blockGroup block-group-grid grid-position-1 grid-span-12\" \
+             style=\"padding-left: 8px\">\
+             <div class=\"block block-html grid-position-auto grid-span-12\" style=\"\">\
+             <p>Inside</p></div>\
+             </div></div>"
+        );
+    }
+
+    /// `AbstractLayout::getBlockClasses`: a stored position and span become the
+    /// classes when they name a valid column, and the grid's column count is the
+    /// fallback for both, as `in_array` decides upstream.
+    #[test]
+    fn block_classes_match_abstract_layout() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut placed = block_with_layout(
+            "html",
+            json!({"html": "<p>One</p>"}),
+            json!({"grid_column_position": "3", "grid_column_span": "20"}),
+        );
+        placed.position = 1;
+        let mut out_of_range = block_with_layout(
+            "html",
+            json!({"html": "<p>Two</p>"}),
+            json!({"grid_column_position": "99", "grid_column_span": "0"}),
+        );
+        out_of_range.position = 2;
+        let mut aligned = block_with_layout(
+            "html",
+            json!({"html": "<p>Three</p>"}),
+            json!({
+                "alignment_block": "center",
+                "alignment_text": "justify",
+                "background_color": "#fff",
+                "background_image_asset": "4",
+                "background_image_position_y": "bottom",
+                "background_image_position_x": "right",
+                "background_image_size": "cover"
+            }),
+        );
+        aligned.position = 3;
+        let page = page(
+            PageLayout::Grid,
+            json!({"grid_columns": 6}),
+            vec![placed, out_of_range, aligned],
+        );
+        let rendered = render_page_blocks(&page, &ctx);
+        assert!(
+            rendered.contains(
+                "<div class=\"block block-html grid-position-3 grid-span-6\" style=\"\">"
+            ),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains(
+                "<div class=\"block block-html grid-position-auto grid-span-6\" style=\"\">"
+            ),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains(
+                "class=\"block block-html grid-position-auto grid-span-6 \
+                 block-layout-alignment-block-center block-layout-alignment-text-justify \
+                 has-background block-layout-background-image-position-y-bottom \
+                 block-layout-background-image-position-x-right \
+                 block-layout-background-image-size-cover\""
+            ),
+            "{rendered}"
+        );
+        // The grid's own gaps have their upstream defaults when unset.
+        assert!(
+            rendered.starts_with(
+                "<div class=\"blocks-inner page-layout-grid grid-template-columns-6\" \
+                 style=\"column-gap: 10px; row-gap: 10px;\">"
+            ),
+            "{rendered}"
+        );
+    }
+
+    /// `AbstractLayout::getBlockInlineStyles`: a bare number is pixels, a valid
+    /// length passes through, an invalid one is dropped, and an alignment class
+    /// never appears for a value upstream does not know.
+    #[test]
+    fn block_inline_styles_match_abstract_layout() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut styled = block_with_layout(
+            "html",
+            json!({"html": "<p>One</p>"}),
+            json!({
+                "max_width": "40rem",
+                "min_height": "200",
+                "padding_top": "abc",
+                "padding_right": "1.5em",
+                "alignment_block": "sideways"
+            }),
+        );
+        styled.position = 1;
+        // A background colour that is not a hex colour is still truthy, so the
+        // class is there, but no `background-color` style is.
+        let mut coloured = block_with_layout(
+            "html",
+            json!({"html": "<p>Two</p>"}),
+            json!({"background_color": "red"}),
+        );
+        coloured.position = 2;
+        let page = page(PageLayout::Normal, json!({}), vec![styled, coloured]);
+        let rendered = render_page_blocks(&page, &ctx);
+        assert!(
+            rendered.contains(
+                "<div class=\"block block-html\" \
+                 style=\"max-width: 40rem; min-height: 200px; padding-right: 1.5em\">\
+                 <p>One</p></div>"
+            ),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("background-color:"), "{rendered}");
+        assert!(!rendered.contains("alignment-block"), "{rendered}");
+        assert!(!rendered.contains("padding-top"), "{rendered}");
+        assert!(
+            rendered.contains("<div class=\"block block-html has-background\" style=\"\">"),
+            "{rendered}"
+        );
+
+        // A number on a text member reads as absent, as `is_string` ignores it.
+        let numeric = block_with_layout(
+            "html",
+            json!({"html": "<p>x</p>"}),
+            json!({"min_height": 200}),
+        );
+        assert_eq!(numeric.layout_data.min_height, None);
+    }
+
+    /// A block's own class and the classes derived from its layout data are
+    /// escaped, as `BlockLayout::render` escapes the whole class attribute.
+    #[test]
+    fn block_class_attribute_is_escaped() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let mut hostile = block_with_layout(
+            "html",
+            json!({"html": "<p>One</p>"}),
+            json!({"class": "a\"b<c"}),
+        );
+        hostile.position = 1;
+        let page = page(PageLayout::Normal, json!({}), vec![hostile]);
+        let rendered = render_page_blocks(&page, &ctx);
+        assert!(
+            rendered.contains("class=\"block block-html a&quot;b&lt;c\""),
+            "{rendered}"
+        );
+        assert_eq!(
+            BlockLayoutData::parse(&json!({})),
+            BlockLayoutData::default()
         );
     }
 }

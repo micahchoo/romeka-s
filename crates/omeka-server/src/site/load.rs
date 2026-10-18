@@ -15,7 +15,9 @@ use omeka_api::read::params::Params;
 use omeka_api::read::query::SearchQuery;
 use omeka_core::ids::{BlockId, PageId, ResourceId, SiteId};
 use omeka_core::resource::ResourceKind;
-use omeka_core::site::{BlockLayout, Site, SiteBlock, SitePage, Slug};
+use omeka_core::site::{
+    BlockLayout, BlockLayoutData, PageLayout, PageLayoutData, Site, SiteBlock, SitePage, Slug,
+};
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
@@ -194,6 +196,8 @@ impl<'a> Loader<'a> {
         let slug = Slug::parse(&row.slug).map_err(|_| SiteError::NotFound)?;
         let mut page = SitePage::new(PageId::new(row.id.0), self.site.id, slug, row.title.clone());
         page.is_public = row.is_public;
+        page.layout = PageLayout::from_stored(row.layout.as_deref());
+        page.layout_data = PageLayoutData::parse(&row.layout_data.clone().unwrap_or_default());
         let blocks = SiteRepo::new(self.pool).list_blocks(row.id).await?;
         page.blocks = blocks.iter().filter_map(block_from_row).collect();
         Ok(page)
@@ -637,7 +641,9 @@ fn page_ref(row: &SitePageRow) -> Option<PageRef> {
 
 /// A block row as the site layer's [`SiteBlock`]. A block whose stored `data`
 /// does not parse for its layout is skipped, so the rest of the page renders
-/// (`Site\BlockLayout\Manager` falls back rather than failing the page).
+/// (`Site\BlockLayout\Manager` falls back rather than failing the page). Its
+/// `layout_data` parses the way `AbstractLayout` reads it: a member of the wrong
+/// kind reads as absent.
 fn block_from_row(row: &SiteBlockRow) -> Option<SiteBlock> {
     let layout = BlockLayout::from_wire_name(&row.layout);
     let data = parse_block_data(&layout, &row.data).ok()?;
@@ -646,6 +652,7 @@ fn block_from_row(row: &SiteBlockRow) -> Option<SiteBlock> {
         layout,
         position: row.position,
         data,
+        layout_data: BlockLayoutData::parse(&row.layout_data.clone().unwrap_or_default()),
     })
 }
 
