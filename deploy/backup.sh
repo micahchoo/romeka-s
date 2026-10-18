@@ -27,7 +27,7 @@ chmod 0777 "$staging"
 # is what .env sets, so this script and the service cannot disagree about them.
 docker compose run --rm --no-deps --entrypoint /bin/sh \
     --volume "$staging":/out \
-    romeka -c 'exec romeka backup --database "$ROMEEKA_DB" --store "$ROMEEKA_STORE" --out /out/archive.tar'
+    romeka -c 'exec romeka backup --database "$ROMEKA_DB" --store "$ROMEKA_STORE" --out /out/archive.tar'
 
 mv "$staging/archive.tar" "$archive"
 echo "backup: wrote $archive ($(du -h "$archive" | cut -f1))"

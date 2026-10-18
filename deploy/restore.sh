@@ -20,7 +20,7 @@ fi
 # host directory would need that directory and the file in it to be readable by
 # the container's user, which an operator's own backup directory often is not.
 # The name is hidden and removed again below, and a rerun overwrites it.
-staged='$(dirname "$ROMEEKA_DB")/.restore-archive.tar'
+staged='$(dirname "$ROMEKA_DB")/.restore-archive.tar'
 echo "restore: reading $archive into the container"
 docker compose run --rm --no-deps --entrypoint /bin/sh -T romeka \
     -c "cat > $staged" < "$archive"
@@ -31,7 +31,7 @@ docker compose stop romeka
 # The database and store paths come from the container's own environment, which
 # is what .env sets, so this script and the service cannot disagree about them.
 docker compose run --rm --no-deps --entrypoint /bin/sh -T romeka \
-    -c "exec romeka restore --database \"\$ROMEEKA_DB\" --store \"\$ROMEEKA_STORE\" --in $staged --force"
+    -c "exec romeka restore --database \"\$ROMEKA_DB\" --store \"\$ROMEKA_STORE\" --in $staged --force"
 
 docker compose run --rm --no-deps --entrypoint /bin/sh -T romeka \
     -c "rm -f $staged"

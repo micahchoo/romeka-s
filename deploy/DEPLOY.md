@@ -25,25 +25,25 @@ except the first one.
 
 | Variable | Read by | Notes |
 | --- | --- | --- |
-| `ROMEEKA_DOMAIN` | Caddy | the name the certificate is issued for |
-| `ROMEEKA_BASE_URL` | the server | the public origin; the entrypoint passes it as `--base-url`, and the command line wins over the environment |
-| `ROMEEKA_ACME_EMAIL` | Caddy | the ACME account contact; an empty value stops the origin from parsing its config |
-| `ROMEEKA_HTTP_PORT`, `ROMEEKA_HTTPS_PORT` | compose | the host ports to publish; the container listens on 80 and 443 |
-| `ROMEEKA_IMAGE` | compose | the tag to run, which is what a rollback changes |
-| `ROMEEKA_ADMIN_EMAIL`, `ROMEEKA_ADMIN_NAME`, `ROMEEKA_ADMIN_PASSWORD` | the entrypoint | the first administrator, read only by an install |
-| `ROMEEKA_TITLE`, `ROMEEKA_TIME_ZONE`, `ROMEEKA_LOCALE` | the entrypoint | written by an install; the install rewrites them every time it runs |
-| `ROMEEKA_LOG` | the server | `off`, `error`, `warn`, `info`, `debug` or `trace` |
-| `ROMEEKA_MAX_BODY_BYTES` | the server | the request body cap; Caddy sets no smaller one |
-| `ROMEEKA_REQUEST_TIMEOUT_SECS` | the server | seconds before the server answers 408 |
-| `ROMEEKA_SMTP_HOST`, `ROMEEKA_SMTP_PORT`, `ROMEEKA_SMTP_USER`, `ROMEEKA_SMTP_PASSWORD`, `ROMEEKA_SMTP_TLS`, `ROMEEKA_MAIL_FROM` | the server | mail; with no host the messages go to the log |
-| `ROMEEKA_DB`, `ROMEEKA_STORE` | the entrypoint and the server | the database file and the store root, which the volumes in `compose.yaml` are mounted at |
-| `ROMEEKA_API_HOST`, `ROMEEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
-| `ROMEEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
-| `ROMEEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
+| `ROMEKA_DOMAIN` | Caddy | the name the certificate is issued for |
+| `ROMEKA_BASE_URL` | the server | the public origin; the entrypoint passes it as `--base-url`, and the command line wins over the environment |
+| `ROMEKA_ACME_EMAIL` | Caddy | the ACME account contact; an empty value stops the origin from parsing its config |
+| `ROMEKA_HTTP_PORT`, `ROMEKA_HTTPS_PORT` | compose | the host ports to publish; the container listens on 80 and 443 |
+| `ROMEKA_IMAGE` | compose | the tag to run, which is what a rollback changes |
+| `ROMEKA_ADMIN_EMAIL`, `ROMEKA_ADMIN_NAME`, `ROMEKA_ADMIN_PASSWORD` | the entrypoint | the first administrator, read only by an install |
+| `ROMEKA_TITLE`, `ROMEKA_TIME_ZONE`, `ROMEKA_LOCALE` | the entrypoint | written by an install; the install rewrites them every time it runs |
+| `ROMEKA_LOG` | the server | `off`, `error`, `warn`, `info`, `debug` or `trace` |
+| `ROMEKA_MAX_BODY_BYTES` | the server | the request body cap; Caddy sets no smaller one |
+| `ROMEKA_REQUEST_TIMEOUT_SECS` | the server | seconds before the server answers 408 |
+| `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT`, `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS`, `ROMEKA_MAIL_FROM` | the server | mail; with no host the messages go to the log |
+| `ROMEKA_DB`, `ROMEKA_STORE` | the entrypoint and the server | the database file and the store root, which the volumes in `compose.yaml` are mounted at |
+| `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
+| `ROMEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
+| `ROMEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
 
 An empty value in `.env` means "not configured". The entrypoint drops the empty
 ones before it starts the server, because the server reads any value that is
-present: an empty `ROMEEKA_SMTP_HOST` would build a relay at the empty address.
+present: an empty `ROMEKA_SMTP_HOST` would build a relay at the empty address.
 
 ## What you need
 
@@ -63,9 +63,9 @@ present: an empty `ROMEEKA_SMTP_HOST` would build a relay at the empty address.
    cp .env.example .env
    ```
 
-   Set `ROMEEKA_DOMAIN` to your domain, `ROMEEKA_BASE_URL` to the same origin
-   with its scheme, `ROMEEKA_ACME_EMAIL` to your address, and the three
-   `ROMEEKA_ADMIN_*` values to the account you want to sign in with.
+   Set `ROMEKA_DOMAIN` to your domain, `ROMEKA_BASE_URL` to the same origin
+   with its scheme, `ROMEKA_ACME_EMAIL` to your address, and the three
+   `ROMEKA_ADMIN_*` values to the account you want to sign in with.
 
 2. Start it:
 
@@ -102,8 +102,8 @@ present: an empty `ROMEEKA_SMTP_HOST` would build a relay at the empty address.
 6. Open `https://collections.example.org/` and sign in with the administrator
    address and password from `.env`.
 
-`ROMEEKA_BASE_URL` must be the origin the browser uses, scheme and port
-included, and it must match `ROMEEKA_DOMAIN`. The session cookie is
+`ROMEKA_BASE_URL` must be the origin the browser uses, scheme and port
+included, and it must match `ROMEKA_DOMAIN`. The session cookie is
 `SameSite=Lax`, so the server accepts a cookie-carrying write only from that
 origin, and the server refuses to answer a cookie write from any other one with
 403. Every JSON-LD `@id` is built from it too. A wrong base URL looks like a
@@ -112,7 +112,7 @@ that check.
 
 ## 2. TLS
 
-There is no certificate step. Caddy requests one for `ROMEEKA_DOMAIN` from Let's
+There is no certificate step. Caddy requests one for `ROMEKA_DOMAIN` from Let's
 Encrypt the first time it starts, answers the challenge on port 80, renews it
 before it expires, and stores the account and the certificate in the
 `romeka-caddy` volume. Two consequences:
@@ -135,26 +135,26 @@ If no certificate arrives:
    `sudo ss -ltnp | grep -E ':(80|443)'`.
 3. Read the reason in the log: `docker compose logs romeka | grep -i -E 'certificate|acme|error'`.
 
-For a local deployment with no public name, set `ROMEEKA_DOMAIN=localhost` and
-`ROMEEKA_BASE_URL=https://localhost:<published port>`. Caddy issues an internal
+For a local deployment with no public name, set `ROMEKA_DOMAIN=localhost` and
+`ROMEKA_BASE_URL=https://localhost:<published port>`. Caddy issues an internal
 certificate that no public authority signed, so a browser warns; `deploy/smoke.sh`
 uses `curl --insecure` and needs no warning-free certificate.
 
 ## 3. Mail
 
-Mail is optional. With no `ROMEEKA_SMTP_HOST` the server writes the invitation
+Mail is optional. With no `ROMEKA_SMTP_HOST` the server writes the invitation
 and the password-reset link to its log and returns the link to the administrator
 who asked for it, so a deployment with no relay still onboards users.
 
 To send mail, set the block in `.env` and recreate the container:
 
 ```
-ROMEEKA_SMTP_HOST=smtp.example.org
-ROMEEKA_SMTP_PORT=587
-ROMEEKA_SMTP_USER=mailer
-ROMEEKA_SMTP_PASSWORD=
-ROMEEKA_SMTP_TLS=starttls
-ROMEEKA_MAIL_FROM=no-reply@collections.example.org
+ROMEKA_SMTP_HOST=smtp.example.org
+ROMEKA_SMTP_PORT=587
+ROMEKA_SMTP_USER=mailer
+ROMEKA_SMTP_PASSWORD=
+ROMEKA_SMTP_TLS=starttls
+ROMEKA_MAIL_FROM=no-reply@collections.example.org
 ```
 
 ```
@@ -254,7 +254,7 @@ service stopped for the migration.
    ./backup.sh before-upgrade-4.4.0.tar
    ```
 
-2. Build or fetch the new image under a new tag, and set `ROMEEKA_IMAGE` in
+2. Build or fetch the new image under a new tag, and set `ROMEKA_IMAGE` in
    `.env` to it. Building from source on the server keeps the previous image
    tagged and available for a rollback:
 
@@ -262,17 +262,17 @@ service stopped for the migration.
    docker build --file ../packaging/Dockerfile --tag romeka-s:4.4.0 ..
    ```
 
-   Then `ROMEEKA_IMAGE=romeka-s:4.4.0` in `.env`.
+   Then `ROMEKA_IMAGE=romeka-s:4.4.0` in `.env`.
 
 3. Stop the service and run the migration:
 
    ```
    docker compose stop romeka
-   docker compose run --rm --no-deps -e ROMEEKA_MODE=install romeka
+   docker compose run --rm --no-deps -e ROMEKA_MODE=install romeka
    docker compose up --detach
    ```
 
-   `ROMEEKA_MODE=install` runs `romeka install` against the existing database,
+   `ROMEKA_MODE=install` runs `romeka install` against the existing database,
    which applies the schema migrations, and stops without starting a server.
    The one-off container runs the new image, so the migrations are the new
    release's.
@@ -283,7 +283,7 @@ service stopped for the migration.
 `install` rewrites the settings rows it owns from `.env`: the installation
 title, the administrator email, the time zone and the locale. Keep those values
 accurate in `.env`, and expect a title you changed in the admin interface alone
-to come back as `ROMEEKA_TITLE`. The rows a server manages as content, the
+to come back as `ROMEKA_TITLE`. The rows a server manages as content, the
 users, the items and the media, are untouched, and an existing administrator's
 password is not changed by an install.
 
@@ -291,7 +291,7 @@ password is not changed by an install.
 
 Rollback is the previous image plus the database from before the upgrade.
 
-1. Point `.env` back at the previous image tag: `ROMEEKA_IMAGE=romeka-s:4.3.0`.
+1. Point `.env` back at the previous image tag: `ROMEKA_IMAGE=romeka-s:4.3.0`.
 2. Restore the archive from step 1 of the upgrade:
 
    ```
@@ -301,7 +301,7 @@ Rollback is the previous image plus the database from before the upgrade.
 3. Check it: `docker compose ps`, then sign in.
 
 If the upgrade changed no schema, step 2 is unnecessary and setting
-`ROMEEKA_IMAGE` back is the whole rollback. When in doubt, restore: an older
+`ROMEKA_IMAGE` back is the whole rollback. When in doubt, restore: an older
 server reading a newer schema is the failure that loses data.
 
 ## 8. What this deployment expects of you
@@ -327,9 +327,9 @@ server reading a newer schema is the failure that loses data.
 | Symptom | First check |
 | --- | --- |
 | `STATUS` is `unhealthy` | `docker compose logs --follow romeka`, then the `-wal` file in the database volume |
-| The browser warns about the certificate | procedure 2, and whether `ROMEEKA_DOMAIN` is the name in the address bar |
-| Sign-in fails on a page that loads | `ROMEEKA_BASE_URL` against the address bar, character for character |
-| 403 on a save | `ROMEEKA_BASE_URL`, then any proxy in front of this one rewriting `Origin` |
+| The browser warns about the certificate | procedure 2, and whether `ROMEKA_DOMAIN` is the name in the address bar |
+| Sign-in fails on a page that loads | `ROMEKA_BASE_URL` against the address bar, character for character |
+| 403 on a save | `ROMEKA_BASE_URL`, then any proxy in front of this one rewriting `Origin` |
 | 502 from the origin | the server is down: `docker compose logs romeka` |
 | No mail | procedure 3, and whether the log transport is in use |
 | The container restarts in a loop | the first lines of `docker compose logs romeka`: a missing setting exits 1 before the server starts |

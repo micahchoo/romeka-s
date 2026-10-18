@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 PROJECT="romeka-smoke-$$"
-IMAGE="${ROMEEKA_SMOKE_IMAGE:-romeka-s:smoke}"
+IMAGE="${ROMEKA_SMOKE_IMAGE:-romeka-s:smoke}"
 ADMIN_EMAIL="smoke-admin@example.org"
 ADMIN_NAME="Smoke Admin"
 ADMIN_PASSWORD="smoke-password"
@@ -65,19 +65,25 @@ code() {
 }
 
 cat > "$env_file" <<EOF
-ROMEEKA_DOMAIN=localhost
-ROMEEKA_BASE_URL=$base
-ROMEEKA_ACME_EMAIL=smoke@localhost
-ROMEEKA_HTTP_PORT=$http_port
-ROMEEKA_HTTPS_PORT=$https_port
-ROMEEKA_IMAGE=$IMAGE
-ROMEEKA_ADMIN_EMAIL=$ADMIN_EMAIL
-ROMEEKA_ADMIN_NAME=$ADMIN_NAME
-ROMEEKA_ADMIN_PASSWORD=$ADMIN_PASSWORD
-ROMEEKA_TITLE=Smoke Install
+ROMEKA_DOMAIN=localhost
+ROMEKA_BASE_URL=$base
+ROMEKA_ACME_EMAIL=smoke@localhost
+ROMEKA_HTTP_PORT=$http_port
+ROMEKA_HTTPS_PORT=$https_port
+ROMEKA_IMAGE=$IMAGE
+ROMEKA_ADMIN_EMAIL=$ADMIN_EMAIL
+ROMEKA_ADMIN_NAME=$ADMIN_NAME
+ROMEKA_ADMIN_PASSWORD=$ADMIN_PASSWORD
+ROMEKA_TITLE=Smoke Install
 EOF
 
-before="$(git -C .. status --porcelain)"
+repo_check=0
+if git -C .. rev-parse --git-dir >/dev/null 2>&1; then
+    repo_check=1
+    before="$(git -C .. status --porcelain)"
+else
+    echo "== ../ is not a git worktree, so the repository check is skipped"
+fi
 
 echo "== building $IMAGE and starting the stack on $base"
 compose up --detach --build
@@ -115,7 +121,7 @@ echo "bundle:   ${bundle#./}  $bundle_code"
 # The store is a volume the server wrote; the origin serves it as files and
 # never falls back to the SPA shell for it.
 compose run --rm --no-deps --entrypoint /bin/sh romeka \
-    -c 'mkdir -p "$ROMEEKA_STORE/original" && printf smoke > "$ROMEEKA_STORE/original/smoke.txt"'
+    -c 'mkdir -p "$ROMEKA_STORE/original" && printf smoke > "$ROMEKA_STORE/original/smoke.txt"'
 stored="$(get "$base/files/original/smoke.txt")"
 [ "$stored" = "smoke" ] || fail "the store answered: $stored"
 missing="$(code "$base/files/original/missing.txt")"
@@ -149,7 +155,9 @@ other="$(code --request POST --header "Origin: https://evil.example" --header "C
 [ "$other" = "403" ] || fail "a cross-origin logout answered $other"
 echo "origin:   a cookie write from $base is $same, from https://evil.example is $other"
 
-after="$(git -C .. status --porcelain)"
-[ "$before" = "$after" ] || fail "the repository changed during the run"
+if [ "$repo_check" = 1 ]; then
+    after="$(git -C .. status --porcelain)"
+    [ "$before" = "$after" ] || fail "the repository changed during the run"
+fi
 
 echo "== ok: the image builds, the origin terminates TLS, the server answers, the store is served, the administrator signs in, and a cookie write is refused from another origin"

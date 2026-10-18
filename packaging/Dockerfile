@@ -78,16 +78,16 @@ COPY --from=web /web/dist /srv/dist
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --chmod=0755 packaging/entrypoint.sh /usr/local/bin/romeka-entrypoint
 
-# ROMEEKA_DB and ROMEEKA_STORE are the deployment's, not the server's: compose
-# mounts a volume at each path. ROMEEKA_API_HOST and ROMEEKA_API_PORT are the
+# ROMEKA_DB and ROMEKA_STORE are the deployment's, not the server's: compose
+# mounts a volume at each path. ROMEKA_API_HOST and ROMEKA_API_PORT are the
 # server's own variable names, and the entrypoint passes them on the command
 # line, which wins over the environment, so the two agree by construction.
-ENV ROMEEKA_DB=/db/romeka.db \
-    ROMEEKA_STORE=/data/files \
-    ROMEEKA_DIST=/srv/dist \
-    ROMEEKA_CADDYFILE=/etc/caddy/Caddyfile \
-    ROMEEKA_API_HOST=127.0.0.1 \
-    ROMEEKA_API_PORT=8123 \
+ENV ROMEKA_DB=/db/romeka.db \
+    ROMEKA_STORE=/data/files \
+    ROMEKA_DIST=/srv/dist \
+    ROMEKA_CADDYFILE=/etc/caddy/Caddyfile \
+    ROMEKA_API_HOST=127.0.0.1 \
+    ROMEKA_API_PORT=8123 \
     XDG_DATA_HOME=/srv/caddy/data \
     XDG_CONFIG_HOME=/srv/caddy/config
 
@@ -106,6 +106,6 @@ USER romeka
 # through Caddy, so an origin that is still waiting for a certificate cannot
 # make a healthy server look dead. compose reads this same check.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -fsS "http://${ROMEEKA_API_HOST}:${ROMEEKA_API_PORT}/health" || exit 1
+    CMD curl -fsS "http://${ROMEKA_API_HOST}:${ROMEKA_API_PORT}/health" || exit 1
 
 ENTRYPOINT ["/usr/local/bin/romeka-entrypoint"]
