@@ -1,18 +1,25 @@
 //! `POST` and `PUT` for `items`.
 //!
 //! `ItemAdapter::validateRequest` rejects a non-array `o:item_set` or
-//! `o:media`; `hydrate` then sets `o:primary_media` and the item-set
-//! membership on top of the shared resource hydration. A full `PUT` replaces
-//! both, so an omitted `o:item_set` empties the membership. Inline `o:media`
-//! rows and the `o:site` membership are not built yet and are reported as gaps.
+//! `o:media`; `hydrate` then sets `o:primary_media`, the item-set membership
+//! and the site membership on top of the shared resource hydration. A full
+//! `PUT` replaces all three, so an omitted `o:item_set` or `o:site` empties the
+//! membership. Inline `o:media` rows are not built yet and are reported as a
+//! gap.
+//!
+//! `o:site` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:233-276`)
+//! exactly: a create that does not name the member takes every site whose
+//! `assign_new_items` is true, and a named site is attached only when the
+//! caller may assign items there or, on a create, the site assigns new items.
 
-use omeka_db::ids::{ItemId, ItemSetId, MediaId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo};
-use omeka_db::rows::{ItemRow, MediaRow, NewItem};
+use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, SiteFilter, SiteRepo};
+use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
+use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
-use crate::write::access;
+use crate::write::access::{self, SiteRole};
 use crate::write::body::Payload;
 use crate::write::fulltext;
 use crate::write::media;
@@ -20,6 +27,7 @@ use crate::write::resource::{self, not_found as ref_not_found};
 use crate::write::values;
 
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
+const SITE_CLASS: &str = "Omeka\\Entity\\Site";
 
 /// Members `hydrate` reads that are not property terms.
 const CONTROL: &[&str] = &[
@@ -41,6 +49,7 @@ pub async fn create(
     validate_request(payload)?;
     let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
     let item_sets = item_sets(api, payload).await?;
+    let sites = sites(api, payload, true, false, &[]).await?;
     let row = ItemRepo::new(api.pool())
         .create(&NewItem {
             resource: hydrated.resource,
@@ -61,6 +70,7 @@ pub async fn create(
             .await
             .map_err(db_error)?;
     }
+    apply_sites(api, row.id(), sites).await?;
     fulltext::reindex(api, "items", row.resource.id).await?;
     api.read_member("items", &row.resource.id.0.to_string())
         .await
@@ -87,6 +97,8 @@ pub async fn update(
     } else {
         None
     };
+    let existing_sites = repo.list_sites(row.id()).await.map_err(db_error)?;
+    let sites = sites(api, payload, false, partial, &existing_sites).await?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     row.primary_media_id = primary_media(api, payload, &row).await?;
@@ -101,6 +113,7 @@ pub async fn update(
     if let Some(wanted) = wanted_item_sets {
         apply_item_sets(api, row.id(), &wanted).await?;
     }
+    apply_sites(api, row.id(), sites).await?;
     fulltext::reindex(api, "items", row.resource.id).await?;
     api.read_member("items", raw_id).await
 }
@@ -209,6 +222,152 @@ async fn apply_item_sets(
     }
     for id in wanted {
         repo.add_to_item_set(item, *id).await.map_err(db_error)?;
+    }
+    Ok(())
+}
+
+/// `ItemAdapter::hydrate`'s `o:site`: the memberships one write adds and drops.
+struct SitePlan {
+    attach: Vec<SiteId>,
+    detach: Vec<SiteId>,
+}
+
+/// A site reference as `ItemAdapter::hydrate` reads one: `{"o:id": N}` or a
+/// bare numeric. An object whose `o:id` is not numeric still names a site, and
+/// the lookup then answers 404, as `findEntity` does.
+enum SiteRef {
+    Id(u64),
+    Unknown(String),
+}
+
+fn site_ref(entry: &Value) -> Option<SiteRef> {
+    if let Some(object) = entry.as_object() {
+        let id = object.get("o:id")?;
+        return Some(match numeric(id) {
+            Some(raw) => SiteRef::Id(raw),
+            None => SiteRef::Unknown(id.to_string()),
+        });
+    }
+    numeric(entry).map(SiteRef::Id)
+}
+
+fn numeric(value: &Value) -> Option<u64> {
+    value.as_u64().or_else(|| {
+        value
+            .as_str()
+            .and_then(|raw| raw.trim().parse::<u64>().ok())
+    })
+}
+
+/// Resolve the membership changes one write makes, before it writes anything.
+///
+/// `None` means the write leaves the memberships alone: a partial update that
+/// does not name `o:site`. Every other case returns a plan, because a full
+/// `PUT` and a `PATCH` that names the member both replace it upstream.
+async fn sites(
+    api: &Api<'_>,
+    payload: &Payload,
+    is_create: bool,
+    partial: bool,
+    existing: &[SiteId],
+) -> Result<Option<SitePlan>, ApiError> {
+    let named = payload.get("o:site").and_then(Value::as_array);
+    if !is_create && partial && named.is_none() {
+        return Ok(None);
+    }
+    // On CREATE without an `o:site` array, take every site that assigns new
+    // items. The `elseif` below only runs when the member should hydrate.
+    if is_create && named.is_none() {
+        let rows = SiteRepo::new(api.pool())
+            .list(
+                &SiteFilter {
+                    assign_new_items: Some(true),
+                    ..SiteFilter::default()
+                },
+                &Paging::default(),
+            )
+            .await
+            .map_err(db_error)?;
+        return Ok(Some(SitePlan {
+            attach: rows.into_iter().map(|row| row.id).collect(),
+            detach: Vec::new(),
+        }));
+    }
+
+    let repo = SiteRepo::new(api.pool());
+    let mut retained: Vec<SiteId> = Vec::new();
+    let mut attach: Vec<SiteId> = Vec::new();
+    for entry in named.into_iter().flatten() {
+        let Some(reference) = site_ref(entry) else {
+            continue;
+        };
+        let site = match reference {
+            SiteRef::Id(raw) => SiteId(raw),
+            SiteRef::Unknown(raw) => return Err(crate::read::not_found(SITE_CLASS, &raw)),
+        };
+        if !retained.contains(&site) {
+            retained.push(site);
+        }
+        if existing.contains(&site) {
+            continue;
+        }
+        let Some(row) = repo.get(site).await.map_err(db_error)? else {
+            return Err(ref_not_found(SITE_CLASS, site.0));
+        };
+        if can_assign(api, &row).await? || (is_create && row.assign_new_items) {
+            attach.push(site);
+        }
+    }
+
+    let mut detach = Vec::new();
+    if !is_create {
+        for site in existing {
+            if retained.contains(site) {
+                continue;
+            }
+            if let Some(row) = repo.get(*site).await.map_err(db_error)?
+                && can_assign(api, &row).await?
+            {
+                detach.push(*site);
+            }
+        }
+    }
+    Ok(Some(SitePlan { attach, detach }))
+}
+
+/// `Acl::userIsAllowed($site, 'can-assign-items')`: the site's owner, or a
+/// `site_permission` role of admin or editor.
+async fn can_assign(api: &Api<'_>, site: &SiteRow) -> Result<bool, ApiError> {
+    if access::is_admin_role(api.actor().role()) {
+        return Ok(true);
+    }
+    let Some(user) = api.actor().user() else {
+        return Ok(false);
+    };
+    if site.owner_id == Some(user) {
+        return Ok(true);
+    }
+    let permissions = SiteRepo::new(api.pool())
+        .list_permissions(site.id)
+        .await
+        .map_err(db_error)?;
+    Ok(access::has_site_permission(
+        &permissions,
+        user,
+        SiteRole::Editor,
+    ))
+}
+
+async fn apply_sites(api: &Api<'_>, item: ItemId, plan: Option<SitePlan>) -> Result<(), ApiError> {
+    let Some(plan) = plan else {
+        return Ok(());
+    };
+    let repo = ItemRepo::new(api.pool());
+    for site in plan.detach {
+        repo.remove_from_site(item, site).await.map_err(db_error)?;
+    }
+    for site in plan.attach {
+        repo.add_to_site(item, site).await.map_err(db_error)?;
     }
     Ok(())
 }

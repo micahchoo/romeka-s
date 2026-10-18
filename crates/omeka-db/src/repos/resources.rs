@@ -16,7 +16,7 @@ use super::{
 };
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, TemplateId, UserId};
+use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, SiteId, TemplateId, UserId};
 use crate::rows::{
     ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, ResourceRow, ValueAnnotationRow,
     resource_type,
@@ -379,6 +379,42 @@ where
         .await?;
         ids.into_iter()
             .map(|raw| Ok(ItemSetId::from(new_id(raw)?)))
+            .collect()
+    }
+
+    /// Attach an item to a site (`Item::$sites`, `Entity/Item.php:48`).
+    /// Attaching twice is a no-op.
+    pub async fn add_to_site(&self, item_id: ItemId, site_id: SiteId) -> Result<(), DbError> {
+        sqlx::query(DB::insert_item_site())
+            .bind(bind_id(item_id))
+            .bind(bind_id(site_id))
+            .execute(self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn remove_from_site(
+        &self,
+        item_id: ItemId,
+        site_id: SiteId,
+    ) -> Result<bool, DbError> {
+        let done = sqlx::query("DELETE FROM item_site WHERE item_id = ? AND site_id = ?")
+            .bind(bind_id(item_id))
+            .bind(bind_id(site_id))
+            .execute(self.pool)
+            .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    pub async fn list_sites(&self, item_id: ItemId) -> Result<Vec<SiteId>, DbError> {
+        let ids: Vec<i64> = sqlx::query_scalar::<DB, i64>(
+            "SELECT site_id FROM item_site WHERE item_id = ? ORDER BY site_id",
+        )
+        .bind(bind_id(item_id))
+        .fetch_all(self.pool)
+        .await?;
+        ids.into_iter()
+            .map(|raw| Ok(SiteId::from(new_id(raw)?)))
             .collect()
     }
 }

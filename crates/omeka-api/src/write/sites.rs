@@ -2,14 +2,12 @@
 //!
 //! `SiteAdapter::hydrate` sets the owner, theme, title, summary, slug, the
 //! navigation and item pool, the visibility and `assign_new_items`, the site
-//! permissions and item sets. On create it also grants the caller a site-admin
-//! permission and builds a welcome page with three example blocks
-//! (`SiteAdapter::getDefaultNavigation`, `getFirstPageContent`,
+//! permissions, the item sets and the thumbnail. On create it also grants the
+//! caller a site-admin permission and builds a welcome page with three example
+//! blocks (`SiteAdapter::getDefaultNavigation`, `getFirstPageContent`,
 //! `getSecondPageContent`). `validateEntity` requires a title, a well-formed
-//! unique slug and a theme.
-//!
-//! The navigation tree is stored as the caller sent it; the port does not yet
-//! validate link data against the navigation-link registry.
+//! unique slug and a theme, and rejects a navigation tree, item pool or
+//! homepage it cannot store (`SiteAdapter::validateNavigation`).
 //!
 //! `o:theme_settings` is a port addition. Upstream stores the site's theme
 //! settings in `site_setting` and edits them through a server-rendered form, so
@@ -17,7 +15,7 @@
 
 use omeka_db::ids::{ItemSetId, PageId, SiteId, UserId};
 use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
-use omeka_db::rows::{NewSite, NewSiteBlock, NewSitePage, SiteRow};
+use omeka_db::rows::{NewSite, SiteRow};
 use serde_json::{Value, json};
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -25,6 +23,7 @@ use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::Payload;
 use crate::write::resource::not_found as ref_not_found;
+use crate::write::site_defaults;
 
 const SITE_CLASS: &str = "Omeka\\Entity\\Site";
 const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
@@ -48,6 +47,7 @@ const CONTROL: &[&str] = &[
 ];
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
+    api.authorize_site_create()?;
     // A site body carries no property terms; a term key is an unknown member.
     crate::write::values::collect(api, payload, CONTROL).await?;
     let title = payload
@@ -69,11 +69,27 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         slug = slugify(&title);
     }
     let summary = trimmed(payload.str_member("o:summary"));
-    validate(api, None, &title, &theme, &slug).await?;
     let navigation = payload
         .get("o:navigation")
         .map(crate::write::body::php_json)
-        .unwrap_or_else(default_navigation);
+        .unwrap_or_else(site_defaults::default_navigation);
+    let item_pool = payload
+        .get("o:item_pool")
+        .map(crate::write::body::php_json)
+        .unwrap_or_else(|| json!([]));
+    let thumbnail_id = crate::write::resource::asset(payload);
+    let homepage_id = homepage(api, payload).await?;
+    validate(
+        api,
+        None,
+        &title,
+        &theme,
+        &slug,
+        &navigation,
+        &item_pool,
+        homepage_id,
+    )
+    .await?;
     let owner = owner(api, payload).await?;
     // Resolve every reference the body names before the first insert, so a
     // failure leaves nothing (`SiteAdapter::hydrate` runs before the flush).
@@ -88,10 +104,9 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             title,
             summary,
             navigation,
-            item_pool: payload
-                .get("o:item_pool")
-                .map(crate::write::body::php_json)
-                .unwrap_or_else(|| json!([])),
+            item_pool,
+            thumbnail_id,
+            homepage_id,
             is_public: payload.bool_member("o:is_public", true),
             assign_new_items: payload.bool_member("o:assign_new_items", false),
             ..NewSite::default()
@@ -110,7 +125,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
     hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
-    welcome_page(api, row.id).await?;
+    site_defaults::welcome_page(api, row.id).await?;
     api.read_member("sites", &row.id.0.to_string()).await
 }
 
@@ -126,7 +141,7 @@ pub async fn update(
     let Some(mut row) = repo.get(SiteId(id)).await.map_err(db_error)? else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
-    api.authorize_site_update(row.owner_id)?;
+    api.authorize_site_update(row.id, row.owner_id).await?;
     // Resolve every reference the body names before the first write, so a
     // failure leaves the stored row unchanged (`SiteAdapter::hydrate` runs
     // before the flush).
@@ -177,10 +192,23 @@ pub async fn update(
             .map(crate::write::body::php_json)
             .unwrap_or_else(|| json!([]));
     }
-    if !partial || payload.has("o:homepage") {
-        row.homepage_id = payload.ref_id("o:homepage").map(PageId);
+    if !partial || payload.has("o:thumbnail") {
+        row.thumbnail_id = crate::write::resource::asset(payload);
     }
-    validate(api, Some(&row), &row.title, &row.theme, &row.slug).await?;
+    if !partial || payload.has("o:homepage") {
+        row.homepage_id = homepage(api, payload).await?;
+    }
+    validate(
+        api,
+        Some(&row),
+        &row.title,
+        &row.theme,
+        &row.slug,
+        &row.navigation,
+        &row.item_pool,
+        row.homepage_id,
+    )
+    .await?;
     repo.update(&row).await.map_err(db_error)?;
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
@@ -421,13 +449,37 @@ async fn hydrate_theme_settings(
     crate::theme_settings::store(api.pool(), site, theme, value).await
 }
 
+/// `SiteAdapter::hydrate` for `o:homepage`: the named page, checked to exist.
+///
+/// A member without a numeric `o:id` clears the homepage. An id upstream's
+/// `site_pages` adapter cannot find is the 404 its `findEntity` throws.
+async fn homepage(api: &Api<'_>, payload: &Payload) -> Result<Option<PageId>, ApiError> {
+    let Some(raw) = payload.ref_id("o:homepage") else {
+        return Ok(None);
+    };
+    let page = PageId(raw);
+    if SiteRepo::new(api.pool())
+        .get_page(page)
+        .await
+        .map_err(db_error)?
+        .is_none()
+    {
+        return Err(ref_not_found(PAGE_CLASS, raw));
+    }
+    Ok(Some(page))
+}
+
 /// `SiteAdapter::validateEntity`.
+#[allow(clippy::too_many_arguments)]
 async fn validate(
     api: &Api<'_>,
     existing: Option<&SiteRow>,
     title: &str,
     theme: &str,
     slug: &str,
+    navigation: &Value,
+    item_pool: &Value,
+    homepage_id: Option<PageId>,
 ) -> Result<(), ApiError> {
     let mut errors = ValidationErrors::new();
     if title.is_empty() {
@@ -470,50 +522,31 @@ async fn validate(
             vec!["A site must have a theme.".to_string()],
         );
     }
+    crate::write::navigation::validate(navigation, &mut errors);
+    if !item_pool.is_array() {
+        errors.insert(
+            "o:item_pool".to_string(),
+            vec!["A site must have item pool data.".to_string()],
+        );
+    }
+    if let Some(page) = homepage_id {
+        let owner = SiteRepo::new(api.pool())
+            .get_page(page)
+            .await
+            .map_err(db_error)?
+            .map(|row| row.site_id);
+        if owner != existing.map(|row| row.id) {
+            errors.insert(
+                "o:homepage".to_string(),
+                vec!["A homepage must belong to its parent site.".to_string()],
+            );
+        }
+    }
     if errors.is_empty() {
         Ok(())
     } else {
         Err(ApiError::Validation(errors))
     }
-}
-
-/// Build the welcome page `SiteAdapter::hydrate` adds on create.
-async fn welcome_page(api: &Api<'_>, site: SiteId) -> Result<(), ApiError> {
-    let repo = SiteRepo::new(api.pool());
-    let page = repo
-        .add_page(&NewSitePage {
-            site_id: site,
-            slug: "welcome".to_string(),
-            title: "Welcome".to_string(),
-            is_public: true,
-            ..NewSitePage::default()
-        })
-        .await
-        .map_err(db_error)?;
-    for (position, layout, data) in [
-        (1_i64, "html", json!({ "html": FIRST_PAGE_CONTENT })),
-        (2, "lineBreak", json!({ "break_type": "opaque" })),
-        (3, "html", json!({ "html": SECOND_PAGE_CONTENT })),
-    ] {
-        repo.add_block(&NewSiteBlock {
-            page_id: page.id,
-            layout: layout.to_string(),
-            data,
-            layout_data: None,
-            position,
-        })
-        .await
-        .map_err(db_error)?;
-    }
-    Ok(())
-}
-
-fn default_navigation() -> Value {
-    json!([{
-        "type": "browse",
-        "data": { "label": "Browse", "query": "" },
-        "links": [],
-    }])
 }
 
 fn trimmed(value: Option<&str>) -> Option<String> {
@@ -547,9 +580,3 @@ fn slug_is_valid(slug: &str) -> bool {
     slug.bytes()
         .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
-
-/// `SiteAdapter::getFirstPageContent`.
-const FIRST_PAGE_CONTENT: &str = "<p>Welcome to your new site. This is an example page.</p>\n<ul>\n<li>This is a bullet list.</li>\n<li>Second entry.</li>\n</ul>\n<p>Back to normal again.</p>\n<ol>\n<li>This is an ordered list.</li>\n<li>Second entry.</li>\n</ol>\n<p>Back to normal again.</p>\n<blockquote>This is a blockquote.</blockquote>\n<p>Back to normal again.</p>\n<div><a href=\"#\">This text is a link, which currently points to nothing.</a></div>\n<p><strong>This text is bold, in a &lt;strong&gt; tag.</strong></p>\n<p><em>This text is italicized, in an &lt;em&gt; tag.</em></p>\n<p><u>This text is underlined, in a &lt;u&gt; tag.</u></p>\n<p><s>This text has a strikethrough, in a &lt;s&gt; tag.</s></p>\n<p>This text is <sub>subscript</sub> and <sup>superscript</sup> using &lt;sub&gt; and &lt;sup&gt;, which can be used for adding notes and citations.</p>\n<hr>\n<h1>This is an H1 title. It is bigger than the Page Title, which is rendered in H2.</h1>\n<h2>This is an H2 header, the same size as the Page Title.</h2>\n<h3>This is an H3 subheader.</h3>\n<h4>This is an H4 subheader.</h4>\n<h5>This is an H5 subheader.</h5>\n<h6>This is an H6 subheader.</h6>";
-
-/// `SiteAdapter::getSecondPageContent`.
-const SECOND_PAGE_CONTENT: &str = "<h2 style=\"font-style:italic;\">This is the &quot;Italic Title&quot; block style.</h2>\n<div style=\"background:#eeeeee;border:1px solid #cccccc;padding:5px 10px;\">This is the &quot;Special Container&quot; block style.</div>\n<p><span class=\"marker\">This is the &quot;Marker&quot; inline style. </span></p>\n<p><small>This text is inside a &quot;small&quot; inline style.</small> This is normal text.</p>\n<p><code>This is the &quot;Computer Code&quot; inline style.</code></p>";

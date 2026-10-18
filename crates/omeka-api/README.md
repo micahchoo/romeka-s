@@ -189,7 +189,7 @@ columns and validation the two member kinds share; `write::templates` holds
 
 | resource | POST | PUT/PATCH | notes |
 | --- | --- | --- | --- |
-| items | yes | yes | `o:item_set` membership replaced on a full `PUT`; inline `o:media` and `o:site` not built |
+| items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` not built |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | ingester/renderer/item/data set on create only; no file ingest |
 | sites | yes | yes | create adds a welcome page and a site-admin permission; a `PUT` removes every page `o:page` does not name |
@@ -252,9 +252,10 @@ goes and the references become null. Verified against
 collection is `$keys`.
 
 A site page delete and a site delete accept only the site's owner below the
-admin roles. Upstream also accepts a `site_permission` role of editor or admin
-(`HasSitePermissionAssertion`); the port's actor carries no site role, so
-ownership is the whole test. Reported as a gap.
+admin roles. A site update and every page write also accept a `site_permission`
+role: `admin` for the site update, `editor` or `admin` for a page write, which
+is `write::access::has_site_permission` reading the same role numbers
+`HasSitePermissionAssertion` assigns.
 
 Media file removal reaches `omeka-media`'s `FileStore`. The store comes from
 `omeka-server`'s `AppState`; `Api::load` (no store) leaves it unset, and a
@@ -275,17 +276,29 @@ title drops every other value, as upstream does:
   `property_id` (`"auto"` takes the term from its key), `type`
   (`literal`/`uri`/`resource*`), and its object (`@value`, `@id`, or
   `value_resource_id`). A value object may also carry `@annotation`.
-- items: `o:item_set`, `o:primary_media`.
+- items: `o:item_set`, `o:primary_media`, `o:site`. On a create that does not
+  name `o:site`, the item joins every site whose `assign_new_items` is true; a
+  named site is joined when the caller may assign items there
+  (`AclFactory`'s `can-assign-items`: the site's owner or a site `admin` or
+  `editor`), or, on a create, when the site assigns new items. A `PUT` replaces
+  the membership, dropping the sites the caller may assign and the body omits.
 - item_sets: `o:is_open`.
 - media: `o:ingester` (required on create), `o:item` (required), `data`,
   `o:source`, `position`, `o:lang`, `o:alt_text`.
 - sites: `o:slug`, `o:theme`, `o:title`, `o:summary`, `o:navigation`,
   `o:homepage`, `o:item_pool`, `o:is_public`, `o:assign_new_items`,
-  `o:page`, `o:site_permission`, `o:site_item_set`. `o:page` names the pages to
+  `o:page`, `o:site_permission`, `o:site_item_set`, `o:thumbnail`. `o:page`
+  names the pages to
   keep: on a `PUT`, and on a `PATCH` that carries the member, every page the
   list omits is removed. On create the list is only checked and the welcome page
-  is still added. `o:homepage` is stored without a lookup, so an unknown page id
-  there fails on the foreign key rather than as a 404; reported as a gap.
+  is still added. `o:homepage` names a page that must exist (404 when it does
+  not) and must belong to the site. `o:navigation` is validated through
+  `write::navigation`: the tree must be a list of objects with a `type` and
+  `data`, each link type's `data` must satisfy its own `isValid`, page links
+  must be unique, and a `links` child must be a list. `o:item_pool` must be an
+  array. `o:thumbnail.o:id` is stored as the site's `thumbnail_id` without a
+  lookup, as a resource thumbnail is; the asset repository is not built yet, so
+  an unknown asset id is stored rather than answered as a 404.
 - site_pages: `o:site` (create), `o:title`, `o:slug`, `o:is_public`,
   `o:layout`, `o:layout_data`, `o:block`.
 - users: `o:name`, `o:email`, `o:role`, `o:is_active`. An email that is not
@@ -347,14 +360,14 @@ adapter and the entity rule is the gate.
 | items, item_sets, media, assets | author and up | author and up | author and up | update: author own row, reviewer and up any; delete: author and reviewer own row, editor and up any |
 | resource_templates | author and up | author and up | author and up | update: author own row, reviewer and up any; delete: author own row, editor and up any; a reviewer holds no grant on the adapter |
 | vocabularies, resource_classes, properties, jobs | site_admin, global_admin | site_admin, global_admin | site_admin, global_admin | delete and update of a vocabulary: a `site_admin` only their own row |
-| sites, site_pages | site_admin, global_admin | site_admin, global_admin | the owner, or an admin | delete: `OwnsEntityAssertion`; update: owner or admin |
+| sites, site_pages | editor and up (site create); any caller at the adapter level, so the entity rule decides the rest | any caller at the adapter level; the entity rule needs the owner or a site role | any caller at the adapter level; the entity rule needs the owner | a page write: the site's owner or a site `editor`/`admin`; a site update: the site's owner or a site `admin`; a site create: `editor` and up; delete: `OwnsEntityAssertion` |
 | users | site_admin, global_admin | researcher and up | site_admin, global_admin | update: self or admin; delete: nobody's own account, and no `site_admin` on another admin |
 
 Roles, highest first: `global_admin`, `site_admin`, `editor`, `reviewer`,
-`author`, `researcher`. This is the port's read of `AclFactory`; the site-role
-assertions (`HasSitePermissionAssertion`) are approximated by site ownership,
-and a site role carried by `site_permission` is not consulted yet. Reported as
-a gap.
+`author`, `researcher`. This is the port's read of `AclFactory`. The
+site-role assertions (`HasSitePermissionAssertion`) read the `site_permission`
+rows for the caller at the site the write touches, with the role numbers the
+assertion assigns (`admin` 1, `editor` 2, `viewer` 3).
 
 ## Auth
 

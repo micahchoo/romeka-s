@@ -210,7 +210,7 @@ async fn template(api: &Api<'_>, payload: &Payload) -> Result<Option<TemplateId>
 
 /// Assets have no repository in the port yet, so a thumbnail id is stored
 /// without a lookup. Reported as a gap.
-fn asset(payload: &Payload) -> Option<AssetId> {
+pub(crate) fn asset(payload: &Payload) -> Option<AssetId> {
     payload.ref_id("o:thumbnail").map(AssetId)
 }
 

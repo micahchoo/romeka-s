@@ -34,7 +34,7 @@ use std::sync::Arc;
 
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
-use omeka_db::ids::UserId;
+use omeka_db::ids::{SiteId, UserId};
 use omeka_media::store::FileStore;
 use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
 use sqlx::SqlitePool;
@@ -45,6 +45,7 @@ use crate::errors::{ApiError, NotImplemented};
 use crate::jsonld::{self, BaseUrl};
 use crate::routes::Operation;
 use crate::wire::{JsonLdDate, ResourceRef, ThumbnailDisplayUrls};
+use crate::write::access::{self, SiteRole};
 
 pub use paging::Window;
 pub use params::{Params, Sort, SortField};
@@ -292,16 +293,98 @@ impl<'a> Api<'a> {
         }
     }
 
-    /// `Site` entity access: admins may change any site, everyone else only one
-    /// they own (`OwnsEntityAssertion` / `HasSitePermissionAssertion`).
-    pub(crate) fn authorize_site_update(&self, owner: Option<UserId>) -> Result<(), ApiError> {
+    /// `Site` entity access for a create: `AclFactory::addRulesForSites`
+    /// grants `create` to `editor` only, and the two admin roles hold it
+    /// through their blanket allow.
+    pub(crate) fn authorize_site_create(&self) -> Result<(), ApiError> {
         match self.actor.role() {
-            Some("global_admin" | "site_admin") => Ok(()),
-            _ => match (self.actor.user(), owner) {
-                (Some(me), Some(owner)) if me == owner => Ok(()),
-                _ => Err(entity_denied("Omeka\\Entity\\Site", Operation::Update)),
-            },
+            Some("global_admin" | "site_admin" | "editor") => Ok(()),
+            _ => Err(entity_denied("Omeka\\Entity\\Site", Operation::Create)),
         }
+    }
+
+    /// `Site` entity access for an update: `OwnsEntityAssertion` or
+    /// `HasSitePermissionAssertion('admin')` (`AclFactory::addRulesForSites`).
+    pub(crate) async fn authorize_site_update(
+        &self,
+        site: SiteId,
+        owner: Option<UserId>,
+    ) -> Result<(), ApiError> {
+        if self
+            .site_owner_or_role(site, owner, SiteRole::Admin)
+            .await?
+        {
+            Ok(())
+        } else {
+            Err(entity_denied("Omeka\\Entity\\Site", Operation::Update))
+        }
+    }
+
+    /// `SitePageAdapter::hydrate` on create: `authorize($site, 'add-page')`,
+    /// whose message names the privilege rather than a request operation.
+    pub(crate) async fn authorize_site_add_page(
+        &self,
+        site: SiteId,
+        owner: Option<UserId>,
+    ) -> Result<(), ApiError> {
+        if self
+            .site_owner_or_role(site, owner, SiteRole::Editor)
+            .await?
+        {
+            Ok(())
+        } else {
+            Err(ApiError::PermissionDenied {
+                message: "Permission denied for the current user to add-page the \
+                          Omeka\\Entity\\Site resource."
+                    .to_string(),
+            })
+        }
+    }
+
+    /// `SitePage` entity access for update and delete: `OwnsEntityAssertion` or
+    /// a site role of editor or above (`HasSitePermissionAssertion('editor')`).
+    pub(crate) async fn authorize_site_page(
+        &self,
+        operation: Operation,
+        site: SiteId,
+        owner: Option<UserId>,
+    ) -> Result<(), ApiError> {
+        if self
+            .site_owner_or_role(site, owner, SiteRole::Editor)
+            .await?
+        {
+            Ok(())
+        } else {
+            Err(entity_denied("Omeka\\Entity\\SitePage", operation))
+        }
+    }
+
+    /// `OwnsEntityAssertion` OR `HasSitePermissionAssertion(required)`, the
+    /// aggregate `AclFactory::addRulesForSites` attaches to a site write.
+    ///
+    /// The admin roles pass before the site table is read, because
+    /// `addRulesForSiteAdmin` and `addRulesForGlobalAdmin` allow them
+    /// everything. The site's owner passes without a `site_permission` row.
+    async fn site_owner_or_role(
+        &self,
+        site: SiteId,
+        owner: Option<UserId>,
+        required: SiteRole,
+    ) -> Result<bool, ApiError> {
+        if access::is_admin_role(self.actor.role()) {
+            return Ok(true);
+        }
+        let Some(user) = self.actor.user() else {
+            return Ok(false);
+        };
+        if owner == Some(user) {
+            return Ok(true);
+        }
+        let permissions = omeka_db::repos::SiteRepo::new(self.pool)
+            .list_permissions(site)
+            .await
+            .map_err(db_error)?;
+        Ok(access::has_site_permission(&permissions, user, required))
     }
 
     pub(crate) fn pool(&self) -> &SqlitePool {

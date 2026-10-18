@@ -420,7 +420,18 @@ fn render_list(items: &[NavItem], level: usize, max_depth: Option<usize>, class:
     let mut out = format!("<ul class=\"{class}\">");
     for item in items {
         out.push_str("<li>");
-        out.push_str(&crate::html::hyperlink(&item.label, Some(&item.url), &[]));
+        // `Link/Url.php::toZend` sets `target` to `_blank` for a URL link the
+        // user marked, and the menu helper renders every page option as an
+        // attribute.
+        let mut attributes = Vec::new();
+        if item.target_blank {
+            attributes.push(crate::html::Attr::text("target", "_blank"));
+        }
+        out.push_str(&crate::html::hyperlink(
+            &item.label,
+            Some(&item.url),
+            &attributes,
+        ));
         if !item.children.is_empty() && max_depth.is_none_or(|depth| level < depth) {
             out.push_str(&render_list(
                 &item.children,

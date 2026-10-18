@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
-use crate::write::access;
+use crate::routes::Operation;
 use crate::write::body::{Payload, php_json};
 use crate::write::fulltext;
 use crate::write::resource::not_found as ref_not_found;
@@ -62,7 +62,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     else {
         return Err(ref_not_found("Omeka\\Entity\\Site", raw_site));
     };
-    api.authorize_site_update(site.owner_id)?;
+    api.authorize_site_add_page(site.id, site.owner_id).await?;
     let mut blocks = parse_blocks(payload)?;
     if blocks.is_empty() {
         blocks.push(Block {
@@ -114,7 +114,8 @@ pub async fn update(
         .await
         .map_err(db_error)?
         .and_then(|row| row.owner_id);
-    api.authorize_site_update(site)?;
+    api.authorize_site_page(Operation::Update, page.site_id, site)
+        .await?;
 
     if !partial || payload.has("o:title") {
         page.title = payload
@@ -158,8 +159,7 @@ pub async fn update(
 /// `SitePage::$blocks` cascades remove (`Entity/SitePage.php:74`), and each
 /// block's attachments go with it. The entity privilege is the site-editor
 /// assertion (`AclFactory::addRulesForSites`): the site's owner, or a user the
-/// site grants editor. The port's actor carries no site role, so ownership is
-/// the whole test, the same approximation `update` makes.
+/// site grants editor or admin.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(PAGE_CLASS, raw_id)?;
     let repo = SiteRepo::new(api.pool());
@@ -171,7 +171,8 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
         .await
         .map_err(db_error)?
         .and_then(|row| row.owner_id);
-    access::owned_entity(api.actor(), PAGE_CLASS, owner)?;
+    api.authorize_site_page(Operation::Delete, page.site_id, owner)
+        .await?;
     let answer = crate::read::site_page_document(api, &page).await?;
     repo.delete_page(page.id).await.map_err(db_error)?;
     fulltext::remove(api, "site_pages", ResourceId(page.id.0)).await?;
