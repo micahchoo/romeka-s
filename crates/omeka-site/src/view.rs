@@ -15,6 +15,7 @@ use omeka_core::site::{Site, SitePage};
 
 use crate::i18n::Translator;
 use crate::nav::{NavItem, PageRef};
+use crate::resource_page::ResourcePageBlocks;
 use crate::search::{AdvancedSearchForm, CrossSitePage, SearchList, SearchResults};
 use crate::settings::SiteSettings;
 
@@ -55,10 +56,20 @@ pub struct ResourceView {
     pub values: Vec<ValueRef>,
     /// The medium thumbnail, `None` when the resource has no thumbnail.
     pub thumbnail: Option<Thumbnail>,
-    /// The item's item sets, for the item-with-metadata block.
+    /// The resource's media with their rendered markup, for the `mediaEmbeds`
+    /// resource page block (`$item->media()` then `$media->render()`).
+    pub media_embeds: Vec<MediaRef>,
+    /// The item's item sets, for the item-with-metadata block and the
+    /// `itemSets` resource page block.
     pub item_sets: Vec<ResourceRef>,
-    /// The item's media, for the item-with-metadata block.
+    /// The item's media, for the item-with-metadata and `mediaList` blocks.
     pub media: Vec<ResourceRef>,
+    /// The site pages that attach this item, for the `sitePages` block
+    /// (`ItemRepresentation::sitePages`).
+    pub site_pages: Vec<ResourceRef>,
+    /// The resources whose values point at this resource, for the
+    /// `linkedResources` block (`subjectValues`).
+    pub linked_resources: Vec<LinkedResource>,
     /// The item's primary media, for the media block.
     pub primary_media: Option<MediaRef>,
     /// For a media resource, the item it belongs to (`Media::item()`), for the
@@ -88,8 +99,11 @@ impl ResourceView {
             description: None,
             values: Vec::new(),
             thumbnail: None,
+            media_embeds: Vec::new(),
             item_sets: Vec::new(),
             media: Vec::new(),
+            site_pages: Vec::new(),
+            linked_resources: Vec::new(),
             primary_media: None,
             parent_item: None,
             jsonld: None,
@@ -109,12 +123,43 @@ pub struct ResourceRef {
 }
 
 /// One displayed metadata value, the pair `displayValues` prints.
+///
+/// `value` is the plain text (a literal, a URI, or a referenced resource's
+/// display title), which the browse views and the description read. `html` is
+/// the value's `asHtml()` markup: escaped literal text, a URI link, or a pretty
+/// link to the referenced resource. The site layer builds both at the storage
+/// boundary; the theme only places them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValueRef {
+    /// The property id, so values of one property group under one heading.
+    pub property_id: u64,
     /// The property label.
     pub property: String,
+    /// The property term, e.g. `dcterms:title`, for `property_label_information`
+    /// `term`.
+    pub property_term: String,
+    /// The property's vocabulary label, for `property_label_information` `vocab`.
+    pub vocabulary: String,
     /// The value text.
     pub value: String,
+    /// The `asHtml()` markup.
+    pub html: String,
+    /// The value's language tag, `None` when unset.
+    pub lang: Option<String>,
+    /// The `<dd>` class after `value`, e.g. `literal`, `uri` or `resource items`.
+    pub class: String,
+}
+
+/// A resource whose value points at the resource being shown, for the
+/// `linkedResources` block (`subjectValues`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkedResource {
+    /// The property label the linking value uses.
+    pub property: String,
+    /// The kind of the linking resource.
+    pub kind: ResourceKind,
+    /// The linking resource.
+    pub resource: ResourceRef,
 }
 
 /// A media file, as the media block shows it.
@@ -450,6 +495,10 @@ pub struct RenderContext<'a> {
     pub nav: Vec<NavItem>,
     /// The site's pages, for navigation resolution.
     pub pages: Vec<PageRef>,
+    /// The site's stored `resource_page_blocks` configuration, `None` when the
+    /// site stores none and the theme's default applies
+    /// (`Site/ResourcePageBlockLayout/Manager.php::getResourcePageBlocks`).
+    pub resource_page_blocks: Option<ResourcePageBlocks>,
     /// The current query string pairs (`$this->params()->fromQuery()`).
     pub query: Vec<(String, String)>,
     /// Where theme assets live, e.g. `/application/asset`. Default `/assets`.
@@ -487,6 +536,7 @@ impl<'a> RenderContext<'a> {
             settings: SiteSettings::default(),
             nav: Vec::new(),
             pages: Vec::new(),
+            resource_page_blocks: None,
             query: Vec::new(),
             asset_base: "/assets".to_string(),
             iiif_viewer_url: "/iiif-viewer".to_string(),

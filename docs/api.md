@@ -350,6 +350,7 @@ List parameters (`GET /api/item_sets`).
 | `resource_class_id` | table id | `search_item_sets (resources.rs)` |
 | `resource_template_id` | table id | `search_item_sets (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
+| `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
 | `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
@@ -424,6 +425,7 @@ List parameters (`GET /api/items`).
 | `resource_class_id` | table id | `search_items (resources.rs)` |
 | `resource_template_id` | table id | `search_items (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
+| `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
 | `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
@@ -557,6 +559,7 @@ List parameters (`GET /api/media`).
 | `resource_class_id` | table id | `search_media (resources.rs)` |
 | `resource_template_id` | table id | `search_media (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
+| `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
 | `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |

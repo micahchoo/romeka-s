@@ -19,10 +19,11 @@ use omeka_db::rows::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, Temp
 use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
-use crate::write::body::Payload;
+use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
 use crate::write::resource::not_found as ref_not_found;
 use crate::write::vocab_member;
+use serde_json::Value;
 
 const TEMPLATE_CLASS: &str = "Omeka\\Entity\\ResourceTemplate";
 const PROPERTY_CLASS: &str = "Omeka\\Entity\\Property";
@@ -134,23 +135,27 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 /// collects both in one `ErrorStore`.
 fn validate_request(payload: &Payload) -> ValidationErrors {
     let mut errors = ValidationErrors::new();
-    let mut ids: Vec<u64> = Vec::new();
+    let mut ids: Vec<Value> = Vec::new();
     for entry in payload.entries("o:resource_template_property") {
-        // `empty($entry['o:property']['o:id'])` skips an id of zero or none.
-        let Some(id) = entry.ref_id("o:property") else {
+        // `isset($resTemPropData['o:property']['o:id'])` skips a missing or null
+        // id; `in_array` compares the values loosely.
+        let Some(raw) = entry.present_ref("o:property") else {
             continue;
         };
-        if id == 0 {
-            continue;
-        }
-        if ids.contains(&id) {
+        if ids
+            .iter()
+            .any(|other| crate::write::body::same_reference(other, raw))
+        {
             vocab_member::push(
                 &mut errors,
                 "o:property",
-                format!("Attempting to add duplicate property with ID {id}"),
+                format!(
+                    "Attempting to add duplicate property with ID {}",
+                    crate::write::body::php_display(raw)
+                ),
             );
         }
-        ids.push(id);
+        ids.push(raw.clone());
     }
     errors
 }
@@ -198,8 +203,11 @@ async fn hydrate(
 /// `hydrateResourceClass`: a numeric `o:id` names a stored class, anything else
 /// clears it. A named id that does not exist is a 404.
 async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiError> {
-    let Some(id) = payload.ref_id("o:resource_class") else {
+    let Some(raw) = payload.numeric_ref("o:resource_class") else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(ref_not_found("Omeka\\Entity\\ResourceClass", raw));
     };
     let id = ClassId(id);
     if ClassRepo::new(api.pool())
@@ -208,7 +216,7 @@ async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiE
         .map_err(db_error)?
         .is_none()
     {
-        return Err(ref_not_found("Omeka\\Entity\\ResourceClass", id.0));
+        return Err(ref_not_found("Omeka\\Entity\\ResourceClass", raw));
     }
     Ok(Some(id))
 }
@@ -220,8 +228,11 @@ async fn property(
     payload: &Payload,
     key: &str,
 ) -> Result<Option<PropertyId>, ApiError> {
-    let Some(id) = payload.ref_id(key) else {
+    let Some(raw) = payload.numeric_ref(key) else {
         return Ok(None);
+    };
+    let Some(id) = ref_row(raw) else {
+        return Err(ref_not_found(PROPERTY_CLASS, raw));
     };
     let id = PropertyId(id);
     if PropertyRepo::new(api.pool())
@@ -230,7 +241,7 @@ async fn property(
         .map_err(db_error)?
         .is_none()
     {
-        return Err(ref_not_found(PROPERTY_CLASS, id.0));
+        return Err(ref_not_found(PROPERTY_CLASS, raw));
     }
     Ok(Some(id))
 }
@@ -279,20 +290,28 @@ async fn property_inputs(
     let mut inputs = Vec::new();
     let mut position = 1;
     for entry in payload.entries("o:resource_template_property") {
-        let Some(raw_id) = entry.ref_id("o:property") else {
+        // `empty($resTemPropData['o:property']['o:id'])` skips a missing, null,
+        // empty, zero or false id; every other value is cast with `(int)` and
+        // looked up, so `"abc"` reaches `findEntity(0)`.
+        let Some(raw) = entry.present_ref("o:property") else {
             continue;
         };
-        if raw_id == 0 {
+        if crate::write::body::is_empty(raw) {
             continue;
         }
-        let property_id = PropertyId(raw_id);
+        let integer = crate::write::body::cast_int(raw).unwrap_or(0);
+        let criteria = serde_json::Value::from(integer);
+        if integer < 0 {
+            return Err(ref_not_found(PROPERTY_CLASS, &criteria));
+        }
+        let property_id = PropertyId(integer as u64);
         if PropertyRepo::new(api.pool())
             .get(property_id)
             .await
             .map_err(db_error)?
             .is_none()
         {
-            return Err(ref_not_found(PROPERTY_CLASS, property_id.0));
+            return Err(ref_not_found(PROPERTY_CLASS, &criteria));
         }
         inputs.push(TemplatePropertyInput {
             property_id,

@@ -150,6 +150,21 @@ pub(crate) fn resource_ref(title: &str, url: &str) -> ResourceRef {
     }
 }
 
+/// A literal value with its plain text and markup the same, the common case in
+/// the theme tests.
+pub(crate) fn literal_value(property_id: u64, property: &str, text: &str) -> crate::view::ValueRef {
+    crate::view::ValueRef {
+        property_id,
+        property: property.to_string(),
+        property_term: format!("dcterms:{}", property.to_lowercase()),
+        vocabulary: "Dublin Core".to_string(),
+        value: text.to_string(),
+        html: text.to_string(),
+        lang: None,
+        class: "literal".to_string(),
+    }
+}
+
 /// A media ref helper without an embed.
 pub(crate) fn media_ref(title: &str, url: &str) -> MediaRef {
     MediaRef {

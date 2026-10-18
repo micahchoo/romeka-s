@@ -42,16 +42,16 @@
 //! below it.
 
 use crate::blocks;
-use crate::html::{Attr, escape_html, hyperlink, open_tag, pagination};
-use crate::i18n::{Messages, Translator};
+use crate::html::{Attr, escape_html, hyperlink, pagination};
+use crate::i18n::Translator;
 use crate::nav::{find_item_by_page, nav_path, render_menu};
-use crate::slug::{controller_for, resource_action_url};
+use crate::resource_page::render_blocks;
+use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::search;
 use crate::theme::style::STYLE_CSS;
 use crate::theme::{AssetKind, Theme, ThemeAsset, ThemeInfo};
 use crate::view::{
-    BrowseView, ErrorView, IiifViewerView, RenderContext, ResourceRef, ResourceView, Thumbnail,
-    View,
+    BrowseView, ErrorView, IiifViewerView, RenderContext, ResourceView, Thumbnail, View,
 };
 use omeka_core::resource::ResourceKind;
 
@@ -103,12 +103,12 @@ impl Theme for DefaultTheme {
                 )
             }
             View::Item(item) => {
-                let mut content = item_view(item, tr);
+                let mut content = item_view(item, ctx);
                 content.push_str(&jsonld_script(ctx, item.jsonld.as_deref()));
                 layout(info, ctx, Some(&item.title), "item resource show", &content)
             }
             View::ItemSet(item_set) => {
-                let mut content = item_set_view(item_set, tr);
+                let mut content = item_set_view(item_set, ctx);
                 content.push_str(&jsonld_script(ctx, item_set.jsonld.as_deref()));
                 layout(
                     info,
@@ -119,7 +119,7 @@ impl Theme for DefaultTheme {
                 )
             }
             View::Media(media) => {
-                let mut content = media_view(media, tr);
+                let mut content = media_view(media, ctx);
                 content.push_str(&jsonld_script(ctx, media.jsonld.as_deref()));
                 layout(
                     info,
@@ -205,13 +205,17 @@ fn layout_with_head(
         None => escape_html(ctx.settings.installation_title()),
     };
     let assets = ctx.asset_base.trim_end_matches('/');
-    // The site title is the page's level-one heading. Upstream's bare layout
-    // prints no heading, so a view like the item browse or the empty index had
-    // none; the theme's own frame adds one, and every view's title sits below it.
+    // `themes/default/view/layout/layout.phtml`: the site title links home.
     let site_title = format!(
-        "<h1 class=\"site-title\">{}</h1>",
+        "<h1 class=\"site-title\"><a href=\"{}\">{}</a></h1>",
+        escape_html(&site_url(&ctx.site.slug)),
         escape_html(&ctx.site.title)
     );
+    // `$site->publicNav()->menu()->renderMenu(null, ['id' => 'top-nav-contents'])`.
+    // `ctx.nav` is resolved from the pages the caller may see, so a hidden page
+    // never reaches the menu.
+    let nav_menu =
+        crate::nav::render_menu_with_id(&ctx.nav, None, "navigation", Some("top-nav-contents"));
     let mut theme_assets = String::new();
     for asset in info.assets {
         theme_assets.push_str(
@@ -246,24 +250,25 @@ fn layout_with_head(
          <title>{title}</title>\n\
          {robots}\
          {favicon}\
-         <link rel=\"stylesheet\" href=\"{assets}/css/fonts.css\">\n\
-         <link rel=\"stylesheet\" href=\"{assets}/css/iconfonts.css\">\n\
          {theme_assets}\
-         <script src=\"{assets}/vendor/jquery/jquery.min.js\"></script>\n\
-         <script src=\"{assets}/js/global.js\"></script>\n\
          {head_extra}\
          </head>\n\
          <body class=\"minimal {body}\">\n\
          <a id=\"skipnav\" href=\"#content\">{skip}</a>\n\
          {user_bar}\
-         <div class=\"site-search\">{search_form}</div>\n\
+         <header>\n\
+         {site_title}\n\
+         <nav id=\"top-nav\">\n{nav_menu}\n</nav>\n\
+         <div id=\"search\">{search_form}</div>\n\
+         </header>\n\
          <div id=\"content\" role=\"main\">\n\
-         {site_title}\n{content}\n</div>\n\
+         {content}\n</div>\n\
          <footer>\n<span class=\"powered-by\">{powered_by}</span>\n</footer>\n\
          </body>\n</html>",
         lang = tr.locale().tag(),
         body = escape_html(body_class),
         site_title = site_title,
+        nav_menu = nav_menu,
         skip = escape_html(tr.messages().skip_to_main),
         user_bar = user_bar,
         robots = robots,
@@ -550,44 +555,42 @@ fn render_resource(kind: ResourceKind, resource: &ResourceView) -> String {
     out
 }
 
-/// `view/omeka/site/item/show.phtml`, without the resource page blocks.
-fn item_view(item: &ResourceView, tr: Translator) -> String {
+/// `view/omeka/site/item/show.phtml`: the heading, the `Item` label and the
+/// configured resource page blocks.
+fn item_view(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
     format!(
         "<h2>{}</h2><h3>{}</h3>{}",
         escape_html(&item.title),
-        escape_html(tr.messages().item),
-        values_list(item)
+        escape_html(ctx.translator().messages().item),
+        render_blocks(item, ctx)
     )
 }
 
-/// `view/omeka/site/item-set/browse.phtml` for a single item set, without the
-/// item list the item-set search would supply.
-fn item_set_view(item_set: &ResourceView, tr: Translator) -> String {
-    let mut out = format!(
+/// `view/omeka/site/item-set/browse.phtml` for a single item set.
+fn item_set_view(item_set: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    format!(
         "<h2>{}</h2><h3>{}</h3>{}",
         escape_html(&item_set.title),
-        escape_html(tr.messages().item_set),
-        values_list(item_set)
-    );
-    out.push_str(&resource_lists(item_set, tr.messages()));
-    out
+        escape_html(ctx.translator().messages().item_set),
+        render_blocks(item_set, ctx)
+    )
 }
 
 /// `view/omeka/site/media/show.phtml`.
-fn media_view(media: &ResourceView, tr: Translator) -> String {
+fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let mut out = format!(
         "<h2>{}</h2><h3>{}</h3>",
         escape_html(&media.title),
-        escape_html(tr.messages().media)
+        escape_html(ctx.translator().messages().media)
     );
     if let Some(parent) = &media.parent_item {
         out.push_str(&format!(
             "<p class=\"media-parent-item\">{} {}</p>",
-            escape_html(tr.messages().part_of),
+            escape_html(ctx.translator().messages().part_of),
             hyperlink(&parent.title, Some(&parent.url), &[])
         ));
     }
-    out.push_str(&values_list(media));
+    out.push_str(&render_blocks(media, ctx));
     out
 }
 
@@ -634,52 +637,6 @@ fn openseadragon_head(ctx: &RenderContext<'_>) -> String {
         "<script src=\"{}/vendor/openseadragon/openseadragon.min.js\"></script>\n",
         ctx.asset_base.trim_end_matches('/')
     )
-}
-
-fn values_list(resource: &ResourceView) -> String {
-    if resource.values.is_empty() {
-        return String::new();
-    }
-    let mut out = String::from("<dl class=\"values\">");
-    for value in &resource.values {
-        out.push_str(&format!(
-            "<div class=\"property\"><dt>{}</dt><dd class=\"value\">{}</dd></div>",
-            escape_html(&value.property),
-            escape_html(&value.value)
-        ));
-    }
-    out.push_str("</dl>");
-    out
-}
-
-fn resource_lists(resource: &ResourceView, messages: &Messages) -> String {
-    let mut out = String::new();
-    out.push_str(&named_list(
-        "item-sets",
-        messages.item_sets,
-        &resource.item_sets,
-    ));
-    out.push_str(&named_list("media-list", messages.media, &resource.media));
-    out
-}
-
-fn named_list(class: &str, label: &str, entries: &[ResourceRef]) -> String {
-    if entries.is_empty() {
-        return String::new();
-    }
-    let mut out = format!(
-        "{}<div class=\"property\"><dt>{}</dt>",
-        open_tag("dl", &[Attr::text("class", class)]),
-        escape_html(label)
-    );
-    for entry in entries {
-        out.push_str(&format!(
-            "<dd class=\"value\">{}</dd>",
-            hyperlink(&entry.title, Some(&entry.url), &[])
-        ));
-    }
-    out.push_str("</div></dl>");
-    out
 }
 
 #[cfg(test)]

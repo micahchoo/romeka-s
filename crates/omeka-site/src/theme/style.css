@@ -374,6 +374,64 @@ footer {
   margin: 0;
 }
 
+.values .property .value-content {
+  white-space: pre-wrap;
+}
+
+.values .property .value .literal {
+  white-space: pre-wrap;
+}
+
+.values .property .value .language,
+.field-term {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.values .property .value .resource-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.media-embeds,
+.site-pages {
+  margin: 0 0 1.5rem;
+}
+
+.media-embeds .media-render {
+  margin: 0 0 1rem;
+}
+
+#linked-resources table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+#linked-resources caption {
+  font-weight: bold;
+  text-align: left;
+}
+
+#linked-resources th,
+#linked-resources td {
+  border-bottom: 1px solid #ececec;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+}
+
+.resource.items {
+  white-space: normal;
+}
+
+.resource.item_sets {
+  white-space: normal;
+}
+
+.resource.media {
+  white-space: normal;
+}
+
 .media-parent-item {
   color: #555;
 }

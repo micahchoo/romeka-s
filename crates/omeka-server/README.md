@@ -163,7 +163,8 @@ returns the link.
 ## Public site routes
 
 Every path is under `/s/:site-slug` (`application/config/routes.config.php:16-116`).
-`GET` is the only method served; another method is a 405 with `Allow: GET`.
+`GET` is the only method served by these; another method is a 405 with `Allow: GET`.
+The one exception is `POST /s/:slug/preview`, a Romeka addition below.
 
 | Method | Path | Status | View | Upstream |
 | --- | --- | --- | --- | --- |
@@ -221,6 +222,46 @@ then the global setting, then 25.
 
 Not ported, all answering 404: `media` browse (its controller has no browse
 action), and `/:controller/:id` with an action other than `show`.
+
+## Live preview
+
+`POST /s/:site-slug/preview` is a Romeka addition with no upstream counterpart
+(`site/preview.rs`). The admin site-page editor renders the page it is editing
+before it saves, so this route checks what the `site_pages` write checks, builds
+the page in memory and answers the document `GET /s/:site-slug/page/:page-slug`
+answers with that content.
+
+| Method | Path | Response |
+| --- | --- | --- |
+| POST | `/s/:slug/preview` | 200 `text/html`, else the API error document |
+
+The body is the JSON object `PUT /api/site_pages/:id` takes (`o:title`,
+`o:slug`, `o:is_public`, `o:layout`, `o:layout_data`, `o:block` with
+`o:attachment`), plus `o:id` of the page when editing. A body with no `o:block`
+previews the page's stored blocks, which is what an update does. Credentials are
+the admin SPA's: the session cookie, the API key pair in the query string, or
+neither, which the access check refuses.
+
+The status is the one the page write would answer: 403 when the caller may not
+update that page, or add a page to that site; 404 for a site slug no site holds,
+or a page id that is not a page of that site; 422 for a block or slug the write
+would reject; 415 for a body that is not JSON.
+
+Nothing is written. `write::site_pages_preview` parses with the write's own
+`parse_blocks`, purifier, `validate` and attachment resolution, and
+`site/dispatch.rs::render_preview` renders through the same theme, site
+settings, navigation and caller visibility as `show_page`. It reads the caller's
+visibility, so an attachment or asset the caller cannot see is dropped exactly
+as it would be on the saved page. It renders at the page's own URL with the
+request's query dropped, so the document matches the one the saved page serves
+and a credential in the preview URL never reaches a link in the page.
+
+The answer carries `Cache-Control: no-store`, `X-Robots-Tag: noindex` and
+`Content-Security-Policy: default-src 'self'; script-src 'none'; frame-ancestors
+'self'`. The editor renders it in a sandboxed iframe, so no script in it runs. A
+cookie-bearing POST is a state-changing request, so the same-origin guard covers
+it exactly as it covers a cookie-authenticated `/api` write; `deploy/Caddyfile`
+already forwards `/s/*` to the application.
 
 ## Theme assets
 

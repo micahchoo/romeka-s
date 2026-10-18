@@ -11,7 +11,7 @@
 //! array into `[]` and a non-empty one into `{}`, so a stored `data` member
 //! that arrived as `{}` comes back as `[]`. [`php_json`] reproduces that.
 
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::errors::ApiError;
 use crate::write::multipart::{Multipart, UploadedFile};
@@ -106,9 +106,34 @@ impl Payload {
             .unwrap_or(default)
     }
 
-    /// The `o:id` of a `{"o:id": N}` reference member.
-    pub fn ref_id(&self, key: &str) -> Option<u64> {
-        self.object.get(key)?.get("o:id").and_then(Value::as_u64)
+    /// The `o:id` of a `{"o:id": N}` reference member when PHP `is_numeric`
+    /// accepts it.
+    ///
+    /// Every upstream guard written `is_numeric($data['o:x']['o:id'])` reads a
+    /// reference this way, `hydrateResourceClass`, `hydrateResourceTemplate`,
+    /// `hydrateThumbnail` and `hydrateOwner` (`AbstractEntityAdapter`) among
+    /// them. A number and a numeric string both name a row, so `12`, `"12"`,
+    /// `" 12"`, `"12.0"` and `"1.2e1"` all name 12, while `"abc"`, `""`, `true`
+    /// and `null` name none and clear the reference.
+    pub fn numeric_ref(&self, key: &str) -> Option<&Value> {
+        self.present_ref(key).filter(|value| is_numeric(value))
+    }
+
+    /// The `o:id` of a `{"o:id": N}` reference member when PHP `isset` accepts
+    /// it, so the member is an object whose `o:id` is present and not null.
+    ///
+    /// `MediaAdapter::hydrate` (`o:item`), `SitePageAdapter` (`o:site`) and
+    /// `SiteAdapter` (`o:page`, `o:site_permission`, `o:site_item_set`) look a
+    /// reference up with no `is_numeric` guard, so a present non-numeric value
+    /// reaches the lookup and comes back 404.
+    pub fn present_ref(&self, key: &str) -> Option<&Value> {
+        object_id(self.object.get(key)?)
+    }
+
+    /// The object's own `o:id` when PHP `isset` accepts it, for a member whose
+    /// entries are the references (`o:page`, `o:site_permission`).
+    pub fn id(&self) -> Option<&Value> {
+        self.object.get("o:id").filter(|value| !value.is_null())
     }
 
     /// An integer member, `None` when absent or not an integer.
@@ -153,6 +178,202 @@ impl Payload {
     pub fn members(&self) -> impl Iterator<Item = (&String, &Value)> {
         self.object.iter()
     }
+}
+
+/// `isset($object['o:id'])`: the `o:id` of a JSON object, when it is present
+/// and not null.
+pub fn object_id(object: &Value) -> Option<&Value> {
+    object
+        .as_object()?
+        .get("o:id")
+        .filter(|value| !value.is_null())
+}
+
+/// A list entry that names a reference: the entry's `o:id` when the entry is an
+/// object, otherwise the entry itself when PHP `is_numeric` accepts it.
+///
+/// `ItemAdapter::hydrate` reads the `o:item_set` and `o:site` lists this way,
+/// and either shape reaches the same `findEntity`.
+pub fn entry_ref(entry: &Value) -> Option<&Value> {
+    match entry {
+        Value::Object(_) => object_id(entry),
+        value if is_numeric(value) => Some(value),
+        _ => None,
+    }
+}
+
+/// PHP `empty()`, for the one guard that uses it: a template property id that
+/// is empty is skipped rather than looked up.
+pub fn is_empty(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::Bool(flag) => !*flag,
+        Value::Number(number) => number.as_f64() == Some(0.0),
+        Value::String(text) => text.is_empty() || text == "0",
+        Value::Array(items) => items.is_empty(),
+        Value::Object(map) => map.is_empty(),
+    }
+}
+
+/// PHP's loose `in_array` comparison between two reference values: two numeric
+/// values are equal when their numbers are, and any other pair only when the
+/// values are the same JSON.
+pub fn same_reference(left: &Value, right: &Value) -> bool {
+    match (is_numeric(left), is_numeric(right)) {
+        (true, true) => mysql_number(left) == mysql_number(right),
+        _ => left == right,
+    }
+}
+
+/// A value as PHP interpolates it into a message string: a string as itself, a
+/// bool as `1` or the empty string, and a number as JSON prints it.
+pub fn php_display(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Bool(true) => "1".to_string(),
+        Value::Bool(false) => String::new(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+/// PHP's array-offset coercion, the key `$itemMedia[$id]` uses: a number
+/// truncates toward zero, a bool is `1` or `0`, and a string is an int only
+/// when it is a canonical decimal integer, so `"12"` matches the key 12 while
+/// `" 12"`, `"12.0"`, `"+12"` and `"012"` stay string keys and match nothing.
+pub fn array_key(value: &Value) -> Option<i64> {
+    match value {
+        Value::Number(number) => number
+            .as_i64()
+            .or_else(|| number.as_f64().map(|float| float.trunc() as i64)),
+        Value::Bool(flag) => Some(i64::from(*flag)),
+        Value::String(text) => canonical_int(text),
+        Value::Null | Value::Array(_) | Value::Object(_) => None,
+    }
+}
+
+/// A string PHP converts to an integer array key: an optional `-`, at least one
+/// digit, and no leading zero unless the value is `0`.
+fn canonical_int(text: &str) -> Option<i64> {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    if digits.len() > 1 && digits.starts_with('0') {
+        return None;
+    }
+    text.parse::<i64>().ok()
+}
+
+/// PHP `is_numeric`: a number, or a string PHP reads whole as one. A bool, an
+/// array, an object and `null` are not numeric.
+pub fn is_numeric(value: &Value) -> bool {
+    match value {
+        Value::Number(_) => true,
+        Value::String(text) => {
+            let whole = text.trim_end_matches(php_space);
+            leading_number(text).is_some_and(|(_, used)| used == whole.len())
+        }
+        _ => false,
+    }
+}
+
+/// The number MySQL compares against a numeric column when the column is
+/// equated with `value`: a number as it is, a bool as `1` or `0`, and a string
+/// as its leading number.
+fn mysql_number(value: &Value) -> f64 {
+    match value {
+        Value::Number(number) => number.as_f64().unwrap_or(0.0),
+        Value::Bool(true) => 1.0,
+        Value::Bool(false) => 0.0,
+        Value::String(text) => leading_number(text).map(|(value, _)| value).unwrap_or(0.0),
+        _ => 0.0,
+    }
+}
+
+/// The stored id a reference names, or `None` when the comparison matches no
+/// row: `0`, a negative, a fraction, a value past the id range, or a string
+/// with no leading number. Ids start at 1, so `0` matches nothing.
+pub fn ref_row(value: &Value) -> Option<u64> {
+    let number = mysql_number(value);
+    let whole = number.is_finite() && number >= 1.0 && number.fract() == 0.0;
+    (whole && number <= u64::MAX as f64).then_some(number as u64)
+}
+
+/// `(int)` of a value PHP reads as a number, truncated toward zero, as
+/// `AbstractEntityAdapter::hydrateOwner` casts the id the body named.
+pub fn cast_int(value: &Value) -> Option<i64> {
+    let number = match value {
+        Value::Number(number) => number.as_f64()?,
+        Value::String(_) if is_numeric(value) => leading_number(value.as_str()?).map(|(n, _)| n)?,
+        _ => return None,
+    };
+    Some(number.trunc() as i64)
+}
+
+/// The criteria `AbstractEntityAdapter::findEntity` prints in its 404, which is
+/// `json_encode(['id' => $value])` over the value the body carried.
+pub fn ref_criteria(value: &Value) -> String {
+    json!({ "id": value }).to_string()
+}
+
+/// Whether a character is one of the six whitespace bytes PHP's `is_numeric`
+/// and MySQL's string-to-number conversion skip.
+fn php_space(character: char) -> bool {
+    matches!(character, ' ' | '\t' | '\n' | '\r' | '\u{b}' | '\u{c}')
+}
+
+/// The longest number at the start of `text`, with the byte offset it ends at.
+///
+/// MySQL reads a string compared with a numeric column this way, so `"1abc"`
+/// is `1` and `"abc"` is `0`. PHP `is_numeric` reads the same grammar and then
+/// requires the whole string.
+fn leading_number(text: &str) -> Option<(f64, usize)> {
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() && matches!(bytes[index], b' ' | b'\t' | b'\n' | b'\r' | 0x0b | 0x0c)
+    {
+        index += 1;
+    }
+    let start = index;
+    if index < bytes.len() && matches!(bytes[index], b'+' | b'-') {
+        index += 1;
+    }
+    let integer_start = index;
+    while index < bytes.len() && bytes[index].is_ascii_digit() {
+        index += 1;
+    }
+    let integer_digits = index - integer_start;
+    let mut fraction_digits = 0;
+    if index < bytes.len() && bytes[index] == b'.' {
+        index += 1;
+        let fraction_start = index;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+        }
+        fraction_digits = index - fraction_start;
+    }
+    if integer_digits == 0 && fraction_digits == 0 {
+        return None;
+    }
+    let mut end = index;
+    if index < bytes.len() && matches!(bytes[index], b'e' | b'E') {
+        let mut exponent = index + 1;
+        if exponent < bytes.len() && matches!(bytes[exponent], b'+' | b'-') {
+            exponent += 1;
+        }
+        let exponent_start = exponent;
+        while exponent < bytes.len() && bytes[exponent].is_ascii_digit() {
+            exponent += 1;
+        }
+        if exponent > exponent_start {
+            end = exponent;
+        }
+    }
+    // The slice drops the leading whitespace. Rust parses `12.`, `.5` and
+    // `+12` the way MySQL and PHP read them.
+    let value = text[start..end].parse::<f64>().ok()?;
+    Some((value, end))
 }
 
 /// Decode a stored JSON value the way `json_decode(..., true)` then
