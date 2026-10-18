@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::path::PathBuf;
 
 /// The port tables a run visits, in the order it writes them.
 ///
@@ -9,6 +10,8 @@ use std::fmt;
 /// The report prints in this order.
 pub(crate) const TABLES: &[&str] = &[
     "user",
+    "asset",
+    "password_creation",
     "vocabulary",
     "resource_class",
     "property",
@@ -22,16 +25,27 @@ pub(crate) const TABLES: &[&str] = &[
     "site",
     "site_page",
     "site_page_block",
+    "site_block_attachment",
     "site_item_set",
     "site_permission",
+    "item_site",
+    "setting",
+    "site_setting",
+    "user_setting",
     "api_key",
 ];
 
 /// How a run behaves.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MigrateOptions {
     /// Read and map the source, count what a run would write, and leave the target untouched.
     pub dry_run: bool,
+    /// The source install's `files` directory. When set, each `asset` row's stored file is copied
+    /// from `<source_files>/asset/` into the target store. When absent, asset rows still move and
+    /// their bytes do not.
+    pub source_files: Option<PathBuf>,
+    /// The target store root. Defaults to `files` beside the target database.
+    pub target_files: Option<PathBuf>,
 }
 
 /// One table's counts for a run.

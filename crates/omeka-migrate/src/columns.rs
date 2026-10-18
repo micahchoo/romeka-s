@@ -27,9 +27,22 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "created",
         ],
     ),
+    (
+        "asset",
+        &[
+            "id",
+            "owner_id",
+            "name",
+            "media_type",
+            "storage_id",
+            "extension",
+            "alt_text",
+        ],
+    ),
     ("item", &["id", "primary_media_id"]),
     ("item_item_set", &["item_id", "item_set_id"]),
     ("item_set", &["id", "is_open"]),
+    ("item_site", &["item_id", "site_id"]),
     (
         "media",
         &[
@@ -50,6 +63,10 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "lang",
             "alt_text",
         ],
+    ),
+    (
+        "password_creation",
+        &["id", "user_id", "created", "activate"],
     ),
     (
         "property",
@@ -114,6 +131,7 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "default_lang",
         ],
     ),
+    ("setting", &["id", "value"]),
     (
         "site",
         &[
@@ -131,6 +149,12 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "modified",
             "is_public",
             "assign_new_items",
+        ],
+    ),
+    (
+        "site_block_attachment",
+        &[
+            "id", "block_id", "item_id", "media_id", "caption", "position",
         ],
     ),
     (
@@ -156,6 +180,7 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         &["id", "page_id", "layout", "data", "layout_data", "position"],
     ),
     ("site_permission", &["id", "site_id", "user_id", "role"]),
+    ("site_setting", &["id", "site_id", "value"]),
     (
         "user",
         &[
@@ -169,6 +194,7 @@ pub(crate) const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "is_active",
         ],
     ),
+    ("user_setting", &["id", "user_id", "value"]),
     (
         "value",
         &[
@@ -237,7 +263,20 @@ mod tests {
         names.sort_unstable();
         names.dedup();
         assert_eq!(names.len(), count, "one entry per table");
-        for table in ["resource", "item", "value", "site_page_block", "api_key"] {
+        for table in [
+            "resource",
+            "item",
+            "value",
+            "site_page_block",
+            "api_key",
+            "asset",
+            "site_block_attachment",
+            "item_site",
+            "setting",
+            "site_setting",
+            "user_setting",
+            "password_creation",
+        ] {
             assert!(names.contains(&table), "{table} is checked");
         }
     }

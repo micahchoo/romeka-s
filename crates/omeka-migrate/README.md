@@ -14,7 +14,7 @@ let report = omeka_migrate::migrate_from_upstream(
 println!("{report}");
 ```
 
-`migrate_from_upstream(source_url, target_path, options)` does three things.
+`migrate_from_upstream(source_url, target_path, options)` does four things.
 
 1. It checks the source's own column list against the columns the port reads, and fails by name on
    the first one the source lacks (`MigrateError::MissingColumn`). The port does not replay
@@ -24,9 +24,13 @@ println!("{report}");
    datetimes, JSON columns and booleans decode through the same row structs a SQLite read uses.
 3. It writes them through `omeka-db`'s SQLite repositories in dependency order, remapping every
    reference through an id map. A target that already holds rows is refused.
+4. When `MigrateOptions::source_files` names the source install's `files` directory, it copies each
+   `asset` row's stored file from `<source_files>/asset/` into the target store, which defaults to
+   `files` beside the target database or `MigrateOptions::target_files` when set. A source asset
+   whose file is missing stops the run by name (`MigrateError::MissingAssetFile`).
 
-`MigrateOptions { dry_run: true }` stops after the mapping. The report names what a run would write
-and the target is never opened.
+`MigrateOptions { dry_run: true, .. }` stops after the mapping. The report names what a run would
+write, the target is never opened, and no file is copied.
 
 The report is one row per table.
 
@@ -39,11 +43,14 @@ total                         11       11        0
 
 ## Table mapping
 
-Every port table keeps its upstream name. The write path is the repository that owns it.
+Every port table keeps its upstream name. The write path is the repository that owns it, except
+`item_site`, which has a row struct and no repository.
 
 | upstream table | write path |
 | --- | --- |
 | `user` | `UserRepo::create` |
+| `asset` | `AssetRepo::create`, then the file copy above |
+| `password_creation` | `PasswordCreationRepo::create` |
 | `vocabulary` | `VocabularyRepo::create` |
 | `resource_class` | `ClassRepo::create` |
 | `property` | `PropertyRepo::create` |
@@ -57,8 +64,13 @@ Every port table keeps its upstream name. The write path is the repository that 
 | `site` | `SiteRepo::create`, then `SiteRepo::update` for the homepage and navigation |
 | `site_page` | `SiteRepo::add_page` |
 | `site_page_block` | `SiteRepo::add_block` |
+| `site_block_attachment` | `SiteBlockAttachmentRepo::create` |
 | `site_item_set` | `SiteRepo::add_item_set` |
 | `site_permission` | `SiteRepo::set_permission` |
+| `item_site` | the migrator's own `INSERT`, because `omeka-db` has no repository |
+| `setting` | `SettingRepo::set` |
+| `site_setting` | `SiteSettingRepo::set` |
+| `user_setting` | `UserSettingRepo::set` |
 | `api_key` | `ApiKeyRepo::create` |
 
 An item, an item set and a media row each share their id with a `resource` row, so the migrator
@@ -70,20 +82,31 @@ Most columns copy straight across. The exceptions are below.
 
 - **Ids.** `omeka-db` assigns the target its own ids, so a source id never travels to the target as
   a row key. The migrator keeps a source id to target id map and rewrites every reference:
-  `owner_id`, `resource_class_id`, `resource_template_id`, `item_id`, `resource_id`,
+  `owner_id`, `resource_class_id`, `resource_template_id`, `thumbnail_id`, `item_id`, `resource_id`,
   `value_resource_id`, `property_id`, `vocabulary_id`, `site_id`, `page_id`, `item_set_id`,
-  `user_id`, `homepage_id`, `primary_media_id` and the page ids inside `site.navigation`.
+  `block_id`, `media_id`, `user_id`, `homepage_id`, `primary_media_id` and the page ids inside
+  `site.navigation`.
 - **`created`.** Copied into the target `created`.
 - **`modified`.** Not carried. A repository create writes one instant into both `created` and
   `modified`, so the target `modified` equals the source `created`.
-- **`resource.thumbnail_id` and `site.thumbnail_id`.** Dropped, because the migrator does not copy
-  `asset` rows yet. `omeka-db` reads and writes them.
+- **`resource.thumbnail_id` and `site.thumbnail_id`.** Remapped through the asset map. An asset
+  whose row was skipped reads as absent, the way the source's `ON DELETE SET NULL` would leave it.
 - **`item.primary_media_id`.** Remapped and set after the media pass, because it points forward at a
   media row.
 - **`site.homepage_id`.** Remapped and set after the page pass, for the same reason.
 - **`site.navigation`.** Copied, with the page id under `data.id` of every `page` link rewritten to
   the target page id. A link of another type is copied unchanged.
 - **`site.item_pool`.** Copied unchanged. It holds query parameters, not ids.
+- **Ids inside `site_page_block.data` and `layout_data`.** The `asset` block's slot `id` (asset) and
+  `page` (page) and the `listOfPages` `pagelist` page ids are rewritten, and so is
+  `layout_data.background_image_asset`. Every other id a block stores is left as the source wrote
+  it; see the losses below.
+- **`site_block_attachment`.** `block_id`, `item_id` and `media_id` are remapped. An attachment
+  whose block, item or media was skipped is skipped.
+- **`setting`, `site_setting`, `user_setting`.** Copied as rows, one per key, with the JSON value
+  unchanged. A `site_setting` or `user_setting` whose site or user was skipped is skipped.
+- **`item_site`.** Copied as rows with both ids remapped.
+- **`password_creation`.** Copied with `user_id` remapped and `created` and `activate` as stored.
 - **`value.value_annotation_id`.** Dropped. See the losses below.
 - **`api_key.id`.** A string key, kept as is.
 - **`password_hash`, `credential_hash`.** Copied as is. The hashes are the source's own and the
@@ -98,53 +121,59 @@ Most columns copy straight across. The exceptions are below.
    intact, but an external link to `o:id` 42 will not find the same row.
 2. **`modified` timestamps.** See above. An item or site whose forward reference is set by an
    `update` gets `modified` set to the migration time.
-3. **Assets.** `asset` rows do not move yet (`omeka-db` has the repository; the migrator does not
-   call it), so `resource.thumbnail_id` and `site.thumbnail_id` are
-   dropped. A thumbnail URL an import wrote into a JSON column still points at a file the port did
-   not copy.
+3. **Asset files without a source store.** `asset` rows always move. The files move only when
+   `MigrateOptions::source_files` names the source install's `files` directory. Without it, a
+   migrated thumbnail points at a URL the port does not serve, and a thumbnail URL an import wrote
+   into a JSON column is not copied either.
 4. **Value annotations.** `omeka-db` creates a `value_annotation` but has no read for one, so the
    migrator cannot enumerate them. Every `value.value_annotation_id` is dropped and the annotation
    resources are not written.
-5. **`site_block_attachment`.** The migrator does not copy these rows. `omeka-db` now reads and
-   writes them, so a migrated `itemWithMetadata` or `media` block renders empty only until this
-   step is built.
-6. **Ids inside block `data` JSON.** Only `site.navigation` page ids are rewritten. Any other id a
-   block stores in its `data` is left as the source wrote it.
-7. **`fulltext_search`.** Not migrated. The port rebuilds the index with its own job.
-8. **Tables the migrator does not copy.** `setting`, `module`, `job`, `session`, `asset`,
-   `site_block_attachment`, `password_creation`, `user_setting`, `site_setting` and `item_site` do not
-   move. `omeka-db` has a repository for each now; the migrator has not been extended to call them.
-   Site settings, assets, block attachments and `item_site` (site membership) are the notable
-   omissions: a migrated site arrives without its settings, thumbnails, attachments or item pool.
-9. **Memory.** The read pass holds the whole source in memory before the write pass, so a very large
+5. **Ids inside block `data` JSON the migrator does not know.** The `asset` and `listOfPages`
+   layouts' asset and page ids are rewritten, but a `browsePreview` `query` that names an
+   `item_set_id`, or any id another layout or a module stores in its `data`, is left as the source
+   wrote it. An id whose row was skipped is left too, the way `site.navigation` leaves a missing
+   page.
+6. **Tables the migrator does not copy.** `module`, `job`, `session`, `migration` and
+   `fulltext_search` stay behind. `module` names upstream module code the port does not load, so a
+   copied row would claim a module the port cannot run. `job` rows name a class and a process that
+   only existed on the source, and an unfinished one would be re-run on the target. `session` holds
+   PHP-serialized payloads the port cannot restore. `migration` is upstream's own ledger, and the
+   port keeps its own. `fulltext_search` is an index the port rebuilds with its own job. `omeka-db`
+   has a repository for `module` and `job`; the migrator chooses not to call them.
+7. **Memory.** The read pass holds the whole source in memory before the write pass, so a very large
    install needs a matching amount of RAM.
 
 ## An `omeka-db` decoding gap this unit found
 
-`property.local_name` and `resource_class.local_name` are `varchar(190) ... utf8mb4_bin`. sqlx
-reports a binary-collated text column to the row layer as `VARBINARY`, and `omeka-db`'s MySQL text
-reader decodes a `String`, so `PropertyRepo::list` and `ClassRepo::list` fail against a real server
-with `Column { column: "local_name", reason: "mismatched types; Rust type String (as SQL type
+`property.local_name` and `resource_class.local_name` are `varchar(190) ... utf8mb4_bin`, and
+`password_creation.id` is `varchar(32) ... utf8mb4_bin`. sqlx reports a binary-collated text column
+to the row layer as `VARBINARY`, and `omeka-db`'s MySQL text reader decodes a `String`, so
+`PropertyRepo::list`, `ClassRepo::list` and `PasswordCreationRepo::get_for_user` fail against a real
+server with `Column { column: "local_name", reason: "mismatched types; Rust type String (as SQL type
 VARCHAR) is not compatible with SQL type VARBINARY" }`. Measured on MySQL 8.0.46.
 
-Until `omeka-db` decodes a binary-collated text column, this crate reads those two tables itself with
-`CAST(local_name AS CHAR)` and parses each row through the same `from_db_row`. The proposed
+Until `omeka-db` decodes a binary-collated text column, this crate reads those three tables itself
+with `CAST(<column> AS CHAR)` and parses each row through the same `from_db_row`. The proposed
 `omeka-db` fix is in the unit report: `Backend::text` for MySQL should fall back to decoding
 `Vec<u8>` and converting to UTF-8, as the row layer already does for a SQLite row that holds bytes.
 
 ## Running the tests
 
 ```sh
-export CARGO_TARGET_DIR=/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/upstreammigrate
+export CARGO_TARGET_DIR=/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/site-migrate
 cargo test -p omeka-migrate
 ```
 
-The SQLite-side tests need no server. They cover the pure mapping functions and a whole write pass
-over a hand-built source with gaps in every id sequence, which is what proves the remap.
+The SQLite-side tests need no server. They cover the pure mapping functions, the block and layout
+id rewrites, the asset file copy, and a whole write pass over a hand-built source with gaps in every
+id sequence, which is what proves the remap.
 
 The MySQL suite is gated on a reachable server, the same way `omeka-db`'s MySQL suite is.
 `ROMEKA_MYSQL_URL` names a server, not a database. Each test creates its own database from upstream's
-own schema, seeds a small fixture through the port's repositories, and drops the database again.
+own schema, seeds a fixture through the port's repositories, and drops the database again. The
+render test seeds a site with a thumbnail, an asset block, a media block with an attachment, a block
+background asset, an item in the site pool and site settings, migrates it with the source store, and
+drives the port's router through `/s` to read the result.
 
 ```sh
 docker run -d --name omeka-upstreammigrate-mysql \
@@ -164,4 +193,6 @@ each test returns.
   the command surface.
 - The port-versus-upstream differential `ROADMAP.md` wave 9 names, which diffs both APIs row by row
   after an import.
-- The `omeka-db` decoding fix above, after which the two cast reads can go.
+- The `omeka-db` decoding fix above, after which the three cast reads can go.
+- An `omeka-db` repository for `item_site`, after which the migrator's own `INSERT` can go. The crate
+  report names the gap: `item_site` is the one served table with a row struct and no repository.
