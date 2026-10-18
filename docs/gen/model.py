@@ -63,7 +63,7 @@ def parse_method_lists(text: str) -> dict[str, list[str]]:
 
 
 def parse_adapters(src: Path) -> list[dict[str, object]]:
-    order_text = read(src / "adapters" / "mod.rs")
+    order_text = strip_tests(read(src / "adapters" / "mod.rs"))
     order = re.findall(r"(\w+)::SPEC,", order_text)
     adapters: list[dict[str, object]] = []
     for module in order:
@@ -176,13 +176,13 @@ def port_status(
         if resource in served_read:
             return "served (" + lookup.lower() + ")"
         if lookup in adapter_operations:
-            return "501: the port has no handler yet"
+            return "501: no handler yet"
         return "500: the adapter does not implement " + lookup.lower()
-    # A write this port has no handler for is a 501 whatever the adapter lists:
+    # A write with no handler is a 501 whatever the adapter lists:
     # the write dispatch never consults the operation list.
     if resource in write_dispatch[lookup.lower()]:
         return "served (partial update)" if partial else "served (" + lookup.lower() + ")"
-    return "501: the port has no handler yet"
+    return "501: no handler yet"
 
 
 def list_parameters(
@@ -285,12 +285,14 @@ def read_access_rows() -> list[list[str]]:
     text = strip_tests(read(SRC / "read" / "mod.rs"))
     function = next((fn for fn in parse_functions(text, "mod") if fn.name == "allow"), None)
     if function is None:
-        return []
+        raise SystemExit("no Api::allow in read/mod.rs")
     rows = []
     for pattern, condition in match_arms(function):
         names = re.findall(r'"([a-z_]+)"', pattern)
         label = ", ".join(code(name) for name in names) if names else "every other resource"
         rows.append([label, access_phrase(condition)])
+    if not rows:
+        raise SystemExit("no match arms in Api::allow")
     return rows
 
 
@@ -306,41 +308,55 @@ def access_phrase(condition: str) -> str:
     return code(condition)
 
 
-def write_access_rows() -> list[list[str]]:
-    """The `Api::allow_write` arms in read/mod.rs: who may create or update."""
-    text = strip_tests(read(SRC / "read" / "mod.rs"))
-    function = next((fn for fn in parse_functions(text, "mod") if fn.name == "allow_write"), None)
-    if function is None:
-        return []
-    rows = []
-    for pattern, condition in match_arms(function):
-        roles = re.findall(r'"([a-z_]+)"', pattern)
-        if roles:
-            label = ", ".join(code(role) for role in roles)
-        elif pattern == "None":
-            label = "(no role: an anonymous caller)"
-        else:
-            label = "any other role"
-        rows.append([label, condition])
-    return rows
+ADMIN_ROLES = ["site_admin", "global_admin"]
 
 
-def delete_access_rows() -> list[list[str]]:
-    """The adapter-level delete grants table in write/access.rs."""
+def grant_phrase(token: str, roles: dict[str, list[str]]) -> str:
+    """One `Grant` in the `ADAPTER_WRITES` table as the roles it admits."""
+    if token == "Grant::Admins":
+        return "the admin roles"
+    if token == "Grant::AnyRole":
+        return "any caller"
+    body = re.fullmatch(r"Grant::Roles\((\w+)\)", token)
+    if body is None:
+        raise SystemExit(f"unknown grant {token}")
+    return ", ".join(code(role) for role in roles[body.group(1)] + ADMIN_ROLES)
+
+
+def adapter_write_rows() -> list[list[str]]:
+    """The `ADAPTER_WRITES` table in write/access.rs: the create, update and
+    delete grant of each resource.
+
+    The admin roles pass every row, so a `Grant::Roles` cell lists the other
+    roles the row admits and the admin roles after them. A resource with no row
+    is admin-only.
+    """
     text = strip_tests(read(SRC / "write" / "access.rs"))
-    consts = {
+    table = re.search(
+        r"const ADAPTER_WRITES: &\[\(&str, Grant, Grant, Grant\)\] = &\[(.*?)\n\];",
+        text,
+        re.S,
+    )
+    if table is None:
+        raise SystemExit("no ADAPTER_WRITES table in write/access.rs")
+    roles = {
         name: re.findall(r'"([a-z_]+)"', body)
         for name, body in re.findall(r"const (\w+): &\[&str\] = &\[(.*?)\];", text, re.S)
     }
     rows = []
-    for resource, kind, const in re.findall(
-        r'\("([a-z_]+)",\s*Grant::(\w+)(?:\((\w+)\))?\)', text
+    aliases = {
+        name: token
+        for name, token in re.findall(r"const (\w+): Grant = (Grant::\w+\([\w]+\));", text)
+    }
+    for row in re.findall(
+        r'\(\s*"([a-z_]+)"\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,?\s*\)',
+        table.group(1),
     ):
-        if kind == "AnyRole":
-            roles = "any role"
-        else:
-            roles = ", ".join(code(role) for role in consts.get(const, []))
-        rows.append([code(resource), roles])
+        resource, *grants = [part.strip() for part in row]
+        resolved = [aliases.get(grant, grant) for grant in grants]
+        rows.append([code(resource)] + [grant_phrase(grant, roles) for grant in resolved])
+    if not rows:
+        raise SystemExit("no rows in ADAPTER_WRITES")
     return rows
 
 
@@ -387,8 +403,8 @@ ERROR_PHRASES = {
     "MethodNotAllowed": "the method is not routed on that path shape",
     "UnsupportedMediaType": "a write body whose Content-Type is neither JSON nor multipart",
     "Validation": "a body member failed validation, keyed by member",
-    "NotImplemented": "a route the port has not built yet",
-    "Internal": "a storage failure, or an adapter operation the port has no handler for",
+    "NotImplemented": "a route with no handler yet",
+    "Internal": "a storage failure, or an adapter operation with no handler",
 }
 
 

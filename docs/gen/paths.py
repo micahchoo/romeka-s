@@ -15,7 +15,25 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+CFG_TEST = "#[cfg(test)]"
+
+
 def strip_tests(text: str) -> str:
-    """Drop everything from the first `#[cfg(test)]` on. Test modules trail."""
-    cut = text.find("#[cfg(test)]")
-    return text[:cut] if cut >= 0 else text
+    """Drop every `#[cfg(test)]` item.
+
+    A test module trails, so its body is everything from its `{` to the end of
+    the file. `read/mod.rs` also carries a `#[cfg(test)] mod probe;` declaration
+    among the module list, and that one is a single statement: the code after it
+    has to survive, or the generator finds no dispatch functions at all.
+    """
+    while True:
+        cut = text.find(CFG_TEST)
+        if cut < 0:
+            return text
+        start = cut + len(CFG_TEST)
+        semi = text.find(";", start)
+        brace = text.find("{", start)
+        if 0 <= semi and (brace < 0 or semi < brace):
+            text = text[:cut] + text[semi + 1 :]
+        else:
+            return text[:cut]
