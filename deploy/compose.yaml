@@ -36,8 +36,8 @@ services:
       ROMEKA_LOG: ${ROMEKA_LOG:-}
       ROMEKA_MAX_BODY_BYTES: ${ROMEKA_MAX_BODY_BYTES:-}
       ROMEKA_REQUEST_TIMEOUT_SECS: ${ROMEKA_REQUEST_TIMEOUT_SECS:-}
-      # Mail is optional; every empty value above and below is dropped by the
-      # entrypoint before the server sees it.
+      # Mail is optional. Empty values for the server's own settings are dropped
+      # by the entrypoint, so an unset relay is an absent relay.
       ROMEKA_SMTP_HOST: ${ROMEKA_SMTP_HOST:-}
       ROMEKA_SMTP_PORT: ${ROMEKA_SMTP_PORT:-}
       ROMEKA_SMTP_USER: ${ROMEKA_SMTP_USER:-}

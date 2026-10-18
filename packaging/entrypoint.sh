@@ -96,7 +96,7 @@ case "${ROMEKA_MODE:-serve}" in
         exit 0
         ;;
     *)
-        echo "romeka: ROMEKA_MODE must be serve or install, not ${ROMEKA_MODE}" >&2
+        echo "romeka: ROMEKA_MODE must be serve or install, not ${ROMEKA_MODE:-}" >&2
         exit 1
         ;;
 esac

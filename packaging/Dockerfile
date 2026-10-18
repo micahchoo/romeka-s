@@ -35,11 +35,11 @@ COPY crates ./crates
 # binary is copied out in this same step: a cache mount is not visible to the
 # next one, so an artifact left in target/ would not reach it.
 #
-# The binary the CLI crate declares is installed under the name this image
-# exports, so the package name is the only name packaging has to know.
-# `romeka` is the product's name; `omeka` is the name the crate still declares on
-# a tree that predates the rename. Drop the second and the loop when the rename
-# has landed everywhere.
+# The CLI package's binary is installed under the name this image exports, so
+# the crate's own binary name never has to match it. The loop holds the product's
+# name and the name the crate declares on a tree that predates the rename, and
+# installs whichever the build produced. Drop the second name and the loop once
+# the rename has landed everywhere.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     set -eux; \
