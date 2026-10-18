@@ -274,7 +274,7 @@ title drops every other value, as upstream does:
   key per property term (`dcterms:title` and friends). Each value object names
   `property_id` (`"auto"` takes the term from its key), `type`
   (`literal`/`uri`/`resource*`), and its object (`@value`, `@id`, or
-  `value_resource_id`).
+  `value_resource_id`). A value object may also carry `@annotation`.
 - items: `o:item_set`, `o:primary_media`.
 - item_sets: `o:is_open`.
 - media: `o:ingester` (required on create), `o:item` (required), `data`,
@@ -307,6 +307,17 @@ title drops every other value, as upstream does:
 
 A top-level key that is not one of these and not a known property term is a
 422 validation error keyed by that member.
+
+A value object's `@annotation` is a `value_annotations` resource, hydrated the
+way any resource is (`ValueHydrator` lines 134-153 run the subrequest through
+`AbstractResourceEntityAdapter`). A non-empty object on create or update makes
+the annotation; the port writes the resource, its values and the
+`value.value_annotation_id` link in the same pass that writes the value. A value
+that carried an annotation and no longer names one drops it, and a value that
+leaves the set takes its annotation with it, as `Value::$valueAnnotation`
+`orphanRemoval` does upstream. A read returns the annotation's term-keyed value
+map under `@annotation`, and nothing when the annotation has no values
+(`ValueRepresentation::jsonSerialize`).
 
 Every reference a body names is resolved before the first write, so a failure
 leaves the stored row untouched. The references are a value object's

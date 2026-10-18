@@ -65,6 +65,13 @@ upgrade and uninstall. `asset`, `session`, `password_creation` and `site_block_a
 the reads and writes their callers make. The rest of the evidence is in `tests/`, one file per
 repository group.
 
+A value annotation is a `resource` row of the `value_annotation` kind plus the `value_annotation`
+identity row, and `value.value_annotation_id` points at it (`migrations/0001_init.sql`, `Entity/Value.php`
+line 67). `ResourceRepo::create_annotation` writes both rows in one transaction, so a crash never
+leaves a bare annotation. `ResourceRepo::delete` removes the annotation's values and its `resource`
+row, and the reference from the value clears through `ON DELETE SET NULL`. The api layer deletes an
+annotation with the value that carried it, because upstream maps the pair `orphanRemoval`.
+
 ### Ordering text
 
 `repos::compare_text_ci` and `repos::compare_opt_text_ci` are the one rule a caller applies to order
