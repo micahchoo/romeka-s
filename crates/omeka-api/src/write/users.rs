@@ -120,10 +120,7 @@ async fn validate(
         );
     }
     if !email_is_valid(email) {
-        errors.insert(
-            "o:email".to_string(),
-            vec!["The input is not a valid email address.".to_string()],
-        );
+        errors.insert("o:email".to_string(), vec![INVALID_EMAIL.to_string()]);
     } else {
         let taken = match existing {
             Some(row) => row.email != email,
@@ -155,8 +152,19 @@ async fn validate(
     }
 }
 
+/// `Laminas\Validator\EmailAddress::INVALID_FORMAT`: the message the validator
+/// answers for a value that is not `local-part@hostname` at all, which is what
+/// `UserAdapter::validateEntity` reports for `not-an-email`.
+const INVALID_EMAIL: &str =
+    "The input is not a valid email address. Use the basic format local-part@hostname";
+
 /// A minimal email shape check. `UserAdapter` uses `Laminas\Validator\EmailAddress`;
 /// this accepts the common case and rejects what upstream rejects in practice.
+///
+/// The value only decides valid or invalid here. The other Laminas messages
+/// (`is not a valid hostname`, the dot-atom and quoted-string details) are not
+/// reproduced; an input that reaches one of them is still refused, with
+/// [`INVALID_EMAIL`]. Reported as a gap.
 fn email_is_valid(email: &str) -> bool {
     let mut parts = email.split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
