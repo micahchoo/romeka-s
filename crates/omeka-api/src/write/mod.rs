@@ -25,6 +25,7 @@ pub mod item_sets;
 pub mod items;
 pub mod jobs;
 pub mod media;
+pub mod multipart;
 pub mod resource;
 pub mod site_pages;
 pub mod sites;
@@ -37,17 +38,19 @@ pub mod vocab_member;
 use crate::errors::ApiError;
 use crate::read::{Api, ApiResponse};
 use crate::routes::Operation;
+use crate::write::multipart::UploadedFile;
 
 /// Dispatch a create to the resource handler.
 ///
-/// `assets` and `jobs` have no arm: upstream's asset create needs a multipart
-/// file the port's boundary cannot carry, and a job's required `class` comes
-/// from the dispatcher, not a body. Both stay a 501; see [`assets`] and
-/// [`jobs`].
+/// `file` carries the upload of a multipart `POST`, which only `assets`
+/// reads. Every other create ignores it. `jobs` still has no arm: a job's
+/// required `class` comes from the dispatcher, not a body, so it stays a 501;
+/// see [`jobs`].
 pub async fn create(
     api: &Api<'_>,
     resource: &str,
     payload: &body::Payload,
+    file: Option<UploadedFile>,
 ) -> Result<ApiResponse, ApiError> {
     match resource {
         "items" => items::create(api, payload).await,
@@ -60,6 +63,7 @@ pub async fn create(
         "resource_classes" => vocab::create_class(api, payload).await,
         "properties" => vocab::create_property(api, payload).await,
         "resource_templates" => templates::create(api, payload).await,
+        "assets" => assets::create(api, payload, file).await,
         other => Err(not_implemented(other, Operation::Create)),
     }
 }

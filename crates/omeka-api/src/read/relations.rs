@@ -11,7 +11,7 @@
 //! The query count per page is the number of relations, not the number of rows:
 //! media, item-set memberships, values (one per annotation level, at most
 //! [`MAX_ANNOTATION_DEPTH`] + 1), the reverse references, the referenced
-//! resources and the template properties.
+//! resources, the thumbnail assets and the template properties.
 //!
 //! SQL sits here rather than in `omeka-db` because this wave forbids editing
 //! that crate, the same reason `system.rs` carries its own row queries. Every
@@ -21,7 +21,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use omeka_db::ids::{ItemSetId, MediaId, PropertyId, TemplateId};
-use omeka_db::rows::{MediaRow, ResourceRow, ValueRow, resource_type};
+use omeka_db::rows::{AssetRow, MediaRow, ResourceRow, ValueRow, resource_type};
 use sqlx::Row;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteRow;
@@ -55,6 +55,9 @@ pub(crate) struct Relations {
     /// id, then that item's stored primary media. The value is the item id and
     /// its `primary_media_id`.
     first_item: HashMap<u64, (u64, Option<MediaId>)>,
+    /// The asset each page row's `resource.thumbnail_id` names, keyed by asset
+    /// id, for `AbstractRepresentation::thumbnailDisplayUrl`.
+    assets: HashMap<u64, AssetRow>,
 }
 
 impl Relations {
@@ -170,6 +173,7 @@ impl Relations {
         }
         let referenced: Vec<u64> = referenced.into_iter().collect();
         self.resources = resources_for(api.pool(), &referenced).await?;
+        self.assets = thumbnail_assets_for(api.pool(), ids).await?;
         self.template_properties = template_properties_for(api.pool(), templates).await?;
         Ok(())
     }
@@ -209,6 +213,11 @@ impl Relations {
     /// The first item of an item set and its stored primary media.
     pub(crate) fn first_item_of(&self, set: u64) -> Option<(u64, Option<MediaId>)> {
         self.first_item.get(&set).copied()
+    }
+
+    /// The asset a resource's `thumbnail_id` names, when it is on this page.
+    pub(crate) fn asset(&self, id: u64) -> Option<&AssetRow> {
+        self.assets.get(&id)
     }
 }
 
@@ -317,6 +326,29 @@ pub(crate) async fn first_item_for(
         );
     }
     Ok(first)
+}
+
+/// The asset each page row's `resource.thumbnail_id` names, keyed by asset id.
+pub(crate) async fn thumbnail_assets_for(
+    pool: &SqlitePool,
+    resources: &[u64],
+) -> Result<HashMap<u64, AssetRow>, ApiError> {
+    if resources.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let sql = format!(
+        "SELECT id, owner_id, name, media_type, storage_id, extension, alt_text FROM asset \
+         WHERE id IN (SELECT thumbnail_id FROM resource \
+                      WHERE thumbnail_id IS NOT NULL AND id IN ({}))",
+        placeholders(resources.len())
+    );
+    let rows = rows_in(pool, &sql, resources).await?;
+    let mut assets = HashMap::new();
+    for row in &rows {
+        let asset = AssetRow::from_row(row).map_err(db_error)?;
+        assets.insert(asset.id.0, asset);
+    }
+    Ok(assets)
 }
 
 /// Every value on each resource, plus the values on the annotations those

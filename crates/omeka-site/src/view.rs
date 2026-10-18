@@ -138,7 +138,7 @@ pub struct AssetView {
     /// The display title.
     pub title: String,
     /// The asset's file URL (`AssetRepresentation::assetUrl`), `None` when the
-    /// caller cannot resolve one. No asset repository stores these yet.
+    /// caller cannot resolve one.
     pub url: Option<String>,
     /// The square thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,

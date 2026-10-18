@@ -256,14 +256,18 @@ A handler does three things and nothing else.
    media block shows. `site/provider.rs` runs the searches a page's blocks will
    ask for, and loads each media or item-with-metadata block's
    `site_block_attachment` rows with the item views and media refs they resolve
-   to, because `ResourceProvider` is synchronous and `omeka-db` is async.
+   to, plus the assets the asset block and any block's `background_image_asset`
+   name, because `ResourceProvider` is synchronous and `omeka-db` is async.
 3. Render through the bundled theme and copy the document onto the wire. The
    theme owns all HTML and escaping; the server never builds markup.
 
 Known gaps, each a repository the port does not have yet: no `site_setting`
 repository, so every setting keeps its upstream default; `ItemFilter` carries no
-`site_id`, so a browse-preview shows every public resource; the `asset` block's
-asset lookup is not ported, so it renders no asset; and a site thumbnail is
-never shown for want of an asset lookup. The `media` block's caption is escaped
-at render rather than purified on write, because `omeka-api` has no
-`HtmlPurifier`; an attachment's `o:caption` is stored as received.
+`site_id`, so a browse-preview shows every public resource; and an
+item-with-metadata block's item-set and media list thumbnails are not resolved,
+so those lists render without images. The `asset` block and a block's
+`background_image_asset` both resolve through the asset repository, and a
+`site.thumbnail_id` or `resource.thumbnail_id` shows the asset it names. The
+`media` block's caption is escaped at render rather than purified on write,
+because `omeka-api` has no `HtmlPurifier`; an attachment's `o:caption` is stored
+as received.

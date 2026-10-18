@@ -4,6 +4,8 @@
 //!
 //! - [`store`]: the file store and the storage path rule
 //!   (`File/Store/Local.php`, `File/TempFile.php`).
+//! - [`media_type`]: the content-based media type read
+//!   (`File/TempFile::getMediaType`), a narrow stand-in for PHP's `finfo`.
 //! - [`ingest`]: one module per ingester under `Media/Ingester/`, plus the
 //!   ingester and mutable-ingester traits and a registry mirroring
 //!   `Media/Ingester/Manager.php`.
@@ -39,6 +41,7 @@ pub mod file_render;
 pub mod http;
 pub mod http_client;
 pub mod ingest;
+pub mod media_type;
 pub mod oembed;
 pub mod render;
 pub mod store;

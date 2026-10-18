@@ -9,12 +9,17 @@
 mod common;
 
 use axum::http::{StatusCode, header};
-use common::{get, header as header_value, request, router, seeded_pool, send, site_pool};
+use common::{
+    get, header as header_value, request, router, seed_system, seeded_pool, send, site_pool,
+};
 use omeka_db::ids::UserId;
 use omeka_db::repos::{ItemRepo, SiteBlockAttachmentRepo, SiteRepo};
 use omeka_db::rows::{
     NewItem, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
 };
+
+/// The storage id `common::seed_system` gives the seeded asset.
+const ASSET_STORAGE_ID: &str = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
 
 /// `Site\IndexController::indexAction`: a site with pages and no homepage
 /// redirects to the first page its navigation links.
@@ -560,4 +565,162 @@ async fn site_route_table() {
         let answer = send(app.clone(), get(&path, false)).await;
         assert_eq!(answer.status, status, "path {path}");
     }
+}
+
+/// Add a public page to the seeded site with one block and its `layout_data`.
+async fn add_block_page(
+    pool: &sqlx::SqlitePool,
+    seed: &common::Seed,
+    slug: &str,
+    layout: &str,
+    data: serde_json::Value,
+    layout_data: serde_json::Value,
+) {
+    let repo = SiteRepo::new(pool);
+    let page = repo
+        .add_page(&NewSitePage {
+            site_id: omeka_db::ids::SiteId::from(seed.site),
+            slug: slug.to_string(),
+            title: slug.to_string(),
+            is_public: true,
+            ..NewSitePage::default()
+        })
+        .await
+        .unwrap();
+    repo.add_block(&NewSiteBlock {
+        page_id: page.id,
+        layout: layout.to_string(),
+        data,
+        layout_data: Some(layout_data),
+        position: 1,
+    })
+    .await
+    .unwrap();
+}
+
+/// `BlockLayout/Asset.php` and `view/common/block-layout/asset.phtml`: the block
+/// resolves each stored asset id and renders the asset's thumbnail, which for an
+/// asset is the asset's own file URL (`AssetRepresentation::thumbnail`).
+#[tokio::test]
+async fn asset_block_renders_the_stored_asset() {
+    let (pool, seed) = site_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    add_block_page(
+        &pool,
+        &seed,
+        "brand",
+        "asset",
+        serde_json::json!([
+            {"id": system.asset, "page": "", "alt_link_title": "", "caption": "Our mark"}
+        ]),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(router(pool), get("/s/museum/page/brand", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer.body.contains(&format!(
+            "<div class=\"assets\"><div class=\"asset\"><img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\"><div class=\"caption\">Our mark</div></div></div>"
+        )),
+        "{}",
+        answer.body
+    );
+}
+
+/// `AbstractLayout::getBlockInlineStyles`: a block whose `layout_data` names a
+/// background asset renders the asset URL as `background-image: url(...)`.
+#[tokio::test]
+async fn block_background_image_uses_the_stored_asset() {
+    let (pool, seed) = site_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    add_block_page(
+        &pool,
+        &seed,
+        "banner",
+        "html",
+        serde_json::json!({"html": "<p>x</p>"}),
+        serde_json::json!({"background_image_asset": system.asset}),
+    )
+    .await;
+
+    let answer = send(router(pool), get("/s/museum/page/banner", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(answer.body.contains("has-background"), "{}", answer.body);
+    // `escapeCss` escapes every non-alphanumeric byte, so `/files/asset/` and the
+    // extension dot become `\2F ` and `\2E `.
+    assert!(
+        answer.body.contains(
+            "background-image: url(&quot;http\\3A \\2F \\2F localhost\\2F files\\2F asset\\2F \
+             a1b2c3d4e5f60718293a4b5c6d7e8f9012345678\\2E png&quot;)"
+        ),
+        "{}",
+        answer.body
+    );
+}
+
+/// `SiteRepresentation::thumbnail`: a site whose `thumbnail_id` names an asset
+/// shows that asset in the list-of-sites block.
+#[tokio::test]
+async fn list_of_sites_shows_the_site_thumbnail_asset() {
+    let (pool, seed) = site_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    SiteRepo::new(&pool)
+        .create(&NewSite {
+            slug: "gallery".to_string(),
+            theme: "default".to_string(),
+            title: "Gallery".to_string(),
+            thumbnail_id: Some(omeka_db::ids::AssetId::from(system.asset)),
+            is_public: true,
+            ..NewSite::default()
+        })
+        .await
+        .unwrap();
+    add_block_page(
+        &pool,
+        &seed,
+        "sites",
+        "listOfSites",
+        serde_json::json!({"summaries": false, "thumbnails": true}),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(router(pool), get("/s/museum/page/sites", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer.body.contains(&format!(
+            "<div class=\"site-thumbnail\"><img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\" class=\"site-thumbnail-image\"></div>"
+        )),
+        "{}",
+        answer.body
+    );
+}
+
+/// `AbstractResourceEntityRepresentation::thumbnail`: an item whose
+/// `resource.thumbnail_id` names an asset shows the asset URL, not its primary
+/// media's thumbnail.
+#[tokio::test]
+async fn a_resource_custom_thumbnail_wins_over_its_media() {
+    let (pool, seed) = site_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    let repo = ItemRepo::new(&pool);
+    let mut item = repo.get(seed.item).await.unwrap().unwrap();
+    item.resource.thumbnail_id = Some(omeka_db::ids::AssetId::from(system.asset));
+    repo.update(&item).await.unwrap();
+
+    let answer = send(router(pool), get("/s/museum/item", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer.body.contains(&format!(
+            "<img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\">"
+        )),
+        "{}",
+        answer.body
+    );
+    assert!(
+        !answer.body.contains("/files/medium/"),
+        "the primary media thumbnail still rendered: {}",
+        answer.body
+    );
 }

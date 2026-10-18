@@ -111,13 +111,14 @@ async fn items_list_query_count_is_bounded_by_the_page_size() {
     assert_eq!(documents(&large.body).len(), 20);
     // The page's queries: the filtered list, then one per relation (media,
     // item-set memberships, values, the annotations' values, the reverse
-    // references, the referenced resources, the template properties).
+    // references, the referenced resources, the thumbnail assets, the template
+    // properties).
     assert_eq!(
         small_count, large_count,
         "the query count grows with the page: {small_count} at 2 rows, {large_count} at 20"
     );
     assert!(
-        large_count <= 8,
+        large_count <= 9,
         "a page of 20 rows ran {large_count} queries; the batched path runs a fixed few"
     );
     eprintln!("items list: 2 rows {small_count} queries, 20 rows {large_count} queries");
@@ -140,7 +141,7 @@ async fn every_list_query_count_is_bounded() {
             "{resource}: {small_count} queries at 1 row, {large_count} at 10"
         );
         assert!(
-            large_count <= 8,
+            large_count <= 9,
             "{resource}: a page of 10 rows ran {large_count} queries"
         );
         assert!(
@@ -170,12 +171,13 @@ async fn the_perf_dataset_page_runs_a_fixed_few_queries() {
         one, twenty_five,
         "the perf-shaped page count moves with the page: {one} at 1 row, {twenty_five} at 25"
     );
-    // The filtered list, then media, item-set memberships, values and the
-    // reverse references. No media, annotation, template or resource value is
-    // in the dataset, so no further relation runs.
+    // The filtered list, then media, item-set memberships, values, the
+    // reverse references and the thumbnail assets. No media, annotation,
+    // template, resource value or custom thumbnail is in the dataset, so no
+    // further query runs (the asset query returns no row but still runs).
     assert_eq!(
-        twenty_five, 5,
-        "the perf-shaped page should run five queries"
+        twenty_five, 6,
+        "the perf-shaped page should run six queries"
     );
     eprintln!("perf shape: 1 row {one} queries, 25 rows {twenty_five} queries");
     pool.close().await;
