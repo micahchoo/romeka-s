@@ -16,17 +16,18 @@ cd docs
 `gen.sh` needs only `python3` (no packages) and reads the crate at `../crates/omeka-api/src`. It runs
 from any working directory, and CI runs `--check` on every pull request.
 
-Two cross-checks need more than the crate, and neither runs in CI:
+Two cross-checks sit beside the generator, and only one needs more than the repository:
 
 ```
-./gen/check_wire.py                    # needs the captured documents, see below
+./gen/check_wire.py                    # reads fixtures/api/, see below
 ./gen/check_routes.py <base> <identity> <credential>
 ```
 
 `check_wire.py` compares every top-level key of every captured upstream document under
-`verification/fixtures/api/` with the member list parsed for that resource. That directory is not in
-this repository, so the cross-check cannot run here. The two `omeka-api` test targets that read the
-same documents (`tests/golden.rs` and `tests/property_wire.rs`) fail for the same reason.
+`fixtures/api/` with the member list parsed for that resource, and exits non-zero when it finds no
+fixture. That directory is at the repository root, and it is the same set the two `omeka-api` test
+targets read (`tests/golden.rs` and `tests/property_wire.rs`). Neither the script nor those targets
+runs in CI; CI runs only `./gen.sh --check`.
 
 `check_routes.py` reads the route table out of `api.md`, sends every row's request to a running
 instance with a global-admin key, and holds each row to its exact claim: a 501 row must answer 501, a

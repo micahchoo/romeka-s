@@ -1,6 +1,6 @@
 /**
  * Parser tests for the wire types added in wave 3. Each fixture is the shape
- * frozen in `verification/fixtures/api/` of omeka-s at 5e413f0, wrapped as a
+ * frozen in `fixtures/api/` of omeka-s at 5e413f0, wrapped as a
  * list document so the tests freeze the contract the admin client depends on.
  */
 import { describe, expect, it } from 'vitest';

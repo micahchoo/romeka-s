@@ -101,6 +101,22 @@ These are decisions, not surprises. Each one names where it is stated and measur
 - No call goes to a live external service, so oEmbed, YouTube and remote IIIF are out.
 - Fulltext ranking is SQLite FTS5's, and it differs from MySQL's.
 
+The admin SPA covers the resource forms, not the whole upstream admin:
+
+- A list has no search, filter or sort control. A browse sends the fixed query in
+  [`web/admin/src/app/list.tsx`](web/admin/src/app/list.tsx); the API serves the parameters in
+  [`crates/omeka-api/src/read/query.rs`](crates/omeka-api/src/read/query.rs).
+- No list has batch selection, so batch edit and batch delete are not there and a write changes one
+  row ([`web/admin/src/pages/items/list.tsx`](web/admin/src/pages/items/list.tsx)).
+- The modules page shows module state and offers no install, activate, deactivate, configure or
+  uninstall control ([`web/admin/src/pages/modules/page.tsx`](web/admin/src/pages/modules/page.tsx)).
+- The vocabulary and resource-template pages neither import nor export; the JSON a manual import
+  carries is served by [`crates/omeka-api/src/write/vocab.rs`](crates/omeka-api/src/write/vocab.rs).
+- A job cannot be stopped from the SPA
+  ([`web/admin/src/pages/jobs/detail.tsx`](web/admin/src/pages/jobs/detail.tsx)).
+- An asset cannot be uploaded from the SPA; a media file arrives through `romeka import media`.
+- There is no maintenance mode.
+
 [`docs/compat.md`](docs/compat.md) is the page that lists the differences the product states about
 itself, each against the file that carries it.
 

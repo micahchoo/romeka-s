@@ -8,7 +8,14 @@ semantic versioning.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Corrected the pages that still called the golden fixtures missing and two `omeka-api` test targets
+  red: the fixtures are at [`fixtures/api/`](fixtures/api/README.md), `docs/gen/check_wire.py` reads
+  them and exits non-zero on an empty set, and the README's "What is not ported" now names the admin
+  SPA gaps.
+- Added two rows to [`docs/compat.md`](docs/compat.md) for the deliberate differences: a write that
+  names an unknown property term answers 422, and `GET /api` answers JSON-LD rather than HTML.
 
 ## [0.1.0] - 2026-10-17
 

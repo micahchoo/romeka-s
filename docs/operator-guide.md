@@ -147,10 +147,9 @@ cd web/admin && npm run perf:check
 cd docs && ./gen.sh --check
 ```
 
-`cargo test --workspace` fails on two `omeka-api` targets, `golden` and `property_wire`, which read
-the captured upstream documents under `verification/fixtures/api/`; that directory is not in this
-repository yet. Every other target is green. [`compat.md`](compat.md) says what that means for a
-compatibility claim.
+`cargo test --workspace` passes every target, the two `omeka-api` targets `golden` and `property_wire`
+among them; both read the captured upstream documents under `fixtures/api/`. [`compat.md`](compat.md)
+says what that means for a compatibility claim.
 
 ## Troubleshooting
 
