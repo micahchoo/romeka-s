@@ -1,37 +1,40 @@
 # omeka-cli
 
-The Omeka S command line (`omeka`) and the job runner. The crate is the CLI
+The Romeka S command line (`romeka`) and the job runner. The crate is the CLI
 owner in `DESIGN.md`: `install`, `user`, `key`, `import`, `export`, `media`,
 `backup`/`restore`, `serve`, plus the job trait, a synchronous dispatcher, and
 the four upstream jobs. It reads and writes the database only through `omeka-db`
 repositories (and `src/store.rs` for the four tables those repositories do not
 cover).
 
+Romeka S is a fork of Omeka S. The four jobs, the invite flow and the install
+seed mirror the upstream PHP classes named in the module docs.
+
 ## Commands
 
 ```
-omeka install     -d PATH --email E --name N --password P
+romeka install     -d PATH --email E --name N --password P
                   [--title T] [--time-zone TZ] [--locale L]
-omeka user add    -d PATH --email E --name N [--password P] [--role R]
+romeka user add    -d PATH --email E --name N [--password P] [--role R]
                   [--base-url URL]
-omeka user list   -d PATH [--role R]
-omeka user set-password -d PATH --email E --password P
-omeka user grant-admin  -d PATH --email E
-omeka key add      -d PATH --owner E [--label TEXT]
-omeka key list     -d PATH
-omeka key revoke   -d PATH --identity IDENTITY
-omeka import template -d PATH --file TEMPLATE.json
-omeka import csv      -d PATH --file ITEMS.csv --item-set ID
-omeka import media    -d PATH --source DIR [--manifest FILE.json] [--store DIR]
+romeka user list   -d PATH [--role R]
+romeka user set-password -d PATH --email E --password P
+romeka user grant-admin  -d PATH --email E
+romeka key add      -d PATH --owner E [--label TEXT]
+romeka key list     -d PATH
+romeka key revoke   -d PATH --identity IDENTITY
+romeka import template -d PATH --file TEMPLATE.json
+romeka import csv      -d PATH --file ITEMS.csv --item-set ID
+romeka import media    -d PATH --source DIR [--manifest FILE.json] [--store DIR]
                               [--item-set ID] [--item ID]
-omeka export jsonld   -d PATH --out PATH [--resource NAME] [--item-set ID]
+romeka export jsonld   -d PATH --out PATH [--resource NAME] [--item-set ID]
                               [--base-url URL]
-omeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
+romeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
                               [--columns TERM,TERM]
-omeka media thumbnails -d PATH [--store DIR] [--force]
-omeka backup      -d PATH --store DIR --out FILE
-omeka restore     -d PATH --store DIR --in FILE [--force]
-omeka serve       [--host H] [--port P]
+romeka media thumbnails -d PATH [--store DIR] [--force]
+romeka backup      -d PATH --store DIR --out FILE
+romeka restore     -d PATH --store DIR --in FILE [--force]
+romeka serve       [--host H] [--port P]
 ```
 
 `install` creates the SQLite file, runs the embedded migrations, inserts the
@@ -47,7 +50,7 @@ idempotent: a second run inserts nothing.
 set. Without it the command invites: the account is created inactive and
 passwordless, a one-time key is minted with `activate` set, and the command
 prints the set-password link, `<base-url>/#/password/<key>`. `--base-url`
-defaults to `http://localhost:8080`, the port `omeka serve` binds by default.
+defaults to `http://localhost:8080`, the port `romeka serve` binds by default.
 Opening the link and posting a password activates the account, which is the flow
 `Admin\UserController::addAction` mails. The link is printed rather than mailed,
 so an installation with no SMTP relay can still onboard a person; the link
@@ -57,9 +60,9 @@ works.
 ## API keys
 
 ```
-omeka key add    -d PATH --owner EMAIL [--label TEXT]
-omeka key list   -d PATH
-omeka key revoke -d PATH --identity IDENTITY
+romeka key add    -d PATH --owner EMAIL [--label TEXT]
+romeka key list   -d PATH
+romeka key revoke -d PATH --identity IDENTITY
 ```
 
 `add` mints the two 32 character alphanumeric strings of `Entity/ApiKey.php`,
@@ -78,7 +81,7 @@ credential.
 `no key with identity ...` on stderr and exits 1.
 
 Pass the pair to the API as `key_identity` and `key_credential`, which is what
-`omeka serve` reads:
+`romeka serve` reads:
 
 ```
 curl "$BASE/api/items?key_identity=$ID&key_credential=$SECRET"
@@ -116,8 +119,8 @@ or resource-value columns yet).
 ## Export
 
 ```
-omeka export jsonld -d PATH --out PATH [--resource NAME] [--item-set ID] [--base-url URL]
-omeka export csv    -d PATH --out FILE [--resource items] [--item-set ID] [--columns TERM,TERM]
+romeka export jsonld -d PATH --out PATH [--resource NAME] [--item-set ID] [--base-url URL]
+romeka export csv    -d PATH --out FILE [--resource items] [--item-set ID] [--columns TERM,TERM]
 ```
 
 `export jsonld` writes the documents `/api/{resource}` serves, built by
@@ -139,33 +142,33 @@ command prints the document count.
 column set is a port decision: upstream at the frozen SHA has no CSV export.
 The only export upstream has is `Admin/ResourceTemplateController::exportAction`,
 which writes one resource template as JSON, so there is no upstream column set to
-match. The columns here read back through `omeka import csv`:
+match. The columns here read back through `romeka import csv`:
 
 - A cell names a property as `prefix:local_name` (`dcterms:title`), the term
-  `omeka import csv` resolves.
+  `romeka import csv` resolves.
 - The default column set is every property that holds a value on any exported
   item, with `dcterms:title` first and the rest in term order. `--columns`
   names the terms instead, in the order given.
 - A property with several values on any item gets one column per value and the
-  header repeats the term. `omeka import csv` reads two cells with the same
+  header repeats the term. `romeka import csv` reads two cells with the same
   term as two values, so this is what makes a multi-valued item round-trip.
 - Values flatten to text: a literal is its `@value`, a URI its `@id`, a resource
   value its display title. Re-importing stores every cell as a literal, so a URI
   or resource value comes back as a literal of that text and a language tag is
   dropped.
 
-`export csv` writes items only, because `omeka import csv` reads items. The
+`export csv` writes items only, because `romeka import csv` reads items. The
 command prints the item count and the header it wrote. Both commands create a
 missing parent directory for `--out`.
 
 ## Media files
 
-`omeka import media` copies each file into the store through `omeka-media` and
+`romeka import media` copies each file into the store through `omeka-media` and
 inserts its `media` row through `omeka-db`.
 
 ```
-omeka import media -d PATH --manifest media.json --source COLLECTION --store DIR --item-set ID
-omeka import media -d PATH --source COLLECTION --item-set ID
+romeka import media -d PATH --manifest media.json --source COLLECTION --store DIR --item-set ID
+romeka import media -d PATH --source COLLECTION --item-set ID
 ```
 
 `--manifest FILE.json` reads the acceptance unit's `media.json` shape
@@ -212,12 +215,12 @@ imports got thumbnails. The exit code is 1 when any file failed.
 
 ## Media thumbnails
 
-`omeka media thumbnails` backfills the thumbnails a media row is missing. It is
+`romeka media thumbnails` backfills the thumbnails a media row is missing. It is
 the pass for rows that already exist: a store written before the thumbnailer, or
 a run interrupted between an original and its derivatives.
 
 ```
-omeka media thumbnails -d PATH [--store DIR] [--force]
+romeka media thumbnails -d PATH [--store DIR] [--force]
 ```
 
 For each `media` row it reads the original back from
@@ -237,8 +240,8 @@ generated. `--force` removes the three files first and rebuilds them. The
 ## Backup and restore
 
 ```
-omeka backup  -d PATH --store DIR --out FILE
-omeka restore -d PATH --store DIR --in FILE [--force]
+romeka backup  -d PATH --store DIR --out FILE
+romeka restore -d PATH --store DIR --in FILE [--force]
 ```
 
 `backup` writes one archive holding a consistent copy of the database and the
@@ -248,7 +251,7 @@ The archive is a plain (uncompressed) tar, so `tar tf backup.tar` lists it and
 `tar xf` extracts it without this CLI. Three kinds of entry:
 
 ```
-omeka.db          the database copy
+romeka.db          the database copy
 store/<path>      every file under the store root, at its store-relative path
 manifest.json     the commit, the counts and the checksums
 ```
@@ -276,7 +279,7 @@ media row without its file. The archive is written to a staging file beside
 
 `manifest.json` holds:
 
-- `format` (`omeka-backup`) and `format_version` (1).
+- `format` (`romeka-backup`) and `format_version` (1).
 - `created`, in the upstream datetime format.
 - `version`, the upstream `Module::VERSION` of the port.
 - `commit`, the git commit the binary was built from (`build.rs`).
@@ -329,8 +332,8 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
 - `user add` without `--password` prints the activation link instead of mailing
   it. Upstream's `Admin\UserController::addAction` calls
   `Mailer::sendUserActivation`; the CLI has no relay to send through, and the
-  link is the part the admin needs, so it goes to stdout. `omeka serve` mails
-  the same message when `OMEKA_SMTP_HOST` is set.
+  link is the part the admin needs, so it goes to stdout. `romeka serve` mails
+  the same message when `ROMEKA_SMTP_HOST` is set.
 - `user.password_hash`: bcrypt, through `omeka_api::password`. The port writes
   the `$2y$` form PHP's `password_hash` writes and verifies every bcrypt version
   prefix, so a hash a migrated Omeka S install carries still verifies and a hash

@@ -1,7 +1,11 @@
-# Omeka S admin (spike 2)
+# Romeka S admin
 
-A strict-TypeScript admin SPA for Omeka S. It is built with Vite and React 19 and talks to the
+A strict-TypeScript admin SPA for Romeka S. It is built with Vite and React 19 and talks to the
 existing `/api` JSON-LD endpoints. Nothing here builds or modifies the PHP application.
+
+Romeka S is a fork of Omeka S. The client speaks upstream's `/api` members as they
+are, and many fixtures under `tests/fixtures/` are the shapes frozen in
+upstream's captured API documents.
 
 ## Commands
 
@@ -245,7 +249,7 @@ The session half.
 
 The key half, unchanged.
 
-- The key lives in `localStorage` under `omeka.apiKey`, as `{"identity": "...", "credential": "..."}`.
+- The key lives in `localStorage` under `romeka.apiKey`, as `{"identity": "...", "credential": "..."}`.
   A reload reads it back, so a session survives one. The value is re-validated on read, so a tampered
   entry reads as signed out.
 - Both halves are 32 alphanumeric characters (`ApiKey::STRING_LENGTH` and `ApiKey::STRING_CHARLIST`
@@ -275,16 +279,16 @@ control. When no SMTP service is configured the answer says so and the link is t
 edit form offers the same mint on its own, which is the reset path. A minted key is single-use, and
 the second use is the API's 404.
 
-`omeka key add` mints a pair. Upstream presents the same two parameters, so a client signed in here
+`romeka key add` mints a pair. Upstream presents the same two parameters, so a client signed in here
 sends exactly what a proxy would have appended.
 
 ## Development against a live API
 
-Requests are same-origin by default. To point the client at a running Omeka S, set the base URL
+Requests are same-origin by default. To point the client at a running Romeka S, set the base URL
 before the client module loads:
 
 ```js
-window.OMEKA_BASE = 'http://localhost:8080';
+window.ROMEKA_BASE = 'http://localhost:8080';
 ```
 
 The base URL is read once, when `src/api/client.ts` is first imported.
@@ -310,7 +314,7 @@ placeholders; `number(value)` formats a count or a byte size in the locale. Ther
 fallback. `assertComplete` is the runtime guard a catalogue built at the edge must pass, and
 `tests/i18n.test.tsx` proves it names the missing ids.
 
-`store.ts` keeps the selected locale in `localStorage` under `omeka.locale` and exposes `useLocale`
+`store.ts` keeps the selected locale in `localStorage` under `romeka.locale` and exposes `useLocale`
 and `useTranslator`. `parseLocale` narrows the stored string at the boundary, so a region tag
 (`es_419`, `en_US`) reads as its language and an unknown tag as English. `main.tsx` renders the
 shell, which carries the `LocaleSwitch` in the header.
@@ -336,7 +340,7 @@ These are the upstream details the parsers depend on. They are read from the PHP
 - Search responses are bare arrays. Pagination comes from the `Link` header and
   `Omeka-S-Total-Results`.
 - `o:thumbnail_urls` carries one file URL per thumbnail type when the row has thumbnails, and the
-  empty PHP array `[]` when it has none. The parser reads both. `omeka import media` generates the
+  empty PHP array `[]` when it has none. The parser reads both. `romeka import media` generates the
   three derivatives, so the seeded rows carry the URLs.
 - `o:title` is null on every media row of the live collection. The label falls back the way
   `MediaRepresentation::displayTitle` does, to `o:source`, then to `o:filename`.
@@ -408,11 +412,11 @@ reach them.
 `e2e/global-setup.ts` is the whole harness for one run:
 
 1. Builds the SPA with `npm run build` into `dist/`.
-2. Resolves the workspace's `debug/omeka` (`CARGO_TARGET_DIR` when set) and builds it with
-   `cargo build -p omeka-cli`, unless `OMEKA_BIN` names a binary to use instead.
-3. Makes a temporary directory, runs `omeka install` for a fresh database, and mints an API key with
-   `omeka key add`.
-4. Picks two free loopback ports, starts `e2e/harness/proxy.ts` on one and `omeka serve` on the other
+2. Resolves the workspace's `debug/romeka` (`CARGO_TARGET_DIR` when set) and builds it with
+   `cargo build -p omeka-cli`, unless `ROMEKA_BIN` names a binary to use instead.
+3. Makes a temporary directory, runs `romeka install` for a fresh database, and mints an API key with
+   `romeka key add`.
+4. Picks two free loopback ports, starts `e2e/harness/proxy.ts` on one and `romeka serve` on the other
    with the proxy's origin as its base URL.
 5. Seeds an item set, three items, one imported media file and one site, through that origin, so the
    seeding run also proves the origin forwards `/api` with the key. Before the port opens the database
@@ -423,7 +427,7 @@ reach them.
    job ids.
 
 `cargo build -p omeka-cli` runs on every setup, so a warm target costs a fraction of a second and a
-stale `debug/omeka` never serves the specs. Set `OMEKA_BIN` to use a prebuilt binary and skip cargo.
+stale `debug/romeka` never serves the specs. Set `ROMEKA_BIN` to use a prebuilt binary and skip cargo.
 
 The harness origin is a small HTTP server, not the coordinator's proxy. It serves `dist`, serves the
 file store under `/files`, and forwards `/health`, `/api-context`, `/api` and `/s/` to the port. Every
@@ -436,7 +440,7 @@ The origin also answers the auth routes while the port serves none of them. `glo
 what it does before those routes land, and a wrong password is 401, which is the route working. When
 the probe finds 404 the origin installs the stand-in in `e2e/harness/auth.ts` and says so in the log;
 when the port has the routes the probe finds them and every auth request is forwarded as-is. The
-stand-in holds the one administrator `omeka install` created, keeps its sessions in memory, and issues
+stand-in holds the one administrator `romeka install` created, keeps its sessions in memory, and issues
 the same `httpOnly`, `SameSite=Lax` cookie the contract describes, so the specs exercise the cookie the
 page can never read. A key it mints works once, the way the real route enforces.
 
@@ -468,8 +472,8 @@ npm run e2e -- --grep "media"                   # one title
 npm run e2e -- --headed e2e/specs/query.spec.ts # watch it
 ```
 
-Paths are given from `web/admin`. `OMEKA_E2E_SKIP_BUILD=1` keeps the existing `dist`,
-`OMEKA_E2E_STATE_DIR` moves the run record, and `OMEKA_BIN` and `CARGO_TARGET_DIR` choose the binary.
+Paths are given from `web/admin`. `ROMEKA_E2E_SKIP_BUILD=1` keeps the existing `dist`,
+`ROMEKA_E2E_STATE_DIR` moves the run record, and `ROMEKA_BIN` and `CARGO_TARGET_DIR` choose the binary.
 A failed test leaves its screenshot and error context under `e2e/test-results/`, which is ignored by
 git. Traces are off by default; run with `PW_TRACE=1` to record one per failure, which writes the
 trace zip into the same directory.

@@ -1,8 +1,11 @@
 # omeka-core
 
-The Omeka S domain core: typed entities, value rules, the data type registry, slugs, templates and the permission
+The Romeka S domain core: typed entities, value rules, the data type registry, slugs, templates and the permission
 matrix, ported from upstream PHP. `src/lib.rs` documents the module map and the upstream file each module mirrors. The
 crate is pure: no I/O, no async, no database, so everything here is a pure-function cost.
+
+Romeka S is a fork of Omeka S. The types and the rules follow upstream's PHP classes, and each module names the file
+it mirrors.
 
 ## Benchmarks
 

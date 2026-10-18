@@ -1,8 +1,12 @@
 # omeka-api
 
-The `/api` REST layer: wire types, the JSON-LD serializer, the route table,
-error documents, adapter registry, API key parsing, and the read and write
+The `/api` REST layer of Romeka S: wire types, the JSON-LD serializer, the route
+table, error documents, adapter registry, API key parsing, and the read and write
 endpoints over `omeka-db`. `omeka-server` turns these into axum responses.
+
+Romeka S is a fork of Omeka S. This crate keeps upstream's wire member names,
+member order and error documents, so a client written against Omeka S reads the
+same answers here.
 
 ## Wire types are mirrors (wave 1)
 
@@ -86,7 +90,7 @@ jobs, modules). Every collection answers with the `Link` and
 `Omeka-S-Total-Results` headers and the browse-default query (`page`,
 `per_page`, `sort_by`, `sort_order`); every member answers one document.
 
-`src/read/export.rs` serves `omeka export jsonld`: it lists the searchable
+`src/read/export.rs` serves `romeka export jsonld`: it lists the searchable
 adapters (`resources()`), opens the list window so one call returns every row,
 and hands back the JSON array the collection endpoint answers. It adds no
 serializer; the CLI writes the documents this module reads.
@@ -274,7 +278,7 @@ an HTTP error upstream: the request continues anonymously. The port keeps
 that: this module returns data, not status codes.
 
 A request resolves to a caller in two steps. The session cookie
-(`omeka_session`) comes first, then the key pair, so the admin SPA and an API
+(`romeka_session`) comes first, then the key pair, so the admin SPA and an API
 client can both reach the same routes. A caller with no session and no key is
 anonymous.
 
@@ -308,7 +312,7 @@ comment: the row costs a read, an `UPDATE` and a user read per authenticated
 request, and buys immediate revocation, a deactivation that takes effect at
 once, and no session secret to manage.
 
-The cookie is `omeka_session`, `Path=/`, `HttpOnly`, `SameSite=Lax`, with
+The cookie is `romeka_session`, `Path=/`, `HttpOnly`, `SameSite=Lax`, with
 `Secure` when the configured base URL is https. Login rotates the id
 (`SessionManager::regenerateId`), so a session fixed before a login cannot
 survive it.

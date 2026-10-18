@@ -53,7 +53,7 @@ carries the min, the max, the run count and the commit.
 - **Paint after the DOM step.** The probe ends on the DOM mutation, not on the
   next frame. List, detail, create and navigation are render-readiness numbers;
   first contentful paint is the one paint number.
-- **A release build.** The harness drives the debug `omeka` the e2e suite already
+- **A release build.** The harness drives the debug `romeka` the e2e suite already
   starts, so the API share of every timing is a debug number. The list path is
   API-bound (see below), which means those budgets shift when the server build
   changes.
@@ -91,7 +91,7 @@ the 2026-10-17 split build, the timing column the 2026-10-17 run.
 ## The numbers and their limiter
 
 Measured on 2026-10-17, five runs each, one process, warm page cache, a debug
-`omeka` behind the harness origin.
+`romeka` behind the harness origin.
 
 | Path | Median | API span | Slowest request | Limiter |
 | --- | --- | --- | --- | --- |

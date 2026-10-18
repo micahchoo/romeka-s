@@ -1,30 +1,33 @@
 # omeka-server
 
-The HTTP surface: an axum app around the rules in `omeka-api` (the `/api`
+The HTTP surface of Romeka S: an axum app around the rules in `omeka-api` (the `/api`
 JSON-LD read and write endpoints) and the public site routes served through
 `omeka-site`.
+
+Romeka S is a fork of Omeka S. The `/api` answers keep upstream's members and the
+public site routes keep upstream's paths.
 
 ## Configuration
 
 Every key has a default, so a server with no file and no variables starts on the
-values below. The file is JSON and is named by `OMEKA_CONFIG`; a key it omits
+values below. The file is JSON and is named by `ROMEKA_CONFIG`; a key it omits
 keeps its default. Precedence, lowest first: the defaults, the file, the
-environment, then the arguments `omeka serve` passes.
+environment, then the arguments `romeka serve` passes.
 
 | Key | Variable | Default | Meaning |
 | --- | --- | --- | --- |
-| `host` | `OMEKA_API_HOST` | `127.0.0.1` | Interface to bind |
-| `port` | `OMEKA_API_PORT` | `8123` | Port to bind |
-| `base_url` | `OMEKA_BASE_URL` | `http://localhost:8123` | Origin for every JSON-LD `@id` and generated link |
-| `log_level` | `OMEKA_LOG` | `info` | One of `off`, `error`, `warn`, `info`, `debug`, `trace` |
-| `max_body_bytes` | `OMEKA_MAX_BODY_BYTES` | `268435456` (256 MiB) | Largest accepted request body |
-| `request_timeout_secs` | `OMEKA_REQUEST_TIMEOUT_SECS` | `30` | Seconds a request may run before the 408 |
-| `smtp_host` | `OMEKA_SMTP_HOST` | unset | SMTP relay host; unset means the log transport |
-| `smtp_port` | `OMEKA_SMTP_PORT` | the TLS mode's port | SMTP relay port |
-| `smtp_user` | `OMEKA_SMTP_USER` | unset | SMTP user name |
-| `smtp_password` | `OMEKA_SMTP_PASSWORD` | unset | SMTP password |
-| `smtp_tls` | `OMEKA_SMTP_TLS` | `starttls` | `starttls`, `tls` or `none` |
-| `mail_from` | `OMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | Envelope sender |
+| `host` | `ROMEKA_API_HOST` | `127.0.0.1` | Interface to bind |
+| `port` | `ROMEKA_API_PORT` | `8123` | Port to bind |
+| `base_url` | `ROMEKA_BASE_URL` | `http://localhost:8123` | Origin for every JSON-LD `@id` and generated link |
+| `log_level` | `ROMEKA_LOG` | `info` | One of `off`, `error`, `warn`, `info`, `debug`, `trace` |
+| `max_body_bytes` | `ROMEKA_MAX_BODY_BYTES` | `268435456` (256 MiB) | Largest accepted request body |
+| `request_timeout_secs` | `ROMEKA_REQUEST_TIMEOUT_SECS` | `30` | Seconds a request may run before the 408 |
+| `smtp_host` | `ROMEKA_SMTP_HOST` | unset | SMTP relay host; unset means the log transport |
+| `smtp_port` | `ROMEKA_SMTP_PORT` | the TLS mode's port | SMTP relay port |
+| `smtp_user` | `ROMEKA_SMTP_USER` | unset | SMTP user name |
+| `smtp_password` | `ROMEKA_SMTP_PASSWORD` | unset | SMTP password |
+| `smtp_tls` | `ROMEKA_SMTP_TLS` | `starttls` | `starttls`, `tls` or `none` |
+| `mail_from` | `ROMEKA_MAIL_FROM` | `no-reply@romeka.invalid` | Envelope sender |
 
 The TLS mode implies the port when none is set: `starttls` 587, `tls` 465,
 `none` 25. `starttls` requires the upgrade before it will send; `tls` wraps the
@@ -42,16 +45,16 @@ value that does not parse fail startup with the key named.
   "request_timeout_secs": 10,
   "smtp_host": "relay.example.org",
   "smtp_tls": "starttls",
-  "mail_from": "omeka@example.org"
+  "mail_from": "romeka@example.org"
 }
 ```
 
 ```
-OMEKA_CONFIG=/etc/omeka/omeka.json omeka serve -d /data/omeka.db \
+ROMEKA_CONFIG=/etc/romeka/romeka.json romeka serve -d /data/romeka.db \
     --host 127.0.0.1 --port 8123 --base-url http://localhost:8080
 ```
 
-`omeka serve` always passes a host, a port and a base URL, so those three come
+`romeka serve` always passes a host, a port and a base URL, so those three come
 from the command line in practice. The file's `host`, `port` and `base_url` are
 read by `serve_with_config`, which the CLI does not call yet; the log level and
 the limits reach the server through both paths today.
@@ -145,7 +148,7 @@ because a key pair in the query string is not attached by the browser.
 `src/mail/` is the mailer seam. `Mailer` holds a `Transport` and the base URL
 the links are built from; `Message` is one finished message. `Log` is the
 default transport and writes the whole message, link included, to the request
-log. `Smtp` hands it to a `lettre` relay over the `OMEKA_SMTP_*` settings, with
+log. `Smtp` hands it to a `lettre` relay over the `ROMEKA_SMTP_*` settings, with
 a ten second command timeout so a stuck relay does not hold a blocking thread.
 A host whose TLS client cannot be built logs at error level and falls back to
 `Log`, so a misconfigured relay does not stop the server from starting.

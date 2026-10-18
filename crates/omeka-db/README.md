@@ -1,7 +1,11 @@
 # omeka-db
 
-The storage layer for the Omeka S port. It owns the schema, the row structs and the repositories,
+The storage layer for Romeka S. It owns the schema, the row structs and the repositories,
 and it is the only crate in the workspace that holds SQL.
+
+Romeka S is a fork of Omeka S. The schema follows upstream's install SQL, and the
+`mysql` backend exists so a deployment can run against an Omeka S database that
+already exists.
 
 Two engines are behind one repository API. SQLite is the default and needs no feature. MySQL is the
 second backend, behind the `mysql` feature, so the port can run against an Omeka S database that
@@ -84,7 +88,7 @@ cargo test -p omeka-db
 ```
 
 The MySQL suite is gated on the `mysql` feature and on a reachable server. It reads
-`OMEKA_MYSQL_URL`, which names a server and not a database. Each test creates its own database and
+`ROMEKA_MYSQL_URL`, which names a server and not a database. Each test creates its own database and
 drops it again, so tests never share state.
 
 ```sh
@@ -92,7 +96,7 @@ docker run -d --name omeka-mysqlbackend-mysql \
   -e MYSQL_ROOT_PASSWORD=secret -p 127.0.0.1:13306:3306 \
   mysql:8.0 --default-authentication-plugin=mysql_native_password
 
-OMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
+ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
   cargo test -p omeka-db --features mysql
 ```
 

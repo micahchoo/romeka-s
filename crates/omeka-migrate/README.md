@@ -1,12 +1,15 @@
 # omeka-migrate
 
-The adoption path. An Omeka S install holds its data in MySQL, in upstream's own schema. The port
+The adoption path. An Omeka S install holds its data in MySQL, in upstream's own schema. Romeka S
 stores the same tables in SQLite. This crate reads the source and writes the target.
+
+Romeka S is a fork of Omeka S. The migration keeps upstream's table and column names, so a
+migrated install reads back the records it held before.
 
 ```rust
 let report = omeka_migrate::migrate_from_upstream(
     "mysql://user:password@host:3306/omeka",
-    std::path::Path::new("omeka.sqlite"),
+    std::path::Path::new("romeka.sqlite"),
     &omeka_migrate::MigrateOptions::default(),
 )
 .await?;
@@ -138,7 +141,7 @@ The SQLite-side tests need no server. They cover the pure mapping functions and 
 over a hand-built source with gaps in every id sequence, which is what proves the remap.
 
 The MySQL suite is gated on a reachable server, the same way `omeka-db`'s MySQL suite is.
-`OMEKA_MYSQL_URL` names a server, not a database. Each test creates its own database from upstream's
+`ROMEKA_MYSQL_URL` names a server, not a database. Each test creates its own database from upstream's
 own schema, seeds a small fixture through the port's repositories, and drops the database again.
 
 ```sh
@@ -146,7 +149,7 @@ docker run -d --name omeka-upstreammigrate-mysql \
   -e MYSQL_ROOT_PASSWORD=secret -p 127.0.0.1:13317:3306 \
   mysql:8.0 --default-authentication-plugin=mysql_native_password
 
-OMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13317 \
+ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13317 \
   cargo test -p omeka-migrate --test mysql
 ```
 
@@ -155,7 +158,7 @@ each test returns.
 
 ## Follow-ups
 
-- `omeka migrate-from-upstream` as a CLI command. This crate exposes the function; `omeka-cli` owns
+- `romeka migrate-from-upstream` as a CLI command. This crate exposes the function; `omeka-cli` owns
   the command surface.
 - The port-versus-upstream differential `ROADMAP.md` wave 9 names, which diffs both APIs row by row
   after an import.
