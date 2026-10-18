@@ -112,7 +112,6 @@ export const PageCanvas = ({
 
   const grid = draft.layout === 'grid';
   const columns = Math.max(1, pageColumns(draft.layoutData));
-  const rawColumns = pageColumns(draft.layoutData);
   const columnGap = gridGap(draft.layoutData, 'grid_column_gap');
   const rowGap = gridGap(draft.layoutData, 'grid_row_gap');
   const nodes = parseNodes(draft.blocks);
@@ -150,11 +149,6 @@ export const PageCanvas = ({
   const chooseTemplate = (template: TemplateChoice, index: number): void => {
     dispatch({ type: 'insertBlocks', index, blocks: template.blocks });
     setPickerIndex(null);
-  };
-
-  const setPageNumber = (key: string, text: string): void => {
-    const value = Number.parseInt(text, 10);
-    dispatch({ type: 'setPageLayoutData', key, value: Number.isNaN(value) ? 0 : value });
   };
 
   const shortcut = (event: ReactKeyboardEvent<HTMLElement>): void => {
@@ -279,68 +273,7 @@ export const PageCanvas = ({
   return (
     <section className="canvas" aria-label={t('canvas.region')} onKeyDown={shortcut}>
       <div className="canvas-toolbar">
-        <fieldset className="canvas-layout">
-          <legend>{t('canvas.pageLayout')}</legend>
-          <label>
-            <input
-              type="radio"
-              name="canvas-page-layout"
-              checked={!grid}
-              onChange={() => {
-                dispatch({ type: 'setPageLayout', layout: 'normal' });
-              }}
-            />
-            {t('canvas.normal')}
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="canvas-page-layout"
-              checked={grid}
-              onChange={() => {
-                dispatch({ type: 'setPageLayout', layout: 'grid' });
-              }}
-            />
-            {t('canvas.grid')}
-          </label>
-        </fieldset>
-        {grid ? (
-          <div className="canvas-grid-fields">
-            <label>
-              {t('pageLayoutData.grid_columns')}
-              <input
-                type="number"
-                min={1}
-                value={rawColumns > 0 ? String(rawColumns) : ''}
-                onChange={(event) => {
-                  setPageNumber('grid_columns', event.target.value);
-                }}
-              />
-            </label>
-            <label>
-              {t('pageLayoutData.grid_column_gap')}
-              <input
-                type="number"
-                min={0}
-                value={String(columnGap)}
-                onChange={(event) => {
-                  setPageNumber('grid_column_gap', event.target.value);
-                }}
-              />
-            </label>
-            <label>
-              {t('pageLayoutData.grid_row_gap')}
-              <input
-                type="number"
-                min={0}
-                value={String(rowGap)}
-                onChange={(event) => {
-                  setPageNumber('grid_row_gap', event.target.value);
-                }}
-              />
-            </label>
-          </div>
-        ) : null}
+        <p className="canvas-count">{t('canvas.blockCount', { count: draft.blocks.length })}</p>
         <div className="canvas-history">
           <button
             type="button"
@@ -370,7 +303,6 @@ export const PageCanvas = ({
           {t('canvas.pageIssues', { count: pageIssueCount })}
         </p>
       )}
-      {nodes.length === 0 ? <p className="canvas-empty">{t('canvas.empty')}</p> : null}
       <ul
         className={grid ? 'canvas-list canvas-grid' : 'canvas-list'}
         style={gridStyle}

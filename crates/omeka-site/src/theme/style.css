@@ -200,7 +200,7 @@ header {
 #top-nav .navigation .navigation {
   gap: var(--space-1) var(--space-2);
   margin-top: var(--space-1);
-  padding: 0;
+  padding: 0 0 0 var(--space-3);
 }
 
 #top-nav a {
@@ -299,6 +299,37 @@ header {
 
   #top-nav .navigation {
     justify-content: flex-end;
+  }
+
+  /* A child page sits in a dropdown panel under its parent, closed until the
+     pointer or the keyboard reaches the item. `:focus-within` keeps the panel
+     open while a child link has focus, so a Tab into the parent link reveals
+     the panel and the next Tab reaches the child. */
+  #top-nav .nav-item {
+    position: relative;
+  }
+
+  #top-nav .nav-item > .navigation {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--color-text) 12%, transparent);
+    display: none;
+    flex-direction: column;
+    gap: var(--space-1);
+    left: 0;
+    margin-top: 0;
+    min-width: 12rem;
+    padding: var(--space-1) var(--space-2);
+    position: absolute;
+    top: 100%;
+    white-space: nowrap;
+    z-index: 5;
+  }
+
+  #top-nav .nav-item:hover > .navigation,
+  #top-nav .nav-item:focus-within > .navigation {
+    display: flex;
   }
 }
 
@@ -596,8 +627,10 @@ footer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* The card stretches to its grid track. A `width` here would resolve against
+     the track and then add the padding and border on top, so the card would
+     overhang the track and the last column would pass the content edge. */
   padding: var(--space-2);
-  width: 100%;
 }
 
 .resource-list .page.resource h4 {
@@ -748,7 +781,8 @@ footer {
   font-size: var(--font-size-sm);
 }
 
-.values .property .value .resource-link {
+.values .property .value .resource-link,
+.media-list .property .value .resource-link {
   align-items: center;
   display: inline-flex;
   gap: var(--space-1);

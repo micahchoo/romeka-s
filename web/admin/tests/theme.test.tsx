@@ -14,6 +14,12 @@ import {
   themeSettingsWire,
 } from '../src/pages/sites/themeSettingsSchema';
 import { THEME_SETTINGS_REGISTRY } from '../src/pages/sites/themeSettingsRegistry';
+import {
+  parseResourcePageBlocksRegistry,
+  resourcePageBlockDrafts,
+  resourcePageBlocksWire,
+} from '../src/pages/sites/resourcePageBlocksSchema';
+import { RESOURCE_PAGE_BLOCKS_REGISTRY } from '../src/pages/sites/resourcePageBlocksRegistry';
 import { contrastChecks, contrastRatio, parseHex } from '../src/pages/sites/contrast';
 import { SitesPage } from '../src/pages/sites/page';
 import { loadFixture } from './loadFixture';
@@ -72,6 +78,60 @@ describe('the theme token schema', () => {
       corner_radius: 900,
     });
     expect(clamped['corner_radius']).toBe(24);
+  });
+});
+
+describe('the resource page block schema', () => {
+  it('the generated registry is the Rust schema', () => {
+    const resources = RESOURCE_PAGE_BLOCKS_REGISTRY.resources;
+    expect(resources.map((resource) => resource.key)).toEqual(['items', 'item_sets', 'media']);
+    const items = resources[0];
+    expect(items?.default).toEqual([
+      'mediaEmbeds',
+      'values',
+      'itemSets',
+      'sitePages',
+      'mediaList',
+      'linkedResources',
+    ]);
+    expect(items?.blocks.map((block) => block.name)).toContain('mediaList');
+    // An item set page accepts no media list.
+    expect(resources[1]?.blocks.map((block) => block.name)).not.toContain('mediaList');
+    expect(resources[2]?.blocks.map((block) => block.name)).toContain('mediaRender');
+  });
+
+  it('a registry with an unknown label key fails to parse', () => {
+    expect(() =>
+      parseResourcePageBlocksRegistry({
+        resources: [{ key: 'items', labelKey: 'resourcePage.nope', default: [], blocks: [] }],
+      }),
+    ).toThrow();
+  });
+
+  it('drafts fall back to the theme default, and a stored map wins', () => {
+    const fallback = resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, {});
+    expect(fallback['items']).toContain('mediaList');
+    expect(fallback['media']).toEqual(['mediaRender', 'values']);
+
+    const stored = resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, {
+      resource_page_blocks: { items: { main: ['values'] } },
+    });
+    expect(stored['items']).toEqual(['values']);
+    // The stored map is the administrator's whole answer, so an omitted
+    // resource is empty rather than the theme's default.
+    expect(stored['item_sets']).toEqual([]);
+    expect(stored['media']).toEqual([]);
+  });
+
+  it('the wire map names every resource', () => {
+    const wire = resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, {
+      items: ['values'],
+      item_sets: [],
+      media: ['mediaRender'],
+    });
+    expect(wire['items']).toEqual({ main: ['values'] });
+    expect(wire['item_sets']).toEqual({ main: [] });
+    expect(wire['media']).toEqual({ main: ['mediaRender'] });
   });
 });
 
@@ -158,6 +218,17 @@ describe('the site Theme page', () => {
     expect(body).not.toHaveProperty('o:site_settings');
     const tokens = body['o:theme_settings'];
     expect(tokens).toMatchObject({ brand_color: '#abcdef', color_scheme: 'light' });
+    // The resource page block map travels in the same member, so a token save
+    // does not drop it. The site stores no override, so the theme's set is
+    // written.
+    expect(tokens).toMatchObject({
+      resource_page_blocks: {
+        items: {
+          main: ['mediaEmbeds', 'values', 'itemSets', 'sitePages', 'mediaList', 'linkedResources'],
+        },
+        media: { main: ['mediaRender', 'values'] },
+      },
+    });
   });
 
   it('blocks saving a palette below AA 4.5:1', async () => {

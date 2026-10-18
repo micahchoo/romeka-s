@@ -35,6 +35,7 @@ pub mod i18n;
 pub mod nav;
 pub mod render;
 pub mod resource_page;
+pub mod resource_page_schema;
 pub mod search;
 pub mod settings;
 pub mod slug;

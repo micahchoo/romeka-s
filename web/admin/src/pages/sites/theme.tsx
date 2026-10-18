@@ -29,6 +29,10 @@ import { HtmlEditor } from './editor/fields/HtmlEditor';
 import { PreviewPanel } from './editor/shell/PreviewPanel';
 import type { PreviewStatus } from './editor/shell/PreviewPanel';
 import { requestPreview } from './editor/preview';
+import { ResourcePageBlocksField } from './ResourcePageBlocksField';
+import { RESOURCE_PAGE_BLOCKS_REGISTRY } from './resourcePageBlocksRegistry';
+import { resourcePageBlockDrafts, resourcePageBlocksWire } from './resourcePageBlocksSchema';
+import type { ResourcePageBlocksDraft } from './resourcePageBlocksSchema';
 import { THEME_SETTINGS_REGISTRY } from './themeSettingsRegistry';
 import {
   isHexColour,
@@ -306,6 +310,9 @@ const ThemeEditor = ({
   const [drafts, setDrafts] = useState<Readonly<Record<string, ThemeSettingDraft>>>(() =>
     themeSettingDrafts(THEME_SETTINGS_REGISTRY, storedSettings(site)),
   );
+  const [blocks, setBlocks] = useState<ResourcePageBlocksDraft>(() =>
+    resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, storedSettings(site)),
+  );
   const [page, setPage] = useState<SitePage | null>(null);
   const [preview, setPreview] = useState<PreviewState>({
     html: null,
@@ -399,7 +406,11 @@ const ThemeEditor = ({
       return;
     }
     save(async () => {
-      await api.patchSite(siteId, encodeSiteThemeSettings(tokens));
+      const settings: Readonly<Record<string, JsonValue>> = {
+        ...tokens,
+        resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
+      };
+      await api.patchSite(siteId, encodeSiteThemeSettings(settings));
     });
   };
 
@@ -431,6 +442,11 @@ const ThemeEditor = ({
           </fieldset>
         ))}
         <ContrastReadout checks={checks} />
+        <ResourcePageBlocksField
+          registry={RESOURCE_PAGE_BLOCKS_REGISTRY}
+          drafts={blocks}
+          onChange={setBlocks}
+        />
         {blocked ? (
           <p className="field-error" role="alert">
             {t('theme.contrastBlocked')}
