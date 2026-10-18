@@ -20,6 +20,7 @@ use omeka_core::ids::{AssetId, PageId};
 use omeka_core::site::{BlockData, RomkaCarrier, SiteBlock};
 use serde_json::Value as JsonValue;
 
+use super::canonical;
 use super::schema::LayoutSchema;
 use crate::view::RenderContext;
 
@@ -141,21 +142,45 @@ pub fn block(name: &str) -> Option<&'static dyn RomkaBlock> {
         .find(|block| block.name() == name)
 }
 
-/// The hash `plain_hash` stores: FNV-1a over the UTF-8 bytes, as 16 lowercase
-/// hex digits.
+/// The hash `plain_hash` stores: FNV-1a 64 over the block's canonical content,
+/// as 16 lowercase hex digits.
 ///
-/// The admin recomputes it from the stored html, so the algorithm has to be
-/// small enough to repeat in TypeScript (`web/admin/src/pages/sites/editor/romeka.ts`).
+/// The admin recomputes it from the stored html
+/// (`web/admin/src/pages/sites/editor/romeka.ts`, through `DOMParser`).
 /// `web/admin/src/generated/blocks.json` carries a worked sample and both sides
 /// test against it, which keeps the two implementations in step.
 #[must_use]
 pub fn plain_hash(html: &str) -> String {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for byte in html.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    canonical::content_hash(html)
+}
+
+/// The raw-byte FNV-1a hash carrier version 1 stored, still computed so a v1
+/// hash a write recorded before the canonical form existed is accepted.
+#[must_use]
+pub fn byte_hash(html: &str) -> String {
+    canonical::byte_hash(html)
+}
+
+/// The carrier version this build writes.
+pub const CARRIER_VERSION: i64 = 2;
+
+/// The carrier version whose `plain_hash` is the raw-byte hash.
+pub const LEGACY_CARRIER_VERSION: i64 = 1;
+
+/// Whether a carrier's stored hash vouches for `html`.
+///
+/// A v1 hash was computed over the raw bytes, so it is compared that way too;
+/// a later version compares the canonical content only. A carrier with no hash
+/// vouches for nothing.
+#[must_use]
+pub fn stored_matches(carrier: &RomkaCarrier, html: &str) -> bool {
+    let Some(stored) = &carrier.plain_hash else {
+        return false;
+    };
+    if *stored == plain_hash(html) {
+        return true;
     }
-    format!("{hash:016x}")
+    carrier.v <= LEGACY_CARRIER_VERSION && *stored == byte_hash(html)
 }
 
 /// What a carrier renders: the rich form, or the stored html when the plain
@@ -180,25 +205,24 @@ pub fn render_carrier(stored: &SiteBlock, ctx: &RenderContext<'_>) -> Option<Car
     let BlockData::Html { html } = &stored.data else {
         return None;
     };
-    match &carrier.plain_hash {
-        Some(hash) if *hash == plain_hash(html) => Some(CarrierRender::Rich(
+    if stored_matches(carrier, html) {
+        return Some(CarrierRender::Rich(
             definition.render(&carrier.settings, ctx),
-        )),
-        _ => Some(CarrierRender::Edited(omeka_core::purify::purify(html))),
+        ));
     }
+    Some(CarrierRender::Edited(omeka_core::purify::purify(html)))
 }
 
-/// Whether this write must regenerate the plain rendering: the carrier names a
-/// registered block and its hash matches the stored html, or it has no hash.
+/// Whether this write regenerates the plain rendering: the carrier has no hash
+/// yet, or its hash vouches for the stored html.
+///
+/// A hash that does not vouch is an outside edit, and the write keeps it.
 #[must_use]
 pub fn needs_plain(carrier: &RomkaCarrier, stored_html: &str) -> bool {
     if block(carrier.block.as_str()).is_none() {
         return false;
     }
-    match &carrier.plain_hash {
-        Some(hash) => *hash == plain_hash(stored_html),
-        None => true,
-    }
+    carrier.plain_hash.is_none() || stored_matches(carrier, stored_html)
 }
 
 /// The plain rendering for a carrier, purified, `None` when the carrier names
@@ -231,13 +255,37 @@ pub fn page_refs(carrier: &RomkaCarrier) -> Vec<PageId> {
 mod tests {
     use super::*;
 
-    /// The hash is FNV-1a 64 over the UTF-8 bytes. The admin repeats it, so
-    /// this test pins the vectors the generated registry also carries.
+    /// The hash is FNV-1a 64 over the canonical content. The admin repeats it,
+    /// so the generated registry also carries a worked sample.
     #[test]
-    fn plain_hash_is_fnv1a_64_over_utf8() {
+    fn plain_hash_is_fnv1a_64_over_the_canonical_content() {
         assert_eq!(plain_hash(""), "cbf29ce484222325");
-        assert_eq!(plain_hash("a"), "af63dc4c8601ec8c");
-        assert_eq!(plain_hash("café"), "48e8823acfa40d89");
+        assert_eq!(byte_hash(""), "cbf29ce484222325");
+        assert_eq!(byte_hash("a"), "af63dc4c8601ec8c");
+        assert_eq!(plain_hash("<p>a</p>"), byte_hash("t\u{1e}a"));
+        assert_ne!(plain_hash("<p>a</p>"), byte_hash("<p>a</p>"));
+    }
+
+    /// A carrier version 1 hash is the raw-byte hash, so it still vouches for
+    /// its html even though the canonical hash of that html differs. A later
+    /// version does not compare the byte hash.
+    #[test]
+    fn a_version_one_hash_is_accepted_by_its_byte_value() {
+        let html = "<p>a</p>\n";
+        let legacy = RomkaCarrier {
+            block: "hero".to_string(),
+            v: LEGACY_CARRIER_VERSION,
+            settings: JsonValue::Null,
+            plain_hash: Some(byte_hash(html)),
+        };
+        assert!(stored_matches(&legacy, html));
+        assert!(needs_plain(&legacy, html), "a v1 carrier migrates on write");
+        let current = RomkaCarrier {
+            v: CARRIER_VERSION,
+            ..legacy
+        };
+        assert!(!stored_matches(&current, html));
+        assert!(!needs_plain(&current, html));
     }
 
     /// Every registered block declares a settings form and both renderings.

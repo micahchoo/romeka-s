@@ -18,7 +18,7 @@ import { BlockPicker } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
 import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
-import { romkaState } from '../romeka';
+import { romkaState } from '../romekaHash';
 import { blockSummary, layoutLabel } from './summary';
 import './canvas.css';
 

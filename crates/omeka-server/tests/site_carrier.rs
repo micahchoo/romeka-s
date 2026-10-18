@@ -13,7 +13,7 @@ use common::{append_key, get, json_request, router, seeded_pool, send};
 use omeka_db::ids::SiteId;
 use omeka_db::repos::{AssetRepo, SiteRepo};
 use omeka_db::rows::{NewAsset, NewSitePage};
-use omeka_site::blocks::romeka::plain_hash;
+use omeka_site::blocks::romeka::{byte_hash, plain_hash};
 use serde_json::{Value, json};
 
 /// One `o:block` for a hero carrier. `html` and `hash` are what the client
@@ -113,6 +113,59 @@ async fn a_write_regenerates_the_plain_rendering_and_sets_the_hash() {
         "the hash is of the stored html"
     );
     assert_eq!(block["o:layout_data"]["romeka"]["block"], "hero");
+    assert_eq!(
+        block["o:layout_data"]["romeka"]["v"], 2,
+        "the write records the current carrier version"
+    );
+}
+
+/// A carrier version 1 hash was the raw-byte hash. It vouches for its html, so
+/// the write is not an outside edit, and the write migrates the carrier to the
+/// current version with the canonical hash.
+#[tokio::test]
+async fn a_version_one_byte_hash_migrates_on_the_next_save() {
+    let (pool, seed) = seeded_pool().await;
+    let app = router(pool.clone());
+    let clean = send(
+        app.clone(),
+        json_request(
+            "POST",
+            &append_key("/api/site_pages"),
+            &hero_body(seed.site, json!({ "heading": "Welcome" }), None, None),
+        ),
+    )
+    .await;
+    let page_id = clean.json()["o:id"].as_u64().unwrap();
+    let stored = clean.json()["o:block"][0]["o:data"]["html"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let v1 = hero_body(
+        seed.site,
+        json!({ "heading": "Welcome" }),
+        Some(&stored),
+        Some(&byte_hash(&stored)),
+    );
+    let mut v1 = serde_json::from_str::<Value>(&v1).unwrap();
+    v1["o:block"][0]["o:layout_data"]["romeka"]["v"] = json!(1);
+    let migrated = send(
+        app,
+        json_request(
+            "PUT",
+            &append_key(&format!("/api/site_pages/{page_id}")),
+            &v1.to_string(),
+        ),
+    )
+    .await;
+
+    assert_eq!(migrated.status, StatusCode::OK, "{}", migrated.body);
+    let block = &migrated.json()["o:block"][0];
+    assert_eq!(block["o:layout_data"]["romeka"]["v"], 2);
+    assert_eq!(
+        block["o:layout_data"]["romeka"]["plain_hash"],
+        plain_hash(block["o:data"]["html"].as_str().unwrap())
+    );
 }
 
 /// A stored hash that disagrees with the stored html is an outside edit: the

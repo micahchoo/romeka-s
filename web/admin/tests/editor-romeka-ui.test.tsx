@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { draftReducer } from '../src/pages/sites/editor/draft';
 import type { BlockKey, PageDraft } from '../src/pages/sites/editor/draft';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
-import { plainHash } from '../src/pages/sites/editor/romeka';
+import { plainHash } from '../src/pages/sites/editor/romekaHash';
 import { blockAt, load, rawBlock } from './editor-draft-helpers';
 
 const Harness = ({ initial }: { readonly initial: PageDraft }): ReactElement => {

@@ -231,7 +231,11 @@ const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): Bloc
       key,
       layout: romka.carrier,
       data: { html: '' },
-      layoutData: newCarrier(romka.name, settingsDefaults(registry, romka.name)),
+      layoutData: newCarrier(
+        romka.name,
+        settingsDefaults(registry, romka.name),
+        registry.romekaVersion,
+      ),
       attachments: [],
     };
   }

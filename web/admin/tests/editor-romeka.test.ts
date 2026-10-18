@@ -11,12 +11,12 @@ import {
   validate,
 } from '../src/pages/sites/editor/draft';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
+import { carrierOf, settingsOf } from '../src/pages/sites/editor/romeka';
 import {
-  carrierOf,
+  legacyPlainHash,
   plainHash,
   romkaState,
-  settingsOf,
-} from '../src/pages/sites/editor/romeka';
+} from '../src/pages/sites/editor/romekaHash';
 import { apply, at, blockAt, load, rawBlock } from './editor-draft-helpers';
 
 const carrierBlock = (plain: string, plainHashValue: string | null): unknown =>
@@ -34,7 +34,65 @@ const carrierBlock = (plain: string, plainHashValue: string | null): unknown =>
 describe('the plain hash', () => {
   it('matches the generator sample', () => {
     expect(plainHash(generated.romekaHash.input)).toBe(generated.romekaHash.hash);
-    expect(generated.romekaHash.algorithm).toBe('fnv1a-64');
+    expect(legacyPlainHash(generated.romekaHash.input)).toBe(
+      generated.romekaHash.legacyHash,
+    );
+    expect(generated.romekaHash.algorithm).toBe('fnv1a-64-canonical');
+    expect(generated.romekaHash.legacyAlgorithm).toBe('fnv1a-64');
+  });
+
+  it('ignores formatting, attribute order, void self-closing and rel', () => {
+    const plain =
+      '<h2>Romeka &amp; Co</h2><p>Hello <em>world</em>.</p>' +
+      '<img src="/files/asset/a.png" alt="A shelf">' +
+      '<a href="/s/main/page/about" rel="noreferrer noopener">About</a>';
+    const normalised =
+      '<h2>Romeka &amp; Co</h2>\n\n<p>Hello <em>world</em>.</p>\n\n' +
+      '<p><img alt="A shelf" src="/files/asset/a.png" />' +
+      '<a href="/s/main/page/about" target="_blank">About</a></p>\n';
+    expect(plainHash(plain)).toBe(plainHash(normalised));
+  });
+
+  it('hashes the html an upstream admin left equal to the port plain html', () => {
+    // Captured from the oracle round trip on 2026-10-18.
+    const plain =
+      '<h2>Welcome from Romeka</h2><p>A subtitle</p>' +
+      '<p>Body copy with <em>emphasis</em>.</p>' +
+      '<img src="/files/asset/proof.png" alt="A proof image">' +
+      '<a href="https://example.org/browse" rel="noreferrer noopener">Browse</a>';
+    const normalised =
+      '<h2>Welcome from Romeka</h2>\n\n<p>A subtitle</p>\n\n' +
+      '<p>Body copy with <em>emphasis</em>.</p>\n\n' +
+      '<p><img alt="A proof image" src="/files/asset/proof.png" />' +
+      '<a href="https://example.org/browse">Browse</a></p>\n\n';
+    expect(plain).not.toBe(normalised);
+    expect(plainHash(plain)).toBe(plainHash(normalised));
+  });
+
+  it('collapses whitespace runs but keeps a tag as a separator', () => {
+    expect(plainHash('<p>one\n\n\ttwo</p>')).toBe(plainHash('<p>one two</p>'));
+    expect(plainHash('<p>one</p><p>two</p>')).not.toBe(plainHash('<p>onetwo</p>'));
+    expect(plainHash('<p>a</p>\n\n<p>b</p>')).toBe(plainHash('<p>a</p><p>b</p>'));
+  });
+
+  it('ignores an invisible element', () => {
+    expect(plainHash('<p>ok</p><script>alert(1)</script>')).toBe(
+      plainHash('<p>ok</p>'),
+    );
+  });
+
+  it('changes for a changed word, image source or link href', () => {
+    const base =
+      '<h2>Welcome</h2><img src="/a.png" alt="A"><a href="/one">Go</a>';
+    for (const changed of [
+      '<h2>Welcom</h2><img src="/a.png" alt="A"><a href="/one">Go</a>',
+      '<h2>Welcome</h2><img src="/b.png" alt="A"><a href="/one">Go</a>',
+      '<h2>Welcome</h2><img src="/a.png" alt="A"><a href="/two">Go</a>',
+      '<h2>Welcome</h2><img src="/a.png" alt="B"><a href="/one">Go</a>',
+      '<h2>Welcome</h2><img src="/a.png" alt="A"><a href="/one">Stop</a>',
+    ]) {
+      expect(plainHash(changed)).not.toBe(plainHash(base));
+    }
   });
 });
 
@@ -150,5 +208,24 @@ describe('a carrier edited outside Romeka', () => {
       class: 'keep',
       romeka: { block: 'hero', v: 1, settings: { heading: 'H' }, extra: true },
     });
+  });
+});
+
+describe('a carrier version 1 hash', () => {
+  const carrier = (version: number, hash: string): unknown =>
+    rawBlock('html', { html: '<p>a</p>\n' }, {
+      'o:layout_data': {
+        romeka: { block: 'hero', v: version, settings: { heading: 'H' }, plain_hash: hash },
+      },
+    });
+
+  it('is accepted by its byte value, so it is not an outside edit', () => {
+    const draft = load([carrier(1, legacyPlainHash('<p>a</p>\n'))]);
+    expect(romkaState(draft.registry, blockAt(draft.blocks, 0))).toBe('ok');
+  });
+
+  it('is not accepted once the carrier records a later version', () => {
+    const draft = load([carrier(2, legacyPlainHash('<p>a</p>\n'))]);
+    expect(romkaState(draft.registry, blockAt(draft.blocks, 0))).toBe('edited');
   });
 });

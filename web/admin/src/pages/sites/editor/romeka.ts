@@ -3,31 +3,15 @@
  *
  * A Romeka block is stored as an upstream block whose `o:layout_data.romeka`
  * holds `{block, v, settings, plain_hash}`; `docs/compat.md` records the rule.
- * The editor reads that member to label the block, render its settings form and
- * mark the one state the server cannot fix: an `o:data.html` that no longer
- * hashes to `plain_hash`, because it was edited outside Romeka.
- *
- * The hash must match `crates/omeka-site/src/blocks/romeka.rs::plain_hash`, so
- * both sides test against the sample in `src/generated/blocks.json`.
+ * The editor reads that member to label the block and render its settings form.
+ * The hash that marks a carrier edited outside Romeka lives in
+ * [`romekaHash`](./romekaHash.ts), apart from this module, so the shared shell
+ * chunk does not carry it.
  */
 import type { JsonValue } from '../../../api/types';
 import type { BlockRegistry, RomkaBlockSchema } from '../blockSchema';
 import type { LayoutData } from './draft';
 import { isJsonObject, layoutObject } from './values';
-
-const OFFSET_BASIS = 0xcbf29ce484222325n;
-const PRIME = 0x100000001b3n;
-const MASK = 0xffffffffffffffffn;
-
-/** FNV-1a 64 over the UTF-8 bytes, as 16 lowercase hex digits. */
-export const plainHash = (text: string): string => {
-  let hash = OFFSET_BASIS;
-  for (const byte of new TextEncoder().encode(text)) {
-    hash ^= BigInt(byte);
-    hash = (hash * PRIME) & MASK;
-  }
-  return hash.toString(16).padStart(16, '0');
-};
 
 /** The `o:layout_data.romeka` member of a stored block. */
 export interface RomkaData {
@@ -80,45 +64,22 @@ export const romkaFor = (
   return registry.romeka.find((entry) => entry.name === carrier.block);
 };
 
-/**
- * The carrier states the editor distinguishes.
- *
- * `unhashed` is a block that has not been through a Romeka save yet; `edited`
- * is one whose stored html was changed outside Romeka, which the server renders
- * as stored until the user asks for the Romeka version.
- */
-export type RomkaState = 'none' | 'unhashed' | 'ok' | 'edited';
-
-/** The state of a block's carrier, `none` when it carries no registered block. */
-export const romkaState = (
-  registry: BlockRegistry,
-  block: { readonly data: JsonValue; readonly layoutData: LayoutData | null },
-): RomkaState => {
-  if (romkaFor(registry, block) === undefined) {
-    return 'none';
-  }
-  const carrier = carrierOf(block);
-  if (carrier === null || carrier.plainHash === null) {
-    return 'unhashed';
-  }
-  const html = isJsonObject(block.data) ? text(block.data.html) : '';
-  return plainHash(html) === carrier.plainHash ? 'ok' : 'edited';
-};
-
 /** The settings record a Romka form reads. */
 export const settingsOf = (
   block: { readonly layoutData: LayoutData | null },
 ): Readonly<Record<string, JsonValue>> => carrierOf(block)?.settings ?? {};
 
-/** The `o:layout_data` value for a new carrier: the block name and its version
- * under the `romeka` member the write and the renderer read. */
+/** The `o:layout_data` value for a new carrier: the block name, the carrier
+ * version and the settings, under the `romeka` member the write and the
+ * renderer read. */
 export const newCarrier = (
   name: string,
   settings: Readonly<Record<string, JsonValue>>,
+  version: number,
 ): Readonly<Record<string, JsonValue>> => ({
   romeka: {
     block: name,
-    v: 1,
+    v: version,
     settings,
   },
 });

@@ -84,11 +84,17 @@ catalogue label, a `LayoutSchema` in the same format as an upstream layout, a ri
 plain renderer. `plain` has no default, so a block without one does not compile. `ROMKA_BLOCKS` holds
 the registry; `hero` is its first entry.
 
-`romeka::plain_hash` hashes the stored plain rendering with FNV-1a 64. `Html::render` calls
-`render_carrier`: a carrier whose hash matches renders the rich form, and one whose hash does not, or
-is absent, renders the stored html, purified. The admin repeats the hash
-(`web/admin/src/pages/sites/editor/romeka.ts`) to mark the block, and
-`web/admin/src/generated/blocks.json` carries a worked sample both sides test against.
+`romeka::plain_hash` hashes the block's canonical content form with FNV-1a 64. The form keeps only
+what a reader sees, in order: text runs with whitespace collapsed, each image's `src` and `alt`, and
+each link's `href` with the text it wraps. An upstream admin save rewrites the html through
+HTMLPurifier (pretty-printing, self-closed voids, reordered attributes, dropped `rel`), so a hash of
+the raw bytes would change on every save; the canonical form does not. `Html::render` calls
+`render_carrier`: a carrier whose hash vouches for the html renders the rich form, and one whose hash
+does not, or is absent, renders the stored html, purified. A carrier version 1 hash was the raw-byte
+hash, so `stored_matches` still accepts it and the next write migrates the carrier to version 2 with
+the canonical hash. The admin repeats the hash (`web/admin/src/pages/sites/editor/romeka.ts`, through
+`DOMParser`), and `web/admin/src/generated/blocks.json` carries a worked sample of both algorithms
+that both sides test against.
 
 `blocks::schema::registry` lists the Romeka registry beside the upstream layouts, each entry with its
 carrier, so the admin picker offers them and its form uses the block's own fields. The site write

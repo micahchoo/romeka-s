@@ -89,9 +89,13 @@ Every block this product adds obeys four consequences:
   `o:layout_data.romeka`, which upstream ignores and its admin keeps.
 - The upstream part of the block, such as `o:data.html`, is the plain rendering. Romeka S writes it
   from the block's own renderer on every save, so nobody writes the fallback by hand.
-- `o:layout_data.romeka` records a hash of the plain rendering it wrote. When the stored plain
-  rendering no longer matches, someone edited the block outside this product: Romeka S renders the
+- `o:layout_data.romeka` records `plain_hash`, a hash of the plain rendering's content: its visible
+  text, image sources and alt text, and link targets, in order. Formatting is not hashed, because an
+  upstream admin save re-formats the HTML through HTMLPurifier (measured) without changing it. When
+  the content no longer matches, someone edited the block outside this product: Romeka S renders the
   edited plain HTML and its editor marks the block, rather than overwrite that edit with the rich one.
+  Measured on the oracle: a page saved once in upstream's admin with no change renders the rich block
+  again here, and a page whose text was edited there renders the edit.
 - A block that has no plain rendering (a live search, an interactive map) writes a plain statement of
   what is missing and a link to this product's page, never nothing.
 

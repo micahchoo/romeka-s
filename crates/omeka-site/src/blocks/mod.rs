@@ -24,6 +24,7 @@ pub(crate) mod test_support;
 pub mod asset;
 pub mod block_group;
 pub mod browse_preview;
+pub mod canonical;
 pub mod fallback;
 pub mod hero;
 pub mod html;

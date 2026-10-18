@@ -283,10 +283,11 @@ async fn carry_blocks(api: &Api<'_>, site: SiteId, blocks: &mut [Block]) -> Resu
 /// The Romeka carrier rule for one block on its way to storage.
 ///
 /// An `html` block whose `o:layout_data.romeka` names a registered Romeka block
-/// has `o:data.html` regenerated from that block's plain renderer, and
-/// `plain_hash` set to the hash of what was stored. A stored hash that does not
-/// match `o:data.html` is an edit made outside this product: the write keeps
-/// that edit and leaves the hash alone.
+/// has `o:data.html` regenerated from that block's plain renderer, `plain_hash`
+/// set to the hash of what was stored and `v` set to
+/// [`romeka::CARRIER_VERSION`], which migrates a version 1 hash on its first
+/// save. A stored hash that does not vouch for `o:data.html` is an edit made
+/// outside this product: the write keeps that edit and leaves the hash alone.
 ///
 /// The preview route reuses this function, so a preview renders the same plain
 /// rendering a save would store.
@@ -327,6 +328,7 @@ pub async fn carry_block(
     };
     if let Some(Value::Object(romeka_object)) = layout_object.get_mut("romeka") {
         romeka_object.insert("plain_hash".to_string(), Value::String(hash));
+        romeka_object.insert("v".to_string(), Value::from(romeka::CARRIER_VERSION));
     }
     Ok((data, Some(Value::Object(layout_object))))
 }

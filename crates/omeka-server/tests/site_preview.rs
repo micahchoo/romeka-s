@@ -550,3 +550,68 @@ async fn preview_answers_only_to_post() {
         Some("text/html; charset=utf-8")
     );
 }
+
+/// A hero block in the preview renders the rich banner. The preview runs the
+/// write's carrier step, so the plain rendering is generated and hashed before
+/// the render, exactly as a save would store it. Without that step the block
+/// would carry no hash and render its empty stored html.
+#[tokio::test]
+async fn preview_renders_the_romeka_hero() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+
+    let body = page_body(
+        Some(seed.public_page),
+        "vis-pub-public",
+        "Vis public page",
+        json!([{
+            "o:layout": "html",
+            "o:data": {},
+            "o:layout_data": {
+                "romeka": {
+                    "block": "hero",
+                    "v": 1,
+                    "settings": {
+                        "heading": "Preview heading",
+                        "subheading": "Preview subheading",
+                        "cta_label": "Go",
+                        "cta_url": "https://example.org/go"
+                    }
+                }
+            }
+        }]),
+    );
+    let answer = send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer
+            .body
+            .contains("class=\"romeka-hero romeka-hero-align-left romeka-hero-overlay-medium"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer
+            .body
+            .contains("<h2 class=\"romeka-hero-heading\">Preview heading</h2>"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer
+            .body
+            .contains("<a href=\"https://example.org/go\" class=\"romeka-hero-cta\">Go</a>"),
+        "{}",
+        answer.body
+    );
+}

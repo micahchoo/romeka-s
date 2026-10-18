@@ -450,19 +450,28 @@ pub struct RomkaEntry {
 /// The admin recomputes the hash of a stored plain rendering to mark a block
 /// that was edited outside Romeka S. It ships this sample so its own
 /// implementation is tested against the generator's, not against a copied
-/// constant.
+/// constant. `hash` is the canonical-content hash and `legacyHash` is the
+/// raw-byte hash a carrier version 1 stored.
 #[derive(Debug, Serialize)]
 pub struct RomkaHash {
-    /// The algorithm's name (`fnv1a-64`).
+    /// The canonical algorithm's name (`fnv1a-64-canonical`).
     pub algorithm: &'static str,
     /// The sample input.
     pub input: &'static str,
-    /// The hash of the sample input, as this crate computes it.
+    /// The canonical hash of the sample input, as this crate computes it.
     pub hash: String,
+    /// The legacy algorithm's name (`fnv1a-64`).
+    #[serde(rename = "legacyAlgorithm")]
+    pub legacy_algorithm: &'static str,
+    /// The raw-byte hash of the sample input.
+    #[serde(rename = "legacyHash")]
+    pub legacy_hash: String,
 }
 
 /// The sample the admin hashes in its test.
-pub const HASH_SAMPLE: &str = "<h2>Romeka</h2>";
+pub const HASH_SAMPLE: &str = "<h2>Romeka &amp; Co</h2><p>Hello <em>world</em>.</p>\
+     <img src=\"/files/asset/a.png\" alt=\"A shelf\">\
+     <a href=\"/s/main/page/about\">About</a>";
 
 /// The whole registry, as `web/admin/src/generated/blocks.json` holds it.
 #[derive(Debug, Serialize)]
@@ -472,6 +481,9 @@ pub struct Registry {
     pub layouts: Vec<LayoutEntry>,
     /// Every registered Romeka block, in registry order.
     pub romeka: Vec<RomkaEntry>,
+    /// The carrier version a new carrier writes.
+    #[serde(rename = "romekaVersion")]
+    pub romeka_version: i64,
     /// The plain-hash algorithm and a worked sample.
     #[serde(rename = "romekaHash")]
     pub romeka_hash: RomkaHash,
@@ -507,10 +519,13 @@ pub fn registry() -> Registry {
     Registry {
         layouts: entries,
         romeka: romeka_entries,
+        romeka_version: romeka::CARRIER_VERSION,
         romeka_hash: RomkaHash {
-            algorithm: "fnv1a-64",
+            algorithm: "fnv1a-64-canonical",
             input: HASH_SAMPLE,
             hash: romeka::plain_hash(HASH_SAMPLE),
+            legacy_algorithm: "fnv1a-64",
+            legacy_hash: romeka::byte_hash(HASH_SAMPLE),
         },
         block_layout_data: BLOCK_LAYOUT_DATA,
         page_layout_data: PAGE_LAYOUT_DATA,
