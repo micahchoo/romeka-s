@@ -719,3 +719,150 @@ code {
     font-size: 16px;
   }
 }
+
+/* Block field controls (`src/pages/sites/editor/fields/`). One field is one
+ * stacked row: a label, its control, and an inline error under it. */
+.block-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.block-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.block-field > label,
+.block-field > legend {
+  font-weight: 500;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.field-note {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* The rich-text editor: a toolbar, then a bordered editing surface. */
+.html-field {
+  gap: var(--space-2);
+}
+
+.html-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.html-toolbar button {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  font-size: 13px;
+}
+
+.html-toolbar button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.html-editor {
+  min-height: 6rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.html-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+
+/* The asset picker: a current-asset line, then a thumbnail grid. */
+.asset-current {
+  align-items: center;
+  margin: 0;
+}
+
+.asset-thumb {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asset-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.asset-grid button[aria-current="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.asset-empty,
+.asset-busy {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* One attachment, repeat entry or page node is one card, like a value row. */
+.attachment-rows,
+.repeat-rows,
+.item-results,
+.page-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-row,
+.repeat-row {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.item-results {
+  gap: var(--space-1);
+}
+
+.page-list .page-list {
+  margin-top: var(--space-2);
+}
+
+.query-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}

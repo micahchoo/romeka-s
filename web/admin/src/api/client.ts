@@ -402,6 +402,28 @@ export class ApiClient {
     return parseAsset(await this.requestJson(`/api/assets/${String(id)}`));
   }
 
+  /**
+   * `POST /api/assets` (`AssetAdapter::hydrate` on create). The body is
+   * multipart: a JSON `data` part and a `file` part, which `ApiController::
+   * processPostData` reads. `FormData` builds the body and its boundary; setting
+   * `Content-Type` by hand would drop the boundary the parser needs.
+   */
+  async createAsset(write: AssetWrite, file: File): Promise<Asset> {
+    const body = new FormData();
+    body.set('data', JSON.stringify(encodeAsset(write)));
+    body.set('file', file);
+    const response = await this.fetchFn(this.apiUrl('/api/assets'), {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body,
+      credentials: 'same-origin',
+    });
+    if (!response.ok) {
+      throw await this.apiError(response);
+    }
+    return parseAsset(await readJsonBody(response));
+  }
+
   /** `AssetAdapter::hydrate` writes `o:name` and `o:alt_text` on an update. */
   async updateAsset(id: AssetId, write: AssetWrite): Promise<Asset> {
     return parseAsset(await this.writeJson('PUT', `/api/assets/${String(id)}`, encodeAsset(write)));
