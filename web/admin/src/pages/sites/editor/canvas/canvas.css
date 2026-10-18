@@ -1,0 +1,292 @@
+/*
+ * The page canvas. Imported by `PageCanvas.tsx`, so Vite emits it as a lazy
+ * chunk beside the canvas and the initial stylesheet stays small. Colours and
+ * spacing come from the admin tokens in `src/styles.css`.
+ */
+
+.canvas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.canvas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.canvas-layout {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.canvas-layout legend {
+  padding: 0 var(--space-1);
+  color: var(--text-muted);
+}
+
+.canvas-grid-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.canvas-grid-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-muted);
+}
+
+.canvas-grid-fields input {
+  width: 7rem;
+}
+
+.canvas-history {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.canvas-live,
+.canvas-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.canvas-empty {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.canvas-page-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.canvas-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-grid {
+  display: grid;
+  align-items: start;
+}
+
+.canvas-grid > .canvas-insert,
+.canvas-grid > .canvas-group {
+  grid-column: 1 / -1;
+}
+
+.canvas-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 64px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.canvas-card[data-selected] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.canvas-card[data-picked] {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.canvas-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.canvas-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.canvas-card-label {
+  font-weight: 600;
+}
+
+.canvas-card-summary {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-badge {
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.canvas-menu {
+  position: relative;
+}
+
+.canvas-menu-button {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.canvas-menu-list {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  right: 0;
+  min-width: 12rem;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  list-style: none;
+}
+
+.canvas-menu-list button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.canvas-menu-list button:hover {
+  background: var(--accent-soft);
+}
+
+.canvas-insert {
+  list-style: none;
+}
+
+.canvas-insert-button {
+  width: 100%;
+  padding: var(--space-1);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.canvas-insert-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.canvas-picker {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.canvas-picker-empty {
+  color: var(--text-muted);
+}
+
+.canvas-picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-1);
+  max-height: 16rem;
+  margin: var(--space-2) 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.canvas-picker-list button {
+  width: 100%;
+  text-align: left;
+}
+
+.canvas-group {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--accent);
+  list-style: none;
+}
+
+.canvas-group-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.canvas-group-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-drop-into {
+  min-height: var(--space-4);
+  border-radius: var(--radius);
+}
+
+.canvas-drop-into:hover {
+  background: var(--accent-soft);
+}
+
+.canvas-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: ew-resize;
+}
+
+.canvas-resize:hover,
+.canvas-resize:focus-visible {
+  background: var(--accent-soft);
+}
