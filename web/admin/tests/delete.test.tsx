@@ -22,6 +22,7 @@ import { SitesPage } from '../src/pages/sites/page';
 import { UserForm } from '../src/pages/users/form';
 import { loadFixture } from './loadFixture';
 import {
+  detached,
   first,
   installFetch,
   jsonResponse,
@@ -104,7 +105,7 @@ if (itemSetId === null || userId === null) {
 
 describe('the confirmation gate', () => {
   it('delete_holds_the_request_until_the_confirmation_names_the_row', async () => {
-    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(itemFixture())));
+    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(detached(itemFixture()))));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
@@ -129,7 +130,7 @@ describe('the confirmation gate', () => {
 
 describe('the request per resource', () => {
   it('item_delete_sends_delete_to_the_items_row_and_returns_to_the_list', async () => {
-    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(itemFixture())));
+    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(detached(itemFixture()))));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
@@ -148,7 +149,7 @@ describe('the request per resource', () => {
   it('item_set_delete_sends_delete_to_the_item_sets_row_and_returns_to_the_list', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/item_sets/1') {
-        return jsonResponse(itemSetFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(itemSetFixture()) : itemSetFixture());
       }
       return optionOrNotFound(url, init);
     });
@@ -170,9 +171,9 @@ describe('the request per resource', () => {
   });
 
   it('media_delete_sends_delete_to_the_media_row_and_returns_to_the_list', async () => {
-    const fetchMock = installFetch((url) => {
+    const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/media/951') {
-        return jsonResponse(mediaFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(mediaFixture()) : mediaFixture());
       }
       return notFound();
     });
@@ -194,9 +195,9 @@ describe('the request per resource', () => {
   });
 
   it('user_delete_sends_delete_to_the_users_row_and_returns_to_the_list', async () => {
-    const fetchMock = installFetch((url) => {
+    const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/users/3') {
-        return jsonResponse(userFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(userFixture()) : userFixture());
       }
       return notFound();
     });
@@ -218,7 +219,7 @@ describe('the request per resource', () => {
   it('site_delete_sends_delete_to_the_sites_row_and_returns_to_the_list', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites/1') {
-        return jsonResponse(siteFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(siteFixture()) : siteFixture());
       }
       if (url.pathname === '/api/site_pages/1') {
         return jsonResponse(pageFixture());
@@ -241,9 +242,9 @@ describe('the request per resource', () => {
   });
 
   it('site_page_delete_sends_delete_to_the_pages_row_and_returns_to_its_site', async () => {
-    const fetchMock = installFetch((url) => {
+    const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/site_pages/1') {
-        return jsonResponse(pageFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(pageFixture()) : pageFixture());
       }
       return notFound();
     });
@@ -318,12 +319,27 @@ describe('a refused or missing row', () => {
   });
 });
 
+describe('an answer that is not detached', () => {
+  it('delete_reports_the_unexpected_shape_and_stays_on_the_page', async () => {
+    installFetch(itemDetailHandler(() => jsonResponse(itemFixture())));
+    render(<ItemsPage param="1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('$.o:id: expected null');
+    expect(window.location.hash).toBe('');
+    expect(screen.getByRole('button', { name: 'Delete this item' })).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});
+
 describe('the list after a successful delete', () => {
   it('item_delete_navigates_to_the_list_and_reloads_it', async () => {
     window.location.hash = '#/items/1';
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/items/1') {
-        return jsonResponse(itemFixture());
+        return jsonResponse(init?.method === 'DELETE' ? detached(itemFixture()) : itemFixture());
       }
       if (url.pathname === '/api/items') {
         return listResponse(loadFixture('items-page.json'), 2);

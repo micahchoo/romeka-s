@@ -39,6 +39,17 @@ export const listResponse = (
  */
 export const noContent = (): Response => new Response(null, { status: 204 });
 
+/**
+ * The answer `DELETE /api/<resource>/<id>` renders: the row the flush removed,
+ * detached, so `o:id` is null (`crates/omeka-api/src/write/detached.rs`).
+ */
+export const detached = (fixture: unknown): Record<string, unknown> => {
+  if (!isRecord(fixture)) {
+    throw new Error('expected a record fixture to detach');
+  }
+  return { ...fixture, 'o:id': null };
+};
+
 export type Handler = (url: URL, init: RequestInit | undefined) => Response;
 
 /** Route by pathname; anything else is a 404 with an upstream error body. */
