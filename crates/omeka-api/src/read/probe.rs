@@ -416,7 +416,7 @@ async fn list_cost_split() {
         assert_eq!(relations.values_of(page[0].resource.id.0).len(), 6);
         samples.push(start.elapsed());
     }
-    report("relations load (5 queries)", median(samples));
+    report("relations load (6 queries)", median(samples));
 
     let ids: Vec<u64> = targets.iter().map(|(id, _)| *id).collect();
     let mut samples = Vec::with_capacity(RUNS);
