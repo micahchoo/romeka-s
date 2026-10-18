@@ -9,6 +9,7 @@ import { isUnknownArray } from '../src/api/parse';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
+import { editorReads } from './editorStubs';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -46,11 +47,14 @@ describe('site routing', () => {
   it('shell_routes_a_nested_site_page_url_to_the_page_editor', async () => {
     window.location.hash = '#/sites/1/pages/1';
     installFetch((url) =>
-      url.pathname === '/api/site_pages/1' ? jsonResponse(pageFixture()) : notFound(),
+      url.pathname === '/api/site_pages/1'
+        ? jsonResponse(pageFixture())
+        : (editorReads(url) ?? notFound()),
     );
     render(<Shell />);
 
-    expect(await screen.findByLabelText('Block 1 data (JSON)')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Title')).toHaveValue('Welcome');
+    expect(await screen.findByRole('listitem', { name: /Block 1: HTML/ })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin pages' });
     expect(within(nav).getByRole('link', { name: 'Sites' })).toHaveAttribute(
       'aria-current',
@@ -161,59 +165,19 @@ describe('site edit', () => {
 });
 
 describe('site page edit', () => {
-  it('site_page_edit_round_trips_a_two_block_page', async () => {
+  it('site_page_edit_reorders_the_blocks_it_saves', async () => {
     const fetchMock = installFetch((url) => {
       if (url.pathname === '/api/site_pages/1') {
         return jsonResponse(pageFixture());
       }
-      return notFound();
+      return editorReads(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
 
-    expect(await screen.findByLabelText('Title')).toHaveValue('Welcome');
-    expect(screen.getByLabelText('Block 1 data (JSON)')).toHaveValue(
-      '{\n  "html": "<p>First block.</p>"\n}',
-    );
-    expect(screen.getByLabelText('Block 2 layout')).toHaveValue('pageTitle');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const put = first(
-      requestsFor(fetchMock, '/api/site_pages/1').filter(
-        (request) => request.init?.method === 'PUT',
-      ),
-    );
-    expect(put.init?.method).toBe('PUT');
-    expect(put.url.pathname).toBe('/api/site_pages/1');
-    expect(requestBody(put)).toEqual({
-      'o:site': { 'o:id': 1 },
-      'o:title': 'Welcome',
-      'o:slug': 'welcome',
-      'o:is_public': true,
-      'o:layout': null,
-      'o:layout_data': [],
-      'o:block': [
-        {
-          'o:layout': 'html',
-          'o:data': { html: '<p>First block.</p>' },
-          'o:attachment': [],
-        },
-        { 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] },
-      ],
-    });
-  });
-
-  it('site_page_block_editor_reorders_the_blocks_it_saves', async () => {
-    const fetchMock = installFetch((url) => {
-      if (url.pathname === '/api/site_pages/1') {
-        return jsonResponse(pageFixture());
-      }
-      return notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Move Block 2 up' }));
+    const card = await screen.findByRole('listitem', { name: /Block 2: Page title/ });
+    fireEvent.keyDown(card, { key: ' ' });
+    fireEvent.keyDown(card, { key: 'ArrowUp' });
+    fireEvent.keyDown(card, { key: ' ' });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
@@ -232,30 +196,6 @@ describe('site page edit', () => {
       },
     ]);
   });
-
-  it('site_page_edit_shows_a_typed_error_for_bad_block_json', async () => {
-    const fetchMock = installFetch((url) => {
-      if (url.pathname === '/api/site_pages/1') {
-        return jsonResponse(pageFixture());
-      }
-      return notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-
-    fireEvent.change(await screen.findByLabelText('Block 1 data (JSON)'), {
-      target: { value: '{' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Block 1 data: $: expected valid JSON',
-    );
-    expect(
-      requestsFor(fetchMock, '/api/site_pages/1').filter(
-        (request) => request.init?.method === 'PUT',
-      ),
-    ).toHaveLength(0);
-  });
 });
 
 describe('site page create', () => {
@@ -264,7 +204,10 @@ describe('site page create', () => {
       if (url.pathname === '/api/site_pages' && init?.method === 'POST') {
         return jsonResponse(pageFixture());
       }
-      return notFound();
+      if (url.pathname === '/api/site_pages/1') {
+        return jsonResponse(pageFixture());
+      }
+      return editorReads(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1', 'pages', 'new']} />);
 
@@ -287,8 +230,8 @@ describe('site page create', () => {
       'o:slug': '',
       'o:is_public': true,
       'o:layout': null,
-      'o:layout_data': [],
-      'o:block': [{ 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] }],
+      'o:layout_data': {},
+      'o:block': [],
     });
     expect(window.location.hash).toBe('#/sites/1/pages/1');
     window.location.hash = '';

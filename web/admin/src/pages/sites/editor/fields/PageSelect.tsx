@@ -5,7 +5,7 @@
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
-import type { SiteId } from '../../../../api/types';
+import type { SiteId, SitePage } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 
@@ -16,6 +16,8 @@ export interface PageSelectProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly required?: boolean;
+  /** The site's pages when the editor already loaded them; the control then makes no request. */
+  readonly pages?: readonly SitePage[];
 }
 
 export const PageSelect = ({
@@ -25,11 +27,16 @@ export const PageSelect = ({
   value,
   onChange,
   required = false,
+  pages,
 }: PageSelectProps): ReactElement => {
   const { t } = useTranslator();
-  const state = useAsync(() => api.listSitePages({ siteId, perPage: 200 }), [siteId]);
-  const pages = state.status === 'ready' ? state.data.items : [];
-  const options = pages.map((page) => ({
+  const state = useAsync(
+    async (): Promise<readonly SitePage[]> =>
+      pages ?? (await api.listSitePages({ siteId, perPage: 200 })).items,
+    [siteId, pages],
+  );
+  const items = pages ?? (state.status === 'ready' ? state.data : []);
+  const options = items.map((page) => ({
     id: String(page.id),
     label: page.title === '' ? t('common.untitled') : page.title,
   }));

@@ -1,0 +1,50 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/sites/1",
+  "@type": [
+    "o:Site"
+  ],
+  "o:id": 1,
+  "o:slug": "my-site",
+  "o:theme": "default",
+  "o:title": "My Site",
+  "o:summary": null,
+  "o:thumbnail": null,
+  "o:navigation": [
+    {
+      "type": "browse",
+      "data": {
+        "label": "Browse",
+        "query": ""
+      },
+      "links": []
+    }
+  ],
+  "o:homepage": {
+    "@id": "http://localhost/api/site_pages/1",
+    "o:id": 1
+  },
+  "o:item_pool": [],
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:created": {
+    "@value": "2024-01-02T10:00:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null,
+  "o:is_public": true,
+  "o:assign_new_items": false,
+  "o:page": [
+    {
+      "@id": "http://localhost/api/site_pages/1",
+      "o:id": 1
+    }
+  ],
+  "o:site_permission": [],
+  "o:site_item_set": [],
+  "o:site_item": {
+    "@id": "http://localhost/api/items?site_id=1"
+  }
+}

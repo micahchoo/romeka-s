@@ -252,6 +252,8 @@ export interface PageListFieldProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly siteId: SiteId;
+  /** The site's pages when the editor already loaded them; the control then makes no request. */
+  readonly pages?: readonly SitePage[];
 }
 
 export const PageListField = ({
@@ -260,10 +262,15 @@ export const PageListField = ({
   value,
   onChange,
   siteId,
+  pages,
 }: PageListFieldProps): ReactElement => {
   const { t } = useTranslator();
-  const state = useAsync(() => api.listSitePages({ siteId, perPage: 200 }), [siteId]);
-  const pages = state.status === 'ready' ? state.data.items : [];
+  const state = useAsync(
+    async (): Promise<readonly SitePage[]> =>
+      pages ?? (await api.listSitePages({ siteId, perPage: 200 })).items,
+    [siteId, pages],
+  );
+  const items = pages ?? (state.status === 'ready' ? state.data : []);
   const nodes = parsePageList(value);
   const change = (next: readonly PageListNode[]): void => {
     onChange(formatPageList(next));
@@ -302,7 +309,7 @@ export const PageListField = ({
             path={[index]}
             index={index}
             count={nodes.length}
-            pages={pages}
+            pages={items}
             onChange={change}
           />
         ))}

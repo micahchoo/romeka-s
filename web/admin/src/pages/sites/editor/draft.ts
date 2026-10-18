@@ -105,6 +105,12 @@ export interface PageDraft extends PageContent {
   readonly nextKey: number;
   /** The schema the draft was read against, so every action uses the same one. */
   readonly registry: BlockRegistry;
+  /**
+   * The field the previous commit typed into, or `null` when the previous
+   * commit was any other edit. Consecutive edits of one field share an undo
+   * entry, so a typed word undoes in one step.
+   */
+  readonly edit: string | null;
 }
 
 /** One edit the reducer accepts. */
@@ -131,6 +137,7 @@ export type DraftAction =
       readonly field: string;
       readonly value: JsonValue;
     }
+  | { readonly type: 'setBlockData'; readonly blockKey: BlockKey; readonly data: BlockData }
   | {
       readonly type: 'setLayoutData';
       readonly blockKey: BlockKey;
@@ -176,17 +183,29 @@ const contentOf = (state: PageDraft): PageContent => ({
   blocks: state.blocks,
 });
 
-const commit = (state: PageDraft, content: PageContent, nextKey = state.nextKey): PageDraft => {
+/**
+ * Records one content value as the current draft. A commit tagged with the
+ * same `edit` as the previous one keeps the history it already has, so a run
+ * of edits to one field is one undo step.
+ */
+const commit = (
+  state: PageDraft,
+  content: PageContent,
+  nextKey = state.nextKey,
+  edit: string | null = null,
+): PageDraft => {
   if (contentEquals(content, contentOf(state))) {
     return state;
   }
+  const coalesced = edit !== null && state.edit === edit;
   return {
     ...content,
     saved: state.saved,
-    past: [...state.past, contentOf(state)],
+    past: coalesced ? state.past : [...state.past, contentOf(state)],
     future: [],
     nextKey,
     registry: state.registry,
+    edit,
   };
 };
 
@@ -201,8 +220,11 @@ const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): Bloc
 /** A blank page, the create form's starting state. */
 export const emptyDraft = (registry: BlockRegistry = BLOCK_REGISTRY): PageDraft => {
   const content = emptyContent();
-  return { ...content, saved: content, past: [], future: [], nextKey: 0, registry };
+  return { ...content, saved: content, past: [], future: [], nextKey: 0, registry, edit: null };
 };
+
+/** The key `addBlock` gives the block it appends, so a caller can select it. */
+export const nextBlockKey = (state: PageDraft): BlockKey => blockKey(state.nextKey);
 
 /**
  * Reads a stored page. Unknown data and layout-data keys are kept verbatim, an
@@ -237,6 +259,7 @@ export const fromApi = (page: SitePage, registry: BlockRegistry): PageDraft => {
     future: [],
     nextKey: content.blocks.length,
     registry,
+    edit: null,
   };
 };
 
@@ -329,9 +352,25 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         ...target,
         data: { ...dataObject(target), [action.field]: action.value },
       };
+      return commit(
+        state,
+        {
+          ...contentOf(state),
+          blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
+        },
+        state.nextKey,
+        `field:${action.blockKey}:${action.field}`,
+      );
+    }
+    case 'setBlockData': {
+      if (!state.blocks.some((block) => block.key === action.blockKey)) {
+        return state;
+      }
       return commit(state, {
         ...contentOf(state),
-        blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
+        blocks: state.blocks.map((block) =>
+          block.key === action.blockKey ? { ...block, data: action.data } : block,
+        ),
       });
     }
     case 'setLayoutData': {
@@ -343,10 +382,15 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         ...target,
         layoutData: { ...layoutDataObject(target), [action.key]: action.value },
       };
-      return commit(state, {
-        ...contentOf(state),
-        blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
-      });
+      return commit(
+        state,
+        {
+          ...contentOf(state),
+          blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
+        },
+        state.nextKey,
+        `layoutData:${action.blockKey}:${action.key}`,
+      );
     }
     case 'setAttachments': {
       const target = state.blocks.find((block) => block.key === action.blockKey);
@@ -361,19 +405,27 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
       });
     }
     case 'setPage':
+      if (action.field === 'isPublic') {
+        return commit(state, { ...contentOf(state), isPublic: action.value });
+      }
       return commit(
         state,
-        action.field === 'isPublic'
-          ? { ...contentOf(state), isPublic: action.value }
-          : { ...contentOf(state), [action.field]: action.value },
+        { ...contentOf(state), [action.field]: action.value },
+        state.nextKey,
+        `page:${action.field}`,
       );
     case 'setPageLayout':
       return commit(state, { ...contentOf(state), layout: action.layout });
     case 'setPageLayoutData':
-      return commit(state, {
-        ...contentOf(state),
-        layoutData: { ...layoutObject(state.layoutData), [action.key]: action.value },
-      });
+      return commit(
+        state,
+        {
+          ...contentOf(state),
+          layoutData: { ...layoutObject(state.layoutData), [action.key]: action.value },
+        },
+        state.nextKey,
+        `pageLayoutData:${action.key}`,
+      );
     case 'insertBlocks': {
       const keyed = action.blocks.map((block, offset) => ({
         ...block,
@@ -394,6 +446,7 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         future: [contentOf(state), ...state.future],
         nextKey: state.nextKey,
         registry: state.registry,
+        edit: null,
       };
     }
     case 'redo': {
@@ -408,10 +461,11 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         future: state.future.slice(1),
         nextKey: state.nextKey,
         registry: state.registry,
+        edit: null,
       };
     }
     case 'markSaved':
-      return { ...state, saved: contentOf(state) };
+      return { ...state, saved: contentOf(state), edit: null };
   }
 };
 

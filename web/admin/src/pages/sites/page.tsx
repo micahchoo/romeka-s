@@ -1,14 +1,22 @@
 import type { ReactElement } from 'react';
+import { Suspense, lazy } from 'react';
 import { pageIdFromParam, siteIdFromParam } from '../../api/parse';
 import { useTranslator } from '../../i18n';
 import { SiteCreatePage } from './create';
 import { SiteDetail } from './detail';
 import { SiteList } from './list';
 import { SiteNavigationPage } from './navigation';
-import { SitePageEditor } from './pageEditor';
 import { SiteResourcesPage } from './resources';
 import { SiteThemePage } from './theme';
 import { SiteUsersPage } from './users';
+
+/**
+ * The page editor is its own chunk. It pulls in the canvas and the block forms
+ * as two further chunks, so the sites route does not carry the editor.
+ */
+const SitePageEditor = lazy(() =>
+  import('./editor/shell').then((module) => ({ default: module.SitePageEditor })),
+);
 
 /**
  * `#/sites` lists, `#/sites/new` creates, `#/sites/<id>` edits a site,
@@ -54,13 +62,21 @@ export const SitesPage = ({
   if (rest.length === 3 && rest[1] === 'pages') {
     const target = rest[2];
     if (target === undefined || target === 'new') {
-      return <SitePageEditor key={`${String(siteId)}-new`} siteId={siteId} pageId={null} />;
+      return (
+        <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
+          <SitePageEditor key={`${String(siteId)}-new`} siteId={siteId} pageId={null} />
+        </Suspense>
+      );
     }
     const pageId = pageIdFromParam(target);
     if (pageId === null) {
       return <p role="alert">{t('route.invalidPageId', { param: target })}</p>;
     }
-    return <SitePageEditor key={String(pageId)} siteId={siteId} pageId={pageId} />;
+    return (
+      <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
+        <SitePageEditor key={String(pageId)} siteId={siteId} pageId={pageId} />
+      </Suspense>
+    );
   }
   return <p role="alert">{t('route.noSiteRoute', { param })}</p>;
 };

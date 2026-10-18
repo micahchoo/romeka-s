@@ -20,6 +20,7 @@ import { ItemsPage } from '../src/pages/items/page';
 import { MediaPage } from '../src/pages/media/page';
 import { SitesPage } from '../src/pages/sites/page';
 import { UserForm } from '../src/pages/users/form';
+import { editorReads } from './editorStubs';
 import { loadFixture } from './loadFixture';
 import {
   detached,
@@ -246,7 +247,7 @@ describe('the request per resource', () => {
       if (url.pathname === '/api/site_pages/1') {
         return jsonResponse(init?.method === 'DELETE' ? detached(pageFixture()) : pageFixture());
       }
-      return notFound();
+      return editorReads(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
 

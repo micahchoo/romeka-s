@@ -9,6 +9,7 @@ import {
   draftReducer,
   emptyDraft,
   isDirty,
+  nextBlockKey,
   toApi,
   toPageWrite,
   validate,
@@ -356,6 +357,45 @@ describe('undo and redo', () => {
     const undone = draftReducer(added, { type: 'undo' });
     const branched = draftReducer(undone, { type: 'addBlock', layout: 'lineBreak', index: 0 });
     expect(branched.future).toEqual([]);
+  });
+
+  it('coalesces a run of edits to one field into a single undo entry', () => {
+    const start = load([rawBlock('html', { html: 'a' })]);
+    const key = keyOf(start, 'html');
+    const typed = apply(
+      start,
+      { type: 'setField', blockKey: key, field: 'html', value: 'ab' },
+      { type: 'setField', blockKey: key, field: 'html', value: 'abc' },
+      { type: 'setField', blockKey: key, field: 'html', value: 'abcd' },
+    );
+
+    expect(typed.past).toHaveLength(1);
+    const undone = draftReducer(typed, { type: 'undo' });
+    expect(dataOf(find(undone, 'html'))).toEqual({ html: 'a' });
+    const redone = draftReducer(undone, { type: 'redo' });
+    expect(dataOf(find(redone, 'html'))).toEqual({ html: 'abcd' });
+  });
+
+  it('starts a new undo entry when an edit of another field interrupts the run', () => {
+    const start = load([rawBlock('html', { html: 'a' })]);
+    const key = keyOf(start, 'html');
+    const typed = apply(
+      start,
+      { type: 'setField', blockKey: key, field: 'html', value: 'ab' },
+      { type: 'setLayoutData', blockKey: key, key: 'class', value: 'hero' },
+      { type: 'setField', blockKey: key, field: 'html', value: 'abc' },
+    );
+
+    expect(typed.past).toHaveLength(3);
+    const undone = draftReducer(typed, { type: 'undo' });
+    expect(dataOf(find(undone, 'html'))).toEqual({ html: 'ab' });
+  });
+
+  it('exposes the key the next addBlock gives its block', () => {
+    const start = load([rawBlock('html', { html: 'a' })]);
+    const key = nextBlockKey(start);
+    const added = draftReducer(start, { type: 'addBlock', layout: 'lineBreak', index: 1 });
+    expect(at(added.blocks, 1).key).toBe(key);
   });
 
   it('tracks dirt against the saved snapshot', () => {

@@ -8,6 +8,7 @@ import type { ReactElement } from 'react';
 import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import type { LayoutSchema } from '../../blockSchema';
+import type { EditorOptions } from '../options';
 import { FieldControl } from './FieldControl';
 
 export interface LayoutDataFormProps {
@@ -18,6 +19,8 @@ export interface LayoutDataFormProps {
   readonly values: Readonly<Record<string, JsonValue>>;
   readonly onChange: (key: string, value: JsonValue) => void;
   readonly siteId: SiteId;
+  /** The editor's shared lists, so a control makes no request of its own. */
+  readonly options?: EditorOptions;
 }
 
 export const LayoutDataForm = ({
@@ -27,6 +30,7 @@ export const LayoutDataForm = ({
   values,
   onChange,
   siteId,
+  options,
 }: LayoutDataFormProps): ReactElement => {
   const { t } = useTranslator();
   return (
@@ -45,6 +49,7 @@ export const LayoutDataForm = ({
           blockKey={null}
           siteId={siteId}
           idPrefix={idPrefix}
+          {...(options === undefined ? {} : { options })}
         />
       ))}
     </fieldset>

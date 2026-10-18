@@ -12,6 +12,7 @@ import type { BlockLayoutSchema } from '../src/pages/sites/blockSchema';
 import type { BlockDraft, BlockKey, DraftAction, PageDraft, ValidationIssue } from '../src/pages/sites/editor/draft';
 import { draftReducer, validate } from '../src/pages/sites/editor/draft';
 import { BlockForm } from '../src/pages/sites/editor/fields/BlockForm';
+import type { EditorOptions } from '../src/pages/sites/editor/options';
 import { schemaFor } from '../src/pages/sites/editor/schema';
 import { find, load, parsePage, rawBlock } from './editor-draft-helpers';
 
@@ -80,6 +81,8 @@ export interface BlockFormHarnessProps {
   readonly onAction?: (action: DraftAction) => void;
   /** Called with the block on every render, so a test can name its key. */
   readonly onBlock?: (block: BlockDraft) => void;
+  /** The editor's shared lists, when the test supplies them. */
+  readonly options?: EditorOptions;
 }
 
 /**
@@ -94,6 +97,7 @@ export const BlockFormHarness = ({
   issues,
   onAction,
   onBlock,
+  options,
 }: BlockFormHarnessProps): ReactElement => {
   const [state, setState] = useState<PageDraft>(() => load([rawBlock(layout, data, extra ?? {})]));
   const block = find(state, layout);
@@ -104,6 +108,7 @@ export const BlockFormHarness = ({
       schema={schemaForLayout(layout)}
       issues={issues ?? validate(state)}
       siteId={SITE_ID}
+      {...(options === undefined ? {} : { options })}
       dispatch={(action) => {
         onAction?.(action);
         setState((current) => draftReducer(current, action));
