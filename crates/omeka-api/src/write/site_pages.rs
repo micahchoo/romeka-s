@@ -7,9 +7,9 @@
 //! empty data object is stored as an empty array, which
 //! [`crate::write::body::php_json`] reproduces.
 
-use omeka_db::ids::{PageId, ResourceId, SiteId};
-use omeka_db::repos::SiteRepo;
-use omeka_db::rows::{NewSiteBlock, NewSitePage, SitePageRow};
+use omeka_db::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
+use omeka_db::repos::{ItemRepo, MediaRepo, SiteBlockAttachmentRepo, SiteRepo};
+use omeka_db::rows::{NewSiteBlock, NewSiteBlockAttachment, NewSitePage, SitePageRow};
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -31,11 +31,23 @@ const CONTROL: &[&str] = &[
     "o:site",
 ];
 
-/// One parsed block: layout, data, optional layout data.
+/// One parsed block: layout, data, optional layout data, and its raw
+/// attachments (item and media ids are resolved against the database when the
+/// block is stored).
 struct Block {
     layout: String,
     data: Value,
     layout_data: Option<Value>,
+    attachments: Vec<RawAttachment>,
+}
+
+/// One `o:attachment` entry as it arrived: the ids are unresolved, because
+/// `SitePageAdapter::hydrateAttachments` looks the item up and checks the media
+/// belongs to it.
+struct RawAttachment {
+    item: Option<u64>,
+    media: Option<u64>,
+    caption: String,
 }
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
@@ -57,6 +69,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             layout: "pageTitle".to_string(),
             data: Value::Array(Vec::new()),
             layout_data: None,
+            attachments: Vec::new(),
         });
     }
     let title = payload
@@ -201,19 +214,102 @@ fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
             layout: layout.to_string(),
             data,
             layout_data: object.get("o:layout_data").map(php_json),
+            attachments: parse_attachments(object),
         });
     }
     Ok(blocks)
 }
 
+/// `SitePageAdapter::hydrateAttachments` input: every object entry of
+/// `o:attachment`, in order, with the item and media ids unresolved. A
+/// non-object entry is skipped, as `foreach` with `is_array` does.
+fn parse_attachments(object: &serde_json::Map<String, Value>) -> Vec<RawAttachment> {
+    let values: Vec<&Value> = match object.get("o:attachment") {
+        Some(Value::Array(items)) => items.iter().collect(),
+        Some(Value::Object(map)) => map.values().collect(),
+        _ => Vec::new(),
+    };
+    values
+        .into_iter()
+        .filter_map(|value| {
+            let entry = value.as_object()?;
+            Some(RawAttachment {
+                item: entry
+                    .get("o:item")
+                    .and_then(Value::as_object)
+                    .and_then(|item| item.get("o:id"))
+                    .and_then(Value::as_u64),
+                media: entry
+                    .get("o:media")
+                    .and_then(Value::as_object)
+                    .and_then(|media| media.get("o:id"))
+                    .and_then(Value::as_u64),
+                caption: entry
+                    .get("o:caption")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+            })
+        })
+        .collect()
+}
+
 async fn store_blocks(api: &Api<'_>, page: PageId, blocks: &[Block]) -> Result<(), ApiError> {
     let repo = SiteRepo::new(api.pool());
     for (index, block) in blocks.iter().enumerate() {
-        repo.add_block(&NewSiteBlock {
-            page_id: page,
-            layout: block.layout.clone(),
-            data: block.data.clone(),
-            layout_data: block.layout_data.clone(),
+        let row = repo
+            .add_block(&NewSiteBlock {
+                page_id: page,
+                layout: block.layout.clone(),
+                data: block.data.clone(),
+                layout_data: block.layout_data.clone(),
+                position: index as i64 + 1,
+            })
+            .await
+            .map_err(db_error)?;
+        store_attachments(api, row.id, &block.attachments).await?;
+    }
+    Ok(())
+}
+
+/// `SitePageAdapter::hydrateAttachments`: resolve each attachment's item and
+/// media and write the block's rows in input order.
+///
+/// A missing item is stored as a null reference (upstream catches
+/// `NotFoundException` and leaves `$item` null). A media is stored only when the
+/// item was found and the media belongs to it (`$item->getMedia()->get($id)`);
+/// otherwise it is null. Neither case raises an error.
+async fn store_attachments(
+    api: &Api<'_>,
+    block: BlockId,
+    attachments: &[RawAttachment],
+) -> Result<(), ApiError> {
+    let repo = SiteBlockAttachmentRepo::new(api.pool());
+    let items = ItemRepo::new(api.pool());
+    let media = MediaRepo::new(api.pool());
+    for (index, attachment) in attachments.iter().enumerate() {
+        let item_id = match attachment.item {
+            Some(raw) => items
+                .get(ItemId(raw))
+                .await
+                .map_err(db_error)?
+                .map(|_| ItemId(raw)),
+            None => None,
+        };
+        let media_id = match (item_id, attachment.media) {
+            (Some(item), Some(raw)) => media
+                .get(MediaId(raw))
+                .await
+                .map_err(db_error)?
+                .filter(|row| row.item_id == item)
+                .map(|_| MediaId(raw)),
+            _ => None,
+        };
+        repo.create(&NewSiteBlockAttachment {
+            block_id: block,
+            item_id,
+            media_id,
+            caption: attachment.caption.clone(),
             position: index as i64 + 1,
         })
         .await

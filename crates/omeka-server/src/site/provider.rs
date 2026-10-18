@@ -11,14 +11,16 @@
 //! `&dyn ResourceProvider` and holding one across an `await` makes the handler
 //! future non-`Send`.
 //!
-//! `read`, `read_media`, `read_asset` and `attachments` are reachable only
-//! through `site_block_attachment`, which has no repository, and through the
-//! item-with-metadata, media and asset blocks. No test page uses those, so the
-//! snapshot answers empty for them.
+//! The item-with-metadata and media blocks read their content from
+//! `site_block_attachment`, so the snapshot carries each block's attachments
+//! together with the item views and media refs they resolve to. The asset block
+//! reads its `data` list and the asset repository is not ported, so
+//! `read_asset` stays empty.
 
-use omeka_core::ids::SiteId;
+use omeka_core::ids::{BlockId, MediaId, SiteId};
 use omeka_core::resource::ResourceKind;
 use omeka_core::site::{BlockData, BrowsePreviewData, ListOfSitesData, SitePage};
+use omeka_db::repos::{ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::settings::SiteSettings;
 use omeka_site::view::{
@@ -26,17 +28,21 @@ use omeka_site::view::{
     SiteQuery, SiteSearch, SiteSort,
 };
 
-use super::load::Loader;
+use super::load::{Loader, media_options};
 use omeka_db::DbError;
 
 /// `BlockLayout/BrowsePreview.php::form`: the default `limit`.
 pub(crate) const BROWSE_PREVIEW_DEFAULT_LIMIT: i64 = 12;
 
-/// The searches a page's blocks will run, keyed for the synchronous lookup.
+/// The searches a page's blocks will run, keyed for the synchronous lookup, and
+/// the resources the attachment blocks will read.
 #[derive(Debug, Default)]
 pub(crate) struct LoadedResources {
     searches: Vec<(ResourceKind, BrowseQuery, ResourcePage)>,
     sites: Vec<(SiteQuery, SiteSearch)>,
+    attachments: Vec<(BlockId, Vec<AttachmentRef>)>,
+    resources: Vec<(ResourceKind, u64, ResourceView)>,
+    media: Vec<(MediaId, MediaRef)>,
 }
 
 impl ResourceProvider for LoadedResources {
@@ -56,20 +62,30 @@ impl ResourceProvider for LoadedResources {
             .unwrap_or_default()
     }
 
-    fn read(&self, _kind: ResourceKind, _id: u64) -> Option<ResourceView> {
-        None
+    fn read(&self, kind: ResourceKind, id: u64) -> Option<ResourceView> {
+        self.resources
+            .iter()
+            .find(|(stored_kind, stored_id, _)| *stored_kind == kind && *stored_id == id)
+            .map(|(_, _, view)| view.clone())
     }
 
-    fn read_media(&self, _id: omeka_core::ids::MediaId) -> Option<MediaRef> {
-        None
+    fn read_media(&self, id: MediaId) -> Option<MediaRef> {
+        self.media
+            .iter()
+            .find(|(stored, _)| *stored == id)
+            .map(|(_, media)| media.clone())
     }
 
     fn read_asset(&self, _id: omeka_core::ids::AssetId) -> Option<AssetView> {
         None
     }
 
-    fn attachments(&self, _block: omeka_core::ids::BlockId) -> Vec<AttachmentRef> {
-        Vec::new()
+    fn attachments(&self, block: BlockId) -> Vec<AttachmentRef> {
+        self.attachments
+            .iter()
+            .find(|(stored, _)| *stored == block)
+            .map(|(_, rows)| rows.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -94,10 +110,84 @@ pub(crate) async fn load_blocks(
                 let result = loader.search_sites(&search).await?;
                 loaded.sites.push((search, result));
             }
+            BlockData::Media(data) => {
+                let options = media_options(
+                    data.thumbnail_type.as_deref(),
+                    Some(settings.attachment_link_type()),
+                );
+                load_attachments(loader, block.id, &options, &mut loaded).await?;
+            }
+            BlockData::ItemWithMetadata => {
+                let options = media_options(None, None);
+                load_attachments(loader, block.id, &options, &mut loaded).await?;
+            }
             _ => {}
         }
     }
     Ok(loaded)
+}
+
+/// Load one block's `site_block_attachment` rows, the item views and media refs
+/// they resolve to, and the attachment list the block reads.
+async fn load_attachments(
+    loader: &Loader<'_>,
+    block: BlockId,
+    options: &omeka_media::render::RenderOptions,
+    loaded: &mut LoadedResources,
+) -> Result<(), DbError> {
+    let rows = SiteBlockAttachmentRepo::new(loader.pool())
+        .list_for_block(loader.db_block_id(block))
+        .await?;
+    let items = ItemRepo::new(loader.pool());
+    let media = MediaRepo::new(loader.pool());
+    let mut refs = Vec::with_capacity(rows.len());
+    for row in &rows {
+        let item_view = match row.item_id {
+            Some(id) => match items.get(id).await? {
+                Some(item_row) => {
+                    let view = loader.item_resource_view(&item_row).await?;
+                    push_resource(loaded, ResourceKind::Item, id.0, &view);
+                    Some(view)
+                }
+                None => None,
+            },
+            None => None,
+        };
+        if let Some(id) = row.media_id
+            && let Some(media_row) = media.get(id).await?
+        {
+            let item_url = item_view
+                .as_ref()
+                .map(|view| view.url.clone())
+                .unwrap_or_default();
+            let media_ref = loader.media_ref(&media_row, &item_url, options).await?;
+            if !loaded
+                .media
+                .iter()
+                .any(|(stored, _)| *stored == MediaId::new(id.0))
+            {
+                loaded.media.push((MediaId::new(id.0), media_ref));
+            }
+        }
+        refs.push(AttachmentRef {
+            item: row.item_id.map(|id| omeka_core::ids::ItemId::new(id.0)),
+            media: row.media_id.map(|id| MediaId::new(id.0)),
+            caption: row.caption.clone(),
+        });
+    }
+    loaded.attachments.push((block, refs));
+    Ok(())
+}
+
+/// Keep one item view in the snapshot unless it is already there.
+fn push_resource(loaded: &mut LoadedResources, kind: ResourceKind, id: u64, view: &ResourceView) {
+    if !loaded
+        .resources
+        .iter()
+        .any(|(stored_kind, stored_id, _)| *stored_kind == kind && *stored_id == id)
+    {
+        loaded.resources.push((kind, id, view.clone()));
+    }
 }
 
 /// The `BrowseQuery` `crates/omeka-site/src/blocks/browse_preview.rs::render_block`

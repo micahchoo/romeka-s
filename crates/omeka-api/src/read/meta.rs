@@ -5,7 +5,9 @@
 //! `ApiController::contextAction` builds the context document.
 
 use omeka_db::ids::{PageId, SiteId, UserId};
-use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci};
+use omeka_db::repos::{
+    Paging, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci,
+};
 use omeka_db::rows::{SiteBlockRow, SitePageRow, SiteRow, UserRow};
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
@@ -272,7 +274,7 @@ async fn site_page_doc(
         .map_err(db_error)?;
     let mut documents = Vec::with_capacity(blocks.len());
     for block in &blocks {
-        documents.push(block_doc(api, block)?);
+        documents.push(block_doc(api, block).await?);
     }
     Ok(crate::wire::site_page::SitePage {
         context: base.api_context(),
@@ -297,18 +299,32 @@ async fn site_page_doc(
 
 /// `SitePageBlockRepresentation::jsonSerialize`.
 ///
-/// `o:attachment` is always empty: `omeka-db` has no query that walks
-/// `site_block_attachment`, and SQL strings live in that crate. A block with
-/// attachments therefore reports an empty list. Reported as a gap.
-fn block_doc(
-    _api: &Api<'_>,
+/// `o:attachment` is the block's `site_block_attachment` rows in `position`
+/// order, each as `SiteBlockAttachmentRepresentation` writes it: `o:item` and
+/// `o:media` are resource references or `null`, `o:caption` is the stored
+/// string (never null upstream).
+async fn block_doc(
+    api: &Api<'_>,
     row: &SiteBlockRow,
 ) -> Result<crate::wire::site_page::SitePageBlock, ApiError> {
+    let rows = SiteBlockAttachmentRepo::new(api.pool())
+        .list_for_block(row.id)
+        .await
+        .map_err(db_error)?;
+    let base = api.base();
+    let attachment = rows
+        .iter()
+        .map(|row| crate::wire::site_page::SiteBlockAttachment {
+            item: resource_ref_opt(base, "items", row.item_id.map(|id| id.0)),
+            media: resource_ref_opt(base, "media", row.media_id.map(|id| id.0)),
+            caption: row.caption.clone(),
+        })
+        .collect();
     Ok(crate::wire::site_page::SitePageBlock {
         layout: row.layout.clone(),
         data: row.data.clone(),
         layout_data: row.layout_data.clone(),
-        attachment: Vec::new(),
+        attachment,
     })
 }
 

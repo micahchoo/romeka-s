@@ -195,6 +195,104 @@ async fn update_site_page_replaces_blocks() {
     assert_eq!(read.body, updated.body, "update and read differ");
 }
 
+/// `SitePageAdapter::hydrateAttachments`: a media block's `o:attachment`
+/// entries are stored in order and read back as `o:item`, `o:media` and
+/// `o:caption`. A missing item keeps a null reference; the media is stored only
+/// when it belongs to the item.
+#[tokio::test]
+async fn update_site_page_stores_block_attachments() {
+    let (app, seed) = seeded_router().await;
+    let site = r#"{"o:slug":"attach-site","o:title":"Attach site","o:theme":"default"}"#;
+    let created = send(
+        app.clone(),
+        json_request("POST", &keyed("/api/sites"), site),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let page_id = created.json()["o:page"][0]["o:id"].as_u64().unwrap();
+
+    let body = format!(
+        r#"{{"o:title":"Attachments","o:slug":"attachments","o:is_public":true,
+            "o:block":[{{"o:layout":"media","o:data":{{}},
+              "o:attachment":[
+                {{"o:item":{{"o:id":{item}}}}},
+                {{"o:item":{{"o:id":{item}}},"o:media":{{"o:id":{media}}},"o:caption":"A caption"}},
+                {{"o:item":{{"o:id":999999}},"o:caption":"Ghost"}}
+              ]}}]}}"#,
+        item = seed.item.0,
+        media = seed.media.0,
+    );
+    let updated = send(
+        app.clone(),
+        json_request("PUT", &keyed(&format!("/api/site_pages/{page_id}")), &body),
+    )
+    .await;
+    assert_eq!(updated.status, StatusCode::OK, "{}", updated.body);
+    let document = updated.json();
+    let attachments = document["o:block"][0]["o:attachment"].as_array().unwrap();
+    assert_eq!(attachments.len(), 3, "{}", updated.body);
+    // One item-only attachment: the item is present, the media null.
+    assert_eq!(attachments[0]["o:item"]["o:id"], seed.item.0);
+    assert!(attachments[0]["o:media"].is_null());
+    assert_eq!(attachments[0]["o:caption"], "");
+    // One attachment with the item's media and a caption.
+    assert_eq!(attachments[1]["o:item"]["o:id"], seed.item.0);
+    assert_eq!(attachments[1]["o:media"]["o:id"], seed.media.0);
+    assert_eq!(attachments[1]["o:caption"], "A caption");
+    // A missing item is stored as a null reference, not an error.
+    assert!(attachments[2]["o:item"].is_null());
+    assert!(attachments[2]["o:media"].is_null());
+    assert_eq!(attachments[2]["o:caption"], "Ghost");
+
+    let read = send(
+        app,
+        common::get(&format!("/api/site_pages/{page_id}"), false),
+    )
+    .await;
+    assert_eq!(read.body, updated.body, "update and read differ");
+}
+
+/// `SitePageAdapter::hydrateAttachments`: a media that does not belong to the
+/// item named beside it is dropped (`$item->getMedia()->get($id)` returns null),
+/// with no error document.
+#[tokio::test]
+async fn site_page_attachment_media_must_belong_to_the_item() {
+    let (app, seed) = seeded_router().await;
+    let site = r#"{"o:slug":"attach-site","o:title":"Attach site","o:theme":"default"}"#;
+    let created = send(
+        app.clone(),
+        json_request("POST", &keyed("/api/sites"), site),
+    )
+    .await;
+    let page_id = created.json()["o:page"][0]["o:id"].as_u64().unwrap();
+
+    // A second item that does not own the seeded media.
+    let other = send(
+        app.clone(),
+        json_request("POST", &keyed("/api/items"), r#"{"o:is_public":true}"#),
+    )
+    .await;
+    let other_item = other.json()["o:id"].as_u64().unwrap();
+    assert_ne!(other_item, seed.item.0);
+
+    let body = format!(
+        r#"{{"o:title":"Attachments","o:slug":"attachments","o:is_public":true,
+            "o:block":[{{"o:layout":"media","o:data":{{}},
+              "o:attachment":[{{"o:item":{{"o:id":{other}}},"o:media":{{"o:id":{media}}}}}]}}]}}"#,
+        other = other_item,
+        media = seed.media.0,
+    );
+    let updated = send(
+        app,
+        json_request("PUT", &keyed(&format!("/api/site_pages/{page_id}")), &body),
+    )
+    .await;
+    assert_eq!(updated.status, StatusCode::OK, "{}", updated.body);
+    let attachment = &updated.json()["o:block"][0]["o:attachment"][0];
+    assert_eq!(attachment["o:item"]["o:id"], other_item);
+    assert!(attachment["o:media"].is_null(), "{}", updated.body);
+}
+
 #[tokio::test]
 async fn create_and_update_user() {
     let (app, _seed) = seeded_router().await;
