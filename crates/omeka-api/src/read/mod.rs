@@ -236,7 +236,7 @@ impl<'a> Api<'a> {
         crate::write::delete(self, resource, id).await
     }
 
-    pub(crate) fn actor(&self) -> &Actor {
+    pub fn actor(&self) -> &Actor {
         &self.actor
     }
 

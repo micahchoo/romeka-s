@@ -30,6 +30,7 @@ pub mod navigation;
 pub mod resource;
 pub mod site_defaults;
 pub mod site_pages;
+pub mod site_pages_preview;
 pub mod sites;
 pub mod templates;
 pub mod users;

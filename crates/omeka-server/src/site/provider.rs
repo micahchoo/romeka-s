@@ -31,6 +31,8 @@ use omeka_site::view::{
     SiteQuery, SiteSearch, SiteSort,
 };
 
+use omeka_api::write::site_pages::ResolvedAttachment;
+
 use super::load::{Loader, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
 
@@ -104,6 +106,97 @@ pub(crate) async fn load_blocks(
     settings: &SiteSettings,
     request_query: &[(String, String)],
 ) -> Result<LoadedResources, DbError> {
+    load_blocks_from(
+        loader,
+        page,
+        site,
+        settings,
+        request_query,
+        &AttachmentSource::Stored,
+    )
+    .await
+}
+
+/// The stored-page snapshot, with the attachments a preview body carries
+/// instead of the `site_block_attachment` rows of a stored page.
+pub(crate) async fn load_preview_blocks(
+    loader: &Loader<'_>,
+    page: &SitePage,
+    site: SiteId,
+    settings: &SiteSettings,
+    request_query: &[(String, String)],
+    attachments: &[(BlockId, Vec<ResolvedAttachment>)],
+) -> Result<LoadedResources, DbError> {
+    load_blocks_from(
+        loader,
+        page,
+        site,
+        settings,
+        request_query,
+        &AttachmentSource::Preview(attachments),
+    )
+    .await
+}
+
+/// One attachment to resolve, from either source.
+struct Pending {
+    item: Option<db::ItemId>,
+    media: Option<db::MediaId>,
+    caption: String,
+}
+
+/// Where a block's attachments come from.
+enum AttachmentSource<'a> {
+    /// The page's stored `site_block_attachment` rows.
+    Stored,
+    /// The request body of a preview, keyed by the render block id.
+    Preview(&'a [(BlockId, Vec<ResolvedAttachment>)]),
+}
+
+impl AttachmentSource<'_> {
+    /// The attachments of one block, in input order.
+    async fn for_block(
+        &self,
+        loader: &Loader<'_>,
+        block: BlockId,
+    ) -> Result<Vec<Pending>, DbError> {
+        match self {
+            Self::Stored => Ok(SiteBlockAttachmentRepo::new(loader.pool())
+                .list_for_block(loader.db_block_id(block))
+                .await?
+                .into_iter()
+                .map(|row| Pending {
+                    item: row.item_id,
+                    media: row.media_id,
+                    caption: row.caption,
+                })
+                .collect()),
+            Self::Preview(blocks) => Ok(blocks
+                .iter()
+                .find(|(id, _)| *id == block)
+                .map(|(_, attachments)| {
+                    attachments
+                        .iter()
+                        .map(|attachment| Pending {
+                            item: attachment.item,
+                            media: attachment.media,
+                            caption: attachment.caption.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()),
+        }
+    }
+}
+
+async fn load_blocks_from(
+    loader: &Loader<'_>,
+    page: &SitePage,
+    site: SiteId,
+    settings: &SiteSettings,
+    request_query: &[(String, String)],
+    source: &AttachmentSource<'_>,
+) -> Result<LoadedResources, DbError> {
     let mut loaded = LoadedResources::default();
     for block in &page.blocks {
         match &block.data {
@@ -122,11 +215,13 @@ pub(crate) async fn load_blocks(
                     data.thumbnail_type.as_deref(),
                     Some(settings.attachment_link_type()),
                 );
-                load_attachments(loader, block.id, &options, &mut loaded).await?;
+                let pending = source.for_block(loader, block.id).await?;
+                load_attachments(loader, block.id, &options, &mut loaded, pending).await?;
             }
             BlockData::ItemWithMetadata => {
                 let options = media_options(None, None);
-                load_attachments(loader, block.id, &options, &mut loaded).await?;
+                let pending = source.for_block(loader, block.id).await?;
+                load_attachments(loader, block.id, &options, &mut loaded, pending).await?;
             }
             BlockData::Asset(attachments) => {
                 for attachment in attachments {
@@ -173,26 +268,24 @@ async fn load_asset(
     Ok(())
 }
 
-/// Load one block's `site_block_attachment` rows, the item views and media refs
-/// they resolve to, and the attachment list the block reads.
+/// Load one block's attachments: the item views and media refs they resolve to,
+/// and the attachment list the block reads.
 async fn load_attachments(
     loader: &Loader<'_>,
     block: BlockId,
     options: &omeka_media::render::RenderOptions,
     loaded: &mut LoadedResources,
+    pendings: Vec<Pending>,
 ) -> Result<(), DbError> {
-    let rows = SiteBlockAttachmentRepo::new(loader.pool())
-        .list_for_block(loader.db_block_id(block))
-        .await?;
     let items = ItemRepo::new(loader.pool());
     let media = MediaRepo::new(loader.pool());
     let access = loader.access();
-    let mut refs = Vec::with_capacity(rows.len());
-    for row in &rows {
+    let mut refs = Vec::with_capacity(pendings.len());
+    for pending in &pendings {
         // `ResourceVisibilityFilter` drops a `SiteBlockAttachment` whose item or
         // media the caller cannot see, so the whole attachment is skipped.
-        let item_id = row.item_id;
-        let media_id = row.media_id;
+        let item_id = pending.item;
+        let media_id = pending.media;
         let item_row = match item_id {
             Some(id) => match items.get(id).await? {
                 Some(item)
@@ -241,7 +334,7 @@ async fn load_attachments(
         refs.push(AttachmentRef {
             item: item_id.map(|id| omeka_core::ids::ItemId::new(id.0)),
             media: media_id.map(|id| MediaId::new(id.0)),
-            caption: row.caption.clone(),
+            caption: pending.caption.clone(),
         });
     }
     loaded.attachments.push((block, refs));

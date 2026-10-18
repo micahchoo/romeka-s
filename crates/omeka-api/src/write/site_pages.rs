@@ -19,9 +19,9 @@ use crate::write::body::{self, Payload, php_json, ref_row};
 use crate::write::fulltext;
 use crate::write::resource::not_found as ref_not_found;
 
-const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
+pub(crate) const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
 
-const CONTROL: &[&str] = &[
+pub(crate) const CONTROL: &[&str] = &[
     "o:title",
     "o:slug",
     "o:is_public",
@@ -34,20 +34,33 @@ const CONTROL: &[&str] = &[
 /// One parsed block: layout, data, optional layout data, and its raw
 /// attachments (item and media ids are resolved against the database when the
 /// block is stored).
-struct Block {
-    layout: String,
-    data: Value,
-    layout_data: Option<Value>,
-    attachments: Vec<RawAttachment>,
+pub(crate) struct Block {
+    pub(crate) layout: String,
+    pub(crate) data: Value,
+    pub(crate) layout_data: Option<Value>,
+    pub(crate) attachments: Vec<RawAttachment>,
 }
 
 /// One `o:attachment` entry as it arrived: the ids are unresolved, because
 /// `SitePageAdapter::hydrateAttachments` looks the item up and checks the media
 /// belongs to it.
-struct RawAttachment {
-    item: Option<u64>,
-    media: Option<u64>,
-    caption: String,
+pub(crate) struct RawAttachment {
+    pub(crate) item: Option<u64>,
+    pub(crate) media: Option<u64>,
+    pub(crate) caption: String,
+}
+
+/// One `o:attachment` entry after [`resolve_attachments`], the shape the write
+/// stores and the preview hands to the render layer.
+#[derive(Debug, Clone)]
+pub struct ResolvedAttachment {
+    /// The item the attachment names, absent when the id resolves to no row.
+    pub item: Option<ItemId>,
+    /// The media the attachment names, absent unless the item was found and the
+    /// media belongs to it.
+    pub media: Option<MediaId>,
+    /// The purified caption.
+    pub caption: String,
 }
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
@@ -187,7 +200,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 
 /// `SitePageAdapter::hydrateBlocks`: every block needs a layout, and an
 /// `o:data` scalar that does not decode to an array is an error.
-fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
+pub(crate) fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
     let Some(array) = payload.get("o:block").and_then(|value| value.as_array()) else {
         return Ok(Vec::new());
     };
@@ -299,20 +312,45 @@ async fn store_blocks(api: &Api<'_>, page: PageId, blocks: &[Block]) -> Result<(
 
 /// `SitePageAdapter::hydrateAttachments`: resolve each attachment's item and
 /// media and write the block's rows in input order.
-///
-/// A missing item is stored as a null reference (upstream catches
-/// `NotFoundException` and leaves `$item` null). A media is stored only when the
-/// item was found and the media belongs to it (`$item->getMedia()->get($id)`);
-/// otherwise it is null. Neither case raises an error.
 async fn store_attachments(
     api: &Api<'_>,
     block: BlockId,
     attachments: &[RawAttachment],
 ) -> Result<(), ApiError> {
     let repo = SiteBlockAttachmentRepo::new(api.pool());
+    for (index, attachment) in resolve_attachments(api, attachments)
+        .await?
+        .into_iter()
+        .enumerate()
+    {
+        repo.create(&NewSiteBlockAttachment {
+            block_id: block,
+            item_id: attachment.item,
+            media_id: attachment.media,
+            caption: attachment.caption,
+            position: index as i64 + 1,
+        })
+        .await
+        .map_err(db_error)?;
+    }
+    Ok(())
+}
+
+/// Resolve each attachment's item and media the way `store_attachments` stores
+/// them.
+///
+/// A missing item is stored as a null reference (upstream catches
+/// `NotFoundException` and leaves `$item` null). A media is stored only when the
+/// item was found and the media belongs to it (`$item->getMedia()->get($id)`);
+/// otherwise it is null. Neither case raises an error.
+pub(crate) async fn resolve_attachments(
+    api: &Api<'_>,
+    attachments: &[RawAttachment],
+) -> Result<Vec<ResolvedAttachment>, ApiError> {
     let items = ItemRepo::new(api.pool());
     let media = MediaRepo::new(api.pool());
-    for (index, attachment) in attachments.iter().enumerate() {
+    let mut resolved = Vec::with_capacity(attachments.len());
+    for attachment in attachments {
         let item_id = match attachment.item {
             Some(raw) => items
                 .get(ItemId(raw))
@@ -330,17 +368,13 @@ async fn store_attachments(
                 .map(|_| MediaId(raw)),
             _ => None,
         };
-        repo.create(&NewSiteBlockAttachment {
-            block_id: block,
-            item_id,
-            media_id,
+        resolved.push(ResolvedAttachment {
+            item: item_id,
+            media: media_id,
             caption: attachment.caption.clone(),
-            position: index as i64 + 1,
-        })
-        .await
-        .map_err(db_error)?;
+        });
     }
-    Ok(())
+    Ok(resolved)
 }
 
 async fn repo_clear_blocks(api: &Api<'_>, page: PageId) -> Result<(), ApiError> {
@@ -352,7 +386,7 @@ async fn repo_clear_blocks(api: &Api<'_>, page: PageId) -> Result<(), ApiError> 
 }
 
 /// `SitePageAdapter::validateEntity`.
-async fn validate(
+pub(crate) async fn validate(
     api: &Api<'_>,
     existing: Option<&SitePageRow>,
     site: SiteId,
@@ -400,7 +434,7 @@ async fn validate(
     }
 }
 
-fn slug_or_auto(payload: &Payload, title: &str) -> String {
+pub(crate) fn slug_or_auto(payload: &Payload, title: &str) -> String {
     let slug = payload.str_member("o:slug").unwrap_or("").trim();
     if !slug.is_empty() {
         return slug.to_string();

@@ -10,15 +10,16 @@ use axum::http::Uri;
 
 use omeka_api::auth::Actor;
 use omeka_api::read::catalog::Catalog;
-use omeka_core::ids::PageId;
+use omeka_api::write::site_pages::ResolvedAttachment;
+use omeka_core::ids::{BlockId, PageId};
 use omeka_core::resource::{ResourceKind, Timestamp};
-use omeka_core::site::{Site, SitePage};
+use omeka_core::site::{Site, SitePage, Slug};
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, SettingRepo, SiteRepo, UserRepo,
 };
-use omeka_db::rows::ResourceRow;
+use omeka_db::rows::{ResourceRow, SiteRow};
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::nav::{self, NavItem, PageRef};
 use omeka_site::render::{render_index, render_page};
@@ -44,67 +45,31 @@ pub(crate) async fn dispatch(
 ) -> Result<Outcome, SiteError> {
     let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
     let slug = route_slug(&route);
-    let row = SiteRepo::new(&state.pool)
-        .get_by_slug(slug.as_str())
-        .await?
-        .ok_or(SiteError::NotFound)?;
+    let Some(data) = SiteData::load(state, &slug).await? else {
+        return Err(SiteError::NotFound);
+    };
     // A site the caller cannot see is not found, matching a private site's API
     // read: `MvcListeners::prepareSite` reads the site through the same
     // visibility the API applies, so a hidden site never reaches a controller.
-    let site_permission = site_permission(&state.pool, row.id, actor).await?;
-    if !actor.sees_site(row.is_public, row.owner_id, site_permission) {
+    let site_permission = site_permission(&state.pool, data.row.id, actor).await?;
+    if !actor.sees_site(data.row.is_public, data.row.owner_id, site_permission) {
         return Err(SiteError::NotFound);
     }
-
-    let site = load::site_from_row(&row)?;
-    let catalog = load_catalog(&state.pool).await?;
-    let site_settings = settings::load(&state.pool, row.id).await?;
-    let global_per_page = global_per_page(&state.pool).await?;
-    let favicon_url = favicon_url(&state.pool, &state.base, site_settings.favicon()).await?;
     let access = Access {
         actor,
-        site_is_public: row.is_public,
-        site_owner: row.owner_id,
+        site_is_public: data.row.is_public,
+        site_owner: data.row.owner_id,
         site_permission,
     };
     let loader = Loader::new(
         &state.pool,
         &state.base,
-        &catalog,
-        &site,
+        &data.catalog,
+        &data.site,
         &access,
-        &site_settings,
+        &data.settings,
     );
-    let pages = loader.page_refs().await?;
-    // A corrupt navigation blob renders an empty menu, not a 500;
-    // `parse_navigation` is the storage boundary.
-    let nav = nav::resolve(
-        &nav::parse_navigation(&row.navigation).unwrap_or_default(),
-        &site.slug,
-        &pages,
-    );
-    let theme = theme_for(&site.theme).unwrap_or(&DefaultTheme);
-    let user_name = match actor.user() {
-        Some(user) => UserRepo::new(&state.pool)
-            .get(user)
-            .await?
-            .map(|row| row.name),
-        None => None,
-    };
-    let common = Common {
-        site: &site,
-        pages,
-        nav,
-        settings: &site_settings,
-        global_per_page,
-        theme,
-        favicon_url,
-        signed_in: actor.user().is_some(),
-        user_name,
-        query: parse_query(uri.query().unwrap_or_default()),
-        loader: &loader,
-        current_path: uri.path().to_string(),
-    };
+    let common = Common::load(state, uri, &data, &loader, actor).await?;
 
     match route {
         PublicRoute::Home { .. } => home(&common),
@@ -147,6 +112,47 @@ pub(crate) async fn dispatch(
     }
 }
 
+/// The rows and settings one public render reads, owned for the request.
+///
+/// Kept apart from [`Common`] because a [`Loader`] borrows these values and a
+/// struct cannot hold both itself and a borrow of itself.
+struct SiteData {
+    row: SiteRow,
+    site: Site,
+    catalog: Catalog,
+    settings: SiteSettings,
+    /// The global `pagination_per_page` setting, the fallback when the site does
+    /// not set one (`PaginatorFactory.php:20`).
+    global_per_page: usize,
+    favicon_url: Option<String>,
+}
+
+impl SiteData {
+    /// Resolve a site slug to everything a render reads, `None` for an unknown
+    /// slug.
+    async fn load(state: &AppState, slug: &Slug) -> Result<Option<Self>, SiteError> {
+        let Some(row) = SiteRepo::new(&state.pool)
+            .get_by_slug(slug.as_str())
+            .await?
+        else {
+            return Ok(None);
+        };
+        let site = load::site_from_row(&row)?;
+        let catalog = load_catalog(&state.pool).await?;
+        let settings = settings::load(&state.pool, row.id).await?;
+        let global_per_page = global_per_page(&state.pool).await?;
+        let favicon_url = favicon_url(&state.pool, &state.base, settings.favicon()).await?;
+        Ok(Some(Self {
+            row,
+            site,
+            catalog,
+            settings,
+            global_per_page,
+            favicon_url,
+        }))
+    }
+}
+
 /// The shared values one site render reads.
 struct Common<'a> {
     site: &'a Site,
@@ -168,6 +174,47 @@ struct Common<'a> {
 }
 
 impl<'a> Common<'a> {
+    /// The values a render reads beside the page itself: the visible pages, the
+    /// resolved navigation, the theme, the query and the caller's identity.
+    async fn load(
+        state: &'a AppState,
+        uri: &Uri,
+        data: &'a SiteData,
+        loader: &'a Loader<'a>,
+        actor: &Actor,
+    ) -> Result<Self, SiteError> {
+        let pages = loader.page_refs().await?;
+        // A corrupt navigation blob renders an empty menu, not a 500;
+        // `parse_navigation` is the storage boundary.
+        let nav = nav::resolve(
+            &nav::parse_navigation(&data.row.navigation).unwrap_or_default(),
+            &data.site.slug,
+            &pages,
+        );
+        let theme = theme_for(&data.site.theme).unwrap_or(&DefaultTheme);
+        let user_name = match actor.user() {
+            Some(user) => UserRepo::new(&state.pool)
+                .get(user)
+                .await?
+                .map(|row| row.name),
+            None => None,
+        };
+        Ok(Self {
+            site: &data.site,
+            pages,
+            nav,
+            settings: &data.settings,
+            global_per_page: data.global_per_page,
+            theme,
+            favicon_url: data.favicon_url.clone(),
+            signed_in: actor.user().is_some(),
+            user_name,
+            query: parse_query(uri.query().unwrap_or_default()),
+            loader,
+            current_path: uri.path().to_string(),
+        })
+    }
+
     /// The page size in force: the site setting, then the global setting, then
     /// 25 (`SitePaginatorDelegatorFactory.php:14`, `PaginatorFactory.php:20`).
     fn per_page(&self) -> usize {
@@ -239,6 +286,65 @@ async fn show_page(common: &Common<'_>, page_slug: &str) -> Result<Outcome, Site
     ctx.page_created = Some(Timestamp::from_naive(row.created));
     ctx.page_modified = row.modified.map(Timestamp::from_naive);
     Ok(Outcome::Html(render_page(common.theme, &page, &mut ctx)))
+}
+
+/// Render a page assembled from a preview body.
+///
+/// The frame is `show_page`'s: the same site, theme, settings, navigation and
+/// caller visibility, and the same block rendering. The site is the one the
+/// request path names, and the page and its attachments arrive already built, so
+/// nothing is read for the page itself.
+pub(crate) async fn render_preview(
+    state: &AppState,
+    uri: &Uri,
+    actor: &Actor,
+    page: &SitePage,
+    attachments: &[(BlockId, Vec<ResolvedAttachment>)],
+    created: Option<Timestamp>,
+    modified: Option<Timestamp>,
+) -> Result<Outcome, SiteError> {
+    let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
+    let slug = route_slug(&route);
+    let Some(data) = SiteData::load(state, &slug).await? else {
+        return Err(SiteError::NotFound);
+    };
+    let site_permission = site_permission(&state.pool, data.row.id, actor).await?;
+    let access = Access {
+        actor,
+        site_is_public: data.row.is_public,
+        site_owner: data.row.owner_id,
+        site_permission,
+    };
+    let loader = Loader::new(
+        &state.pool,
+        &state.base,
+        &data.catalog,
+        &data.site,
+        &access,
+        &data.settings,
+    );
+    let common = Common::load(state, uri, &data, &loader, actor).await?;
+    let loaded = provider::load_preview_blocks(
+        common.loader,
+        page,
+        common.site.id,
+        common.settings,
+        // The saved page is fetched with no query, so the preview resolves the
+        // same block searches without the credentials this request carries.
+        &[],
+        attachments,
+    )
+    .await?;
+    let mut ctx = common.context(Some(page), &loaded);
+    // The document is the one the saved page will serve, so the path is the
+    // page's own and the request's query is dropped: a preview request carries
+    // credentials there, not a page query, and a block that builds a link from
+    // it must not copy them.
+    ctx.current_path = page_url(&common.site.slug, &page.slug);
+    ctx.query = Vec::new();
+    ctx.page_created = created;
+    ctx.page_modified = modified;
+    Ok(Outcome::Html(render_page(common.theme, page, &mut ctx)))
 }
 
 /// `Site\ItemController::browseAction` and `Site\ItemSetController::browseAction`.

@@ -333,7 +333,7 @@ async fn write(
 }
 
 /// `ApiController::checkContentType`: a write body must be JSON or multipart.
-fn content_type_is_json(headers: &HeaderMap) -> bool {
+pub(crate) fn content_type_is_json(headers: &HeaderMap) -> bool {
     headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
@@ -350,7 +350,7 @@ fn content_type(headers: &HeaderMap) -> Option<&str> {
         .and_then(|value| value.to_str().ok())
 }
 
-fn media_type(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn media_type(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
