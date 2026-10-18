@@ -445,4 +445,17 @@ where
             .map(crate::rows::SitePermissionRow::from_db_row::<DB>)
             .collect()
     }
+
+    /// Whether `user_id` holds any permission on `site_id`
+    /// (`HasSitePermissionAssertion`: any site role, `admin` through `viewer`).
+    pub async fn has_permission(&self, site_id: SiteId, user_id: UserId) -> Result<bool, DbError> {
+        let found: i64 = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM site_permission WHERE site_id = ? AND user_id = ?",
+        )
+        .bind(bind_id(site_id))
+        .bind(bind_id(user_id))
+        .fetch_one(self.pool)
+        .await?;
+        Ok(found > 0)
+    }
 }

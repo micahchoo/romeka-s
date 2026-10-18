@@ -351,10 +351,12 @@ adapter and the entity rule is the gate.
 | users | site_admin, global_admin | researcher and up | site_admin, global_admin | update: self or admin; delete: nobody's own account, and no `site_admin` on another admin |
 
 Roles, highest first: `global_admin`, `site_admin`, `editor`, `reviewer`,
-`author`, `researcher`. This is the port's read of `AclFactory`; the site-role
-assertions (`HasSitePermissionAssertion`) are approximated by site ownership,
-and a site role carried by `site_permission` is not consulted yet. Reported as
-a gap.
+`author`, `researcher`. This is the port's read of `AclFactory` for writes; the
+write path approximates `HasSitePermissionAssertion` by site ownership, so a
+site role carried by `site_permission` does not widen a write. For reads it
+does: `site_permission` is consulted by the site and site-page visibility
+(`Actor::sees_site`, `Actor::sees_site_page`), which the API reads and the `/s`
+routes share. Reported as a gap on the write side.
 
 ## Auth
 

@@ -14,12 +14,13 @@ use http_body_util::BodyExt;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::ids::{ClassId, ItemId, ItemSetId, MediaId, TemplateId, UserId, VocabularyId};
 use omeka_db::repos::{
-    ApiKeyRepo, ClassRepo, ItemRepo, ItemSetRepo, MediaRepo, PropertyRepo, ResourceRepo, SiteRepo,
-    TemplateRepo, UserRepo, ValueRepo, VocabularyRepo,
+    ApiKeyRepo, ClassRepo, ItemRepo, ItemSetRepo, MediaRepo, PropertyRepo, ResourceRepo,
+    SiteBlockAttachmentRepo, SiteRepo, TemplateRepo, UserRepo, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
     NewApiKey, NewClass, NewItem, NewItemSet, NewMedia, NewProperty, NewResource, NewSite,
-    NewSiteBlock, NewSitePage, NewTemplate, NewTemplateProperty, NewUser, NewValue, NewVocabulary,
+    NewSiteBlock, NewSiteBlockAttachment, NewSitePage, NewTemplate, NewTemplateProperty, NewUser,
+    NewValue, NewVocabulary,
 };
 use omeka_db::{migrate, open_memory};
 use omeka_media::store::FileStore;
@@ -518,6 +519,333 @@ pub async fn site_pool() -> (SqlitePool, Seed) {
     (pool, seed)
 }
 
+/// A 32 character key identity for the visibility scenario's owner.
+pub const OWNER_KEY_IDENTITY: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0";
+/// The owner key's credential.
+pub const OWNER_KEY_CREDENTIAL: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1";
+/// A 32 character key identity for the visibility scenario's site viewer.
+pub const VIEWER_KEY_IDENTITY: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0";
+/// The viewer key's credential.
+pub const VIEWER_KEY_CREDENTIAL: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1";
+/// The password both visibility users log in with.
+pub const VISIBILITY_PASSWORD: &str = "visibility-pass-1";
+
+/// The site-visibility scenario: a non-admin author who owns a public site and
+/// a private site, a second user holding a viewer permission on both, and the
+/// pages, item and media the matrix reads.
+pub struct VisibilitySeed {
+    pub owner: UserId,
+    pub viewer: UserId,
+    pub owner_email: &'static str,
+    pub viewer_email: &'static str,
+    pub public_site: u64,
+    pub private_site: u64,
+    pub public_page: u64,
+    pub private_page: u64,
+    pub attach_page: u64,
+    pub private_site_public_page: u64,
+    pub item: ItemId,
+    pub media_public: MediaId,
+    pub media_private: MediaId,
+    pub private_item: ItemId,
+}
+
+/// Build a migrated in-memory database carrying the visibility scenario.
+///
+/// The owner is an `author`, so the owner rule is exercised apart from an
+/// admin's `view-all`. The viewer holds a `viewer` site permission on both
+/// sites. The item's media is one public and one private row, and the attach
+/// page renders the item's media list.
+pub async fn visibility_pool() -> (SqlitePool, VisibilitySeed) {
+    let (pool, seed) = seeded_pool().await;
+    let _ = &seed;
+
+    let owner = UserRepo::new(&pool)
+        .create(&NewUser {
+            email: "vis-owner@example.com".to_string(),
+            name: "Vis Owner".to_string(),
+            password_hash: Some(bcrypt::hash(VISIBILITY_PASSWORD, 4).unwrap()),
+            role: "author".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .unwrap();
+    let viewer = UserRepo::new(&pool)
+        .create(&NewUser {
+            email: "vis-viewer@example.com".to_string(),
+            name: "Vis Viewer".to_string(),
+            password_hash: Some(bcrypt::hash(VISIBILITY_PASSWORD, 4).unwrap()),
+            role: "researcher".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .unwrap();
+    for (identity, credential, label, user) in [
+        (
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            "Owner key",
+            owner.id,
+        ),
+        (
+            VIEWER_KEY_IDENTITY,
+            VIEWER_KEY_CREDENTIAL,
+            "Viewer key",
+            viewer.id,
+        ),
+    ] {
+        ApiKeyRepo::new(&pool)
+            .create(&NewApiKey {
+                id: identity.to_string(),
+                owner_id: user,
+                label: label.to_string(),
+                credential_hash: bcrypt::hash(credential, 4).unwrap(),
+                last_ip: None,
+                last_accessed: None,
+                created: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    let repo = SiteRepo::new(&pool);
+    let public_site = repo
+        .create(&NewSite {
+            owner_id: Some(owner.id),
+            slug: "vis-pub".to_string(),
+            theme: "default".to_string(),
+            title: "Vis public".to_string(),
+            is_public: true,
+            ..NewSite::default()
+        })
+        .await
+        .unwrap();
+    let private_site = repo
+        .create(&NewSite {
+            owner_id: Some(owner.id),
+            slug: "vis-priv".to_string(),
+            theme: "default".to_string(),
+            title: "Vis private".to_string(),
+            is_public: false,
+            ..NewSite::default()
+        })
+        .await
+        .unwrap();
+    for site in [public_site.id, private_site.id] {
+        repo.set_permission(site, viewer.id, "viewer")
+            .await
+            .unwrap();
+    }
+
+    // Page ids: public, attach, private, private-site. The attach page precedes
+    // the private page in id order but follows it in navigation, so the
+    // pagination test tells the two orders apart.
+    let public_page = add_page(
+        &pool,
+        public_site.id,
+        "vis-pub-public",
+        "Vis public page",
+        true,
+    )
+    .await;
+    let attach_page = add_page(&pool, public_site.id, "vis-attach", "Vis attach", true).await;
+    let private_page = add_page(
+        &pool,
+        public_site.id,
+        "vis-pub-private",
+        "Vis private page",
+        false,
+    )
+    .await;
+    let private_site_public_page = add_page(
+        &pool,
+        private_site.id,
+        "vis-priv-public",
+        "Vis private site page",
+        true,
+    )
+    .await;
+
+    // Navigation: the public page, its private child, then the attach page. The
+    // order fixes the expected prev/next sequence.
+    let mut nav_site = repo.get(public_site.id).await.unwrap().unwrap();
+    nav_site.navigation = serde_json::json!([
+        {"type": "page", "data": {"id": public_page, "label": null},
+         "links": [{"type": "page", "data": {"id": private_page, "label": null}, "links": []}]},
+        {"type": "page", "data": {"id": attach_page, "label": null}, "links": []}
+    ]);
+    repo.update(&nav_site).await.unwrap();
+
+    let item = ItemRepo::new(&pool)
+        .create(&NewItem {
+            resource: NewResource {
+                owner_id: Some(owner.id),
+                title: Some("Vis item".to_string()),
+                is_public: true,
+                ..NewResource::default()
+            },
+            primary_media_id: None,
+        })
+        .await
+        .unwrap();
+    // The private media is created first, so the item's first media is the
+    // hidden one and the primary-media fallback is exercised.
+    let media_private = add_media(
+        &pool,
+        item.id(),
+        owner.id,
+        "Vis media private",
+        false,
+        "ffffffff",
+    )
+    .await;
+    let media_public = add_media(
+        &pool,
+        item.id(),
+        owner.id,
+        "Vis media public",
+        true,
+        "eeeeeeee",
+    )
+    .await;
+    let private_item = ItemRepo::new(&pool)
+        .create(&NewItem {
+            resource: NewResource {
+                owner_id: Some(owner.id),
+                title: Some("Vis private item".to_string()),
+                is_public: false,
+                ..NewResource::default()
+            },
+            primary_media_id: None,
+        })
+        .await
+        .unwrap();
+
+    // The attach page renders the item's media list and a browse preview of the
+    // site's items, so a private media title or thumbnail the item view carries
+    // reaches the page.
+    let block = repo
+        .add_block(&NewSiteBlock {
+            page_id: omeka_db::ids::PageId::from(attach_page),
+            layout: "itemWithMetadata".to_string(),
+            data: serde_json::json!({}),
+            layout_data: None,
+            position: 1,
+        })
+        .await
+        .unwrap();
+    SiteBlockAttachmentRepo::new(&pool)
+        .create(&NewSiteBlockAttachment {
+            block_id: block.id,
+            item_id: Some(item.id()),
+            media_id: None,
+            caption: String::new(),
+            position: 1,
+        })
+        .await
+        .unwrap();
+    // Put the item in the site so the browse preview block lists it, and its
+    // primary-media thumbnail is the one the media visibility test reads.
+    sqlx::query("INSERT INTO item_site (item_id, site_id) VALUES (?, ?)")
+        .bind(i64::try_from(item.id().0).unwrap())
+        .bind(i64::try_from(public_site.id.0).unwrap())
+        .execute(&pool)
+        .await
+        .unwrap();
+    repo.add_block(&NewSiteBlock {
+        page_id: omeka_db::ids::PageId::from(attach_page),
+        layout: "browsePreview".to_string(),
+        data: serde_json::json!({"resource_type": "items"}),
+        layout_data: None,
+        position: 2,
+    })
+    .await
+    .unwrap();
+
+    (
+        pool,
+        VisibilitySeed {
+            owner: owner.id,
+            viewer: viewer.id,
+            owner_email: "vis-owner@example.com",
+            viewer_email: "vis-viewer@example.com",
+            public_site: public_site.id.0,
+            private_site: private_site.id.0,
+            public_page,
+            private_page,
+            attach_page,
+            private_site_public_page,
+            item: item.id(),
+            media_public,
+            media_private,
+            private_item: private_item.id(),
+        },
+    )
+}
+
+/// Add one page and return its id.
+async fn add_page(
+    pool: &SqlitePool,
+    site: omeka_db::ids::SiteId,
+    slug: &str,
+    title: &str,
+    is_public: bool,
+) -> u64 {
+    SiteRepo::new(pool)
+        .add_page(&NewSitePage {
+            site_id: site,
+            slug: slug.to_string(),
+            title: title.to_string(),
+            is_public,
+            ..NewSitePage::default()
+        })
+        .await
+        .unwrap()
+        .id
+        .0
+}
+
+/// Add one media row carrying `title` as its display title and a stored
+/// thumbnail under `storage`.
+async fn add_media(
+    pool: &SqlitePool,
+    item: ItemId,
+    owner: UserId,
+    title: &str,
+    is_public: bool,
+    storage: &str,
+) -> MediaId {
+    MediaRepo::new(pool)
+        .create(&NewMedia {
+            resource: NewResource {
+                owner_id: Some(owner),
+                title: Some(title.to_string()),
+                is_public,
+                ..NewResource::default()
+            },
+            item_id: item,
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
+            source: Some(format!("{storage}.jpg")),
+            media_type: Some("image/jpeg".to_string()),
+            storage_id: Some(storage.to_string()),
+            extension: Some("jpg".to_string()),
+            sha256: Some(storage.to_string()),
+            size: Some(1),
+            has_original: true,
+            has_thumbnails: true,
+            position: None,
+            lang: None,
+            alt_text: None,
+        })
+        .await
+        .unwrap()
+        .id()
+}
+
 /// Send one request through the router.
 pub async fn send(app: Router, request: Request<Body>) -> Answer {
     let response = app.oneshot(request).await.unwrap();
@@ -563,6 +891,44 @@ pub fn json_request(method: &str, uri: &str, body: &str) -> Request<Body> {
 pub fn append_key(uri: &str) -> String {
     let separator = if uri.contains('?') { '&' } else { '?' };
     format!("{uri}{separator}key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}")
+}
+
+/// A GET carrying one user's API key pair.
+pub fn get_keyed(uri: &str, identity: &str, credential: &str) -> Request<Body> {
+    let separator = if uri.contains('?') { '&' } else { '?' };
+    request(
+        "GET",
+        &format!("{uri}{separator}key_identity={identity}&key_credential={credential}"),
+    )
+}
+
+/// A GET carrying a session cookie.
+pub fn get_cookie(uri: &str, cookie: &str) -> Request<Body> {
+    Request::builder()
+        .method("GET")
+        .uri(uri)
+        .header("cookie", cookie)
+        .body(Body::empty())
+        .unwrap()
+}
+
+/// Log in through `POST /api/login` and return the `Cookie` header value the
+/// answer sets.
+pub async fn login_cookie(app: Router, email: &str, password: &str) -> String {
+    let body = format!("{{\"email\":{email:?},\"password\":{password:?}}}");
+    let answer = send(app, json_request("POST", "/api/login", &body)).await;
+    assert_eq!(
+        answer.status,
+        StatusCode::OK,
+        "login for {email} failed: {}",
+        answer.body
+    );
+    header(&answer, "set-cookie")
+        .expect("login answer sets a cookie")
+        .split(';')
+        .next()
+        .unwrap()
+        .to_string()
 }
 
 /// The header value as a string, or `None` when absent.

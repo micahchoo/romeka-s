@@ -193,9 +193,11 @@ resource's browse when `search_resource_names` holds one name, which is what
 `count($resourceNames) === 1` does upstream.
 
 A failure renders the theme error page: an unknown site, page or resource is a
-404 (`view/error/404.phtml`), a non-public site, page or resource is a 403
-(`view/error/403.phtml`), and a storage failure is the generic 500 document.
-Both error pages carry `content-type: text/html; charset=utf-8`.
+404 (`view/error/404.phtml`), and a storage failure is the generic 500 document.
+A site, page or resource the caller cannot see is the same 404, because the
+public routes read through the same visibility the API applies
+(`SitePageVisibilityFilter`, `ResourceVisibilityFilter`), so the row is absent
+rather than denied. The error page carries `content-type: text/html; charset=utf-8`.
 A `cross-site-search` action the controller does not name, and a
 `/:controller/search` whose controller has no search action (`media`, `page`),
 are 404s.

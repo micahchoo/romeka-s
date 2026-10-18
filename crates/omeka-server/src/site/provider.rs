@@ -140,27 +140,50 @@ async fn load_attachments(
         .await?;
     let items = ItemRepo::new(loader.pool());
     let media = MediaRepo::new(loader.pool());
+    let access = loader.access();
     let mut refs = Vec::with_capacity(rows.len());
     for row in &rows {
-        let item_view = match row.item_id {
+        // `ResourceVisibilityFilter` drops a `SiteBlockAttachment` whose item or
+        // media the caller cannot see, so the whole attachment is skipped.
+        let item_id = row.item_id;
+        let media_id = row.media_id;
+        let item_row = match item_id {
             Some(id) => match items.get(id).await? {
-                Some(item_row) => {
-                    let view = loader.item_resource_view(&item_row).await?;
-                    push_resource(loaded, ResourceKind::Item, id.0, &view);
-                    Some(view)
+                Some(item)
+                    if access.sees_resource(item.resource.is_public, item.resource.owner_id) =>
+                {
+                    Some(item)
                 }
-                None => None,
+                _ => continue,
             },
             None => None,
         };
-        if let Some(id) = row.media_id
-            && let Some(media_row) = media.get(id).await?
-        {
+        let media_row = match media_id {
+            Some(id) => match media.get(id).await? {
+                Some(media)
+                    if access.sees_resource(media.resource.is_public, media.resource.owner_id) =>
+                {
+                    Some(media)
+                }
+                _ => continue,
+            },
+            None => None,
+        };
+        let item_view = match &item_row {
+            Some(item_row) => {
+                let view = loader.item_resource_view(item_row).await?;
+                push_resource(loaded, ResourceKind::Item, item_row.id().0, &view);
+                Some(view)
+            }
+            None => None,
+        };
+        if let Some(media_row) = &media_row {
             let item_url = item_view
                 .as_ref()
                 .map(|view| view.url.clone())
                 .unwrap_or_default();
-            let media_ref = loader.media_ref(&media_row, &item_url, options).await?;
+            let media_ref = loader.media_ref(media_row, &item_url, options).await?;
+            let id = media_row.id();
             if !loaded
                 .media
                 .iter()
@@ -170,8 +193,8 @@ async fn load_attachments(
             }
         }
         refs.push(AttachmentRef {
-            item: row.item_id.map(|id| omeka_core::ids::ItemId::new(id.0)),
-            media: row.media_id.map(|id| MediaId::new(id.0)),
+            item: item_id.map(|id| omeka_core::ids::ItemId::new(id.0)),
+            media: media_id.map(|id| MediaId::new(id.0)),
             caption: row.caption.clone(),
         });
     }

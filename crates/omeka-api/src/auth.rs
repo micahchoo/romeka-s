@@ -166,6 +166,13 @@ impl Actor {
         )
     }
 
+    /// Whether the actor holds one of the two admin roles, which upstream's
+    /// `AclFactory` allows everything (`$acl->allow('site_admin')` /
+    /// `$acl->allow('global_admin')`).
+    pub fn is_admin(&self) -> bool {
+        matches!(self.role(), Some("global_admin" | "site_admin"))
+    }
+
     /// Whether a resource is visible: public, owned by the caller, or the
     /// caller holds `view-all`.
     pub fn sees_resource(&self, is_public: bool, owner: Option<UserId>) -> bool {
@@ -175,6 +182,39 @@ impl Actor {
                 (Some(user), Some(owner)) => user == owner,
                 _ => false,
             }
+    }
+
+    /// Whether a site is visible: public, owned by the caller, or the caller
+    /// holds a site permission. That is the `read` rule upstream grants on
+    /// `Omeka\Entity\Site` (`AclFactory::addRulesForAllRoles`), whose assertion
+    /// is `SiteIsPublicAssertion | OwnsEntityAssertion | HasSitePermissionAssertion('viewer')`;
+    /// the admin roles are allowed everything separately. The caller reads
+    /// `has_permission` from `site_permission`.
+    pub fn sees_site(&self, is_public: bool, owner: Option<UserId>, has_permission: bool) -> bool {
+        self.is_admin() || is_public || self.owns(owner) || has_permission
+    }
+
+    /// Whether a site page is visible. Upstream's `SitePageVisibilityFilter`
+    /// keeps a page when its site and the page are both public, or the caller
+    /// owns the site, or the caller has a site permission; `view-all` on
+    /// `Omeka\Entity\SitePage` (the admin roles) bypasses the filter. A page
+    /// has no owner of its own, so the owner test reads the site's owner.
+    pub fn sees_site_page(
+        &self,
+        page_is_public: bool,
+        site_is_public: bool,
+        site_owner: Option<UserId>,
+        has_permission: bool,
+    ) -> bool {
+        self.is_admin()
+            || (page_is_public && site_is_public)
+            || self.owns(site_owner)
+            || has_permission
+    }
+
+    /// Whether the actor is the row's owner.
+    fn owns(&self, owner: Option<UserId>) -> bool {
+        matches!((self.user, owner), (Some(user), Some(owner)) if user == owner)
     }
 }
 
@@ -324,6 +364,41 @@ mod tests {
         assert!(!actor.is_privileged());
         assert!(actor.sees_resource(false, Some(UserId(7))));
         assert!(!actor.sees_resource(false, Some(UserId(8))));
+    }
+
+    #[test]
+    fn a_page_needs_a_public_site_and_page_or_a_site_role() {
+        let anonymous = Actor::anonymous();
+        assert!(anonymous.sees_site_page(true, true, None, false));
+        assert!(!anonymous.sees_site_page(true, false, None, false));
+        assert!(!anonymous.sees_site_page(false, true, None, false));
+
+        let owner = Actor::new(UserId(7), "author");
+        assert!(owner.sees_site_page(false, false, Some(UserId(7)), false));
+        assert!(owner.sees_site_page(false, true, Some(UserId(7)), false));
+        assert!(!owner.sees_site_page(false, true, Some(UserId(8)), false));
+        assert!(owner.sees_site_page(false, false, Some(UserId(8)), true));
+
+        // `editor` holds `view-all` on `Omeka\Entity\Resource`, not on
+        // `Omeka\Entity\SitePage`, so it is not privileged here.
+        assert!(!Actor::new(UserId(9), "editor").sees_site_page(false, false, None, false));
+        assert!(Actor::new(UserId(9), "global_admin").sees_site_page(false, false, None, false));
+        assert!(Actor::new(UserId(9), "site_admin").sees_site_page(false, false, None, false));
+    }
+
+    #[test]
+    fn a_site_needs_public_ownership_or_a_permission() {
+        let anonymous = Actor::anonymous();
+        assert!(anonymous.sees_site(true, None, false));
+        assert!(!anonymous.sees_site(false, Some(UserId(7)), false));
+
+        let author = Actor::new(UserId(7), "author");
+        assert!(author.sees_site(false, Some(UserId(7)), false));
+        assert!(author.sees_site(false, Some(UserId(8)), true));
+        assert!(!author.sees_site(false, Some(UserId(8)), false));
+
+        assert!(!Actor::new(UserId(9), "editor").sees_site(false, None, false));
+        assert!(Actor::new(UserId(9), "site_admin").sees_site(false, None, false));
     }
 
     #[test]
