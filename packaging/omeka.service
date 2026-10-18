@@ -1,0 +1,54 @@
+# Bare-metal install of the Omeka S port.
+#
+# Install layout this unit assumes:
+#
+#   /usr/local/bin/omeka                    the release binary
+#   /usr/local/bin/omeka-entrypoint         packaging/entrypoint.sh
+#   /etc/omeka/nginx.conf.template          packaging/nginx.conf.template
+#   /etc/omeka/omeka.env                    admin email, name, password, title
+#   /usr/share/omeka/dist/                  the admin bundle (web/admin/dist)
+#
+# The unit owns the runtime paths. systemd creates /var/lib/omeka (StateDirectory)
+# and /run/omeka (RuntimeDirectory), both writable by the service user, and keeps
+# the database and the media store under the data directory across restarts.
+
+[Unit]
+Description=Omeka S port (API, public site, admin bundle)
+Documentation=file:/usr/share/doc/omeka/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omeka
+Group=omeka
+WorkingDirectory=/var/lib/omeka
+
+EnvironmentFile=-/etc/omeka/omeka.env
+Environment=OMEKA_DB=/var/lib/omeka/omeka.db
+Environment=OMEKA_STORE=/var/lib/omeka/files
+Environment=OMEKA_DIST=/usr/share/omeka/dist
+Environment=OMEKA_NGINX_TEMPLATE=/etc/omeka/nginx.conf.template
+Environment=OMEKA_NGINX_CONF=/run/omeka/nginx.conf
+Environment=OMEKA_API_HOST=127.0.0.1
+Environment=OMEKA_API_PORT=8123
+Environment=OMEKA_PUBLIC_PORT=8080
+Environment=OMEKA_BASE_URL=http://localhost:8080
+
+ExecStart=/usr/local/bin/omeka-entrypoint
+# The health check the container also uses: poll /health on the origin, and fail
+# the start if it never answers.
+ExecStartPost=/bin/sh -c 'for i in $(seq 1 30); do curl -fsS -o /dev/null "http://127.0.0.1:${OMEKA_PUBLIC_PORT:-8080}/health" && exit 0; sleep 1; done; exit 1'
+
+Restart=on-failure
+RestartSec=5
+
+StateDirectory=omeka
+RuntimeDirectory=omeka
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/vocabularies/3",
+  "@type": ["o:Vocabulary"],
+  "o:id": 3,
+  "o:namespace_uri": "http://purl.org/ontology/bibo/",
+  "o:prefix": "bibo",
+  "o:label": "Bibliographic Ontology",
+  "o:comment": "The Bibliographic Ontology.",
+  "o:owner": null
+}

@@ -1,0 +1,545 @@
+/* The bundled theme's stylesheet. The block and page-layout rules below are
+   the subset of the core asset `application/asset/css/page-blocks.css` that
+   applies to the markup this port emits; the rules that key off a block's
+   layout data (alignment, background, grid placement) are left out because
+   core carries no layout data. The shell, list and navigation rules stand in
+   for the core asset `application/asset/css/style.css`. */
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #222;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+}
+
+a {
+  color: #1a5d8f;
+}
+
+a:hover,
+a:focus {
+  color: #0d3b5c;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+#content {
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.site-title {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+footer {
+  border-top: 1px solid #dfdfdf;
+  color: #666;
+  font-size: 0.875rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.powered-by {
+  color: #888;
+}
+
+.blocks {
+  margin: 1rem 0;
+}
+
+.blocks-inner:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.page-layout-normal .block {
+  margin: 1rem 0;
+}
+
+.block-blockGroup:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+/* Resource lists and their entries */
+
+.resource-list {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  width: 100%;
+}
+
+.item.resource,
+.item-set.resource,
+.media.resource,
+.page.resource {
+  border-bottom: 1px solid #dfdfdf;
+  overflow: hidden;
+  padding: 0.75rem 0;
+  width: 100%;
+}
+
+.page.resource h4 {
+  margin: 0;
+}
+
+.resource-link {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.resource-name {
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
+.resource .description {
+  margin-top: 0.25rem;
+}
+
+.resource-list .media {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.browse-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 1rem 0;
+}
+
+.advanced-search {
+  white-space: nowrap;
+}
+
+.pagination > ul {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.pagination a,
+.pagination .active {
+  border: 1px solid #dfdfdf;
+  border-radius: 2px;
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+}
+
+.pagination .active {
+  background: #f2f2f2;
+  font-weight: bold;
+}
+
+/* Values, as the item and media views print them */
+
+.values,
+.item-sets,
+.media-list {
+  margin: 0 0 1.5rem;
+}
+
+.values .property,
+.item-sets .property,
+.media-list .property {
+  border-bottom: 1px solid #ececec;
+  display: flex;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.values .property dt,
+.item-sets .property dt,
+.media-list .property dt {
+  flex: 0 0 12rem;
+  font-weight: bold;
+}
+
+.values .property .value,
+.item-sets .property .value,
+.media-list .property .value {
+  margin: 0;
+}
+
+.media-parent-item {
+  color: #555;
+}
+
+/* Breadcrumbs, the page sub-menu and the page pagination */
+
+.breadcrumbs {
+  border-bottom: 1px solid #dfdfdf;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+}
+
+.sub-menu > .navigation,
+.toc-block > ul {
+  border-left: 5px solid #dfdfdf;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0 0 0 0.75rem;
+}
+
+.navigation ul {
+  list-style: none;
+  padding-left: 1.25rem;
+}
+
+.site-page-pagination {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin: 1.5rem 0;
+}
+
+/* Line break */
+
+.break {
+  border-bottom: 1px solid #dfdfdf;
+  clear: both;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.break.transparent {
+  border-color: transparent;
+}
+
+.break.opaque {
+  border-color: #dfdfdf;
+}
+
+/* Media block */
+
+.media-embed .resource {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.media-embed.attachment-count-1 .resource,
+.media-embed.attachment-count-1 {
+  display: block;
+  width: 100%;
+}
+
+.media-embed .resource:not(:last-child) {
+  margin-bottom: 24px;
+}
+
+.media-embed .resource h3 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.media-embed .resource .caption {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.media-embed .resource .caption > *:last-child {
+  margin-bottom: 0;
+}
+
+.media-embed .resource img,
+.media-embed .resource video,
+.media-embed .resource audio {
+  height: auto;
+  max-width: 100%;
+}
+
+.media-embed .resource iframe {
+  max-width: 100%;
+}
+
+.media-embed.layout-horizontal,
+.media-embed.layout-vertical {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  width: 100%;
+}
+
+.media-embed.layout-horizontal.attachment-count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.media-embed.layout-horizontal.attachment-count-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.media-embed.layout-horizontal.multiple-attachments {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.media-embed.media-display-thumbnail,
+.media-embed.media-display-embed {
+  max-width: 100%;
+}
+
+/* Browse preview */
+
+.preview-block:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resource-list.preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.resource-list.preview .resource {
+  border-bottom: none;
+  flex: 1 1 12rem;
+  max-width: 20rem;
+}
+
+/* Table of contents */
+
+.toc-block > ul > li {
+  margin-bottom: 0.5rem;
+}
+
+.toc-block > ul > li > a {
+  font-weight: bold;
+}
+
+.toc-block ul ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.toc-block ul ul ul {
+  padding-left: 1.25em;
+}
+
+.toc-block ul ul li:before {
+  color: #dfdfdf;
+  content: "—";
+}
+
+/* Item with metadata */
+
+.item-with-metadata:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.item-with-metadata .show.resource {
+  border-bottom: none;
+  margin: 0;
+}
+
+/* Assets */
+
+.assets .asset {
+  margin-bottom: 1rem;
+  max-width: 100%;
+}
+
+.assets .asset img {
+  height: auto;
+  max-width: 100%;
+}
+
+.assets .link-title {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+/* Page date and time */
+
+.page-date-time > div {
+  display: inline-block;
+  margin: 0 1rem 0 0;
+}
+
+.page-date-time .property {
+  display: inline;
+  font-weight: bold;
+}
+
+.page-date-time .value {
+  display: inline;
+}
+
+.page-date-time .created,
+.page-date-time .modified {
+  display: inline-block;
+}
+
+/* List of sites */
+
+.list-of-sites .site-list {
+  margin: 1rem 0;
+}
+
+.list-of-sites .site-list .site {
+  display: flex;
+  margin-bottom: 0.5rem;
+}
+
+.list-of-sites .site-list .site-thumbnail {
+  flex: 0 0 auto;
+}
+
+.list-of-sites .site-list .site-text {
+  flex: 1 1 auto;
+}
+
+.list-of-sites .site-list .site-thumbnail-image {
+  margin-right: 1rem;
+  max-height: 72px;
+}
+
+.list-of-sites .site-list .site-link {
+  display: inline-block;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.list-of-sites .site-list .site-summary,
+.list-of-sites .site-text .site-summary {
+  line-height: 20px;
+  margin: 0 0 0.25rem;
+}
+
+/* List of pages */
+
+.list-of-pages-link {
+  text-decoration: none;
+}
+
+.list-of-pages-link-missing {
+  color: #888;
+  font-style: italic;
+}
+
+/* Search: the sitewide form, the result sections, the result lists and the
+   advanced form. The markup follows the core views; these rules stand in for
+   the core asset `application/asset/css/advanced-search.css` plus the list and
+   form rules of `style.css`. */
+
+.site-search {
+  padding: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+#search-form,
+.sitewide-search-form {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 32rem;
+}
+
+#search-form input[type="text"],
+.sitewide-search-form input[type="text"] {
+  flex: 1 1 auto;
+  padding: 0.25rem 0.5rem;
+}
+
+.results ul,
+.sitewide-search-form + .results ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.results li {
+  margin-bottom: 0.25rem;
+}
+
+.items.results,
+.item_sets.results,
+.site_pages.results {
+  margin-bottom: 1.5rem;
+}
+
+.result-title a {
+  font-weight: 600;
+}
+
+.result-site {
+  color: #555;
+  margin-left: 0.5rem;
+}
+
+.advanced-search-content {
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.field-meta {
+  flex: 0 0 12rem;
+}
+
+.field-meta .label {
+  font-weight: 600;
+}
+
+.inputs {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.multi-value .inputs {
+  flex-direction: column;
+}
+
+.joiner,
+.item-set-select-type {
+  flex: 0 0 auto;
+}
+
+.query-property,
+.query-type,
+.query-text,
+.item-set-select {
+  flex: 1 1 12rem;
+}
+
+.query-text {
+  min-width: 8rem;
+}

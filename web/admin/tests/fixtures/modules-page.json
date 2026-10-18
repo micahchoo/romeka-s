@@ -1,0 +1,31 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/modules/Common",
+    "@type": ["o:Module"],
+    "o:id": "Common",
+    "o:state": "active",
+    "o:ini": {
+      "name": "Common",
+      "version": "3.4.0",
+      "description": "Provides common functionality for other modules.",
+      "author": "Omeka Team",
+      "license": "GPL-3.0-only",
+      "omeka_version_constraint": "^4.0.0"
+    }
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/modules/Archive",
+    "@type": ["o:Module"],
+    "o:id": "Archive",
+    "o:state": "not_active",
+    "o:ini": {
+      "name": "Archive",
+      "version": "1.0.0",
+      "description": "Archival metadata helpers.",
+      "author": "Example Author",
+      "license": "GPL-3.0-only"
+    }
+  }
+]

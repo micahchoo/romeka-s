@@ -1,0 +1,265 @@
+# omeka-server
+
+The HTTP surface: an axum app around the rules in `omeka-api` (the `/api`
+JSON-LD read and write endpoints) and the public site routes served through
+`omeka-site`.
+
+## Configuration
+
+Every key has a default, so a server with no file and no variables starts on the
+values below. The file is JSON and is named by `OMEKA_CONFIG`; a key it omits
+keeps its default. Precedence, lowest first: the defaults, the file, the
+environment, then the arguments `omeka serve` passes.
+
+| Key | Variable | Default | Meaning |
+| --- | --- | --- | --- |
+| `host` | `OMEKA_API_HOST` | `127.0.0.1` | Interface to bind |
+| `port` | `OMEKA_API_PORT` | `8123` | Port to bind |
+| `base_url` | `OMEKA_BASE_URL` | `http://localhost:8123` | Origin for every JSON-LD `@id` and generated link |
+| `log_level` | `OMEKA_LOG` | `info` | One of `off`, `error`, `warn`, `info`, `debug`, `trace` |
+| `max_body_bytes` | `OMEKA_MAX_BODY_BYTES` | `268435456` (256 MiB) | Largest accepted request body |
+| `request_timeout_secs` | `OMEKA_REQUEST_TIMEOUT_SECS` | `30` | Seconds a request may run before the 408 |
+| `smtp_host` | `OMEKA_SMTP_HOST` | unset | SMTP relay host; unset means the log transport |
+| `smtp_port` | `OMEKA_SMTP_PORT` | the TLS mode's port | SMTP relay port |
+| `smtp_user` | `OMEKA_SMTP_USER` | unset | SMTP user name |
+| `smtp_password` | `OMEKA_SMTP_PASSWORD` | unset | SMTP password |
+| `smtp_tls` | `OMEKA_SMTP_TLS` | `starttls` | `starttls`, `tls` or `none` |
+| `mail_from` | `OMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | Envelope sender |
+
+The TLS mode implies the port when none is set: `starttls` 587, `tls` 465,
+`none` 25. `starttls` requires the upgrade before it will send; `tls` wraps the
+connection from the first byte; `none` speaks plain SMTP and is the mode a relay
+on the same host takes.
+
+The environment names mirror the variables `packaging/entrypoint.sh` exports, so
+the container's settings reach the server unchanged. An unknown file key and a
+value that does not parse fail startup with the key named.
+
+```json
+{
+  "log_level": "debug",
+  "max_body_bytes": 1048576,
+  "request_timeout_secs": 10,
+  "smtp_host": "relay.example.org",
+  "smtp_tls": "starttls",
+  "mail_from": "omeka@example.org"
+}
+```
+
+```
+OMEKA_CONFIG=/etc/omeka/omeka.json omeka serve -d /data/omeka.db \
+    --host 127.0.0.1 --port 8123 --base-url http://localhost:8080
+```
+
+`omeka serve` always passes a host, a port and a base URL, so those three come
+from the command line in practice. The file's `host`, `port` and `base_url` are
+read by `serve_with_config`, which the CLI does not call yet; the log level and
+the limits reach the server through both paths today.
+
+## Server operations
+
+Readiness. `GET /ready` runs `SELECT 1` and answers `{"status":"ready"}` with 200,
+or `{"status":"unavailable"}` with 503 when the pool is closed or unreachable.
+`GET /health` stays the process liveness answer and reads no shared state.
+
+Shutdown. SIGTERM and SIGINT stop the listener, let the in-flight requests
+finish, and exit. `docker stop` and `systemctl stop` send SIGTERM, so both are
+covered without an entrypoint change.
+
+Logs. One `tracing` line per request carries `method`, `path`, `status` and
+`duration_ms`. The path holds no query string, so an API key in `key_credential`
+never reaches the log. The level comes from `log_level`.
+
+Conditional GET. Every read document (an API document, a site page, a theme
+asset) carries a weak `ETag`, a SHA-256 of the body. A request whose
+`If-None-Match` matches answers 304 with no body. Upstream Omeka S sends no
+`ETag` and no `Last-Modified` on any response, so this is a port addition. There
+is no `Last-Modified`, because no response carries a modification date the HTTP
+layer can see.
+
+Compression. A request with `accept-encoding: gzip` gets the body gzipped when
+that is smaller. Every document carries `Vary: accept-encoding`, gzipped or not.
+
+Limits. `max_body_bytes` answers 413 and `request_timeout_secs` answers 408, both
+with the API error document (`{"errors":{"error":"..."}}`). Upstream has neither
+status, so both sentences are the port's own.
+
+The container (`packaging/`) covers the static assets: nginx serves `web/admin/dist`
+and `/files`, and forwards `/api`, `/health` and `/s` to the port. It caps the body
+at `client_max_body_size 256m`, the same value as the default `max_body_bytes`. It
+does not compress, time out, probe readiness or forward `/ready`, log requests,
+or terminate TLS (`packaging/nginx.conf.template` listens on plain HTTP only), so
+those are the port's.
+
+## API writes
+
+`POST`, `PUT` and `PATCH` under `/api` go through `write()`. It checks the
+`Content-Type` the way `ApiController::checkContentType` does (JSON or
+multipart, else 415), authenticates, and hands the raw body to
+`omeka_api::read::Api::create` or `::update`; the answer is the same document
+the read layer serves. `DELETE` goes through `delete()`, which authenticates
+and hands the id to `Api::delete`, ignoring the body as `ApiController::delete`
+does. The resources without a write handler stay typed 501s. The body rules,
+cascade rules and permission matrix are in `crates/omeka-api/README.md`.
+
+The file store a media delete reaches lives on `AppState`. `build_router` roots
+it at `FILES_ROOT` (`files`, upstream's `file_store.local.base_path`), and
+`build_router_with_store` takes one for a test. `omeka-cli`'s `serve` has no
+`--store` option, so a server started through it always uses the
+working-directory default; the CLI is another unit's file.
+
+## Accounts
+
+`src/accounts.rs` puts `omeka-api`'s login, logout, password and password-link
+flows on the wire, one handler per route:
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /api/login` | `{email, password}` | 200 the user document and `Set-Cookie`; 401, 403, 429 |
+| `POST /api/logout` | any body, ignored | 204, the cookie cleared |
+| `GET /api/me` | | 200 the user document, or 401 |
+| `POST /api/password` | `{key, password}` | 200 the user document; 404, 422 |
+| `POST /api/password/forgot` | `{email}` | 204, or 429 |
+| `POST /api/users/{id}/password-link` | | 200 `{key, link, sent}`; 403, 404 |
+
+The login, `/api/me` and set-password bodies are the `o:` user document, the same
+one `GET /api/users/{id}` answers. A body that is not a JSON object is 400 with
+the API error document; a member that is absent reads as empty and the flow
+answers its own status. A 401 from a route the SPA calls signs the caller out
+there.
+
+The rate limit counts a login by email and by client address. The address comes
+from `X-Real-IP`, then the last `X-Forwarded-For` entry (what the proxy itself
+saw), then the socket peer, which `serve_listener` records through
+`into_make_service_with_connect_info`. No address at all leaves the address
+counter unused rather than shared by every caller.
+
+`same_origin_write` is the middleware in front of every route. A state-changing
+request that carries the session cookie must come from the configured base
+URL's origin, checked on `Origin` and on `Referer` when there is none; anything
+else is 403 with the error document. A request with no session cookie passes,
+because a key pair in the query string is not attached by the browser.
+
+## Mail
+
+`src/mail/` is the mailer seam. `Mailer` holds a `Transport` and the base URL
+the links are built from; `Message` is one finished message. `Log` is the
+default transport and writes the whole message, link included, to the request
+log. `Smtp` hands it to a `lettre` relay over the `OMEKA_SMTP_*` settings, with
+a ten second command timeout so a stuck relay does not hold a blocking thread.
+A host whose TLS client cannot be built logs at error level and falls back to
+`Log`, so a misconfigured relay does not stop the server from starting.
+
+The link is `<base_url>/#/password/<key>`, the route the admin SPA renders. Both
+the activation message and the reset message carry it, and both routes also
+return it to the caller, so an installation with no relay can still onboard
+people: `POST /api/users/{id}/password-link` answers `{key, link, sent}`, where
+`sent` is false on the log transport because nothing left the process.
+
+A send runs on `tokio`'s blocking pool. A mail failure is logged and does not
+change the answer: `forgot` still answers 204, and the password-link route still
+returns the link.
+
+## Public site routes
+
+Every path is under `/s/:site-slug` (`application/config/routes.config.php:16-116`).
+`GET` is the only method served; another method is a 405 with `Allow: GET`.
+
+| Method | Path | Status | View | Upstream |
+| --- | --- | --- | --- | --- |
+| GET | `/s/:slug` | 302, else 200 | redirect, else `View::Index` | `Controller/Site/IndexController.php`, `view/omeka/site/index/index.phtml` |
+| GET | `/s/:slug/page` | 200 | `View::SearchList` | `Controller/Site/PageController.php::browseAction`, `view/omeka/site/page/browse.phtml` |
+| GET | `/s/:slug/page/:page-slug` | 200 | `View::Page` | `Controller/Site/PageController.php::showAction`, `view/omeka/site/page/content.phtml` |
+| GET | `/s/:slug/search` | 200, else 302 | `View::Search`, else redirect | `Controller/Site/IndexController.php::searchAction`, `view/omeka/site/index/search.phtml` |
+| GET | `/s/:slug/index/search` | 200, else 302 | `View::Search`, else redirect | the path `common/search-form.phtml` posts to; same action |
+| GET | `/s/:slug/item` | 200 | `View::Browse` | `Controller/Site/ItemController.php::browseAction`, `view/omeka/site/item/browse.phtml` |
+| GET | `/s/:slug/item/search` | 200 | `View::AdvancedSearch` | `Controller/Site/ItemController.php::searchAction`, `view/omeka/site/item/search.phtml` |
+| GET | `/s/:slug/item-set` | 200 | `View::Browse` | `Controller/Site/ItemSetController.php::browseAction`, `view/omeka/site/item-set/browse.phtml` |
+| GET | `/s/:slug/item-set/search` | 200 | `View::AdvancedSearch` | `Controller/Site/ItemSetController.php::searchAction`, `view/omeka/site/item-set/search.phtml` |
+| GET | `/s/:slug/item/:id` | 200 | `View::Item` | `Controller/Site/ItemController.php::showAction`, `view/omeka/site/item/show.phtml` |
+| GET | `/s/:slug/item-set/:id` | 200 | `View::ItemSet` | `routes.config.php` `site/item-set` reaches `ItemController::browseAction`; the port renders the item-set view instead of the set's item list |
+| GET | `/s/:slug/media/:id` | 200 | `View::Media` | `Controller/Site/MediaController.php::showAction`, `view/omeka/site/media/show.phtml` |
+| GET | `/s/:slug/media/:id/show` | 200 | `View::Media` | `routes.config.php` `site/resource-id` (`:action` default `show`) |
+| GET | `/s/:slug/cross-site-search` | 200 | `View::CrossSiteSearch` (form) | `Controller/Site/CrossSiteSearchController.php::indexAction`, `view/omeka/site/cross-site-search/index.phtml` |
+| GET | `/s/:slug/cross-site-search/results` | 200, else 302 | `View::CrossSiteSearch` (sections) | `resultsAction`, `common/cross-site-search/results.phtml` |
+| GET | `/s/:slug/cross-site-search/items` | 200 | `View::CrossSiteSearch` (list) | `itemsAction`, `common/cross-site-search/item-results.phtml` |
+| GET | `/s/:slug/cross-site-search/item-sets` | 200 | `View::CrossSiteSearch` (list) | `itemSetsAction`, `common/cross-site-search/item-set-results.phtml` |
+| GET | `/s/:slug/cross-site-search/site-pages` | 200 | `View::CrossSiteSearch` (list) | `sitePagesAction`, `common/cross-site-search/site-page-results.phtml` |
+| GET | `/s/:slug/cross-site-search/items-advanced` | 200 | `View::AdvancedSearch` | `itemsAdvancedAction`, `common/cross-site-search/advanced-item-form.phtml` |
+| GET | `/s/:slug/cross-site-search/item-sets-advanced` | 200 | `View::AdvancedSearch` | `itemSetsAdvancedAction`, `common/cross-site-search/advanced-item-set-form.phtml` |
+
+The two search actions that render a `View::Search` redirect to the single
+resource's browse when `search_resource_names` holds one name, which is what
+`count($resourceNames) === 1` does upstream.
+
+A failure renders the theme error page: an unknown site, page or resource is a
+404 (`view/error/404.phtml`), a non-public site, page or resource is a 403
+(`view/error/403.phtml`), and a storage failure is the generic 500 document.
+Both error pages carry `content-type: text/html; charset=utf-8`.
+A `cross-site-search` action the controller does not name, and a
+`/:controller/search` whose controller has no search action (`media`, `page`),
+are 404s.
+
+A page slug matches case-insensitively, following the `site_page.slug`
+`COLLATE NOCASE` column, which stands in for upstream's `utf8mb4_unicode_ci`.
+
+Search parameters are the API's own (`omeka-api/src/read/query.rs`):
+`fulltext_search`, `search`, `property[i][property|type|text|joiner]`,
+`resource_class_id[]`, `item_set_id[]`, `not_item_set_id[]`, `site_id`,
+`in_sites`, `has_media`, plus `page`, `per_page`, `sort_by` and `sort_order`. A
+parameter the parser does not know is ignored. A site search puts `site_id` on
+the query; the cross-site search puts `in_sites`.
+
+The `site_setting` keys the search reads are `search_type` (which the frame's
+form posts to), `search_resource_names` (the sections a results page renders)
+and `browse_attached_items` (which adds `site_attachments_only`). There is no
+`site_setting` repository yet, so every site renders with the defaults
+(`sitewide`, `site_pages` and `items`); the columns are ready for the reader.
+
+Not ported, all answering 404: `media` browse (its controller has no browse
+action), and `/:controller/:id` with an action other than `show`.
+
+## Theme assets
+
+The bundled theme's document frame links every file in its manifest under
+`RenderContext::asset_base` (`/assets`), so `GET` serves those files from the
+theme registry rather than from a filesystem. The path after `/assets/` is the
+manifest path the frame built.
+
+| Method | Path | Status | Body |
+| --- | --- | --- | --- |
+| GET | `/assets/<path>` | 200 | the theme asset's bytes |
+
+The media type is the asset kind's (`text/css` for a stylesheet,
+`application/javascript` for a script), and the answer carries
+`cache-control: public, max-age=86400`. A path no bundled theme ships answers
+the API's 404 error document; another method is a 405 with `Allow: GET`. The
+lookup searches the bundled themes in registry order, which is unambiguous
+while one theme ships.
+
+The frame also links four core assets the port does not ship: `css/fonts.css`,
+`css/iconfonts.css`, `js/global.js` and `vendor/jquery/jquery.min.js`. They are
+upstream admin files that need the Font Awesome and Lato font binaries, which
+`verification/coverage/coverage.csv` marks `unported-admin-asset`, so they
+answer 404.
+
+## Render contract
+
+A handler does three things and nothing else.
+
+1. Parse the path with `omeka_site::slug::parse_public_path`, read the site row
+   by slug through `omeka_db::repos::SiteRepo`, and stop on a missing row or a
+   non-public site.
+2. Load rows into `omeka-site` values. `site/load.rs` turns a `SiteRow` into
+   `Site`, a `SitePageRow` plus its blocks into `SitePage`, and a resource row
+   plus its values into `ResourceView`. `site/provider.rs` runs the searches a
+   page's blocks will ask for before rendering, because `ResourceProvider` is
+   synchronous and `omeka-db` is async.
+3. Render through the bundled theme and copy the document onto the wire. The
+   theme owns all HTML and escaping; the server never builds markup.
+
+Known gaps, each a repository the port does not have yet: no `site_setting`
+repository, so every setting keeps its upstream default; `ItemFilter` carries no
+`site_id`, so a browse-preview shows every public resource; `site_block_
+attachment` has no repository, so the item-with-metadata, media and asset blocks
+render empty; and a site thumbnail is never shown for want of an asset lookup.

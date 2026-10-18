@@ -1,0 +1,44 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/literal",
+    "@type": ["o:DataType"],
+    "o:id": "literal",
+    "o:label": "Text"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/uri",
+    "@type": ["o:DataType"],
+    "o:id": "uri",
+    "o:label": "URI"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/resource",
+    "@type": ["o:DataType"],
+    "o:id": "resource",
+    "o:label": "All"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/resource:item",
+    "@type": ["o:DataType"],
+    "o:id": "resource:item",
+    "o:label": "Item"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/resource:itemset",
+    "@type": ["o:DataType"],
+    "o:id": "resource:itemset",
+    "o:label": "Item Set"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/data_types/resource:media",
+    "@type": ["o:DataType"],
+    "o:id": "resource:media",
+    "o:label": "Media"
+  }
+]

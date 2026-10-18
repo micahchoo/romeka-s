@@ -1,0 +1,601 @@
+{
+  "benches": {
+    "core_datatypes/convert_literal_from_uri": {
+      "iterations": 13841400.0,
+      "mean_ns": 27.053602823826278,
+      "median_lower_ns": 26.21856877382974,
+      "median_ns": 26.42790146420915,
+      "median_upper_ns": 26.518620381092745,
+      "samples": 50,
+      "std_dev_ns": 2.0349752351689587
+    },
+    "core_datatypes/convert_resource_noop": {
+      "iterations": 35501100.0,
+      "mean_ns": 18.92114658319265,
+      "median_lower_ns": 18.88611366751664,
+      "median_ns": 18.916742016444562,
+      "median_upper_ns": 18.945899711928867,
+      "samples": 50,
+      "std_dev_ns": 0.0949827822622147
+    },
+    "core_datatypes/convert_uri_from_literal": {
+      "iterations": 24256875.0,
+      "mean_ns": 51.63049397703071,
+      "median_lower_ns": 50.7477251294736,
+      "median_ns": 51.65693084756899,
+      "median_upper_ns": 52.187347916827704,
+      "samples": 50,
+      "std_dev_ns": 2.149885431357568
+    },
+    "core_datatypes/fulltext_uri": {
+      "iterations": 36674100.0,
+      "mean_ns": 55.463198180268655,
+      "median_lower_ns": 55.090621226508,
+      "median_ns": 55.30979349186483,
+      "median_upper_ns": 55.596016676547436,
+      "samples": 50,
+      "std_dev_ns": 0.7329772298812364
+    },
+    "core_datatypes/get_for_extract_literal": {
+      "iterations": 4902390300.0,
+      "mean_ns": 0.4112898589562559,
+      "median_lower_ns": 0.41001248793879186,
+      "median_ns": 0.41125868714570646,
+      "median_upper_ns": 0.41280557121798317,
+      "samples": 50,
+      "std_dev_ns": 0.004702173176506515
+    },
+    "core_datatypes/get_for_extract_resource_item": {
+      "iterations": 3247352325.0,
+      "mean_ns": 0.6141062655790053,
+      "median_lower_ns": 0.6115529245612914,
+      "median_ns": 0.6138495508147263,
+      "median_upper_ns": 0.6151462862646623,
+      "samples": 50,
+      "std_dev_ns": 0.004846436413572273
+    },
+    "core_datatypes/get_literal": {
+      "iterations": 670412850.0,
+      "mean_ns": 3.014201837213833,
+      "median_lower_ns": 2.9337459244202426,
+      "median_ns": 2.955198345885576,
+      "median_upper_ns": 3.10242491555085,
+      "samples": 50,
+      "std_dev_ns": 0.10275543930892972
+    },
+    "core_datatypes/get_missing": {
+      "iterations": 214522575.0,
+      "mean_ns": 9.33494549469714,
+      "median_lower_ns": 9.45519062067244,
+      "median_ns": 9.468583256456935,
+      "median_upper_ns": 9.64588282064642,
+      "samples": 50,
+      "std_dev_ns": 0.5723272218561732
+    },
+    "core_datatypes/get_resource_itemset": {
+      "iterations": 227373300.0,
+      "mean_ns": 8.868664704914742,
+      "median_lower_ns": 8.654553276314934,
+      "median_ns": 9.000595264797708,
+      "median_upper_ns": 9.141411524572145,
+      "samples": 50,
+      "std_dev_ns": 0.586182559638465
+    },
+    "core_datatypes/hydrate_invalid_literal": {
+      "iterations": 141201150.0,
+      "mean_ns": 14.092854971701481,
+      "median_lower_ns": 14.068910368040811,
+      "median_ns": 14.079080848959768,
+      "median_upper_ns": 14.093664381156481,
+      "samples": 50,
+      "std_dev_ns": 0.058371745295783865
+    },
+    "core_datatypes/hydrate_literal": {
+      "iterations": 29189850.0,
+      "mean_ns": 66.31176681907958,
+      "median_lower_ns": 66.16703705518754,
+      "median_ns": 66.21639253907023,
+      "median_upper_ns": 66.33430041426621,
+      "samples": 50,
+      "std_dev_ns": 0.25797142340725604
+    },
+    "core_datatypes/hydrate_resource_item": {
+      "iterations": 126606225.0,
+      "mean_ns": 15.489223973509734,
+      "median_lower_ns": 15.383181339283617,
+      "median_ns": 15.42412185007922,
+      "median_upper_ns": 15.479742998418917,
+      "samples": 50,
+      "std_dev_ns": 0.22831312718552482
+    },
+    "core_datatypes/hydrate_uri": {
+      "iterations": 12145650.0,
+      "mean_ns": 163.54793079213036,
+      "median_lower_ns": 163.0981061120648,
+      "median_ns": 163.4607528677495,
+      "median_upper_ns": 163.97927101766595,
+      "samples": 50,
+      "std_dev_ns": 1.0161006805830428
+    },
+    "core_datatypes/is_registered_literal": {
+      "iterations": 743253600.0,
+      "mean_ns": 2.617099614847694,
+      "median_lower_ns": 2.518943239028646,
+      "median_ns": 2.6288507844092512,
+      "median_upper_ns": 2.692846067190344,
+      "samples": 50,
+      "std_dev_ns": 0.10696255021886257
+    },
+    "core_datatypes/is_registered_missing": {
+      "iterations": 212055450.0,
+      "mean_ns": 9.422127934530998,
+      "median_lower_ns": 9.409136011373,
+      "median_ns": 9.410753062072523,
+      "median_upper_ns": 9.41375075078116,
+      "samples": 50,
+      "std_dev_ns": 0.041936709705611704
+    },
+    "core_datatypes/is_registered_resource_itemset": {
+      "iterations": 219164850.0,
+      "mean_ns": 8.733739865970382,
+      "median_lower_ns": 8.413991180611307,
+      "median_ns": 9.024788100946953,
+      "median_upper_ns": 9.193464904243314,
+      "samples": 50,
+      "std_dev_ns": 0.5440534289158822
+    },
+    "core_datatypes/json_ld_literal": {
+      "iterations": 21717075.0,
+      "mean_ns": 92.23526693135238,
+      "median_lower_ns": 92.10142172570129,
+      "median_ns": 92.2205129538459,
+      "median_upper_ns": 92.32343005500994,
+      "samples": 50,
+      "std_dev_ns": 0.283414480577848
+    },
+    "core_datatypes/json_ld_uri": {
+      "iterations": 27508125.0,
+      "mean_ns": 73.35317574857227,
+      "median_lower_ns": 72.93057974806564,
+      "median_ns": 73.01313441483198,
+      "median_upper_ns": 73.27235647319077,
+      "samples": 50,
+      "std_dev_ns": 0.7204108216209407
+    },
+    "core_datatypes/scan_names": {
+      "iterations": 181239975.0,
+      "mean_ns": 10.984148049407343,
+      "median_lower_ns": 10.955270603448966,
+      "median_ns": 10.969440432892515,
+      "median_upper_ns": 10.986849352449884,
+      "samples": 50,
+      "std_dev_ns": 0.07690171224980599
+    },
+    "core_datatypes/scan_value_annotating": {
+      "iterations": 43330875.0,
+      "mean_ns": 45.37549325401388,
+      "median_lower_ns": 44.82871329788352,
+      "median_ns": 44.985008356676076,
+      "median_upper_ns": 45.68981456013203,
+      "samples": 50,
+      "std_dev_ns": 0.7363048907166858
+    },
+    "core_datatypes/to_string_literal": {
+      "iterations": 209471025.0,
+      "mean_ns": 9.608187518795893,
+      "median_lower_ns": 9.546989252028864,
+      "median_ns": 9.55432845527272,
+      "median_upper_ns": 9.565905702782194,
+      "samples": 50,
+      "std_dev_ns": 0.16111491846561682
+    },
+    "core_datatypes/to_string_uri": {
+      "iterations": 190232550.0,
+      "mean_ns": 10.494961294818603,
+      "median_lower_ns": 10.46209960446365,
+      "median_ns": 10.47860036026582,
+      "median_upper_ns": 10.490748780306099,
+      "samples": 50,
+      "std_dev_ns": 0.06621826533938265
+    },
+    "core_site_rules/block_data_parse_browse_preview": {
+      "iterations": 6923250.0,
+      "mean_ns": 281.7535584704658,
+      "median_lower_ns": 279.79661141804786,
+      "median_ns": 280.26117659095564,
+      "median_upper_ns": 280.87474085766905,
+      "samples": 50,
+      "std_dev_ns": 3.82035207546977
+    },
+    "core_site_rules/block_data_parse_html": {
+      "iterations": 142153575.0,
+      "mean_ns": 13.522749528240176,
+      "median_lower_ns": 13.422375507718565,
+      "median_ns": 13.452910522249315,
+      "median_upper_ns": 13.492768259338806,
+      "samples": 50,
+      "std_dev_ns": 0.29150091724160093
+    },
+    "core_site_rules/block_data_to_json_browse_preview": {
+      "iterations": 8231400.0,
+      "mean_ns": 242.07559883727356,
+      "median_lower_ns": 241.45511926889716,
+      "median_ns": 242.28054264766627,
+      "median_upper_ns": 242.95617130700776,
+      "samples": 50,
+      "std_dev_ns": 5.444387032307817
+    },
+    "core_site_rules/block_layout_from_wire_name_fallback": {
+      "iterations": 304835925.0,
+      "mean_ns": 6.47636186218008,
+      "median_lower_ns": 6.361592223751186,
+      "median_ns": 6.395212339339896,
+      "median_upper_ns": 6.591722306570876,
+      "samples": 50,
+      "std_dev_ns": 0.13948441306412623
+    },
+    "core_site_rules/block_layout_from_wire_name_known": {
+      "iterations": 1386789450.0,
+      "mean_ns": 1.4401891806676312,
+      "median_lower_ns": 1.4373534604489107,
+      "median_ns": 1.4384570422600893,
+      "median_upper_ns": 1.4397665935870652,
+      "samples": 50,
+      "std_dev_ns": 0.0074554096575394635
+    },
+    "core_site_rules/block_layout_label": {
+      "iterations": 394476075.0,
+      "mean_ns": 5.106199737153008,
+      "median_lower_ns": 5.080517941582389,
+      "median_ns": 5.090344073102894,
+      "median_upper_ns": 5.101489541929371,
+      "samples": 50,
+      "std_dev_ns": 0.06626845935818955
+    },
+    "core_site_rules/is_valid_slug_invalid": {
+      "iterations": 224230425.0,
+      "mean_ns": 8.83475558328067,
+      "median_lower_ns": 8.830072508001535,
+      "median_ns": 8.838897843084245,
+      "median_upper_ns": 8.84678299239658,
+      "samples": 50,
+      "std_dev_ns": 0.03489819590599315
+    },
+    "core_site_rules/is_valid_slug_valid": {
+      "iterations": 157323525.0,
+      "mean_ns": 12.67910330914216,
+      "median_lower_ns": 12.586059094891667,
+      "median_ns": 12.614373267241387,
+      "median_upper_ns": 12.664622248961177,
+      "samples": 50,
+      "std_dev_ns": 0.18807952649251822
+    },
+    "core_site_rules/site_new": {
+      "iterations": 104168775.0,
+      "mean_ns": 19.156403974151054,
+      "median_lower_ns": 19.096963317462453,
+      "median_ns": 19.118694793617376,
+      "median_upper_ns": 19.163320985114968,
+      "samples": 50,
+      "std_dev_ns": 0.1456611099871783
+    },
+    "core_site_rules/site_page_new": {
+      "iterations": 136844475.0,
+      "mean_ns": 15.006630203301109,
+      "median_lower_ns": 14.973640934833426,
+      "median_ns": 14.995111759170403,
+      "median_upper_ns": 15.015919762356056,
+      "samples": 50,
+      "std_dev_ns": 0.10635583770388182
+    },
+    "core_site_rules/slug_parse_empty": {
+      "iterations": 1372469925.0,
+      "mean_ns": 1.456737299955284,
+      "median_lower_ns": 1.4501123874809134,
+      "median_ns": 1.451169886468373,
+      "median_upper_ns": 1.4567741277878834,
+      "samples": 50,
+      "std_dev_ns": 0.015160151798454062
+    },
+    "core_site_rules/slug_parse_invalid_character": {
+      "iterations": 248612250.0,
+      "mean_ns": 7.968717301852048,
+      "median_lower_ns": 7.9356649635995105,
+      "median_ns": 7.950205901889962,
+      "median_upper_ns": 7.9726102620647215,
+      "samples": 50,
+      "std_dev_ns": 0.06958811838127575
+    },
+    "core_site_rules/slug_parse_long": {
+      "iterations": 21752775.0,
+      "mean_ns": 91.97991024466323,
+      "median_lower_ns": 90.47287609931627,
+      "median_ns": 91.53052193008165,
+      "median_upper_ns": 92.20823076021335,
+      "samples": 50,
+      "std_dev_ns": 3.812594573145314
+    },
+    "core_site_rules/slug_parse_valid": {
+      "iterations": 177416250.0,
+      "mean_ns": 11.415780498274021,
+      "median_lower_ns": 11.374813483424273,
+      "median_ns": 11.42262443718852,
+      "median_upper_ns": 11.486556536868582,
+      "samples": 50,
+      "std_dev_ns": 0.13816945667325983
+    },
+    "core_site_rules/slugify_long_body": {
+      "iterations": 11413800.0,
+      "mean_ns": 173.04430287544338,
+      "median_lower_ns": 171.59832575080566,
+      "median_ns": 172.1026672677561,
+      "median_upper_ns": 173.18342968051832,
+      "samples": 50,
+      "std_dev_ns": 3.149618651687331
+    },
+    "core_site_rules/slugify_non_ascii": {
+      "iterations": 90763425.0,
+      "mean_ns": 22.018613072127845,
+      "median_lower_ns": 22.00069104164831,
+      "median_ns": 22.018122712224866,
+      "median_upper_ns": 22.02639986350504,
+      "samples": 50,
+      "std_dev_ns": 0.05292405821491668
+    },
+    "core_site_rules/slugify_short_title": {
+      "iterations": 83455125.0,
+      "mean_ns": 23.705028951079772,
+      "median_lower_ns": 23.616349520964583,
+      "median_ns": 23.670068003705712,
+      "median_upper_ns": 23.722006637299586,
+      "samples": 50,
+      "std_dev_ns": 0.1734445579169757
+    },
+    "core_site_rules/template_missing_required_props": {
+      "iterations": 214467750.0,
+      "mean_ns": 9.168999388804412,
+      "median_lower_ns": 9.149944513802192,
+      "median_ns": 9.16613796355637,
+      "median_upper_ns": 9.183693329766363,
+      "samples": 50,
+      "std_dev_ns": 0.07478922388991928
+    },
+    "core_site_rules/template_normalize_data_types_with_duplicates": {
+      "iterations": 49587300.0,
+      "mean_ns": 40.31777701684664,
+      "median_lower_ns": 40.210077479515924,
+      "median_ns": 40.27243984346798,
+      "median_upper_ns": 40.37314010656769,
+      "samples": 50,
+      "std_dev_ns": 0.28512070155654334
+    },
+    "core_site_rules/template_unknown_data_types": {
+      "iterations": 22538175.0,
+      "mean_ns": 91.16794376097113,
+      "median_lower_ns": 89.0736922897536,
+      "median_ns": 89.35611817398532,
+      "median_upper_ns": 92.53781144182513,
+      "samples": 50,
+      "std_dev_ns": 3.7418363526513017
+    },
+    "core_value_rules/lang_tag_is_valid_en": {
+      "iterations": 117083250.0,
+      "mean_ns": 17.37601364707559,
+      "median_lower_ns": 17.30042696863297,
+      "median_ns": 17.325989495639938,
+      "median_upper_ns": 17.344695098833995,
+      "samples": 50,
+      "std_dev_ns": 0.1744480128041544
+    },
+    "core_value_rules/lang_tag_is_valid_en-US": {
+      "iterations": 67917975.0,
+      "mean_ns": 28.883889412176412,
+      "median_lower_ns": 28.78002651745179,
+      "median_ns": 28.837417396808764,
+      "median_upper_ns": 28.922059430133544,
+      "samples": 50,
+      "std_dev_ns": 0.19598479471700234
+    },
+    "core_value_rules/lang_tag_is_valid_en-US-u-ca-gregory": {
+      "iterations": 23926650.0,
+      "mean_ns": 83.61248480082881,
+      "median_lower_ns": 83.14558566588835,
+      "median_ns": 83.28835465807916,
+      "median_upper_ns": 83.48049422068925,
+      "samples": 50,
+      "std_dev_ns": 0.9424885396926607
+    },
+    "core_value_rules/lang_tag_is_valid_english-invalid": {
+      "iterations": 110607525.0,
+      "mean_ns": 18.12639630820074,
+      "median_lower_ns": 18.043149358508835,
+      "median_ns": 18.072728930978194,
+      "median_upper_ns": 18.125490964561408,
+      "samples": 50,
+      "std_dev_ns": 0.2316645169986522
+    },
+    "core_value_rules/lang_tag_is_valid_sr-Latn-RS": {
+      "iterations": 51776475.0,
+      "mean_ns": 38.46942283683027,
+      "median_lower_ns": 38.22332574153214,
+      "median_ns": 38.252279798988965,
+      "median_upper_ns": 38.30119089917235,
+      "samples": 50,
+      "std_dev_ns": 0.710891630484165
+    },
+    "core_value_rules/lang_tag_parse_invalid": {
+      "iterations": 86257575.0,
+      "mean_ns": 23.095601668605415,
+      "median_lower_ns": 23.023461359770433,
+      "median_ns": 23.061770788681457,
+      "median_upper_ns": 23.115478846980658,
+      "samples": 50,
+      "std_dev_ns": 0.2705118294218792
+    },
+    "core_value_rules/lang_tag_parse_valid": {
+      "iterations": 22020525.0,
+      "mean_ns": 90.30679129843057,
+      "median_lower_ns": 89.94140115765963,
+      "median_ns": 90.07759379739144,
+      "median_upper_ns": 90.25567933749278,
+      "samples": 50,
+      "std_dev_ns": 0.7658579651018017
+    },
+    "core_value_rules/literal_is_valid_clean": {
+      "iterations": 875645775.0,
+      "mean_ns": 2.281705354202473,
+      "median_lower_ns": 2.266849082895421,
+      "median_ns": 2.272408511708048,
+      "median_upper_ns": 2.287129656422597,
+      "samples": 50,
+      "std_dev_ns": 0.02713167628467344
+    },
+    "core_value_rules/literal_is_valid_whitespace_only": {
+      "iterations": 743624625.0,
+      "mean_ns": 2.6608313348483206,
+      "median_lower_ns": 2.6332502717990645,
+      "median_ns": 2.6557579599132426,
+      "median_upper_ns": 2.667647130081431,
+      "samples": 50,
+      "std_dev_ns": 0.05716651175533778
+    },
+    "core_value_rules/uri_is_valid_clean": {
+      "iterations": 17285175.0,
+      "mean_ns": 112.47254935060081,
+      "median_lower_ns": 111.75949806787065,
+      "median_ns": 112.66091577673417,
+      "median_upper_ns": 113.80651607586431,
+      "samples": 50,
+      "std_dev_ns": 2.0386605577406223
+    },
+    "core_value_rules/uri_is_valid_control": {
+      "iterations": 26180850.0,
+      "mean_ns": 66.11828663479952,
+      "median_lower_ns": 65.29119369964798,
+      "median_ns": 65.91255893232099,
+      "median_upper_ns": 66.55259569494497,
+      "samples": 50,
+      "std_dev_ns": 1.804468153987083
+    },
+    "core_value_rules/uri_is_valid_javascript": {
+      "iterations": 23560725.0,
+      "mean_ns": 73.3878211420358,
+      "median_lower_ns": 72.87372332557678,
+      "median_ns": 73.27721235337626,
+      "median_upper_ns": 73.61716186432756,
+      "samples": 50,
+      "std_dev_ns": 1.4037371839210337
+    },
+    "core_value_rules/uri_is_valid_whitespace": {
+      "iterations": 26379750.0,
+      "mean_ns": 75.47865296626472,
+      "median_lower_ns": 75.05325383032425,
+      "median_ns": 75.36647948411385,
+      "median_upper_ns": 75.85120618087737,
+      "samples": 50,
+      "std_dev_ns": 1.8025908139102886
+    },
+    "core_value_rules/value_data_literal": {
+      "iterations": 219510375.0,
+      "mean_ns": 8.98741695490847,
+      "median_lower_ns": 8.97095865492636,
+      "median_ns": 8.979929520937603,
+      "median_upper_ns": 8.987818932055564,
+      "samples": 50,
+      "std_dev_ns": 0.04962286043035328
+    },
+    "core_value_rules/value_data_uri": {
+      "iterations": 22414500.0,
+      "mean_ns": 80.14438181399608,
+      "median_lower_ns": 79.52182248496669,
+      "median_ns": 79.97987533181646,
+      "median_upper_ns": 80.50449374288965,
+      "samples": 50,
+      "std_dev_ns": 1.4083986957940082
+    },
+    "core_value_rules/value_object_parse_list_of_25": {
+      "iterations": 423300.0,
+      "mean_ns": 4829.669762500816,
+      "median_lower_ns": 4814.634321600126,
+      "median_ns": 4827.073521358159,
+      "median_upper_ns": 4846.534395647104,
+      "samples": 50,
+      "std_dev_ns": 36.99698359678413
+    },
+    "core_value_rules/value_object_parse_literal": {
+      "iterations": 13163100.0,
+      "mean_ns": 146.68265807305016,
+      "median_lower_ns": 145.26543356493625,
+      "median_ns": 145.97330926510472,
+      "median_upper_ns": 147.5324382852715,
+      "samples": 50,
+      "std_dev_ns": 2.4859531480470656
+    },
+    "core_value_rules/value_object_parse_resource": {
+      "iterations": 17306850.0,
+      "mean_ns": 113.98002120847325,
+      "median_lower_ns": 113.7209868130249,
+      "median_ns": 114.02167308650291,
+      "median_upper_ns": 114.16757877454798,
+      "samples": 50,
+      "std_dev_ns": 0.8151965141881857
+    },
+    "core_value_rules/value_object_parse_uri": {
+      "iterations": 13105725.0,
+      "mean_ns": 149.360386052199,
+      "median_lower_ns": 148.87673087524726,
+      "median_ns": 149.2040209117989,
+      "median_upper_ns": 149.41083254534294,
+      "samples": 50,
+      "std_dev_ns": 1.5730813375826695
+    },
+    "core_value_rules/value_to_json_literal": {
+      "iterations": 9292200.0,
+      "mean_ns": 230.654594215038,
+      "median_lower_ns": 229.34259399012075,
+      "median_ns": 230.72249448201788,
+      "median_upper_ns": 232.05162024332236,
+      "samples": 50,
+      "std_dev_ns": 3.0284199805340344
+    },
+    "core_value_rules/value_to_object_literal": {
+      "iterations": 58239450.0,
+      "mean_ns": 31.44616770361592,
+      "median_lower_ns": 31.194641475838115,
+      "median_ns": 31.334924453055446,
+      "median_upper_ns": 31.553781343832974,
+      "samples": 50,
+      "std_dev_ns": 0.6046045003239163
+    },
+    "core_value_rules/value_to_object_resource": {
+      "iterations": 85662150.0,
+      "mean_ns": 21.98332850262123,
+      "median_lower_ns": 21.93776916978968,
+      "median_ns": 21.95940347904113,
+      "median_upper_ns": 21.98718188866046,
+      "samples": 50,
+      "std_dev_ns": 0.08637193245650289
+    },
+    "core_value_rules/value_to_object_uri": {
+      "iterations": 49127025.0,
+      "mean_ns": 34.137026186961656,
+      "median_lower_ns": 33.87426736480583,
+      "median_ns": 34.0935999213991,
+      "median_upper_ns": 34.23203608099561,
+      "samples": 50,
+      "std_dev_ns": 0.3523910519524675
+    }
+  },
+  "commit": "ea842953b09fa74a18f9e3f37c55b1bc4cdf95ff",
+  "cpus": 32,
+  "crate": "omeka-core",
+  "criterion_dir": "/mnt/Ghar/2TA/DevStuff/notebook/omeka-research/cargo-s2/microbench/criterion",
+  "load_average": [
+    2.33,
+    3.92,
+    5.67
+  ],
+  "note": "samples is criterion's sample count; iterations is the total number of timed units it executed (the sum of its per-sample iteration counts). For iter_batched benches one unit is one batch and its setup runs outside the timed region",
+  "profile": "bench (criterion's optimized profile)",
+  "rustc": "rustc 1.93.1 (01f6ddf75 2026-02-11)"
+}

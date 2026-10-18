@@ -1,0 +1,513 @@
+# Omeka S admin (spike 2)
+
+A strict-TypeScript admin SPA for Omeka S. It is built with Vite and React 19 and talks to the
+existing `/api` JSON-LD endpoints. Nothing here builds or modifies the PHP application.
+
+## Commands
+
+Run these from `web/admin`.
+
+| Command | What it does |
+| --- | --- |
+| `npm ci` | Install from `package-lock.json`. |
+| `npm run dev` | Vite dev server. |
+| `npm run typecheck` | `tsc --noEmit`. |
+| `npm run lint` | `eslint .`. |
+| `npm test` | `vitest run`. |
+| `npm run build` | `tsc --noEmit && vite build` into `dist/`. |
+| `npm run e2e` | Playwright: builds the app, starts the port on a temporary database and drives a browser through the admin. Writes `perf/summary.json`. |
+| `npm run perf:bundle` | Gzips the built `dist` bundles and fails over the budget in `perf/budget.json`. |
+| `npm run perf:pages` | Prints the initial payload and each route's chunk from the built `dist`. |
+| `npm run perf:check` | The UI budget gate: the bundle, and the recorded timings when `perf/summary.json` exists. |
+
+## Layout
+
+- `src/api/types.ts`: wire types and branded ids.
+- `src/api/parse.ts`: hand-written parsers, `ParseError`, and the JSON path helpers. Every value
+  enters through here.
+- `src/api/auth.ts`: the API key. It validates the pair, keeps it in `localStorage`, and holds the
+  signed-in state the shell subscribes to. Every key enters through here.
+- `src/api/session.ts`: the session. The cookie is `httpOnly`, so this holds the user `GET /api/me`
+  answered and the sign-in and sign-out that change it.
+- `src/api/client.ts`: the typed `ApiClient`. It builds query strings, appends the API key to every
+  `/api` request, reads the `Link` and `Omeka-S-Total-Results` headers, maps HTTP errors to
+  `ApiError`, and sends the write requests. The auth routes (`login`, `logout`, `getMe`,
+  `setPassword`, `forgotPassword`, `createPasswordLink`) send `credentials: 'same-origin'` and carry
+  no key, because a sign-in cannot depend on one.
+- `src/api/write.ts`: the request-body encoders, the mirror of `parse.ts`.
+- `src/app/`: the shell, the hash router, `useAsync`, the label lookups, the shared `ListPage` and
+  `Pager`, the shared `ValuesList`, the media preview and image helpers, and the page table for the
+  16 upstream admin controllers. Each row of the table holds its page component as a `React.lazy`
+  import, so a route's module is a chunk the browser fetches on the first visit to that route.
+  `draft.ts` holds the edit-time model, `fields.tsx` the shared form
+  controls, `options.ts` the reference lists and `save.ts` the submit state. `auth.tsx` holds the
+  sign-in panel and the header state, `password.tsx` the set-password page, `forgot.tsx` the
+  request form, and `errors.tsx` the shared page-load error surface that adds the panel to a 403.
+- `src/pages/`: one directory per page area. `items/`, `item-sets/`, `users/` and `media/` each have a
+  list and a form; `items/` and `media/` also have a detail page. `vocabularies/`, `properties/`,
+  `resource-classes/`, `resource-templates/`, `assets/` and `jobs/` each have a list, a detail view and the
+  write forms the API's write surface supports. The rest are browse views or single-purpose pages.
+- `tests/`: parser tests, page tests, the fixture loader, the fetch stub, and `tests/fixtures/`.
+- `e2e/`: the Playwright suite. `harness/` holds the origin, the CLI driver, the seed data, the run record, the
+  table reader and the axe check; `specs/` holds the specs. See "End-to-end tests".
+- `perf/`: the UI budget. `budget.json` is the budget, `bundle.mjs` measures the initial payload and the
+  chunks, `pages.mjs` prints the payload per route, `check.mjs` is the gate, and `summary.json` is the
+  artifact the e2e run writes. See `perf/README.md`, and `PERF.md` for the frontend decision log.
+
+## Routes
+
+Routes are hash routes, so the server needs no rewrite rules. The sign-in panel is not a route: it
+lives in the shell header, and a page that needs it renders it in place. Each route's page component
+is its own chunk, fetched on the first visit and cached after that; the shell renders the page heading
+from the page table while that chunk loads.
+
+Three addresses sit outside the admin page table, because whoever opens them cannot sign in yet. They
+render the header and their own page, with no admin navigation:
+
+- `#/password/<key>` and `#/password?key=<key>` set a password from a one-time key. The key is in the
+  URL, which is why the set-password page takes it from there; `#/create-password?key=<key>` is
+  accepted too, because that is the upstream action's name and the mail link is the server's to build.
+  A link that carries the key on the document's own query (`?key=<key>`, which is what a link against
+  the app root produces) opens the same page whatever the fragment says.
+- `#/forgot` requests a reset link.
+
+- `#/` (or `#/dashboard`) shows the admin dashboard: resource counts and the site list.
+- `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item, with its values
+  and an "Edit this item" panel for values, title, visibility, class, template, owner and item-set
+  membership.
+- `#/item-sets` lists item sets. `#/item-sets/new` creates one. `#/item-sets/<id>` edits one.
+- `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
+  password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
+  another link.
+- `#/media` lists media with a preview column. `#/media/<id>` shows one media: the image at full
+  width, the parsed fields, the file derivatives, the values, and an "Edit this media" panel for alt
+  text, language and visibility. The list title links to it.
+- `#/vocabularies`, `#/properties`, `#/resource-classes`, `#/resource-templates`, `#/modules`,
+  `#/jobs`, `#/assets` list one API resource each.
+- `#/vocabularies/<id>`, `#/properties/<id>`, `#/resource-classes/<id>` and
+  `#/resource-templates/<id>` show one row of the vocabulary family: every member it carries and a
+  link to each row it names. See "Vocabulary family detail views". Each view carries the edit form
+  and the delete control for its row; `#/vocabularies/new`, `#/properties/new`,
+  `#/resource-classes/new` and `#/resource-templates/new` create one, reached from the list page.
+- `#/assets/<id>` shows one asset with its edit and delete controls. `#/jobs/<id>` shows one job with
+  its update and delete controls. There is no create route for either. See "Write requests".
+- `#/query` is the advanced search form. `Preview` runs a real search and lists the matches.
+- `#/columns` edits which browse columns show for a resource type, in page state only.
+- `#/settings` renders the global settings form. The port serves no settings endpoint, so it does
+  not persist.
+- `#/system-info` reports the Omeka S version from the response header and the registered API
+  resource names.
+- Items, item sets, users and media are the resources with a write form, plus sites and site pages,
+  the vocabulary family, and the asset and job detail views. Every resource the API serves `DELETE`
+  for offers a delete control: items, item sets, media, assets and jobs on the show page, users, sites,
+  site pages and the vocabulary family on the edit surface. The control sits behind a
+  confirmation that names the row, so no single click deletes and no list row carries one.
+
+## Vocabulary family detail views
+
+One row of the vocabulary family per route, reached from the browse table. Each view reads its own
+row with `ApiClient::getVocabulary`, `::getProperty`, `::getResourceClass` or
+`::getResourceTemplate`, which is `GET /api/<resource>/<id>`; a missing row is the API's 404 and the
+shared error surface renders it.
+
+| Route | Upstream action | Members shown | Links out |
+| --- | --- | --- | --- |
+| `#/vocabularies/<id>` | `Admin/VocabularyController.php showDetailsAction propertiesAction classesAction` | `o:id`, `o:prefix`, `o:namespace_uri`, `o:label`, `o:comment`, `o:owner`, and its properties and classes | owner to `#/users/<id>`, each property to `#/properties/<id>`, each class to `#/resource-classes/<id>` |
+| `#/properties/<id>` | `Admin/PropertyController.php showDetailsAction` | `o:id`, `o:label`, `o:term`, `o:local_name`, `o:comment`, `o:vocabulary` | vocabulary to `#/vocabularies/<id>` |
+| `#/resource-classes/<id>` | `Admin/ResourceClassController.php showDetailsAction` | `o:id`, `o:label`, `o:term`, `o:local_name`, `o:comment`, `o:vocabulary` | vocabulary to `#/vocabularies/<id>` |
+| `#/resource-templates/<id>` | `Admin/ResourceTemplateController.php showAction` | `o:id`, `o:label`, `o:owner`, `o:resource_class`, `o:title_property`, `o:description_property`, and one row per `o:resource_template_property` entry: `o:property`, `o:data_type`, `o:alternate_label`, `o:alternate_comment`, `o:is_required`, `o:is_private`, `o:default_lang` | owner to `#/users/<id>`, class to `#/resource-classes/<id>`, title and description property and each entry's property to `#/properties/<id>` |
+
+A vocabulary's own properties and classes come from one search each, `per_page` large enough to
+carry every row, with the API's `vocabulary_id` filter on `properties` and `resource_classes`
+(`crates/omeka-api/src/read/vocab.rs`). The template view reads its property labels from the whole
+`properties` collection in one page, because a `o:resource_template_property` entry names its
+property by id alone.
+
+Not shown, and why: upstream's property and class details link an item count, and the item search
+has no property filter yet, so there is nothing to count with. The owner is shown as `#<id>` on the
+vocabulary view and by name on the template view, where the user list is read anyway.
+
+## Vocabulary family write forms
+
+One editor per resource, over the members the API's write handlers read
+(`crates/omeka-api/src/write/vocab.rs`, `vocab_member.rs`, `templates.rs`).
+
+| Route | Members the form sends | Request |
+| --- | --- | --- |
+| `#/vocabularies/new` | `o:namespace_uri`, `o:prefix`, `o:label`, `o:comment`, `o:owner` | `POST /api/vocabularies` |
+| `#/vocabularies/<id>` edit | `o:namespace_uri`, `o:label`, `o:comment`, `o:owner` | `PATCH /api/vocabularies/<id>` |
+| `#/properties/new`, `#/resource-classes/new` | `o:vocabulary`, `o:local_name`, `o:label`, `o:comment`, `o:owner` | `POST /api/properties`, `POST /api/resource_classes` |
+| `#/properties/<id>`, `#/resource-classes/<id>` edit | `o:local_name`, `o:label`, `o:comment` | `PUT /api/properties/<id>`, `PUT /api/resource_classes/<id>` |
+| `#/resource-templates/new` and edit | `o:label`, `o:owner`, `o:resource_class`, `o:title_property`, `o:description_property`, `o:resource_template_property` | `POST`, `PUT /api/resource_templates/<id>` |
+
+Three choices are worth naming.
+
+The vocabulary edit is a `PATCH`. A full `PUT` must carry `o:class` and `o:property`, and a full write
+that omits either removes every member of that kind (`VocabularyAdapter::hydrate`'s `orphanRemoval`
+loop). The vocabulary form owns the row's own columns and each class and property owns its own form,
+so the vocabulary write is partial and the member lists stay. Upstream's edit posts
+`['isPartial' => true]` for the same reason (`VocabularyController::editAction`).
+
+`o:prefix` is create-only, following `VocabularyForm::init`'s `if (!$vocabulary)` guard, and
+`o:vocabulary` is create-only because `vocab_member::hydrate` reads it on create only. A property or
+class edit does not offer an owner either: `AbstractVocabularyMemberRepresentation::getJsonLd` carries
+no `o:owner`, so the form has nothing to seed an owner select with, and omitting the member keeps the
+stored owner.
+
+A resource template's `o:resource_template_property` list is the row set the API accepts, and its
+order is the stored `position`, so the form moves rows up and down. Each row carries an alternate
+label and comment, the data types from `GET /api/data_types`, the required and private flags and a
+default language.
+
+A vocabulary whose prefix is `dcterms` or `dctype` is permanent (upstream cannot edit or delete it,
+`VocabularyRepresentation::isPermanent`). The port's API has no such check, so the detail view keeps
+the rule and hides the edit and delete controls for those two.
+
+## Write requests
+
+`ApiClient` sends one method per endpoint it uses:
+
+| Method | Request | Response |
+| --- | --- | --- |
+| `createItem` / `updateItem` | `POST /api/items`, `PUT /api/items/<id>` | `Item` |
+| `createItemSet` / `updateItemSet` | `POST /api/item_sets`, `PUT /api/item_sets/<id>` | `ItemSet` |
+| `createUser` / `updateUser` | `POST /api/users`, `PUT /api/users/<id>` | `User` |
+| `updateMedia` | `PUT /api/media/<id>` | `Media` |
+| `createVocabulary` / `updateVocabulary` | `POST /api/vocabularies`, `PATCH /api/vocabularies/<id>` | `Vocabulary` |
+| `createProperty` / `updateProperty` | `POST /api/properties`, `PUT /api/properties/<id>` | `Property` |
+| `createResourceClass` / `updateResourceClass` | `POST /api/resource_classes`, `PUT /api/resource_classes/<id>` | `ResourceClass` |
+| `createResourceTemplate` / `updateResourceTemplate` | `POST /api/resource_templates`, `PUT /api/resource_templates/<id>` | `ResourceTemplate` |
+| `updateAsset` | `PUT /api/assets/<id>` | `Asset` |
+| `updateJob` | `PATCH /api/jobs/<id>` | `Job` |
+| `createPasswordLink` | `POST /api/users/<id>/password-link` | `PasswordLink` (`{key, link, sent}`) |
+| `deleteItem` / `deleteItemSet` / `deleteMedia` / `deleteUser` / `deleteSite` / `deleteSitePage` / `deleteVocabulary` / `deleteProperty` / `deleteResourceClass` / `deleteResourceTemplate` / `deleteAsset` / `deleteJob` | `DELETE /api/<resource>/<id>` | the removed resource |
+
+Two write endpoints have no form, each for the reason the API documents
+(`crates/omeka-api/README.md`, "Two creates are excluded"):
+
+- `POST /api/assets` answers 501. `AssetAdapter::hydrate` reads the uploaded file out of
+  `$request->getFileData()`, and the port's write boundary parses JSON only, so a multipart body never
+  reaches the handler. The asset create needs a multipart boundary before it can be built.
+- `POST /api/jobs` answers 501. `JobAdapter::hydrate` is empty while `job.class` is `NOT NULL`, so
+  upstream's create fails at flush for every body and the port leaves the endpoint unbuilt. A job row
+  comes from the dispatcher.
+
+A job's update writes no member: `JobAdapter::hydrate` is empty, so `PATCH /api/jobs/<id>` finds the
+row, checks the admin grant and answers its representation. The job detail's form therefore carries
+no control and names why; the request still runs and the row comes back unchanged.
+
+Every write sends `Content-Type: application/json` and parses its response through `parse.ts`, so a
+write returns the same type a read does. A delete sends no body and parses the removed row the API
+renders in its answer (`Api\Manager::finalize`). An error body maps to `ApiError` the way a read
+error does, including the 403 a caller without permission gets and the 404 a missing row gets; the
+delete control shows the API's message and leaves the page in place.
+
+A `PUT` replaces every member the adapter hydrates, so the forms send the full resource: visibility,
+owner, class, template, thumbnail and every value. A create with no chosen owner omits `o:owner` so
+the server assigns the acting user. Property values are grouped under their term, each object naming
+`property_id` and `type` (`literal`, `uri` or `resource`). The supported members and their meanings
+come from `crates/omeka-api/src/write/` and the upstream adapters at omeka-s 5e413f0.
+
+Not on the wire today: media create is not offered (it needs an ingester and an item), and values are
+not editable in the media form. The user password and activation flow is `POST /api/users/<id>/password-link`
+plus the client surfaces in "Client auth"; the user create still writes no password.
+
+## Client auth
+
+Two credentials sign a caller in. The session is the person-facing one; the API key stays for
+programmatic use and as the second way in.
+
+| Flow | Request | Answer |
+| --- | --- | --- |
+| Sign in, from the header or a 403 page | `POST /api/login` with `{email, password}` | the user and an `httpOnly` session cookie; 401 wrong credentials, 403 inactive, 429 the login limit |
+| Sign out, from the header | `POST /api/logout` | 204, and the session row is revoked |
+| Who is signed in, once per load | `GET /api/me` | the user, or 401 when nobody is signed in |
+| Set a password, from a mail link | `POST /api/password` with `{key, password}` | 200; 404 an unknown or expired key, 422 a password the rules reject |
+| Request a reset, from `#/forgot` | `POST /api/password/forgot` with `{email}` | 204 for a known and an unknown address alike |
+| Create a password link, from the users page | `POST /api/users/<id>/password-link` | `{key, link, sent}` |
+
+The session half.
+
+- The cookie is `httpOnly` and `SameSite=Lax`, so no script reads it and `localStorage` holds no
+  trace of it. `GET /api/me` is the only way the SPA learns who is signed in, and the shell asks once
+  on load. Nothing waits on that answer: the header shows the key's state until the user arrives, and
+  an unreachable API leaves the caller signed out rather than blocking the page.
+- `src/api/session.ts` holds the answer, and `useSession` in `src/app/auth.tsx` subscribes to it, so
+  the header and every sign-out read one value.
+- Sign out posts to the server first, because the session row is the server's to revoke, and then
+  clears both client halves: the key in `localStorage` and the user in memory. A refused logout
+  renders its message and leaves the caller signed in.
+- Every request sends `credentials: 'same-origin'`, so the cookie rides along. A write's same-origin
+  marker is the `Origin` header, which the browser sets and JavaScript cannot; the SPA adds nothing,
+  and the password sign-in spec asserts the header the browser sent.
+- The auth routes carry no API key. A sign-in cannot depend on a credential the caller may not have,
+  and a key would be one more thing a login request leaks.
+
+The key half, unchanged.
+
+- The key lives in `localStorage` under `omeka.apiKey`, as `{"identity": "...", "credential": "..."}`.
+  A reload reads it back, so a session survives one. The value is re-validated on read, so a tampered
+  entry reads as signed out.
+- Both halves are 32 alphanumeric characters (`ApiKey::STRING_LENGTH` and `ApiKey::STRING_CHARLIST`
+  upstream). `parseApiKey` in `src/api/auth.ts` checks both and returns a message per bad field, so a
+  malformed key never reaches the network.
+- `ApiClient` appends both parameters to every `/api` URL through one private `apiUrl` helper, and to
+  none when signed out. Both come from one validated pair, so a request never carries a lone identity.
+- The key form sits behind the `Use an API key` disclosure in the sign-in panel, so the person-facing
+  form is the one a reader meets.
+- The shell header shows `Signed in as <name>` for a session and `Signed in as <identity>` for a key,
+  each with a sign-out, or `Signed out` with a `Sign in` button that opens the panel.
+- A 403 from a page load renders the shared `ErrorNotice`, which puts the panel beside the message.
+  Any other status shows the message alone.
+- The credential half stays in the component only while the user types it: the field is a password
+  input and the value is cleared from state on submit.
+
+### Set a password and invite a user
+
+`#/password/<key>` posts the key it read from the URL with the new password. The client checks two
+things the server cannot answer cheaply, an empty password and a mistyped confirmation, and renders
+the server's 404 or 422 as it came, so the password rules stay in one place.
+
+The users page invites rather than simply creates. `POST /api/users` writes no password, so a row made
+there can sign in only once an administrator mints a one-time key for it, and the invite does both:
+create, then `POST /api/users/<id>/password-link`, then show `{link, sent}` in a panel with a copy
+control. When no SMTP service is configured the answer says so and the link is the only way in. The
+edit form offers the same mint on its own, which is the reset path. A minted key is single-use, and
+the second use is the API's 404.
+
+`omeka key add` mints a pair. Upstream presents the same two parameters, so a client signed in here
+sends exactly what a proxy would have appended.
+
+## Development against a live API
+
+Requests are same-origin by default. To point the client at a running Omeka S, set the base URL
+before the client module loads:
+
+```js
+window.OMEKA_BASE = 'http://localhost:8080';
+```
+
+The base URL is read once, when `src/api/client.ts` is first imported.
+
+## Boundary parsing
+
+`src/api/parse.ts` is the only place raw JSON becomes a type. The parsers take `unknown`, and a
+missing or mistyped field throws `ParseError` with the JSON path and the expected kind, for example
+`$.dcterms:title[0].property_id: expected number`. There is no schema library, no `as`, and no
+compile-time database. The client parses every response body through these parsers before it returns
+it.
+
+## Locales
+
+`src/i18n/` holds the message catalogue, the translator and the locale store. `catalogue.ts` defines
+the English messages as `en`, derives `MessageKey` from its keys, and types a catalogue as
+`Readonly<Record<MessageKey, string>>`. `locales/es.ts` is the Spanish catalogue, typed `Catalogue`.
+A key in `en` that `es` lacks is a `tsc` error, so a missing key fails `npm run typecheck` rather
+than falling back to English.
+
+`createTranslator(locale)` returns `{ locale, t, number }`. `t(key, params)` fills `{name}`
+placeholders; `number(value)` formats a count or a byte size in the locale. There is no read-time
+fallback. `assertComplete` is the runtime guard a catalogue built at the edge must pass, and
+`tests/i18n.test.tsx` proves it names the missing ids.
+
+`store.ts` keeps the selected locale in `localStorage` under `omeka.locale` and exposes `useLocale`
+and `useTranslator`. `parseLocale` narrows the stored string at the boundary, so a region tag
+(`es_419`, `en_US`) reads as its language and an unknown tag as English. `main.tsx` renders the
+shell, which carries the `LocaleSwitch` in the header.
+
+To add a string, add the key to `en`; `tsc` then fails until `es` has it. To add a locale, add it to
+`Locale` and `LOCALES`, add its catalogue to `CATALOGUES`, and add `locale.<tag>` labels.
+
+## Wire shapes
+
+These are the upstream details the parsers depend on. They are read from the PHP representations at
+`application/src/Api/Representation/*.php` (omeka-s 5e413f0) and the golden fixtures in
+`verification/fixtures/api/`.
+
+- A value's `type` is the data-type name (`literal`, `uri`, `resource:item`, and so on).
+- A resource value carries `value_resource_name` and `value_resource_id`, and its `url` is `null` in
+  the API context.
+- `o:created` and `o:modified` are `{ "@value", "@type" }` objects for items, media, item sets, sites
+  and jobs, but bare ISO 8601 strings for users.
+- `@type` may be a string or an array of strings.
+- `o:media` on an item, `o:item_set`, `o:site` and `o:page` are lists of `{ "@id", "o:id" }`
+  references. Media titles come from `GET /api/media?item_id=<id>`.
+- An error body is `{ "errors": { "field": "message" } }` or `{ "errors": { "field": ["message"] } }`.
+- Search responses are bare arrays. Pagination comes from the `Link` header and
+  `Omeka-S-Total-Results`.
+- `o:thumbnail_urls` carries one file URL per thumbnail type when the row has thumbnails, and the
+  empty PHP array `[]` when it has none. The parser reads both. `omeka import media` generates the
+  three derivatives, so the seeded rows carry the URLs.
+- `o:title` is null on every media row of the live collection. The label falls back the way
+  `MediaRepresentation::displayTitle` does, to `o:source`, then to `o:filename`.
+- `thumbnail_display_urls` has the keys `large`, `medium`, `square`, always present. Each is the
+  derivative URL when the row has thumbnails, and the bundled fallback asset otherwise, so it is
+  never a signal that a real thumbnail exists.
+- Item browse defaults are `sort_by=id` and `sort_order=desc`; `per_page=25` is the upstream default.
+- Item set adds `o:is_open` and an `o:items` search link. `o:items` carries only `@id`, no `o:id`.
+- Asset is not a resource entity: it has no `o:is_public` and no dates. Its fields are `o:owner`,
+  `o:name`, `o:filename`, `o:media_type`, `o:asset_url`, `o:alt_text`.
+- Job carries `o:status` (a string constant), `o:job_class` (a PHP class name), `o:args` (raw JSON),
+  `o:owner`, and the `o:started` / `o:ended` value objects. `o:ended` is `null` until the job ends.
+- Module `o:id` is the module directory name, a string. `o:state` is a string constant and `o:ini`
+  is the parsed `module.ini` object.
+- Property and resource class share `o:local_name`, `o:label`, `o:comment`, `o:term` and
+  `o:vocabulary`.
+- Vocabulary adds `o:namespace_uri`, `o:prefix`, `o:label`, `o:comment` and `o:owner`.
+- Resource template carries `o:label`, `o:owner`, `o:resource_class`, `o:title_property`,
+  `o:description_property` and `o:resource_template_property`, a list of entries with `o:property`,
+  `o:alternate_label`, `o:alternate_comment`, `o:data_type` (a list), `o:is_required`, `o:is_private`
+  and `o:default_lang`.
+- Site carries `o:slug`, `o:theme`, `o:title`, `o:summary`, `o:thumbnail`, `o:navigation`,
+  `o:homepage`, `o:item_pool`, `o:owner`, the dates, `o:is_public`, `o:assign_new_items`, `o:page`,
+  `o:site_permission`, `o:site_item_set` and `o:site_item`. `o:site_item` carries only `@id`.
+- `GET /api` returns the `o:ApiResource` list: `o:id` is the resource name, a string.
+
+### Corrections to this file
+
+The golden fixtures won where the older notes disagreed.
+
+- `o:renderer` on an upload media is `file` (`Media\Ingester\Upload::getRenderer`). The older
+  `tests/fixtures/media-page.json` carried `image`, and `tests/parse.test.ts` asserted it. Both are
+  wrong against the golden fixture. They are left as they were because the Items tests that use them
+  are frozen; the coordinator should correct them in a follow-up.
+- Module and API resource `o:id` are strings. Earlier notes only described numeric ids.
+- Item set and site link members (`o:items`, `o:site_item`) carry only `@id`. They are read as URL
+  strings, not references.
+- `o:thumbnail_urls` was `[]` on every live media row before the thumbnail unit, and the parser
+  rejected that array until then. `tests/fixtures/media-page-live.json` and
+  `tests/fixtures/media-951.json` are captures of the running port and carry the real shape.
+
+## Tests
+
+`npm test` runs Vitest with jsdom and Testing Library. No Vitest test opens a network connection: the page
+tests stub `globalThis.fetch` and serve `tests/fixtures/*.json` through the real client and parsers.
+`tests/stub.ts` holds the fetch stub and the request capture helpers; `tests/item-sets-write.test.tsx`,
+`tests/items-write.test.tsx`, `tests/users-write.test.tsx` and `tests/media-write.test.tsx` assert the
+method, URL and body each form sends; `tests/vocabulary-family-write.test.tsx` and
+`tests/assets-jobs-write.test.tsx` do the same for the vocabulary family, assets and jobs, including the
+validation messages each form renders; `tests/delete.test.tsx` asserts the method and URL each delete
+control sends, the confirmation gate that holds the request back, the API message a 403 or a missing
+row renders, and the list a success returns to; `tests/auth.test.tsx` asserts the key shape rules, the
+key on every request builder with and without a session, the stored key, the key form and the 403
+path; `tests/session.test.tsx` asserts the password sign-in, the server's message for a wrong password,
+the `GET /api/me` probe a reload runs, and the sign-out that ends the session on the server;
+`tests/password.test.tsx` asserts the URL shapes a password link can take, the `{key, password}` the
+set-password page sends, the server's 404, and the forgot request; `tests/users-write.test.tsx` also
+asserts the invite: the create, then the mint, the link the panel shows, whether mail went out, and the
+copy control; `tests/lists.test.tsx`, `tests/admin.test.tsx`, `tests/items.test.tsx`,
+`tests/media.test.tsx` and `tests/parsers.test.ts` cover the browse and show pages and the wire types.
+`tests/vocabulary-details.test.tsx` covers the vocabulary family detail views and the browse links that
+reach them.
+
+## End-to-end tests
+
+`npm run e2e` runs the built app against the real port in a real browser. The Vitest suite stubs
+`fetch`, so nothing there proves a page loads from the server; this suite does.
+
+`e2e/global-setup.ts` is the whole harness for one run:
+
+1. Builds the SPA with `npm run build` into `dist/`.
+2. Resolves the workspace's `debug/omeka` (`CARGO_TARGET_DIR` when set) and builds it with
+   `cargo build -p omeka-cli`, unless `OMEKA_BIN` names a binary to use instead.
+3. Makes a temporary directory, runs `omeka install` for a fresh database, and mints an API key with
+   `omeka key add`.
+4. Picks two free loopback ports, starts `e2e/harness/proxy.ts` on one and `omeka serve` on the other
+   with the proxy's origin as its base URL.
+5. Seeds an item set, three items, one imported media file and one site, through that origin, so the
+   seeding run also proves the origin forwards `/api` with the key. Before the port opens the database
+   it also inserts one asset and one job straight into it, with the asset's bytes in the store: no
+   endpoint creates either row, and the write spec edits and deletes both.
+6. Writes the origin, the paths and the minted key to a JSON record that the `baseURL` fixture reads,
+   so a spec can type the real key into the sign-in form. The record also carries the seeded asset and
+   job ids.
+
+`cargo build -p omeka-cli` runs on every setup, so a warm target costs a fraction of a second and a
+stale `debug/omeka` never serves the specs. Set `OMEKA_BIN` to use a prebuilt binary and skip cargo.
+
+The harness origin is a small HTTP server, not the coordinator's proxy. It serves `dist`, serves the
+file store under `/files`, and forwards `/health`, `/api-context`, `/api` and `/s/` to the port. Every
+`/api` request leaves it with `key_identity` and `key_credential` appended, which is how a reverse
+proxy presents an API key to upstream. The browser is signed out in these specs, so the app sends no
+key of its own and the origin's pair is the only one on the request. Nothing binds a fixed port.
+
+The origin also answers the auth routes while the port serves none of them. `globalSetup` probes
+`POST /api/login` once, after health: the port answers 404 for an unknown `/api` resource, which is
+what it does before those routes land, and a wrong password is 401, which is the route working. When
+the probe finds 404 the origin installs the stand-in in `e2e/harness/auth.ts` and says so in the log;
+when the port has the routes the probe finds them and every auth request is forwarded as-is. The
+stand-in holds the one administrator `omeka install` created, keeps its sessions in memory, and issues
+the same `httpOnly`, `SameSite=Lax` cookie the contract describes, so the specs exercise the cookie the
+page can never read. A key it mints works once, the way the real route enforces.
+
+The teardown stops both servers and deletes the temporary directory.
+
+### Specs
+
+| Spec | What it drives |
+| --- | --- |
+| `e2e/specs/pages.spec.ts` | Clicks every link in the admin navigation, asserts the shell renders the page title with no console error and no failed request, then asserts the navigation covers every member of the `AdminPageId` union in `src/app/pages.tsx`. |
+| `e2e/specs/budget.spec.ts` | Measures the user paths through the Performance API in the browser and writes `perf/summary.json`: a cold first contentful paint, the items list render, an item detail render, an item create round trip and a page navigation, five runs each, with the `/api` span behind each one. |
+| `e2e/specs/item-sets.spec.ts` | Creates an item set, renames it, sees it in the browse table, deletes it, and checks a cancelled delete writes nothing. |
+| `e2e/specs/items.spec.ts` | Creates an item with an item set membership, reads the membership back in the edit form, renames it and deletes it. |
+| `e2e/specs/family-write.spec.ts` | Creates, renames and deletes a vocabulary, a resource class, a property and a resource template; renames and deletes the seeded asset; updates and deletes the seeded job. The seeded job carries no status, so the run covers the null `o:status` the wire sends. |
+| `e2e/specs/media.spec.ts` | Asserts the list preview is the square derivative and the show page hero the large one, both under this run's origin and answered as `image/jpeg`, that the browser decodes them, and that the derivative list links the stored original as `image/png`. |
+| `e2e/specs/query.spec.ts` | Runs a search on the query page and checks the matches, then a query that matches nothing. |
+| `e2e/specs/locale.spec.ts` | Switches the shell to Spanish, asserts the labels and the nav change and the choice is stored, reloads to see it kept, then switches back to English. |
+| `e2e/specs/public-site.spec.ts` | Reads the site slug off the admin sites table and loads the port's `/s` routes for it. |
+| `e2e/specs/sign-in.spec.ts` | Signs in through the header form with the run's minted key, asserts the key survives a reload and rides on the next `/api` request, signs out and asserts it is gone, then has a malformed key refused with no request. Also signs in with the administrator's email and password, asserts the browser set the `Origin` header the server checks for a write, that the session cookie is not readable from the page, that the reload keeps the session and that a sign-out revokes it. |
+| `e2e/specs/password.spec.ts` | Invites a user from the users page, follows the link the mint answered, sets a password, then reuses the link and asserts the one-time key is refused with the server's message. Then opens a keyless password link, follows the reset form and asserts the request answers for an address that has no account. |
+
+### Running one spec
+
+`npm run e2e` passes its arguments to `playwright test`, and the harness starts once for the run:
+
+```
+npm run e2e -- e2e/specs/items.spec.ts          # one file
+npm run e2e -- --grep "media"                   # one title
+npm run e2e -- --headed e2e/specs/query.spec.ts # watch it
+```
+
+Paths are given from `web/admin`. `OMEKA_E2E_SKIP_BUILD=1` keeps the existing `dist`,
+`OMEKA_E2E_STATE_DIR` moves the run record, and `OMEKA_BIN` and `CARGO_TARGET_DIR` choose the binary.
+A failed test leaves its screenshot and error context under `e2e/test-results/`, which is ignored by
+git. Traces are off by default; run with `PW_TRACE=1` to record one per failure, which writes the
+trace zip into the same directory.
+
+### Accessibility
+
+`e2e/specs/accessibility.spec.ts` runs axe-core on every page the suite reaches. `@axe-core/playwright`
+is the only added dependency. `e2e/harness/axe.ts` holds the check and the budget.
+
+The rule set is the WCAG 2.0 and 2.1 A and AA tags plus axe's best-practice tags
+(`AXE_TAGS` in `e2e/harness/axe.ts`). The budget is **zero serious and zero critical** violations. The
+moderate and minor counts print on every run, pass or fail, so a regression is visible in the log
+before it turns serious:
+
+```
+[a11y] admin #/items: serious=0 critical=0 moderate=0 minor=0
+```
+
+A run that breaks the budget prints each fault with its impact, rule id, node count and selectors.
+
+The spec covers every admin page in the `AdminPageId` table (read from `src/app/pages.tsx` through
+`e2e/harness/table.ts`, so a new page is covered with no edit), the item, item set, media, user and
+site detail and edit surfaces, the item create form, the header sign-in panel with the key form
+disclosed, the set-password and forgot pages, the invite form and the password-link panel it produces,
+and the public site pages the theme renders: the index, the welcome page, the item browse, the page
+browse, the advanced search and the search results.
+
+Every page load asks `GET /api/me`, and an anonymous caller gets 401 by design. The `diagnostics`
+fixture excludes that one answer from the failed-request list and counts every other status on that
+route, and every status on any other route, as a failure.
+
+Run one page by its test title, or the whole file:
+
+```
+npm run e2e -- e2e/specs/accessibility.spec.ts                 # every page
+npm run e2e -- --grep "admin page #/items meets the axe budget" # one admin page
+npm run e2e -- --grep "public"                                  # the public site pages
+```
+
+The check measures the rendered document, not the source. Fixes live where the markup is built: the
+SPA under `src/`, the theme under `crates/omeka-site/src/theme/`.

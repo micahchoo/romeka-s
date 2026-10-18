@@ -1,0 +1,41 @@
+[package]
+name = "omeka-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+# `bcrypt` verifies the key credential the way upstream `password_verify` does
+# (`Entity/ApiKey::verifyCredential`, PASSWORD_BCRYPT).
+bcrypt = "0.17"
+chrono.workspace = true
+http = "1"
+indexmap = { version = "2", features = ["serde"] }
+omeka-db = { path = "../omeka-db" }
+# media delete removes the stored bytes (`Module::deleteMediaFiles`), so the
+# delete handler reaches `omeka-media`'s store. Imports flow api -> media -> core.
+omeka-media = { path = "../omeka-media" }
+# The extension seam: the adapter spec and operation vocabulary, and the
+# registry that carries a plugin adapter into routing and the read dispatch.
+omeka-plugin = { path = "../omeka-plugin" }
+serde = { workspace = true }
+# preserve_order keeps the PHP insertion order of `serde_json::Value` members
+# (`o:ini`, `o:args`, `o:item_pool`, `o:layout_data`, media `data`). Without it
+# a `serde_json::Map` is a BTreeMap and would sort those keys.
+serde_json = { workspace = true, features = ["preserve_order"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# Generates the round-trip, malformed-body and query-parsing cases the fifteen
+# fixed fixtures cannot reach (`tests/property_wire.rs`,
+# `tests/property_boundary.rs`).
+proptest = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+# `tests/relations_batch.rs` counts the statements sqlx executes through this
+# crate's logger; sqlx logs each statement at debug through `log`.
+log = "0.4"
+
+[lints]
+workspace = true

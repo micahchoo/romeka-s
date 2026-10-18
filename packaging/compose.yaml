@@ -1,0 +1,37 @@
+# The Omeka S port as one service, with the database and the media store on
+# separate volumes.
+#
+#     docker compose -f packaging/compose.yaml up --build
+#
+# The public origin is on host port 8124. The API listens inside the container
+# and is reached through the origin, so no second port is published.
+
+name: omeka-s
+
+services:
+  omeka:
+    build:
+      context: ..
+      dockerfile: packaging/Dockerfile
+    image: omeka-s:local
+    ports:
+      - "8124:8080"
+    environment:
+      # `omeka install` writes the first global_admin from these. It is
+      # idempotent, so a restart against an existing database inserts nothing.
+      OMEKA_ADMIN_EMAIL: admin@example.com
+      OMEKA_ADMIN_NAME: Admin
+      OMEKA_ADMIN_PASSWORD: changeme
+      OMEKA_TITLE: Omeka S
+      # The public URL written into every JSON-LD @id.
+      OMEKA_BASE_URL: http://localhost:8124
+    volumes:
+      # /data holds omeka.db; /data/files holds original/ and the thumbnails.
+      # Both survive `up`/`down` and image rebuilds.
+      - omeka-data:/data
+      - omeka-store:/data/files
+    restart: unless-stopped
+
+volumes:
+  omeka-data:
+  omeka-store:

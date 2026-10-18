@@ -1,0 +1,462 @@
+//! Read endpoints: `omeka-db` rows to `wire` JSON-LD documents.
+//!
+//! One [`Api`] value answers one HTTP request. It carries the pool, the base
+//! URL every `@id` is built from, the authenticated actor for visibility, and a
+//! [`Catalog`] of term and label lookups loaded once. The dispatch in
+//! [`Api::search`] and [`Api::read_member`] names one builder per resource; an
+//! adapter whose registered operations do not contain the request answers the
+//! upstream 500, and one the port has not built answers a 501.
+//!
+//! Upstream routes every `/api` request through `ApiController` and
+//! `Api\Manager`; the per-resource shapes come from
+//! `application/src/Api/Representation/*.php`, named on each module.
+
+pub mod catalog;
+pub mod export;
+pub mod params;
+pub mod query;
+pub mod response;
+
+mod meta;
+#[cfg(test)]
+mod probe;
+mod relations;
+mod resources;
+mod resources_generic;
+mod system;
+mod values;
+mod vocab;
+mod window;
+
+use std::sync::Arc;
+
+use chrono::NaiveDateTime;
+use omeka_db::DbError;
+use omeka_db::ids::UserId;
+use omeka_media::store::FileStore;
+use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
+use sqlx::SqlitePool;
+
+use crate::adapters;
+use crate::auth::Actor;
+use crate::errors::{ApiError, NotImplemented};
+use crate::jsonld::{self, BaseUrl};
+use crate::routes::Operation;
+use crate::wire::{JsonLdDate, ResourceRef, ThumbnailDisplayUrls};
+
+pub use params::{Params, Sort, SortField, Window};
+pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
+
+use catalog::Catalog;
+
+pub use meta::user_response;
+pub(crate) use meta::{site_document, site_page_document, user_document};
+pub(crate) use resources::{item_document, item_set_document, media_document};
+
+/// One request's read surface.
+pub struct Api<'a> {
+    pool: &'a SqlitePool,
+    base: BaseUrl,
+    actor: Actor,
+    catalog: Catalog,
+    store: Option<FileStore>,
+    plugins: Arc<Registry>,
+}
+
+impl<'a> Api<'a> {
+    /// Load the lookups a read needs and bind one request's actor.
+    pub async fn load(pool: &'a SqlitePool, base: BaseUrl, actor: Actor) -> Result<Self, ApiError> {
+        Self::load_with_store(pool, base, actor, None).await
+    }
+
+    /// Load the read surface with the file store a media delete reaches.
+    pub async fn load_with_store(
+        pool: &'a SqlitePool,
+        base: BaseUrl,
+        actor: Actor,
+        store: Option<FileStore>,
+    ) -> Result<Self, ApiError> {
+        Self::load_with_registry(pool, base, actor, store, adapters::core_registry()).await
+    }
+
+    /// Load the read surface with a plugin registry, so a request for a
+    /// resource a plugin registered is served by that plugin's adapter.
+    pub async fn load_with_plugins(
+        pool: &'a SqlitePool,
+        base: BaseUrl,
+        actor: Actor,
+        plugins: Arc<Registry>,
+    ) -> Result<Self, ApiError> {
+        Self::load_with_registry(pool, base, actor, None, plugins).await
+    }
+
+    /// Load the read surface with both a file store and a plugin registry.
+    pub async fn load_with_registry(
+        pool: &'a SqlitePool,
+        base: BaseUrl,
+        actor: Actor,
+        store: Option<FileStore>,
+        plugins: Arc<Registry>,
+    ) -> Result<Self, ApiError> {
+        Ok(Self {
+            pool,
+            base,
+            actor,
+            catalog: Catalog::load_for_read(pool).await?,
+            store,
+            plugins,
+        })
+    }
+
+    /// Load the whole term table into the catalog. A write names properties by
+    /// term and prints the rows it just created; a read that parses
+    /// `property[i][property]` resolves a term before it reads the page. Both
+    /// need terms the page's rows do not name, and nothing else does.
+    pub(crate) async fn fill_catalog(&self) -> Result<(), ApiError> {
+        self.catalog.fill_all(self.pool).await
+    }
+
+    /// `ApiController::getList` for one resource.
+    pub async fn search(&self, resource: &str, params: &Params) -> Result<ApiResponse, ApiError> {
+        self.allow(resource, Operation::Search)?;
+        if let Some(reply) = self.plugin_read(resource, Operation::Search, None, params) {
+            return plugin_response(reply);
+        }
+        match resource {
+            "items" => resources::search_items(self, params).await,
+            "item_sets" => resources::search_item_sets(self, params).await,
+            "media" => resources::search_media(self, params).await,
+            "value_annotations" => resources::search_value_annotations(self, params).await,
+            "assets" => system::search_assets(self, params).await,
+            "jobs" => system::search_jobs(self, params).await,
+            "modules" => system::search_modules(self, params).await,
+            "vocabularies" => vocab::search_vocabularies(self, params).await,
+            "resource_classes" => vocab::search_classes(self, params).await,
+            "properties" => vocab::search_properties(self, params).await,
+            "resource_templates" => vocab::search_templates(self, params).await,
+            "users" => meta::search_users(self, params).await,
+            "sites" => meta::search_sites(self, params).await,
+            "site_pages" => meta::search_site_pages(self, params).await,
+            "api_resources" => Ok(meta::search_api_resources(self, params)),
+            "data_types" => Ok(meta::search_data_types(self, params)),
+            "resources" => resources_generic::search_resources(self, params).await,
+            other => Err(unimplemented_operation(other, Operation::Search)),
+        }
+    }
+
+    /// `ApiController::get` for one member of one resource.
+    pub async fn read_member(&self, resource: &str, id: &str) -> Result<ApiResponse, ApiError> {
+        self.allow(resource, Operation::Read)?;
+        if let Some(reply) =
+            self.plugin_read(resource, Operation::Read, Some(id), &Params::default())
+        {
+            return plugin_response(reply);
+        }
+        match resource {
+            "items" => resources::read_item(self, id).await,
+            "item_sets" => resources::read_item_set(self, id).await,
+            "media" => resources::read_media(self, id).await,
+            "value_annotations" => resources::read_value_annotation(self, id).await,
+            "assets" => system::read_asset(self, id).await,
+            "jobs" => system::read_job(self, id).await,
+            "modules" => system::read_module(self, id).await,
+            "vocabularies" => vocab::read_vocabulary(self, id).await,
+            "resource_classes" => vocab::read_class(self, id).await,
+            "properties" => vocab::read_property(self, id).await,
+            "resource_templates" => vocab::read_template(self, id).await,
+            "users" => meta::read_user(self, id).await,
+            "sites" => meta::read_site(self, id).await,
+            "site_pages" => meta::read_site_page(self, id).await,
+            "api_resources" => Ok(meta::read_api_resource(self, id)),
+            "data_types" => meta::read_data_type(self, id),
+            "resources" => resources_generic::read_resource(self, id).await,
+            other => Err(unimplemented_operation(other, Operation::Read)),
+        }
+    }
+
+    /// `GET /api`: the resource listing (`ApiController::getList`, no resource).
+    pub async fn api_root(&self) -> Result<ApiResponse, ApiError> {
+        meta::api_root(self)
+    }
+
+    /// `GET /api-context` (`ApiController::contextAction`).
+    pub async fn context(&self) -> Result<ApiResponse, ApiError> {
+        meta::context(self).await
+    }
+
+    /// `ApiController::create`: parse the body, check access, and let the
+    /// resource handler write the row.
+    pub async fn create(&self, resource: &str, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
+        let payload = crate::write::body::Payload::parse(bytes)?;
+        self.allow_write(resource, Operation::Create)?;
+        self.fill_catalog().await?;
+        crate::write::create(self, resource, &payload).await
+    }
+
+    /// `ApiController::update` and `::patch`: parse the body, check access, and
+    /// let the resource handler write the row. `partial` is `PATCH`.
+    pub async fn update(
+        &self,
+        resource: &str,
+        id: &str,
+        bytes: &[u8],
+        partial: bool,
+    ) -> Result<ApiResponse, ApiError> {
+        let payload = crate::write::body::Payload::parse(bytes)?;
+        self.allow_write(resource, Operation::Update)?;
+        self.fill_catalog().await?;
+        crate::write::update(self, resource, id, &payload, partial).await
+    }
+
+    /// `ApiController::delete`: check adapter access and let the resource
+    /// handler find, authorize and remove the row. The answer is the removed
+    /// row's representation, which is what `Api\Manager::finalize` renders.
+    pub async fn delete(&self, resource: &str, id: &str) -> Result<ApiResponse, ApiError> {
+        crate::write::access::adapter(self.actor(), resource, Operation::Delete)?;
+        crate::write::delete(self, resource, id).await
+    }
+
+    pub(crate) fn actor(&self) -> &Actor {
+        &self.actor
+    }
+
+    /// The file store a media delete reaches, `None` when the process has none.
+    pub(crate) fn store(&self) -> Option<&FileStore> {
+        self.store.as_ref()
+    }
+
+    /// Serve a read from a plugin adapter, when one is registered for the
+    /// resource, declares the operation, and answers.
+    ///
+    /// A compiled-in adapter carries no handler, so this returns `None` for
+    /// every resource the port itself registers. The access check runs before
+    /// this, so a plugin resource is gated by the rule `allow` gives an
+    /// unregistered resource, which is the public read the core read adapters
+    /// grant.
+    fn plugin_read(
+        &self,
+        resource: &str,
+        operation: Operation,
+        id: Option<&str>,
+        params: &Params,
+    ) -> Option<AdapterReply> {
+        let handler = self.plugins.adapter(resource)?.handler()?;
+        if !handler.spec().operations.contains(&operation) {
+            return None;
+        }
+        handler.serve(&AdapterRequest {
+            resource: resource.to_string(),
+            operation,
+            id: id.map(str::to_string),
+            query: params.decoded_pairs(),
+        })
+    }
+
+    /// `Api\Manager::execute` general access check for a write operation,
+    /// following `Service\AclFactory`. The grants live in
+    /// [`crate::write::access`] as one table per operation; this method is the
+    /// read layer's name for the create and update check.
+    pub(crate) fn allow_write(&self, resource: &str, operation: Operation) -> Result<(), ApiError> {
+        crate::write::access::adapter(self.actor(), resource, operation)
+    }
+
+    /// `AbstractEntityAdapter::authorize` for a resource entity: editors and up
+    /// may change any row, an author only their own. Delete carries a different
+    /// entity rule (`write::access::resource_entity`).
+    pub(crate) fn authorize_resource(
+        &self,
+        class: &str,
+        owner: Option<UserId>,
+    ) -> Result<(), ApiError> {
+        match self.actor.role() {
+            Some("global_admin" | "site_admin" | "editor" | "reviewer") => Ok(()),
+            _ => match (self.actor.user(), owner) {
+                (Some(me), Some(owner)) if me == owner => Ok(()),
+                _ => Err(entity_denied(class, Operation::Update)),
+            },
+        }
+    }
+
+    /// `UserAdapter` entity access: admins may change any user, everyone else
+    /// only their own account (`IsSelfAssertion`).
+    pub(crate) fn authorize_user_update(&self, target: UserId) -> Result<(), ApiError> {
+        match self.actor.role() {
+            Some("global_admin" | "site_admin") => Ok(()),
+            _ => match self.actor.user() {
+                Some(me) if me == target => Ok(()),
+                _ => Err(entity_denied("Omeka\\Entity\\User", Operation::Update)),
+            },
+        }
+    }
+
+    /// `Site` entity access: admins may change any site, everyone else only one
+    /// they own (`OwnsEntityAssertion` / `HasSitePermissionAssertion`).
+    pub(crate) fn authorize_site_update(&self, owner: Option<UserId>) -> Result<(), ApiError> {
+        match self.actor.role() {
+            Some("global_admin" | "site_admin") => Ok(()),
+            _ => match (self.actor.user(), owner) {
+                (Some(me), Some(owner)) if me == owner => Ok(()),
+                _ => Err(entity_denied("Omeka\\Entity\\Site", Operation::Update)),
+            },
+        }
+    }
+
+    pub(crate) fn pool(&self) -> &SqlitePool {
+        self.pool
+    }
+
+    pub(crate) fn base(&self) -> &BaseUrl {
+        &self.base
+    }
+
+    pub(crate) fn catalog(&self) -> &Catalog {
+        &self.catalog
+    }
+
+    /// Whether the actor may see a resource: public, owned, or a viewer with
+    /// `view-all` (`AbstractResourceEntityAdapter::getSubjectValuesQueryBuilder`
+    /// applies the same test to reverse values).
+    pub(crate) fn sees(&self, is_public: bool, owner: Option<UserId>) -> bool {
+        self.actor.sees_resource(is_public, owner)
+    }
+
+    /// `Api\Manager::execute` general access check against the ACL rules in
+    /// `Service\AclFactory::addRulesForAllRoles` and the per-role grants. It
+    /// covers `search` and `read`; the write operations have their own checks
+    /// (`write::access::adapter` for every write, entity rules per resource).
+    ///
+    /// The generic `resources` path calls this for the kind a row holds, so a
+    /// value annotation read stays a privileged one.
+    pub(crate) fn allow(&self, resource: &str, operation: Operation) -> Result<(), ApiError> {
+        let privileged = self.actor.is_privileged();
+        let allowed = match resource {
+            // `UserAdapter` is granted to every authenticated role, never to
+            // anonymous requests.
+            "users" => self.actor.user().is_some(),
+            // `ValueAnnotationAdapter`, `JobAdapter` and `ModuleAdapter` have
+            // no rule for the unauthenticated role.
+            "value_annotations" | "jobs" | "modules" => privileged,
+            // The remaining adapters grant `search` and `read` to everyone.
+            _ => true,
+        };
+        if allowed {
+            Ok(())
+        } else {
+            Err(permission_denied(resource, operation))
+        }
+    }
+}
+
+/// Wrap a plugin adapter's document in the answer a read returns.
+///
+/// The plugin owns its wire shape; the port serializes it with the same key
+/// order the read layer uses and attaches the JSON-LD headers.
+fn plugin_response(reply: AdapterReply) -> Result<ApiResponse, ApiError> {
+    let body = jsonld::to_string(&reply.document).map_err(ApiError::internal)?;
+    Ok(ApiResponse::document(body))
+}
+
+/// The answer for an adapter this unit has not built a handler for.
+///
+/// Two cases hide behind one fallthrough. An adapter whose `operations` list
+/// does not contain the operation refuses it upstream too: `AbstractAdapter`
+/// throws `OperationNotImplementedException`, which `ApiJsonStrategy` maps to
+/// 500. An adapter that does implement the operation but has no builder here
+/// is work the port has not done, which stays a 501 so a caller can tell the
+/// two apart.
+fn unimplemented_operation(resource: &str, operation: Operation) -> ApiError {
+    let body = NotImplemented::adapter(resource, operation);
+    match crate::adapters::find(resource) {
+        Some(spec) if !spec.operations.contains(&operation) => ApiError::Internal {
+            message: body.errors.error,
+        },
+        _ => ApiError::NotImplemented(body),
+    }
+}
+
+/// `Api\Manager::execute` permission message, keyed by the adapter's PHP class.
+pub(crate) fn permission_denied(resource: &str, operation: Operation) -> ApiError {
+    ApiError::PermissionDenied {
+        message: format!(
+            "Permission denied for the current user to {} the {} resource.",
+            operation.adapter_name(),
+            crate::adapters::php_class(resource)
+        ),
+    }
+}
+
+/// `AbstractEntityAdapter::authorize` permission message, keyed by the entity
+/// class (`EntityInterface::getResourceId`).
+pub(crate) fn entity_denied(class: &str, operation: Operation) -> ApiError {
+    ApiError::PermissionDenied {
+        message: format!(
+            "Permission denied for the current user to {} the {} resource.",
+            operation.adapter_name(),
+            class
+        ),
+    }
+}
+
+/// Map a storage failure to a 500.
+pub(crate) fn db_error(error: DbError) -> ApiError {
+    ApiError::internal(error)
+}
+
+/// `ResourceReference::jsonSerialize` for one id.
+pub(crate) fn resource_ref(base: &BaseUrl, resource: &str, id: u64) -> ResourceRef {
+    base.resource_ref(resource, id)
+}
+
+/// A reference, or `null` when the id is absent.
+pub(crate) fn resource_ref_opt(
+    base: &BaseUrl,
+    resource: &str,
+    id: Option<u64>,
+) -> Option<ResourceRef> {
+    id.map(|id| resource_ref(base, resource, id))
+}
+
+/// `AbstractEntityAdapter::findEntity`: a missing row is a 404 whose message
+/// carries the entity class and the criteria upstream `json_encode`s.
+///
+/// The id reaches the adapter as the route parameter, a string, so the criteria
+/// value is always a quoted JSON string even when it looks numeric. Upstream
+/// `findEntity` only casts a non-array criteria to `['id' => $criteria]`; it
+/// never casts the value.
+pub(crate) fn not_found(class: &str, raw_id: &str) -> ApiError {
+    let criteria = serde_json::to_string(raw_id).unwrap_or_else(|_| format!("\"{raw_id}\""));
+    ApiError::not_found(format!(
+        "{class} entity with criteria {{\"id\":{criteria}}} not found"
+    ))
+}
+
+/// A numeric route id, or the same 404 a missing row gets.
+pub(crate) fn parse_id(class: &str, raw_id: &str) -> Result<u64, ApiError> {
+    raw_id.parse().map_err(|_| not_found(class, raw_id))
+}
+
+/// `DateTime::format('c')`, the shape `Stdlib\DateTime::jsonSerialize` emits.
+pub(crate) fn iso8601(at: NaiveDateTime) -> String {
+    at.format("%Y-%m-%dT%H:%M:%S+00:00").to_string()
+}
+
+/// The `{"@value", "@type"}` wrapper for a resource date.
+pub(crate) fn jsonld_date(at: NaiveDateTime) -> JsonLdDate {
+    JsonLdDate::new(iso8601(at))
+}
+
+/// The three thumbnail types from `thumbnails.types` in `module.config.php`.
+pub(crate) const THUMBNAIL_TYPES: [&str; 3] = ["large", "medium", "square"];
+
+/// Upstream `AbstractRepresentation::thumbnailDisplayUrls`: one entry per
+/// thumbnail type, `null` when there is nothing to display.
+pub(crate) fn empty_thumbnail_urls() -> ThumbnailDisplayUrls {
+    ThumbnailDisplayUrls {
+        large: None,
+        medium: None,
+        square: None,
+    }
+}
+
+/// `AbstractResourceEntityRepresentation::displayTitle` fallback.
+pub(crate) const UNTITLED: &str = "[Untitled]";

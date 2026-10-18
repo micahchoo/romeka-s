@@ -1,0 +1,18 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/site_pages/2",
+  "@type": ["o:SitePage"],
+  "o:id": 2,
+  "o:slug": "draft",
+  "o:title": "Draft",
+  "o:is_public": false,
+  "o:layout": null,
+  "o:layout_data": [],
+  "o:block": [],
+  "o:site": { "@id": "http://localhost/api/sites/1", "o:id": 1 },
+  "o:created": {
+    "@value": "2024-01-03T10:00:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null
+}

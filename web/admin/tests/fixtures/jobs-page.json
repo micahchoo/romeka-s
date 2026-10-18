@@ -1,0 +1,35 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/jobs/1",
+    "@type": ["o:Job"],
+    "o:id": 1,
+    "o:status": "completed",
+    "o:job_class": "Omeka\\Job\\UpdateSiteItems",
+    "o:args": { "action": "add", "sites": [] },
+    "o:owner": { "@id": "http://localhost/api/users/3", "o:id": 3 },
+    "o:started": {
+      "@value": "2024-01-03T11:00:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:ended": {
+      "@value": "2024-01-03T11:00:05+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    }
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/jobs/2",
+    "@type": ["o:Job"],
+    "o:id": 2,
+    "o:status": "in_progress",
+    "o:job_class": "Omeka\\Job\\IndexFulltextSearch",
+    "o:args": null,
+    "o:owner": null,
+    "o:started": {
+      "@value": "2024-01-04T09:00:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:ended": null
+  }
+]

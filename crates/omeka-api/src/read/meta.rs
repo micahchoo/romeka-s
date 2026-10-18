@@ -1,0 +1,546 @@
+//! `users`, `sites`, the `/api` resource listing, and `/api-context`.
+//!
+//! `UserRepresentation::getJsonLd` and `SiteRepresentation::getJsonLd` shape
+//! the documents; `ApiController::getList` with no resource builds the root and
+//! `ApiController::contextAction` builds the context document.
+
+use omeka_db::ids::{PageId, SiteId, UserId};
+use omeka_db::repos::{Paging, SiteFilter, SiteRepo, UserFilter, UserRepo};
+use omeka_db::rows::{SiteBlockRow, SitePageRow, SiteRow, UserRow};
+
+use super::params::{Sort, SortField, Window, ordered_page, sorted_page};
+use super::query::{fulltext_matches, relevance_page};
+use super::response::link_header;
+use super::{Api, db_error, iso8601, not_found, parse_id, resource_ref, resource_ref_opt, system};
+use crate::errors::ApiError;
+use crate::jsonld::{BaseUrl, ContextDocument};
+use crate::read::params::Params;
+use crate::read::response::{ApiResponse, serialize};
+use crate::wire::api_resource::ApiResource;
+use crate::wire::site::{SiteItemSet, SitePermission};
+use crate::wire::{JsonLdType, NavLink};
+
+// ---------------------------------------------------------------- users
+
+pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let filter = UserFilter {
+        email: params.get("email").map(str::to_string),
+        name: params.get("name").map(str::to_string),
+        role: params.get("role").map(str::to_string),
+        is_active: params.bool("is_active"),
+        site_id: params.id("site_id"),
+    };
+    let rows = UserRepo::new(api.pool())
+        .list(&filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<UserRow> = rows
+        .into_iter()
+        .filter(|row| {
+            matches(&row.name, needle.as_deref()) || matches(&row.email, needle.as_deref())
+        })
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_user(sort));
+    let documents: Vec<_> = page.iter().map(|row| user_doc(api.base(), row)).collect();
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "users", params, &window, total),
+    ))
+}
+
+pub async fn read_user(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(USER_CLASS, raw_id)?;
+    let Some(row) = UserRepo::new(api.pool())
+        .get(UserId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(USER_CLASS, raw_id));
+    };
+    user_document(api, &row)
+}
+
+/// The `User` document for a row, as `read_user` answers it. A delete answers
+/// with the row it removed (`Api\Manager::finalize` renders the representation).
+pub(crate) fn user_document(api: &Api<'_>, row: &UserRow) -> Result<ApiResponse, ApiError> {
+    user_response(api.base(), row)
+}
+
+/// The `User` document for a row, for a route that has no [`Api`] request: a
+/// login answers with the user it signed in, and does not load the catalog.
+pub fn user_response(base: &BaseUrl, row: &UserRow) -> Result<ApiResponse, ApiError> {
+    Ok(ApiResponse::document(serialize(&user_doc(base, row))?))
+}
+
+const USER_CLASS: &str = "Omeka\\Entity\\User";
+
+fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
+    crate::wire::user::User {
+        context: base.api_context(),
+        id: base.api_resource("users", row.id.0),
+        jsonld_type: JsonLdType::single("o:User"),
+        o_id: row.id.0,
+        name: row.name.clone(),
+        email: row.email.clone(),
+        // `UserRepresentation::getDateTime` returns the plain formatted date.
+        created: iso8601(row.created),
+        role: row.role.clone(),
+        is_active: row.is_active,
+    }
+}
+
+// ---------------------------------------------------------------- sites
+
+pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let filter = SiteFilter {
+        owner_id: params.id("owner_id"),
+        slug: params.get("slug").map(str::to_string),
+        exclude_id: params.id("exclude_id"),
+        assign_new_items: params.bool("assign_new_items"),
+    };
+    let rows = SiteRepo::new(api.pool())
+        .list(&filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<SiteRow> = rows
+        .into_iter()
+        .filter(|row| api.sees(row.is_public, row.owner_id))
+        .filter(|row| matches(&row.title, needle.as_deref()))
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_site(sort));
+    let mut documents = Vec::with_capacity(page.len());
+    for row in &page {
+        documents.push(site_doc(api, row).await?);
+    }
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "sites", params, &window, total),
+    ))
+}
+
+pub async fn read_site(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(SITE_CLASS, raw_id)?;
+    let Some(row) = SiteRepo::new(api.pool())
+        .get(SiteId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(SITE_CLASS, raw_id));
+    };
+    if !api.sees(row.is_public, row.owner_id) {
+        return Err(not_found(SITE_CLASS, raw_id));
+    }
+    site_document(api, &row).await
+}
+
+/// The `Site` document for a row, as `read_site` answers it. A delete answers
+/// with the row it removed, including its pages and permissions, which
+/// `site_doc` reads before the rows are gone.
+pub(crate) async fn site_document(api: &Api<'_>, row: &SiteRow) -> Result<ApiResponse, ApiError> {
+    Ok(ApiResponse::document(serialize(
+        &site_doc(api, row).await?,
+    )?))
+}
+
+const SITE_CLASS: &str = "Omeka\\Entity\\Site";
+
+async fn site_doc(api: &Api<'_>, row: &SiteRow) -> Result<crate::wire::site::Site, ApiError> {
+    let base = api.base();
+    let repo = SiteRepo::new(api.pool());
+    let pages: Vec<_> = repo
+        .list_pages(row.id)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .map(|page| resource_ref(base, "site_pages", page.id.0))
+        .collect();
+    let permissions: Vec<SitePermission> = repo
+        .list_permissions(row.id)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .map(|permission| SitePermission {
+            user: resource_ref(base, "users", permission.user_id.0),
+            role: permission.role,
+        })
+        .collect();
+    let item_sets: Vec<SiteItemSet> = repo
+        .list_item_sets(row.id)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .map(|row| SiteItemSet {
+            item_set: resource_ref(base, "item_sets", row.item_set_id.0),
+        })
+        .collect();
+    let navigation: Vec<NavLink> =
+        serde_json::from_value(row.navigation.clone()).unwrap_or_default();
+    Ok(crate::wire::site::Site {
+        context: base.api_context(),
+        id: base.api_resource("sites", row.id.0),
+        jsonld_type: JsonLdType::single("o:Site"),
+        o_id: row.id.0,
+        slug: row.slug.clone(),
+        theme: row.theme.clone(),
+        title: row.title.clone(),
+        summary: row.summary.clone(),
+        thumbnail: resource_ref_opt(base, "assets", row.thumbnail_id.map(|id| id.0)),
+        navigation,
+        homepage: resource_ref_opt(base, "site_pages", row.homepage_id.map(|id| id.0)),
+        item_pool: row.item_pool.clone(),
+        owner: resource_ref_opt(base, "users", row.owner_id.map(|id| id.0)),
+        created: super::jsonld_date(row.created),
+        modified: row.modified.map(super::jsonld_date),
+        is_public: row.is_public,
+        assign_new_items: row.assign_new_items,
+        page: pages,
+        site_permission: permissions,
+        site_item_set: item_sets,
+        theme_settings: crate::theme_settings::load(api.pool(), row.id, &row.theme).await?,
+        site_item: base.items_for_site(row.id.0),
+        extensions: Default::default(),
+    })
+}
+
+// ---------------------------------------------------------- site_pages
+
+pub async fn read_site_page(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(PAGE_CLASS, raw_id)?;
+    let Some(row) = SiteRepo::new(api.pool())
+        .get_page(PageId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(PAGE_CLASS, raw_id));
+    };
+    // `AclFactory::addRulesForAllRoles` grants `read` on `Omeka\Entity\SitePage`
+    // only through `SitePageIsPublicAssertion` (or ownership, or a site role),
+    // so a non-public page is not readable by an anonymous caller. The port's
+    // actor carries no site role, so the public flag is the whole test here.
+    if !api.sees(row.is_public, None) {
+        return Err(not_found(PAGE_CLASS, raw_id));
+    }
+    site_page_document(api, &row).await
+}
+
+/// The `SitePage` document for a row, as `read_site_page` answers it.
+///
+/// A delete answers with the row it removed and does not re-test the page's
+/// public flag, because the delete already passed the entity authorization and
+/// a non-public page owned by an author is not visible to a read.
+pub(crate) async fn site_page_document(
+    api: &Api<'_>,
+    row: &SitePageRow,
+) -> Result<ApiResponse, ApiError> {
+    Ok(ApiResponse::document(serialize(
+        &site_page_doc(api, row).await?,
+    )?))
+}
+
+const PAGE_CLASS: &str = "Omeka\\Entity\\SitePage";
+
+async fn site_page_doc(
+    api: &Api<'_>,
+    row: &SitePageRow,
+) -> Result<crate::wire::site_page::SitePage, ApiError> {
+    let base = api.base();
+    let blocks = SiteRepo::new(api.pool())
+        .list_blocks(row.id)
+        .await
+        .map_err(db_error)?;
+    let mut documents = Vec::with_capacity(blocks.len());
+    for block in &blocks {
+        documents.push(block_doc(api, block)?);
+    }
+    Ok(crate::wire::site_page::SitePage {
+        context: base.api_context(),
+        id: base.api_resource("site_pages", row.id.0),
+        jsonld_type: JsonLdType::single("o:SitePage"),
+        o_id: row.id.0,
+        slug: row.slug.clone(),
+        title: row.title.clone(),
+        is_public: row.is_public,
+        layout: row.layout.clone(),
+        // `SitePageRepresentation::getJsonLd` writes `$this->layoutData() ?? []`.
+        layout_data: row
+            .layout_data
+            .clone()
+            .unwrap_or_else(|| serde_json::json!([])),
+        block: documents,
+        site: resource_ref(base, "sites", row.site_id.0),
+        created: super::jsonld_date(row.created),
+        modified: row.modified.map(super::jsonld_date),
+    })
+}
+
+/// `SitePageBlockRepresentation::jsonSerialize`.
+///
+/// `o:attachment` is always empty: `omeka-db` has no query that walks
+/// `site_block_attachment`, and SQL strings live in that crate. A block with
+/// attachments therefore reports an empty list. Reported as a gap.
+fn block_doc(
+    _api: &Api<'_>,
+    row: &SiteBlockRow,
+) -> Result<crate::wire::site_page::SitePageBlock, ApiError> {
+    Ok(crate::wire::site_page::SitePageBlock {
+        layout: row.layout.clone(),
+        data: row.data.clone(),
+        layout_data: row.layout_data.clone(),
+        attachment: Vec::new(),
+    })
+}
+
+// ------------------------------------------------------- root and context
+/// `GET /api`: every registered API resource, sorted by name.
+pub fn api_root(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let documents = api_resource_docs(api);
+    Ok(ApiResponse::document(serialize(&documents)?))
+}
+
+/// `GET /api/api_resources`: the same listing, paginated like any collection.
+pub fn search_api_resources(api: &Api<'_>, params: &Params) -> ApiResponse {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let rows = api_resource_docs(api);
+    let (total, page) = sorted_page(rows, &sort, &window, |a, b| a.o_id.cmp(&b.o_id));
+    let body = serialize(&page).unwrap_or_else(|_| "[]".to_string());
+    ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "api_resources", params, &window, total),
+    )
+}
+
+fn api_resource_docs(api: &Api<'_>) -> Vec<ApiResource> {
+    let base = api.base();
+    let mut resources: Vec<ApiResource> = crate::adapters::ADAPTERS
+        .iter()
+        .map(|spec| ApiResource {
+            context: base.api_context(),
+            id: base.api_resource("api_resources", spec.name),
+            jsonld_type: JsonLdType::single("o:ApiResource"),
+            o_id: spec.name.to_string(),
+        })
+        .collect();
+    resources.sort_by(|a, b| a.o_id.cmp(&b.o_id));
+    resources
+}
+
+/// `GET /api/api_resources/{id}` (`ApiResourceAdapter::read`).
+///
+/// Upstream returns `new Resource($request->getId())` without looking anything
+/// up, so any id answers 200 with that id as `o:id`.
+pub fn read_api_resource(api: &Api<'_>, id: &str) -> ApiResponse {
+    let document = ApiResource {
+        context: api.base().api_context(),
+        id: api.base().api_resource("api_resources", id),
+        jsonld_type: JsonLdType::single("o:ApiResource"),
+        o_id: id.to_string(),
+    };
+    ApiResponse::document(serialize(&document).unwrap_or_else(|_| "{}".to_string()))
+}
+
+// ------------------------------------------------------------ data_types
+
+/// The registered data types, in `application/config/module.config.php:563`
+/// order, with the labels their classes return. `omeka-api` does not depend on
+/// `omeka-core` (wave-1 brief), so the six entries are mirrored here beside the
+/// wire type instead of read from `omeka_core::datatypes`.
+const DATA_TYPES: [(&str, &str); 6] = [
+    ("literal", "Text"),
+    ("uri", "URI"),
+    ("resource", "All"),
+    ("resource:item", "Item"),
+    ("resource:itemset", "Item Set"),
+    ("resource:media", "Media"),
+];
+
+/// The class `DataTypeAdapter` hands the representation: `new Resource($id)`,
+/// named in the port's 404 message.
+const DATA_TYPE_CLASS: &str = "Omeka\\Api\\Resource";
+
+/// `GET /api/data_types` (`DataTypeAdapter::search`).
+///
+/// Upstream ignores the sort parameters and returns the registration order, so
+/// the comparator is always `Equal` and the sort is stable.
+pub fn search_data_types(api: &Api<'_>, params: &Params) -> ApiResponse {
+    let window = Window::from_params(params);
+    let rows: Vec<crate::wire::data_type::DataType> = DATA_TYPES
+        .iter()
+        .map(|(name, label)| data_type_doc(api, name, label))
+        .collect();
+    let (total, page) = ordered_page(rows, false, &window, |_, _| std::cmp::Ordering::Equal);
+    let body = serialize(&page).unwrap_or_else(|_| "[]".to_string());
+    ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "data_types", params, &window, total),
+    )
+}
+
+/// `GET /api/data_types/{id}` (`DataTypeAdapter::read`).
+///
+/// Upstream builds a `Resource` for any id and the representation looks the id
+/// up in the data type manager, which throws for an unregistered name and
+/// becomes a 500. The port answers 404 instead.
+pub fn read_data_type(api: &Api<'_>, id: &str) -> Result<ApiResponse, ApiError> {
+    let Some((name, label)) = DATA_TYPES.iter().find(|(name, _)| *name == id) else {
+        return Err(not_found(DATA_TYPE_CLASS, id));
+    };
+    Ok(ApiResponse::document(serialize(&data_type_doc(
+        api, name, label,
+    ))?))
+}
+
+fn data_type_doc(api: &Api<'_>, name: &str, label: &str) -> crate::wire::data_type::DataType {
+    crate::wire::data_type::DataType {
+        context: api.base().api_context(),
+        id: api.base().api_resource("data_types", name),
+        jsonld_type: JsonLdType::single("o:DataType"),
+        o_id: name.to_string(),
+        label: label.to_string(),
+    }
+}
+
+// ------------------------------------------------------------ site_pages
+
+/// `GET /api/site_pages` (`SitePageAdapter::search`).
+///
+/// `SitePageAdapter::$sortFields` is `id`, `created`, `modified`, `title`,
+/// `slug`; the shared [`SortField`] has no `slug`, so the comparator is local.
+/// The `item_id` filter needs `site_block_attachment`, which no repository
+/// walks, so it is ignored; reported as a gap.
+pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let rows = system::page_rows(api.pool()).await?;
+    let site_id = match (params.id::<SiteId>("site_id"), params.get("site_slug")) {
+        (Some(id), _) => Some(id),
+        (None, Some(slug)) => SiteRepo::new(api.pool())
+            .get_by_slug(slug)
+            .await
+            .map_err(db_error)?
+            .map(|site| site.id),
+        (None, None) => None,
+    };
+    // `SitePageAdapter::buildQuery` joins the site by slug, so a slug that
+    // matches no site selects no rows.
+    let unknown_site = params.get("site_slug").is_some() && site_id.is_none();
+    // `Module::searchFulltext` joins the index for site pages too
+    // (`SitePageAdapter` implements `FulltextSearchableInterface`).
+    let fulltext = params
+        .get("fulltext_search")
+        .map(str::trim)
+        .filter(|needle| !needle.is_empty());
+    let matches = fulltext_matches(api, "site_pages", fulltext).await?;
+    let rows: Vec<SitePageRow> = rows
+        .into_iter()
+        .filter(|row| !unknown_site && site_id.is_none_or(|id| row.site_id == id))
+        .filter(|row| params.get("slug").is_none_or(|slug| row.slug == slug))
+        .filter(|row| {
+            params
+                .bool("is_public")
+                .is_none_or(|want| row.is_public == want)
+        })
+        // `SitePageVisibilityFilter`: a visitor sees a public page. Upstream
+        // also requires the page's site to be public; the port's member read
+        // tests only the page flag, so the list does the same.
+        .filter(|row| api.sees(row.is_public, None))
+        .filter(|row| {
+            matches
+                .as_ref()
+                .is_none_or(|hits| hits.contains_key(&row.id.0))
+        })
+        .collect();
+    let sort_by = params.get("sort_by").unwrap_or("id");
+    let (total, page) = match (&matches, params.sort_by_is_default()) {
+        (Some(hits), true) => relevance_page(
+            rows,
+            Sort::from_params(params).descending,
+            &window,
+            |row| row.id.0,
+            |row| hits.get(&row.id.0).copied().unwrap_or(0.0),
+        ),
+        _ => ordered_page(
+            rows,
+            Sort::from_params(params).descending,
+            &window,
+            cmp_site_page(sort_by),
+        ),
+    };
+    let mut documents = Vec::with_capacity(page.len());
+    for row in &page {
+        documents.push(site_page_doc(api, row).await?);
+    }
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "site_pages", params, &window, total),
+    ))
+}
+
+/// The `SitePageAdapter::$sortFields` map, with the `id` tiebreak
+/// `AbstractEntityAdapter::search` appends.
+fn cmp_site_page(field: &str) -> impl Fn(&SitePageRow, &SitePageRow) -> std::cmp::Ordering + '_ {
+    move |a, b| match field {
+        "title" => a.title.cmp(&b.title).then(a.id.cmp(&b.id)),
+        "created" => a.created.cmp(&b.created).then(a.id.cmp(&b.id)),
+        "modified" => a.modified.cmp(&b.modified).then(a.id.cmp(&b.id)),
+        "slug" => a.slug.cmp(&b.slug).then(a.id.cmp(&b.id)),
+        _ => a.id.cmp(&b.id),
+    }
+}
+
+/// `GET /api-context`: the term definitions from every vocabulary.
+pub async fn context(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let rows = omeka_db::repos::VocabularyRepo::new(api.pool())
+        .list(&Default::default(), &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let document =
+        ContextDocument::new(rows.into_iter().map(|row| (row.prefix, row.namespace_uri)));
+    Ok(ApiResponse::document(serialize(&document)?))
+}
+
+// --------------------------------------------------------------- helpers
+
+fn search_needle(params: &Params) -> Option<String> {
+    params
+        .get("search")
+        .filter(|needle| !needle.is_empty())
+        .map(str::to_lowercase)
+}
+
+fn matches(text: &str, needle: Option<&str>) -> bool {
+    match needle {
+        Some(needle) => text.to_lowercase().contains(needle),
+        None => true,
+    }
+}
+
+fn cmp_user(sort: Sort) -> impl Fn(&UserRow, &UserRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.name.cmp(&b.name),
+        _ => a.id.cmp(&b.id),
+    }
+}
+
+fn cmp_site(sort: Sort) -> impl Fn(&SiteRow, &SiteRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.title.cmp(&b.title),
+        SortField::Created => a.created.cmp(&b.created),
+        SortField::Modified => a.modified.cmp(&b.modified),
+        SortField::IsPublic => a.is_public.cmp(&b.is_public),
+        SortField::Id => a.id.cmp(&b.id),
+    }
+}

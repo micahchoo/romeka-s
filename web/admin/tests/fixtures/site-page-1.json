@@ -1,0 +1,31 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/site_pages/1",
+  "@type": ["o:SitePage"],
+  "o:id": 1,
+  "o:slug": "welcome",
+  "o:title": "Welcome",
+  "o:is_public": true,
+  "o:layout": null,
+  "o:layout_data": [],
+  "o:block": [
+    {
+      "o:layout": "html",
+      "o:data": { "html": "<p>First block.</p>" },
+      "o:layout_data": null,
+      "o:attachment": []
+    },
+    {
+      "o:layout": "pageTitle",
+      "o:data": [],
+      "o:layout_data": null,
+      "o:attachment": []
+    }
+  ],
+  "o:site": { "@id": "http://localhost/api/sites/1", "o:id": 1 },
+  "o:created": {
+    "@value": "2024-01-02T10:00:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null
+}

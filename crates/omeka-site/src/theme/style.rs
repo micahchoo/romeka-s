@@ -1,0 +1,419 @@
+//! The bundled theme's own stylesheet, emitted as data so the caller can serve
+//! it. `theme::default::DEFAULT_INFO` lists it as the theme's asset at
+//! `css/style.css`, and the document frame links it under the render context's
+//! asset base.
+//!
+//! The sheet is the port's own. Its block and page-layout rules are the subset
+//! of `application/asset/css/page-blocks.css` that applies to the markup this
+//! port emits, and its shell, list and navigation rules stand in for
+//! `application/asset/css/style.css`. Both are core assets upstream. The port
+//! drops the rules that key off a block's layout data, because core carries no
+//! layout data.
+
+/// The bundled theme's stylesheet.
+pub const STYLE_CSS: &str = include_str!("style.css");
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use crate::blocks::test_support::{TestResources, block, context, item, resource_ref, site};
+    use crate::nav::{NavItem, PageRef};
+    use crate::search::{
+        AdvancedSearchForm, CrossSiteBody, CrossSitePage, FormOption, SearchHit, SearchList,
+        SearchResource, SearchResults, SearchSection,
+    };
+    use crate::theme::{DefaultTheme, Theme};
+    use crate::view::{
+        AssetView, AttachmentRef, BrowseView, ErrorView, MediaRef, ResourceRef, ResourceView,
+        SiteView, Thumbnail, ValueRef, View,
+    };
+    use omeka_core::ids::{AssetId, ItemId, PageId, SiteId};
+    use omeka_core::resource::ResourceKind;
+    use omeka_core::site::{SitePage, Slug};
+    use serde_json::json;
+
+    /// The class tokens a rendered document carries inside its content region.
+    /// The body element's own classes are theme hooks, not fragment classes.
+    fn emitted_classes(document: &str) -> Vec<String> {
+        let content = document
+            .split_once("id=\"content\"")
+            .map_or(document, |(_, rest)| rest);
+        let mut out = Vec::new();
+        for (needle, quote) in [("class=\"", '"'), ("class='", '\'')] {
+            let mut rest = content;
+            while let Some(index) = rest.find(needle) {
+                rest = &rest[index + needle.len()..];
+                let end = rest.find(quote).unwrap_or(rest.len());
+                out.extend(rest[..end].split_whitespace().map(str::to_string));
+                rest = &rest[end..];
+            }
+        }
+        out
+    }
+
+    /// The class selectors a stylesheet defines.
+    fn selector_tokens(css: &str) -> BTreeSet<String> {
+        let bytes = css.as_bytes();
+        let mut out = BTreeSet::new();
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] != b'.' {
+                index += 1;
+                continue;
+            }
+            let start = index + 1;
+            let mut end = start;
+            while end < bytes.len()
+                && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'-' || bytes[end] == b'_')
+            {
+                end += 1;
+            }
+            if end > start {
+                out.insert(css[start..end].to_string());
+            }
+            index = end.max(index + 1);
+        }
+        out
+    }
+
+    fn rich_provider() -> TestResources {
+        let mut resources = TestResources::default();
+        let mut browsed = item(4, "An item", "/s/main/item/4");
+        browsed.description = Some("A description".to_string());
+        browsed.thumbnail = Some(Thumbnail::new("/files/medium/4.jpg", "An item"));
+        resources.browse.push(browsed);
+
+        let mut attached = item(7, "An attached item", "/s/main/item/7");
+        attached.values = vec![ValueRef {
+            property: "Title".to_string(),
+            value: "An attached item".to_string(),
+        }];
+        attached.item_sets = vec![resource_ref("A set", "/s/main/item-set/2")];
+        attached.media = vec![ResourceRef {
+            url: "/s/main/media/9".to_string(),
+            title: "A file".to_string(),
+            thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
+        }];
+        attached.primary_media = Some(media());
+        attached.parent_item = Some(resource_ref("An attached item", "/s/main/item/7"));
+        resources.items.insert(7, attached);
+
+        resources.media.insert(9, media());
+        resources.assets.insert(
+            3,
+            AssetView {
+                id: AssetId::new(3),
+                title: "A logo".to_string(),
+                thumbnail: Some(Thumbnail::new("/files/square/3.jpg", "A logo")),
+            },
+        );
+        resources.sites = vec![SiteView {
+            id: SiteId::new(2),
+            title: "Another site".to_string(),
+            url: "/s/another".to_string(),
+            summary: Some("The summary".to_string()),
+            thumbnail: Some(Thumbnail::new("/files/square/2.jpg", "Another site")),
+        }];
+        resources
+    }
+
+    fn media() -> MediaRef {
+        MediaRef {
+            url: "/s/main/media/9".to_string(),
+            original_url: Some("/files/original/9.jpg".to_string()),
+            title: "A file".to_string(),
+            thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
+            embed: Some("<iframe src=\"/embed/9\"></iframe>".to_string()),
+        }
+    }
+
+    /// The blocks a page needs to print every block class the crate emits, one
+    /// per layout, plus a group and an unregistered name.
+    fn every_layout_blocks() -> Vec<omeka_core::site::SiteBlock> {
+        let mut blocks = vec![
+            block("pageTitle", json!({})),
+            block("html", json!({"html": "<p>Body copy</p>"})),
+            block("lineBreak", json!({"break_type": "transparent"})),
+            block("lineBreak", json!({"break_type": "opaque"})),
+            block("pageDateTime", json!({"display": "created_modified"})),
+            block("tableOfContents", json!({"depth": 1})),
+            block(
+                "listOfPages",
+                json!({"pagelist": "[{\"text\": \"About\", \"data\": {\"id\": 3}}]"}),
+            ),
+            block(
+                "listOfSites",
+                json!({"limit": 1, "summaries": true, "thumbnails": true}),
+            ),
+            block(
+                "browsePreview",
+                json!({"resource_type": "items", "heading": "Latest", "link-text": "Browse all"}),
+            ),
+            block("itemWithMetadata", json!({})),
+            block(
+                "media",
+                json!({"layout": "horizontal", "media_display": "thumbnail", "show_title_option": "item_title"}),
+            ),
+            block(
+                "media",
+                json!({"layout": "vertical", "media_display": "embed"}),
+            ),
+            block(
+                "asset",
+                json!([{"id": 3, "page": 3, "alt_link_title": "Read on", "caption": "A caption"}]),
+            ),
+            block(
+                "iiifImage",
+                json!({"image_url": "https://example.org/i", "title": "A map", "show_title": true}),
+            ),
+            block(
+                "iiifPresentation",
+                json!({"manifest_url": "https://example.org/m", "title": "An album", "show_title": true}),
+            ),
+            block(
+                "oembed",
+                json!({"oembed": {"type": "photo", "url": "https://example.org/p.jpg", "width": 640, "height": 480}}),
+            ),
+            block("blockGroup", json!({"span": "1"})),
+            block("html", json!({"html": "<p>Grouped copy</p>"})),
+            block("myModuleLayout", json!({"x": 1})),
+        ];
+        for (index, block) in blocks.iter_mut().enumerate() {
+            block.position = index as i64 + 1;
+        }
+        blocks
+    }
+
+    fn nav() -> Vec<NavItem> {
+        fn item(label: &str, slug: &str, id: u64, children: Vec<NavItem>) -> NavItem {
+            NavItem {
+                label: label.to_string(),
+                url: format!("/s/main/page/{slug}"),
+                target_blank: false,
+                page: Some(PageId::new(id)),
+                children,
+            }
+        }
+        vec![item(
+            "Welcome",
+            "welcome",
+            2,
+            vec![item(
+                "About",
+                "about",
+                3,
+                vec![item("Team", "team", 4, Vec::new())],
+            )],
+        )]
+    }
+
+    /// A page whose active page is `About`, so the render carries breadcrumbs, a
+    /// sub-menu and a table of contents.
+    fn about_page() -> SitePage {
+        let mut page = SitePage::new(
+            PageId::new(3),
+            SiteId::new(1),
+            Slug::parse("about").unwrap(),
+            "About",
+        );
+        page.blocks = every_layout_blocks();
+        page
+    }
+
+    /// The documents whose fragments the stylesheet must style: a page with
+    /// every layout, a browse per resource kind, and the remaining views.
+    fn documents() -> Vec<String> {
+        let site = site();
+        let mut resources = rich_provider();
+        resources.attachments.insert(
+            1,
+            (0..2)
+                .map(|_| AttachmentRef {
+                    item: Some(ItemId::new(7)),
+                    media: None,
+                    caption: String::new(),
+                })
+                .collect(),
+        );
+        let mut ctx = context(&site, &resources);
+        ctx.pages = vec![
+            PageRef {
+                id: PageId::new(2),
+                slug: Slug::parse("welcome").unwrap(),
+                title: "Welcome".to_string(),
+                is_public: true,
+            },
+            PageRef {
+                id: PageId::new(3),
+                slug: Slug::parse("about").unwrap(),
+                title: "About".to_string(),
+                is_public: true,
+            },
+            PageRef {
+                id: PageId::new(4),
+                slug: Slug::parse("team").unwrap(),
+                title: "Team".to_string(),
+                is_public: true,
+            },
+        ];
+        ctx.current_path = "/s/main/page/about".to_string();
+        ctx.page_created = Some(crate::blocks::test_support::timestamp());
+        ctx.page_modified = Some(crate::blocks::test_support::timestamp());
+        ctx.nav = nav();
+
+        let page = about_page();
+        let mut documents = vec![crate::render::render_page(&page, &mut ctx)];
+
+        let mut browse = BrowseView {
+            kind: ResourceKind::Item,
+            title: "Items".to_string(),
+            resources: resources.browse.clone(),
+            total: 3,
+            query: Vec::new(),
+            page: 1,
+            per_page: 1,
+        };
+        for (kind, title) in [
+            (ResourceKind::Item, "Items"),
+            (ResourceKind::ItemSet, "Item sets"),
+            (ResourceKind::Media, "Media"),
+        ] {
+            browse.kind = kind;
+            browse.title = title.to_string();
+            documents.push(DefaultTheme.render(&View::Browse(&browse), &ctx));
+        }
+
+        let attached = resources.items.get(&7).cloned().unwrap_or_else(|| {
+            ResourceView::new(
+                omeka_core::ids::ResourceId::new(7),
+                ResourceKind::Item,
+                "/s/main/item/7",
+                "An attached item",
+            )
+        });
+        documents.push(DefaultTheme.render(&View::Item(&attached), &ctx));
+        documents.push(DefaultTheme.render(&View::ItemSet(&attached), &ctx));
+        documents.push(DefaultTheme.render(&View::Media(&attached), &ctx));
+        documents.push(DefaultTheme.render(&View::Index, &ctx));
+        documents.push(DefaultTheme.render(&View::Error(&ErrorView::not_found()), &ctx));
+
+        // The search pages: the results sections, one cross-site list, the page
+        // browse and the advanced form.
+        let hits = vec![SearchHit::new("An item", "/s/main/item/4")];
+        let sections = vec![SearchSection::new(SearchResource::Items, hits.clone(), 1)];
+        documents.push(DefaultTheme.render(
+            &View::Search(&SearchResults {
+                needle: "cat".to_string(),
+                sections: sections.clone(),
+            }),
+            &ctx,
+        ));
+        let cross = CrossSitePage {
+            needle: "cat".to_string(),
+            form_action: "/s/main/cross-site-search/results".to_string(),
+            body: CrossSiteBody::Results(sections),
+        };
+        documents.push(DefaultTheme.render(&View::CrossSiteSearch(&cross), &ctx));
+        let list = CrossSitePage {
+            body: CrossSiteBody::List(Box::new(SearchList {
+                resource: SearchResource::SitePages,
+                hits: vec![SearchHit::new("Welcome", "/s/main/page/welcome")],
+                total: 1,
+                page: 1,
+                per_page: 10,
+            })),
+            ..cross
+        };
+        documents.push(DefaultTheme.render(&View::CrossSiteSearch(&list), &ctx));
+        documents.push(DefaultTheme.render(
+            &View::SearchList(&SearchList {
+                resource: SearchResource::SitePages,
+                hits: vec![SearchHit::new("Welcome", "/s/main/page/welcome")],
+                total: 1,
+                page: 1,
+                per_page: 10,
+            }),
+            &ctx,
+        ));
+        documents.push(DefaultTheme.render(
+            &View::AdvancedSearch(&AdvancedSearchForm {
+                item_sets: vec![FormOption::new("5", "Featured photographs")],
+                ..AdvancedSearchForm::new(
+                    SearchResource::Items,
+                    "/s/main/item",
+                    vec![
+                        ("property[0][property]".to_string(), "1".to_string()),
+                        ("property[0][type]".to_string(), "in".to_string()),
+                        ("property[0][text]".to_string(), "cat".to_string()),
+                    ],
+                )
+            }),
+            &ctx,
+        ));
+        documents
+    }
+
+    /// Every class token a rendered fragment carries has a rule in the sheet, so
+    /// a view that starts emitting a new class fails here until the sheet styles
+    /// it.
+    #[test]
+    fn style_css_styles_every_class_the_views_emit() {
+        let selectors = selector_tokens(STYLE_CSS);
+        let mut missing = BTreeSet::new();
+        for document in documents() {
+            for class in emitted_classes(&document) {
+                if !selectors.contains(&class) {
+                    missing.insert(class);
+                }
+            }
+        }
+        assert!(missing.is_empty(), "classes with no rule: {missing:?}");
+    }
+
+    /// The sheet's rules are balanced, no rule is empty, and every rule
+    /// declares something.
+    #[test]
+    fn style_css_is_well_formed() {
+        assert!(STYLE_CSS.contains(".blocks-inner:after"), "not the sheet");
+        let mut depth = 0_i32;
+        for ch in STYLE_CSS.chars() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+            assert!(depth >= 0, "a closing brace before its rule");
+        }
+        assert_eq!(depth, 0, "an unclosed rule");
+        assert!(!STYLE_CSS.contains("{}"), "an empty rule");
+        for rule in STYLE_CSS.split('}') {
+            let Some((_, body)) = rule.split_once('{') else {
+                continue;
+            };
+            assert!(body.contains(':'), "a rule with no declaration: {rule}");
+        }
+    }
+
+    /// Every registered layout that emits a class has a rule naming it, so a
+    /// reader can find a block's styling by its upstream layout name.
+    #[test]
+    fn style_css_names_the_block_layouts_it_styles() {
+        let selectors = selector_tokens(STYLE_CSS);
+        for layout in [
+            "block-blockGroup",
+            "media-embed",
+            "preview-block",
+            "toc-block",
+            "item-with-metadata",
+            "assets",
+            "page-date-time",
+            "list-of-sites",
+            "break",
+            "list-of-pages-link",
+        ] {
+            assert!(selectors.contains(layout), "no rule for {layout}");
+        }
+    }
+}

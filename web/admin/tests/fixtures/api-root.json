@@ -1,0 +1,26 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/api_resources/items",
+    "@type": ["o:ApiResource"],
+    "o:id": "items"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/api_resources/media",
+    "@type": ["o:ApiResource"],
+    "o:id": "media"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/api_resources/users",
+    "@type": ["o:ApiResource"],
+    "o:id": "users"
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/api_resources/vocabularies",
+    "@type": ["o:ApiResource"],
+    "o:id": "vocabularies"
+  }
+]

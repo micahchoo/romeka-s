@@ -1,0 +1,12 @@
+# reference clone, reproducible from the URL + SHA in README.md
+source/
+# agent build output; Cargo.lock is committed at the wave-1 freeze
+target/
+node_modules/
+dist/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+nohup.out
+.DS_Store

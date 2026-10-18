@@ -1,0 +1,33 @@
+[package]
+name = "omeka-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+axum = "0.8"
+flate2 = "1"
+http-body-util = "0.1"
+lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "rustls-tls"] }
+omeka-api = { path = "../omeka-api" }
+omeka-core = { path = "../omeka-core" }
+omeka-db = { path = "../omeka-db" }
+omeka-media = { path = "../omeka-media" }
+omeka-site = { path = "../omeka-site" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10"
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+thiserror = { workspace = true }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
+tower = { version = "0.5", features = ["util"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[dev-dependencies]
+bcrypt = "0.17"
+tempfile = "3"
+
+[lints]
+workspace = true

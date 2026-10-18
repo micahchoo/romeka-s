@@ -1,0 +1,11 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/properties/1",
+  "@type": ["o:Property"],
+  "o:id": 1,
+  "o:local_name": "title",
+  "o:label": "Title",
+  "o:comment": "A name given to the resource.",
+  "o:term": "dcterms:title",
+  "o:vocabulary": "http://localhost/api/vocabularies/1"
+}

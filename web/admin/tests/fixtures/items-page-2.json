@@ -1,0 +1,33 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/items/5",
+    "@type": "o:Item",
+    "o:id": 5,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": "Fixture Item Three",
+    "thumbnail_display_urls": { "large": null, "medium": null, "square": null },
+    "o:created": {
+      "@value": "2026-10-16T12:00:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:primary_media": null,
+    "o:media": [],
+    "o:item_set": [],
+    "o:site": [],
+    "dcterms:title": [
+      {
+        "type": "literal",
+        "property_id": 1,
+        "property_label": "Title",
+        "is_public": true,
+        "@value": "Fixture Item Three"
+      }
+    ]
+  }
+]

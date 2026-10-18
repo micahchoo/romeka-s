@@ -1,0 +1,35 @@
+[package]
+name = "omeka-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+# The micro-benchmark runner. `plotters` and `rayon` are off, so the benches
+# emit the text report and the machine-readable `estimates.json` without
+# pulling a charting stack into the workspace.
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+# One target per area benched; every one is a `harness = false` binary that
+# `criterion_main!` drives.
+[[bench]]
+name = "value_rules"
+harness = false
+
+[[bench]]
+name = "datatypes"
+harness = false
+
+[[bench]]
+name = "site_rules"
+harness = false

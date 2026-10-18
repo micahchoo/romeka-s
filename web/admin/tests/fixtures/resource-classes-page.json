@@ -1,0 +1,24 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/resource_classes/13",
+    "@type": "o:ResourceClass",
+    "o:id": 13,
+    "o:local_name": "StillImage",
+    "o:label": "Still Image",
+    "o:comment": null,
+    "o:term": "dctype:StillImage",
+    "o:vocabulary": { "@id": "http://localhost/api/vocabularies/2", "o:id": 2 }
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/resource_classes/51",
+    "@type": "o:ResourceClass",
+    "o:id": 51,
+    "o:local_name": "Book",
+    "o:label": "Book",
+    "o:comment": "A book.",
+    "o:term": "bibo:Book",
+    "o:vocabulary": { "@id": "http://localhost/api/vocabularies/3", "o:id": 3 }
+  }
+]

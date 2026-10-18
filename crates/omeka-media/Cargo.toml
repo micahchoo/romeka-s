@@ -1,0 +1,60 @@
+[package]
+name = "omeka-media"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+omeka-core = { path = "../omeka-core" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+getrandom = "0.2"
+sha2 = "0.10"
+# Decoding and resizing for the thumbnailer (`File/Thumbnailer/Gd.php`). Only
+# the four source formats GD accepts: gif, jpeg, png and webp.
+image = { version = "0.25", default-features = false, features = [
+    "gif",
+    "jpeg",
+    "png",
+    "webp",
+] }
+# The real HTTP client behind `HttpFetch`. Blocking, because the trait is.
+# `rustls` is the TLS provider; `gzip` is off, matching upstream's
+# `Accept-Encoding: identity` (`File/Downloader.php:57`).
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+# Joining a `Location` header onto the request URL for the same-scheme redirect
+# rule in `src/http_client.rs`. Already in the workspace tree via sqlx.
+url = "2"
+
+[dev-dependencies]
+# The micro-benchmark runner. `plotters` and `rayon` are off, so the benches
+# emit the text report and the machine-readable `estimates.json` without
+# pulling a charting stack into the workspace.
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+# The store benches need a temporary root to write into. Already in the
+# workspace tree via `omeka-cli` and `omeka-server`.
+tempfile = "3"
+
+# One target per area benched; every one is a `harness = false` binary that
+# `criterion_main!` drives.
+[[bench]]
+name = "store_paths"
+harness = false
+
+[[bench]]
+name = "ingest_parse"
+harness = false
+
+[[bench]]
+name = "render_html"
+harness = false
+
+[[bench]]
+name = "thumbnail"
+harness = false

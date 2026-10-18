@@ -1,0 +1,24 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/users/3",
+    "@type": "o:User",
+    "o:id": 3,
+    "o:name": "Ada Lovelace",
+    "o:email": "ada@example.org",
+    "o:created": "2026-10-15T08:00:00+00:00",
+    "o:role": "global_admin",
+    "o:is_active": true
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/users/5",
+    "@type": "o:User",
+    "o:id": 5,
+    "o:name": "Grace Hopper",
+    "o:email": "grace@example.org",
+    "o:created": "2026-10-15T09:00:00+00:00",
+    "o:role": "editor",
+    "o:is_active": false
+  }
+]

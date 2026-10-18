@@ -1,0 +1,76 @@
+# Static origin for the port. It serves the admin bundle and the stored media
+# bytes, and forwards the port's own routes. entrypoint.sh renders this file,
+# replacing each @TOKEN@ with a resolved path or address.
+#
+# The template mirrors the behaviour the reference proxy has: static files from
+# the SPA build, /files/<prefix>/<name> from the media store, /api, /health and
+# /s (/s/<site>) forwarded to the port, and every other unknown path served as
+# index.html so the SPA's hash routes resolve.
+#
+# Runs as a non-root user, so every temporary path and the pid file live under
+# /tmp.
+
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log /dev/stdout;
+    sendfile on;
+
+    client_body_temp_path /tmp/nginx-client;
+    proxy_temp_path /tmp/nginx-proxy;
+    fastcgi_temp_path /tmp/nginx-fastcgi;
+    uwsgi_temp_path /tmp/nginx-uwsgi;
+    scgi_temp_path /tmp/nginx-scgi;
+
+    server {
+        listen @PUBLIC_PORT@;
+        server_name _;
+
+        root @DIST@;
+        index index.html;
+
+        # Media and API uploads pass through here.
+        client_max_body_size 256m;
+
+        # Give the port the address the client used, not the loopback address
+        # the origin dials.
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        location = /health {
+            proxy_pass http://@BACKEND@;
+        }
+
+        # /api and /api-context both begin with this prefix.
+        location /api {
+            proxy_pass http://@BACKEND@;
+        }
+
+        location = /s {
+            proxy_pass http://@BACKEND@;
+        }
+
+        location /s/ {
+            proxy_pass http://@BACKEND@;
+        }
+
+        # The media store, where `omeka import media` wrote original/<id>.<ext>
+        # and the thumbnail directories.
+        location /files/ {
+            alias @STORE@/;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

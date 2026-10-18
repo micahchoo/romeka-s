@@ -1,0 +1,331 @@
+//! `vocabularies`, `resource_classes`, `properties` and `resource_templates`.
+//!
+//! `VocabularyRepresentation::getJsonLd`,
+//! `AbstractVocabularyMemberRepresentation::getJsonLd` and
+//! `ResourceTemplateRepresentation::getJsonLd` shape the documents.
+//! `AbstractVocabularyMemberRepresentation::term` is `prefix:localName`, which
+//! is why these builders read the [`Catalog`](super::catalog::Catalog).
+
+use omeka_db::ids::{ClassId, PropertyId, TemplateId, VocabularyId};
+use omeka_db::repos::{
+    ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, VocabularyFilter,
+    VocabularyRepo,
+};
+use omeka_db::rows::{ClassRow, PropertyRow, TemplateRow, VocabularyRow};
+
+use super::params::{Sort, SortField, Window, sorted_page};
+use super::response::link_header;
+use super::{Api, db_error, not_found, parse_id, resource_ref, resource_ref_opt};
+use crate::errors::ApiError;
+use crate::read::params::Params;
+use crate::read::response::{ApiResponse, serialize};
+use crate::wire::JsonLdType;
+use crate::wire::resource_template::ResourceTemplateProperty;
+
+// --------------------------------------------------------- vocabularies
+
+pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let filter = VocabularyFilter {
+        owner_id: params.id("owner_id"),
+        namespace_uri: params.get("namespace_uri").map(str::to_string),
+        prefix: params.get("prefix").map(str::to_string),
+    };
+    let rows = VocabularyRepo::new(api.pool())
+        .list(&filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<VocabularyRow> = rows
+        .into_iter()
+        .filter(|row| {
+            matches(&row.label, needle.as_deref()) || matches(&row.prefix, needle.as_deref())
+        })
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_vocabulary(sort));
+    let documents: Vec<_> = page.iter().map(|row| vocabulary_doc(api, row)).collect();
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "vocabularies", params, &window, total),
+    ))
+}
+
+pub async fn read_vocabulary(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(VOCABULARY_CLASS, raw_id)?;
+    let Some(row) = VocabularyRepo::new(api.pool())
+        .get(VocabularyId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(VOCABULARY_CLASS, raw_id));
+    };
+    Ok(ApiResponse::document(serialize(&vocabulary_doc(
+        api, &row,
+    ))?))
+}
+
+const VOCABULARY_CLASS: &str = "Omeka\\Entity\\Vocabulary";
+
+fn vocabulary_doc(api: &Api<'_>, row: &VocabularyRow) -> crate::wire::vocabulary::Vocabulary {
+    let base = api.base();
+    crate::wire::vocabulary::Vocabulary {
+        context: base.api_context(),
+        id: base.api_resource("vocabularies", row.id.0),
+        jsonld_type: JsonLdType::single("o:Vocabulary"),
+        o_id: row.id.0,
+        namespace_uri: row.namespace_uri.clone(),
+        prefix: row.prefix.clone(),
+        label: row.label.clone(),
+        comment: row.comment.clone(),
+        owner: resource_ref_opt(base, "users", row.owner_id.map(|id| id.0)),
+    }
+}
+
+// ------------------------------------------------------- resource_classes
+
+pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let filter = ClassFilter {
+        owner_id: params.id("owner_id"),
+        vocabulary_id: params.id("vocabulary_id"),
+        local_name: params.get("local_name").map(str::to_string),
+    };
+    let rows = ClassRepo::new(api.pool())
+        .list(&filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<ClassRow> = rows
+        .into_iter()
+        .filter(|row| matches(&row.label, needle.as_deref()))
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_class(sort));
+    let documents: Vec<_> = page.iter().map(|row| class_doc(api, row)).collect();
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "resource_classes", params, &window, total),
+    ))
+}
+
+pub async fn read_class(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(CLASS_CLASS, raw_id)?;
+    let Some(row) = ClassRepo::new(api.pool())
+        .get(ClassId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(CLASS_CLASS, raw_id));
+    };
+    Ok(ApiResponse::document(serialize(&class_doc(api, &row))?))
+}
+
+const CLASS_CLASS: &str = "Omeka\\Entity\\ResourceClass";
+
+fn class_doc(api: &Api<'_>, row: &ClassRow) -> crate::wire::resource_class::ResourceClass {
+    let base = api.base();
+    crate::wire::resource_class::ResourceClass {
+        context: base.api_context(),
+        id: base.api_resource("resource_classes", row.id.0),
+        jsonld_type: JsonLdType::single("o:ResourceClass"),
+        o_id: row.id.0,
+        local_name: row.local_name.clone(),
+        label: Some(row.label.clone()),
+        comment: row.comment.clone(),
+        term: api.catalog().prefix(row.vocabulary_id) + ":" + &row.local_name,
+        vocabulary: resource_ref(base, "vocabularies", row.vocabulary_id.0),
+    }
+}
+
+// ------------------------------------------------------------ properties
+
+pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let filter = PropertyFilter {
+        owner_id: params.id("owner_id"),
+        vocabulary_id: params.id("vocabulary_id"),
+        local_name: params.get("local_name").map(str::to_string),
+    };
+    let rows = PropertyRepo::new(api.pool())
+        .list(&filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<PropertyRow> = rows
+        .into_iter()
+        .filter(|row| matches(&row.label, needle.as_deref()))
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_property(sort));
+    let documents: Vec<_> = page.iter().map(|row| property_doc(api, row)).collect();
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "properties", params, &window, total),
+    ))
+}
+
+pub async fn read_property(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(PROPERTY_CLASS, raw_id)?;
+    let Some(row) = PropertyRepo::new(api.pool())
+        .get(PropertyId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(PROPERTY_CLASS, raw_id));
+    };
+    Ok(ApiResponse::document(serialize(&property_doc(api, &row))?))
+}
+
+const PROPERTY_CLASS: &str = "Omeka\\Entity\\Property";
+
+fn property_doc(api: &Api<'_>, row: &PropertyRow) -> crate::wire::property::Property {
+    let base = api.base();
+    crate::wire::property::Property {
+        context: base.api_context(),
+        id: base.api_resource("properties", row.id.0),
+        jsonld_type: JsonLdType::single("o:Property"),
+        o_id: row.id.0,
+        local_name: row.local_name.clone(),
+        label: Some(row.label.clone()),
+        comment: row.comment.clone(),
+        term: api.catalog().prefix(row.vocabulary_id) + ":" + &row.local_name,
+        vocabulary: resource_ref(base, "vocabularies", row.vocabulary_id.0),
+    }
+}
+
+// ---------------------------------------------------- resource_templates
+
+pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let window = Window::from_params(params);
+    let sort = Sort::from_params(params);
+    let rows = TemplateRepo::new(api.pool())
+        .list()
+        .await
+        .map_err(db_error)?;
+    let needle = search_needle(params);
+    let rows: Vec<TemplateRow> = rows
+        .into_iter()
+        .filter(|row| matches(&row.label, needle.as_deref()))
+        .collect();
+    let (total, page) = sorted_page(rows, &sort, &window, cmp_template(sort));
+    let mut documents = Vec::with_capacity(page.len());
+    for row in &page {
+        documents.push(template_doc(api, row).await?);
+    }
+    let body = serialize(&documents)?;
+    Ok(ApiResponse::listing(
+        body,
+        total,
+        link_header(api.base(), "resource_templates", params, &window, total),
+    ))
+}
+
+pub async fn read_template(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
+    let id = parse_id(TEMPLATE_CLASS, raw_id)?;
+    let Some(row) = TemplateRepo::new(api.pool())
+        .get(TemplateId(id))
+        .await
+        .map_err(db_error)?
+    else {
+        return Err(not_found(TEMPLATE_CLASS, raw_id));
+    };
+    Ok(ApiResponse::document(serialize(
+        &template_doc(api, &row).await?,
+    )?))
+}
+
+const TEMPLATE_CLASS: &str = "Omeka\\Entity\\ResourceTemplate";
+
+async fn template_doc(
+    api: &Api<'_>,
+    row: &TemplateRow,
+) -> Result<crate::wire::resource_template::ResourceTemplate, ApiError> {
+    let base = api.base();
+    let properties = TemplateRepo::new(api.pool())
+        .list_properties(row.id)
+        .await
+        .map_err(db_error)?;
+    let resource_template_property: Vec<ResourceTemplateProperty> = properties
+        .iter()
+        .map(|property| ResourceTemplateProperty {
+            property: resource_ref(base, "properties", property.property_id.0),
+            alternate_label: property.alternate_label.clone(),
+            alternate_comment: property.alternate_comment.clone(),
+            data_type: property.data_type.clone().unwrap_or_default(),
+            is_required: property.is_required,
+            is_private: property.is_private,
+            default_lang: property.default_lang.clone(),
+        })
+        .collect();
+    Ok(crate::wire::resource_template::ResourceTemplate {
+        context: base.api_context(),
+        id: base.api_resource("resource_templates", row.id.0),
+        jsonld_type: JsonLdType::single("o:ResourceTemplate"),
+        o_id: row.id.0,
+        label: row.label.clone(),
+        owner: resource_ref_opt(base, "users", row.owner_id.map(|id| id.0)),
+        resource_class: resource_ref_opt(
+            base,
+            "resource_classes",
+            row.resource_class_id.map(|id| id.0),
+        ),
+        title_property: resource_ref_opt(base, "properties", row.title_property_id.map(|id| id.0)),
+        description_property: resource_ref_opt(
+            base,
+            "properties",
+            row.description_property_id.map(|id| id.0),
+        ),
+        resource_template_property,
+    })
+}
+
+// --------------------------------------------------------------- helpers
+
+fn search_needle(params: &Params) -> Option<String> {
+    params
+        .get("search")
+        .filter(|needle| !needle.is_empty())
+        .map(str::to_lowercase)
+}
+
+fn matches(text: &str, needle: Option<&str>) -> bool {
+    match needle {
+        Some(needle) => text.to_lowercase().contains(needle),
+        None => true,
+    }
+}
+
+fn cmp_vocabulary(sort: Sort) -> impl Fn(&VocabularyRow, &VocabularyRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.label.cmp(&b.label),
+        _ => a.id.cmp(&b.id),
+    }
+}
+
+fn cmp_class(sort: Sort) -> impl Fn(&ClassRow, &ClassRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.label.cmp(&b.label),
+        _ => a.id.cmp(&b.id),
+    }
+}
+
+fn cmp_property(sort: Sort) -> impl Fn(&PropertyRow, &PropertyRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.label.cmp(&b.label),
+        _ => a.id.cmp(&b.id),
+    }
+}
+
+fn cmp_template(sort: Sort) -> impl Fn(&TemplateRow, &TemplateRow) -> std::cmp::Ordering {
+    move |a, b| match sort.field {
+        SortField::Title => a.label.cmp(&b.label),
+        _ => a.id.cmp(&b.id),
+    }
+}

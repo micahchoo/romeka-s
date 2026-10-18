@@ -1,0 +1,46 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/sites/1",
+  "@type": ["o:Site"],
+  "o:id": 1,
+  "o:slug": "my-site",
+  "o:theme": "default",
+  "o:title": "My Site",
+  "o:summary": null,
+  "o:thumbnail": null,
+  "o:navigation": [
+    {
+      "type": "browse",
+      "data": { "label": "Browse", "query": "" },
+      "links": []
+    },
+    {
+      "type": "page",
+      "data": { "id": 1, "label": "Welcome" },
+      "links": []
+    }
+  ],
+  "o:homepage": { "@id": "http://localhost/api/site_pages/1", "o:id": 1 },
+  "o:item_pool": {},
+  "o:owner": { "@id": "http://localhost/api/users/3", "o:id": 3 },
+  "o:created": {
+    "@value": "2024-01-02T10:00:00+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": null,
+  "o:is_public": true,
+  "o:assign_new_items": false,
+  "o:page": [
+    { "@id": "http://localhost/api/site_pages/1", "o:id": 1 },
+    { "@id": "http://localhost/api/site_pages/2", "o:id": 2 }
+  ],
+  "o:site_permission": [
+    { "o:user": { "@id": "http://localhost/api/users/3", "o:id": 3 }, "o:role": "admin" },
+    { "o:user": { "@id": "http://localhost/api/users/5", "o:id": 5 }, "o:role": "viewer" }
+  ],
+  "o:site_item_set": [
+    { "o:item_set": { "@id": "http://localhost/api/item_sets/2", "o:id": 2 } }
+  ],
+  "o:theme_settings": { "installation_title": "Library", "show_page_pagination": false },
+  "o:site_item": { "@id": "http://localhost/api/items?site_id=1" }
+}

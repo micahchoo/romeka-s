@@ -1,0 +1,20 @@
+[package]
+name = "omeka-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+omeka-core = { path = "../omeka-core" }
+# The contract traits for the media and block extension points are typed by the
+# crates that own those registries (`Ingester`, `Renderer`, `BlockLayout`), so
+# this crate depends on them. Neither depends on this one.
+omeka-media = { path = "../omeka-media" }
+omeka-site = { path = "../omeka-site" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

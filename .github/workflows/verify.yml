@@ -1,0 +1,59 @@
+# The gate, in CI. Calls verification/ci/run.sh, which runs ./verify.sh all and
+# publishes the stage table and the counters as artifacts. See verification/ci/README.md.
+name: verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # edition 2024 and resolver 3 need a current stable, and the gate runs
+      # cargo fmt --check and cargo clippy -D warnings.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # The matrix generator and web/admin both run on node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/admin/package-lock.json
+
+      # source/ is gitignored: the oracle stages the frozen tree with git archive,
+      # so the runner needs the clone with that commit present.
+      - name: clone the frozen upstream checkout
+        run: |
+          git clone https://github.com/omeka/omeka-s.git source/omeka-s
+          git -C source/omeka-s checkout --detach 5e413f009c447f4b587803ab23a9cec7d228f6e8
+      # The oracle runs upstream PHP + MariaDB through docker compose, and the
+      # port diff installs a temporary database and serves it on an ephemeral port.
+      - name: check docker
+        run: |
+          docker info
+          docker compose version
+
+      - name: run the gate
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
+          # oracle/env.sh defaults this to the maintainer's checkout, so a runner
+          # has to point the oracle at the clone it just made.
+          OMEKA_SOURCE: ${{ github.workspace }}/source/omeka-s
+        run: verification/ci/run.sh
+
+      - name: publish the summary and the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-summary
+          path: |
+            verification/ci/summary.json
+            verification/ci/logs/verify.log
+          if-no-files-found: error

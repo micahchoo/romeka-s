@@ -1,0 +1,264 @@
+/**
+ * Resource list page tests. A stubbed fetch serves the fixtures, so each page
+ * runs through the real typed client, its parsers, and the shared ListPage.
+ * No test touches the network.
+ */
+import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { describe, expect, it } from 'vitest';
+import { AssetsPage } from '../src/pages/assets/page';
+import { ItemSetsPage } from '../src/pages/item-sets/page';
+import { JobsPage } from '../src/pages/jobs/page';
+import { MediaPage } from '../src/pages/media/page';
+import { ModulesPage } from '../src/pages/modules/page';
+import { PropertiesPage } from '../src/pages/properties/page';
+import { ResourceClassesPage } from '../src/pages/resource-classes/page';
+import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
+import { UsersPage } from '../src/pages/users/page';
+import { VocabulariesPage } from '../src/pages/vocabularies/page';
+import { loadFixture } from './loadFixture';
+import { first, installFetch, jsonResponse, linkHeader, listResponse, route, urlsFor } from './stub';
+const users = (): Response => jsonResponse(loadFixture('users-page.json'));
+const vocabularies = (): Response => jsonResponse(loadFixture('vocabularies-page.json'));
+const classes = (): Response => jsonResponse(loadFixture('resource-classes-page.json'));
+
+describe('assets page', () => {
+  it('asset_browse_shows_name_filename_media_type_and_owner', async () => {
+    installFetch(
+      route({
+        '/api/assets': () => listResponse(loadFixture('assets-page.json'), 2),
+        '/api/users': users,
+      }),
+    );
+    render(<AssetsPage />);
+
+    expect(await screen.findByText('omeka-logo.png')).toBeInTheDocument();
+    expect(
+      screen.getByText('a1b2c3d4e5f60718293a4b5c6d7e8f9012345678.png'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('image/png')).toBeInTheDocument();
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('A decorative heading')).toBeInTheDocument();
+    expect(screen.getByText('[No owner]')).toBeInTheDocument();
+  });
+
+  it('asset_page_shows_the_upstream_error_with_its_status', async () => {
+    installFetch(() =>
+      jsonResponse({ errors: { error: 'Permission denied' } }, { status: 403 }),
+    );
+    render(<AssetsPage />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied (HTTP 403)');
+  });
+});
+
+describe('item sets page', () => {
+  it('item_set_browse_shows_title_owner_dates_and_flags', async () => {
+    installFetch(
+      route({
+        '/api/item_sets': () => listResponse(loadFixture('item-sets-page.json'), 2),
+        '/api/users': users,
+      }),
+    );
+    render(<ItemSetsPage />);
+
+    expect(await screen.findByText('Featured photographs')).toBeInTheDocument();
+    expect(screen.getByText('Working drafts')).toBeInTheDocument();
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('2024-02-10 08:15')).toBeInTheDocument();
+    expect(screen.getAllByText('Yes')).toHaveLength(2);
+    expect(screen.getAllByText('No')).toHaveLength(2);
+  });
+
+  it('pagination fetches the next page', async () => {
+    const fetchMock = installFetch((url) => {
+      if (url.pathname === '/api/item_sets') {
+        if (url.searchParams.get('page') === '2') {
+          return listResponse(loadFixture('item-sets-page.json'), 3, {
+            Link: linkHeader([
+              ['prev', 1],
+              ['last', 2],
+            ]),
+          });
+        }
+        return listResponse(loadFixture('item-sets-page.json'), 3, {
+          Link: linkHeader([
+            ['next', 2],
+            ['last', 2],
+          ]),
+        });
+      }
+      if (url.pathname === '/api/users') {
+        return users();
+      }
+      return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
+    });
+    render(<ItemSetsPage />);
+
+    expect(await screen.findByText('Page 1 of 2 (3 item sets)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(await screen.findByText('Page 2 of 2 (3 item sets)')).toBeInTheDocument();
+    const pages = urlsFor(fetchMock, '/api/item_sets').map((url) => url.searchParams.get('page'));
+    expect(pages).toEqual(['1', '2']);
+  });
+});
+
+describe('jobs page', () => {
+  it('job_browse_shows_class_status_owner_and_times', async () => {
+    installFetch(
+      route({
+        '/api/jobs': () => listResponse(loadFixture('jobs-page.json'), 2),
+        '/api/users': users,
+      }),
+    );
+    render(<JobsPage />);
+
+    expect(await screen.findByText('Omeka\\Job\\UpdateSiteItems')).toBeInTheDocument();
+    expect(screen.getByText('completed')).toBeInTheDocument();
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getAllByText('2024-01-03 11:00')).toHaveLength(2);
+    expect(screen.getByText('in_progress')).toBeInTheDocument();
+    expect(screen.getByText('[No owner]')).toBeInTheDocument();
+  });
+});
+
+describe('media page', () => {
+  it('media_browse_shows_item_link_type_source_and_ingester', async () => {
+    installFetch(route({ '/api/media': () => listResponse(loadFixture('media-page.json'), 2) }));
+    render(<MediaPage param={null} />);
+
+    expect(await screen.findByText('Fixture photo')).toBeInTheDocument();
+    expect(first(screen.getAllByRole('link', { name: '#1' }))).toHaveAttribute(
+      'href',
+      '#/items/1',
+    );
+    expect(screen.getByText('image/jpeg')).toBeInTheDocument();
+    expect(screen.getByText('photo.jpg')).toBeInTheDocument();
+    expect(screen.getByText('upload')).toBeInTheDocument();
+    expect(screen.getByText('[Untitled]')).toBeInTheDocument();
+    expect(screen.getByText('No preview')).toBeInTheDocument();
+  });
+});
+
+describe('modules page', () => {
+  it('module_browse_reads_name_version_and_state_from_ini', async () => {
+    installFetch(route({ '/api/modules': () => listResponse(loadFixture('modules-page.json'), 2) }));
+    render(<ModulesPage />);
+
+    expect(await screen.findByText('3.4.0')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Omeka Team')).toBeInTheDocument();
+    expect(screen.getAllByText('Common')).toHaveLength(2);
+    expect(screen.getAllByText('Archive')).toHaveLength(2);
+    expect(screen.getByText('not_active')).toBeInTheDocument();
+  });
+});
+
+describe('properties page', () => {
+  it('property_browse_shows_term_label_comment_and_vocabulary', async () => {
+    installFetch(
+      route({
+        '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
+        '/api/vocabularies': vocabularies,
+      }),
+    );
+    render(<PropertiesPage />);
+
+    expect(await screen.findByText('dcterms:title')).toBeInTheDocument();
+    expect(screen.getByText('A name given to the resource.')).toBeInTheDocument();
+    expect(screen.getAllByText('Dublin Core')).toHaveLength(2);
+    expect(screen.getByText('dcterms:description')).toBeInTheDocument();
+  });
+});
+
+describe('resource classes page', () => {
+  it('resource_class_browse_shows_term_label_and_vocabulary_name', async () => {
+    installFetch(
+      route({
+        '/api/resource_classes': () => listResponse(loadFixture('resource-classes-page.json'), 2),
+        '/api/vocabularies': vocabularies,
+      }),
+    );
+    render(<ResourceClassesPage />);
+
+    expect(await screen.findByText('dctype:StillImage')).toBeInTheDocument();
+    expect(screen.getByText('Still Image')).toBeInTheDocument();
+    expect(screen.getByText('Dublin Core Type')).toBeInTheDocument();
+    expect(screen.getByText('bibo:Book')).toBeInTheDocument();
+    expect(screen.getByText('#3')).toBeInTheDocument();
+  });
+});
+
+describe('resource templates page', () => {
+  it('template_browse_shows_label_class_owner_and_property_count', async () => {
+    installFetch(
+      route({
+        '/api/resource_templates': () =>
+          listResponse(loadFixture('resource-templates-page.json'), 2),
+        '/api/users': users,
+        '/api/resource_classes': classes,
+      }),
+    );
+    render(<ResourceTemplatesPage />);
+
+    expect(await screen.findByText('Photograph')).toBeInTheDocument();
+    expect(screen.getByText('Still Image')).toBeInTheDocument();
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('Document')).toBeInTheDocument();
+    expect(screen.getByText('[None]')).toBeInTheDocument();
+    expect(screen.getByText('[No owner]')).toBeInTheDocument();
+  });
+});
+
+describe('users page', () => {
+  it('user_browse_shows_name_email_role_active_and_created', async () => {
+    installFetch(route({ '/api/users': users }));
+    render(<UsersPage />);
+
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('ada@example.org')).toBeInTheDocument();
+    expect(screen.getByText('global_admin')).toBeInTheDocument();
+    expect(screen.getByText('2026-10-15 08:00')).toBeInTheDocument();
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+    expect(screen.getByText('editor')).toBeInTheDocument();
+    expect(screen.getByText('No')).toBeInTheDocument();
+  });
+});
+
+describe('vocabularies page', () => {
+  it('vocabulary_browse_shows_label_prefix_and_namespace', async () => {
+    installFetch(route({ '/api/vocabularies': vocabularies }));
+    render(<VocabulariesPage />);
+
+    expect(await screen.findByText('Dublin Core')).toBeInTheDocument();
+    expect(screen.getByText('dcterms')).toBeInTheDocument();
+    expect(screen.getByText('http://purl.org/dc/terms/')).toBeInTheDocument();
+    expect(screen.getByText('Dublin Core Type')).toBeInTheDocument();
+    expect(screen.getByText('dctype')).toBeInTheDocument();
+  });
+});
+
+describe('list page error state', () => {
+  const pages: readonly (readonly [string, () => ReactElement])[] = [
+    ['assets', AssetsPage],
+    ['item sets', ItemSetsPage],
+    ['jobs', JobsPage],
+    ['media', () => <MediaPage param={null} />],
+    ['modules', ModulesPage],
+    ['properties', PropertiesPage],
+    ['resource classes', ResourceClassesPage],
+    ['resource templates', ResourceTemplatesPage],
+    ['users', UsersPage],
+    ['vocabularies', VocabulariesPage],
+  ];
+
+  it.each(pages)('%s page shows the upstream error with its status', async (_name, Page) => {
+    installFetch(() => jsonResponse({ errors: { error: 'Server error' } }, { status: 500 }));
+    render(<Page />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server error (HTTP 500)');
+  });
+});
+

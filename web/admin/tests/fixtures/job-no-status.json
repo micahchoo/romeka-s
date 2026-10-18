@@ -1,0 +1,17 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/jobs/1",
+    "@type": ["o:Job"],
+    "o:id": 1,
+    "o:status": null,
+    "o:job_class": "Omeka\\Job\\UpdateSiteItems",
+    "o:args": { "action": "add", "sites": [] },
+    "o:owner": { "@id": "http://localhost/api/users/3", "o:id": 3 },
+    "o:started": null,
+    "o:ended": {
+      "@value": "2024-01-03T11:00:05+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    }
+  }
+]

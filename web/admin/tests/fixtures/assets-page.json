@@ -1,0 +1,26 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/assets/1",
+    "@type": ["o:Asset"],
+    "o:id": 1,
+    "o:owner": { "@id": "http://localhost/api/users/3", "o:id": 3 },
+    "o:name": "omeka-logo.png",
+    "o:filename": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678.png",
+    "o:media_type": "image/png",
+    "o:asset_url": "http://localhost/files/asset/a1b2c3d4e5f60718293a4b5c6d7e8f9012345678.png",
+    "o:alt_text": null
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/assets/2",
+    "@type": ["o:Asset"],
+    "o:id": 2,
+    "o:owner": null,
+    "o:name": "heading.jpg",
+    "o:filename": "b2c3d4e5f60718293a4b5c6d7e8f9012345678a1.jpg",
+    "o:media_type": "image/jpeg",
+    "o:asset_url": "http://localhost/files/asset/b2c3d4e5f60718293a4b5c6d7e8f9012345678a1.jpg",
+    "o:alt_text": "A decorative heading"
+  }
+]

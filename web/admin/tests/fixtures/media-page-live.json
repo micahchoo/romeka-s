@@ -1,0 +1,120 @@
+[
+  {
+    "@context": "http://localhost:8124/api-context",
+    "@id": "http://localhost:8124/api/media/951",
+    "@type": "o:Media",
+    "o:id": 951,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": {
+      "large": "http://localhost:8124/application/asset/thumbnails/image.png",
+      "medium": "http://localhost:8124/application/asset/thumbnails/image.png",
+      "square": "http://localhost:8124/application/asset/thumbnails/image.png"
+    },
+    "o:created": {
+      "@value": "2026-10-17T07:55:21+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": {
+      "@value": "2026-10-17T07:55:21+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:ingester": "upload",
+    "o:renderer": "file",
+    "o:item": { "@id": "http://localhost:8124/api/items/31", "o:id": 31 },
+    "o:source": "BHC006_GMT_AF_010a.jpg",
+    "o:media_type": "image/jpeg",
+    "o:sha256": "4bad4a67cdf1d417864612e15834f17319e3ad21f06a2970e1292ff7d401360b",
+    "o:size": 5989397,
+    "o:filename": "e82cef00da75e9c5661a9ee66155ef419cf89988.jpg",
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": "http://localhost:8124/files/original/e82cef00da75e9c5661a9ee66155ef419cf89988.jpg",
+    "o:thumbnail_urls": [],
+    "data": null
+  },
+  {
+    "@context": "http://localhost:8124/api-context",
+    "@id": "http://localhost:8124/api/media/952",
+    "@type": "o:Media",
+    "o:id": 952,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": {
+      "large": "http://localhost:8124/application/asset/thumbnails/default.png",
+      "medium": "http://localhost:8124/application/asset/thumbnails/default.png",
+      "square": "http://localhost:8124/application/asset/thumbnails/default.png"
+    },
+    "o:created": {
+      "@value": "2026-10-17T07:56:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": {
+      "@value": "2026-10-17T07:56:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:ingester": "html",
+    "o:renderer": "html",
+    "o:item": { "@id": "http://localhost:8124/api/items/31", "o:id": 31 },
+    "o:source": null,
+    "o:media_type": null,
+    "o:sha256": null,
+    "o:size": null,
+    "o:filename": null,
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": null,
+    "o:thumbnail_urls": [],
+    "data": { "html": "<p>Media row without an uploaded file.</p>" }
+  },
+  {
+    "@context": "http://localhost:8124/api-context",
+    "@id": "http://localhost:8124/api/media/953",
+    "@type": "o:Media",
+    "o:id": 953,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": "Thumbnailed photo",
+    "thumbnail_display_urls": {
+      "large": "http://localhost:8124/files/thumbnails/large/abcdef0123.jpg",
+      "medium": "http://localhost:8124/files/thumbnails/medium/abcdef0123.jpg",
+      "square": "http://localhost:8124/files/thumbnails/square/abcdef0123.jpg"
+    },
+    "o:created": {
+      "@value": "2026-10-17T07:57:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": {
+      "@value": "2026-10-17T07:57:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:ingester": "upload",
+    "o:renderer": "file",
+    "o:item": { "@id": "http://localhost:8124/api/items/31", "o:id": 31 },
+    "o:source": "scan-002.png",
+    "o:media_type": "image/png",
+    "o:sha256": "abcdef0123",
+    "o:size": 1024,
+    "o:filename": "abcdef0123.jpg",
+    "o:lang": null,
+    "o:alt_text": "A scanned page",
+    "o:original_url": "http://localhost:8124/files/original/abcdef0123.png",
+    "o:thumbnail_urls": {
+      "large": "http://localhost:8124/files/thumbnails/large/abcdef0123.jpg",
+      "medium": "http://localhost:8124/files/thumbnails/medium/abcdef0123.jpg",
+      "square": "http://localhost:8124/files/thumbnails/square/abcdef0123.jpg"
+    },
+    "data": null
+  }
+]

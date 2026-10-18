@@ -1,0 +1,16 @@
+[package]
+name = "omeka-site"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono.workspace = true
+omeka-core = { path = "../omeka-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,7 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/data_types/literal",
+  "@type": ["o:DataType"],
+  "o:id": 1,
+  "o:label": "Text"
+}

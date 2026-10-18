@@ -1,0 +1,35 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/properties/1",
+    "@type": ["o:Property"],
+    "o:id": 1,
+    "o:local_name": "title",
+    "o:label": "Title",
+    "o:comment": "A name given to the resource.",
+    "o:term": "dcterms:title",
+    "o:vocabulary": { "@id": "http://localhost/api/vocabularies/1", "o:id": 1 }
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/properties/4",
+    "@type": ["o:Property"],
+    "o:id": 4,
+    "o:local_name": "description",
+    "o:label": "Description",
+    "o:comment": null,
+    "o:term": "dcterms:description",
+    "o:vocabulary": { "@id": "http://localhost/api/vocabularies/1", "o:id": 1 }
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/properties/13",
+    "@type": ["o:Property"],
+    "o:id": 13,
+    "o:local_name": "relation",
+    "o:label": "Relation",
+    "o:comment": "A related resource.",
+    "o:term": "dcterms:relation",
+    "o:vocabulary": { "@id": "http://localhost/api/vocabularies/1", "o:id": 1 }
+  }
+]

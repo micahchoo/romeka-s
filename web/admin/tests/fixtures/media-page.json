@@ -1,0 +1,80 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/media/7",
+    "@type": ["o:Media", "dctype:StillImage"],
+    "o:id": 7,
+    "o:is_public": true,
+    "o:owner": { "@id": "http://localhost/api/users/3", "o:id": 3 },
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": "Fixture photo",
+    "thumbnail_display_urls": {
+      "large": "http://localhost/files/large/photo.jpg",
+      "medium": "http://localhost/files/medium/photo.jpg",
+      "square": "http://localhost/files/square/photo.jpg"
+    },
+    "o:created": {
+      "@value": "2026-10-16T09:31:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:ingester": "upload",
+    "o:renderer": "image",
+    "o:item": { "@id": "http://localhost/api/items/1", "o:id": 1 },
+    "o:source": "photo.jpg",
+    "o:media_type": "image/jpeg",
+    "o:sha256": "5f4dcc3b5aa765d61d8327deb882cf99",
+    "o:size": 20480,
+    "o:filename": "photo.jpg",
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": "http://localhost/files/original/photo.jpg",
+    "o:thumbnail_urls": {
+      "large": "http://localhost/files/large/photo.jpg",
+      "medium": "http://localhost/files/medium/photo.jpg",
+      "square": "http://localhost/files/square/photo.jpg"
+    },
+    "dcterms:title": [
+      {
+        "type": "literal",
+        "property_id": 1,
+        "property_label": "Title",
+        "is_public": true,
+        "@value": "Fixture photo"
+      }
+    ]
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/media/8",
+    "@type": "o:Media",
+    "o:id": 8,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": { "large": null, "medium": null, "square": null },
+    "o:created": {
+      "@value": "2026-10-16T09:32:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:ingester": "html",
+    "o:renderer": "html",
+    "o:item": { "@id": "http://localhost/api/items/1", "o:id": 1 },
+    "o:source": null,
+    "o:media_type": null,
+    "o:sha256": null,
+    "o:size": null,
+    "o:filename": null,
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": null,
+    "o:thumbnail_urls": {},
+    "dcterms:title": []
+  }
+]

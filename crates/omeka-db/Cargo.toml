@@ -1,0 +1,30 @@
+[package]
+name = "omeka-db"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# The MySQL backend. Off by default so a default workspace build does not compile the MySQL
+# driver; `cargo test -p omeka-db --features mysql` turns it on.
+mysql = ["sqlx/mysql"]
+
+[dependencies]
+chrono.workspace = true
+serde_json.workspace = true
+sqlx = { version = "0.8.6", default-features = false, features = [
+    "runtime-tokio",
+    "sqlite",
+    "migrate",
+    "macros",
+    "chrono",
+] }
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
