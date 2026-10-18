@@ -101,6 +101,22 @@ carrier, so the admin picker offers them and its form uses the block's own field
 (`omeka-api/src/write/site_pages.rs::carry_block`) regenerates the plain rendering from `plain` and
 records the hash. `docs/compat.md` states the one-way rule this implements.
 
+### Starter page templates
+
+`blocks::templates` owns the five built-in starting points a new page can begin from: a page `layout`
+and `layout_data` plus a block list. A template block names either a registered layout with its
+`o:data` or a registered Romeka block with its settings, so a template cannot reference a block the
+admin has no form for. `template_registry` serialises them to
+`web/admin/src/generated/templates.json`, expanding a Romeka block to its carrier with the settings
+under `o:layout_data.romeka` and an empty carrier body, because the first save generates the plain
+rendering. A test keeps the file byte-identical and checks every block against the registries: a
+layout block's `o:data` parses, a Romeka block's settings name schema fields and carry their kinds,
+and every `o:data` key names a field its layout declares (the `asset` layout's index keys excepted).
+
+A site's own templates are not stored here. They are one `site_setting` row,
+`romeka_page_templates`, a JSON list of `{id, name, description, layout, layout_data, blocks}` that
+upstream ignores; the admin writes it through `o:site_settings`.
+
 ### Views
 
 | `view::View` | upstream view |

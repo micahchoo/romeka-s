@@ -15,7 +15,7 @@ test('the hero block saves and the public page renders the banner', async ({ pag
   await page.getByRole('link', { name: 'Welcome' }).click();
 
   await page.getByRole('button', { name: /Insert block at position/ }).last().click();
-  const picker = page.getByRole('dialog', { name: 'Choose a block layout' });
+  const picker = page.getByRole('dialog', { name: 'Insert a block or template' });
   await picker.getByRole('button', { name: 'Hero banner' }).click();
 
   // The card carries the Romeka block's label, not the carrier layout's.

@@ -1025,3 +1025,82 @@ code {
 .editor-canvas .canvas-toolbar {
   margin-bottom: var(--space-3);
 }
+
+.template-chooser {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 70ch;
+  height: calc(100vh - 12rem);
+  padding: var(--space-5);
+  overflow: auto;
+}
+
+.template-chooser h2,
+.template-chooser h3 {
+  margin: 0;
+}
+
+.template-list,
+.template-manager-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-card button {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.template-card-name {
+  font-weight: 600;
+}
+
+.template-card-description,
+.template-card-outline {
+  color: var(--text-muted);
+}
+
+.template-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.template-dialog {
+  display: grid;
+  gap: var(--space-3);
+  width: min(34rem, 100%);
+  min-height: 14rem;
+  max-height: calc(100vh - 4rem);
+  padding: var(--space-5);
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.template-dialog h2 {
+  margin: 0;
+}
+
+.template-dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.template-manager-row {
+  display: grid;
+  gap: var(--space-2);
+}

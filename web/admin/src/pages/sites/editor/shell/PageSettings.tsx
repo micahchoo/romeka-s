@@ -19,6 +19,8 @@ export interface PageSettingsProps {
   readonly pageId: PageId | null;
   /** Called after the page row is deleted, so the shell can return to the site. */
   readonly onDeleted: () => void;
+  /** Open the shell's save-as-template dialog. */
+  readonly onOpenSaveTemplate: () => void;
 }
 
 const numberFrom = (text: string): number => {
@@ -32,6 +34,7 @@ export const PageSettings = ({
   issues,
   pageId,
   onDeleted,
+  onOpenSaveTemplate,
 }: PageSettingsProps): ReactElement => {
   const { t } = useTranslator();
   const grid = draft.layout === 'grid';
@@ -148,6 +151,9 @@ export const PageSettings = ({
           }}
         />
       )}
+      <button type="button" onClick={onOpenSaveTemplate}>
+        {t('template.saveAs')}
+      </button>
     </div>
   );
 };

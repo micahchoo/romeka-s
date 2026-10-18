@@ -45,6 +45,7 @@ export const es: Catalogue = {
   'common.never': '[Nunca]',
   'common.sameOrigin': '[Mismo origen]',
   'common.pageFallback': 'Página {id}',
+  'common.close': 'Cerrar',
 
   'action.save': 'Guardar',
   'action.cancel': 'Cancelar',
@@ -465,7 +466,8 @@ export const es: Catalogue = {
   'canvas.attachments': '{count} adjuntos',
   'canvas.insert': 'Insertar bloque',
   'canvas.insertAt': 'Insertar bloque en la posición {position}',
-  'canvas.picker': 'Elegir un diseño de bloque',
+  'canvas.picker': 'Insertar un bloque o una plantilla',
+  'canvas.pickerBlocks': 'Bloques',
   'canvas.search': 'Buscar diseños',
   'canvas.close': 'Cerrar',
   'canvas.noMatches': 'Ningún diseño coincide.',
@@ -752,4 +754,36 @@ export const es: Catalogue = {
   'editor.unknownData': 'Datos del bloque (JSON)',
   'editor.unknownInvalid': 'El JSON no es válido: {message}',
   'editor.leaveConfirm': 'Esta página tiene cambios sin guardar. ¿Salir y perderlos?',
+
+  // Las plantillas de página: las integradas y las guardadas de un sitio.
+  'template.choose': 'Empezar desde una plantilla',
+  'template.chooseHint':
+    'Elige un punto de partida. Todos los bloques siguen siendo editables y puedes quitar los que quieras.',
+  'template.builtin': 'Plantillas integradas',
+  'template.saved': 'Plantillas guardadas',
+  'template.noBlocks': 'Sin bloques',
+  'template.blankChoice': 'Empezar en blanco',
+  'template.insert': 'Plantillas',
+  'template.saveAs': 'Guardar como plantilla',
+  'template.name': 'Nombre de la plantilla',
+  'template.description': 'Descripción',
+  'template.manager': 'Plantillas de página',
+  'template.managerHint':
+    'Plantillas guardadas de este sitio, disponibles al añadir una página.',
+  'template.manage': 'Gestionar plantillas',
+  'template.empty': 'Todavía no hay plantillas guardadas.',
+  'template.rename': 'Renombrar',
+  'template.delete': 'Eliminar',
+  'template.exhibitLanding.label': 'Portada de exposición',
+  'template.exhibitLanding.description':
+    'Un banner principal, una introducción, una vista previa de tus elementos y una lista de páginas.',
+  'template.collectionHighlight.label': 'Destacado de la colección',
+  'template.collectionHighlight.description':
+    'Un banner principal, un bloque de medios y un elemento con sus metadatos.',
+  'template.about.label': 'Acerca de',
+  'template.about.description': 'Un título de página, una introducción y un recurso.',
+  'template.gallery.label': 'Galería',
+  'template.gallery.description': 'Una cuadrícula de tres columnas con bloques de medios.',
+  'template.blank.label': 'En blanco',
+  'template.blank.description': 'Una página vacía sin bloques.',
 };

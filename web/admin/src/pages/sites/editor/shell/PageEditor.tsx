@@ -6,12 +6,13 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useEffect, useReducer, useRef, useState } from 'react';
 import { api, defaultBaseUrl } from '../../../../api/client';
-import type { PageId, Site, SiteId, SitePage } from '../../../../api/types';
+import type { JsonValue, PageId, Site, SiteId, SitePage } from '../../../../api/types';
 import { SaveStatus } from '../../../../app/fields';
 import { useSave } from '../../../../app/save';
 import { toError } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { BLOCK_REGISTRY } from '../../blockRegistry';
+import type { TemplateChoice } from '../../templates';
 import type { EditorOptions } from '../options';
 import { previewBody, requestPreview } from '../preview';
 import {
@@ -32,6 +33,25 @@ import { useUnsavedGuard } from './useUnsavedGuard';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
+);
+
+/** The create screen's chooser is its own chunk, so the editor shell does not
+ * carry the built-in template registry until a page is created. */
+const TemplateChooser = lazy(() =>
+  import('./TemplateChooser').then((module) => ({ default: module.TemplateChooser })),
+);
+
+/** The save-as-template dialog is its own chunk, loaded when the user opens it. */
+const SaveTemplateDialog = lazy(() =>
+  import('./SaveTemplateDialog').then((module) => ({ default: module.SaveTemplateDialog })),
+);
+
+/** The box the lazy dialogs load into. It is the dialog's own box, so showing it
+ * while the chunk loads moves nothing on the page. */
+const DialogFallback = ({ label }: { readonly label: string }): ReactElement => (
+  <div className="template-dialog-backdrop">
+    <div className="template-dialog template-dialog-loading" role="status" aria-label={label} />
+  </div>
 );
 
 /** How long the shell waits after the last change before it asks for a render. */
@@ -59,6 +79,9 @@ export const PageEditor = ({
 }: PageEditorProps): ReactElement => {
   const { t } = useTranslator();
   const [draft, dispatch] = useReducer(draftReducer, page, startDraft);
+  const [siteSettings, setSiteSettings] = useState<JsonValue | null>(site.siteSettings);
+  const [choosing, setChoosing] = useState(page === null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [selected, setSelected] = useState<BlockKey | null>(null);
   const [preview, setPreview] = useState<PreviewMode>('none');
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -131,6 +154,9 @@ export const PageEditor = ({
     if (next.type === 'addBlock') {
       setSelected(nextBlockKey(draft));
       focusAfter.current = 'inspector';
+    } else if (next.type === 'insertBlocks' && next.blocks.length > 0) {
+      setSelected(nextBlockKey(draft));
+      focusAfter.current = 'inspector';
     } else if (next.type === 'removeBlock') {
       if (selected === next.blockKey) {
         setSelected(null);
@@ -138,6 +164,11 @@ export const PageEditor = ({
       focusAfter.current = 'canvas';
     }
     dispatch(next);
+  };
+
+  const chooseTemplate = (template: TemplateChoice): void => {
+    dispatch({ type: 'applyTemplate', template });
+    setChoosing(false);
   };
 
   const runSave = (): void => {
@@ -193,6 +224,25 @@ export const PageEditor = ({
       }
     }, 0);
   };
+
+  if (choosing) {
+    return (
+      <Suspense
+        fallback={
+          <div className="template-chooser template-chooser-loading" role="status" aria-label={t('loading.page')} />
+        }
+      >
+        <TemplateChooser
+          registry={BLOCK_REGISTRY}
+          siteSettings={siteSettings}
+          onChoose={chooseTemplate}
+          onBlank={() => {
+            setChoosing(false);
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div className={`editor editor--preview-${preview}`}>
@@ -264,6 +314,7 @@ export const PageEditor = ({
               ) : null}
               <PageCanvas
                 draft={draft}
+                siteSettings={siteSettings}
                 selectedKey={selected}
                 onSelect={setSelected}
                 dispatch={action}
@@ -292,6 +343,9 @@ export const PageEditor = ({
                   guard.allowLeave();
                   window.location.hash = `#/sites/${String(siteId)}`;
                 }}
+                onOpenSaveTemplate={() => {
+                  setSavingTemplate(true);
+                }}
               />
             ) : (
               <Inspector
@@ -307,6 +361,22 @@ export const PageEditor = ({
           </Suspense>
         </div>
       </div>
+      <Suspense fallback={<DialogFallback label={t('loading.page')} />}>
+        {savingTemplate ? (
+          <SaveTemplateDialog
+            siteId={siteId}
+            siteSettings={siteSettings}
+            draft={draft}
+            onSaved={(settings) => {
+              setSiteSettings(settings);
+              setSavingTemplate(false);
+            }}
+            onClose={() => {
+              setSavingTemplate(false);
+            }}
+          />
+        ) : null}
+      </Suspense>
     </div>
   );
 };

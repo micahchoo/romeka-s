@@ -46,6 +46,7 @@ export const en = {
   'common.never': '[Never]',
   'common.sameOrigin': '[Same origin]',
   'common.pageFallback': 'Page {id}',
+  'common.close': 'Close',
 
   // Shared actions.
   'action.save': 'Save',
@@ -491,7 +492,8 @@ export const en = {
   'canvas.attachments': '{count} attachments',
   'canvas.insert': 'Insert block',
   'canvas.insertAt': 'Insert block at position {position}',
-  'canvas.picker': 'Choose a block layout',
+  'canvas.picker': 'Insert a block or template',
+  'canvas.pickerBlocks': 'Blocks',
   'canvas.search': 'Search layouts',
   'canvas.close': 'Close',
   'canvas.noMatches': 'No layout matches.',
@@ -786,6 +788,37 @@ export const en = {
   'editor.unknownData': 'Block data (JSON)',
   'editor.unknownInvalid': 'The JSON is invalid: {message}',
   'editor.leaveConfirm': 'This page has unsaved changes. Leave and lose them?',
+
+  // The page templates: the built-in starting points and a site's saved ones.
+  'template.choose': 'Start from a template',
+  'template.chooseHint':
+    'Pick a starting point. Every block stays editable, and you can remove any of them.',
+  'template.builtin': 'Built-in templates',
+  'template.saved': 'Saved templates',
+  'template.noBlocks': 'No blocks',
+  'template.blankChoice': 'Start blank',
+  'template.insert': 'Templates',
+  'template.saveAs': 'Save as template',
+  'template.name': 'Template name',
+  'template.description': 'Description',
+  'template.manager': 'Page templates',
+  'template.managerHint': 'Templates saved from this site, available when you add a page.',
+  'template.manage': 'Manage templates',
+  'template.empty': 'No templates saved yet.',
+  'template.rename': 'Rename',
+  'template.delete': 'Delete',
+  'template.exhibitLanding.label': 'Exhibit landing',
+  'template.exhibitLanding.description':
+    'A hero banner, an introduction, a preview of your items and a list of pages.',
+  'template.collectionHighlight.label': 'Collection highlight',
+  'template.collectionHighlight.description':
+    'A hero banner, a media block and an item with its metadata.',
+  'template.about.label': 'About',
+  'template.about.description': 'A page title, an introduction and an asset.',
+  'template.gallery.label': 'Gallery',
+  'template.gallery.description': 'A three-column grid of media blocks.',
+  'template.blank.label': 'Blank',
+  'template.blank.description': 'An empty page with no blocks.',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

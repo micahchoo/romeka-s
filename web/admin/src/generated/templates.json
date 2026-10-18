@@ -1,0 +1,191 @@
+{
+  "templates": [
+    {
+      "id": "exhibit-landing",
+      "label": "template.exhibitLanding.label",
+      "description": "template.exhibitLanding.description",
+      "layout": "normal",
+      "layoutData": {},
+      "blocks": [
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "hero",
+              "settings": {
+                "alignment": "left",
+                "heading": "Your exhibit title",
+                "overlay": "medium",
+                "subheading": "A sentence about what this exhibit holds"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<p>Introduce the exhibit here. This page came from a template, so every block is yours to edit or remove.</p>"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "browsePreview",
+          "data": {
+            "components": [
+              "resource-heading",
+              "resource-body",
+              "thumbnail"
+            ],
+            "heading": "Browse the collection",
+            "limit": 12,
+            "resource_type": "items"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "listOfPages",
+          "data": {
+            "pagelist": "[]"
+          },
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "collection-highlight",
+      "label": "template.collectionHighlight.label",
+      "description": "template.collectionHighlight.description",
+      "layout": "normal",
+      "layoutData": {},
+      "blocks": [
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "hero",
+              "settings": {
+                "alignment": "left",
+                "heading": "Collection highlight",
+                "overlay": "medium",
+                "subheading": "One object, up close"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "item_title",
+            "thumbnail_type": "square"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "itemWithMetadata",
+          "data": {},
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "label": "template.about.label",
+      "description": "template.about.description",
+      "layout": "normal",
+      "layoutData": {},
+      "blocks": [
+        {
+          "layout": "pageTitle",
+          "data": {},
+          "layoutData": null
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<p>About this site. Replace this text with the story behind the collection.</p>"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "asset",
+          "data": {
+            "0": {
+              "alt_link_title": "",
+              "caption": "",
+              "id": "",
+              "page": ""
+            }
+          },
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "gallery",
+      "label": "template.gallery.label",
+      "description": "template.gallery.description",
+      "layout": "grid",
+      "layoutData": {
+        "grid_column_gap": 10,
+        "grid_columns": 3,
+        "grid_row_gap": 10
+      },
+      "blocks": [
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "item_title",
+            "thumbnail_type": "square"
+          },
+          "layoutData": {
+            "grid_column_span": "1"
+          }
+        },
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "item_title",
+            "thumbnail_type": "square"
+          },
+          "layoutData": {
+            "grid_column_span": "1"
+          }
+        },
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "item_title",
+            "thumbnail_type": "square"
+          },
+          "layoutData": {
+            "grid_column_span": "1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "blank",
+      "label": "template.blank.label",
+      "description": "template.blank.description",
+      "layout": "normal",
+      "layoutData": {},
+      "blocks": []
+    }
+  ]
+}
