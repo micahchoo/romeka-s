@@ -423,7 +423,7 @@ impl<'a> Loader<'a> {
             // `Module::searchFulltext` replaces the sort with relevance.
             order_rows(&mut rows, None, filtered.ranks.as_ref(), true);
         } else if kind == ResourceKind::Item {
-            rows.sort_by(|a, b| b.resource().id.cmp(&a.resource().id));
+            rows.sort_by_key(|row| std::cmp::Reverse(row.resource().id));
         }
         Ok(rows)
     }

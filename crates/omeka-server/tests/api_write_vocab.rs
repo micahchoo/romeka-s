@@ -408,9 +408,7 @@ async fn a_property_create_refuses_a_missing_vocabulary_and_a_taken_name() {
     assert_eq!(answer.status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         answer.body,
-        format!(
-            r#"{{"errors":{{"o:local_name":["The local name \"title\" is already taken."]}}}}"#
-        )
+        r#"{"errors":{"o:local_name":["The local name \"title\" is already taken."]}}"#.to_string()
     );
 }
 
