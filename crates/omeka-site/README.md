@@ -35,14 +35,25 @@ manifest asset under `RenderContext::asset_base`, between the core `fonts.css`/`
 and the core scripts. The head carries no other stylesheet, so the caller serves
 `{asset_base}/css/style.css` from `theme::theme_asset("default", "css/style.css")` and the page is
 styled. The sheet's block rules are the subset of upstream `application/asset/css/page-blocks.css`
-that applies to the markup this port emits; the rules that key off a block's layout data are left out
-because core carries no layout data.
+that applies to the markup this port emits, its page-grid rules are
+`application/asset/css/page-grid.css`, and it adds a rule for every block wrapper class no upstream
+rule names. A stored block `class` is arbitrary, so only a registered layout's wrapper has a rule.
 
 ### Page blocks
 
 `blocks::render_page_blocks` reproduces `View/Helper/PageLayout::render`: the page's blocks in
-`position` order inside `<div class="blocks-inner page-layout-normal">`, and a `blockGroup` opens a
-`block block-blockGroup` wrapper around the `span` blocks that follow it.
+`position` order inside the `blocks-inner` element, with the page's `layout` and `layout_data` on
+that element (`page-layout-normal`, or `page-layout-grid grid-template-columns-{n}` with the pixel
+gaps). Each block is wrapped as `BlockLayout::render` wraps it, in `block block-{layout}` with the
+classes and inline styles `AbstractLayout` derives from the block's `layout_data` (the grid
+placement, a stored class, alignment, background, padding and the CSS lengths). A `blockGroup` opens
+a `block block-blockGroup` wrapper around the `span` blocks that follow it, and on a grid page that
+wrapper carries `block-group-grid grid-position-1 grid-span-{n}`.
+
+`layout_data.template_name` (the theme block-template key) is carried and not rendered: the port
+bundles no block templates. `background_image_asset` needs the asset's URL, which the
+`ResourceProvider::read_asset` lookup supplies; no asset repository backs it yet, so the class is
+emitted and the `background-image` style appears only when a caller resolves the asset.
 
 ### Views
 

@@ -4,11 +4,10 @@
 //! asset base.
 //!
 //! The sheet is the port's own. Its block and page-layout rules are the subset
-//! of `application/asset/css/page-blocks.css` that applies to the markup this
-//! port emits, and its shell, list and navigation rules stand in for
-//! `application/asset/css/style.css`. Both are core assets upstream. The port
-//! drops the rules that key off a block's layout data, because core carries no
-//! layout data.
+//! of `application/asset/css/page-blocks.css` and `page-grid.css` that applies
+//! to the markup this port emits, plus a rule for every block wrapper class no
+//! upstream rule names, and its shell, list and navigation rules stand in for
+//! `application/asset/css/style.css`. Both are core assets upstream.
 
 /// The bundled theme's stylesheet.
 pub const STYLE_CSS: &str = include_str!("style.css");
@@ -18,7 +17,9 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
-    use crate::blocks::test_support::{TestResources, block, context, item, resource_ref, site};
+    use crate::blocks::test_support::{
+        TestResources, block, block_with_layout, context, item, resource_ref, site,
+    };
     use crate::nav::{NavItem, PageRef};
     use crate::search::{
         AdvancedSearchForm, CrossSiteBody, CrossSitePage, FormOption, SearchHit, SearchList,
@@ -31,7 +32,7 @@ mod tests {
     };
     use omeka_core::ids::{AssetId, ItemId, PageId, SiteId};
     use omeka_core::resource::ResourceKind;
-    use omeka_core::site::{SitePage, Slug};
+    use omeka_core::site::{PageLayout, PageLayoutData, SitePage, Slug};
     use serde_json::json;
 
     /// The class tokens a rendered document carries inside its content region.
@@ -106,6 +107,7 @@ mod tests {
             AssetView {
                 id: AssetId::new(3),
                 title: "A logo".to_string(),
+                url: Some("/files/original/3.png".to_string()),
                 thumbnail: Some(Thumbnail::new("/files/square/3.jpg", "A logo")),
             },
         );
@@ -222,8 +224,52 @@ mod tests {
         page
     }
 
+    /// A grid page whose blocks carry layout data, so the sheet's page-grid and
+    /// layout-data rules are checked against the classes the grid markup emits.
+    /// No block sets a stored `class`, because a stored class is arbitrary and
+    /// the sheet cannot name it.
+    fn grid_page() -> SitePage {
+        let mut page = SitePage::new(
+            PageId::new(5),
+            SiteId::new(1),
+            Slug::parse("grid").unwrap(),
+            "Grid",
+        );
+        page.layout = PageLayout::Grid;
+        page.layout_data = PageLayoutData::parse(&json!({"grid_columns": 12}));
+        page.blocks = vec![
+            block_with_layout(
+                "html",
+                json!({"html": "<p>Hero</p>"}),
+                json!({
+                    "grid_column_span": "6",
+                    "alignment_text": "justify",
+                    "background_color": "#eeeeee",
+                    "padding_top": "1em"
+                }),
+            ),
+            block_with_layout(
+                "blockGroup",
+                json!({"span": "1"}),
+                json!({
+                    "alignment_block": "center",
+                    "background_image_asset": "3",
+                    "background_image_position_y": "top",
+                    "background_image_position_x": "left",
+                    "background_image_size": "cover"
+                }),
+            ),
+            block("html", json!({"html": "<p>Body</p>"})),
+        ];
+        for (index, block) in page.blocks.iter_mut().enumerate() {
+            block.position = index as i64 + 1;
+        }
+        page
+    }
+
     /// The documents whose fragments the stylesheet must style: a page with
-    /// every layout, a browse per resource kind, and the remaining views.
+    /// every layout, a grid page, a browse per resource kind, and the remaining
+    /// views.
     fn documents() -> Vec<String> {
         let site = site();
         let mut resources = rich_provider();
@@ -265,6 +311,8 @@ mod tests {
 
         let page = about_page();
         let mut documents = vec![crate::render::render_page(&page, &mut ctx)];
+        let grid = grid_page();
+        documents.push(crate::render::render_page(&grid, &mut ctx));
 
         let mut browse = BrowseView {
             kind: ResourceKind::Item,
@@ -357,14 +405,17 @@ mod tests {
 
     /// Every class token a rendered fragment carries has a rule in the sheet, so
     /// a view that starts emitting a new class fails here until the sheet styles
-    /// it.
+    /// it. One exception: an unregistered layout's wrapper is `block-{name}` for
+    /// a stored name the sheet cannot know, so `every_layout_blocks`' fallback
+    /// block is skipped.
     #[test]
     fn style_css_styles_every_class_the_views_emit() {
         let selectors = selector_tokens(STYLE_CSS);
+        let dynamic: BTreeSet<String> = ["block-myModuleLayout".to_string()].into();
         let mut missing = BTreeSet::new();
         for document in documents() {
             for class in emitted_classes(&document) {
-                if !selectors.contains(&class) {
+                if !selectors.contains(&class) && !dynamic.contains(&class) {
                     missing.insert(class);
                 }
             }
@@ -397,12 +448,29 @@ mod tests {
     }
 
     /// Every registered layout that emits a class has a rule naming it, so a
-    /// reader can find a block's styling by its upstream layout name.
+    /// reader can find a block's styling by its upstream layout name. The
+    /// wrapper class `block-{layout}` is named for each layout, and the grid
+    /// placement and layout-data classes the page-grid and page-blocks rules
+    /// carry.
     #[test]
     fn style_css_names_the_block_layouts_it_styles() {
         let selectors = selector_tokens(STYLE_CSS);
         for layout in [
             "block-blockGroup",
+            "block-html",
+            "block-pageTitle",
+            "block-media",
+            "block-browsePreview",
+            "block-listOfSites",
+            "block-tableOfContents",
+            "block-lineBreak",
+            "block-itemWithMetadata",
+            "block-pageDateTime",
+            "block-iiifPresentation",
+            "block-iiifImage",
+            "block-asset",
+            "block-listOfPages",
+            "block-oembed",
             "media-embed",
             "preview-block",
             "toc-block",
@@ -412,6 +480,17 @@ mod tests {
             "list-of-sites",
             "break",
             "list-of-pages-link",
+            "page-layout-grid",
+            "grid-template-columns-12",
+            "grid-position-auto",
+            "grid-span-12",
+            "block-group-grid",
+            "block-layout-alignment-text-justify",
+            "block-layout-alignment-block-center",
+            "block-layout-background-image-position-y-top",
+            "block-layout-background-image-position-x-left",
+            "block-layout-background-image-size-cover",
+            "has-background",
         ] {
             assert!(selectors.contains(layout), "no rule for {layout}");
         }

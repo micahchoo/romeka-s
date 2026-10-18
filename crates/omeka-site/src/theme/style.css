@@ -1,9 +1,9 @@
 /* The bundled theme's stylesheet. The block and page-layout rules below are
-   the subset of the core asset `application/asset/css/page-blocks.css` that
-   applies to the markup this port emits; the rules that key off a block's
-   layout data (alignment, background, grid placement) are left out because
-   core carries no layout data. The shell, list and navigation rules stand in
-   for the core asset `application/asset/css/style.css`. */
+   the subset of the core assets `application/asset/css/page-blocks.css` and
+   `application/asset/css/page-grid.css` that applies to the markup this port
+   emits, plus a rule for every block wrapper class no upstream rule names. The
+   shell, list and navigation rules stand in for the core asset
+   `application/asset/css/style.css`. */
 
 :root {
   color-scheme: light;
@@ -79,6 +79,191 @@ footer {
   content: "";
   display: block;
   clear: both;
+}
+
+/* Page and block layout data. The page grid rules are the core asset
+   `application/asset/css/page-grid.css`; the alignment and background rules
+   are the layout-data rules of `application/asset/css/page-blocks.css`. */
+
+.page-layout-grid {
+  display: grid;
+}
+
+.grid-template-columns-1 { grid-template-columns: repeat(1, 1fr); }
+.grid-template-columns-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-template-columns-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-template-columns-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-template-columns-5 { grid-template-columns: repeat(5, 1fr); }
+.grid-template-columns-6 { grid-template-columns: repeat(6, 1fr); }
+.grid-template-columns-7 { grid-template-columns: repeat(7, 1fr); }
+.grid-template-columns-8 { grid-template-columns: repeat(8, 1fr); }
+.grid-template-columns-9 { grid-template-columns: repeat(9, 1fr); }
+.grid-template-columns-10 { grid-template-columns: repeat(10, 1fr); }
+.grid-template-columns-11 { grid-template-columns: repeat(11, 1fr); }
+.grid-template-columns-12 { grid-template-columns: repeat(12, 1fr); }
+
+.grid-position-auto { grid-column-start: auto; }
+.grid-position-1 { grid-column-start: 1; }
+.grid-position-2 { grid-column-start: 2; }
+.grid-position-3 { grid-column-start: 3; }
+.grid-position-4 { grid-column-start: 4; }
+.grid-position-5 { grid-column-start: 5; }
+.grid-position-6 { grid-column-start: 6; }
+.grid-position-7 { grid-column-start: 7; }
+.grid-position-8 { grid-column-start: 8; }
+.grid-position-9 { grid-column-start: 9; }
+.grid-position-10 { grid-column-start: 10; }
+.grid-position-11 { grid-column-start: 11; }
+.grid-position-12 { grid-column-start: 12; }
+
+.grid-span-1 { grid-column-end: span 1; }
+.grid-span-2 { grid-column-end: span 2; }
+.grid-span-3 { grid-column-end: span 3; }
+.grid-span-4 { grid-column-end: span 4; }
+.grid-span-5 { grid-column-end: span 5; }
+.grid-span-6 { grid-column-end: span 6; }
+.grid-span-7 { grid-column-end: span 7; }
+.grid-span-8 { grid-column-end: span 8; }
+.grid-span-9 { grid-column-end: span 9; }
+.grid-span-10 { grid-column-end: span 10; }
+.grid-span-11 { grid-column-end: span 11; }
+.grid-span-12 { grid-column-end: span 12; }
+
+.block-group-grid {
+  display: grid;
+}
+
+.block-blockGroup.block-group-grid {
+  gap: inherit;
+  grid-template-columns: inherit;
+}
+
+.page-layout-grid .block-layout-alignment-block-left {
+  justify-self: left;
+}
+
+.page-layout-grid .block-layout-alignment-block-right {
+  justify-self: right;
+}
+
+.page-layout-grid .block-layout-alignment-block-center {
+  justify-self: center;
+}
+
+.page-layout-grid .block-layout-alignment-block-center,
+.page-layout-grid .block-layout-alignment-block-left,
+.page-layout-grid .block-layout-alignment-block-right {
+  max-width: 100%;
+}
+
+@media screen and (max-width: 896px) {
+  .page-layout-grid {
+    display: block;
+  }
+}
+
+.page-layout-normal .block-layout-alignment-block-left,
+.page-layout-normal .block-layout-alignment-block-right {
+  max-width: 20%;
+}
+
+.page-layout-normal .block-layout-alignment-block-left {
+  float: left;
+  clear: left;
+  margin: 0 1rem 1rem 0;
+}
+
+.page-layout-normal .block-layout-alignment-block-right {
+  float: right;
+  clear: right;
+  margin: 0 0 1rem 1rem;
+}
+
+.page-layout-normal .block-layout-alignment-block-center {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 1rem auto;
+  clear: both;
+}
+
+.block-layout-alignment-text-right {
+  text-align: right;
+}
+
+.block-layout-alignment-text-center {
+  text-align: center;
+}
+
+.block-layout-alignment-text-justify {
+  text-align: justify;
+}
+
+.block-layout-background-image-position-y-top {
+  background-position-y: top;
+}
+
+.block-layout-background-image-position-y-center {
+  background-position-y: center;
+}
+
+.block-layout-background-image-position-y-bottom {
+  background-position-y: bottom;
+}
+
+.block-layout-background-image-position-x-left {
+  background-position-x: left;
+}
+
+.block-layout-background-image-position-x-center {
+  background-position-x: center;
+}
+
+.block-layout-background-image-position-x-right {
+  background-position-x: right;
+}
+
+.block-layout-background-image-size-cover,
+.block-layout-background-image-size-contain {
+  background-repeat: no-repeat;
+}
+
+.block-layout-background-image-size-cover {
+  background-size: cover;
+}
+
+.block-layout-background-image-size-contain {
+  background-size: contain;
+}
+
+.block-html.has-background > *:first-child {
+  margin-top: 0;
+}
+
+.block-html.has-background > *:last-child {
+  margin-bottom: 0;
+}
+
+.block-pageTitle.has-background h2 {
+  margin: 0;
+}
+
+/* A block wrapper with no upstream rule of its own. Its children sit in a
+   grid or flex track, so min-width keeps long content inside the block. */
+
+.block-asset,
+.block-browsePreview,
+.block-iiifImage,
+.block-iiifPresentation,
+.block-itemWithMetadata,
+.block-lineBreak,
+.block-listOfPages,
+.block-listOfSites,
+.block-media,
+.block-oembed,
+.block-pageDateTime,
+.block-tableOfContents {
+  min-width: 0;
 }
 
 /* Resource lists and their entries */
