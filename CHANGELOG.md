@@ -14,11 +14,18 @@ semantic versioning.
   red: the fixtures are at [`fixtures/api/`](fixtures/api/README.md), `docs/gen/check_wire.py` reads
   them and exits non-zero on an empty set, and the README's "What is not ported" now names the admin
   SPA gaps.
+- Added the one-way rule for site pages to [`docs/compat.md`](docs/compat.md): a page made here
+  must show the same content in upstream, and a block this product adds is stored under an upstream
+  layout with a generated plain rendering.
 - Added two rows to [`docs/compat.md`](docs/compat.md) for the deliberate differences: a write that
   names an unknown property term answers 422, and `GET /api` answers JSON-LD rather than HTML.
 
 ### Fixed
 
+- A site page renders its normal or grid layout and each block's `layout_data` (grid position and
+  span, class, alignment, sizes, padding, background colour) with upstream's markup.
+- A block's `o:attachment` is read, written and rendered. A missing item, or a media that is not the
+  item's, is stored as null, as upstream's `hydrateAttachments` does.
 - A `PATCH` that names no value object keeps every stored value; one that names a valid value still
   replaces the whole set, as upstream's `ValueHydrator` does.
 - Every reference a body names resolves before the first write, so a refused reference leaves the

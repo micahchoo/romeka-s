@@ -52,6 +52,38 @@ a gap that was discovered.
 | A write body whose value names an unknown property term answers 422, with the errors document keyed by that term. Upstream's value hydrator sets a null property and answers 500. | [`crates/omeka-api/src/write/values.rs`](../crates/omeka-api/src/write/values.rs) |
 | `GET /api` answers the JSON-LD resource listing. Upstream renders an HTML page from `omeka/api/root` at the same route. | [`crates/omeka-api/src/read/meta.rs`](../crates/omeka-api/src/read/meta.rs) |
 
+## Site pages: the one-way rule
+
+Romeka S may give a site page more than upstream can draw. The rule for that extra is one-way: a page
+made here must show the same content when upstream renders it, perhaps plainer. A page edited in
+upstream's admin is not promised to keep what only Romeka S draws.
+
+The rule rests on what upstream does with data it does not know. Measured against the oracle at the
+fork point, with a page posted through `/api` and read back:
+
+| Sent | Upstream's API | Upstream's public page |
+| --- | --- | --- |
+| an extra key in a known block's `o:data` | stores it unchanged | ignores it; the block renders |
+| an extra key in block or page `o:layout_data` | stores it unchanged | ignores it; the known keys apply |
+| a block whose `o:layout` upstream does not know | stores it unchanged | an empty `<div class="block block-<layout>">`; the content is gone |
+
+So an extra key degrades and an unknown layout does not. Three consequences follow, and every
+block added to this product obeys them:
+
+- A block this product adds is stored under an upstream layout, usually `html`. Its own settings sit
+  under `o:data.romeka`, which upstream ignores.
+- The upstream part of that block, such as `o:data.html`, is the plain rendering. Romeka S writes it
+  from the block's own renderer on every save, so nobody writes the fallback by hand and it cannot drift
+  from the rich block.
+- A block that has no plain rendering (a live search, an interactive map) writes a plain statement of
+  what is missing and a link to this product's page, never nothing.
+
+Upstream's admin builds `o:data` from the block's form fields (`application/src/Site/BlockLayout/Html.php`
+names one, `o:data[html]`), so a save there keeps the plain rendering and drops `o:data.romeka`. That
+is why the rule is one-way. The block's `o:layout_data` travels through that form as one hidden JSON
+field (`application/view/common/block-layout.phtml`), so it may survive an upstream save; that has
+not been measured.
+
 ## What compatibility does not cover
 
 - Third-party PHP modules and themes, Laminas and Doctrine internals, and the admin's exact markup.

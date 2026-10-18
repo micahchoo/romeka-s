@@ -103,8 +103,9 @@ Most columns copy straight across. The exceptions are below.
 4. **Value annotations.** `omeka-db` creates a `value_annotation` but has no read for one, so the
    migrator cannot enumerate them. Every `value.value_annotation_id` is dropped and the annotation
    resources are not written.
-5. **`site_block_attachment`.** The port has no repository for it, so the block layouts that read
-   attachments (`itemWithMetadata`, `media`) render without them.
+5. **`site_block_attachment`.** The migrator does not copy these rows. `omeka-db` now reads and
+   writes them, so a migrated `itemWithMetadata` or `media` block renders empty only until this
+   step is built.
 6. **Ids inside block `data` JSON.** Only `site.navigation` page ids are rewritten. Any other id a
    block stores in its `data` is left as the source wrote it.
 7. **`fulltext_search`.** Not migrated. The port rebuilds the index with its own job.
