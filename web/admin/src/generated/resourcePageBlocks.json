@@ -1,0 +1,101 @@
+{
+  "resources": [
+    {
+      "key": "items",
+      "labelKey": "resourcePage.items",
+      "default": [
+        "mediaEmbeds",
+        "values",
+        "itemSets",
+        "sitePages",
+        "mediaList",
+        "linkedResources"
+      ],
+      "blocks": [
+        {
+          "name": "itemSets",
+          "labelKey": "resourcePageBlock.itemSets"
+        },
+        {
+          "name": "lightboxGallery",
+          "labelKey": "resourcePageBlock.lightboxGallery"
+        },
+        {
+          "name": "linkedResources",
+          "labelKey": "resourcePageBlock.linkedResources"
+        },
+        {
+          "name": "mediaEmbeds",
+          "labelKey": "resourcePageBlock.mediaEmbeds"
+        },
+        {
+          "name": "mediaList",
+          "labelKey": "resourcePageBlock.mediaList"
+        },
+        {
+          "name": "resourceClass",
+          "labelKey": "resourcePageBlock.resourceClass"
+        },
+        {
+          "name": "sitePages",
+          "labelKey": "resourcePageBlock.sitePages"
+        },
+        {
+          "name": "values",
+          "labelKey": "resourcePageBlock.values"
+        }
+      ]
+    },
+    {
+      "key": "item_sets",
+      "labelKey": "resourcePage.itemSets",
+      "default": [
+        "values"
+      ],
+      "blocks": [
+        {
+          "name": "lightboxGallery",
+          "labelKey": "resourcePageBlock.lightboxGallery"
+        },
+        {
+          "name": "linkedResources",
+          "labelKey": "resourcePageBlock.linkedResources"
+        },
+        {
+          "name": "resourceClass",
+          "labelKey": "resourcePageBlock.resourceClass"
+        },
+        {
+          "name": "values",
+          "labelKey": "resourcePageBlock.values"
+        }
+      ]
+    },
+    {
+      "key": "media",
+      "labelKey": "resourcePage.media",
+      "default": [
+        "mediaRender",
+        "values"
+      ],
+      "blocks": [
+        {
+          "name": "lightboxGallery",
+          "labelKey": "resourcePageBlock.lightboxGallery"
+        },
+        {
+          "name": "mediaRender",
+          "labelKey": "resourcePageBlock.mediaRender"
+        },
+        {
+          "name": "resourceClass",
+          "labelKey": "resourcePageBlock.resourceClass"
+        },
+        {
+          "name": "values",
+          "labelKey": "resourcePageBlock.values"
+        }
+      ]
+    }
+  ]
+}

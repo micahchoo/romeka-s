@@ -117,6 +117,16 @@ carrier, so the admin picker offers them and its form uses the block's own field
 (`omeka-api/src/write/site_pages.rs::carry_block`) regenerates the plain rendering from `plain` and
 records the hash. `docs/compat.md` states the one-way rule this implements.
 
+### Resource page blocks
+
+An item, item set or media page renders the fragments `resource_page::render_blocks` names, in the
+order the theme stores under `resource_page_blocks`. The registration is `RESOURCE_PAGE_BLOCKS` and
+the bundled theme's set is `default_blocks`. `resource_page_schema::registry` lists the registered
+layouts per resource with their labels and the theme's default order, and serialises them to
+`web/admin/src/generated/resourcePageBlocks.json`, which the admin Theme page turns into an ordered
+list editor. A test keeps the file byte-identical; regenerate with `UPDATE_GENERATED=1 cargo test -p
+omeka-site`.
+
 ### Starter page templates
 
 `blocks::templates` owns the five built-in starting points a new page can begin from: a page `layout`

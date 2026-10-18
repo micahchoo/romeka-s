@@ -27,12 +27,17 @@ import {
 import type { BlockKey, DraftAction, PageDraft } from '../draft';
 import { Inspector } from './Inspector';
 import { PageSettings } from './PageSettings';
-import { PreviewPanel } from './PreviewPanel';
 import type { PreviewStatus } from './PreviewPanel';
 import { useUnsavedGuard } from './useUnsavedGuard';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
+);
+
+/** The live preview is its own chunk. The shell renders no frame until a preview
+ * mode is chosen, so the panel loads on the first render request. */
+const PreviewPanel = lazy(() =>
+  import('./PreviewPanel').then((module) => ({ default: module.PreviewPanel })),
 );
 
 /** The create screen's chooser is its own chunk, so the editor shell does not
@@ -323,7 +328,9 @@ export const PageEditor = ({
           </div>
         )}
         {preview === 'none' ? null : (
-          <PreviewPanel html={previewHtml} status={previewStatus} message={previewMessage} />
+          <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
+            <PreviewPanel html={previewHtml} status={previewStatus} message={previewMessage} />
+          </Suspense>
         )}
         <div
           className="editor-inspector"

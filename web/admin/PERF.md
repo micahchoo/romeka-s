@@ -291,6 +291,37 @@ The session probe is one request per load and the shell does not wait on it: the
 key's state until the user arrives. That keeps the paint path free of it, which is what Decision 3
 measured. Measured with `npm run perf:bundle` at this commit.
 
+## Decision 7: the page editor's chunks, and the preview panel on demand (accepted)
+
+The page editor is a lazy route under `src/pages/sites/editor/`. Opening a page fetches the shell and
+the shared chunks its static imports name; the canvas, the field controls, the template chooser, the
+save-as-template dialog and the preview panel each arrive on demand. Measured with `npm run
+perf:bundle` after `npm run build`, gzip bytes, at commit `2884116` plus this change:
+
+| Chunk | Module | Raw | Gzip |
+| --- | --- | --- | --- |
+| shell | `editor/shell/index.ts` | 13290 | 4268 |
+| canvas | `editor/canvas/index.ts` | 11715 | 4018 |
+| canvas css | `editor/canvas/canvas.css` | 3674 | 992 |
+| fields | `editor/fields/index.ts` | 20352 | 5388 |
+| fields, shared | the field controls' shared module | 9810 | 2867 |
+| registry, shared | the block registry and schema the shell reads | 25081 | 6538 |
+| preview panel | `editor/shell/PreviewPanel.tsx` | 1353 | 595 |
+| chooser | `editor/shell/TemplateChooser.tsx` | 1455 | 570 |
+| dialogs | `editor/shell/SaveTemplateDialog.tsx` | 1330 | 659 |
+
+**Change.** `PageEditor` loads the preview panel with `React.lazy` instead of a static import, behind
+the `Suspense` boundary that already wraps the canvas. The panel renders only after a preview mode is
+chosen, so a page that is being edited without a preview no longer fetches it. Before, the shell's
+static import pulled a shared chunk holding both `editor/preview.ts` and the panel, 6996 B gzip.
+After, the panel is its own 595 B chunk and the rest of that shared chunk, 6538 B gzip, stays eager,
+because the shell reads the block registry through it.
+
+**Measured.** The shell chunk is 4268 B gzip against the 10240 B per-chunk ceiling, 5972 B of slack,
+and the largest lazy chunk is the sites route page at 7643 B, 2597 B of slack. The initial payload is
+97732 B js gzip and 3504 B css gzip, the raise over Decision 6's 88411 B being the pages added since.
+`npm run perf:check` passes on all three.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

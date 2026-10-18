@@ -113,9 +113,15 @@ describe('the canvas cards', () => {
     expect(onSelect).toHaveBeenCalledWith(blockAt(draft.blocks, 1).key);
   });
 
-  it('shows the empty state and the page validation notice', () => {
+  it('shows the block count in the toolbar and leaves the empty state to the shell', () => {
     renderCanvas(load([]));
-    expect(screen.getByText(/No blocks yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/No blocks yet/)).toBeNull();
+    expect(screen.getByText('0 blocks')).toBeInTheDocument();
+  });
+
+  it('counts the blocks in the toolbar', () => {
+    renderCanvas(load([rawBlock('html', { html: 'a' }), rawBlock('html', { html: 'b' })]));
+    expect(screen.getByText('2 blocks')).toBeInTheDocument();
   });
 });
 
@@ -400,32 +406,11 @@ describe('undo and redo', () => {
   });
 });
 
-describe('the page layout control', () => {
-  it('switches to the grid and sets the columns', () => {
-    const draft = load([rawBlock('html', { html: 'a' })]);
-    const { dispatch } = renderCanvas(draft);
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Grid' }));
-    expect(dispatch).toHaveBeenCalledWith({ type: 'setPageLayout', layout: 'grid' });
-  });
-
-  it('sets the column count and gaps in grid mode', () => {
-    const draft = gridPage([rawBlock('html', { html: 'a' })]);
-    const { dispatch } = renderCanvas(draft);
-
-    fireEvent.change(screen.getByLabelText('Columns'), { target: { value: '6' } });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'setPageLayoutData',
-      key: 'grid_columns',
-      value: 6,
-    });
-
-    fireEvent.change(screen.getByLabelText('Column gap (px)'), { target: { value: '20' } });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'setPageLayoutData',
-      key: 'grid_column_gap',
-      value: 20,
-    });
+describe('the page layout controls', () => {
+  it('are not on the canvas, which leaves page layout to the inspector', () => {
+    renderCanvas(gridPage([rawBlock('html', { html: 'a' })]));
+    expect(screen.queryByRole('radio', { name: 'Grid' })).toBeNull();
+    expect(screen.queryByLabelText('Columns')).toBeNull();
   });
 });
 
