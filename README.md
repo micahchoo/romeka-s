@@ -11,7 +11,7 @@ tables, the columns and the schema are the same. What changes is the implementat
 
 This repository is a fork of [`omeka/omeka-s`](https://github.com/omeka/omeka-s) taken at commit
 `5e413f009c447f4b587803ab23a9cec7d228f6e8`, and it carries the same license, the GNU General Public
-License version 3. The Rust core and the TypeScript admin are a reimplementation, not a copy: they
+License version 3. The Rust core and the TypeScript admin are a reimplementation, not a copy. They
 read and write upstream's schema and answer upstream's API. [`NOTICE`](NOTICE) records the upstream
 project, the license and the fork point. Upstream is credited there and in the license text.
 
@@ -59,46 +59,47 @@ cd web/admin && npm ci && npm run build      # writes web/admin/dist
 ```
 
 The origin serves `dist/` at `/`, the media files under `/files/`, and forwards `/api`,
-`/api-context`, `/health`, `/s/` and `/assets/` to the server. `web/admin/e2e/harness/proxy.ts` is a
-working example of that origin, and `packaging/nginx.conf.template` is the one we ship. One
-constraint to know before you write your own: the admin bundle's own chunk directory is also
-`assets`, so the SPA's files and the theme's files share a URL prefix. See
-[`docs/operator-guide.md`](docs/operator-guide.md).
+`/api-context`, `/health`, `/ready`, `/s/` and `/assets/` to the server.
+`web/admin/e2e/harness/proxy.ts` is a working example of that origin, and
+`packaging/nginx.conf.template` is the one we ship. One constraint to know before you write your
+own: the admin bundle's own chunk directory is also `assets`, so the SPA's files and the theme's
+files share a URL prefix. See [`docs/operator-guide.md`](docs/operator-guide.md).
 
 Sign in to the admin with the key pair in the header's sign-in form. There is also a password login
 on the same form for accounts that were invited by email.
 
 ## What works
 
-- The API: 17 adapters, the browse parameters, the JSON-LD documents, the `Link` and
-  `Omeka-S-Total-Results` headers, the error documents. [`docs/api.md`](docs/api.md) is generated
-  from the source and lists every route, member and parameter.
-- The admin SPA: items, item sets, media, users, sites, site pages, the vocabulary family, assets and
-  jobs, with the create, edit and delete forms the API supports.
-- The public site: the bundled theme, the page blocks, the item, item-set and media views, and site
-  search.
-- The command line: install, users, API keys, template, CSV and media import, JSON-LD and CSV export,
-  thumbnails, jobs, backup and restore.
-- Sessions and passwords: sign in, sign out, invite, forgot and set-password links, with the link
-  written to the log when no SMTP relay is configured.
-- Adoption: `omeka-migrate` copies an Omeka S MySQL database into the SQLite database Romeka S runs
-  on ([`crates/omeka-migrate/README.md`](crates/omeka-migrate/README.md)).
+- The API carries 17 adapters, the browse parameters, the JSON-LD documents, the `Link` and
+  `Omeka-S-Total-Results` headers, and the error documents.
+  [`docs/api.md`](docs/api.md) is generated from the source and lists every route, member and
+  parameter.
+- The admin SPA covers items, item sets, media, users, sites, site pages, the vocabulary family,
+  assets and jobs, with the create, edit and delete forms the API supports.
+- The public site renders the bundled theme, the page blocks, the item, item-set and media views
+  and site search.
+- The command line runs install, users, API keys, template, CSV and media import, JSON-LD and CSV
+  export, thumbnails, jobs, backup and restore.
+- Sessions and passwords work: sign in, sign out, invite, forgot and set-password links, with the
+  link written to the log when no SMTP relay is configured.
+- `omeka-migrate` copies an Omeka S MySQL database into the SQLite database Romeka S runs on
+  ([`crates/omeka-migrate/README.md`](crates/omeka-migrate/README.md)).
 
 ## What is not ported
 
 These are decisions, not surprises. Each one names where it is stated and measured.
 
-- PHP modules and PHP themes. Extension is a Rust registry
+- There are no PHP modules and no PHP themes. Extension is a Rust registry
   ([`crates/omeka-plugin/README.md`](crates/omeka-plugin/README.md)).
-- Some routes answer `501`, and each is a route with no handler rather than a failing one. The
-  generated route table in [`docs/api.md`](docs/api.md) marks every one of them.
+- Some routes answer `501`. Each one has no handler, so it is not built yet rather than broken, and
+  the generated route table in [`docs/api.md`](docs/api.md) marks every one of them.
 - `POST /api/assets` and `POST /api/jobs` stay unbuilt, and a media file arrives through
   `romeka import media` rather than an API upload.
   [`crates/omeka-api/README.md`](crates/omeka-api/README.md) gives the reason for each.
-- Admin pixel parity. The workflow is the same, the markup is not.
-- The full translation catalogues: two locales ship.
-- Live external services: oEmbed, YouTube and remote IIIF.
-- MySQL fulltext ranking, which differs from SQLite FTS5 and is excluded from differential matching.
+- There is no admin pixel parity. The workflow is the same, the markup is not.
+- The full translation catalogues are not ported. Two locales ship.
+- No call goes to a live external service, so oEmbed, YouTube and remote IIIF are out.
+- Fulltext ranking is SQLite FTS5's, and it differs from MySQL's.
 
 [`docs/compat.md`](docs/compat.md) is the page that lists the differences the product states about
 itself, each against the file that carries it.
