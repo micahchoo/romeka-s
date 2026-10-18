@@ -166,6 +166,13 @@ pub(crate) fn item_doc(
         .iter()
         .map(|id| resource_ref(base, "item_sets", id.0))
         .collect();
+    // `ItemRepresentation::sites`: every site the item belongs to, whether or
+    // not the site is public.
+    let sites: Vec<ResourceRef> = relations
+        .sites_of(resource.id.0)
+        .iter()
+        .map(|id| resource_ref(base, "sites", id.0))
+        .collect();
     crate::wire::item::Item {
         context: base.api_context(),
         id: base.api_resource("items", resource.id.0),
@@ -193,7 +200,7 @@ pub(crate) fn item_doc(
         primary_media: primary.map(|media| resource_ref(base, "media", media.id().0)),
         media: media_refs,
         item_set: item_sets,
-        site: Vec::new(),
+        site: sites,
         values: value_map(api, relations, resource.id, resource.resource_template_id),
         reverse: reverse_map(api, relations, resource.id),
     }
@@ -649,7 +656,9 @@ pub(crate) fn value_annotation_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: empty_thumbnail_urls(),
+        // `AbstractRepresentation::thumbnailDisplayUrl`: a custom asset when one
+        // is set, and a value annotation has no primary media to fall back to.
+        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, None),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         values: value_map(api, relations, resource.id, resource.resource_template_id),

@@ -77,7 +77,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .get("o:item_pool")
         .map(crate::write::body::php_json)
         .unwrap_or_else(|| json!([]));
-    let thumbnail_id = crate::write::resource::asset(payload);
+    let thumbnail_id = crate::write::resource::asset(api, payload).await?;
     let homepage_id = homepage(api, payload).await?;
     validate(
         api,
@@ -193,7 +193,7 @@ pub async fn update(
             .unwrap_or_else(|| json!([]));
     }
     if !partial || payload.has("o:thumbnail") {
-        row.thumbnail_id = crate::write::resource::asset(payload);
+        row.thumbnail_id = crate::write::resource::asset(api, payload).await?;
     }
     if !partial || payload.has("o:homepage") {
         row.homepage_id = homepage(api, payload).await?;

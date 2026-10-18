@@ -12,7 +12,7 @@
 //! throws `NotFoundException` before the row is written.
 
 use omeka_db::ids::{AssetId, ClassId, ResourceId, TemplateId, UserId};
-use omeka_db::repos::{ClassRepo, TemplateRepo, UserRepo};
+use omeka_db::repos::{AssetRepo, ClassRepo, TemplateRepo, UserRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
 use serde_json::json;
 
@@ -90,7 +90,7 @@ pub(crate) async fn hydrate_at(
     };
     let thumbnail_id = match (partial && !payload.has("o:thumbnail"), existing) {
         (true, Some(row)) => row.thumbnail_id,
-        _ => asset(payload),
+        _ => asset(api, payload).await?,
     };
     let title = match (partial && values.is_empty(), existing) {
         (true, Some(row)) => row.title.clone(),
@@ -208,10 +208,23 @@ async fn template(api: &Api<'_>, payload: &Payload) -> Result<Option<TemplateId>
     Ok(Some(id))
 }
 
-/// Assets have no repository in the port yet, so a thumbnail id is stored
-/// without a lookup. Reported as a gap.
-pub(crate) fn asset(payload: &Payload) -> Option<AssetId> {
-    payload.ref_id("o:thumbnail").map(AssetId)
+/// `AbstractEntityAdapter::hydrateThumbnail` for `o:thumbnail`: a numeric id
+/// that names no asset is the 404 `findEntity` throws, and a member that names
+/// no usable id clears the thumbnail.
+pub(crate) async fn asset(api: &Api<'_>, payload: &Payload) -> Result<Option<AssetId>, ApiError> {
+    let Some(id) = payload.ref_id("o:thumbnail") else {
+        return Ok(None);
+    };
+    let id = AssetId(id);
+    if AssetRepo::new(api.pool())
+        .get(id)
+        .await
+        .map_err(db_error)?
+        .is_none()
+    {
+        return Err(not_found("Omeka\\Entity\\Asset", id.0));
+    }
+    Ok(Some(id))
 }
 
 /// `AbstractEntityAdapter::findEntity` for a body-supplied id: the criteria

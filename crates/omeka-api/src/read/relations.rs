@@ -20,7 +20,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use omeka_db::ids::{ItemSetId, MediaId, PropertyId, TemplateId};
+use omeka_db::ids::{ItemSetId, MediaId, PropertyId, SiteId, TemplateId};
 use omeka_db::rows::{AssetRow, MediaRow, ResourceRow, ValueRow, resource_type};
 use sqlx::Row;
 use sqlx::SqlitePool;
@@ -49,6 +49,7 @@ pub(crate) struct Relations {
     resources: HashMap<u64, ResourceRow>,
     media: HashMap<u64, Vec<MediaRow>>,
     item_sets: HashMap<u64, Vec<ItemSetId>>,
+    sites: HashMap<u64, Vec<SiteId>>,
     pointing: HashMap<u64, Vec<ValueRow>>,
     template_properties: HashMap<u64, Vec<PropertyId>>,
     /// `ItemSetRepresentation::primaryMedia` reads the first item of the set by
@@ -85,6 +86,7 @@ impl Relations {
             Page::Items => {
                 relations.media = media_for(api.pool(), &ids).await?;
                 relations.item_sets = item_sets_for(api.pool(), &ids).await?;
+                relations.sites = sites_for(api.pool(), &ids).await?;
             }
             Page::ItemSets => {
                 relations.first_item = first_item_for(api.pool(), &ids).await?;
@@ -130,6 +132,7 @@ impl Relations {
         }
         relations.media = media_for(api.pool(), &item_ids).await?;
         relations.item_sets = item_sets_for(api.pool(), &item_ids).await?;
+        relations.sites = sites_for(api.pool(), &item_ids).await?;
         relations.first_item = first_item_for(api.pool(), &set_ids).await?;
         let first_items: Vec<u64> = relations
             .first_item
@@ -196,6 +199,11 @@ impl Relations {
     /// The item sets an item belongs to, in id order.
     pub(crate) fn item_sets_of(&self, item: u64) -> &[ItemSetId] {
         self.item_sets.get(&item).map_or(&[], Vec::as_slice)
+    }
+
+    /// The sites an item belongs to, in `site_id` order.
+    pub(crate) fn sites_of(&self, item: u64) -> &[SiteId] {
+        self.sites.get(&item).map_or(&[], Vec::as_slice)
     }
 
     /// The values whose `value_resource_id` points at a resource, in id order.
@@ -289,6 +297,32 @@ pub(crate) async fn item_sets_for(
             .entry(item as u64)
             .or_default()
             .push(ItemSetId(set as u64));
+    }
+    Ok(memberships)
+}
+
+/// The site ids of each item, ordered as `ItemRepo::list_sites` orders them.
+pub(crate) async fn sites_for(
+    pool: &SqlitePool,
+    items: &[u64],
+) -> Result<HashMap<u64, Vec<SiteId>>, ApiError> {
+    if items.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let sql = format!(
+        "SELECT item_id, site_id FROM item_site WHERE item_id IN ({}) \
+         ORDER BY item_id, site_id",
+        placeholders(items.len())
+    );
+    let rows = rows_in(pool, &sql, items).await?;
+    let mut memberships: HashMap<u64, Vec<SiteId>> = HashMap::new();
+    for row in &rows {
+        let item: i64 = row.try_get("item_id").map_err(ApiError::internal)?;
+        let site: i64 = row.try_get("site_id").map_err(ApiError::internal)?;
+        memberships
+            .entry(item as u64)
+            .or_default()
+            .push(SiteId(site as u64));
     }
     Ok(memberships)
 }
