@@ -1,9 +1,11 @@
 /**
  * The lessons' messages, read through the `lessons` namespace
- * (`src/i18n/namespaces/lessons/`). A lesson never holds up its page, so the
- * lookup is `null`, and the lesson renders nothing, until its table arrives.
+ * (`src/i18n/namespaces/lessons/`). A lesson never holds up its page, so this
+ * lookup does not suspend: it is `null`, and the lesson renders nothing, until
+ * the table arrives, and the arrival renders the caller again.
  */
-import { useLoadedTranslator } from '../../i18n';
+import { useEffect, useMemo, useState } from 'react';
+import { tableFor, translatorOver, useLocale } from '../../i18n';
 import type { KeyOf, MessageParams } from '../../i18n';
 import { lessons } from '../../i18n/namespaces/lessons';
 
@@ -17,4 +19,29 @@ export type LessonsMessageKey = KeyOf<typeof lessons>;
 export type LessonsText = (key: LessonsMessageKey, params?: MessageParams) => string;
 
 /** The active locale's lookup, or `null` until its table arrives. */
-export const useLessonsText = (): LessonsText | null => useLoadedTranslator(lessons)?.t ?? null;
+export const useLessonsText = (): LessonsText | null => {
+  const locale = useLocale();
+  const table = tableFor(lessons, locale);
+  const [, setArrivals] = useState(0);
+  useEffect(() => {
+    if (!(table instanceof Promise)) {
+      return undefined;
+    }
+    let live = true;
+    table.then(
+      () => {
+        if (live) {
+          setArrivals((count) => count + 1);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [table]);
+  return useMemo(
+    () => (table instanceof Promise ? null : translatorOver(locale, [table]).t),
+    [locale, table],
+  );
+};
