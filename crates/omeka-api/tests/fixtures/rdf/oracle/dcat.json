@@ -1,0 +1,236 @@
+{
+    "classes": [
+        {
+            "local_name": "Catalog",
+            "label": "Catalog",
+            "comment": "A curated collection of metadata about resources (e.g., datasets and data services in the context of a data catalog)."
+        },
+        {
+            "local_name": "CatalogRecord",
+            "label": "Catalog Record",
+            "comment": "1つのデータセットを記述したデータ・カタログ内のレコード。"
+        },
+        {
+            "local_name": "DataService",
+            "label": "Data service",
+            "comment": "A site or end-point providing operations related to the discovery of, access to, or processing functions on, data or related resources."
+        },
+        {
+            "local_name": "Dataset",
+            "label": "Conjunto de datos",
+            "comment": "1つのエージェントによって公開またはキュレートされ、1つ以上の形式でアクセスまたはダウンロードできるデータの集合。"
+        },
+        {
+            "local_name": "DatasetSeries",
+            "label": "Dataset series",
+            "comment": "A collection of datasets that are published separately, but share some characteristics that group them."
+        },
+        {
+            "local_name": "Distribution",
+            "label": "Distribuce",
+            "comment": "A specific representation of a dataset. A dataset might be available in multiple serializations that may differ in various ways, including natural language, media-type or format, schematic organization, temporal and spatial resolution, level of detail or profiles (which might specify any or all of the above)."
+        },
+        {
+            "local_name": "Relationship",
+            "label": "Relación",
+            "comment": "An association class for attaching additional information to a relationship between DCAT Resources."
+        },
+        {
+            "local_name": "Resource",
+            "label": "Catalogued resource",
+            "comment": "Recurso publicado o curado por un agente único."
+        },
+        {
+            "local_name": "Role",
+            "label": "Rol",
+            "comment": "A role is the function of a resource or agent with respect to another resource, in the context of resource attribution or resource relationships."
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "accessService",
+            "label": "data access service",
+            "comment": "A site or end-point that gives access to the distribution of the dataset."
+        },
+        {
+            "local_name": "accessURL",
+            "label": "URL d'accès",
+            "comment": "A URL of a resource that gives access to a distribution of the dataset. E.g. landing page, feed, SPARQL endpoint. Use for all cases except a simple download link, in which case downloadURL is preferred."
+        },
+        {
+            "local_name": "bbox",
+            "label": "bounding box",
+            "comment": "El cuadro delimitador geográfico para un recurso."
+        },
+        {
+            "local_name": "byteSize",
+            "label": "byte size",
+            "comment": "El tamaño de una distribución en bytes."
+        },
+        {
+            "local_name": "catalog",
+            "label": "catalog",
+            "comment": "A catalog that is listed in the catalog."
+        },
+        {
+            "local_name": "centroid",
+            "label": "centroid",
+            "comment": "El centro geográfico (centroide) de un recurso."
+        },
+        {
+            "local_name": "compressFormat",
+            "label": "compression format",
+            "comment": "El formato de la distribución en el que los datos están en forma comprimida, e.g. para reducir el tamaño del archivo a bajar."
+        },
+        {
+            "local_name": "contactPoint",
+            "label": "Punto de contacto",
+            "comment": "Información relevante de contacto para el recurso catalogado. Se recomienda el uso de vCard."
+        },
+        {
+            "local_name": "dataset",
+            "label": "conjunto de datos",
+            "comment": "A dataset that is listed in the catalog."
+        },
+        {
+            "local_name": "distribution",
+            "label": "distribuce",
+            "comment": "An available distribution of the dataset."
+        },
+        {
+            "local_name": "downloadURL",
+            "label": "URL de descarga",
+            "comment": "Ceci est un lien direct à un fichier téléchargeable en un format donnée. Exple fichier CSV ou RDF. Le format est décrit par les propriétés de distribution dcterms:format et/ou dcat:mediaType."
+        },
+        {
+            "local_name": "endDate",
+            "label": "datum konce",
+            "comment": "El fin del período."
+        },
+        {
+            "local_name": "endpointDescription",
+            "label": "descripción del end-point del servicio",
+            "comment": "A description of the service end-point, including its operations, parameters etc."
+        },
+        {
+            "local_name": "endpointURL",
+            "label": "end-point del servicio",
+            "comment": "Kořenové umístění nebo hlavní přístupový bod služby (IRI přístupné přes Web)."
+        },
+        {
+            "local_name": "first",
+            "label": "first",
+            "comment": "The first resource in an ordered collection or series of resources, to which the current resource belongs."
+        },
+        {
+            "local_name": "hasCurrentVersion",
+            "label": "has current version",
+            "comment": "This resource has a more specific, versioned resource with equivalent content [PAV]."
+        },
+        {
+            "local_name": "hasVersion",
+            "label": "has version",
+            "comment": "This resource has a more specific, versioned resource [PAV]."
+        },
+        {
+            "local_name": "hadRole",
+            "label": "haRuolo",
+            "comment": "Funkce entity či agenta ve vztahu k jiné entitě či zdroji."
+        },
+        {
+            "local_name": "inSeries",
+            "label": "in series",
+            "comment": "A dataset series of which the dataset is part."
+        },
+        {
+            "local_name": "keyword",
+            "label": "keyword",
+            "comment": "A keyword or tag describing a resource."
+        },
+        {
+            "local_name": "landingPage",
+            "label": "landing page",
+            "comment": "A Web page that can be navigated to in a Web browser to gain access to the catalog, a dataset, its distributions and/or additional information."
+        },
+        {
+            "local_name": "last",
+            "label": "last",
+            "comment": "The last resource in an ordered collection or series of resources, to which the current resource belongs."
+        },
+        {
+            "local_name": "mediaType",
+            "label": "media type",
+            "comment": "Cette propriété doit être utilisée quand c'est définit le type de média de la distribution en IANA, sinon dcterms:format DOIT être utilisé avec différentes valeurs."
+        },
+        {
+            "local_name": "packageFormat",
+            "label": "formato de empaquetado",
+            "comment": "Balíčkový formát souboru, ve kterém je jeden či více souborů seskupeno dohromady, např. aby bylo možné stáhnout sadu souvisejících souborů naráz."
+        },
+        {
+            "local_name": "prev",
+            "label": "previous",
+            "comment": "The previous resource (before the current one) in an ordered collection or series of resources."
+        },
+        {
+            "local_name": "previousVersion",
+            "label": "previous version",
+            "comment": "The previous version of a resource in a lineage [PAV]."
+        },
+        {
+            "local_name": "qualifiedRelation",
+            "label": "kvalifikovaný vztah",
+            "comment": "Enlace a una descripción de la relación con otro recurso."
+        },
+        {
+            "local_name": "record",
+            "label": "record",
+            "comment": "A record describing the registration of a single dataset or data service that is part of the catalog."
+        },
+        {
+            "local_name": "resource",
+            "label": "resource",
+            "comment": "A resource that is listed in the catalog."
+        },
+        {
+            "local_name": "servesDataset",
+            "label": "poskytuje datovou sadu",
+            "comment": "A collection of data that this DataService can distribute."
+        },
+        {
+            "local_name": "service",
+            "label": "service",
+            "comment": "A service that is listed in the catalog."
+        },
+        {
+            "local_name": "spatialResolutionInMeters",
+            "label": "prostorové rozlišení (metry)",
+            "comment": "minimum spatial separation resolvable in a dataset, measured in meters."
+        },
+        {
+            "local_name": "startDate",
+            "label": "datum začátku",
+            "comment": null
+        },
+        {
+            "local_name": "temporalResolution",
+            "label": "resolución temporal",
+            "comment": "minimum time period resolvable in a dataset."
+        },
+        {
+            "local_name": "theme",
+            "label": "tema",
+            "comment": "A main category of the resource. A resource can have multiple themes."
+        },
+        {
+            "local_name": "themeTaxonomy",
+            "label": "tassonomia dei temi",
+            "comment": "El sistema de organización del conocimiento utilizado para clasificar conjuntos de datos de catálogos."
+        },
+        {
+            "local_name": "version",
+            "label": "version",
+            "comment": "The version indicator (name or identifier) of a resource."
+        }
+    ]
+}

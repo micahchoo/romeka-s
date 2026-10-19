@@ -28,7 +28,10 @@ import type {
   UserSettingsWrite,
   UserWrite,
   ValueWrite,
+  VocabularyDiff,
+  VocabularyMemberDiff,
   VocabularyMemberWrite,
+  VocabularySource,
   VocabularyWrite,
 } from './types';
 
@@ -297,6 +300,49 @@ export const encodeVocabulary = (write: VocabularyWrite, mode: WriteMode): WireB
   'o:label': write.label,
   'o:comment': write.comment,
   ...ownerMember(write.owner, mode),
+});
+
+/** The `source` member the vocabulary import and diff routes read. */
+export const encodeVocabularySource = (source: VocabularySource): WireBody => ({
+  import_type: source.origin.kind,
+  ...(source.origin.kind === 'upload' ? { file: source.origin.text } : { url: source.origin.url }),
+  format: source.format,
+  lang: source.lang,
+  label_property: source.labelProperty,
+  comment_property: source.commentProperty,
+});
+
+/** `POST /api/vocabularies/import`: the vocabulary's own members beside its source. */
+export const encodeVocabularyImport = (
+  write: VocabularyWrite,
+  source: VocabularySource,
+): WireBody => ({
+  ...encodeVocabulary(write, 'create'),
+  source: encodeVocabularySource(source),
+});
+
+const encodeMemberDiff = (diff: VocabularyMemberDiff): WireBody => ({
+  new: diff.added.map((term) => ({
+    'o:local_name': term.localName,
+    'o:label': term.label,
+    'o:comment': term.comment,
+  })),
+  label: diff.label.map((change) => ({
+    'o:local_name': change.localName,
+    from: change.from,
+    to: change.to,
+  })),
+  comment: diff.comment.map((change) => ({
+    'o:local_name': change.localName,
+    from: change.from,
+    to: change.to,
+  })),
+});
+
+/** `POST /api/vocabularies/{id}/diff/apply`: the reviewed diff, without the kept members. */
+export const encodeVocabularyDiff = (diff: VocabularyDiff): WireBody => ({
+  classes: encodeMemberDiff(diff.classes),
+  properties: encodeMemberDiff(diff.properties),
 });
 
 /** `ResourceClassAdapter::hydrate` and `PropertyAdapter::hydrate`. */

@@ -64,6 +64,13 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'vocabulary import messages',
+    source: 'src/pages/vocabularies/messages.tsx',
+    dir: 'src/pages/vocabularies/locales',
+    type: 'ImportMessages',
+    from: '../messages',
+  },
+  {
     what: 'item form messages',
     source: 'src/pages/items/messages.ts',
     dir: 'src/pages/items/locales',

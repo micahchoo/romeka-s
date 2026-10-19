@@ -567,6 +567,25 @@ way from a `git archive` copy with the same `node_modules`:
 session (`GET /api/me`), so the session parser reads it. That removes a request: the alternative was
 one more user read on the first page that shows a lesson. These are single builds on one machine.
 
+## Decision 17: the vocabulary import loads on demand (accepted)
+
+The Vocabularies tab gains "Import a vocabulary" and, on a vocabulary's page, "Update from a file or
+web address". Measured with `vite build` then `npm run perf:pages` and `zlib.gzipSync` over the
+manifest's chunks, gzip bytes, against the base commit `3af0c3d` built the same way:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 92488 | 92873 | the three client methods, their encoders and the diff parser in `src/api/` |
+| `standards` route, own chunk | 5846 | 6366 | the link, the route and the two lazy imports |
+| `vocabularies/import` | none | 1014 | the import form, on the import route only |
+| `vocabularies/update` | none | 1407 | the update panel and the diff view, with a vocabulary page |
+| `vocabularies/locales/es` | none | 1439 | one chunk per non-English locale |
+
+**Verdict.** Accepted. A first build with the two screens imported eagerly put the `standards` chunk
+at 9785 B, 455 B under the 10240 B ceiling; loading both with `React.lazy`, and moving the one link
+string to the Standards table, leaves 3874 B. The initial payload keeps 1335 B under its 94208 B ceiling. The English table and the shared fields sit in a lazy
+chunk both screens import.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

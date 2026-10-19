@@ -65,6 +65,27 @@ export const hiServer: ServerCatalogue = {
   'server.localNameTaken': 'स्थानीय नाम "{name}" पहले से लिया जा चुका है।',
   'server.vocabularyRequired': 'शब्दावली निर्धारित की जानी चाहिए।',
   'server.duplicateTemplateProperty': '{id} ID के साथ डुप्लिकेट प्रॉपर्टी जोड़ने का प्रयास',
+  'server.vocabularyNoFile': 'फ़ाइल आयात रणनीति के लिए कोई फ़ाइल निर्दिष्ट नहीं है।',
+  'server.vocabularyNoUrl': 'URL आयात रणनीति के लिए कोई URL निर्दिष्ट नहीं है।',
+  'server.vocabularyNotParsed': 'शब्दावली फ़ाइल को पार्स नहीं किया जा सका।',
+  'server.vocabularyNotLoaded': 'URL से शब्दावली लोड नहीं की जा सकी।',
+  'server.vocabularyNoMembers':
+    'कोई क्लास या प्रॉपर्टी नहीं मिली। क्या आप सुनिश्चित हैं कि आपने सही नेमस्पेस URI का उपयोग किया है?',
+  'server.vocabularyPermanent': 'एक स्थायी शब्दावली को संपादित नहीं किया जा सकता',
+  'server.vocabularyFormatUnknown':
+    'फ़ाइल प्रारूप का पता नहीं लगाया जा सका। सूची से प्रारूप चुनें।',
+  'server.vocabularyFormatInvalid': '"{format}" शब्दावली फ़ाइल प्रारूप नहीं है।',
+  'server.vocabularyUrlScheme': 'केवल http और https URL आयात किए जा सकते हैं।',
+  'server.vocabularyUrlPrivate':
+    'URL एक निजी या स्थानीय नेटवर्क पते को इंगित करता है, जिसे सर्वर प्राप्त नहीं करता है।',
+  'server.vocabularyUrlTooLarge': 'URL पर फ़ाइल {size} से बड़ी है।',
+  'server.vocabularyUrlTimeout': 'URL पर सर्वर ने समय पर उत्तर नहीं दिया।',
+  'server.vocabularyUrlStatus': 'URL पर सर्वर ने स्थिति {status} के साथ उत्तर दिया।',
+  'server.vocabularyChangeStale':
+    '"{name}" की तुलना में परिवर्तन हुआ है। फ़ाइल की फिर से तुलना करें।',
+  'server.vocabularyMemberMissing': '"{name}" इस शब्दावली का सदस्य नहीं है।',
+  'server.vocabularyCaseClash':
+    '"{first}" और "{second}" केवल अक्षर के केस में भिन्न हैं, और यह संग्रह दोनों को संग्रहीत नहीं कर सकता।',
   'server.nameEmpty': 'नाम खाली नहीं हो सकता।',
   'server.emailTaken': 'ईमेल {email} पहले से लिया जा चुका है।',
   'server.userRoleRequired': 'उपयोगकर्ताओं की एक भूमिका होनी चाहिए।',

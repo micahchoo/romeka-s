@@ -206,6 +206,41 @@ messages! {
     /// `ResourceTemplateAdapter` for a property listed twice.
     fn duplicate_template_property(id) = "Attempting to add duplicate property with ID {id}";
 
+    // Vocabulary import (`Stdlib/RdfImporter`, `Admin/VocabularyController`).
+
+    /// `RdfImporter::getMembers` for the file strategy without a file.
+    const VOCABULARY_NO_FILE = "No file specified for the file import strategy.";
+    /// `RdfImporter::getMembers` for the URL strategy without a URL.
+    const VOCABULARY_NO_URL = "No URL specified for the URL import strategy.";
+    /// `RdfImporter::getMembers` for a file EasyRdf cannot parse.
+    const VOCABULARY_NOT_PARSED = "Could not parse vocabulary file.";
+    /// `RdfImporter::getMembers` for a URL EasyRdf cannot load.
+    const VOCABULARY_NOT_LOADED = "Could not load vocabulary from URL.";
+    /// `RdfImporter::import` for a file with no member in the namespace.
+    const VOCABULARY_NO_MEMBERS = "No classes or properties found. Are you sure you used the correct namespace URI?";
+    /// `VocabularyController::editAction` for Dublin Core and Dublin Core Type.
+    const VOCABULARY_PERMANENT = "Cannot edit a permanent vocabulary";
+    /// The import's format detection found no format it reads.
+    const VOCABULARY_FORMAT_UNKNOWN = "The file format could not be detected. Choose the format from the list.";
+    /// The import's `format` names no format it reads.
+    fn vocabulary_format_invalid(format) = "\"{format}\" is not a vocabulary file format.";
+    /// The import's URL fetch for a scheme other than http and https.
+    const VOCABULARY_URL_SCHEME = "Only http and https URLs can be imported.";
+    /// The import's URL fetch for a private or local address.
+    const VOCABULARY_URL_PRIVATE = "The URL names a private or local network address, which the server does not fetch.";
+    /// The import's URL fetch for a file over the cap.
+    fn vocabulary_url_too_large(size) = "The file at the URL is larger than {size}.";
+    /// The import's URL fetch past its deadline.
+    const VOCABULARY_URL_TIMEOUT = "The server at the URL did not answer in time.";
+    /// The import's URL fetch for an error status.
+    fn vocabulary_url_status(status) = "The server at the URL answered with status {status}.";
+    /// A reviewed change whose stored text changed after the comparison.
+    fn vocabulary_change_stale(name) = "\"{name}\" has changed since the comparison. Compare the file again.";
+    /// A reviewed change to a member the vocabulary does not have.
+    fn vocabulary_member_missing(name) = "\"{name}\" is not a member of this vocabulary.";
+    /// Two local names the port's schema folds to one (`COLLATE NOCASE`; upstream's is binary).
+    fn vocabulary_case_clash(first, second) = "\"{first}\" and \"{second}\" differ only in letter case, and this archive cannot store both.";
+
     // Users.
 
     /// `UserAdapter` for an empty name.

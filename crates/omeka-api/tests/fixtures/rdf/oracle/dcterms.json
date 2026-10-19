@@ -1,0 +1,391 @@
+{
+    "classes": [
+        {
+            "local_name": "Agent",
+            "label": "Agent",
+            "comment": "A resource that acts or has the power to act."
+        },
+        {
+            "local_name": "AgentClass",
+            "label": "Agent Class",
+            "comment": "A group of agents."
+        },
+        {
+            "local_name": "BibliographicResource",
+            "label": "Bibliographic Resource",
+            "comment": "A book, article, or other documentary resource."
+        },
+        {
+            "local_name": "FileFormat",
+            "label": "File Format",
+            "comment": "A digital resource format."
+        },
+        {
+            "local_name": "Frequency",
+            "label": "Frequency",
+            "comment": "A rate at which something recurs."
+        },
+        {
+            "local_name": "Jurisdiction",
+            "label": "Jurisdiction",
+            "comment": "The extent or range of judicial, law enforcement, or other authority."
+        },
+        {
+            "local_name": "LicenseDocument",
+            "label": "License Document",
+            "comment": "A legal document giving official permission to do something with a Resource."
+        },
+        {
+            "local_name": "LinguisticSystem",
+            "label": "Linguistic System",
+            "comment": "A system of signs, symbols, sounds, gestures, or rules used in communication."
+        },
+        {
+            "local_name": "Location",
+            "label": "Location",
+            "comment": "A spatial region or named place."
+        },
+        {
+            "local_name": "LocationPeriodOrJurisdiction",
+            "label": "Location, Period, or Jurisdiction",
+            "comment": "A location, period of time, or jurisdiction."
+        },
+        {
+            "local_name": "MediaType",
+            "label": "Media Type",
+            "comment": "A file format or physical medium."
+        },
+        {
+            "local_name": "MediaTypeOrExtent",
+            "label": "Media Type or Extent",
+            "comment": "A media type or extent."
+        },
+        {
+            "local_name": "MethodOfInstruction",
+            "label": "Method of Instruction",
+            "comment": "A process that is used to engender knowledge, attitudes, and skills."
+        },
+        {
+            "local_name": "MethodOfAccrual",
+            "label": "Method of Accrual",
+            "comment": "A method by which resources are added to a collection."
+        },
+        {
+            "local_name": "PeriodOfTime",
+            "label": "Period of Time",
+            "comment": "An interval of time that is named or defined by its start and end dates."
+        },
+        {
+            "local_name": "PhysicalMedium",
+            "label": "Physical Medium",
+            "comment": "A physical material or carrier."
+        },
+        {
+            "local_name": "PhysicalResource",
+            "label": "Physical Resource",
+            "comment": "A material thing."
+        },
+        {
+            "local_name": "Policy",
+            "label": "Policy",
+            "comment": "A plan or course of action by an authority, intended to influence and determine decisions, actions, and other matters."
+        },
+        {
+            "local_name": "ProvenanceStatement",
+            "label": "Provenance Statement",
+            "comment": "A statement of any changes in ownership and custody of a resource since its creation that are significant for its authenticity, integrity, and interpretation."
+        },
+        {
+            "local_name": "RightsStatement",
+            "label": "Rights Statement",
+            "comment": "A statement about the intellectual property rights (IPR) held in or over a Resource, a legal document giving official permission to do something with a resource, or a statement about access rights."
+        },
+        {
+            "local_name": "SizeOrDuration",
+            "label": "Size or Duration",
+            "comment": "A dimension or extent, or a time taken to play or execute."
+        },
+        {
+            "local_name": "Standard",
+            "label": "Standard",
+            "comment": "A basis for comparison; a reference point against which other things can be evaluated."
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "title",
+            "label": "Title",
+            "comment": "A name given to the resource."
+        },
+        {
+            "local_name": "creator",
+            "label": "Creator",
+            "comment": "An entity primarily responsible for making the resource."
+        },
+        {
+            "local_name": "subject",
+            "label": "Subject",
+            "comment": "The topic of the resource."
+        },
+        {
+            "local_name": "description",
+            "label": "Description",
+            "comment": "An account of the resource."
+        },
+        {
+            "local_name": "publisher",
+            "label": "Publisher",
+            "comment": "An entity responsible for making the resource available."
+        },
+        {
+            "local_name": "contributor",
+            "label": "Contributor",
+            "comment": "An entity responsible for making contributions to the resource."
+        },
+        {
+            "local_name": "date",
+            "label": "Date",
+            "comment": "A point or period of time associated with an event in the lifecycle of the resource."
+        },
+        {
+            "local_name": "type",
+            "label": "Type",
+            "comment": "The nature or genre of the resource."
+        },
+        {
+            "local_name": "format",
+            "label": "Format",
+            "comment": "The file format, physical medium, or dimensions of the resource."
+        },
+        {
+            "local_name": "identifier",
+            "label": "Identifier",
+            "comment": "An unambiguous reference to the resource within a given context."
+        },
+        {
+            "local_name": "source",
+            "label": "Source",
+            "comment": "A related resource from which the described resource is derived."
+        },
+        {
+            "local_name": "language",
+            "label": "Language",
+            "comment": "A language of the resource."
+        },
+        {
+            "local_name": "relation",
+            "label": "Relation",
+            "comment": "A related resource."
+        },
+        {
+            "local_name": "coverage",
+            "label": "Coverage",
+            "comment": "The spatial or temporal topic of the resource, the spatial applicability of the resource, or the jurisdiction under which the resource is relevant."
+        },
+        {
+            "local_name": "rights",
+            "label": "Rights",
+            "comment": "Information about rights held in and over the resource."
+        },
+        {
+            "local_name": "audience",
+            "label": "Audience",
+            "comment": "A class of entity for whom the resource is intended or useful."
+        },
+        {
+            "local_name": "alternative",
+            "label": "Alternative Title",
+            "comment": "An alternative name for the resource."
+        },
+        {
+            "local_name": "tableOfContents",
+            "label": "Table Of Contents",
+            "comment": "A list of subunits of the resource."
+        },
+        {
+            "local_name": "abstract",
+            "label": "Abstract",
+            "comment": "A summary of the resource."
+        },
+        {
+            "local_name": "created",
+            "label": "Date Created",
+            "comment": "Date of creation of the resource."
+        },
+        {
+            "local_name": "valid",
+            "label": "Date Valid",
+            "comment": "Date (often a range) of validity of a resource."
+        },
+        {
+            "local_name": "available",
+            "label": "Date Available",
+            "comment": "Date (often a range) that the resource became or will become available."
+        },
+        {
+            "local_name": "issued",
+            "label": "Date Issued",
+            "comment": "Date of formal issuance (e.g., publication) of the resource."
+        },
+        {
+            "local_name": "modified",
+            "label": "Date Modified",
+            "comment": "Date on which the resource was changed."
+        },
+        {
+            "local_name": "extent",
+            "label": "Extent",
+            "comment": "The size or duration of the resource."
+        },
+        {
+            "local_name": "medium",
+            "label": "Medium",
+            "comment": "The material or physical carrier of the resource."
+        },
+        {
+            "local_name": "isVersionOf",
+            "label": "Is Version Of",
+            "comment": "A related resource of which the described resource is a version, edition, or adaptation."
+        },
+        {
+            "local_name": "hasVersion",
+            "label": "Has Version",
+            "comment": "A related resource that is a version, edition, or adaptation of the described resource."
+        },
+        {
+            "local_name": "isReplacedBy",
+            "label": "Is Replaced By",
+            "comment": "A related resource that supplants, displaces, or supersedes the described resource."
+        },
+        {
+            "local_name": "replaces",
+            "label": "Replaces",
+            "comment": "A related resource that is supplanted, displaced, or superseded by the described resource."
+        },
+        {
+            "local_name": "isRequiredBy",
+            "label": "Is Required By",
+            "comment": "A related resource that requires the described resource to support its function, delivery, or coherence."
+        },
+        {
+            "local_name": "requires",
+            "label": "Requires",
+            "comment": "A related resource that is required by the described resource to support its function, delivery, or coherence."
+        },
+        {
+            "local_name": "isPartOf",
+            "label": "Is Part Of",
+            "comment": "A related resource in which the described resource is physically or logically included."
+        },
+        {
+            "local_name": "hasPart",
+            "label": "Has Part",
+            "comment": "A related resource that is included either physically or logically in the described resource."
+        },
+        {
+            "local_name": "isReferencedBy",
+            "label": "Is Referenced By",
+            "comment": "A related resource that references, cites, or otherwise points to the described resource."
+        },
+        {
+            "local_name": "references",
+            "label": "References",
+            "comment": "A related resource that is referenced, cited, or otherwise pointed to by the described resource."
+        },
+        {
+            "local_name": "isFormatOf",
+            "label": "Is Format Of",
+            "comment": "A related resource that is substantially the same as the described resource, but in another format."
+        },
+        {
+            "local_name": "hasFormat",
+            "label": "Has Format",
+            "comment": "A related resource that is substantially the same as the pre-existing described resource, but in another format."
+        },
+        {
+            "local_name": "conformsTo",
+            "label": "Conforms To",
+            "comment": "An established standard to which the described resource conforms."
+        },
+        {
+            "local_name": "spatial",
+            "label": "Spatial Coverage",
+            "comment": "Spatial characteristics of the resource."
+        },
+        {
+            "local_name": "temporal",
+            "label": "Temporal Coverage",
+            "comment": "Temporal characteristics of the resource."
+        },
+        {
+            "local_name": "mediator",
+            "label": "Mediator",
+            "comment": "An entity that mediates access to the resource and for whom the resource is intended or useful."
+        },
+        {
+            "local_name": "dateAccepted",
+            "label": "Date Accepted",
+            "comment": "Date of acceptance of the resource."
+        },
+        {
+            "local_name": "dateCopyrighted",
+            "label": "Date Copyrighted",
+            "comment": "Date of copyright."
+        },
+        {
+            "local_name": "dateSubmitted",
+            "label": "Date Submitted",
+            "comment": "Date of submission of the resource."
+        },
+        {
+            "local_name": "educationLevel",
+            "label": "Audience Education Level",
+            "comment": "A class of entity, defined in terms of progression through an educational or training context, for which the described resource is intended."
+        },
+        {
+            "local_name": "accessRights",
+            "label": "Access Rights",
+            "comment": "Information about who can access the resource or an indication of its security status."
+        },
+        {
+            "local_name": "bibliographicCitation",
+            "label": "Bibliographic Citation",
+            "comment": "A bibliographic reference for the resource."
+        },
+        {
+            "local_name": "license",
+            "label": "License",
+            "comment": "A legal document giving official permission to do something with the resource."
+        },
+        {
+            "local_name": "rightsHolder",
+            "label": "Rights Holder",
+            "comment": "A person or organization owning or managing rights over the resource."
+        },
+        {
+            "local_name": "provenance",
+            "label": "Provenance",
+            "comment": "A statement of any changes in ownership and custody of the resource since its creation that are significant for its authenticity, integrity, and interpretation."
+        },
+        {
+            "local_name": "instructionalMethod",
+            "label": "Instructional Method",
+            "comment": "A process, used to engender knowledge, attitudes and skills, that the described resource is designed to support."
+        },
+        {
+            "local_name": "accrualMethod",
+            "label": "Accrual Method",
+            "comment": "The method by which items are added to a collection."
+        },
+        {
+            "local_name": "accrualPeriodicity",
+            "label": "Accrual Periodicity",
+            "comment": "The frequency with which items are added to a collection."
+        },
+        {
+            "local_name": "accrualPolicy",
+            "label": "Accrual Policy",
+            "comment": "The policy governing the addition of items to a collection."
+        }
+    ]
+}

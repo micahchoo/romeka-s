@@ -1,0 +1,50 @@
+/* The vocabulary import and update forms: one field per row, the label and its
+ * "?" above the control, the help opening between them. */
+form p.import-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  max-width: 40rem;
+}
+
+.import-field .defined-term {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.import-field .definition {
+  flex-basis: 100%;
+}
+
+.import-field input,
+.import-field select,
+.import-field textarea {
+  width: 100%;
+}
+
+.import-advanced {
+  margin: 0 0 var(--space-4);
+}
+
+.import-advanced > summary {
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vocabulary-diff h4 {
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.vocabulary-diff .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.vocabulary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}

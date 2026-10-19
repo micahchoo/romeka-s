@@ -1,0 +1,166 @@
+{
+    "classes": [
+        {
+            "local_name": "Concept",
+            "label": "Concept",
+            "comment": null
+        },
+        {
+            "local_name": "ConceptScheme",
+            "label": "Concept Scheme",
+            "comment": null
+        },
+        {
+            "local_name": "Collection",
+            "label": "Collection",
+            "comment": null
+        },
+        {
+            "local_name": "OrderedCollection",
+            "label": "Ordered Collection",
+            "comment": null
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "inScheme",
+            "label": "is in scheme",
+            "comment": null
+        },
+        {
+            "local_name": "hasTopConcept",
+            "label": "has top concept",
+            "comment": null
+        },
+        {
+            "local_name": "topConceptOf",
+            "label": "is top concept in scheme",
+            "comment": null
+        },
+        {
+            "local_name": "prefLabel",
+            "label": "preferred label",
+            "comment": "A resource has no more than one value of skos:prefLabel per language tag, and no more than one value of skos:prefLabel without language tag."
+        },
+        {
+            "local_name": "altLabel",
+            "label": "alternative label",
+            "comment": "The range of skos:altLabel is the class of RDF plain literals."
+        },
+        {
+            "local_name": "hiddenLabel",
+            "label": "hidden label",
+            "comment": "The range of skos:hiddenLabel is the class of RDF plain literals."
+        },
+        {
+            "local_name": "notation",
+            "label": "notation",
+            "comment": null
+        },
+        {
+            "local_name": "note",
+            "label": "note",
+            "comment": null
+        },
+        {
+            "local_name": "changeNote",
+            "label": "change note",
+            "comment": null
+        },
+        {
+            "local_name": "definition",
+            "label": "definition",
+            "comment": null
+        },
+        {
+            "local_name": "editorialNote",
+            "label": "editorial note",
+            "comment": null
+        },
+        {
+            "local_name": "example",
+            "label": "example",
+            "comment": null
+        },
+        {
+            "local_name": "historyNote",
+            "label": "history note",
+            "comment": null
+        },
+        {
+            "local_name": "scopeNote",
+            "label": "scope note",
+            "comment": null
+        },
+        {
+            "local_name": "semanticRelation",
+            "label": "is in semantic relation with",
+            "comment": null
+        },
+        {
+            "local_name": "broader",
+            "label": "has broader",
+            "comment": "Broader concepts are typically rendered as parents in a concept hierarchy (tree)."
+        },
+        {
+            "local_name": "narrower",
+            "label": "has narrower",
+            "comment": "Narrower concepts are typically rendered as children in a concept hierarchy (tree)."
+        },
+        {
+            "local_name": "related",
+            "label": "has related",
+            "comment": "skos:related is disjoint with skos:broaderTransitive"
+        },
+        {
+            "local_name": "broaderTransitive",
+            "label": "has broader transitive",
+            "comment": null
+        },
+        {
+            "local_name": "narrowerTransitive",
+            "label": "has narrower transitive",
+            "comment": null
+        },
+        {
+            "local_name": "member",
+            "label": "has member",
+            "comment": null
+        },
+        {
+            "local_name": "memberList",
+            "label": "has member list",
+            "comment": "For any resource, every item in the list given as the value of the\n      skos:memberList property is also a value of the skos:member property."
+        },
+        {
+            "local_name": "mappingRelation",
+            "label": "is in mapping relation with",
+            "comment": "These concept mapping relations mirror semantic relations, and the data model defined below is similar (with the exception of skos:exactMatch) to the data model defined for semantic relations. A distinct vocabulary is provided for concept mapping relations, to provide a convenient way to differentiate links within a concept scheme from links between concept schemes. However, this pattern of usage is not a formal requirement of the SKOS data model, and relies on informal definitions of best practice."
+        },
+        {
+            "local_name": "broadMatch",
+            "label": "has broader match",
+            "comment": null
+        },
+        {
+            "local_name": "narrowMatch",
+            "label": "has narrower match",
+            "comment": null
+        },
+        {
+            "local_name": "relatedMatch",
+            "label": "has related match",
+            "comment": null
+        },
+        {
+            "local_name": "exactMatch",
+            "label": "has exact match",
+            "comment": "skos:exactMatch is disjoint with each of the properties skos:broadMatch and skos:relatedMatch."
+        },
+        {
+            "local_name": "closeMatch",
+            "label": "has close match",
+            "comment": null
+        }
+    ]
+}
