@@ -251,6 +251,7 @@
   "foaf:firstName": "முதல் பெயர்",
   "foaf:lastName": "கடைசி பெயர்",
   "foaf:givenName": "வழங்கப்பட்ட பெயர்",
+  "foaf:givenname": "கொடுக்கப்பட்ட பெயர்",
   "foaf:surname": "குடும்பப் பெயர்",
   "foaf:family_name": "குடும்பப் பெயர்",
   "foaf:familyName": "குடும்பப் பெயர்",
@@ -292,7 +293,6 @@
   "foaf:membershipClass": "உறுப்பினர் வகுப்பு",
   "foaf:birthday": "பிறந்தநாள்",
   "foaf:age": "வயது",
-  "foaf:status": "நிலை",
-  "foaf:givenname": "கொடுக்கப்பட்ட பெயர்"
+  "foaf:status": "நிலை"
  }
 }

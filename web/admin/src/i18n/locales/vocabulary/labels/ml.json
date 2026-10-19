@@ -251,6 +251,7 @@
   "foaf:firstName": "ആദ്യനാമം",
   "foaf:lastName": "അവസാനനാമം",
   "foaf:givenName": "നൽകപ്പെട്ട പേര്",
+  "foaf:givenname": "നൽകപ്പെട്ട പേര്",
   "foaf:surname": "കുടുംബപ്പേര്",
   "foaf:family_name": "കുടുംബനാമം",
   "foaf:familyName": "കുടുംബനാമം",
@@ -292,7 +293,6 @@
   "foaf:membershipClass": "അംഗത്വ ക്ലാസ്",
   "foaf:birthday": "ജന്മദിനം",
   "foaf:age": "പ്രായം",
-  "foaf:status": "പദവി",
-  "foaf:givenname": "നൽകപ്പെട്ട പേര്"
+  "foaf:status": "പദവി"
  }
 }
