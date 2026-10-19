@@ -20,6 +20,7 @@ use omeka_db::repos::{
     SiteFilter, SiteRepo,
 };
 use omeka_db::rows::SitePageRow;
+use omeka_site::i18n::Messages;
 use omeka_site::search::{FormOption, SearchHit, SiteRef};
 use omeka_site::slug::{page_url, site_url};
 use sqlx::SqlitePool;
@@ -101,6 +102,7 @@ pub(crate) async fn page_hits(
 pub(crate) async fn form_options(
     pool: &SqlitePool,
     site: db::SiteId,
+    messages: &Messages,
 ) -> Result<FormOptions, DbError> {
     let properties = PropertyRepo::new(pool)
         .list(&PropertyFilter::default(), &Paging::default())
@@ -120,7 +122,7 @@ pub(crate) async fn form_options(
         if let Some(row) = ItemSetRepo::new(pool).get(entry.item_set_id).await? {
             item_sets.push(FormOption::new(
                 entry.item_set_id.0.to_string(),
-                display_title(&row.resource),
+                display_title(&row.resource, messages),
             ));
         }
     }
