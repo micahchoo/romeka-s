@@ -159,6 +159,7 @@ export const Inspector = ({
         )}
         <LayoutDataForm
           idPrefix={`block-${block.key}-layout`}
+          owner="block"
           schema={layoutData}
           values={layoutDataObject(block)}
           grid={draft.layout === 'grid'}

@@ -204,4 +204,7 @@ export const es: EditorMessages = {
   'query.mediaCount': 'Medios de este sitio que coinciden: {count}.',
   'attachments.mainMedia': 'Medio principal',
   'attachments.pick': 'Añadir o quitar elementos',
+  'layoutData.pageLegend': 'Diseño de la página',
+  'layoutGroup.pageGrid': 'Cuadrícula',
+  'choice.unset': 'Sin definir',
 };

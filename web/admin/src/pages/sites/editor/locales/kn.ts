@@ -212,4 +212,7 @@ export const kn: EditorMessages = {
   'query.mediaCount': 'ಈ ಸೈಟ್‌ನಲ್ಲಿರುವ {count} ಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಮಾಧ್ಯಮ.',
   'attachments.mainMedia': 'ಮುಖ್ಯ ಮಾಧ್ಯಮ',
   'attachments.pick': 'ಐಟಂಗಳನ್ನು ಸೇರಿಸಿ ಅಥವಾ ತೆಗೆದುಹಾಕಿ',
+  'layoutData.pageLegend': 'ಪುಟ ವಿನ್ಯಾಸ',
+  'layoutGroup.pageGrid': 'ಗ್ರಿಡ್',
+  'choice.unset': 'ನಿಗದಿಪಡಿಸಿಲ್ಲ',
 };
