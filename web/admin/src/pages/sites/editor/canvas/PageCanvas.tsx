@@ -24,6 +24,7 @@ import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
 import { romkaState } from '../romekaHash';
 import { blockSummary, layoutLabel } from './summary';
+import { blockImage, imageKey, useThumbnails } from './thumbnails';
 import './canvas.css';
 
 export interface PageCanvasProps {
@@ -115,6 +116,11 @@ export const PageCanvas = ({
   const columnGap = gridGap(draft.layoutData, 'grid_column_gap');
   const rowGap = gridGap(draft.layoutData, 'grid_row_gap');
   const nodes = parseNodes(draft.blocks);
+  const thumbnails = useThumbnails(draft.registry, draft.blocks);
+  const imageUrl = (block: BlockDraft): string | null => {
+    const ref = blockImage(draft.registry, block);
+    return ref === null ? null : (thumbnails.get(imageKey(ref)) ?? null);
+  };
   const issues = validate(draft);
 
   const issuesByBlock = new Map<BlockKey, readonly ValidationIssue[]>();
@@ -191,6 +197,7 @@ export const PageCanvas = ({
         blocks={draft.blocks}
         label={label}
         summary={blockSummary(block, draft.title, t)}
+        image={imageUrl(block)}
         issues={issuesByBlock.get(block.key) ?? []}
         mismatch={romkaState(draft.registry, block) === 'edited'}
         selected={selectedKey === block.key}

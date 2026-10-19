@@ -14,6 +14,7 @@ import { useTranslator } from '../../../../i18n';
 import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { Checked, Labelled } from '../Labelled';
 import { AssetPicker } from './AssetPicker';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
@@ -52,25 +53,6 @@ interface ControlProps {
   /** The editor's shared lists, so a control makes no request of its own. */
   readonly options?: EditorOptions;
 }
-
-/** A label, its control and an error under it, the shape every scalar field has. */
-const Labelled = ({
-  id,
-  label,
-  error,
-  children,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly error: ReactNode;
-  readonly children: ReactNode;
-}): ReactElement => (
-  <div className="block-field">
-    <label htmlFor={id}>{label}</label>
-    {children}
-    {error}
-  </div>
-);
 
 const TextControl = ({
   field,
@@ -159,21 +141,7 @@ const BooleanControl = ({
   onChange,
 }: ControlProps & { readonly field: FieldOf<'boolean'> }): ReactElement => {
   const { t } = useTranslator();
-  return (
-    <div className="block-field">
-      <label htmlFor={id}>
-        <input
-          id={id}
-          type="checkbox"
-          checked={value === true}
-          onChange={(event) => {
-            onChange(event.target.checked);
-          }}
-        />
-        {t(field.label)}
-      </label>
-    </div>
-  );
+  return <Checked id={id} label={t(field.label)} checked={value === true} onChange={onChange} />;
 };
 
 const ChoiceControl = ({
@@ -293,6 +261,7 @@ const ItemQueryControl = ({
   value,
   onChange,
   error,
+  siteId,
   options,
 }: ControlProps & { readonly field: FieldOf<'itemQuery'> }): ReactElement => {
   const { t } = useTranslator();
@@ -304,6 +273,7 @@ const ItemQueryControl = ({
         value={asText(value)}
         required={field.required}
         onChange={onChange}
+        siteId={siteId}
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
         {...(options?.classes === undefined ? {} : { classes: options.classes })}
       />

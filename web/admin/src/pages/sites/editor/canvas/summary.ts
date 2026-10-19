@@ -13,11 +13,12 @@ const MAX_SUMMARY = 80;
 
 const asText = (value: unknown): string => (typeof value === 'string' ? value : '');
 
-/** Tags and whitespace runs become single spaces, so a summary stays one line. */
-export const plainText = (html: string): string =>
-  html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
+/** Tags and whitespace runs become single spaces, so a summary stays one line,
+ * and entities read as the characters they stand for (`&quot;` as `"`). */
+const plainText = (html: string): string =>
+  new DOMParser()
+    .parseFromString(html.replace(/<[^>]*>/g, ' '), 'text/html')
+    .documentElement.textContent.replace(/\s+/g, ' ')
     .trim();
 
 const clip = (text: string): string =>

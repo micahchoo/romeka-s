@@ -252,7 +252,12 @@ export const PageEditor = ({
   return (
     <div className={`editor editor--preview-${preview}`}>
       <div className="editor-toolbar" role="region" aria-label={t('editor.toolbar')}>
-        <button type="button" onClick={runSave} disabled={!valid || saveState.status === 'saving'}>
+        <button
+          type="button"
+          className="editor-save"
+          onClick={runSave}
+          disabled={!valid || saveState.status === 'saving'}
+        >
           {page === null ? t('page.add') : t('action.save')}
         </button>
         {dirty ? (

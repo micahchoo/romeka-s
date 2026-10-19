@@ -7,10 +7,10 @@ import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
 import type { PageId } from '../../../../api/types';
 import { DeleteControl } from '../../../../app/delete';
-import { CheckboxField, TextField } from '../../../../app/fields';
 import { useTranslator } from '../../../../i18n';
 import { gridGap, pageColumns } from '../canvas/grid';
 import type { DraftAction, PageDraft, ValidationIssue } from '../draft';
+import { Checked, Labelled } from '../Labelled';
 
 export interface PageSettingsProps {
   readonly draft: PageDraft;
@@ -44,28 +44,38 @@ export const PageSettings = ({
   return (
     <div className="page-settings">
       <h2>{t('editor.pageSettings')}</h2>
-      <TextField
+      <Labelled
         id="page-title"
         label={t('sites.title')}
-        value={draft.title}
-        onChange={(value) => {
-          dispatch({ type: 'setPage', field: 'title', value });
-        }}
-      />
-      {titleIssue ? (
-        <p className="field-error" role="alert">
-          {t('field.errorRequired')}
-        </p>
-      ) : null}
-      <TextField
-        id="page-slug"
-        label={t('sites.slug')}
-        value={draft.slug}
-        onChange={(value) => {
-          dispatch({ type: 'setPage', field: 'slug', value });
-        }}
-      />
-      <CheckboxField
+        error={
+          titleIssue ? (
+            <p className="field-error" role="alert">
+              {t('field.errorRequired')}
+            </p>
+          ) : null
+        }
+      >
+        <input
+          id="page-title"
+          type="text"
+          value={draft.title}
+          aria-invalid={titleIssue}
+          onChange={(event) => {
+            dispatch({ type: 'setPage', field: 'title', value: event.target.value });
+          }}
+        />
+      </Labelled>
+      <Labelled id="page-slug" label={t('sites.slug')}>
+        <input
+          id="page-slug"
+          type="text"
+          value={draft.slug}
+          onChange={(event) => {
+            dispatch({ type: 'setPage', field: 'slug', value: event.target.value });
+          }}
+        />
+      </Labelled>
+      <Checked
         id="page-public"
         label={t('common.public')}
         checked={draft.isPublic}
@@ -73,8 +83,7 @@ export const PageSettings = ({
           dispatch({ type: 'setPage', field: 'isPublic', value });
         }}
       />
-      <p>
-        <label htmlFor="page-layout">{t('page.layout')}</label>
+      <Labelled id="page-layout" label={t('page.layout')}>
         <select
           id="page-layout"
           value={draft.layout}
@@ -88,11 +97,10 @@ export const PageSettings = ({
           <option value="normal">{t('canvas.normal')}</option>
           <option value="grid">{t('canvas.grid')}</option>
         </select>
-      </p>
+      </Labelled>
       {grid ? (
         <div className="page-grid-fields">
-          <p>
-            <label htmlFor="page-grid-columns">{t('pageLayoutData.grid_columns')}</label>
+          <Labelled id="page-grid-columns" label={t('pageLayoutData.grid_columns')}>
             <input
               id="page-grid-columns"
               type="number"
@@ -106,9 +114,8 @@ export const PageSettings = ({
                 });
               }}
             />
-          </p>
-          <p>
-            <label htmlFor="page-grid-column-gap">{t('pageLayoutData.grid_column_gap')}</label>
+          </Labelled>
+          <Labelled id="page-grid-column-gap" label={t('pageLayoutData.grid_column_gap')}>
             <input
               id="page-grid-column-gap"
               type="number"
@@ -122,9 +129,8 @@ export const PageSettings = ({
                 });
               }}
             />
-          </p>
-          <p>
-            <label htmlFor="page-grid-row-gap">{t('pageLayoutData.grid_row_gap')}</label>
+          </Labelled>
+          <Labelled id="page-grid-row-gap" label={t('pageLayoutData.grid_row_gap')}>
             <input
               id="page-grid-row-gap"
               type="number"
@@ -138,7 +144,7 @@ export const PageSettings = ({
                 });
               }}
             />
-          </p>
+          </Labelled>
         </div>
       ) : null}
       {pageId === null ? null : (

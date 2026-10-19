@@ -176,3 +176,21 @@ async fn a_key_that_does_not_verify_stays_anonymous() {
     .await;
     assert_eq!(answer.status, StatusCode::FORBIDDEN);
 }
+
+/// Upstream's admin lives under `/admin`, so an old bookmark lands there. The
+/// SPA here is served at the root and its assets are relative, so `/admin/`
+/// would load a blank shell; both spellings send the browser to the root.
+#[tokio::test]
+async fn admin_path_redirects_to_the_root() {
+    for path in ["/admin", "/admin/"] {
+        let answer = send(empty_router().await, request("GET", path)).await;
+        assert_eq!(answer.status, StatusCode::FOUND, "{path}");
+        assert_eq!(
+            header_value(&answer, "location"),
+            Some("http://localhost/"),
+            "{path}"
+        );
+    }
+    let deeper = send(empty_router().await, request("GET", "/admin/items")).await;
+    assert_eq!(deeper.status, StatusCode::NOT_FOUND);
+}
