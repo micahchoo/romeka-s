@@ -132,6 +132,15 @@ export const encodeUser = (write: UserWrite): WireBody => ({
   'o:email': write.email,
   'o:role': write.role,
   'o:is_active': write.isActive,
+  ...(write.localeSetting === undefined ? {} : encodeUserLocale(write.localeSetting)),
+});
+
+/**
+ * The user's `locale` setting alone, the port's `o:user_settings` member. A
+ * `PATCH` with only this member leaves every other user field as stored.
+ */
+export const encodeUserLocale = (locale: string): WireBody => ({
+  'o:user_settings': { locale },
 });
 
 export const encodeMedia = (write: MediaWrite): WireBody => ({

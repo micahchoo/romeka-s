@@ -10,6 +10,7 @@
  * session cookie first and the key second ("Actor resolution" in the auth
  * contract), so a client may hold both and the session wins.
  */
+import { parseLocale, setLocale } from '../i18n';
 import { signOut } from './auth';
 import type { User } from './types';
 
@@ -39,9 +40,18 @@ export const subscribeSession = (listener: Listener): (() => void) => {
 /**
  * Record what a sign-in or a `GET /api/me` answered. `null` is the server saying
  * nobody is signed in, which is what an anonymous `GET /api/me` returns.
+ *
+ * The admin locale the server resolved wins over the one this browser stored,
+ * so a user's choice follows them; the stored one was only the first paint.
+ * With no locale setting on the server, the stored choice stays.
  */
 export const setSession = (user: User | null): void => {
   publish(user);
+  if (user?.adminLocale != null) {
+    setLocale(parseLocale(user.adminLocale)).catch((error: unknown) => {
+      console.error(error);
+    });
+  }
 };
 
 /**

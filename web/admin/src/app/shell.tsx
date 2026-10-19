@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../api/client';
-import { setSession } from '../api/session';
+import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
 import { AuthBadge } from './auth';
 import { PAGE_GROUPS, PAGES } from './pages';
@@ -38,6 +38,10 @@ const VersionBadge = (): ReactElement | null => {
  * the choice through the locale store, so a reload keeps it. The page switches
  * once the chosen catalogue has loaded. The stored value
  * is re-narrowed by `parseLocale`, the same boundary the store reads through.
+ *
+ * A signed-in user's choice is also their `locale` user setting, so it follows
+ * them to another browser. That write is best-effort: the switch has already
+ * happened here, so a refused write is logged and nothing else.
  */
 const LocaleSwitch = (): ReactElement => {
   const locale = useLocale();
@@ -50,9 +54,15 @@ const LocaleSwitch = (): ReactElement => {
         onChange={(event) => {
           // A catalogue that fails to load leaves the current language, and
           // the select, where they were.
-          setLocale(parseLocale(event.target.value)).catch((error: unknown) => {
-            console.error(error);
-          });
+          const chosen = parseLocale(event.target.value);
+          setLocale(chosen)
+            .then(() => {
+              const user = currentUser();
+              return user === null ? undefined : api.updateUserLocale(user.id, chosen);
+            })
+            .catch((error: unknown) => {
+              console.error(error);
+            });
         }}
       >
         {LOCALES.map((option) => (

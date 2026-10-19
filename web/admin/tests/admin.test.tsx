@@ -10,7 +10,16 @@ import { QueryPage } from '../src/pages/query/page';
 import { SettingsPage } from '../src/pages/settings/page';
 import { SystemInfoPage } from '../src/pages/system-info/page';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, listResponse, route, urlsFor } from './stub';
+import {
+  first,
+  installFetch,
+  jsonResponse,
+  listResponse,
+  requestBody,
+  requestsFor,
+  route,
+  urlsFor,
+} from './stub';
 
 describe('dashboard page', () => {
   const dashboardRoutes = {
@@ -119,15 +128,41 @@ describe('columns page', () => {
 });
 
 describe('settings page', () => {
-  it('settings_edit_updates_the_field_and_saves', () => {
+  it('settings_saves_the_global_locale_and_keeps_the_other_fields_in_the_page', async () => {
+    const fetchMock = installFetch(
+      route({
+        '/api/settings': (_url, init) =>
+          jsonResponse(init?.method === 'PATCH' ? { locale: 'en' } : { locale: 'es' }),
+      }),
+    );
     render(<SettingsPage />);
 
+    const locale = await screen.findByLabelText('Locale');
+    expect(locale).toHaveValue('es');
+    fireEvent.change(locale, { target: { value: 'en' } });
     fireEvent.change(screen.getByLabelText('Installation title'), {
       target: { value: 'My Omeka' },
     });
     expect(screen.getByLabelText('Installation title')).toHaveValue('My Omeka');
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Settings updated.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Settings updated.');
+    const patch = first(
+      requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
+    );
+    expect(requestBody(patch)).toEqual({ locale: 'en' });
+  });
+
+  it('settings_shows_the_refusal_a_caller_other_than_a_global_admin_gets', async () => {
+    installFetch(() =>
+      jsonResponse(
+        { errors: { error: 'Permission denied for the current user to access the global settings.' } },
+        { status: 403 },
+      ),
+    );
+    render(<SettingsPage />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('global settings');
+    expect(screen.queryByLabelText('Locale')).toBeNull();
   });
 });

@@ -316,6 +316,7 @@ export const en = {
 
   // Users.
   'users.legend': 'User information',
+  'users.settingsLegend': 'User settings',
   'users.displayName': 'Display name',
   'users.email': 'Email',
   'users.role': 'Role',
@@ -795,7 +796,10 @@ export const en = {
   'settings.indexFulltextSearch': 'Index fulltext search',
   'settings.versionNotifications': 'Version notifications',
   'settings.saved': 'Settings updated.',
-  'settings.note': 'The port serves no settings endpoint yet, so these changes are not persisted.',
+  'settings.note': 'The port saves only the locale yet; the other changes are not persisted.',
+  // `SettingForm` and `UserForm`; "Default" is `LocaleSelectFactory`'s empty option.
+  'settings.locale': 'Locale',
+  'settings.localeDefault': 'Default',
 
   // System information page.
   'systemInfo.omeka': 'Omeka S',

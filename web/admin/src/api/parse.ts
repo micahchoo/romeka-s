@@ -44,6 +44,7 @@ import type {
   TemplateId,
   ThumbnailType,
   ThumbnailUrls,
+  GlobalSettings,
   User,
   UserId,
   Value,
@@ -519,8 +520,27 @@ export const parseUser: Parser<User> = (raw, path = []) => {
     created: asString(field(object, 'o:created', path), [...path, 'o:created']),
     role: asString(field(object, 'o:role', path), [...path, 'o:role']),
     isActive: asBoolean(field(object, 'o:is_active', path), [...path, 'o:is_active']),
+    localeSetting: parseLocaleSetting(object, 'o:user_settings', path),
+    adminLocale: optionalString(object, 'o:admin_locale', path),
   };
 };
+
+/** The `locale` key of a settings map member, `null` when the map or the key is absent. */
+const parseLocaleSetting = (
+  object: Record<string, unknown>,
+  key: string,
+  path: Path,
+): string | null => {
+  const value = object[key];
+  return value === undefined || value === null
+    ? null
+    : optionalString(asRecord(value, [...path, key]), 'locale', [...path, key]);
+};
+
+/** `GET /api/settings`, a port route that answers one map of setting keys. */
+export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => ({
+  locale: optionalString(asRecord(raw, path), 'locale', path),
+});
 
 /**
  * `POST /api/users/<id>/password-link`. The route is not a representation, so

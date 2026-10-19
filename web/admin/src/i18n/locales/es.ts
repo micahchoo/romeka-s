@@ -293,6 +293,7 @@ export const es: Catalogue = {
   'draft.needsResourceId': '{term} necesita un id de recurso positivo.',
 
   'users.legend': 'Información del usuario',
+  'users.settingsLegend': 'Ajustes de la cuenta',
   'users.displayName': 'Nombre para mostrar',
   'users.email': 'Correo electrónico',
   'users.role': 'Rol',
@@ -759,8 +760,9 @@ export const es: Catalogue = {
   'settings.indexFulltextSearch': 'Indexar búsqueda de texto completo',
   'settings.versionNotifications': 'Notificaciones de versión',
   'settings.saved': 'Configuración actualizada.',
-  'settings.note':
-    'El port aún no ofrece un endpoint de configuración, así que estos cambios no se guardan.',
+  'settings.note': 'El port aún solo guarda el idioma; los demás cambios no se guardan.',
+  'settings.locale': 'Idioma',
+  'settings.localeDefault': 'Predefinido',
 
   'systemInfo.omeka': 'Omeka S',
   'systemInfo.version': 'Versión',

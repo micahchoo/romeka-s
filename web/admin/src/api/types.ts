@@ -127,6 +127,17 @@ export interface User {
   readonly created: string;
   readonly role: string;
   readonly isActive: boolean;
+  /**
+   * The user's own `locale` setting, from the port's `o:user_settings`. Only a
+   * single-user read carries it; `null` when the user stores none.
+   */
+  readonly localeSetting: string | null;
+  /**
+   * The admin locale the session resolves to, the port's `o:admin_locale`: the
+   * user's setting, else the global one (`MvcListeners::bootstrapLocale`). Only
+   * a sign-in and `GET /api/me` carry it; `null` when neither setting exists.
+   */
+  readonly adminLocale: string | null;
 }
 
 /** Fields shared by a vocabulary member (a property or a resource class). */
@@ -512,6 +523,20 @@ export interface UserWrite {
   readonly email: string;
   readonly role: string;
   readonly isActive: boolean;
+  /**
+   * The user's `locale` setting, sent in `o:user_settings`. `''` is the
+   * Default option, which removes it; absent leaves the stored one alone.
+   */
+  readonly localeSetting?: string;
+}
+
+/**
+ * The global settings `GET /api/settings` answers, a port route. Upstream's
+ * `SettingForm` writes these server-side; the port's SPA reads them here.
+ */
+export interface GlobalSettings {
+  /** The global `locale`, or `null` when none is stored. */
+  readonly locale: string | null;
 }
 
 /**
