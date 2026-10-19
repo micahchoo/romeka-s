@@ -37,14 +37,16 @@ test('the site admin saves site settings, navigation and permissions', async ({
   await page.reload();
   await expect(page.getByLabel('Installation title')).toHaveValue('E2E Library');
 
-  // Navigation: a second link is added and survives a reload.
+  // Navigation: a URL link is added and survives a reload.
   await page.goto(`/#${detail}/navigation`);
   await page.getByRole('button', { name: 'Add link' }).click();
-  await page.getByLabel('Label').nth(1).fill('E2E link');
+  await page.getByLabel('Link type', { exact: true }).selectOption('url');
+  await page.getByLabel('URL', { exact: true }).fill('https://example.org/e2e');
+  await page.getByLabel('Label', { exact: true }).fill('E2E link');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Label').nth(1)).toHaveValue('E2E link');
+  await expect(page.getByRole('button', { name: 'Move E2E link', exact: true })).toBeVisible();
 
   // User permissions: the owner's role changes and survives a reload.
   await page.goto(`/#${detail}/users`);

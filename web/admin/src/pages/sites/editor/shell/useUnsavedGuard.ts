@@ -1,8 +1,11 @@
 /**
  * The unsaved-changes guard. `beforeunload` covers a reload or a closed tab and
- * `hashchange` covers a route change, since the SPA's routes live in the
- * fragment and a fragment change cannot be cancelled. A declined route change
- * puts the old hash back, which fires a second `hashchange` the guard ignores.
+ * `popstate` covers a route change, since the SPA's routes live in the
+ * fragment and a fragment change cannot be cancelled. It listens to `popstate`,
+ * not `hashchange`: React handles `hashchange` at discrete priority, so the
+ * shell re-renders the new route and unmounts this guard before a later
+ * `hashchange` listener runs. A declined route change puts the old hash back,
+ * which fires a second event the guard ignores.
  */
 import { useEffect, useRef } from 'react';
 
@@ -40,10 +43,10 @@ export const useUnsavedGuard = (dirty: boolean, message: string): UnsavedGuard =
       window.location.hash = approved.current;
     };
     window.addEventListener('beforeunload', onBeforeUnload);
-    window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onHashChange);
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload);
-      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('popstate', onHashChange);
     };
   }, [dirty, message]);
 

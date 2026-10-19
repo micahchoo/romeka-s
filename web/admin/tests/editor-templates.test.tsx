@@ -36,6 +36,9 @@ const handlerFor =
     if (url.pathname === '/api/resource_classes') {
       return listResponse(loadFixture('resource-classes-page.json'), 2);
     }
+    if (url.pathname === '/api/users') {
+      return listResponse(loadFixture('users-page.json'), 2);
+    }
     return jsonResponse(
       { errors: { error: `Unexpected request to ${url.pathname}` } },
       { status: 404 },
