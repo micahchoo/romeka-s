@@ -638,6 +638,41 @@ would take 17570 B off it.
 js 94051 B of 94208, largest lazy chunk 10044 B of 10240. These are single builds. The 157 B left is the
 reason the catalogue split is next (Decision 14's stopgap).
 
+## Decision 20: the English catalogue splits into route namespaces (accepted, ends Decision 14's stopgap)
+
+**Change.** `src/i18n/catalogue.ts` keeps the 55 keys the shell renders before any route loads. Every
+other string moved, unchanged and with its `sources.json` record, into a message namespace under
+`src/i18n/namespaces/<id>/` (`scripts/split-catalogue.mjs`): `common`, `resources`, `sites`,
+`editor`, `standards`, `admin` and `account`, plus the page tables that already lived beside their
+pages (Theme, item types, Term lists, lessons, Publish). A namespace's English is a named chunk its
+routes import; each other locale is its own chunk. A component names its namespaces,
+`useTranslator(sites, common)`, and suspends until the active locale's tables arrive, so a page in
+Spanish shows its fallback and never English. The vocabulary labels and comments are two more
+namespaces; the comments wait for their first read. 20 keys nothing rendered were deleted.
+
+**Measured.** `vite build` then `perf/bundle.mjs` (`zlib.gzipSync`), gzip bytes, against main
+`8fe1ed1` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before (`8fe1ed1`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 94056 | 84680 | 9376 B off the first paint |
+| shared React and catalogue chunk (`jsx-runtime-*`) | 15929 | 6232 | the English catalogue left it |
+| entry chunk (`index-*`) | 74231 | 74552 | the namespace store and the route boundary |
+| Spanish shell catalogue | 11271 | 988 | |
+| largest shell catalogue (Tamil) | 13503 | 1156 | |
+| largest catalogue chunk | 13503 (Tamil catalogue) | 10180 (Malayalam vocabulary comments) | every locale table now counts as one |
+| largest namespace English (`sites-messages`) | none | 5570 | the sites and site settings strings |
+| largest namespace locale (Malayalam `sites`) | none | 7149 | |
+| largest lazy chunk (`page-*`) | 10048 | 10092 | the sites route, 148 B under the ceiling |
+
+These are single builds on one machine. A route's first open in a non-English locale now fetches
+its namespaces' tables beside its own chunk; English fetches no table, because English is static.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 94208 to 87040, the measured 84680 plus about
+2.5 KB. `perf/bundle.mjs` now counts every locale table, the shell's and each namespace's, as a
+catalogue chunk, and `bundle.catalogueChunkGzipBytes` moves from 16384 to 11264, the largest one
+plus about 1 KB.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

@@ -308,43 +308,72 @@ it.
 
 ## Locales
 
-`src/i18n/` holds the message catalogue, the translator and the locale store. `catalogue.ts` defines
-the English messages as `en`, derives `MessageKey` from its keys, and types a catalogue as
-`Readonly<Record<MessageKey, string>>`. `locales/es.ts` is the Spanish catalogue, typed `Catalogue`.
-A key in `en` that `es` lacks is a `tsc` error, so a missing key fails `npm run typecheck` rather
-than falling back to English.
+`src/i18n/` holds the message tables, the translator and the locale store. Strings live in two
+kinds of table:
+
+- The **shell catalogue**, `catalogue.ts`: the 55 keys the shell renders before any route loads (the
+  title, the nav, the sign-in panel, the locale switch, the route boundary). It is in the first
+  paint, so nothing else goes here. `locales/<tag>.ts` holds each other locale, typed `Catalogue`.
+- A **namespace**, `namespaces/<id>/index.ts`: every other string, grouped by the routes that render
+  it (`common`, `resources`, `sites`, `editor`, `standards`, `admin`, `account`, and the page tables
+  `theme`, `item-types`, `term-lists`, `lessons`, `publish`). Its English is a chunk its routes
+  import; `locales/<tag>.ts` beside it holds each other locale, typed against that English, so a
+  missing key is a `tsc` error. `namespaces/registry.ts` lists them for the scripts.
+
+A key id is unique across the shell and every namespace (`tests/i18n-sync.test.ts`). A component
+names the namespaces it reads: `const { t } = useTranslator(sites, common)`. The key type follows,
+so a key from an undeclared namespace is a `tsc` error. A namespace table that has not arrived
+suspends the caller (React 19 `use()`), so the page shows its Suspense fallback and never English
+first (`tests/no-english-flash.test.tsx`). English never suspends. `setLocale` fetches the shell
+catalogue and the table of every namespace defined so far, then switches once, so no open page
+unmounts and no draft is lost. The shell's `RouteBoundary` turns a chunk or table that fails to
+load into a reload prompt. A key read from data (a JSON registry) is checked with the namespace's
+`has`, as `sites.has(key)`.
 
 `createTranslator(locale)` returns `{ locale, t, number }`. `t(key, params)` fills `{name}`
 placeholders; `number(value)` formats a count or a byte size in the locale. There is no read-time
-fallback. `assertComplete` is the runtime guard a catalogue built at the edge must pass, and
-`tests/i18n.test.tsx` proves it names the missing ids.
+fallback: every table is checked complete when it loads.
 
-`store.ts` keeps the selected locale in `localStorage` under `romeka.locale` and exposes `useLocale`
-and `useTranslator`. `parseLocale` narrows the stored string at the boundary, so a region tag
-(`es_419`, `en_US`) reads as its language and an unknown tag as English. `main.tsx` renders the
-shell, which carries the `LocaleSwitch` in the header.
+`store.ts` keeps the selected locale in `localStorage` under `romeka.locale`. `parseLocale` narrows
+the stored string at the boundary, so a region tag (`es_419`, `en_US`) reads as its language and an
+unknown tag as English. A sign-in and `GET /api/me` answer `o:admin_locale`, the server's resolution
+of `MvcListeners::bootstrapLocale`, and `setSession` switches to it. When a signed-in user changes
+the switch, it also writes their `locale` user setting, best-effort. The settings page and the user
+edit page carry the global and the user `Locale` select (`src/app/locale-select.tsx`).
 
-That stored locale is only the first paint. A sign-in and `GET /api/me` answer `o:admin_locale`,
-the server's resolution of `MvcListeners::bootstrapLocale` (the user's `locale` setting, else the
-global one), and `setSession` switches to it through `parseLocale`. When a signed-in user changes
-the switch, it also writes their `locale` user setting, best-effort, so the choice follows them to
-another browser. Signed out, `localStorage` is the only source. The settings page and the user edit
-page carry the global and the user `Locale` select (`src/app/locale-select.tsx`).
+### Add a string
 
-To add a string, add the key to `en`; `tsc` then fails until `es` has it. To add a locale, add it to
-`Locale` and `LOCALES`, add its catalogue to `CATALOGUES`, and add `locale.<tag>` labels.
+1. Find the routes that render it. One route family: its namespace (a site page: `sites`; the page
+   editor: `editor`; an admin page: `admin`). Several families: `common`. The shell before any route:
+   `catalogue.ts`, and only then. `node scripts/split-catalogue.mjs plan` prints where each shell
+   catalogue key belongs by the route graph.
+2. Add the key to that namespace's `index.ts` under a new id, and its Spanish to `locales/es.ts` by
+   hand. Never reuse an id another table holds.
+3. Name the namespace in the component: `useTranslator(admin)`.
+4. Run `bun scripts/translate-locales.mjs` for the Indic locales, then `--check`, which makes no model
+   call and must print `0 keys a run would change`. A hand correction in a locale file is kept by
+   every later run; `sources.json` records the English each translation was made from.
 
-The built-in vocabularies' labels and comments (Dublin Core, Dublin Core Type, BIBO, FOAF) are shown
-in the locale through `useTermText()` (`termText.ts`), upstream's `$translate($property->label())`.
-The text is keyed by term (`dcterms:title`, or a vocabulary's prefix), and a stored text is
-translated only while it is still the built-in English, so a user's vocabulary, an edited label and
-a template's alternate label show as stored. The tables are
-`locales/vocabulary/{labels,comments}/<tag>.json`, typed against English, and the public site reads
-the label tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English and Spanish come from
-upstream's catalogues (`scripts/extract-vocabulary-text.mjs`); the other locales from
-`scripts/translate-locales.mjs`. The first `useTermText()` render in a locale fetches its tables as
-lazy chunks and renders again when they arrive (PERF.md Decision 16). A new locale adds its two files to `TABLE_LOADERS`, then runs
-`UPDATE_GENERATED=1 cargo test -p omeka-site vocabulary` and adds the tag to the site's `TABLES`.
+Never edit a namespace locale file to move a key: moving keys between tables is
+`scripts/split-catalogue.mjs` (`copy`, `fold`, `prune`), which moves each entry and its
+`sources.json` record unchanged. A new namespace is one `registry.ts` row and one
+`codeSplitting.groups` entry in `vite.config.ts`; the script writes its files. To add a locale, add
+it to `CATALOGUE_LOADERS`, then `tsc` asks for its file in every table and for its `locale.<tag>`
+label.
+
+The built-in vocabularies' labels and comments (Dublin Core, Dublin Core Type, BIBO, FOAF) are two
+more namespaces over `locales/vocabulary/{labels,comments}/<tag>.json`, upstream's
+`$translate($property->label())`. `useTermLabels()` (`termText.ts`) reads the labels and
+`useTermText()` (`termComments.ts`) the labels and comments; each suspends like `useTranslator`. The
+comments wait for their first read, so a view that shows labels only never fetches them. Neither
+module is exported from `src/i18n/index.ts`, which is in the first paint. The text is keyed by term,
+and a stored text is translated only while it is still the built-in English, so a user's vocabulary,
+an edited label and a template's alternate label show as stored. The public site reads the label
+tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English and Spanish come from upstream's
+catalogues (`scripts/extract-vocabulary-text.mjs`); the other locales from
+`scripts/translate-locales.mjs`. A new locale adds its two files to the loaders in `termText.ts` and
+`termComments.ts`, then runs `UPDATE_GENERATED=1 cargo test -p omeka-site vocabulary` and adds the
+tag to the site's `TABLES`.
 
 ## Wire shapes
 
