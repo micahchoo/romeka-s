@@ -19,7 +19,13 @@ pub struct TableOfContents;
 
 /// `BlockLayout/TableOfContents.php::form`: one `depth` number, minimum 1.
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[integer_min("depth", "blockField.tableOfContents.depth", 1).default_int(1)],
+    fields: &[integer_min(
+        "depth",
+        "blockField.tableOfContents.depth",
+        "fieldHelp.tableOfContents.depth",
+        1,
+    )
+    .default_int(1)],
 };
 
 impl BlockLayout for TableOfContents {

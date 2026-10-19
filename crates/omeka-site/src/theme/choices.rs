@@ -150,18 +150,19 @@ choice! {
 }
 
 impl HeaderStyle {
-    /// The header's `(background, text, link, rule under it, current-page
-    /// mark)`. The header only ever draws text or links on the page
-    /// background, or text on the brand colour, so the contrast pairs cover
-    /// it.
+    /// The header's `(background, text, link, rule under it, stripe above it,
+    /// current-page mark)`. The header only ever draws text or links on the
+    /// page background, or text on the brand colour, so the contrast pairs
+    /// cover it. The stripe is a fill, never behind text.
     #[must_use]
-    pub const fn properties(self) -> [(&'static str, &'static str); 5] {
+    pub const fn properties(self) -> [(&'static str, &'static str); 6] {
         match self {
             Self::Plain => [
                 ("header-background", "transparent"),
                 ("header-text", "var(--color-text)"),
                 ("header-link", "var(--color-link)"),
                 ("header-border", "1px solid var(--color-border)"),
+                ("header-stripe", "4px solid var(--color-brand)"),
                 ("header-mark", "var(--color-brand)"),
             ],
             Self::Band => [
@@ -169,6 +170,7 @@ impl HeaderStyle {
                 ("header-text", "var(--color-on-brand)"),
                 ("header-link", "var(--color-on-brand)"),
                 ("header-border", "0 none"),
+                ("header-stripe", "0 none"),
                 ("header-mark", "var(--color-on-brand)"),
             ],
             Self::Rule => [
@@ -176,6 +178,7 @@ impl HeaderStyle {
                 ("header-text", "var(--color-text)"),
                 ("header-link", "var(--color-text)"),
                 ("header-border", "3px double var(--color-text)"),
+                ("header-stripe", "0 none"),
                 ("header-mark", "var(--color-brand)"),
             ],
             Self::Minimal => [
@@ -183,6 +186,7 @@ impl HeaderStyle {
                 ("header-text", "var(--color-text)"),
                 ("header-link", "var(--color-text)"),
                 ("header-border", "0 none"),
+                ("header-stripe", "0 none"),
                 ("header-mark", "var(--color-brand)"),
             ],
         }

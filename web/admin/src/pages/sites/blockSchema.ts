@@ -4,14 +4,17 @@
  * generates from the layout modules and a Rust test keeps in step.
  *
  * The JSON arrives from outside the SPA, so it is `unknown` until
- * [`parseBlockRegistry`] narrows it here. A `label` that is not in the catalogue
- * fails the parse, which keeps a generated key that nobody can translate from
- * reaching a form.
+ * [`parseBlockRegistry`] narrows it here. A layout's name or description that is
+ * not in the catalogue, or a field's label, help, example or choice name that is
+ * not in the page editor's table (`editor/messages.ts`), fails the parse, which
+ * keeps a generated key that nobody can translate from reaching a form.
  */
 import { ParseError, isRecord, isUnknownArray, parseListOf } from '../../api/parse';
 import type { Path } from '../../api/types';
 import { MESSAGE_KEYS } from '../../i18n';
 import type { MessageKey } from '../../i18n';
+import { isEditorMessageKey } from './editor/messages';
+import type { EditorMessageKey } from './editor/messages';
 
 const MESSAGE_KEY_SET: ReadonlySet<string> = new Set(MESSAGE_KEYS);
 
@@ -24,21 +27,53 @@ export type FieldDefault = string | number | boolean | readonly string[];
 export interface BlockFieldOption {
   /** The stored value; the empty string is a real choice. */
   readonly value: string;
-  readonly label: MessageKey;
+  readonly label: EditorMessageKey;
+}
+
+/** A section of the block styling form, in the order the form shows them. */
+export const FIELD_GROUPS = ['spacing', 'size', 'background', 'alignment', 'grid'] as const;
+export type FieldGroup = (typeof FIELD_GROUPS)[number];
+
+/**
+ * When a control shows: a test on one sibling's value. The sibling's default
+ * stands in for an absent value, and a hidden control keeps what it stores.
+ */
+export type FieldCondition =
+  | { readonly field: string; readonly test: 'equals'; readonly value: string }
+  | { readonly field: string; readonly test: 'set' };
+
+/** The four stored keys of a `sides` control. */
+export interface SideKeys {
+  readonly top: string;
+  readonly right: string;
+  readonly bottom: string;
+  readonly left: string;
 }
 
 interface FieldBase {
   /** The `o:data` key, or a group's own name. */
   readonly key: string;
-  readonly label: MessageKey;
+  readonly label: EditorMessageKey;
+  /** The one line under the control that says what the visitor sees. */
+  readonly help: EditorMessageKey;
   /** The value a form starts from, or `null` for an empty control. */
   readonly default: FieldDefault | null;
   readonly required: boolean;
+  /** The sibling test that shows the control, or `null` to always show it. */
+  readonly when: FieldCondition | null;
+  /** The styling form section, layout data only. */
+  readonly group: FieldGroup | null;
+  /** Whether the form tucks the field under "Advanced". */
+  readonly advanced: boolean;
 }
 
 /** One field of a layout's form, by the control it renders. */
 export type BlockField =
-  | (FieldBase & { readonly type: 'text' })
+  | (FieldBase & {
+      readonly type: 'text';
+      /** An example the empty input shows. */
+      readonly placeholder: EditorMessageKey | null;
+    })
   | (FieldBase & { readonly type: 'html' })
   | (FieldBase & {
       readonly type: 'integer';
@@ -56,10 +91,21 @@ export type BlockField =
     })
   | (FieldBase & { readonly type: 'pageRef' })
   | (FieldBase & { readonly type: 'assetRef' })
-  | (FieldBase & { readonly type: 'itemQuery' })
+  | (FieldBase & {
+      readonly type: 'itemQuery';
+      /** The sibling choice naming the resource type searched; `null` for items. */
+      readonly resourceKey: string | null;
+    })
   | (FieldBase & { readonly type: 'attachments'; readonly media: boolean })
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
-  | (FieldBase & { readonly type: 'pageList' });
+  | (FieldBase & { readonly type: 'pageList' })
+  | (FieldBase & { readonly type: 'color' })
+  | (FieldBase & { readonly type: 'sides'; readonly keys: SideKeys })
+  | (FieldBase & {
+      /** A page under `key`, or a URL under `urlKey`; one is set at a time. */
+      readonly type: 'link';
+      readonly urlKey: string;
+    });
 
 /** A layout's editable `data` members, in form order. */
 export interface LayoutSchema {
@@ -110,6 +156,15 @@ const parseString = (value: unknown, path: Path): string => {
     throw new ParseError(path, 'string');
   }
   return value;
+};
+
+/** A field's label, help, example or choice name: a page editor message id. */
+const parseFieldText = (value: unknown, path: Path): EditorMessageKey => {
+  const key = parseString(value, path);
+  if (!isEditorMessageKey(key)) {
+    throw new ParseError(path, `a page editor message key, got ${key}`);
+  }
+  return key;
 };
 
 const parseLabel = (value: unknown, path: Path): MessageKey => {
@@ -166,13 +221,64 @@ const parseDefault = (value: unknown, path: Path): FieldDefault | null => {
   throw new ParseError(path, 'a string, number, boolean or list of strings');
 };
 
+/** A catalogue key the generator omits when absent. */
+const parseOptionalLabel = (value: unknown, path: Path): EditorMessageKey | null =>
+  value === undefined ? null : parseFieldText(value, path);
+
+const parseOptionalString = (value: unknown, path: Path): string | null =>
+  value === undefined ? null : parseString(value, path);
+
+const parseCondition = (value: unknown, path: Path): FieldCondition | null => {
+  if (value === undefined) {
+    return null;
+  }
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  const field = parseString(value.field, [...path, 'field']);
+  switch (parseString(value.test, [...path, 'test'])) {
+    case 'equals':
+      return { field, test: 'equals', value: parseString(value.value, [...path, 'value']) };
+    case 'set':
+      return { field, test: 'set' };
+    default:
+      throw new ParseError([...path, 'test'], 'equals or set');
+  }
+};
+
+const isFieldGroup = (value: string): value is FieldGroup =>
+  FIELD_GROUPS.some((group) => group === value);
+
+const parseGroup = (value: unknown, path: Path): FieldGroup | null => {
+  if (value === undefined) {
+    return null;
+  }
+  const group = parseString(value, path);
+  if (!isFieldGroup(group)) {
+    throw new ParseError(path, `a styling group, got ${group}`);
+  }
+  return group;
+};
+
+const parseSideKeys = (value: unknown, path: Path): SideKeys => {
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return {
+    top: parseString(value.top, [...path, 'top']),
+    right: parseString(value.right, [...path, 'right']),
+    bottom: parseString(value.bottom, [...path, 'bottom']),
+    left: parseString(value.left, [...path, 'left']),
+  };
+};
+
 const parseOption = (value: unknown, path: Path): BlockFieldOption => {
   if (!isRecord(value)) {
     throw new ParseError(path, 'an object');
   }
   return {
     value: parseString(value.value, [...path, 'value']),
-    label: parseLabel(value.label, [...path, 'label']),
+    label: parseFieldText(value.label, [...path, 'label']),
   };
 };
 
@@ -182,13 +288,27 @@ const parseField = (value: unknown, path: Path): BlockField => {
   }
   const base = {
     key: parseString(value.key, [...path, 'key']),
-    label: parseLabel(value.label, [...path, 'label']),
+    label: parseFieldText(value.label, [...path, 'label']),
+    help: parseFieldText(value.help, [...path, 'help']),
     default: parseDefault(value.default, [...path, 'default']),
     required: parseFlag(value.required, [...path, 'required']),
+    when: parseCondition(value.when, [...path, 'when']),
+    group: parseGroup(value.group, [...path, 'group']),
+    advanced: parseFlag(value.advanced, [...path, 'advanced']),
   };
   switch (parseString(value.type, [...path, 'type'])) {
     case 'text':
-      return { ...base, type: 'text' };
+      return {
+        ...base,
+        type: 'text',
+        placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
+      };
+    case 'color':
+      return { ...base, type: 'color' };
+    case 'sides':
+      return { ...base, type: 'sides', keys: parseSideKeys(value.keys, [...path, 'keys']) };
+    case 'link':
+      return { ...base, type: 'link', urlKey: parseString(value.urlKey, [...path, 'urlKey']) };
     case 'html':
       return { ...base, type: 'html' };
     case 'boolean':
@@ -198,7 +318,11 @@ const parseField = (value: unknown, path: Path): BlockField => {
     case 'assetRef':
       return { ...base, type: 'assetRef' };
     case 'itemQuery':
-      return { ...base, type: 'itemQuery' };
+      return {
+        ...base,
+        type: 'itemQuery',
+        resourceKey: parseOptionalString(value.resourceKey, [...path, 'resourceKey']),
+      };
     case 'pageList':
       return { ...base, type: 'pageList' };
     case 'integer':

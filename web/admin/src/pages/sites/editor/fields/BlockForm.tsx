@@ -6,6 +6,7 @@
 import type { ReactElement } from 'react';
 import type { SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
+import { useEditorText } from '../messages';
 import type { BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
@@ -34,6 +35,7 @@ export const BlockForm = ({
   options,
 }: BlockFormProps): ReactElement => {
   const { t } = useTranslator();
+  const e = useEditorText();
   if (schema === undefined) {
     return <p className="field-note">{t('field.unknownLayout')}</p>;
   }
@@ -47,7 +49,8 @@ export const BlockForm = ({
           <AttachmentsField
             key={field.key}
             id={`${idPrefix}-${field.key}`}
-            label={t(field.label)}
+            label={e(field.label)}
+            help={e(field.help)}
             media={field.media}
             attachments={block.attachments}
             onChange={(attachments) => {
@@ -61,6 +64,13 @@ export const BlockForm = ({
             value={data[field.key]}
             onChange={(value) => {
               dispatch({ type: 'setField', blockKey: block.key, field: field.key, value });
+            }}
+            record={data}
+            siblings={schema.fields}
+            onPatch={(values) => {
+              for (const [key, value] of Object.entries(values)) {
+                dispatch({ type: 'setField', blockKey: block.key, field: key, value });
+              }
             }}
             path={field.key}
             issues={mine}

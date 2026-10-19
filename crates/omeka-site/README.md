@@ -118,8 +118,9 @@ Each layout declares the `data` fields its upstream form edits as a `blocks::sch
 beside its renderer, and returns it from `BlockLayout::schema`. `blocks::schema::registry` collects
 them, in the registry's order, with the schemas of a block's and a page's `layout_data`, and
 serialises them to `web/admin/src/generated/blocks.json`. The admin reads that file instead of
-mirroring the registry, so adding a layout is one module (plus its catalogue keys in
-`web/admin/src/i18n`).
+mirroring the registry, so adding a layout is one module, plus its name in the catalogue
+(`web/admin/src/i18n`) and its field labels, help lines and choice names in the page editor's
+table (`web/admin/src/pages/sites/editor/messages.ts` and `editor/locales/`).
 
 A test writes the file and fails when it differs from the registry, so the boundary is enforced
 rather than conventional. Regenerate with `UPDATE_GENERATED=1 cargo test -p omeka-site`. A second
@@ -130,6 +131,18 @@ The kinds are upstream's form elements: `Text`, `Html`, `Integer { min, max }`, 
 `Attachments { media }`, `Repeat { fields }` and `PageList` for the `listOfPages` tree. An
 attachments list is stored as rows beside `data`, so its key is not a `data` member. The hidden
 members a form does not present (`oembed.url_old`, `oembed.oembed`) are not fields.
+
+Three kinds are this product's own controls over upstream's keys. `Color` is a `<hex-color>`, the only
+colour the renderer keeps. `Sides { keys }` edits the four `padding_*` keys as one control. `Link
+{ url_key }` writes a page under the field's key or a URL under `url_key`, never both, because the
+hero renderer prefers the page. A `Text` field may name a `placeholder` example and an `ItemQuery`
+the sibling choice that names its resource type (`resource_from`).
+
+Every field also carries a `help` catalogue key: the one line under its control that says what the
+visitor sees. `when` shows a control only while a sibling holds a value (`When::equals`) or any value
+(`When::set`); a hidden control keeps what it stores. `group` and `advanced` place a layout-data field
+in a section of the styling form. Tests fail when a field lacks help or a `when`, a resource source
+or a link's URL key names no sibling.
 
 ### Romeka blocks
 
@@ -177,6 +190,11 @@ under `o:layout_data.romeka` and an empty carrier body, because the first save g
 rendering. A test keeps the file byte-identical and checks every block against the registries: a
 layout block's `o:data` parses, a Romeka block's settings name schema fields and carry their kinds,
 and every `o:data` key names a field its layout declares (the `asset` layout's index keys excepted).
+
+`blocks::templates::welcome_blocks` is the first page a site created through the API starts with (a hero,
+an introduction and a preview of the latest items), stored by `omeka-api`'s site create in place of upstream's
+style sampler. The chooser does not offer it. The about and gallery templates open with a `pageTitle` block;
+the hero templates do not, because the hero's heading is the page's visible title.
 
 A site's own templates are not stored here. They are one `site_setting` row,
 `romeka_page_templates`, a JSON list of `{id, name, description, layout, layout_data, blocks}` that
