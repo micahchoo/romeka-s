@@ -1,0 +1,8 @@
+{
+ "jobs.status.starting": "Starting",
+ "jobs.status.stopping": "Stopping",
+ "jobs.status.in_progress": "In Progress",
+ "jobs.status.completed": "Completed",
+ "jobs.status.stopped": "Stopped",
+ "jobs.status.error": "Error"
+}
