@@ -17,17 +17,22 @@ import type { ApiPage, ItemSet, ResourceClass, SiteId } from '../../../../api/ty
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
 import { useTranslator } from '../../../../i18n';
-import type { MessageKey } from '../../../../i18n';
+import type { KeyOf, MessageKey } from '../../../../i18n';
 import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
 import { Labelled } from '../Labelled';
 import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
 
 /** How long the builder waits before it asks for a match count. */
 const COUNT_DELAY_MS = 400;
 
 /** The sort fields `AbstractResourceEntityAdapter` orders items by, and their labels. */
-const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageKey | null }[] = [
+const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageId | null }[] = [
   { value: 'title', label: 'query.sort_title' },
   { value: 'created', label: 'query.sort_created' },
   { value: 'modified', label: 'query.sort_modified' },
@@ -52,7 +57,7 @@ const RESOURCES: Readonly<
       readonly countMessage: (
         count: number,
         scoped: boolean,
-      ) => { readonly main: MessageKey } | { readonly editor: EditorMessageKey };
+      ) => { readonly main: MessageId } | { readonly editor: EditorMessageKey };
     }
   >
 > = {
@@ -139,7 +144,7 @@ const IdSelect = ({
   readonly options: readonly { readonly id: number; readonly label: string }[];
   readonly onChange: (value: string) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const named = options.some((option) => String(option.id) === value);
   return (
     <select
@@ -175,10 +180,10 @@ export const ItemQueryField = ({
   showCount = true,
   resource = 'items',
 }: ItemQueryFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const e = useEditorText();
   const countText = (
-    message: { readonly main: MessageKey } | { readonly editor: EditorMessageKey },
+    message: { readonly main: MessageId } | { readonly editor: EditorMessageKey },
     count: number,
   ): string => ('main' in message ? t(message.main, { count }) : e(message.editor, { count }));
   const searched = RESOURCES[resource];

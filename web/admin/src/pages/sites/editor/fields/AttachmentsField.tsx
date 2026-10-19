@@ -21,6 +21,8 @@ import { Help, helpId } from '../Labelled';
 import { useEditorText } from '../messages';
 import { HtmlEditor } from './HtmlEditor';
 import { ItemPicker } from './ItemPicker';
+import { common } from '../../../../i18n/namespaces/common';
+import { editor } from '../../../../i18n/namespaces/editor';
 import './controls.css';
 
 /** Replaces one entry of a list, the one place a row edit writes the list. */
@@ -54,7 +56,7 @@ export const syncAttachments = (
 
 /** The picked item's thumbnail and title at the top of its row. */
 const AttachedItem = ({ itemId }: { readonly itemId: ItemId | null }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, editor);
   const state = useAsync(
     (): Promise<Item | null> => (itemId === null ? Promise.resolve(null) : api.getItem(itemId)),
     [itemId],
@@ -96,7 +98,7 @@ const MediaChoice = ({
   readonly value: MediaId | null;
   readonly onChange: (value: MediaId | null) => void;
 }): ReactElement | null => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, editor);
   const e = useEditorText();
   const state = useAsync(
     (): Promise<readonly Media[]> =>
@@ -167,7 +169,7 @@ export const AttachmentsField = ({
   attachments,
   onChange,
 }: AttachmentsFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, editor);
   const e = useEditorText();
   const picked = [
     ...new Set(attachments.flatMap((row) => (row.item === null ? [] : [row.item]))),

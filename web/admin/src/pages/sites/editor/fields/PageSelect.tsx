@@ -8,6 +8,9 @@ import { api } from '../../../../api/client';
 import type { SiteId, SitePage } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 export interface PageSelectProps {
   readonly id: string;
@@ -32,7 +35,7 @@ export const PageSelect = ({
   pages,
   hideLabel = false,
 }: PageSelectProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const state = useAsync(
     async (): Promise<readonly SitePage[]> =>
       pages ?? (await api.listSitePages({ siteId, perPage: 200 })).items,
