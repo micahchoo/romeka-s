@@ -17,7 +17,7 @@ export default defineConfig({
     // written into an iframe on this origin, so its theme sheet under `/assets`
     // must resolve here too; the dev server serves no `/assets` of its own.
     proxy: Object.fromEntries(
-      ['/api', '/api-context', '/s', '/files', '/assets'].map((path) => [path, devTarget]),
+      ['/api', '/api-context', '/s', '/files', '/assets', '/vocab'].map((path) => [path, devTarget]),
     ),
   },
   build: {

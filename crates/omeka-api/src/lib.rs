@@ -20,6 +20,7 @@ pub mod login;
 pub mod messages;
 pub mod origin;
 pub mod password;
+pub mod publish;
 pub mod read;
 pub mod routes;
 pub mod session;

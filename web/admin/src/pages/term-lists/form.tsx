@@ -23,6 +23,7 @@ import { SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { PublishPanel } from '../publish/panel';
 import { useTermListText } from './messages';
 import { KIND_LABEL } from './list';
 
@@ -258,6 +259,7 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
         <a href="#/term-lists">{t('page.termLists')}</a>
       </p>
       <TermListEditor list={list} itemSets={state.data.itemSets} onSaved={setSaved} />
+      <PublishPanel key={JSON.stringify(list.source)} target={{ kind: 'term_list', id: list.id }} />
       <p>{tl('termLists.deleteNote')}</p>
       <DeleteControl
         label={tl('termLists.deleteLabel')}

@@ -64,6 +64,13 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'Publish panel messages',
+    source: 'src/pages/publish/messages.ts',
+    dir: 'src/pages/publish/locales',
+    type: 'PublishMessages',
+    from: '../messages',
+  },
+  {
     what: 'item type pages messages',
     source: 'src/pages/item-types/messages.tsx',
     dir: 'src/pages/item-types/locales',

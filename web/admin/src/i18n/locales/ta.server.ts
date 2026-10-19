@@ -142,4 +142,32 @@ export const taServer: ServerCatalogue = {
   'server.settingNotFlag': '{key} என்பது true, false அல்லது null ஆக இருக்க வேண்டும்.',
   'server.settingNotNames':
     '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.publicationTermsRemoved':
+    'வெளியிடப்பட்ட ஒரு கலைச்சொல்லை நீக்கவோ அல்லது மறுபெயரிடவோ முடியாது: {terms}. அதற்குப் பதிலாக அதை நீக்கவும் (deprecate).',
+  'server.publicationNamespaceFixed':
+    'ஒரு வெளியிடப்பட்ட சொல்லகராதி அதன் பெயரிடைவெளியைத் (namespace) தக்கவைத்துக் கொள்கிறது, எனவே அதன் கலைச்சொற்கள் அவற்றின் URIs-ஐத் தக்கவைத்துக் கொள்கின்றன.',
+  'server.publicationNotDeletable':
+    'வெளியிடப்பட்ட ஒரு கலைச்சொல் பட்டியல் அல்லது கலைச்சொல் தொகுப்பை நீக்க முடியாது. அதற்குப் பதிலாக அதன் கலைச்சொற்களை நீக்கவும் (deprecate).',
+  'server.publicationDeprecationFixed':
+    '"{term}" என்ற கலைச்சொல்லின் நீக்கம் (deprecation) வெளியிடப்பட்டுவிட்டது, அதைத் திரும்பப் பெற முடியாது.',
+  'server.publicationItemsList':
+    'உருப்படிகளின் பட்டியல் வெளியிடப்பட முடியாது. ஒவ்வொரு உருப்படியும் ஏற்கனவே அதன் சொந்த முகவரியைக் கொண்டுள்ளது.',
+  'server.publicationForeignNamespace':
+    '{namespace} என்ற பெயர்வெளி (namespace) இந்த ஆவணக் காப்பகத்தின் பெயர்வெளி அல்ல. இந்த ஆவணக் காப்பகத்தின் /vocab/ முகவரிக்குக் கீழ் ஒரு கலைச்சொல் தொகுப்பை வெளியிடவும், அல்லது w3id.org அல்லது purl.org இல் வெளியிடவும்.',
+  'server.publicationSlugInvalid':
+    'ஒரு முகவரிப் பெயர் சிறிய எழுத்துக்கள், எண்கள் மற்றும் ஒற்றை ஹைபன்களைப் பயன்படுத்துகிறது, அதிகபட்சம் 64 எழுத்துக்கள்.',
+  'server.publicationSlugTaken': '/vocab/{slug}/ என்ற முகவரி ஏற்கனவே எடுக்கப்பட்டுவிட்டது.',
+  'server.publicationNamespaceNotPersistent':
+    'இந்த ஆவணக் காப்பகத்தின் பெயர்வெளி அல்லாத ஒரு பெயர்வெளி w3id.org அல்லது purl.org இல் இருக்க வேண்டும் மற்றும் / அல்லது # உடன் முடிய வேண்டும்.',
+  'server.publicationAddressFixed':
+    'ஒரு வெளியிடப்பட்ட கலைச்சொல் பட்டியல் அல்லது கலைச்சொல் தொகுப்பு அது முதலில் வெளியிடப்பட்ட முகவரியைத் தக்கவைத்துக் கொள்கிறது.',
+  'server.publicationTermNotPublished':
+    '"{term}" இன்னும் வெளியிடப்படவில்லை, எனவே அதை நீக்க முடியாது. அதற்குப் பதிலாக அதை நீக்கவும்.',
+  'server.publicationUnknownTerm':
+    '"{term}" இந்த பட்டியலின் அல்லது கலைச்சொல் தொகுப்பின் உறுப்பு அல்ல.',
+  'server.publicationMatchInvalid':
+    'ஒரு பொருத்தம் என்பது முழுமையான http அல்லது https URI ஆக இருக்க வேண்டும்.',
+  'server.publicationMatchTermLists':
+    'கலைச்சொல் பட்டியலின் ஒரு உறுப்பு மட்டுமே ஒரு அதிகாரத்துடன் இணைக்க முடியும்.',
+  'server.publicationTermIriInvalid': '{uri} என்ற உறுப்பு URI ஒரு சரியான IRI அல்ல.',
 };

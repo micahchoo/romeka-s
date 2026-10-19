@@ -247,6 +247,26 @@ const TABLES: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// Romeka's own tables (`0003_publication.sql`). Upstream never reads them, so they sit apart from
+/// [`TABLES`] and the upstream tables stay exactly upstream's.
+const ROMEKA_TABLES: &[(&str, &[&str])] = &[
+    (
+        "romeka_publication",
+        &[
+            "id",
+            "custom_vocab_id",
+            "vocabulary_id",
+            "slug",
+            "namespace_uri",
+            "terms",
+        ],
+    ),
+    (
+        "romeka_publication_version",
+        &["id", "publication_id", "version", "created", "snapshot"],
+    ),
+];
+
 async fn columns(pool: &SqlitePool, table: &str) -> Vec<String> {
     let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
         .fetch_all(pool)
@@ -264,6 +284,15 @@ async fn every_upstream_table_has_its_upstream_columns_in_order() {
 }
 
 #[tokio::test]
+async fn every_romeka_table_has_its_columns_and_a_romeka_prefix() {
+    let pool = common::memory().await;
+    for (table, expected) in ROMEKA_TABLES {
+        assert!(table.starts_with("romeka_"), "{table}");
+        assert_eq!(&columns(&pool, table).await, expected, "table {table}");
+    }
+}
+
+#[tokio::test]
 async fn no_table_beyond_the_upstream_set_and_the_port_infrastructure() {
     let pool = common::memory().await;
     let rows = sqlx::query("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -275,7 +304,11 @@ async fn no_table_beyond_the_upstream_set_and_the_port_infrastructure() {
     found.retain(|name| name != "_sqlx_migrations");
     found.retain(|name| name != "fulltext_search_fts");
     found.retain(|name| !name.starts_with("fulltext_search_fts_"));
-    let mut expected: Vec<String> = TABLES.iter().map(|(table, _)| table.to_string()).collect();
+    let mut expected: Vec<String> = TABLES
+        .iter()
+        .chain(ROMEKA_TABLES)
+        .map(|(table, _)| table.to_string())
+        .collect();
     found.sort();
     expected.sort();
     assert_eq!(found, expected);

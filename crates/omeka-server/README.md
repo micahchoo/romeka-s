@@ -261,6 +261,23 @@ writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
 
+## Published term lists and vocabularies
+
+Two Romeka additions (`src/publish.rs`); every rule is in `omeka_api::publish`.
+
+| Route | Answer |
+| --- | --- |
+| `GET /api/{custom_vocabs,vocabularies}/:id/publication` | 200 the admin's view: state, address, versions, terms, Turtle preview |
+| `POST` the same path, `{action: publish \| deprecate \| undeprecate \| link, ...}` | 200 the view after the command; 400, 403, 404, 415, 422 |
+| `GET /vocab/:slug`, `/vocab/:slug/`, `/vocab/:slug/:local` | 200 the newest version (or `?version=N`) of the scheme or one term; 404, 406 |
+
+`/vocab/*` negotiates on `Accept`: `text/turtle` (also the answer to `*/*` or no
+header), `application/ld+json`, `application/rdf+xml`, `application/n-triples`
+and `text/html`. `?format=ttl|jsonld|rdf|nt|html` overrides the header. Every
+answer carries `Vary: Accept` and `Access-Control-Allow-Origin: *`, because the
+point of publishing is that other sites read it. The prefix is forwarded by
+`deploy/Caddyfile` and the e2e harness proxy.
+
 ## Live preview
 
 `POST /s/:site-slug/preview` is a Romeka addition with no upstream counterpart

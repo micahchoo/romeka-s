@@ -41,6 +41,7 @@ mod http;
 mod limits;
 mod logging;
 pub mod mail;
+mod publish;
 mod serve;
 mod settings;
 pub mod settings_upgrade;
@@ -142,6 +143,7 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())
+        .merge(publish::router())
         .fallback(not_found)
         .with_state(state);
     routes.layer(

@@ -136,4 +136,29 @@ export const mrServer: ServerCatalogue = {
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
   'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
   'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
+  'server.publicationTermsRemoved':
+    'प्रकाशित शब्द काढता येत नाही किंवा त्याचे नाव बदलता येत नाही: {terms}. त्याऐवजी ते अप्रचलित (deprecate) करा.',
+  'server.publicationNamespaceFixed':
+    'प्रकाशित शब्दसंग्रह त्याचे नेमस्पेस राखतो, त्यामुळे त्याच्या संज्ञा त्यांचे URIs राखतात.',
+  'server.publicationNotDeletable':
+    'प्रकाशित संज्ञा सूची किंवा शब्दसंग्रह हटवता येत नाही. त्याऐवजी त्याच्या संज्ञा अप्रचलित करा.',
+  'server.publicationDeprecationFixed':
+    '"{term}" चे अप्रचलन प्रकाशित झाले आहे आणि ते मागे घेता येणार नाही.',
+  'server.publicationItemsList':
+    'वस्तूंच्या सूचीचे प्रकाशन शक्य नाही. प्रत्येक वस्तूचा स्वतःचा पत्ता आधीच आहे.',
+  'server.publicationForeignNamespace':
+    '{namespace} हे या संग्रहाचे नेमस्पेस नाही. /vocab/ पत्त्याखाली या संग्रहाच्या नेमस्पेस अंतर्गत शब्दसंग्रह प्रकाशित करा, किंवा w3id.org किंवा purl.org वर.',
+  'server.publicationSlugInvalid':
+    'पत्त्याच्या नावामध्ये लहान अक्षरे, अंक आणि एक हायफन, जास्तीत जास्त 64 अक्षरे वापरली जातात.',
+  'server.publicationSlugTaken': '/vocab/{slug}/ हा पत्ता आधीच वापरला गेला आहे.',
+  'server.publicationNamespaceNotPersistent':
+    'या संग्रहाच्या नेमस्पेस व्यतिरिक्त इतर नेमस्पेस w3id.org किंवा purl.org वर असावा आणि / किंवा # ने समाप्त व्हावा.',
+  'server.publicationAddressFixed':
+    'प्रकाशित संज्ञा सूची किंवा शब्दसंग्रह तो पत्ता राखतो ज्यावर तो प्रथम प्रकाशित झाला होता.',
+  'server.publicationTermNotPublished':
+    '"{term}" अद्याप प्रकाशित झाले नसल्यामुळे, ते अप्रचलित करता येणार नाही. त्याऐवजी ते काढून टाका.',
+  'server.publicationUnknownTerm': '"{term}" या सूचीचा किंवा शब्दसंग्रहाचा शब्द नाही.',
+  'server.publicationMatchInvalid': 'जुळणी ही एक निरपेक्ष http किंवा https URI असणे आवश्यक आहे.',
+  'server.publicationMatchTermLists': 'केवळ संज्ञा सूचीतील संज्ञा अधिकृततेशी जोडल्या जातात.',
+  'server.publicationTermIriInvalid': '{uri} हा शब्द वैध IRI नाही.',
 };
