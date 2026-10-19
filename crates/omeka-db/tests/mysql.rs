@@ -25,7 +25,7 @@ use omeka_db::repos::{
 use omeka_db::rows::{
     FulltextSearchRow, NewClass, NewCustomVocab, NewFirstPage, NewFirstPageBlock, NewItem,
     NewItemSet, NewJob, NewPasswordCreation, NewProperty, NewSite, NewSiteBlock, NewSitePage,
-    NewUser, NewValue, NewVocabulary, NewWholeSite,
+    NewUser, NewValue, NewVocabulary, NewWholeItem, NewWholeSite, ValueContent,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -314,6 +314,89 @@ async fn a_property_filter_matches_a_literal_and_treats_a_percent_as_a_literal()
         .await
         .expect("list items with a percent in the needle");
     assert_eq!(rows.len(), 1, "the percent is a literal, not a wildcard");
+
+    db.cleanup().await;
+}
+
+async fn value_texts(values: &ValueRepo<'_, MySql>, resource: ResourceId) -> Vec<String> {
+    values
+        .list_for_resource(resource)
+        .await
+        .expect("list values")
+        .into_iter()
+        .filter_map(|value| value.value)
+        .collect()
+}
+
+#[tokio::test]
+async fn a_whole_item_create_and_a_value_rewrite_commit_or_roll_back_as_one() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let property = title_property(&db.pool).await;
+    let no_such_property = PropertyId::from(999_999);
+    let set = ItemSetRepo::<MySql>::new(&db.pool)
+        .create(&NewItemSet::default())
+        .await
+        .expect("create item set");
+    let items = ItemRepo::<MySql>::new(&db.pool);
+    let values = ValueRepo::<MySql>::new(&db.pool);
+
+    let refused = items
+        .create_whole(&NewWholeItem {
+            item: NewItem::default(),
+            item_sets: vec![set.id()],
+            values: vec![
+                ValueContent::literal(property, "first"),
+                ValueContent::literal(no_such_property, "second"),
+            ],
+        })
+        .await;
+    assert!(refused.is_err(), "the foreign key refuses the second value");
+    assert!(
+        items
+            .list(&ItemFilter::default(), &Paging::default())
+            .await
+            .expect("list items")
+            .is_empty(),
+        "a refused create leaves no item"
+    );
+
+    let item = items
+        .create_whole(&NewWholeItem {
+            item: NewItem::default(),
+            item_sets: vec![set.id()],
+            values: vec![ValueContent::literal(property, "old")],
+        })
+        .await
+        .expect("create whole");
+    assert_eq!(
+        items.list_item_sets(item.id()).await.expect("list sets"),
+        vec![set.id()]
+    );
+    let old = values
+        .list_for_resource(item.resource.id)
+        .await
+        .expect("list values");
+    let refused = values
+        .rewrite(
+            item.resource.id,
+            &[old[0].id],
+            &[ValueContent::literal(no_such_property, "new")],
+        )
+        .await;
+    assert!(refused.is_err());
+    assert_eq!(value_texts(&values, item.resource.id).await, ["old"]);
+
+    values
+        .rewrite(
+            item.resource.id,
+            &[old[0].id],
+            &[ValueContent::literal(property, "new")],
+        )
+        .await
+        .expect("rewrite");
+    assert_eq!(value_texts(&values, item.resource.id).await, ["new"]);
 
     db.cleanup().await;
 }
