@@ -471,14 +471,16 @@ export interface SiteBlockWrite {
   readonly attachments?: readonly SiteBlockAttachmentWrite[];
 }
 
-/** `SiteAdapter::hydrate` members. `owner` is only read on create. */
-export interface SiteWrite {
+/**
+ * The `SiteAdapter::hydrate` members a new site sets. It names no navigation
+ * or homepage, so the server links the welcome page first and the site opens
+ * on it.
+ */
+export interface SiteCreate {
   readonly slug: string;
   readonly title: string;
   readonly theme: string;
   readonly summary: string | null;
-  readonly navigation: readonly JsonValue[];
-  readonly homepage: PageId | null;
   readonly itemPool: JsonValue | null;
   readonly isPublic: boolean;
   readonly assignNewItems: boolean;

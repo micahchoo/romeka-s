@@ -46,13 +46,11 @@ test('a new site lands on its hub, and the page actions and settings persist', a
     page.getByRole('navigation', { name: 'Site sections' }).getByRole('link', { name: 'Pages' }),
   ).toHaveAttribute('aria-current', 'page');
 
-  // The welcome page the create builds is not in the default menu, so the site
-  // has no homepage until it is added.
+  // The create links its welcome page first in the menu, which makes it the homepage.
   const welcome = pageRow(page, 'Welcome');
-  await expect(welcome).not.toContainText('Homepage');
-  await welcome.getByRole('button', { name: 'Add to navigation' }).click();
   await expect(welcome).toContainText('In navigation');
   await expect(welcome).toContainText('Homepage');
+  await expect(welcome.getByRole('button', { name: 'Add to navigation' })).toHaveCount(0);
 
   // A second page, through the editor; the frame names it once it exists.
   await page.getByRole('link', { name: 'Add page' }).click();
@@ -93,6 +91,15 @@ test('a new site lands on its hub, and the page actions and settings persist', a
   await expectClean(diagnostics, 'site hub');
 });
 
+test('a new site opens on its welcome page at the public root', async ({ page }) => {
+  await createSite(page, 'Open Site Four', 'open-site-four');
+  await page.goto('/s/open-site-four');
+  await expect(page).toHaveURL(/\/s\/open-site-four\/page\/welcome$/);
+  await expect(page.locator('.romeka-hero-heading')).toHaveText('Welcome');
+  await page.getByRole('link', { name: 'Explore the collection' }).click();
+  await expect(page).toHaveURL(/\/s\/open-site-four\/item$/);
+});
+
 test('the navigation tree reorders by drag and by keyboard, and the public menu follows', async ({
   page,
   diagnostics,
@@ -100,9 +107,7 @@ test('the navigation tree reorders by drag and by keyboard, and the public menu 
   const hub = await createSite(page, 'Nav Site Two', 'nav-site-two');
   await page.goto(`/#${hub}/navigation`);
 
-  // A page link and a URL link join the default Browse link.
-  await page.getByRole('button', { name: 'Add link' }).click();
-  await page.getByLabel('Page', { exact: true }).selectOption({ label: 'Welcome' });
+  // A URL link joins the default Welcome and Browse links.
   await page.getByRole('button', { name: 'Add link' }).click();
   await page.getByLabel('Link type', { exact: true }).selectOption('url');
   await page.getByLabel('URL', { exact: true }).fill('https://example.org/docs');
@@ -121,16 +126,16 @@ test('the navigation tree reorders by drag and by keyboard, and the public menu 
   const preview = page.getByRole('complementary', { name: 'Menu preview' });
   await expect(preview.locator('li li')).toHaveText(['Docs']);
 
-  // Welcome moves to the front by keyboard: Space picks it up, Up moves it.
-  const handle = page.getByRole('button', { name: 'Move Welcome', exact: true });
+  // Browse moves to the front by keyboard: Space picks it up, Up moves it.
+  const handle = page.getByRole('button', { name: 'Move Browse', exact: true });
   await handle.focus();
   await page.keyboard.press('Space');
   await page.keyboard.press('ArrowUp');
-  await expect(page.getByText('Welcome: position 1 of 2, level 1.')).toBeVisible();
+  await expect(page.getByText('Browse: position 1 of 2, level 1.')).toBeVisible();
   await page.keyboard.press('Space');
   await expect(preview.locator('.menu-preview-bar > ul > li > .menu-preview-link')).toHaveText([
-    'Welcome',
     'Browse',
+    'Welcome',
   ]);
   await expectAxeBudget(page, 'admin site navigation');
 
@@ -139,7 +144,7 @@ test('the navigation tree reorders by drag and by keyboard, and the public menu 
   await expect(page.getByText('Saved.')).toBeVisible();
   await expect(page.getByText('Unsaved changes')).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('.nav-tree-label')).toHaveText(['Welcome', 'Browse', 'Docs']);
+  await expect(page.locator('.nav-tree-label')).toHaveText(['Browse', 'Docs', 'Welcome']);
   const browseItem = page.locator('.nav-tree-item', { has: linkRow(page, 'Browse') });
   await expect(browseItem.locator('.nav-tree .nav-tree-label')).toHaveText(['Docs']);
   await expectClean(diagnostics, 'navigation save');
@@ -147,7 +152,7 @@ test('the navigation tree reorders by drag and by keyboard, and the public menu 
   // The public menu renders the saved order and nesting.
   await page.goto('/s/nav-site-two/page/welcome');
   const menu = page.locator('#top-nav');
-  await expect(menu.locator(':scope > ul > li > a')).toHaveText(['Welcome', 'Browse']);
+  await expect(menu.locator(':scope > ul > li > a')).toHaveText(['Browse', 'Welcome']);
   await expect(menu.locator('li li > a')).toHaveText(['Docs']);
   await expect(menu.locator('li li > a')).toHaveAttribute('href', 'https://example.org/docs');
 });

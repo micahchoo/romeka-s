@@ -3,37 +3,19 @@
  * each page runs through the real typed client and its parsers. No test touches
  * the network.
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { PropertiesPage } from '../src/pages/properties/page';
 import { ResourceClassesPage } from '../src/pages/resource-classes/page';
-import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
+import { ItemTypesPage } from '../src/pages/item-types/page';
 import { VocabulariesPage } from '../src/pages/vocabularies/page';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, route, urlsFor } from './stub';
 
 /** The row a detail table cell belongs to, found by the link in its first cell. */
-const rowOf = (label: string): HTMLElement => {
-  const rows = screen.getAllByRole('link', { name: label }).flatMap((link) => {
-    const row = link.closest('tr');
-    return row === null ? [] : [row];
-  });
-  const row = rows[0];
-  if (row === undefined) {
-    throw new Error(`no table row for ${label}`);
-  }
-  return row;
-};
 
 /** The value of a definition row, found by its term. */
-const definitionOf = (term: string): HTMLElement => {
-  const value = screen.getByText(term).nextElementSibling;
-  if (!(value instanceof HTMLElement)) {
-    throw new Error(`no definition value for ${term}`);
-  }
-  return value;
-};
 
 describe('vocabulary detail', () => {
   it('vocabulary_detail_shows_every_member_and_links_its_properties_and_classes', async () => {
@@ -131,64 +113,16 @@ describe('resource class detail', () => {
   });
 });
 
-describe('resource template detail', () => {
-  const routes = {
-    '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
-    '/api/properties': () => listResponse(loadFixture('template-properties.json'), 3),
-    '/api/users': () => listResponse(loadFixture('users-page.json'), 2),
-    '/api/resource_classes': () => listResponse(loadFixture('resource-classes-page.json'), 2),
-  };
-
-  it('resource_template_detail_shows_every_member_and_links_its_references', async () => {
-    installFetch(route(routes));
-    render(<ResourceTemplatesPage param="2" />);
-
-    expect(await screen.findByRole('heading', { name: 'Photograph' })).toBeInTheDocument();
-    expect(within(definitionOf('Owner')).getByRole('link', { name: 'Ada Lovelace' })).toHaveAttribute(
-      'href',
-      '#/users/3',
-    );
-    expect(
-      within(definitionOf('Class')).getByRole('link', { name: 'Still Image' }),
-    ).toHaveAttribute('href', '#/resource-classes/13');
-    expect(within(definitionOf('Title property')).getByRole('link', { name: 'Title' })).toHaveAttribute(
-      'href',
-      '#/properties/1',
-    );
-    expect(
-      within(definitionOf('Description property')).getByRole('link', { name: 'Description' }),
-    ).toHaveAttribute('href', '#/properties/4');
-  });
-
-  it('resource_template_detail_shows_each_template_property_member', async () => {
-    installFetch(route(routes));
-    render(<ResourceTemplatesPage param="2" />);
-    await screen.findByRole('heading', { name: 'Photograph' });
-
-    const required = rowOf('Title');
-    expect(within(required).getByText('literal')).toBeInTheDocument();
-    expect(within(required).getByText('Yes')).toBeInTheDocument();
-    expect(within(required).getByText('No')).toBeInTheDocument();
-
-    const captioned = rowOf('Description');
-    expect(within(captioned).getByText('Caption')).toBeInTheDocument();
-    expect(within(captioned).getByText('en')).toBeInTheDocument();
-
-    const related = rowOf('Relation');
-    expect(within(related).getByText('resource:item')).toBeInTheDocument();
-  });
-});
-
 describe('vocabulary family browse rows', () => {
   const pages: readonly (readonly [string, () => ReactElement, Readonly<Record<string, () => Response>>])[] =
     [
       [
         'resource templates',
-        () => <ResourceTemplatesPage />,
+        () => <ItemTypesPage />,
         {
           '/api/resource_templates': () =>
             listResponse(loadFixture('resource-templates-page.json'), 2),
-          '/api/users': () => listResponse(loadFixture('users-page.json'), 2),
+          '/api/items': () => listResponse([], 0),
           '/api/resource_classes': () => listResponse(loadFixture('resource-classes-page.json'), 2),
         },
       ],
@@ -218,7 +152,7 @@ describe('vocabulary family browse rows', () => {
     ],
     [
       'resource templates',
-      () => <ResourceTemplatesPage param="abc" />,
+      () => <ItemTypesPage param="abc" />,
       '"abc" is not a valid resource template id.',
     ],
   ] as const)('%s detail reports an unparseable id', (_name, Page, message) => {

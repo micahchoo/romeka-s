@@ -22,7 +22,7 @@ import type {
   SitePageWrite,
   SiteItemsCommand,
   SitePermissionWrite,
-  SiteWrite,
+  SiteCreate,
   TemplatePropertyWrite,
   UserId,
   UserWrite,
@@ -150,17 +150,15 @@ export const encodeMedia = (write: MediaWrite): WireBody => ({
 });
 
 /**
- * `SiteAdapter::hydrate`. `o:owner` is read on create only; when the form has
- * no owner the member is omitted so the server assigns the acting user. An
- * update ignores it, so omitting it is also the faithful update body.
+ * The create body (`SiteAdapter::hydrate`). An unset owner is omitted so the
+ * server assigns the acting user. `o:navigation` and `o:homepage` are omitted
+ * so the server's default navigation applies.
  */
-export const encodeSite = (write: SiteWrite): WireBody => ({
+export const encodeSiteCreate = (write: SiteCreate): WireBody => ({
   'o:slug': write.slug,
   'o:title': write.title,
   'o:theme': write.theme,
   'o:summary': write.summary,
-  'o:navigation': write.navigation,
-  'o:homepage': ref(write.homepage),
   // The column holds an array; the create default and a cleared pool are `[]`.
   'o:item_pool': write.itemPool ?? [],
   'o:is_public': write.isPublic,

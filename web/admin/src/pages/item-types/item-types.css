@@ -1,0 +1,370 @@
+/* The item type pages and the Fields page. Loaded with their chunks, so the
+ * initial stylesheet carries none of it. */
+
+.type-lede {
+  max-width: 44rem;
+  color: var(--text-muted);
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.button-link--primary,
+.button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.button-primary:hover:not(:disabled) {
+  border-color: #164f96;
+  background: #164f96;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.type-eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.type-class-line code,
+.type-field-term code,
+.type-ask-fields code,
+.fields-entry .property-field-term {
+  color: var(--text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+}
+
+/* "What kind of thing is this?" */
+.type-ask {
+  max-width: 36rem;
+}
+
+.type-ask-question {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.type-ask-question label {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.type-ask-question input {
+  min-height: 2.5rem;
+  font-size: 16px;
+}
+
+.type-ask-card {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.type-ask-card h2 {
+  margin-top: 0;
+}
+
+.type-ask-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.type-ask-fields code {
+  display: block;
+}
+
+.type-ask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The editor: a header, then the fields beside the preview. */
+.type-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.type-editor-title {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.type-name {
+  width: 100%;
+  max-width: 28rem;
+  border-color: transparent;
+  background: transparent;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.type-name:hover,
+.type-name:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.type-class-picker {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.type-editor-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.type-tabs {
+  display: none;
+  margin-bottom: var(--space-3);
+}
+
+.type-tabs [aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.type-editor-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.type-preview {
+  position: sticky;
+  top: var(--space-4);
+}
+
+@media (max-width: 899px) {
+  .type-tabs {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .type-editor-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .type-editor--fields .type-preview,
+  .type-editor--preview .type-fields {
+    display: none;
+  }
+
+  .type-preview {
+    position: static;
+  }
+}
+
+.type-preview-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.type-preview-card h3 {
+  margin-top: 0;
+}
+
+.type-preview .values-editor {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* One field is one card: a drag handle, its settings, and its move buttons. */
+.type-field-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.type-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.type-field-handle {
+  align-self: start;
+  min-height: 2rem;
+  padding: 0 var(--space-1);
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+}
+
+.type-field-body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.type-field-body p {
+  margin: 0;
+}
+
+.type-field-name {
+  width: 100%;
+  font-weight: 600;
+}
+
+.type-field-term,
+.type-field-accepts,
+.type-field-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.type-field-flags label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.type-field-accepts-list {
+  margin: var(--space-1) 0;
+}
+
+.type-field-accepts-group {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.type-field-accepts-group > legend {
+  padding: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.type-field-type-id {
+  font-size: 12px;
+}
+
+.type-field-more summary {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.type-field-more p {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.type-field-lang {
+  width: 8rem;
+}
+
+.type-field-actions {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+}
+
+.type-field-actions button {
+  min-width: 2rem;
+  padding: 0;
+}
+
+.type-use {
+  margin-top: var(--space-4);
+}
+
+/* The Fields page. */
+.fields-search {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 32rem;
+}
+
+.fields-list {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.fields-entry {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fields-entry p {
+  margin: 0;
+}
+
+.fields-entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.fields-entry-hint {
+  color: var(--text-muted);
+}
+
+.fields-entry-use {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: end;
+}

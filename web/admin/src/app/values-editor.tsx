@@ -2,9 +2,9 @@
  * The values of one resource, one group per property, laid out by the chosen
  * template (`value-fields.ts` owns the layout and the rules).
  */
-import { lazy, Suspense, useId, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { DataType, Property, ResourceTemplate } from '../api/types';
+import type { DataType, Property } from '../api/types';
 import { useTranslator } from '../i18n';
 import type { Translator } from '../i18n';
 import { patchValue, removeValue } from './draft';
@@ -13,21 +13,20 @@ import {
   addFieldValue,
   addPropertyValue,
   layoutFields,
-  matchProperties,
   pickTerm,
   setValueType,
   typeChoices,
   valueInput,
   type PropertyField,
+  type TemplateLayout,
 } from './value-fields';
+import { useDescribeText } from './describe-messages';
+import { TermHelp, StandardTermPicker } from './standard-term-picker';
 
 // Most resources hold no term list value, so the picker loads on first use.
 const TermPicker = lazy(() =>
   import('../pages/term-lists/term-picker').then((module) => ({ default: module.TermPicker })),
 );
-
-/** How many matches "Add another field" lists before asking for a longer query. */
-const MATCH_LIMIT = 12;
 
 const CORE_TYPE_LABELS = {
   literal: 'field.kindText',
@@ -68,18 +67,19 @@ const ValueRow = ({
   onChange,
 }: ValueRowProps): ReactElement => {
   const { t } = useTranslator();
+  const describe = useDescribeText();
   const id = (suffix: string): string => `${idPrefix}-${value.key}-${suffix}`;
   const patch = (next: Partial<ValueDraft>): void => {
     onChange(patchValue(draft, value.key, next));
   };
   const choices = typeChoices(field, value);
-  const input = valueInput(value);
+  const input = valueInput(value, dataTypes);
   const named = { field: field.label };
   return (
     <li className="value-row">
       {choices.length > 1 ? (
         <p>
-          <label htmlFor={id('type')}>{t('field.type')}</label>
+          <label htmlFor={id('type')}>{describe('value.kind')}</label>
           <select
             id={id('type')}
             aria-label={t('valueField.dataType', named)}
@@ -219,6 +219,7 @@ const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupP
         {field.label === field.term ? null : (
           <span className="property-field-term">{field.term}</span>
         )}
+        <TermHelp entry={field.property} />
         {rule?.isRequired === true ? (
           <span className="field-badge field-badge-required">{t('valueField.required')}</span>
         ) : null}
@@ -262,63 +263,40 @@ const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupP
 
 interface AddFieldProps extends Change {
   readonly properties: readonly Property[];
+  readonly createField: ((name: string) => Promise<Property>) | undefined;
 }
 
-/** "Add another field": a search over property labels and terms. */
-const AddField = ({ properties, draft, onChange }: AddFieldProps): ReactElement => {
+/** "Add another field": a plain-words search over every property. */
+const AddField = ({ properties, draft, onChange, createField }: AddFieldProps): ReactElement => {
   const { t } = useTranslator();
-  const inputId = useId();
-  const [query, setQuery] = useState('');
-  const matches = matchProperties(properties, query);
-  const shown = matches.slice(0, MATCH_LIMIT);
   return (
     <div className="add-field">
-      <p>
-        <label htmlFor={inputId}>{t('valueField.addField')}</label>
-        <input
-          id={inputId}
-          type="search"
-          placeholder={t('valueField.addFieldHint')}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-        />
-      </p>
-      {query.trim() === '' ? null : matches.length === 0 ? (
-        <p className="add-field-empty">{t('valueField.noMatch', { query: query.trim() })}</p>
-      ) : (
-        <ul className="add-field-matches" aria-label={t('valueField.matches')}>
-          {shown.map((property) => (
-            <li key={String(property.id)}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(addPropertyValue(draft, property));
-                  setQuery('');
-                }}
-              >
-                <span className="property-field-label">{property.label ?? property.term}</span>{' '}
-                <span className="property-field-term">{property.term}</span>
-              </button>
-            </li>
-          ))}
-          {matches.length > shown.length ? (
-            <li className="add-field-more">
-              {t('valueField.moreMatches', { count: matches.length - shown.length })}
-            </li>
-          ) : null}
-        </ul>
-      )}
+      <StandardTermPicker
+        label={t('valueField.addField')}
+        placeholder={t('valueField.addFieldHint')}
+        entries={properties}
+        onPick={(property) => {
+          onChange(addPropertyValue(draft, property));
+        }}
+        onCreate={
+          createField === undefined
+            ? undefined
+            : async (name) => {
+                onChange(addPropertyValue(draft, await createField(name)));
+              }
+        }
+      />
     </div>
   );
 };
 
 export interface ValuesEditorProps extends Change {
   readonly idPrefix: string;
-  readonly template: ResourceTemplate | null;
+  readonly template: TemplateLayout | null;
   readonly properties: readonly Property[];
   readonly dataTypes: readonly DataType[];
+  /** Makes a new property for "Add another field"; without it none is offered. */
+  readonly createField?: (name: string, properties: readonly Property[]) => Promise<Property>;
 }
 
 export const ValuesEditor = ({
@@ -326,10 +304,13 @@ export const ValuesEditor = ({
   draft,
   onChange,
   template,
-  properties,
+  properties: loaded,
   dataTypes,
+  createField,
 }: ValuesEditorProps): ReactElement => {
   const { t } = useTranslator();
+  const [created, setCreated] = useState<readonly Property[]>([]);
+  const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
   const fields = layoutFields(draft.values, template, properties);
   return (
     <fieldset className="values-editor">
@@ -346,7 +327,20 @@ export const ValuesEditor = ({
           />
         ))}
       </ul>
-      <AddField properties={properties} draft={draft} onChange={onChange} />
+      <AddField
+        properties={properties}
+        draft={draft}
+        onChange={onChange}
+        createField={
+          createField === undefined
+            ? undefined
+            : async (name) => {
+                const property = await createField(name, properties);
+                setCreated((current) => [...current, property]);
+                return property;
+              }
+        }
+      />
     </fieldset>
   );
 };

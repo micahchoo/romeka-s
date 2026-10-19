@@ -62,7 +62,7 @@ import type {
   SiteId,
   SitePage,
   SitePageWrite,
-  SiteWrite,
+  SiteCreate,
   TemplateId,
   User,
   UserId,
@@ -79,7 +79,7 @@ import {
   encodeItemSet,
   encodeMedia,
   encodeResourceTemplate,
-  encodeSite,
+  encodeSiteCreate,
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
@@ -364,14 +364,8 @@ export class ApiClient {
     return parseSitePage(raw);
   }
 
-  async createSite(write: SiteWrite): Promise<Site> {
-    return parseSite(await this.writeJson('POST', '/api/sites', encodeSite(write)));
-  }
-
-  async updateSite(id: SiteId, write: SiteWrite): Promise<Site> {
-    return parseSite(
-      await this.writeJson('PUT', `/api/sites/${String(id)}`, encodeSite(write)),
-    );
+  async createSite(write: SiteCreate): Promise<Site> {
+    return parseSite(await this.writeJson('POST', '/api/sites', encodeSiteCreate(write)));
   }
 
   /**

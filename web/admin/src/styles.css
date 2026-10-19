@@ -1818,9 +1818,3 @@ td > .badge:first-child {
 .term-list-kinds > label > input {
   margin: 0;
 }
-
-.data-type-group-label {
-  margin: var(--space-2) 0 var(--space-1);
-  color: var(--text-muted);
-  font-weight: 600;
-}

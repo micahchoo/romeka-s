@@ -1,9 +1,9 @@
-//! The content a new site is born with: `SiteAdapter::getDefaultNavigation`,
-//! the welcome page `SiteAdapter::hydrate` adds on create (with the port's
-//! starter in place of upstream's style sampler), and the port's starting
-//! theme settings.
+//! The content a new site is born with: the welcome page
+//! `SiteAdapter::hydrate` adds on create (with the port's starter in place of
+//! upstream's style sampler), a navigation that links it, and the port's
+//! starting theme settings.
 
-use omeka_db::ids::SiteId;
+use omeka_db::ids::{PageId, SiteId};
 use omeka_db::repos::SiteRepo;
 use omeka_db::rows::{NewSiteBlock, NewSitePage};
 use omeka_site::blocks::templates::welcome_blocks;
@@ -13,13 +13,19 @@ use crate::errors::ApiError;
 use crate::read::{Api, db_error};
 use crate::write::site_pages::carry_block;
 
-/// `SiteAdapter::getDefaultNavigation`: one link to the browse page.
-pub fn default_navigation() -> Value {
-    json!([{
-        "type": "browse",
-        "data": { "label": "Browse", "query": "" },
-        "links": [],
-    }])
+/// The navigation a site created without `o:navigation` gets: the welcome
+/// page, then `SiteAdapter::getDefaultNavigation`'s browse link.
+///
+/// A port addition: upstream links the browse page alone, so a new site's root
+/// shows "This site has no pages." until a curator links one. With the welcome
+/// page first, `Site\IndexController::indexAction` sends the root to it. The
+/// navigation carries this, not `o:homepage`, so a curator who unlinks or
+/// replaces the page moves the root with it.
+pub fn default_navigation(welcome: PageId) -> Value {
+    json!([
+        { "type": "page", "data": { "label": null, "id": welcome.0 }, "links": [] },
+        { "type": "browse", "data": { "label": "Browse", "query": "" }, "links": [] },
+    ])
 }
 
 /// Store the theme settings a site created without `o:theme_settings` starts
@@ -39,7 +45,7 @@ pub async fn theme_settings(api: &Api<'_>, site: SiteId, theme: &str) -> Result<
 /// a banner, an introduction and the latest items. Every block is an upstream
 /// layout, and the banner is a Romeka carrier whose plain rendering the write
 /// path generates here, so upstream shows the same page without the styling.
-pub async fn welcome_page(api: &Api<'_>, site: SiteId) -> Result<(), ApiError> {
+pub async fn welcome_page(api: &Api<'_>, site: SiteId) -> Result<PageId, ApiError> {
     let repo = SiteRepo::new(api.pool());
     let page = repo
         .add_page(&NewSitePage {
@@ -65,5 +71,5 @@ pub async fn welcome_page(api: &Api<'_>, site: SiteId) -> Result<(), ApiError> {
         .await
         .map_err(db_error)?;
     }
-    Ok(())
+    Ok(page.id)
 }

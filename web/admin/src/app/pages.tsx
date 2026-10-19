@@ -22,6 +22,7 @@ export type AdminPageId =
   | 'sites'
   | 'resource-templates'
   | 'term-lists'
+  | 'fields'
   | 'standards'
   | 'users'
   | 'modules'
@@ -45,20 +46,12 @@ export interface AdminPage {
 
 export type PageGroupId = 'content' | 'describe' | 'admin';
 
-/**
- * Routes another unit adds a page row for. The nav lists them now so the
- * Describe order is settled, and shows each link once its row exists.
- */
-type PendingRoute = 'fields';
-
-export type NavRoute = AdminPageId | PendingRoute;
-
 export interface PageGroup {
   readonly id: PageGroupId;
   readonly titleKey: MessageKey;
-  readonly pages: readonly NavRoute[];
+  readonly pages: readonly AdminPageId[];
   /** A labelled run of links after the group's own, such as Describe's Advanced. */
-  readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly NavRoute[] };
+  readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly AdminPageId[] };
 }
 
 /**
@@ -128,9 +121,16 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     titleKey: 'page.itemTypes',
     upstream: 'Admin/ResourceTemplateController.php browseAction showAction',
     element: lazy(() =>
-      import('../pages/resource-templates/page').then((module) => ({
-        default: module.ResourceTemplatesPage,
-      })),
+      import('../pages/item-types/page').then((module) => ({ default: module.ItemTypesPage })),
+    ),
+    // The item type editor lays a live preview beside its fields.
+    wide: (rest) => rest[0] !== undefined,
+  },
+  fields: {
+    titleKey: 'page.fields',
+    upstream: 'Admin/PropertyController.php browseAction',
+    element: lazy(() =>
+      import('../pages/fields/page').then((module) => ({ default: module.FieldsPage })),
     ),
   },
   'term-lists': {

@@ -16,7 +16,6 @@ import {
 import {
   addFieldValue,
   layoutFields,
-  matchProperties,
   missingRequired,
   newResourceDraft,
   pickTerm,
@@ -27,6 +26,7 @@ import {
   withTemplateRows,
   type PropertyField,
 } from '../src/app/value-fields';
+import { searchTerms } from '../src/app/plain-terms';
 
 const property = (id: number, term: string, label: string, comment: string | null = null): Property =>
   parseProperty({
@@ -205,10 +205,18 @@ describe('choosing a template', () => {
     ]);
   });
 
-  it('applies the template class only when the resource has no class yet', () => {
+  it('sets the type class unless the user chose another class', () => {
     expect(withTemplate(emptyResourceDraft(), strict, PROPERTIES).resourceClass).toBe(13);
     const classed = { ...emptyResourceDraft(), resourceClass: brandedClass(40) };
     expect(withTemplate(classed, strict, PROPERTIES).resourceClass).toBe(40);
+  });
+
+  it('moves the class to the next type when it was the previous type\'s class', () => {
+    const first = withTemplate(emptyResourceDraft(), strict, PROPERTIES);
+    const next = template(10, [{ id: 8 }], 51);
+    expect(withTemplate(first, next, PROPERTIES, strict).resourceClass).toBe(51);
+    const overridden = { ...first, resourceClass: brandedClass(40) };
+    expect(withTemplate(overridden, next, PROPERTIES, strict).resourceClass).toBe(40);
   });
 
   it('never drops a typed value, in or out of the template, and switching back to no template keeps everything', () => {
@@ -315,6 +323,10 @@ describe('data types on a row', () => {
 });
 
 describe('a term list on a row (Custom Vocab)', () => {
+  const INSTALLED = [
+    { id: 'customvocab:3', label: 'Places' },
+    { id: 'customvocab:5', label: 'Links' },
+  ];
   const only = (field: PropertyField): PropertyField['values'][number] => {
     const [value] = field.values;
     if (value === undefined) {
@@ -330,7 +342,7 @@ describe('a term list on a row (Custom Vocab)', () => {
     const value = only(field);
     expect(value.type).toBe('customvocab:3');
     expect(typeChoices(field, value)).toEqual(['customvocab:3', 'literal']);
-    expect(valueInput(value)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
   });
 
   it('offers the list as a kind beside text, and switching to it edits through the list', () => {
@@ -339,12 +351,20 @@ describe('a term list on a row (Custom Vocab)', () => {
     const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator');
     const value = only(field);
     expect(typeChoices(field, value)).toEqual(['literal', 'customvocab:3']);
-    expect(valueInput(value)).toEqual({ kind: 'literal' });
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
     const switched = setValueType(draft, value.key, 'customvocab:3');
-    expect(valueInput(only(fieldOf(layoutFields(switched.values, rowTemplate, PROPERTIES), 'dcterms:creator')))).toEqual({
+    expect(valueInput(only(fieldOf(layoutFields(switched.values, rowTemplate, PROPERTIES), 'dcterms:creator')), INSTALLED)).toEqual({
       kind: 'term-list',
       termList: 'customvocab:3',
     });
+  });
+
+  it('edits a value of a list the server no longer lists as its base kind', () => {
+    const rowTemplate = template(23, [{ id: 2, dataTypes: ['customvocab:999'] }]);
+    const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
+    const value = only(fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator'));
+    expect(value.type).toBe('customvocab:999');
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
   });
 
   it('stores a picked entry in its own shape and sends the list type back unchanged', () => {
@@ -395,7 +415,7 @@ describe('a term list on a row (Custom Vocab)', () => {
     if (value === undefined) {
       throw new Error('expected the stored term list value');
     }
-    expect(valueInput(value)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
     expect(toValueWrites(stored.values)).toEqual([
       { term: 'dcterms:creator', propertyId: 2, type: 'customvocab:3', kind: 'literal', text: 'Cork', lang: 'en', isPublic: true },
     ]);
@@ -403,11 +423,14 @@ describe('a term list on a row (Custom Vocab)', () => {
 });
 
 describe('adding another field', () => {
-  it('matches the label and the term, ignoring case', () => {
-    expect(matchProperties(PROPERTIES, 'creat').map((entry) => entry.term)).toEqual(['dcterms:creator']);
-    expect(matchProperties(PROPERTIES, 'BIBO:').map((entry) => entry.term)).toEqual(['bibo:annotates']);
-    expect(matchProperties(PROPERTIES, 'Annot').map((entry) => entry.term)).toEqual(['bibo:annotates']);
-    expect(matchProperties(PROPERTIES, '  ')).toEqual([]);
+  it('finds a property from plain words, its label or its term, best first', () => {
+    const terms = (query: string) => searchTerms(PROPERTIES, query, 'en').map((entry) => entry.term);
+    expect(terms('who wrote it')[0]).toBe('dcterms:creator');
+    expect(terms('creat')).toEqual(['dcterms:creator']);
+    expect(terms('BIBO:')).toEqual(['bibo:annotates']);
+    expect(terms('Annot')).toEqual(['bibo:annotates']);
+    expect(terms('  ')).toEqual([]);
+    expect(terms('zebra')).toEqual([]);
   });
 });
 
