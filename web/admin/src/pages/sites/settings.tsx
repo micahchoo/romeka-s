@@ -7,29 +7,33 @@
  * server-rendered form. The port's site document carries the map as
  * `o:site_settings`, a port addition, and the site write stores it back as
  * rows. The controls come from the generated schema in
- * `src/generated/siteSettings.json`.
+ * `src/generated/siteSettings.json`, one fieldset per group. A stored key the
+ * schema leaves out (no renderer reads it) is not in the write, so the partial
+ * update keeps its row.
  *
  * The theme's own settings are a separate map (`o:theme_settings`); the bundled
  * theme declares none, so this page does not show them.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import { isRecord } from '../../api/parse';
 import { encodeSiteInfo, encodeSiteSettings } from '../../api/write';
-import type { Site, SiteId, User } from '../../api/types';
+import type { Property, Site, SiteId, User } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import type { MessageKey } from '../../i18n';
+import { SettingControl } from './SettingControl';
 import { useSiteSaved } from './SiteFrame';
 import { SiteInfoFields, siteInfoOf } from './siteInfo';
 import type { SiteInfo } from './siteInfo';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
-import { siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
-import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
+import { SITE_SETTING_GROUPS, siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
+import type { SiteSettingDraft, SiteSettingGroup } from './siteSettingsSchema';
 
 /** The template manager is its own chunk, loaded when the user opens it. */
 const TemplateManager = lazy(() =>
@@ -41,186 +45,52 @@ const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
   return isRecord(value) ? value : {};
 };
 
-const isStringList = (value: unknown): value is readonly string[] =>
-  Array.isArray(value) && value.every((item) => typeof item === 'string');
-
-/** A friendlier label than the stored wire value, for the known choices. */
-const CHOICE_LABELS: Readonly<Record<string, string>> = {
-  en: 'English',
-  es: 'Spanish',
-  item: 'Item',
-  media: 'Media',
-  original: 'Original',
-  '-1': 'Never',
-  '0': 'When signed in',
-  '1': 'Always',
-  sitewide: 'Sitewide',
-  'cross-site': 'Cross-site',
-  show: 'Show',
-  hide: 'Hide',
-  light: 'Light',
-  dark: 'Dark',
-  none: 'None',
-  vocab: 'Vocabulary',
-  term: 'Term',
-  collapsed: 'Collapsed',
-  expanded: 'Expanded',
-  site_pages: 'Site pages',
-  items: 'Items',
-  item_sets: 'Item sets',
+/** Each group's legend and one-line intro. */
+const GROUP_TEXT: Readonly<
+  Record<SiteSettingGroup, { readonly legend: MessageKey; readonly intro: MessageKey }>
+> = {
+  browsing: { legend: 'siteSettingGroup.browsing', intro: 'siteSettingGroup.browsingIntro' },
+  search: { legend: 'siteSettingGroup.search', intro: 'siteSettingGroup.searchIntro' },
+  itemPages: { legend: 'siteSettingGroup.itemPages', intro: 'siteSettingGroup.itemPagesIntro' },
+  language: { legend: 'siteSettingGroup.language', intro: 'siteSettingGroup.languageIntro' },
+  navigation: { legend: 'siteSettingGroup.navigation', intro: 'siteSettingGroup.navigationIntro' },
+  advanced: { legend: 'siteSettingGroup.advanced', intro: 'siteSettingGroup.advancedIntro' },
 };
 
-const choiceLabel = (value: string): string => CHOICE_LABELS[value] ?? value;
-
-const SORT_FIELDS = ['title', 'created', 'id'] as const;
-const SORT_ORDERS = ['asc', 'desc'] as const;
-
-const SettingControl = ({
-  spec,
-  value,
-  onChange,
+/** The group's settings as one fieldset. Advanced starts collapsed, because
+ * only an Omeka expert needs it. */
+const SettingGroup = ({
+  group,
+  children,
 }: {
-  readonly spec: SiteSettingSpec;
-  readonly value: SiteSettingDraft;
-  readonly onChange: (value: SiteSettingDraft) => void;
+  readonly group: SiteSettingGroup;
+  readonly children: ReactNode;
 }): ReactElement => {
   const { t } = useTranslator();
-  const id = `site-setting-${spec.key}`;
-  if (spec.kind === 'boolean') {
+  const text = GROUP_TEXT[group];
+  const intro = <p className="settings-group-intro">{t(text.intro)}</p>;
+  if (group === 'advanced') {
     return (
-      <p>
-        <label htmlFor={id}>
-          <input
-            id={id}
-            type="checkbox"
-            checked={value === true}
-            onChange={(event) => {
-              onChange(event.target.checked);
-            }}
-          />
-          {t(spec.labelKey)}
-        </label>
-      </p>
-    );
-  }
-  if (spec.kind === 'number') {
-    return (
-      <p>
-        <label htmlFor={id}>{t(spec.labelKey)}</label>
-        <input
-          id={id}
-          type="number"
-          min={1}
-          value={typeof value === 'number' ? String(value) : ''}
-          onChange={(event) => {
-            const raw = event.target.value;
-            onChange(raw === '' ? '' : Number(raw));
-          }}
-        />
-      </p>
-    );
-  }
-  if (spec.kind === 'choice') {
-    return (
-      <p>
-        <label htmlFor={id}>{t(spec.labelKey)}</label>
-        <select
-          id={id}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-        >
-          <option value="">{t('common.none')}</option>
-          {spec.choices.map((choice) => (
-            <option key={choice} value={choice}>
-              {choiceLabel(choice)}
-            </option>
-          ))}
-        </select>
-      </p>
-    );
-  }
-  if (spec.kind === 'multiChoice') {
-    const selected = isStringList(value) ? value : [];
-    return (
-      <fieldset>
-        <legend>{t(spec.labelKey)}</legend>
-        {spec.choices.map((choice) => (
-          <label key={choice} htmlFor={`${id}-${choice}`}>
-            <input
-              id={`${id}-${choice}`}
-              type="checkbox"
-              checked={selected.includes(choice)}
-              onChange={(event) => {
-                const next = event.target.checked
-                  ? [...selected, choice]
-                  : selected.filter((item) => item !== choice);
-                onChange(next);
-              }}
-            />
-            {choiceLabel(choice)}
-          </label>
-        ))}
-      </fieldset>
-    );
-  }
-  if (spec.kind === 'sort') {
-    const sortBy = isRecord(value) && typeof value.sortBy === 'string' ? value.sortBy : spec.sortBy;
-    const sortOrder =
-      isRecord(value) && typeof value.sortOrder === 'string' ? value.sortOrder : spec.sortOrder;
-    return (
-      <fieldset>
-        <legend>{t(spec.labelKey)}</legend>
-        <label htmlFor={`${id}-by`}>{t('sites.sortBy')}</label>
-        <select
-          id={`${id}-by`}
-          value={sortBy}
-          onChange={(event) => {
-            onChange({ sortBy: event.target.value, sortOrder });
-          }}
-        >
-          {SORT_FIELDS.map((field) => (
-            <option key={field} value={field}>
-              {field}
-            </option>
-          ))}
-        </select>
-        <label htmlFor={`${id}-order`}>{t('sites.sortOrder')}</label>
-        <select
-          id={`${id}-order`}
-          value={sortOrder}
-          onChange={(event) => {
-            onChange({ sortBy, sortOrder: event.target.value });
-          }}
-        >
-          {SORT_ORDERS.map((order) => (
-            <option key={order} value={order}>
-              {order}
-            </option>
-          ))}
-        </select>
-      </fieldset>
+      <details className="settings-group">
+        <summary>{t(text.legend)}</summary>
+        {intro}
+        {children}
+      </details>
     );
   }
   return (
-    <p>
-      <label htmlFor={id}>{t(spec.labelKey)}</label>
-      <input
-        id={id}
-        type="text"
-        value={typeof value === 'string' ? value : ''}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      />
-    </p>
+    <fieldset className="settings-group">
+      <legend>{t(text.legend)}</legend>
+      {intro}
+      {children}
+    </fieldset>
   );
 };
 
 interface Loaded {
   readonly site: Site;
   readonly users: readonly User[];
+  readonly properties: readonly Property[];
 }
 
 const SiteSettingsEditor = ({
@@ -261,19 +131,23 @@ const SiteSettingsEditor = ({
   return (
     <form onSubmit={submit}>
       <SiteInfoFields info={info} users={loaded.users} onChange={setInfo} />
-      <fieldset>
-        <legend>{t('siteHub.settingsLegend')}</legend>
-        {SITE_SETTINGS_REGISTRY.settings.map((spec) => (
-          <SettingControl
-            key={spec.key}
-            spec={spec}
-            value={drafts[spec.key] ?? ''}
-            onChange={(value) => {
-              set(spec.key, value);
-            }}
-          />
-        ))}
-      </fieldset>
+      {SITE_SETTING_GROUPS.map((group) => (
+        <SettingGroup key={group} group={group}>
+          {SITE_SETTINGS_REGISTRY.settings
+            .filter((spec) => spec.group === group)
+            .map((spec) => (
+              <SettingControl
+                key={spec.key}
+                spec={spec}
+                value={drafts[spec.key] ?? ''}
+                properties={loaded.properties}
+                onChange={(value) => {
+                  set(spec.key, value);
+                }}
+              />
+            ))}
+        </SettingGroup>
+      ))}
       {formError === null ? null : <p role="alert">{formError}</p>}
       <SaveStatus state={saveState} />
       <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
@@ -342,11 +216,12 @@ const SiteSettingsLoaded = ({
 };
 
 const load = async (siteId: SiteId): Promise<Loaded> => {
-  const [site, users] = await Promise.all([
+  const [site, users, properties] = await Promise.all([
     api.getSite(siteId),
     api.listUsers({ perPage: 200, sortBy: 'name' }),
+    api.listProperties({ perPage: 200, sortBy: 'label' }),
   ]);
-  return { site, users: users.items };
+  return { site, users: users.items, properties: properties.items };
 };
 
 /** Loads the site and the user list the owner select offers, then renders the form. */

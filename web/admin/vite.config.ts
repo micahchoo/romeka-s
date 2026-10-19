@@ -27,7 +27,7 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // The Theme page is three pieces that load in parallel, each under the
-        // per-chunk ceiling (`perf/budget.json`, PERF.md Decision 9): its
+        // per-chunk ceiling (`perf/budget.json`, PERF.md Decision 10): its
         // messages in two languages, its palette arithmetic and registry, and
         // the page itself.
         codeSplitting: {
