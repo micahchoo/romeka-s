@@ -85,6 +85,8 @@ export const en = {
   "accepts.itemSet": "An item set",
   "accepts.media": "A media file",
   "accepts.missing": "{id} (not installed)",
+  "accepts.termLists": "Term lists",
+  "accepts.termList": "Term list: {list}",
   "use.legend": "Used for",
   "use.items": "Items",
   "use.itemSets": "Item sets",

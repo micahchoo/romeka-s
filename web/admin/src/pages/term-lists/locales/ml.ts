@@ -1,0 +1,45 @@
+/**
+ * The Malayalam Term lists messages.
+ *
+ * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks, and not yet reviewed by a reader of Malayalam. Correct
+ * a string here; a later run keeps it. It is typed `TermListMessages`, so a key
+ * added to English and not here is a `tsc` error.
+ */
+import type { TermListMessages } from '../messages';
+
+export const ml: TermListMessages = {
+  'termLists.resource': 'പദപ്പട്ടികകൾ',
+  'termLists.invalidId': '"{param}" ഒരു പദപ്പട്ടിക ഐഡി അല്ല.',
+  'termLists.intro':
+    'ഒരു പദപ്പട്ടിക ഒരു ഫീൽഡിനെ നിശ്ചിത എൻട്രികളുടെ ഒരു സെറ്റിൽ നിന്നുള്ള തിരഞ്ഞെടുപ്പാക്കി മാറ്റുന്നു, അതിനാൽ ഒരേ സ്ഥലം അല്ലെങ്കിൽ വിഷയം എപ്പോഴും ഒരേ രീതിയിൽ എഴുതപ്പെടുന്നു.',
+  'termLists.add': 'പദപ്പട്ടിക ചേർക്കുക',
+  'termLists.legend': 'പദപ്പട്ടിക',
+  'termLists.kindLegend': 'പട്ടികയിൽ എന്താണുള്ളത്',
+  'termLists.kindTerms': 'വാക്കുകളുടെ ഒരു പട്ടിക',
+  'termLists.kindItems': 'ഒരു ഐറ്റം സെറ്റിൽ നിന്നുള്ള ഐറ്റങ്ങൾ',
+  'termLists.kindUris': 'ലേബലുകളുള്ള ലിങ്കുകൾ (URIs)',
+  'termLists.kindEmpty': 'ഇതുവരെ ഒന്നുമില്ല',
+  'termLists.termsLabel': 'ഓരോ വരിയിലും ഓരോ വാക്ക്',
+  'termLists.urisLabel': 'ലിങ്കുകൾ, ഓരോ വരിയിലും: URI, ഒരു സ്പേസ്, പിന്നെ ലേബൽ',
+  'termLists.itemSetLabel': 'ഐറ്റം സെറ്റ്',
+  'termLists.selectItemSet': 'ഒരു ഐറ്റം സെറ്റ് തിരഞ്ഞെടുക്കുക',
+  'termLists.langLabel': 'വാക്കുകളുടെ ഭാഷ',
+  'termLists.langHint':
+    'ഐച്ഛികം. പട്ടികയിൽ നിന്ന് തിരഞ്ഞെടുക്കുന്ന ഓരോ വാക്കും ഈ ലാംഗ്വേജ് ടാഗ് വഹിക്കുന്നു, ഉദാഹരണത്തിന് en.',
+  'termLists.errorNoEntries': 'കുറഞ്ഞത് ഒരു എൻട്രിയെങ്കിലും ചേർക്കുക.',
+  'termLists.errorNoItemSet': 'ഒരു ഐറ്റം സെറ്റ് തിരഞ്ഞെടുക്കുക.',
+  'termLists.columnKind': 'ഹോൾഡ്സ്',
+  'termLists.columnEntries': 'എൻട്രികൾ',
+  'termLists.columnUsage': 'ഇത് ഉപയോഗിക്കുന്ന ഐനങ്ങൾ',
+  'termLists.editLabel': 'ഈ ടേം ലിസ്റ്റ് എഡിറ്റ് ചെയ്യുക',
+  'termLists.deleteLabel': 'ഈ ടേം ലിസ്റ്റ് ഡിലീറ്റ് ചെയ്യുക',
+  'termLists.deleteNote':
+    'ഒരു ലിസ്റ്റ് ഡിലീറ്റ് ചെയ്യുന്നത് അതിൽ നിന്ന് തിരഞ്ഞെടുത്ത മൂല്യങ്ങൾ നിലനിർത്തുന്നു. അവ അവയുടെ ഐറ്റങ്ങളിൽ പ്ലെയിൻ ടെക്സ്റ്റ് ആയി തുടരുന്നു.',
+  'termPicker.loading': 'ലിസ്റ്റ് ലോഡ് ചെയ്യുന്നു...',
+  'termPicker.noMatch': '"{query}-മായി പൊരുത്തപ്പെടുന്ന എൻട്രികളൊന്നുമില്ല.',
+  'termPicker.notInList': '"{value}" ഈ ലിസ്റ്റിലില്ല. ഇത് മാറ്റാൻ ഒരു എൻട്രി തിരഞ്ഞെടുക്കുക.',
+  'termPicker.hint':
+    '{list} ലിസ്റ്റ് ഫിൽട്ടർ ചെയ്യാൻ ടൈപ്പ് ചെയ്യുക, തുടർന്ന് ഒരു എൻട്രി തിരഞ്ഞെടുക്കുക.',
+  'termPicker.typeLabel': 'ടേം ലിസ്റ്റ്: {list}',
+};

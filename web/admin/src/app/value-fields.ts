@@ -8,12 +8,15 @@
  * cannot lose a typed value: the values stay, and only their grouping, labels
  * and rules change.
  */
+import { isTermListName } from '../api/term-lists';
 import type {
+  DataType,
   Property,
   PropertyId,
   ResourceEntity,
   ResourceTemplate,
   TemplateId,
+  TermListName,
 } from '../api/types';
 import type { Translator } from '../i18n';
 import {
@@ -25,6 +28,7 @@ import {
   valueErrors,
 } from './draft';
 import type { ResourceDraft, ValueDraft, ValueKind } from './draft';
+import type { TermChoice } from '../pages/term-lists/term-picker';
 import type { Termed } from './plain-terms';
 
 /** What one template row says about its property's values. */
@@ -301,3 +305,38 @@ export const typeChoices = (field: PropertyField, value: ValueDraft): readonly s
 
 export const setValueType = (draft: ResourceDraft, key: string, type: string): ResourceDraft =>
   patchValue(draft, key, { type, kind: baseKind(type) });
+
+/**
+ * The input a value edits through. A term list value is picked from its list
+ * whatever shape its entries take; any other value types into its base kind.
+ * A list the server no longer lists edits as its base kind too, the way
+ * upstream renders a type it has no service for (`DataType\Fallback`).
+ */
+export type ValueInput =
+  | { readonly kind: 'term-list'; readonly termList: TermListName }
+  | { readonly kind: ValueKind };
+
+export const valueInput = (
+  value: ValueDraft,
+  installed: readonly Pick<DataType, 'id'>[],
+): ValueInput =>
+  isTermListName(value.type) && installed.some((dataType) => dataType.id === value.type)
+    ? { kind: 'term-list', termList: value.type }
+    : { kind: value.kind };
+
+/**
+ * A picked entry in the shape it is stored as: the word, the URI with its
+ * label, or the item id. The type stays the list's name; `null` clears it.
+ */
+export const pickTerm = (
+  draft: ResourceDraft,
+  key: string,
+  choice: TermChoice | null,
+): ResourceDraft =>
+  choice === null
+    ? patchValue(draft, key, { text: '', label: '' })
+    : patchValue(draft, key, {
+        kind: choice.kind,
+        text: choice.value,
+        label: choice.kind === 'uri' && choice.label !== choice.value ? choice.label : '',
+      });

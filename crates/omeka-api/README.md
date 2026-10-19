@@ -33,7 +33,7 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 `src/routes.rs` expands the upstream lookup (`api` route, `:resource`
 segment, adapter instance) into one row per path, method, and handler:
-`2 + 17 * 7 = 121` rows. Method semantics come from Laminas
+`2 + 18 * 7 = 128` rows. Method semantics come from Laminas
 `AbstractRestfulController` and `ApiController`:
 
 - collection: `GET` search, `POST` create

@@ -33,6 +33,7 @@ pub mod site_pages;
 pub mod site_pages_preview;
 pub mod sites;
 pub mod templates;
+pub mod term_lists;
 pub mod users;
 pub mod values;
 pub mod vocab;
@@ -68,6 +69,7 @@ pub async fn create(
         "properties" => vocab::create_property(api, payload).await,
         "resource_templates" => templates::create(api, payload).await,
         "assets" => assets::create(api, payload, file).await,
+        "custom_vocabs" => term_lists::create(api, payload).await,
         other => Err(not_implemented(other, Operation::Create)),
     }
 }
@@ -92,6 +94,7 @@ pub async fn update(
         "properties" => vocab::update_property(api, raw_id, payload, partial).await,
         "resource_templates" => templates::update(api, raw_id, payload, partial).await,
         "assets" => assets::update(api, raw_id, payload, partial).await,
+        "custom_vocabs" => term_lists::update(api, raw_id, payload, partial).await,
         "jobs" => jobs::update(api, raw_id, payload, partial).await,
         other => Err(not_implemented(other, Operation::Update)),
     }
@@ -117,6 +120,7 @@ pub async fn delete(api: &Api<'_>, resource: &str, raw_id: &str) -> Result<ApiRe
         "properties" => vocab::delete_property(api, raw_id).await,
         "resource_templates" => templates::delete(api, raw_id).await,
         "assets" => assets::delete(api, raw_id).await,
+        "custom_vocabs" => term_lists::delete(api, raw_id).await,
         "jobs" => jobs::delete(api, raw_id).await,
         other => Err(not_implemented(other, Operation::Delete)),
     }?;

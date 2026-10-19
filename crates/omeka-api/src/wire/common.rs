@@ -109,30 +109,69 @@ wire_const_str!(
     XsdDateTime = XSD_DATETIME
 );
 
-wire_const_str!(
-    /// Marker for the fixed `"type": "literal"` member of a value object.
-    LiteralType = "literal"
-);
+/// A value `type` that is one core data type name or the name of the term list
+/// (`customvocab:<id>`) the value was chosen from. `DataType\CustomVocab` stores
+/// each of the three value shapes under its own name, so every shape carries
+/// the term list case.
+macro_rules! value_type {
+    ($(#[$meta:meta])* $name:ident { $($variant:ident = $value:expr),+ $(,)? }) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum $name {
+            $($variant,)+
+            /// `customvocab:<id>`.
+            TermList(u64),
+        }
 
-wire_const_str!(
-    /// Marker for the fixed `"type": "uri"` member of a value object.
-    UriType = "uri"
-);
+        impl Serialize for $name {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                match self {
+                    $(Self::$variant => serializer.serialize_str($value),)+
+                    Self::TermList(id) => {
+                        serializer.serialize_str(&omeka_core::term_list::data_type_name(*id))
+                    }
+                }
+            }
+        }
 
-/// The `type` of a resource-valued value object, from
-/// `Application/config/module.config.php` `data_types` and the
-/// `DataType\Resource\*` names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResourceValueType {
-    #[serde(rename = "resource")]
-    All,
-    #[serde(rename = "resource:item")]
-    Item,
-    #[serde(rename = "resource:itemset")]
-    ItemSet,
-    #[serde(rename = "resource:media")]
-    Media,
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                let raw = String::deserialize(deserializer)?;
+                $(if raw == $value {
+                    return Ok(Self::$variant);
+                })+
+                match omeka_core::term_list::list_id(&raw) {
+                    Some(id) => Ok(Self::TermList(id)),
+                    None => Err(serde::de::Error::custom(format!(
+                        "unexpected value type {raw:?}"
+                    ))),
+                }
+            }
+        }
+    };
 }
+
+value_type!(
+    /// The `type` member of a text value: `literal`, or a term list.
+    LiteralType { Literal = "literal" }
+);
+
+value_type!(
+    /// The `type` member of a URI value: `uri`, or a term list.
+    UriType { Uri = "uri" }
+);
+
+value_type!(
+    /// The `type` of a resource-valued value object, from
+    /// `Application/config/module.config.php` `data_types` and the
+    /// `DataType\Resource\*` names, or a term list of items.
+    ResourceValueType {
+        All = "resource",
+        Item = "resource:item",
+        ItemSet = "resource:itemset",
+        Media = "resource:media",
+    }
+);
 
 /// `{"@value": <ISO 8601>, "@type": "xsd:dateTime"}`.
 ///

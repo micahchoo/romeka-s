@@ -1,7 +1,8 @@
 //! One module per registered API adapter.
 //!
 //! `application/config/module.config.php` registers 17 adapters under
-//! `api_adapters`. The other files in `application/src/Api/Adapter/` are
+//! `api_adapters`, and the Custom Vocab module, which the port builds into core,
+//! registers `custom_vocabs`. The other files in `application/src/Api/Adapter/` are
 //! abstract bases, interfaces, the adapter manager, a trait and two hydrators;
 //! they carry no routes and have no module here.
 //!
@@ -13,6 +14,7 @@
 
 pub mod api_resources;
 pub mod assets;
+pub mod custom_vocabs;
 pub mod data_types;
 pub mod item_sets;
 pub mod items;
@@ -52,6 +54,7 @@ pub fn not_implemented(spec: &AdapterSpec, operation: Operation) -> NotImplement
 pub static ADAPTERS: &[AdapterSpec] = &[
     api_resources::SPEC,
     assets::SPEC,
+    custom_vocabs::SPEC,
     data_types::SPEC,
     item_sets::SPEC,
     items::SPEC,
@@ -69,7 +72,7 @@ pub static ADAPTERS: &[AdapterSpec] = &[
     vocabularies::SPEC,
 ];
 
-/// The registry the port ships: the seventeen compiled-in adapters and no
+/// The registry the port ships: the eighteen compiled-in adapters and no
 /// plugins.
 #[must_use]
 pub fn core_registry() -> Arc<Registry> {
@@ -90,6 +93,7 @@ pub fn php_class(name: &str) -> &'static str {
     match name {
         "api_resources" => "Omeka\\Api\\Adapter\\ApiResourceAdapter",
         "assets" => "Omeka\\Api\\Adapter\\AssetAdapter",
+        "custom_vocabs" => "CustomVocab\\Api\\Adapter\\CustomVocabAdapter",
         "data_types" => "Omeka\\Api\\Adapter\\DataTypeAdapter",
         "item_sets" => "Omeka\\Api\\Adapter\\ItemSetAdapter",
         "items" => "Omeka\\Api\\Adapter\\ItemAdapter",
@@ -123,6 +127,7 @@ mod tests {
             [
                 "api_resources",
                 "assets",
+                "custom_vocabs",
                 "data_types",
                 "item_sets",
                 "items",
