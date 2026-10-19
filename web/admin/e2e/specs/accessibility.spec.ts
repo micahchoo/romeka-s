@@ -66,12 +66,12 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin user edit');
 
-  // The site detail editor.
+  // The site hub.
   await page.goto('/#/sites');
   await page.locator('tbody a').first().click();
   await expect(page).toHaveURL(/#\/sites\/\d+$/);
   await diagnostics.idle();
-  await expectAxeBudget(page, 'admin site edit');
+  await expectAxeBudget(page, 'admin site hub');
 
   // The vocabulary family: a vocabulary with members (both Dublin Core
   // vocabularies are permanent and carry no edit control), a property, a

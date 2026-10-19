@@ -227,7 +227,7 @@ describe('the request per resource', () => {
       }
       return optionOrNotFound(url, init);
     });
-    render(<SitesPage param="1" rest={['1']} />);
+    render(<SitesPage param="1" rest={['1', 'settings']} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this site' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete My Site' }));

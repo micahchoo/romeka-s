@@ -8,19 +8,22 @@
  * browse uses) and `o:site_item_set` (the item sets the site shows). It also
  * shows the item count the site currently holds, which is what upstream prints
  * after the job runs.
+ *
+ * The pool is edited with the page editor's item query builder, through the
+ * query string upstream's form shows (`itemPool.ts`).
  */
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import { parseJsonObjectOrArrayText } from '../../api/parse';
 import { encodeSiteResources } from '../../api/write';
 import type { ItemSet, ItemSetId, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus, SubmitRow } from '../../app/fields';
-import { formatJson } from '../../app/json';
 import { useSave } from '../../app/save';
-import { toError, useAsync } from '../../app/useAsync';
+import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { ItemQueryField } from './editor/fields/ItemQueryField';
+import { itemPoolFromQuery, itemPoolQuery } from './itemPool';
 
 interface Loaded {
   readonly site: Site;
@@ -45,11 +48,10 @@ const SiteResourcesEditor = ({
   readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator();
-  const [itemPool, setItemPool] = useState(() => formatJson(loaded.site.itemPool ?? []));
+  const [itemPool, setItemPool] = useState(() => itemPoolQuery(loaded.site.itemPool));
   const [attached, setAttached] = useState<readonly ItemSetId[]>(() =>
     loaded.site.siteItemSets.map((entry) => entry.itemSet.id),
   );
-  const [formError, setFormError] = useState<string | null>(null);
   const { state: saveState, save } = useSave();
 
   const toggle = (id: ItemSetId, on: boolean): void => {
@@ -58,33 +60,21 @@ const SiteResourcesEditor = ({
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
-    let pool;
-    try {
-      pool = parseJsonObjectOrArrayText(itemPool);
-    } catch (error) {
-      setFormError(`${t('sites.itemPool')}: ${toError(error).message}`);
-      return;
-    }
-    setFormError(null);
     save(async () => {
-      await api.patchSite(siteId, encodeSiteResources(pool, attached));
+      await api.patchSite(siteId, encodeSiteResources(itemPoolFromQuery(itemPool), attached));
     });
   };
 
   return (
     <form onSubmit={submit}>
       <p role="status">{t('sites.itemCount', { count: loaded.itemCount })}</p>
-      <p>
-        <label htmlFor="site-item-pool">{t('sites.itemPool')}</label>
-        <textarea
-          id="site-item-pool"
-          rows={4}
-          value={itemPool}
-          onChange={(event) => {
-            setItemPool(event.target.value);
-          }}
-        />
-      </p>
+      <ItemQueryField
+        id="site-item-pool"
+        label={t('siteHub.itemPool')}
+        value={itemPool}
+        onChange={setItemPool}
+        itemSets={loaded.itemSets}
+      />
       <fieldset>
         <legend>{t('sites.itemSets')}</legend>
         {loaded.itemSets.length === 0 ? <p>{t('sites.noItemSets')}</p> : null}
@@ -104,7 +94,6 @@ const SiteResourcesEditor = ({
           </p>
         ))}
       </fieldset>
-      {formError === null ? null : <p role="alert">{formError}</p>}
       <SaveStatus state={saveState} />
       <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
     </form>
