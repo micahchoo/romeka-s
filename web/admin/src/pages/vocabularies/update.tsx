@@ -21,7 +21,7 @@ import { EditPanel } from "../../app/fields";
 import { toError } from "../../app/useAsync";
 import { useTranslator } from "../../i18n";
 import type { ImportText } from "./messages";
-import { WithImportMessages, useImportText } from "./messages";
+import { useImportText } from "./messages";
 import {
   AdvancedFields,
   EMPTY_SOURCE,
@@ -313,8 +313,4 @@ export const VocabularyUpdate = ({
 }: {
   readonly vocabulary: Vocabulary;
   readonly onApplied: () => void;
-}): ReactElement => (
-  <WithImportMessages>
-    <UpdatePanel vocabulary={vocabulary} onApplied={onApplied} />
-  </WithImportMessages>
-);
+}): ReactElement => <UpdatePanel vocabulary={vocabulary} onApplied={onApplied} />;

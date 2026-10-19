@@ -232,7 +232,7 @@ export const AdvancedFields = ({
   const id = (name: string): string => `${idPrefix}-${name}`;
   return (
     <details className="import-advanced">
-      <summary>{text("advanced.summary")}</summary>
+      <summary>{text("vocabularies.advancedSummary")}</summary>
       <TextInput
         id={id("lang")}
         label={text("advanced.lang")}

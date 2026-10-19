@@ -14,7 +14,7 @@ import { SubmitRow } from "../../app/fields";
 import { toError } from "../../app/useAsync";
 import { useTranslator } from "../../i18n";
 import { standardsHref } from "../standards/routes";
-import { WithImportMessages, useImportText } from "./messages";
+import { useImportText } from "./messages";
 import {
   AdvancedFields,
   EMPTY_SOURCE,
@@ -134,8 +134,4 @@ const ImportForm = (): ReactElement => {
   );
 };
 
-export const VocabularyImportPage = (): ReactElement => (
-  <WithImportMessages>
-    <ImportForm />
-  </WithImportMessages>
-);
+export const VocabularyImportPage = (): ReactElement => <ImportForm />;

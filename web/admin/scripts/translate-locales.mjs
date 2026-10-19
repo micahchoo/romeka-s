@@ -57,41 +57,6 @@ const TABLES = [
   { what: 'catalogue', source: 'src/i18n/catalogue.ts', dir: 'src/i18n/locales', type: 'Catalogue', from: '../catalogue' },
   ...namespaceTables,
   {
-    what: 'Standards page messages',
-    source: 'src/pages/standards/messages.ts',
-    dir: 'src/pages/standards/locales',
-    type: 'StandardsMessages',
-    from: '../messages',
-  },
-  {
-    what: 'vocabulary import messages',
-    source: 'src/pages/vocabularies/messages.tsx',
-    dir: 'src/pages/vocabularies/locales',
-    type: 'ImportMessages',
-    from: '../messages',
-  },
-  {
-    what: 'item form messages',
-    source: 'src/pages/items/messages.ts',
-    dir: 'src/pages/items/locales',
-    type: 'ItemMessages',
-    from: '../messages',
-  },
-  {
-    what: 'Jobs page messages',
-    source: 'src/pages/jobs/messages.ts',
-    dir: 'src/pages/jobs/locales',
-    type: 'JobsMessages',
-    from: '../messages',
-  },
-  {
-    what: 'describe strings',
-    source: 'src/app/describe-messages.ts',
-    dir: 'src/app/describe-locales',
-    type: 'DescribeMessages',
-    from: '../describe-messages',
-  },
-  {
     // The server's error patterns: the Rust registry generates the English.
     what: 'server messages',
     source: 'src/generated/serverMessages.json',
