@@ -1,7 +1,10 @@
 /**
- * The Theme page's Spanish messages, loaded with the page when Spanish is active.
+ * The Spanish Theme page messages, written by hand.
+ *
+ * It is typed `ThemeMessages`, so a key added to English and not here is a
+ * `tsc` error.
  */
-import type { ThemeMessages } from '../messages';
+import type { ThemeMessages } from '../index';
 
 export const es: ThemeMessages = {
   'theme.design': 'Diseño',

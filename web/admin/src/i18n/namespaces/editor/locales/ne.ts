@@ -1,12 +1,12 @@
 /**
- * The Nepali page editor field messages.
+ * The Nepali page editor messages.
  *
  * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
  * md-translator's checks, and not yet reviewed by a reader of Nepali. Correct
  * a string here; a later run keeps it. It is typed `EditorMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { EditorMessages } from '../messages';
+import type { EditorMessages } from '../index';
 
 export const ne: EditorMessages = {
   'blockField.media.attachments': 'देखाउनुपर्ने वस्तुहरू',

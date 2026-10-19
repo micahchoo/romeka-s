@@ -10,14 +10,14 @@ import { parseBlockRegistry } from '../src/pages/sites/blockSchema';
 import type { BlockField } from '../src/pages/sites/blockSchema';
 import { en } from '../src/pages/sites/editor/messages';
 import type { EditorMessages } from '../src/pages/sites/editor/messages';
-import { es } from '../src/pages/sites/editor/locales/es';
-import { hi } from '../src/pages/sites/editor/locales/hi';
-import { kn } from '../src/pages/sites/editor/locales/kn';
-import { ml } from '../src/pages/sites/editor/locales/ml';
-import { mr } from '../src/pages/sites/editor/locales/mr';
-import { ne } from '../src/pages/sites/editor/locales/ne';
-import { ta } from '../src/pages/sites/editor/locales/ta';
-import { te } from '../src/pages/sites/editor/locales/te';
+import { es } from '../src/i18n/namespaces/editor/locales/es';
+import { hi } from '../src/i18n/namespaces/editor/locales/hi';
+import { kn } from '../src/i18n/namespaces/editor/locales/kn';
+import { ml } from '../src/i18n/namespaces/editor/locales/ml';
+import { mr } from '../src/i18n/namespaces/editor/locales/mr';
+import { ne } from '../src/i18n/namespaces/editor/locales/ne';
+import { ta } from '../src/i18n/namespaces/editor/locales/ta';
+import { te } from '../src/i18n/namespaces/editor/locales/te';
 
 const TABLES: Readonly<Record<string, EditorMessages>> = { en, es, hi, kn, ml, mr, ne, ta, te };
 

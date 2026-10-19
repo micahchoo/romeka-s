@@ -35,9 +35,11 @@ export default defineConfig({
           // shared app modules stay where the default splitting puts them.
           includeDependenciesRecursively: false,
           groups: [
-            { name: 'theme-messages', test: /pages\/sites\/themeEditor\/messages\.ts$/ },
+            // A message namespace's English table is its own chunk, shared by
+            // the routes that read it (`src/i18n/namespaces/`).
+            { name: 'theme-messages', test: /i18n\/namespaces\/theme\/index\.ts$/ },
             // The page editor's field messages in English (PERF.md Decision 14).
-            { name: 'editor-messages', test: /pages\/sites\/editor\/messages\.ts$/ },
+            { name: 'editor-messages', test: /i18n\/namespaces\/editor\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
             { name: 'lessons', test: /app\/lessons\/(lesson\.tsx|messages\.ts|registry\.ts|seen\.ts)$/ },
             {

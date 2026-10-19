@@ -48,7 +48,7 @@ import {
 import type { CssRefusal } from './themeEditor/CustomCssTab';
 import type { ContentKey, ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
-import { ThemeMessagesContext, useThemeMessages, useThemeText } from './themeEditor/messages';
+import { useThemeText } from './themeEditor/messages';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -452,17 +452,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(() => api.getSite(siteId), [siteId]);
-  const messages = useThemeMessages();
-  // The page's own table waits with the site, so no label renders in English and then swaps.
-  if (state.status === 'loading' || messages === null) {
+  // The page's own table suspends the route until it arrives, so no label renders in English.
+  useThemeText();
+  if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return (
-    <ThemeMessagesContext.Provider value={messages}>
-      <ThemeEditor key={String(siteId)} siteId={siteId} site={state.data} />
-    </ThemeMessagesContext.Provider>
-  );
+  return <ThemeEditor key={String(siteId)} siteId={siteId} site={state.data} />;
 };

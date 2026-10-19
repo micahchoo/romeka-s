@@ -6,7 +6,7 @@
  * a string here; a later run keeps it. It is typed `ThemeMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ThemeMessages } from '../messages';
+import type { ThemeMessages } from '../index';
 
 export const ta: ThemeMessages = {
   'theme.design': 'வடிவமைப்பு',

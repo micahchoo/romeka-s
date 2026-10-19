@@ -1,8 +1,10 @@
 /**
- * The Spanish page editor field messages. It is typed `EditorMessages`, so a
- * key added to English and not here is a `tsc` error.
+ * The Spanish page editor messages, written by hand.
+ *
+ * It is typed `EditorMessages`, so a key added to English and not here is a
+ * `tsc` error.
  */
-import type { EditorMessages } from '../messages';
+import type { EditorMessages } from '../index';
 
 export const es: EditorMessages = {
   'blockField.media.attachments': 'Elementos que se muestran',

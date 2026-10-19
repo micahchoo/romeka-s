@@ -57,20 +57,6 @@ const TABLES = [
   { what: 'catalogue', source: 'src/i18n/catalogue.ts', dir: 'src/i18n/locales', type: 'Catalogue', from: '../catalogue' },
   ...namespaceTables,
   {
-    what: 'Theme page messages',
-    source: 'src/pages/sites/themeEditor/messages.ts',
-    dir: 'src/pages/sites/themeEditor/locales',
-    type: 'ThemeMessages',
-    from: '../messages',
-  },
-  {
-    what: 'page editor field messages',
-    source: 'src/pages/sites/editor/messages.ts',
-    dir: 'src/pages/sites/editor/locales',
-    type: 'EditorMessages',
-    from: '../messages',
-  },
-  {
     what: 'Standards page messages',
     source: 'src/pages/standards/messages.ts',
     dir: 'src/pages/standards/locales',

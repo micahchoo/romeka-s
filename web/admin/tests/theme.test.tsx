@@ -7,7 +7,7 @@
  * body it PATCHes and the body it POSTs to the preview are the bytes the server
  * would get.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   parseResourcePageBlocksRegistry,
@@ -30,8 +30,8 @@ import { setLocale } from '../src/i18n';
 import { SitesPage } from '../src/pages/sites/page';
 import { loadFixture } from './loadFixture';
 
-// The Hindi Theme table arrives only when a test opens the gate, so the page's
-// wait is observable: the site has loaded and the table has not.
+// The Hindi Theme table arrives only when a test opens the gate, so a locale
+// switch's wait is observable: the catalogue has loaded and the table has not.
 const hindiTheme = vi.hoisted(() => {
   let open: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
@@ -44,7 +44,7 @@ const hindiTheme = vi.hoisted(() => {
     },
   };
 });
-vi.mock('../src/pages/sites/themeEditor/locales/hi', async (importOriginal) => {
+vi.mock('../src/i18n/namespaces/theme/locales/hi', async (importOriginal) => {
   await hindiTheme.gate;
   return importOriginal();
 });
@@ -245,18 +245,29 @@ describe('the site Theme page', () => {
     });
   });
 
-  it('waits for the active locale\'s Theme messages rather than painting English first', async () => {
+  it('a switch to Hindi waits for the Theme table and keeps the open page and its draft', async () => {
     installFetch(themeHandler);
-    await setLocale('hi');
+    const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
+    expect(await screen.findByRole('tab', { name: 'Design' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('#theme-setting-text_color')).not.toBeNull();
+    });
+    const text = container.querySelector('#theme-setting-text_color');
+    if (text !== null) {
+      fireEvent.change(text, { target: { value: '#123456' } });
+    }
     try {
-      render(<SitesPage param="1" rest={['1', 'theme']} />);
-      // While the Hindi table is held back, the site loads but no English tab ever appears.
-      await expect(screen.findByRole('tab', { name: 'Design' }, { timeout: 500 })).rejects.toThrow();
+      const switching = setLocale('hi');
+      // While the Hindi table is held back the page stays English and mounted.
+      await expect(screen.findByRole('tab', { name: 'डिज़ाइन' }, { timeout: 300 })).rejects.toThrow();
+      expect(screen.getByRole('tab', { name: 'Design' })).toBeInTheDocument();
 
       hindiTheme.open();
+      await act(() => switching);
       expect(await screen.findByRole('tab', { name: 'डिज़ाइन' })).toBeInTheDocument();
+      expect(container.querySelector('#theme-setting-text_color')).toHaveValue('#123456');
     } finally {
-      await setLocale('en');
+      await act(() => setLocale('en'));
     }
   });
 

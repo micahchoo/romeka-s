@@ -9,7 +9,7 @@ import type { PageId, Site, SiteId, SitePage } from '../../../../api/types';
 import { ErrorNotice } from '../../../../app/errors';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
-import { EditorMessagesContext, useEditorMessages } from '../messages';
+import { useEditorText } from '../messages';
 import { loadEditorOptions } from '../options';
 import type { EditorOptions } from '../options';
 import { PageEditor } from './PageEditor';
@@ -37,25 +37,23 @@ export const SitePageEditor = ({
 }): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(() => load(siteId, pageId), [siteId, pageId]);
-  const messages = useEditorMessages();
+  // The editor's own table suspends the route until it arrives, so no label renders in English.
+  useEditorText();
 
-  // The editor's own table waits with the page, so no label renders in English and then swaps.
-  if (state.status === 'loading' || messages === null) {
+  if (state.status === 'loading') {
     return <p role="status">{t('loading.page')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
   return (
-    <EditorMessagesContext.Provider value={messages}>
-      <PageEditor
-        key={pageId === null ? 'new' : String(pageId)}
-        siteId={siteId}
-        pageId={pageId}
-        site={state.data.site}
-        page={state.data.page}
-        options={state.data.options}
-      />
-    </EditorMessagesContext.Provider>
+    <PageEditor
+      key={pageId === null ? 'new' : String(pageId)}
+      siteId={siteId}
+      pageId={pageId}
+      site={state.data.site}
+      page={state.data.page}
+      options={state.data.options}
+    />
   );
 };
