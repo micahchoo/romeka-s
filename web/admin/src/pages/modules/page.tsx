@@ -3,6 +3,8 @@ import { api } from '../../api/client';
 import type { JsonValue, Module } from '../../api/types';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 const PER_PAGE = 25;
 
@@ -20,7 +22,7 @@ export const iniString = (ini: JsonValue | null, key: string): string | null => 
 
 /** `Admin/ModuleController::browseAction`: name, version, state, author. */
 export const ModulesPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const resource = t('resource.modules');
   return (
     <ListPage<Module>

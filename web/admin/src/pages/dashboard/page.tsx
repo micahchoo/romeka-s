@@ -4,6 +4,8 @@ import type { Site } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 interface DashboardView {
   readonly itemCount: number;
@@ -32,7 +34,7 @@ const load = async (): Promise<DashboardView> => {
 };
 
 export const DashboardPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const state = useAsync(load, []);
 
   if (state.status === 'loading') {

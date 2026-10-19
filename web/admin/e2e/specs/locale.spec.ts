@@ -53,8 +53,12 @@ test('only the chosen language downloads, and a reload in Spanish never paints E
   await page.getByLabel('Language').selectOption('es');
   await expect(page.getByText('Administración de Romeka S')).toBeVisible();
   const spanishOnly = [...scripts].filter((url) => !english.has(url));
-  // The switch fetched a script the English page never asked for: the Spanish catalogue.
-  expect(spanishOnly).toHaveLength(1);
+  // The switch fetched only Spanish tables the English page never asked for:
+  // the shell catalogue and one per namespace the open page reads.
+  expect(spanishOnly.length).toBeGreaterThan(0);
+  for (const url of spanishOnly) {
+    expect(new URL(url).pathname).toMatch(/\/assets\/es-[\w-]+\.js$/);
+  }
 
   // Mark the document with every title it ever shows, from before the first render.
   await page.addInitScript(() => {

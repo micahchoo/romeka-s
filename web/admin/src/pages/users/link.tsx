@@ -10,6 +10,7 @@ import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { PasswordLink } from '../../api/types';
 import { useTranslator } from '../../i18n';
+import { admin } from '../../i18n/namespaces/admin';
 
 export interface PasswordLinkPanelProps {
   readonly name: string;
@@ -24,7 +25,7 @@ export const PasswordLinkPanel = ({
   email,
   link,
 }: PasswordLinkPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   const [copied, setCopied] = useState<CopyState>('idle');
   const titleId = useId();
 

@@ -8,11 +8,16 @@ import { LocaleSelect, localeValue } from '../../app/locale-select';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
 
 interface SettingField {
   readonly id: string;
-  readonly labelKey: MessageKey;
+  readonly labelKey: MessageId;
   readonly kind: 'text' | 'checkbox';
 }
 
@@ -41,7 +46,7 @@ const EMPTY_VALUES: Readonly<Record<string, string>> = Object.fromEntries(
  * its edits in page state and does not persist them.
  */
 export const SettingsPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const stored = useAsync(() => api.getSettings(), []);
   if (stored.status === 'loading') {
     return <p role="status">{t('loading.page')}</p>;
@@ -55,7 +60,7 @@ export const SettingsPage = (): ReactElement => {
 };
 
 const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const [values, setValues] = useState<Readonly<Record<string, string>>>(EMPTY_VALUES);
   const [saved, setSaved] = useState(false);
   const [locale, setLocale] = useState(localeValue(stored.locale));
