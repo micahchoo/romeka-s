@@ -1,0 +1,61 @@
+{
+    "classes": [
+        {
+            "local_name": "Place",
+            "label": "Lieu",
+            "comment": "Somewhere."
+        },
+        {
+            "local_name": "Both",
+            "label": "Both kinds",
+            "comment": null
+        },
+        {
+            "local_name": "Typed",
+            "label": "Typed label",
+            "comment": null
+        },
+        {
+            "local_name": "EmptyLabel",
+            "label": "EmptyLabel",
+            "comment": null
+        },
+        {
+            "local_name": "Thing",
+            "label": "Chose",
+            "comment": "Une chose."
+        },
+        {
+            "local_name": "Titled",
+            "label": "From DC elements",
+            "comment": null
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "noLabel",
+            "label": "noLabel",
+            "comment": null
+        },
+        {
+            "local_name": "knows",
+            "label": "knows",
+            "comment": null
+        },
+        {
+            "local_name": "age",
+            "label": "age",
+            "comment": "Años."
+        },
+        {
+            "local_name": "partOf",
+            "label": "part of",
+            "comment": null
+        },
+        {
+            "local_name": "id",
+            "label": "identifier",
+            "comment": null
+        }
+    ]
+}

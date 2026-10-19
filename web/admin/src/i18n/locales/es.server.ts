@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 93); the other
- * 45 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 111); the other
+ * 63 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -62,6 +62,27 @@ export const esServer: ServerCatalogue = {
   'server.localNameTaken': 'El nombre local "{name}" ya está en uso.',
   'server.vocabularyRequired': 'Se debe establecer un vocabulario.',
   'server.duplicateTemplateProperty': 'Intentando añadir propiedad duplicada con ID {id}',
+  'server.vocabularyNoFile': 'No se ha indicado ningún archivo para importar.',
+  'server.vocabularyNoUrl': 'No se ha indicado ninguna URL para importar.',
+  'server.vocabularyNotParsed': 'No se pudo leer el archivo de vocabulario.',
+  'server.vocabularyNotLoaded': 'No se pudo cargar el vocabulario desde la URL.',
+  'server.vocabularyNoMembers':
+    'No se encontraron clases ni propiedades. ¿Seguro que el URI del espacio de nombres es correcto?',
+  'server.vocabularyPermanent': 'No se puede editar un vocabulario permanente',
+  'server.vocabularyFormatUnknown':
+    'No se pudo detectar el formato del archivo. Elija el formato en la lista.',
+  'server.vocabularyFormatInvalid': '"{format}" no es un formato de archivo de vocabulario.',
+  'server.vocabularyUrlScheme': 'Solo se pueden importar URL http y https.',
+  'server.vocabularyUrlPrivate':
+    'La URL apunta a una dirección de red privada o local, que el servidor no consulta.',
+  'server.vocabularyUrlTooLarge': 'El archivo de la URL supera {size}.',
+  'server.vocabularyUrlTimeout': 'El servidor de la URL no respondió a tiempo.',
+  'server.vocabularyUrlStatus': 'El servidor de la URL respondió con el estado {status}.',
+  'server.vocabularyChangeStale':
+    '"{name}" ha cambiado desde la comparación. Vuelva a comparar el archivo.',
+  'server.vocabularyMemberMissing': '"{name}" no pertenece a este vocabulario.',
+  'server.vocabularyCaseClash':
+    '"{first}" y "{second}" solo se diferencian en mayúsculas y minúsculas, y aquí no se pueden guardar ambos.',
   'server.nameEmpty': 'El nombre no puede estar vacío.',
   'server.emailTaken': 'El correo electrónico {email} ya está en uso.',
   'server.userRoleRequired': 'Los perfiles deben tener asignado un rol.',

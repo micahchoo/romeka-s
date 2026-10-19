@@ -1,0 +1,631 @@
+{
+    "classes": [
+        {
+            "local_name": "AcademicArticle",
+            "label": "Academic Article",
+            "comment": "A scholarly academic article, typically published in a journal."
+        },
+        {
+            "local_name": "Article",
+            "label": "Article",
+            "comment": "A written composition in prose, usually nonfiction, on a specific topic, forming an independent part of a book or other publication, as a newspaper or magazine."
+        },
+        {
+            "local_name": "AudioDocument",
+            "label": "audio document",
+            "comment": "An audio document; aka record."
+        },
+        {
+            "local_name": "AudioVisualDocument",
+            "label": "audio-visual document",
+            "comment": "An audio-visual document; film, video, and so forth."
+        },
+        {
+            "local_name": "Bill",
+            "label": "Bill",
+            "comment": "Draft legislation presented for discussion to a legal body."
+        },
+        {
+            "local_name": "Book",
+            "label": "Book",
+            "comment": "A written or printed work of fiction or nonfiction, usually on sheets of paper fastened or bound together within covers."
+        },
+        {
+            "local_name": "BookSection",
+            "label": "Book Section",
+            "comment": "A section of a book."
+        },
+        {
+            "local_name": "Brief",
+            "label": "Brief",
+            "comment": "A written argument submitted to a court."
+        },
+        {
+            "local_name": "Chapter",
+            "label": "Chapter",
+            "comment": "A chapter of a book."
+        },
+        {
+            "local_name": "Code",
+            "label": "Code",
+            "comment": "A collection of statutes."
+        },
+        {
+            "local_name": "CollectedDocument",
+            "label": "Collected Document",
+            "comment": "A document that simultaneously contains other documents."
+        },
+        {
+            "local_name": "Collection",
+            "label": "Collection",
+            "comment": "A collection of Documents or Collections"
+        },
+        {
+            "local_name": "Conference",
+            "label": "Conference",
+            "comment": "A meeting for consultation or discussion."
+        },
+        {
+            "local_name": "CourtReporter",
+            "label": "Court Reporter",
+            "comment": "A collection of legal cases."
+        },
+        {
+            "local_name": "Document",
+            "label": "Document",
+            "comment": "A document (noun) is a bounded physical representation of body of information designed with the capacity (and usually intent) to communicate. A document may manifest symbolic, diagrammatic or sensory-representational information."
+        },
+        {
+            "local_name": "DocumentPart",
+            "label": "document part",
+            "comment": "a distinct part of a larger document or collected document."
+        },
+        {
+            "local_name": "DocumentStatus",
+            "label": "Document Status",
+            "comment": "The status of the publication of a document."
+        },
+        {
+            "local_name": "EditedBook",
+            "label": "Edited Book",
+            "comment": "An edited book."
+        },
+        {
+            "local_name": "Email",
+            "label": "EMail",
+            "comment": "A written communication addressed to a person or organization and transmitted electronically."
+        },
+        {
+            "local_name": "Event",
+            "label": "Event",
+            "comment": null
+        },
+        {
+            "local_name": "Excerpt",
+            "label": "Excerpt",
+            "comment": "A passage selected from a larger work."
+        },
+        {
+            "local_name": "Film",
+            "label": "Film",
+            "comment": "aka movie."
+        },
+        {
+            "local_name": "Hearing",
+            "label": "Hearing",
+            "comment": "An instance or a session in which testimony and arguments are presented, esp. before an official, as a judge in a lawsuit."
+        },
+        {
+            "local_name": "Image",
+            "label": "Image",
+            "comment": "A document that presents visual or diagrammatic information."
+        },
+        {
+            "local_name": "Interview",
+            "label": "Interview",
+            "comment": "A formalized discussion between two or more people."
+        },
+        {
+            "local_name": "Issue",
+            "label": "Issue",
+            "comment": "something that is printed or published and distributed, esp. a given number of a periodical"
+        },
+        {
+            "local_name": "Journal",
+            "label": "Journal",
+            "comment": "A periodical of scholarly journal Articles."
+        },
+        {
+            "local_name": "LegalCaseDocument",
+            "label": "Legal Case Document",
+            "comment": "A document accompanying a legal case."
+        },
+        {
+            "local_name": "LegalDecision",
+            "label": "Decision",
+            "comment": "A document containing an authoritative determination (as a decree or judgment) made after consideration of facts or law."
+        },
+        {
+            "local_name": "LegalDocument",
+            "label": "Legal Document",
+            "comment": "A legal document; for example, a court decision, a brief, and so forth."
+        },
+        {
+            "local_name": "Legislation",
+            "label": "Legislation",
+            "comment": "A legal document proposing or enacting a law or a group of laws."
+        },
+        {
+            "local_name": "Letter",
+            "label": "Letter",
+            "comment": "A written or printed communication addressed to a person or organization and usually transmitted by mail."
+        },
+        {
+            "local_name": "Magazine",
+            "label": "Magazine",
+            "comment": "A periodical of magazine Articles. A magazine is a publication that is issued periodically, usually bound in a paper cover, and typically contains essays, stories, poems, etc., by many writers, and often photographs and drawings, frequently specializing in a particular subject or area, as hobbies, news, or sports."
+        },
+        {
+            "local_name": "Manual",
+            "label": "Manual",
+            "comment": "A small reference book, especially one giving instructions."
+        },
+        {
+            "local_name": "Manuscript",
+            "label": "Manuscript",
+            "comment": "An unpublished Document, which may also be submitted to a publisher for publication."
+        },
+        {
+            "local_name": "Map",
+            "label": "Map",
+            "comment": "A graphical depiction of geographic features."
+        },
+        {
+            "local_name": "MultiVolumeBook",
+            "label": "Multivolume Book",
+            "comment": "A loose, thematic, collection of Documents, often Books."
+        },
+        {
+            "local_name": "Newspaper",
+            "label": "Newspaper",
+            "comment": "A periodical of documents, usually issued daily or weekly, containing current news, editorials, feature articles, and usually advertising."
+        },
+        {
+            "local_name": "Note",
+            "label": "Note",
+            "comment": "Notes or annotations about a resource."
+        },
+        {
+            "local_name": "Patent",
+            "label": "Patent",
+            "comment": "A document describing the exclusive right granted by a government to an inventor to manufacture, use, or sell an invention for a certain number of years."
+        },
+        {
+            "local_name": "Performance",
+            "label": "Performance",
+            "comment": "A public performance."
+        },
+        {
+            "local_name": "Periodical",
+            "label": "Periodical",
+            "comment": "A group of related documents issued at regular intervals."
+        },
+        {
+            "local_name": "PersonalCommunication",
+            "label": "Personal Communication",
+            "comment": "A communication between an agent and one or more specific recipients."
+        },
+        {
+            "local_name": "PersonalCommunicationDocument",
+            "label": "Personal Communication Document",
+            "comment": "A personal communication manifested in some document."
+        },
+        {
+            "local_name": "Proceedings",
+            "label": "Proceedings",
+            "comment": "A compilation of documents published from an event, such as a conference."
+        },
+        {
+            "local_name": "Quote",
+            "label": "Quote",
+            "comment": "An excerpted collection of words."
+        },
+        {
+            "local_name": "ReferenceSource",
+            "label": "Reference Source",
+            "comment": "A document that presents authoritative reference information, such as a dictionary or encylopedia ."
+        },
+        {
+            "local_name": "Report",
+            "label": "Report",
+            "comment": "A document describing an account or statement describing in detail an event, situation, or the like, usually as the result of observation, inquiry, etc.."
+        },
+        {
+            "local_name": "Series",
+            "label": "Series",
+            "comment": "A loose, thematic, collection of Documents, often Books."
+        },
+        {
+            "local_name": "Slide",
+            "label": "Slide",
+            "comment": "A slide in a slideshow"
+        },
+        {
+            "local_name": "Slideshow",
+            "label": "Slideshow",
+            "comment": "A presentation of a series of slides, usually presented in front of an audience with written text and images."
+        },
+        {
+            "local_name": "Standard",
+            "label": "Standard",
+            "comment": "A document describing a standard"
+        },
+        {
+            "local_name": "Statute",
+            "label": "Statute",
+            "comment": "A bill enacted into law."
+        },
+        {
+            "local_name": "Thesis",
+            "label": "Thesis",
+            "comment": "A document created to summarize research findings associated with the completion of an academic degree."
+        },
+        {
+            "local_name": "ThesisDegree",
+            "label": "Thesis degree",
+            "comment": "The academic degree of a Thesis"
+        },
+        {
+            "local_name": "Webpage",
+            "label": "Webpage",
+            "comment": "A web page is an online document available (at least initially) on the world wide web. A web page is written first and foremost to appear on the web, as distinct from other online resources such as books, manuscripts or audio documents which use the web primarily as a distribution mechanism alongside other more traditional methods such as print."
+        },
+        {
+            "local_name": "Website",
+            "label": "Website",
+            "comment": "A group of Webpages accessible on the Web."
+        },
+        {
+            "local_name": "Workshop",
+            "label": "Workshop",
+            "comment": "A seminar, discussion group, or the like, that emphasizes zxchange of ideas and the demonstration and application of techniques, skills, etc."
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "affirmedBy",
+            "label": "affirmedBy",
+            "comment": "A legal decision that affirms a ruling."
+        },
+        {
+            "local_name": "annotates",
+            "label": "annotates",
+            "comment": "Critical or explanatory note for a Document."
+        },
+        {
+            "local_name": "authorList",
+            "label": "list of authors",
+            "comment": "An ordered list of authors. Normally, this list is seen as a priority list that order authors by importance."
+        },
+        {
+            "local_name": "citedBy",
+            "label": "cited by",
+            "comment": "Relates a document to another document that cites the\nfirst document."
+        },
+        {
+            "local_name": "cites",
+            "label": "cites",
+            "comment": "Relates a document to another document that is cited\nby the first document as reference, comment, review, quotation or for\nanother purpose."
+        },
+        {
+            "local_name": "contributorList",
+            "label": "list of contributors",
+            "comment": "An ordered list of contributors. Normally, this list is seen as a priority list that order contributors by importance."
+        },
+        {
+            "local_name": "court",
+            "label": "court",
+            "comment": "A court associated with a legal document; for example, that which issues a decision."
+        },
+        {
+            "local_name": "degree",
+            "label": "degree",
+            "comment": "The thesis degree."
+        },
+        {
+            "local_name": "director",
+            "label": "director",
+            "comment": "A Film director."
+        },
+        {
+            "local_name": "distributor",
+            "label": "distributor",
+            "comment": "Distributor of a document or a collection of documents."
+        },
+        {
+            "local_name": "editor",
+            "label": "editor",
+            "comment": "A person having managerial and sometimes policy-making responsibility for the editorial part of a publishing firm or of a newspaper, magazine, or other publication."
+        },
+        {
+            "local_name": "editorList",
+            "label": "list of editors",
+            "comment": "An ordered list of editors. Normally, this list is seen as a priority list that order editors by importance."
+        },
+        {
+            "local_name": "interviewee",
+            "label": "interviewee",
+            "comment": "An agent that is interviewed by another agent."
+        },
+        {
+            "local_name": "interviewer",
+            "label": "interviewer",
+            "comment": "An agent that interview another agent."
+        },
+        {
+            "local_name": "issuer",
+            "label": "issuer",
+            "comment": "An entity responsible for issuing often informally published documents such as press releases, reports, etc."
+        },
+        {
+            "local_name": "organizer",
+            "label": "organizer",
+            "comment": "The organizer of an event; includes conference organizers, but also government agencies or other bodies that are responsible for conducting hearings."
+        },
+        {
+            "local_name": "owner",
+            "label": "owner",
+            "comment": "Owner of a document or a collection of documents."
+        },
+        {
+            "local_name": "performer",
+            "label": "performer",
+            "comment": null
+        },
+        {
+            "local_name": "presentedAt",
+            "label": "presented at",
+            "comment": "Relates a document to an event; for example, a paper to a conference."
+        },
+        {
+            "local_name": "presents",
+            "label": "presents",
+            "comment": "Relates an event to associated documents; for example, conference to a paper."
+        },
+        {
+            "local_name": "producer",
+            "label": "producer",
+            "comment": "Producer of a document or a collection of documents."
+        },
+        {
+            "local_name": "recipient",
+            "label": "recipient",
+            "comment": "An agent that receives a communication document."
+        },
+        {
+            "local_name": "reproducedIn",
+            "label": "reproducedIn",
+            "comment": "The resource in which another resource is reproduced."
+        },
+        {
+            "local_name": "reversedBy",
+            "label": "reversedBy",
+            "comment": "A legal decision that reverses a ruling."
+        },
+        {
+            "local_name": "reviewOf",
+            "label": "review of",
+            "comment": "Relates a review document to a reviewed thing (resource, item, etc.)."
+        },
+        {
+            "local_name": "status",
+            "label": "status",
+            "comment": "The publication status of (typically academic) content."
+        },
+        {
+            "local_name": "subsequentLegalDecision",
+            "label": "subsequentLegalDecision",
+            "comment": "A legal decision on appeal that takes action on a case (affirming it, reversing it, etc.)."
+        },
+        {
+            "local_name": "transcriptOf",
+            "label": "transcript of",
+            "comment": "Relates a document to some transcribed original."
+        },
+        {
+            "local_name": "translationOf",
+            "label": "translation of",
+            "comment": "Relates a translated document to the original document."
+        },
+        {
+            "local_name": "translator",
+            "label": "translator",
+            "comment": "A person who translates written document from one language to another."
+        },
+        {
+            "local_name": "abstract",
+            "label": "abstract",
+            "comment": "A summary of the resource."
+        },
+        {
+            "local_name": "argued",
+            "label": "date argued",
+            "comment": "The date on which a legal case is argued before a court. Date is of format xsd:date"
+        },
+        {
+            "local_name": "asin",
+            "label": "asin",
+            "comment": null
+        },
+        {
+            "local_name": "chapter",
+            "label": "chapter",
+            "comment": "An chapter number"
+        },
+        {
+            "local_name": "coden",
+            "label": "coden",
+            "comment": null
+        },
+        {
+            "local_name": "content",
+            "label": "content",
+            "comment": "This property is for a plain-text rendering of the content of a Document. While the plain-text content of an entire document could be described by this property."
+        },
+        {
+            "local_name": "doi",
+            "label": "doi",
+            "comment": null
+        },
+        {
+            "local_name": "eanucc13",
+            "label": "eanucc13",
+            "comment": null
+        },
+        {
+            "local_name": "edition",
+            "label": "edition",
+            "comment": "The name defining a special edition of a document. Normally its a literal value composed of a version number and words."
+        },
+        {
+            "local_name": "eissn",
+            "label": "eissn",
+            "comment": null
+        },
+        {
+            "local_name": "gtin14",
+            "label": "gtin14",
+            "comment": null
+        },
+        {
+            "local_name": "handle",
+            "label": "handle",
+            "comment": null
+        },
+        {
+            "local_name": "identifier",
+            "label": "identifier",
+            "comment": null
+        },
+        {
+            "local_name": "isbn",
+            "label": "isbn",
+            "comment": null
+        },
+        {
+            "local_name": "isbn10",
+            "label": "isbn10",
+            "comment": null
+        },
+        {
+            "local_name": "isbn13",
+            "label": "isbn13",
+            "comment": null
+        },
+        {
+            "local_name": "issn",
+            "label": "issn",
+            "comment": null
+        },
+        {
+            "local_name": "issue",
+            "label": "issue",
+            "comment": "An issue number"
+        },
+        {
+            "local_name": "lccn",
+            "label": "lccn",
+            "comment": null
+        },
+        {
+            "local_name": "locator",
+            "label": "locator",
+            "comment": "A description (often numeric) that locates an item within a containing document or collection."
+        },
+        {
+            "local_name": "numPages",
+            "label": "number of pages",
+            "comment": "The number of pages contained in a document"
+        },
+        {
+            "local_name": "numVolumes",
+            "label": "number of volumes",
+            "comment": "The number of volumes contained in a collection of documents (usually a series, periodical, etc.)."
+        },
+        {
+            "local_name": "number",
+            "label": "number",
+            "comment": "A generic item or document number. Not to be confused with issue number."
+        },
+        {
+            "local_name": "oclcnum",
+            "label": "oclcnum",
+            "comment": null
+        },
+        {
+            "local_name": "pageEnd",
+            "label": "page end",
+            "comment": "Ending page number within a continuous page range."
+        },
+        {
+            "local_name": "pageStart",
+            "label": "page start",
+            "comment": "Starting page number within a continuous page range."
+        },
+        {
+            "local_name": "pages",
+            "label": "pages",
+            "comment": "A string of non-contiguous page spans that locate a Document within a Collection. Example: 23-25, 34, 54-56. For continuous page ranges, use the pageStart and pageEnd properties."
+        },
+        {
+            "local_name": "pmid",
+            "label": "pmid",
+            "comment": null
+        },
+        {
+            "local_name": "prefixName",
+            "label": "prefix name",
+            "comment": "The prefix of a name"
+        },
+        {
+            "local_name": "section",
+            "label": "section",
+            "comment": "A section number"
+        },
+        {
+            "local_name": "shortDescription",
+            "label": "shortDescription",
+            "comment": null
+        },
+        {
+            "local_name": "shortTitle",
+            "label": "short title",
+            "comment": "The abbreviation of a title."
+        },
+        {
+            "local_name": "sici",
+            "label": "sici",
+            "comment": null
+        },
+        {
+            "local_name": "suffixName",
+            "label": "suffix name",
+            "comment": "The suffix of a name"
+        },
+        {
+            "local_name": "upc",
+            "label": "upc",
+            "comment": null
+        },
+        {
+            "local_name": "uri",
+            "label": "uri",
+            "comment": "Universal Resource Identifier of a document"
+        },
+        {
+            "local_name": "volume",
+            "label": "volume",
+            "comment": "A volume number"
+        }
+    ]
+}

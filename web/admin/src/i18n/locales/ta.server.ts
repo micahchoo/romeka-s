@@ -68,6 +68,27 @@ export const taServer: ServerCatalogue = {
   'server.localNameTaken': 'உள்ளூர் பெயர் "{name}" ஏற்கனவே பயன்படுத்தப்பட்டுள்ளது.',
   'server.vocabularyRequired': 'ஒரு சொல்லகராதி அமைக்கப்பட வேண்டும்.',
   'server.duplicateTemplateProperty': 'ஐடி {id} உடன் நகல் பண்பைச் சேர்க்க முயற்சித்தல்',
+  'server.vocabularyNoFile': 'கோப்பு இறக்குமதி உத்திக்காக எந்தக் கோப்பும் குறிப்பிடப்படவில்லை.',
+  'server.vocabularyNoUrl': 'URL இறக்குமதி உத்திக்காக எந்த URL-உம் குறிப்பிடப்படவில்லை.',
+  'server.vocabularyNotParsed': 'சொல்லகராதி கோப்பைப் பகுப்பாய்வு செய்ய முடியவில்லை.',
+  'server.vocabularyNotLoaded': 'URL-லிருந்து சொல்லகராதியை ஏற்ற முடியவில்லை.',
+  'server.vocabularyNoMembers':
+    'வகுப்புகள் அல்லது பண்புகள் எதுவும் காணப்படவில்லை. சரியான பெயர்வெளி URI-ஐப் பயன்படுத்தியுள்ளீர்களா?',
+  'server.vocabularyPermanent': 'ஒரு நிலையான சொல்லகராதியைத் திருத்த முடியாது',
+  'server.vocabularyFormatUnknown':
+    'கோப்பு வடிவத்தைக் கண்டறிய முடியவில்லை. பட்டியலிலிருந்து வடிவத்தைத் தேர்ந்தெடுக்கவும்.',
+  'server.vocabularyFormatInvalid': '"{format}" என்பது சொல்லகராதி கோப்பு வடிவம் அல்ல.',
+  'server.vocabularyUrlScheme': 'http மற்றும் https URL-களை மட்டுமே இறக்குமதி செய்ய முடியும்.',
+  'server.vocabularyUrlPrivate':
+    'URL ஒரு தனிப்பட்ட அல்லது உள்ளூர் பிணைய முகவரியைக் குறிப்பிடுகிறது, அதை சர்வர் பெறாது.',
+  'server.vocabularyUrlTooLarge': 'URL-இல் உள்ள கோப்பு {size}-ஐ விடப் பெரியது.',
+  'server.vocabularyUrlTimeout': 'URL-இல் உள்ள சர்வர் சரியான நேரத்தில் பதிலளிக்கவில்லை.',
+  'server.vocabularyUrlStatus': 'URL-இல் உள்ள சர்வர் {status} நிலையைத் திருப்பியது.',
+  'server.vocabularyChangeStale':
+    '"{name}" ஒப்பீட்டிற்குப் பிறகு மாறியுள்ளது. கோப்பை மீண்டும் ஒப்பிடவும்.',
+  'server.vocabularyMemberMissing': '"{name}" இந்த சொல்லகராதியின் உறுப்பினர் அல்ல.',
+  'server.vocabularyCaseClash':
+    '"{first}" மற்றும் "{second}" எழுத்து வடிவத்தில் மட்டுமே வேறுபடுகின்றன, மேலும் இந்த ஆவணக் காப்பகம் இரண்டையும் சேமிக்க முடியாது.',
   'server.nameEmpty': 'பெயர் காலியாக இருக்கக்கூடாது.',
   'server.emailTaken': 'மின்னஞ்சல் {email} ஏற்கனவே பயன்படுத்தப்பட்டுள்ளது.',
   'server.userRoleRequired': 'பயனர்களுக்கு ஒரு பங்கு இருக்க வேண்டும்.',

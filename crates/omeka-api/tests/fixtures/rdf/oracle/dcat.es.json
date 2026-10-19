@@ -1,0 +1,236 @@
+{
+    "classes": [
+        {
+            "local_name": "Catalog",
+            "label": "Catálogo",
+            "comment": "Una colección curada de metadatos sobre recursos (por ejemplo, conjuntos de datos y servicios de datos en el contexto de un catálogo de datos)."
+        },
+        {
+            "local_name": "CatalogRecord",
+            "label": "Registro del catálogo",
+            "comment": "Un registro en un catálogo de datos que describe un solo conjunto de datos o un servicio de datos."
+        },
+        {
+            "local_name": "DataService",
+            "label": "Servicio de datos",
+            "comment": "Un sitio o end-point que provee operaciones relacionadas a funciones de descubrimiento, acceso, o procesamiento de datos o recursos relacionados."
+        },
+        {
+            "local_name": "Dataset",
+            "label": "Conjunto de datos",
+            "comment": "Una colección de datos, publicados o conservados por una única fuente, y disponibles para ser accedidos o descargados en uno o más formatos."
+        },
+        {
+            "local_name": "DatasetSeries",
+            "label": "Serie de conjuntos de datos",
+            "comment": "Una colección de conjuntos de datos publicados por separado, pero que comparten características que los agrupan."
+        },
+        {
+            "local_name": "Distribution",
+            "label": "Distribución",
+            "comment": "Una representación específica de los datos. Cada conjunto de datos puede estar disponible en formas diferentes, las cuáles pueden variar en distintas formas, incluyendo el idioma, 'media-type' o formato, organización esquemática, resolución temporal y espacial, nivel de detalle o perfiles (que pueden especificar cualquiera o todas las diferencias anteriores)."
+        },
+        {
+            "local_name": "Relationship",
+            "label": "Relación",
+            "comment": "Una clase de asociación para adjuntar información adicional a una relación entre recursos DCAT."
+        },
+        {
+            "local_name": "Resource",
+            "label": "Recurso catalogado",
+            "comment": "Recurso publicado o curado por un agente único."
+        },
+        {
+            "local_name": "Role",
+            "label": "Rol",
+            "comment": "Un rol es la función de un recurso o agente con respecto a otro recuros, en el contexto de atribución del recurso o de las relaciones entre recursos."
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "accessService",
+            "label": "servicio de acceso de datos",
+            "comment": "Un sitio o end-point que da acceso a la distribución de un conjunto de datos."
+        },
+        {
+            "local_name": "accessURL",
+            "label": "URL de acceso",
+            "comment": "Puede ser cualquier tipo de URL que de acceso a una distribución del conjunto de datos, e.g., página de destino, descarga, URL feed, punto de acceso SPARQL. Esta propriedad se debe usar cuando su catálogo de datos no tiene información sobre donde está o cuando no se puede descargar."
+        },
+        {
+            "local_name": "bbox",
+            "label": "cuadro delimitador",
+            "comment": "El cuadro delimitador geográfico para un recurso."
+        },
+        {
+            "local_name": "byteSize",
+            "label": "tamaño en bytes",
+            "comment": "El tamaño de una distribución en bytes."
+        },
+        {
+            "local_name": "catalog",
+            "label": "catálogo",
+            "comment": "Un catálogo cuyo contenido es de interés en el contexto del catálogo que está siendo descripto."
+        },
+        {
+            "local_name": "centroid",
+            "label": "centroide",
+            "comment": "El centro geográfico (centroide) de un recurso."
+        },
+        {
+            "local_name": "compressFormat",
+            "label": "formato de compresión",
+            "comment": "El formato de la distribución en el que los datos están en forma comprimida, e.g. para reducir el tamaño del archivo a bajar."
+        },
+        {
+            "local_name": "contactPoint",
+            "label": "Punto de contacto",
+            "comment": "Información relevante de contacto para el recurso catalogado. Se recomienda el uso de vCard."
+        },
+        {
+            "local_name": "dataset",
+            "label": "conjunto de datos",
+            "comment": "Un conjunto de datos que se lista en el catálogo."
+        },
+        {
+            "local_name": "distribution",
+            "label": "distribución",
+            "comment": "Una distribución disponible del conjunto de datos."
+        },
+        {
+            "local_name": "downloadURL",
+            "label": "URL de descarga",
+            "comment": "La URL de un archivo descargable en el formato dato. Por ejemplo, archivo CSV o archivo RDF. El formato se describe con las propiedades de la distribución dcterms:format y/o dcat:mediaType."
+        },
+        {
+            "local_name": "endDate",
+            "label": "fecha final",
+            "comment": "El fin del período."
+        },
+        {
+            "local_name": "endpointDescription",
+            "label": "descripción del end-point del servicio",
+            "comment": "Una descripción del end-point del servicio, incluyendo sus operaciones, parámetros, etc."
+        },
+        {
+            "local_name": "endpointURL",
+            "label": "end-point del servicio",
+            "comment": "La posición raíz o end-point principal del servicio (una IRI web)."
+        },
+        {
+            "local_name": "first",
+            "label": "primero",
+            "comment": "El primer recurso en una colección ordenada o serie de recursos, al que el recurso pertenece."
+        },
+        {
+            "local_name": "hasCurrentVersion",
+            "label": "tiene versión actual",
+            "comment": "Este recurso es más específico y versionado con contenido equivalente [PAV]."
+        },
+        {
+            "local_name": "hasVersion",
+            "label": "tiene versión",
+            "comment": "Este recurso tiene una versión específica."
+        },
+        {
+            "local_name": "hadRole",
+            "label": "haRuolo",
+            "comment": "La función de una entidad o agente con respecto a otra entidad o recurso."
+        },
+        {
+            "local_name": "inSeries",
+            "label": "en serie",
+            "comment": "Una serie de conjuntos de datos del cuál un conjunto de datos es parte."
+        },
+        {
+            "local_name": "keyword",
+            "label": "palabra clave",
+            "comment": "Una palabra clave o etiqueta que describe un recurso."
+        },
+        {
+            "local_name": "landingPage",
+            "label": "página de destino",
+            "comment": "Una página web que puede ser visitada en un explorador Web para tener acceso el catálogo, un conjunto de datos, sus distribuciones y/o información adicional."
+        },
+        {
+            "local_name": "last",
+            "label": "último",
+            "comment": "El último recurso en una colección ordenada o serie de recursos, al que el recurso pertenece."
+        },
+        {
+            "local_name": "mediaType",
+            "label": "tipo de media",
+            "comment": "Esta propiedad debe ser usada cuando está definido el tipo de media de la distribución en IANA, de otra manera dcterms:format puede ser utilizado con diferentes valores"
+        },
+        {
+            "local_name": "packageFormat",
+            "label": "formato de empaquetado",
+            "comment": "El formato del archivo en que se agrupan uno o más archivos de datos, e.g. para permitir que un conjunto de archivos relacionados se bajen juntos."
+        },
+        {
+            "local_name": "prev",
+            "label": "previo",
+            "comment": "The previous resource (before the current one) in an ordered collection or series of resources."
+        },
+        {
+            "local_name": "previousVersion",
+            "label": "versión anterior",
+            "comment": "The previous version of a resource in a lineage [PAV]."
+        },
+        {
+            "local_name": "qualifiedRelation",
+            "label": "relación calificada",
+            "comment": "Enlace a una descripción de la relación con otro recurso."
+        },
+        {
+            "local_name": "record",
+            "label": "registro",
+            "comment": "Describe la registración de un conjunto de datos o un servicio de datos en el catálogo."
+        },
+        {
+            "local_name": "resource",
+            "label": "resource",
+            "comment": "A resource that is listed in the catalog."
+        },
+        {
+            "local_name": "servesDataset",
+            "label": "provee conjunto de datos",
+            "comment": "Una colección de datos que este Servicio de Datos puede distribuir."
+        },
+        {
+            "local_name": "service",
+            "label": "servicio",
+            "comment": "Un sitio o 'endpoint' que está listado en el catálogo."
+        },
+        {
+            "local_name": "spatialResolutionInMeters",
+            "label": "resolución espacial (metros)",
+            "comment": "mínima separacíon espacial disponible en un conjunto de datos, medida en metros."
+        },
+        {
+            "local_name": "startDate",
+            "label": "datum začátku",
+            "comment": null
+        },
+        {
+            "local_name": "temporalResolution",
+            "label": "resolución temporal",
+            "comment": "período de tiempo mínimo en el conjunto de datos."
+        },
+        {
+            "local_name": "theme",
+            "label": "tema",
+            "comment": "La categoría principal del recurso. Un recurso puede tener varios temas."
+        },
+        {
+            "local_name": "themeTaxonomy",
+            "label": "taxonomía de temas",
+            "comment": "El sistema de organización del conocimiento utilizado para clasificar conjuntos de datos de catálogos."
+        },
+        {
+            "local_name": "version",
+            "label": "versión",
+            "comment": "El indicador de versión (nombre o identificador) del recurso."
+        }
+    ]
+}

@@ -67,6 +67,27 @@ export const knServer: ServerCatalogue = {
   'server.vocabularyRequired': 'ಶಬ್ದಕೋಶವನ್ನು ನಿಗದಿಪಡಿಸಬೇಕು.',
   'server.duplicateTemplateProperty':
     'ಐಡಿ {id} ನೊಂದಿಗೆ ನಕಲಿ ಗುಣಲಕ್ಷಣವನ್ನು ಸೇರಿಸಲು ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ',
+  'server.vocabularyNoFile': 'ಫೈಲ್ ಆಮದು ತಂತ್ರಕ್ಕಾಗಿ ಯಾವುದೇ ಫೈಲ್ ನಿರ್ದಿಷ್ಟಪಡಿಸಿಲ್ಲ.',
+  'server.vocabularyNoUrl': 'URL ಆಮದು ತಂತ್ರಕ್ಕಾಗಿ ಯಾವುದೇ URL ನಿರ್ದಿಷ್ಟಪಡಿಸಿಲ್ಲ.',
+  'server.vocabularyNotParsed': 'ಶಬ್ದಕೋಶದ ಫೈಲ್ ಅನ್ನು ವಿಶ್ಲೇಷಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+  'server.vocabularyNotLoaded': 'URL ನಿಂದ ಶಬ್ದಕೋಶವನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+  'server.vocabularyNoMembers':
+    'ಯಾವುದೇ ವರ್ಗಗಳು ಅಥವಾ ಗುಣಲಕ್ಷಣಗಳು ಕಂಡುಬಂದಿಲ್ಲ. ನೀವು ಸರಿಯಾದ ನೇಮ್‌ಸ್ಪೇಸ್ URI ಬಳಸಿದ್ದೀರಾ?',
+  'server.vocabularyPermanent': 'ಶಾಶ್ವತ ಶಬ್ದಕೋಶವನ್ನು ಸಂಪಾದಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ',
+  'server.vocabularyFormatUnknown':
+    'ಫೈಲ್ ಫಾರ್ಮ್ಯಾಟ್ ಅನ್ನು ಪತ್ತೆಹಚ್ಚಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಪಟ್ಟಿಯಿಂದ ಫಾರ್ಮ್ಯಾಟ್ ಅನ್ನು ಆರಿಸಿ.',
+  'server.vocabularyFormatInvalid': '"{format}" ಶಬ್ದಕೋಶದ ಫೈಲ್ ಫಾರ್ಮ್ಯಾಟ್ ಅಲ್ಲ.',
+  'server.vocabularyUrlScheme': 'ಕೇವಲ http ಮತ್ತು https URL ಗಳನ್ನು ಆಮದು ಮಾಡಿಕೊಳ್ಳಬಹುದು.',
+  'server.vocabularyUrlPrivate':
+    'URL ಒಂದು ಖಾಸಗಿ ಅಥವಾ ಸ್ಥಳೀಯ ನೆಟ್‌ವರ್ಕ್ ವಿಳಾಸವನ್ನು ಸೂಚಿಸುತ್ತದೆ, ಇದನ್ನು ಸರ್ವರ್ ಪಡೆಯುವುದಿಲ್ಲ.',
+  'server.vocabularyUrlTooLarge': 'URL ನಲ್ಲಿರುವ ಫೈಲ್ {size} ಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ.',
+  'server.vocabularyUrlTimeout': 'URL ನಲ್ಲಿರುವ ಸರ್ವರ್ ಸಮಯಕ್ಕೆ ಸರಿಯಾಗಿ ಪ್ರತಿಕ್ರಿಯಿಸಲಿಲ್ಲ.',
+  'server.vocabularyUrlStatus': 'URL ನಲ್ಲಿರುವ ಸರ್ವರ್ {status} ಸ್ಥಿತಿಯೊಂದಿಗೆ ಪ್ರತಿಕ್ರಿಯಿಸಿದೆ.',
+  'server.vocabularyChangeStale':
+    '"{name}" ಅನ್ನು ಹೋಲಿಕೆ ಮಾಡಿದ ನಂತರ ಬದಲಾಗಿದೆ. ಫೈಲ್ ಅನ್ನು ಮತ್ತೆ ಹೋಲಿಸಿ.',
+  'server.vocabularyMemberMissing': '"{name}" ಈ ಶಬ್ದಕೋಶದ ಸದಸ್ಯನಲ್ಲ.',
+  'server.vocabularyCaseClash':
+    '"{first}" ಮತ್ತು "{second}" ಕೇವಲ ಅಕ್ಷರಗಳ ಗಾತ್ರದಲ್ಲಿ ಮಾತ್ರ ಭಿನ್ನವಾಗಿವೆ, ಮತ್ತು ಈ ಆರ್ಕೈವ್ ಎರಡನ್ನೂ ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
   'server.nameEmpty': 'ಹೆಸರು ಖಾಲಿ ಇರಬಾರದು.',
   'server.emailTaken': 'ಇಮೇಲ್ {email} ಈಗಾಗಲೇ ಬಳಕೆಯಲ್ಲಿದೆ.',
   'server.userRoleRequired': 'ಬಳಕೆದಾರರಿಗೆ ಪಾತ್ರವಿರಬೇಕು.',
