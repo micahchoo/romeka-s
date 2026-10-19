@@ -340,9 +340,9 @@ The text is keyed by term (`dcterms:title`, or a vocabulary's prefix), and a sto
 translated only while it is still the built-in English, so a user's vocabulary, an edited label and
 a template's alternate label show as stored. The tables are
 `locales/vocabulary/{labels,comments}/<tag>.json`, typed against English, and the public site reads
-the label tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English and Spanish come from
-upstream's catalogues (`scripts/extract-vocabulary-text.mjs`); the other locales from
-`scripts/translate-locales.mjs`. The first `useTermText()` render in a locale fetches its tables as
+the label tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English is the text a fresh
+install stores and Spanish is upstream's `es.po` (`scripts/extract-vocabulary-text.mjs`); the other
+locales come from `scripts/translate-locales.mjs`. The first `useTermText()` render in a locale fetches its tables as
 lazy chunks and renders again when they arrive (PERF.md Decision 16). A new locale adds its two files to `TABLE_LOADERS`, then runs
 `UPDATE_GENERATED=1 cargo test -p omeka-site vocabulary` and adds the tag to the site's `TABLES`.
 

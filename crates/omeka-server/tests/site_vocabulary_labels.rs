@@ -11,6 +11,7 @@ mod common;
 
 use axum::http::StatusCode;
 use common::{Seed, get, router, send, site_pool};
+use omeka_api::vocab_import::defaults::DEFAULT_VOCABULARIES;
 use omeka_db::ids::SiteId;
 use omeka_db::repos::{PropertyRepo, SiteSettingRepo, TemplateRepo, ValueRepo, VocabularyRepo};
 use omeka_db::rows::{NewProperty, NewValue, NewVocabulary};
@@ -78,6 +79,77 @@ async fn a_spanish_site_prints_built_in_labels_in_spanish() {
     assert!(answer.body.contains("<dt>Título</dt>"), "{}", answer.body);
     assert!(answer.body.contains("<dt>Title</dt>"), "{}", answer.body);
     assert!(answer.body.contains("Shelf 4"), "{}", answer.body);
+}
+
+/// FOAF as the install stores it, from the bundled `foaf.rdf`, with one value
+/// of `foaf:mbox` on the seeded item.
+async fn add_installed_foaf_mbox_value(pool: &SqlitePool, seed: &Seed) {
+    let foaf = &DEFAULT_VOCABULARIES[3];
+    let vocabulary = VocabularyRepo::new(pool)
+        .create(&NewVocabulary {
+            owner_id: None,
+            namespace_uri: foaf.namespace_uri.to_string(),
+            prefix: foaf.prefix.to_string(),
+            label: foaf.label.to_string(),
+            comment: Some(foaf.comment.to_string()),
+        })
+        .await
+        .unwrap();
+    let members = foaf.members().unwrap();
+    let mbox = members
+        .properties
+        .iter()
+        .find(|term| term.local_name == "mbox")
+        .unwrap();
+    let property = PropertyRepo::new(pool)
+        .create(&NewProperty {
+            owner_id: None,
+            vocabulary_id: vocabulary.id,
+            local_name: mbox.local_name.clone(),
+            label: mbox.label.clone(),
+            comment: mbox.comment.clone(),
+        })
+        .await
+        .unwrap();
+    ValueRepo::new(pool)
+        .create(&NewValue {
+            resource_id: seed.item.as_resource(),
+            property_id: property.id,
+            value_resource_id: None,
+            value_annotation_id: None,
+            r#type: "literal".to_string(),
+            lang: None,
+            value: Some("archive@example.org".to_string()),
+            uri: None,
+            is_public: true,
+        })
+        .await
+        .unwrap();
+}
+
+/// A FOAF label as the install stores it ("personal mailbox") prints as
+/// `es.po` translates it.
+#[tokio::test]
+async fn a_spanish_site_prints_an_installed_foaf_label_in_spanish() {
+    let (pool, seed) = site_pool().await;
+    spanish_site(&pool, &seed).await;
+    add_installed_foaf_mbox_value(&pool, &seed).await;
+    let answer = send(
+        router(pool),
+        get(&format!("/s/museum/item/{}", seed.item.0), false),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer.body.contains("archive@example.org"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains("<dt>buzón personal</dt>"),
+        "{}",
+        answer.body
+    );
 }
 
 /// `alternate_label ?: ...`: the item's template names `dcterms:title`

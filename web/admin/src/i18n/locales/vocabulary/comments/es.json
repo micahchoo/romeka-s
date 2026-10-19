@@ -231,6 +231,7 @@
   "foaf:firstName": "El nombre propio de una persona.",
   "foaf:lastName": "El apellido o apellidos de una persona.",
   "foaf:givenName": "El nombre propio de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"given name\".",
+  "foaf:givenname": "El nombre propio de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"given name\".",
   "foaf:surname": "El apellido o apellidos de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"surname\".",
   "foaf:family_name": "El apellido o apellidos de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"family name\".",
   "foaf:familyName": "El apellido o apellidos de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"family name\".",
@@ -272,7 +273,6 @@
   "foaf:membershipClass": "Indica la clase de individuos que son miembros de un grupo.",
   "foaf:birthday": "La fecha de nacimiento de este agente, representada en el formato de cadena mm-dd, por ejemplo '12-31 ' (31 de diciembre).",
   "foaf:age": "La edad en años de un agente.",
-  "foaf:status": "Una cadena que expresa si la persona está contenta con que el público general (normalmente) conozca su actividad actual.",
-  "foaf:givenname": "El nombre propio de una persona. En desuso dentro de la ontología FOAF, hace referencia al inglés \"given name\"."
+  "foaf:status": "Una cadena que expresa si la persona está contenta con que el público general (normalmente) conozca su actividad actual."
  }
 }
