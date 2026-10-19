@@ -2,6 +2,7 @@
  * Fill the machine-translated catalogues with the English keys they lack.
  *
  *   bun scripts/translate-locales.mjs [tag ...]
+ *   bun scripts/translate-locales.mjs --check [tag ...]
  *
  * With no tags it fills every catalogue marked `@machine-translated`. The
  * locale file is the store: a run translates only missing keys and drops keys
@@ -21,10 +22,19 @@
  * admin already translated takes the admin's translation there, so the admin
  * and the site name a thing alike.
  *
+ * `--check` makes no model call and writes nothing. It prints, per table and
+ * locale, every key a run would translate (missing, or its English changed
+ * since `sources.json` recorded it) and every key a run would drop (no longer
+ * in English), and exits non-zero when there is any. It needs neither the
+ * model nor md-translator.
+ *
+ * The tables are the shell catalogue, then every message namespace in
+ * `src/i18n/namespaces/registry.ts` order, then the rest below.
+ *
  * It runs under bun, not node: it imports TypeScript from the catalogues and
  * from md-translator.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,8 +43,19 @@ const ADMIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 const NOTE = '//';
 // Every English table and where its translations live. The main catalogue's
 // files decide which locales are machine-translated; each other table follows.
+const { NAMESPACES } = await import(join(ADMIN, 'src/i18n/namespaces/registry.ts'));
+const namespaceTables = NAMESPACES.filter(({ id }) => existsSync(join(ADMIN, `src/i18n/namespaces/${id}/index.ts`))).map(
+  ({ id, what, type }) => ({
+    what,
+    source: `src/i18n/namespaces/${id}/index.ts`,
+    dir: `src/i18n/namespaces/${id}/locales`,
+    type,
+    from: '../index',
+  }),
+);
 const TABLES = [
   { what: 'catalogue', source: 'src/i18n/catalogue.ts', dir: 'src/i18n/locales', type: 'Catalogue', from: '../catalogue' },
+  ...namespaceTables,
   {
     what: 'Theme page messages',
     source: 'src/pages/sites/themeEditor/messages.ts',
@@ -148,12 +169,13 @@ const PREAMBLE =
   'in the formal style of software menus, buttons and messages. Every word is translated. ' +
   `Placeholders in braces such as {count}, square brackets, punctuation and the names ${NAMES.join(', ')} are kept unchanged, in Latin letters.`;
 
-if (!existsSync(join(TRANSLATOR, 'src/prompt.ts'))) {
+const CHECK = process.argv.includes('--check');
+if (!CHECK && !existsSync(join(TRANSLATOR, 'src/prompt.ts'))) {
   throw new Error(`md-translator not found at ${TRANSLATOR}; set TRANSLATOR_DIR`);
 }
-const { LANGUAGES } = await import(join(TRANSLATOR, 'src/languages.ts'));
-const { buildPrompt, cleanOutput, stopFor } = await import(join(TRANSLATOR, 'src/prompt.ts'));
-const { check } = await import(join(TRANSLATOR, 'src/checks.ts'));
+const { LANGUAGES } = CHECK ? { LANGUAGES: null } : await import(join(TRANSLATOR, 'src/languages.ts'));
+const { buildPrompt, cleanOutput, stopFor } = CHECK ? {} : await import(join(TRANSLATOR, 'src/prompt.ts'));
+const { check } = CHECK ? {} : await import(join(TRANSLATOR, 'src/checks.ts'));
 
 // The site's strings take printf's `%s` where the admin's take braces.
 const placeholders = (text) => (text.match(/\{[a-zA-Z]+\}|%s/g) ?? []).sort().join();
@@ -239,15 +261,20 @@ import type { ${table.type} } from '${table.from}';
 
 `;
 
-const tags = process.argv.slice(2);
+const tags = process.argv.slice(2).filter((arg) => arg !== '--check');
+// Without md-translator, the shell catalogue's locale files name the tags.
+const known = CHECK
+  ? readdirSync(join(ADMIN, TABLES[0].dir)).flatMap((name) => name.match(/^([a-z]{2,3})\.ts$/)?.slice(1) ?? [])
+  : Object.keys(LANGUAGES);
 const targets = tags.length
   ? tags
-  : Object.keys(LANGUAGES).filter((tag) => {
+  : known.filter((tag) => {
       const path = join(ADMIN, TABLES[0].dir, fileOf(TABLES[0], tag));
       return existsSync(path) && readFileSync(path, 'utf8').includes(MARKER);
     });
 
 let flaggedTotal = 0;
+let pendingTotal = 0;
 // Per locale, each English string an earlier table translated, and its translation.
 const translated = Object.fromEntries(targets.map((tag) => [tag, new Map()]));
 for (const table of TABLES) {
@@ -257,7 +284,7 @@ for (const table of TABLES) {
   const sources = existsSync(sourcesPath) ? JSON.parse(readFileSync(sourcesPath, 'utf8')) : en;
   const changed = new Set(Object.keys(en).filter((key) => key in sources && sources[key] !== en[key]));
   for (const tag of targets) {
-    const language = LANGUAGES[tag];
+    const language = CHECK ? { name: tag } : LANGUAGES[tag];
     if (!language || tag === 'en') throw new Error(`${tag}: md-translator has no such target language`);
     const path = join(ADMIN, table.dir, fileOf(table, tag));
     const text = existsSync(path) ? readFileSync(path, 'utf8') : '';
@@ -281,6 +308,20 @@ for (const table of TABLES) {
       else if (wordless(en[key])) catalogue[key] = en[key];
       else missing.push(key);
     }
+    if (CHECK) {
+      const retranslated = missing.filter((key) => changed.has(key) && key in existing);
+      const absent = missing.filter((key) => !retranslated.includes(key));
+      const dropped = Object.keys(existing).filter((key) => !(key in en));
+      for (const [label, keys] of [['missing', absent], ['changed', retranslated], ['dropped', dropped]]) {
+        if (keys.length) console.log(`${tag} ${table.what}: ${keys.length} ${label}: ${keys.join(' ')}`);
+      }
+      pendingTotal += absent.length + retranslated.length + dropped.length;
+      // A later table reuses what this one holds, as a run would.
+      for (const key of Object.keys(catalogue)) {
+        if (!endonym(key) && !translated[tag].has(en[key])) translated[tag].set(en[key], catalogue[key]);
+      }
+      continue;
+    }
     const history = Object.keys(en)
       .filter((key) => key in existing && !endonym(key) && !changed.has(key))
       .map((key) => [en[key], existing[key]]);
@@ -301,10 +342,17 @@ for (const table of TABLES) {
       if (!endonym(key) && !translated[tag].has(en[key])) translated[tag].set(en[key], catalogue[key]);
     }
   }
-  if (tags.length) {
+  if (CHECK) {
+    const unrecorded = Object.keys(en).filter((key) => !(key in sources));
+    if (unrecorded.length) console.log(`${table.what}: ${unrecorded.length} not in sources.json: ${unrecorded.join(' ')}`);
+  } else if (tags.length) {
     if (changed.size) console.log(`${table.what}: sources.json not updated, because only some locales ran`);
   } else {
     writeFileSync(sourcesPath, `${JSON.stringify(en, null, 1)}\n`);
   }
 }
 if (flaggedTotal) console.log(`${flaggedTotal} flagged: read each against its English and correct the file.`);
+if (CHECK) {
+  console.log(`check: ${TABLES.length} tables, ${targets.length} locales, ${pendingTotal} keys a run would change`);
+  process.exitCode = pendingTotal ? 1 : 0;
+}

@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOGUE_LOADERS, LOCALES } from '../src/i18n';
+import { NAMESPACES as REGISTERED } from '../src/i18n/namespaces/registry';
 
 const ENGLISH = import.meta.glob<Readonly<Record<string, string>>>(
   '../src/i18n/namespaces/*/index.ts',
@@ -34,8 +35,26 @@ const tableOf = (id: string, locale: string): Readonly<Record<string, unknown>> 
 };
 
 const NAMESPACES = Object.keys(ENGLISH).map(idOf);
+const DEFINED = import.meta.glob<Readonly<Record<string, unknown>>>(
+  '../src/i18n/namespaces/*/index.ts',
+  { eager: true },
+);
 
 describe('namespace tables', () => {
+  it('every_namespace_directory_is_registered_under_its_own_id', () => {
+    const registered = new Set(REGISTERED.map((record) => record.id));
+    for (const [path, module] of Object.entries(DEFINED)) {
+      const id = idOf(path);
+      expect(registered.has(id), id).toBe(true);
+      const ids = Object.values(module).flatMap((value) =>
+        typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
+          ? [value.id]
+          : [],
+      );
+      expect(ids, path).toEqual([id]);
+    }
+  });
+
   it('a_key_id_is_in_at_most_one_namespace', () => {
     const owner = new Map<string, string>();
     const twice: string[] = [];
