@@ -61,6 +61,7 @@ pub(crate) fn eligible(
         && search.filter.in_sites.is_none()
         && search.filter.has_media.is_none()
         && search.filter.not_item_set_ids.is_empty()
+        && search.filter.ids.is_none()
         && sort.field == SortField::Id
         && !sort.descending
 }

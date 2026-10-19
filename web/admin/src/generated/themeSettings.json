@@ -1,68 +1,82 @@
 {
+  "newSitePreset": "archive",
   "settings": [
+    {
+      "key": "preset",
+      "labelKey": "themeSetting.preset",
+      "helpKey": "themeSetting.presetHelp",
+      "kind": "choice",
+      "choices": [
+        "plain",
+        "archive",
+        "gallery",
+        "editorial",
+        "civic"
+      ]
+    },
+    {
+      "key": "derive_palette",
+      "labelKey": "themeSetting.derivePalette",
+      "helpKey": "themeSetting.derivePaletteHelp",
+      "kind": "toggle"
+    },
+    {
+      "key": "brand_color",
+      "labelKey": "themeSetting.brandColor",
+      "helpKey": "themeSetting.brandColorHelp",
+      "kind": "colour"
+    },
     {
       "key": "color_scheme",
       "labelKey": "themeSetting.colorScheme",
+      "helpKey": "themeSetting.colorSchemeHelp",
       "kind": "choice",
       "choices": [
         "light",
         "dark",
         "auto"
-      ],
-      "default": "light"
-    },
-    {
-      "key": "brand_color",
-      "labelKey": "themeSetting.brandColor",
-      "kind": "colour",
-      "default": "#6aa9d6",
-      "dark": "#6aa9d6"
+      ]
     },
     {
       "key": "accent_color",
       "labelKey": "themeSetting.accentColor",
-      "kind": "colour",
-      "default": "#b45309",
-      "dark": "#b45309"
+      "helpKey": "themeSetting.accentColorHelp",
+      "kind": "colour"
     },
     {
       "key": "background_color",
       "labelKey": "themeSetting.backgroundColor",
-      "kind": "colour",
-      "default": "#ffffff",
-      "dark": "#12161a"
+      "helpKey": "themeSetting.backgroundColorHelp",
+      "kind": "colour"
     },
     {
       "key": "surface_color",
       "labelKey": "themeSetting.surfaceColor",
-      "kind": "colour",
-      "default": "#f5f7f8",
-      "dark": "#1b2126"
+      "helpKey": "themeSetting.surfaceColorHelp",
+      "kind": "colour"
     },
     {
       "key": "text_color",
       "labelKey": "themeSetting.textColor",
-      "kind": "colour",
-      "default": "#222222",
-      "dark": "#e8ecef"
+      "helpKey": "themeSetting.textColorHelp",
+      "kind": "colour"
     },
     {
       "key": "muted_color",
       "labelKey": "themeSetting.mutedColor",
-      "kind": "colour",
-      "default": "#5a6470",
-      "dark": "#9aa6b2"
+      "helpKey": "themeSetting.mutedColorHelp",
+      "kind": "colour"
     },
     {
       "key": "link_color",
       "labelKey": "themeSetting.linkColor",
-      "kind": "colour",
-      "default": "#1a5d8f",
-      "dark": "#1a5d8f"
+      "helpKey": "themeSetting.linkColorHelp",
+      "kind": "colour"
     },
     {
       "key": "heading_font",
       "labelKey": "themeSetting.headingFont",
+      "helpKey": "themeSetting.headingFontHelp",
       "kind": "font",
       "choices": [
         "system-sans",
@@ -70,13 +84,14 @@
         "humanist",
         "geometric",
         "transitional-serif",
+        "didone",
         "mono"
-      ],
-      "default": "system-serif"
+      ]
     },
     {
       "key": "body_font",
       "labelKey": "themeSetting.bodyFont",
+      "helpKey": "themeSetting.bodyFontHelp",
       "kind": "font",
       "choices": [
         "system-sans",
@@ -84,81 +99,398 @@
         "humanist",
         "geometric",
         "transitional-serif",
+        "didone",
         "mono"
-      ],
-      "default": "system-sans"
+      ]
     },
     {
       "key": "base_font_size",
       "labelKey": "themeSetting.baseFontSize",
+      "helpKey": "themeSetting.baseFontSizeHelp",
       "kind": "number",
       "min": 12,
       "max": 24,
-      "step": 1,
-      "default": 16
+      "step": 1
     },
     {
       "key": "type_ratio",
       "labelKey": "themeSetting.typeRatio",
+      "helpKey": "themeSetting.typeRatioHelp",
       "kind": "number",
       "min": 110,
       "max": 160,
-      "step": 5,
-      "default": 125
+      "step": 5
     },
     {
       "key": "density",
       "labelKey": "themeSetting.density",
+      "helpKey": "themeSetting.densityHelp",
       "kind": "choice",
       "choices": [
         "compact",
         "comfortable",
         "spacious"
-      ],
-      "default": "comfortable"
+      ]
     },
     {
       "key": "corner_radius",
       "labelKey": "themeSetting.cornerRadius",
+      "helpKey": "themeSetting.cornerRadiusHelp",
       "kind": "number",
       "min": 0,
       "max": 24,
-      "step": 1,
-      "default": 4
+      "step": 1
+    },
+    {
+      "key": "content_width",
+      "labelKey": "themeSetting.contentWidth",
+      "helpKey": "themeSetting.contentWidthHelp",
+      "kind": "choice",
+      "choices": [
+        "narrow",
+        "standard",
+        "wide"
+      ]
     },
     {
       "key": "header_layout",
       "labelKey": "themeSetting.headerLayout",
+      "helpKey": "themeSetting.headerLayoutHelp",
       "kind": "choice",
       "choices": [
         "logo-left",
         "centred"
-      ],
-      "default": "logo-left"
+      ]
+    },
+    {
+      "key": "header_style",
+      "labelKey": "themeSetting.headerStyle",
+      "helpKey": "themeSetting.headerStyleHelp",
+      "kind": "choice",
+      "choices": [
+        "plain",
+        "band",
+        "rule",
+        "minimal"
+      ]
+    },
+    {
+      "key": "button_style",
+      "labelKey": "themeSetting.buttonStyle",
+      "helpKey": "themeSetting.buttonStyleHelp",
+      "kind": "choice",
+      "choices": [
+        "soft",
+        "solid",
+        "outline"
+      ]
     },
     {
       "key": "logo",
       "labelKey": "themeSetting.logo",
-      "kind": "asset",
-      "default": null
+      "helpKey": "themeSetting.logoHelp",
+      "kind": "asset"
     },
     {
       "key": "banner",
       "labelKey": "themeSetting.banner",
-      "kind": "asset",
-      "default": null
+      "helpKey": "themeSetting.bannerHelp",
+      "kind": "asset"
     },
     {
       "key": "banner_text",
       "labelKey": "themeSetting.bannerText",
-      "kind": "text",
-      "default": null
+      "helpKey": "themeSetting.bannerTextHelp",
+      "kind": "text"
     },
     {
       "key": "footer_text",
       "labelKey": "themeSetting.footerText",
-      "kind": "html",
-      "default": null
+      "helpKey": "themeSetting.footerTextHelp",
+      "kind": "html"
+    },
+    {
+      "key": "custom_css",
+      "labelKey": "themeSetting.customCss",
+      "helpKey": "themeSetting.customCssHelp",
+      "kind": "css",
+      "maxBytes": 65536
     }
-  ]
+  ],
+  "presets": [
+    {
+      "id": "plain",
+      "labelKey": "themePreset.plain",
+      "descriptionKey": "themePreset.plainDescription",
+      "recipe": {
+        "tint": 0.3,
+        "paper": 1.0,
+        "ink": 0.19
+      },
+      "light": {
+        "brand": "#6aa9d6",
+        "accent": "#b45309",
+        "background": "#ffffff",
+        "surface": "#f5f7f8",
+        "text": "#222222",
+        "muted": "#5a6470",
+        "link": "#1a5d8f"
+      },
+      "dark": {
+        "brand": "#6aa9d6",
+        "accent": "#e8b27a",
+        "background": "#12161a",
+        "surface": "#1b2126",
+        "text": "#e8ecef",
+        "muted": "#9aa6b2",
+        "link": "#8ab6e8"
+      },
+      "tokens": {
+        "color_scheme": "light",
+        "heading_font": "system-serif",
+        "body_font": "system-sans",
+        "base_font_size": 16,
+        "type_ratio": 125,
+        "density": "comfortable",
+        "corner_radius": 4,
+        "content_width": "standard",
+        "header_layout": "logo-left",
+        "header_style": "plain",
+        "button_style": "soft"
+      }
+    },
+    {
+      "id": "archive",
+      "labelKey": "themePreset.archive",
+      "descriptionKey": "themePreset.archiveDescription",
+      "recipe": {
+        "tint": 1.8,
+        "paper": 0.975,
+        "ink": 0.2
+      },
+      "light": {
+        "brand": "#7a4a14",
+        "accent": "#6b5420",
+        "background": "#faf6ee",
+        "surface": "#f0e8d8",
+        "text": "#2b241c",
+        "muted": "#675a49",
+        "link": "#7a4a14"
+      },
+      "dark": {
+        "brand": "#d08a5a",
+        "accent": "#d9bf84",
+        "background": "#1d1915",
+        "surface": "#27221c",
+        "text": "#efe7da",
+        "muted": "#b5a893",
+        "link": "#e3a477"
+      },
+      "tokens": {
+        "color_scheme": "light",
+        "heading_font": "transitional-serif",
+        "body_font": "system-serif",
+        "base_font_size": 17,
+        "type_ratio": 120,
+        "density": "comfortable",
+        "corner_radius": 2,
+        "content_width": "standard",
+        "header_layout": "centred",
+        "header_style": "rule",
+        "button_style": "outline"
+      }
+    },
+    {
+      "id": "gallery",
+      "labelKey": "themePreset.gallery",
+      "descriptionKey": "themePreset.galleryDescription",
+      "recipe": {
+        "tint": 0.15,
+        "paper": 0.985,
+        "ink": 0.16
+      },
+      "light": {
+        "brand": "#1c1c1c",
+        "accent": "#a3540f",
+        "background": "#fafafa",
+        "surface": "#f0f0f0",
+        "text": "#161616",
+        "muted": "#5c5c5c",
+        "link": "#1c1c1c"
+      },
+      "dark": {
+        "brand": "#f2f2f2",
+        "accent": "#f0b35a",
+        "background": "#0f0f10",
+        "surface": "#1a1a1c",
+        "text": "#ededed",
+        "muted": "#a6a6a6",
+        "link": "#c9d7ff"
+      },
+      "tokens": {
+        "color_scheme": "dark",
+        "heading_font": "geometric",
+        "body_font": "system-sans",
+        "base_font_size": 15,
+        "type_ratio": 130,
+        "density": "compact",
+        "corner_radius": 0,
+        "content_width": "wide",
+        "header_layout": "logo-left",
+        "header_style": "minimal",
+        "button_style": "outline"
+      }
+    },
+    {
+      "id": "editorial",
+      "labelKey": "themePreset.editorial",
+      "descriptionKey": "themePreset.editorialDescription",
+      "recipe": {
+        "tint": 0.0,
+        "paper": 1.0,
+        "ink": 0.17
+      },
+      "light": {
+        "brand": "#111111",
+        "accent": "#b3001b",
+        "background": "#ffffff",
+        "surface": "#f4f3ef",
+        "text": "#121212",
+        "muted": "#545454",
+        "link": "#b3001b"
+      },
+      "dark": {
+        "brand": "#f5f5f5",
+        "accent": "#ff6b7a",
+        "background": "#141414",
+        "surface": "#1f1f1f",
+        "text": "#f2f2f2",
+        "muted": "#a8a8a8",
+        "link": "#ff8a96"
+      },
+      "tokens": {
+        "color_scheme": "light",
+        "heading_font": "didone",
+        "body_font": "transitional-serif",
+        "base_font_size": 18,
+        "type_ratio": 140,
+        "density": "spacious",
+        "corner_radius": 0,
+        "content_width": "narrow",
+        "header_layout": "centred",
+        "header_style": "rule",
+        "button_style": "solid"
+      }
+    },
+    {
+      "id": "civic",
+      "labelKey": "themePreset.civic",
+      "descriptionKey": "themePreset.civicDescription",
+      "recipe": {
+        "tint": 0.6,
+        "paper": 1.0,
+        "ink": 0.2
+      },
+      "light": {
+        "brand": "#0b57d0",
+        "accent": "#b93c0b",
+        "background": "#ffffff",
+        "surface": "#eef3fc",
+        "text": "#18202e",
+        "muted": "#4a5568",
+        "link": "#0a4ec2"
+      },
+      "dark": {
+        "brand": "#0b57d0",
+        "accent": "#f59e6b",
+        "background": "#0f1724",
+        "surface": "#172236",
+        "text": "#e8eef8",
+        "muted": "#9fb0c8",
+        "link": "#8fb7ff"
+      },
+      "tokens": {
+        "color_scheme": "light",
+        "heading_font": "humanist",
+        "body_font": "humanist",
+        "base_font_size": 16,
+        "type_ratio": 125,
+        "density": "comfortable",
+        "corner_radius": 8,
+        "content_width": "wide",
+        "header_layout": "logo-left",
+        "header_style": "band",
+        "button_style": "solid"
+      }
+    }
+  ],
+  "colours": [
+    {
+      "role": "brand",
+      "key": "brand_color"
+    },
+    {
+      "role": "accent",
+      "key": "accent_color"
+    },
+    {
+      "role": "background",
+      "key": "background_color"
+    },
+    {
+      "role": "surface",
+      "key": "surface_color"
+    },
+    {
+      "role": "text",
+      "key": "text_color"
+    },
+    {
+      "role": "muted",
+      "key": "muted_color"
+    },
+    {
+      "role": "link",
+      "key": "link_color"
+    }
+  ],
+  "pairs": [
+    [
+      "text",
+      "background"
+    ],
+    [
+      "text",
+      "surface"
+    ],
+    [
+      "muted",
+      "background"
+    ],
+    [
+      "muted",
+      "surface"
+    ],
+    [
+      "link",
+      "background"
+    ],
+    [
+      "link",
+      "surface"
+    ],
+    [
+      "accent",
+      "background"
+    ],
+    [
+      "accent",
+      "surface"
+    ],
+    [
+      "on-brand",
+      "brand"
+    ]
+  ],
+  "aa": 4.5
 }

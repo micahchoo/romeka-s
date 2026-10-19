@@ -40,19 +40,8 @@ pub async fn search_items(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
-    let filter = ItemFilter {
-        owner_id: params.id("owner_id"),
-        resource_class_id: params.id("resource_class_id"),
-        resource_template_id: params.id("resource_template_id"),
-        is_public: params.bool("is_public"),
-        ..ItemFilter::default()
-    };
-    if !params.rows("property").is_empty() {
-        // A `property[i][property]` row names a term the page's own rows need
-        // not name, so the term table is loaded before the query resolves it.
-        api.fill_catalog().await?;
-    }
-    let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
+    let filter = item_filter(params);
+    let search = item_search(api, params).await?;
     let (total, page) = if window::eligible(&filter, &search, &sort, &limit) {
         let read = window::read(api, &filter, &search, &limit).await?;
         (read.total, read.rows)
@@ -89,21 +78,8 @@ async fn in_memory_page(
     limit: &Limit,
     params: &Params,
 ) -> Result<(i64, Vec<ItemRow>), ApiError> {
-    let rows = ItemRepo::new(api.pool())
-        .list_filtered(filter, &search.filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
     let matches = fulltext_matches(api, "items", search.fulltext.as_deref()).await?;
-    let rows: Vec<ItemRow> = rows
-        .into_iter()
-        .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
-        .filter(|row| id_matches(&search.ids, row.id().0))
-        .filter(|row| {
-            matches
-                .as_ref()
-                .is_none_or(|hits| hits.contains_key(&row.id().0))
-        })
-        .collect();
+    let rows = matching_rows(api, filter, search, matches.as_ref()).await?;
     Ok(match (&matches, params.sort_by_is_default()) {
         (Some(hits), true) => relevance_page(
             rows,
@@ -114,6 +90,100 @@ async fn in_memory_page(
         ),
         _ => sorted_page(rows, sort, limit, cmp_item(*sort)),
     })
+}
+
+/// The [`ItemFilter`] half of an item query: the parameters that predate
+/// [`SearchQuery`].
+fn item_filter(params: &Params) -> ItemFilter {
+    ItemFilter {
+        owner_id: params.id("owner_id"),
+        resource_class_id: params.id("resource_class_id"),
+        resource_template_id: params.id("resource_template_id"),
+        is_public: params.bool("is_public"),
+        ..ItemFilter::default()
+    }
+}
+
+/// The advanced search half of an item query, against a catalog that can
+/// resolve its property terms.
+async fn item_search(api: &Api<'_>, params: &Params) -> Result<SearchQuery, ApiError> {
+    if !params.rows("property").is_empty() {
+        // A `property[i][property]` row names a term the page's own rows need
+        // not name, so the term table is loaded before the query resolves it.
+        api.fill_catalog().await?;
+    }
+    Ok(SearchQuery::parse(
+        params,
+        api.catalog(),
+        media_visibility(api.actor()),
+    ))
+}
+
+/// Every item row the query and the caller's visibility keep, in id order.
+async fn matching_rows(
+    api: &Api<'_>,
+    filter: &ItemFilter,
+    search: &SearchQuery,
+    fulltext: Option<&std::collections::BTreeMap<u64, f64>>,
+) -> Result<Vec<ItemRow>, ApiError> {
+    let rows = ItemRepo::new(api.pool())
+        .list_filtered(filter, &search.filter, &Paging::default())
+        .await
+        .map_err(db_error)?;
+    Ok(rows
+        .into_iter()
+        .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
+        .filter(|row| id_matches(&search.ids, row.id().0))
+        .filter(|row| fulltext.is_none_or(|hits| hits.contains_key(&row.id().0)))
+        .collect())
+}
+
+/// Ids per statement when a query names items by id.
+const ID_CHUNK: usize = 1000;
+
+/// The ids of every item an item query selects for this caller, ascending,
+/// with no window: `search('items', $query, ['returnScalar' => 'id'])`.
+/// `within` narrows the answer to those items, as if the query also named them.
+///
+/// The `id` list is rendered into SQL here, a chunk at a time, so a query that
+/// names a few items reads those rows rather than every row.
+pub(crate) async fn matching_item_ids(
+    api: &Api<'_>,
+    params: &Params,
+    within: Option<&[ItemId]>,
+) -> Result<Vec<ItemId>, ApiError> {
+    let filter = item_filter(params);
+    let mut search = item_search(api, params).await?;
+    let fulltext = fulltext_matches(api, "items", search.fulltext.as_deref()).await?;
+    let within: Option<Vec<i64>> = within.map(|items| {
+        items
+            .iter()
+            .filter_map(|id| i64::try_from(id.0).ok())
+            .collect()
+    });
+    let named = match (search.ids.take(), within) {
+        (None, None) => None,
+        (Some(ids), None) | (None, Some(ids)) => Some(ids),
+        (Some(ids), Some(within)) => {
+            Some(ids.into_iter().filter(|id| within.contains(id)).collect())
+        }
+    };
+    let chunks: Vec<Option<Vec<i64>>> = match named {
+        None => vec![None],
+        Some(ids) => ids
+            .chunks(ID_CHUNK)
+            .map(|chunk| Some(chunk.to_vec()))
+            .collect(),
+    };
+    let mut ids = Vec::new();
+    for chunk in chunks {
+        search.filter.ids = chunk;
+        let rows = matching_rows(api, &filter, &search, fulltext.as_ref()).await?;
+        ids.extend(rows.iter().map(ItemRow::id));
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
 }
 
 pub async fn read_item(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {

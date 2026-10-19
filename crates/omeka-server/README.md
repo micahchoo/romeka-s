@@ -228,6 +228,27 @@ then the global setting, then 25.
 Not ported, all answering 404: `media` browse (its controller has no browse
 action), and `/:controller/:id` with an action other than `show`.
 
+## A site's items
+
+`POST /api/sites/:id/items` is a Romeka addition (`src/site_items.rs`). Upstream
+changes a site's items with the `UpdateSiteItems` job its server-rendered
+resources form dispatches, and has no API for it. The admin's "Items on this
+site" pane needs the change and its preview over the API, so this route runs the
+job's change synchronously through `omeka_api::site_items`, the module the job
+itself now runs.
+
+| Body | Response |
+| --- | --- |
+| `{action, query \| items \| item_sets, dry_run?}` | 200 `{matched, added, removed, total}`; 400, 403, 404, 415 |
+
+`action` is `add`, `remove` or `replace`. Exactly one selector names the items:
+`query` is an item query in the stored `o:item_pool` shape, `items` a list of item
+ids, `item_sets` a list of item set ids whose items are meant. The selection is
+what `GET /api/items` lists for the caller. `dry_run: true` answers the counts and
+writes nothing. The caller must be allowed to update the site: its owner, a site
+admin, or a global or site administrator. Only `item_site` rows change, the table
+upstream's job writes.
+
 ## Live preview
 
 `POST /s/:site-slug/preview` is a Romeka addition with no upstream counterpart
@@ -285,8 +306,14 @@ manifest path the frame built.
 | GET | `/assets/<path>` | 200 | the theme asset's bytes |
 
 The media type is the asset kind's (`text/css` for a stylesheet,
-`application/javascript` for a script), and the answer carries
-`cache-control: public, max-age=86400`. A path no bundled theme ships answers
+`application/javascript` for a script). The frame links each head asset as
+`<path>?v=<version>`, where the version is a digest of the bytes
+(`omeka_site::theme::ThemeAsset::version`), so a deploy that changes the sheet
+changes the URL every page links. A request whose `v` names the current bytes
+answers `cache-control: public, max-age=31536000, immutable`; any other request
+(no `v`, or the `v` of an older sheet) answers `cache-control: no-cache`, so the
+client revalidates with the weak `ETag` the cache layer adds and never keeps a
+stale sheet. A path no bundled theme ships answers
 the API's 404 error document; another method is a 405 with `Allow: GET`. The
 lookup searches the bundled themes in registry order, which is unambiguous
 while one theme ships.

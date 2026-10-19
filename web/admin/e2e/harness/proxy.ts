@@ -137,7 +137,8 @@ const forward = (
 
 /**
  * Bind `port` on the loopback interface (0 picks a free one) and answer the four
- * request families the app makes.
+ * request families the app makes: the store, the port's routes, the bundle and
+ * the theme's assets behind it.
  */
 export const startProxy = async (options: ProxyOptions, port = 0): Promise<RunningProxy> => {
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -152,9 +153,17 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
       forward(url, req, res, options);
       return;
     }
-    if (!serveStatic(options.distRoot, url.pathname, res, '/index.html')) {
-      notFound(res);
+    if (serveStatic(options.distRoot, url.pathname, res, '/index.html')) {
+      return;
     }
+    // The SPA's bundle and the theme's files share the `/assets` prefix, as
+    // `deploy/Caddyfile` arranges: a file the bundle ships wins, and every
+    // other path under the prefix is the port's theme route.
+    if (url.pathname.startsWith('/assets/')) {
+      forward(url, req, res, options);
+      return;
+    }
+    notFound(res);
   });
   await new Promise<void>((done, fail) => {
     server.once('error', (error: Error) => {

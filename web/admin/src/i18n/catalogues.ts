@@ -1,10 +1,18 @@
 /**
- * Every shipped catalogue, by locale. The `Record<Locale, Catalogue>` shape
- * makes a locale with no catalogue a `tsc` error and keeps the set complete.
+ * Every shipped locale, in switch order, and how its catalogue arrives.
+ *
+ * English is the default, the fallback and the shape every other catalogue is
+ * typed against, so it is in the initial bundle. Every other catalogue is a
+ * dynamic import, which Vite emits as its own chunk: a visitor downloads only
+ * the language they read. Adding a locale is one file under `locales/` and one
+ * entry here; `tsc` then asks for its `locale.<tag>` name in the catalogues.
+ *
+ * The key is the BCP 47 language tag, the value stored and handed to `Intl`.
  */
 import { en } from './catalogue';
 import type { Catalogue } from './catalogue';
-import type { Locale } from './locale';
-import { es } from './locales/es';
 
-export const CATALOGUES: Readonly<Record<Locale, Catalogue>> = { en, es };
+export const CATALOGUE_LOADERS = {
+  en: () => Promise.resolve(en),
+  es: () => import('./locales/es').then((module) => module.es),
+} satisfies Readonly<Record<string, () => Promise<Catalogue>>>;

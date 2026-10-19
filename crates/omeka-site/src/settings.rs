@@ -344,6 +344,10 @@ impl SiteSettings {
 pub enum SettingKind {
     /// A free string.
     Text,
+    /// A property term such as `dcterms:title`, picked from the vocabularies.
+    Property,
+    /// An asset id, picked from the assets or uploaded.
+    Asset,
     /// A boolean.
     Boolean,
     /// A whole number.
@@ -386,6 +390,27 @@ pub struct SiteSettingSpec {
     pub kind: SettingKind,
     /// The value in force when no row stores the key.
     pub default: SettingDefault,
+    /// The form section the key sits in. `None` when no renderer reads the
+    /// key yet: the form leaves it out, and a save keeps its stored row.
+    pub group: Option<SettingGroup>,
+}
+
+/// A section of the site settings form, named for what a visitor sees change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SettingGroup {
+    /// The browse lists.
+    Browsing,
+    /// The search box and its results.
+    Search,
+    /// A single item or media page.
+    ItemPages,
+    /// The site language and values in other languages.
+    Language,
+    /// The menus, bars and browser tab around every page.
+    Navigation,
+    /// Settings only an Omeka expert changes.
+    Advanced,
 }
 
 /// Every key [`SiteSettings`] reads, in `SiteSettingsForm` order. The admin's
@@ -394,180 +419,214 @@ pub struct SiteSettingSpec {
 pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
     SiteSettingSpec {
         key: "installation_title",
-        label: "Installation title",
+        label: "Name in the browser tab",
         kind: SettingKind::Text,
         default: SettingDefault::Text("Romeka S"),
+        group: Some(SettingGroup::Navigation),
     },
     SiteSettingSpec {
         key: "locale",
-        label: "Locale",
+        label: "Site language",
         kind: SettingKind::Choice(&["en", "es"]),
         default: SettingDefault::Text("en"),
+        group: Some(SettingGroup::Language),
     },
     SiteSettingSpec {
         key: "attachment_link_type",
-        label: "Attachment link type",
+        label: "Where image links go",
         kind: SettingKind::Choice(&["item", "media", "original"]),
         default: SettingDefault::Text("item"),
+        group: Some(SettingGroup::ItemPages),
     },
     SiteSettingSpec {
         key: "browse_attached_items",
-        label: "Browse attached items",
+        label: "Only items placed on pages",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: Some(SettingGroup::Browsing),
     },
     SiteSettingSpec {
         key: "browse_heading_property_term",
-        label: "Browse heading property",
-        kind: SettingKind::Text,
+        label: "Title shown in lists",
+        kind: SettingKind::Property,
         default: SettingDefault::Unset,
+        group: Some(SettingGroup::Browsing),
     },
     SiteSettingSpec {
         key: "browse_body_property_term",
-        label: "Browse body property",
-        kind: SettingKind::Text,
+        label: "Text shown under each title",
+        kind: SettingKind::Property,
         default: SettingDefault::Unset,
+        group: Some(SettingGroup::Browsing),
     },
     SiteSettingSpec {
         key: "filter_locale_values",
-        label: "Filter locale values",
+        label: "Only show values in the site language",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: Some(SettingGroup::Language),
     },
     SiteSettingSpec {
         key: "exclude_resources_not_in_site",
-        label: "Exclude resources not in site",
+        label: "Hide links to items outside this site",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: Some(SettingGroup::Advanced),
     },
     SiteSettingSpec {
         key: "iiif_viewer_theme",
-        label: "IIIF viewer theme",
+        label: "IIIF viewer colours",
         kind: SettingKind::Choice(&["light", "dark"]),
         default: SettingDefault::Text("light"),
+        group: Some(SettingGroup::ItemPages),
     },
     SiteSettingSpec {
         key: "subnav_display",
-        label: "Sub-navigation display",
+        label: "Sub-menu on pages",
         kind: SettingKind::Choice(&["show", "hide"]),
         default: SettingDefault::Unset,
+        group: Some(SettingGroup::Navigation),
     },
     SiteSettingSpec {
         key: "show_page_pagination",
-        label: "Show page pagination",
+        label: "Previous and next page links",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(true),
+        group: Some(SettingGroup::Navigation),
     },
     SiteSettingSpec {
         key: "search_type",
-        label: "Search type",
+        label: "Search scope",
         kind: SettingKind::Choice(&["sitewide", "cross-site"]),
         default: SettingDefault::Text("sitewide"),
+        group: Some(SettingGroup::Search),
     },
     SiteSettingSpec {
         key: "search_resource_names",
-        label: "Search resources",
+        label: "What search finds",
         kind: SettingKind::MultiChoice(&["site_pages", "items", "item_sets"]),
         default: SettingDefault::MultiChoice(&["site_pages", "items"]),
+        group: Some(SettingGroup::Search),
     },
     SiteSettingSpec {
         key: "show_user_bar",
-        label: "User bar",
+        label: "Admin bar on the public site",
         kind: SettingKind::Choice(&["-1", "0", "1"]),
         default: SettingDefault::Text("0"),
+        group: Some(SettingGroup::Navigation),
     },
     SiteSettingSpec {
         key: "disable_jsonld_embed",
-        label: "Disable JSON-LD embed",
+        label: "Leave out linked data",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: Some(SettingGroup::Advanced),
     },
     SiteSettingSpec {
         key: "favicon",
-        label: "Favicon",
-        kind: SettingKind::Text,
+        label: "Browser tab icon",
+        kind: SettingKind::Asset,
         default: SettingDefault::Unset,
+        group: Some(SettingGroup::Navigation),
     },
     SiteSettingSpec {
         key: "show_locale_label",
-        label: "Show locale label",
+        label: "Show language tags",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(true),
+        group: Some(SettingGroup::Language),
     },
     SiteSettingSpec {
         key: "pagination_per_page",
-        label: "Pagination per page",
+        label: "Items per page",
         kind: SettingKind::Number,
         default: SettingDefault::Unset,
+        group: Some(SettingGroup::Browsing),
     },
     SiteSettingSpec {
         key: "browse_defaults_public_items",
-        label: "Item browse defaults",
+        label: "Item list order",
         kind: SettingKind::Sort,
         default: SettingDefault::Sort("id", "desc"),
+        group: Some(SettingGroup::Browsing),
     },
     SiteSettingSpec {
         key: "show_attached_pages",
-        label: "Show attached pages",
+        label: "List pages that feature the item",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(true),
+        group: Some(SettingGroup::ItemPages),
     },
     SiteSettingSpec {
         key: "property_label_information",
-        label: "Property label information",
+        label: "Extra detail on field names",
         kind: SettingKind::Choice(&["none", "vocab", "term"]),
         default: SettingDefault::Text("none"),
+        group: Some(SettingGroup::ItemPages),
     },
     SiteSettingSpec {
         key: "show_value_annotations",
         label: "Show value annotations",
         kind: SettingKind::Choice(&["collapsed", "expanded"]),
         default: SettingDefault::Unset,
+        group: None,
     },
     SiteSettingSpec {
         key: "item_media_embed",
         label: "Item media embed",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: None,
     },
     SiteSettingSpec {
         key: "vocabulary_scope",
         label: "Vocabulary scope",
         kind: SettingKind::Choice(&["sitewide", "cross-site"]),
         default: SettingDefault::Unset,
+        group: None,
     },
     SiteSettingSpec {
         key: "search_apply_templates",
         label: "Search apply templates",
         kind: SettingKind::Text,
         default: SettingDefault::Unset,
+        group: None,
     },
     SiteSettingSpec {
         key: "search_restrict_templates",
         label: "Search restrict templates",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: None,
     },
     SiteSettingSpec {
         key: "iiif_viewer_sidebar",
         label: "IIIF viewer sidebar",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
+        group: None,
     },
 ];
 
-/// The site settings schema as the admin reads it: each key with the catalogue
-/// key for its label, the control kind, and the default as JSON.
+/// The site settings schema as the admin reads it: each key the form offers,
+/// with the catalogue keys for its label and help, its group, the control
+/// kind, and the default as JSON. A key with no group is left out.
 #[must_use]
 pub fn site_settings_registry() -> SiteSettingsRegistry {
     SiteSettingsRegistry {
         settings: SITE_SETTINGS
             .iter()
-            .map(|entry| SiteSettingEntry {
-                key: entry.key,
-                label: entry.label,
-                label_key: format!("siteSetting.{}", camel(entry.key)),
-                schema: schema(entry),
+            .filter_map(|entry| {
+                let group = entry.group?;
+                let name = camel(entry.key);
+                Some(SiteSettingEntry {
+                    key: entry.key,
+                    label: entry.label,
+                    label_key: format!("siteSetting.{name}"),
+                    help_key: format!("siteSetting.{name}Help"),
+                    group,
+                    schema: schema(entry),
+                })
             })
             .collect(),
     }
@@ -582,6 +641,8 @@ fn schema(entry: &SiteSettingSpec) -> SettingSchema {
                 _ => None,
             },
         },
+        (SettingKind::Property, _) => SettingSchema::Property,
+        (SettingKind::Asset, _) => SettingSchema::Asset,
         (SettingKind::Boolean, SettingDefault::Boolean(default)) => {
             SettingSchema::Boolean { default }
         }
@@ -653,6 +714,11 @@ pub struct SiteSettingEntry {
     /// The catalogue key for the label.
     #[serde(rename = "labelKey")]
     pub label_key: String,
+    /// The catalogue key for the one-sentence help under the control.
+    #[serde(rename = "helpKey")]
+    pub help_key: String,
+    /// The form section the control sits in.
+    pub group: SettingGroup,
     /// The control kind and its default, flattened beside the key.
     #[serde(flatten)]
     pub schema: SettingSchema,
@@ -667,6 +733,12 @@ pub enum SettingSchema {
         /// The default text, or `null`.
         default: Option<&'static str>,
     },
+    /// A property picker; the stored value is the term, and there is no
+    /// default.
+    Property,
+    /// An asset picker; the stored value is the asset id, and there is no
+    /// default.
+    Asset,
     /// A boolean control.
     Boolean {
         /// The default boolean.
@@ -956,7 +1028,8 @@ mod tests {
     #[test]
     fn registry_label_keys_are_camel_case() {
         let registry = site_settings_registry();
-        assert_eq!(registry.settings.len(), SITE_SETTINGS.len());
+        let grouped = SITE_SETTINGS.iter().filter(|entry| entry.group.is_some());
+        assert_eq!(registry.settings.len(), grouped.count());
         assert_eq!(
             registry.settings[0].label_key,
             "siteSetting.installationTitle".to_string()

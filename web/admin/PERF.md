@@ -347,6 +347,114 @@ The largest lazy chunk is the shared registry at 6167 B against the 10240 B ceil
 first open now fetches about 3.9 KB more gzip than an editor opened without a preview did before,
 and nothing on the paint path changes beyond the 192 B of the initial js.
 
+## Decision 9: the site settings help text grows the eager catalogues (accepted)
+
+**Change.** The site settings form gives every setting a plain label, one help sentence, readable
+choice names and a group intro, in English and Spanish (`siteSetting*` keys in
+`src/i18n/catalogue.ts` and `src/i18n/locales/es.ts`). Both catalogues are eager, so every string
+is on the first paint.
+
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `0a8301a` built the
+same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 100672 | 103180 | over the 102400 budget by 780 |
+| shared chunk with both catalogues (`jsx-runtime-*`) | 23870 | 26363 | the new strings, 10410 B raw across the two files |
+| entry (`index-*`) | 73397 | 73412 | |
+| sites route page | 8353 | 9752 | the grouped form, the property and asset pickers |
+| initial css | 4445 | 4596 | the group and help styles |
+
+**Verdict.** Accepted, and `bundle.initialJsGzipBytes` moves 102400 to 103424, one KiB, which leaves
+244 B. The strings are the feature, and the brief puts every user-facing string in the catalogue.
+The limiter is that the Spanish catalogue ships to every English visitor and the reverse. Loading
+only the active locale's catalogue would remove roughly half of the shared chunk's strings from the
+first paint. That change is in `src/i18n/`, outside this unit, and is the next step before another
+wave adds strings.
+
+## Decision 10: the Theme page loads as three chunks and keeps its messages (accepted)
+
+The Theme page redesign (presets, brand derivation, fine-tune, custom CSS) adds a palette module that
+repeats the theme's OKLab arithmetic, a generated registry of five presets, and about 150 messages in
+two languages. Measured with `npm run perf:bundle` after `npm run build`, gzip bytes:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 100661 | 99806 | the old theme messages left the main catalogues |
+| `theme` (the page) | 6318 | 6341 | the page and its controls |
+| `theme-model` | none | 5504 | `themeEditor/{colour,palette,registry,draft}.ts` and `generated/themeSettings.json` |
+| `theme-messages` | none | 4340 | `themeEditor/messages.ts`, English and Spanish |
+| `CustomCssTab` | none | 2030 | the CSS editor and the theme CSS viewer, on the tab's first open |
+| theme css | none | 1680 | `themeEditor/theme.css`, out of the initial `styles.css` |
+
+**Messages.** In the main catalogues the new messages took the initial payload to 104014 B, 1614 B over
+the 102400 B budget, because `src/i18n/catalogues.ts` loads both languages on the first paint. They
+live in `themeEditor/messages.ts` instead, typed the way the main catalogue is (`es` against `en`), and
+load with the page.
+
+**Chunks.** One route chunk measured 15542 B, over the 10240 B ceiling. `vite.config.ts` names two
+groups (`build.rolldownOptions.output.codeSplitting`), the messages and the model, with
+`includeDependenciesRecursively: false` so React stays in the entry. The three chunks load in parallel
+when the route opens. A first Theme visit now fetches about 17.9 KB gzip where it fetched 6.3 KB; the
+first paint and every other route are unchanged.
+
+## Decision 11: only the active locale's catalogue loads (accepted, supersedes Decision 9's budget)
+
+**Premise.** Decision 9 named the limiter: the Spanish catalogue shipped to every English visitor and
+the reverse, in one shared chunk on the first paint.
+
+**Change.** `src/i18n/catalogues.ts` is now the locale registry: each locale maps to a loader. English
+resolves from the bundle, because it is the default, the fallback and the type every catalogue is
+checked against. Every other locale is a dynamic import, so Vite emits it as its own chunk. The store
+switches only after the chosen catalogue arrives, and `main.tsx` waits for the stored locale's
+catalogue before the first render, so a reload in Spanish paints Spanish first. Adding a locale is one
+file under `src/i18n/locales/` and one registry entry; no locale other than English enters the
+initial bundle.
+
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `c8bf5ae` built the
+same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 103180 | 91807 | 11373 B less for every visitor |
+| shared chunk (`jsx-runtime-*`) | 26363 | 15511 | the Spanish strings left it |
+| entry (`index-*`) | 73412 | 72891 | |
+| Spanish catalogue (`es-*`) | none | 12003 | fetched only in Spanish, before the first render |
+| largest route chunk | 9752 | 9748 | the sites route page |
+
+A visitor in Spanish now downloads 91807 + 12003 = 103810 B before the first paint, 630 B more than
+before, in one more request that starts after the entry runs. The timings do not resolve that
+request: a cold load timed in the browser, 15 runs per side interleaved over `vite preview` on
+localhost, gave a Spanish first paint of 64 ms median before and after, and every after median sat
+inside the before range. The box's load average was 287 during the run, so those timings bound the
+cost on localhost and say nothing about a slow network, where the extra request costs one round trip.
+
+**Budget.** `bundle.initialJsGzipBytes` moves 103424 to 93184, which leaves 1377 B. A catalogue chunk
+is not a route: a visitor in that locale waits on it before the first paint, and it is about as large
+as the English catalogue inside the initial payload. So it gets its own ceiling,
+`bundle.catalogueChunkGzipBytes`, 13312 B over the 12003 B Spanish chunk. `perf/bundle.mjs` tells a
+catalogue from a route chunk by its source in the Vite manifest (`src/i18n/locales/`). A new locale
+whose script needs more bytes per message, such as Devanagari in UTF-8, is measured against that
+ceiling when it lands.
+
+## Decision 12: the site's Items page costs 1598 B of initial payload (accepted)
+
+The site's Items page (`src/pages/sites/resources.tsx`, `siteItemsAdd.tsx`), the item picker and the
+Items list's bulk site actions add about 60 messages to each of the two catalogues, and both
+catalogues sit in the initial payload. Measured with `zlib.gzipSync` over the files `dist/index.html`
+references, the gzip `perf/bundle.mjs` uses: main at `0a8301a` built with `vite build` is 100672 B,
+this change is 102270 B, a cost of 1598 B, and 130 B under the 102400 B budget. A first draft cost
+about 2200 B and went over; merging messages into existing keys (`field.saved`) and shortening the
+help texts took it under. The page's own chunk is 4091 B js and 1125 B css gzip, against the
+10240 B per-chunk ceiling.
+
+**Verdict.** Accepted, with almost no headroom left. The next message-heavy feature should load the
+non-default locale's catalogue on demand instead of in the entry, which frees roughly half the
+catalogue bytes from the first paint.
+
+Decision 11 landed first on main, so only the English half of these messages reaches the first
+paint; the Spanish half moves to the lazy `es` chunk.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

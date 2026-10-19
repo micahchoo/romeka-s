@@ -19,6 +19,8 @@ import { useTranslator } from '../../../../i18n';
 export interface AssetPickerProps {
   readonly id: string;
   readonly label: string;
+  /** One sentence under the legend that says what the asset is for. */
+  readonly description?: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly required?: boolean;
@@ -27,6 +29,7 @@ export interface AssetPickerProps {
 export const AssetPicker = ({
   id,
   label,
+  description,
   value,
   onChange,
   required = false,
@@ -70,8 +73,16 @@ export const AssetPicker = ({
   };
 
   return (
-    <fieldset className="block-field asset-picker">
+    <fieldset
+      className="block-field asset-picker"
+      aria-describedby={description === undefined ? undefined : `${id}-help`}
+    >
       <legend>{label}</legend>
+      {description === undefined ? null : (
+        <p className="setting-help" id={`${id}-help`}>
+          {description}
+        </p>
+      )}
       <p className="asset-current">
         {selected.status === 'ready' && selected.data !== null ? (
           <>

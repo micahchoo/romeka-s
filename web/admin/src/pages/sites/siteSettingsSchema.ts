@@ -5,9 +5,12 @@
  * test keeps in step.
  *
  * The JSON arrives from outside the SPA, so it is `unknown` until
- * [`parseSiteSettingsRegistry`] narrows it here. A `labelKey` that is not in the
- * catalogue fails the parse, which keeps a generated key that nobody can
- * translate from reaching a form.
+ * [`parseSiteSettingsRegistry`] narrows it here. A label, help or choice key
+ * that is not in the catalogue fails the parse, which keeps a generated key
+ * that nobody can translate from reaching a form.
+ *
+ * The registry names only the keys a renderer reads. A stored key it leaves out
+ * is never in the form's write, and a partial update keeps its row.
  */
 import { ParseError, isRecord, isUnknownArray, parseListOf } from '../../api/parse';
 import type { JsonValue, Path } from '../../api/types';
@@ -47,26 +50,52 @@ const parseStringList = (value: unknown, path: Path): readonly string[] => {
   return value;
 };
 
+/** The form's sections, in the order the page shows them. */
+export const SITE_SETTING_GROUPS = [
+  'browsing',
+  'search',
+  'itemPages',
+  'language',
+  'navigation',
+  'advanced',
+] as const;
+
+export type SiteSettingGroup = (typeof SITE_SETTING_GROUPS)[number];
+
+const isGroup = (value: string): value is SiteSettingGroup =>
+  SITE_SETTING_GROUPS.some((group) => group === value);
+
+/** One offered value of a choice, with the catalogue key that names it. */
+export interface SiteSettingChoice {
+  readonly value: string;
+  readonly labelKey: MessageKey;
+}
+
 interface SiteSettingBase {
   /** The `site_setting.id` row this control edits. */
   readonly key: string;
   /** The catalogue key the form labels the control with. */
   readonly labelKey: MessageKey;
+  /** The catalogue key of the one sentence that says what a visitor sees change. */
+  readonly helpKey: MessageKey;
+  readonly group: SiteSettingGroup;
 }
 
 /** One site setting as the admin reads it, by the control it renders. */
 export type SiteSettingSpec =
   | (SiteSettingBase & { readonly kind: 'text'; readonly default: string | null })
+  | (SiteSettingBase & { readonly kind: 'property' })
+  | (SiteSettingBase & { readonly kind: 'asset' })
   | (SiteSettingBase & { readonly kind: 'number'; readonly default: number | null })
   | (SiteSettingBase & { readonly kind: 'boolean'; readonly default: boolean })
   | (SiteSettingBase & {
       readonly kind: 'choice';
-      readonly choices: readonly string[];
+      readonly choices: readonly SiteSettingChoice[];
       readonly default: string | null;
     })
   | (SiteSettingBase & {
       readonly kind: 'multiChoice';
-      readonly choices: readonly string[];
+      readonly choices: readonly SiteSettingChoice[];
       readonly default: readonly string[];
     })
   | (SiteSettingBase & {
@@ -101,6 +130,21 @@ const parseSortedDefault = (
   };
 };
 
+const parseGroup = (value: unknown, path: Path): SiteSettingGroup => {
+  const group = parseString(value, path);
+  if (!isGroup(group)) {
+    throw new ParseError(path, `a settings group, got ${group}`);
+  }
+  return group;
+};
+
+/** Each offered value, named by `siteSettingChoice.<key>.<value>`. */
+const parseChoices = (key: string, value: unknown, path: Path): readonly SiteSettingChoice[] =>
+  parseStringList(value, path).map((choice, index) => ({
+    value: choice,
+    labelKey: parseMessageKey(`siteSettingChoice.${key}.${choice}`, [...path, index]),
+  }));
+
 const parseSpec = (value: unknown, path: Path): SiteSettingSpec => {
   if (!isRecord(value)) {
     throw new ParseError(path, 'an object');
@@ -108,6 +152,8 @@ const parseSpec = (value: unknown, path: Path): SiteSettingSpec => {
   const base = {
     key: parseString(value.key, [...path, 'key']),
     labelKey: parseMessageKey(value.labelKey, [...path, 'labelKey']),
+    helpKey: parseMessageKey(value.helpKey, [...path, 'helpKey']),
+    group: parseGroup(value.group, [...path, 'group']),
   };
   switch (parseString(value.kind, [...path, 'kind'])) {
     case 'text':
@@ -116,6 +162,10 @@ const parseSpec = (value: unknown, path: Path): SiteSettingSpec => {
         kind: 'text',
         default: value.default === null ? null : parseString(value.default, [...path, 'default']),
       };
+    case 'property':
+      return { ...base, kind: 'property' };
+    case 'asset':
+      return { ...base, kind: 'asset' };
     case 'number':
       return {
         ...base,
@@ -132,14 +182,14 @@ const parseSpec = (value: unknown, path: Path): SiteSettingSpec => {
       return {
         ...base,
         kind: 'choice',
-        choices: parseStringList(value.choices, [...path, 'choices']),
+        choices: parseChoices(base.key, value.choices, [...path, 'choices']),
         default: value.default === null ? null : parseString(value.default, [...path, 'default']),
       };
     case 'multiChoice':
       return {
         ...base,
         kind: 'multiChoice',
-        choices: parseStringList(value.choices, [...path, 'choices']),
+        choices: parseChoices(base.key, value.choices, [...path, 'choices']),
         default: parseStringList(value.default, [...path, 'default']),
       };
     case 'sort': {
@@ -170,6 +220,9 @@ const draftValue = (spec: SiteSettingSpec, stored: unknown): SiteSettingDraft =>
   switch (spec.kind) {
     case 'text':
       return typeof stored === 'string' ? stored : (spec.default ?? '');
+    case 'property':
+    case 'asset':
+      return typeof stored === 'string' ? stored : '';
     case 'number':
       if (typeof stored === 'number') {
         return stored;
@@ -197,7 +250,9 @@ const draftValue = (spec: SiteSettingSpec, stored: unknown): SiteSettingDraft =>
 /** The wire value a draft stands for; `null` removes the row. */
 const wireValue = (spec: SiteSettingSpec, draft: SiteSettingDraft): JsonValue => {
   switch (spec.kind) {
-    case 'text': {
+    case 'text':
+    case 'property':
+    case 'asset': {
       const text = typeof draft === 'string' ? draft.trim() : '';
       return text === '' ? null : text;
     }
