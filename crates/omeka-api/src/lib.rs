@@ -22,6 +22,7 @@ pub mod password;
 pub mod read;
 pub mod routes;
 pub mod session;
+pub mod settings;
 pub mod site_items;
 pub mod site_settings;
 pub mod theme_settings;

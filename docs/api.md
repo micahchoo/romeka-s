@@ -1175,6 +1175,8 @@ One user document. `o:created` is a plain ISO 8601 string here, because `UserRep
 | `o:created` | `created` | `String` |  |
 | `o:role` | `role` | `String` |  |
 | `o:is_active` | `is_active` | `bool` |  |
+| `o:user_settings` | `user_settings` | `Option<serde_json::Value>` | omitted when unset |
+| `o:admin_locale` | `admin_locale` | `Option<String>` | omitted when unset; Port addition: the admin locale of `POST /api/login` and `GET /api/me`. |
 
 ### `value_annotations`
 

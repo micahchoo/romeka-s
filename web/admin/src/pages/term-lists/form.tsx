@@ -8,6 +8,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { createTermList, deleteTermList, getTermList, updateTermList } from '../../api/term-lists';
 import type {
   ItemSet,
   ItemSetId,
@@ -104,10 +105,10 @@ const TermListEditor = ({
     };
     save(async () => {
       if (list === null) {
-        await api.createTermList(write);
+        await createTermList(api, write);
         window.location.hash = '#/term-lists';
       } else {
-        onSaved(await api.updateTermList(list.id, write));
+        onSaved(await updateTermList(api, list.id, write));
       }
     });
   };
@@ -237,7 +238,7 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
   const tl = useTermListText();
   const state = useAsync(
     async (): Promise<Loaded> => {
-      const [list, itemSets] = await Promise.all([api.getTermList(id), loadItemSets()]);
+      const [list, itemSets] = await Promise.all([getTermList(api, id), loadItemSets()]);
       return { list, itemSets };
     },
     [id],
@@ -262,7 +263,7 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
         label={tl('termLists.deleteLabel')}
         rowName={list.label}
         onConfirm={async () => {
-          await api.deleteTermList(list.id);
+          await deleteTermList(api, list.id);
           window.location.hash = '#/term-lists';
         }}
       />

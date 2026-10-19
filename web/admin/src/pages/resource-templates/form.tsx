@@ -11,7 +11,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import { isTermListName } from '../../api/parse';
+import { isTermListName } from '../../api/term-lists';
 import type {
   ClassId,
   DataType,

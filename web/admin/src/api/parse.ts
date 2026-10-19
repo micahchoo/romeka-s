@@ -42,12 +42,9 @@ import type {
   SitePageBlock,
   SitePermission,
   TemplateId,
-  TermList,
-  TermListName,
-  TermListSource,
-  TermListUri,
   ThumbnailType,
   ThumbnailUrls,
+  GlobalSettings,
   User,
   UserId,
   Value,
@@ -150,19 +147,19 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:is_active',
 ]);
 
-function brandId<Name extends string>(value: number): Id<Name> {
+export function brandId<Name extends string>(value: number): Id<Name> {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the single place a validated number becomes a branded id
   return value as Id<Name>;
 }
 
-const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
+export const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
   if (!isRecord(value)) {
     throw new ParseError(path, 'object');
   }
   return value;
 };
 
-const asString = (value: unknown, path: Path): string => {
+export const asString = (value: unknown, path: Path): string => {
   if (typeof value !== 'string') {
     throw new ParseError(path, 'string');
   }
@@ -183,7 +180,7 @@ const asBoolean = (value: unknown, path: Path): boolean => {
   return value;
 };
 
-const asIdNumber = (value: unknown, path: Path): number => {
+export const asIdNumber = (value: unknown, path: Path): number => {
   const id = asNumber(value, path);
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new ParseError(path, 'a positive integer');
@@ -191,7 +188,7 @@ const asIdNumber = (value: unknown, path: Path): number => {
   return id;
 };
 
-const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
+export const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
   if (!(key in object)) {
     throw new ParseError([...path, key], 'a value');
   }
@@ -199,7 +196,7 @@ const field = (object: Record<string, unknown>, key: string, path: Path): unknow
 };
 
 /** A field upstream always sends, whose value may be null. */
-const nullableField = <T>(
+export const nullableField = <T>(
   object: Record<string, unknown>,
   key: string,
   path: Path,
@@ -256,7 +253,7 @@ const asDateTime = (value: unknown, path: Path): string => {
   return text;
 };
 
-const asRef = <IdT extends number>(
+export const asRef = <IdT extends number>(
   value: unknown,
   path: Path,
   brand: (id: number) => IdT,
@@ -268,7 +265,7 @@ const asRef = <IdT extends number>(
   };
 };
 
-const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
+export const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
   asRef(value, path, brandId<'UserId'>);
 
 const asRefClass = (value: unknown, path: Path): ResourceRef<ClassId> =>
@@ -322,18 +319,6 @@ const parseThumbnailUrls = (value: unknown, path: Path): ThumbnailUrls => {
     urls[type] = asString(entry, [...path, type]);
   }
   return urls;
-};
-
-/** Whether a data type name names a term list (`^customvocab:(\d+)$`). */
-export const isTermListName = (name: string): name is TermListName =>
-  /^customvocab:\d+$/.test(name);
-
-const termListName = (id: number): TermListName => {
-  const name = `customvocab:${String(id)}`;
-  if (!isTermListName(name)) {
-    throw new ParseError([], 'a term list id');
-  }
-  return name;
 };
 
 /**
@@ -535,8 +520,27 @@ export const parseUser: Parser<User> = (raw, path = []) => {
     created: asString(field(object, 'o:created', path), [...path, 'o:created']),
     role: asString(field(object, 'o:role', path), [...path, 'o:role']),
     isActive: asBoolean(field(object, 'o:is_active', path), [...path, 'o:is_active']),
+    localeSetting: parseLocaleSetting(object, 'o:user_settings', path),
+    adminLocale: optionalString(object, 'o:admin_locale', path),
   };
 };
+
+/** The `locale` key of a settings map member, `null` when the map or the key is absent. */
+const parseLocaleSetting = (
+  object: Record<string, unknown>,
+  key: string,
+  path: Path,
+): string | null => {
+  const value = object[key];
+  return value === undefined || value === null
+    ? null
+    : optionalString(asRecord(value, [...path, key]), 'locale', [...path, key]);
+};
+
+/** `GET /api/settings`, a port route that answers one map of setting keys. */
+export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => ({
+  locale: optionalString(asRecord(raw, path), 'locale', path),
+});
 
 /**
  * `POST /api/users/<id>/password-link`. The route is not a representation, so
@@ -670,45 +674,6 @@ export const parseDataType: Parser<DataType> = (raw, path = []) => {
     apiUrl: asString(field(object, '@id', path), [...path, '@id']),
     types: parseTypes(object, path),
     label: asString(field(object, 'o:label', path), [...path, 'o:label']),
-  };
-};
-
-const parseTermListUris = (value: unknown, path: Path): readonly TermListUri[] =>
-  Object.entries(asRecord(value, path)).map(([uri, label]) => ({
-    uri,
-    label: asString(label, [...path, uri]),
-  }));
-
-/** `CustomVocabRepresentation::type`: an item set, then URIs, then terms. */
-const parseTermListSource = (object: Record<string, unknown>, path: Path): TermListSource => {
-  const itemSet = nullableField(object, 'o:item_set', path, (value, at) =>
-    asRef(value, at, brandId<'ItemSetId'>),
-  );
-  if (itemSet !== null) {
-    return { kind: 'items', itemSet };
-  }
-  const rawUris = field(object, 'o:uris', path);
-  if (isRecord(rawUris)) {
-    const uris = parseTermListUris(rawUris, [...path, 'o:uris']);
-    if (uris.length > 0) {
-      return { kind: 'uris', uris };
-    }
-  }
-  const terms = nullableField(object, 'o:terms', path, parseListOf(asString)) ?? [];
-  return terms.length > 0 ? { kind: 'terms', terms } : { kind: 'empty' };
-};
-
-export const parseTermList: Parser<TermList> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  const id = asIdNumber(field(object, 'o:id', path), [...path, 'o:id']);
-  return {
-    id: brandId<'TermListId'>(id),
-    apiUrl: asString(field(object, '@id', path), [...path, '@id']),
-    dataType: termListName(id),
-    label: asString(field(object, 'o:label', path), [...path, 'o:label']),
-    lang: nullableField(object, 'o:lang', path, asString),
-    source: parseTermListSource(object, path),
-    owner: nullableField(object, 'o:owner', path, asRefUser),
   };
 };
 
@@ -978,19 +943,13 @@ export function assetIdFromParam(text: string): AssetId | null {
   return value === null ? null : brandId<'AssetId'>(value);
 }
 
-/** Parses a term list id out of a URL fragment such as `#/term-lists/3`. */
-export function termListIdFromParam(text: string): Id<'TermListId'> | null {
-  const value = positiveInt(text);
-  return value === null ? null : brandId<'TermListId'>(value);
-}
-
 /** Parses a job id out of a URL fragment such as `#/jobs/12`. */
 export function jobIdFromParam(text: string): Id<'JobId'> | null {
   const value = positiveInt(text);
   return value === null ? null : brandId<'JobId'>(value);
 }
 
-const positiveInt = (text: string): number | null => {
+export const positiveInt = (text: string): number | null => {
   if (!/^\d+$/.test(text)) {
     return null;
   }

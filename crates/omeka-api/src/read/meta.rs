@@ -75,7 +75,9 @@ pub async fn read_user(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiEr
     else {
         return Err(not_found(USER_CLASS, raw_id));
     };
-    user_document(api, &row)
+    let mut document = user_doc(api.base(), &row);
+    document.user_settings = crate::settings::load_user(api.pool(), row.id).await?;
+    Ok(ApiResponse::document(serialize(&document)?))
 }
 
 /// The `User` document for a row, as `read_user` answers it. A delete answers
@@ -104,7 +106,24 @@ fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
         created: iso8601(row.created),
         role: row.role.clone(),
         is_active: row.is_active,
+        user_settings: None,
+        admin_locale: None,
     }
+}
+
+/// The `User` document a sign-in and `GET /api/me` answer: the user, plus the
+/// admin locale they resolve to, so the client renders in it.
+///
+/// # Errors
+/// [`ApiError::Internal`] when a setting cannot be read.
+pub async fn session_user_response(
+    base: &BaseUrl,
+    pool: &sqlx::SqlitePool,
+    row: &UserRow,
+) -> Result<ApiResponse, ApiError> {
+    let mut document = user_doc(base, row);
+    document.admin_locale = crate::settings::admin_locale(pool, row.id).await?;
+    Ok(ApiResponse::document(serialize(&document)?))
 }
 
 // ---------------------------------------------------------------- sites

@@ -61,7 +61,7 @@ describe('translator', () => {
 
 describe('catalogue completeness', () => {
   it('every_shipped_locale_catalogue_has_every_message', async () => {
-    expect(LOCALES).toEqual(['en', 'es']);
+    expect(LOCALES).toEqual(['en', 'es', 'hi', 'mr', 'ml', 'ta', 'kn', 'te', 'ne']);
     for (const locale of LOCALES) {
       const catalogue = await CATALOGUE_LOADERS[locale]();
       expect(missingKeys(catalogue)).toEqual([]);

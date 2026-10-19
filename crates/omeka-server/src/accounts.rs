@@ -7,12 +7,16 @@
 //!
 //! | route | body | answer |
 //! | --- | --- | --- |
-//! | `POST /api/login` | `{email, password}` | 200, the user document, `Set-Cookie` |
+//! | `POST /api/login` | `{email, password}` | 200, the session user document, `Set-Cookie` |
 //! | `POST /api/logout` | | 204, the cookie cleared and the row deleted |
-//! | `GET /api/me` | | the user document, or 401 |
+//! | `GET /api/me` | | the session user document, or 401 |
 //! | `POST /api/password` | `{key, password}` | 200, the user document |
 //! | `POST /api/password/forgot` | `{email}` | 204 |
 //! | `POST /api/users/{id}/password-link` | | 200, `{key, link, sent}` |
+//!
+//! The session user document is the user document plus `o:admin_locale`, the
+//! locale `MvcListeners::bootstrapLocale` would render the admin in
+//! ([`omeka_api::settings::admin_locale`]).
 //!
 //! **Bodies.** A body that is not a JSON object is a 400 with the API error
 //! document. A member that is absent or not a string reads as empty, which the
@@ -44,7 +48,7 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_api::login::{self, AuthError, SetPasswordError};
 use omeka_api::origin;
 use omeka_api::password::PasswordRules;
-use omeka_api::read::user_response;
+use omeka_api::read::{session_user_response, user_response};
 use omeka_api::session;
 use omeka_db::repos::SettingRepo;
 use serde::{Deserialize, Serialize};
@@ -105,7 +109,8 @@ async fn login(
     .await;
     match session {
         Ok(session) => {
-            let mut response = crate::finish(user_response(&state.base, &session.user));
+            let mut response =
+                crate::finish(session_user_response(&state.base, &state.pool, &session.user).await);
             set_cookie(
                 &mut response,
                 &session::set_cookie(&session.token, state.secure_cookies),
@@ -130,7 +135,9 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
 /// The identity of the caller, or 401.
 async fn current_user(State(state): State<AppState>, headers: HeaderMap) -> Response {
     match login::current_user(&state.pool, session_token(&headers)).await {
-        Ok(Some(user)) => crate::finish(user_response(&state.base, &user)),
+        Ok(Some(user)) => {
+            crate::finish(session_user_response(&state.base, &state.pool, &user).await)
+        }
         Ok(None) => crate::document_response(
             StatusCode::UNAUTHORIZED,
             &omeka_api::errors::ErrorDocument::general(login::AUTHENTICATION_REQUIRED),

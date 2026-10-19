@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { termListIdFromParam } from '../../api/parse';
+import { termListIdFromParam } from '../../api/term-lists';
 import { useTermListText } from './messages';
 import { TermListCreatePage, TermListEditPage } from './form';
 import { TermListList } from './list';

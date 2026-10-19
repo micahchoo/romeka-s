@@ -24,8 +24,8 @@ import {
   parseResourceTemplate,
   parseSite,
   parseSitePage,
+  parseGlobalSettings,
   parseUser,
-  parseTermList,
   parseVocabulary,
 } from './parse';
 import type {
@@ -67,10 +67,8 @@ import type {
   User,
   UserId,
   UserWrite,
+  GlobalSettings,
   Vocabulary,
-  TermList,
-  TermListId,
-  TermListWrite,
   VocabularyId,
   VocabularyMemberWrite,
   VocabularyWrite,
@@ -85,7 +83,7 @@ import {
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
-  encodeTermList,
+  encodeUserLocale,
   encodeVocabulary,
   encodeVocabularyMember,
 } from './write';
@@ -335,6 +333,23 @@ export class ApiClient {
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
   }
 
+  /** Store one user's `locale` setting and nothing else; `''` removes it. */
+  async updateUserLocale(id: UserId, locale: string): Promise<void> {
+    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserLocale(locale));
+  }
+
+  /** `GET /api/settings`, a port route only a global admin may read. */
+  async getSettings(): Promise<GlobalSettings> {
+    return parseGlobalSettings(await this.requestJson('/api/settings'));
+  }
+
+  /** `PATCH /api/settings`: store the global `locale`; `''` removes it. */
+  async updateSettings(write: GlobalSettings): Promise<GlobalSettings> {
+    return parseGlobalSettings(
+      await this.writeJson('PATCH', '/api/settings', { locale: write.locale ?? '' }),
+    );
+  }
+
   async updateMedia(id: MediaId, write: MediaWrite): Promise<Media> {
     return parseMedia(await this.writeJson('PUT', `/api/media/${String(id)}`, encodeMedia(write)));
   }
@@ -565,28 +580,6 @@ export class ApiClient {
     await this.deleteJson(`/api/resource_templates/${String(id)}`);
   }
 
-  async listTermLists(query: ResourceQuery = {}): Promise<ApiPage<TermList>> {
-    return this.searchPage('custom_vocabs', query, parseTermList);
-  }
-
-  async getTermList(id: TermListId): Promise<TermList> {
-    return parseTermList(await this.requestJson(`/api/custom_vocabs/${String(id)}`));
-  }
-
-  async createTermList(write: TermListWrite): Promise<TermList> {
-    return parseTermList(await this.writeJson('POST', '/api/custom_vocabs', encodeTermList(write)));
-  }
-
-  async updateTermList(id: TermListId, write: TermListWrite): Promise<TermList> {
-    return parseTermList(
-      await this.writeJson('PATCH', `/api/custom_vocabs/${String(id)}`, encodeTermList(write)),
-    );
-  }
-
-  async deleteTermList(id: TermListId): Promise<void> {
-    await this.deleteJson(`/api/custom_vocabs/${String(id)}`);
-  }
-
   async listDataTypes(query: ResourceQuery = {}): Promise<ApiPage<DataType>> {
     return this.searchPage('data_types', query, parseDataType);
   }
@@ -752,7 +745,12 @@ export class ApiClient {
     return buildUrl(this.baseUrl, path, withApiKey(params, currentKey()));
   }
 
-  private async searchPage<T>(
+  /*
+   * The four request helpers are public so a resource family that only lazy
+   * pages read (`term-lists.ts`) keeps its parser and calls out of the initial
+   * payload instead of growing this class.
+   */
+  async searchPage<T>(
     resource: string,
     query: ResourceQuery,
     parse: Parser<T>,
@@ -773,12 +771,12 @@ export class ApiClient {
     };
   }
 
-  private async requestJson(path: string): Promise<unknown> {
+  async requestJson(path: string): Promise<unknown> {
     const response = await this.get(this.apiUrl(path));
     return readJsonBody(response);
   }
 
-  private async writeJson(
+  async writeJson(
     method: 'POST' | 'PUT' | 'PATCH',
     path: string,
     body: WireBody,
@@ -795,7 +793,7 @@ export class ApiClient {
     return readJsonBody(response);
   }
 
-  private async deleteJson(path: string): Promise<void> {
+  async deleteJson(path: string): Promise<void> {
     const response = await this.fetchFn(this.apiUrl(path), {
       method: 'DELETE',
       headers: { Accept: 'application/json' },

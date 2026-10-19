@@ -5,6 +5,7 @@ import type { PasswordLink, User, UserId, UserWrite } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { CheckboxField, SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { ErrorNotice } from '../../app/errors';
+import { LocaleSelect, localeValue } from '../../app/locale-select';
 import { useSave } from '../../app/save';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
@@ -35,6 +36,7 @@ const UserEditor = ({
   const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState(user?.role ?? '');
   const [isActive, setIsActive] = useState(user?.isActive ?? false);
+  const [localeSetting, setLocaleSetting] = useState(localeValue(user?.localeSetting ?? null));
   const [formError, setFormError] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ readonly id: UserId; readonly link: PasswordLink } | null>(
     null,
@@ -54,14 +56,15 @@ const UserEditor = ({
       return;
     }
     setFormError(null);
-    const write: UserWrite = { name, email, role, isActive };
     save(async () => {
       if (userId === null) {
+        const write: UserWrite = { name, email, role, isActive };
         // The API's user create writes no password, so a user made here can sign
         // in only once an administrator mints the one-time key below.
         const created = await api.createUser(write);
         setInvite({ id: created.id, link: await api.createPasswordLink(created.id) });
       } else {
+        const write: UserWrite = { name, email, role, isActive, localeSetting };
         const saved = await api.updateUser(userId, write);
         setIsActive(saved.isActive);
       }
@@ -131,6 +134,14 @@ const UserEditor = ({
             onChange={setIsActive}
           />
         </fieldset>
+        {/* Upstream's `addAction` removes the user-settings fieldset, so only an
+            existing user has one. */}
+        {userId === null ? null : (
+          <fieldset>
+            <legend>{t('users.settingsLegend')}</legend>
+            <LocaleSelect id="user-locale" value={localeSetting} onChange={setLocaleSetting} />
+          </fieldset>
+        )}
         {formError === null ? null : <p role="alert">{formError}</p>}
         <SaveStatus state={saveState} />
         <SubmitRow

@@ -128,7 +128,13 @@ flows on the wire, one handler per route:
 | `POST /api/users/{id}/password-link` | | 200 `{key, link, sent}`; 403, 404 |
 
 The login, `/api/me` and set-password bodies are the `o:` user document, the same
-one `GET /api/users/{id}` answers. A body that is not a JSON object is 400 with
+one `GET /api/users/{id}` answers. Login and `/api/me` add `o:admin_locale`, the
+locale `MvcListeners::bootstrapLocale` resolves: the user's `locale` setting, else
+the global one, absent when neither exists.
+
+`src/settings.rs` serves `GET` and `PATCH /api/settings`, a port route for the
+global settings the admin's settings page edits (only `locale` so far). Only a
+global admin may call it; `omeka_api::settings` holds the rules. A body that is not a JSON object is 400 with
 the API error document; a member that is absent reads as empty and the flow
 answers its own status. A 401 from a route the SPA calls signs the caller out
 there.

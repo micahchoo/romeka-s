@@ -24,7 +24,6 @@ import type {
   SitePermissionWrite,
   SiteWrite,
   TemplatePropertyWrite,
-  TermListWrite,
   UserId,
   UserWrite,
   ValueWrite,
@@ -39,7 +38,7 @@ export type WireBody = Readonly<Record<string, unknown>>;
 export type WriteMode = 'create' | 'update';
 
 /** A `{"o:id": N}` reference; `{"o:id": null}` clears the member. */
-const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
+export const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
 
 /**
  * `hydrateOwner`'s member: a create with no chosen owner omits it so the server
@@ -133,6 +132,15 @@ export const encodeUser = (write: UserWrite): WireBody => ({
   'o:email': write.email,
   'o:role': write.role,
   'o:is_active': write.isActive,
+  ...(write.localeSetting === undefined ? {} : encodeUserLocale(write.localeSetting)),
+});
+
+/**
+ * The user's `locale` setting alone, the port's `o:user_settings` member. A
+ * `PATCH` with only this member leaves every other user field as stored.
+ */
+export const encodeUserLocale = (locale: string): WireBody => ({
+  'o:user_settings': { locale },
 });
 
 export const encodeMedia = (write: MediaWrite): WireBody => ({
@@ -335,20 +343,4 @@ export const encodeResourceTemplate = (
 export const encodeAsset = (write: AssetWrite): WireBody => ({
   'o:name': write.name,
   'o:alt_text': write.altText,
-});
-
-/**
- * `CustomVocabAdapter::hydrate`. The source the form chose is sent and the
- * other two are cleared, as the module's own form does, so a list never keeps
- * a hidden source that outranks the one shown.
- */
-export const encodeTermList = (write: TermListWrite): WireBody => ({
-  'o:label': write.label,
-  'o:lang': write.lang ?? '',
-  'o:item_set': write.source.kind === 'items' ? ref(write.source.itemSet) : null,
-  'o:terms': write.source.kind === 'terms' ? write.source.terms : null,
-  'o:uris':
-    write.source.kind === 'uris'
-      ? Object.fromEntries(write.source.uris.map((entry) => [entry.uri, entry.label]))
-      : null,
 });

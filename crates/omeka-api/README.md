@@ -436,6 +436,12 @@ caller, and the writes go in batches of 1000 rows inside one transaction.
 | `POST /api/password/forgot` | `{email}` | 204 always; 429 rate limited |
 | `POST /api/users/{id}/password-link` | | 200 `{key, link, sent}`; 403 a caller who is not an administrator or who names their own account |
 
+Login and `GET /api/me` add `o:admin_locale` to the user document, from
+`src/settings.rs`: the user's `locale` setting, else the global one
+(`MvcListeners::bootstrapLocale`). The same module is the boundary for
+`o:user_settings` on the user read and write, and for the port's
+`/api/settings`. Only the keys in `API_SETTINGS` (`locale`) cross it.
+
 `loginAction`, `logoutAction`, `createPasswordAction` and
 `forgotPasswordAction` are `application/src/Controller/LoginController.php`;
 the password link is `Mailer::getPasswordCreation` as

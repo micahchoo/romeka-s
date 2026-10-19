@@ -10,7 +10,7 @@
 import { useId, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
 import { api } from '../../api/client';
-import { termListIdFromParam } from '../../api/parse';
+import { getTermList, termListIdFromParam } from '../../api/term-lists';
 import type { TermList, TermListName } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
@@ -39,7 +39,7 @@ const load = async (name: TermListName): Promise<Loaded> => {
   if (id === null) {
     throw new Error(`Not a term list: ${name}`);
   }
-  const list = await api.getTermList(id);
+  const list = await getTermList(api, id);
   const source = list.source;
   switch (source.kind) {
     case 'terms':

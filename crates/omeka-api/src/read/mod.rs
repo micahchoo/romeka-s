@@ -54,7 +54,7 @@ pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
 
 use catalog::Catalog;
 
-pub use meta::user_response;
+pub use meta::{session_user_response, user_response};
 pub(crate) use meta::{site_document, site_page_document, user_document};
 pub(crate) use resources::{item_document, item_set_document, matching_item_ids, media_document};
 

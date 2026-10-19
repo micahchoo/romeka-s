@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { parseTermList } from '../src/api/parse';
+import { parseTermList } from '../src/api/term-lists';
 import type { TermListName } from '../src/api/types';
 import { TermPicker } from '../src/pages/term-lists/term-picker';
 import type { TermChoice } from '../src/pages/term-lists/term-picker';

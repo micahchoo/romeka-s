@@ -1,17 +1,18 @@
 /**
- * The Term lists page's messages and the term picker's, in English and Spanish.
+ * The Term lists page's messages and the term picker's.
  *
  * They live beside the page rather than in `src/i18n/catalogue.ts` because the
- * main catalogues load with the first paint and their budget is tight
- * (`perf/budget.json`). Here they load with the page chunk. `es` is typed
- * against `en`, so a key added in English and missing in Spanish is a `tsc`
- * error.
+ * main catalogue loads with the first paint and its budget is tight
+ * (`perf/budget.json`). English is here; every other locale is its own chunk
+ * under `locales/`, so a page that shows the picker pays for one locale only.
+ * Each table is typed against `en`, so a key added in English and missing
+ * elsewhere is a `tsc` error, and a locale with no loader is one too.
  */
-import { useMemo } from 'react';
+import { use, useMemo } from 'react';
 import { useLocale } from '../../i18n';
 import type { Locale, MessageParams } from '../../i18n';
 
-const en = {
+export const en = {
   'termLists.resource': 'term lists',
   'termLists.invalidId': '"{param}" is not a term list id.',
   'termLists.intro': 'A term list turns a field into a choice from a fixed set of entries, so the same place or subject is always spelled the same way.',
@@ -46,39 +47,41 @@ const en = {
 /** A Term lists message id. */
 export type TermListMessageKey = keyof typeof en;
 
-const es: Readonly<Record<TermListMessageKey, string>> = {
-  'termLists.resource': 'listas de términos',
-  'termLists.invalidId': '"{param}" no es un identificador de lista de términos.',
-  'termLists.intro': 'Una lista de términos convierte un campo en una elección entre entradas fijas, para que el mismo lugar o tema se escriba siempre igual.',
-  'termLists.add': 'Añadir lista de términos',
-  'termLists.legend': 'Lista de términos',
-  'termLists.kindLegend': 'Qué contiene la lista',
-  'termLists.kindTerms': 'Una lista de palabras',
-  'termLists.kindItems': 'Elementos de un conjunto de elementos',
-  'termLists.kindUris': 'Enlaces (URI) con etiquetas',
-  'termLists.kindEmpty': 'Nada todavía',
-  'termLists.termsLabel': 'Palabras, una por línea',
-  'termLists.urisLabel': 'Enlaces, uno por línea: la URI, un espacio y la etiqueta',
-  'termLists.itemSetLabel': 'Conjunto de elementos',
-  'termLists.selectItemSet': 'Seleccione un conjunto de elementos',
-  'termLists.langLabel': 'Idioma de las palabras',
-  'termLists.langHint': 'Opcional. Cada palabra elegida de la lista lleva esta etiqueta de idioma, por ejemplo es.',
-  'termLists.errorNoEntries': 'Añada al menos una entrada.',
-  'termLists.errorNoItemSet': 'Elija un conjunto de elementos.',
-  'termLists.columnKind': 'Contiene',
-  'termLists.columnEntries': 'Entradas',
-  'termLists.columnUsage': 'Elementos que la usan',
-  'termLists.editLabel': 'Editar esta lista de términos',
-  'termLists.deleteLabel': 'Eliminar esta lista de términos',
-  'termLists.deleteNote': 'Eliminar una lista conserva los valores elegidos en ella. Quedan en sus elementos como texto sin formato.',
-  'termPicker.loading': 'Cargando la lista...',
-  'termPicker.noMatch': 'Ninguna entrada coincide con "{query}".',
-  'termPicker.notInList': '"{value}" no está en esta lista. Elija una entrada para reemplazarlo.',
-  'termPicker.hint': 'Escriba para filtrar la lista {list} y elija una entrada.',
-  'termPicker.typeLabel': 'Lista de términos: {list}',
+/** A complete Term lists table. */
+export type TermListMessages = Readonly<Record<TermListMessageKey, string>>;
+
+const LOADERS: Readonly<Record<Locale, () => Promise<TermListMessages>>> = {
+  en: () => Promise.resolve(en),
+  es: () => import('./locales/es').then((module) => module.es),
+  hi: () => import('./locales/hi').then((module) => module.hi),
+  mr: () => import('./locales/mr').then((module) => module.mr),
+  ml: () => import('./locales/ml').then((module) => module.ml),
+  ta: () => import('./locales/ta').then((module) => module.ta),
+  kn: () => import('./locales/kn').then((module) => module.kn),
+  te: () => import('./locales/te').then((module) => module.te),
+  ne: () => import('./locales/ne').then((module) => module.ne),
 };
 
-const MESSAGES: Readonly<Record<Locale, Readonly<Record<TermListMessageKey, string>>>> = { en, es };
+const loads = new Map<Locale, Promise<TermListMessages>>([['en', Promise.resolve(en)]]);
+const loaded = new Map<Locale, TermListMessages>([['en', en]]);
+
+// A table not loaded yet suspends the caller, so the page's Suspense boundary
+// waits for it instead of every caller handling a missing table.
+const tableFor = (locale: Locale): TermListMessages | Promise<TermListMessages> => {
+  const ready = loaded.get(locale);
+  if (ready !== undefined) {
+    return ready;
+  }
+  let load = loads.get(locale);
+  if (load === undefined) {
+    load = LOADERS[locale]().then((messages) => {
+      loaded.set(locale, messages);
+      return messages;
+    });
+    loads.set(locale, load);
+  }
+  return load;
+};
 
 const interpolate = (template: string, params: MessageParams | undefined): string =>
   params === undefined
@@ -94,9 +97,12 @@ export const useTermListText = (): ((
   params?: MessageParams,
 ) => string) => {
   const locale = useLocale();
-  return useMemo(() => {
-    const messages = MESSAGES[locale];
-    return (key: TermListMessageKey, params?: MessageParams): string =>
-      interpolate(messages[key], params);
-  }, [locale]);
+  const table = tableFor(locale);
+  const messages = table instanceof Promise ? use(table) : table;
+  return useMemo(
+    () =>
+      (key: TermListMessageKey, params?: MessageParams): string =>
+        interpolate(messages[key], params),
+    [messages],
+  );
 };

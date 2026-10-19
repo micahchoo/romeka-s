@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { listTermLists } from '../../api/term-lists';
 import type { ApiPage, ItemSet, TermList } from '../../api/types';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
@@ -48,7 +49,7 @@ const itemSetTitle = (sets: readonly ItemSet[], list: TermList): string | null =
 
 const load = async (page: number): Promise<ApiPage<TermListRow>> => {
   const [lists, users, sets] = await Promise.all([
-    api.listTermLists({ page, perPage: PER_PAGE, sortBy: 'label' }),
+    listTermLists(api, { page, perPage: PER_PAGE, sortBy: 'label' }),
     api.listUsers({ perPage: 100 }),
     api.listItemSets({ perPage: 200 }),
   ]);

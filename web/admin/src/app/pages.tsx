@@ -1,7 +1,8 @@
 /**
  * The admin page table: one row per controller under
- * `application/src/Controller/Admin/*.php` of omeka-s at 5e413f0, grouped the
- * way the upstream admin navigation presents them.
+ * `application/src/Controller/Admin/*.php` of omeka-s at 5e413f0, except the
+ * vocabulary family, whose three controllers share the Standards page. The nav
+ * groups follow the work, not the upstream admin navigation.
  *
  * Every `element` is a `React.lazy` component, so a route's module is fetched
  * the first time that route opens and the entry bundle carries the shell and
@@ -19,11 +20,9 @@ export type AdminPageId =
   | 'item-sets'
   | 'media'
   | 'sites'
-  | 'vocabularies'
-  | 'properties'
-  | 'resource-classes'
   | 'resource-templates'
   | 'term-lists'
+  | 'standards'
   | 'users'
   | 'modules'
   | 'jobs'
@@ -44,14 +43,29 @@ export interface AdminPage {
   readonly wide?: (rest: readonly string[]) => boolean;
 }
 
-export type PageGroupId = 'content' | 'vocabulary' | 'admin';
+export type PageGroupId = 'content' | 'describe' | 'admin';
+
+/**
+ * Routes another unit adds a page row for. The nav lists them now so the
+ * Describe order is settled, and shows each link once its row exists.
+ */
+type PendingRoute = 'fields';
+
+export type NavRoute = AdminPageId | PendingRoute;
 
 export interface PageGroup {
   readonly id: PageGroupId;
   readonly titleKey: MessageKey;
-  readonly pages: readonly AdminPageId[];
+  readonly pages: readonly NavRoute[];
+  /** A labelled run of links after the group's own, such as Describe's Advanced. */
+  readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly NavRoute[] };
 }
 
+/**
+ * The nav, grouped by the work rather than by the tables: Describe is where a
+ * collection's item types and fields are shaped, and the raw vocabulary layer
+ * sits under its Advanced heading.
+ */
 export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'content',
@@ -59,9 +73,10 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
     pages: ['dashboard', 'items', 'item-sets', 'media', 'sites'],
   },
   {
-    id: 'vocabulary',
-    titleKey: 'group.vocabulary',
-    pages: ['vocabularies', 'properties', 'resource-classes', 'resource-templates', 'term-lists'],
+    id: 'describe',
+    titleKey: 'group.describe',
+    pages: ['resource-templates', 'term-lists', 'fields'],
+    sub: { titleKey: 'nav.advanced', pages: ['standards'] },
   },
   {
     id: 'admin',
@@ -109,32 +124,8 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     // (`#/sites/<id>/theme`) lay a preview beside their controls.
     wide: (rest) => rest[1] === 'pages' || rest[1] === 'theme',
   },
-  vocabularies: {
-    titleKey: 'page.vocabularies',
-    upstream:
-      'Admin/VocabularyController.php browseAction showDetailsAction propertiesAction classesAction',
-    element: lazy(() =>
-      import('../pages/vocabularies/page').then((module) => ({ default: module.VocabulariesPage })),
-    ),
-  },
-  properties: {
-    titleKey: 'page.properties',
-    upstream: 'Admin/PropertyController.php showDetailsAction',
-    element: lazy(() =>
-      import('../pages/properties/page').then((module) => ({ default: module.PropertiesPage })),
-    ),
-  },
-  'resource-classes': {
-    titleKey: 'page.resourceClasses',
-    upstream: 'Admin/ResourceClassController.php showDetailsAction',
-    element: lazy(() =>
-      import('../pages/resource-classes/page').then((module) => ({
-        default: module.ResourceClassesPage,
-      })),
-    ),
-  },
   'resource-templates': {
-    titleKey: 'page.resourceTemplates',
+    titleKey: 'page.itemTypes',
     upstream: 'Admin/ResourceTemplateController.php browseAction showAction',
     element: lazy(() =>
       import('../pages/resource-templates/page').then((module) => ({
@@ -147,6 +138,14 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     upstream: 'CustomVocab Controller/Admin/IndexController.php browseAction addAction editAction',
     element: lazy(() =>
       import('../pages/term-lists/page').then((module) => ({ default: module.TermListsPage })),
+    ),
+  },
+  standards: {
+    titleKey: 'page.standards',
+    upstream:
+      'Admin/VocabularyController.php, Admin/PropertyController.php, Admin/ResourceClassController.php',
+    element: lazy(() =>
+      import('../pages/standards/page').then((module) => ({ default: module.StandardsPage })),
     ),
   },
   users: {

@@ -32,6 +32,7 @@ use omeka_db::rows::{
     ValueRow,
 };
 use omeka_site::blocks::parse::parse_block_data;
+use omeka_site::i18n::Messages;
 use omeka_site::nav::PageRef;
 use omeka_site::resource_page::link_pretty;
 use omeka_site::search::SearchHit;
@@ -188,6 +189,12 @@ impl Access<'_> {
 }
 
 impl<'a> Loader<'a> {
+    /// The catalogue of the site's locale, for the placeholders a loaded view
+    /// carries.
+    fn messages(&self) -> &'static Messages {
+        self.settings.locale().translator().messages()
+    }
+
     pub(crate) fn new(
         pool: &'a SqlitePool,
         base: &'a BaseUrl,
@@ -303,7 +310,9 @@ impl<'a> Loader<'a> {
             "@id": self.base.api_resource(resource, row.id.0),
             "@type": [jsonld_type],
             "o:id": row.id.0,
-            "o:title": display_title(row),
+            // Machine output: the placeholder stays the source-language one
+            // whatever the site's locale.
+            "o:title": display_title(row, &omeka_site::i18n::EN),
         })
         .to_string()
     }
@@ -482,7 +491,7 @@ impl<'a> Loader<'a> {
                 let url = resource_show_url(&self.site.slug, "item", item.id().0);
                 view.parent_item = Some(ResourceRef {
                     url: url.clone(),
-                    title: display_title(&item.resource),
+                    title: display_title(&item.resource, self.messages()),
                     thumbnail: None,
                 });
                 url
@@ -611,9 +620,10 @@ impl<'a> Loader<'a> {
         query: &[(String, String)],
         scope: BrowseScope,
     ) -> Result<BrowseView, SiteError> {
+        let messages = self.messages();
         let title = match kind {
-            ResourceKind::Item => "Items",
-            ResourceKind::ItemSet => "Item sets",
+            ResourceKind::Item => messages.items,
+            ResourceKind::ItemSet => messages.item_sets,
             // `Site\MediaController` has no browse action.
             ResourceKind::Media => return Err(SiteError::NotFound),
         };
@@ -803,7 +813,12 @@ impl<'a> Loader<'a> {
         row: &ResourceRow,
     ) -> Result<ResourceView, DbError> {
         let url = resource_show_url(&self.site.slug, controller_for(kind), row.id.0);
-        let mut view = ResourceView::new(ResourceId::new(row.id.0), kind, url, display_title(row));
+        let mut view = ResourceView::new(
+            ResourceId::new(row.id.0),
+            kind,
+            url,
+            display_title(row, self.messages()),
+        );
         view.jsonld = Some(self.jsonld(kind, row));
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
@@ -1002,7 +1017,7 @@ impl<'a> Loader<'a> {
         Ok(ResourceRepo::new(self.pool)
             .get(id)
             .await?
-            .map(|row| display_title(&row))
+            .map(|row| display_title(&row, self.messages()))
             .unwrap_or_default())
     }
 
@@ -1035,7 +1050,7 @@ impl<'a> Loader<'a> {
             {
                 view.item_sets.push(ResourceRef {
                     url: resource_show_url(&self.site.slug, "item-set", set.id().0),
-                    title: display_title(&set.resource),
+                    title: display_title(&set.resource, self.messages()),
                     thumbnail: None,
                 });
             }
@@ -1057,7 +1072,7 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
-            let title = display_title(&entry.resource);
+            let title = display_title(&entry.resource, self.messages());
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
@@ -1132,7 +1147,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
-            let title = display_title(&row.resource);
+            let title = display_title(&row.resource, self.messages());
             let thumbnail = self.item_square_thumbnail(&row, &title).await?;
             return Ok(Some((
                 ResourceKind::Item,
@@ -1161,7 +1176,7 @@ impl<'a> Loader<'a> {
                 ResourceKind::ItemSet,
                 ResourceRef {
                     url: resource_show_url(&self.site.slug, "item-set", id.0),
-                    title: display_title(&row.resource),
+                    title: display_title(&row.resource, self.messages()),
                     thumbnail,
                 },
             )));
@@ -1176,7 +1191,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
-            let title = display_title(&row.resource);
+            let title = display_title(&row.resource, self.messages());
             let thumbnail = square_thumbnail(self.base, &row, &title);
             return Ok(Some((
                 ResourceKind::Media,
@@ -1323,11 +1338,11 @@ fn block_from_row(row: &SiteBlockRow) -> Option<SiteBlock> {
     })
 }
 
-/// `displayTitle`: the stored title, else the upstream placeholder.
-pub(crate) fn display_title(row: &ResourceRow) -> String {
+/// `displayTitle`: the stored title, else upstream's translated placeholder.
+pub(crate) fn display_title(row: &ResourceRow, messages: &Messages) -> String {
     row.title
         .clone()
-        .unwrap_or_else(|| "[Untitled]".to_string())
+        .unwrap_or_else(|| messages.untitled.to_string())
 }
 
 /// A `media` row as the core media value the renderers read. The columns the

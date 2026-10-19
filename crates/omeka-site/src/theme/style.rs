@@ -380,7 +380,10 @@ mod tests {
         documents.push(DefaultTheme.render(&View::ItemSet(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Media(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Index, &ctx));
-        documents.push(DefaultTheme.render(&View::Error(&ErrorView::not_found()), &ctx));
+        documents.push(DefaultTheme.render(
+            &View::Error(&ErrorView::not_found(ctx.translator().messages())),
+            &ctx,
+        ));
 
         // The search pages: the results sections, one cross-site list, the page
         // browse and the advanced form.

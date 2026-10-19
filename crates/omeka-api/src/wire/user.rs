@@ -30,4 +30,18 @@ pub struct User {
     pub role: String,
     #[serde(rename = "o:is_active")]
     pub is_active: bool,
+    /// Port addition: the user's settings the admin edits, on a single-user read.
+    #[serde(
+        rename = "o:user_settings",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub user_settings: Option<serde_json::Value>,
+    /// Port addition: the admin locale of `POST /api/login` and `GET /api/me`.
+    #[serde(
+        rename = "o:admin_locale",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub admin_locale: Option<String>,
 }

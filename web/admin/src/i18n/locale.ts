@@ -4,9 +4,9 @@
  * A locale arrives from `localStorage` as an untrusted string, so
  * [`parseLocale`] narrows it here and everything downstream hands around the
  * [`Locale`] union. Upstream stores a `locale` setting on the global settings,
- * the user and the site (`application/src/Mvc/MvcListeners.php`); the SPA reads
- * the browser-stored admin choice, which is the user-level locale of that
- * chain.
+ * the user and the site (`application/src/Mvc/MvcListeners.php`). The server
+ * resolves the user and global settings into `o:admin_locale`, which the
+ * session applies over the browser-stored choice (`src/api/session.ts`).
  */
 import { CATALOGUE_LOADERS } from './catalogues';
 

@@ -42,6 +42,7 @@ mod limits;
 mod logging;
 pub mod mail;
 mod serve;
+mod settings;
 pub mod settings_upgrade;
 mod site;
 mod site_items;
@@ -136,6 +137,7 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(site_items::router())
+        .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())
         .fallback(not_found)
