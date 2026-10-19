@@ -271,6 +271,7 @@ export const ta: Catalogue = {
     'ஒரு வேலை அதன் அனுப்புநரால் எழுதப்படுகிறது, எனவே ஒரு புதுப்பிப்பு எந்த உறுப்பினரையும் மாற்றாது. கோரிக்கையானது வரிசையைக் கண்டறிந்து அதை மீண்டும் வாசிக்கிறது.',
   'draft.needsResourceId': '{term} ஒரு நேர்மறை வள அடையாளத்தைக் கொண்டிருக்க வேண்டும்.',
   'users.legend': 'பயனர் தகவல்',
+  'users.settingsLegend': 'பயனர் அமைப்புகள்',
   'users.displayName': 'காட்சிப் பெயர்',
   'users.email': 'மின்னஞ்சல்',
   'users.role': 'பங்கு',
@@ -751,7 +752,9 @@ export const ta: Catalogue = {
   'settings.versionNotifications': 'பதிப்பு அறிவிப்புகள்',
   'settings.saved': 'அமைப்புகள் புதுப்பிக்கப்பட்டன.',
   'settings.note':
-    'போர்ட் இன்னும் அமைப்புகள் இறுதிப்புள்ளியை வழங்கவில்லை, எனவே இந்த மாற்றங்கள் சேமிக்கப்படவில்லை.',
+    'துறைமுகம் (Port) இருப்பிடத்தை (locale) மட்டுமே சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
+  'settings.locale': 'இருப்பிடம்',
+  'settings.localeDefault': 'இயல்புநிலை',
   'systemInfo.omeka': 'Omeka S',
   'systemInfo.version': 'பதிப்பு',
   'systemInfo.api': 'API',

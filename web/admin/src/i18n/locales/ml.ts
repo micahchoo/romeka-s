@@ -271,6 +271,7 @@ export const ml: Catalogue = {
     'ഒരു ജോലി അതിന്റെ ഡിസ്പാച്ചർ വഴി എഴുതപ്പെടുന്നു, അതിനാൽ ഒരു അപ്‌ഡേറ്റ് ഒരു അംഗത്തെയും മാറ്റുന്നില്ല. അഭ്യർത്ഥന വരി കണ്ടെത്തുകയും അത് തിരികെ വായിക്കുകയും ചെയ്യുന്നു.',
   'draft.needsResourceId': '{term}-ന് ഒരു പോസിറ്റീവ് റിസോഴ്സ് ഐഡി ആവശ്യമാണ്.',
   'users.legend': 'ഉപയോക്തൃ വിവരങ്ങൾ',
+  'users.settingsLegend': 'ഉപയോക്തൃ ക്രമീകരണങ്ങൾ',
   'users.displayName': 'പ്രദർശിപ്പിക്കുന്ന പേര്',
   'users.email': 'ഇമെയിൽ',
   'users.role': 'റോൾ',
@@ -747,7 +748,9 @@ export const ml: Catalogue = {
   'settings.versionNotifications': 'പതിപ്പ് അറിയിപ്പുകൾ',
   'settings.saved': 'ക്രമീകരണങ്ങൾ പുതുക്കി.',
   'settings.note':
-    'പോർട്ട് സെറ്റിംഗ്സ് എൻഡ്‌പോയിന്റ് ഇതുവരെ സജ്ജമാക്കിയിട്ടില്ല, അതിനാൽ ഈ മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടില്ല.',
+    'പോർട്ട് സേവ് ചെയ്യുന്നത് ലൊക്കേൽ മാത്രമാണ്; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
+  'settings.locale': 'ലൊക്കേൽ',
+  'settings.localeDefault': 'ഡിഫോൾട്ട്',
   'systemInfo.omeka': 'Omeka S',
   'systemInfo.version': 'പതിപ്പ്',
   'systemInfo.api': 'API',
