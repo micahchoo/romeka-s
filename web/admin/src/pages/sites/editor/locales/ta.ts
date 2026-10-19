@@ -221,4 +221,7 @@ export const ta: EditorMessages = {
   'query.mediaCount': 'இந்தத் தளத்தில் {count} ஊடகங்கள் உள்ளன.',
   'attachments.mainMedia': 'முதன்மை ஊடகம்',
   'attachments.pick': 'உருப்படிகளைச் சேர்க்கவும் அல்லது நீக்கவும்',
+  'layoutData.pageLegend': 'பக்க அமைப்பு',
+  'layoutGroup.pageGrid': 'கட்டம்',
+  'choice.unset': 'அமைக்கப்படவில்லை',
 };

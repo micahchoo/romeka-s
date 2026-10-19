@@ -164,3 +164,29 @@ test('the preview outlines, selects and inserts, and a re-render keeps the place
   await expect(inspectorHeading(page)).toHaveText(`Line break, block 7 of ${String(BLOCKS.length + 2)}`);
   await expect(page.getByRole('listitem', { name: /^Block 7: Line break/ })).toBeVisible();
 });
+
+test('a page set to a grid takes its column count on the outline and in the preview', async ({ page }) => {
+  await page.goto(await createPage(page, 'live-canvas-grid'));
+  const settings = page.getByRole('region', { name: 'Block inspector' });
+  await expect(settings.getByRole('heading', { name: 'Page settings' })).toBeVisible();
+  await expect(settings.getByLabel('Columns')).toHaveCount(0);
+
+  await settings.getByLabel('Layout', { exact: true }).selectOption('grid');
+  const columns = settings.getByRole('group', { name: 'Grid' }).getByLabel('Columns');
+  await expect(columns).toHaveAccessibleDescription('How many columns the grid has.');
+  await columns.fill('3');
+
+  await expect(page.locator('.canvas-list.canvas-grid')).toHaveCSS(
+    'grid-template-columns',
+    /^(\S+ ){2}\S+$/,
+  );
+  await expect(shown(page).locator('.page-layout-grid.grid-template-columns-3')).toHaveCount(1, {
+    timeout: 10_000,
+  });
+
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  const response = await page.goto(`/s/${SITE_SLUG}/page/live-canvas-grid`);
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('.page-layout-grid.grid-template-columns-3')).toHaveCount(1);
+});

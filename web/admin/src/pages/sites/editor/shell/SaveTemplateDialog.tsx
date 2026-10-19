@@ -18,7 +18,7 @@ import {
   savedTemplatesWire,
   withSavedTemplates,
 } from '../../templates';
-import { toSavedTemplate } from '../draft';
+import { toSavedTemplate } from '../wire';
 import type { PageContent } from '../draft';
 
 export interface SaveTemplateDialogProps {

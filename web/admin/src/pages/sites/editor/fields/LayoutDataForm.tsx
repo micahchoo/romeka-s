@@ -1,15 +1,18 @@
 /**
  * The layout-data form: the styling a block or a page keeps in `o:layout_data`,
  * rendered from the schema the registry carries. Each field's `group` puts it
- * in a section (Spacing, Size, Background, Alignment, Grid position) and
- * `advanced` puts it under a closed "Advanced" disclosure, so the form reads
- * as a few named sections rather than one flat list.
+ * in a section (Spacing, Size, Background, Alignment, Grid) and `advanced`
+ * puts it under a closed "Advanced" disclosure, so the form reads as a few
+ * named sections rather than one flat list.
  *
- * The renderer reads a grid position or span only on a grid page
- * (`layout.rs::block_classes`), so on any other page the Grid section is
- * disabled and says why, and its stored values are kept.
+ * The Grid section applies only on a grid page, and what it means depends on
+ * whose layout data this is. A block's grid fields place it in the page grid,
+ * which the renderer reads only on a grid page (`layout.rs::block_classes`),
+ * so off the grid the section is disabled, says why, and keeps its values. A
+ * page's grid fields define the grid itself, so off the grid they are hidden:
+ * the page layout control right above them brings them back.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { JsonValue, SiteId } from '../../../../api/types';
 import { FIELD_GROUPS } from '../../blockSchema';
 import type { BlockField, FieldGroup, LayoutSchema } from '../../blockSchema';
@@ -19,18 +22,33 @@ import type { EditorOptions } from '../options';
 import { FieldControl } from './FieldControl';
 import './controls.css';
 
-const GROUP_LABELS: Readonly<Record<FieldGroup, EditorMessageKey>> = {
+const GROUP_LABELS: Readonly<Record<Exclude<FieldGroup, 'grid'>, EditorMessageKey>> = {
   spacing: 'layoutGroup.spacing',
   size: 'layoutGroup.size',
   background: 'layoutGroup.background',
   alignment: 'layoutGroup.alignment',
-  grid: 'layoutGroup.grid',
+};
+
+/** Whose `o:layout_data` the form edits. */
+export type LayoutDataOwner = 'block' | 'page';
+
+const OWNERS: Readonly<
+  Record<
+    LayoutDataOwner,
+    {
+      readonly legend: EditorMessageKey;
+      readonly grid: EditorMessageKey;
+      readonly offGrid: 'disable' | 'hide';
+    }
+  >
+> = {
+  block: { legend: 'layoutData.legend', grid: 'layoutGroup.grid', offGrid: 'disable' },
+  page: { legend: 'layoutData.pageLegend', grid: 'layoutGroup.pageGrid', offGrid: 'hide' },
 };
 
 export interface LayoutDataFormProps {
   readonly idPrefix: string;
-  /** The group label; the catalogue's block-styling label by default. */
-  readonly legend?: string;
+  readonly owner: LayoutDataOwner;
   readonly schema: LayoutSchema;
   readonly values: Readonly<Record<string, JsonValue>>;
   /** Writes one or more keys as one edit. */
@@ -40,19 +58,23 @@ export interface LayoutDataFormProps {
   readonly siteId: SiteId;
   /** The editor's shared lists, so a control makes no request of its own. */
   readonly options?: EditorOptions;
+  /** Controls the form shows before the schema's fields, such as the page layout. */
+  readonly children?: ReactNode;
 }
 
 export const LayoutDataForm = ({
   idPrefix,
-  legend,
+  owner,
   schema,
   values,
   onChange,
   grid,
   siteId,
   options,
+  children,
 }: LayoutDataFormProps): ReactElement => {
   const t = useEditorText();
+  const labels = OWNERS[owner];
   const control = (field: BlockField): ReactElement => (
     <FieldControl
       key={field.key}
@@ -76,18 +98,22 @@ export const LayoutDataForm = ({
   const advanced = schema.fields.filter((field) => field.advanced);
   return (
     <fieldset className="block-field layout-data-form">
-      <legend>{legend ?? t('layoutData.legend')}</legend>
+      <legend>{t(labels.legend)}</legend>
+      {children}
       {loose.map(control)}
       {FIELD_GROUPS.map((group) => {
         const fields = schema.fields.filter((field) => field.group === group && !field.advanced);
         if (fields.length === 0) {
           return null;
         }
-        const disabled = group === 'grid' && !grid;
+        const offGrid = group === 'grid' && !grid;
+        if (offGrid && labels.offGrid === 'hide') {
+          return null;
+        }
         return (
-          <fieldset key={group} className="layout-group" disabled={disabled}>
-            <legend>{t(GROUP_LABELS[group])}</legend>
-            {disabled ? <p className="field-note">{t('layoutGroup.gridOnly')}</p> : null}
+          <fieldset key={group} className="layout-group" disabled={offGrid}>
+            <legend>{t(group === 'grid' ? labels.grid : GROUP_LABELS[group])}</legend>
+            {offGrid ? <p className="field-note">{t('layoutGroup.gridOnly')}</p> : null}
             {fields.map(control)}
           </fieldset>
         );

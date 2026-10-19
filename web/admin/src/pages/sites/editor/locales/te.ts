@@ -212,4 +212,7 @@ export const te: EditorMessages = {
   'query.mediaCount': 'ఈ సైట్‌లోని మీడియా: {count}.',
   'attachments.mainMedia': 'ప్రధాన మీడియా',
   'attachments.pick': 'అంశాలను జోడించండి లేదా తొలగించండి',
+  'layoutData.pageLegend': 'పేజీ లేఅవుట్',
+  'layoutGroup.pageGrid': 'గ్రిడ్',
+  'choice.unset': 'సెట్ చేయబడలేదు',
 };

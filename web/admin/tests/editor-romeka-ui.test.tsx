@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { draftReducer } from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
 import type { BlockKey, PageDraft } from '../src/pages/sites/editor/draft';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import { plainHash } from '../src/pages/sites/editor/romekaHash';

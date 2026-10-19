@@ -1310,11 +1310,6 @@ fieldset.block-field {
   font-size: 15px;
 }
 
-.page-grid-fields {
-  display: grid;
-  gap: var(--space-2);
-}
-
 .editor-canvas .canvas-toolbar {
   margin-bottom: var(--space-3);
 }
