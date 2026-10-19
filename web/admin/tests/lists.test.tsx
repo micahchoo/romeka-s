@@ -13,7 +13,7 @@ import { MediaPage } from '../src/pages/media/page';
 import { ModulesPage } from '../src/pages/modules/page';
 import { PropertiesPage } from '../src/pages/properties/page';
 import { ResourceClassesPage } from '../src/pages/resource-classes/page';
-import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
+import { ItemTypesPage } from '../src/pages/item-types/page';
 import { UsersPage } from '../src/pages/users/page';
 import { VocabulariesPage } from '../src/pages/vocabularies/page';
 import { loadFixture } from './loadFixture';
@@ -190,25 +190,31 @@ describe('resource classes page', () => {
   });
 });
 
-describe('resource templates page', () => {
-  it('template_browse_shows_label_class_owner_and_property_count', async () => {
+describe('item types page', () => {
+  it('item_type_browse_shows_name_field_count_item_count_and_class', async () => {
     installFetch(
       route({
         '/api/resource_templates': () =>
           listResponse(loadFixture('resource-templates-page.json'), 2),
-        '/api/users': users,
+        '/api/items': (url) =>
+          listResponse([], url.searchParams.get('resource_template_id') === '2' ? 41 : 0),
         '/api/resource_classes': classes,
       }),
     );
-    render(<ResourceTemplatesPage />);
+    render(<ItemTypesPage />);
 
-    expect(await screen.findByText('Photograph')).toBeInTheDocument();
-    expect(screen.getByText('Still Image')).toBeInTheDocument();
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('Document')).toBeInTheDocument();
-    expect(screen.getByText('[None]')).toBeInTheDocument();
-    expect(screen.getByText('[No owner]')).toBeInTheDocument();
+    const photograph = (await screen.findByRole('link', { name: 'Photograph' })).closest('tr');
+    const document = screen.getByRole('link', { name: 'Document' }).closest('tr');
+    if (photograph === null || document === null) {
+      throw new Error('expected two rows');
+    }
+    expect(Array.from(photograph.cells, (cell) => cell.textContent)).toEqual([
+      'Photograph',
+      '3',
+      '41',
+      'Photograph or picture dctype:StillImage',
+    ]);
+    expect(Array.from(document.cells, (cell) => cell.textContent)).toEqual(['Document', '0', '0', 'None']);
   });
 });
 
@@ -249,7 +255,7 @@ describe('list page error state', () => {
     ['modules', ModulesPage],
     ['properties', PropertiesPage],
     ['resource classes', ResourceClassesPage],
-    ['resource templates', ResourceTemplatesPage],
+    ['item types', ItemTypesPage],
     ['users', UsersPage],
     ['vocabularies', VocabulariesPage],
   ];

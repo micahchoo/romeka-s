@@ -119,37 +119,35 @@ test('a property is created, renamed and deleted', async ({ page, diagnostics })
   await expectClean(diagnostics, 'property delete');
 });
 
-test('a resource template is created, renamed and deleted', async ({ page, diagnostics }) => {
-  const label = 'E2E template';
+test('an item type is created from a kind, renamed and deleted', async ({ page, diagnostics }) => {
+  const label = 'E2E letter type';
   const renamed = `${label} renamed`;
 
   await page.goto('/#/resource-templates');
-  await page.getByRole('link', { name: 'Add resource template' }).click();
+  await page.getByRole('link', { name: 'New item type' }).click();
   await expect(page).toHaveURL(/#\/resource-templates\/new$/);
 
-  await page.locator('#template-label').fill(label);
-  await page.locator('#template-add-property').selectOption({ label: 'dcterms:title' });
-  await page.getByRole('button', { name: 'Add property' }).click();
-  await expect(page.getByRole('heading', { name: 'dcterms:title' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add resource template' }).click();
+  await page.getByLabel('What kind of thing is this?').fill('Letter');
+  await page.getByRole('button', { name: 'Use these fields' }).click();
+  await page.getByRole('textbox', { name: 'Item type name' }).fill(label);
+  await page.getByRole('button', { name: 'Create item type' }).click();
 
   await expect(page).toHaveURL(/#\/resource-templates\/\d+$/);
-  await expect(page.getByRole('heading', { name: label })).toBeVisible();
-  await expectClean(diagnostics, 'resource template create');
+  await expect(page.getByRole('textbox', { name: 'Item type name' })).toHaveValue(label);
+  await expect(page.getByText('Standard class: Letter')).toBeVisible();
+  await expectClean(diagnostics, 'item type create');
 
-  await page.getByRole('button', { name: 'Edit this resource template' }).click();
-  await page.locator('#template-label').fill(renamed);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.locator('[role=status]')).toHaveText('Saved.');
-  await expect(page.getByRole('heading', { name: renamed })).toBeVisible();
-  await expectClean(diagnostics, 'resource template rename');
+  await page.getByRole('textbox', { name: 'Item type name' }).fill(renamed);
+  await page.getByRole('button', { name: 'Save item type' }).click();
+  await expect(page.locator('[role=status]').filter({ hasText: 'Saved.' })).toBeVisible();
+  await expectClean(diagnostics, 'item type rename');
 
-  await page.getByRole('button', { name: 'Delete this resource template' }).click();
+  await page.getByRole('button', { name: 'Delete this item type' }).click();
   await page.getByRole('button', { name: `Delete ${renamed}` }).click();
 
   await expect(page).toHaveURL(/#\/resource-templates$/);
   await expect(page.getByRole('link', { name: renamed })).toHaveCount(0);
-  await expectClean(diagnostics, 'resource template delete');
+  await expectClean(diagnostics, 'item type delete');
 });
 
 test('a vocabulary edit keeps the properties it already has', async ({ page, diagnostics }) => {

@@ -127,18 +127,23 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
   await page.goto('/#/resource-templates');
   await page.locator('tbody a').first().click();
   await expect(page).toHaveURL(/#\/resource-templates\/\d+$/);
+  await expect(page.getByRole('textbox', { name: 'Item type name' })).toBeVisible();
   await diagnostics.idle();
-  await expectAxeBudget(page, 'admin resource template show');
-
-  await page.locator('.edit-toggle').first().click();
-  await expect(page.locator('#template-label')).toBeVisible();
-  await diagnostics.idle();
-  await expectAxeBudget(page, 'admin resource template edit');
+  await expectAxeBudget(page, 'admin item type edit');
 
   await page.goto('/#/resource-templates/new');
-  await expect(page.locator('#template-label')).toBeVisible();
+  await page.getByLabel('What kind of thing is this?').fill('Letter');
   await diagnostics.idle();
-  await expectAxeBudget(page, 'admin resource template create');
+  await expectAxeBudget(page, 'admin item type kind');
+  await page.getByRole('button', { name: 'Use these fields' }).click();
+  await expect(page.getByRole('textbox', { name: 'Item type name' })).toBeVisible();
+  await diagnostics.idle();
+  await expectAxeBudget(page, 'admin item type create');
+
+  await page.goto('/#/fields');
+  await page.getByLabel('Find a field').fill('who wrote it');
+  await diagnostics.idle();
+  await expectAxeBudget(page, 'admin fields search');
 
   // The asset and the job detail views, on the spare rows the write spec does
   // not delete.

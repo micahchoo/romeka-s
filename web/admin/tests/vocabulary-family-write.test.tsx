@@ -1,6 +1,6 @@
 /**
  * Write tests for the vocabulary family: a vocabulary, a property, a resource
- * class and a resource template. Each form runs through the real client and
+ * class. (The resource template editor is `item-types.test.tsx`.) Each form runs through the real client and
  * parsers against a stubbed fetch, so the method, URL and body a form sends are
  * the bytes the server would get, and every rendered validation error is the
  * API's own message or the form's own check.
@@ -10,7 +10,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import { PropertiesPage } from '../src/pages/properties/page';
 import { ResourceClassesPage } from '../src/pages/resource-classes/page';
-import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
 import { VocabulariesPage } from '../src/pages/vocabularies/page';
 import { loadFixture } from './loadFixture';
 import {
@@ -393,130 +392,5 @@ describe('resource class create, edit and delete', () => {
       ).toHaveLength(1);
     });
     expect(window.location.hash).toBe('#/resource-classes');
-  });
-});
-
-describe('resource template create and edit', () => {
-  const templateRoutes: Readonly<Record<string, () => Response>> = {
-    ...referenceRoutes,
-    '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
-    '/api/properties': () => jsonResponse(loadFixture('template-properties.json')),
-  };
-
-  it('resource_template_edit_puts_the_row_set_in_list_order', async () => {
-    const fetchMock = installFetch(
-      withFixture({
-        ...templateRoutes,
-        '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
-      }),
-    );
-    render(<ResourceTemplatesPage param="2" />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit this resource template' }));
-    fireEvent.change(await screen.findByLabelText('Label'), {
-      target: { value: 'Photograph revised' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    const put = await waitFor(() => sent(fetchMock, '/api/resource_templates/2', 'PUT'));
-    const body = requestBody(put);
-    expect(body['o:label']).toBe('Photograph revised');
-    expect(body['o:owner']).toEqual({ 'o:id': 3 });
-    expect(body['o:resource_class']).toEqual({ 'o:id': 13 });
-    expect(body['o:title_property']).toEqual({ 'o:id': 1 });
-    expect(body['o:description_property']).toEqual({ 'o:id': 4 });
-    const rows = body['o:resource_template_property'];
-    if (!Array.isArray(rows)) {
-      throw new Error('expected the template property list');
-    }
-    expect(rows).toHaveLength(3);
-    expect(rows[0]).toEqual({
-      'o:property': { 'o:id': 1 },
-      'o:alternate_label': null,
-      'o:alternate_comment': null,
-      'o:data_type': ['literal'],
-      'o:is_required': true,
-      'o:is_private': false,
-      'o:default_lang': null,
-    });
-    expect(rows[1]).toEqual({
-      'o:property': { 'o:id': 4 },
-      'o:alternate_label': 'Caption',
-      'o:alternate_comment': null,
-      'o:data_type': ['literal'],
-      'o:is_required': false,
-      'o:is_private': false,
-      'o:default_lang': 'en',
-    });
-    expect(rows[2]).toEqual({
-      'o:property': { 'o:id': 13 },
-      'o:alternate_label': null,
-      'o:alternate_comment': null,
-      'o:data_type': ['resource:item'],
-      'o:is_required': false,
-      'o:is_private': true,
-      'o:default_lang': null,
-    });
-  });
-
-  it('resource_template_edit_renders_the_api_validation_message', async () => {
-    installFetch((url, init) => {
-      if (url.pathname === '/api/resource_templates/2' && init?.method === 'PUT') {
-        return jsonResponse(
-          { errors: { 'o:label': ['The label is already taken.'] } },
-          { status: 422 },
-        );
-      }
-      return withFixture(templateRoutes)(url, init);
-    });
-    render(<ResourceTemplatesPage param="2" />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit this resource template' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The label is already taken. (HTTP 422)',
-    );
-  });
-
-  it('resource_template_create_posts_the_label_and_the_chosen_property_rows', async () => {
-    const fetchMock = installFetch(
-      withFixture({
-        ...referenceRoutes,
-        '/api/resource_templates': () => jsonResponse(loadFixture('resource-template-2.json')),
-        '/api/properties': () => jsonResponse(loadFixture('template-properties.json')),
-      }),
-    );
-    render(<ResourceTemplatesPage param="new" />);
-
-    fireEvent.change(await screen.findByLabelText('Label'), { target: { value: 'Essay' } });
-    fireEvent.change(screen.getByLabelText('Add property'), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add property' }));
-    fireEvent.click(await screen.findByLabelText('Text'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add resource template' }));
-
-    const post = await waitFor(() => sent(fetchMock, '/api/resource_templates', 'POST'));
-    const rows = requestBody(post)['o:resource_template_property'];
-    expect(rows).toEqual([
-      {
-        'o:property': { 'o:id': 1 },
-        'o:alternate_label': null,
-        'o:alternate_comment': null,
-        'o:data_type': ['literal'],
-        'o:is_required': false,
-        'o:is_private': false,
-        'o:default_lang': null,
-      },
-    ]);
-  });
-
-  it('resource_template_create_refuses_an_empty_label_before_any_request', async () => {
-    const fetchMock = installFetch(withFixture(referenceRoutes));
-    render(<ResourceTemplatesPage param="new" />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Add resource template' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('The label cannot be empty.');
-    expect(requestsFor(fetchMock, '/api/resource_templates')).toHaveLength(0);
   });
 });

@@ -9,6 +9,7 @@ import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
+import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
@@ -64,7 +65,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   return (
     <form onSubmit={submit}>
-      <ResourceFields idPrefix="item" draft={draft} onChange={setDraft} options={options} />
+      <ResourceFields idPrefix="item" kind="items" draft={draft} onChange={setDraft} options={options} />
       <ValuesEditor
         idPrefix="item"
         draft={draft}
@@ -72,6 +73,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         template={templateById(options.templates, draft.resourceTemplate)}
         properties={options.properties}
         dataTypes={options.dataTypes}
+        createField={createLocalField}
       />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>

@@ -1,0 +1,361 @@
+/**
+ * The item type editor through the real client: what it sends for a stored
+ * template, each override a field and the type offer, the starter kinds, and
+ * the preview being the real item form.
+ */
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { Mock } from 'vitest';
+import { ItemTypesPage } from '../src/pages/item-types/page';
+import { loadFixture } from './loadFixture';
+import {
+  first,
+  installFetch,
+  jsonResponse,
+  listResponse,
+  requestBody,
+  requestsFor,
+  type Handler,
+} from './stub';
+
+afterEach(() => {
+  window.location.hash = '';
+  window.localStorage.clear();
+});
+
+const property = (id: number, term: string, label: string, comment: string | null = null) => ({
+  '@id': `http://localhost/api/properties/${String(id)}`,
+  '@type': 'o:Property',
+  'o:id': id,
+  'o:local_name': term.split(':')[1] ?? term,
+  'o:label': label,
+  'o:comment': comment,
+  'o:term': term,
+  'o:vocabulary': { '@id': 'http://localhost/api/vocabularies/1', 'o:id': 1 },
+});
+
+const resourceClass = (id: number, term: string, label: string) => ({
+  ...property(id, term, label),
+  '@id': `http://localhost/api/resource_classes/${String(id)}`,
+  '@type': 'o:ResourceClass',
+});
+
+const PROPERTIES = [
+  property(1, 'dcterms:title', 'Title', 'A name given to the resource.'),
+  property(2, 'dcterms:creator', 'Creator', 'An entity responsible for making the resource.'),
+  property(4, 'dcterms:description', 'Description'),
+  property(5, 'dcterms:created', 'Date Created'),
+  property(6, 'dcterms:spatial', 'Spatial Coverage'),
+  property(13, 'dcterms:relation', 'Relation'),
+  property(20, 'bibo:recipient', 'recipient'),
+  property(21, 'bibo:numPages', 'number of pages'),
+  property(22, 'dcterms:extent', 'Extent'),
+];
+
+const CLASSES = [
+  resourceClass(13, 'dctype:StillImage', 'Still Image'),
+  resourceClass(60, 'bibo:Letter', 'Letter'),
+  resourceClass(61, 'dctype:PhysicalObject', 'Physical Object'),
+];
+
+const routes = (extra: Readonly<Record<string, Handler>> = {}): Handler => {
+  const table: Readonly<Record<string, Handler>> = {
+    '/api/users': () => jsonResponse(loadFixture('users-page.json')),
+    '/api/properties': () => listResponse(PROPERTIES, PROPERTIES.length),
+    '/api/resource_classes': () => listResponse(CLASSES, CLASSES.length),
+    '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
+    '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
+    ...extra,
+  };
+  return (url, init) =>
+    table[url.pathname]?.(url, init) ??
+    jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
+};
+
+const sent = (fetchMock: Mock<typeof fetch>, pathname: string, method: string) =>
+  first(requestsFor(fetchMock, pathname).filter((request) => request.init?.method === method));
+
+const rowsSent = (body: Record<string, unknown>): readonly Record<string, unknown>[] => {
+  const rows = body['o:resource_template_property'];
+  if (!Array.isArray(rows)) {
+    throw new Error('expected the row list');
+  }
+  return rows.filter(
+    (row): row is Record<string, unknown> => typeof row === 'object' && row !== null,
+  );
+};
+
+const fieldList = (): HTMLElement => {
+  const list = document.querySelector<HTMLElement>('.type-field-list');
+  if (list === null) {
+    throw new Error('expected the field list');
+  }
+  return list;
+};
+
+const save = async (fetchMock: Mock<typeof fetch>) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Save item type' }));
+  return requestBody(await waitFor(() => sent(fetchMock, '/api/resource_templates/2', 'PUT')));
+};
+
+const openPhotograph = async (extra: Readonly<Record<string, Handler>> = {}) => {
+  const fetchMock = installFetch(routes(extra));
+  render(<ItemTypesPage param="2" />);
+  await screen.findByRole('textbox', { name: 'Item type name' });
+  return fetchMock;
+};
+
+describe('a stored item type', () => {
+  it('saves back every member as it was read when nothing changed', async () => {
+    const fetchMock = await openPhotograph();
+    const body = await save(fetchMock);
+    expect(body).toEqual({
+      'o:label': 'Photograph',
+      'o:owner': { 'o:id': 3 },
+      'o:resource_class': { 'o:id': 13 },
+      'o:title_property': { 'o:id': 1 },
+      'o:description_property': { 'o:id': 4 },
+      'o:resource_template_property': [
+        {
+          'o:property': { 'o:id': 1 },
+          'o:alternate_label': null,
+          'o:alternate_comment': null,
+          'o:data_type': ['literal'],
+          'o:is_required': true,
+          'o:is_private': false,
+          'o:default_lang': null,
+        },
+        {
+          'o:property': { 'o:id': 4 },
+          'o:alternate_label': 'Caption',
+          'o:alternate_comment': null,
+          'o:data_type': ['literal'],
+          'o:is_required': false,
+          'o:is_private': false,
+          'o:default_lang': 'en',
+        },
+        {
+          'o:property': { 'o:id': 13 },
+          'o:alternate_label': null,
+          'o:alternate_comment': null,
+          'o:data_type': ['resource:item'],
+          'o:is_required': false,
+          'o:is_private': true,
+          'o:default_lang': null,
+        },
+      ],
+    });
+  });
+
+  it('shows the class in plain words with its term, and the stored definition on "?"', async () => {
+    await openPhotograph();
+    expect(screen.getByText('Standard class: Photograph or picture')).toBeInTheDocument();
+    const help = screen.getAllByRole('button', { name: 'What is Title?' })[0];
+    if (help === undefined) {
+      throw new Error('expected a "?" for Title');
+    }
+    fireEvent.click(help);
+    expect(help).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByText(/A name given to the resource\./)[0]).toBeVisible();
+  });
+
+  it('renames a field, sets it required and private, and adds an accepted kind after the stored ones', async () => {
+    const fetchMock = await openPhotograph();
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Name on the form for dcterms:description' }),
+      {
+        target: { value: 'What it shows' },
+      },
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: 'What it shows is required' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'What it shows is private' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change what What it shows accepts' }));
+    const accepts = screen.getByRole('group', { name: 'What What it shows accepts' });
+    fireEvent.click(within(accepts).getByRole('checkbox', { name: 'Another item' }));
+    fireEvent.change(screen.getAllByLabelText('Help text on the form')[1] ?? document.body, {
+      target: { value: 'What the photograph shows.' },
+    });
+
+    const rows = rowsSent(await save(fetchMock));
+    expect(rows[1]).toEqual({
+      'o:property': { 'o:id': 4 },
+      'o:alternate_label': 'What it shows',
+      'o:alternate_comment': 'What the photograph shows.',
+      'o:data_type': ['literal', 'resource:item'],
+      'o:is_required': true,
+      'o:is_private': true,
+      'o:default_lang': 'en',
+    });
+  });
+
+  it('moves a field with the arrow keys on its handle and keeps the handle focused', async () => {
+    const fetchMock = await openPhotograph();
+    const handle = screen.getByRole('button', { name: /^Move Caption, field 2 of 3/ });
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    const moved = await screen.findByRole('button', { name: /^Move Caption, field 1 of 3/ });
+    await waitFor(() => {
+      expect(moved).toHaveFocus();
+    });
+    expect(screen.getByText('Caption is now field 1 of 3.')).toBeInTheDocument();
+    const rows = rowsSent(await save(fetchMock));
+    expect(rows.map((row) => row['o:property'])).toEqual([
+      { 'o:id': 4 },
+      { 'o:id': 1 },
+      { 'o:id': 13 },
+    ]);
+  });
+
+  it('removes a field and changes the term behind another from a plain-words search', async () => {
+    const fetchMock = await openPhotograph();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Relation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change the standard term of Caption' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a standard term' }), {
+      target: { value: 'who wrote it' },
+    });
+    const matches = screen.getByRole('list', { name: 'Matches for “who wrote it”' });
+    fireEvent.click(within(matches).getAllByRole('button')[0] ?? document.body);
+    const rows = rowsSent(await save(fetchMock));
+    expect(rows.map((row) => row['o:property'])).toEqual([{ 'o:id': 1 }, { 'o:id': 2 }]);
+    expect(rows[1]?.['o:alternate_label']).toBe('Caption');
+  });
+
+  it('changes the standard class from a plain-words search', async () => {
+    const fetchMock = await openPhotograph();
+    fireEvent.click(screen.getByRole('button', { name: 'Change the standard class' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a standard class' }), {
+      target: { value: 'letter' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Letter/ }));
+    expect((await save(fetchMock))['o:resource_class']).toEqual({ 'o:id': 60 });
+  });
+
+  it('previews the real item form, laid out by the rows being edited', async () => {
+    await openPhotograph();
+    const preview = screen.getByRole('form', { name: 'Preview of the form for a new Photograph' });
+    const labels = () =>
+      Array.from(preview.querySelectorAll('.property-field-label')).map((node) => node.textContent);
+    expect(labels()).toEqual(['Title', 'Caption', 'Relation']);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name on the form for dcterms:title' }), {
+      target: { value: 'Headline' },
+    });
+    expect(labels()).toEqual(['Headline', 'Caption', 'Relation']);
+    expect(within(preview).getByText('Required')).toBeInTheDocument();
+  });
+
+  it('refuses an empty name before any request and shows the server refusal', async () => {
+    const fetchMock = await openPhotograph({
+      '/api/resource_templates/2': (_url, init) =>
+        init?.method === 'PUT'
+          ? jsonResponse(
+              { errors: { 'o:label': ['The label is already taken.'] } },
+              { status: 422 },
+            )
+          : jsonResponse(loadFixture('resource-template-2.json')),
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item type name' }), {
+      target: { value: ' ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save item type' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the item type a name.');
+    expect(
+      requestsFor(fetchMock, '/api/resource_templates/2').filter((r) => r.init?.method === 'PUT'),
+    ).toHaveLength(0);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item type name' }), {
+      target: { value: 'Photo' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save item type' }));
+    expect(await screen.findByText(/The label is already taken\./)).toBeInTheDocument();
+  });
+
+  it('keeps "Used for" in this browser only and sends nothing for it', async () => {
+    const fetchMock = await openPhotograph();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Media' }));
+    const body = await save(fetchMock);
+    expect(Object.keys(body)).not.toContain('o:data');
+    await waitFor(() => {
+      expect(window.localStorage.getItem('romeka.itemTypeUse')).toBe('{"2":["items","item-sets"]}');
+    });
+  });
+});
+
+describe('a new item type', () => {
+  const created = (_url: URL, init: RequestInit | undefined) =>
+    init?.method === 'POST'
+      ? jsonResponse(loadFixture('resource-template-2.json'))
+      : listResponse([], 0);
+
+  it('starts a letter with its class and starter fields, renaming them in plain words', async () => {
+    const fetchMock = installFetch(routes({ '/api/resource_templates': created }));
+    render(<ItemTypesPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('What kind of thing is this?'), {
+      target: { value: 'Letter' },
+    });
+    expect(
+      screen.getByRole('heading', { name: 'Start a Letter type with these fields' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use these fields' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create item type' }));
+
+    const body = requestBody(
+      await waitFor(() => sent(fetchMock, '/api/resource_templates', 'POST')),
+    );
+    expect(body['o:label']).toBe('Letter');
+    expect(body['o:resource_class']).toEqual({ 'o:id': 60 });
+    expect(
+      rowsSent(body).map((row) => [
+        row['o:property'],
+        row['o:alternate_label'],
+        row['o:is_required'],
+      ]),
+    ).toEqual([
+      [{ 'o:id': 1 }, null, true],
+      [{ 'o:id': 2 }, 'Sender', false],
+      [{ 'o:id': 20 }, 'Recipient', false],
+      [{ 'o:id': 5 }, 'Date written', false],
+      [{ 'o:id': 6 }, 'Place', false],
+      [{ 'o:id': 4 }, null, false],
+    ]);
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/resource-templates/2');
+    });
+  });
+
+  it('starts a kind it does not know as a physical object with a title', async () => {
+    const fetchMock = installFetch(routes({ '/api/resource_templates': created }));
+    render(<ItemTypesPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('What kind of thing is this?'), {
+      target: { value: 'Spoon' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create item type' }));
+    const body = requestBody(
+      await waitFor(() => sent(fetchMock, '/api/resource_templates', 'POST')),
+    );
+    expect(body['o:resource_class']).toEqual({ 'o:id': 61 });
+    expect(rowsSent(body).map((row) => row['o:property'])).toEqual([{ 'o:id': 1 }]);
+  });
+
+  it('adds a field found from how people describe it', async () => {
+    installFetch(routes());
+    render(<ItemTypesPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('What kind of thing is this?'), {
+      target: { value: 'Diary' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start with Title only' }));
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Add a field' }), {
+      target: { value: 'how many pages' },
+    });
+    const matches = screen.getByRole('list', { name: 'Matches for “how many pages”' });
+    expect(
+      within(matches)
+        .getAllByRole('button')
+        .map((b) => b.querySelector('code')?.textContent ?? null),
+    ).toEqual(['bibo:numPages', 'dcterms:extent', null]);
+    fireEvent.click(within(matches).getAllByRole('button')[0] ?? document.body);
+    expect(
+      within(fieldList()).getByRole('textbox', { name: 'Name on the form for bibo:numPages' }),
+    ).toBeInTheDocument();
+  });
+});

@@ -23,6 +23,7 @@ export type AdminPageId =
   | 'properties'
   | 'resource-classes'
   | 'resource-templates'
+  | 'fields'
   | 'users'
   | 'modules'
   | 'jobs'
@@ -60,7 +61,7 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'vocabulary',
     titleKey: 'group.vocabulary',
-    pages: ['vocabularies', 'properties', 'resource-classes', 'resource-templates'],
+    pages: ['vocabularies', 'properties', 'resource-classes', 'resource-templates', 'fields'],
   },
   {
     id: 'admin',
@@ -136,9 +137,16 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     titleKey: 'page.resourceTemplates',
     upstream: 'Admin/ResourceTemplateController.php browseAction showAction',
     element: lazy(() =>
-      import('../pages/resource-templates/page').then((module) => ({
-        default: module.ResourceTemplatesPage,
-      })),
+      import('../pages/item-types/page').then((module) => ({ default: module.ItemTypesPage })),
+    ),
+    // The item type editor lays a live preview beside its fields.
+    wide: (rest) => rest[0] !== undefined,
+  },
+  fields: {
+    titleKey: 'page.fields',
+    upstream: 'Admin/PropertyController.php browseAction',
+    element: lazy(() =>
+      import('../pages/fields/page').then((module) => ({ default: module.FieldsPage })),
     ),
   },
   users: {

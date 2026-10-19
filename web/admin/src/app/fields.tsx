@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { useTranslator } from '../i18n';
+import { useLocale, useTranslator } from '../i18n';
+import { useLocalText } from './local-messages';
+import { DESCRIBE } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
 import type { FormOptions, Option } from './options';
 import { classOptions, selectedOption, templateOptions, userOptions } from './options';
+import { plainName } from './plain-terms';
 import type { SaveState } from './save';
+import { typesFor, type ResourceKind } from './type-use';
 import { templateById, withTemplate } from './value-fields';
 
 export interface OptionSelectProps<IdT extends number> {
@@ -99,45 +103,54 @@ export const CheckboxField = ({
 
 export interface ResourceFieldsProps {
   readonly idPrefix: string;
+  /** Which form this is, so the Type picker offers the types used for it. */
+  readonly kind: ResourceKind;
   readonly draft: ResourceDraft;
   readonly onChange: (draft: ResourceDraft) => void;
   readonly options: FormOptions;
 }
 
 /**
- * Template, class, owner and visibility, the shared columns of a write. Picking
- * a template lays its rows into the values and may set the class.
+ * Type, owner and visibility, then the class under "Advanced". Picking a type
+ * lays its rows into the values and sets its class unless the user chose
+ * another; the fold opens by itself whenever the class differs from the type's.
  */
 export const ResourceFields = ({
   idPrefix,
+  kind,
   draft,
   onChange,
   options,
 }: ResourceFieldsProps): ReactElement => {
   const { t } = useTranslator();
+  const describe = useLocalText(DESCRIBE);
+  const locale = useLocale();
+  const [open, setOpen] = useState(false);
+  const selected = templateById(options.templates, draft.resourceTemplate);
+  const typeClass = selected?.resourceClass?.id ?? null;
+  const differs = selected === null ? draft.resourceClass !== null : draft.resourceClass !== typeClass;
+  const shownClass = options.classes.find((entry) => entry.id === typeClass) ?? null;
   return (
     <fieldset>
       <legend>{t('field.resourceLegend')}</legend>
       <OptionSelect
         id={`${idPrefix}-template`}
-        label={t('field.resourceTemplate')}
-        options={templateOptions(options.templates)}
+        label={describe.t('type.label')}
+        options={templateOptions(typesFor(options.templates, kind, draft.resourceTemplate))}
         value={draft.resourceTemplate}
+        emptyLabel={describe.t('type.none')}
         onChange={(value) => {
           onChange(
-            withTemplate(draft, templateById(options.templates, value), options.properties),
+            withTemplate(draft, templateById(options.templates, value), options.properties, selected),
           );
         }}
       />
-      <OptionSelect
-        id={`${idPrefix}-class`}
-        label={t('field.class')}
-        options={classOptions(options.classes)}
-        value={draft.resourceClass}
-        onChange={(value) => {
-          onChange({ ...draft, resourceClass: value });
-        }}
-      />
+      {shownClass === null ? null : (
+        <p className="type-class-line">
+          {describe.t('type.classLine', { name: plainName(shownClass, locale) })}{' '}
+          <code>{shownClass.term}</code>
+        </p>
+      )}
       <OptionSelect
         id={`${idPrefix}-owner`}
         label={t('field.owner')}
@@ -156,6 +169,25 @@ export const ResourceFields = ({
           onChange({ ...draft, isPublic: checked });
         }}
       />
+      <details
+        className="advanced-fold"
+        open={open || differs}
+        onToggle={(event) => {
+          setOpen(event.currentTarget.open);
+        }}
+      >
+        <summary>{describe.t('advanced.summary')}</summary>
+        {differs ? <p className="field-note">{describe.t('advanced.classDiffers')}</p> : null}
+        <OptionSelect
+          id={`${idPrefix}-class`}
+          label={t('field.class')}
+          options={classOptions(options.classes)}
+          value={draft.resourceClass}
+          onChange={(value) => {
+            onChange({ ...draft, resourceClass: value });
+          }}
+        />
+      </details>
     </fieldset>
   );
 };
