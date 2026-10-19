@@ -65,4 +65,5 @@ export const hi: PublishMessages = {
   'publish.versionsHeading': 'संस्करण',
   'publish.versionLine': 'संस्करण {version}, {date}, {terms} शर्तें',
   'publish.previewHeading': 'टर्टल में पूर्वावलोकन',
+  'publish.replacedBy': '“{term}” द्वारा प्रतिस्थापित',
 };

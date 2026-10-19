@@ -87,6 +87,30 @@ fn version_line(version: VersionMeta) -> String {
     )
 }
 
+/// "1 term", "3 terms": the pages are English only.
+fn terms_count(count: usize) -> String {
+    if count == 1 {
+        "1 term".to_string()
+    } else {
+        format!("{count} terms")
+    }
+}
+
+/// The link to the term that replaces a deprecated one.
+fn replacement(snapshot: &Snapshot, term: &Term, scheme_path: &str) -> String {
+    term.replaced_by
+        .as_deref()
+        .and_then(|local| snapshot.term(local))
+        .map_or_else(String::new, |next| {
+            format!(
+                " Replaced by <a href=\"{}/{}\">{}</a>.",
+                esc(scheme_path),
+                esc(&next.local),
+                esc(&next.label)
+            )
+        })
+}
+
 fn match_cell(term: &Term) -> String {
     let mut parts = Vec::new();
     if let Some(uri) = &term.exact_match {
@@ -117,9 +141,12 @@ pub fn scheme_page(
         .iter()
         .map(|term| {
             let state = if term.deprecated {
-                "<span class=\"deprecated\">Deprecated</span>"
+                format!(
+                    "<span class=\"deprecated\">Deprecated.</span>{}",
+                    replacement(snapshot, term, address.scheme_path)
+                )
             } else {
-                ""
+                String::new()
             };
             format!(
                 "<tr><td><a href=\"{}/{}\">{}</a> {state}</td><td>{}</td><td><code>{}</code></td><td>{}</td></tr>",
@@ -153,13 +180,13 @@ pub fn scheme_page(
     let body = format!(
         "<h1>{}</h1><p class=\"muted\">{}</p>{}{description}\
          <dl><dt>Namespace</dt><dd><code>{}</code></dd></dl>\
-         <table><caption class=\"muted\">{} terms</caption><thead><tr><th scope=\"col\">Label</th><th scope=\"col\">Kind</th><th scope=\"col\">URI</th><th scope=\"col\">Matches</th></tr></thead><tbody>{rows}</tbody></table>\
+         <table><caption class=\"muted\">{}</caption><thead><tr><th scope=\"col\">Label</th><th scope=\"col\">Kind</th><th scope=\"col\">URI</th><th scope=\"col\">Matches</th></tr></thead><tbody>{rows}</tbody></table>\
          <nav aria-label=\"Versions\"><p>Versions:</p><ul>{history}</ul></nav>{}",
         esc(&snapshot.title),
         kind_name(snapshot.kind),
         version_line(version),
         esc(&snapshot.namespace),
-        snapshot.terms.len(),
+        terms_count(snapshot.terms.len()),
         other_formats(address, &format!("{}/", address.scheme_path))
     );
     shell(&snapshot.title, snapshot.lang.as_deref(), &body)
@@ -174,9 +201,12 @@ pub fn term_page(
     address: PageAddress<'_>,
 ) -> String {
     let deprecated = if term.deprecated {
-        "<p class=\"deprecated\">Deprecated. The term stays so links to it keep working, but new descriptions should not use it.</p>"
+        format!(
+            "<p><span class=\"deprecated\">Deprecated.</span> The term stays so links to it keep working, but new descriptions should not use it.{}</p>",
+            replacement(snapshot, term, address.scheme_path)
+        )
     } else {
-        ""
+        String::new()
     };
     let comment = term
         .comment

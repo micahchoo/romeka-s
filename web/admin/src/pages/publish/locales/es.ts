@@ -57,4 +57,5 @@ export const es: PublishMessages = {
   'publish.versionsHeading': 'Versiones',
   'publish.versionLine': 'Versión {version}, {date}, {terms} términos',
   'publish.previewHeading': 'Vista previa en Turtle',
+  'publish.replacedBy': 'Sustituido por “{term}”',
 };

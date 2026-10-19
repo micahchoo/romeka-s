@@ -65,4 +65,5 @@ export const kn: PublishMessages = {
   'publish.versionsHeading': 'ಆವೃತ್ತಿಗಳು',
   'publish.versionLine': 'ಆವೃತ್ತಿ {version}, {date}, {terms} ನಿಯಮಗಳು',
   'publish.previewHeading': 'ಟರ್ಟಲ್‌ನಲ್ಲಿ ಮುನ್ನೋಟ',
+  'publish.replacedBy': '“{term}” ನಿಂದ ಬದಲಾಯಿಸಲಾಗಿದೆ',
 };

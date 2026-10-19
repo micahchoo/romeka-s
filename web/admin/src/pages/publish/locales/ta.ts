@@ -67,4 +67,5 @@ export const ta: PublishMessages = {
   'publish.versionsHeading': 'பதிப்புகள்',
   'publish.versionLine': 'பதிப்பு {version}, {date}, {terms} விதிமுறைகள்',
   'publish.previewHeading': 'டர்டில் முறையில் முன்னோட்டம்',
+  'publish.replacedBy': '“{term}” மூலம் மாற்றப்பட்டது',
 };

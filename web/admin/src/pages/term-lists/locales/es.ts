@@ -56,4 +56,8 @@ export const es: TermListMessages = {
   'merge.different': 'Son distintas',
   'merge.merged': 'Fusionadas en «{value}». Recursos cambiados: {changed}.',
   'merge.remembered': 'Anotado. Estas grafías no se volverán a ofrecer para fusionar.',
+  'merge.deprecates':
+    'Esta lista está publicada, y una palabra publicada nunca sale de ella. {values} quedará como obsoleta, sustituida por “{value}”, para que los enlaces sigan funcionando. Vuelva a publicar la lista para hacerlo público.',
+  'termPicker.deprecated':
+    '“{value}” está obsoleto en esta lista. Se queda en este elemento hasta que elija una entrada vigente.',
 };

@@ -41,6 +41,8 @@ export interface PublicationTerm {
   readonly deprecationPublished: boolean;
   readonly exactMatch: string | null;
   readonly closeMatch: string | null;
+  /** The key of the term a merge moved this one's values to. */
+  readonly replacedBy: string | null;
 }
 
 export interface Publication {
@@ -105,6 +107,7 @@ const parseTerm: Parser<PublicationTerm> = (raw, path = []) => {
     deprecationPublished: flag('deprecation_published'),
     exactMatch: nullableField(object, 'exact_match', path, asString),
     closeMatch: nullableField(object, 'close_match', path, asString),
+    replacedBy: nullableField(object, 'replaced_by', path, asString),
   };
 };
 
@@ -135,6 +138,15 @@ export const getPublication = async (
   api: ApiClient,
   target: PublicationTarget,
 ): Promise<Publication> => parsePublication(await api.requestJson(pathOf(target)));
+
+/** The keys of a term list's deprecated terms, which no new value should use. */
+export const getDeprecatedKeys = async (
+  api: ApiClient,
+  id: TermListId,
+): Promise<ReadonlySet<string>> => {
+  const publication = await getPublication(api, { kind: 'term_list', id });
+  return new Set(publication.terms.filter((term) => term.deprecated).map((term) => term.key));
+};
 
 export const sendPublicationCommand = async (
   api: ApiClient,

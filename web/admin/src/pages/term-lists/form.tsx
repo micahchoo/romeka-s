@@ -279,7 +279,11 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
         itemSets={state.data.itemSets}
         onSaved={setSaved}
       />
-      <PublishPanel key={JSON.stringify(list.source)} target={{ kind: 'term_list', id: list.id }} />
+      {/* A merge can deprecate a word without changing the list's words, so it reloads the panel too. */}
+      <PublishPanel
+        key={`${String(merged.version)}:${JSON.stringify(list.source)}`}
+        target={{ kind: 'term_list', id: list.id }}
+      />
       <p>{tl('termLists.deleteNote')}</p>
       <DeleteControl
         label={tl('termLists.deleteLabel')}

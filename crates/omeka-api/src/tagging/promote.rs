@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 use omeka_core::term_list::{self, php_trim};
 use omeka_db::ids::{ResourceId, TemplateId, ValueId};
 use omeka_db::repos::{CustomVocabRepo, ValueRewriteRepo};
-use omeka_db::rows::{NewCustomVocab, PromoteList, PromoteWrite};
+use omeka_db::rows::{CustomVocabRow, NewCustomVocab, PromoteList, PromoteWrite};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -160,6 +160,11 @@ async fn target(api: &Api<'_>, label: &str, tags: &[String]) -> Result<PromoteLi
     };
     words.extend(tags.iter().cloned());
     let terms = term_list::sanitize_terms(&Value::from(words)).map(Value::from);
+    let proposed = CustomVocabRow {
+        terms: terms.clone(),
+        ..row.clone()
+    };
+    crate::publish::guard::term_list(api, row.id, Some(&proposed)).await?;
     Ok(PromoteList::Terms(row.id, terms.unwrap_or(Value::Null)))
 }
 

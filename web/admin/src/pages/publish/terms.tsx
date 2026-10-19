@@ -33,6 +33,21 @@ const stateKey = (term: PublicationTerm): PublishMessageKey => {
   return term.published ? 'publish.termPublished' : 'publish.termDraft';
 };
 
+/** The term a merge moved a deprecated term's values to. */
+const Replacement = ({
+  term,
+  terms,
+}: {
+  readonly term: PublicationTerm;
+  readonly terms: readonly PublicationTerm[];
+}): ReactElement | null => {
+  const text = usePublishText();
+  const next = terms.find((candidate) => candidate.key === term.replacedBy);
+  return next === undefined ? null : (
+    <span className="field-hint">{text('publish.replacedBy', { term: next.label })}</span>
+  );
+};
+
 const TermLinks = ({
   term,
   send,
@@ -174,7 +189,10 @@ export const TermTable = ({
               <td>
                 <code>{term.uri}</code>
               </td>
-              <td>{text(stateKey(term))}</td>
+              <td>
+                {text(stateKey(term))}
+                <Replacement term={term} terms={publication.terms} />
+              </td>
               <td>
                 <TermChange term={term} send={send} busy={busy} />
                 {linkable ? <TermLinks term={term} send={send} busy={busy} /> : null}

@@ -51,6 +51,9 @@ pub struct TermState {
     /// `skos:closeMatch`: a near concept in an authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub close_match: Option<String>,
+    /// `dcterms:isReplacedBy`: the key of the term a merge moved this one's values to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replaced_by: Option<String>,
 }
 
 fn is_false(value: &bool) -> bool {
@@ -113,6 +116,9 @@ pub struct Term {
     pub exact_match: Option<String>,
     #[serde(default)]
     pub close_match: Option<String>,
+    /// The local name of the term that replaces this one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replaced_by: Option<String>,
 }
 
 impl Snapshot {
@@ -168,7 +174,16 @@ pub fn draft(source: &Source, namespace: &str, states: &TermStates) -> (Snapshot
             deprecated: state.deprecated,
             exact_match: state.exact_match.clone().or_else(|| entry.link.clone()),
             close_match: state.close_match.clone(),
+            replaced_by: None,
         });
+    }
+    for index in 0..terms.len() {
+        let replacement = states
+            .get(&terms[index].key)
+            .and_then(|state| state.replaced_by.as_deref())
+            .and_then(|key| terms.iter().find(|term| term.key == key))
+            .map(|term| term.local.clone());
+        terms[index].replaced_by = replacement;
     }
     let snapshot = Snapshot {
         kind: source.kind,
@@ -218,6 +233,38 @@ pub fn check(published: &Snapshot, next: &Snapshot) -> Result<(), Refusal> {
     } else {
         Err(Refusal::Removed(removed))
     }
+}
+
+/// What merging the spellings `from` into `to` does to a published term list's state. Each
+/// spelling a version carries stays in the list, deprecated and replaced by `to`, and a term an
+/// earlier merge replaced by one of them is replaced by `to` instead. Answers the spellings kept
+/// this way, in `from` order; the others may leave the list.
+pub fn retire(
+    published: &Snapshot,
+    states: &mut TermStates,
+    from: &[String],
+    to: &str,
+) -> Vec<String> {
+    let retired: Vec<String> = from
+        .iter()
+        .filter(|key| *key != to && published.terms.iter().any(|term| &term.key == *key))
+        .cloned()
+        .collect();
+    for (key, state) in states.iter_mut() {
+        if state
+            .replaced_by
+            .as_ref()
+            .is_some_and(|replacement| from.contains(replacement))
+        {
+            state.replaced_by = (key != to).then(|| to.to_string());
+        }
+    }
+    for key in &retired {
+        let state = states.entry(key.clone()).or_default();
+        state.deprecated = true;
+        state.replaced_by = Some(to.to_string());
+    }
+    retired
 }
 
 /// The path segment a scheme is served under, `/vocab/<slug>/`: lowercase ASCII letters and
@@ -478,6 +525,25 @@ mod tests {
             check(&published, &withdrawn),
             Err(Refusal::Undeprecated("Cork".to_string()))
         );
+    }
+
+    #[test]
+    fn a_retired_spelling_stays_deprecated_and_names_its_replacement() {
+        let (published, mut states) =
+            draft(&places(&["Cork", "Cork City"]), NS, &TermStates::new());
+        let from = ["Cork City".to_string(), "Co. Cork".to_string()];
+
+        let retired = retire(&published, &mut states, &from, "Cork");
+
+        assert_eq!(retired, ["Cork City"]);
+        let (next, _) = draft(&places(&["Cork", "Cork City"]), NS, &states);
+        let replaced: Vec<(bool, Option<&str>)> = next
+            .terms
+            .iter()
+            .map(|term| (term.deprecated, term.replaced_by.as_deref()))
+            .collect();
+        assert_eq!(replaced, [(false, None), (true, Some("1"))]);
+        assert_eq!(check(&published, &next), Ok(()));
     }
 
     #[test]

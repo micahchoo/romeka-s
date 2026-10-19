@@ -99,6 +99,14 @@ export const MergePrompt = ({
       {step.kind === 'confirm' ? (
         <>
           <RewriteCounts rewrite={step.preview} />
+          {step.preview.deprecated.length === 0 ? null : (
+            <p className="merge-deprecates">
+              {tl('merge.deprecates', {
+                values: step.preview.deprecated.map((value) => `“${value}”`).join(', '),
+                value: kept,
+              })}
+            </p>
+          )}
           <p className="merge-actions">
             <button type="button" className="button-primary" onClick={merge}>
               {tl('merge.confirm')}

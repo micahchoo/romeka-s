@@ -89,6 +89,9 @@ pub struct MergeWrite {
     pub delete: Vec<ValueId>,
     /// A list whose `terms` column becomes this JSON list.
     pub list_terms: Option<(CustomVocabId, Value)>,
+    /// A published list whose `romeka_publication.terms` becomes this JSON, so the words the merge
+    /// keeps as deprecated are marked in the same transaction.
+    pub list_states: Option<(CustomVocabId, Value)>,
     /// The resources whose `modified` moves and whose title is read again.
     pub resources: Vec<ResourceId>,
     /// The title property of a resource whose template names none (`dcterms:title`).

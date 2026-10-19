@@ -65,4 +65,5 @@ export const mr: PublishMessages = {
   'publish.versionsHeading': 'आवृत्त्या',
   'publish.versionLine': 'आवृत्ती {version}, {date}, {terms} अटी',
   'publish.previewHeading': 'टर्टलमध्ये पूर्वदृश्य',
+  'publish.replacedBy': '“{term}” द्वारे बदलले',
 };

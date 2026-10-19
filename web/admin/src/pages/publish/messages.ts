@@ -64,6 +64,7 @@ export const en = {
   'publish.versionsHeading': 'Versions',
   'publish.versionLine': 'Version {version}, {date}, {terms} terms',
   'publish.previewHeading': 'Preview in Turtle',
+  'publish.replacedBy': 'Replaced by “{term}”',
 } as const;
 
 /** A Publish panel message id. */

@@ -65,4 +65,5 @@ export const ne: PublishMessages = {
   'publish.versionsHeading': 'संस्करणहरू',
   'publish.versionLine': 'संस्करण {version}, {date}, {terms} शब्दहरू',
   'publish.previewHeading': 'टर्टलमा पूर्वावलोकन',
+  'publish.replacedBy': '“{term}” द्वारा प्रतिस्थापित',
 };

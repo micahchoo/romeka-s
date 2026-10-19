@@ -2,8 +2,9 @@
  * Publishing end to end: a term list is published from its page, its scheme
  * and each term answer at `/vocab/<slug>/` in Turtle and as a page, a save
  * that drops a published word is refused with the plain message, a deprecated
- * word reaches the next version, and the local vocabulary "Create a new field"
- * makes publishes at its own namespace.
+ * word reaches the next version, a merge on a published list keeps the merged
+ * word as a deprecated term the item editor no longer offers, and the local
+ * vocabulary "Create a new field" makes publishes at its own namespace.
  */
 import { expect, expectClean, test } from '../fixtures';
 import { isArray, numberField, record, stringField } from '../harness/json';
@@ -76,6 +77,7 @@ test('a term list publishes, serves its terms and keeps them', async ({ page, di
   await reloaded.getByRole('button', { name: 'Publish version 2' }).click();
   await expect(reloaded.getByText('Published version 2.')).toBeVisible();
   await expect(reloaded.getByRole('cell', { name: 'Deprecated', exact: true })).toBeVisible();
+  await expect(reloaded.getByRole('button', { name: /^Publish/ })).toHaveCount(0);
   await expectClean(diagnostics, 'deprecate and republish');
 
   const galway = await (
@@ -86,6 +88,63 @@ test('a term list publishes, serves its terms and keeps them', async ({ page, di
     await page.request.get(`/vocab/${SLUG}/3?version=1`, { headers: { accept: 'text/turtle' } })
   ).text();
   expect(first).not.toContain('owl:deprecated');
+});
+
+test('a merge on a published list keeps the merged word, deprecated and replaced', async ({
+  page,
+  diagnostics,
+}) => {
+  const created = await page.request.post('/api/custom_vocabs', {
+    data: { 'o:label': 'E2E merged towns', 'o:lang': 'en', 'o:terms': 'Cork\nCo. Cork\nBantry' },
+  });
+  const listId = numberField(record(await created.json(), 'term list'), 'o:id', 'term list');
+  const published = await page.request.post(`/api/custom_vocabs/${String(listId)}/publication`, {
+    data: { action: 'publish', slug: 'e2e-towns' },
+  });
+  expect(published.status(), await published.text()).toBe(200);
+  const spatial: unknown = await (await page.request.get('/api/properties?term=dcterms:spatial')).json();
+  const spatialId = numberField(record(isArray(spatial) ? spatial[0] : null, 'spatial'), 'o:id', 'spatial');
+  const item = await page.request.post('/api/items', {
+    data: {
+      'dcterms:title': [{ type: 'literal', property_id: 'auto', '@value': 'E2E town map' }],
+      'dcterms:spatial': [
+        { type: `customvocab:${String(listId)}`, property_id: spatialId, '@value': 'Co. Cork' },
+      ],
+    },
+  });
+  const itemId = numberField(record(await item.json(), 'item'), 'o:id', 'item');
+
+  await page.goto(`/#/term-lists/${String(listId)}`);
+  const prompt = page.getByRole('region', { name: 'Similar spellings' });
+  await prompt.getByRole('radio', { name: /Keep “Cork”/ }).check();
+  await prompt.getByRole('button', { name: 'Merge into “Cork”' }).click();
+  await expect(prompt).toContainText('“Co. Cork” will stay as deprecated, replaced by “Cork”');
+  await prompt.getByRole('button', { name: 'Merge', exact: true }).click();
+  await expect(page.getByText('Merged into “Cork”. Resources changed: 1.')).toBeVisible();
+  await expect(prompt).toHaveCount(0);
+  const panel = page.getByRole('region', { name: 'Publish' });
+  const row = panel.getByRole('row').filter({ hasText: 'Co. Cork' });
+  await expect(row).toContainText('Deprecated from the next version');
+  await expect(row).toContainText('Replaced by “Cork”');
+  await panel.getByRole('button', { name: 'Publish version 2' }).click();
+  await expect(panel.getByText('Published version 2.')).toBeVisible();
+  await expectClean(diagnostics, 'merge on a published list');
+
+  const term = await (
+    await page.request.get('/vocab/e2e-towns/2', { headers: { accept: 'text/turtle' } })
+  ).text();
+  const origin = new URL(page.url()).origin;
+  expect(term).toContain('owl:deprecated true');
+  expect(term).toContain(`dcterms:isReplacedBy <${origin}/vocab/e2e-towns/1>`);
+
+  // The item editor no longer offers the deprecated word.
+  await page.goto(`/#/items/${String(itemId)}`);
+  await page.getByRole('button', { name: 'Edit this item' }).click();
+  const picker = page.getByRole('combobox', { name: /Term list: E2E merged towns/ });
+  await expect(picker).toHaveValue('Cork');
+  await picker.fill('co');
+  await expect(page.locator('.term-picker').getByRole('option')).toHaveText(['Cork']);
+  await expectClean(diagnostics, 'picker after merge');
 });
 
 test('the local vocabulary publishes at its own namespace', async ({ page, diagnostics }) => {

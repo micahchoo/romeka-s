@@ -38,6 +38,11 @@ export interface Rewrite {
   readonly changed: number;
   /** Resources carrying a named spelling that the caller may not edit; they keep it. */
   readonly skipped: number;
+  /**
+   * On a published list, the merged words that stay in it as deprecated terms,
+   * because a published version carries them.
+   */
+  readonly deprecated: readonly string[];
 }
 
 export interface Named {
@@ -80,7 +85,13 @@ export const parseCensus: Parser<Census> = (raw, path = []) => {
 
 export const parseRewrite: Parser<Rewrite> = (raw, path = []) => {
   const object = asRecord(raw, path);
-  return { changed: count(object, 'changed', path), skipped: count(object, 'skipped', path) };
+  const deprecated = object['deprecated'];
+  return {
+    changed: count(object, 'changed', path),
+    skipped: count(object, 'skipped', path),
+    deprecated:
+      deprecated === undefined ? [] : parseListOf(asString)(deprecated, [...path, 'deprecated']),
+  };
 };
 
 const parseNamed: Parser<Named> = (raw, path = []) => {

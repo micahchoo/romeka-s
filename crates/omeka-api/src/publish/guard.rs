@@ -4,7 +4,7 @@
 //! that into the next snapshot and run the same [`check`] a publish runs, so the API refuses with
 //! a 422 what a publish would refuse. A draft (no version yet) changes freely.
 
-use omeka_core::publication::{SchemeKind, Source, SourceTerm, TermKind, check, draft};
+use omeka_core::publication::{SchemeKind, Source, SourceTerm, TermKind, check, draft, retire};
 use omeka_db::ids::{CustomVocabId, VocabularyId};
 use omeka_db::rows::{CustomVocabRow, PublicationTarget};
 
@@ -55,6 +55,35 @@ pub(crate) async fn term_list(
         &record.states,
     );
     check(&latest.snapshot, &next).map_err(refusal)
+}
+
+/// What a merge of `from` into `to` keeps of a published term list.
+#[derive(Debug, Default)]
+pub(crate) struct Retired {
+    /// The spellings that stay in the list, deprecated and replaced by `to`.
+    pub keys: Vec<String>,
+    /// The term state to store with the merge; `None` when it does not change.
+    pub states: Option<serde_json::Value>,
+}
+
+/// The spellings a merge must keep because a version of the list carries them
+/// (`omeka_core::publication::retire`). A draft list keeps none.
+pub(crate) async fn retire_merged(
+    api: &Api<'_>,
+    id: CustomVocabId,
+    from: &[String],
+    to: &str,
+) -> Result<Retired, ApiError> {
+    let mut record = record(api.pool(), PublicationTarget::TermList(id)).await?;
+    let Some(latest) = &record.latest else {
+        return Ok(Retired::default());
+    };
+    let before = record.states.clone();
+    let keys = retire(&latest.snapshot, &mut record.states, from, to);
+    let states = (record.states != before)
+        .then(|| serde_json::to_value(&record.states).map_err(ApiError::internal))
+        .transpose()?;
+    Ok(Retired { keys, states })
 }
 
 /// Refuse a vocabulary or member write that would break a published promise.

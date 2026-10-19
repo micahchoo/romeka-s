@@ -80,6 +80,8 @@ pub struct TermView {
     pub deprecation_published: bool,
     pub exact_match: Option<String>,
     pub close_match: Option<String>,
+    /// The key of the term a merge moved this one's values to.
+    pub replaced_by: Option<String>,
 }
 
 /// One `POST` body.
@@ -366,7 +368,11 @@ async fn set_deprecated(
     if published.deprecated && !deprecated {
         return Err(refused("key", messages::publication_deprecation_fixed(key)));
     }
-    record.states.entry(key.to_string()).or_default().deprecated = deprecated;
+    let state = record.states.entry(key.to_string()).or_default();
+    state.deprecated = deprecated;
+    if !deprecated {
+        state.replaced_by = None;
+    }
     save(api, upstream, &record.states).await
 }
 
@@ -520,6 +526,10 @@ fn term_views(next: &Snapshot, latest: Option<&Snapshot>) -> Vec<TermView> {
                 deprecation_published: published.is_some_and(|published| published.deprecated),
                 exact_match: term.exact_match.clone(),
                 close_match: term.close_match.clone(),
+                replaced_by: term
+                    .replaced_by
+                    .as_ref()
+                    .and_then(|local| next.term(local).map(|replacement| replacement.key.clone())),
             }
         })
         .collect()

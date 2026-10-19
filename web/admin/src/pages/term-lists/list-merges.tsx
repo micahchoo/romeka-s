@@ -1,11 +1,13 @@
 /**
  * The merge prompts on a list of words: its entries and the values stored
  * with it, grouped by the near-duplicate rule. An entry no value uses yet
- * still counts, so "Co. Cork" in the list is offered beside "Cork".
+ * still counts, so "Co. Cork" in the list is offered beside "Cork". A
+ * deprecated entry no value uses is done with, so it is not offered again.
  */
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { getDeprecatedKeys } from '../../api/publication';
 import { getCensus } from '../../api/tags';
 import type { ValueCount } from '../../api/tags';
 import type { TermList } from '../../api/types';
@@ -24,16 +26,19 @@ export const ListMerges = ({
 }): ReactElement | null => {
   const scope = { kind: 'list', id: list.id } as const;
   const [version, setVersion] = useState(0);
-  const state = useAsync(() => getCensus(api, scope), [list.id, version]);
+  const state = useAsync(
+    () => Promise.all([getCensus(api, scope), getDeprecatedKeys(api, list.id)]),
+    [list.id, version],
+  );
   if (list.source.kind !== 'terms' || state.status !== 'ready') {
     return null;
   }
-  const used = state.data.values;
-  const unused: readonly ValueCount[] =
-    list.source.terms
-      .filter((term) => !used.some((count) => count.value === term))
-      .map((term) => ({ value: term, resources: 0, editable: 0 }));
-  const groups = similarGroups([...used, ...unused], state.data.distinct);
+  const [census, deprecated] = state.data;
+  const used = census.values;
+  const unused: readonly ValueCount[] = list.source.terms
+    .filter((term) => !deprecated.has(term) && !used.some((count) => count.value === term))
+    .map((term) => ({ value: term, resources: 0, editable: 0 }));
+  const groups = similarGroups([...used, ...unused], census.distinct);
   return (
     <>
       {groups.map((group) => (

@@ -46,5 +46,6 @@
  "publish.published": "Published version {version}.",
  "publish.versionsHeading": "Versions",
  "publish.versionLine": "Version {version}, {date}, {terms} terms",
- "publish.previewHeading": "Preview in Turtle"
+ "publish.previewHeading": "Preview in Turtle",
+ "publish.replacedBy": "Replaced by “{term}”"
 }

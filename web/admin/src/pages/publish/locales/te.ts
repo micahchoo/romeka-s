@@ -64,4 +64,5 @@ export const te: PublishMessages = {
   'publish.versionsHeading': 'సంస్కరణలు',
   'publish.versionLine': 'వెర్షన్ {version}, {date}, {terms} నిబంధనలు',
   'publish.previewHeading': 'Turtle లో ప్రివ్యూ',
+  'publish.replacedBy': '“{term}” తో మార్చబడింది',
 };

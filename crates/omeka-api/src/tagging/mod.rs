@@ -33,6 +33,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::errors::ApiError;
+use crate::publish;
 use crate::read::response::serialize;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::routes::Operation;
@@ -91,13 +92,17 @@ pub struct Census {
 }
 
 /// What a write did, or would do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Rewrite {
     /// The resources whose values change.
     pub changed: usize,
     /// The resources carrying a spelling the write names that the caller may not edit; they keep
     /// their values.
     pub skipped: usize,
+    /// On a published list, the merged spellings that stay in it deprecated, because a version
+    /// carries them (Romeka's own member).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub deprecated: Vec<String>,
 }
 
 /// A value the caller may see, and whether they may edit its resource.
@@ -236,7 +241,9 @@ struct MergeBody {
 
 /// `POST /api/tags/merge` and `POST /api/custom_vocabs/{id}/merge`: every value spelled one of
 /// `from` becomes `to`. On a list of words the list's own entries follow, so the list offers the
-/// kept spelling and not the merged ones; that needs the right to edit the list.
+/// kept spelling and not the merged ones; that needs the right to edit the list. On a published
+/// list a spelling a version carries stays, deprecated and replaced by `to`, so its URI keeps
+/// resolving (`publish::guard::retire_merged`).
 pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
     let list = match scope {
         Scope::List(id) => {
@@ -263,16 +270,24 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
         .map(|seen| seen.row)
         .collect();
     let plan = plan::plan_merge(&editable, &body.from, &to);
-    let list_terms = list.as_ref().and_then(|row| {
-        let words = words_of(row)?;
-        let merged = plan::merged_terms(&words, &body.from, &to);
-        (merged != words).then(|| (row.id, Value::from(merged)))
-    });
+    let retired = match &list {
+        Some(row) => publish::guard::retire_merged(api, row.id, &body.from, &to).await?,
+        None => publish::guard::Retired::default(),
+    };
+    let list_terms = match &list {
+        Some(row) => list_words(api, row, &body.from, &retired.keys, &to).await?,
+        None => None,
+    };
+    let list_states = list
+        .as_ref()
+        .zip(retired.states)
+        .map(|(row, states)| (row.id, states));
     let answer = Rewrite {
         changed: plan.changed.len(),
         skipped: skipped.len(),
+        deprecated: retired.keys,
     };
-    if body.dry_run || (plan.changed.is_empty() && list_terms.is_none()) {
+    if body.dry_run || (plan.changed.is_empty() && list_terms.is_none() && list_states.is_none()) {
         return Ok(ApiResponse::document(serialize(&answer)?));
     }
     let resources: Vec<ResourceId> = plan.changed.iter().copied().collect();
@@ -283,6 +298,7 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
             of_type: scope.of_type(),
             delete: plan.delete,
             list_terms,
+            list_states,
             resources: resources.clone(),
             default_title_property: api.catalog().property_id("dcterms:title"),
         })
@@ -290,6 +306,31 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
         .map_err(db_error)?;
     reindex(api, &rows, &resources).await?;
     Ok(ApiResponse::document(serialize(&answer)?))
+}
+
+/// The list's words after the merge when they change, refused like any other write that would
+/// drop a published term (`publish::guard::term_list`).
+async fn list_words(
+    api: &Api<'_>,
+    row: &CustomVocabRow,
+    from: &[String],
+    retained: &[String],
+    to: &str,
+) -> Result<Option<(CustomVocabId, Value)>, ApiError> {
+    let Some(words) = words_of(row) else {
+        return Ok(None);
+    };
+    let merged = plan::merged_terms(&words, from, retained, to);
+    if merged == words {
+        return Ok(None);
+    }
+    let terms = Value::from(merged);
+    let proposed = CustomVocabRow {
+        terms: Some(terms.clone()),
+        ..row.clone()
+    };
+    publish::guard::term_list(api, row.id, Some(&proposed)).await?;
+    Ok(Some((row.id, terms)))
 }
 
 /// The words of a list that holds words, in list order; `None` for a list of links or items.

@@ -21,6 +21,7 @@ const term = (key: string, uri: string, overrides: Record<string, unknown> = {})
   deprecation_published: false,
   exact_match: null,
   close_match: null,
+  replaced_by: null,
   ...overrides,
 });
 
@@ -143,7 +144,7 @@ describe('publish panel', () => {
     renderPanel();
 
     expect(await screen.findByText('Nothing changed since version 1.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Publish version 2' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByRole('button', { name: /^Publish/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Deprecate Cork' }));
 
     expect(await screen.findByText('Deprecated from the next version')).toBeTruthy();
@@ -151,6 +152,28 @@ describe('publish panel', () => {
     expect(posts.map(requestBody)).toEqual([{ action: 'deprecate', key: 'Cork' }]);
     expect(screen.getByRole('button', { name: 'Keep Cork in use' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Publish version 2' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('names_the_term_that_replaces_a_merged_one', async () => {
+    stub(
+      published({
+        changed: true,
+        terms: [
+          term('Cork', 'http://localhost/vocab/places/1', { published: true }),
+          term('Cork City', 'http://localhost/vocab/places/2', {
+            published: true,
+            deprecated: true,
+            replaced_by: 'Cork',
+          }),
+        ],
+      }),
+      () => published(),
+    );
+    renderPanel();
+
+    const row = (await screen.findByRole('cell', { name: 'Cork City' })).closest('tr');
+    expect(row?.textContent).toContain('Deprecated from the next version');
+    expect(row?.textContent).toContain('Replaced by “Cork”');
   });
 
   it('checks_a_link_before_it_sends_it', async () => {

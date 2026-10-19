@@ -191,6 +191,12 @@ fn term_triples(snapshot: &Snapshot, scheme: &NamedNode, term: &Term) -> Vec<Tri
             Literal::new_typed_literal("true", xsd::BOOLEAN).into(),
         );
     }
+    if let Some(local) = &term.replaced_by {
+        add(
+            iri(&format!("{DCTERMS}isReplacedBy")),
+            term_of(&snapshot.namespace, local).into(),
+        );
+    }
     triples
 }
 

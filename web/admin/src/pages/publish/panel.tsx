@@ -147,13 +147,15 @@ const PublishForm = ({
         <p>{text('publish.pending', { version: latest.version })}</p>
       ) : null}
       {error === null ? null : <p role="alert">{error}</p>}
-      <p className="form-actions">
-        <button type="submit" disabled={busy || !publication.changed}>
-          {latest === undefined
-            ? text('publish.publish')
-            : text('publish.publishVersion', { version: latest.version + 1 })}
-        </button>
-      </p>
+      {publication.changed ? (
+        <p className="form-actions">
+          <button type="submit" disabled={busy}>
+            {latest === undefined
+              ? text('publish.publish')
+              : text('publish.publishVersion', { version: latest.version + 1 })}
+          </button>
+        </p>
+      ) : null}
     </form>
   );
 };

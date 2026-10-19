@@ -65,4 +65,5 @@ export const ml: PublishMessages = {
   'publish.versionsHeading': 'പതിപ്പുകൾ',
   'publish.versionLine': 'പതിപ്പ് {version}, {date}, {terms} നിബന്ധനകൾ',
   'publish.previewHeading': 'Turtle-ൽ പ്രിവ്യൂ',
+  'publish.replacedBy': '“{term}” പകരമായി വന്നു',
 };
