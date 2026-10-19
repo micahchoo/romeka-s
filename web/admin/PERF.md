@@ -372,7 +372,33 @@ only the active locale's catalogue would remove roughly half of the shared chunk
 first paint. That change is in `src/i18n/`, outside this unit, and is the next step before another
 wave adds strings.
 
-## Decision 10: only the active locale's catalogue loads (accepted, supersedes Decision 9's budget)
+## Decision 10: the Theme page loads as three chunks and keeps its messages (accepted)
+
+The Theme page redesign (presets, brand derivation, fine-tune, custom CSS) adds a palette module that
+repeats the theme's OKLab arithmetic, a generated registry of five presets, and about 150 messages in
+two languages. Measured with `npm run perf:bundle` after `npm run build`, gzip bytes:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 100661 | 99806 | the old theme messages left the main catalogues |
+| `theme` (the page) | 6318 | 6341 | the page and its controls |
+| `theme-model` | none | 5504 | `themeEditor/{colour,palette,registry,draft}.ts` and `generated/themeSettings.json` |
+| `theme-messages` | none | 4340 | `themeEditor/messages.ts`, English and Spanish |
+| `CustomCssTab` | none | 2030 | the CSS editor and the theme CSS viewer, on the tab's first open |
+| theme css | none | 1680 | `themeEditor/theme.css`, out of the initial `styles.css` |
+
+**Messages.** In the main catalogues the new messages took the initial payload to 104014 B, 1614 B over
+the 102400 B budget, because `src/i18n/catalogues.ts` loads both languages on the first paint. They
+live in `themeEditor/messages.ts` instead, typed the way the main catalogue is (`es` against `en`), and
+load with the page.
+
+**Chunks.** One route chunk measured 15542 B, over the 10240 B ceiling. `vite.config.ts` names two
+groups (`build.rolldownOptions.output.codeSplitting`), the messages and the model, with
+`includeDependenciesRecursively: false` so React stays in the entry. The three chunks load in parallel
+when the route opens. A first Theme visit now fetches about 17.9 KB gzip where it fetched 6.3 KB; the
+first paint and every other route are unchanged.
+
+## Decision 11: only the active locale's catalogue loads (accepted, supersedes Decision 9's budget)
 
 **Premise.** Decision 9 named the limiter: the Spanish catalogue shipped to every English visitor and
 the reverse, in one shared chunk on the first paint.

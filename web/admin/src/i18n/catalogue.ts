@@ -150,13 +150,11 @@ export const en = {
   'field.addValue': 'Add value',
   'field.property': 'Property',
   'field.type': 'Type',
-  'field.value': 'Value',
   'field.uri': 'URI',
   'field.resourceId': 'Resource ID',
   'field.label': 'Label',
   'field.language': 'Language',
   'field.removeValue': 'Remove {term} value',
-  'field.currentSuffix': ' (current)',
   'field.kindText': 'Text',
   'field.kindUri': 'URI',
   'field.kindResource': 'Resource',
@@ -314,8 +312,6 @@ export const en = {
     'A job is written by its dispatcher, so an update changes no member. The request finds the row and reads it back.',
 
   // Draft validation (`src/app/draft.ts`).
-  'draft.needsValue': '{term} needs a value.',
-  'draft.needsUri': '{term} needs a URI.',
   'draft.needsResourceId': '{term} needs a positive resource id.',
 
   // Users.
@@ -494,40 +490,6 @@ export const en = {
   'siteSettingChoice.property_label_information.none': 'None',
   'siteSettingChoice.property_label_information.vocab': 'Vocabulary name',
   'siteSettingChoice.property_label_information.term': 'Technical term, such as dcterms:title',
-
-  // Theme tokens (`SiteAdmin/IndexController::themeAction`), generated into
-  // `generated/themeSettings.json` by `crates/omeka-site/src/theme/tokens.rs`.
-  'theme.palette': 'Palette',
-  'theme.typography': 'Typography',
-  'theme.layout': 'Layout',
-  'theme.headerFooter': 'Header and footer',
-  'themeSetting.colorScheme': 'Colour scheme',
-  'themeSetting.brandColor': 'Brand colour',
-  'themeSetting.accentColor': 'Accent colour',
-  'themeSetting.backgroundColor': 'Page background',
-  'themeSetting.surfaceColor': 'Surface',
-  'themeSetting.textColor': 'Text',
-  'themeSetting.mutedColor': 'Muted text',
-  'themeSetting.linkColor': 'Link',
-  'themeSetting.headingFont': 'Heading font',
-  'themeSetting.bodyFont': 'Body font',
-  'themeSetting.baseFontSize': 'Base font size (px)',
-  'themeSetting.typeRatio': 'Type scale ratio',
-  'themeSetting.density': 'Density',
-  'themeSetting.cornerRadius': 'Corner radius (px)',
-  'themeSetting.headerLayout': 'Header layout',
-  'themeSetting.logo': 'Logo',
-  'themeSetting.banner': 'Banner image',
-  'themeSetting.bannerText': 'Banner text',
-  'themeSetting.footerText': 'Footer text',
-  'theme.contrast': 'Contrast',
-  'theme.contrastTextBackground': 'Text on background',
-  'theme.contrastLinkBackground': 'Link on background',
-  'theme.contrastTextBrand': 'Text on brand',
-  'theme.contrastPass': 'Passes AA',
-  'theme.contrastFail': 'Below AA 4.5:1',
-  'theme.contrastBlocked': 'Fix the contrast before saving.',
-  'theme.hexHint': 'Use a hex colour, e.g. #1a5d8f.',
 
   // The resource page block editor. The resource and layout labels come from
   // `generated/resourcePageBlocks.json`, written by
@@ -987,6 +949,24 @@ export const en = {
   'editor.outlineToggle': 'Show the outline',
   'preview.insertHere': 'Insert a block here',
   'preview.insertIntoGroup': 'Add a block to this group',
+  // The value editor a resource template lays out (vocab/template-editor).
+  // `valueField.requiredError` is upstream's resource-form.js submit message.
+  'valueField.requiredError': 'The following field is required: {field}',
+  'valueField.required': 'Required',
+  'valueField.private': 'Private',
+  'valueField.privateHint': 'The template makes new values of this field private.',
+  'valueField.dataType': '{field} data type',
+  'valueField.uri': '{field} URI',
+  'valueField.uriLabel': '{field} URI label',
+  'valueField.resourceId': '{field} resource ID',
+  'valueField.language': '{field} language',
+  'valueField.public': '{field} value public',
+  'valueField.addValue': 'Add value to {field}',
+  'valueField.addField': 'Add another field',
+  'valueField.addFieldHint': 'Search by label or term',
+  'valueField.noMatch': 'No property matches "{query}".',
+  'valueField.matches': 'Matching properties',
+  'valueField.moreMatches': '{count} more match. Type more to narrow the list.',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

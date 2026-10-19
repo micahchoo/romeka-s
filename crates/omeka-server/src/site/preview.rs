@@ -85,6 +85,18 @@ pub(crate) async fn run(
         Ok(preview) => preview,
         Err(error) => return crate::error_response(error),
     };
+    // Draft custom CSS the sanitiser refuses is answered the way the site
+    // write answers it, so the editor can mark the lines while the curator
+    // types; the frame would drop it anyway.
+    if let Some(messages) = preview
+        .theme_settings
+        .as_ref()
+        .and_then(omeka_api::theme_settings::custom_css_errors)
+    {
+        let mut errors = omeka_api::errors::ValidationErrors::new();
+        errors.insert("o:theme_settings".to_string(), messages);
+        return crate::error_response(omeka_api::errors::ApiError::Validation(errors));
+    }
     let actor = api.actor().clone();
     let Some(page) = build_page(&preview) else {
         return crate::empty_internal_error();

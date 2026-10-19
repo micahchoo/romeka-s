@@ -28,6 +28,7 @@ const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
+  '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
   '/api/item_sets/1': () => jsonResponse(itemSetFixture(0)),
 };
 
@@ -90,7 +91,7 @@ describe('item set edit form', () => {
     render(<ItemSetForm itemSetId={itemSetId()} />);
 
     expect(await screen.findByLabelText('Title')).toHaveValue('Featured photographs');
-    expect(screen.getByLabelText('Public')).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Public' })).toBeChecked();
     expect(screen.getByLabelText('Open item set')).toBeChecked();
   });
 

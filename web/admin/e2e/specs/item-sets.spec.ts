@@ -16,15 +16,15 @@ test('an item set is created, renamed and deleted from the admin', async ({
   await page.getByRole('link', { name: 'Add item set' }).click();
 
   await expect(page).toHaveURL(/#\/item-sets\/new$/);
-  await page.locator('#item-set-title').fill(NAME);
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(NAME);
   await page.getByRole('button', { name: 'Add item set' }).click();
 
   // Created: the form moves to the new row and reads it back from the API.
   await expect(page).toHaveURL(/#\/item-sets\/\d+$/);
-  await expect(page.locator('#item-set-title')).toHaveValue(NAME);
+  await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(NAME);
   await expectClean(diagnostics, 'item set create');
 
-  await page.locator('#item-set-title').fill(RENAMED);
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(RENAMED);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('[role=status]')).toHaveText('Saved.');
   await expectClean(diagnostics, 'item set rename');
@@ -54,7 +54,7 @@ test('the delete control holds the request back until it is confirmed', async ({
   const before = await page.locator('table tbody tr').count();
 
   await page.getByRole('link', { name: 'Add item set' }).click();
-  await page.locator('#item-set-title').fill(`${NAME} never deleted`);
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(`${NAME} never deleted`);
   await page.getByRole('button', { name: 'Add item set' }).click();
   await expect(page).toHaveURL(/#\/item-sets\/\d+$/);
 

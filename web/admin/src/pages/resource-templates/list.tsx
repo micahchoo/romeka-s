@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, ResourceTemplate } from '../../api/types';
+import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
@@ -16,11 +17,11 @@ interface TemplateRow {
 const load = async (page: number): Promise<ApiPage<TemplateRow>> => {
   const [templates, users, classes] = await Promise.all([
     api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'id', sortOrder: 'asc' }),
-    api.listUsers({ perPage: 100 }),
-    api.listResourceClasses({ perPage: 100 }),
+    allPages((next) => api.listUsers({ page: next, perPage: ALL_PAGES_PER_PAGE })),
+    allPages((next) => api.listResourceClasses({ page: next, perPage: ALL_PAGES_PER_PAGE })),
   ]);
-  const names = userNames(users.items);
-  const classNames = classLabels(classes.items);
+  const names = userNames(users);
+  const classNames = classLabels(classes);
   return mapPage(templates, (template) => ({
     template,
     classLabel: classLabelOf(classNames, template.resourceClass),

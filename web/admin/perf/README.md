@@ -84,7 +84,7 @@ the 2026-10-17 split build, the timing column the 2026-10-17 run.
 | initial js gzip | 102400 B | 85354 B |
 | initial css gzip | 6144 B | 2258 B |
 | each lazy chunk | 10240 B | largest 6909 B |
-| each catalogue chunk | 13312 B | Spanish 12003 B (`PERF.md` Decision 10) |
+| each catalogue chunk | 13312 B | Spanish 12003 B (`PERF.md` Decision 11) |
 | first contentful paint | 250 ms | 52-60 ms |
 | list render | 400 ms | 123-128 ms |
 | detail render | 400 ms | 123-128 ms |

@@ -1,0 +1,467 @@
+/* The site Theme page. The controls keep a readable width on the left; the
+   live preview scales its frame into whatever is left. */
+
+.theme-editor {
+  display: grid;
+  grid-template-columns: 30rem minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .theme-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The preview stays in view while the controls scroll. */
+.theme-editor > .editor-preview {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.theme-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+}
+
+.theme-tabs [role='tab'] {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: -1px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.theme-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.theme-tab-badge {
+  background: var(--danger);
+  border-radius: 999px;
+  color: var(--surface);
+  font-size: 12px;
+  margin-left: var(--space-1);
+  padding: 0 6px;
+}
+
+.theme-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.theme-section h3,
+.theme-contrast h3 {
+  font-size: 15px;
+  margin: 0 0 var(--space-1);
+}
+
+.theme-section > legend {
+  font-weight: 600;
+  padding: 0 var(--space-1);
+}
+
+/* The preset gallery: two cards a row, each a drawing over its name. */
+.theme-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+.theme-preset {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+
+.theme-preset[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.theme-preset-name {
+  font-weight: 600;
+  margin-top: var(--space-1);
+}
+
+.theme-preset-description {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.theme-mini {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  height: 88px;
+  overflow: hidden;
+}
+
+.theme-mini-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+}
+
+.theme-mini-header[data-centred='true'] {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theme-mini-header span {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.theme-mini-header i {
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+  opacity: 0.6;
+  width: 36px;
+}
+
+.theme-mini-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.theme-mini-body b {
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+  width: 90%;
+}
+
+.theme-mini-card {
+  display: flex;
+  justify-content: flex-end;
+  padding: 5px;
+}
+
+.theme-mini-button {
+  border: 2px solid;
+  display: block;
+  height: 10px;
+  width: 30px;
+}
+
+/* One token: label, control and Reset on a row, the help line under them. */
+.theme-row {
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.theme-row > label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.theme-row-control {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.theme-row[data-changed='true'] > label::after {
+  color: var(--accent);
+  content: ' •';
+}
+
+.theme-help {
+  margin: 2px 0 0;
+}
+
+.theme-toggle label {
+  font-weight: 600;
+}
+
+.theme-colour-input {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.theme-colour-input input[type='color'] {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  height: 2rem;
+  padding: 0;
+  width: 3rem;
+}
+
+.theme-colour-input input[type='text'] {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  width: 8rem;
+}
+
+.theme-number {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.theme-number input[type='number'] {
+  width: 5rem;
+}
+
+.theme-reset {
+  font-size: 13px;
+  padding: 2px var(--space-2);
+}
+
+/* The swatches: each role as a chip, its name and its hex. */
+.theme-swatches {
+  margin: var(--space-3) 0 0;
+}
+
+.theme-swatches figcaption {
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.theme-swatches ul {
+  display: grid;
+  gap: var(--space-1) var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.theme-swatches li {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.theme-swatch {
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.theme-swatch-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-contrast {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.theme-contrast ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.theme-contrast li {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: var(--space-1) 0;
+}
+
+.theme-contrast li button {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.contrast-ratio {
+  font-variant-numeric: tabular-nums;
+}
+
+.theme-fine-tune > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.theme-fine-tune fieldset {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) 0 0;
+}
+
+.theme-fine-tune legend {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding-right: var(--space-2);
+  text-transform: uppercase;
+}
+
+.theme-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The CSS editor: a line-number gutter beside a monospace textarea. */
+.css-editor-frame {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.css-editor-gutter,
+.css-editor-frame textarea {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 20px;
+  margin: 0;
+  padding: var(--space-2);
+}
+
+.css-editor-gutter {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-align: right;
+  user-select: none;
+}
+
+.css-editor-gutter span {
+  display: block;
+}
+
+.css-editor-gutter span[data-bad='true'] {
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.css-editor-frame textarea {
+  border: 0;
+  border-radius: 0;
+  min-height: 20rem;
+  resize: vertical;
+  white-space: pre;
+  width: 100%;
+}
+
+.css-editor-size[data-over='true'] {
+  color: var(--danger);
+}
+
+.css-editor-errors {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.css-editor-errors p {
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.css-editor-errors ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.css-editor-errors button {
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.theme-css {
+  margin-top: var(--space-5);
+}
+
+.theme-css-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  margin: var(--space-2) 0;
+}
+
+.theme-css-bar h4 {
+  margin: 0;
+}
+
+.theme-variables-scroll {
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.theme-variables {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.theme-variables th,
+.theme-variables td {
+  border-bottom: 1px solid var(--border);
+  padding: 4px var(--space-2) 4px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.theme-variables code {
+  white-space: nowrap;
+}
+
+.theme-css-sheet {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  max-height: 24rem;
+  overflow: auto;
+  padding: var(--space-2);
+}

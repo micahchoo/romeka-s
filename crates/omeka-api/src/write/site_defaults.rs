@@ -1,5 +1,6 @@
-//! The content a new site is born with: `SiteAdapter::getDefaultNavigation`
-//! and the welcome page `SiteAdapter::hydrate` adds on create.
+//! The content a new site is born with: `SiteAdapter::getDefaultNavigation`,
+//! the welcome page `SiteAdapter::hydrate` adds on create, and the port's
+//! starting theme settings.
 
 use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteRepo;
@@ -16,6 +17,16 @@ pub fn default_navigation() -> Value {
         "data": { "label": "Browse", "query": "" },
         "links": [],
     }])
+}
+
+/// Store the theme settings a site created without `o:theme_settings` starts
+/// with: the new-site preset (`omeka_site::theme::tokens::new_site_settings`).
+/// A port addition: upstream's theme has no settings until a curator saves
+/// some, and a map without a preset reads as the look sites had before
+/// presets, so a new site needs the map written to get the new-site look.
+pub async fn theme_settings(api: &Api<'_>, site: SiteId, theme: &str) -> Result<(), ApiError> {
+    let settings = omeka_site::theme::tokens::new_site_settings();
+    crate::theme_settings::store(api.pool(), site, theme, Some(&settings)).await
 }
 
 /// Build the welcome page `SiteAdapter::hydrate` adds on create.

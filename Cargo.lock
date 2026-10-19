@@ -1675,6 +1675,7 @@ name = "omeka-site"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "cssparser",
  "omeka-core",
  "serde",
  "serde_json",

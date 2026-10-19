@@ -92,6 +92,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         &navigation,
         &item_pool,
         homepage_id,
+        payload.get("o:theme_settings"),
     )
     .await?;
     let owner = owner(api, payload).await?;
@@ -128,7 +129,11 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     // the caller's grant.
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
-    hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
+    if payload.has("o:theme_settings") {
+        hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
+    } else {
+        site_defaults::theme_settings(api, row.id, &row.theme).await?;
+    }
     hydrate_site_settings(api, row.id, payload).await?;
     site_defaults::welcome_page(api, row.id).await?;
     api.read_member("sites", &row.id.0.to_string()).await
@@ -212,6 +217,7 @@ pub async fn update(
         &row.navigation,
         &row.item_pool,
         row.homepage_id,
+        payload.get("o:theme_settings"),
     )
     .await?;
     repo.update(&row).await.map_err(db_error)?;
@@ -526,6 +532,7 @@ async fn validate(
     navigation: &Value,
     item_pool: &Value,
     homepage_id: Option<PageId>,
+    theme_settings: Option<&Value>,
 ) -> Result<(), ApiError> {
     let mut errors = ValidationErrors::new();
     if title.is_empty() {
@@ -587,6 +594,9 @@ async fn validate(
                 vec!["A homepage must belong to its parent site.".to_string()],
             );
         }
+    }
+    if let Some(messages) = theme_settings.and_then(crate::theme_settings::custom_css_errors) {
+        errors.insert("o:theme_settings".to_string(), messages);
     }
     if errors.is_empty() {
         Ok(())
