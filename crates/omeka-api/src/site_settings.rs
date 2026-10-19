@@ -18,6 +18,7 @@ use serde_json::{Map, Value};
 use sqlx::SqlitePool;
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::db_error;
 use crate::theme_settings;
 
@@ -85,10 +86,7 @@ pub async fn store(pool: &SqlitePool, site: SiteId, value: Option<&Value>) -> Re
             let mut errors = ValidationErrors::new();
             errors.insert(
                 "o:site_settings".to_string(),
-                vec![format!(
-                    "Expected an object or null, got {}.",
-                    json_kind(other)
-                )],
+                vec![messages::site_settings_not_object(json_kind(other))],
             );
             return Err(ApiError::Validation(errors));
         }

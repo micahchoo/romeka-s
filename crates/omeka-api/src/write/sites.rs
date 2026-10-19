@@ -21,6 +21,7 @@ use omeka_db::rows::{NewSite, SiteRow};
 use serde_json::{Value, json};
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::{self, Payload, ref_row};
@@ -538,18 +539,15 @@ async fn validate(
     if title.is_empty() {
         errors.insert(
             "o:title".to_string(),
-            vec!["A site must have a title.".to_string()],
+            vec![messages::SITE_TITLE_REQUIRED.to_string()],
         );
     }
     if slug.is_empty() {
-        errors.insert(
-            "o:slug".to_string(),
-            vec!["The slug cannot be empty.".to_string()],
-        );
+        errors.insert("o:slug".to_string(), vec![messages::SLUG_EMPTY.to_string()]);
     } else if !slug_is_valid(slug) {
         errors.insert(
             "o:slug".to_string(),
-            vec!["A slug can only contain letters, numbers, underscores, and hyphens.".to_string()],
+            vec![messages::SLUG_INVALID.to_string()],
         );
     } else {
         let taken = match existing {
@@ -563,16 +561,13 @@ async fn validate(
                 .map_err(db_error)?
                 .is_some()
         {
-            errors.insert(
-                "o:slug".to_string(),
-                vec![format!("The slug \"{slug}\" is already taken.")],
-            );
+            errors.insert("o:slug".to_string(), vec![messages::slug_taken(slug)]);
         }
     }
     if theme.is_empty() {
         errors.insert(
             "o:theme".to_string(),
-            vec!["A site must have a theme.".to_string()],
+            vec![messages::SITE_THEME_REQUIRED.to_string()],
         );
     }
     crate::write::navigation::validate(navigation, &mut errors);
@@ -580,7 +575,7 @@ async fn validate(
     if !(item_pool.is_array() || item_pool.is_object()) {
         errors.insert(
             "o:item_pool".to_string(),
-            vec!["A site must have item pool data.".to_string()],
+            vec![messages::SITE_ITEM_POOL_REQUIRED.to_string()],
         );
     }
     if let Some(page) = homepage_id {
@@ -592,7 +587,7 @@ async fn validate(
         if owner != existing.map(|row| row.id) {
             errors.insert(
                 "o:homepage".to_string(),
-                vec!["A homepage must belong to its parent site.".to_string()],
+                vec![messages::HOMEPAGE_NOT_IN_SITE.to_string()],
             );
         }
     }

@@ -15,6 +15,7 @@ use omeka_db::repos::{
 use omeka_db::rows::{ClassRow, NewClass, NewProperty, PropertyRow};
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, db_error, not_found};
 use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
@@ -50,8 +51,8 @@ impl Member {
     /// (`VocabularyAdapter.php:65,71`); the port reproduces the key.
     pub fn non_array_message(self) -> &'static str {
         match self {
-            Self::Class => "Classes must be an array",
-            Self::Property => "Properties must be an array",
+            Self::Class => messages::CLASSES_NOT_ARRAY,
+            Self::Property => messages::PROPERTIES_NOT_ARRAY,
         }
     }
 }
@@ -184,18 +185,14 @@ pub(crate) async fn validate(
 ) -> Result<(), ApiError> {
     let mut errors = ValidationErrors::new();
     if input.local_name.is_empty() {
-        push(
-            &mut errors,
-            "o:local_name",
-            "The local name cannot be empty.",
-        );
+        push(&mut errors, "o:local_name", messages::LOCAL_NAME_EMPTY);
     }
     if input.label.is_empty() {
-        push(&mut errors, "o:label", "The label cannot be empty.");
+        push(&mut errors, "o:label", messages::LABEL_EMPTY);
     }
     match target {
         VocabularyTarget::Missing => {
-            push(&mut errors, "o:vocabulary", "A vocabulary must be set.");
+            push(&mut errors, "o:vocabulary", messages::VOCABULARY_REQUIRED);
         }
         VocabularyTarget::Pending => {}
         VocabularyTarget::Stored(vocabulary_id) => {
@@ -204,7 +201,7 @@ pub(crate) async fn validate(
                 push(
                     &mut errors,
                     "o:local_name",
-                    format!("The local name \"{}\" is already taken.", input.local_name),
+                    messages::local_name_taken(&input.local_name),
                 );
             }
         }

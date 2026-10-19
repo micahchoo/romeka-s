@@ -374,7 +374,10 @@ pub(crate) fn media_type(headers: &HeaderMap) -> Option<&str> {
 }
 
 async fn not_found() -> Response {
-    document_response(StatusCode::NOT_FOUND, &ErrorDocument::general("Not Found"))
+    document_response(
+        StatusCode::NOT_FOUND,
+        &ErrorDocument::general(omeka_api::messages::NOT_FOUND),
+    )
 }
 
 /// Authenticate the caller and load the read surface.
@@ -492,8 +495,9 @@ pub(crate) fn empty_internal_error() -> Response {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .header(header::CONTENT_TYPE, JSONLD_CONTENT_TYPE)
-        .body(Body::from(
-            r#"{"errors":{"error":"Internal Server Error"}}"#,
-        ))
+        .body(Body::from(format!(
+            r#"{{"errors":{{"error":"{}"}}}}"#,
+            omeka_api::messages::INTERNAL_ERROR
+        )))
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }

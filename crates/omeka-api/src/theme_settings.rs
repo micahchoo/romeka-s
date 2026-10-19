@@ -17,6 +17,7 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use crate::errors::ApiError;
+use crate::messages;
 use crate::read::db_error;
 
 /// The key prefix every theme's own settings row starts with
@@ -79,12 +80,7 @@ pub async fn store(
 pub fn custom_css_errors(settings: &Value) -> Option<Vec<String>> {
     let css = settings.get("custom_css")?.as_str()?;
     let refusals = omeka_site::theme::custom_css::sanitize(css.trim()).err()?;
-    Some(
-        refusals
-            .iter()
-            .map(|refusal| format!("Custom CSS: {refusal}"))
-            .collect(),
-    )
+    Some(refusals.iter().map(messages::custom_css_refusal).collect())
 }
 
 #[cfg(test)]
