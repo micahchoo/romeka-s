@@ -37,9 +37,17 @@ export default defineConfig({
           groups: [
             // A message namespace's English table is its own chunk, shared by
             // the routes that read it (`src/i18n/namespaces/`).
-            { name: 'theme-messages', test: /i18n\/namespaces\/theme\/index\.ts$/ },
+            // A delegate goes with its table: the registries it guards parse on
+            // load, and a page chunk between them would close an import cycle.
+            {
+              name: 'theme-messages',
+              test: /(i18n\/namespaces\/theme\/index|pages\/sites\/themeEditor\/messages)\.ts$/,
+            },
             // The page editor's field messages in English (PERF.md Decision 14).
-            { name: 'editor-messages', test: /i18n\/namespaces\/editor\/index\.ts$/ },
+            {
+              name: 'editor-messages',
+              test: /(i18n\/namespaces\/editor\/index|pages\/sites\/editor\/messages)\.ts$/,
+            },
             { name: 'item-types-messages', test: /i18n\/namespaces\/item-types\/index\.ts$/ },
             { name: 'term-lists-messages', test: /i18n\/namespaces\/term-lists\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
