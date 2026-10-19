@@ -26,12 +26,28 @@ export interface PageProps {
 
 export const DEFAULT_PAGE: AdminPageId = 'dashboard';
 
+/**
+ * Routes that moved, each with the page and the leading segments that now
+ * serve it. Upstream's vocabulary family routes open a Standards tab, so a
+ * bookmark or a link such as `#/properties/12` still lands on that property.
+ */
+const MOVED: ReadonlyMap<string, readonly [AdminPageId, string]> = new Map([
+  ['vocabularies', ['standards', 'vocabularies']],
+  ['properties', ['standards', 'properties']],
+  ['resource-classes', ['standards', 'classes']],
+]);
+
 export const parseHash = (hash: string): RouteMatch | null => {
   const trimmed = hash.startsWith('#') ? hash.slice(1) : hash;
   const segments = trimmed.split('/').filter((segment) => segment !== '');
   const slug = segments[0];
   if (slug === undefined) {
     return { page: DEFAULT_PAGE, param: null, rest: [] };
+  }
+  const moved = MOVED.get(slug);
+  if (moved !== undefined) {
+    const rest = [moved[1], ...segments.slice(1)];
+    return { page: moved[0], param: moved[1], rest };
   }
   if (!isAdminPageId(slug)) {
     return null;

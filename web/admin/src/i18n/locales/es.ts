@@ -14,7 +14,6 @@ export const es: Catalogue = {
   'shell.navLabel': 'Páginas de administración',
   'shell.noPage': 'No existe esa página. Vaya al panel de administración.',
   'group.content': 'Contenido',
-  'group.vocabulary': 'Vocabulario',
   'group.admin': 'Administración',
   'page.dashboard': 'Panel de administración',
   'page.items': 'Elementos',
@@ -23,7 +22,6 @@ export const es: Catalogue = {
   'page.sites': 'Sitios',
   'page.vocabularies': 'Vocabularios',
   'page.properties': 'Propiedades',
-  'page.resourceClasses': 'Clases de recurso',
   'page.resourceTemplates': 'Plantillas de recurso',
   'page.users': 'Usuarios',
   'page.modules': 'Módulos',
@@ -788,6 +786,13 @@ export const es: Catalogue = {
   'locale.label': 'Idioma',
   'locale.en': 'English',
   'locale.es': 'Español',
+  'locale.hi': 'हिन्दी',
+  'locale.mr': 'मराठी',
+  'locale.ml': 'മലയാളം',
+  'locale.ta': 'தமிழ்',
+  'locale.kn': 'ಕನ್ನಡ',
+  'locale.te': 'తెలుగు',
+  'locale.ne': 'नेपाली',
 
   'editor.loading': 'Cargando el editor...',
   'editor.toolbar': 'Acciones del editor',
@@ -979,4 +984,10 @@ export const es: Catalogue = {
   'valueField.noMatch': 'Ninguna propiedad coincide con «{query}».',
   'valueField.matches': 'Propiedades que coinciden',
   'valueField.moreMatches': '{count} coincidencias más. Escribe más para acotar la lista.',
+
+  // The Describe nav group and its Advanced > Standards link.
+  'group.describe': 'Describir',
+  'nav.advanced': 'Avanzado',
+  'page.itemTypes': 'Tipos de elemento',
+  'page.standards': 'Estándares',
 };

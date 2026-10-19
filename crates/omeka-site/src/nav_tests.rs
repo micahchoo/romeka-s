@@ -1,6 +1,8 @@
 use super::*;
 use serde_json::json;
 
+use crate::i18n::{EN, ES};
+
 fn site() -> Slug {
     Slug::parse("main").unwrap()
 }
@@ -35,7 +37,7 @@ fn navigation_links_resolve_to_upstream_urls() {
         {"type": "myModuleLink", "data": {"label": "Custom"}}
     ]);
     let nodes = parse_navigation(&stored).unwrap();
-    let items = resolve(&nodes, &site(), &pages());
+    let items = resolve(&nodes, &site(), &pages(), &EN);
 
     assert_eq!(items[0].label, "Welcome");
     assert_eq!(items[0].url, "/s/main/page/welcome");
@@ -62,7 +64,7 @@ fn page_link_labels_match_upstream_link_classes() {
         {"type": "page", "data": {"id": 5, "label": "Start"}}
     ]);
     let nodes = parse_navigation(&stored).unwrap();
-    let items = resolve(&nodes, &site(), &pages());
+    let items = resolve(&nodes, &site(), &pages(), &EN);
     assert_eq!(items[0].label, "[Missing Page]");
     assert_eq!(items[0].url, "");
     assert_eq!(items[1].label, "Start");
@@ -120,7 +122,7 @@ fn navigation_errors_name_the_json_path() {
 /// (`Translator::toZend`).
 #[test]
 fn empty_navigation_resolves_to_home_link() {
-    let items = resolve(&[], &site(), &pages());
+    let items = resolve(&[], &site(), &pages(), &EN);
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].label, "Home");
     assert_eq!(items[0].url, "/s/main");
@@ -135,7 +137,7 @@ fn navigation_children_resolve_and_find_by_page() {
         ]}
     ]);
     let nodes = parse_navigation(&stored).unwrap();
-    let items = resolve(&nodes, &site(), &pages());
+    let items = resolve(&nodes, &site(), &pages(), &EN);
     assert_eq!(items[0].children.len(), 1);
     assert_eq!(items[0].children[0].url, "/s/main/page/about");
     let found = find_item_by_page(&items, PageId::new(5)).unwrap();
@@ -159,7 +161,7 @@ fn render_menu_links_are_escaped_and_depth_limited() {
             ]}
         ]}
     ]);
-    let items = resolve(&parse_navigation(&stored).unwrap(), &site(), &pages());
+    let items = resolve(&parse_navigation(&stored).unwrap(), &site(), &pages(), &EN);
     let full = render_menu(&items, None, "navigation");
     assert!(full.contains(">Start &amp; Go</a>"), "{full}");
     assert!(full.contains(">Grandchild</a>"), "{full}");
@@ -184,11 +186,56 @@ fn render_menu_marks_a_target_blank_url_link() {
         }},
         {"type": "url", "data": {"label": "Here", "url": "/x"}}
     ]);
-    let items = resolve(&parse_navigation(&stored).unwrap(), &site(), &pages());
+    let items = resolve(&parse_navigation(&stored).unwrap(), &site(), &pages(), &EN);
     let menu = render_menu(&items, None, "navigation");
     assert!(
         menu.contains("<a href=\"https://example.com/x\" target=\"_blank\">Elsewhere</a>"),
         "{menu}"
     );
     assert!(menu.contains("<a href=\"/x\">Here</a>"), "{menu}");
+}
+
+/// A Spanish site prints the link types' names and the home link as `es.po`
+/// translates them, while a label the user typed and a page title stay as
+/// stored (`Translator::getLinkLabel`).
+#[test]
+fn fallback_labels_follow_the_site_locale_and_user_labels_do_not() {
+    let stored = json!([
+        {"type": "page", "data": {"id": 5}},
+        {"type": "page", "data": {"id": 99}},
+        {"type": "browse", "data": {"label": ""}},
+        {"type": "browseItemSets", "data": {}},
+        {"type": "browse", "data": {"label": "Items"}},
+        {"type": "myModuleLink", "data": {}}
+    ]);
+    let nodes = parse_navigation(&stored).unwrap();
+    let labels = |messages| {
+        resolve(&nodes, &site(), &pages(), messages)
+            .into_iter()
+            .map(|item| item.label)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels(&EN),
+        [
+            "Welcome",
+            "[Missing Page]",
+            "Browse",
+            "Browse item sets",
+            "Items",
+            "[Missing Page]"
+        ]
+    );
+    assert_eq!(
+        labels(&ES),
+        [
+            "Welcome",
+            "[Página perdida]",
+            "Explorar",
+            "Explorar conjuntos de fichas",
+            "Items",
+            "[Página perdida]"
+        ]
+    );
+    assert_eq!(resolve(&[], &site(), &pages(), &ES)[0].label, "Inicio");
 }

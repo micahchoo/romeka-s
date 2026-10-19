@@ -30,6 +30,7 @@ use serde_json::Value as JsonValue;
 use omeka_core::ids::PageId;
 use omeka_core::site::Slug;
 
+use crate::i18n::Messages;
 use crate::slug::{page_url, resource_browse_url, site_url};
 
 /// Why the stored navigation JSON is not a valid tree.
@@ -305,13 +306,18 @@ fn scheme(url: &str) -> Option<String> {
 /// Resolve the stored tree into items a theme can render.
 ///
 /// The label is the user's, else the link type's name
-/// (`Translator::getLinkLabel`). An empty tree resolves to the single "Home"
-/// link upstream synthesises (`Translator::toZend`).
+/// (`Translator::getLinkLabel`), translated. An empty tree resolves to the
+/// single "Home" link upstream synthesises (`Translator::toZend`).
 #[must_use]
-pub fn resolve(nav: &[NavNode], site: &Slug, pages: &[PageRef]) -> Vec<NavItem> {
+pub fn resolve(
+    nav: &[NavNode],
+    site: &Slug,
+    pages: &[PageRef],
+    messages: &Messages,
+) -> Vec<NavItem> {
     if nav.is_empty() {
         return vec![NavItem {
-            label: "Home".to_string(),
+            label: messages.home.to_string(),
             url: site_url(site),
             target_blank: false,
             page: None,
@@ -319,17 +325,17 @@ pub fn resolve(nav: &[NavNode], site: &Slug, pages: &[PageRef]) -> Vec<NavItem> 
         }];
     }
     nav.iter()
-        .map(|node| resolve_node(node, site, pages))
+        .map(|node| resolve_node(node, site, pages, messages))
         .collect()
 }
 
-fn resolve_node(node: &NavNode, site: &Slug, pages: &[PageRef]) -> NavItem {
+fn resolve_node(node: &NavNode, site: &Slug, pages: &[PageRef], messages: &Messages) -> NavItem {
     let page = match &node.link {
         NavLink::Page { id, .. } if find_page_ref(pages, *id).is_some() => Some(*id),
         _ => None,
     };
     NavItem {
-        label: label_for(&node.link, pages),
+        label: label_for(&node.link, pages, messages),
         url: link_url(&node.link, site, pages),
         target_blank: matches!(
             &node.link,
@@ -342,25 +348,34 @@ fn resolve_node(node: &NavNode, site: &Slug, pages: &[PageRef]) -> NavItem {
         children: node
             .links
             .iter()
-            .map(|child| resolve_node(child, site, pages))
+            .map(|child| resolve_node(child, site, pages, messages))
             .collect(),
     }
 }
 
-/// The link's label: the user's label when set, else the class default.
+/// The link's label: the user's label as typed when set, else the link type's
+/// name in the site's locale. Upstream translates only the fallback
+/// (`Translator::getLinkLabel`).
 #[must_use]
-pub fn label_for(link: &NavLink, pages: &[PageRef]) -> String {
-    match link {
-        NavLink::Page { id, label } => non_empty(label)
-            .or_else(|| find_page_ref(pages, *id).map(|page| page.title.clone()))
-            .unwrap_or_else(|| "[Missing Page]".to_string()),
-        NavLink::Url { label, .. } => non_empty(label).unwrap_or_else(|| "Custom URL".to_string()),
-        NavLink::Browse { label, .. } => non_empty(label).unwrap_or_else(|| "Browse".to_string()),
-        NavLink::BrowseItemSets { label, .. } => {
-            non_empty(label).unwrap_or_else(|| "Browse item sets".to_string())
+pub fn label_for(link: &NavLink, pages: &[PageRef], messages: &Messages) -> String {
+    let user = match link {
+        NavLink::Page { id, label } => {
+            non_empty(label).or_else(|| find_page_ref(pages, *id).map(|page| page.title.clone()))
         }
-        NavLink::Fallback { .. } => "[Missing Page]".to_string(),
-    }
+        NavLink::Url { label, .. }
+        | NavLink::Browse { label, .. }
+        | NavLink::BrowseItemSets { label, .. } => non_empty(label),
+        NavLink::Fallback { .. } => None,
+    };
+    user.unwrap_or_else(|| {
+        match link {
+            NavLink::Page { .. } | NavLink::Fallback { .. } => messages.missing_page,
+            NavLink::Url { .. } => messages.custom_url,
+            NavLink::Browse { .. } => messages.browse,
+            NavLink::BrowseItemSets { .. } => messages.browse_item_sets,
+        }
+        .to_string()
+    })
 }
 
 fn non_empty(label: &Option<String>) -> Option<String> {

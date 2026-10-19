@@ -5,7 +5,7 @@ import { VocabularyCreatePage } from './form';
 import { VocabularyDetail } from './detail';
 import { VocabularyList } from './list';
 
-/** `#/vocabularies` lists, `#/vocabularies/new` creates, `.../<id>` edits. */
+/** The Vocabularies tab: its list, `new` to create one, or a vocabulary id. */
 export const VocabulariesPage = ({
   param = null,
 }: {
