@@ -4,10 +4,11 @@ import type { PageProps } from '../../app/router';
 import { useTranslator } from '../../i18n';
 import { MediaDetail } from './detail';
 import { MediaList } from './list';
+import { resources } from '../../i18n/namespaces/resources';
 
 /** `#/media` lists; `#/media/<id>` shows one media. */
 export const MediaPage = ({ param }: PageProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(resources);
   if (param === null) {
     return <MediaList />;
   }

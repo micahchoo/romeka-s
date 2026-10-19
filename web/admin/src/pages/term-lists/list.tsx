@@ -7,6 +7,7 @@ import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { useTermListText } from './messages';
 import type { TermListMessageKey } from './messages';
+import { common } from '../../i18n/namespaces/common';
 
 const PER_PAGE = 25;
 
@@ -80,7 +81,7 @@ const entries = (row: TermListRow): string | number => {
 
 /** `CustomVocab\Controller\Admin\IndexController::browseAction`, plus usage. */
 export const TermListList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const resource = tl('termLists.resource');
   return (

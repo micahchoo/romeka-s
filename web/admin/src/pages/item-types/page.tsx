@@ -19,13 +19,15 @@ import { TypeList } from './list';
 import { useItemTypesText } from './messages';
 import { typeDraftFrom } from './model';
 import { loadTypeOptions, type TypeOptions } from './options';
+import { common } from '../../i18n/namespaces/common';
+import { itemTypes } from '../../i18n/namespaces/item-types';
 
 const Loading = ({
   children,
 }: {
   readonly children: (options: TypeOptions) => ReactElement;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, itemTypes);
   const state = useAsync(loadTypeOptions, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
@@ -44,7 +46,7 @@ const loadType = async (
 };
 
 const EditType = ({ templateId }: { readonly templateId: TemplateId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, itemTypes);
   const typesText = useItemTypesText();
   const state = useAsync(() => loadType(templateId), [templateId]);
   const [saved, setSaved] = useState<ResourceTemplate | null>(null);
@@ -84,7 +86,7 @@ export const ItemTypesPage = ({
 );
 
 const ItemTypesRoute = ({ param }: { readonly param: string | null }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, itemTypes);
   if (param === null) {
     return <TypeList />;
   }

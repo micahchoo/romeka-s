@@ -16,6 +16,7 @@ import { useLocale, useTranslator, type Locale } from '../../i18n';
 import { useItemTypesText } from './messages';
 import type { TypeDraft } from './model';
 import type { TypeOptions } from './options';
+import { common } from '../../i18n/namespaces/common';
 
 export const ClassLine = ({
   draft,
@@ -115,7 +116,7 @@ export const TypeSettings = ({
   properties,
 }: TypeSettingsProps): ReactElement => {
   const t = useItemTypesText();
-  const shared = useTranslator();
+  const shared = useTranslator(common);
   const locale = useLocale();
   const choices = propertyChoices(properties, locale);
   return (

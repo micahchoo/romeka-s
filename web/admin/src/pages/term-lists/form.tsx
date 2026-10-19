@@ -25,6 +25,7 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { useTermListText } from './messages';
 import { KIND_LABEL } from './list';
+import { common } from '../../i18n/namespaces/common';
 
 type Kind = TermListWrite['source']['kind'];
 
@@ -57,7 +58,7 @@ const TermListEditor = ({
   readonly itemSets: readonly ItemSet[];
   readonly onSaved: (list: TermList) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const source = list?.source ?? { kind: 'empty' };
   const [label, setLabel] = useState(list?.label ?? '');
@@ -216,7 +217,7 @@ const loadItemSets = async (): Promise<readonly ItemSet[]> =>
 
 /** `#/term-lists/new`. */
 export const TermListCreatePage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const state = useAsync(loadItemSets, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
@@ -234,7 +235,7 @@ interface Loaded {
 
 /** `#/term-lists/<id>`: the edit form and the delete control. */
 export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const state = useAsync(
     async (): Promise<Loaded> => {

@@ -18,6 +18,7 @@ import { useLocale, useTranslator, type Locale } from '../../i18n';
 import '../item-types/item-types.css';
 import { useItemTypesText } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
+import { common } from '../../i18n/namespaces/common';
 
 interface Use {
   readonly template: ResourceTemplate;
@@ -110,7 +111,7 @@ const FieldEntry = ({
 
 const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
   const t = useItemTypesText();
-  const { number } = useTranslator();
+  const { number } = useTranslator(common);
   const locale = useLocale();
   const inputId = useId();
   const [query, setQuery] = useState('');
@@ -156,7 +157,7 @@ const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
 };
 
 export const FieldsPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const state = useAsync(load, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
