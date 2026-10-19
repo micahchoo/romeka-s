@@ -251,6 +251,7 @@
   "foaf:firstName": "प्रथम नाव",
   "foaf:lastName": "आडनाव",
   "foaf:givenName": "दिलेले नाव",
+  "foaf:givenname": "दिलेले नाव",
   "foaf:surname": "आडनाव",
   "foaf:family_name": "कुटुंब नाव",
   "foaf:familyName": "कुले नाव",
@@ -292,7 +293,6 @@
   "foaf:membershipClass": "सदस्यत्व वर्ग",
   "foaf:birthday": "वाढदिवस",
   "foaf:age": "वय",
-  "foaf:status": "स्थिती",
-  "foaf:givenname": "दिलेले नाव"
+  "foaf:status": "स्थिती"
  }
 }

@@ -249,6 +249,7 @@
  "foaf:firstName": "firstName",
  "foaf:lastName": "lastName",
  "foaf:givenName": "Given name",
+ "foaf:givenname": "Given name",
  "foaf:surname": "Surname",
  "foaf:family_name": "family_name",
  "foaf:familyName": "familyName",
@@ -290,6 +291,5 @@
  "foaf:membershipClass": "membershipClass",
  "foaf:birthday": "birthday",
  "foaf:age": "age",
- "foaf:status": "status",
- "foaf:givenname": "Given name"
+ "foaf:status": "status"
 }

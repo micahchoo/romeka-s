@@ -251,6 +251,7 @@
   "foaf:firstName": "మొదటి పేరు",
   "foaf:lastName": "చివరి పేరు",
   "foaf:givenName": "ఇచ్చిన పేరు",
+  "foaf:givenname": "గివెన్ నేమ్",
   "foaf:surname": "ఇంటి పేరు",
   "foaf:family_name": "కుటుంబ పేరు",
   "foaf:familyName": "కుటుంబనే",
@@ -292,7 +293,6 @@
   "foaf:membershipClass": "మెంబర్‌షిప్ క్లాస్",
   "foaf:birthday": "బర్త్‌డే",
   "foaf:age": "ఏజ్",
-  "foaf:status": "స్టేటస్",
-  "foaf:givenname": "గివెన్ నేమ్"
+  "foaf:status": "స్టేటస్"
  }
 }
