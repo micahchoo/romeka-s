@@ -4,7 +4,7 @@
  * cannot drift apart.
  */
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PAGES } from '../src/app/pages';
 import { Shell } from '../src/app/shell';
 import { installFetch, jsonResponse } from './stub';
@@ -29,5 +29,32 @@ describe('shell navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Users' })).not.toHaveAttribute('aria-current');
 
     window.location.hash = '';
+  });
+});
+
+describe('route boundary', () => {
+  it('a_route_that_fails_to_load_shows_a_reload_and_keeps_the_nav', async () => {
+    vi.doMock('../src/pages/modules/page', () => {
+      throw new Error('chunk offline');
+    });
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      window.location.hash = '#/modules';
+      installFetch(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }));
+      vi.resetModules();
+      const { Shell: Fresh } = await import('../src/app/shell');
+
+      render(<Fresh />);
+
+      expect(
+        await screen.findByText('This page could not load. Check the connection, then reload.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'Admin pages' })).toBeInTheDocument();
+    } finally {
+      quiet.mockRestore();
+      vi.doUnmock('../src/pages/modules/page');
+      window.location.hash = '';
+    }
   });
 });

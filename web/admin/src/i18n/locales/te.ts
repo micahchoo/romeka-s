@@ -12,6 +12,8 @@ export const te: Catalogue = {
   'app.title': 'Romeka S పరిపాలన',
   'shell.navLabel': 'పరిపాలనా పేజీలు',
   'shell.noPage': 'అటువంటి పేజీ లేదు. పరిపాలనా డ్యాష్‌బోర్డ్‌కు వెళ్లండి.',
+  'shell.loadFailed': 'ఈ పేజీని లోడ్ చేయడం సాధ్యపడలేదు. కనెక్షన్‌ను తనిఖీ చేసి, మళ్ళీ లోడ్ చేయండి.',
+  'shell.reload': 'మళ్ళీ లోడ్ చేయండి',
   'group.content': 'కంటెంట్',
   'group.admin': 'పరిపాలన',
   'page.dashboard': 'పరిపాలనా డ్యాష్‌బోర్డ్',

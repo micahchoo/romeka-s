@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
-import type { ReactElement, RefObject } from 'react';
+import { Component, lazy, Suspense, useEffect, useRef } from 'react';
+import type { ReactElement, ReactNode, RefObject } from 'react';
 import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
@@ -20,6 +20,48 @@ const PasswordPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('./forgot').then((module) => ({ default: module.ForgotPasswordPage })),
 );
+
+const RouteFailed = (): ReactElement => {
+  const { t } = useTranslator();
+  return (
+    <div role="alert">
+      <p>{t('shell.loadFailed')}</p>
+      <button
+        type="button"
+        onClick={() => {
+          window.location.reload();
+        }}
+      >
+        {t('shell.reload')}
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Catches a route whose chunk or message table failed to load, or that threw
+ * while rendering, so the shell and its nav stay usable. React keeps a failed
+ * lazy import failed, so the way back is a reload. The shell keys it by page,
+ * so another nav link renders that page afresh.
+ */
+class RouteBoundary extends Component<
+  { readonly children: ReactNode },
+  { readonly failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError(): { readonly failed: boolean } {
+    return { failed: true };
+  }
+
+  override componentDidCatch(error: unknown): void {
+    console.error(error);
+  }
+
+  override render(): ReactNode {
+    return this.state.failed ? <RouteFailed /> : this.props.children;
+  }
+}
 
 /**
  * The Omeka S version the client reads from the `Omeka-S-Version` response
@@ -198,13 +240,15 @@ export const Shell = (): ReactElement => {
   if (authRoute !== null) {
     return (
       <AuthLayout>
-        <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
-          {authRoute.kind === 'password' ? (
-            <PasswordPage passwordKey={authRoute.key} />
-          ) : (
-            <ForgotPasswordPage />
-          )}
-        </Suspense>
+        <RouteBoundary key={authRoute.kind}>
+          <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
+            {authRoute.kind === 'password' ? (
+              <PasswordPage passwordKey={authRoute.key} />
+            ) : (
+              <ForgotPasswordPage />
+            )}
+          </Suspense>
+        </RouteBoundary>
       </AuthLayout>
     );
   }
@@ -236,9 +280,11 @@ export const Shell = (): ReactElement => {
             <h1>{t(page.titleKey)}</h1>
             {/* The page module is fetched on the first visit to this route. The
                 heading comes from the table, so it paints before the chunk does. */}
-            <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
-              <page.element param={route === null ? null : route.param} rest={route?.rest ?? []} />
-            </Suspense>
+            <RouteBoundary key={activeId}>
+              <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
+                <page.element param={route === null ? null : route.param} rest={route?.rest ?? []} />
+              </Suspense>
+            </RouteBoundary>
           </>
         )}
       </main>

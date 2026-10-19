@@ -2,6 +2,8 @@
  "app.title": "Romeka S admin",
  "shell.navLabel": "Admin pages",
  "shell.noPage": "No such page. Go to the admin dashboard.",
+ "shell.loadFailed": "This page could not load. Check the connection, then reload.",
+ "shell.reload": "Reload",
  "group.content": "Content",
  "group.admin": "Admin",
  "page.dashboard": "Admin dashboard",

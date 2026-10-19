@@ -12,6 +12,9 @@ export const ml: Catalogue = {
   'app.title': 'Romeka S അഡ്മിൻ',
   'shell.navLabel': 'അഡ്മിൻ പേജുകൾ',
   'shell.noPage': 'ഇത്തരമൊരു പേജ് നിലവിലില്ല. അഡ്മിൻ ഡാഷ്‌ബോർഡിലേക്ക് പോകുക.',
+  'shell.loadFailed':
+    'ഈ പേജ് ലോഡ് ചെയ്യാൻ കഴിഞ്ഞില്ല. കണക്ഷൻ പരിശോധിക്കുക, തുടർന്ന് റീലോഡ് ചെയ്യുക.',
+  'shell.reload': 'റീലോഡ് ചെയ്യുക',
   'group.content': 'ഉള്ളടക്കം',
   'group.admin': 'അഡ്മിൻ',
   'page.dashboard': 'അഡ്മിൻ ഡാഷ്‌ബോർഡ്',

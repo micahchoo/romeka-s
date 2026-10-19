@@ -12,6 +12,8 @@ export const ne: Catalogue = {
   'app.title': 'Romeka S एडमिन',
   'shell.navLabel': 'एडमिन पेजहरू',
   'shell.noPage': 'यस्तो पेज छैन। एडमिन ड्यासबोर्डमा जानुहोस्।',
+  'shell.loadFailed': 'यो पृष्ठ लोड हुन सकेन। जडान जाँच गर्नुहोस्, त्यसपछि रिफ्रेस गर्नुहोस्।',
+  'shell.reload': 'रिफ्रेस',
   'group.content': 'सामग्री',
   'group.admin': 'एडमिन',
   'page.dashboard': 'एडमिन ड्यासबोर्ड',

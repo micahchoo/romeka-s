@@ -12,6 +12,9 @@ export const kn: Catalogue = {
   'app.title': 'Romeka S ಆಡಳಿತ',
   'shell.navLabel': 'ಅಡ್ಮಿನ್ ಪುಟಗಳು',
   'shell.noPage': 'ಅಂತಹ ಪುಟವಿಲ್ಲ. ಅಡ್ಮಿನ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹೋಗಿ.',
+  'shell.loadFailed':
+    'ಈ ಪುಟವನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮರುಲೋಡ್ ಮಾಡಿ.',
+  'shell.reload': 'ಮರುಲೋಡ್ ಮಾಡಿ',
   'group.content': 'ವಿಷಯ',
   'group.admin': 'ಅಡ್ಮಿನ್',
   'page.dashboard': 'ಅಡ್ಮಿನ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',

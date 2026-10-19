@@ -12,6 +12,8 @@ export const mr: Catalogue = {
   'app.title': 'Romeka S ॲडमिन',
   'shell.navLabel': 'ॲडमिन पेजेस',
   'shell.noPage': 'अशी कोणतीही पृष्ठे नाहीत. ॲडमिन डॅशबोर्डवर जा.',
+  'shell.loadFailed': 'ही पृष्ठ लोड होऊ शकले नाही. कनेक्शन तपासा, नंतर पुन्हा लोड करा.',
+  'shell.reload': 'पुन्हा लोड करा',
   'group.content': 'मजकूर',
   'group.admin': 'ॲडमिन',
   'page.dashboard': 'ॲडमिन डॅशबोर्ड',
