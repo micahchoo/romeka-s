@@ -1,115 +1,297 @@
 /**
- * The site resources page (`SiteAdmin/IndexController::resourcesAction`).
+ * The site's Items page: what is on the site, how to add more, and whether the
+ * site keeps in sync with its saved search.
  *
- * Upstream sets the stored item pool from a search query and attaches item
- * sets, then dispatches `Omeka\Job\UpdateSiteItems` to add, replace or remove
- * the site's items. The port has no job dispatch over the API, so this page
- * edits the two members the API accepts: `o:item_pool` (the query the site
- * browse uses) and `o:site_item_set` (the item sets the site shows). It also
- * shows the item count the site currently holds, which is what upstream prints
- * after the job runs.
- *
- * The pool is edited with the page editor's item query builder, through the
- * query string upstream's form shows (`itemPool.ts`).
+ * A site's membership is its `item_site` rows. Upstream edits it through the
+ * resources form plus the `UpdateSiteItems` job; this page sends each change to
+ * `POST /api/sites/{id}/items`, which runs the same change at once and answers
+ * the counts, so every add shows what it will do before it writes. The saved
+ * search is `o:item_pool`, the listed item sets are `o:site_item_set`, and the
+ * sync switch is `o:assign_new_items`, all as upstream stores them.
  */
-import type { ReactElement } from 'react';
-import { useState } from 'react';
+import type { KeyboardEvent, ReactElement } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../../api/client';
-import { encodeSiteResources } from '../../api/write';
-import type { ItemSet, ItemSetId, Site, SiteId } from '../../api/types';
+import { encodeSiteSync } from '../../api/write';
+import type { ApiPage, Item, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
-import { SaveStatus, SubmitRow } from '../../app/fields';
-import { useSave } from '../../app/save';
-import { useAsync } from '../../app/useAsync';
+import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { ItemQueryField } from './editor/fields/ItemQueryField';
-import { itemPoolFromQuery, itemPoolQuery } from './itemPool';
+import type { MessageKey } from '../../i18n';
+import { ItemSetPanel, PickPanel, SearchPanel } from './siteItemsAdd';
+import type { AddPanelProps } from './siteItemsAdd';
+import './siteItems.css';
 
-interface Loaded {
-  readonly site: Site;
-  readonly itemSets: readonly ItemSet[];
-  readonly itemCount: number;
-}
+const PER_PAGE = 20;
 
-const load = async (siteId: SiteId): Promise<Loaded> => {
-  const [site, itemSets] = await Promise.all([
-    api.getSite(siteId),
-    api.listItemSets({ perPage: 200, sortBy: 'title' }),
-  ]);
-  const siteItems = await api.listItems({ siteId, perPage: 1 });
-  return { site, itemSets: itemSets.items, itemCount: siteItems.total };
-};
+const TABS: readonly {
+  readonly id: string;
+  readonly label: MessageKey;
+  readonly Panel: (props: AddPanelProps) => ReactElement;
+}[] = [
+  { id: 'set', label: 'siteItems.bySet', Panel: ItemSetPanel },
+  { id: 'search', label: 'siteItems.bySearch', Panel: SearchPanel },
+  { id: 'pick', label: 'siteItems.byPick', Panel: PickPanel },
+];
 
-const SiteResourcesEditor = ({
-  siteId,
-  loaded,
+/** The switch that stores `o:assign_new_items`. */
+const SyncSwitch = ({
+  site,
+  busy,
+  onToggle,
 }: {
-  readonly siteId: SiteId;
-  readonly loaded: Loaded;
+  readonly site: Site;
+  readonly busy: boolean;
+  readonly onToggle: (on: boolean) => void;
 }): ReactElement => {
   const { t } = useTranslator();
-  const [itemPool, setItemPool] = useState(() => itemPoolQuery(loaded.site.itemPool));
-  const [attached, setAttached] = useState<readonly ItemSetId[]>(() =>
-    loaded.site.siteItemSets.map((entry) => entry.itemSet.id),
+  return (
+    <div className="site-items-sync">
+      <label htmlFor="site-items-sync">
+        <input
+          id="site-items-sync"
+          type="checkbox"
+          role="switch"
+          checked={site.assignNewItems}
+          disabled={busy}
+          aria-describedby="site-items-sync-help"
+          onChange={(event) => {
+            onToggle(event.target.checked);
+          }}
+        />
+        {t('siteItems.sync')}
+      </label>
+      <p id="site-items-sync-help" className="field-note">
+        {t('siteItems.syncHelp')}
+      </p>
+    </div>
   );
-  const { state: saveState, save } = useSave();
+};
 
-  const toggle = (id: ItemSetId, on: boolean): void => {
-    setAttached((current) => (on ? [...current, id] : current.filter((entry) => entry !== id)));
+/** The three add panels behind one tab list. */
+const AddTabs = (props: AddPanelProps): ReactElement => {
+  const { t } = useTranslator();
+  const [current, setCurrent] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const select = (at: number): void => {
+    setCurrent(at);
+    tabs.current[at]?.focus();
   };
+  const onKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (step !== 0) {
+      event.preventDefault();
+      select((current + step + TABS.length) % TABS.length);
+    }
+  };
+  const tab = TABS[current];
+  return (
+    <section className="site-items-add" aria-labelledby="site-items-add-heading">
+      <h3 id="site-items-add-heading">{t('siteItems.addHeading')}</h3>
+      <div role="tablist" aria-label={t('siteItems.addHeading')} className="site-items-tabs">
+        {TABS.map((entry, at) => (
+          <button
+            key={entry.id}
+            type="button"
+            role="tab"
+            id={`site-items-tab-${entry.id}`}
+            aria-selected={at === current}
+            aria-controls={`site-items-panel-${entry.id}`}
+            tabIndex={at === current ? 0 : -1}
+            ref={(element) => {
+              tabs.current[at] = element;
+            }}
+            onClick={() => {
+              select(at);
+            }}
+            onKeyDown={onKey}
+          >
+            {t(entry.label)}
+          </button>
+        ))}
+      </div>
+      {tab === undefined ? null : (
+        <div
+          role="tabpanel"
+          id={`site-items-panel-${tab.id}`}
+          aria-labelledby={`site-items-tab-${tab.id}`}
+        >
+          <tab.Panel {...props} />
+        </div>
+      )}
+    </section>
+  );
+};
 
-  const submit = (event: { preventDefault: () => void }): void => {
-    event.preventDefault();
-    save(async () => {
-      await api.patchSite(siteId, encodeSiteResources(itemPoolFromQuery(itemPool), attached));
+/** One page of the items on the site, each with a remove button. */
+const SiteItemsList = ({
+  items,
+  page,
+  lastPage,
+  busy,
+  onPage,
+  onRemove,
+}: {
+  readonly items: readonly Item[];
+  readonly page: number;
+  readonly lastPage: number;
+  readonly busy: boolean;
+  readonly onPage: (page: number) => void;
+  readonly onRemove: (item: Item) => void;
+}): ReactElement => {
+  const { t } = useTranslator();
+  if (items.length === 0) {
+    return <p>{t('siteItems.empty')}</p>;
+  }
+  return (
+    <>
+      <ul className="site-items-list" aria-label={t('siteItems.listHeading')}>
+        {items.map((item) => {
+          const title = item.title ?? t('common.untitled');
+          const thumbnail = item.thumbnailDisplayUrls.square;
+          return (
+            <li key={String(item.id)}>
+              {thumbnail === undefined ? (
+                <span className="site-items-thumb" aria-hidden="true" />
+              ) : (
+                <img className="site-items-thumb" src={thumbnail} alt="" />
+              )}
+              <a href={`#/items/${String(item.id)}`}>{title}</a>
+              <button
+                type="button"
+                className="link-button"
+                disabled={busy}
+                aria-label={t('siteItems.removeLabel', { title })}
+                onClick={() => {
+                  onRemove(item);
+                }}
+              >
+                {t('action.remove')}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {lastPage > 1 ? (
+        <p className="site-items-pager">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => {
+              onPage(page - 1);
+            }}
+          >
+            {t('action.previous')}
+          </button>
+          <button
+            type="button"
+            disabled={page >= lastPage}
+            onClick={() => {
+              onPage(page + 1);
+            }}
+          >
+            {t('action.next')}
+          </button>
+        </p>
+      ) : null}
+    </>
+  );
+};
+
+const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement => {
+  const { t } = useTranslator();
+  const [site, setSite] = useState(initial);
+  const [version, setVersion] = useState(0);
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [failure, setFailure] = useState<Error | null>(null);
+  const listing = useAsync(
+    () => api.listItems({ siteId: site.id, page, perPage: PER_PAGE, sortBy: 'title' }),
+    [site.id, page, version],
+  );
+  // The last page read stays on screen while the next one loads, so a change
+  // does not blank the count and the list.
+  const lastPage = useRef<ApiPage<Item> | null>(null);
+  if (listing.status === 'ready') {
+    lastPage.current = listing.data;
+  }
+  const shown = lastPage.current;
+
+  const run = (task: () => Promise<string>): void => {
+    setBusy(true);
+    setFailure(null);
+    task().then(
+      (done) => {
+        setMessage(done);
+        setVersion((current) => current + 1);
+        setBusy(false);
+      },
+      (error: unknown) => {
+        setFailure(toError(error));
+        setBusy(false);
+      },
+    );
+  };
+  const toggleSync = (on: boolean): void => {
+    run(async () => {
+      setSite(await api.patchSite(site.id, encodeSiteSync(on)));
+      return t('field.saved');
+    });
+  };
+  const remove = (item: Item): void => {
+    run(async () => {
+      await api.changeSiteItems(site.id, {
+        action: 'remove',
+        selector: { kind: 'items', items: [item.id] },
+      });
+      return t('siteItems.removed', { title: item.title ?? t('common.untitled') });
     });
   };
 
   return (
-    <form onSubmit={submit}>
-      <p role="status">{t('sites.itemCount', { count: loaded.itemCount })}</p>
-      <ItemQueryField
-        id="site-item-pool"
-        label={t('siteHub.itemPool')}
-        value={itemPool}
-        onChange={setItemPool}
-        itemSets={loaded.itemSets}
-        sortable={false}
-      />
-      <fieldset>
-        <legend>{t('sites.itemSets')}</legend>
-        {loaded.itemSets.length === 0 ? <p>{t('sites.noItemSets')}</p> : null}
-        {loaded.itemSets.map((itemSet) => (
-          <p key={String(itemSet.id)}>
-            <label htmlFor={`site-item-set-${String(itemSet.id)}`}>
-              <input
-                id={`site-item-set-${String(itemSet.id)}`}
-                type="checkbox"
-                checked={attached.includes(itemSet.id)}
-                onChange={(event) => {
-                  toggle(itemSet.id, event.target.checked);
-                }}
-              />
-              {itemSet.title ?? t('common.pageFallback', { id: itemSet.id })}
-            </label>
-          </p>
-        ))}
-      </fieldset>
-      <SaveStatus state={saveState} />
-      <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
-    </form>
+    <div className="site-items">
+      <header className="site-items-header">
+        <p className="site-items-total" role="status">
+          {shown === null ? t('siteItems.counting') : t('siteItems.count', { count: shown.total })}
+        </p>
+        <SyncSwitch site={site} busy={busy} onToggle={toggleSync} />
+      </header>
+      <p className="site-items-message" role="status">
+        {message}
+      </p>
+      {failure === null ? null : <ErrorNotice error={failure} />}
+      <AddTabs site={site} version={version} busy={busy} run={run} onSite={setSite} />
+      <section aria-labelledby="site-items-list-heading">
+        <h3 id="site-items-list-heading">{t('siteItems.listHeading')}</h3>
+        {listing.status === 'error' ? (
+          <ErrorNotice error={listing.error} />
+        ) : shown === null ? (
+          <p role="status">{t('siteItems.counting')}</p>
+        ) : (
+          <SiteItemsList
+            items={shown.items}
+            page={shown.page}
+            lastPage={shown.lastPage}
+            busy={busy}
+            onPage={setPage}
+            onRemove={remove}
+          />
+        )}
+      </section>
+    </div>
   );
 };
 
-/** Loads the resources the page edits, then renders the editor. */
+/** Loads the site, then renders its Items page. */
 export const SiteResourcesPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
-  const state = useAsync(() => load(siteId), [siteId]);
+  const state = useAsync(() => api.getSite(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return <SiteResourcesEditor key={String(siteId)} siteId={siteId} loaded={state.data} />;
+  return <SiteItemsPane key={String(siteId)} initial={state.data} />;
 };

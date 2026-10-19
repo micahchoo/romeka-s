@@ -15,18 +15,21 @@
 //! item.` error. Every failure answers under `o:media` as one entry per failing
 //! media.
 //!
-//! `o:site` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:233-276`)
-//! exactly: a create that does not name the member takes every site whose
-//! `assign_new_items` is true, and a named site is attached only when the
-//! caller may assign items there or, on a create, the site assigns new items.
+//! `o:site` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:233-276`):
+//! a named site is attached only when the caller may assign items there or, on a
+//! create, the site assigns new items. Upstream's create that does not name the
+//! member takes every site whose `assign_new_items` is true; here those sites keep
+//! in sync with their item pool instead (`crate::site_items`): such a create, and
+//! every update, joins the item to each of them whose pool newly selects it.
 
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, SiteFilter, SiteRepo};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
 use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
 use serde_json::Value;
 
 use crate::errors::{ApiError, NestedError, ValidationErrors};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::site_items;
 use crate::write::access::{self, SiteRole};
 use crate::write::body::{self, Payload, array_key, ref_row};
 use crate::write::fulltext;
@@ -65,6 +68,7 @@ pub async fn create(
     let primary = primary_media_on_create(payload)?;
     let item_sets = item_sets(api, payload).await?;
     let sites = sites(api, payload, true, false, &[]).await?;
+    let syncs = payload.get("o:site").and_then(Value::as_array).is_none();
     // Every inline entry is resolved before the item row is written, so a body
     // whose media cannot ingest leaves no item behind.
     let inline = inline_media(api, payload, file).await?;
@@ -93,6 +97,9 @@ pub async fn create(
         media::insert(api, &row, prepared).await?;
     }
     fulltext::reindex(api, "items", row.resource.id).await?;
+    if syncs {
+        site_items::attach_new_matches(api, row.id(), &[]).await?;
+    }
     api.read_member("items", &row.resource.id.0.to_string())
         .await
 }
@@ -121,6 +128,7 @@ pub async fn update(
     let existing_sites = repo.list_sites(row.id()).await.map_err(db_error)?;
     let sites = sites(api, payload, false, partial, &existing_sites).await?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
+    let synced_before = site_items::synced_sites_matching(api, row.id()).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     // `shouldHydrate($request, 'o:primary_media')`: a partial update that does
     // not name the member keeps the stored primary media.
@@ -140,6 +148,7 @@ pub async fn update(
     }
     apply_sites(api, row.id(), sites).await?;
     fulltext::reindex(api, "items", row.resource.id).await?;
+    site_items::attach_new_matches(api, row.id(), &synced_before).await?;
     api.read_member("items", raw_id).await
 }
 
@@ -322,8 +331,8 @@ struct SitePlan {
 
 /// Resolve the membership changes one write makes, before it writes anything.
 ///
-/// `None` means the write leaves the memberships alone: a partial update that
-/// does not name `o:site`. Every other case returns a plan, because a full
+/// `None` means the write leaves the memberships alone: a partial update or a
+/// create that does not name `o:site`. Every other case returns a plan, because a full
 /// `PUT` and a `PATCH` that names the member both replace it upstream.
 async fn sites(
     api: &Api<'_>,
@@ -336,23 +345,11 @@ async fn sites(
     if !is_create && partial && named.is_none() {
         return Ok(None);
     }
-    // On CREATE without an `o:site` array, take every site that assigns new
-    // items. The `elseif` below only runs when the member should hydrate.
+    // On CREATE without an `o:site` array, upstream takes every site that
+    // assigns new items. Those sites sync against their pool once the item is
+    // written (`site_items::attach_new_matches`), so the plan attaches none.
     if is_create && named.is_none() {
-        let rows = SiteRepo::new(api.pool())
-            .list(
-                &SiteFilter {
-                    assign_new_items: Some(true),
-                    ..SiteFilter::default()
-                },
-                &Paging::default(),
-            )
-            .await
-            .map_err(db_error)?;
-        return Ok(Some(SitePlan {
-            attach: rows.into_iter().map(|row| row.id).collect(),
-            detach: Vec::new(),
-        }));
+        return Ok(None);
     }
 
     let repo = SiteRepo::new(api.pool());

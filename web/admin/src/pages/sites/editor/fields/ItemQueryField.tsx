@@ -9,11 +9,11 @@
  * uses the header.
  */
 import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
 import { api } from '../../../../api/client';
 import type { ResourceQuery } from '../../../../api/client';
 import type { ItemSet, ResourceClass, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
+import { useSettled } from '../../../../app/useSettled';
 import { useTranslator } from '../../../../i18n';
 import type { MessageKey } from '../../../../i18n';
 import { Labelled } from '../Labelled';
@@ -45,21 +45,10 @@ export interface ItemQueryFieldProps {
   /** False for a query that selects a set rather than lists one, such as a
    * site's item pool: no order applies, so the sort row is left out. */
   readonly sortable?: boolean;
+  /** False when the caller shows its own count, such as the site's Items page,
+   * which counts what an add would change; the control then asks for none. */
+  readonly showCount?: boolean;
 }
-
-/** A value that settles after `delay` without a change, so a typed query is one request. */
-const useSettled = (value: string, delay: number): string => {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSettled(value);
-    }, delay);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
-  return settled;
-};
 
 /** The list request one stored query makes: one row, for the total header. */
 const countQuery = (value: string, siteId: SiteId | undefined): ResourceQuery => {
@@ -134,6 +123,7 @@ export const ItemQueryField = ({
   classes,
   siteId,
   sortable = true,
+  showCount = true,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator();
   const pairs = parseQuery(value);
@@ -154,8 +144,9 @@ export const ItemQueryField = ({
   );
   const counted = useSettled(value, COUNT_DELAY_MS);
   const matches = useAsync(
-    () => api.listItems(countQuery(counted, siteId)).then((page) => page.total),
-    [counted, siteId],
+    async () =>
+      showCount ? (await api.listItems(countQuery(counted, siteId))).total : 0,
+    [counted, siteId, showCount],
   );
   const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
   const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
@@ -240,13 +231,15 @@ export const ItemQueryField = ({
           </div>
         </Labelled>
       ) : null}
-      <p className="query-count" role="status">
-        {matches.status === 'loading'
-          ? t('query.counting')
-          : matches.status === 'error'
-            ? t('query.countError')
-            : t(countMessage(matches.data, siteId !== undefined), { count: matches.data })}
-      </p>
+      {showCount ? (
+        <p className="query-count" role="status">
+          {matches.status === 'loading'
+            ? t('query.counting')
+            : matches.status === 'error'
+              ? t('query.countError')
+              : t(countMessage(matches.data, siteId !== undefined), { count: matches.data })}
+        </p>
+      ) : null}
     </fieldset>
   );
 };

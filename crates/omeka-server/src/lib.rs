@@ -44,6 +44,7 @@ pub mod mail;
 mod serve;
 pub mod settings_upgrade;
 mod site;
+mod site_items;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use logging::init_logging;
@@ -134,6 +135,7 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .route("/api/{resource}", any(collection))
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
+        .merge(site_items::router())
         .merge(site::router())
         .merge(assets::router())
         .fallback(not_found)
