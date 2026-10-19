@@ -42,26 +42,30 @@ pub async fn update(
     owner_only(api, &stored, Operation::Update)?;
     let input = hydrate(api, payload, Some(&stored), partial).await?;
     validate(api, &input, Some(stored.id)).await?;
+    let row = CustomVocabRow {
+        id: stored.id,
+        item_set_id: input.item_set_id,
+        owner_id: input.owner_id,
+        label: input.label,
+        lang: input.lang,
+        terms: input.terms,
+        uris: input.uris,
+    };
+    crate::publish::guard::term_list(api, stored.id, Some(&row)).await?;
     CustomVocabRepo::new(api.pool())
-        .update(&CustomVocabRow {
-            id: stored.id,
-            item_set_id: input.item_set_id,
-            owner_id: input.owner_id,
-            label: input.label,
-            lang: input.lang,
-            terms: input.terms,
-            uris: input.uris,
-        })
+        .update(&row)
         .await
         .map_err(db_error)?;
     api.read_member(RESOURCE, raw_id).await
 }
 
 /// Delete a list. Its values become `literal` and its name leaves every
-/// template row (`CustomVocabRepo::delete`).
+/// template row (`CustomVocabRepo::delete`). A published list is not deleted
+/// (`crate::publish::guard`).
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let stored = stored(api, raw_id).await?;
     owner_only(api, &stored, Operation::Delete)?;
+    crate::publish::guard::term_list(api, stored.id, None).await?;
     let answer = api.read_member(RESOURCE, raw_id).await?;
     CustomVocabRepo::new(api.pool())
         .delete(stored.id)

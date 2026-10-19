@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 111); the other
- * 63 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 126); the other
+ * 78 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -127,4 +127,30 @@ export const esServer: ServerCatalogue = {
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
   'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
   'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
+  'server.publicationTermsRemoved':
+    'Un término publicado no se puede quitar ni renombrar: {terms}. Márcalo como obsoleto.',
+  'server.publicationNamespaceFixed':
+    'Un vocabulario publicado conserva su espacio de nombres, así que sus términos conservan sus URI.',
+  'server.publicationNotDeletable':
+    'Una lista de términos o un vocabulario publicados no se pueden borrar. Marca sus términos como obsoletos.',
+  'server.publicationDeprecationFixed':
+    'La marca de obsoleto de "{term}" está publicada y no se puede retirar.',
+  'server.publicationItemsList':
+    'Una lista de ítems no se puede publicar. Cada ítem ya tiene su propia dirección.',
+  'server.publicationForeignNamespace':
+    'El espacio de nombres {namespace} no es de este archivo. Publica un vocabulario cuyo espacio de nombres esté bajo la dirección /vocab/ de este archivo, o en w3id.org o purl.org.',
+  'server.publicationSlugInvalid':
+    'El nombre de una dirección usa minúsculas, dígitos y guiones sueltos, hasta 64 caracteres.',
+  'server.publicationSlugTaken': 'La dirección /vocab/{slug}/ ya está ocupada.',
+  'server.publicationNamespaceNotPersistent':
+    'Un espacio de nombres que no es el de este archivo debe estar en w3id.org o purl.org y terminar con / o #.',
+  'server.publicationAddressFixed':
+    'Una lista de términos o un vocabulario publicados conservan la dirección de su primera publicación.',
+  'server.publicationTermNotPublished':
+    '"{term}" aún no está publicado, así que no se puede marcar como obsoleto. Quítalo.',
+  'server.publicationUnknownTerm': '"{term}" no es un término de esta lista o vocabulario.',
+  'server.publicationMatchInvalid': 'Un enlace debe ser un URI http o https absoluto.',
+  'server.publicationMatchTermLists':
+    'Solo los términos de una lista de términos se enlazan a una autoridad.',
+  'server.publicationTermIriInvalid': 'El URI de término {uri} no es un IRI válido.',
 };

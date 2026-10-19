@@ -23,6 +23,7 @@ import { SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { PublishPanel } from '../publish/panel';
 import { useTermListText } from './messages';
 import { KIND_LABEL } from './list';
 import { ListMerges } from './list-merges';
@@ -277,6 +278,11 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
         list={list}
         itemSets={state.data.itemSets}
         onSaved={setSaved}
+      />
+      {/* A merge can deprecate a word without changing the list's words, so it reloads the panel too. */}
+      <PublishPanel
+        key={`${String(merged.version)}:${JSON.stringify(list.source)}`}
+        target={{ kind: 'term_list', id: list.id }}
       />
       <p>{tl('termLists.deleteNote')}</p>
       <DeleteControl

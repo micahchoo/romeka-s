@@ -135,4 +135,28 @@ export const hiServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिंग {key} एक स्ट्रिंग या नल होनी चाहिए।',
   'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
   'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
+  'server.publicationTermsRemoved':
+    'एक प्रकाशित शब्द को हटाया या उसका नाम बदला नहीं जा सकता: {terms}। इसके बजाय इसे अप्रचलित (deprecate) करें।',
+  'server.publicationNamespaceFixed':
+    'एक प्रकाशित शब्दावली अपना नेमस्पेस बनाए रखती है, इसलिए इसके शब्द अपने URI बनाए रखते हैं।',
+  'server.publicationNotDeletable':
+    'एक प्रकाशित शब्द सूची या शब्दावली को हटाया नहीं जा सकता। इसके बजाय इसके शब्दों को अप्रचलित करें।',
+  'server.publicationDeprecationFixed':
+    '"{term}" का अप्रचलन प्रकाशित हो चुका है और इसे वापस नहीं लिया जा सकता।',
+  'server.publicationItemsList':
+    'वस्तुओं की सूची प्रकाशित नहीं की जा सकती। प्रत्येक वस्तु का अपना पता पहले से है।',
+  'server.publicationForeignNamespace':
+    'नेमस्पेस {namespace} इस संग्रह का नहीं है। इस संग्रह के /vocab/ पते के अंतर्गत एक शब्दावली प्रकाशित करें, या w3id.org या purl.org पर।',
+  'server.publicationSlugInvalid':
+    'एक पते के नाम में छोटे अक्षर, अंक और एकल हाइफ़न का उपयोग किया जाता है, जो 64 वर्णों तक होता है।',
+  'server.publicationSlugTaken': 'पता /vocab/{slug}/ पहले से लिया जा चुका है।',
+  'server.publicationNamespaceNotPersistent':
+    'इस संग्रह के अलावा अन्य नेमस्पेस w3id.org या purl.org पर होना चाहिए और / या # पर समाप्त होना चाहिए।',
+  'server.publicationAddressFixed': 'एक प्रकाशित शब्द सूची या शब्दावली अपना मूल पता बनाए रखती है।',
+  'server.publicationTermNotPublished':
+    '"{term}" अभी तक प्रकाशित नहीं हुआ है, इसलिए इसे अप्रचलित नहीं किया जा सकता। इसके बजाय इसे हटा दें।',
+  'server.publicationUnknownTerm': '"{term}" इस सूची या शब्दावली का शब्द नहीं है।',
+  'server.publicationMatchInvalid': 'मिलान एक पूर्ण http या https URI होना चाहिए।',
+  'server.publicationMatchTermLists': 'केवल एक शब्द सूची के शब्द ही किसी प्राधिकरण से जुड़ते हैं।',
+  'server.publicationTermIriInvalid': 'शब्द URI {uri} एक वैध IRI नहीं है।',
 };

@@ -3,7 +3,7 @@
  * term picker. Every test runs through the real client and parsers against a
  * stubbed fetch.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +11,7 @@ import { parseTermList } from '../src/api/term-lists';
 import type { TermListName } from '../src/api/types';
 import { TermPicker } from '../src/pages/term-lists/term-picker';
 import type { TermChoice } from '../src/pages/term-lists/term-picker';
+import { ListMerges } from '../src/pages/term-lists/list-merges';
 import { TermListsPage } from '../src/pages/term-lists/page';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, requestBody, requestsFor, route } from './stub';
@@ -28,6 +29,38 @@ const places = (overrides: Record<string, unknown> = {}): Record<string, unknown
   'o:owner': { '@id': 'http://localhost/api/users/1', 'o:id': 1 },
   ...overrides,
 });
+
+/** The list's publication view, with these words deprecated. */
+const publication = (deprecated: readonly string[] = []): Record<string, unknown> => ({
+  state: deprecated.length === 0 ? 'draft' : 'published',
+  kind: 'term_list',
+  refusal: null,
+  slug: 'places',
+  slug_fixed: deprecated.length > 0,
+  namespace: 'http://localhost/vocab/places/',
+  namespace_fixed: deprecated.length > 0,
+  url: 'http://localhost/vocab/places/',
+  versions: [],
+  changed: false,
+  terms: [...new Set(['Cork', 'Dublin', 'Dún Laoghaire', ...deprecated])].map((word, index) => ({
+    key: word,
+    label: word,
+    uri: `http://localhost/vocab/places/${String(index + 1)}`,
+    published: deprecated.length > 0,
+    deprecated: deprecated.includes(word),
+    deprecation_published: false,
+    exact_match: null,
+    close_match: null,
+    replaced_by: null,
+  })),
+  preview: '',
+});
+
+const pickerRoutes = (deprecated: readonly string[] = []) =>
+  route({
+    '/api/custom_vocabs/3': () => jsonResponse(places()),
+    '/api/custom_vocabs/3/publication': () => jsonResponse(publication(deprecated)),
+  });
 
 const TERM_LIST: TermListName = (() => {
   const list = parseTermList(places());
@@ -77,7 +110,7 @@ const PickerHarness = (): ReactElement => {
 
 describe('term picker', () => {
   it('filters_as_the_user_types_and_picks_by_click_or_keyboard', async () => {
-    installFetch(route({ '/api/custom_vocabs/3': () => jsonResponse(places()) }));
+    installFetch(pickerRoutes());
     render(<PickerHarness />);
 
     const input = await screen.findByRole('combobox', { name: 'Term list: Places' });
@@ -104,11 +137,73 @@ describe('term picker', () => {
   });
 
   it('says_when_the_stored_value_is_not_in_the_list', async () => {
-    installFetch(route({ '/api/custom_vocabs/3': () => jsonResponse(places()) }));
+    installFetch(pickerRoutes());
     render(<TermPicker id="spatial" termList={TERM_LIST} value="Paris" onPick={() => undefined} />);
     expect(
       await screen.findByText('"Paris" is not in this list. Pick an entry to replace it.'),
     ).toBeInTheDocument();
+  });
+
+  it('offers_no_deprecated_term_but_keeps_a_stored_one', async () => {
+    installFetch(pickerRoutes(['Dublin']));
+    render(<TermPicker id="spatial" termList={TERM_LIST} value="Dublin" onPick={() => undefined} />);
+
+    const input = await screen.findByRole('combobox', { name: 'Term list: Places' });
+    expect(input).toHaveValue('Dublin');
+    expect(
+      screen.getByText('“Dublin” is deprecated in this list. It stays on this item until you pick a current entry.'),
+    ).toBeInTheDocument();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'd' } });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Dún Laoghaire',
+    ]);
+  });
+});
+
+describe('list merges', () => {
+  const merging = (deprecated: readonly string[]) =>
+    route({
+      '/api/custom_vocabs/3/values': () =>
+        jsonResponse({ values: [{ value: 'Cork City', resources: 2, editable: 2 }], distinct: [] }),
+      '/api/custom_vocabs/3/publication': () => jsonResponse(publication(deprecated)),
+      '/api/custom_vocabs/3/merge': () =>
+        jsonResponse({ changed: 2, skipped: 0, deprecated: ['Cork City'] }),
+    });
+
+  it('explains_that_a_published_word_stays_deprecated_before_the_merge', async () => {
+    installFetch(merging([]));
+    const list = parseTermList(places({ 'o:terms': ['Cork', 'Cork City'] }));
+    render(<ListMerges list={list} onMerged={() => undefined} />);
+
+    const prompt = await screen.findByRole('region', { name: 'Similar spellings' });
+    fireEvent.click(within(prompt).getByRole('radio', { name: /Keep “Cork”/ }));
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Merge into “Cork”' }));
+
+    expect(
+      await within(prompt).findByText(
+        'This list is published, and a published word never leaves it. “Cork City” will stay as deprecated, replaced by “Cork”, so links to it keep working. Publish the list again to make this public.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('does_not_offer_a_deprecated_word_no_value_uses', async () => {
+    installFetch(
+      route({
+        '/api/custom_vocabs/3/values': () =>
+          jsonResponse({ values: [{ value: 'Cork', resources: 2, editable: 2 }], distinct: [] }),
+        '/api/custom_vocabs/3/publication': () => jsonResponse(publication(['Cork City'])),
+      }),
+    );
+    const list = parseTermList(places({ 'o:terms': ['Cork', 'Cork City', 'Bantry', 'Co. Bantry'] }));
+    render(<ListMerges list={list} onMerged={() => undefined} />);
+
+    const prompt = await screen.findByRole('region', { name: 'Similar spellings' });
+    expect(within(prompt).getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual([
+      'Bantry',
+      'Co. Bantry',
+    ]);
+    expect(screen.getAllByRole('region', { name: 'Similar spellings' })).toHaveLength(1);
   });
 });
 

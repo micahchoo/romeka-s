@@ -13,7 +13,9 @@ use super::{bind_id, bind_opt_id, insert_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{CustomVocabId, PropertyId, ResourceId, TemplateId};
-use crate::rows::{MergeWrite, PromoteList, PromoteWrite, TextValueRow, resource_type};
+use crate::rows::{
+    MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow, resource_type,
+};
 use crate::time;
 
 /// Bulk rewrites over `value`.
@@ -144,6 +146,16 @@ where
         }
         if let Some((list, terms)) = &write.list_terms {
             set_terms(&mut tx, *list, terms).await?;
+        }
+        if let Some((list, states)) = &write.list_states {
+            let column = PublicationTarget::TermList(*list).column();
+            sqlx::query(&format!(
+                "UPDATE romeka_publication SET terms = ? WHERE {column} = ?"
+            ))
+            .bind(json_text(states)?)
+            .bind(bind_id(*list))
+            .execute(&mut *tx)
+            .await?;
         }
         // `ResourceTitleHydrator`: the first non-empty text of the title property.
         let retitle = format!(

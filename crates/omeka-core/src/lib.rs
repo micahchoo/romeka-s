@@ -22,6 +22,8 @@
 //!   `customvocab:<id>` data type (`omeka-s-modules/CustomVocab` v2.1.0).
 //! - [`value_shape`]: the shape a stored value reads back as
 //!   (`DataType\Manager::getForExtract`).
+//! - [`publication`]: Romeka's publishing of term lists and vocabularies:
+//!   the published scheme, minted term URIs and the add-or-deprecate rule.
 //! - [`purify`]: the HTML sanitizer (`Stdlib/HtmlPurifier.php`, `ezyang/htmlpurifier`).
 //! - [`permissions`]: the ACL rules (`Service/AclFactory.php`,
 //!   `Permissions/Acl.php`, `Permissions/Assertion/*`).
@@ -44,6 +46,7 @@
 pub mod datatypes;
 pub mod ids;
 pub mod permissions;
+pub mod publication;
 pub mod purify;
 pub mod resource;
 pub mod site;

@@ -352,6 +352,49 @@ messages! {
     fn setting_not_flag(key) = "The setting {key} must be true, false or null.";
     /// A list setting whose value is not a list of strings.
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
+
+    // Publishing term lists and vocabularies (`crate::publish`). Romeka's own rule.
+
+    /// A write that drops or renames a published term.
+    fn publication_terms_removed(terms) =
+        "A published term cannot be removed or renamed: {terms}. Deprecate it instead.";
+    /// A write that moves a published vocabulary's namespace.
+    const PUBLICATION_NAMESPACE_FIXED =
+        "A published vocabulary keeps its namespace, so its terms keep their URIs.";
+    /// A delete of a published term list, vocabulary or term.
+    const PUBLICATION_NOT_DELETABLE =
+        "A published term list or vocabulary cannot be deleted. Deprecate its terms instead.";
+    /// An undeprecate of a deprecation a version already carries.
+    fn publication_deprecation_fixed(term) =
+        "The deprecation of \"{term}\" is published and cannot be taken back.";
+    /// A publish of a list of items.
+    const PUBLICATION_ITEMS_LIST =
+        "A list of items cannot be published. Each item already has its own address.";
+    /// A publish of a vocabulary whose namespace is someone else's.
+    fn publication_foreign_namespace(namespace) =
+        "The namespace {namespace} is not this archive's. Publish a vocabulary whose namespace is under this archive's /vocab/ address, or at w3id.org or purl.org.";
+    /// A slug that is not lowercase letters, digits and single hyphens.
+    const PUBLICATION_SLUG_INVALID =
+        "An address name uses lowercase letters, digits and single hyphens, up to 64 characters.";
+    /// A slug another publication holds.
+    fn publication_slug_taken(slug) = "The address /vocab/{slug}/ is already taken.";
+    /// A chosen namespace that is not at a persistent address service.
+    const PUBLICATION_NAMESPACE_NOT_PERSISTENT =
+        "A namespace other than this archive's must be at w3id.org or purl.org and end with / or #.";
+    /// A publish that names another slug or namespace than the first publish fixed.
+    const PUBLICATION_ADDRESS_FIXED =
+        "A published term list or vocabulary keeps the address it was first published at.";
+    /// A deprecate of a term no version carries yet.
+    fn publication_term_not_published(term) =
+        "\"{term}\" is not published yet, so it cannot be deprecated. Remove it instead.";
+    /// A command that names a term the scheme does not have.
+    fn publication_unknown_term(term) = "\"{term}\" is not a term of this list or vocabulary.";
+    /// A match that is not an absolute http or https URI.
+    const PUBLICATION_MATCH_INVALID = "A match must be an absolute http or https URI.";
+    /// A match on a vocabulary's term.
+    const PUBLICATION_MATCH_TERM_LISTS = "Only the terms of a term list link to an authority.";
+    /// A term whose namespace and local name do not make a valid IRI.
+    fn publication_term_iri_invalid(uri) = "The term URI {uri} is not a valid IRI.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

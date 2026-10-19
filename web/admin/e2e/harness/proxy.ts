@@ -49,14 +49,19 @@ export interface RunningProxy {
   readonly close: () => Promise<void>;
 }
 
-/** Paths the port answers: the API, its context, health, and the public site. */
+/**
+ * Paths the port answers: the API, its context, health, the public site and
+ * the published term lists and vocabularies.
+ */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
   pathname.startsWith('/api/') ||
   pathname === '/api-context' ||
   pathname === '/health' ||
   pathname === '/s' ||
-  pathname.startsWith('/s/');
+  pathname.startsWith('/s/') ||
+  pathname === '/vocab' ||
+  pathname.startsWith('/vocab/');
 
 const apiPaths = (pathname: string): boolean =>
   pathname === '/api' || pathname.startsWith('/api/');

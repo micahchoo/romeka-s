@@ -46,16 +46,24 @@ pub(crate) fn plan_merge(rows: &[&TextValueRow], from: &[String], to: &str) -> M
     plan
 }
 
-/// A list's words after a merge: each merged spelling leaves, and the kept one takes the place of
-/// the first that left when the list did not hold it already.
-pub(crate) fn merged_terms(terms: &[String], from: &[String], to: &str) -> Vec<String> {
-    let mut merged = Vec::with_capacity(terms.len());
+/// A list's words after a merge: each merged spelling leaves unless it is `retained`, and the kept
+/// one takes the place of the first merged spelling when the list did not hold it already.
+pub(crate) fn merged_terms(
+    terms: &[String],
+    from: &[String],
+    retained: &[String],
+    to: &str,
+) -> Vec<String> {
+    let mut merged = Vec::with_capacity(terms.len() + 1);
     let mut has_to = terms.iter().any(|term| term == to);
     for term in terms {
         if term != to && from.contains(term) {
             if !has_to {
                 merged.push(to.to_string());
                 has_to = true;
+            }
+            if retained.contains(term) {
+                merged.push(term.clone());
             }
         } else {
             merged.push(term.clone());
@@ -139,17 +147,36 @@ mod tests {
     fn the_kept_spelling_takes_the_place_of_the_first_merged_term() {
         let terms = spellings(&["Bantry", "Co. Cork", "Boston", "Cork City"]);
         assert_eq!(
-            merged_terms(&terms, &spellings(&["Co. Cork", "Cork City"]), "Cork"),
+            merged_terms(&terms, &spellings(&["Co. Cork", "Cork City"]), &[], "Cork"),
             spellings(&["Bantry", "Cork", "Boston"])
         );
         let with_cork = spellings(&["Cork", "Co. Cork", "Boston"]);
         assert_eq!(
-            merged_terms(&with_cork, &spellings(&["Co. Cork"]), "Cork"),
+            merged_terms(&with_cork, &spellings(&["Co. Cork"]), &[], "Cork"),
             spellings(&["Cork", "Boston"])
         );
         assert_eq!(
-            merged_terms(&spellings(&["Boston"]), &spellings(&["Co. Cork"]), "Cork"),
+            merged_terms(
+                &spellings(&["Boston"]),
+                &spellings(&["Co. Cork"]),
+                &[],
+                "Cork"
+            ),
             spellings(&["Boston"])
+        );
+    }
+
+    #[test]
+    fn a_retained_spelling_stays_after_the_kept_one() {
+        let terms = spellings(&["Bantry", "Cork City", "Co. Cork"]);
+        assert_eq!(
+            merged_terms(
+                &terms,
+                &spellings(&["Cork City", "Co. Cork"]),
+                &spellings(&["Cork City"]),
+                "Cork"
+            ),
+            spellings(&["Bantry", "Cork", "Cork City"])
         );
     }
 }

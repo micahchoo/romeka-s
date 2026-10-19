@@ -67,6 +67,10 @@ export const en = {
   'merge.different': 'They are different',
   'merge.merged': 'Merged into “{value}”. Resources changed: {changed}.',
   'merge.remembered': 'Noted. These spellings will not be offered for merging again.',
+  'merge.deprecates':
+    'This list is published, and a published word never leaves it. {values} will stay as deprecated, replaced by “{value}”, so links to it keep working. Publish the list again to make this public.',
+  'termPicker.deprecated':
+    '“{value}” is deprecated in this list. It stays on this item until you pick a current entry.',
 } as const;
 
 /** A Term lists message id. */

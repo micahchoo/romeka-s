@@ -115,6 +115,7 @@ async fn a_merge_rewrites_only_values_of_the_type_it_names() {
         of_type: "customvocab:1".to_string(),
         delete: vec![value],
         list_terms: None,
+        list_states: None,
         resources: vec![item],
         default_title_property: None,
     })

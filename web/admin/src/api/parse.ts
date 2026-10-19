@@ -178,7 +178,7 @@ export const asNumber = (value: unknown, path: Path): number => {
   return value;
 };
 
-const asBoolean = (value: unknown, path: Path): boolean => {
+export const asBoolean = (value: unknown, path: Path): boolean => {
   if (typeof value !== 'boolean') {
     throw new ParseError(path, 'boolean');
   }
