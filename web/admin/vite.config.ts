@@ -36,6 +36,8 @@ export default defineConfig({
           includeDependenciesRecursively: false,
           groups: [
             { name: 'theme-messages', test: /pages\/sites\/themeEditor\/messages\.ts$/ },
+            // The page editor's field messages in English (PERF.md Decision 14).
+            { name: 'editor-messages', test: /pages\/sites\/editor\/messages\.ts$/ },
             {
               name: 'theme-model',
               test: /(pages\/sites\/themeEditor\/(colour|palette|registry|draft)\.ts|generated\/themeSettings\.json)$/,

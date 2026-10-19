@@ -28,11 +28,20 @@ pub struct Asset;
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[repeat(
         "blockField.asset.attachments",
+        "fieldHelp.asset.attachments",
         &[
-            asset_ref("id", "blockField.asset.id"),
-            page_ref("page", "blockField.asset.page"),
-            text("alt_link_title", "blockField.asset.alt_link_title"),
-            text("caption", "blockField.asset.caption"),
+            asset_ref("id", "blockField.asset.id", "fieldHelp.asset.id"),
+            page_ref("page", "blockField.asset.page", "fieldHelp.asset.page"),
+            text(
+                "alt_link_title",
+                "blockField.asset.alt_link_title",
+                "fieldHelp.asset.alt_link_title",
+            ),
+            text(
+                "caption",
+                "blockField.asset.caption",
+                "fieldHelp.asset.caption",
+            ),
         ],
     )],
 };

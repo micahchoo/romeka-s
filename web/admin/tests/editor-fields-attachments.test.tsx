@@ -1,9 +1,10 @@
 /**
  * The `attachments` field control, through a live `BlockForm` over the `media`
- * layout: the row edits (item, media, caption, order, remove) each dispatch the
- * whole attachment list, and the media select is limited to the chosen item.
+ * layout: picking or unpicking an item in the shared picker adds or removes its
+ * row, and the row edits (media, caption, order, remove) each dispatch the
+ * whole attachment list. The media choice is limited to the row's item.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { DraftAction } from '../src/pages/sites/editor/draft';
 import {
@@ -21,6 +22,7 @@ const handler: Handler = (url) => {
     case '/api/items':
       return listResponse(loadFixture('items-page.json'), 2);
     case '/api/items/5':
+    case '/api/items/12':
       return jsonResponse(loadFixture('item-1.json'));
     case '/api/media':
       return listResponse(loadFixture('media-page.json'), 2);
@@ -52,17 +54,19 @@ const attachmentAction = (dispatch: ReturnType<typeof dispatchSpy>): DraftAction
   return action;
 };
 
+/** The block's own rows, apart from the picker's result grid. */
+const rows = () => screen.getByRole('list', { name: 'Items to show' });
+
 describe('the attachments field control', () => {
   it('shows the stored item, media and caption', async () => {
     installFetch(handler);
     renderAttachments([rawAttachment(5, 7, 'A caption')]);
 
-    expect(await screen.findByText('Fixture Item One')).toBeInTheDocument();
+    expect(await within(rows()).findByText('Fixture Item One')).toBeInTheDocument();
     const caption = screen.getByRole('textbox', { name: 'Caption' });
     expect(caption).toHaveTextContent('A caption');
-    await waitFor(() => {
-      expect(screen.getByLabelText('Media')).toHaveTextContent('Fixture photo');
-    });
+    expect(await screen.findByRole('radio', { name: 'Fixture photo' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Main media' })).not.toBeChecked();
   });
 
   it('falls back to the item id when the stored item cannot be read', async () => {
@@ -77,43 +81,45 @@ describe('the attachments field control', () => {
     expect(await screen.findByText('Item 5')).toBeInTheDocument();
   });
 
-  it('adds an empty attachment row', () => {
+  it('picking an item in the picker appends its row', async () => {
     installFetch(handler);
-    const { dispatch, key } = renderAttachments([]);
+    const { dispatch, key } = renderAttachments([rawAttachment(5, null, 'kept')]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add attachment' }));
+    const pick = await screen.findByRole('button', { name: 'Fixture Item One', pressed: false });
+    fireEvent.click(pick);
 
     expect(attachmentAction(dispatch)).toEqual({
       type: 'setAttachments',
       blockKey: key,
-      attachments: [{ item: null, media: null, caption: '' }],
+      attachments: [
+        { item: 5, media: null, caption: 'kept' },
+        { item: 12, media: null, caption: '' },
+      ],
     });
   });
 
-  it('a picked item clears the media and writes the list', async () => {
+  it('unpicking an item in the picker removes its row', async () => {
     installFetch(handler);
-    const { dispatch, key } = renderAttachments([rawAttachment(null, null, '')]);
+    const { dispatch, key } = renderAttachments([
+      rawAttachment(12, null, 'gone'),
+      rawAttachment(5, null, 'kept'),
+    ]);
 
-    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'cat' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Fixture Item One' }));
+    const picked = await screen.findByRole('button', { name: 'Fixture Item One', pressed: true });
+    fireEvent.click(picked);
 
     expect(attachmentAction(dispatch)).toEqual({
       type: 'setAttachments',
       blockKey: key,
-      attachments: [{ item: 12, media: null, caption: '' }],
+      attachments: [{ item: 5, media: null, caption: 'kept' }],
     });
   });
 
-  it('the media select writes the chosen media', async () => {
+  it('a media thumbnail writes the chosen media', async () => {
     installFetch(handler);
     const { dispatch, key } = renderAttachments([rawAttachment(5, null, '')]);
 
-    const media = await screen.findByLabelText('Media');
-    await waitFor(() => {
-      expect(media).toHaveTextContent('Fixture photo');
-    });
-    fireEvent.change(media, { target: { value: '7' } });
+    fireEvent.click(await screen.findByRole('radio', { name: 'Fixture photo' }));
 
     expect(attachmentAction(dispatch)).toEqual({
       type: 'setAttachments',
@@ -179,13 +185,8 @@ describe('the attachments field control', () => {
       }
       return handler(url, undefined);
     });
-    renderAttachments([rawAttachment(null, null, '')]);
+    renderAttachments([]);
 
-    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'cat' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The item search failed. search down (HTTP 500)',
-    );
+    expect(await screen.findByText(/Search failed: .*search down/)).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[choice(
         "break_type",
         "blockField.lineBreak.break_type",
+        "fieldHelp.lineBreak.break_type",
         &[
             option("transparent", "blockChoice.transparent"),
             option("opaque", "blockChoice.opaque"),

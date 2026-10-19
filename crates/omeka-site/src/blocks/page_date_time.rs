@@ -35,6 +35,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
         choice(
             "display",
             "blockField.pageDateTime.display",
+            "fieldHelp.pageDateTime.display",
             &[
                 option("created_modified", "blockChoice.created_modified"),
                 option("created", "blockChoice.created"),
@@ -45,12 +46,14 @@ const SCHEMA: LayoutSchema = LayoutSchema {
         choice(
             "date_format",
             "blockField.pageDateTime.date_format",
+            "fieldHelp.pageDateTime.date_format",
             DATE_FORMATS,
         )
         .default_text("medium"),
         choice(
             "time_format",
             "blockField.pageDateTime.time_format",
+            "fieldHelp.pageDateTime.time_format",
             DATE_FORMATS,
         )
         .default_text("none"),

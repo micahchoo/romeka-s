@@ -60,7 +60,11 @@ pub struct ListOfPages;
 /// `BlockLayout/ListOfPages.php::form`: the `pagelist` tree, which the admin's
 /// jsTree writes as a JSON string into one hidden member.
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[page_list("pagelist", "blockField.listOfPages.pagelist")],
+    fields: &[page_list(
+        "pagelist",
+        "blockField.listOfPages.pagelist",
+        "fieldHelp.listOfPages.pagelist",
+    )],
 };
 
 impl BlockLayout for ListOfPages {

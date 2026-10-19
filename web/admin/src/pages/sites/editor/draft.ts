@@ -154,6 +154,12 @@ export type DraftAction =
       readonly value: JsonValue;
     }
   | {
+      /** Several layout-data keys written as one edit, such as four padding sides. */
+      readonly type: 'setLayoutDataValues';
+      readonly blockKey: BlockKey;
+      readonly values: Readonly<Record<string, JsonValue>>;
+    }
+  | {
       readonly type: 'setRomkaSetting';
       readonly blockKey: BlockKey;
       readonly field: string;
@@ -224,6 +230,31 @@ const commit = (
     registry: state.registry,
     edit,
   };
+};
+
+/**
+ * Merges `values` into one block's `o:layout_data`. Consecutive writes of the
+ * same keys share an undo entry, so typing into a linked padding undoes at once.
+ */
+const writeLayoutData = (
+  state: PageDraft,
+  blockKey: BlockKey,
+  values: Readonly<Record<string, JsonValue>>,
+): PageDraft => {
+  const target = state.blocks.find((block) => block.key === blockKey);
+  if (target === undefined) {
+    return state;
+  }
+  const next: BlockDraft = { ...target, layoutData: { ...layoutDataObject(target), ...values } };
+  return commit(
+    state,
+    {
+      ...contentOf(state),
+      blocks: state.blocks.map((block) => (block.key === blockKey ? next : block)),
+    },
+    state.nextKey,
+    `layoutData:${blockKey}:${Object.keys(values).sort().join(',')}`,
+  );
 };
 
 const makeBlock = (registry: BlockRegistry, key: BlockKey, layout: string): BlockDraft => {
@@ -437,25 +468,10 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
         ),
       });
     }
-    case 'setLayoutData': {
-      const target = state.blocks.find((block) => block.key === action.blockKey);
-      if (target === undefined) {
-        return state;
-      }
-      const next: BlockDraft = {
-        ...target,
-        layoutData: { ...layoutDataObject(target), [action.key]: action.value },
-      };
-      return commit(
-        state,
-        {
-          ...contentOf(state),
-          blocks: state.blocks.map((block) => (block.key === action.blockKey ? next : block)),
-        },
-        state.nextKey,
-        `layoutData:${action.blockKey}:${action.key}`,
-      );
-    }
+    case 'setLayoutData':
+      return writeLayoutData(state, action.blockKey, { [action.key]: action.value });
+    case 'setLayoutDataValues':
+      return writeLayoutData(state, action.blockKey, action.values);
     case 'setRomkaSetting': {
       const target = state.blocks.find((block) => block.key === action.blockKey);
       if (target === undefined || romkaFor(state.registry, target) === undefined) {
