@@ -14,7 +14,8 @@ import { useLesson } from '../../app/lessons/lesson';
 import { PLAIN_TERMS, plainHint, plainName, searchTerms, termComment } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
-import { useLocale, useTermText, useTranslator, type TermText } from '../../i18n';
+import { useLocale, useTranslator, type TermLabels } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import '../item-types/item-types.css';
 import { useItemTypesText } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
@@ -47,7 +48,7 @@ const usesOf = (templates: readonly ResourceTemplate[], property: Property): rea
   );
 
 /** In use first (most used first), then the curated common fields, then by name. */
-const browseOrder = (loaded: Loaded, text: TermText): readonly Property[] => {
+const browseOrder = (loaded: Loaded, text: TermLabels): readonly Property[] => {
   const rank = (property: Property): number =>
     usesOf(loaded.templates, property).length * 10 + (property.term in PLAIN_TERMS ? 1 : 0);
   return [...loaded.properties].sort(

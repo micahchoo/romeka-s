@@ -8,8 +8,9 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { isRecord } from '../../api/parse';
 import type { Property } from '../../api/types';
-import { useTermText, useTranslator } from '../../i18n';
-import type { KeyOf, MessageKey, TermText } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
+import type { KeyOf, MessageKey, TermLabels } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
 import { sites } from '../../i18n/namespaces/sites';
@@ -38,12 +39,12 @@ const orderLabels = (
     ? { asc: 'siteSettingSort.titleAsc', desc: 'siteSettingSort.titleDesc' }
     : { asc: 'siteSettingSort.dateAsc', desc: 'siteSettingSort.dateDesc' };
 
-const propertyName = (property: Property, text: TermText): string => {
+const propertyName = (property: Property, text: TermLabels): string => {
   const label = text.label(property.term, property.label);
   return label === null ? property.term : `${label} (${property.term})`;
 };
 
-const matches = (property: Property, query: string, text: TermText): boolean => {
+const matches = (property: Property, query: string, text: TermLabels): boolean => {
   const needle = query.trim().toLowerCase();
   return (
     needle === '' ||
@@ -69,7 +70,7 @@ const PropertyPicker = ({
   readonly onChange: (value: string) => void;
 }): ReactElement => {
   const { t } = useTranslator(sites);
-  const text = useTermText();
+  const text = useTermLabels();
   const [query, setQuery] = useState('');
   const current = properties.find((property) => property.term === value);
   const shown = properties.filter(

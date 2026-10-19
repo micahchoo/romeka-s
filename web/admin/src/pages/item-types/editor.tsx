@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import type { ReactElement, SyntheticEvent } from 'react';
-import { useTermText } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
 import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
@@ -60,7 +60,7 @@ export const TypeEditor = ({
   onSaved,
 }: TypeEditorProps): ReactElement => {
   const t = useItemTypesText();
-  const text = useTermText();
+  const text = useTermLabels();
   const [draft, setDraft] = useState(initial);
   const [kinds, setKinds] = useState<readonly ResourceKind[]>(() =>
     template === null ? RESOURCE_KINDS : usedFor(template.id),

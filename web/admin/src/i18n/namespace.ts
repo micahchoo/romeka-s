@@ -41,6 +41,8 @@ export interface Namespace<K extends string> {
 export type KeyOf<N> = N extends Namespace<infer K> ? K : never;
 
 interface Entry {
+  /** Whether a locale switch fetches this table: from definition, or from its first read. */
+  wanted: boolean;
   readonly english: Readonly<Record<string, string>>;
   readonly loaders: NamespaceLoaders<string>;
   readonly loaded: Map<Locale, Table<string>>;
@@ -89,6 +91,16 @@ const load = (namespace: Namespace<string>, entry: Entry, locale: Locale): Promi
   return started;
 };
 
+/** How a namespace is fetched. */
+export interface NamespaceOptions {
+  /**
+   * Fetch the table only once a component reads it, not when its module loads.
+   * For a heavy table a route's module graph holds but not every view of the
+   * route shows, such as the vocabulary comments.
+   */
+  readonly onFirstRead?: boolean;
+}
+
 /**
  * Define a namespace from its English table and its locale loaders. The table
  * is the source of the key type; the loaders return tables typed against it.
@@ -97,17 +109,19 @@ export const defineNamespace = <K extends string>(
   id: string,
   en: Table<K>,
   loaders: NamespaceLoaders<K>,
+  options: NamespaceOptions = {},
 ): Namespace<K> => {
   const keys: ReadonlySet<string> = new Set(Object.keys(en));
   const namespace: Namespace<K> = { id, en, has: (key): key is K => keys.has(key) };
   const entry: Entry = {
+    wanted: options.onFirstRead !== true,
     english: en,
     loaders,
     loaded: new Map([[DEFAULT_LOCALE, en]]),
     pending: new Map(),
   };
   entries.set(namespace, entry);
-  if (following !== DEFAULT_LOCALE) {
+  if (entry.wanted && following !== DEFAULT_LOCALE) {
     // A failure surfaces when a component reads the table and suspends on a retry.
     load(namespace, entry, following).catch(() => undefined);
   }
@@ -123,12 +137,21 @@ export const tableFor = <K extends string>(
   if (entry === undefined) {
     throw new Error(`namespace ${namespace.id} was not made by defineNamespace`);
   }
+  entry.wanted = true;
   return entry.loaded.get(locale) ?? load(namespace, entry, locale);
 };
 
-/** Fetch every defined namespace's table in `locale`; rejects if any fails. */
+/**
+ * Fetch the table in `locale` of every namespace defined so far, except one
+ * defined to wait for its first read that nothing has read yet. Rejects if
+ * any fails.
+ */
 export const loadNamespaces = async (locale: Locale): Promise<void> => {
-  await Promise.all([...entries].map(([namespace, entry]) => load(namespace, entry, locale)));
+  await Promise.all(
+    [...entries]
+      .filter(([, entry]) => entry.wanted)
+      .map(([namespace, entry]) => load(namespace, entry, locale)),
+  );
 };
 
 /** Make `locale` the one a namespace defined from now on starts fetching. */

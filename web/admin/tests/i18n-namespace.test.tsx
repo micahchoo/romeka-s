@@ -208,6 +208,33 @@ describe('a namespace', () => {
     expect(i18n.currentLocale()).toBe('en');
   });
 
+  it('a_first_read_namespace_is_fetched_only_once_a_component_reads_it', async () => {
+    const load = vi.fn(() => Promise.resolve(es));
+    const sample = i18n.defineNamespace('sample', en, loadersWith(load), { onFirstRead: true });
+
+    await i18n.setLocale('es');
+    expect(load).not.toHaveBeenCalled();
+
+    const Greeting = (): ReactElement => {
+      const { t } = i18n.useTranslator(sample);
+      return <p>{t('sample.greeting')}</p>;
+    };
+    await act(async () => {
+      render(
+        <Suspense fallback={<p>waiting</p>}>
+          <Greeting />
+        </Suspense>,
+      );
+      await settle();
+    });
+    expect(screen.getByText('Buenos días')).toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(1);
+
+    // Once read, a switch fetches it before switching, as every other namespace.
+    await act(() => i18n.setLocale('hi'));
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
   it('types_a_key_from_an_undeclared_namespace_as_an_error', () => {
     const sample = i18n.defineNamespace('sample', en, loadersWith(() => Promise.resolve(es)));
     const Keys = (): ReactElement => {

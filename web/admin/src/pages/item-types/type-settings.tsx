@@ -12,7 +12,8 @@ import { userOptions } from '../../app/options';
 import { plainName } from '../../app/plain-terms';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, type ResourceKind } from '../../app/type-use';
-import { useTermText, useTranslator, type TermText } from '../../i18n';
+import { useTranslator, type TermLabels } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
 import { useItemTypesText } from './messages';
 import type { TypeDraft } from './model';
 import type { TypeOptions } from './options';
@@ -28,7 +29,7 @@ export const ClassLine = ({
   readonly onChange: (draft: TypeDraft) => void;
 }): ReactElement => {
   const t = useItemTypesText();
-  const text = useTermText();
+  const text = useTermLabels();
   const [changing, setChanging] = useState(false);
   const current = classes.find((entry) => entry.id === draft.resourceClass) ?? null;
   const lesson = useLesson('type-class');
@@ -92,7 +93,7 @@ const KIND_LABELS = {
   media: 'use.media',
 } as const;
 
-const propertyChoices = (properties: readonly Property[], text: TermText) =>
+const propertyChoices = (properties: readonly Property[], text: TermLabels) =>
   properties.map((property) => ({
     id: property.id,
     label: `${plainName(property, text)} (${property.term})`,
@@ -117,7 +118,7 @@ export const TypeSettings = ({
 }: TypeSettingsProps): ReactElement => {
   const t = useItemTypesText();
   const shared = useTranslator(common);
-  const text = useTermText();
+  const text = useTermLabels();
   const choices = propertyChoices(properties, text);
   return (
     <>

@@ -10,6 +10,8 @@
  * does not wait for the table and the page itself must.
  */
 import { act, render, screen } from '@testing-library/react';
+import { loadFixture } from './loadFixture';
+import { installFetch, jsonResponse } from './stub';
 import { Suspense } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../src/i18n';
@@ -28,6 +30,24 @@ const spanishAdmin = vi.hoisted(() => {
 });
 vi.mock('../src/i18n/namespaces/admin/locales/es', async (importOriginal) => {
   await spanishAdmin.gate;
+  return importOriginal();
+});
+
+// The Spanish vocabulary labels, held back the same way.
+const spanishLabels = vi.hoisted(() => {
+  let open: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return {
+    gate,
+    open: () => {
+      open();
+    },
+  };
+});
+vi.mock('../src/i18n/locales/vocabulary/labels/es.json', async (importOriginal) => {
+  await spanishLabels.gate;
   return importOriginal();
 });
 
@@ -90,6 +110,47 @@ describe('a page in Spanish', () => {
       seen.push(document.body.textContent);
       const flashed = english.filter((text) => seen.some((snapshot) => snapshot.includes(text)));
       expect(flashed).toEqual([]);
+    } finally {
+      observer.disconnect();
+    }
+  });
+
+  it('shows no English vocabulary label while the label table is in flight', async () => {
+    await setLocale('es');
+    const routes: Readonly<Record<string, string>> = {
+      '/api/properties': 'properties-page.json',
+      '/api/vocabularies': 'vocabularies-page.json',
+      '/api/resource_classes': 'resource-classes-page.json',
+      '/api/resource_templates': 'resource-templates-page.json',
+      '/api/users': 'users-page.json',
+    };
+    installFetch((url) => {
+      const fixture = routes[url.pathname];
+      return fixture === undefined
+        ? jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 })
+        : jsonResponse(loadFixture(fixture));
+    });
+    const seen: string[] = [];
+    const observer = new MutationObserver(() => {
+      seen.push(document.body.textContent);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    try {
+      const { PropertiesPage } = await import('../src/pages/properties/page');
+      // The list renders once its fetch answers, inside the act; the table
+      // arrives a little later, so the list must wait for it there.
+      setTimeout(spanishLabels.open, 200);
+      await act(async () => {
+        render(
+          <Suspense fallback={<p role="status">Cargando…</p>}>
+            <PropertiesPage param={null} />
+          </Suspense>,
+        );
+        await settle();
+      });
+      expect(await screen.findByRole('cell', { name: 'Título' })).toBeInTheDocument();
+      // dcterms:title's built-in English never painted in its place.
+      expect(seen.filter((snapshot) => /\bTitle\b/.test(snapshot))).toEqual([]);
     } finally {
       observer.disconnect();
     }

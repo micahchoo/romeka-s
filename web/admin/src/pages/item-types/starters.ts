@@ -6,7 +6,8 @@
  */
 import type { Property, ResourceClass } from "../../api/types";
 import { curatedLocale, type CuratedLocale } from "../../app/plain-terms";
-import { termText, type Locale } from "../../i18n";
+import { type Locale } from "../../i18n";
+import { termLabels } from "../../i18n/termText";
 import { fieldKey, type FieldDraft, type TypeDraft } from "./model";
 
 /** Starter names and labels are plain words, curated where plain terms are. */
@@ -233,7 +234,7 @@ export const draftFromStarter = (
       return [];
     }
     const label = localised(entry.label, locale);
-    const own = termText(locale).label(property.term, property.label);
+    const own = termLabels(locale).label(property.term, property.label);
     return [
       {
         key: fieldKey(),

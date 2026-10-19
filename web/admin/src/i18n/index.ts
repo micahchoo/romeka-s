@@ -7,7 +7,7 @@ export type { Catalogue, MessageKey, MessageParams } from './catalogue';
 export { CATALOGUE_LOADERS } from './catalogues';
 export { DEFAULT_LOCALE, LOCALES, parseLocale } from './locale';
 export { defineNamespace, tableFor } from './namespace';
-export type { KeyOf, Namespace, NamespaceLoaders, Table } from './namespace';
+export type { KeyOf, Namespace, NamespaceLoaders, NamespaceOptions, Table } from './namespace';
 export type { Locale } from './locale';
 export {
   LOCALE_STORAGE,
@@ -18,8 +18,7 @@ export {
   useLocale,
   useTranslator,
 } from './store';
-export { loadTermText, termText, useTermText } from './termText';
-export type { TermText } from './termText';
+export type { TermLabels, TermText } from './termText';
 export { localizeServerErrors, serverTranslator } from './serverText';
 export type { ServerTranslate } from './serverText';
 export { createTranslator, MissingMessageError, assertComplete, translatorOver } from './translator';

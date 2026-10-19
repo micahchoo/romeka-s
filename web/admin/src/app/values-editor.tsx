@@ -5,7 +5,8 @@
 import { lazy, Suspense, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
-import { useTermText, useTranslator } from '../i18n';
+import { useTranslator } from '../i18n';
+import { useTermText } from '../i18n/termComments';
 import type { KeyOf, MessageKey, Translator } from '../i18n';
 import { patchValue, removeValue } from './draft';
 import type { ResourceDraft, ValueDraft } from './draft';

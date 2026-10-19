@@ -5,7 +5,8 @@ import type { ClassId, Item, ItemId, UserId } from '../../api/types';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
 import { BulkSiteActions } from './BulkSiteActions';
 import { classLabelOf, classLabels as buildClassLabels, ownerNameOf, userNames } from './labels';
 import type { TermName } from './labels';
@@ -25,7 +26,7 @@ interface ItemsView {
 
 export const ItemsList = (): ReactElement => {
   const { t, locale } = useTranslator(common, resources);
-  const text = useTermText();
+  const text = useTermLabels();
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
 

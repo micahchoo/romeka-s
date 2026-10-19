@@ -16,7 +16,8 @@ import type { ResourceQuery } from '../../../../api/client';
 import type { ApiPage, ItemSet, ResourceClass, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
-import { useTermText, useTranslator } from '../../../../i18n';
+import { useTranslator } from '../../../../i18n';
+import { useTermLabels } from '../../../../i18n/termText';
 import type { KeyOf, MessageKey } from '../../../../i18n';
 import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
@@ -181,7 +182,7 @@ export const ItemQueryField = ({
   resource = 'items',
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator(common, sites);
-  const text = useTermText();
+  const text = useTermLabels();
   const e = useEditorText();
   const countText = (
     message: { readonly main: MessageId } | { readonly editor: EditorMessageKey },

@@ -28,7 +28,8 @@ import { EditPanel, OptionSelect, SaveStatus, SubmitRow, TextField } from '../..
 import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { standardsHref } from '../standards/routes';
 import { common } from '../../i18n/namespaces/common';

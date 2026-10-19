@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { Value } from '../api/types';
-import { useTermText, useTranslator } from '../i18n';
+import { useTranslator } from '../i18n';
+import { useTermLabels } from '../i18n/termText';
 import { TableScroll } from './table-scroll';
 import { common } from '../i18n/namespaces/common';
 import { resources } from '../i18n/namespaces/resources';
@@ -41,7 +42,7 @@ export interface ValuesListProps {
  */
 export const ValuesList = ({ values }: ValuesListProps): ReactElement => {
   const { t } = useTranslator(common, resources);
-  const text = useTermText();
+  const text = useTermLabels();
   if (values.size === 0) {
     return <p>{t('values.none')}</p>;
   }

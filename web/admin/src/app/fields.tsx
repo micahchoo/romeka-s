@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { useTermText, useTranslator } from '../i18n';
+import { useTranslator } from '../i18n';
+import { useTermLabels } from '../i18n/termText';
 import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
@@ -129,7 +130,7 @@ export const ResourceFields = ({
 }: ResourceFieldsProps): ReactElement => {
   const { t } = useTranslator(common);
   const describe = useDescribeText();
-  const text = useTermText();
+  const text = useTermLabels();
   const [open, setOpen] = useState(false);
   const selected = templateById(options.templates, draft.resourceTemplate);
   const typeClass = selected?.resourceClass?.id ?? null;

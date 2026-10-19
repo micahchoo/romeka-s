@@ -4,7 +4,7 @@
  * option lists are typed before any form sees them.
  */
 import { api } from '../api/client';
-import type { TermText } from '../i18n';
+import type { TermLabels } from '../i18n';
 import type {
   DataType,
   ItemSet,
@@ -47,7 +47,7 @@ export const userOptions = (users: readonly User[]): readonly Option<User['id']>
 /** Each class by its label in the locale `text` speaks, else its term. */
 export const classOptions = (
   classes: readonly ResourceClass[],
-  text: TermText,
+  text: TermLabels,
 ): readonly Option<ResourceClass['id']>[] =>
   classes.map((entry) => ({ id: entry.id, label: text.label(entry.term, entry.label) ?? entry.term }));
 

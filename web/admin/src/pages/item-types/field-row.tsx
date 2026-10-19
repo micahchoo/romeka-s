@@ -5,7 +5,7 @@
  */
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
-import { useTermText } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import type { DataType, Property } from '../../api/types';
 import { useLesson } from '../../app/lessons/lesson';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';

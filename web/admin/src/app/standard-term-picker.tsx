@@ -6,7 +6,8 @@
  */
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useLocale, useTermText } from '../i18n';
+import { useLocale } from '../i18n';
+import { useTermText } from '../i18n/termComments';
 import { useDescribeText } from './describe-messages';
 import './describe.css';
 import { plainHint, plainName, searchTerms, termComment, type Termed } from './plain-terms';

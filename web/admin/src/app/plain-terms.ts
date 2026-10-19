@@ -12,7 +12,7 @@
  * curated word or the term itself, and a result far below the best is
  * dropped.
  */
-import type { Locale, TermText } from "../i18n";
+import type { Locale, TermLabels, TermText } from "../i18n";
 
 /** What the search reads of a property or a class. */
 export interface Termed {
@@ -633,7 +633,7 @@ const plainOf = (term: string, locale: Locale): Plain | undefined => {
  * The plain name in `text`'s locale: the curated one, else the label (a
  * built-in term's translation, any other label as stored), else the term.
  */
-export const plainName = (entry: Termed, text: TermText): string => {
+export const plainName = (entry: Termed, text: TermLabels): string => {
   const curated = plainOf(entry.term, text.locale)?.[0];
   if (curated !== undefined) {
     return curated;

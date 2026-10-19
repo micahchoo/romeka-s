@@ -1,5 +1,6 @@
 /**
- * The built-in vocabularies' labels and comments in the active locale.
+ * The built-in vocabularies' labels in the active locale, and the types the
+ * labels and comments share.
  *
  * Upstream prints a vocabulary, class or property label through the
  * translator, `$translate($property->label())`, and its catalogue carries the
@@ -11,159 +12,136 @@
  * therefore show as stored.
  *
  * The tables are `locales/vocabulary/{labels,comments}/<tag>.json`, which the
- * public site reads too (`crates/omeka-site/src/i18n/vocabulary.rs`). Each is
- * typed against English, so a term a locale lacks is a `tsc` error. A page that
- * shows the text loads the active locale's tables, and the English ones its
- * guard reads, as lazy chunks the first time it renders, as the page-local
- * message tables do; a locale switch alone fetches only the catalogue. English
- * needs no table, because the stored text is the English.
+ * public site reads too (`crates/omeka-site/src/i18n/vocabulary.rs`). The
+ * labels and the comments are two message namespaces (`namespace.ts`): a page
+ * that shows the text names the one it reads and suspends until that table
+ * has arrived, so it never shows the English first. Comments are the heavy
+ * half, so they are a module of their own (`termComments.ts`) and are fetched
+ * only once a view reads them: a view that shows labels only never fetches
+ * them. English needs no table, because the stored text is the English.
+ *
+ * Neither module is exported from `src/i18n/index.ts`: that index is in the
+ * first paint, and importing a namespace module is what defines it and starts
+ * its fetch.
  */
-import { useEffect, useSyncExternalStore } from 'react';
-import type englishLabels from './locales/vocabulary/labels/en.json';
-import type englishComments from './locales/vocabulary/comments/en.json';
+import { use, useMemo } from 'react';
 import { DEFAULT_LOCALE } from './locale';
 import type { Locale } from './locale';
+import { defineNamespace, tableFor } from './namespace';
+import type { Namespace, NamespaceLoaders, NamespaceOptions, Table } from './namespace';
 import { useLocale } from './store';
 
-type LabelTable = Readonly<Record<keyof (typeof englishLabels)['terms'], string>>;
-type CommentTable = Readonly<Record<keyof (typeof englishComments)['terms'], string>>;
+/** A vocabulary file's terms, keyed by term. */
+export type TermFile = Readonly<Record<string, string>>;
 
-/** One locale's labels and comments, as its files hold them. */
-interface TableFiles {
-  readonly labels: LabelTable;
-  readonly comments: CommentTable;
+/** A JSON table's module, as Vite imports it. */
+export interface TermModule {
+  readonly default: { readonly terms: TermFile };
 }
-
-/** The two files of a locale, each its own chunk. */
-const tables = (
-  labels: Promise<{ readonly default: { readonly terms: LabelTable } }>,
-  comments: Promise<{ readonly default: { readonly terms: CommentTable } }>,
-): Promise<TableFiles> =>
-  Promise.all([labels, comments]).then(([label, comment]) => ({
-    labels: label.default.terms,
-    comments: comment.default.terms,
-  }));
-
-/**
- * Every shipped locale's tables. A locale added to `CATALOGUE_LOADERS`
- * without them is a `tsc` error.
- */
-const TABLE_LOADERS = {
-  en: () => tables(import('./locales/vocabulary/labels/en.json'), import('./locales/vocabulary/comments/en.json')),
-  es: () => tables(import('./locales/vocabulary/labels/es.json'), import('./locales/vocabulary/comments/es.json')),
-  hi: () => tables(import('./locales/vocabulary/labels/hi.json'), import('./locales/vocabulary/comments/hi.json')),
-  mr: () => tables(import('./locales/vocabulary/labels/mr.json'), import('./locales/vocabulary/comments/mr.json')),
-  ml: () => tables(import('./locales/vocabulary/labels/ml.json'), import('./locales/vocabulary/comments/ml.json')),
-  ta: () => tables(import('./locales/vocabulary/labels/ta.json'), import('./locales/vocabulary/comments/ta.json')),
-  kn: () => tables(import('./locales/vocabulary/labels/kn.json'), import('./locales/vocabulary/comments/kn.json')),
-  te: () => tables(import('./locales/vocabulary/labels/te.json'), import('./locales/vocabulary/comments/te.json')),
-  ne: () => tables(import('./locales/vocabulary/labels/ne.json'), import('./locales/vocabulary/comments/ne.json')),
-} satisfies Readonly<Record<Locale, () => Promise<TableFiles>>>;
-
-/** A loaded table, looked up by any stored term. */
-interface Lookup {
-  readonly labels: ReadonlyMap<string, string>;
-  readonly comments: ReadonlyMap<string, string>;
-}
-
-const lookup = (files: TableFiles): Lookup => ({
-  labels: new Map(Object.entries(files.labels)),
-  comments: new Map(Object.entries(files.comments)),
-});
-
-const loaded = new Map<Locale, Lookup>();
-/** One stable snapshot per locale, replaced when its tables arrive. */
-const texts = new Map<Locale, TermText>();
-const loading = new Map<Locale, Promise<void>>();
-const listeners = new Set<() => void>();
-
-/**
- * Load a locale's tables and the English its guard compares against, once,
- * and re-render every [`useTermText`] caller. A chunk that fails to load
- * leaves the stored text in place and is tried again by the next render.
- */
-export const loadTermText = (locale: Locale): Promise<void> => {
-  if (locale === DEFAULT_LOCALE || loaded.has(locale)) {
-    return Promise.resolve();
-  }
-  const pending = loading.get(locale);
-  if (pending !== undefined) {
-    return pending;
-  }
-  const started = Promise.all([TABLE_LOADERS.en(), TABLE_LOADERS[locale]()])
-    .then(([english, local]) => {
-      loaded.set(DEFAULT_LOCALE, lookup(english));
-      loaded.set(locale, lookup(local));
-      texts.delete(locale);
-      for (const listener of listeners) {
-        listener();
-      }
-    })
-    .finally(() => {
-      loading.delete(locale);
-    });
-  loading.set(locale, started);
-  return started;
-};
-
-const subscribe = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
 
 /** A stored text in one locale's words; `null` stays `null`. */
-type Translate = <Stored extends string | null>(term: string, stored: Stored) => Stored | string;
+export type Translate = <Stored extends string | null>(term: string, stored: Stored) => Stored | string;
 
-/** The label and the comment of a vocabulary, a class or a property, in one locale. */
-export interface TermText {
+/** The label of a vocabulary, a class or a property, in one locale. */
+export interface TermLabels {
   readonly locale: Locale;
   readonly label: Translate;
+}
+
+/** The label and the comment of a vocabulary, a class or a property, in one locale. */
+export interface TermText extends TermLabels {
   readonly comment: Translate;
 }
 
-const asStored: Translate = (_term, stored) => stored;
+// One key holds the guard: the term and the built-in English it was written for.
+const guardKey = (term: string, english: string): string => `${term}\u0000${english}`;
 
-const guarded =
-  (english: ReadonlyMap<string, string>, local: ReadonlyMap<string, string>): Translate =>
+/**
+ * A locale's table as a namespace holds it: each translation keyed by its term
+ * and that term's built-in English, so a lookup by (term, stored text) finds
+ * it only while the stored text is still the built-in English.
+ */
+const guardedTable = (english: TermFile, local: TermFile): Table<string> =>
+  Object.fromEntries(
+    Object.entries(local).flatMap(([term, text]) => {
+      const original = english[term];
+      return original === undefined ? [] : [[guardKey(term, original), text]];
+    }),
+  );
+
+/** A namespace over one kind of vocabulary text, from its English file and each locale's. */
+export const defineTermTable = (
+  id: string,
+  english: () => Promise<TermModule>,
+  files: Readonly<Record<Exclude<Locale, typeof DEFAULT_LOCALE>, () => Promise<TermModule>>>,
+  options: NamespaceOptions = {},
+): Namespace<string> => {
+  const load =
+    (file: () => Promise<TermModule>) => (): Promise<Table<string>> =>
+      Promise.all([english(), file()]).then(([base, local]) =>
+        guardedTable(base.default.terms, local.default.terms),
+      );
+  const loaders: NamespaceLoaders<string> = {
+    es: load(files.es),
+    hi: load(files.hi),
+    mr: load(files.mr),
+    ml: load(files.ml),
+    ta: load(files.ta),
+    kn: load(files.kn),
+    te: load(files.te),
+    ne: load(files.ne),
+  };
+  // English renders the stored text, so its table is empty and never fetched.
+  return defineNamespace<string>(id, {}, loaders, options);
+};
+
+/** The lookup a guarded table answers. */
+export const translateWith =
+  (table: Table<string>): Translate =>
   (term, stored) =>
-    stored !== null && english.get(term) === stored ? (local.get(term) ?? stored) : stored;
+    stored === null ? stored : (table[guardKey(term, stored)] ?? stored);
 
-/**
- * The term text of a locale: its tables once [`loadTermText`] has loaded them,
- * the stored text before that and in English. The same object comes back until
- * the tables arrive, so it is a stable snapshot.
- */
-export const termText = (locale: Locale): TermText => {
-  const cached = texts.get(locale);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const english = loaded.get(DEFAULT_LOCALE);
-  const local = loaded.get(locale);
-  const text: TermText =
-    locale !== DEFAULT_LOCALE && english !== undefined && local !== undefined
-      ? {
-          locale,
-          label: guarded(english.labels, local.labels),
-          comment: guarded(english.comments, local.comments),
-        }
-      : { locale, label: asStored, comment: asStored };
-  texts.set(locale, text);
-  return text;
+/** The built-in vocabulary labels. A locale without its file is a `tsc` error. */
+export const vocabularyLabels = defineTermTable(
+  'vocabulary-labels',
+  () => import('./locales/vocabulary/labels/en.json'),
+  {
+    es: () => import('./locales/vocabulary/labels/es.json'),
+    hi: () => import('./locales/vocabulary/labels/hi.json'),
+    mr: () => import('./locales/vocabulary/labels/mr.json'),
+    ml: () => import('./locales/vocabulary/labels/ml.json'),
+    ta: () => import('./locales/vocabulary/labels/ta.json'),
+    kn: () => import('./locales/vocabulary/labels/kn.json'),
+    te: () => import('./locales/vocabulary/labels/te.json'),
+    ne: () => import('./locales/vocabulary/labels/ne.json'),
+  },
+);
+
+/** A namespace's table in `locale`, suspending the caller until it has arrived. */
+export const useTermTable = (namespace: Namespace<string>, locale: Locale): Table<string> => {
+  const table = tableFor(namespace, locale);
+  return table instanceof Promise ? use(table) : table;
 };
 
 /**
- * The built-in vocabularies' text in the active locale. The first render in a
- * locale shows the stored text and fetches the tables; their arrival renders
- * the caller again.
+ * The built-in vocabularies' labels in the active locale. The caller suspends
+ * until the active locale's table has arrived.
  */
-export const useTermText = (): TermText => {
+export const useTermLabels = (): TermLabels => {
   const locale = useLocale();
-  const text = useSyncExternalStore(subscribe, () => termText(locale), () => termText(locale));
-  useEffect(() => {
-    void loadTermText(locale).catch(() => undefined);
-  }, [locale]);
-  return text;
+  const labels = useTermTable(vocabularyLabels, locale);
+  return useMemo(() => ({ locale, label: translateWith(labels) }), [locale, labels]);
 };
+
+/** The stored text, unchanged: English, or a table not yet arrived. */
+export const asStored: Translate = (_term, stored) => stored;
+
+/**
+ * The labels of a locale outside a component: translated once that locale's
+ * table has arrived, the stored text before that.
+ */
+export const termLabels = (locale: Locale): TermLabels => {
+  const table = tableFor(vocabularyLabels, locale);
+  return { locale, label: table instanceof Promise ? asStored : translateWith(table) };
+};
+

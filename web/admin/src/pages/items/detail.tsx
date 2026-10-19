@@ -11,7 +11,8 @@ import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
 import type { TermName } from './labels';
 import { ItemEditForm } from './form';
@@ -60,7 +61,7 @@ const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
   const { t, locale } = useTranslator(common, resources);
-  const text = useTermText();
+  const text = useTermLabels();
   // A create hands its record to this page, so the heading and the fields
   // render without reading the item back.
   const [seeded] = useState(() => writtenItems.take(itemId));
