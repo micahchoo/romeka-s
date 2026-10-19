@@ -29,7 +29,8 @@
 }
 
 /* The label sits just above the outline, so it covers none of the block; a
- * block at the very top of the page keeps it inside its own top edge. */
+ * block at the very top of the frame keeps it inside its top-right corner,
+ * where a line of text is least likely to start. */
 .live-label {
   position: absolute;
   bottom: 100%;
@@ -49,14 +50,15 @@
 
 .live-outline--top .live-label {
   top: 0;
+  right: 0;
   bottom: auto;
-  left: 0;
-  border-radius: 0 0 4px 0;
+  left: auto;
+  border-radius: 0 0 0 4px;
 }
 
 /* On a grid page each block's insert chip sits on its top-left corner, so the
  * label starts after it. */
-.live-overlay--chips .live-label {
+.live-overlay--chips .live-outline:not(.live-outline--top) .live-label {
   left: 14px;
 }
 
