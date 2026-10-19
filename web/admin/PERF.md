@@ -296,7 +296,7 @@ measured. Measured with `npm run perf:bundle` at this commit.
 The page editor is a lazy route under `src/pages/sites/editor/`. Opening a page fetches the shell and
 the shared chunks its static imports name; the canvas, the field controls, the template chooser, the
 save-as-template dialog and the preview panel each arrive on demand. Measured with `npm run
-perf:bundle` after `npm run build`, gzip bytes, at commit `2884116` plus this change:
+perf:bundle` after `npm run build`, gzip bytes, at commit `957fbb2` plus this change:
 
 | Chunk | Module | Raw | Gzip |
 | --- | --- | --- | --- |
@@ -327,7 +327,7 @@ and the largest lazy chunk is the sites route page at 7643 B, 2597 B of slack. T
 The preview is now the editor's main surface, so its chunk loads on every open, beside the Outline,
 instead of on a mode switch. It stays lazy: a static import would add about 3 KB to the shell for no
 gain in latency, because both lazy chunks start on the first render. Measured with `npm run
-perf:bundle` after `vite build`, gzip bytes, against commit `8259d09` built the same way from a
+perf:bundle` after `vite build`, gzip bytes, against commit `b18c583` built the same way from a
 `git archive` copy with the same `node_modules`:
 
 | Chunk | Before | After | Note |
@@ -354,7 +354,7 @@ choice names and a group intro, in English and Spanish (`siteSetting*` keys in
 `src/i18n/catalogue.ts` and `src/i18n/locales/es.ts`). Both catalogues are eager, so every string
 is on the first paint.
 
-**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `0a8301a` built the
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `f3cec5e` built the
 same way from a `git archive` copy with the same `node_modules`:
 
 | Asset | Before | After | Note |
@@ -411,7 +411,7 @@ catalogue before the first render, so a reload in Spanish paints Spanish first. 
 file under `src/i18n/locales/` and one registry entry; no locale other than English enters the
 initial bundle.
 
-**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `c8bf5ae` built the
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `17ccde4` built the
 same way from a `git archive` copy with the same `node_modules`:
 
 | Asset | Before | After | Note |
@@ -442,7 +442,7 @@ ceiling when it lands.
 The site's Items page (`src/pages/sites/resources.tsx`, `siteItemsAdd.tsx`), the item picker and the
 Items list's bulk site actions add about 60 messages to each of the two catalogues, and both
 catalogues sit in the initial payload. Measured with `zlib.gzipSync` over the files `dist/index.html`
-references, the gzip `perf/bundle.mjs` uses: main at `0a8301a` built with `vite build` is 100672 B,
+references, the gzip `perf/bundle.mjs` uses: main at `f3cec5e` built with `vite build` is 100672 B,
 this change is 102270 B, a cost of 1598 B, and 130 B under the 102400 B budget. A first draft cost
 about 2200 B and went over; merging messages into existing keys (`field.saved`) and shortening the
 help texts took it under. The page's own chunk is 4091 B js and 1125 B css gzip, against the
@@ -466,7 +466,7 @@ messages (Decision 10) now load the same way: English stays in the page chunk, a
 is a chunk under `src/pages/sites/themeEditor/locales/` that the page waits for with its site. The
 Standards page's two messages are imported with its page, every locale, as before.
 
-**Measured.** `npm run build` then `npm run perf:check` on this branch merged with main `aff7104`,
+**Measured.** `npm run build` then `npm run perf:check` on this branch merged with main `2b6ff5e`,
 gzip bytes from `zlib.gzipSync` as `perf/bundle.mjs` measures them:
 
 | Asset | Bytes | Note |
@@ -502,7 +502,7 @@ before any route loads, on sign-in or on the first failed request, so it cannot 
 
 | Build | initial js | Note |
 | --- | --- | --- |
-| main `a624b37` | 93157 | Decision 13 |
+| main `6cec165` | 93157 | Decision 13 |
 | + admin locale (`admin/user-locale`) | 93418 | 261 B: the session step, the switch write, three client calls |
 | + translated server errors (`admin/i18n-errors`) | 93728 | 310 B: the boundary call and the locale's loader table |
 
@@ -526,7 +526,7 @@ controls' own words), live in `src/pages/sites/editor/messages.ts` with one tabl
 `vite.config.ts` names the English table's chunk `editor-messages`.
 
 Measured with `vite build` then `npm run perf:check` and `perf/bundle.mjs`, gzip bytes, against the
-base commit `b1c59db` built the same way from a `git archive` copy with the same `node_modules`:
+base commit `79af36f` built the same way from a `git archive` copy with the same `node_modules`:
 
 | Asset | Before | After | Note |
 | --- | --- | --- | --- |
@@ -551,7 +551,7 @@ chunk, `lessons`, in `vite.config.ts`; each other locale's table is its own chun
 `app/lessons/locales/`. A first build without the group folded them into the shared `plain-terms`
 chunk, which then measured 10498 B, over the 10240 B ceiling.
 
-Measured with `vite build` then `perf/bundle.mjs`, gzip bytes, against main `3af0c3d` built the same
+Measured with `vite build` then `perf/bundle.mjs`, gzip bytes, against main `28bd6ba` built the same
 way from a `git archive` copy with the same `node_modules`:
 
 | Asset | Before | After | Note |
@@ -571,7 +571,7 @@ one more user read on the first page that shows a lesson. These are single build
 
 The Vocabularies tab gains "Import a vocabulary" and, on a vocabulary's page, "Update from a file or
 web address". Measured with `vite build` then `npm run perf:pages` and `zlib.gzipSync` over the
-manifest's chunks, gzip bytes, against the base commit `3af0c3d` built the same way:
+manifest's chunks, gzip bytes, against the base commit `28bd6ba` built the same way:
 
 | Asset | Before | After | Note |
 | --- | --- | --- | --- |
@@ -592,7 +592,7 @@ Tags add a Tags field to the item, item set and media forms and a Tags panel wit
 the Term lists page. The field's four strings live in `src/app/describe-messages.ts`, which imports
 every locale with the forms; the panel's strings live in the Term lists table, one chunk per locale.
 Measured with `vite build` and `zlib.gzipSync` (the gzip `perf/bundle.mjs` uses), against the base
-`ed7100a` built the same way from a `git archive` copy with the same `node_modules`:
+`e5c1b75` built the same way from a `git archive` copy with the same `node_modules`:
 
 | Asset | Before | After | Note |
 | --- | --- | --- | --- |
@@ -621,7 +621,7 @@ because the stored text is the English. A first version loaded the tables with t
 broke `e2e/specs/locale.spec.ts` ("only the chosen language downloads"), because a switch then
 fetched five scripts instead of one.
 
-| Measure (gzip) | Before (3af0c3d) | After | Note |
+| Measure (gzip) | Before (28bd6ba) | After | Note |
 | --- | --- | --- | --- |
 | initial js | 92488 | 93112 | the loader table, the guard and the hook |
 | largest lazy chunk (`page-*`) | 9893 | 9942 | |
@@ -634,7 +634,7 @@ in a non-English session that shows vocabulary text fetches four chunks, 25004 B
 and shows the stored English text until they arrive. Splitting the comments out of that first fetch
 would take 17570 B off it.
 
-**Re-measured after merging main `2d0b0cb`** (lessons, term lists, tags, the Indic site locales): initial
+**Re-measured after merging main `19edebf`** (lessons, term lists, tags, the Indic site locales): initial
 js 94051 B of 94208, largest lazy chunk 10044 B of 10240. These are single builds. The 157 B left is the
 reason the catalogue split is next (Decision 14's stopgap).
 
@@ -651,9 +651,9 @@ Spanish shows its fallback and never English. The vocabulary labels and comments
 namespaces; the comments wait for their first read. 20 keys nothing rendered were deleted.
 
 **Measured.** `vite build` then `perf/bundle.mjs` (`zlib.gzipSync`), gzip bytes, against main
-`8fe1ed1` built the same way from a `git archive` copy with the same `node_modules`:
+`29a77af` built the same way from a `git archive` copy with the same `node_modules`:
 
-| Asset | Before (`8fe1ed1`) | After | Note |
+| Asset | Before (`29a77af`) | After | Note |
 | --- | --- | --- | --- |
 | initial js | 94056 | 84680 | 9376 B off the first paint |
 | shared React and catalogue chunk (`jsx-runtime-*`) | 15929 | 6232 | the English catalogue left it |
