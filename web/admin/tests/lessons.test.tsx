@@ -1,7 +1,8 @@
 /**
- * The lessons: the registry is a complete ladder with the planned slots, and a
- * lesson in place shows once, writes itself seen to the user's settings, and
- * comes back on its "?". The seen-state arrives with the session user, as
+ * The lessons: the registry is a complete ladder, and a lesson in place shows
+ * once, writes itself seen to the user's settings, and comes back on its
+ * "Lesson" chip. Two lessons whose moments come together open one at a time,
+ * lowest rung first. The seen-state arrives with the session user, as
  * `GET /api/me` answers it.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -13,7 +14,7 @@ import { useLesson } from '../src/app/lessons/lesson';
 import { en } from '../src/app/lessons/messages';
 import { es } from '../src/app/lessons/locales/es';
 import { LESSONS, RUNGS } from '../src/app/lessons/registry';
-import type { WrittenLessonId } from '../src/app/lessons/registry';
+import type { LessonId } from '../src/app/lessons/registry';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -39,7 +40,7 @@ const Anchor = ({
   id,
   active = true,
 }: {
-  readonly id: WrittenLessonId;
+  readonly id: LessonId;
   readonly active?: boolean;
 }): ReactElement => {
   const lesson = useLesson(id, active);
@@ -77,26 +78,9 @@ describe('the lesson registry', () => {
     }
   });
 
-  it('the_screens_other_units_build_have_slots_with_no_text', () => {
-    const slots: Readonly<Record<string, string>> = {
-      'term-merge': 'fixedValues',
-      'tag-promote': 'fixedValues',
-      'authority-link': 'linkedData',
-      publish: 'makingStandards',
-    };
-    for (const [id, rung] of Object.entries(slots)) {
-      const lesson = entries.find(([key]) => key === id)?.[1];
-      expect(lesson?.rung, id).toBe(rung);
-      expect(lesson?.text, id).toBeNull();
-    }
-  });
-
-  it('a_written_lesson_is_one_or_two_sentences_in_english_and_spanish', () => {
+  it('a_lesson_is_one_or_two_sentences_in_english_and_spanish', () => {
     const sentences = (text: string): number => text.split(/[.!?](?:\s|$)/u).filter(Boolean).length;
     for (const [id, lesson] of entries) {
-      if (lesson.text === null) {
-        continue;
-      }
       for (const table of [en, es]) {
         const count = sentences(table[lesson.text.body]);
         expect(count, `${id}: ${table[lesson.text.body]}`).toBeGreaterThanOrEqual(1);
@@ -113,7 +97,9 @@ describe('a lesson in place', () => {
 
     render(<Anchor id="term" />);
 
-    expect(lessonRegion('Standard terms')).toHaveTextContent('dcterms:creator');
+    expect(await screen.findByRole('note', { name: 'Lesson: Standard terms' })).toHaveTextContent(
+      'dcterms:creator',
+    );
     await vi.waitFor(() => {
       expect(seenWrites(fetchMock)).toEqual([['term']]);
     });
@@ -141,25 +127,60 @@ describe('a lesson in place', () => {
     expect(seenWrites(fetchMock)).toEqual([]);
   });
 
-  it('two_lessons_at_once_both_reach_the_server', async () => {
-    let answered = 0;
-    const fetchMock = installFetch(() => {
-      answered += 1;
-      return jsonResponse(userJson());
-    });
+  it('two_lessons_at_once_open_one_at_a_time_lowest_rung_first', async () => {
+    const fetchMock = installFetch(() => jsonResponse(userJson()));
     signIn(null);
 
     render(
       <>
-        <Anchor id="term" />
         <Anchor id="type-class" />
+        <Anchor id="term" />
       </>,
     );
 
+    await screen.findByRole('note', { name: 'Lesson: Standard terms' });
+    expect(lessonRegion('Standard classes')).toBeNull();
     await vi.waitFor(() => {
-      expect(answered).toBe(2);
+      expect(seenWrites(fetchMock)).toEqual([['term']]);
     });
-    expect(seenWrites(fetchMock).at(-1)).toEqual(['term', 'type-class']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    await screen.findByRole('note', { name: 'Lesson: Standard classes' });
+    expect(lessonRegion('Standard terms')).toBeNull();
+    await vi.waitFor(() => {
+      expect(seenWrites(fetchMock).at(-1)).toEqual(['term', 'type-class']);
+    });
+  });
+
+  it('a_waiting_lesson_the_user_leaves_stays_unseen_for_the_next_visit', async () => {
+    const fetchMock = installFetch(() => jsonResponse(userJson()));
+    signIn(null);
+
+    const page = render(
+      <>
+        <Anchor id="term" />
+        <Anchor id="standards" />
+      </>,
+    );
+    await screen.findByRole('note', { name: 'Lesson: Standard terms' });
+    page.unmount();
+
+    await vi.waitFor(() => {
+      expect(seenWrites(fetchMock)).toEqual([['term']]);
+    });
+    render(<Anchor id="standards" />);
+    expect(await screen.findByRole('note', { name: 'Lesson: Linked data' })).toBeVisible();
+  });
+
+  it('a_lesson_chip_reads_apart_from_a_term_question_mark', () => {
+    installFetch(() => jsonResponse(userJson()));
+    signIn({ romeka_lessons_seen: ['term'] });
+
+    render(<Anchor id="term" />);
+
+    const chip = screen.getByRole('button', { name: 'Show the lesson: Standard terms' });
+    expect(chip).toHaveTextContent('Lesson');
+    expect(chip).not.toHaveTextContent('?');
   });
 
   it('an_inactive_anchor_shows_nothing_and_marks_nothing', async () => {
