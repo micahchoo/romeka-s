@@ -33,6 +33,7 @@ import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
 import { SidesField } from './SidesField';
 import { isShown } from './visibility';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 type FieldOf<Type extends BlockField['type']> = Extract<BlockField, { type: Type }>;
 
@@ -193,7 +194,7 @@ const ChoiceControl = ({
   error,
   invalid,
 }: ControlProps & { readonly field: FieldOf<'choice'> }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(editor);
   const e = useEditorText();
   if (field.multiple) {
     const selected = asList(value);
@@ -508,7 +509,7 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
 };
 
 export const FieldControl = (props: FieldControlProps): ReactElement | null => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(editor);
   // A new block starts with its required fields empty, so "required" waits
   // until the user has been in the field and left it.
   const [visited, setVisited] = useState(false);

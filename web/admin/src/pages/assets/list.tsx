@@ -4,6 +4,8 @@ import type { ApiPage, Asset } from '../../api/types';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 const PER_PAGE = 25;
 
@@ -23,7 +25,7 @@ const load = async (page: number): Promise<ApiPage<AssetRow>> => {
 
 /** `Admin/AssetController::browseAction`: the asset browse table. */
 export const AssetList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const resource = t('resource.assets');
   return (
     <ListPage<AssetRow>

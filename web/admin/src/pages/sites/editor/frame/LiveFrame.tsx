@@ -29,6 +29,8 @@ import type { Box, InsertSlot, InsertTarget } from './geometry';
 import { guardFrame } from './guard';
 import { readFrame } from './markers';
 import type { FrameMap } from './markers';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 import './frame.css';
 
 export type PickerChoice =
@@ -90,7 +92,7 @@ export const LiveFrame = ({
   onSelect,
   onInsert,
 }: LiveFrameProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const [buffers, setBuffers] = useState<readonly [PreviewRender | null, PreviewRender | null]>([
     null,
     null,

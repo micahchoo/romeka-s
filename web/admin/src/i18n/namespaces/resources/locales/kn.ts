@@ -1,0 +1,69 @@
+/**
+ * The Kannada item, item set and media page messages.
+ *
+ * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks, and not yet reviewed by a reader of Kannada. Correct
+ * a string here; a later run keeps it. It is typed `ResourcesMessages`, so a key
+ * added to English and not here is a `tsc` error.
+ */
+import type { ResourcesMessages } from '../index';
+
+export const kn: ResourcesMessages = {
+  'itemSites.legend': 'ಸೈಟ್‌ಗಳು',
+  'itemSites.none': 'ನೀವು ಯಾವುದೇ ಸೈಟ್‌ಗೆ ಐಟಂಗಳನ್ನು ಸೇರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'itemSites.createHelp':
+    'ನೀವು ಯಾವುದೇ ಸೈಟ್ ಅನ್ನು ಆರಿಸದಿದ್ದರೆ, ತನ್ನ ಹುಡುಕಾಟದೊಂದಿಗೆ ಸಿಂಕ್‌ನಲ್ಲಿ ಉಳಿಯುವ ಯಾವುದೇ ಸೈಟ್ ಈ ಐಟಂ ಅನ್ನು ಸೇರಿಸುತ್ತದೆ, ಅದು ಹೊಂದಿಕೆಯಾದಾಗ.',
+  'loading.itemSet': 'ಐಟಂ ಸೆಟ್ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+  'loading.media': 'ಮೀಡಿಯಾ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+  'values.none': 'ಯಾವುದೇ ಮೌಲ್ಯಗಳಿಲ್ಲ.',
+  'values.property': 'ಗುಣಲಕ್ಷಣ',
+  'values.type': 'ವಿಧ',
+  'values.value': 'ಮೌಲ್ಯ',
+  'values.tableLabel': '{term} ಗಾಗಿ ಮೌಲ್ಯಗಳು',
+  'field.resourceTemplate': 'ಸಂಪನ್ಮೂಲ ಟೆಂಪ್ಲೇಟ್',
+  'column.modified': 'ಮಾರ್ಪಡಿಸಲಾಗಿದೆ',
+  'items.add': 'ಐಟಂ ಸೇರಿಸಿ',
+  'items.empty': 'ಯಾವುದೇ ಐಟಂಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
+  'items.mediaHeading': 'ಮಾಧ್ಯಮ ({count})',
+  'items.noMedia': 'ಯಾವುದೇ ಮಾಧ್ಯಮವಿಲ್ಲ.',
+  'items.valuesHeading': 'ಮೌಲ್ಯಗಳು',
+  'items.rowName': 'ಐಟಂ #{id}',
+  'items.editLabel': 'ಈ ಐಟಂ ಅನ್ನು ಎಡಿಟ್ ಮಾಡಿ',
+  'items.deleteLabel': 'ಈ ಐಟಂ ಅನ್ನು ಅಳಿಸಿ',
+  'items.noSets': 'ಯಾವುದೇ ಐಟಂ ಸೆಟ್‌ಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
+  'items.setsLegend': 'ಐಟಂ ಸೆಟ್‌ಗಳು',
+  'itemSets.open': 'ಐಟಂ ಸೆಟ್ ತೆರೆಯಿರಿ',
+  'itemSets.add': 'ಐಟಂ ಸೆಟ್ ಸೇರಿಸಿ',
+  'itemSets.deleteLabel': 'ಈ ಐಟಂ ಸೆಟ್ ಅನ್ನು ಅಳಿಸಿ',
+  'itemSets.rowName': 'ಐಟಂ ಸೆಟ್ #{id}',
+  'media.legend': 'ಮಾಧ್ಯಮ',
+  'media.altText': 'ಪರ್ಯಾಯ ಪಠ್ಯ',
+  'media.language': 'ಭಾಷೆ',
+  'media.visibility': 'ಗೋಚರತೆ',
+  'media.partOfItem': 'ಐಟಂನ ಭಾಗ',
+  'media.mimeType': 'MIME ವಿಧ',
+  'media.renderer': 'ರೆಂಡರರ್',
+  'media.ingester': 'ಇಂಜೆಸ್ಟರ್',
+  'media.source': 'ಮೂಲ',
+  'media.filename': 'ಫೈಲ್ ಹೆಸರು',
+  'media.size': 'ಗಾತ್ರ',
+  'media.sha256': 'SHA-256',
+  'media.fileDerivatives': 'ಫೈಲ್ ಡೆರಿವೇಟಿವ್‌ಗಳು',
+  'media.editLabel': 'ಈ ಮೀಡಿಯಾವನ್ನು ಎಡಿಟ್ ಮಾಡಿ',
+  'media.deleteLabel': 'ಈ ಮೀಡಿಯಾವನ್ನು ಡಿಲೀಟ್ ಮಾಡಿ',
+  'media.noPreview': 'ಯಾವುದೇ ಪ್ರಿವ್ಯೂ ಇಲ್ಲ',
+  'media.altFallback': 'ಮೀಡಿಯಾ #{id}',
+  'route.invalidItemId': '"{param}" ಮಾನ್ಯವಾದ ಐಟಂ ಐಡಿ ಅಲ್ಲ.',
+  'route.invalidItemSetId': '"{param}" ಮಾನ್ಯವಾದ ಐಟಂ ಸೆಟ್ ಐಡಿ ಅಲ್ಲ.',
+  'route.invalidMediaId': '"{param}" ಮಾನ್ಯವಾದ ಮೀಡಿಯಾ ಐಡಿ ಅಲ್ಲ.',
+  'items.selectAll': 'ಈ ಪುಟದಲ್ಲಿರುವ ಎಲ್ಲಾ ಅಂಶಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿ',
+  'items.selectItem': '{title} ಅನ್ನು ಆಯ್ಕೆ ಮಾಡಿ',
+  'items.selected': 'ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ: {count}',
+  'items.bulkAdd': 'ಸೈಟ್‌ಗೆ ಸೇರಿಸಿ…',
+  'items.bulkRemove': 'ಸೈಟ್‌ನಿಂದ ತೆಗೆದುಹಾಕಿ…',
+  'items.bulkSite': 'ಸೈಟ್',
+  'items.bulkChooseSite': 'ಸೈಟ್ ಆಯ್ಕೆ ಮಾಡಿ',
+  'items.bulkConfirmAdd': '{site} ಗೆ {count} ಅನ್ನು ಸೇರಿಸಿ',
+  'items.bulkDone': '{site} ಈಗ {total} ಅಂಶಗಳನ್ನು ಹೊಂದಿದೆ.',
+  'items.bulkConfirmRemove': '{site} ನಿಂದ {count} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
+};

@@ -9,6 +9,8 @@ import type { Site, User, UserId } from '../../api/types';
 import { CheckboxField, OptionSelect, TextField } from '../../app/fields';
 import { userOptions } from '../../app/options';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 /**
  * The bundled theme (`crates/omeka-site/src/theme/default.rs`). No API endpoint
@@ -53,7 +55,7 @@ export const ThemeSelect = ({
   readonly value: string;
   readonly onChange: (value: string) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const options = THEME_OPTIONS.includes(value) ? THEME_OPTIONS : [...THEME_OPTIONS, value];
   return (
     <p>
@@ -84,7 +86,7 @@ export const SiteInfoFields = ({
   readonly users: readonly User[];
   readonly onChange: (info: SiteInfo) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const set = (patch: Partial<SiteInfo>): void => {
     onChange({ ...info, ...patch });
   };

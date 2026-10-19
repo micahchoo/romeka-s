@@ -12,6 +12,8 @@
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslator } from '../../../../i18n';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 export interface HtmlEditorProps {
   readonly id: string;
@@ -55,7 +57,7 @@ export const HtmlEditor = ({
   onChange,
   required = false,
 }: HtmlEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const editor = useRef<HTMLDivElement | null>(null);
   const saved = useRef<Range | null>(null);
   const [source, setSource] = useState(false);

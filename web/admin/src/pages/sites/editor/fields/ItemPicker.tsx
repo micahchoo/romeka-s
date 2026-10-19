@@ -13,6 +13,8 @@ import type { Item, ItemId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
 import { useTranslator } from '../../../../i18n';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
 import './ItemPicker.css';
 
 /** How long the picker waits after a key before it searches. */
@@ -45,7 +47,7 @@ const nextIndex = (key: string, at: number, count: number): number | null => {
 };
 
 export const ItemPicker = ({ id, label, picked, onChange }: ItemPickerProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [term, setTerm] = useState('');
   const settled = useSettled(term.trim(), SEARCH_DELAY_MS);
   const results = useAsync(

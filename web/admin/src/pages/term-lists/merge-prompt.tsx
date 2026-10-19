@@ -13,6 +13,7 @@ import { useLesson } from '../../app/lessons/lesson';
 import { useTranslator } from '../../i18n';
 import { useTermListText } from './messages';
 import { RewriteCounts } from './rewrite-counts';
+import { common } from '../../i18n/namespaces/common';
 
 type Step =
   | { readonly kind: 'choose' }
@@ -33,7 +34,7 @@ export const MergePrompt = ({
   /** Called with what to tell the user once the merge or the answer is stored. */
   readonly onDone: (message: string) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const [kept, setKept] = useState(group[0]?.value ?? '');
   const [step, setStep] = useState<Step>({ kind: 'choose' });

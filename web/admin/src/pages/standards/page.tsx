@@ -5,7 +5,7 @@
  * same tabs through the router.
  */
 import type { ComponentType, ReactElement } from 'react';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { useLesson } from '../../app/lessons/lesson';
 import { useTranslator } from '../../i18n';
 import { useStandardsText } from './messages';
@@ -14,9 +14,14 @@ import { ResourceClassesPage } from '../resource-classes/page';
 import { VocabulariesPage } from '../vocabularies/page';
 import { isStandardsTab, STANDARDS_TABS, standardsHref } from './routes';
 import type { StandardsTab } from './routes';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof standards>;
 
 interface Tab {
-  readonly labelKey: MessageKey;
+  readonly labelKey: MessageId;
   readonly element: ComponentType<{ readonly param: string | null }>;
 }
 
@@ -43,7 +48,7 @@ export const StandardsPage = ({
 }: {
   readonly rest?: readonly string[];
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const text = useStandardsText();
   const [segment = 'vocabularies', param = null] = rest;
   const lesson = useLesson('standards', param === null);

@@ -5,10 +5,11 @@ import { useTranslator } from '../../i18n';
 import { ItemDetail } from './detail';
 import { ItemForm } from './form';
 import { ItemsList } from './list';
+import { resources } from '../../i18n/namespaces/resources';
 
 /** `#/items` lists, `#/items/new` creates, `#/items/<id>` shows and edits. */
 export const ItemsPage = ({ param }: PageProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(resources);
   if (param === null) {
     return <ItemsList />;
   }

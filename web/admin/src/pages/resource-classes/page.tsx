@@ -7,6 +7,7 @@ import {
 } from '../vocabularies/member';
 import { ResourceClassDetail } from './detail';
 import { ResourceClassList } from './list';
+import { standards } from '../../i18n/namespaces/standards';
 
 /** The Classes tab: its list, `new` to create one, or a class id. */
 export const ResourceClassesPage = ({
@@ -14,7 +15,7 @@ export const ResourceClassesPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(standards);
   if (param === null) {
     return <ResourceClassList />;
   }

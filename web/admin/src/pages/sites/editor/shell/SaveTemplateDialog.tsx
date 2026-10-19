@@ -20,6 +20,9 @@ import {
 } from '../../templates';
 import { toSavedTemplate } from '../wire';
 import type { PageContent } from '../draft';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 export interface SaveTemplateDialogProps {
   readonly siteId: SiteId;
@@ -38,7 +41,7 @@ export const SaveTemplateDialog = ({
   onSaved,
   onClose,
 }: SaveTemplateDialogProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const { state: saveState, save } = useSave();

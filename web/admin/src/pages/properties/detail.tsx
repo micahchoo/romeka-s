@@ -6,6 +6,7 @@ import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { PROPERTY_KIND, MemberDetail } from '../vocabularies/member';
+import { standards } from '../../i18n/namespaces/standards';
 
 interface Loaded {
   readonly property: Property;
@@ -28,7 +29,7 @@ export const PropertyDetail = ({
 }: {
   readonly propertyId: PropertyId;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(standards);
   const state = useAsync(() => load(propertyId), [propertyId]);
   const [edited, setEdited] = useState<Property | null>(null);
 

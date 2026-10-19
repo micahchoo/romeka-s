@@ -3,6 +3,7 @@ import { assetIdFromParam } from '../../api/parse';
 import { useTranslator } from '../../i18n';
 import { AssetDetail } from './detail';
 import { AssetList } from './list';
+import { admin } from '../../i18n/namespaces/admin';
 
 /** `#/assets` lists; `#/assets/<id>` shows one asset. There is no create route. */
 export const AssetsPage = ({
@@ -10,7 +11,7 @@ export const AssetsPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   if (param === null) {
     return <AssetList />;
   }

@@ -9,7 +9,7 @@ import type {
   Vocabulary,
   VocabularyId,
 } from '../api/types';
-import type { TermText } from '../i18n';
+import type { TermLabels } from '../i18n';
 
 /**
  * A vocabulary, class or property as a list names it: its term (the prefix for
@@ -53,7 +53,7 @@ export const ownerNameOf = (
 /** The label in the locale `text` speaks, or `#id` when the row was not fetched. */
 const termLabelOf =
   <IdT extends number>() =>
-  (labels: ReadonlyMap<IdT, TermName>, ref: ResourceRef<IdT> | null, text: TermText): string | null => {
+  (labels: ReadonlyMap<IdT, TermName>, ref: ResourceRef<IdT> | null, text: TermLabels): string | null => {
     if (ref === null) {
       return null;
     }

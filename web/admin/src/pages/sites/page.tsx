@@ -10,6 +10,7 @@ import { SiteSettingsPage } from './settings';
 import { SiteFrame, SITE_TABS } from './SiteFrame';
 import type { SiteView } from './SiteFrame';
 import { SiteUsersPage } from './users';
+import { sites } from '../../i18n/namespaces/sites';
 
 /**
  * The page editor is its own chunk. It pulls in the canvas and the block forms
@@ -78,7 +79,7 @@ const SiteScreenView = ({
   readonly siteId: SiteId;
   readonly view: SiteView;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   if (view.kind === 'page') {
     return (
       <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
@@ -126,7 +127,7 @@ export const SitesPage = ({
   readonly param?: string | null;
   readonly rest?: readonly string[];
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   if (param === null) {
     return <SiteList />;
   }

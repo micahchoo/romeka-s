@@ -12,6 +12,8 @@ import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
 import { BUILTIN_TEMPLATES } from '../../templateRegistry';
 import { templateOutline } from '../canvas/summary';
+import { editor } from '../../../../i18n/namespaces/editor';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 export interface TemplateChooserProps {
   readonly registry: BlockRegistry;
@@ -30,7 +32,7 @@ const TemplateCard = ({
   readonly template: TemplateChoice;
   readonly onChoose: (template: TemplateChoice) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const outline = templateOutline(registry, template.blocks, t);
   return (
     <li className="template-card">
@@ -77,7 +79,7 @@ export const TemplateChooser = ({
   onChoose,
   onBlank,
 }: TemplateChooserProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const saved = savedTemplates(siteSettings);
   return (
     <section className="template-chooser" aria-label={t('template.choose')}>

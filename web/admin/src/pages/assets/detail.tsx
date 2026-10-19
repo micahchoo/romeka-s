@@ -8,6 +8,8 @@ import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { AssetEditForm } from './form';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 /**
  * `Admin/AssetController::showDetailsAction` with `::editAction` and
@@ -16,7 +18,7 @@ import { AssetEditForm } from './form';
  * file the API's JSON boundary cannot carry.
  */
 export const AssetDetail = ({ assetId }: { readonly assetId: AssetId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const state = useAsync(() => api.getAsset(assetId), [assetId]);
   const [edited, setEdited] = useState<Asset | null>(null);
 

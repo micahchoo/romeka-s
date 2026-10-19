@@ -17,12 +17,14 @@ import type { BlockRegistry } from '../../blockSchema';
 import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
 import { BUILTIN_TEMPLATES } from '../../templateRegistry';
+import { editor } from '../../../../i18n/namespaces/editor';
+import { sites } from '../../../../i18n/namespaces/sites';
 import './picker.css';
 
 /** The templates an insert point offers: the built-in ones, then the site's saved ones.
  * The Outline and the preview both insert through it, so they offer the same list. */
 export const useInsertChoices = (siteSettings: JsonValue | null): readonly TemplateChoice[] => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   return [...builtinChoices(BUILTIN_TEMPLATES, t), ...savedChoices(savedTemplates(siteSettings))];
 };
 
@@ -80,7 +82,7 @@ export const BlockPicker = ({
   onChooseTemplate,
   onClose,
 }: BlockPickerProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const [query, setQuery] = useState('');
   const options = [...registry.layouts, ...registry.romeka].filter((layout) =>
     matches(query, t(layout.label), layout.name, t(layout.description)),

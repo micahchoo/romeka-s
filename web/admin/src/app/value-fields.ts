@@ -18,7 +18,8 @@ import type {
   TemplateId,
   TermListName,
 } from '../api/types';
-import type { TermText, Translator } from '../i18n';
+import type { KeyOf, MessageKey, TermText, Translator } from '../i18n';
+import type { common } from '../i18n/namespaces/common';
 import {
   allValues,
   draftKey,
@@ -273,7 +274,7 @@ export const draftErrors = (
   draft: ResourceDraft,
   templates: readonly ResourceTemplate[],
   properties: readonly Property[],
-  t: Translator['t'],
+  t: Translator<MessageKey | KeyOf<typeof common>>['t'],
   text: TermText,
 ): readonly string[] => [
   ...missingRequired(

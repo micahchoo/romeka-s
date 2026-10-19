@@ -11,11 +11,16 @@ import { LocaleSelect, localeValue } from '../../app/locale-select';
 import { useSave } from '../../app/save';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { PasswordLinkPanel } from './link';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
 
 /** `Omeka\Permissions\Acl` role ids and labels, in upstream rank order. */
-const ROLES: readonly { readonly value: string; readonly labelKey: MessageKey }[] = [
+const ROLES: readonly { readonly value: string; readonly labelKey: MessageId }[] = [
   { value: 'global_admin', labelKey: 'role.globalAdmin' },
   { value: 'site_admin', labelKey: 'role.siteAdmin' },
   { value: 'editor', labelKey: 'role.editor' },
@@ -33,7 +38,7 @@ const UserEditor = ({
   readonly userId: UserId | null;
   readonly user: User | null;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState(user?.role ?? '');
@@ -195,7 +200,7 @@ const UserEditor = ({
 
 /** `Admin/UserController::addAction` and `::editAction`. */
 export const UserForm = ({ userId }: { readonly userId: UserId | null }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const state = useAsync(
     async (): Promise<User | null> => (userId === null ? null : api.getUser(userId)),
     [userId],

@@ -13,6 +13,9 @@ import { isRecord, isUnknownArray } from '../../../../api/parse';
 import type { JsonValue, SiteId, SitePage } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 /** One stored tree node. */
 interface PageListNode {
@@ -155,7 +158,7 @@ function PageListNode({
   pages,
   onChange,
 }: PageListNodeProps): ReactElement {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const key = path.join('.');
   return (
     <li>
@@ -264,7 +267,7 @@ export const PageListField = ({
   siteId,
   pages,
 }: PageListFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const state = useAsync(
     async (): Promise<readonly SitePage[]> =>
       pages ?? (await api.listSitePages({ siteId, perPage: 200 })).items,

@@ -12,6 +12,8 @@ import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { useTranslator } from '../../i18n';
 import { MediaEditForm } from './form';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 type DerivativeKind = 'original' | ThumbnailType;
 
@@ -25,7 +27,7 @@ const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
  * metadata the API carries, the file derivatives, and its values.
  */
 export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(common, resources);
   const { t, locale } = translator;
   const state = useAsync(() => api.getMedia(mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);

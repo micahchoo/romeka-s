@@ -10,6 +10,8 @@ import type { JsonValue } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import type { BlockField } from '../../blockSchema';
 import { isJsonObject } from '../values';
+import { common } from '../../../../i18n/namespaces/common';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 /** The props one sub-control of a repeat entry receives. */
 export interface NestedControlProps {
@@ -57,7 +59,7 @@ export const RepeatField = ({
   renderControl,
   path,
 }: RepeatFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, editor);
   return (
     <fieldset className="block-field repeat-field">
       <legend>{label}</legend>

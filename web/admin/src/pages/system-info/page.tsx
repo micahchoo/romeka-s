@@ -4,6 +4,8 @@ import { ErrorNotice } from '../../app/errors';
 import { TableScroll } from '../../app/table-scroll';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 /**
  * `Admin/SystemInfoController::browseAction`. The upstream page reports the
@@ -12,7 +14,7 @@ import { useTranslator } from '../../i18n';
  * registered API resource names.
  */
 export const SystemInfoPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const state = useAsync(() => api.getApiInfo(), []);
 
   if (state.status === 'loading') {

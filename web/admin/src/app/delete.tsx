@@ -12,6 +12,7 @@ import type { ReactElement } from 'react';
 import { useTranslator } from '../i18n';
 import { ErrorNotice } from './errors';
 import { toError } from './useAsync';
+import { common } from '../i18n/namespaces/common';
 
 export interface DeleteControlProps {
   /** What the first button says, for example "Delete this item". */
@@ -29,7 +30,7 @@ type Phase =
   | { readonly status: 'error'; readonly error: Error };
 
 export const DeleteControl = ({ label, rowName, onConfirm }: DeleteControlProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const [phase, setPhase] = useState<Phase>({ status: 'idle' });
   const confirmButton = useRef<HTMLButtonElement>(null);
 

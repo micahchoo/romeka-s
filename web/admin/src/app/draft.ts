@@ -6,7 +6,8 @@
  */
 import { resourceIdFromParam } from '../api/parse';
 import { TAG_TERM, TAG_TYPE } from '../api/tags';
-import type { Translator } from '../i18n';
+import type { KeyOf, MessageKey, Translator } from '../i18n';
+import type { common } from '../i18n/namespaces/common';
 import type {
   AssetId,
   ClassId,
@@ -205,7 +206,7 @@ export const toValueWrites = (values: readonly ValueDraft[]): readonly ValueWrit
 /** Every reason the draft cannot be sent, in the API's own terms. */
 export const valueErrors = (
   values: readonly ValueDraft[],
-  t: Translator['t'],
+  t: Translator<MessageKey | KeyOf<typeof common>>['t'],
 ): readonly string[] =>
   values
     .filter(

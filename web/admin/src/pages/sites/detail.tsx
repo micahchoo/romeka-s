@@ -20,6 +20,8 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { firstLinkedPage, linkedPages, pageLinkJson } from './navigationTree';
 import { publicUrl, siteHref } from './SiteFrame';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 interface HubPage {
   readonly id: PageId;
@@ -75,7 +77,7 @@ const PageRow = ({
   readonly onClearHomepage: () => void;
   readonly onAddToNavigation: () => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const editHref = `#/sites/${String(site.id)}/pages/${String(page.id)}`;
   const title = page.title ?? t('common.pageFallback', { id: page.id });
   return (
@@ -130,7 +132,7 @@ const PageRow = ({
 };
 
 const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [site, setSite] = useState(loaded.site);
   const { state: saveState, save } = useSave();
   const busy = saveState.status === 'saving';
@@ -196,7 +198,7 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
 };
 
 const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   return (
     <section className="hub-section" aria-labelledby="hub-about">
       <div className="hub-section-head">
@@ -226,7 +228,7 @@ const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
 };
 
 export const SiteDetail = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;

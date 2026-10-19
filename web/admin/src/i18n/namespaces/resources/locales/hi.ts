@@ -1,0 +1,69 @@
+/**
+ * The Hindi item, item set and media page messages.
+ *
+ * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks, and not yet reviewed by a reader of Hindi. Correct
+ * a string here; a later run keeps it. It is typed `ResourcesMessages`, so a key
+ * added to English and not here is a `tsc` error.
+ */
+import type { ResourcesMessages } from '../index';
+
+export const hi: ResourcesMessages = {
+  'itemSites.legend': 'साइट्स',
+  'itemSites.none': 'आप किसी भी साइट में आइटम नहीं जोड़ सकते।',
+  'itemSites.createHelp':
+    'यदि आप कोई साइट नहीं चुनते हैं, तो प्रत्येक साइट जो अपने खोज के साथ सिंक में रहती है, इस आइटम को तब जोड़ेगी जब यह मेल खाएगा।',
+  'loading.itemSet': 'आइटम सेट लोड हो रहा है...',
+  'loading.media': 'मीडिया लोड हो रहा है...',
+  'values.none': 'कोई मान नहीं।',
+  'values.property': 'गुण',
+  'values.type': 'प्रकार',
+  'values.value': 'मान',
+  'values.tableLabel': '{term} के लिए मान',
+  'field.resourceTemplate': 'संसाधन टेम्पलेट',
+  'column.modified': 'संशोधित',
+  'items.add': 'आइटम जोड़ें',
+  'items.empty': 'कोई आइटम नहीं मिला।',
+  'items.mediaHeading': 'मीडिया ({count})',
+  'items.noMedia': 'कोई मीडिया नहीं।',
+  'items.valuesHeading': 'वैल्यूज़',
+  'items.rowName': 'आइटम #{id}',
+  'items.editLabel': 'इस आइटम को संपादित करें',
+  'items.deleteLabel': 'इस आइटम को हटाएँ',
+  'items.noSets': 'कोई आइटम सेट नहीं।',
+  'items.setsLegend': 'आइटम सेट',
+  'itemSets.open': 'आइटम सेट खोलें',
+  'itemSets.add': 'आइटम सेट जोड़ें',
+  'itemSets.deleteLabel': 'इस आइटम सेट को हटाएँ',
+  'itemSets.rowName': 'आइटम सेट #{id}',
+  'media.legend': 'मीडिया',
+  'media.altText': 'ऑल्ट टेक्स्ट',
+  'media.language': 'भाषा',
+  'media.visibility': 'दृश्यता',
+  'media.partOfItem': 'आइटम का हिस्सा',
+  'media.mimeType': 'MIME प्रकार',
+  'media.renderer': 'रेंडरर',
+  'media.ingester': 'इनगेस्टर',
+  'media.source': 'स्रोत',
+  'media.filename': 'फ़ाइल का नाम',
+  'media.size': 'आकार',
+  'media.sha256': 'SHA-256',
+  'media.fileDerivatives': 'फ़ाइल डेरिवेटिव्स',
+  'media.editLabel': 'इस मीडिया को संपादित करें',
+  'media.deleteLabel': 'इस मीडिया को हटाएँ',
+  'media.noPreview': 'कोई पूर्वावलोकन नहीं',
+  'media.altFallback': 'मीडिया #{id}',
+  'route.invalidItemId': '"{param}" एक वैध आइटम आईडी नहीं है।',
+  'route.invalidItemSetId': '"{param}" एक वैध आइटम सेट आईडी नहीं है।',
+  'route.invalidMediaId': '"{param}" एक वैध मीडिया आईडी नहीं है।',
+  'items.selectAll': 'इस पेज पर सभी चुनें',
+  'items.selectItem': '{title} चुनें',
+  'items.selected': 'चुने गए: {count}',
+  'items.bulkAdd': 'साइट में जोड़ें…',
+  'items.bulkRemove': 'साइट से हटाएँ…',
+  'items.bulkSite': 'साइट',
+  'items.bulkChooseSite': 'साइट चुनें',
+  'items.bulkConfirmAdd': '{site} में {count} जोड़ें',
+  'items.bulkDone': '{site} में अब {total} आइटम हैं।',
+  'items.bulkConfirmRemove': '{site} से {count} हटाएँ',
+};

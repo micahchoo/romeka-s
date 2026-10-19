@@ -5,8 +5,9 @@
  *
  * The initial payload is what `dist/index.html` references: the entry script,
  * its modulepreload links and the stylesheet. A catalogue chunk is a locale's
- * messages (`src/i18n/locales/`), which a visitor in that locale fetches before
- * the first render. Everything else under `dist/assets` is a lazy chunk,
+ * table (`src/i18n/locales/`, `src/i18n/namespaces/<id>/locales/`), which a
+ * visitor in that locale fetches before the first render of the shell or of a
+ * route. Everything else under `dist/assets` is a lazy chunk,
  * fetched when its route first opens. A sum over every emitted asset would be
  * a number no user waits on, so the budget gates the initial payload and gives
  * each catalogue and each chunk its own ceiling instead.
@@ -28,8 +29,12 @@ export const DIST_ROOT = join(APP_ROOT, 'dist');
 export const BUDGET_FILE = join(PERF_DIR, 'budget.json');
 export const SUMMARY_FILE = join(PERF_DIR, 'summary.json');
 
-/** Where the non-default locales' catalogues live; each is its own chunk. */
-const CATALOGUE_SOURCE = 'src/i18n/locales/';
+/**
+ * Where the non-default locales' tables live, each its own chunk: the shell
+ * catalogue and the server and vocabulary tables under `src/i18n/locales/`,
+ * and each message namespace's under `src/i18n/namespaces/<id>/locales/`.
+ */
+const CATALOGUE_SOURCE = /^src\/i18n\/(namespaces\/[^/]+\/)?locales\//;
 
 /** Parse `budget.json`. */
 export const readBudget = (path = BUDGET_FILE) => JSON.parse(readFileSync(path, 'utf8'));
@@ -77,7 +82,7 @@ export const catalogueAssetNames = (distRoot = DIST_ROOT) => {
   }
   return new Set(
     Object.values(manifest)
-      .filter((entry) => entry.src?.startsWith(CATALOGUE_SOURCE))
+      .filter((entry) => typeof entry.src === 'string' && CATALOGUE_SOURCE.test(entry.src))
       .map((entry) => basename(entry.file)),
   );
 };

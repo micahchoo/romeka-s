@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { LOCALES, parseLocale, useTranslator } from '../i18n';
+import { admin } from '../i18n/namespaces/admin';
 
 /**
  * A stored `locale` setting as the select's value: `''` for none, which is the
@@ -23,7 +24,7 @@ export const LocaleSelect = ({
   readonly value: string;
   readonly onChange: (value: string) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   return (
     <p>
       <label htmlFor={id}>{t('settings.locale')}</label>

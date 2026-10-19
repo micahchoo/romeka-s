@@ -11,10 +11,13 @@ import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
 import type { TermName } from './labels';
 import { ItemEditForm } from './form';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 const MEDIA_PER_PAGE = 100;
 
@@ -32,7 +35,7 @@ const NO_CLASSES: ReadonlyMap<ClassId, TermName> = new Map();
 
 /** One media of the item: the image links to the original file. */
 const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const href = previewLinkUrl(media);
   const image = (
     <MediaImage media={media} url={previewImageUrl(media)} className="media-card-image" lazy />
@@ -57,8 +60,8 @@ const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
 };
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
-  const { t, locale } = useTranslator();
-  const text = useTermText();
+  const { t, locale } = useTranslator(common, resources);
+  const text = useTermLabels();
   // A create hands its record to this page, so the heading and the fields
   // render without reading the item back.
   const [seeded] = useState(() => writtenItems.take(itemId));

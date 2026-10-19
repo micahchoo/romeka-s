@@ -5,6 +5,7 @@ import { ListPage } from '../../app/list';
 import { MediaImage } from '../../app/media-image';
 import { mediaName, previewImageUrl } from '../../app/media';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
 
 const PER_PAGE = 25;
 
@@ -17,7 +18,7 @@ const itemCell = (media: Media): ReactElement | string =>
  * the image is what identifies the row.
  */
 export const MediaList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const resource = t('resource.media');
   return (
     <ListPage<Media>

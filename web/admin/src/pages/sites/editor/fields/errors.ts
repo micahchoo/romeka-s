@@ -2,11 +2,12 @@
  * `validate()` issues as messages for a control. The draft model owns the rule,
  * the catalogue owns the wording, and this module is the one place they meet.
  */
-import type { MessageKey, MessageParams } from '../../../../i18n';
+import type { KeyOf, MessageParams } from '../../../../i18n';
+import type { editor } from '../../../../i18n/namespaces/editor';
 import type { ValidationIssue } from '../draft';
 
 export interface FieldMessage {
-  readonly key: MessageKey;
+  readonly key: KeyOf<typeof editor>;
   readonly params?: MessageParams;
 }
 

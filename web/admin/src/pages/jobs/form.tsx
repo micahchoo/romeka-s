@@ -13,6 +13,7 @@ import type { Job } from '../../api/types';
 import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useTranslator } from '../../i18n';
+import { admin } from '../../i18n/namespaces/admin';
 
 export const JobUpdateForm = ({
   job,
@@ -21,7 +22,7 @@ export const JobUpdateForm = ({
   readonly job: Job;
   readonly onSaved: (job: Job) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   const { state: saveState, save } = useSave();
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {

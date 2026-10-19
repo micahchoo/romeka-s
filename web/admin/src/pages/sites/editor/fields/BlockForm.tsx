@@ -13,6 +13,7 @@ import type { EditorOptions } from '../options';
 import { dataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 export interface BlockFormProps {
   readonly block: BlockDraft;
@@ -34,7 +35,7 @@ export const BlockForm = ({
   dispatch,
   options,
 }: BlockFormProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(editor);
   const e = useEditorText();
   if (schema === undefined) {
     return <p className="field-note">{t('field.unknownLayout')}</p>;

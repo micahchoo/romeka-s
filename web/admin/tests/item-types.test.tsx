@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import { setLocale } from '../src/i18n';
-import { hi } from '../src/pages/item-types/locales/hi';
+import { hi } from '../src/i18n/namespaces/item-types/locales/hi';
 import { ItemTypesPage } from '../src/pages/item-types/page';
 import { loadFixture } from './loadFixture';
 import {

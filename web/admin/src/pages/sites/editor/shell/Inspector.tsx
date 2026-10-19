@@ -17,6 +17,8 @@ import { Labelled } from '../Labelled';
 import { romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { isJsonArray, isJsonObject, layoutDataObject } from '../values';
+import { editor } from '../../../../i18n/namespaces/editor';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 const BlockForm = lazy(() =>
   import('../fields').then((module) => ({ default: module.BlockForm })),
@@ -47,7 +49,7 @@ const UnknownData = ({
   readonly block: BlockDraft;
   readonly dispatch: (action: DraftAction) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const [text, setText] = useState(() => JSON.stringify(block.data, null, 2));
   const [error, setError] = useState<string | null>(null);
 
@@ -97,7 +99,7 @@ export const Inspector = ({
   siteId,
   options,
 }: InspectorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const schema = schemaFor(draft.registry, block.layout);
   const romka = romkaFor(draft.registry, block);
   const layoutData = draft.registry.blockLayoutData;

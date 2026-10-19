@@ -15,6 +15,8 @@ import type { Asset } from '../../../../api/types';
 import { formatError } from '../../../../app/format';
 import { toError, useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 export interface AssetPickerProps {
   readonly id: string;
@@ -34,7 +36,7 @@ export const AssetPicker = ({
   onChange,
   required = false,
 }: AssetPickerProps): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(common, sites);
   const { t } = translator;
   const [open, setOpen] = useState(false);
   const [revision, setRevision] = useState(0);

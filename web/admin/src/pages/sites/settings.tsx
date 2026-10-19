@@ -26,7 +26,7 @@ import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { SettingControl } from './SettingControl';
 import { useSiteSaved } from './SiteFrame';
 import { SiteInfoFields, siteInfoOf } from './siteInfo';
@@ -34,6 +34,11 @@ import type { SiteInfo } from './siteInfo';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
 import { SITE_SETTING_GROUPS, siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
 import type { SiteSettingDraft, SiteSettingGroup } from './siteSettingsSchema';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
 
 /** The template manager is its own chunk, loaded when the user opens it. */
 const TemplateManager = lazy(() =>
@@ -47,7 +52,7 @@ const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
 
 /** Each group's legend and one-line intro. */
 const GROUP_TEXT: Readonly<
-  Record<SiteSettingGroup, { readonly legend: MessageKey; readonly intro: MessageKey }>
+  Record<SiteSettingGroup, { readonly legend: MessageId; readonly intro: MessageId }>
 > = {
   browsing: { legend: 'siteSettingGroup.browsing', intro: 'siteSettingGroup.browsingIntro' },
   search: { legend: 'siteSettingGroup.search', intro: 'siteSettingGroup.searchIntro' },
@@ -66,7 +71,7 @@ const SettingGroup = ({
   readonly group: SiteSettingGroup;
   readonly children: ReactNode;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const text = GROUP_TEXT[group];
   const intro = <p className="settings-group-intro">{t(text.intro)}</p>;
   if (group === 'advanced') {
@@ -100,7 +105,7 @@ const SiteSettingsEditor = ({
   readonly siteId: SiteId;
   readonly loaded: Loaded;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const siteSaved = useSiteSaved();
   const [info, setInfo] = useState<SiteInfo>(() => siteInfoOf(loaded.site));
   const [drafts, setDrafts] = useState<Readonly<Record<string, SiteSettingDraft>>>(() =>
@@ -167,7 +172,7 @@ const SiteSettingsLoaded = ({
   readonly siteId: SiteId;
   readonly loaded: Loaded;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [managing, setManaging] = useState(false);
   return (
     <>
@@ -226,7 +231,7 @@ const load = async (siteId: SiteId): Promise<Loaded> => {
 
 /** Loads the site and the user list the owner select offers, then renders the form. */
 export const SiteSettingsPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;

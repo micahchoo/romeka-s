@@ -3,12 +3,14 @@ import { api } from '../../api/client';
 import { formatDateTime } from '../../app/format';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 const PER_PAGE = 25;
 
 /** `Admin/UserController::browseAction`: email, name, role, active, created. */
 export const UserList = (): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, admin);
   const resource = t('resource.users');
   return (
     <div>

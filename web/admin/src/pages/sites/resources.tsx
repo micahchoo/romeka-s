@@ -17,16 +17,21 @@ import type { ApiPage, Item, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { ItemSetPanel, PickPanel, SearchPanel } from './siteItemsAdd';
 import type { AddPanelProps } from './siteItemsAdd';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 import './siteItems.css';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
 
 const PER_PAGE = 20;
 
 const TABS: readonly {
   readonly id: string;
-  readonly label: MessageKey;
+  readonly label: MessageId;
   readonly Panel: (props: AddPanelProps) => ReactElement;
 }[] = [
   { id: 'set', label: 'siteItems.bySet', Panel: ItemSetPanel },
@@ -44,7 +49,7 @@ const SyncSwitch = ({
   readonly busy: boolean;
   readonly onToggle: (on: boolean) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   return (
     <div className="site-items-sync">
       <label htmlFor="site-items-sync">
@@ -70,7 +75,7 @@ const SyncSwitch = ({
 
 /** The three add panels behind one tab list. */
 const AddTabs = (props: AddPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [current, setCurrent] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const select = (at: number): void => {
@@ -139,7 +144,7 @@ const SiteItemsList = ({
   readonly onPage: (page: number) => void;
   readonly onRemove: (item: Item) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   if (items.length === 0) {
     return <p>{t('siteItems.empty')}</p>;
   }
@@ -199,7 +204,7 @@ const SiteItemsList = ({
 };
 
 const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [site, setSite] = useState(initial);
   const [version, setVersion] = useState(0);
   const [page, setPage] = useState(1);
@@ -285,7 +290,7 @@ const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement =>
 
 /** Loads the site, then renders its Items page. */
 export const SiteResourcesPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;

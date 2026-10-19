@@ -14,7 +14,7 @@ import { SubmitRow } from "../../app/fields";
 import { toError } from "../../app/useAsync";
 import { useTranslator } from "../../i18n";
 import { standardsHref } from "../standards/routes";
-import { WithImportMessages, useImportText } from "./messages";
+import { useImportText } from "./messages";
 import {
   AdvancedFields,
   EMPTY_SOURCE,
@@ -24,12 +24,14 @@ import {
   readSource,
 } from "./source";
 import type { SourceDraft } from "./source";
+import { common } from "../../i18n/namespaces/common";
+import { standards } from "../../i18n/namespaces/standards";
 
 /** `Vocabulary::PREFIX_REGEX`. */
 const PREFIX_PATTERN = /^[a-z0-9_-]+$/i;
 
 const ImportForm = (): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(common, standards);
   const { t } = translator;
   const text = useImportText();
   const [source, setSource] = useState<SourceDraft>(EMPTY_SOURCE);
@@ -134,8 +136,4 @@ const ImportForm = (): ReactElement => {
   );
 };
 
-export const VocabularyImportPage = (): ReactElement => (
-  <WithImportMessages>
-    <ImportForm />
-  </WithImportMessages>
-);
+export const VocabularyImportPage = (): ReactElement => <ImportForm />;

@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import type { Media } from '../api/types';
 import { useTranslator } from '../i18n';
 import { mediaName } from './media';
+import { resources } from '../i18n/namespaces/resources';
 
 export interface MediaImageProps {
   readonly media: Media;
@@ -22,7 +23,7 @@ export const MediaImage = ({
   className,
   lazy = false,
 }: MediaImageProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(resources);
   if (url === null) {
     return <span className={`media-image media-image-empty ${className}`}>{t('media.noPreview')}</span>;
   }

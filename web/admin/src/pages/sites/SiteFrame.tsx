@@ -14,7 +14,11 @@ import { api, defaultBaseUrl } from '../../api/client';
 import type { PageId, Site, SiteId } from '../../api/types';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
+import { sites } from '../../i18n/namespaces/sites';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof sites>;
 
 export type SiteScreen = 'pages' | 'navigation' | 'resources' | 'users' | 'theme' | 'settings';
 
@@ -26,7 +30,7 @@ export type SiteView =
 export const SITE_TABS: readonly {
   readonly screen: SiteScreen;
   readonly segment: string;
-  readonly labelKey: MessageKey;
+  readonly labelKey: MessageId;
 }[] = [
   { screen: 'pages', segment: '', labelKey: 'sites.pages' },
   { screen: 'navigation', segment: '/navigation', labelKey: 'page.navigation' },
@@ -52,7 +56,7 @@ export interface Crumb {
 }
 
 export const Breadcrumb = ({ crumbs }: { readonly crumbs: readonly Crumb[] }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   return (
     <nav className="breadcrumb" aria-label={t('siteHub.breadcrumb')}>
       <ol>
@@ -82,7 +86,7 @@ const SiteTabs = ({
   readonly siteId: SiteId;
   readonly view: SiteView;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const current = (screen: SiteScreen): 'page' | 'true' | undefined => {
     if (view.kind === 'screen') {
       return view.screen === screen ? 'page' : undefined;
@@ -113,7 +117,7 @@ export const SiteFrame = ({
   readonly view: SiteView;
   readonly children: ReactNode;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const loaded = useAsync(() => api.getSite(siteId), [siteId]);
   const [saved, setSaved] = useState<Site | null>(null);
   const pageId = view.kind === 'page' ? view.pageId : null;

@@ -15,7 +15,11 @@
  * page that only wants to list them.
  */
 import type { JsonValue } from '../../api/types';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf } from '../../i18n';
+import type { editor } from '../../i18n/namespaces/editor';
+
+/** A built-in template's label or description: an `editor` namespace id. */
+type MessageKey = KeyOf<typeof editor>;
 
 /** The page layout a template starts from, the draft's own two values. */
 export type TemplateLayout = 'normal' | 'grid';

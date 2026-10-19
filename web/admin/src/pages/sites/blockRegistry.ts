@@ -6,7 +6,8 @@
  * replaces is gone; a Rust test fails when the file drifts from the registry.
  */
 import raw from '../../generated/blocks.json';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf } from '../../i18n';
+import type { sites } from '../../i18n/namespaces/sites';
 import { parseBlockRegistry } from './blockSchema';
 import type { BlockRegistry } from './blockSchema';
 
@@ -16,7 +17,7 @@ export const BLOCK_REGISTRY: BlockRegistry = parseBlockRegistry(raw);
 /** One option of the block layout select. */
 export interface BlockLayoutOption {
   readonly name: string;
-  readonly labelKey: MessageKey;
+  readonly labelKey: KeyOf<typeof sites>;
 }
 
 /** Every registered layout, in the registry's order. */

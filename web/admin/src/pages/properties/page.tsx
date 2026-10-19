@@ -7,6 +7,7 @@ import {
 } from '../vocabularies/member';
 import { PropertyDetail } from './detail';
 import { PropertyList } from './list';
+import { standards } from '../../i18n/namespaces/standards';
 
 /** The Properties tab: its list, `new` to create one, or a property id. */
 export const PropertiesPage = ({
@@ -14,7 +15,7 @@ export const PropertiesPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(standards);
   if (param === null) {
     return <PropertyList />;
   }

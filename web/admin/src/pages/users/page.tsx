@@ -3,10 +3,11 @@ import { userIdFromParam } from '../../api/parse';
 import { useTranslator } from '../../i18n';
 import { UserForm } from './form';
 import { UserList } from './list';
+import { admin } from '../../i18n/namespaces/admin';
 
 /** `#/users` lists, `#/users/new` creates, `#/users/<id>` edits. */
 export const UsersPage = ({ param = null }: { readonly param?: string | null } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   if (param === null) {
     return <UserList />;
   }

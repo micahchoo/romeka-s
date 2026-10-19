@@ -2,12 +2,17 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { TableScroll } from '../../app/table-scroll';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
 
 type BrowseResource = 'items' | 'item_sets' | 'media' | 'users';
 
 /** The browse columns each resource type renders (`browse()` header rows). */
-export const BROWSE_COLUMNS: Readonly<Record<BrowseResource, readonly MessageKey[]>> = {
+export const BROWSE_COLUMNS: Readonly<Record<BrowseResource, readonly MessageId[]>> = {
   items: ['column.title', 'column.resourceClass', 'column.owner', 'column.created'],
   item_sets: ['column.title', 'column.owner', 'column.created', 'column.public', 'column.open'],
   media: [
@@ -21,7 +26,7 @@ export const BROWSE_COLUMNS: Readonly<Record<BrowseResource, readonly MessageKey
   users: ['column.name', 'column.email', 'column.role', 'column.active', 'column.created'],
 };
 
-const RESOURCES: readonly { readonly value: BrowseResource; readonly labelKey: MessageKey }[] = [
+const RESOURCES: readonly { readonly value: BrowseResource; readonly labelKey: MessageId }[] = [
   { value: 'items', labelKey: 'page.items' },
   { value: 'item_sets', labelKey: 'page.itemSets' },
   { value: 'media', labelKey: 'page.media' },
@@ -37,14 +42,14 @@ const isBrowseResource = (value: string): value is BrowseResource =>
  * lives in this page only.
  */
 export const ColumnsPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const [resource, setResource] = useState<BrowseResource>('items');
-  const [hidden, setHidden] = useState<readonly MessageKey[]>([]);
+  const [hidden, setHidden] = useState<readonly MessageId[]>([]);
 
   const columns = BROWSE_COLUMNS[resource];
   const visible = columns.filter((column) => !hidden.includes(column));
 
-  const toggle = (column: MessageKey): void => {
+  const toggle = (column: MessageId): void => {
     setHidden((previous) =>
       previous.includes(column)
         ? previous.filter((entry) => entry !== column)

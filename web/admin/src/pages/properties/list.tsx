@@ -4,10 +4,13 @@ import type { ApiPage, Property } from '../../api/types';
 import { vocabularyLabels } from '../../app/labels';
 import type { TermName } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { loadTemplateUsage } from '../standards/usage';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 
 const PER_PAGE = 100;
 
@@ -37,7 +40,7 @@ const load = async (page: number): Promise<ApiPage<PropertyRow>> => {
  * property, so the table does not show one.
  */
 export const PropertyList = (): ReactElement => {
-  const { t, number } = useTranslator();
+  const { t, number } = useTranslator(common, standards);
   const text = useTermText();
   const resource = t('resource.properties');
   return (

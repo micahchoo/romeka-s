@@ -18,6 +18,7 @@ import { MergePrompt } from './merge-prompt';
 import { useTermListText } from './messages';
 import { RewriteCounts } from './rewrite-counts';
 import { similarGroups } from './similar';
+import { common } from '../../i18n/namespaces/common';
 import './term-lists.css';
 
 const TAGS = { kind: 'tags' } as const;
@@ -51,7 +52,7 @@ const asError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
 export const TagsPanel = ({ onPromoted }: { readonly onPromoted: () => void }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const [version, setVersion] = useState(0);
   const state = useAsync(load, [version]);
@@ -112,7 +113,7 @@ export const TagsPanel = ({ onPromoted }: { readonly onPromoted: () => void }): 
           />
         ))}
         <fieldset className="tag-choices" disabled={step.kind === 'busy'}>
-          <legend>{tl('tags.legend')}</legend>
+          <legend>{tl('termLists.tagsLegend')}</legend>
           {census.values.map((count) => (
             <label key={count.value}>
               <input
@@ -198,7 +199,7 @@ const PromotionPreview = ({
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const tl = useTermListText();
   const lesson = useLesson('tag-promote');
   const names = (named: readonly { readonly label: string }[]): string =>

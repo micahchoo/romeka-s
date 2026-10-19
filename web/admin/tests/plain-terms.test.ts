@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { plainName, searchTerms, type Termed } from '../src/app/plain-terms';
 import { localNameFor } from '../src/app/local-fields';
-import { termText, type Locale } from '../src/i18n';
+import { type Locale } from '../src/i18n';
+import { termText } from '../src/i18n/termComments';
 
 const entry = (term: string, label: string, comment: string | null = null): Termed => ({
   term,

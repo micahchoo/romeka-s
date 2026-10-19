@@ -28,9 +28,15 @@ import { EditPanel, OptionSelect, SaveStatus, SubmitRow, TextField } from '../..
 import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
-import { useTermText, useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { standardsHref } from '../standards/routes';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof standards>;
 
 export type VocabularyMemberRow = Property | ResourceClass;
 
@@ -38,10 +44,10 @@ export type VocabularyMemberRow = Property | ResourceClass;
 export interface MemberKind<MemberT extends VocabularyMemberRow> {
   readonly name: 'properties' | 'resource_classes';
   readonly tab: 'properties' | 'classes';
-  readonly addKey: MessageKey;
-  readonly editKey: MessageKey;
-  readonly deleteKey: MessageKey;
-  readonly loadingKey: MessageKey;
+  readonly addKey: MessageId;
+  readonly editKey: MessageId;
+  readonly deleteKey: MessageId;
+  readonly loadingKey: MessageId;
   readonly create: (write: VocabularyMemberWrite) => Promise<MemberT>;
   readonly update: (id: MemberT['id'], write: VocabularyMemberWrite) => Promise<MemberT>;
   readonly remove: (id: MemberT['id']) => Promise<void>;
@@ -113,7 +119,7 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
   target,
   onSaved,
 }: MemberEditorProps<MemberT>): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const text = useTermText();
   const member = target.kind === 'edit' ? target.member : null;
   const [localName, setLocalName] = useState(member?.localName ?? '');
@@ -251,7 +257,7 @@ export const VocabularyMemberCreatePage = <MemberT extends VocabularyMemberRow>(
 }: {
   readonly kind: MemberKind<MemberT>;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const state = useAsync(async (): Promise<{
     readonly vocabularies: readonly Vocabulary[];
     readonly users: readonly User[];
@@ -313,7 +319,7 @@ export const MemberDetail = <MemberT extends VocabularyMemberRow>({
   vocabulary,
   onSaved,
 }: MemberDetailProps<MemberT>): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const text = useTermText();
   const label = text.label(member.term, member.label);
   return (

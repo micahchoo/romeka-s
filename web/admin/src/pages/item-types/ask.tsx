@@ -5,7 +5,8 @@
 import { useId, useState } from "react";
 import type { ReactElement } from "react";
 import { plainName } from "../../app/plain-terms";
-import { useLocale, useTermText } from "../../i18n";
+import { useLocale } from "../../i18n";
+import { useTermLabels } from "../../i18n/termText";
 import { TypeEditor } from "./editor";
 import { useItemTypesText } from "./messages";
 import type { TypeDraft } from "./model";
@@ -30,7 +31,7 @@ export const NewType = ({
 }): ReactElement => {
   const t = useItemTypesText();
   const locale = useLocale();
-  const text = useTermText();
+  const text = useTermLabels();
   const inputId = useId();
   const [kind, setKind] = useState("");
   const [draft, setDraft] = useState<TypeDraft | null>(null);

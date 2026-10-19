@@ -27,7 +27,7 @@ import {
   type PropertyField,
 } from '../src/app/value-fields';
 import { searchTerms } from '../src/app/plain-terms';
-import { termText } from '../src/i18n';
+import { termText } from '../src/i18n/termComments';
 
 /** English: every label and comment as stored. */
 const ENGLISH = termText('en');

@@ -12,9 +12,10 @@ import { api } from '../api/client';
 import { useTranslator } from '../i18n';
 import { formatError } from './format';
 import { useSave } from './save';
+import { account } from '../i18n/namespaces/account';
 
 export const ForgotPasswordPage = (): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(account);
   const { t } = translator;
   const [email, setEmail] = useState('');
   const [formError, setFormError] = useState<string | null>(null);

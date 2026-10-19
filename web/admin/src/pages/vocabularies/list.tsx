@@ -2,10 +2,13 @@ import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, Vocabulary } from '../../api/types';
 import { ListPage } from '../../app/list';
-import { useTermText, useTranslator } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { useStandardsText } from '../standards/messages';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 import './import.css';
 
 const PER_PAGE = 25;
@@ -42,7 +45,7 @@ const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
 
 /** `Admin/VocabularyController::browseAction`: label, prefix, namespace, members. */
 export const VocabularyList = (): ReactElement => {
-  const { t, number } = useTranslator();
+  const { t, number } = useTranslator(common, standards);
   const text = useStandardsText();
   const terms = useTermText();
   const resource = t('resource.vocabularies');

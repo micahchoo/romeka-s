@@ -6,6 +6,8 @@ import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { useJobStatusLabel } from './messages';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 const PER_PAGE = 25;
 
@@ -25,7 +27,7 @@ const load = async (page: number): Promise<ApiPage<JobRow>> => {
 
 /** `Admin/JobController::browseAction`: ID, class, status, owner. */
 export const JobList = (): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, admin);
   const statusLabel = useJobStatusLabel();
   const resource = t('resource.jobs');
   return (

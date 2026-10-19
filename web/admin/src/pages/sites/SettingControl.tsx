@@ -8,11 +8,15 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { isRecord } from '../../api/parse';
 import type { Property } from '../../api/types';
-import { useTermText, useTranslator } from '../../i18n';
-import type { TermText } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import { useTranslator } from '../../i18n';
+import { useTermLabels } from '../../i18n/termText';
+import type { KeyOf, MessageKey, TermLabels } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
+import { sites } from '../../i18n/namespaces/sites';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof sites>;
 
 const isStringList = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -20,7 +24,7 @@ const isStringList = (value: unknown): value is readonly string[] =>
 /** The sort fields the browse accepts, each with a readable name. */
 const SORT_FIELDS: readonly {
   readonly value: string;
-  readonly labelKey: MessageKey;
+  readonly labelKey: MessageId;
 }[] = [
   { value: 'title', labelKey: 'siteSettingSort.title' },
   { value: 'created', labelKey: 'siteSettingSort.created' },
@@ -30,17 +34,17 @@ const SORT_FIELDS: readonly {
 /** `asc` and `desc` read as what they do to the field: A to Z, or oldest first. */
 const orderLabels = (
   sortBy: string,
-): Readonly<Record<'asc' | 'desc', MessageKey>> =>
+): Readonly<Record<'asc' | 'desc', MessageId>> =>
   sortBy === 'title'
     ? { asc: 'siteSettingSort.titleAsc', desc: 'siteSettingSort.titleDesc' }
     : { asc: 'siteSettingSort.dateAsc', desc: 'siteSettingSort.dateDesc' };
 
-const propertyName = (property: Property, text: TermText): string => {
+const propertyName = (property: Property, text: TermLabels): string => {
   const label = text.label(property.term, property.label);
   return label === null ? property.term : `${label} (${property.term})`;
 };
 
-const matches = (property: Property, query: string, text: TermText): boolean => {
+const matches = (property: Property, query: string, text: TermLabels): boolean => {
   const needle = query.trim().toLowerCase();
   return (
     needle === '' ||
@@ -65,8 +69,8 @@ const PropertyPicker = ({
   readonly properties: readonly Property[];
   readonly onChange: (value: string) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
-  const text = useTermText();
+  const { t } = useTranslator(sites);
+  const text = useTermLabels();
   const [query, setQuery] = useState('');
   const current = properties.find((property) => property.term === value);
   const shown = properties.filter(
@@ -119,7 +123,7 @@ const SortControl = ({
   readonly value: SiteSettingDraft;
   readonly onChange: (value: SiteSettingDraft) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const sortBy =
     isRecord(value) && typeof value.sortBy === 'string'
       ? value.sortBy
@@ -171,7 +175,7 @@ export const SettingControl = ({
   readonly properties: readonly Property[];
   readonly onChange: (value: SiteSettingDraft) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const id = `site-setting-${spec.key}`;
   const helpId = `${id}-help`;
   const label = t(spec.labelKey);

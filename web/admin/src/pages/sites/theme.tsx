@@ -48,7 +48,9 @@ import {
 import type { CssRefusal } from './themeEditor/CustomCssTab';
 import type { ContentKey, ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
-import { ThemeMessagesContext, useThemeMessages, useThemeText } from './themeEditor/messages';
+import { useThemeText } from './themeEditor/messages';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -217,7 +219,7 @@ const ThemeFileActions = ({
 };
 
 const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site: Site }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const tt = useThemeText();
   const [draft, setDraft] = useState<ThemeDraft>(() => draftFromStored(storedSettings(site)));
   const [blocks, setBlocks] = useState<ResourcePageBlocksDraft>(() =>
@@ -450,19 +452,15 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 
 /** Loads the site and its theme settings, then renders the editor. */
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
-  const messages = useThemeMessages();
-  // The page's own table waits with the site, so no label renders in English and then swaps.
-  if (state.status === 'loading' || messages === null) {
+  // The page's own table suspends the route until it arrives, so no label renders in English.
+  useThemeText();
+  if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return (
-    <ThemeMessagesContext.Provider value={messages}>
-      <ThemeEditor key={String(siteId)} siteId={siteId} site={state.data} />
-    </ThemeMessagesContext.Provider>
-  );
+  return <ThemeEditor key={String(siteId)} siteId={siteId} site={state.data} />;
 };

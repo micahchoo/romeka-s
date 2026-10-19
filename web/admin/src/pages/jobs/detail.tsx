@@ -10,6 +10,8 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { JobUpdateForm } from './form';
 import { useJobStatusLabel } from './messages';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 /**
  * `Admin/JobController::showAction` with `::deleteAction`: one job, its columns
@@ -17,7 +19,7 @@ import { useJobStatusLabel } from './messages';
  * serves no stop endpoint, so the stop confirm upstream shows has no form here.
  */
 export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, admin);
   const statusLabel = useJobStatusLabel();
   const state = useAsync(() => api.getJob(jobId), [jobId]);
   const [edited, setEdited] = useState<Job | null>(null);

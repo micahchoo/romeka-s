@@ -19,9 +19,14 @@ import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
-const ROLE_LABELS: Readonly<Record<string, MessageKey>> = {
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
+
+const ROLE_LABELS: Readonly<Record<string, MessageId>> = {
   viewer: 'siteRole.viewer',
   editor: 'siteRole.editor',
   admin: 'siteRole.admin',
@@ -65,7 +70,7 @@ const SiteUsersEditor = ({
   readonly siteId: SiteId;
   readonly loaded: Loaded;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [rows, setRows] = useState<readonly PermissionDraft[]>(() =>
     loaded.site.sitePermissions.map((permission) => draft(permission.user.id, permission.role)),
   );
@@ -199,7 +204,7 @@ const SiteUsersEditor = ({
 
 /** Loads the site permissions and the user list, then renders the editor. */
 export const SiteUsersPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;

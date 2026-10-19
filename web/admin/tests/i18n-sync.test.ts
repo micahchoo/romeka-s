@@ -1,0 +1,99 @@
+/**
+ * The namespace tables against the shell catalogue and each other.
+ *
+ * A key id is unique across the shell and every namespace, so one id names one
+ * string. Should a move between tables ever leave a key in both for a phase,
+ * its text must agree in every locale, so the move never changes what a reader
+ * sees.
+ */
+import { describe, expect, it } from 'vitest';
+import { CATALOGUE_LOADERS, LOCALES, en } from '../src/i18n';
+import { NAMESPACES as REGISTERED } from '../src/i18n/namespaces/registry';
+
+const ENGLISH = import.meta.glob<Readonly<Record<string, string>>>(
+  '../src/i18n/namespaces/*/index.ts',
+  { eager: true, import: 'en' },
+);
+const LOCALE_FILES = import.meta.glob<Readonly<Record<string, unknown>>>(
+  '../src/i18n/namespaces/*/locales/*.ts',
+  { eager: true },
+);
+
+const idOf = (path: string): string => path.split('/').at(-2) ?? path;
+const namespaceOf = (path: string): string => path.split('/').at(-3) ?? path;
+
+/** A namespace's table in one locale, read from its locale file or its English. */
+const tableOf = (id: string, locale: string): Readonly<Record<string, unknown>> | undefined => {
+  if (locale === 'en') {
+    return Object.entries(ENGLISH).find(([path]) => idOf(path) === id)?.[1];
+  }
+  const module = Object.entries(LOCALE_FILES).find(
+    ([path]) => namespaceOf(path) === id && path.endsWith(`/${locale}.ts`),
+  )?.[1];
+  const table = module?.[locale];
+  return typeof table === 'object' && table !== null ? Object.fromEntries(Object.entries(table)) : undefined;
+};
+
+const NAMESPACES = Object.keys(ENGLISH).map(idOf);
+const DEFINED = import.meta.glob<Readonly<Record<string, unknown>>>(
+  '../src/i18n/namespaces/*/index.ts',
+  { eager: true },
+);
+
+describe('namespace tables', () => {
+  it('every_namespace_directory_is_registered_under_its_own_id', () => {
+    const registered = new Set(REGISTERED.map((record) => record.id));
+    for (const [path, module] of Object.entries(DEFINED)) {
+      const id = idOf(path);
+      expect(registered.has(id), id).toBe(true);
+      const ids = Object.values(module).flatMap((value) =>
+        typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
+          ? [value.id]
+          : [],
+      );
+      expect(ids, path).toEqual([id]);
+    }
+    expect([...registered].sort()).toEqual(Object.keys(DEFINED).map(idOf).sort());
+  });
+
+  it('a_key_id_is_in_at_most_one_namespace_or_the_shell', () => {
+    const owner = new Map<string, string>(Object.keys(en).map((key) => [key, 'shell']));
+    const twice: string[] = [];
+    for (const id of NAMESPACES) {
+      for (const key of Object.keys(tableOf(id, 'en') ?? {})) {
+        const other = owner.get(key);
+        if (other !== undefined) {
+          twice.push(`${key}: ${other}, ${id}`);
+        }
+        owner.set(key, id);
+      }
+    }
+    expect(twice).toEqual([]);
+  });
+
+  it('every_namespace_has_a_complete_table_in_every_locale', () => {
+    for (const id of NAMESPACES) {
+      const english = Object.keys(tableOf(id, 'en') ?? {});
+      for (const locale of LOCALES) {
+        const table = tableOf(id, locale);
+        expect(table, `${id} ${locale}`).toBeDefined();
+        expect(english.filter((key) => typeof table?.[key] !== 'string'), `${id} ${locale}`).toEqual([]);
+      }
+    }
+  });
+
+  it('a_key_still_in_the_shell_catalogue_reads_the_same_in_its_namespace', async () => {
+    const differ: string[] = [];
+    for (const locale of LOCALES) {
+      const shell: Readonly<Record<string, string>> = await CATALOGUE_LOADERS[locale]();
+      for (const id of NAMESPACES) {
+        for (const [key, text] of Object.entries(tableOf(id, locale) ?? {})) {
+          if (Object.hasOwn(shell, key) && shell[key] !== text) {
+            differ.push(`${locale} ${key}`);
+          }
+        }
+      }
+    }
+    expect(differ).toEqual([]);
+  });
+});

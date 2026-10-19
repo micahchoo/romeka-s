@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { useTermText, useTranslator } from '../i18n';
+import { useTranslator } from '../i18n';
+import { useTermLabels } from '../i18n/termText';
 import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
@@ -11,6 +12,7 @@ import { plainName } from './plain-terms';
 import type { SaveState } from './save';
 import { typesFor, type ResourceKind } from './type-use';
 import { templateById, withTemplate } from './value-fields';
+import { common } from '../i18n/namespaces/common';
 
 export interface OptionSelectProps<IdT extends number> {
   readonly id: string;
@@ -32,7 +34,7 @@ export const OptionSelect = <IdT extends number>({
   emptyLabel,
   after,
 }: OptionSelectProps<IdT>): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   return (
     <p>
       <label htmlFor={id}>{label}</label>
@@ -126,9 +128,9 @@ export const ResourceFields = ({
   onChange,
   options,
 }: ResourceFieldsProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const describe = useDescribeText();
-  const text = useTermText();
+  const text = useTermLabels();
   const [open, setOpen] = useState(false);
   const selected = templateById(options.templates, draft.resourceTemplate);
   const typeClass = selected?.resourceClass?.id ?? null;
@@ -200,7 +202,7 @@ export const ResourceFields = ({
 };
 
 export const SaveStatus = ({ state }: { readonly state: SaveState }): ReactElement | null => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   switch (state.status) {
     case 'idle':
       return null;
@@ -219,7 +221,7 @@ export interface SubmitRowProps {
 }
 
 export const SubmitRow = ({ label, busy }: SubmitRowProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   return (
     <p className="form-actions">
       <button type="submit" disabled={busy}>

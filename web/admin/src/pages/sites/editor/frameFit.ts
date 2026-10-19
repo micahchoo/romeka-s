@@ -10,7 +10,8 @@
  */
 import type { CSSProperties, RefObject } from 'react';
 import { useLayoutEffect, useState } from 'react';
-import type { MessageKey } from '../../../i18n';
+import type { KeyOf } from '../../../i18n';
+import type { sites } from '../../../i18n/namespaces/sites';
 
 /** A device width in CSS pixels, or `fit`: the width of the box itself. */
 export type DeviceWidth = number | 'fit';
@@ -19,7 +20,7 @@ export type DeviceWidth = number | 'fit';
 export const FIT_MIN_WIDTH = 1024;
 
 /** The device choices every preview offers. Fit is first and the default. */
-export const DEVICES: readonly { readonly key: MessageKey; readonly width: DeviceWidth }[] = [
+export const DEVICES: readonly { readonly key: KeyOf<typeof sites>; readonly width: DeviceWidth }[] = [
   { key: 'editor.widthFit', width: 'fit' },
   { key: 'editor.widthDesktop', width: 1280 },
   { key: 'editor.widthTablet', width: 768 },

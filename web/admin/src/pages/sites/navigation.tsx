@@ -30,6 +30,8 @@ import {
   navigationReducer,
 } from './navigationTree';
 import type { MoveDirection, NavLink, NavigationAction, Place } from './navigationTree';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 const ARROWS: Readonly<Record<string, MoveDirection>> = {
   ArrowUp: 'up',
@@ -90,7 +92,7 @@ const LinkRow = ({
   readonly link: NavLink;
   readonly tree: TreeContext;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const label = linkLabel(link, tree.pages, t);
   const open = tree.openKey === link.key;
   const picked = tree.pickedKey === link.key;
@@ -201,7 +203,7 @@ const MenuPreview = ({
   readonly links: readonly NavLink[];
   readonly pages: readonly PageOption[];
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const items = (list: readonly NavLink[]): ReactElement => (
     <ul>
       {list.map((link) => (
@@ -245,7 +247,7 @@ export const SiteNavigationEditor = ({
   pages,
   navigation,
 }: NavigationEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [links, setLinks] = useState<readonly NavLink[]>(() => navigationLinks(navigation));
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(navigationJson(links)));
   const [openKey, setOpenKey] = useState<number | null>(null);
@@ -428,7 +430,7 @@ const loadNavigation = async (siteId: SiteId): Promise<NavigationLoaded> => {
 
 /** Loads the site navigation and its page list, then renders the editor. */
 export const SiteNavigationPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => loadNavigation(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;

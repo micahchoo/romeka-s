@@ -11,6 +11,8 @@ import type { Asset, AssetWrite } from '../../api/types';
 import { SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
 
 const nullable = (text: string): string | null => (text.trim() === '' ? null : text);
 
@@ -21,7 +23,7 @@ export const AssetEditForm = ({
   readonly asset: Asset;
   readonly onSaved: (asset: Asset) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const [name, setName] = useState(asset.name);
   const [altText, setAltText] = useState(asset.altText ?? '');
   const [formError, setFormError] = useState<string | null>(null);

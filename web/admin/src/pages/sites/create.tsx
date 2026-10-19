@@ -16,12 +16,14 @@ import { useSave } from '../../app/save';
 import { useTranslator } from '../../i18n';
 import { Breadcrumb } from './SiteFrame';
 import { ThemeSelect, slugFromTitle } from './siteInfo';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 /** A new site's saved search: every public item (`o:item_pool` as `parse_str` stores it). */
 const DEFAULT_ITEM_POOL = { is_public: '1' };
 
 export const SiteCreatePage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [title, setTitle] = useState('');
   /** `null` while the slug follows the title; the user's text once they edit it. */
   const [typedSlug, setTypedSlug] = useState<string | null>(null);

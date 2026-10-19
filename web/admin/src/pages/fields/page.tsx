@@ -14,10 +14,12 @@ import { useLesson } from '../../app/lessons/lesson';
 import { PLAIN_TERMS, plainHint, plainName, searchTerms, termComment } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
-import { useLocale, useTermText, useTranslator, type TermText } from '../../i18n';
+import { useLocale, useTranslator, type TermLabels } from '../../i18n';
+import { useTermText } from '../../i18n/termComments';
 import '../item-types/item-types.css';
-import { useItemTypesText, WithItemTypesMessages } from '../item-types/messages';
+import { useItemTypesText } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
+import { common } from '../../i18n/namespaces/common';
 
 interface Use {
   readonly template: ResourceTemplate;
@@ -46,7 +48,7 @@ const usesOf = (templates: readonly ResourceTemplate[], property: Property): rea
   );
 
 /** In use first (most used first), then the curated common fields, then by name. */
-const browseOrder = (loaded: Loaded, text: TermText): readonly Property[] => {
+const browseOrder = (loaded: Loaded, text: TermLabels): readonly Property[] => {
   const rank = (property: Property): number =>
     usesOf(loaded.templates, property).length * 10 + (property.term in PLAIN_TERMS ? 1 : 0);
   return [...loaded.properties].sort(
@@ -111,7 +113,7 @@ const FieldEntry = ({
 
 const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
   const t = useItemTypesText();
-  const { number } = useTranslator();
+  const { number } = useTranslator(common);
   const text = useTermText();
   const inputId = useId();
   const [query, setQuery] = useState('');
@@ -157,7 +159,7 @@ const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
 };
 
 export const FieldsPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const state = useAsync(load, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
@@ -165,9 +167,5 @@ export const FieldsPage = (): ReactElement => {
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return (
-    <WithItemTypesMessages>
-      <FieldsList loaded={state.data} />
-    </WithItemTypesMessages>
-  );
+  return <FieldsList loaded={state.data} />;
 };

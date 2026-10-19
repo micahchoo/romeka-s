@@ -16,6 +16,8 @@ import type {
   ResourcePageBlocksRegistry,
   ResourcePageResourceSpec,
 } from './resourcePageBlocksSchema';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 export interface ResourcePageBlocksFieldProps {
   readonly registry: ResourcePageBlocksRegistry;
@@ -45,7 +47,7 @@ const ResourceBlocks = ({
   readonly names: readonly string[];
   readonly onChange: (names: readonly string[]) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [pending, setPending] = useState('');
   const resourceLabel = t(resource.labelKey);
   const labelOf = (name: string): string => {
@@ -140,7 +142,7 @@ export const ResourcePageBlocksField = ({
   drafts,
   onChange,
 }: ResourcePageBlocksFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   return (
     <fieldset className="resource-page-blocks-field">
       <legend>{t('resourcePage.title')}</legend>

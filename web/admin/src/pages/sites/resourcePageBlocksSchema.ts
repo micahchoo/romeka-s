@@ -15,12 +15,14 @@
  */
 import { ParseError, isRecord, parseListOf } from '../../api/parse';
 import type { JsonValue, Path } from '../../api/types';
-import { MESSAGE_KEYS } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf } from '../../i18n';
+import { sites } from '../../i18n/namespaces/sites';
 
-const MESSAGE_KEY_SET: ReadonlySet<string> = new Set(MESSAGE_KEYS);
 
-const isMessageKey = (value: string): value is MessageKey => MESSAGE_KEY_SET.has(value);
+/** A message id of the `sites` namespace, the table these keys are read from. */
+type MessageKey = KeyOf<typeof sites>;
+
+const isMessageKey = sites.has;
 
 const parseString = (value: unknown, path: Path): string => {
   if (typeof value !== 'string') {
