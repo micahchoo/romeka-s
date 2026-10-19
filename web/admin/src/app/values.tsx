@@ -2,6 +2,8 @@ import type { ReactElement } from 'react';
 import type { Value } from '../api/types';
 import { useTranslator } from '../i18n';
 import { TableScroll } from './table-scroll';
+import { common } from '../i18n/namespaces/common';
+import { resources } from '../i18n/namespaces/resources';
 
 const renderValue = (value: Value): ReactElement => {
   switch (value.kind) {
@@ -38,7 +40,7 @@ export interface ValuesListProps {
  * the item and media detail pages.
  */
 export const ValuesList = ({ values }: ValuesListProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   if (values.size === 0) {
     return <p>{t('values.none')}</p>;
   }

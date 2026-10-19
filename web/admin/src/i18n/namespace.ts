@@ -118,7 +118,7 @@ export const defineNamespace = <K extends string>(
 export const tableFor = <K extends string>(
   namespace: Namespace<K>,
   locale: Locale,
-): Table<string> | Promise<Table<string>> => {
+): Table<K> | Promise<Table<K>> => {
   const entry = entries.get(namespace);
   if (entry === undefined) {
     throw new Error(`namespace ${namespace.id} was not made by defineNamespace`);

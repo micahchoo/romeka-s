@@ -5,6 +5,7 @@ import { useTranslator } from '../i18n';
 import { ErrorNotice } from './errors';
 import { TableScroll } from './table-scroll';
 import { useAsync } from './useAsync';
+import { common } from '../i18n/namespaces/common';
 
 export interface Column<T> {
   readonly header: string;
@@ -38,7 +39,7 @@ export interface PagerProps {
 }
 
 export const Pager = ({ page, lastPage, total, label, onPage }: PagerProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   return (
     <p className="pager">
       {t('list.pager', { page, lastPage, total, resource: label })}
@@ -75,7 +76,7 @@ export const ListPage = <T,>({
   columns,
   rowKey,
 }: ListPageProps<T>): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const [page, setPage] = useState(1);
   const state = useAsync(() => load(page), [page]);
 

@@ -10,12 +10,13 @@ import { ApiError } from '../api/client';
 import { useTranslator } from '../i18n';
 import { SignInPanel } from './auth';
 import { formatError } from './format';
+import { common } from '../i18n/namespaces/common';
 
 const isForbidden = (error: Error): boolean =>
   error instanceof ApiError && error.status === 403;
 
 export const ErrorNotice = ({ error }: { readonly error: Error }): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(common);
   return (
     <>
       <p role="alert">{formatError(error, translator)}</p>
