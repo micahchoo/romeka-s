@@ -4,10 +4,12 @@
  * JS and CSS asset with node's zlib, and compare against `budget.json`.
  *
  * The initial payload is what `dist/index.html` references: the entry script,
- * its modulepreload links and the stylesheet. Everything else under
- * `dist/assets` is a lazy chunk, fetched when its route first opens. A sum over
- * every emitted asset would be a number no user waits on, so the budget gates
- * the initial payload and gives each chunk its own ceiling instead.
+ * its modulepreload links and the stylesheet. A catalogue chunk is a locale's
+ * messages (`src/i18n/locales/`), which a visitor in that locale fetches before
+ * the first render. Everything else under `dist/assets` is a lazy chunk,
+ * fetched when its route first opens. A sum over every emitted asset would be
+ * a number no user waits on, so the budget gates the initial payload and gives
+ * each catalogue and each chunk its own ceiling instead.
  *
  * `npm run perf:bundle` runs it over the tree's own `dist` and exits non-zero on
  * an exceeded budget. `npm run perf:check` imports the same functions, so the
@@ -25,6 +27,9 @@ export const APP_ROOT = resolve(PERF_DIR, '..');
 export const DIST_ROOT = join(APP_ROOT, 'dist');
 export const BUDGET_FILE = join(PERF_DIR, 'budget.json');
 export const SUMMARY_FILE = join(PERF_DIR, 'summary.json');
+
+/** Where the non-default locales' catalogues live; each is its own chunk. */
+const CATALOGUE_SOURCE = 'src/i18n/locales/';
 
 /** Parse `budget.json`. */
 export const readBudget = (path = BUDGET_FILE) => JSON.parse(readFileSync(path, 'utf8'));
@@ -58,13 +63,32 @@ export const initialAssetNames = (distRoot = DIST_ROOT) => {
   return new Set([...html.matchAll(/assets\/([^"'()\s]+\.(?:js|css))/g)].map((match) => match[1]));
 };
 
+/**
+ * The asset file names built from a locale catalogue, read from the Vite
+ * manifest, the only place a hashed file is tied to its source module.
+ */
+export const catalogueAssetNames = (distRoot = DIST_ROOT) => {
+  const path = join(distRoot, '.vite', 'manifest.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new Error(`${path}: run \`npm run build\` first (${String(error)})`, { cause: error });
+  }
+  return new Set(
+    Object.values(manifest)
+      .filter((entry) => entry.src?.startsWith(CATALOGUE_SOURCE))
+      .map((entry) => basename(entry.file)),
+  );
+};
+
 const sumGzip = (files, kind) =>
   files.filter((file) => file.kind === kind).reduce((total, file) => total + file.gzipBytes, 0);
 
 /**
  * Gzip every `.js` and `.css` file under `dist/assets` and divide them into the
- * initial payload and the lazy chunks. Gzipping each file on its own matches
- * what the browser downloads, one response per file.
+ * initial payload, the catalogue chunks and the lazy chunks. Gzipping each
+ * file on its own matches what the browser downloads, one response per file.
  */
 export const measureBundle = (distRoot = DIST_ROOT) => {
   const assetsDir = join(distRoot, 'assets');
@@ -89,11 +113,14 @@ export const measureBundle = (distRoot = DIST_ROOT) => {
   if (!initial.some((file) => file.kind === 'js')) {
     throw new Error(`${join(distRoot, 'index.html')}: references no js asset`);
   }
+  const catalogueNames = catalogueAssetNames(distRoot);
+  const lazy = files.filter((file) => !initialNames.has(basename(file.name)));
   return {
     initialJsGzipBytes: sumGzip(initial, 'js'),
     initialCssGzipBytes: sumGzip(initial, 'css'),
     initialFiles: initial,
-    chunks: files.filter((file) => !initialNames.has(basename(file.name))),
+    catalogueChunks: lazy.filter((file) => catalogueNames.has(file.name)),
+    chunks: lazy.filter((file) => !catalogueNames.has(file.name)),
   };
 };
 
@@ -114,14 +141,19 @@ export const bundleFailures = (budget, measured) => {
   } else if (measured.initialCssGzipBytes > bundle.initialCssGzipBytes) {
     failures.push(over('initial css', measured.initialCssGzipBytes, bundle.initialCssGzipBytes));
   }
-  if (typeof bundle?.chunkGzipBytes !== 'number') {
-    failures.push('budget.json has no bundle.chunkGzipBytes');
-  } else {
-    for (const chunk of measured.chunks) {
-      if (chunk.gzipBytes > bundle.chunkGzipBytes) {
-        failures.push(
-          over(`${chunk.kind} chunk ${chunk.name}`, chunk.gzipBytes, bundle.chunkGzipBytes),
-        );
+  const ceilings = [
+    ['chunkGzipBytes', 'chunk', measured.chunks],
+    ['catalogueChunkGzipBytes', 'catalogue', measured.catalogueChunks],
+  ];
+  for (const [key, label, chunks] of ceilings) {
+    const limit = bundle?.[key];
+    if (typeof limit !== 'number') {
+      failures.push(`budget.json has no bundle.${key}`);
+      continue;
+    }
+    for (const chunk of chunks) {
+      if (chunk.gzipBytes > limit) {
+        failures.push(over(`${chunk.kind} ${label} ${chunk.name}`, chunk.gzipBytes, limit));
       }
     }
   }
@@ -134,11 +166,11 @@ const main = () => {
     process.stdout.write(`${JSON.stringify(measured)}\n`);
     return;
   }
-  for (const file of [...measured.initialFiles, ...measured.chunks]) {
+  for (const file of [...measured.initialFiles, ...measured.catalogueChunks, ...measured.chunks]) {
     console.log(`${file.name}  ${String(file.bytes)} bytes  gzip ${String(file.gzipBytes)}`);
   }
   console.log(
-    `initial js gzip ${String(measured.initialJsGzipBytes)} bytes, initial css gzip ${String(measured.initialCssGzipBytes)} bytes, ${String(measured.chunks.length)} lazy chunks`,
+    `initial js gzip ${String(measured.initialJsGzipBytes)} bytes, initial css gzip ${String(measured.initialCssGzipBytes)} bytes, ${String(measured.catalogueChunks.length)} catalogue chunks, ${String(measured.chunks.length)} lazy chunks`,
   );
   const failures = bundleFailures(readBudget(), measured);
   for (const failure of failures) {

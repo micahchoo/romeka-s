@@ -35,7 +35,8 @@ const VersionBadge = (): ReactElement | null => {
 
 /**
  * The locale switch. It offers every shipped locale by its own name and stores
- * the choice through the locale store, so a reload keeps it. The stored value
+ * the choice through the locale store, so a reload keeps it. The page switches
+ * once the chosen catalogue has loaded. The stored value
  * is re-narrowed by `parseLocale`, the same boundary the store reads through.
  */
 const LocaleSwitch = (): ReactElement => {
@@ -47,7 +48,11 @@ const LocaleSwitch = (): ReactElement => {
       <select
         value={locale}
         onChange={(event) => {
-          setLocale(parseLocale(event.target.value));
+          // A catalogue that fails to load leaves the current language, and
+          // the select, where they were.
+          setLocale(parseLocale(event.target.value)).catch((error: unknown) => {
+            console.error(error);
+          });
         }}
       >
         {LOCALES.map((option) => (

@@ -25,8 +25,10 @@ when `perf/summary.json` is absent, so it works after a build without an e2e run
 - **Bundle.** `perf/bundle.mjs` reads `dist/assets` and gzips each emitted `.js`
   and `.css` with node's zlib, per file, because the browser downloads one
   response per file. It divides them the way `dist/index.html` does: the initial
-  payload is the entry script, its modulepreload links and the stylesheet, and
-  every other file is a lazy chunk a route fetches on its first visit.
+  payload is the entry script, its modulepreload links and the stylesheet. A
+  file the Vite manifest builds from `src/i18n/locales/` is a catalogue chunk,
+  which a visitor in that locale fetches before the first render. Every other
+  file is a lazy chunk a route fetches on its first visit.
   Deterministic, so it runs in any gate.
 - **Per-route payload.** `perf/pages.mjs` reads `dist/.vite/manifest.json` (the
   `build.manifest` option in `vite.config.ts`) and prints each route's own chunk
@@ -82,6 +84,7 @@ the 2026-10-17 split build, the timing column the 2026-10-17 run.
 | initial js gzip | 102400 B | 85354 B |
 | initial css gzip | 6144 B | 2258 B |
 | each lazy chunk | 10240 B | largest 6909 B |
+| each catalogue chunk | 13312 B | Spanish 12003 B (`PERF.md` Decision 10) |
 | first contentful paint | 250 ms | 52-60 ms |
 | list render | 400 ms | 123-128 ms |
 | detail render | 400 ms | 123-128 ms |
