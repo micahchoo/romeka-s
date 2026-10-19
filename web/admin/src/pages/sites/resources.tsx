@@ -74,6 +74,7 @@ const SiteResourcesEditor = ({
         value={itemPool}
         onChange={setItemPool}
         itemSets={loaded.itemSets}
+        sortable={false}
       />
       <fieldset>
         <legend>{t('sites.itemSets')}</legend>

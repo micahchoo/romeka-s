@@ -54,6 +54,12 @@
   border-radius: 0 0 4px 0;
 }
 
+/* On a grid page each block's insert chip sits on its top-left corner, so the
+ * label starts after it. */
+.live-overlay--chips .live-label {
+  left: 14px;
+}
+
 .live-outline--hover .live-label {
   background: color-mix(in srgb, var(--accent) 80%, #000000);
 }
@@ -111,17 +117,18 @@
   opacity: 1;
 }
 
-/* Into a group: inside the group's bottom edge, at its start, so it never sits
- * on the top-level chip just below the group. */
+/* Into a group: centred on the group's bottom edge at its start, clear of the
+ * last member's text and of the top-level chip, which sits mid-line. */
 .live-slot--group .live-slot-button {
-  top: -26px;
   left: 6px;
   border-style: dashed;
 }
 
+/* A grid chip sits above its block's top-left corner, outside the block, so it
+ * never covers the block's first letters. */
 .live-slot--chip .live-slot-button {
-  top: 6px;
-  left: 6px;
+  top: -24px;
+  left: -11px;
 }
 
 @media (prefers-reduced-motion: reduce) {
