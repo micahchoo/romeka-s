@@ -4,11 +4,16 @@ import { api } from '../../api/client';
 import type { ApiPage } from '../../api/types';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { admin } from '../../i18n/namespaces/admin';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
 
 type QueryResource = 'items' | 'media' | 'item_sets';
 
-const RESOURCE_OPTIONS: readonly { readonly value: QueryResource; readonly labelKey: MessageKey }[] =
+const RESOURCE_OPTIONS: readonly { readonly value: QueryResource; readonly labelKey: MessageId }[] =
   [
     { value: 'items', labelKey: 'page.items' },
     { value: 'media', labelKey: 'page.media' },
@@ -19,7 +24,7 @@ const isQueryResource = (value: string): value is QueryResource =>
   value === 'items' || value === 'media' || value === 'item_sets';
 
 /** The plural resource name, the loading and pagination label for each type. */
-const RESOURCE_KEYS: Readonly<Record<QueryResource, MessageKey>> = {
+const RESOURCE_KEYS: Readonly<Record<QueryResource, MessageId>> = {
   items: 'resource.items',
   media: 'resource.media',
   item_sets: 'resource.itemSets',
@@ -57,7 +62,7 @@ const loadRows = async (spec: QuerySpec, page: number): Promise<ApiPage<PreviewR
 };
 
 const QueryPreview = ({ spec }: { readonly spec: QuerySpec }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   return (
     <ListPage<PreviewRow>
       resourceLabel={t(RESOURCE_KEYS[spec.resource])}
@@ -77,7 +82,7 @@ const QueryPreview = ({ spec }: { readonly spec: QuerySpec }): ReactElement => {
  * advanced search form and the resource list its preview returns.
  */
 export const QueryPage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, admin);
   const [resource, setResource] = useState<QueryResource>('items');
   const [search, setSearch] = useState('');
   const [applied, setApplied] = useState<QuerySpec | null>(null);

@@ -3,6 +3,7 @@ import { jobIdFromParam } from '../../api/parse';
 import { useTranslator } from '../../i18n';
 import { JobDetail } from './detail';
 import { JobList } from './list';
+import { admin } from '../../i18n/namespaces/admin';
 
 /** `#/jobs` lists; `#/jobs/<id>` shows one job. There is no create route. */
 export const JobsPage = ({
@@ -10,7 +11,7 @@ export const JobsPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(admin);
   if (param === null) {
     return <JobList />;
   }
