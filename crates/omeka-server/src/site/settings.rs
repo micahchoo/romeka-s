@@ -8,18 +8,27 @@
 
 use omeka_db::DbError;
 use omeka_db::ids as db;
-use omeka_db::repos::SiteSettingRepo;
+use omeka_db::repos::{SettingRepo, SiteSettingRepo};
 use omeka_site::settings::{BrowseDefaults, SiteSettings};
 use serde_json::Value;
 use sqlx::SqlitePool;
 
 /// The site settings a site stores, with each key's default in force where no
 /// row holds it.
+///
+/// An unset or empty site `locale` takes the global `locale` setting: upstream
+/// bootstraps the translator from the global setting
+/// (`MvcListeners::bootstrapLocale`, `MvcListeners.php:132-146`) and the site
+/// setting overrides it only when it is set (`:378-381`).
 pub(crate) async fn load(pool: &SqlitePool, site: db::SiteId) -> Result<SiteSettings, DbError> {
     let rows = SiteSettingRepo::new(pool).list(site).await?;
     let mut settings = SiteSettings::default();
     for row in rows {
         apply(&mut settings, &row.id, &row.value);
+    }
+    if settings.locale.is_none() {
+        let global = SettingRepo::new(pool).get("locale").await?;
+        settings.locale = global.as_ref().and_then(text);
     }
     Ok(settings)
 }

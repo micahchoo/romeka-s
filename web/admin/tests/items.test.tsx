@@ -135,8 +135,8 @@ describe('items list', () => {
     expect(screen.getByText('Book')).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('[No owner]')).toBeInTheDocument();
-    expect(screen.getByText('2026-10-16 09:30')).toBeInTheDocument();
-    expect(screen.getByText('2026-10-16 11:00')).toBeInTheDocument();
+    expect(screen.getByText('Oct 16, 2026, 9:30 AM')).toBeInTheDocument();
+    expect(screen.getByText('Oct 16, 2026, 11:00 AM')).toBeInTheDocument();
 
     const itemsUrl = first(urlsFor(fetchMock, '/api/items'));
     expect(itemsUrl.searchParams.get('page')).toBe('1');
@@ -209,8 +209,8 @@ describe('item detail', () => {
     const langCell = screen.getByText('Fixture Item One', { selector: 'td' });
     expect(langCell.textContent).toBe('Fixture Item One (en)');
 
-    expect(screen.getByText('2026-10-16 09:30')).toBeInTheDocument();
-    expect(screen.getByText('2026-10-16 10:15')).toBeInTheDocument();
+    expect(screen.getByText('Oct 16, 2026, 9:30 AM')).toBeInTheDocument();
+    expect(screen.getByText('Oct 16, 2026, 10:15 AM')).toBeInTheDocument();
 
     const mediaUrl = first(urlsFor(fetchMock, '/api/media'));
     expect(mediaUrl.searchParams.get('item_id')).toBe('1');
