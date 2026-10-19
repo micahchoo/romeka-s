@@ -68,6 +68,26 @@ export const teServer: ServerCatalogue = {
   'server.vocabularyRequired': 'పదజాలం తప్పనిసరిగా సెట్ చేయాలి.',
   'server.duplicateTemplateProperty':
     'ID {id} తో డూప్లికేట్ ప్రాపర్టీని జోడించడానికి ప్రయత్నిస్తోంది',
+  'server.vocabularyNoFile': 'ఫైల్ ఇంపోర్ట్ స్ట్రాటజీ కోసం ఫైల్ పేర్కొనబడలేదు.',
+  'server.vocabularyNoUrl': 'URL ఇంపోర్ట్ స్ట్రాటజీ కోసం URL పేర్కొనబడలేదు.',
+  'server.vocabularyNotParsed': 'వొకాబులరీ ఫైల్ పార్స్ చేయలేకపోయాము.',
+  'server.vocabularyNotLoaded': 'URL నుండి వొకాబులరీని లోడ్ చేయలేకపోయాము.',
+  'server.vocabularyNoMembers':
+    'క్లాస్‌లు లేదా ప్రాపర్టీలు కనుగొనబడలేదు. మీరు సరైన నేమ్‌స్పేస్ URIని ఉపయోగించారా?',
+  'server.vocabularyPermanent': 'శాశ్వత వొకాబులరీని ఎడిట్ చేయలేరు',
+  'server.vocabularyFormatUnknown':
+    'ఫైల్ ఫార్మాట్‌ను గుర్తించలేకపోయాము. జాబితా నుండి ఫార్మాట్‌ను ఎంచుకోండి.',
+  'server.vocabularyFormatInvalid': '"{format}" వొకాబులరీ ఫైల్ ఫార్మాట్ కాదు.',
+  'server.vocabularyUrlScheme': 'కేవలం http మరియు https URLలను మాత్రమే ఇంపోర్ట్ చేయవచ్చు.',
+  'server.vocabularyUrlPrivate':
+    'URL ఒక ప్రైవేట్ లేదా లోకల్ నెట్‌వర్క్ అడ్రస్‌ను సూచిస్తుంది, దీనిని సర్వర్ పొందదు.',
+  'server.vocabularyUrlTooLarge': 'URL వద్ద ఉన్న ఫైల్ {size} కంటే పెద్దది.',
+  'server.vocabularyUrlTimeout': 'URL వద్ద ఉన్న సర్వర్ సమయానికి సమాధానం ఇవ్వలేదు.',
+  'server.vocabularyUrlStatus': 'URL వద్ద ఉన్న సర్వర్ {status} స్టేటస్‌తో సమాధానం ఇచ్చింది.',
+  'server.vocabularyChangeStale': '"{name}" పోలికలో మార్పు చెందింది. ఫైల్‌ను మళ్ళీ పోల్చండి.',
+  'server.vocabularyMemberMissing': '"{name}" ఈ వొకాబులరీలో సభ్యుడు కాదు.',
+  'server.vocabularyCaseClash':
+    '"{first}" మరియు "{second}" కేవలం అక్షరాల కేస్‌లో మాత్రమే తేడా ఉన్నాయి, మరియు ఈ ఆర్కైవ్ రెండింటినీ నిల్వ చేయలేదు.',
   'server.nameEmpty': 'పేరు ఖాళీగా ఉండకూడదు.',
   'server.emailTaken': 'ఈమెయిల్ {email} ఇప్పటికే ఉపయోగించబడింది.',
   'server.userRoleRequired': 'వినియోగదారులకు పాత్ర ఉండాలి.',
@@ -86,7 +106,19 @@ export const teServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'అన్ని బ్లాక్‌లకు లేఅవుట్ ఉండాలి.',
   'server.blockDataScalar': 'బ్లాక్ డేటా స్కేలార్ విలువ కాకూడదు.',
   'server.siteSettingsNotObject': 'ఆశించిన ఆబ్జెక్ట్ లేదా నల్, {kind} వచ్చింది.',
-  'server.customCssRefusal': 'కస్టమ్ CSS: {refusal}',
+  'server.cssTooLarge':
+    'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: కస్టమ్ CSS గరిష్టంగా {max} బైట్లు ఉండవచ్చు; ఇది {bytes}.',
+  'server.cssImport': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: @import అనుమతించబడదు.',
+  'server.cssDocument': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: @document అనుమతించబడదు.',
+  'server.cssForeignUrl':
+    'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: url({url}) అనుమతించబడదు; ఒక URL తప్పనిసరిగా /files/ లేదా /assets/ కింద పాత్ అయి ఉండాలి.',
+  'server.cssExpression': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: expression() అనుమతించబడదు.',
+  'server.cssBehavior': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: behavior అనుమతించబడదు.',
+  'server.cssMozBinding': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: -moz-binding అనుమతించబడదు.',
+  'server.cssStyleBreakout': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: </style అనుమతించబడదు.',
+  'server.cssBadUrl': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: ఈ url( సరైన CSS కాదు.',
+  'server.cssUnclosedString': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: ఈ స్ట్రింగ్ మూసివేయబడలేదు.',
+  'server.cssStrayClose': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: {bracket} ఏమీ మూసివేయదు.',
   'server.navNotArray': 'చెల్లని నావిగేషన్: నావిగేషన్ తప్పనిసరిగా ఒక అర్రే అయి ఉండాలి',
   'server.navLinkMissingType': 'చGFSలని నావిగేషన్: లింక్ రకం లేదు',
   'server.navLinkMissingData': 'చGFSలని నావిగేషన్: లింక్ డేటా లేదు',
@@ -103,4 +135,6 @@ export const teServer: ServerCatalogue = {
   'server.settingsNotObject': 'ఒక ఆబ్జెక్ట్ ఆశించబడింది.',
   'server.settingUnavailable': '{key} సెట్టింగ్ అందుబాటులో లేదు.',
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
+  'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
+  'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
 };

@@ -13,6 +13,7 @@
 
 use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteSettingRepo;
+use omeka_site::theme::custom_css::{CssError, CssProblem, MAX_BYTES, sanitize};
 use serde_json::Value;
 use sqlx::SqlitePool;
 
@@ -79,8 +80,26 @@ pub async fn store(
 #[must_use]
 pub fn custom_css_errors(settings: &Value) -> Option<Vec<String>> {
     let css = settings.get("custom_css")?.as_str()?;
-    let refusals = omeka_site::theme::custom_css::sanitize(css.trim()).err()?;
-    Some(refusals.iter().map(messages::custom_css_refusal).collect())
+    let refusals = sanitize(css.trim()).err()?;
+    Some(refusals.iter().map(refusal_message).collect())
+}
+
+/// The registry sentence for one refusal, so the admin translates it whole.
+fn refusal_message(error: &CssError) -> String {
+    let (line, column) = (error.line, error.column);
+    match &error.problem {
+        CssProblem::TooLarge(bytes) => messages::css_too_large(line, column, MAX_BYTES, bytes),
+        CssProblem::Import => messages::css_import(line, column),
+        CssProblem::Document => messages::css_document(line, column),
+        CssProblem::ForeignUrl(url) => messages::css_foreign_url(line, column, url),
+        CssProblem::Expression => messages::css_expression(line, column),
+        CssProblem::Behavior => messages::css_behavior(line, column),
+        CssProblem::MozBinding => messages::css_moz_binding(line, column),
+        CssProblem::StyleBreakout => messages::css_style_breakout(line, column),
+        CssProblem::BadUrl => messages::css_bad_url(line, column),
+        CssProblem::UnclosedString => messages::css_unclosed_string(line, column),
+        CssProblem::StrayClose(bracket) => messages::css_stray_close(line, column, bracket),
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +111,75 @@ mod tests {
     fn settings_key_names_the_theme() {
         assert_eq!(key("default"), "theme_settings_default");
         assert_eq!(key("other"), "theme_settings_other");
+    }
+
+    /// The refusals for one custom CSS text, as the 422 carries them.
+    fn refusals(css: &str) -> Vec<String> {
+        custom_css_errors(&serde_json::json!({ "custom_css": css })).unwrap_or_default()
+    }
+
+    /// Each refusal kind is its own registry sentence, with the line, column
+    /// and value it names, so the admin translates the whole sentence.
+    #[test]
+    fn each_refusal_kind_is_its_own_registry_sentence() {
+        let cases = [
+            (
+                "@import 'x.css';",
+                "Custom CSS: Line 1, column 1: @import is not allowed.",
+            ),
+            (
+                "@-moz-document url-prefix() {}",
+                "Custom CSS: Line 1, column 1: @document is not allowed.",
+            ),
+            (
+                "a {\n  background: url(https://evil.example/x.png);\n}",
+                "Custom CSS: Line 2, column 15: url(https://evil.example/x.png) is not allowed; \
+                 a URL must be a path under /files/ or /assets/.",
+            ),
+            (
+                "a { width: expression(1) }",
+                "Custom CSS: Line 1, column 12: expression() is not allowed.",
+            ),
+            (
+                "a { behavior: none }",
+                "Custom CSS: Line 1, column 5: behavior is not allowed.",
+            ),
+            (
+                "a { -moz-binding: none }",
+                "Custom CSS: Line 1, column 5: -moz-binding is not allowed.",
+            ),
+            (
+                "a { content: '</style>' }",
+                "Custom CSS: Line 1, column 15: </style is not allowed.",
+            ),
+            (
+                "a { background: url(/files/a b.png) }",
+                "Custom CSS: Line 1, column 17: this url( is not valid CSS.",
+            ),
+            (
+                "a { content: 'open\n }",
+                "Custom CSS: Line 1, column 14: this string is not closed.",
+            ),
+            (
+                "a { color: red } }",
+                "Custom CSS: Line 1, column 18: } closes nothing.",
+            ),
+            (
+                "a { color: red ) }",
+                "Custom CSS: Line 1, column 16: ) closes nothing.",
+            ),
+        ];
+        for (css, expected) in cases {
+            assert_eq!(refusals(css), vec![expected.to_string()], "{css:?}");
+        }
+        let big = format!("/*{}*/", "x".repeat(MAX_BYTES));
+        assert_eq!(
+            refusals(&big),
+            vec![format!(
+                "Custom CSS: Line 1, column 1: custom CSS may be at most {MAX_BYTES} bytes; this is {}.",
+                big.len()
+            )]
+        );
     }
 
     /// A theme row is told apart from a per-key site setting.

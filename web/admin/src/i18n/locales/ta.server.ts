@@ -28,7 +28,8 @@ export const taServer: ServerCatalogue = {
   'server.invalidContentType':
     'தவறான Content-Type தலைப்பு. "application/json" எதிர்பார்க்கப்பட்டது, ஆனால் "{received}" கிடைத்தது.',
   'server.bodyNotObject': 'கோரிக்கை உடல் ஒரு JSON பொருளாக இருக்க வேண்டும்.',
-  'server.siteItemsOneSelector': '"query", "items" அல்லது "item_sets" ஆகியவற்றில் சரியாக ஒன்றைக் குறிப்பிடவும்',
+  'server.siteItemsOneSelector':
+    '"query", "items" அல்லது "item_sets" ஆகியவற்றில் சரியாக ஒன்றைக் குறிப்பிடவும்',
   'server.invalidCredentials': 'மின்னஞ்சல் அல்லது கடவுச்சொல் தவறானது',
   'server.inactiveAccount': 'பயனர் செயல்பாட்டில் இல்லை.',
   'server.unknownKey': 'தவறான கடவுச்சொல் உருவாக்கும் சாவி.',
@@ -67,6 +68,27 @@ export const taServer: ServerCatalogue = {
   'server.localNameTaken': 'உள்ளூர் பெயர் "{name}" ஏற்கனவே பயன்படுத்தப்பட்டுள்ளது.',
   'server.vocabularyRequired': 'ஒரு சொல்லகராதி அமைக்கப்பட வேண்டும்.',
   'server.duplicateTemplateProperty': 'ஐடி {id} உடன் நகல் பண்பைச் சேர்க்க முயற்சித்தல்',
+  'server.vocabularyNoFile': 'கோப்பு இறக்குமதி உத்திக்காக எந்தக் கோப்பும் குறிப்பிடப்படவில்லை.',
+  'server.vocabularyNoUrl': 'URL இறக்குமதி உத்திக்காக எந்த URL-உம் குறிப்பிடப்படவில்லை.',
+  'server.vocabularyNotParsed': 'சொல்லகராதி கோப்பைப் பகுப்பாய்வு செய்ய முடியவில்லை.',
+  'server.vocabularyNotLoaded': 'URL-லிருந்து சொல்லகராதியை ஏற்ற முடியவில்லை.',
+  'server.vocabularyNoMembers':
+    'வகுப்புகள் அல்லது பண்புகள் எதுவும் காணப்படவில்லை. சரியான பெயர்வெளி URI-ஐப் பயன்படுத்தியுள்ளீர்களா?',
+  'server.vocabularyPermanent': 'ஒரு நிலையான சொல்லகராதியைத் திருத்த முடியாது',
+  'server.vocabularyFormatUnknown':
+    'கோப்பு வடிவத்தைக் கண்டறிய முடியவில்லை. பட்டியலிலிருந்து வடிவத்தைத் தேர்ந்தெடுக்கவும்.',
+  'server.vocabularyFormatInvalid': '"{format}" என்பது சொல்லகராதி கோப்பு வடிவம் அல்ல.',
+  'server.vocabularyUrlScheme': 'http மற்றும் https URL-களை மட்டுமே இறக்குமதி செய்ய முடியும்.',
+  'server.vocabularyUrlPrivate':
+    'URL ஒரு தனிப்பட்ட அல்லது உள்ளூர் பிணைய முகவரியைக் குறிப்பிடுகிறது, அதை சர்வர் பெறாது.',
+  'server.vocabularyUrlTooLarge': 'URL-இல் உள்ள கோப்பு {size}-ஐ விடப் பெரியது.',
+  'server.vocabularyUrlTimeout': 'URL-இல் உள்ள சர்வர் சரியான நேரத்தில் பதிலளிக்கவில்லை.',
+  'server.vocabularyUrlStatus': 'URL-இல் உள்ள சர்வர் {status} நிலையைத் திருப்பியது.',
+  'server.vocabularyChangeStale':
+    '"{name}" ஒப்பீட்டிற்குப் பிறகு மாறியுள்ளது. கோப்பை மீண்டும் ஒப்பிடவும்.',
+  'server.vocabularyMemberMissing': '"{name}" இந்த சொல்லகராதியின் உறுப்பினர் அல்ல.',
+  'server.vocabularyCaseClash':
+    '"{first}" மற்றும் "{second}" எழுத்து வடிவத்தில் மட்டுமே வேறுபடுகின்றன, மேலும் இந்த ஆவணக் காப்பகம் இரண்டையும் சேமிக்க முடியாது.',
   'server.nameEmpty': 'பெயர் காலியாக இருக்கக்கூடாது.',
   'server.emailTaken': 'மின்னஞ்சல் {email} ஏற்கனவே பயன்படுத்தப்பட்டுள்ளது.',
   'server.userRoleRequired': 'பயனர்களுக்கு ஒரு பங்கு இருக்க வேண்டும்.',
@@ -85,7 +107,22 @@ export const taServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'அனைத்துத் தொகுதிகளும் ஒரு அமைப்பைக் கொண்டிருக்க வேண்டும்.',
   'server.blockDataScalar': 'பிளாக் தரவு ஒரு ஸ்கேலார் மதிப்பாக இருக்கக்கூடாது.',
   'server.siteSettingsNotObject': 'எதிர்பார்க்கப்பட்ட பொருள் அல்லது null, {kind} கிடைத்தது.',
-  'server.customCssRefusal': 'தனிப்பயன் CSS: {refusal}',
+  'server.cssTooLarge':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: தனிப்பயன் CSS அதிகபட்சம் {max} பைட்டுகளாக இருக்கலாம்; இது {bytes} ஆகும்.',
+  'server.cssImport': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: @import அனுமதிக்கப்படாது.',
+  'server.cssDocument': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: @document அனுமதிக்கப்படாது.',
+  'server.cssForeignUrl':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: url({url}) அனுமதிக்கப்படாது; ஒரு URL என்பது /files/ அல்லது /assets/ இன் கீழ் ஒரு பாதையாக (path) இருக்க வேண்டும்.',
+  'server.cssExpression':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: expression() அனுமதிக்கப்படாது.',
+  'server.cssBehavior': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: behavior அனுமதிக்கப்படாது.',
+  'server.cssMozBinding':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: -moz-binding அனுமதிக்கப்படாது.',
+  'server.cssStyleBreakout': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: </style அனுமதிக்கப்படாது.',
+  'server.cssBadUrl': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: இந்த url( சரியான CSS அல்ல.',
+  'server.cssUnclosedString':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: இந்தச் சரம் மூடப்படவில்லை.',
+  'server.cssStrayClose': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: {bracket} எதையும் மூடாது.',
   'server.navNotArray': 'தவறான வழிசெலுத்தல்: வழிசெலுத்தல் ஒரு வரிசையாக (array) இருக்க வேண்டும்',
   'server.navLinkMissingType': 'தவறான வழிசெலுத்தல்: இணைப்பு வகை விடுபட்டுள்ளது',
   'server.navLinkMissingData': 'தவறான வழிசெலுத்தல்: இணைப்பு தரவு விடுபட்டுள்ளது',
@@ -102,4 +139,7 @@ export const taServer: ServerCatalogue = {
   'server.settingsNotObject': 'ஒரு பொருளை (object) எதிர்பார்த்தேன்.',
   'server.settingUnavailable': '{key} என்ற அமைப்பானது கிடைக்கவில்லை.',
   'server.settingNotText': '{key} என்பது ஒரு சரமாக (string) அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotFlag': '{key} என்பது true, false அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotNames':
+    '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
 };

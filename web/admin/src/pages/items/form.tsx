@@ -1,7 +1,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { Item, ItemSetId, ItemWrite } from '../../api/types';
+import type { Item, ItemSetId, ItemWrite, Site, SiteId } from '../../api/types';
 import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
@@ -14,13 +14,24 @@ import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
+import { loadAssignableSites, SitesFieldset } from './sites';
 
 interface ItemEditorProps {
   /** The stored item to edit, or `null` to create one. */
   readonly item: Item | null;
-  readonly options: FormOptions;
+  readonly options: ItemOptions;
   readonly onSaved: (item: Item) => void;
 }
+
+/** The shared form lists, plus the sites this user may add items to. */
+interface ItemOptions extends FormOptions {
+  readonly sites: readonly Site[];
+}
+
+const loadItemOptions = async (): Promise<ItemOptions> => {
+  const [options, sites] = await Promise.all([loadFormOptions(), loadAssignableSites()]);
+  return { ...options, sites };
+};
 
 const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator();
@@ -29,6 +40,9 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
   );
   const [itemSets, setItemSets] = useState<readonly ItemSetId[]>(
     () => item?.itemSets.map((ref) => ref.id) ?? [],
+  );
+  const [sites, setSites] = useState<readonly SiteId[]>(
+    () => item?.sites.map((ref) => ref.id) ?? [],
   );
   const [formErrors, setFormErrors] = useState<readonly string[]>([]);
   const { state: saveState, save } = useSave();
@@ -55,7 +69,8 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       values: toValueWrites(allValues(draft)),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
-      sites: item === null ? null : item.sites.map((ref) => ref.id),
+      // A create naming no site leaves `o:site` out, so the synced sites take the item.
+      sites: item === null && sites.length === 0 ? null : sites,
     };
     save(async () => {
       const saved =
@@ -75,6 +90,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         properties={options.properties}
         dataTypes={options.dataTypes}
         createField={createLocalField}
+        showLessons
       />
       <TagsField
         idPrefix="item"
@@ -100,6 +116,12 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
           ))
         )}
       </fieldset>
+      <SitesFieldset
+        assignable={options.sites}
+        chosen={sites}
+        creating={item === null}
+        onChange={setSites}
+      />
       <FormErrors errors={formErrors} />
       <SaveStatus state={saveState} />
       <SubmitRow
@@ -114,8 +136,8 @@ const OptionsState = ({
   load,
   children,
 }: {
-  readonly load: () => Promise<FormOptions>;
-  readonly children: (options: FormOptions) => ReactElement;
+  readonly load: () => Promise<ItemOptions>;
+  readonly children: (options: ItemOptions) => ReactElement;
 }): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(load, []);
@@ -130,7 +152,7 @@ const OptionsState = ({
 
 /** `Admin/ItemController::addAction`: a new item with the current admin rules. */
 export const ItemForm = (): ReactElement => (
-  <OptionsState load={loadFormOptions}>
+  <OptionsState load={loadItemOptions}>
     {(options) => (
       <ItemEditor
         item={null}
@@ -152,7 +174,7 @@ export const ItemEditForm = ({
   readonly item: Item;
   readonly onSaved: (item: Item) => void;
 }): ReactElement => (
-  <OptionsState load={loadFormOptions}>
+  <OptionsState load={loadItemOptions}>
     {(options) => <ItemEditor item={item} options={options} onSaved={onSaved} />}
   </OptionsState>
 );

@@ -310,9 +310,9 @@ impl<'a> Loader<'a> {
             "@id": self.base.api_resource(resource, row.id.0),
             "@type": [jsonld_type],
             "o:id": row.id.0,
-            // Machine output: the placeholder stays the source-language one
-            // whatever the site's locale.
-            "o:title": display_title(row, &omeka_site::i18n::EN),
+            // `AbstractResourceEntityRepresentation::title()`: the stored
+            // title, null when there is none. The placeholder is display text.
+            "o:title": row.title,
         })
         .to_string()
     }
@@ -357,7 +357,7 @@ impl<'a> Loader<'a> {
             if !value.is_public {
                 continue;
             }
-            if filter_locale && !value.lang.as_deref().is_none_or(|lang| lang == locale) {
+            if filter_locale && !in_locale(value.lang.as_deref(), locale) {
                 continue;
             }
             let Some(info) = self.catalog.property(value.property_id) else {
@@ -850,12 +850,7 @@ impl<'a> Loader<'a> {
             }
             // `resource-values.phtml` keeps a value whose language is empty or
             // the site's locale when `filter_locale_values` is on.
-            if filter_locale
-                && !value
-                    .lang
-                    .as_deref()
-                    .is_none_or(|lang| lang.is_empty() || lang.eq_ignore_ascii_case(locale))
-            {
+            if filter_locale && !in_locale(value.lang.as_deref(), locale) {
                 continue;
             }
             // `displayValues` drops a referenced item or item set that is not
@@ -1447,6 +1442,14 @@ fn nl2br(text: &str) -> String {
         }
     }
     out
+}
+
+/// Whether a value counts under `filter_locale_values`: an untagged or empty
+/// language, or the site locale in any case (`resource-values.phtml:11-14`
+/// with `strcasecmp`, and `AbstractResourceEntityRepresentation::value`, which
+/// lowercases both sides). Both the browse body and the show values read it.
+fn in_locale(lang: Option<&str>, locale: &str) -> bool {
+    lang.is_none_or(|lang| lang.is_empty() || lang.eq_ignore_ascii_case(locale))
 }
 
 /// Order values as `displayValues` does.

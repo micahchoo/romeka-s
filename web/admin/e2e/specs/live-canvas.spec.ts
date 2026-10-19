@@ -164,3 +164,59 @@ test('the preview outlines, selects and inserts, and a re-render keeps the place
   await expect(inspectorHeading(page)).toHaveText(`Line break, block 7 of ${String(BLOCKS.length + 2)}`);
   await expect(page.getByRole('listitem', { name: /^Block 7: Line break/ })).toBeVisible();
 });
+
+test('Fit lays the page out at a desktop width scaled into the panel, and the outlines stay on their blocks', async ({ page }) => {
+  await page.goto(await createPage(page, 'live-canvas-fit'));
+  await expect(page.getByRole('button', { name: 'Fit', pressed: true })).toBeVisible();
+  await expect(shown(page).locator('[data-romeka-block]')).toHaveCount(BLOCKS.length);
+
+  // A panel narrower than a desktop would show the phone header; Fit lays out wider and scales.
+  expect(await shown(page).locator('html').evaluate((element) => element.ownerDocument.defaultView?.innerWidth)).toBeGreaterThanOrEqual(1024);
+  await expect(shown(page).locator('.nav-menu-toggle')).toBeHidden();
+  const frame = await page.locator('iframe.live-frame-doc:not(.live-frame-doc--back)').boundingBox();
+  const panel = await page.locator('.live-overlay').boundingBox();
+  if (frame === null || panel === null) {
+    throw new Error('expected the frame and the overlay on screen');
+  }
+  expect(frame.width).toBeLessThanOrEqual(panel.width + 1);
+
+  // The hover outline covers the block's scaled box, so the overlay and the clicks share coordinates.
+  const block = shown(page).locator('[data-romeka-block]', { hasText: 'Section 2 heading' }).last();
+  await shown(page).getByText('Section 2 heading').hover();
+  const drawn = await page.locator('.live-outline--hover').boundingBox();
+  const target = await block.boundingBox();
+  if (drawn === null || target === null) {
+    throw new Error('expected the outline and its block on screen');
+  }
+  for (const side of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(drawn[side] - target[side]), side).toBeLessThan(2);
+  }
+  await shown(page).getByText('Section 2 heading').click();
+  await expect(inspectorHeading(page)).toHaveText(`HTML, block 2 of ${String(BLOCKS.length)}`);
+});
+
+test('a page set to a grid takes its column count on the outline and in the preview', async ({ page }) => {
+  await page.goto(await createPage(page, 'live-canvas-grid'));
+  const settings = page.getByRole('region', { name: 'Block inspector' });
+  await expect(settings.getByRole('heading', { name: 'Page settings' })).toBeVisible();
+  await expect(settings.getByLabel('Columns')).toHaveCount(0);
+
+  await settings.getByLabel('Layout', { exact: true }).selectOption('grid');
+  const columns = settings.getByRole('group', { name: 'Grid' }).getByLabel('Columns');
+  await expect(columns).toHaveAccessibleDescription('How many columns the grid has.');
+  await columns.fill('3');
+
+  await expect(page.locator('.canvas-list.canvas-grid')).toHaveCSS(
+    'grid-template-columns',
+    /^(\S+ ){2}\S+$/,
+  );
+  await expect(shown(page).locator('.page-layout-grid.grid-template-columns-3')).toHaveCount(1, {
+    timeout: 10_000,
+  });
+
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  const response = await page.goto(`/s/${SITE_SLUG}/page/live-canvas-grid`);
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('.page-layout-grid.grid-template-columns-3')).toHaveCount(1);
+});

@@ -26,7 +26,7 @@ const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
  */
 export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactElement => {
   const translator = useTranslator();
-  const { t } = translator;
+  const { t, locale } = translator;
   const state = useAsync(() => api.getMedia(mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);
 
@@ -65,9 +65,9 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
           )}
         </dd>
         <dt>{t('column.created')}</dt>
-        <dd>{formatDateTime(media.created)}</dd>
+        <dd>{formatDateTime(media.created, locale)}</dd>
         <dt>{t('column.modified')}</dt>
-        <dd>{media.modified === null ? t('common.never') : formatDateTime(media.modified)}</dd>
+        <dd>{media.modified === null ? t('common.never') : formatDateTime(media.modified, locale)}</dd>
         <dt>{t('media.mimeType')}</dt>
         <dd>{media.mediaType ?? t('common.none')}</dd>
         <dt>{t('media.renderer')}</dt>

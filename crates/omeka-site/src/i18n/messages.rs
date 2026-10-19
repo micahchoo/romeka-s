@@ -42,6 +42,9 @@ pub struct Messages {
     pub log_out: &'static str,
     /// `common/user-bar.phtml`: the login link.
     pub log_in: &'static str,
+    /// The user bar's link to the admin. Upstream labels it with the
+    /// installation title; the port names the place, `Admin dashboard`.
+    pub admin_dashboard: &'static str,
     /// `view/layout/layout.phtml`: the skip link.
     pub skip_to_main: &'static str,
     /// The theme header's menu toggle and its `nav` label. Upstream's
@@ -98,6 +101,7 @@ pub static EN: Messages = Messages {
     signed_in_as: "Signed in as",
     log_out: "Logout",
     log_in: "Log in",
+    admin_dashboard: "Admin dashboard",
     skip_to_main: "Skip to main content",
     menu: "Menu",
     home: "Home",
@@ -137,6 +141,7 @@ pub static ES: Messages = Messages {
     signed_in_as: "Sesión iniciada como",
     log_out: "Cerrar sesión",
     log_in: "Iniciar sesión",
+    admin_dashboard: "Panel de administración",
     skip_to_main: "Saltar al contenido principal",
     // Not in `es.po`; the port's own translation.
     menu: "Menú",

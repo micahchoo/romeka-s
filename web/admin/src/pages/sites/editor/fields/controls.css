@@ -181,3 +181,8 @@
 .attachments-field .item-picker-grid {
   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
 }
+
+/* The focus-out listener around a required field; it takes no box of its own. */
+.field-visit {
+  display: contents;
+}

@@ -111,8 +111,9 @@ fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
     }
 }
 
-/// The `User` document a sign-in and `GET /api/me` answer: the user, plus the
-/// admin locale they resolve to, so the client renders in it.
+/// The `User` document a sign-in and `GET /api/me` answer: the user, their
+/// settings, and the admin locale they resolve to, so the client renders in
+/// it and knows which lessons the user has seen.
 ///
 /// # Errors
 /// [`ApiError::Internal`] when a setting cannot be read.
@@ -122,6 +123,7 @@ pub async fn session_user_response(
     row: &UserRow,
 ) -> Result<ApiResponse, ApiError> {
     let mut document = user_doc(base, row);
+    document.user_settings = crate::settings::load_user(pool, row.id).await?;
     document.admin_locale = crate::settings::admin_locale(pool, row.id).await?;
     Ok(ApiResponse::document(serialize(&document)?))
 }

@@ -12,8 +12,8 @@
 //! catalogue that lacks a key is then a `tsc` error in the admin.
 //!
 //! The wire stays byte-for-byte upstream's text. A free-form message (a
-//! storage failure, a `serde_json` parse error, a CSS refusal from
-//! `omeka-site`) is not a pattern and reaches the admin as it is.
+//! storage failure, a `serde_json` parse error) is not a pattern and reaches
+//! the admin as it is.
 
 /// One registered pattern: its Rust name and its English text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,6 +206,41 @@ messages! {
     /// `ResourceTemplateAdapter` for a property listed twice.
     fn duplicate_template_property(id) = "Attempting to add duplicate property with ID {id}";
 
+    // Vocabulary import (`Stdlib/RdfImporter`, `Admin/VocabularyController`).
+
+    /// `RdfImporter::getMembers` for the file strategy without a file.
+    const VOCABULARY_NO_FILE = "No file specified for the file import strategy.";
+    /// `RdfImporter::getMembers` for the URL strategy without a URL.
+    const VOCABULARY_NO_URL = "No URL specified for the URL import strategy.";
+    /// `RdfImporter::getMembers` for a file EasyRdf cannot parse.
+    const VOCABULARY_NOT_PARSED = "Could not parse vocabulary file.";
+    /// `RdfImporter::getMembers` for a URL EasyRdf cannot load.
+    const VOCABULARY_NOT_LOADED = "Could not load vocabulary from URL.";
+    /// `RdfImporter::import` for a file with no member in the namespace.
+    const VOCABULARY_NO_MEMBERS = "No classes or properties found. Are you sure you used the correct namespace URI?";
+    /// `VocabularyController::editAction` for Dublin Core and Dublin Core Type.
+    const VOCABULARY_PERMANENT = "Cannot edit a permanent vocabulary";
+    /// The import's format detection found no format it reads.
+    const VOCABULARY_FORMAT_UNKNOWN = "The file format could not be detected. Choose the format from the list.";
+    /// The import's `format` names no format it reads.
+    fn vocabulary_format_invalid(format) = "\"{format}\" is not a vocabulary file format.";
+    /// The import's URL fetch for a scheme other than http and https.
+    const VOCABULARY_URL_SCHEME = "Only http and https URLs can be imported.";
+    /// The import's URL fetch for a private or local address.
+    const VOCABULARY_URL_PRIVATE = "The URL names a private or local network address, which the server does not fetch.";
+    /// The import's URL fetch for a file over the cap.
+    fn vocabulary_url_too_large(size) = "The file at the URL is larger than {size}.";
+    /// The import's URL fetch past its deadline.
+    const VOCABULARY_URL_TIMEOUT = "The server at the URL did not answer in time.";
+    /// The import's URL fetch for an error status.
+    fn vocabulary_url_status(status) = "The server at the URL answered with status {status}.";
+    /// A reviewed change whose stored text changed after the comparison.
+    fn vocabulary_change_stale(name) = "\"{name}\" has changed since the comparison. Compare the file again.";
+    /// A reviewed change to a member the vocabulary does not have.
+    fn vocabulary_member_missing(name) = "\"{name}\" is not a member of this vocabulary.";
+    /// Two local names the port's schema folds to one (`COLLATE NOCASE`; upstream's is binary).
+    fn vocabulary_case_clash(first, second) = "\"{first}\" and \"{second}\" differ only in letter case, and this archive cannot store both.";
+
     // Users.
 
     /// `UserAdapter` for an empty name.
@@ -245,8 +280,41 @@ messages! {
     /// `o:site_settings` that is neither an object nor null; `kind` names the
     /// JSON type.
     fn site_settings_not_object(kind) = "Expected an object or null, got {kind}.";
-    /// A custom CSS refusal; `refusal` is the sanitiser's own sentence.
-    fn custom_css_refusal(refusal) = "Custom CSS: {refusal}";
+    // The custom CSS sanitiser's refusals (`omeka_site::theme::custom_css`),
+    // one per kind. The Theme page marks the line it reads from the English.
+
+    /// More than the sanitiser's byte limit.
+    fn css_too_large(line, column, max, bytes) =
+        "Custom CSS: Line {line}, column {column}: custom CSS may be at most {max} bytes; this is {bytes}.";
+    /// An `@import` rule.
+    fn css_import(line, column) = "Custom CSS: Line {line}, column {column}: @import is not allowed.";
+    /// An `@document` rule.
+    fn css_document(line, column) =
+        "Custom CSS: Line {line}, column {column}: @document is not allowed.";
+    /// A URL outside the site's `/files/` and `/assets/`.
+    fn css_foreign_url(line, column, url) =
+        "Custom CSS: Line {line}, column {column}: url({url}) is not allowed; a URL must be a path under /files/ or /assets/.";
+    /// `expression()`.
+    fn css_expression(line, column) =
+        "Custom CSS: Line {line}, column {column}: expression() is not allowed.";
+    /// The `behavior` property.
+    fn css_behavior(line, column) =
+        "Custom CSS: Line {line}, column {column}: behavior is not allowed.";
+    /// The `-moz-binding` property.
+    fn css_moz_binding(line, column) =
+        "Custom CSS: Line {line}, column {column}: -moz-binding is not allowed.";
+    /// `</style`, which would end the element.
+    fn css_style_breakout(line, column) =
+        "Custom CSS: Line {line}, column {column}: </style is not allowed.";
+    /// A `url(` the tokenizer cannot read.
+    fn css_bad_url(line, column) =
+        "Custom CSS: Line {line}, column {column}: this url( is not valid CSS.";
+    /// A string that a newline or the end of the text cuts off.
+    fn css_unclosed_string(line, column) =
+        "Custom CSS: Line {line}, column {column}: this string is not closed.";
+    /// A `)`, `]` or `}` with no opening bracket.
+    fn css_stray_close(line, column, bracket) =
+        "Custom CSS: Line {line}, column {column}: {bracket} closes nothing.";
     /// `SiteAdapter::validateNavigation`.
     const NAV_NOT_ARRAY = "Invalid navigation: navigation must be an array";
     /// `SiteAdapter::validateNavigation`.
@@ -280,6 +348,10 @@ messages! {
     fn setting_unavailable(key) = "The setting {key} is not available.";
     /// A settings value that is neither a string nor null.
     fn setting_not_text(key) = "The setting {key} must be a string or null.";
+    /// A switch setting whose value is not a boolean.
+    fn setting_not_flag(key) = "The setting {key} must be true, false or null.";
+    /// A list setting whose value is not a list of strings.
+    fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

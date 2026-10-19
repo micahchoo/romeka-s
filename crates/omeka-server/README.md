@@ -210,6 +210,10 @@ A site, page or resource the caller cannot see is the same 404, because the
 public routes read through the same visibility the API applies
 (`SitePageVisibilityFilter`, `ResourceVisibilityFilter`), so the row is absent
 rather than denied. The error page carries `content-type: text/html; charset=utf-8`.
+A missing page or resource under a site the caller can see renders the 404 in
+that site's theme, layout and locale, as `ExceptionListener` does after
+`prepareSite`; a slug that names no visible site renders it in English over a
+placeholder site.
 A `cross-site-search` action the controller does not name, and a
 `/:controller/search` whose controller has no search action (`media`, `page`),
 are 404s.
@@ -229,7 +233,9 @@ form posts to), `search_resource_names` (the sections a results page renders)
 and `browse_attached_items` (which adds `site_attachments_only`). The site
 loader reads them, and the rest of `SITE_SETTINGS`, from the `site_setting`
 rows (`site/settings.rs`); the page size is the site `pagination_per_page`,
-then the global setting, then 25.
+then the global setting, then 25. The site `locale` falls back the same way: an
+unset or empty site locale takes the global `locale` setting, then English
+(`MvcListeners::bootstrapLocale` and the site override after it).
 
 Not ported, all answering 404: `media` browse (its controller has no browse
 action), and `/:controller/:id` with an action other than `show`.

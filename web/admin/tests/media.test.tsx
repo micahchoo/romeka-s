@@ -100,7 +100,7 @@ describe('media detail', () => {
     expect(screen.getByText('e82cef00da75e9c5661a9ee66155ef419cf89988.jpg')).toBeInTheDocument();
     expect(screen.getByText('5,989,397 bytes')).toBeInTheDocument();
     // Both dates read the same in this capture, so both rows match.
-    expect(screen.getAllByText('2026-10-17 07:55')).toHaveLength(2);
+    expect(screen.getAllByText('Oct 17, 2026, 7:55 AM')).toHaveLength(2);
     expect(screen.getByText('No values.')).toBeInTheDocument();
 
     expect(screen.getByRole('link', { name: '#31' })).toHaveAttribute('href', '#/items/31');

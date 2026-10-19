@@ -136,7 +136,7 @@ pub(crate) async fn run(
         Ok(Outcome::Html(html)) => html_response(html),
         // The frame renders a page; a redirect here would be a bug, not a page.
         Ok(Outcome::Redirect(_)) => crate::empty_internal_error(),
-        Err(SiteError::NotFound) => not_found(),
+        Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
         Err(SiteError::Internal(_)) => crate::empty_internal_error(),
     }
 }

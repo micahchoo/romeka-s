@@ -134,11 +134,24 @@ export interface User {
    */
   readonly localeSetting: string | null;
   /**
+   * The user's lesson settings, from the port's `o:user_settings`. A single-user
+   * read, a sign-in and `GET /api/me` carry them; any other read, and a user who
+   * stores none, reads as lessons shown and none seen.
+   */
+  readonly lessons: LessonSettings;
+  /**
    * The admin locale the session resolves to, the port's `o:admin_locale`: the
    * user's setting, else the global one (`MvcListeners::bootstrapLocale`). Only
    * a sign-in and `GET /api/me` carry it; `null` when neither setting exists.
    */
   readonly adminLocale: string | null;
+}
+
+/** `romeka_hide_lessons` and `romeka_lessons_seen`, two port-only user settings. */
+export interface LessonSettings {
+  readonly hidden: boolean;
+  /** Lesson ids as stored. The admin's lesson registry decides what they name. */
+  readonly seen: readonly string[];
 }
 
 /** Fields shared by a vocabulary member (a property or a resource class). */
@@ -284,6 +297,54 @@ export interface Vocabulary {
   readonly label: string;
   readonly comment: string | null;
   readonly owner: ResourceRef<UserId> | null;
+}
+
+/** The serialisations a vocabulary import reads (`VocabularyForm`'s `format` select). */
+export type VocabularyFormat = 'guess' | 'rdfxml' | 'turtle' | 'ntriples' | 'jsonld';
+
+/** Where an import or an update reads its RDF: an uploaded file's text, or a URL. */
+export type VocabularyOrigin =
+  | { readonly kind: 'upload'; readonly text: string }
+  | { readonly kind: 'url'; readonly url: string };
+
+/**
+ * `VocabularyForm`'s file and advanced fieldsets. An empty language keeps the
+ * first label in the file; an empty property keeps upstream's default path.
+ */
+export interface VocabularySource {
+  readonly origin: VocabularyOrigin;
+  readonly format: VocabularyFormat;
+  readonly lang: string;
+  readonly labelProperty: string;
+  readonly commentProperty: string;
+}
+
+/** One class or property a file declares. */
+export interface VocabularyTerm {
+  readonly localName: string;
+  readonly label: string;
+  readonly comment: string | null;
+}
+
+/** A label or comment the file changes, from the stored text to the file's. */
+export interface VocabularyTextChange<T> {
+  readonly localName: string;
+  readonly from: T;
+  readonly to: T;
+}
+
+/** What an update from a file would do to one kind of member (`RdfImporter::calculateDiff`). */
+export interface VocabularyMemberDiff {
+  readonly added: readonly VocabularyTerm[];
+  readonly label: readonly VocabularyTextChange<string>[];
+  readonly comment: readonly VocabularyTextChange<string | null>[];
+  /** Stored members the file no longer declares. They are kept. */
+  readonly removed: readonly { readonly localName: string; readonly label: string }[];
+}
+
+export interface VocabularyDiff {
+  readonly classes: VocabularyMemberDiff;
+  readonly properties: VocabularyMemberDiff;
 }
 
 /** The data type a term list registers: `customvocab:<id>`. */
@@ -572,6 +633,19 @@ export interface UserWrite {
    * Default option, which removes it; absent leaves the stored one alone.
    */
   readonly localeSetting?: string;
+  /** `romeka_hide_lessons`, sent in `o:user_settings`; absent leaves it alone. */
+  readonly lessonsHidden?: boolean;
+}
+
+/**
+ * A user's settings write, the port's `o:user_settings` member. A member left
+ * out keeps what the user stores, so each caller sends only what it changed.
+ */
+export interface UserSettingsWrite {
+  /** `''` is the Default option, which removes the row. */
+  readonly locale?: string | undefined;
+  readonly lessonsHidden?: boolean | undefined;
+  readonly lessonsSeen?: readonly string[] | undefined;
 }
 
 /**

@@ -12,4 +12,5 @@ export const hi: StandardsMessages = {
   'standards.lede':
     'साझा शब्दावलियाँ जिनमें आपके फ़ील्ड और आइटम प्रकार सहेजे जाते हैं। आपको संग्रह को सूचीबद्ध करने के लिए उन्हें बदलने की आवश्यकता नहीं है।',
   'standards.define': '{term} का अर्थ',
+  'standards.import': 'शब्दावली आयात करें',
 };

@@ -28,6 +28,7 @@ import {
   parseGlobalSettings,
   parseUser,
   parseVocabulary,
+  parseVocabularyDiff,
 } from './parse';
 import type {
   ApiErrors,
@@ -67,12 +68,15 @@ import type {
   TemplateId,
   User,
   UserId,
+  UserSettingsWrite,
   UserWrite,
   GlobalSettings,
   Vocabulary,
   VocabularyId,
   VocabularyMemberWrite,
   VocabularyWrite,
+  VocabularyDiff,
+  VocabularySource,
 } from './types';
 import {
   encodeAsset,
@@ -84,8 +88,11 @@ import {
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
-  encodeUserLocale,
+  encodeUserSettings,
   encodeVocabulary,
+  encodeVocabularyDiff,
+  encodeVocabularyImport,
+  encodeVocabularySource,
   encodeVocabularyMember,
 } from './write';
 import type { WireBody } from './write';
@@ -103,17 +110,21 @@ const DEFAULT_PER_PAGE = 25;
 /**
  * A refused request. `errors` is the server's error document and `message` its
  * first message, both already in the active locale (`i18n/serverText.ts`), so
- * every surface that shows them shows the user's language.
+ * every surface that shows them shows the user's language. `sourceErrors` is
+ * the same document in the server's English, message for message, for a
+ * caller that reads a value out of a message: a translation may move it.
  */
 export class ApiError extends Error {
   readonly status: number;
   readonly errors: ApiErrors | null;
+  readonly sourceErrors: ApiErrors | null;
 
-  constructor(status: number, errors: ApiErrors | null, message: string) {
+  constructor(status: number, errors: ApiErrors | null, message: string, sourceErrors: ApiErrors | null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.sourceErrors = sourceErrors;
   }
 }
 
@@ -339,9 +350,9 @@ export class ApiClient {
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
   }
 
-  /** Store one user's `locale` setting and nothing else; `''` removes it. */
-  async updateUserLocale(id: UserId, locale: string): Promise<void> {
-    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserLocale(locale));
+  /** Store the settings the write names and nothing else; `locale: ''` removes it. */
+  async updateUserSettings(id: UserId, write: UserSettingsWrite): Promise<void> {
+    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserSettings(write));
   }
 
   /** `GET /api/settings`, a port route only a global admin may read. */
@@ -515,6 +526,40 @@ export class ApiClient {
 
   async deleteVocabulary(id: VocabularyId): Promise<void> {
     await this.deleteJson(`/api/vocabularies/${String(id)}`);
+  }
+
+  /**
+   * Create a vocabulary from RDF (a Romeka route): the server reads the file or
+   * fetches the URL and stores every class and property in the namespace.
+   */
+  async importVocabulary(write: VocabularyWrite, source: VocabularySource): Promise<Vocabulary> {
+    return parseVocabulary(
+      await this.writeJson(
+        'POST',
+        '/api/vocabularies/import',
+        encodeVocabularyImport(write, source),
+      ),
+    );
+  }
+
+  /** What an update from this source would change (a Romeka route). Nothing is written. */
+  async diffVocabulary(id: VocabularyId, source: VocabularySource): Promise<VocabularyDiff> {
+    return parseVocabularyDiff(
+      await this.writeJson('POST', `/api/vocabularies/${String(id)}/diff`, {
+        source: encodeVocabularySource(source),
+      }),
+    );
+  }
+
+  /** Apply a reviewed diff (a Romeka route). A change that no longer applies is refused. */
+  async applyVocabularyDiff(id: VocabularyId, diff: VocabularyDiff): Promise<Vocabulary> {
+    return parseVocabulary(
+      await this.writeJson(
+        'POST',
+        `/api/vocabularies/${String(id)}/diff/apply`,
+        encodeVocabularyDiff(diff),
+      ),
+    );
   }
 
   async createResourceClass(write: VocabularyMemberWrite): Promise<ResourceClass> {
@@ -821,7 +866,7 @@ export class ApiClient {
     const parsed = text === '' ? null : parseApiErrors(parseJson(text));
     const errors = parsed === null ? null : await localizeServerErrors(parsed);
     const message = firstErrorMessage(errors) ?? `HTTP ${String(response.status)}`;
-    return new ApiError(response.status, errors, message);
+    return new ApiError(response.status, errors, message, parsed);
   }
 }
 

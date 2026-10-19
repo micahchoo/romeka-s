@@ -4,7 +4,8 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isRecord } from '../src/api/parse';
+import { isRecord, isUnknownArray, parseUser } from '../src/api/parse';
+import { setSession } from '../src/api/session';
 import { Shell } from '../src/app/shell';
 import { ItemsPage } from '../src/pages/items/page';
 import { loadFixture } from './loadFixture';
@@ -25,6 +26,7 @@ const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
   '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
+  '/api/sites': () => jsonResponse(loadFixture('sites-page.json')),
 };
 
 const detailHandler = (url: URL): Response => {
@@ -285,38 +287,114 @@ describe('item edit form', () => {
   });
 });
 
-describe('item site membership', () => {
-  /**
-   * `ItemAdapter::hydrate` replaces the site list on a full update, so a `PUT`
-   * that left `o:site` out would take the item off every site.
-   */
-  it('item_edit_keeps_the_sites_the_item_belongs_to', async () => {
-    const stored = {
-      ...itemFixture(),
-      'o:site': [{ '@id': 'http://localhost/api/sites/2', 'o:id': 2 }],
-    };
-    const fetchMock = installFetch((url) => {
-      if (url.pathname === '/api/items/1') {
-        return jsonResponse(stored);
+/** The PUT or POST the form sent to `path`. */
+const sentBody = async (
+  fetchMock: ReturnType<typeof installFetch>,
+  path: string,
+  method: 'POST' | 'PUT',
+): Promise<Record<string, unknown>> => {
+  await waitFor(() => {
+    expect(
+      requestsFor(fetchMock, path).filter((request) => request.init?.method === method),
+    ).toHaveLength(1);
+  });
+  const sent = requestsFor(fetchMock, path).find((request) => request.init?.method === method);
+  if (sent === undefined) {
+    throw new Error(`expected a ${method} to ${path}`);
+  }
+  return requestBody(sent);
+};
+
+const onSites = (...ids: number[]): Record<string, unknown> => ({
+  ...itemFixture(),
+  'o:site': ids.map((id) => ({ '@id': `http://localhost/api/sites/${String(id)}`, 'o:id': id })),
+});
+
+describe('item sites control', () => {
+  it('item_edit_checks_its_sites_and_puts_the_ones_chosen', async () => {
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/items/1' ? jsonResponse(onSites(1)) : detailHandler(url),
+    );
+    render(<ItemsPage param="1" />);
+    fireEvent.click(await screen.findByText('Edit this item'));
+
+    const sites = await screen.findByRole('group', { name: 'Sites' });
+    expect(within(sites).getByLabelText('My Site')).toBeChecked();
+    expect(within(sites).getByLabelText('Second Site')).not.toBeChecked();
+    fireEvent.click(within(sites).getByLabelText('My Site'));
+    fireEvent.click(within(sites).getByLabelText('Second Site'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect((await sentBody(fetchMock, '/api/items/1', 'PUT'))['o:site']).toEqual([{ 'o:id': 2 }]);
+  });
+
+  it('item_create_starts_with_no_site_and_posts_the_ones_chosen', async () => {
+    const fetchMock = installFetch((url, init) => {
+      if (url.pathname === '/api/items' && init?.method === 'POST') {
+        return jsonResponse(itemFixture());
       }
       return detailHandler(url);
     });
-    render(<ItemsPage param="1" />);
-    fireEvent.click(await screen.findByText('Edit this item'));
-    await screen.findByRole('textbox', { name: 'Title' });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    // Through the shell, so the show page the create opens takes the record it returned.
+    window.location.hash = '#/items/new';
+    render(<Shell />);
 
-    await waitFor(() => {
-      expect(
-        requestsFor(fetchMock, '/api/items/1').filter((request) => request.init?.method === 'PUT'),
-      ).toHaveLength(1);
-    });
-    const put = requestsFor(fetchMock, '/api/items/1').find(
-      (request) => request.init?.method === 'PUT',
-    );
-    if (put === undefined) {
-      throw new Error('expected a PUT to /api/items/1');
+    const sites = await screen.findByRole('group', { name: 'Sites' });
+    expect(within(sites).getByText(/every site that keeps in sync with its search/)).toBeVisible();
+    expect(within(sites).getByLabelText('My Site')).not.toBeChecked();
+    fireEvent.click(within(sites).getByLabelText('Second Site'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+
+    expect((await sentBody(fetchMock, '/api/items', 'POST'))['o:site']).toEqual([{ 'o:id': 2 }]);
+    await screen.findByRole('heading', { name: 'Fixture Item One', level: 2 });
+    window.location.hash = '';
+  });
+
+  /**
+   * `Acl::userIsAllowed($site, 'can-assign-items')`: an editor may assign to a
+   * site they own or hold an admin or editor role on. The server keeps a
+   * membership the user may not change, so the form sends it back unchanged.
+   */
+  it('item_form_offers_only_the_sites_the_user_may_assign_and_keeps_the_rest', async () => {
+    const users = loadFixture('users-page.json');
+    if (!isUnknownArray(users)) {
+      throw new Error('expected a users page');
     }
-    expect(requestBody(put)['o:site']).toEqual([{ 'o:id': 2 }]);
+    setSession(parseUser(users[1]));
+    const sitesPage = loadFixture('sites-page.json');
+    if (!isUnknownArray(sitesPage) || !isRecord(sitesPage[1])) {
+      throw new Error('expected a sites page');
+    }
+    const editable = {
+      ...sitesPage[1],
+      'o:site_permission': [
+        { 'o:user': { '@id': 'http://localhost/api/users/5', 'o:id': 5 }, 'o:role': 'editor' },
+      ],
+    };
+    const fetchMock = installFetch((url) => {
+      if (url.pathname === '/api/items/1') {
+        return jsonResponse(onSites(1));
+      }
+      if (url.pathname === '/api/sites') {
+        return jsonResponse([sitesPage[0], editable]);
+      }
+      return detailHandler(url);
+    });
+    try {
+      render(<ItemsPage param="1" />);
+      fireEvent.click(await screen.findByText('Edit this item'));
+
+      const sites = await screen.findByRole('group', { name: 'Sites' });
+      expect(within(sites).queryByLabelText('My Site')).toBeNull();
+      fireEvent.click(within(sites).getByLabelText('Second Site'));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect((await sentBody(fetchMock, '/api/items/1', 'PUT'))['o:site']).toEqual([
+        { 'o:id': 1 },
+        { 'o:id': 2 },
+      ]);
+    } finally {
+      setSession(null);
+    }
   });
 });

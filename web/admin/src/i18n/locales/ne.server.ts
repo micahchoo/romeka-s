@@ -64,6 +64,25 @@ export const neServer: ServerCatalogue = {
   'server.localNameTaken': 'स्थानीय नाम "{name}" पहिले नै लिइएको छ।',
   'server.vocabularyRequired': 'शब्दावली सेट गर्नुपर्छ।',
   'server.duplicateTemplateProperty': 'ID {id} भएको दोहोरिएको प्रोपर्टी थप्ने प्रयास',
+  'server.vocabularyNoFile': 'फाइल आयात रणनीतिका लागि कुनै फाइल निर्दिष्ट गरिएको छैन।',
+  'server.vocabularyNoUrl': 'URL आयात रणनीतिका लागि कुनै URL निर्दिष्ट गरिएको छैन।',
+  'server.vocabularyNotParsed': 'शब्दावली फाइल पार्स गर्न सकिएन।',
+  'server.vocabularyNotLoaded': 'URL बाट शब्दावली लोड गर्न सकिएन।',
+  'server.vocabularyNoMembers':
+    'कुनै क्लास वा प्रोपर्टी फेला परेन। के तपाईँले सही नेमस्पेस URI प्रयोग गर्नुभएको छ?',
+  'server.vocabularyPermanent': 'स्थायी शब्दावली सम्पादन गर्न सकिँदैन',
+  'server.vocabularyFormatUnknown': 'फाइल ढाँचा पत्ता लगाउन सकिएन। सूचीबाट ढाँचा छान्नुहोस्।',
+  'server.vocabularyFormatInvalid': '"{format}" शब्दावली फाइल ढाँचा होइन।',
+  'server.vocabularyUrlScheme': 'केवल http र https URL हरू आयात गर्न सकिन्छ।',
+  'server.vocabularyUrlPrivate':
+    'URL ले एउटा निजी वा स्थानीय नेटवर्क ठेगानालाई सङ्केत गर्दछ, जसलाई सर्भरले प्राप्त गर्दैन।',
+  'server.vocabularyUrlTooLarge': 'URL मा रहेको फाइल {size} भन्दा ठुलो छ।',
+  'server.vocabularyUrlTimeout': 'URL मा रहेको सर्भरले समयमै जवाफ दिएन।',
+  'server.vocabularyUrlStatus': 'URL मा रहेको सर्भरले {status} स्थितिमा जवाफ दियो।',
+  'server.vocabularyChangeStale': '"{name}" तुलनाबाट परिवर्तन भएको छ। फाइल फेरि तुलना गर्नुहोस्।',
+  'server.vocabularyMemberMissing': '"{name}" यो शब्दावलीको सदस्य होइन।',
+  'server.vocabularyCaseClash':
+    '"{first}" र "{second}" केवल अक्षरको केसमा भिन्न छन्, र यो अभिलेखले दुवै भण्डारण गर्न सक्दैन।',
   'server.nameEmpty': 'नाम खाली हुन सक्दैन।',
   'server.emailTaken': 'इमेल {email} पहिले नै लिइएको छ।',
   'server.userRoleRequired': 'प्रयोगकर्ताहरूलाई एउटा भूमिका तोकिनुपर्छ।',
@@ -81,7 +100,21 @@ export const neServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सबै ब्लकहरूको लेआउट हुनुपर्छ।',
   'server.blockDataScalar': 'ब्लक डेटा स्केलर मान हुनु हुँदैन।',
   'server.siteSettingsNotObject': 'अपेक्षित अब्जेक्ट वा नल, {kind} प्राप्त भयो।',
-  'server.customCssRefusal': 'अनुकूलित CSS: {refusal}',
+  'server.cssTooLarge':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: अनुकूलित CSS बढीमा {max} बाइट्समा हुन सक्छ; यो {bytes} हो।',
+  'server.cssImport': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: @import अनुमति छैन।',
+  'server.cssDocument': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: @document अनुमति छैन।',
+  'server.cssForeignUrl':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: url({url}) अनुमति छैन; एउटा URL /files/ वा /assets/ अन्तर्गतको पथ हुनुपर्छ।',
+  'server.cssExpression': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: expression() अनुमति छैन।',
+  'server.cssBehavior': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: behavior अनुमति छैन।',
+  'server.cssMozBinding': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: -moz-binding अनुमति छैन।',
+  'server.cssStyleBreakout': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: </style अनुमति छैन।',
+  'server.cssBadUrl': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: यो url( मान्य CSS होइन।',
+  'server.cssUnclosedString':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: यो स्ट्रिङ बन्द गरिएको छैन।',
+  'server.cssStrayClose':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: {bracket} ले केही पनि बन्द गर्दैन।',
   'server.navNotArray': 'अमान्य नेभिगेसन: नेभिगेसन एरे हुनुपर्छ',
   'server.navLinkMissingType': 'अमान्य नेभिगेसन: लिङ्कको प्रकार छुटेको',
   'server.navLinkMissingData': 'अमान्य नेभिगेसन: लिङ्कको डेटा छुटेको',
@@ -97,4 +130,6 @@ export const neServer: ServerCatalogue = {
   'server.settingsNotObject': 'एउटा अब्जेक्ट अपेक्षित थियो।',
   'server.settingUnavailable': 'सेटिङ {key} उपलब्ध छैन।',
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
+  'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
+  'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
 };

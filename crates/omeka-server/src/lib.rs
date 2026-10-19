@@ -47,6 +47,7 @@ pub mod settings_upgrade;
 mod site;
 mod site_items;
 mod tags;
+mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use logging::init_logging;
@@ -139,6 +140,7 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .merge(accounts::router())
         .merge(site_items::router())
         .merge(tags::router())
+        .merge(vocab_import::router())
         .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())

@@ -1,0 +1,381 @@
+{
+    "classes": [
+        {
+            "local_name": "LabelProperty",
+            "label": "Label Property",
+            "comment": "A foaf:LabelProperty is any RDF property with texual values that serve as labels."
+        },
+        {
+            "local_name": "Person",
+            "label": "Person",
+            "comment": "A person."
+        },
+        {
+            "local_name": "Document",
+            "label": "Document",
+            "comment": "A document."
+        },
+        {
+            "local_name": "Organization",
+            "label": "Organization",
+            "comment": "An organization."
+        },
+        {
+            "local_name": "Group",
+            "label": "Group",
+            "comment": "A class of Agents."
+        },
+        {
+            "local_name": "Agent",
+            "label": "Agent",
+            "comment": "An agent (eg. person, group, software or physical artifact)."
+        },
+        {
+            "local_name": "Project",
+            "label": "Project",
+            "comment": "A project (a collective endeavour of some kind)."
+        },
+        {
+            "local_name": "Image",
+            "label": "Image",
+            "comment": "An image."
+        },
+        {
+            "local_name": "PersonalProfileDocument",
+            "label": "PersonalProfileDocument",
+            "comment": "A personal profile RDF document."
+        },
+        {
+            "local_name": "OnlineAccount",
+            "label": "Online Account",
+            "comment": "An online account."
+        },
+        {
+            "local_name": "OnlineGamingAccount",
+            "label": "Online Gaming Account",
+            "comment": "An online gaming account."
+        },
+        {
+            "local_name": "OnlineEcommerceAccount",
+            "label": "Online E-commerce Account",
+            "comment": "An online e-commerce account."
+        },
+        {
+            "local_name": "OnlineChatAccount",
+            "label": "Online Chat Account",
+            "comment": "An online chat account."
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "mbox",
+            "label": "personal mailbox",
+            "comment": "A  personal mailbox, ie. an Internet mailbox associated with exactly one owner, the first owner of this mailbox. This is a 'static inverse functional property', in that  there is (across time and change) at most one individual that ever has any particular value for foaf:mbox."
+        },
+        {
+            "local_name": "mbox_sha1sum",
+            "label": "sha1sum of a personal mailbox URI name",
+            "comment": "The sha1sum of the URI of an Internet mailbox associated with exactly one owner, the  first owner of the mailbox."
+        },
+        {
+            "local_name": "gender",
+            "label": "gender",
+            "comment": "The gender of this Agent (typically but not necessarily 'male' or 'female')."
+        },
+        {
+            "local_name": "geekcode",
+            "label": "geekcode",
+            "comment": "A textual geekcode for this person, see http://www.geekcode.com/geek.html"
+        },
+        {
+            "local_name": "dnaChecksum",
+            "label": "DNA checksum",
+            "comment": "A checksum for the DNA of some thing. Joke."
+        },
+        {
+            "local_name": "sha1",
+            "label": "sha1sum (hex)",
+            "comment": "A sha1sum hash, in hex."
+        },
+        {
+            "local_name": "based_near",
+            "label": "based near",
+            "comment": "A location that something is based near, for some broadly human notion of near."
+        },
+        {
+            "local_name": "title",
+            "label": "title",
+            "comment": "Title (Mr, Mrs, Ms, Dr. etc)"
+        },
+        {
+            "local_name": "nick",
+            "label": "nickname",
+            "comment": "A short informal nickname characterising an agent (includes login identifiers, IRC and other chat nicknames)."
+        },
+        {
+            "local_name": "jabberID",
+            "label": "jabber ID",
+            "comment": "A jabber ID for something."
+        },
+        {
+            "local_name": "aimChatID",
+            "label": "AIM chat ID",
+            "comment": "An AIM chat ID"
+        },
+        {
+            "local_name": "skypeID",
+            "label": "Skype ID",
+            "comment": "A Skype ID"
+        },
+        {
+            "local_name": "icqChatID",
+            "label": "ICQ chat ID",
+            "comment": "An ICQ chat ID"
+        },
+        {
+            "local_name": "yahooChatID",
+            "label": "Yahoo chat ID",
+            "comment": "A Yahoo chat ID"
+        },
+        {
+            "local_name": "msnChatID",
+            "label": "MSN chat ID",
+            "comment": "An MSN chat ID"
+        },
+        {
+            "local_name": "name",
+            "label": "name",
+            "comment": "A name for some thing."
+        },
+        {
+            "local_name": "firstName",
+            "label": "firstName",
+            "comment": "The first name of a person."
+        },
+        {
+            "local_name": "lastName",
+            "label": "lastName",
+            "comment": "The last name of a person."
+        },
+        {
+            "local_name": "givenName",
+            "label": "Given name",
+            "comment": "The given name of some person."
+        },
+        {
+            "local_name": "givenname",
+            "label": "Given name",
+            "comment": "The given name of some person."
+        },
+        {
+            "local_name": "surname",
+            "label": "Surname",
+            "comment": "The surname of some person."
+        },
+        {
+            "local_name": "family_name",
+            "label": "family_name",
+            "comment": "The family name of some person."
+        },
+        {
+            "local_name": "familyName",
+            "label": "familyName",
+            "comment": "The family name of some person."
+        },
+        {
+            "local_name": "phone",
+            "label": "phone",
+            "comment": "A phone,  specified using fully qualified tel: URI scheme (refs: http://www.w3.org/Addressing/schemes.html#tel)."
+        },
+        {
+            "local_name": "homepage",
+            "label": "homepage",
+            "comment": "A homepage for some thing."
+        },
+        {
+            "local_name": "weblog",
+            "label": "weblog",
+            "comment": "A weblog of some thing (whether person, group, company etc.)."
+        },
+        {
+            "local_name": "openid",
+            "label": "openid",
+            "comment": "An OpenID for an Agent."
+        },
+        {
+            "local_name": "tipjar",
+            "label": "tipjar",
+            "comment": "A tipjar document for this agent, describing means for payment and reward."
+        },
+        {
+            "local_name": "plan",
+            "label": "plan",
+            "comment": "A .plan comment, in the tradition of finger and '.plan' files."
+        },
+        {
+            "local_name": "made",
+            "label": "made",
+            "comment": "Something that was made by this agent."
+        },
+        {
+            "local_name": "maker",
+            "label": "maker",
+            "comment": "An agent that  made this thing."
+        },
+        {
+            "local_name": "img",
+            "label": "image",
+            "comment": "An image that can be used to represent some thing (ie. those depictions which are particularly representative of something, eg. one's photo on a homepage)."
+        },
+        {
+            "local_name": "depiction",
+            "label": "depiction",
+            "comment": "A depiction of some thing."
+        },
+        {
+            "local_name": "depicts",
+            "label": "depicts",
+            "comment": "A thing depicted in this representation."
+        },
+        {
+            "local_name": "thumbnail",
+            "label": "thumbnail",
+            "comment": "A derived thumbnail image."
+        },
+        {
+            "local_name": "myersBriggs",
+            "label": "myersBriggs",
+            "comment": "A Myers Briggs (MBTI) personality classification."
+        },
+        {
+            "local_name": "workplaceHomepage",
+            "label": "workplace homepage",
+            "comment": "A workplace homepage of some person; the homepage of an organization they work for."
+        },
+        {
+            "local_name": "workInfoHomepage",
+            "label": "work info homepage",
+            "comment": "A work info homepage of some person; a page about their work for some organization."
+        },
+        {
+            "local_name": "schoolHomepage",
+            "label": "schoolHomepage",
+            "comment": "A homepage of a school attended by the person."
+        },
+        {
+            "local_name": "knows",
+            "label": "knows",
+            "comment": "A person known by this person (indicating some level of reciprocated interaction between the parties)."
+        },
+        {
+            "local_name": "interest",
+            "label": "interest",
+            "comment": "A page about a topic of interest to this person."
+        },
+        {
+            "local_name": "topic_interest",
+            "label": "topic_interest",
+            "comment": "A thing of interest to this person."
+        },
+        {
+            "local_name": "publications",
+            "label": "publications",
+            "comment": "A link to the publications of this person."
+        },
+        {
+            "local_name": "currentProject",
+            "label": "current project",
+            "comment": "A current project this person works on."
+        },
+        {
+            "local_name": "pastProject",
+            "label": "past project",
+            "comment": "A project this person has previously worked on."
+        },
+        {
+            "local_name": "fundedBy",
+            "label": "funded by",
+            "comment": "An organization funding a project or person."
+        },
+        {
+            "local_name": "logo",
+            "label": "logo",
+            "comment": "A logo representing some thing."
+        },
+        {
+            "local_name": "topic",
+            "label": "topic",
+            "comment": "A topic of some page or document."
+        },
+        {
+            "local_name": "primaryTopic",
+            "label": "primary topic",
+            "comment": "The primary topic of some page or document."
+        },
+        {
+            "local_name": "focus",
+            "label": "focus",
+            "comment": "The underlying or 'focal' entity associated with some SKOS-described concept."
+        },
+        {
+            "local_name": "isPrimaryTopicOf",
+            "label": "is primary topic of",
+            "comment": "A document that this thing is the primary topic of."
+        },
+        {
+            "local_name": "page",
+            "label": "page",
+            "comment": "A page or document about this thing."
+        },
+        {
+            "local_name": "theme",
+            "label": "theme",
+            "comment": "A theme."
+        },
+        {
+            "local_name": "account",
+            "label": "account",
+            "comment": "Indicates an account held by this agent."
+        },
+        {
+            "local_name": "holdsAccount",
+            "label": "account",
+            "comment": "Indicates an account held by this agent."
+        },
+        {
+            "local_name": "accountServiceHomepage",
+            "label": "account service homepage",
+            "comment": "Indicates a homepage of the service provide for this online account."
+        },
+        {
+            "local_name": "accountName",
+            "label": "account name",
+            "comment": "Indicates the name (identifier) associated with this online account."
+        },
+        {
+            "local_name": "member",
+            "label": "member",
+            "comment": "Indicates a member of a Group"
+        },
+        {
+            "local_name": "membershipClass",
+            "label": "membershipClass",
+            "comment": "Indicates the class of individuals that are a member of a Group"
+        },
+        {
+            "local_name": "birthday",
+            "label": "birthday",
+            "comment": "The birthday of this Agent, represented in mm-dd string form, eg. '12-31'."
+        },
+        {
+            "local_name": "age",
+            "label": "age",
+            "comment": "The age in years of some agent."
+        },
+        {
+            "local_name": "status",
+            "label": "status",
+            "comment": "A string expressing what the user is happy for the general public (normally) to know about their current activity."
+        }
+    ]
+}

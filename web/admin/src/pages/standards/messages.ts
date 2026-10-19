@@ -20,6 +20,7 @@ export const en = {
   'standards.lede':
     'The shared vocabularies your fields and item types are saved in. You do not need to change them to catalogue a collection.',
   'standards.define': 'What {term} means',
+  'standards.import': 'Import a vocabulary',
 } as const;
 
 type StandardsMessageKey = keyof typeof en;
@@ -31,6 +32,7 @@ const es: StandardsMessages = {
   'standards.lede':
     'Los vocabularios compartidos en los que se guardan sus campos y tipos de elemento. No necesita cambiarlos para catalogar una colección.',
   'standards.define': 'Qué significa {term}',
+  'standards.import': 'Importar un vocabulario',
 };
 
 const MESSAGES: Readonly<Record<Locale, StandardsMessages>> = { en, es, hi, mr, ml, ta, kn, te, ne };

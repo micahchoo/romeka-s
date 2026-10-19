@@ -77,6 +77,8 @@ const itemRoutes = (url: URL): Response => {
       return jsonResponse(loadFixture('data-types-page.json'));
     case '/api/tags':
       return jsonResponse(census([['emigration', 14], ['wartime', 5], ['christmas', 6]]));
+    case '/api/sites':
+      return jsonResponse(loadFixture('sites-page.json'));
     default:
       return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
   }

@@ -64,11 +64,39 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'vocabulary import messages',
+    source: 'src/pages/vocabularies/messages.tsx',
+    dir: 'src/pages/vocabularies/locales',
+    type: 'ImportMessages',
+    from: '../messages',
+  },
+  {
+    what: 'item form messages',
+    source: 'src/pages/items/messages.ts',
+    dir: 'src/pages/items/locales',
+    type: 'ItemMessages',
+    from: '../messages',
+  },
+  {
+    what: 'Jobs page messages',
+    source: 'src/pages/jobs/messages.ts',
+    dir: 'src/pages/jobs/locales',
+    type: 'JobsMessages',
+    from: '../messages',
+  },
+  {
     what: 'describe strings',
     source: 'src/app/describe-messages.ts',
     dir: 'src/app/describe-locales',
     type: 'DescribeMessages',
     from: '../describe-messages',
+  },
+  {
+    what: 'lessons messages',
+    source: 'src/app/lessons/messages.ts',
+    dir: 'src/app/lessons/locales',
+    type: 'LessonsMessages',
+    from: '../messages',
   },
   {
     // The server's error patterns: the Rust registry generates the English.
