@@ -5,6 +5,7 @@
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
+import { useTermText } from '../../i18n';
 import type { DataType, Property } from '../../api/types';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { acceptChoices, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
@@ -183,6 +184,7 @@ const AcceptsLine = ({ field, name: shownName, patch, dataTypes }: SettingsProps
 /** Required, private, and the help text and language under a fold. */
 const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): ReactElement => {
   const t = useItemTypesText();
+  const text = useTermText();
   const id = useId();
   return (
     <>
@@ -217,7 +219,7 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
           <input
             id={`${id}-help`}
             type="text"
-            placeholder={property?.comment ?? ''}
+            placeholder={(property === undefined ? null : text.comment(property.term, property.comment)) ?? ''}
             value={field.alternateComment ?? ''}
             onChange={(event) => {
               patch({ alternateComment: textOrNull(event.target.value) });
@@ -243,6 +245,7 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
 
 const FieldSettings = (props: SettingsProps): ReactElement => {
   const t = useItemTypesText();
+  const text = useTermText();
   const { field, property, term, patch } = props;
   return (
     <div className="type-field-body">
@@ -250,7 +253,7 @@ const FieldSettings = (props: SettingsProps): ReactElement => {
         className="type-field-name"
         type="text"
         aria-label={t('field.name', { term })}
-        placeholder={property?.label ?? term}
+        placeholder={(property === undefined ? null : text.label(property.term, property.label)) ?? term}
         value={field.alternateLabel ?? ''}
         onChange={(event) => {
           patch({ alternateLabel: textOrNull(event.target.value) });
@@ -332,10 +335,12 @@ export const FieldRow = ({
   createField,
 }: FieldRowProps): ReactElement => {
   const t = useItemTypesText();
+  const text = useTermText();
   const handle = useRef<HTMLButtonElement>(null);
   const property = properties.find((entry) => entry.id === field.propertyId);
   const term = property?.term ?? `#${String(field.propertyId)}`;
-  const shownName = field.alternateLabel ?? property?.label ?? term;
+  const shownName =
+    field.alternateLabel ?? (property === undefined ? null : text.label(property.term, property.label)) ?? term;
   const patch = (next: Partial<Omit<FieldDraft, 'key'>>): void => {
     onChange(patchField(draft, field.key, next));
   };

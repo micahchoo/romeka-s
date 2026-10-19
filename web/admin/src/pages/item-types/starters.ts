@@ -6,7 +6,7 @@
  */
 import type { Property, ResourceClass } from "../../api/types";
 import { curatedLocale, type CuratedLocale } from "../../app/plain-terms";
-import type { Locale } from "../../i18n";
+import { termText, type Locale } from "../../i18n";
 import { fieldKey, type FieldDraft, type TypeDraft } from "./model";
 
 /** Starter names and labels are plain words, curated where plain terms are. */
@@ -215,7 +215,8 @@ export const starterFor = (kind: string): Starter | null => {
 /**
  * A new type's draft: the kind's class and fields, those this installation
  * has. An alternate label is kept only where it differs from the property's
- * own label, so a "Title" row reads the property's label.
+ * own label as stored and as the locale shows it, so a "Title" row, or a
+ * "Título" one in Spanish, reads the property's label.
  */
 export const draftFromStarter = (
   name: string,
@@ -232,11 +233,12 @@ export const draftFromStarter = (
       return [];
     }
     const label = localised(entry.label, locale);
+    const own = termText(locale).label(property.term, property.label);
     return [
       {
         key: fieldKey(),
         propertyId: property.id,
-        alternateLabel: label === property.label ? null : label,
+        alternateLabel: label === property.label || label === own ? null : label,
         alternateComment: null,
         dataTypes: entry.dataTypes,
         isRequired: entry.required === true,

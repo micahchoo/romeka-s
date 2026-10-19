@@ -10,10 +10,10 @@ import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
-import { PLAIN_TERMS, plainHint, plainName, searchTerms } from '../../app/plain-terms';
+import { PLAIN_TERMS, plainHint, plainName, searchTerms, termComment } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
-import { useLocale, useTranslator, type Locale } from '../../i18n';
+import { useLocale, useTermText, useTranslator, type TermText } from '../../i18n';
 import '../item-types/item-types.css';
 import { useItemTypesText, WithItemTypesMessages } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
@@ -45,11 +45,11 @@ const usesOf = (templates: readonly ResourceTemplate[], property: Property): rea
   );
 
 /** In use first (most used first), then the curated common fields, then by name. */
-const browseOrder = (loaded: Loaded, locale: Locale): readonly Property[] => {
+const browseOrder = (loaded: Loaded, text: TermText): readonly Property[] => {
   const rank = (property: Property): number =>
     usesOf(loaded.templates, property).length * 10 + (property.term in PLAIN_TERMS ? 1 : 0);
   return [...loaded.properties].sort(
-    (a, b) => rank(b) - rank(a) || plainName(a, locale).localeCompare(plainName(b, locale), locale),
+    (a, b) => rank(b) - rank(a) || plainName(a, text).localeCompare(plainName(b, text), text.locale),
   );
 };
 
@@ -62,7 +62,8 @@ const FieldEntry = ({
 }): ReactElement => {
   const t = useItemTypesText();
   const locale = useLocale();
-  const name = plainName(property, locale);
+  const text = useTermText();
+  const name = plainName(property, text);
   const renamed = uses.filter((use) => use.label !== null && use.label !== name);
   return (
     <li className="fields-entry">
@@ -81,7 +82,7 @@ const FieldEntry = ({
           <TermHelp entry={property} />
         </p>
         <p className="fields-entry-hint">
-          {plainHint(property.term, locale) ?? property.comment ?? ''}
+          {plainHint(property.term, locale) ?? termComment(property, text) ?? ''}
         </p>
         <a className="property-field-term" href={standardsHref('properties', property.id)}>
           {property.term}
@@ -110,13 +111,13 @@ const FieldEntry = ({
 const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
   const t = useItemTypesText();
   const { number } = useTranslator();
-  const locale = useLocale();
+  const text = useTermText();
   const inputId = useId();
   const [query, setQuery] = useState('');
   const shown =
     query.trim() === ''
-      ? browseOrder(loaded, locale)
-      : searchTerms(loaded.properties, query, locale, 30);
+      ? browseOrder(loaded, text)
+      : searchTerms(loaded.properties, query, text, 30);
   return (
     <section className="fields-page">
       <p className="type-lede">{t('fieldsPage.lede')}</p>

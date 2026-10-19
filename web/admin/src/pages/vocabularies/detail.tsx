@@ -6,7 +6,7 @@ import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import type { MessageKey } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
@@ -52,6 +52,7 @@ const MemberTable = <MemberT extends VocabularyMemberRow>({
   readonly onAdded: (member: MemberT) => void;
 }): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   return (
     <>
       {members.length === 0 ? (
@@ -69,10 +70,12 @@ const MemberTable = <MemberT extends VocabularyMemberRow>({
               {members.map((member) => (
                 <tr key={String(member.id)}>
                   <td>
-                    <a href={standardsHref(kind.tab, member.id)}>{member.label ?? member.term}</a>
+                    <a href={standardsHref(kind.tab, member.id)}>
+                      {text.label(member.term, member.label) ?? member.term}
+                    </a>
                   </td>
                   <td>
-                    <DefinedTerm term={member.term} comment={member.comment}>
+                    <DefinedTerm term={member.term} comment={text.comment(member.term, member.comment)}>
                       {member.term}
                     </DefinedTerm>
                   </td>
@@ -122,6 +125,7 @@ export const VocabularyDetail = ({
   readonly vocabularyId: VocabularyId;
 }): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   const state = useAsync(() => load(vocabularyId), [vocabularyId]);
   const [edited, setEdited] = useState<Vocabulary | null>(null);
   const [added, setAdded] = useState<Members>({ properties: [], classes: [] });
@@ -139,7 +143,7 @@ export const VocabularyDetail = ({
   const classes = [...state.data.classes, ...added.classes];
   return (
     <section>
-      <h2>{vocabulary.label}</h2>
+      <h2>{text.label(vocabulary.prefix, vocabulary.label)}</h2>
 
       <dl>
         <dt>{t('column.id')}</dt>
@@ -149,7 +153,7 @@ export const VocabularyDetail = ({
         <dt>{t('detail.namespaceUri')}</dt>
         <dd>{vocabulary.namespaceUri}</dd>
         <dt>{t('column.comment')}</dt>
-        <dd>{vocabulary.comment ?? t('common.none')}</dd>
+        <dd>{text.comment(vocabulary.prefix, vocabulary.comment) ?? t('common.none')}</dd>
         <dt>{t('column.owner')}</dt>
         <dd>
           {vocabulary.owner === null ? (

@@ -242,8 +242,9 @@ pub(super) async fn advanced_form(
 ) -> Result<Outcome, SiteError> {
     let options = pages::form_options(
         common.loader.pool(),
+        common.loader.catalog(),
         db::SiteId::from(common.site.id.get()),
-        common.settings.locale().translator().messages(),
+        common.settings.locale().translator(),
     )
     .await?;
     let form = AdvancedSearchForm {

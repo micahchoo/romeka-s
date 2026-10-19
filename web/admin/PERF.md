@@ -543,6 +543,33 @@ base commit `b1c59db` built the same way from a `git archive` copy with the same
 editor's first open now fetches the English table (3487 B), and a visitor in another locale
 also fetches that locale's table.
 
+## Decision 16: the built-in vocabularies' text loads with the page that shows it (accepted)
+
+**Hypothesis.** The labels and comments of Dublin Core, Dublin Core Type, BIBO and FOAF can be shown
+in the admin's locale without growing the first paint or the locale switch, if each locale's tables
+are lazy chunks a page fetches the first time it shows that text.
+
+**Change.** `src/i18n/termText.ts` keys the text by term. Each locale has a labels table and a
+comments table under `src/i18n/locales/vocabulary/`, so each is a catalogue chunk. `useTermText()`
+loads the active locale's two tables and the two English tables (the guard compares a stored label
+with the built-in English), and renders its caller again when they arrive. English loads none,
+because the stored text is the English. A first version loaded the tables with the catalogue; it
+broke `e2e/specs/locale.spec.ts` ("only the chosen language downloads"), because a switch then
+fetched five scripts instead of one.
+
+| Measure (gzip) | Before (3af0c3d) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 92488 | 93112 | the loader table, the guard and the hook |
+| largest lazy chunk (`page-*`) | 9893 | 9942 | |
+| largest catalogue chunk | 13415 | 13415 | the vocabulary chunks are smaller |
+| labels chunk, English / Spanish / largest Indic (Malayalam) | none | 2893 / 3495 / 4541 | |
+| comments chunk, English / Spanish / largest Indic (Malayalam) | none | 7390 / 9263 / 10180 | |
+
+**Verdict.** Accepted. The first paint pays 624 B and a locale switch pays nothing. The first page
+in a non-English session that shows vocabulary text fetches four chunks, 25004 B gzip in Malayalam,
+and shows the stored English text until they arrive. Splitting the comments out of that first fetch
+would take 17570 B off it.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

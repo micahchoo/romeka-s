@@ -330,3 +330,12 @@ Two locales ship: English (the source language) and Spanish, whose terms follow 
 `application/language/es.po`. A region tag (`es_ES`, `en_US`) narrows to its language; an unknown tag
 falls back to English. The running server keeps `SiteSettings::default()` until a `site_setting`
 repository exists, so a live render is English today; the render layer honours whatever a caller sets.
+
+The built-in vocabularies' labels (Dublin Core, Dublin Core Type, BIBO, FOAF) print in the site's
+locale through `Translator::term_label(term, stored)`, upstream's `$translate($property->label())`.
+The text is keyed by term (`dcterms:title`, or a vocabulary's prefix), and a stored label is
+translated only while it is still the built-in English, so a user's vocabulary and an edited label
+print as stored. The tables are the admin's `web/admin/src/i18n/locales/vocabulary/labels/<tag>.json`;
+`data/vocabulary-labels/` is their copy for a build without `web/admin`, and
+`i18n::vocabulary` tests fail when the copy is stale (`UPDATE_GENERATED=1 cargo test -p omeka-site
+vocabulary` rewrites it) or a locale lacks a term.

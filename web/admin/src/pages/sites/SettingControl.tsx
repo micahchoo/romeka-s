@@ -8,7 +8,8 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { isRecord } from '../../api/parse';
 import type { Property } from '../../api/types';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
+import type { TermText } from '../../i18n';
 import type { MessageKey } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
@@ -34,17 +35,18 @@ const orderLabels = (
     ? { asc: 'siteSettingSort.titleAsc', desc: 'siteSettingSort.titleDesc' }
     : { asc: 'siteSettingSort.dateAsc', desc: 'siteSettingSort.dateDesc' };
 
-const propertyName = (property: Property): string =>
-  property.label === null
-    ? property.term
-    : `${property.label} (${property.term})`;
+const propertyName = (property: Property, text: TermText): string => {
+  const label = text.label(property.term, property.label);
+  return label === null ? property.term : `${label} (${property.term})`;
+};
 
-const matches = (property: Property, query: string): boolean => {
+const matches = (property: Property, query: string, text: TermText): boolean => {
   const needle = query.trim().toLowerCase();
   return (
     needle === '' ||
     property.term.toLowerCase().includes(needle) ||
-    (property.label ?? '').toLowerCase().includes(needle)
+    (property.label ?? '').toLowerCase().includes(needle) ||
+    (text.label(property.term, property.label) ?? '').toLowerCase().includes(needle)
   );
 };
 
@@ -64,10 +66,11 @@ const PropertyPicker = ({
   readonly onChange: (value: string) => void;
 }): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   const [query, setQuery] = useState('');
   const current = properties.find((property) => property.term === value);
   const shown = properties.filter(
-    (property) => property.term === value || matches(property, query),
+    (property) => property.term === value || matches(property, query, text),
   );
   return (
     <span className="property-picker">
@@ -97,7 +100,7 @@ const PropertyPicker = ({
         ) : null}
         {shown.map((property) => (
           <option key={String(property.id)} value={property.term}>
-            {propertyName(property)}
+            {propertyName(property, text)}
           </option>
         ))}
       </select>

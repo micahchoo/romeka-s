@@ -12,7 +12,7 @@ import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 
 interface Loaded {
   readonly itemSet: ItemSet | null;
@@ -35,6 +35,7 @@ const ItemSetEditor = ({
   readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   const { options } = loaded;
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(loaded.itemSet, options.templates, options.properties),
@@ -46,7 +47,7 @@ const ItemSetEditor = ({
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = draftErrors(draft, options.templates, options.properties, t);
+    const errors = draftErrors(draft, options.templates, options.properties, t, text);
     setFormErrors(errors);
     if (errors.length > 0) {
       return;

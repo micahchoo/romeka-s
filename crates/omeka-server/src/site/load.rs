@@ -27,7 +27,7 @@ use omeka_db::repos::{
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
-    ValueRow,
+    TemplatePropertyRow, ValueRow,
 };
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::i18n::Messages;
@@ -193,6 +193,16 @@ impl<'a> Loader<'a> {
         self.settings.locale().translator().messages()
     }
 
+    /// `$translate($property->label())`: a built-in property's label in the
+    /// site's locale, any other label as stored.
+    fn property_label(&self, info: &omeka_api::read::catalog::PropertyInfo) -> String {
+        self.settings
+            .locale()
+            .translator()
+            .term_label(&info.term, &info.label)
+            .to_string()
+    }
+
     pub(crate) fn new(
         pool: &'a SqlitePool,
         base: &'a BaseUrl,
@@ -218,6 +228,11 @@ impl<'a> Loader<'a> {
 
     pub(crate) fn pool(&self) -> &'a SqlitePool {
         self.pool
+    }
+
+    /// The request's term catalog.
+    pub(crate) fn catalog(&self) -> &'a Catalog {
+        self.catalog
     }
 
     /// The request base URL, for building a stored file's URL.
@@ -864,7 +879,10 @@ impl<'a> Loader<'a> {
             public.push(value);
         }
         let template = self.template_properties(row.resource_template_id).await?;
-        let ordered = order_values(public, template.as_deref(), self.catalog);
+        let order: Option<Vec<u64>> = template
+            .as_ref()
+            .map(|rows| rows.iter().map(|entry| entry.property_id.0).collect());
+        let ordered = order_values(public, order.as_deref(), self.catalog);
 
         let mut values = Vec::with_capacity(ordered.len());
         let mut description = None;
@@ -872,7 +890,15 @@ impl<'a> Loader<'a> {
             let Some(info) = self.catalog.property(value.property_id) else {
                 continue;
             };
-            let value_ref = self.value_ref(value, info).await?;
+            // `resource-values.phtml`: `alternate_label ?: $translate(label)`.
+            let alternate = template
+                .iter()
+                .flatten()
+                .find(|entry| entry.property_id == value.property_id)
+                .and_then(|entry| entry.alternate_label.as_deref())
+                .filter(|label| !label.is_empty());
+            let label = alternate.map_or_else(|| self.property_label(info), str::to_string);
+            let value_ref = self.value_ref(value, info, label).await?;
             if description.is_none() && info.term == "dcterms:description" {
                 description = Some(value_ref.value.clone());
             }
@@ -887,6 +913,7 @@ impl<'a> Loader<'a> {
         &self,
         value: &ValueRow,
         info: &omeka_api::read::catalog::PropertyInfo,
+        label: String,
     ) -> Result<ValueRef, DbError> {
         let (text, html, class) = match value.r#type.as_str() {
             // `DataType\Uri::render`: a link with the stored label, else the URI.
@@ -921,7 +948,7 @@ impl<'a> Loader<'a> {
         };
         Ok(ValueRef {
             property_id: value.property_id.0,
-            property: info.label.clone(),
+            property: label,
             property_term: info.term.clone(),
             vocabulary: info.vocabulary_label.clone(),
             value: text,
@@ -931,21 +958,19 @@ impl<'a> Loader<'a> {
         })
     }
 
-    /// The template's properties in `list_properties` order, `None` when the
-    /// resource carries no template.
+    /// The template's property rows in `list_properties` order, `None` when
+    /// the resource carries no template.
     async fn template_properties(
         &self,
         template_id: Option<db::TemplateId>,
-    ) -> Result<Option<Vec<u64>>, DbError> {
+    ) -> Result<Option<Vec<TemplatePropertyRow>>, DbError> {
         let Some(template_id) = template_id else {
             return Ok(None);
         };
         let properties = TemplateRepo::new(self.pool)
             .list_properties(template_id)
             .await?;
-        Ok(Some(
-            properties.iter().map(|row| row.property_id.0).collect(),
-        ))
+        Ok(Some(properties))
     }
 
     /// The value text for its data type: a literal, a URI, or the display title
@@ -1071,7 +1096,7 @@ impl<'a> Loader<'a> {
             let property = self
                 .catalog
                 .property(value.property_id)
-                .map(|info| info.label.clone())
+                .map(|info| self.property_label(info))
                 .unwrap_or_default();
             out.push(LinkedResource {
                 property,

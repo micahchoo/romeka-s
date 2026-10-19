@@ -26,8 +26,10 @@ use chrono::{Datelike, NaiveDateTime};
 use crate::search::SearchResource;
 
 mod messages;
+mod vocabulary;
 
 pub use messages::{EN, ES, Messages};
+pub use vocabulary::term_label;
 
 /// A locale the site layer can render in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

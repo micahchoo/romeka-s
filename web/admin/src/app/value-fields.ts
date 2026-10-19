@@ -15,7 +15,7 @@ import type {
   ResourceTemplate,
   TemplateId,
 } from '../api/types';
-import type { Translator } from '../i18n';
+import type { TermText, Translator } from '../i18n';
 import {
   draftKey,
   emptyResourceDraft,
@@ -40,9 +40,12 @@ export interface FieldRule {
 export interface PropertyField {
   readonly propertyId: PropertyId;
   readonly term: string;
-  /** The template's alternate label, else the property label, else the term. */
+  /**
+   * The template's alternate label as stored, else the property label in the
+   * locale (`alternate_label ?: $translate(label)`), else the term.
+   */
   readonly label: string;
-  /** The template's alternate comment, else the property comment. */
+  /** The template's alternate comment, else the property comment in the locale. */
   readonly comment: string | null;
   /** The property itself, whose stored comment is the term's definition. */
   readonly property: Termed;
@@ -113,12 +116,14 @@ const templateRows = (
 /**
  * The fields the form shows: every template row in template order, then each
  * other property in the order its first value appears (`applyResourceTemplate`
- * prepends the template's fields and leaves the rest after them).
+ * prepends the template's fields and leaves the rest after them). `text` puts a
+ * built-in property's label and comment in the UI's locale.
  */
 export const layoutFields = (
   values: readonly ValueDraft[],
   template: TemplateLayout | null,
   properties: readonly Property[],
+  text: TermText,
 ): readonly PropertyField[] => {
   const valuesOf = (id: PropertyId): readonly ValueDraft[] =>
     values.filter((value) => value.propertyId === id);
@@ -127,8 +132,8 @@ export const layoutFields = (
     (row): PropertyField => ({
       propertyId: row.property.id,
       term: row.property.term,
-      label: row.label ?? row.property.label ?? row.property.term,
-      comment: row.comment ?? row.property.comment,
+      label: row.label ?? text.label(row.property.term, row.property.label) ?? row.property.term,
+      comment: row.comment ?? text.comment(row.property.term, row.property.comment),
       property: row.property,
       rule: row.rule,
       values: valuesOf(row.property.id),
@@ -145,8 +150,8 @@ export const layoutFields = (
     others.push({
       propertyId: value.propertyId,
       term: value.term,
-      label: property?.label ?? value.term,
-      comment: property?.comment ?? null,
+      label: (property === undefined ? null : text.label(property.term, property.label)) ?? value.term,
+      comment: property === undefined ? null : text.comment(property.term, property.comment),
       property: property ?? { term: value.term, localName: value.term, label: null, comment: null },
       rule: null,
       values: valuesOf(value.propertyId),
@@ -264,9 +269,10 @@ export const draftErrors = (
   templates: readonly ResourceTemplate[],
   properties: readonly Property[],
   t: Translator['t'],
+  text: TermText,
 ): readonly string[] => [
   ...missingRequired(
-    layoutFields(draft.values, templateById(templates, draft.resourceTemplate), properties),
+    layoutFields(draft.values, templateById(templates, draft.resourceTemplate), properties, text),
   ).map((field) => t('valueField.requiredError', { field: field.label })),
   ...valueErrors(draft.values, t),
 ];
