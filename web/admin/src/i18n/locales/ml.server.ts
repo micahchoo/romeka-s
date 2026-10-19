@@ -87,7 +87,21 @@ export const mlServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'എല്ലാ ബ്ലോക്കുകൾക്കും ഒരു ലേഔട്ട് വേണം.',
   'server.blockDataScalar': 'ബ്ലോക്ക് ഡാറ്റ ഒരു സ്കെയിലാർ വാല്യൂ ആകാൻ പാടില്ല.',
   'server.siteSettingsNotObject': 'പ്രതീക്ഷിച്ചത് ഒരു ഒബ്‌ജക്റ്റ് അല്ലെങ്കിൽ നൾ, {kind} ലഭിച്ചു.',
-  'server.customCssRefusal': 'കസ്റ്റം CSS: {refusal}',
+  'server.cssTooLarge':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: കസ്റ്റം CSS പരമാവധി {max} ബൈറ്റുകളിൽ; ഇത് {bytes} ആണ്.',
+  'server.cssImport': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: @import അനുവദനീയമല്ല.',
+  'server.cssDocument': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: @document അനുവദനീയമല്ല.',
+  'server.cssForeignUrl':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: url({url}) അനുവദനീയമല്ല; ഒരു URL /files/ അല്ലെങ്കിൽ /assets/ എന്നതിന് താഴെയുള്ള ഒരു പാതയായിരിക്കണം.',
+  'server.cssExpression': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: expression() അനുവദനീയമല്ല.',
+  'server.cssBehavior': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: behavior അനുവദനീയമല്ല.',
+  'server.cssMozBinding': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: -moz-binding അനുവദനീയമല്ല.',
+  'server.cssStyleBreakout': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: </style അനുവദനീയമല്ല.',
+  'server.cssBadUrl': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: ഈ url( സാധുവായ CSS അല്ല.',
+  'server.cssUnclosedString':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: ഈ സ്ട്രിംഗ് ക്ലോസ് ചെയ്തിട്ടില്ല.',
+  'server.cssStrayClose':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: {bracket} ഒന്നും ക്ലോസ് ചെയ്യുന്നില്ല.',
   'server.navNotArray': 'അസാധുവായ നാവിഗേഷൻ: നാവിഗേഷൻ ഒരു അറേ ആയിരിക്കണം',
   'server.navLinkMissingType': 'അസാധുവായ നാവിഗേഷൻ: ലിങ്ക് ടൈപ്പ് ഇല്ല',
   'server.navLinkMissingData': 'അസാധുവായ നാവിഗേഷൻ: ലിങ്ക് ഡാറ്റ ഇല്ല',

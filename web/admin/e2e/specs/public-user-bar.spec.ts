@@ -1,0 +1,78 @@
+/**
+ * The admin bar a signed-in curator sees on the public site: a styled strip
+ * above the header with the way to the admin and the way out, readable on
+ * every preset in the light and the dark scheme.
+ *
+ * The session comes from `POST /api/login`, the route the sign-in form uses,
+ * so the public page sees a signed-in caller the way a browser does. The theme
+ * writes go through the keyed `request` context, which holds no session: a
+ * session-authenticated write must carry the base URL's origin.
+ */
+import type { APIRequestContext } from '@playwright/test';
+
+import { expect, test } from '../fixtures';
+import { expectAxeBudget } from '../harness/axe';
+import { SITE_SLUG, WELCOME_SLUG } from '../harness/seed';
+import { readHarness } from '../harness/state';
+
+/** The bundled theme's presets (`crates/omeka-site/src/theme/presets.rs`). */
+const PRESETS = ['plain', 'archive', 'gallery', 'editorial', 'civic'] as const;
+const SCHEMES = ['light', 'dark'] as const;
+
+const siteId = async (request: APIRequestContext): Promise<number> => {
+  const sites: unknown = await (await request.get(`/api/sites?slug=${SITE_SLUG}`)).json();
+  const site: unknown = Array.isArray(sites) ? sites[0] : null;
+  if (typeof site === 'object' && site !== null && 'o:id' in site && typeof site['o:id'] === 'number') {
+    return site['o:id'];
+  }
+  throw new Error(`no site ${SITE_SLUG} in ${JSON.stringify(sites)}`);
+};
+
+const storedThemeSettings = async (request: APIRequestContext, site: number): Promise<unknown> => {
+  const document: unknown = await (await request.get(`/api/sites/${String(site)}`)).json();
+  return typeof document === 'object' && document !== null && 'o:theme_settings' in document
+    ? document['o:theme_settings']
+    : null;
+};
+
+const storeThemeSettings = async (request: APIRequestContext, site: number, settings: unknown): Promise<void> => {
+  const response = await request.patch(`/api/sites/${String(site)}`, {
+    data: { 'o:theme_settings': settings },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+};
+
+test('the signed-in user bar is styled and meets the axe budget on every preset and scheme', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(120_000);
+  const { adminEmail, adminPassword, adminName } = readHarness();
+  const signedIn = await page.request.post('/api/login', {
+    data: { email: adminEmail, password: adminPassword },
+  });
+  expect(signedIn.status(), await signedIn.text()).toBe(200);
+
+  const site = await siteId(request);
+  const original = await storedThemeSettings(request, site);
+  try {
+    for (const preset of PRESETS) {
+      for (const scheme of SCHEMES) {
+        await storeThemeSettings(request, site, { preset, color_scheme: scheme });
+        await page.goto(`/s/${SITE_SLUG}/page/${WELCOME_SLUG}`);
+        const bar = page.getByRole('navigation', { name: 'Omeka User' });
+        await expect(bar).toContainText(`Signed in as ${adminName}`);
+        await expect(bar.getByRole('link', { name: 'Admin dashboard' })).toHaveAttribute('href', '/admin');
+        await expect(bar.getByRole('link', { name: 'Logout' })).toHaveAttribute('href', '/logout');
+        // The sheet styles the bar: a surface fill, not the page's bare text.
+        const fill = await bar.evaluate((element) => getComputedStyle(element).backgroundColor);
+        const pageFill = await page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(fill, `${preset} ${scheme}`).not.toBe('rgba(0, 0, 0, 0)');
+        expect(fill, `${preset} ${scheme}`).not.toBe(pageFill);
+        await expectAxeBudget(page, `public user bar, ${preset} ${scheme}`);
+      }
+    }
+  } finally {
+    await storeThemeSettings(request, site, original);
+  }
+});
