@@ -673,6 +673,27 @@ its namespaces' tables beside its own chunk; English fetches no table, because E
 catalogue chunk, and `bundle.catalogueChunkGzipBytes` moves from 16384 to 11264, the largest one
 plus about 1 KB.
 
+## Decision 21: the site Settings and Users tabs load on demand (accepted)
+
+**Premise.** After the catalogue split (Decision 20) the sites route chunk was the largest lazy chunk,
+10097 B of the 10240 B ceiling, because `src/pages/sites/page.tsx` imported the Settings and Users tabs
+statically, while Navigation, Site resources, Theme and the editor were already lazy.
+
+**Change.** Settings and Users become `lazy()` imports behind the same `loading.site` Suspense fallback
+as the other tabs.
+
+**Measured.** `npm run build`, gzip bytes from `zlib.gzipSync` over the Vite manifest's files:
+
+| Asset | Before | After |
+| --- | --- | --- |
+| sites route (`pages/sites/page.tsx`) | 10097 | 5588 |
+| Settings tab (`pages/sites/settings.tsx`) | in the route | 4320 |
+| Users tab (`pages/sites/users.tsx`) | in the route | 1255 |
+| largest lazy chunk | 10097 | 6873 |
+| initial js | 84764 | 84764 |
+
+A single build on one machine. Opening Settings or Users now costs one more request after the route.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
