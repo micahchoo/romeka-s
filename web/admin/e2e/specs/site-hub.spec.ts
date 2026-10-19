@@ -70,6 +70,14 @@ test('a new site lands on its hub, and the page actions and settings persist', a
   await expect(pageRow(page, 'Welcome')).not.toContainText('Homepage');
   await expect(pageRow(page, 'Welcome')).toContainText('In navigation');
 
+  // Clearing the choice hands the homepage back to the first menu page.
+  await pageRow(page, 'About').getByRole('button', { name: 'Use the first menu page' }).click();
+  await expect(pageRow(page, 'Welcome')).toContainText('Homepage');
+  await page.reload();
+  await expect(pageRow(page, 'Welcome')).toContainText('Homepage');
+  await expect(pageRow(page, 'About')).not.toContainText('Homepage');
+  await expect(page.getByRole('button', { name: 'Use the first menu page' })).toHaveCount(0);
+
   // A settings save renames the site and keeps both pages.
   diagnostics.reset();
   await page.getByRole('link', { name: 'Site settings', exact: true }).click();

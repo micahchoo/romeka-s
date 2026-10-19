@@ -16,7 +16,7 @@ import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import { isRecord } from '../../api/parse';
-import { encodeSiteSettings } from '../../api/write';
+import { encodeSiteInfo, encodeSiteSettings } from '../../api/write';
 import type { Site, SiteId, User } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
@@ -25,7 +25,7 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { useSiteSaved } from './SiteFrame';
-import { SiteInfoFields, siteInfoBody, siteInfoOf } from './siteInfo';
+import { SiteInfoFields, siteInfoOf } from './siteInfo';
 import type { SiteInfo } from './siteInfo';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
 import { siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
@@ -253,7 +253,7 @@ const SiteSettingsEditor = ({
     const values = siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts);
     save(async () => {
       siteSaved(
-        await api.patchSite(siteId, { ...siteInfoBody(info), ...encodeSiteSettings(values) }),
+        await api.patchSite(siteId, { ...encodeSiteInfo(info), ...encodeSiteSettings(values) }),
       );
     });
   };

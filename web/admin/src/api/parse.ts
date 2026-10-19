@@ -839,11 +839,6 @@ export function parseJsonObjectOrArrayText(text: string): JsonValue {
   return value;
 }
 
-/** A navigation or item pool field: a JSON array. */
-export function parseJsonArrayText(text: string): readonly JsonValue[] {
-  return parseListOf(asJsonValue)(parseJsonText(text), []);
-}
-
 /** Parses a user id out of a URL fragment such as `#/users/12`. */
 export function userIdFromParam(text: string): UserId | null {
   const value = positiveInt(text);
