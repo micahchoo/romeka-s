@@ -50,6 +50,20 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'item type pages messages',
+    source: 'src/pages/item-types/messages.tsx',
+    dir: 'src/pages/item-types/locales',
+    type: 'ItemTypesMessages',
+    from: '../messages',
+  },
+  {
+    what: 'describe strings',
+    source: 'src/app/describe-messages.ts',
+    dir: 'src/app/describe-locales',
+    type: 'DescribeMessages',
+    from: '../describe-messages',
+  },
+  {
     // The server's error patterns: the Rust registry generates the English.
     what: 'server messages',
     source: 'src/generated/serverMessages.json',

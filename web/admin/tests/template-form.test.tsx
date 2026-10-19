@@ -108,7 +108,7 @@ const fieldNamed = (label: string): HTMLElement => {
 };
 
 const chooseTemplate = async (): Promise<void> => {
-  fireEvent.change(await screen.findByLabelText('Resource template'), { target: { value: '5' } });
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Type' }), { target: { value: '5' } });
 };
 
 describe('an item form with a template', () => {
@@ -129,7 +129,7 @@ describe('an item form with a template', () => {
       .map((node) => node.textContent);
     expect(labels).toEqual(['Interviewee', 'Title', 'Interview notes', 'Relation']);
     const interviewee = fieldNamed('Interviewee');
-    expect(within(interviewee).getByText('dcterms:creator')).toBeInTheDocument();
+    expect(within(interviewee).getByText('dcterms:creator', { selector: '.property-field-term' })).toBeInTheDocument();
     expect(within(interviewee).getByText('The person who tells the story.')).toBeInTheDocument();
     expect(within(interviewee).getByText('Required')).toBeInTheDocument();
     expect(screen.getByLabelText('Class')).toHaveValue('13');
@@ -144,7 +144,7 @@ describe('an item form with a template', () => {
     await chooseTemplate();
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Recorded in 1972');
 
-    fireEvent.change(screen.getByLabelText('Resource template'), { target: { value: '' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: '' } });
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Recorded in 1972');
     // Without the template the creator row keeps its value and its own label.
     expect(screen.getByRole('textbox', { name: 'Creator' })).toBeInTheDocument();
@@ -225,19 +225,89 @@ describe('an item form with a template', () => {
     expect(screen.queryByLabelText('Title data type')).toBeNull();
   });
 
-  it('adds another field from a search over labels and terms', async () => {
+  it('adds another field from a plain-words search over labels and terms', async () => {
     install();
     render(<ItemsPage param="new" />);
     const search = await screen.findByLabelText('Add another field');
     fireEvent.change(search, { target: { value: 'foaf' } });
-    fireEvent.click(screen.getByRole('button', { name: 'name foaf:name' }));
+    fireEvent.click(screen.getByRole('button', { name: /foaf:name$/ }));
     expect(screen.getByRole('textbox', { name: 'name' })).toHaveValue('');
 
-    fireEvent.change(search, { target: { value: 'CREAT' } });
-    expect(
-      within(screen.getByRole('list', { name: 'Matching properties' })).getByRole('button', {
-        name: 'Creator dcterms:creator',
-      }),
-    ).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'who wrote it' } });
+    const matches = screen.getByRole('list', { name: 'Matches for “who wrote it”' });
+    expect(within(matches).getAllByRole('button')[0]).toHaveTextContent(/dcterms:creator$/);
+  });
+
+  it('names the class of the type beside the picker and keeps the class under a closed Advanced fold', async () => {
+    install();
+    render(<ItemsPage param="new" />);
+    await chooseTemplate();
+    expect(screen.getByText('Standard class: Photograph or picture')).toBeInTheDocument();
+    const fold = screen.getByText('Advanced').closest('details');
+    expect(fold).not.toHaveAttribute('open');
+    fireEvent.change(screen.getByLabelText('Class'), { target: { value: '51' } });
+    expect(fold).toHaveAttribute('open');
+    expect(screen.getByText('This class is not the one its type suggests.')).toBeInTheDocument();
+  });
+
+  it('offers a type only on the forms its "Used for" hint names, and always the one in use', async () => {
+    window.localStorage.setItem('romeka.itemTypeUse', JSON.stringify({ 5: ['media'] }));
+    install();
+    render(<ItemsPage param="new" />);
+    const picker = await screen.findByRole('combobox', { name: 'Type' });
+    expect(within(picker).queryByRole('option', { name: 'Oral history' })).toBeNull();
+    window.localStorage.clear();
+  });
+
+  it('shows the stored definition of a field on "?"', async () => {
+    install();
+    render(<ItemsPage param="new" />);
+    await chooseTemplate();
+    const help = within(fieldNamed('Title')).getByRole('button', { name: 'What is Title?' });
+    fireEvent.click(help);
+    expect(help).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('creates a new field in the local vocabulary when no standard one fits', async () => {
+    const fetchMock = installFetch((url, init) => {
+      if (url.pathname === '/api/vocabularies' && init?.method === 'POST') {
+        return jsonResponse(loadFixture('vocabulary-1.json'));
+      }
+      if (url.pathname === '/api/vocabularies') {
+        return jsonResponse([]);
+      }
+      if (url.pathname === '/api/properties' && init?.method === 'POST') {
+        return jsonResponse({
+          ...PROPERTIES[0],
+          'o:id': 99,
+          'o:local_name': 'condition',
+          'o:label': 'Condition',
+          'o:term': 'local:condition',
+        });
+      }
+      const handler = routes[url.pathname];
+      return handler === undefined
+        ? jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 })
+        : handler();
+    });
+    render(<ItemsPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('Add another field'), {
+      target: { value: 'Condition' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create a new field “Condition”' }));
+    expect(await screen.findByRole('textbox', { name: 'Condition' })).toBeInTheDocument();
+    const vocabulary = requestBody(
+      requestsFor(fetchMock, '/api/vocabularies').find((request) => request.init?.method === 'POST') ??
+        (() => {
+          throw new Error('expected the vocabulary create');
+        })(),
+    );
+    expect(vocabulary['o:prefix']).toBe('local');
+    expect(vocabulary['o:namespace_uri']).toBe(`${window.location.origin}/vocab/local/`);
+    const created = requestsFor(fetchMock, '/api/properties').find((request) => request.init?.method === 'POST');
+    expect(created === undefined ? null : requestBody(created)).toMatchObject({
+      'o:local_name': 'condition',
+      'o:label': 'Condition',
+    });
   });
 });

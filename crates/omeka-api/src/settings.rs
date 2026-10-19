@@ -135,7 +135,7 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
 pub async fn write_global(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
     authorize_global(api.actor())?;
     let body: Value =
-        serde_json::from_slice(bytes).map_err(|_| ApiError::bad_request("JSON: Syntax error"))?;
+        serde_json::from_slice(bytes).map_err(|_| ApiError::bad_request(messages::JSON_SYNTAX))?;
     let repo = SettingRepo::new(api.pool());
     for (key, value) in parse_map("settings", &body)? {
         match value {

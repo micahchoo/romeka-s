@@ -9,6 +9,7 @@ import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
+import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
 
@@ -59,7 +60,7 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
 
   return (
     <form onSubmit={submit}>
-      <ResourceFields idPrefix="media" draft={draft} onChange={setDraft} options={options} />
+      <ResourceFields idPrefix="media" kind="media" draft={draft} onChange={setDraft} options={options} />
       <fieldset>
         <legend>{t('media.legend')}</legend>
         <p>
@@ -82,6 +83,7 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
         template={templateById(options.templates, draft.resourceTemplate)}
         properties={options.properties}
         dataTypes={options.dataTypes}
+        createField={createLocalField}
       />
       <FormErrors errors={formErrors} />
       <SaveStatus state={saveState} />

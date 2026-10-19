@@ -16,7 +16,6 @@ import {
 import {
   addFieldValue,
   layoutFields,
-  matchProperties,
   missingRequired,
   newResourceDraft,
   setValueType,
@@ -25,6 +24,7 @@ import {
   withTemplateRows,
   type PropertyField,
 } from '../src/app/value-fields';
+import { searchTerms } from '../src/app/plain-terms';
 
 const property = (id: number, term: string, label: string, comment: string | null = null): Property =>
   parseProperty({
@@ -203,10 +203,18 @@ describe('choosing a template', () => {
     ]);
   });
 
-  it('applies the template class only when the resource has no class yet', () => {
+  it('sets the type class unless the user chose another class', () => {
     expect(withTemplate(emptyResourceDraft(), strict, PROPERTIES).resourceClass).toBe(13);
     const classed = { ...emptyResourceDraft(), resourceClass: brandedClass(40) };
     expect(withTemplate(classed, strict, PROPERTIES).resourceClass).toBe(40);
+  });
+
+  it('moves the class to the next type when it was the previous type\'s class', () => {
+    const first = withTemplate(emptyResourceDraft(), strict, PROPERTIES);
+    const next = template(10, [{ id: 8 }], 51);
+    expect(withTemplate(first, next, PROPERTIES, strict).resourceClass).toBe(51);
+    const overridden = { ...first, resourceClass: brandedClass(40) };
+    expect(withTemplate(overridden, next, PROPERTIES, strict).resourceClass).toBe(40);
   });
 
   it('never drops a typed value, in or out of the template, and switching back to no template keeps everything', () => {
@@ -313,11 +321,14 @@ describe('data types on a row', () => {
 });
 
 describe('adding another field', () => {
-  it('matches the label and the term, ignoring case', () => {
-    expect(matchProperties(PROPERTIES, 'creat').map((entry) => entry.term)).toEqual(['dcterms:creator']);
-    expect(matchProperties(PROPERTIES, 'BIBO:').map((entry) => entry.term)).toEqual(['bibo:annotates']);
-    expect(matchProperties(PROPERTIES, 'Annot').map((entry) => entry.term)).toEqual(['bibo:annotates']);
-    expect(matchProperties(PROPERTIES, '  ')).toEqual([]);
+  it('finds a property from plain words, its label or its term, best first', () => {
+    const terms = (query: string) => searchTerms(PROPERTIES, query, 'en').map((entry) => entry.term);
+    expect(terms('who wrote it')[0]).toBe('dcterms:creator');
+    expect(terms('creat')).toEqual(['dcterms:creator']);
+    expect(terms('BIBO:')).toEqual(['bibo:annotates']);
+    expect(terms('Annot')).toEqual(['bibo:annotates']);
+    expect(terms('  ')).toEqual([]);
+    expect(terms('zebra')).toEqual([]);
   });
 });
 
