@@ -207,7 +207,7 @@ fn search_list_view_matches_page_browse_phtml() {
         "{document}"
     );
     assert!(
-        document.contains("<body class=\"minimal page browse\">"),
+        document.contains("<body class=\"page browse\">"),
         "{document}"
     );
 
@@ -291,7 +291,7 @@ fn advanced_form_posts_the_api_parameter_names() {
         "{document}"
     );
     assert!(
-        document.contains("<body class=\"minimal items search\">"),
+        document.contains("<body class=\"items search\">"),
         "{document}"
     );
 
@@ -316,7 +316,7 @@ fn advanced_form_posts_the_api_parameter_names() {
         "the item-set form title keeps upstream's capital S: {document}"
     );
     assert!(
-        document.contains("<body class=\"minimal item-sets search\">"),
+        document.contains("<body class=\"item-sets search\">"),
         "{document}"
     );
     assert!(!document.contains("name=\"has_media\""), "{document}");

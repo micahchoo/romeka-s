@@ -525,6 +525,7 @@ mod tests {
             "header-text",
             "header-link",
             "header-border",
+            "header-stripe",
             "header-mark",
             "button-background",
             "button-text",
