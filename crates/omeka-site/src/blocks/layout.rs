@@ -12,6 +12,7 @@
 //! a grid position or span outside the page's columns falls back to `auto` or to
 //! the column count. A bare number is pixels (`prepareLength`).
 
+use omeka_core::ids::BlockId;
 use omeka_core::site::{BlockLayout, PageLayout, PageLayoutData, SiteBlock};
 
 use crate::html::escape_html;
@@ -156,13 +157,24 @@ pub(crate) fn block_inline_styles(block: &SiteBlock, ctx: &RenderContext<'_>) ->
     styles
 }
 
+/// ` data-romeka-block="n"`, or nothing when the render carries no markers.
+fn marker_attribute(marker: Option<BlockId>) -> String {
+    marker.map_or_else(String::new, |id| format!(" data-romeka-block=\"{id}\""))
+}
+
 /// The `<div>` `BlockLayout::render` wraps a block in.
 #[must_use]
-pub(crate) fn block_wrapper(classes: &[String], styles: &[String], body: &str) -> String {
+pub(crate) fn block_wrapper(
+    classes: &[String],
+    styles: &[String],
+    marker: Option<BlockId>,
+    body: &str,
+) -> String {
     format!(
-        "<div class=\"{}\" style=\"{}\">{}</div>",
+        "<div class=\"{}\" style=\"{}\"{}>{}</div>",
         escape_html(&classes.join(" ")),
         escape_html(&styles.join("; ")),
+        marker_attribute(marker),
         body
     )
 }
@@ -184,9 +196,10 @@ pub(crate) fn group_open(
     }
     let styles = block_inline_styles(block, ctx);
     format!(
-        "<div class=\"{}\" style=\"{}\">",
+        "<div class=\"{}\" style=\"{}\"{}>",
         escape_html(&classes.join(" ")),
-        escape_html(&styles.join("; "))
+        escape_html(&styles.join("; ")),
+        marker_attribute(ctx.block_marker(block.id))
     )
 }
 

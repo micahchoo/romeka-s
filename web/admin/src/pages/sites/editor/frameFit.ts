@@ -4,10 +4,23 @@
  * The page inside the frame lays out at `device` CSS pixels, so its media
  * queries and line lengths are the device's. A transform then shrinks the frame
  * to the box, never enlarges it, and the layout height grows by the same factor
- * so the scaled frame still fills the box's height.
+ * so the scaled frame still fills the box's height. `fit` lays the page out at
+ * the box's own width, so it reads at full size.
  */
 import type { CSSProperties, RefObject } from 'react';
 import { useLayoutEffect, useState } from 'react';
+import type { MessageKey } from '../../../i18n';
+
+/** A device width in CSS pixels, or `fit`: the width of the box itself. */
+export type DeviceWidth = number | 'fit';
+
+/** The device choices every preview offers. Fit is first and the default. */
+export const DEVICES: readonly { readonly key: MessageKey; readonly width: DeviceWidth }[] = [
+  { key: 'editor.widthFit', width: 'fit' },
+  { key: 'editor.widthDesktop', width: 1280 },
+  { key: 'editor.widthTablet', width: 768 },
+  { key: 'editor.widthMobile', width: 390 },
+];
 
 export interface Box {
   readonly width: number;
@@ -20,15 +33,24 @@ export interface FrameFit {
   /** The frame's layout height, before the scale. */
   readonly height: number;
   readonly scale: number;
+  /** The offset that centres a frame narrower than its box. */
+  readonly left: number;
 }
 
-export const fitFrame = (device: number, box: Box): FrameFit => {
-  const scale = box.width > 0 ? Math.min(1, box.width / device) : 1;
-  return { width: device, height: box.height / scale, scale };
+export const fitFrame = (device: DeviceWidth, box: Box): FrameFit => {
+  const width = device === 'fit' ? box.width : device;
+  const scale = box.width > 0 && width > 0 ? Math.min(1, box.width / width) : 1;
+  return {
+    width,
+    height: box.height / scale,
+    scale,
+    left: Math.max(0, (box.width - width * scale) / 2),
+  };
 };
 
 /** The style that applies a fit to a frame positioned at its box's top left. */
 export const frameStyle = (fit: FrameFit): CSSProperties => ({
+  left: `${String(fit.left)}px`,
   width: `${String(fit.width)}px`,
   height: `${String(fit.height)}px`,
   transform: `scale(${String(fit.scale)})`,

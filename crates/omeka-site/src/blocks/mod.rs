@@ -175,7 +175,12 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
             let classes = layout::block_classes(block, page.layout, columns);
             let styles = layout::block_inline_styles(block, ctx);
             let body = render_block(block, ctx);
-            out.push_str(&layout::block_wrapper(&classes, &styles, &body));
+            out.push_str(&layout::block_wrapper(
+                &classes,
+                &styles,
+                ctx.block_marker(block.id),
+                &body,
+            ));
         }
         if in_group {
             if counted == span {

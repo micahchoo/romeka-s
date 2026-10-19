@@ -40,7 +40,7 @@ const Harness = ({
     <PageCanvas
       draft={draft}
       siteSettings={null}
-      selectedKey={selected}
+      selection={selected === null ? null : { key: selected, from: 'outline' }}
       onSelect={setSelected}
       dispatch={(action) => {
         onAction(action);
@@ -55,7 +55,7 @@ const renderCanvas = (
 ): { readonly dispatch: ReturnType<typeof vi.fn>; readonly onSelect: ReturnType<typeof vi.fn> } => {
   const dispatch = vi.fn();
   const onSelect = vi.fn();
-  render(<PageCanvas draft={draft} siteSettings={null} selectedKey={null} onSelect={onSelect} dispatch={dispatch} />);
+  render(<PageCanvas draft={draft} siteSettings={null} selection={null} onSelect={onSelect} dispatch={dispatch} />);
   return { dispatch, onSelect };
 };
 

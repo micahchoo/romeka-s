@@ -38,6 +38,9 @@ export interface AdminPage {
   /** The upstream controller action this row stands for. */
   readonly upstream: string;
   readonly element: ComponentType<PageProps>;
+  /** Whether the route's content takes the full width instead of the reading
+   * width, read from the hash segments after the page id. */
+  readonly wide?: (rest: readonly string[]) => boolean;
 }
 
 export type PageGroupId = 'content' | 'vocabulary' | 'admin';
@@ -101,6 +104,9 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/sites/page').then((module) => ({ default: module.SitesPage })),
     ),
+    // The page editor (`#/sites/<id>/pages/...`) and the Theme page
+    // (`#/sites/<id>/theme`) lay a preview beside their controls.
+    wide: (rest) => rest[1] === 'pages' || rest[1] === 'theme',
   },
   vocabularies: {
     titleKey: 'page.vocabularies',

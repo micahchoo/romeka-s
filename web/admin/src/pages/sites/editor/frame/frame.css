@@ -1,0 +1,132 @@
+/* The live preview: two stacked frames, only the front one visible, and the
+ * parent's overlay over them. The back frame keeps its layout size while it is
+ * hidden, so the scroll anchor restores against the real layout before the
+ * swap. */
+.live-frame-doc--back {
+  visibility: hidden;
+}
+
+.live-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.live-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
+.live-outline--hover {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.live-outline--selected {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* The label sits just above the outline, so it covers none of the block; a
+ * block at the very top of the page keeps it inside its own top edge. */
+.live-label {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px var(--space-2);
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.live-outline--top .live-label {
+  top: 0;
+  bottom: auto;
+  left: 0;
+  border-radius: 0 0 4px 0;
+}
+
+.live-outline--hover .live-label {
+  background: color-mix(in srgb, var(--accent) 80%, #000000);
+}
+
+.live-slot {
+  position: absolute;
+}
+
+/* A line slot draws its line only while its chip is hovered, so the page reads
+ * clean and the chips mark where an insert can go. */
+.live-slot--line::before {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  content: '';
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.live-slot--line:hover::before {
+  opacity: 1;
+}
+
+/* The chips are placed by offsets, never by a transform: over the frames,
+ * Chromium delivers the mouseup of a press on a transformed chip to the frame
+ * beneath it, so the click never fires (measured with Playwright). */
+.live-slot-button {
+  position: absolute;
+  top: -11px;
+  left: calc(50% - 11px);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.55;
+  pointer-events: auto;
+  transition: opacity 120ms ease-out;
+}
+
+.live-slot-button:hover {
+  background: var(--accent);
+  color: #ffffff;
+  opacity: 1;
+}
+
+/* Into a group: inside the group's bottom edge, at its start, so it never sits
+ * on the top-level chip just below the group. */
+.live-slot--group .live-slot-button {
+  top: -26px;
+  left: 6px;
+  border-style: dashed;
+}
+
+.live-slot--chip .live-slot-button {
+  top: 6px;
+  left: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-slot--line::before,
+  .live-slot-button {
+    transition: none;
+  }
+}

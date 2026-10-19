@@ -1,0 +1,3 @@
+disallowed-methods = [
+  { path = "omeka_site::view::RenderContext::with_preview_markers", reason = "block markers are for the admin preview only; crates/omeka-server/src/site/dispatch.rs::render_preview is the one caller" },
+]

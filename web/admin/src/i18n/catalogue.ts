@@ -828,10 +828,6 @@ export const en = {
   'editor.issueOne': '1 issue',
   'editor.issueCount': '{count} issues',
   'editor.viewPublic': 'View public page',
-  'editor.preview': 'Preview',
-  'editor.previewNone': 'Off',
-  'editor.previewSplit': 'Split',
-  'editor.previewFull': 'Full',
   'editor.previewWidth': 'Preview width',
   'editor.widthDesktop': 'Desktop',
   'editor.widthTablet': 'Tablet',
@@ -899,6 +895,11 @@ export const en = {
   'editor.blockHeading': '{label}, block {position} of {count}',
   'query.siteMatchCount': '{count} items in this site match.',
   'query.siteNoMatch': 'No items in this site match, so the block shows nothing. A browse preview lists only the items that belong to the site: add items on the Site resources page.',
+  'editor.widthFit': 'Fit',
+  'editor.outline': 'Outline',
+  'editor.outlineToggle': 'Show the outline',
+  'preview.insertHere': 'Insert a block here',
+  'preview.insertIntoGroup': 'Add a block to this group',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

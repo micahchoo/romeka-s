@@ -156,7 +156,13 @@ export const Shell = (): ReactElement => {
           </section>
         ))}
       </nav>
-      <main className="app-main">
+      <main
+        className={
+          page !== null && route !== null && page.wide?.(route.rest) === true
+            ? 'app-main app-main--wide'
+            : 'app-main'
+        }
+      >
         {page === null ? (
           <p role="alert">{t('shell.noPage')}</p>
         ) : (

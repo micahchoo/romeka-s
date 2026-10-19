@@ -114,25 +114,21 @@ describe('the page editor shell', () => {
     await renderEditor();
     fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Split' }));
     const surface = await htmlEditor();
     surface.innerHTML = '<p>Typed words.</p>';
     fireEvent.input(surface);
 
+    // The opening render goes out at once; the edit follows after the debounce.
+    const posts = (): ReturnType<typeof requestsFor> =>
+      requestsFor(fetchMock, PREVIEW).filter((request) => request.init?.method === 'POST');
     await waitFor(
       () => {
-        expect(
-          requestsFor(fetchMock, PREVIEW).some(
-            (request) => request.init?.method === 'POST',
-          ),
-        ).toBe(true);
+        expect(posts()).toHaveLength(2);
       },
       { timeout: 2000 },
     );
 
-    const post = first(
-      requestsFor(fetchMock, PREVIEW).filter((request) => request.init?.method === 'POST'),
-    );
+    const post = first(posts().slice(1));
     const headers = post.init?.headers;
     expect(JSON.stringify(headers)).toContain('application/json');
     expect(post.init?.credentials).toBe('same-origin');
@@ -150,15 +146,25 @@ describe('the page editor shell', () => {
     }
   });
 
-  it('renders the preview answer in a sandboxed frame', async () => {
+  it('renders the preview answer in a sandboxed frame without a mode switch', async () => {
     installFetch(handler());
     await renderEditor();
     fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Split' }));
 
-    const frame = await screen.findByTitle('Preview of the page');
-    expect(frame).toHaveAttribute('srcDoc', '<html><body><p>First block.</p></body></html>');
-    expect(frame).toHaveAttribute('sandbox', 'allow-same-origin');
+    // Two frames, so a re-render loads behind the one on screen. Both are
+    // script-free: `allow-same-origin` and nothing else.
+    const frames = await screen.findAllByTitle('Preview of the page');
+    expect(frames).toHaveLength(2);
+    for (const frame of frames) {
+      expect(frame).toHaveAttribute('sandbox', 'allow-same-origin');
+    }
+    await waitFor(() => {
+      expect(
+        frames.some(
+          (frame) => frame.getAttribute('srcDoc') === '<html><body><p>First block.</p></body></html>',
+        ),
+      ).toBe(true);
+    });
   });
 
   it('shows the quiet state when the preview route answers 404', async () => {
@@ -167,9 +173,32 @@ describe('the page editor shell', () => {
     );
     await renderEditor();
     fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Split' }));
 
     expect(await screen.findByText('Live preview is not available yet.')).toBeInTheDocument();
+    expect(screen.queryByTitle('Preview of the page')).toBeNull();
+  });
+
+  it('keeps the Outline open while the preview fails, whatever the stored choice', async () => {
+    window.localStorage.setItem('romeka.editor.outline', 'closed');
+    installFetch(handler(() => jsonResponse({ errors: { error: 'Forbidden' } }, { status: 403 })));
+    render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Forbidden');
+    expect(await screen.findByRole('listitem', { name: /Block 1: HTML/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Outline' })).toBeDisabled();
+    window.localStorage.removeItem('romeka.editor.outline');
+  });
+
+  it('closes the Outline and remembers it while the preview works', async () => {
+    installFetch(handler());
+    await renderEditor();
+    await screen.findAllByTitle('Preview of the page');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Outline' }));
+
+    expect(screen.queryByRole('region', { name: 'Outline' })).toBeNull();
+    expect(window.localStorage.getItem('romeka.editor.outline')).toBe('closed');
+    window.localStorage.removeItem('romeka.editor.outline');
   });
 
   it('saves the draft as the write the API takes', async () => {

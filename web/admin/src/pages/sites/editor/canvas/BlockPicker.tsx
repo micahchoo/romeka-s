@@ -11,9 +11,20 @@
  */
 import { useEffect, useId, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react';
+import type { JsonValue } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import type { BlockRegistry } from '../../blockSchema';
+import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
+import { BUILTIN_TEMPLATES } from '../../templateRegistry';
+import './picker.css';
+
+/** The templates an insert point offers: the built-in ones, then the site's saved ones.
+ * The Outline and the preview both insert through it, so they offer the same list. */
+export const useInsertChoices = (siteSettings: JsonValue | null): readonly TemplateChoice[] => {
+  const { t } = useTranslator();
+  return [...builtinChoices(BUILTIN_TEMPLATES, t), ...savedChoices(savedTemplates(siteSettings))];
+};
 
 export interface BlockPickerProps {
   readonly registry: BlockRegistry;

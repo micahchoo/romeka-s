@@ -7,22 +7,21 @@
  * reducer and the form beside the canvas; the canvas owns only the transient
  * gesture state below.
  */
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react';
 import { useTranslator } from '../../../../i18n';
 import type { JsonValue } from '../../../../api/types';
-import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
-import { BUILTIN_TEMPLATES } from '../../templateRegistry';
 import type { BlockDraft, BlockKey, DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { validate } from '../draft';
 import { parseNodes } from '../groups';
 import type { DraftNode } from '../groups';
-import { BlockPicker } from './BlockPicker';
+import { BlockPicker, useInsertChoices } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
 import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
 import { romkaState } from '../romekaHash';
+import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel } from './summary';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
 import './canvas.css';
@@ -31,7 +30,8 @@ export interface PageCanvasProps {
   readonly draft: PageDraft;
   /** The site's `o:site_settings`, which carry its saved templates. */
   readonly siteSettings: JsonValue | null;
-  readonly selectedKey: BlockKey | null;
+  /** The shell's selection. A selection made elsewhere scrolls its card into view. */
+  readonly selection: Selection | null;
   readonly onSelect: (key: BlockKey | null) => void;
   readonly dispatch: (action: DraftAction) => void;
 }
@@ -97,15 +97,24 @@ const InsertPoint = ({
 export const PageCanvas = ({
   draft,
   siteSettings,
-  selectedKey,
+  selection,
   onSelect,
   dispatch,
 }: PageCanvasProps): ReactElement => {
   const { t } = useTranslator();
-  const templates: readonly TemplateChoice[] = [
-    ...builtinChoices(BUILTIN_TEMPLATES, t),
-    ...savedChoices(savedTemplates(siteSettings)),
-  ];
+  const selectedKey = selection?.key ?? null;
+  const list = useRef<HTMLUListElement | null>(null);
+  useEffect(() => {
+    if (selection === null || selection.from === 'outline') {
+      return;
+    }
+    for (const card of list.current?.querySelectorAll('[data-key]') ?? []) {
+      if (card.getAttribute('data-key') === selection.key) {
+        card.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selection]);
+  const templates = useInsertChoices(siteSettings);
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const [draggingKey, setDraggingKey] = useState<BlockKey | null>(null);
   const [pickedKey, setPickedKey] = useState<BlockKey | null>(null);
@@ -311,6 +320,7 @@ export const PageCanvas = ({
         </p>
       )}
       <ul
+        ref={list}
         className={grid ? 'canvas-list canvas-grid' : 'canvas-list'}
         style={gridStyle}
       >

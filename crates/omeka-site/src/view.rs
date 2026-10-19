@@ -480,6 +480,15 @@ impl BrowseView {
     }
 }
 
+/// Whether a render stamps `data-romeka-block` on block wrappers. Off on every
+/// public render; only the admin preview turns it on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BlockMarkers {
+    #[default]
+    Off,
+    Preview,
+}
+
 /// Everything the site layer reads besides the site and page rows.
 pub struct RenderContext<'a> {
     /// The site being rendered (`site` row).
@@ -525,6 +534,10 @@ pub struct RenderContext<'a> {
     pub noindex: bool,
     /// The resource lookup.
     pub resources: &'a dyn ResourceProvider,
+    /// Crate-private, so another crate can turn markers on only through
+    /// [`RenderContext::with_preview_markers`], which clippy confines to the
+    /// preview route.
+    pub(crate) block_markers: BlockMarkers,
 }
 
 impl<'a> RenderContext<'a> {
@@ -550,6 +563,24 @@ impl<'a> RenderContext<'a> {
             user_name: None,
             noindex: false,
             resources,
+            block_markers: BlockMarkers::Off,
+        }
+    }
+
+    /// The same context, with block markers on. Disallowed by clippy outside
+    /// the preview route (`clippy.toml`).
+    #[must_use]
+    pub fn with_preview_markers(mut self) -> Self {
+        self.block_markers = BlockMarkers::Preview;
+        self
+    }
+
+    /// The marker value for one block, `None` when markers are off.
+    #[must_use]
+    pub(crate) fn block_marker(&self, id: BlockId) -> Option<BlockId> {
+        match self.block_markers {
+            BlockMarkers::Off => None,
+            BlockMarkers::Preview => Some(id),
         }
     }
 

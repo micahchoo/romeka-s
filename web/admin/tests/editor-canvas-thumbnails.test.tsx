@@ -43,7 +43,7 @@ describe('canvas card thumbnails', () => {
       rawBlock('html', { html: '<p>No image</p>' }),
     ]);
     render(
-      <PageCanvas draft={draft} siteSettings={null} selectedKey={null} onSelect={() => {}} dispatch={() => {}} />,
+      <PageCanvas draft={draft} siteSettings={null} selection={null} onSelect={() => {}} dispatch={() => {}} />,
     );
 
     await waitFor(() => {

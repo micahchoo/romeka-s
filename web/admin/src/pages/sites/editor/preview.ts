@@ -13,18 +13,42 @@ import { parseApiErrors } from '../../../api/parse';
 import type { PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
-import type { PageContent } from './draft';
+import type { BlockKey, PageContent } from './draft';
 import { toPageWrite } from './draft';
+import { canonicalBlocks } from './groups';
 
-/** The body: the write a `PUT /api/site_pages/<id>` takes, plus the id when editing. */
-export const previewBody = (
+/** What one render request sends, and the key of every block it sends, in body order. */
+export interface PreviewRequest {
+  readonly body: WireBody;
+  /** `order[n - 1]` is the key of the block the server stamps `data-romeka-block="n"`. */
+  readonly order: readonly BlockKey[];
+}
+
+/** One server render and the order it was rendered from. Never split. */
+export interface PreviewRender {
+  readonly html: string;
+  readonly order: readonly BlockKey[];
+}
+
+/**
+ * The body is the write a `PUT /api/site_pages/<id>` takes, plus the id when
+ * editing. The body and the order come from one canonical block list, so they
+ * cannot disagree.
+ */
+export const previewRequest = (
   draft: PageContent,
   siteId: SiteId,
   pageId: PageId | null,
-): WireBody => ({
-  ...encodeSitePage(toPageWrite(draft, siteId)),
-  ...(pageId === null ? {} : { 'o:id': pageId }),
-});
+): PreviewRequest => {
+  const blocks = canonicalBlocks(draft.blocks);
+  return {
+    body: {
+      ...encodeSitePage(toPageWrite({ ...draft, blocks }, siteId)),
+      ...(pageId === null ? {} : { 'o:id': pageId }),
+    },
+    order: blocks.map((block) => block.key),
+  };
+};
 
 /** The `/s/<slug>/preview` URL, with the signed-in key attached the way `/api` writes attach it. */
 export const previewUrl = (siteSlug: string): string => {
@@ -68,9 +92,11 @@ const errorMessage = async (response: Response): Promise<string> => {
 export const requestPreview = async (
   siteSlug: string,
   body: WireBody,
+  signal?: AbortSignal,
 ): Promise<PreviewResult> => {
   const response = await fetch(previewUrl(siteSlug), {
     method: 'POST',
+    ...(signal === undefined ? {} : { signal }),
     headers: { Accept: 'text/html', 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     credentials: 'same-origin',

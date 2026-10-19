@@ -383,7 +383,12 @@ pub(crate) async fn render_preview(
         theme_settings,
     )
     .await?;
-    let mut ctx = common.context(Some(preview.page), &loaded);
+    // The editor maps each block wrapper back to its draft block through these
+    // markers. This is the only render that turns them on.
+    #[allow(clippy::disallowed_methods)]
+    let mut ctx = common
+        .context(Some(preview.page), &loaded)
+        .with_preview_markers();
     // The document is the one the saved page will serve, so the path is the
     // page's own and the request's query is dropped: a preview request carries
     // credentials there, not a page query, and a block that builds a link from
