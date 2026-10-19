@@ -25,6 +25,10 @@ use chrono::{Datelike, NaiveDateTime};
 
 use crate::search::SearchResource;
 
+mod messages;
+
+pub use messages::{EN, ES, Messages};
+
 /// A locale the site layer can render in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Locale {
@@ -85,93 +89,6 @@ impl Locale {
         }
     }
 }
-
-/// The user-visible strings the site layer renders. One field per message, so a
-/// locale that omits one fails to compile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Messages {
-    /// `view/layout/layout.phtml`: the footer line.
-    pub powered_by: &'static str,
-    /// `view/omeka/site/index/index.phtml`: a site with no pages.
-    pub no_pages: &'static str,
-    /// `common/site-page-pagination.phtml`.
-    pub prev: &'static str,
-    /// `common/site-page-pagination.phtml`.
-    pub next: &'static str,
-    /// `view/omeka/site/item/browse.phtml`: the search link.
-    pub advanced_search: &'static str,
-    /// `view/omeka/site/item/show.phtml`: the resource kind heading.
-    pub item: &'static str,
-    /// `view/omeka/site/item-set/browse.phtml`: the kind heading.
-    pub item_set: &'static str,
-    /// `view/omeka/site/media/show.phtml`: the kind heading.
-    pub media: &'static str,
-    /// `item-with-metadata.phtml` and the item-set view: the item-set list.
-    pub item_sets: &'static str,
-    /// `BlockLayout/ItemWithMetadata.php::render`: a block with no attachments.
-    pub no_item_selected: &'static str,
-    /// `media/show.phtml`'s `sprintf($translate('Part of %s'), ...)` prefix.
-    pub part_of: &'static str,
-    /// `block-layout/page-date-time.phtml`.
-    pub created: &'static str,
-    /// `block-layout/page-date-time.phtml`.
-    pub modified: &'static str,
-    /// `common/user-bar.phtml`: the bar's aria label.
-    pub user_bar_label: &'static str,
-    /// `common/user-bar.phtml`: the "Signed in as %s" prefix.
-    pub signed_in_as: &'static str,
-    /// `common/user-bar.phtml`: the logout link.
-    pub log_out: &'static str,
-    /// `common/user-bar.phtml`: the login link.
-    pub log_in: &'static str,
-    /// `view/layout/layout.phtml`: the skip link.
-    pub skip_to_main: &'static str,
-}
-
-/// The English catalogue, the source language.
-pub static EN: Messages = Messages {
-    powered_by: "Powered by Romeka S",
-    no_pages: "This site has no pages.",
-    prev: "Prev",
-    next: "Next",
-    advanced_search: "Advanced search",
-    item: "Item",
-    item_set: "Item set",
-    media: "Media",
-    item_sets: "Item sets",
-    no_item_selected: "No item selected",
-    part_of: "Part of",
-    created: "Created",
-    modified: "Modified",
-    user_bar_label: "Omeka User",
-    signed_in_as: "Signed in as",
-    log_out: "Logout",
-    log_in: "Log in",
-    skip_to_main: "Skip to main content",
-};
-
-/// The Spanish catalogue. Terms match `application/language/es.po` where the
-/// message id is the same.
-pub static ES: Messages = Messages {
-    powered_by: "Funciona con Romeka S",
-    no_pages: "Este sitio no tiene páginas.",
-    prev: "Ant",
-    next: "Siguiente",
-    advanced_search: "Búsqueda avanzada",
-    item: "Ficha",
-    item_set: "Conjunto de fichas",
-    media: "Medios",
-    item_sets: "Conjuntos de fichas",
-    no_item_selected: "Ninguna ficha seleccionada",
-    part_of: "Parte de",
-    created: "Creado",
-    modified: "Modificado",
-    user_bar_label: "Usuario de Omeka",
-    signed_in_as: "Sesión iniciada como",
-    log_out: "Cerrar sesión",
-    log_in: "Iniciar sesión",
-    skip_to_main: "Saltar al contenido principal",
-};
 
 /// The labels the public search reads: the sitewide search form, the advanced
 /// search form and the results pages.
@@ -426,6 +343,24 @@ pub static ES_SEARCH: SearchLabels = SearchLabels {
 #[must_use]
 pub fn sprintf1(pattern: &str, value: &str) -> String {
     pattern.replacen("%s", value, 1)
+}
+
+/// `sprintf($pattern, ...$values)` for `%s` patterns with several arguments,
+/// e.g. `%s with "%s: %s"`. Each `%s` takes the next value; a value is never
+/// scanned again, so a title that contains `%s` prints as written.
+#[must_use]
+pub fn sprintf(pattern: &str, values: &[&str]) -> String {
+    let mut out = String::with_capacity(pattern.len());
+    let mut parts = pattern.split("%s");
+    if let Some(first) = parts.next() {
+        out.push_str(first);
+    }
+    let mut values = values.iter();
+    for part in parts {
+        out.push_str(values.next().copied().unwrap_or(""));
+        out.push_str(part);
+    }
+    out
 }
 
 /// One locale's date names and patterns. Indexed by month (one-based) and
@@ -749,5 +684,15 @@ mod tests {
             "View all results (4 total)"
         );
         assert_eq!(sprintf1("No placeholder", "cat"), "No placeholder");
+    }
+
+    /// `sprintf` fills each placeholder in turn and leaves a value's own `%s`.
+    #[test]
+    fn sprintf_fills_placeholders_in_order() {
+        assert_eq!(
+            sprintf("%s with \"%s: %s\"", &["Items", "Creator", "100%s"]),
+            "Items with \"Creator: 100%s\""
+        );
+        assert_eq!(sprintf("%s and %s", &["one"]), "one and ");
     }
 }

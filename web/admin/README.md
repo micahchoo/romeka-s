@@ -174,6 +174,8 @@ the rule and hides the edit and delete controls for those two.
 | `createItem` / `updateItem` | `POST /api/items`, `PUT /api/items/<id>` | `Item` |
 | `createItemSet` / `updateItemSet` | `POST /api/item_sets`, `PUT /api/item_sets/<id>` | `ItemSet` |
 | `createUser` / `updateUser` | `POST /api/users`, `PUT /api/users/<id>` | `User` |
+| `updateUserLocale` | `PATCH /api/users/<id>` with `o:user_settings` | nothing |
+| `getSettings` / `updateSettings` | `GET`, `PATCH /api/settings` | `GlobalSettings` |
 | `updateMedia` | `PUT /api/media/<id>` | `Media` |
 | `createVocabulary` / `updateVocabulary` | `POST /api/vocabularies`, `PATCH /api/vocabularies/<id>` | `Vocabulary` |
 | `createProperty` / `updateProperty` | `POST /api/properties`, `PUT /api/properties/<id>` | `Property` |
@@ -321,6 +323,13 @@ fallback. `assertComplete` is the runtime guard a catalogue built at the edge mu
 and `useTranslator`. `parseLocale` narrows the stored string at the boundary, so a region tag
 (`es_419`, `en_US`) reads as its language and an unknown tag as English. `main.tsx` renders the
 shell, which carries the `LocaleSwitch` in the header.
+
+That stored locale is only the first paint. A sign-in and `GET /api/me` answer `o:admin_locale`,
+the server's resolution of `MvcListeners::bootstrapLocale` (the user's `locale` setting, else the
+global one), and `setSession` switches to it through `parseLocale`. When a signed-in user changes
+the switch, it also writes their `locale` user setting, best-effort, so the choice follows them to
+another browser. Signed out, `localStorage` is the only source. The settings page and the user edit
+page carry the global and the user `Locale` select (`src/app/locale-select.tsx`).
 
 To add a string, add the key to `en`; `tsc` then fails until `es` has it. To add a locale, add it to
 `Locale` and `LOCALES`, add its catalogue to `CATALOGUES`, and add `locale.<tag>` labels.

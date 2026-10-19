@@ -5,6 +5,11 @@
 //! unused email, and a role. A new user is inactive and has no password, which
 //! matches the upstream entity defaults; the password and activation flow is the
 //! admin surface's work, not this handler's.
+//!
+//! `o:user_settings` is a port addition, the user-settings fieldset upstream's
+//! `Admin\UserController::editAction` writes outside the API. It is validated
+//! with the user and stored after the row, as upstream stores it after the API
+//! update ([`crate::settings`]).
 
 use omeka_db::ids::UserId;
 use omeka_db::repos::UserRepo;
@@ -13,6 +18,7 @@ use omeka_db::rows::{NewUser, UserRow};
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::settings;
 use crate::write::access;
 use crate::write::body::Payload;
 
@@ -25,6 +31,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .unwrap_or_default()
         .to_string();
     let role = payload.str_member("o:role").unwrap_or_default().to_string();
+    let settings = user_settings(payload)?;
     validate(None, api, &name, &email, &role).await?;
     let row = UserRepo::new(api.pool())
         .create(&NewUser {
@@ -37,6 +44,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         })
         .await
         .map_err(db_error)?;
+    settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", &row.id.0.to_string()).await
 }
 
@@ -59,6 +67,7 @@ pub async fn update(
         .str_member("o:role")
         .map(str::to_string)
         .unwrap_or_else(|| row.role.clone());
+    let settings = user_settings(payload)?;
     validate(Some(&row), api, &name, &email, &role).await?;
     row.name = name;
     row.email = email;
@@ -67,7 +76,18 @@ pub async fn update(
         row.is_active = payload.bool_member("o:is_active", row.is_active);
     }
     repo.update(&row).await.map_err(db_error)?;
+    settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", raw_id).await
+}
+
+/// The settings writes `o:user_settings` asks for. An absent member writes none,
+/// so a write from a form without the fieldset keeps what the user stores.
+fn user_settings(
+    payload: &Payload,
+) -> Result<Vec<(&'static str, Option<serde_json::Value>)>, ApiError> {
+    payload
+        .get(settings::USER_SETTINGS_MEMBER)
+        .map_or_else(|| Ok(Vec::new()), settings::parse_user)
 }
 
 /// Delete a user.

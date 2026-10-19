@@ -321,7 +321,7 @@ fn error_views_match_upstream_error_templates() {
     let resources = TestResources::default();
     let ctx = context(&site, &resources);
 
-    let not_found = ErrorView::not_found();
+    let not_found = ErrorView::not_found(ctx.translator().messages());
     let document = DefaultTheme.render(&View::Error(&not_found), &ctx);
     assert!(
         document.contains("<title>Page not found · Romeka S</title>"),
@@ -340,10 +340,41 @@ fn error_views_match_upstream_error_templates() {
         "{document}"
     );
 
-    let forbidden = ErrorView::forbidden();
+    let forbidden = ErrorView::forbidden(ctx.translator().messages());
     let document = DefaultTheme.render(&View::Error(&forbidden), &ctx);
     assert!(document.contains("<h1>Forbidden</h1>"), "{document}");
     assert!(!document.contains("<p>"), "{document}");
+}
+
+/// A Spanish site prints the error pages, the menu toggle and the empty
+/// navigation's home link with `es.po`'s terms.
+#[test]
+fn error_pages_and_menu_render_in_the_site_locale() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.settings.locale = Some("es".to_string());
+    ctx.nav = crate::nav::resolve(&[], &site.slug, &[], ctx.translator().messages());
+
+    let not_found = ErrorView::not_found(ctx.translator().messages());
+    let document = DefaultTheme.render(&View::Error(&not_found), &ctx);
+    assert!(
+        document.contains("<h1>Página no encontrada</h1>"),
+        "{document}"
+    );
+    assert!(
+        document.contains(
+            "<p>La página solicitada no existe. El botón de volver atrás regresará a la última página.</p>"
+        ),
+        "{document}"
+    );
+    assert!(document.contains("</span>Menú</summary>"), "{document}");
+    assert!(document.contains("aria-label=\"Menú\""), "{document}");
+    assert!(document.contains(">Inicio</a>"), "{document}");
+
+    let forbidden = ErrorView::forbidden(ctx.translator().messages());
+    let document = DefaultTheme.render(&View::Error(&forbidden), &ctx);
+    assert!(document.contains("<h1>Prohibido</h1>"), "{document}");
 }
 
 /// A site locale of `es` renders the frame and its labels in Spanish, from the

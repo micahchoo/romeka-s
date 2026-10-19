@@ -14,7 +14,6 @@ export const en = {
   'shell.navLabel': 'Admin pages',
   'shell.noPage': 'No such page. Go to the admin dashboard.',
   'group.content': 'Content',
-  'group.vocabulary': 'Vocabulary',
   'group.admin': 'Admin',
   'page.dashboard': 'Admin dashboard',
   'page.items': 'Items',
@@ -23,7 +22,6 @@ export const en = {
   'page.sites': 'Sites',
   'page.vocabularies': 'Vocabularies',
   'page.properties': 'Properties',
-  'page.resourceClasses': 'Resource classes',
   'page.resourceTemplates': 'Resource templates',
   'page.users': 'Users',
   'page.modules': 'Modules',
@@ -316,6 +314,7 @@ export const en = {
 
   // Users.
   'users.legend': 'User information',
+  'users.settingsLegend': 'User settings',
   'users.displayName': 'Display name',
   'users.email': 'Email',
   'users.role': 'Role',
@@ -795,7 +794,10 @@ export const en = {
   'settings.indexFulltextSearch': 'Index fulltext search',
   'settings.versionNotifications': 'Version notifications',
   'settings.saved': 'Settings updated.',
-  'settings.note': 'The port serves no settings endpoint yet, so these changes are not persisted.',
+  'settings.note': 'The port saves only the locale yet; the other changes are not persisted.',
+  // `SettingForm` and `UserForm`; "Default" is `LocaleSelectFactory`'s empty option.
+  'settings.locale': 'Locale',
+  'settings.localeDefault': 'Default',
 
   // System information page.
   'systemInfo.omeka': 'Omeka S',
@@ -824,6 +826,13 @@ export const en = {
   'locale.label': 'Language',
   'locale.en': 'English',
   'locale.es': 'Español',
+  'locale.hi': 'हिन्दी',
+  'locale.mr': 'मराठी',
+  'locale.ml': 'മലയാളം',
+  'locale.ta': 'தமிழ்',
+  'locale.kn': 'ಕನ್ನಡ',
+  'locale.te': 'తెలుగు',
+  'locale.ne': 'नेपाली',
 
   // The page editor shell: the toolbar, the preview and the inspector.
   'editor.loading': 'Loading the editor...',
@@ -1015,6 +1024,12 @@ export const en = {
   'valueField.noMatch': 'No property matches "{query}".',
   'valueField.matches': 'Matching properties',
   'valueField.moreMatches': '{count} more match. Type more to narrow the list.',
+
+  // The Describe nav group and its Advanced > Standards link.
+  'group.describe': 'Describe',
+  'nav.advanced': 'Advanced',
+  'page.itemTypes': 'Item types',
+  'page.standards': 'Standards',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

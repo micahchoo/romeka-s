@@ -455,6 +455,64 @@ catalogue bytes from the first paint.
 Decision 11 landed first on main, so only the English half of these messages reaches the first
 paint; the Spanish half moves to the lazy `es` chunk.
 
+## Decision 13: seven Indic catalogues raise the catalogue ceiling (accepted)
+
+**Premise.** Decision 11 said a locale whose script needs more bytes per message would be measured
+against `bundle.catalogueChunkGzipBytes` when it lands. Hindi, Marathi, Malayalam, Tamil, Kannada,
+Telugu and Nepali land here. Their letters take 3 bytes each in UTF-8, where Spanish takes 1 or 2.
+
+**Change.** Seven catalogues under `src/i18n/locales/`, one registry entry each. The Theme page's own
+messages (Decision 10) now load the same way: English stays in the page chunk, and every other locale
+is a chunk under `src/pages/sites/themeEditor/locales/` that the page waits for with its site. The
+Standards page's two messages are imported with its page, every locale, as before.
+
+**Measured.** `npm run build` then `npm run perf:check` on this branch merged with main `aff7104`,
+gzip bytes from `zlib.gzipSync` as `perf/bundle.mjs` measures them:
+
+| Asset | Bytes | Note |
+| --- | --- | --- |
+| initial js | 93157 | 27 B under 93184; English is the only eager catalogue |
+| Spanish catalogue | 12642 | for comparison |
+| Hindi catalogue | 14598 | |
+| Nepali catalogue | 14651 | |
+| Marathi catalogue | 14775 | |
+| Kannada catalogue | 14975 | |
+| Telugu catalogue | 15056 | |
+| Tamil catalogue | 15179 | |
+| Malayalam catalogue | 15216 | the largest |
+| largest route chunk | 9830 | the Theme tables count as route chunks |
+
+These are single builds on one machine, and gzip output moves a few bytes with the input order. Each
+new English key adds about 30 B to each Indic chunk.
+
+**Budget.** `bundle.catalogueChunkGzipBytes` moves from 13312 to 16384, 1168 B over Malayalam. That is
+about the margin Decision 11 left over Spanish. The route ceiling and the initial ceiling do not move.
+The initial payload has 27 B left. These locales put the seven endonyms in the English catalogue and
+seven entries in the registry, both eager. The next change that grows the eager path needs its own
+decision.
+
+## Decision 14: the admin locale and translated server errors raise the initial ceiling (accepted)
+
+**Premise.** Decision 13 left 27 B of initial payload. Two changes need the eager path. The admin
+locale follows the user and global `locale` settings (`src/api/session.ts`, the header switch, the
+client calls). Server error text is translated at the fetch boundary (`src/api/client.ts`). Each runs
+before any route loads, on sign-in or on the first failed request, so it cannot wait on a route chunk.
+
+**Measured.** `npm run build` then `npm run perf:check`, gzip bytes from `zlib.gzipSync`:
+
+| Build | initial js | Note |
+| --- | --- | --- |
+| main `a624b37` | 93157 | Decision 13 |
+| + admin locale (`admin/user-locale`) | 93418 | 261 B: the session step, the switch write, three client calls |
+
+These are single builds on one machine. The translated server errors land next, measured on their
+own branch against this one.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 93184 to 94208, one KiB. This is a stopgap. The
+English catalogue holds every page's strings and is eager. Splitting it into per-route namespaces,
+with English lazy per route, would free several KB of the first paint. That split is queued as its
+own unit, and the ceiling should come back down when it lands.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

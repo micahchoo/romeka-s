@@ -240,8 +240,12 @@ pub(super) async fn advanced_form(
     resource: SearchResource,
     action: String,
 ) -> Result<Outcome, SiteError> {
-    let options =
-        pages::form_options(common.loader.pool(), db::SiteId::from(common.site.id.get())).await?;
+    let options = pages::form_options(
+        common.loader.pool(),
+        db::SiteId::from(common.site.id.get()),
+        common.settings.locale().translator().messages(),
+    )
+    .await?;
     let form = AdvancedSearchForm {
         resource,
         action,

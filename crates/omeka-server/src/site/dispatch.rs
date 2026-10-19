@@ -216,6 +216,7 @@ impl<'a> Common<'a> {
             &nav::parse_navigation(&data.row.navigation).unwrap_or_default(),
             &data.site.slug,
             &pages,
+            data.settings.locale().translator().messages(),
         );
         let theme = theme_for(&data.site.theme).unwrap_or(&DefaultTheme);
         let user_name = match actor.user() {

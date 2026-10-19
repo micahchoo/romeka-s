@@ -7,7 +7,16 @@ import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import type { MessageKey } from '../../i18n';
+import { DefinedTerm } from '../standards/definition';
+import { standardsHref } from '../standards/routes';
 import { VocabularyEditForm, isPermanentVocabulary } from './form';
+import {
+  PROPERTY_KIND,
+  RESOURCE_CLASS_KIND,
+  VocabularyMemberAddForm,
+} from './member';
+import type { MemberKind, VocabularyMemberRow } from './member';
 
 /**
  * The API's `vocabulary_id` filter narrows the properties and classes to this
@@ -15,11 +24,72 @@ import { VocabularyEditForm, isPermanentVocabulary } from './form';
  */
 const MEMBERS_PER_PAGE = Number.MAX_SAFE_INTEGER;
 
-interface Loaded {
-  readonly vocabulary: Vocabulary;
+interface Members {
   readonly properties: readonly Property[];
   readonly classes: readonly ResourceClass[];
 }
+
+interface Loaded extends Members {
+  readonly vocabulary: Vocabulary;
+}
+
+/**
+ * One kind of member: a table of them, and on a vocabulary that may change,
+ * the form that adds one to it in place.
+ */
+const MemberTable = <MemberT extends VocabularyMemberRow>({
+  kind,
+  members,
+  emptyKey,
+  vocabulary,
+  onAdded,
+}: {
+  readonly kind: MemberKind<MemberT>;
+  readonly members: readonly MemberT[];
+  readonly emptyKey: MessageKey;
+  /** The vocabulary the add form writes to, or `null` for a permanent one. */
+  readonly vocabulary: VocabularyId | null;
+  readonly onAdded: (member: MemberT) => void;
+}): ReactElement => {
+  const { t } = useTranslator();
+  return (
+    <>
+      {members.length === 0 ? (
+        <p>{t(emptyKey)}</p>
+      ) : (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('column.label')}</th>
+                <th>{t('column.term')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((member) => (
+                <tr key={String(member.id)}>
+                  <td>
+                    <a href={standardsHref(kind.tab, member.id)}>{member.label ?? member.term}</a>
+                  </td>
+                  <td>
+                    <DefinedTerm term={member.term} comment={member.comment}>
+                      {member.term}
+                    </DefinedTerm>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {vocabulary === null ? null : (
+        <EditPanel label={t(kind.addKey)}>
+          <VocabularyMemberAddForm kind={kind} vocabulary={vocabulary} onAdded={onAdded} />
+        </EditPanel>
+      )}
+    </>
+  );
+};
 
 const load = async (vocabularyId: VocabularyId): Promise<Loaded> => {
   const [vocabulary, properties, classes] = await Promise.all([
@@ -43,7 +113,8 @@ const load = async (vocabularyId: VocabularyId): Promise<Loaded> => {
 /**
  * `Admin/VocabularyController::showDetailsAction` with `::propertiesAction` and
  * `::classesAction`: one vocabulary, its own members, a link to every one, the
- * edit form and the delete control. A permanent vocabulary offers neither.
+ * edit form and the delete control. A vocabulary that is not permanent also
+ * takes new properties and classes here, so one page builds a whole vocabulary.
  */
 export const VocabularyDetail = ({
   vocabularyId,
@@ -53,6 +124,7 @@ export const VocabularyDetail = ({
   const { t } = useTranslator();
   const state = useAsync(() => load(vocabularyId), [vocabularyId]);
   const [edited, setEdited] = useState<Vocabulary | null>(null);
+  const [added, setAdded] = useState<Members>({ properties: [], classes: [] });
 
   if (state.status === 'loading') {
     return <p role="status">{t('loading.vocabulary')}</p>;
@@ -61,8 +133,10 @@ export const VocabularyDetail = ({
     return <ErrorNotice error={state.error} />;
   }
 
-  const { properties, classes } = state.data;
   const vocabulary = edited ?? state.data.vocabulary;
+  const editable = !isPermanentVocabulary(vocabulary);
+  const properties = [...state.data.properties, ...added.properties];
+  const classes = [...state.data.classes, ...added.classes];
   return (
     <section>
       <h2>{vocabulary.label}</h2>
@@ -89,64 +163,28 @@ export const VocabularyDetail = ({
       </dl>
 
       <h3>{t('column.properties')}</h3>
-      {properties.length === 0 ? (
-        <p>{t('detail.noProperties')}</p>
-      ) : (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('column.label')}</th>
-                <th>{t('column.term')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {properties.map((property) => (
-                <tr key={String(property.id)}>
-                  <td>
-                    <a href={`#/properties/${String(property.id)}`}>
-                      {property.label ?? property.term}
-                    </a>
-                  </td>
-                  <td>{property.term}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <MemberTable
+        kind={PROPERTY_KIND}
+        members={properties}
+        emptyKey="detail.noProperties"
+        vocabulary={editable ? vocabulary.id : null}
+        onAdded={(property) => {
+          setAdded((prior) => ({ ...prior, properties: [...prior.properties, property] }));
+        }}
+      />
 
       <h3>{t('detail.classes')}</h3>
-      {classes.length === 0 ? (
-        <p>{t('detail.noClasses')}</p>
-      ) : (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('column.label')}</th>
-                <th>{t('column.term')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classes.map((resourceClass) => (
-                <tr key={String(resourceClass.id)}>
-                  <td>
-                    <a href={`#/resource-classes/${String(resourceClass.id)}`}>
-                      {resourceClass.label ?? resourceClass.term}
-                    </a>
-                  </td>
-                  <td>{resourceClass.term}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <MemberTable
+        kind={RESOURCE_CLASS_KIND}
+        members={classes}
+        emptyKey="detail.noClasses"
+        vocabulary={editable ? vocabulary.id : null}
+        onAdded={(resourceClass) => {
+          setAdded((prior) => ({ ...prior, classes: [...prior.classes, resourceClass] }));
+        }}
+      />
 
-      {isPermanentVocabulary(vocabulary) ? (
-        <p>{t('vocabularies.permanent')}</p>
-      ) : (
+      {editable ? (
         <>
           <EditPanel label={t('vocabularies.editLabel')}>
             <VocabularyEditForm vocabulary={vocabulary} onSaved={setEdited} />
@@ -157,10 +195,12 @@ export const VocabularyDetail = ({
             rowName={vocabulary.label}
             onConfirm={async () => {
               await api.deleteVocabulary(vocabulary.id);
-              window.location.hash = '#/vocabularies';
+              window.location.hash = standardsHref('vocabularies');
             }}
           />
         </>
+      ) : (
+        <p>{t('vocabularies.permanent')}</p>
       )}
     </section>
   );
