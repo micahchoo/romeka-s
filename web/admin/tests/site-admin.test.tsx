@@ -491,13 +491,14 @@ const UNREAD_KEYS = {
 } as const;
 
 describe('site settings', () => {
-  it('every_visible_setting_has_a_label_help_and_group_in_both_locales', async () => {
+  it('every_visible_setting_has_a_label_help_and_group_in_every_locale', async () => {
     expect(SITE_SETTINGS_REGISTRY.settings.length).toBeGreaterThan(0);
     const catalogues = await Promise.all(LOCALES.map((locale) => CATALOGUE_LOADERS[locale]()));
     for (const spec of SITE_SETTINGS_REGISTRY.settings) {
       for (const catalogue of catalogues) {
         expect(catalogue[spec.labelKey].trim(), spec.key).not.toBe('');
-        expect(catalogue[spec.helpKey].trim(), spec.key).toMatch(/\.$/);
+        // A help line is a sentence: Hindi, Marathi and Nepali close one with the danda.
+        expect(catalogue[spec.helpKey].trim(), spec.key).toMatch(/[.।]$/);
       }
       expect(spec.group, spec.key).toBeTruthy();
     }
