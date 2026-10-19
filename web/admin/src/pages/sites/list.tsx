@@ -3,12 +3,14 @@ import { api } from '../../api/client';
 import { formatDateTime } from '../../app/format';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 const PER_PAGE = 25;
 
 /** `SiteAdmin/IndexController::indexAction`: the site browse table. */
 export const SiteList = (): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, sites);
   const resource = t('resource.sites');
   return (
     <div>

@@ -18,6 +18,7 @@ import {
   savedTemplatesWire,
 } from './templates';
 import type { SavedTemplate } from './templates';
+import { sites } from '../../i18n/namespaces/sites';
 
 export interface TemplateManagerProps {
   readonly siteId: SiteId;
@@ -36,7 +37,7 @@ const TemplateRow = ({
   readonly onRename: (name: string, description: string) => void;
   readonly onDelete: () => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description);
   const trimmed = name.trim();
@@ -77,7 +78,7 @@ export const TemplateManager = ({
   siteSettings,
   onClose,
 }: TemplateManagerProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const [templates, setTemplates] = useState(() => savedTemplates(siteSettings));
   const { state: saveState, save } = useSave();
 

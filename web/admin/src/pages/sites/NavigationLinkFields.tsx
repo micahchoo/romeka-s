@@ -8,24 +8,28 @@ import type { ReactElement } from 'react';
 import type { PageId } from '../../api/types';
 import { CheckboxField, OptionSelect, TextField } from '../../app/fields';
 import { useTranslator } from '../../i18n';
-import type { MessageKey, Translator } from '../../i18n';
+import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { ItemQueryField } from './editor/fields/ItemQueryField';
 import { NAVIGATION_TYPES, isNavigationType } from './navigationTree';
 import type { LinkPatch, NavLink } from './navigationTree';
+import { sites } from '../../i18n/namespaces/sites';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof sites>;
 
 export interface PageOption {
   readonly id: PageId;
   readonly title: string;
 }
 
-export const TYPE_LABELS: Readonly<Record<(typeof NAVIGATION_TYPES)[number], MessageKey>> = {
+export const TYPE_LABELS: Readonly<Record<(typeof NAVIGATION_TYPES)[number], MessageId>> = {
   page: 'navigation.typePage',
   url: 'navigation.typeUrl',
   browse: 'navigation.typeBrowse',
   browseItemSets: 'navigation.typeBrowseItemSets',
 };
 
-export const typeLabel = (type: string, t: Translator['t']): string =>
+export const typeLabel = (type: string, t: Translator<MessageId>['t']): string =>
   isNavigationType(type) ? t(TYPE_LABELS[type]) : type;
 
 /**
@@ -35,7 +39,7 @@ export const typeLabel = (type: string, t: Translator['t']): string =>
 export const linkLabel = (
   link: NavLink,
   pages: readonly PageOption[],
-  t: Translator['t'],
+  t: Translator<MessageId>['t'],
 ): string => {
   const label = link.label.trim();
   if (label !== '') {
@@ -56,7 +60,7 @@ export const NavigationLinkFields = ({
   readonly pages: readonly PageOption[];
   readonly onChange: (patch: LinkPatch) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const id = (suffix: string): string => `nav-${String(link.key)}-${suffix}`;
   const known = isNavigationType(link.type);
   return (
