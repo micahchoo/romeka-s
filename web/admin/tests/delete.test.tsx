@@ -67,6 +67,7 @@ const formOptionsRoutes: Readonly<Record<string, Handler>> = {
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
+  '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
 };
 
 const optionOrNotFound = (url: URL, init: RequestInit | undefined): Response => {

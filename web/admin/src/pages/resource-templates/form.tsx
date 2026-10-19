@@ -23,6 +23,7 @@ import type {
   User,
   UserId,
 } from '../../api/types';
+import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
 import { OptionSelect, SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { classOptions, selectedOption, userOptions } from '../../app/options';
@@ -39,17 +40,14 @@ export interface TemplateFormOptions {
 
 const loadOptions = async (): Promise<TemplateFormOptions> => {
   const [users, classes, properties, dataTypes] = await Promise.all([
-    api.listUsers({ perPage: 200, sortBy: 'name' }),
-    api.listResourceClasses({ perPage: 200, sortBy: 'label' }),
-    api.listProperties({ perPage: 200, sortBy: 'label' }),
-    api.listDataTypes({ perPage: 100 }),
+    allPages((page) => api.listUsers({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'name' })),
+    allPages((page) =>
+      api.listResourceClasses({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'label' }),
+    ),
+    allPages((page) => api.listProperties({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'label' })),
+    allPages((page) => api.listDataTypes({ page, perPage: ALL_PAGES_PER_PAGE })),
   ]);
-  return {
-    users: users.items,
-    classes: classes.items,
-    properties: properties.items,
-    dataTypes: dataTypes.items,
-  };
+  return { users, classes, properties, dataTypes };
 };
 
 const nullable = (text: string): string | null => (text.trim() === '' ? null : text);

@@ -16,7 +16,7 @@ test('an item is created with an item set, renamed and deleted', async ({
   await page.getByRole('link', { name: 'Add item' }).click();
   await expect(page).toHaveURL(/#\/items\/new$/);
 
-  await page.locator('#item-title').fill(TITLE);
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(TITLE);
   await page.getByLabel(ITEM_SET_TITLE).check();
   await page.getByRole('button', { name: 'Add item' }).click();
 
@@ -29,7 +29,7 @@ test('an item is created with an item set, renamed and deleted', async ({
   await page.getByRole('button', { name: 'Edit this item' }).click();
   await expect(page.getByLabel(ITEM_SET_TITLE)).toBeChecked();
 
-  await page.locator('#item-title').fill(RENAMED);
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(RENAMED);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('[role=status]')).toHaveText('Saved.');
   await expect(page.getByRole('heading', { name: RENAMED })).toBeVisible();

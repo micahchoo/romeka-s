@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { Property } from '../api/types';
 import { useTranslator } from '../i18n';
-import type { MessageKey } from '../i18n';
-import {
-  addValue,
-  patchValue,
-  removeValue,
-  type ResourceDraft,
-  type ValueKind,
-} from './draft';
+import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
 import type { FormOptions, Option } from './options';
-import { classOptions, propertyById, selectedOption, templateOptions, userOptions } from './options';
+import { classOptions, selectedOption, templateOptions, userOptions } from './options';
 import type { SaveState } from './save';
+import { templateById, withTemplate } from './value-fields';
 
 export interface OptionSelectProps<IdT extends number> {
   readonly id: string;
@@ -111,7 +104,10 @@ export interface ResourceFieldsProps {
   readonly options: FormOptions;
 }
 
-/** Template, class, owner and visibility, the shared columns of a write. */
+/**
+ * Template, class, owner and visibility, the shared columns of a write. Picking
+ * a template lays its rows into the values and may set the class.
+ */
 export const ResourceFields = ({
   idPrefix,
   draft,
@@ -128,7 +124,9 @@ export const ResourceFields = ({
         options={templateOptions(options.templates)}
         value={draft.resourceTemplate}
         onChange={(value) => {
-          onChange({ ...draft, resourceTemplate: value });
+          onChange(
+            withTemplate(draft, templateById(options.templates, value), options.properties),
+          );
         }}
       />
       <OptionSelect
@@ -158,216 +156,6 @@ export const ResourceFields = ({
           onChange({ ...draft, isPublic: checked });
         }}
       />
-    </fieldset>
-  );
-};
-
-const VALUE_KINDS: readonly { readonly value: ValueKind; readonly labelKey: MessageKey }[] = [
-  { value: 'literal', labelKey: 'field.kindText' },
-  { value: 'uri', labelKey: 'field.kindUri' },
-  { value: 'resource', labelKey: 'field.kindResource' },
-];
-
-const isValueKind = (value: string): value is ValueKind =>
-  VALUE_KINDS.some((kind) => kind.value === value);
-
-const valueFieldLabel = (kind: ValueKind): MessageKey => {
-  switch (kind) {
-    case 'literal':
-      return 'field.value';
-    case 'uri':
-      return 'field.uri';
-    case 'resource':
-      return 'field.resourceId';
-  }
-};
-
-export interface ValueRowProps {
-  readonly idPrefix: string;
-  readonly draft: ResourceDraft;
-  readonly value: ResourceDraft['values'][number];
-  readonly properties: readonly Property[];
-  readonly onChange: (draft: ResourceDraft) => void;
-}
-
-const ValueRow = ({ idPrefix, draft, value, properties, onChange }: ValueRowProps): ReactElement => {
-  const { t } = useTranslator();
-  const row = (suffix: string): string => `${idPrefix}-${value.key}-${suffix}`;
-  // A stored value can name a property outside the fetched page, so the row
-  // keeps its own option rather than silently switching properties.
-  const options = propertyById(properties, value.propertyId) === null
-    ? [{ id: value.propertyId, label: `${value.term}${t('field.currentSuffix')}` }, ...properties.map((property) => ({ id: property.id, label: property.term }))]
-    : properties.map((property) => ({ id: property.id, label: property.term }));
-  return (
-    <li className="value-row">
-      <p>
-        <label htmlFor={row('property')}>{t('field.property')}</label>
-        <select
-          id={row('property')}
-          value={String(value.propertyId)}
-          onChange={(event) => {
-            const property = propertyById(properties, Number(event.target.value));
-            if (property !== null) {
-              onChange(patchValue(draft, value.key, { propertyId: property.id, term: property.term }));
-            }
-          }}
-        >
-          {options.map((option) => (
-            <option key={String(option.id)} value={String(option.id)}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </p>
-      <p>
-        <label htmlFor={row('type')}>{t('field.type')}</label>
-        <select
-          id={row('type')}
-          value={value.kind}
-          onChange={(event) => {
-            if (isValueKind(event.target.value)) {
-              onChange(patchValue(draft, value.key, { kind: event.target.value }));
-            }
-          }}
-        >
-          {VALUE_KINDS.map((kind) => (
-            <option key={kind.value} value={kind.value}>
-              {t(kind.labelKey)}
-            </option>
-          ))}
-        </select>
-      </p>
-      <p className="value-field-wide">
-        <label htmlFor={row('text')}>{t(valueFieldLabel(value.kind))}</label>
-        <input
-          id={row('text')}
-          type="text"
-          inputMode={value.kind === 'resource' ? 'numeric' : undefined}
-          value={value.text}
-          onChange={(event) => {
-            onChange(patchValue(draft, value.key, { text: event.target.value }));
-          }}
-        />
-      </p>
-      {value.kind === 'uri' ? (
-        <p>
-          <label htmlFor={row('label')}>{t('field.label')}</label>
-          <input
-            id={row('label')}
-            type="text"
-            value={value.label}
-            onChange={(event) => {
-              onChange(patchValue(draft, value.key, { label: event.target.value }));
-            }}
-          />
-        </p>
-      ) : null}
-      {value.kind === 'resource' ? null : (
-        <p>
-          <label htmlFor={row('lang')}>{t('field.language')}</label>
-          <input
-            id={row('lang')}
-            type="text"
-            value={value.lang}
-            onChange={(event) => {
-              onChange(patchValue(draft, value.key, { lang: event.target.value }));
-            }}
-          />
-        </p>
-      )}
-      <p>
-        <label htmlFor={row('public')}>
-          <input
-            id={row('public')}
-            type="checkbox"
-            checked={value.isPublic}
-            onChange={(event) => {
-              onChange(patchValue(draft, value.key, { isPublic: event.target.checked }));
-            }}
-          />
-          {t('field.public')}
-        </label>
-      </p>
-      <p>
-        <button
-          type="button"
-          aria-label={t('field.removeValue', { term: value.term })}
-          onClick={() => {
-            onChange(removeValue(draft, value.key));
-          }}
-        >
-          {t('action.remove')}
-        </button>
-      </p>
-    </li>
-  );
-};
-
-export interface ValuesEditorProps {
-  readonly idPrefix: string;
-  readonly draft: ResourceDraft;
-  readonly onChange: (draft: ResourceDraft) => void;
-  readonly properties: readonly Property[];
-  /** Terms a dedicated field owns, so the editor does not duplicate them. */
-  readonly excludeTerms: readonly string[];
-}
-
-/** The property/value rows of one resource, with add and remove. */
-export const ValuesEditor = ({
-  idPrefix,
-  draft,
-  onChange,
-  properties,
-  excludeTerms,
-}: ValuesEditorProps): ReactElement => {
-  const { t } = useTranslator();
-  const [pending, setPending] = useState('');
-  const rows = draft.values.filter((value) => !excludeTerms.includes(value.term));
-  return (
-    <fieldset>
-      <legend>{t('field.valuesLegend')}</legend>
-      <ul className="value-rows">
-        {rows.map((value) => (
-          <ValueRow
-            key={value.key}
-            idPrefix={idPrefix}
-            draft={draft}
-            value={value}
-            properties={properties}
-            onChange={onChange}
-          />
-        ))}
-      </ul>
-      <p>
-        <label htmlFor={`${idPrefix}-add-property`}>{t('field.addProperty')}</label>
-        <select
-          id={`${idPrefix}-add-property`}
-          value={pending}
-          onChange={(event) => {
-            setPending(event.target.value);
-          }}
-        >
-          <option value="">{t('field.selectProperty')}</option>
-          {properties.map((property) => (
-            <option key={String(property.id)} value={String(property.id)}>
-              {property.term}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled={pending === ''}
-          onClick={() => {
-            const property = propertyById(properties, Number(pending));
-            if (property !== null) {
-              onChange(addValue(draft, property));
-              setPending('');
-            }
-          }}
-        >
-          {t('field.addValue')}
-        </button>
-      </p>
     </fieldset>
   );
 };

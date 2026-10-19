@@ -111,6 +111,26 @@ describe('parseItem', () => {
     expect(error.message).toBe('$.dcterms:title[0].property_id: expected number');
   });
 
+  it('parse_value_reads_a_module_data_type_by_its_shape', () => {
+    const body = loadFixture('item-1.json');
+    if (!isRecord(body)) {
+      throw new Error('fixture item is not an object');
+    }
+    const base = { property_id: 1, property_label: 'Title', is_public: true };
+    const item = parseItem({
+      ...body,
+      'dcterms:title': [
+        { ...base, type: 'customvocab:3', '@value': 'Red', '@language': 'en' },
+        { ...base, type: 'customvocab:4', '@id': 'http://example.org/red', 'o:label': 'Red' },
+        { ...base, type: 'numeric:timestamp' },
+      ],
+    });
+    const [literal, uri, other] = item.values.get('dcterms:title') ?? [];
+    expect(literal).toMatchObject({ kind: 'literal', type: 'customvocab:3', text: 'Red', lang: 'en' });
+    expect(uri).toMatchObject({ kind: 'uri', type: 'customvocab:4', uri: 'http://example.org/red' });
+    expect(other).toMatchObject({ kind: 'other', type: 'numeric:timestamp' });
+  });
+
   it('parse_item_rejects_a_non_object_root', () => {
     const error = parseErrorOf(() => parseItem(null));
     expect(error.path).toEqual([]);

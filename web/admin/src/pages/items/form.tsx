@@ -2,27 +2,14 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Item, ItemSetId, ItemWrite } from '../../api/types';
-import {
-  emptyResourceDraft,
-  literalTextOf,
-  resourceDraftFrom,
-  toValueWrites,
-  valueErrors,
-  withLiteralText,
-  type ResourceDraft,
-} from '../../app/draft';
-import {
-  CheckboxField,
-  ResourceFields,
-  SaveStatus,
-  SubmitRow,
-  TextField,
-  ValuesEditor,
-} from '../../app/fields';
-import { ErrorNotice } from '../../app/errors';
-import { loadFormOptions, titleProperty, type FormOptions } from '../../app/options';
+import { toValueWrites, type ResourceDraft } from '../../app/draft';
+import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
+import { ErrorNotice, FormErrors } from '../../app/errors';
+import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
+import { draftErrors, openDraft, templateById } from '../../app/value-fields';
+import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
 
@@ -36,17 +23,13 @@ interface ItemEditorProps {
 const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator();
   const [draft, setDraft] = useState<ResourceDraft>(() =>
-    item === null ? emptyResourceDraft() : resourceDraftFrom(item),
+    openDraft(item, options.templates, options.properties),
   );
   const [itemSets, setItemSets] = useState<readonly ItemSetId[]>(
     () => item?.itemSets.map((ref) => ref.id) ?? [],
   );
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<readonly string[]>([]);
   const { state: saveState, save } = useSave();
-
-  const title = titleProperty(options.properties, options.templates, draft.resourceTemplate);
-  const titleText = title === null ? '' : literalTextOf(draft.values, title.term);
-  const excludeTerms = title === null ? [] : [title.term];
 
   const toggleItemSet = (id: ItemSetId, checked: boolean): void => {
     setItemSets((current) =>
@@ -56,13 +39,11 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = valueErrors(draft.values, t);
-    const firstError = errors[0];
-    if (firstError !== undefined) {
-      setFormError(firstError);
+    const errors = draftErrors(draft, options.templates, options.properties, t);
+    setFormErrors(errors);
+    if (errors.length > 0) {
       return;
     }
-    setFormError(null);
     const write: ItemWrite = {
       isPublic: draft.isPublic,
       owner: draft.owner,
@@ -72,6 +53,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       values: toValueWrites(draft.values),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
+      sites: item === null ? null : item.sites.map((ref) => ref.id),
     };
     save(async () => {
       const saved =
@@ -83,22 +65,13 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
   return (
     <form onSubmit={submit}>
       <ResourceFields idPrefix="item" draft={draft} onChange={setDraft} options={options} />
-      {title === null ? null : (
-        <TextField
-          id="item-title"
-          label={title.label ?? title.term}
-          value={titleText}
-          onChange={(value) => {
-            setDraft(withLiteralText(draft, title, value));
-          }}
-        />
-      )}
       <ValuesEditor
         idPrefix="item"
         draft={draft}
         onChange={setDraft}
+        template={templateById(options.templates, draft.resourceTemplate)}
         properties={options.properties}
-        excludeTerms={excludeTerms}
+        dataTypes={options.dataTypes}
       />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>
@@ -118,7 +91,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
           ))
         )}
       </fieldset>
-      {formError === null ? null : <p role="alert">{formError}</p>}
+      <FormErrors errors={formErrors} />
       <SaveStatus state={saveState} />
       <SubmitRow
         label={item === null ? t('items.add') : t('action.save')}

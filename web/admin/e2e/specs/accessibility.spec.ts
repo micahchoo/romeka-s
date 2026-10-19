@@ -31,12 +31,12 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
   await expectAxeBudget(page, 'admin item show');
 
   await page.locator('.edit-toggle').first().click();
-  await expect(page.locator('#item-title')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toBeVisible();
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin item edit');
 
   await page.goto('/#/items/new');
-  await expect(page.locator('#item-title')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toBeVisible();
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin item create');
 

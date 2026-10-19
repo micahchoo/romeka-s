@@ -10,7 +10,6 @@ import type {
   AssetId,
   ClassId,
   PropertyId,
-  Property,
   ResourceEntity,
   TemplateId,
   UserId,
@@ -18,6 +17,7 @@ import type {
   ValueWrite,
 } from '../api/types';
 
+/** The editable shape of a value: which members its data type reads. */
 export type ValueKind = 'literal' | 'uri' | 'resource';
 
 export interface ValueDraft {
@@ -25,11 +25,14 @@ export interface ValueDraft {
   readonly key: string;
   readonly propertyId: PropertyId;
   readonly term: string;
+  /** The data type name the write sends: `literal`, `resource:item`, a module's type. */
+  readonly type: string;
   readonly kind: ValueKind;
   /** Literal text, URI, or the resource id as typed. */
   readonly text: string;
   /** `o:label` of a URI value. */
   readonly label: string;
+  /** `@language` of a literal, `o:lang` of a URI. */
   readonly lang: string;
   readonly isPublic: boolean;
 }
@@ -45,7 +48,7 @@ export interface ResourceDraft {
 
 let nextKey = 0;
 
-const draftKey = (): string => {
+export const draftKey = (): string => {
   nextKey += 1;
   return `value-${String(nextKey)}`;
 };
@@ -76,6 +79,17 @@ const kindOf = (value: Value): ValueKind | null => {
   }
 };
 
+const langOf = (value: Value): string => {
+  switch (value.kind) {
+    case 'literal':
+    case 'uri':
+      return value.lang ?? '';
+    case 'resource':
+    case 'other':
+      return '';
+  }
+};
+
 const draftFromValue = (term: string, value: Value): ValueDraft | null => {
   const kind = kindOf(value);
   if (kind === null) {
@@ -85,10 +99,11 @@ const draftFromValue = (term: string, value: Value): ValueDraft | null => {
     key: draftKey(),
     propertyId: value.propertyId,
     term,
+    type: value.type,
     kind,
     text: textOf(value),
     label: value.kind === 'uri' ? (value.label ?? '') : '',
-    lang: value.kind === 'literal' ? (value.lang ?? '') : '',
+    lang: langOf(value),
     isPublic: value.isPublic,
   };
 };
@@ -122,16 +137,25 @@ const emptyToNull = (text: string): string | null => {
   return trimmed === '' ? null : trimmed;
 };
 
+/**
+ * A value with nothing typed in its main input. `ValueHydrator` skips it as an
+ * invalid value, so the form leaves it out of the write rather than sending it.
+ */
+export const isBlank = (value: ValueDraft): boolean => value.text.trim() === '';
+
 /** Turns a validated draft into the value objects of a write body. */
 export const toValueWrites = (values: readonly ValueDraft[]): readonly ValueWrite[] =>
   values.flatMap((value): ValueWrite[] => {
+    if (isBlank(value)) {
+      return [];
+    }
+    const common = { term: value.term, propertyId: value.propertyId, type: value.type };
     switch (value.kind) {
       case 'literal':
         return [
           {
-            term: value.term,
-            propertyId: value.propertyId,
-            type: 'literal',
+            ...common,
+            kind: 'literal',
             text: value.text,
             lang: emptyToNull(value.lang),
             isPublic: value.isPublic,
@@ -140,11 +164,11 @@ export const toValueWrites = (values: readonly ValueDraft[]): readonly ValueWrit
       case 'uri':
         return [
           {
-            term: value.term,
-            propertyId: value.propertyId,
-            type: 'uri',
-            uri: emptyToNull(value.text) ?? '',
+            ...common,
+            kind: 'uri',
+            uri: value.text.trim(),
             label: emptyToNull(value.label),
+            lang: emptyToNull(value.lang),
             isPublic: value.isPublic,
           },
         ];
@@ -152,15 +176,7 @@ export const toValueWrites = (values: readonly ValueDraft[]): readonly ValueWrit
         const resourceId = resourceIdFromParam(value.text);
         return resourceId === null
           ? []
-          : [
-              {
-                term: value.term,
-                propertyId: value.propertyId,
-                type: 'resource',
-                resourceId,
-                isPublic: value.isPublic,
-              },
-            ];
+          : [{ ...common, kind: 'resource', resourceId, isPublic: value.isPublic }];
       }
     }
   });
@@ -169,42 +185,13 @@ export const toValueWrites = (values: readonly ValueDraft[]): readonly ValueWrit
 export const valueErrors = (
   values: readonly ValueDraft[],
   t: Translator['t'],
-): readonly string[] => {
-  const errors: string[] = [];
-  for (const value of values) {
-    if (value.text.trim() !== '') {
-      continue;
-    }
-    if (value.kind === 'literal') {
-      errors.push(t('draft.needsValue', { term: value.term }));
-    } else if (value.kind === 'uri') {
-      errors.push(t('draft.needsUri', { term: value.term }));
-    }
-  }
-  for (const value of values) {
-    if (value.kind === 'resource' && resourceIdFromParam(value.text) === null) {
-      errors.push(t('draft.needsResourceId', { term: value.term }));
-    }
-  }
-  return errors;
-};
-
-export const addValue = (draft: ResourceDraft, property: Property): ResourceDraft => ({
-  ...draft,
-  values: [
-    ...draft.values,
-    {
-      key: draftKey(),
-      propertyId: property.id,
-      term: property.term,
-      kind: 'literal',
-      text: '',
-      label: '',
-      lang: '',
-      isPublic: true,
-    },
-  ],
-});
+): readonly string[] =>
+  values
+    .filter(
+      (value) =>
+        value.kind === 'resource' && !isBlank(value) && resourceIdFromParam(value.text) === null,
+    )
+    .map((value) => t('draft.needsResourceId', { term: value.term }));
 
 export const removeValue = (draft: ResourceDraft, key: string): ResourceDraft => ({
   ...draft,
@@ -219,43 +206,3 @@ export const patchValue = (
   ...draft,
   values: draft.values.map((value) => (value.key === key ? { ...value, ...patch } : value)),
 });
-
-/** The text of the first literal value for a term, or the empty string. */
-export const literalTextOf = (values: readonly ValueDraft[], term: string): string => {
-  const value = values.find((entry) => entry.term === term && entry.kind === 'literal');
-  return value?.text ?? '';
-};
-
-/**
- * Replaces the literal values of one term with a single one. An empty text
- * removes every value of the term, which is what clearing a title means.
- */
-export const withLiteralText = (
-  draft: ResourceDraft,
-  property: Property,
-  text: string,
-): ResourceDraft => {
-  const others = draft.values.filter((value) => value.term !== property.term);
-  if (text.trim() === '') {
-    return { ...draft, values: others };
-  }
-  const existing = draft.values.find(
-    (value) => value.term === property.term && value.kind === 'literal',
-  );
-  return {
-    ...draft,
-    values: [
-      ...others,
-      {
-        key: existing?.key ?? draftKey(),
-        propertyId: property.id,
-        term: property.term,
-        kind: 'literal',
-        text,
-        label: '',
-        lang: existing?.lang ?? '',
-        isPublic: existing?.isPublic ?? true,
-      },
-    ],
-  };
-};
