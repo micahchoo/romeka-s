@@ -720,10 +720,19 @@ code {
   }
 }
 
-/* Block field controls (`src/pages/sites/editor/fields/`). One field is one
- * stacked row: a label, its control, and an inline error under it. */
-.block-form {
+/* The page editor's field layout (`src/pages/sites/editor/Labelled.tsx`), shared
+ * by the page settings, the inspector and every field control. One field is one
+ * stacked row: a label, its control, and an inline error under it.
+ *
+ * Every column is `minmax(0, 1fr)`, a fieldset may shrink below its content
+ * (its default minimum is `min-content`), and every control takes the row's
+ * width. Without all three, a select sized to its longest option widened the
+ * whole column past the inspector's edge. */
+.block-form,
+.block-inspector,
+.page-settings {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -731,12 +740,49 @@ code {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
   margin: 0;
+}
+
+fieldset.block-field {
+  min-inline-size: 0;
 }
 
 .block-field > label,
 .block-field > legend {
   font-weight: 500;
+}
+
+.block-field > input:not([type="checkbox"]),
+.block-field > select,
+.block-field > textarea {
+  width: 100%;
+}
+
+.block-field > .block-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Two controls that read as one value, such as a sort field and its order. */
+.block-field-pair {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.block-field-pair > select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Action rows inside a field: buttons and short inputs that wrap together. */
+.block-field p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
 }
 
 .field-error {
@@ -891,10 +937,30 @@ code {
   padding: var(--space-1) var(--space-2);
 }
 
+/* Save is the one primary action, so it carries the submit button's fill. */
+.editor-toolbar > .editor-save {
+  padding-inline: var(--space-4);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.editor-toolbar > .editor-save:hover:not(:disabled) {
+  background: #164f96;
+  border-color: #164f96;
+}
+
+/* A live region, so it opts out of the boxed `[role="status"]` surface: the
+ * toolbar keeps one line height whether the draft is dirty or not. */
 .editor-dirty {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--danger);
   font-size: 13px;
 }
@@ -981,10 +1047,12 @@ code {
   font-size: 13px;
 }
 
+/* The frame lays out at the device width and is scaled into this box, so the
+ * box has a fixed height and clips the unscaled layout size. */
 .editor-preview-frame {
-  margin: 0 auto;
+  position: relative;
   width: 100%;
-  min-height: 70vh;
+  height: 70vh;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -992,9 +1060,9 @@ code {
 }
 
 .editor-preview-frame iframe {
+  position: absolute;
+  top: 0;
   display: block;
-  width: 100%;
-  min-height: 70vh;
   border: 0;
   background: var(--surface);
 }
@@ -1003,12 +1071,6 @@ code {
   margin: 0;
   padding: var(--space-4);
   color: var(--text-muted);
-}
-
-.page-settings,
-.block-inspector {
-  display: grid;
-  gap: var(--space-3);
 }
 
 .page-settings h2,
@@ -1029,9 +1091,11 @@ code {
 /* The site Theme page: token controls, the contrast readout, and the side-by-
    side live preview the page editor also uses. */
 
+/* The form keeps a fixed, readable width; the preview scales its frame into
+ * whatever is left. */
 .theme-editor {
   display: grid;
-  grid-template-columns: minmax(20rem, 1fr) minmax(0, 2fr);
+  grid-template-columns: 28rem minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
 }
@@ -1056,7 +1120,8 @@ code {
 
 .theme-colour {
   display: grid;
-  grid-template-columns: 8rem auto 8rem;
+  grid-template-columns: 8rem 3rem 8rem;
+  justify-content: start;
   align-items: center;
   gap: var(--space-1) var(--space-2);
 }
@@ -1094,14 +1159,38 @@ code {
 
 .theme-contrast li {
   display: grid;
-  grid-template-columns: 1fr 6rem 10rem;
-  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--space-3);
+  white-space: nowrap;
   padding: var(--space-1) 0;
   border-bottom: 1px solid var(--border);
 }
 
 .contrast-ratio {
   font-variant-numeric: tabular-nums;
+}
+
+/* One block of a resource page is one line: its name, then its three actions. */
+.resource-page-blocks {
+  margin: 0 0 var(--space-3);
+  padding-inline-start: var(--space-5);
+}
+
+.resource-page-block + .resource-page-block {
+  margin-top: var(--space-1);
+}
+
+.resource-page-block-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.resource-page-block-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-inline-end: var(--space-2);
 }
 
 .contrast-pass .contrast-state {

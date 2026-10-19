@@ -38,6 +38,8 @@ export interface CanvasCardProps {
   readonly blocks: readonly BlockDraft[];
   readonly label: string;
   readonly summary: string;
+  /** The thumbnail of the image the block names, `null` when it names none. */
+  readonly image: string | null;
   readonly issues: readonly ValidationIssue[];
   /** Whether the carrier's stored html was edited outside Romeka. */
   readonly mismatch: boolean;
@@ -60,6 +62,7 @@ export const CanvasCard = ({
   blocks,
   label,
   summary,
+  image,
   issues,
   mismatch,
   selected,
@@ -235,6 +238,7 @@ export const CanvasCard = ({
       }}
     >
       <div className="canvas-card-head">
+        {image === null ? null : <img className="canvas-card-thumb" src={image} alt="" />}
         <span className="canvas-card-label">{label}</span>
         <span className="canvas-card-summary">{summary}</span>
         {issues.length === 0 ? null : (

@@ -127,6 +127,8 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
     let routes = Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route("/admin", get(admin_redirect))
+        .route("/admin/", get(admin_redirect))
         .route("/api", any(api_root))
         .route("/api-context", any(api_context))
         .route("/api/{resource}", any(collection))
@@ -174,6 +176,18 @@ async fn ready(State(state): State<AppState>) -> Response {
         Ok(_) => status_response(StatusCode::OK, "ready"),
         Err(_) => status_response(StatusCode::SERVICE_UNAVAILABLE, "unavailable"),
     }
+}
+
+/// `/admin` and `/admin/`: upstream's admin path, where an old bookmark lands.
+/// The SPA is served at the root and loads its assets relative to its own
+/// path, so the shell under `/admin/` would request `/admin/assets/*` and
+/// render blank. Both spellings send the browser to the root instead.
+async fn admin_redirect(State(state): State<AppState>) -> Response {
+    Response::builder()
+        .status(StatusCode::FOUND)
+        .header(header::LOCATION, format!("{}/", state.base.as_str()))
+        .body(Body::empty())
+        .unwrap_or_else(|_| empty_internal_error())
 }
 
 fn status_response(status: StatusCode, value: &'static str) -> Response {

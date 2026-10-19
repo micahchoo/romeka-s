@@ -6,7 +6,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { DraftAction } from '../src/pages/sites/editor/draft';
-import { actionsOf, BlockFormHarness, captureBlock, dispatchSpy } from './editor-fields-helpers';
+import {
+  actionsOf,
+  BlockFormHarness,
+  captureBlock,
+  dispatchSpy,
+  SITE_ID,
+} from './editor-fields-helpers';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, requestsFor } from './stub';
 
@@ -48,11 +54,24 @@ const queryAction = (dispatch: ReturnType<typeof dispatchSpy>): DraftAction => {
 };
 
 describe('the item query field control', () => {
-  it('shows how many items match the stored query', async () => {
-    installFetch(handler);
+  it('counts the items of the block\'s own site, as the public render does', async () => {
+    const fetchMock = installFetch(handler);
     renderQuery('');
 
-    expect(await screen.findByText('7 items match.')).toBeInTheDocument();
+    expect(await screen.findByText('7 items in this site match.')).toBeInTheDocument();
+    const sent = requestsFor(fetchMock, '/api/items');
+    expect(sent.map((request) => request.url.searchParams.get('site_id'))).toContain(
+      String(SITE_ID),
+    );
+  });
+
+  it('says why the block shows nothing when no item of the site matches', async () => {
+    installFetch((url) => (url.pathname === '/api/items' ? listResponse([], 0) : handler(url)));
+    renderQuery('');
+
+    expect(
+      await screen.findByText(/No items in this site match, so the block shows nothing\./),
+    ).toBeInTheDocument();
   });
 
   it('full-text search writes fulltext_search', () => {
@@ -86,7 +105,7 @@ describe('the item query field control', () => {
   it('the item set select writes item_set_id', async () => {
     installFetch(handler);
     const { dispatch, key } = renderQuery('');
-    await screen.findByText('7 items match.');
+    await screen.findByText('7 items in this site match.');
 
     fireEvent.change(screen.getByLabelText('Item set'), { target: { value: '2' } });
 
@@ -101,7 +120,7 @@ describe('the item query field control', () => {
   it('the class select writes resource_class_id', async () => {
     installFetch(handler);
     const { dispatch, key } = renderQuery('');
-    await screen.findByText('7 items match.');
+    await screen.findByText('7 items in this site match.');
 
     fireEvent.change(screen.getByLabelText('Resource class'), { target: { value: '13' } });
 

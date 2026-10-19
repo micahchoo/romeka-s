@@ -8,14 +8,15 @@
  * the client reads into `ApiPage.total`; the request asks for one row and only
  * uses the header.
  */
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '../../../../api/client';
 import type { ResourceQuery } from '../../../../api/client';
-import type { ItemSet, ResourceClass } from '../../../../api/types';
+import type { ItemSet, ResourceClass, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import type { MessageKey } from '../../../../i18n';
+import { Labelled } from '../Labelled';
 import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
 
 /** How long the builder waits before it asks for a match count. */
@@ -38,6 +39,9 @@ export interface ItemQueryFieldProps {
   /** The lists when the editor already loaded them; the control then makes no request. */
   readonly itemSets?: readonly ItemSet[];
   readonly classes?: readonly ResourceClass[];
+  /** The site whose items a block shows. The count is scoped to it, because the
+   * public render adds `site_id` to the stored query. */
+  readonly siteId?: SiteId;
 }
 
 /** A value that settles after `delay` without a change, so a typed query is one request. */
@@ -55,7 +59,7 @@ const useSettled = (value: string, delay: number): string => {
 };
 
 /** The list request one stored query makes: one row, for the total header. */
-const countQuery = (value: string): ResourceQuery => {
+const countQuery = (value: string, siteId: SiteId | undefined): ResourceQuery => {
   const pairs = parseQuery(value);
   const fulltext = queryValue(pairs, QUERY_KEYS.fulltext).trim();
   const itemSet = queryId(pairs, QUERY_KEYS.itemSet);
@@ -64,6 +68,7 @@ const countQuery = (value: string): ResourceQuery => {
   const sortOrder = queryValue(pairs, QUERY_KEYS.sortOrder).trim();
   return {
     perPage: 1,
+    ...(siteId === undefined ? {} : { site_id: siteId }),
     ...(fulltext === '' ? {} : { fulltext_search: fulltext }),
     ...(itemSet === null ? {} : { item_set_id: itemSet }),
     ...(resourceClass === null ? {} : { resource_class_id: resourceClass }),
@@ -71,21 +76,6 @@ const countQuery = (value: string): ResourceQuery => {
     ...(sortOrder === 'asc' || sortOrder === 'desc' ? { sortOrder } : {}),
   };
 };
-
-const QueryRow = ({
-  id,
-  label,
-  children,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly children: ReactNode;
-}): ReactElement => (
-  <p>
-    <label htmlFor={id}>{label}</label>
-    {children}
-  </p>
-);
 
 /** A select over one id list, keeping a stored id the list does not name. */
 const IdSelect = ({
@@ -122,6 +112,15 @@ const IdSelect = ({
   );
 };
 
+const countMessage = (count: number, scoped: boolean): MessageKey =>
+  count === 0
+    ? scoped
+      ? 'query.siteNoMatch'
+      : 'query.noMatch'
+    : scoped
+      ? 'query.siteMatchCount'
+      : 'query.matchCount';
+
 export const ItemQueryField = ({
   id,
   label,
@@ -130,6 +129,7 @@ export const ItemQueryField = ({
   required = false,
   itemSets,
   classes,
+  siteId,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator();
   const pairs = parseQuery(value);
@@ -150,8 +150,8 @@ export const ItemQueryField = ({
   );
   const counted = useSettled(value, COUNT_DELAY_MS);
   const matches = useAsync(
-    () => api.listItems(countQuery(counted)).then((page) => page.total),
-    [counted],
+    () => api.listItems(countQuery(counted, siteId)).then((page) => page.total),
+    [counted, siteId],
   );
   const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
   const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
@@ -167,7 +167,7 @@ export const ItemQueryField = ({
   return (
     <fieldset className="block-field query-field">
       <legend>{label}</legend>
-      <QueryRow id={`${id}-fulltext`} label={t('query.fulltext')}>
+      <Labelled id={`${id}-fulltext`} label={t('query.fulltext')}>
         <input
           id={`${id}-fulltext`}
           type="search"
@@ -177,8 +177,8 @@ export const ItemQueryField = ({
             set(QUERY_KEYS.fulltext, event.target.value);
           }}
         />
-      </QueryRow>
-      <QueryRow id={`${id}-item-set`} label={t('query.itemSet')}>
+      </Labelled>
+      <Labelled id={`${id}-item-set`} label={t('query.itemSet')}>
         <IdSelect
           id={`${id}-item-set`}
           value={itemSet}
@@ -190,8 +190,8 @@ export const ItemQueryField = ({
             label: entry.title ?? t('common.untitled'),
           }))}
         />
-      </QueryRow>
-      <QueryRow id={`${id}-class`} label={t('query.resourceClass')}>
+      </Labelled>
+      <Labelled id={`${id}-class`} label={t('query.resourceClass')}>
         <IdSelect
           id={`${id}-class`}
           value={resourceClass}
@@ -203,43 +203,43 @@ export const ItemQueryField = ({
             label: entry.label ?? entry.term,
           }))}
         />
-      </QueryRow>
-      <QueryRow id={`${id}-sort-by`} label={t('query.sort')}>
-        <select
-          id={`${id}-sort-by`}
-          value={sortBy}
-          onChange={(event) => {
-            set(QUERY_KEYS.sortBy, event.target.value);
-          }}
-        >
-          <option value="">{t('query.sortNone')}</option>
-          {sortFields.map((field) => (
-            <option key={field.value} value={field.value}>
-              {field.label === null ? t('query.optionFallback', { id: field.value }) : t(field.label)}
-            </option>
-          ))}
-        </select>
-        <select
-          id={`${id}-sort-order`}
-          aria-label={t('query.sortOrder')}
-          value={sortOrder}
-          onChange={(event) => {
-            set(QUERY_KEYS.sortOrder, event.target.value);
-          }}
-        >
-          <option value="">{t('query.sortNone')}</option>
-          <option value="asc">{t('query.orderAsc')}</option>
-          <option value="desc">{t('query.orderDesc')}</option>
-        </select>
-      </QueryRow>
+      </Labelled>
+      <Labelled id={`${id}-sort-by`} label={t('query.sort')}>
+        <div className="block-field-pair">
+          <select
+            id={`${id}-sort-by`}
+            value={sortBy}
+            onChange={(event) => {
+              set(QUERY_KEYS.sortBy, event.target.value);
+            }}
+          >
+            <option value="">{t('query.sortNone')}</option>
+            {sortFields.map((field) => (
+              <option key={field.value} value={field.value}>
+                {field.label === null ? t('query.optionFallback', { id: field.value }) : t(field.label)}
+              </option>
+            ))}
+          </select>
+          <select
+            id={`${id}-sort-order`}
+            aria-label={t('query.sortOrder')}
+            value={sortOrder}
+            onChange={(event) => {
+              set(QUERY_KEYS.sortOrder, event.target.value);
+            }}
+          >
+            <option value="">{t('query.sortNone')}</option>
+            <option value="asc">{t('query.orderAsc')}</option>
+            <option value="desc">{t('query.orderDesc')}</option>
+          </select>
+        </div>
+      </Labelled>
       <p className="query-count" role="status">
         {matches.status === 'loading'
           ? t('query.counting')
           : matches.status === 'error'
             ? t('query.countError')
-            : matches.data === 0
-              ? t('query.noMatch')
-              : t('query.matchCount', { count: matches.data })}
+            : t(countMessage(matches.data, siteId !== undefined), { count: matches.data })}
       </p>
     </fieldset>
   );

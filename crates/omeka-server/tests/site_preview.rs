@@ -724,3 +724,50 @@ async fn preview_theme_override_validates_the_tokens() {
         "the hostile value reached the document"
     );
 }
+
+/// The preview frame is the page as a visitor sees it, so the user bar the
+/// signed-in owner gets on the stored page is left out of the preview.
+#[tokio::test]
+async fn preview_renders_without_the_user_bar() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+    let cookie = login_cookie(app.clone(), "vis-owner@example.com", VISIBILITY_PASSWORD).await;
+    let stored = send(
+        app.clone(),
+        Request::builder()
+            .method("GET")
+            .uri("/s/vis-pub/page/vis-pub-public")
+            .header("cookie", &cookie)
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(stored.status, StatusCode::OK, "{}", stored.body);
+    assert!(
+        stored.body.contains("id=\"user-bar\""),
+        "the stored page shows the signed-in caller the user bar"
+    );
+
+    let body = page_body(
+        Some(seed.public_page),
+        "vis-pub-public",
+        "Vis public page",
+        json!([{"o:layout": "html", "o:data": {"html": "<p>Draft</p>"}}]),
+    );
+    let preview = send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    assert!(preview.body.contains("<p>Draft</p>"), "{}", preview.body);
+    assert!(
+        !preview.body.contains("id=\"user-bar\""),
+        "the preview carries the user bar"
+    );
+}

@@ -392,6 +392,10 @@ pub(crate) async fn render_preview(
     ctx.query = Vec::new();
     ctx.page_created = preview.created;
     ctx.page_modified = preview.modified;
+    // The editor shows the page as a visitor will see it. The caller is always
+    // a signed-in editor, so `show_user_bar` would otherwise put the admin bar
+    // in every preview.
+    ctx.settings.show_user_bar = Some(-1);
     Ok(Outcome::Html(render_page(
         common.theme,
         preview.page,

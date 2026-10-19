@@ -426,6 +426,9 @@ pub struct LayoutEntry {
     pub name: &'static str,
     /// The catalogue key for the layout's name (`layout.<name>`).
     pub label: String,
+    /// The catalogue key for the one line the insert picker shows under the
+    /// name (`layoutHelp.<name>`).
+    pub description: String,
     /// The layout's `data` fields, flattened beside its name.
     #[serde(flatten)]
     pub schema: LayoutSchema,
@@ -438,6 +441,9 @@ pub struct RomkaEntry {
     pub name: &'static str,
     /// The catalogue key for the block's label (`romeka.<name>`).
     pub label: &'static str,
+    /// The catalogue key for the picker's one-line description
+    /// (`romekaHelp.<name>`).
+    pub description: String,
     /// The upstream layout that stores the block.
     pub carrier: &'static str,
     /// The settings fields, flattened beside the entry's name.
@@ -504,6 +510,7 @@ pub fn registry() -> Registry {
         .map(|layout| LayoutEntry {
             name: layout.name(),
             label: format!("layout.{}", layout.name()),
+            description: format!("layoutHelp.{}", layout.name()),
             schema: *layout.schema(),
         })
         .collect();
@@ -512,6 +519,7 @@ pub fn registry() -> Registry {
         .map(|block| RomkaEntry {
             name: block.name(),
             label: block.label(),
+            description: format!("romekaHelp.{}", block.name()),
             carrier: block.carrier(),
             schema: *block.schema(),
         })
