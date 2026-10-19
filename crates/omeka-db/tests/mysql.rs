@@ -15,7 +15,7 @@
 
 mod common;
 
-use omeka_db::ids::{ItemId, PropertyId, ResourceId};
+use omeka_db::ids::{ItemId, PageId, PropertyId, ResourceId, UserId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo, JobRepo, MatchKind,
     ModuleRepo, Paging, PasswordCreationRepo, PropertyFilter, PropertyRepo, QueryFilter,
@@ -23,8 +23,9 @@ use omeka_db::repos::{
     ValueQuery, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
-    FulltextSearchRow, NewClass, NewItem, NewItemSet, NewJob, NewPasswordCreation, NewProperty,
-    NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue, NewVocabulary,
+    FulltextSearchRow, NewClass, NewFirstPage, NewFirstPageBlock, NewItem, NewItemSet, NewJob,
+    NewPasswordCreation, NewProperty, NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue,
+    NewVocabulary, NewWholeSite,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -703,4 +704,83 @@ async fn a_session_upsert_and_a_job_log_use_the_mysql_spelling() {
     assert_eq!(modules.list().await.expect("list modules").len(), 1);
 
     db.cleanup().await;
+}
+
+fn link_first_page(page: PageId) -> serde_json::Value {
+    json!([{ "type": "page", "data": { "id": page.0 }, "links": [] }])
+}
+
+/// `SiteRepo::create_whole` on InnoDB: a whole create stores every row with the navigation
+/// linking the first page, and a permission whose user fails its foreign key after the site, page
+/// and block are inserted rolls all of them back.
+#[tokio::test]
+async fn a_whole_site_create_commits_together_or_not_at_all() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let new = |slug: &str, user: UserId| NewWholeSite {
+        site: NewSite {
+            slug: slug.to_string(),
+            theme: "default".to_string(),
+            title: "Whole".to_string(),
+            ..NewSite::default()
+        },
+        first_page: NewFirstPage {
+            slug: "welcome".to_string(),
+            title: "Welcome".to_string(),
+            is_public: true,
+            blocks: vec![NewFirstPageBlock {
+                layout: "html".to_string(),
+                data: json!({ "html": "<p>One</p>" }),
+                layout_data: None,
+            }],
+        },
+        navigation_linking_first_page: Some(link_first_page),
+        permissions: vec![(user, "admin".to_string())],
+        item_sets: Vec::new(),
+        settings: vec![("locale".to_string(), json!("es"))],
+    };
+    let user = UserRepo::<MySql>::new(&db.pool)
+        .create(&NewUser {
+            email: "whole@example.org".to_string(),
+            name: "Whole".to_string(),
+            password_hash: None,
+            role: "editor".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .expect("create user");
+    let sites = SiteRepo::<MySql>::new(&db.pool);
+
+    let site = sites
+        .create_whole(&new("whole", user.id))
+        .await
+        .expect("create whole site");
+    let pages = sites.list_pages(site.id).await.expect("list pages");
+    assert_eq!(pages.len(), 1);
+    let stored = sites.get(site.id).await.expect("read site").expect("site");
+    assert_eq!(stored.navigation, link_first_page(pages[0].id));
+    assert_eq!(stored.modified, Some(stored.created));
+
+    assert!(
+        sites
+            .create_whole(&new("broken", UserId(999_999)))
+            .await
+            .is_err()
+    );
+    assert_eq!(sites.get_by_slug("broken").await.expect("read slug"), None);
+    for table in [
+        "site",
+        "site_page",
+        "site_page_block",
+        "site_permission",
+        "site_setting",
+    ] {
+        let rows: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+            .fetch_one(&db.pool)
+            .await
+            .expect("count rows");
+        assert_eq!(rows, 1, "{table} holds only the whole site's row");
+    }
 }
