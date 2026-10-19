@@ -57,6 +57,13 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'item form messages',
+    source: 'src/pages/items/messages.ts',
+    dir: 'src/pages/items/locales',
+    type: 'ItemMessages',
+    from: '../messages',
+  },
+  {
     what: 'describe strings',
     source: 'src/app/describe-messages.ts',
     dir: 'src/app/describe-locales',
