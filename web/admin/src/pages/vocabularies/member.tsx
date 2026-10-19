@@ -30,13 +30,14 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { MessageKey } from '../../i18n';
+import { standardsHref } from '../standards/routes';
 
 export type VocabularyMemberRow = Property | ResourceClass;
 
-/** One member adapter: its resource name, its route and its endpoint calls. */
+/** One member adapter: its resource name, its Standards tab and its endpoint calls. */
 export interface MemberKind<MemberT extends VocabularyMemberRow> {
   readonly name: 'properties' | 'resource_classes';
-  readonly route: 'properties' | 'resource-classes';
+  readonly tab: 'properties' | 'classes';
   readonly addKey: MessageKey;
   readonly editKey: MessageKey;
   readonly deleteKey: MessageKey;
@@ -48,7 +49,7 @@ export interface MemberKind<MemberT extends VocabularyMemberRow> {
 
 export const PROPERTY_KIND: MemberKind<Property> = {
   name: 'properties',
-  route: 'properties',
+  tab: 'properties',
   addKey: 'properties.add',
   editKey: 'properties.editLabel',
   deleteKey: 'properties.deleteLabel',
@@ -60,7 +61,7 @@ export const PROPERTY_KIND: MemberKind<Property> = {
 
 export const RESOURCE_CLASS_KIND: MemberKind<ResourceClass> = {
   name: 'resource_classes',
-  route: 'resource-classes',
+  tab: 'classes',
   addKey: 'resourceClasses.add',
   editKey: 'resourceClasses.editLabel',
   deleteKey: 'resourceClasses.deleteLabel',
@@ -72,26 +73,48 @@ export const RESOURCE_CLASS_KIND: MemberKind<ResourceClass> = {
 
 const nullable = (text: string): string | null => (text.trim() === '' ? null : text);
 
+/**
+ * What the editor writes. `create` picks the vocabulary and the owner, `add`
+ * joins the vocabulary whose page it sits on, and `edit` sends neither, since
+ * `o:vocabulary` is read on create only and the read carries no owner.
+ */
+export type MemberTarget<MemberT extends VocabularyMemberRow> =
+  | {
+      readonly kind: 'create';
+      readonly vocabularies: readonly Vocabulary[];
+      readonly users: readonly User[];
+    }
+  | { readonly kind: 'add'; readonly vocabulary: VocabularyId }
+  | { readonly kind: 'edit'; readonly member: MemberT };
+
 interface MemberEditorProps<MemberT extends VocabularyMemberRow> {
   readonly kind: MemberKind<MemberT>;
-  /** The stored member, or `null` to create one. */
-  readonly member: MemberT | null;
-  /** The vocabularies a create may name. */
-  readonly vocabularies: readonly Vocabulary[];
-  /** The users a create may name as owner. */
-  readonly users: readonly User[];
+  readonly target: MemberTarget<MemberT>;
   readonly onSaved: (member: MemberT) => void;
 }
 
+/** The vocabulary a write names, or `null` when a create has none chosen yet. */
+const vocabularyOf = <MemberT extends VocabularyMemberRow>(
+  target: MemberTarget<MemberT>,
+  chosen: VocabularyId | null,
+): VocabularyId | null => {
+  switch (target.kind) {
+    case 'create':
+      return chosen;
+    case 'add':
+      return target.vocabulary;
+    case 'edit':
+      return target.member.vocabulary.id;
+  }
+};
+
 const MemberEditor = <MemberT extends VocabularyMemberRow>({
   kind,
-  member,
-  vocabularies,
-  users,
+  target,
   onSaved,
 }: MemberEditorProps<MemberT>): ReactElement => {
   const { t } = useTranslator();
-  const create = member === null;
+  const member = target.kind === 'edit' ? target.member : null;
   const [localName, setLocalName] = useState(member?.localName ?? '');
   const [label, setLabel] = useState(member?.label ?? '');
   const [comment, setComment] = useState(member?.comment ?? '');
@@ -99,6 +122,7 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
   const [vocabulary, setVocabulary] = useState<VocabularyId | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const { state: saveState, save } = useSave();
+  const idBase = `member-${kind.name}`;
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -110,15 +134,10 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
       setFormError(t('form.errorEmptyLabel'));
       return;
     }
-    let vocabularyId: VocabularyId;
-    if (member === null) {
-      if (vocabulary === null) {
-        setFormError(t('member.errorEmptyVocabulary'));
-        return;
-      }
-      vocabularyId = vocabulary;
-    } else {
-      vocabularyId = member.vocabulary.id;
+    const vocabularyId = vocabularyOf(target, vocabulary);
+    if (vocabularyId === null) {
+      setFormError(t('member.errorEmptyVocabulary'));
+      return;
     }
     setFormError(null);
     const write: VocabularyMemberWrite = {
@@ -129,12 +148,9 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
       vocabulary: vocabularyId,
     };
     save(async () => {
-      if (member === null) {
-        const created = await kind.create(write);
-        window.location.hash = `#/${kind.route}/${String(created.id)}`;
-      } else {
-        onSaved(await kind.update(member.id, write));
-      }
+      onSaved(
+        member === null ? await kind.create(write) : await kind.update(member.id, write),
+      );
     });
   };
 
@@ -143,11 +159,11 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
       <form onSubmit={submit}>
         <fieldset>
           <legend>{t('member.legend')}</legend>
-          {create ? (
+          {target.kind === 'create' ? (
             <OptionSelect
-              id={`member-${kind.name}-vocabulary`}
+              id={`${idBase}-vocabulary`}
               label={t('column.vocabulary')}
-              options={vocabularies.map((entry) => ({
+              options={target.vocabularies.map((entry) => ({
                 id: entry.id,
                 label: entry.label === '' ? entry.prefix : entry.label,
               }))}
@@ -157,21 +173,21 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
             />
           ) : null}
           <TextField
-            id={`member-${kind.name}-local-name`}
+            id={`${idBase}-local-name`}
             label={t('detail.localName')}
             value={localName}
             onChange={setLocalName}
           />
           <TextField
-            id={`member-${kind.name}-label`}
+            id={`${idBase}-label`}
             label={t('column.label')}
             value={label}
             onChange={setLabel}
           />
           <p>
-            <label htmlFor={`member-${kind.name}-comment`}>{t('column.comment')}</label>
+            <label htmlFor={`${idBase}-comment`}>{t('column.comment')}</label>
             <textarea
-              id={`member-${kind.name}-comment`}
+              id={`${idBase}-comment`}
               rows={2}
               value={comment}
               onChange={(event) => {
@@ -179,11 +195,11 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
               }}
             />
           </p>
-          {create ? (
+          {target.kind === 'create' ? (
             <OptionSelect
-              id={`member-${kind.name}-owner`}
+              id={`${idBase}-owner`}
               label={t('field.owner')}
-              options={userOptions(users)}
+              options={userOptions(target.users)}
               value={owner}
               onChange={setOwner}
               emptyLabel={t('common.noOwner')}
@@ -193,7 +209,7 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
         {formError === null ? null : <p role="alert">{formError}</p>}
         <SaveStatus state={saveState} />
         <SubmitRow
-          label={create ? t(kind.addKey) : t('action.save')}
+          label={member === null ? t(kind.addKey) : t('action.save')}
           busy={saveState.status === 'saving'}
         />
       </form>
@@ -201,7 +217,34 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
   );
 };
 
-/** `#/properties/new` and `#/resource-classes/new`. */
+/**
+ * The add form on a vocabulary's own page: the member joins that vocabulary,
+ * and the form clears for the next one.
+ */
+export const VocabularyMemberAddForm = <MemberT extends VocabularyMemberRow>({
+  kind,
+  vocabulary,
+  onAdded,
+}: {
+  readonly kind: MemberKind<MemberT>;
+  readonly vocabulary: VocabularyId;
+  readonly onAdded: (member: MemberT) => void;
+}): ReactElement => {
+  const [round, setRound] = useState(0);
+  return (
+    <MemberEditor
+      key={round}
+      kind={kind}
+      target={{ kind: 'add', vocabulary }}
+      onSaved={(member) => {
+        onAdded(member);
+        setRound(round + 1);
+      }}
+    />
+  );
+};
+
+/** `#/standards/properties/new` and `#/standards/classes/new`. */
 export const VocabularyMemberCreatePage = <MemberT extends VocabularyMemberRow>({
   kind,
 }: {
@@ -228,10 +271,10 @@ export const VocabularyMemberCreatePage = <MemberT extends VocabularyMemberRow>(
   return (
     <MemberEditor
       kind={kind}
-      member={null}
-      vocabularies={state.data.vocabularies}
-      users={state.data.users}
-      onSaved={() => undefined}
+      target={{ kind: 'create', ...state.data }}
+      onSaved={(created) => {
+        window.location.hash = standardsHref(kind.tab, created.id);
+      }}
     />
   );
 };
@@ -248,9 +291,7 @@ export const VocabularyMemberEditForm = <MemberT extends VocabularyMemberRow>({
   readonly kind: MemberKind<MemberT>;
   readonly member: MemberT;
   readonly onSaved: (member: MemberT) => void;
-}): ReactElement => (
-  <MemberEditor kind={kind} member={member} vocabularies={[]} users={[]} onSaved={onSaved} />
-);
+}): ReactElement => <MemberEditor kind={kind} target={{ kind: 'edit', member }} onSaved={onSaved} />;
 
 export interface MemberDetailProps<MemberT extends VocabularyMemberRow> {
   readonly kind: MemberKind<MemberT>;
@@ -289,7 +330,7 @@ export const MemberDetail = <MemberT extends VocabularyMemberRow>({
         <dd>{member.comment ?? t('common.none')}</dd>
         <dt>{t('column.vocabulary')}</dt>
         <dd>
-          <a href={`#/vocabularies/${String(vocabulary.id)}`}>{vocabulary.label}</a>
+          <a href={standardsHref('vocabularies', vocabulary.id)}>{vocabulary.label}</a>
         </dd>
       </dl>
 
@@ -302,7 +343,7 @@ export const MemberDetail = <MemberT extends VocabularyMemberRow>({
         rowName={member.label ?? member.term}
         onConfirm={async () => {
           await kind.remove(member.id);
-          window.location.hash = `#/${kind.route}`;
+          window.location.hash = standardsHref(kind.tab);
         }}
       />
     </section>
