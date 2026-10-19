@@ -15,7 +15,7 @@ import type { ReactElement } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../../api/client';
 import { isRecord } from '../../api/parse';
-import type { JsonValue, Site, SiteId, SitePage } from '../../api/types';
+import type { ApiErrors, JsonValue, Site, SiteId, SitePage } from '../../api/types';
 import { encodeSiteThemeSettings } from '../../api/write';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus } from '../../app/fields';
@@ -45,6 +45,7 @@ import {
   resolve,
   setOverride,
 } from './themeEditor/draft';
+import type { CssRefusal } from './themeEditor/CustomCssTab';
 import type { ContentKey, ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
 import { ThemeMessagesContext, useThemeMessages, useThemeText } from './themeEditor/messages';
@@ -83,9 +84,18 @@ interface PreviewState {
   readonly message: string | null;
 }
 
-/** The sanitiser's messages for the theme map, from an API error document. */
-const cssMessages = (errors: Readonly<Record<string, readonly string[]>> | null): readonly string[] =>
-  errors?.['o:theme_settings'] ?? [];
+/**
+ * The sanitiser's refusals for the theme map: each message in the active
+ * locale, with the line its English names (`Custom CSS: Line 3, column 5: ...`).
+ * A translation may move the number, so it is read from the server's text.
+ */
+const cssRefusals = (errors: ApiErrors | null, sourceErrors: ApiErrors | null): readonly CssRefusal[] => {
+  const source = sourceErrors?.['o:theme_settings'] ?? [];
+  return (errors?.['o:theme_settings'] ?? []).map((message, index) => {
+    const line = /Line (\d+), column \d+/.exec(source[index] ?? '')?.[1];
+    return { message, line: line === undefined ? null : Number(line) };
+  });
+};
 
 type Tab = 'design' | 'css';
 
@@ -216,7 +226,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   const [tab, setTab] = useState<Tab>('design');
   const [page, setPage] = useState<SitePage | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ html: null, status: 'idle', message: null });
-  const [cssErrors, setCssErrors] = useState<readonly string[]>([]);
+  const [cssErrors, setCssErrors] = useState<readonly CssRefusal[]>([]);
   const [notice, setNotice] = useState<'imported' | 'importError' | null>(null);
   const { state: saveState, save } = useSave();
 
@@ -272,8 +282,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
             setPreview({ html: result.html, status: 'ready', message: null });
           } else if (result.kind === 'unavailable') {
             setPreview({ html: null, status: 'unavailable', message: null });
-          } else if (cssMessages(result.errors).length > 0) {
-            setCssErrors(cssMessages(result.errors));
+          } else if (cssRefusals(result.errors, result.sourceErrors).length > 0) {
+            setCssErrors(cssRefusals(result.errors, result.sourceErrors));
             setPreview((current) => ({ ...current, status: 'ready' }));
           } else {
             setPreview({ html: null, status: 'error', message: result.message });
@@ -308,8 +318,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
           }),
         );
       } catch (error: unknown) {
-        if (error instanceof ApiError && cssMessages(error.errors).length > 0) {
-          setCssErrors(cssMessages(error.errors));
+        if (error instanceof ApiError && cssRefusals(error.errors, error.sourceErrors).length > 0) {
+          setCssErrors(cssRefusals(error.errors, error.sourceErrors));
           setTab('css');
         }
         throw error;

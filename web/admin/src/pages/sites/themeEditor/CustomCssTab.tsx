@@ -14,11 +14,11 @@ import { defaultBaseUrl } from '../../../api/client';
 import { useThemeText } from './messages';
 import type { ThemeMessageKey } from './messages';
 
-/** The line a sanitiser message names, `Line 3, column 5: ...`. */
-const lineOf = (message: string): number | null => {
-  const match = /Line (\d+), column \d+/.exec(message);
-  return match?.[1] === undefined ? null : Number(match[1]);
-};
+/** One sanitiser refusal: its message in the active locale and the line it names. */
+export interface CssRefusal {
+  readonly message: string;
+  readonly line: number | null;
+}
 
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
 
@@ -30,14 +30,14 @@ const CssEditor = ({
 }: {
   readonly value: string;
   readonly maxBytes: number;
-  readonly errors: readonly string[];
+  readonly errors: readonly CssRefusal[];
   readonly onChange: (value: string) => void;
 }): ReactElement => {
   const t = useThemeText();
   const area = useRef<HTMLTextAreaElement | null>(null);
   const gutter = useRef<HTMLPreElement | null>(null);
   const badLines = useMemo(
-    () => new Set(errors.map(lineOf).filter((line): line is number => line !== null)),
+    () => new Set(errors.map(({ line }) => line).filter((line): line is number => line !== null)),
     [errors],
   );
   const lines = value.split('\n').length;
@@ -114,25 +114,22 @@ const CssEditor = ({
         <div id="theme-css-errors" className="css-editor-errors" role="alert">
           <p>{t('theme.cssErrors')}</p>
           <ul>
-            {errors.map((message) => {
-              const line = lineOf(message);
-              return (
-                <li key={message}>
-                  {line === null ? (
-                    message
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        jumpTo(line);
-                      }}
-                    >
-                      {message.replace(/^Custom CSS: /, '')}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
+            {errors.map(({ message, line }) => (
+              <li key={message}>
+                {line === null ? (
+                  message
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      jumpTo(line);
+                    }}
+                  >
+                    {message}
+                  </button>
+                )}
+              </li>
+            ))}
           </ul>
         </div>
       ) : null}
@@ -300,7 +297,7 @@ export const CustomCssTab = ({
 }: {
   readonly value: string;
   readonly maxBytes: number;
-  readonly errors: readonly string[];
+  readonly errors: readonly CssRefusal[];
   readonly previewHtml: string | null;
   readonly onChange: (value: string) => void;
 }): ReactElement => (

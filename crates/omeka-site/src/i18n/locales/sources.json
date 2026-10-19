@@ -15,6 +15,7 @@
  "modified": "Modified",
  "user_bar_label": "Omeka User",
  "signed_in_as": "Signed in as %s",
+ "admin_dashboard": "Admin dashboard",
  "log_out": "Logout",
  "log_in": "Log in",
  "skip_to_main": "Skip to main content",

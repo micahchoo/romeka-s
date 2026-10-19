@@ -104,17 +104,21 @@ const DEFAULT_PER_PAGE = 25;
 /**
  * A refused request. `errors` is the server's error document and `message` its
  * first message, both already in the active locale (`i18n/serverText.ts`), so
- * every surface that shows them shows the user's language.
+ * every surface that shows them shows the user's language. `sourceErrors` is
+ * the same document in the server's English, message for message, for a
+ * caller that reads a value out of a message: a translation may move it.
  */
 export class ApiError extends Error {
   readonly status: number;
   readonly errors: ApiErrors | null;
+  readonly sourceErrors: ApiErrors | null;
 
-  constructor(status: number, errors: ApiErrors | null, message: string) {
+  constructor(status: number, errors: ApiErrors | null, message: string, sourceErrors: ApiErrors | null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.sourceErrors = sourceErrors;
   }
 }
 
@@ -822,7 +826,7 @@ export class ApiClient {
     const parsed = text === '' ? null : parseApiErrors(parseJson(text));
     const errors = parsed === null ? null : await localizeServerErrors(parsed);
     const message = firstErrorMessage(errors) ?? `HTTP ${String(response.status)}`;
-    return new ApiError(response.status, errors, message);
+    return new ApiError(response.status, errors, message, parsed);
   }
 }
 

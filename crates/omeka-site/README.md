@@ -78,8 +78,9 @@ Stored text reaches the page as CSS in `theme::custom_css` and nowhere else. `cu
 reads the text with `cssparser` and refuses `@import`, `@document`, any `url()` (or URL string in
 `src()`, `image()`, `image-set()`, `cross-fade()`) that is not a path under this site's `/files/` or
 `/assets/`, `expression()`, `behavior`, `-moz-binding`, `</style`, more than 64 KB, and text the tokenizer
-cannot read. Each refusal names its line and column. The site write and the preview answer refusals as a
-422 under `o:theme_settings`; `ThemeSettings::from_value` sanitises again on read and drops refused CSS
+cannot read. Each refusal is a `CssProblem` kind with its line and column; the sentence a curator reads
+is one entry per kind in `omeka-api`'s message registry, so the admin translates it whole. The site
+write and the preview answer refusals as a 422 under `o:theme_settings`; `ThemeSettings::from_value` sanitises again on read and drops refused CSS
 whole. The frame prints the CSS in `<style id="custom-css">` after the theme sheet, so its rules win.
 
 ### The bundled theme's stylesheet

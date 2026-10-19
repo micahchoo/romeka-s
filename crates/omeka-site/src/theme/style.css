@@ -202,6 +202,58 @@ textarea {
   color: var(--color-background);
 }
 
+/* The admin bar a signed-in curator sees above the header: a slim strip of
+   the surface colour, its content aligned with the header's. The side padding
+   is the header's own gutter, grown so the content column lines up. */
+#user-bar {
+  align-items: center;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-sm);
+  gap: var(--space-1) var(--space-3);
+  justify-content: space-between;
+  line-height: 1.4;
+  padding: var(--space-1) max(var(--space-3), (100% - var(--content-width)) / 2);
+}
+
+#user-bar .user-links {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-left: auto;
+}
+
+#user-bar strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+#user-bar a {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 600;
+  min-height: 1.75rem;
+}
+
+#user-bar .logout,
+#user-bar .login {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  text-decoration: none;
+}
+
+@media print {
+  #user-bar {
+    display: none;
+  }
+}
+
 /* The frame: header, banner, logo, navigation, search and footer. The header
    style token decides how the header sets itself off: a band of the brand, a
    printed double rule, a thin rule under a brand stripe, or nothing. */

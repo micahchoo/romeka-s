@@ -164,14 +164,8 @@ fn oversized_css_is_refused_before_it_is_read() {
 
 #[test]
 fn unreadable_css_is_refused() {
-    refused(
-        "p { content: \"open\n }",
-        &CssProblem::Syntax("this string is not closed"),
-    );
-    refused(
-        "p { color: red } }",
-        &CssProblem::Syntax("} closes nothing"),
-    );
+    refused("p { content: \"open\n }", &CssProblem::UnclosedString);
+    refused("p { color: red } }", &CssProblem::StrayClose('}'));
 }
 
 /// An error names the line and column it sits on, so the editor can mark it.
@@ -182,10 +176,7 @@ fn errors_carry_their_line_and_column() {
     assert_eq!(errors.len(), 2, "{errors:?}");
     assert_eq!((errors[0].line, errors[0].column), (4, 15));
     assert_eq!((errors[1].line, errors[1].column), (6, 1));
-    assert_eq!(
-        errors[1].to_string(),
-        "Line 6, column 1: @import is not allowed."
-    );
+    assert_eq!(errors[1].problem, CssProblem::Import);
 }
 
 #[test]

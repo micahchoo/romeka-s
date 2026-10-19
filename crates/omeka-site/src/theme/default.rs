@@ -47,9 +47,9 @@ use crate::i18n::{Translator, sprintf1};
 use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
-use crate::theme::search;
 use crate::theme::style::{PLACEHOLDER_SVG, STYLE_CSS};
 use crate::theme::{AssetKind, Theme, ThemeAsset, ThemeInfo};
+use crate::theme::{search, user_bar};
 use crate::view::{
     BrowseView, ErrorView, IiifViewerView, RenderContext, ResourceView, Thumbnail, View,
 };
@@ -260,12 +260,7 @@ fn layout_with_head(
     } else {
         ""
     };
-    // `UserBar.php:35-43`: `-1` never, `1` always, otherwise only when signed in.
-    let user_bar = if ctx.settings.shows_user_bar(ctx.signed_in) {
-        user_bar(ctx, tr)
-    } else {
-        String::new()
-    };
+    let user_bar = user_bar::render(ctx, tr);
     format!(
         "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n\
          <meta charset=\"utf-8\">\n\
@@ -427,32 +422,6 @@ fn footer_text(ctx: &RenderContext<'_>) -> String {
             omeka_core::purify::purify(html)
         ),
         None => String::new(),
-    }
-}
-
-/// `common/user-bar.phtml`: the admin bar a signed-in caller sees, or a login
-/// link when `show_user_bar` is `1` and nobody is signed in.
-fn user_bar(ctx: &RenderContext<'_>, tr: Translator) -> String {
-    let messages = tr.messages();
-    if ctx.signed_in {
-        let name = ctx.user_name.as_deref().unwrap_or("");
-        format!(
-            "<nav id=\"user-bar\" aria-label=\"{label}\">\
-             <div class=\"user-links\">\
-             <span class=\"user-id\">{signed_in}</span> \
-             <a href=\"/logout\" class=\"logout\">{logout}</a>\
-             </div></nav>\n",
-            label = escape_html(messages.user_bar_label),
-            signed_in = sprintf1(&escape_html(messages.signed_in_as), &escape_html(name)),
-            logout = escape_html(messages.log_out),
-        )
-    } else {
-        format!(
-            "<nav id=\"user-bar\" aria-label=\"{label}\">\
-             <a href=\"/login\" class=\"login\">{login}</a></nav>\n",
-            label = escape_html(messages.user_bar_label),
-            login = escape_html(messages.log_in),
-        )
     }
 }
 
