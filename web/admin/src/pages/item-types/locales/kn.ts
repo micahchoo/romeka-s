@@ -80,6 +80,8 @@ export const kn: ItemTypesMessages = {
   'accepts.itemSet': 'ಐಟಂ ಸೆಟ್',
   'accepts.media': 'ಮೀಡಿಯಾ ಫೈಲ್',
   'accepts.missing': '{id} (ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ)',
+  'accepts.termLists': 'ಪದಗಳ ಪಟ್ಟಿ',
+  'accepts.termList': 'ಪದ ಪಟ್ಟಿ: {list}',
   'use.legend': 'ಬಳಸಲಾಗಿದೆ',
   'use.items': 'ಐಟಂಗಳು',
   'use.itemSets': 'ಐಟಂ ಸೆಟ್‌ಗಳು',

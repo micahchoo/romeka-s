@@ -80,6 +80,8 @@ export const hi: ItemTypesMessages = {
   'accepts.itemSet': 'आइटम सेट',
   'accepts.media': 'मीडिया फ़ाइल',
   'accepts.missing': '{id} (स्थापित नहीं)',
+  'accepts.termLists': 'शब्द सूचियाँ',
+  'accepts.termList': 'शब्द सूची: {list}',
   'use.legend': 'उपयोग किया जाता है',
   'use.items': 'आइटम',
   'use.itemSets': 'आइटम सेट',

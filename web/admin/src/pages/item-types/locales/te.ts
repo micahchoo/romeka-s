@@ -80,6 +80,8 @@ export const te: ItemTypesMessages = {
   'accepts.itemSet': 'ఒక అంశం సెట్',
   'accepts.media': 'ఒక మీడియా ఫైల్',
   'accepts.missing': '{id} (ఇన్‌స్టాల్ చేయబడలేదు)',
+  'accepts.termLists': 'పదాల జాబితాలు',
+  'accepts.termList': 'పదాల జాబితా: {list}',
   'use.legend': 'ఉపయోగపడుతుంది',
   'use.items': 'అంశాలు',
   'use.itemSets': 'అంశం సెట్లు',

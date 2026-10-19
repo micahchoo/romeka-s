@@ -166,8 +166,12 @@ async fn annotation_texts(
 ///
 /// `Literal::getFulltextText` is the stored value, `Uri::getFulltextText` is
 /// the URI and the label space separated, and `AbstractResource::getFulltextText`
-/// is the referenced resource's title.
+/// is the referenced resource's title. `CustomVocab::getFulltextText` is the
+/// stored value whatever the shape: a term, a URI's label, nothing for an item.
 async fn value_text(api: &Api<'_>, value: &ValueRow) -> Result<String, ApiError> {
+    if omeka_core::term_list::list_id(&value.r#type).is_some() {
+        return Ok(value.value.clone().unwrap_or_default());
+    }
     if value.r#type == "uri" {
         return Ok(format!(
             "{} {}",

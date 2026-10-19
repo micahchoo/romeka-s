@@ -147,19 +147,19 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:is_active',
 ]);
 
-function brandId<Name extends string>(value: number): Id<Name> {
+export function brandId<Name extends string>(value: number): Id<Name> {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the single place a validated number becomes a branded id
   return value as Id<Name>;
 }
 
-const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
+export const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
   if (!isRecord(value)) {
     throw new ParseError(path, 'object');
   }
   return value;
 };
 
-const asString = (value: unknown, path: Path): string => {
+export const asString = (value: unknown, path: Path): string => {
   if (typeof value !== 'string') {
     throw new ParseError(path, 'string');
   }
@@ -180,7 +180,7 @@ const asBoolean = (value: unknown, path: Path): boolean => {
   return value;
 };
 
-const asIdNumber = (value: unknown, path: Path): number => {
+export const asIdNumber = (value: unknown, path: Path): number => {
   const id = asNumber(value, path);
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new ParseError(path, 'a positive integer');
@@ -188,7 +188,7 @@ const asIdNumber = (value: unknown, path: Path): number => {
   return id;
 };
 
-const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
+export const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
   if (!(key in object)) {
     throw new ParseError([...path, key], 'a value');
   }
@@ -196,7 +196,7 @@ const field = (object: Record<string, unknown>, key: string, path: Path): unknow
 };
 
 /** A field upstream always sends, whose value may be null. */
-const nullableField = <T>(
+export const nullableField = <T>(
   object: Record<string, unknown>,
   key: string,
   path: Path,
@@ -253,7 +253,7 @@ const asDateTime = (value: unknown, path: Path): string => {
   return text;
 };
 
-const asRef = <IdT extends number>(
+export const asRef = <IdT extends number>(
   value: unknown,
   path: Path,
   brand: (id: number) => IdT,
@@ -265,7 +265,7 @@ const asRef = <IdT extends number>(
   };
 };
 
-const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
+export const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
   asRef(value, path, brandId<'UserId'>);
 
 const asRefClass = (value: unknown, path: Path): ResourceRef<ClassId> =>
@@ -949,7 +949,7 @@ export function jobIdFromParam(text: string): Id<'JobId'> | null {
   return value === null ? null : brandId<'JobId'>(value);
 }
 
-const positiveInt = (text: string): number | null => {
+export const positiveInt = (text: string): number | null => {
   if (!/^\d+$/.test(text)) {
     return null;
   }
