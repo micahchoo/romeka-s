@@ -14,6 +14,7 @@ import type {
   ItemWrite,
   JsonValue,
   MediaWrite,
+  PageId,
   ResourceTemplateWrite,
   ResourceWrite,
   SiteBlockAttachmentWrite,
@@ -152,6 +153,41 @@ export const encodeSite = (write: SiteWrite): WireBody => ({
  */
 export const encodeSiteNavigation = (navigation: readonly JsonValue[]): WireBody => ({
   'o:navigation': navigation,
+});
+
+/** What the Settings form edits of a site: the members `encodeSiteInfo` writes. */
+export interface SiteInfoWrite {
+  readonly title: string;
+  readonly slug: string;
+  readonly theme: string;
+  readonly summary: string;
+  readonly owner: UserId | null;
+  readonly isPublic: boolean;
+  readonly assignNewItems: boolean;
+}
+
+/**
+ * The partial update body of the Settings form (`SiteAdmin/IndexController::
+ * editAction`, `isPartial => true`). A full `PUT` would also reset `o:page`,
+ * `o:navigation`, `o:item_pool` and `o:site_item_set`. An unset owner is left
+ * as stored.
+ */
+export const encodeSiteInfo = (info: SiteInfoWrite): WireBody => {
+  const summary = info.summary.trim();
+  return {
+    'o:title': info.title.trim(),
+    'o:slug': info.slug.trim(),
+    'o:theme': info.theme,
+    'o:summary': summary === '' ? null : summary,
+    'o:is_public': info.isPublic,
+    'o:assign_new_items': info.assignNewItems,
+    ...(info.owner === null ? {} : { 'o:owner': ref(info.owner) }),
+  };
+};
+
+/** The homepage member alone; `null` hands the choice back to the first menu page. */
+export const encodeSiteHomepage = (page: PageId | null): WireBody => ({
+  'o:homepage': page === null ? null : ref(page),
 });
 
 export const encodeSiteResources = (

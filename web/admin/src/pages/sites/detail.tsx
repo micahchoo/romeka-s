@@ -1,136 +1,243 @@
+/**
+ * The site hub (`#/sites/<id>`): the site's pages first, then a short account
+ * of how the site is set up. The frame around it names the site and links to
+ * the public site and to the other tabs.
+ *
+ * Each page row says what a site editor asks of a page: is it public, is it
+ * the homepage, is it in the menu. The two row writes are partial updates of
+ * one member each, as upstream's Pages screen makes them.
+ */
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
-import type { PageId, ResourceRef, Site, SiteId, User } from '../../api/types';
-import { DeleteControl } from '../../app/delete';
+import { encodeSiteHomepage, encodeSiteNavigation } from '../../api/write';
+import type { PageId, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
+import { SaveStatus } from '../../app/fields';
+import { useSave } from '../../app/save';
+import { TableScroll } from '../../app/table-scroll';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
-import { SiteEditForm, type PageSummary } from './editor';
+import { firstLinkedPage, linkedPages, pageLinkJson } from './navigationTree';
+import { publicUrl, siteHref } from './SiteFrame';
+
+interface HubPage {
+  readonly id: PageId;
+  /** `null` when the page list did not return this page. */
+  readonly title: string | null;
+  readonly slug: string | null;
+  readonly isPublic: boolean | null;
+}
 
 interface Loaded {
   readonly site: Site;
-  readonly users: readonly User[];
-  readonly pages: readonly PageSummary[];
+  readonly pages: readonly HubPage[];
 }
 
-/**
- * The title of each page in the site's `o:page` list. The API refuses a
- * non-public page to a caller without the site role, so a failed read keeps the
- * page in the list by id instead of dropping it.
- */
-const loadPageSummaries = async (
-  refs: readonly ResourceRef<PageId>[],
-): Promise<readonly PageSummary[]> =>
-  Promise.all(
-    refs.map(async (ref): Promise<PageSummary> => {
-      try {
-        const page = await api.getSitePage(ref.id);
-        return { id: ref.id, title: page.title, isPublic: page.isPublic };
-      } catch {
-        return { id: ref.id, title: null, isPublic: null };
-      }
-    }),
-  );
-
+/** The pages in the site's own order (`o:page`), with what the page list says of each. */
 const load = async (siteId: SiteId): Promise<Loaded> => {
-  const site = await api.getSite(siteId);
-  const [users, pages] = await Promise.all([
-    api.listUsers({ perPage: 200, sortBy: 'name' }),
-    loadPageSummaries(site.pages),
+  const [site, list] = await Promise.all([
+    api.getSite(siteId),
+    api.listSitePages({ siteId, perPage: 200 }),
   ]);
-  return { site, users: users.items, pages };
+  const pages = site.pages.map((ref): HubPage => {
+    const page = list.items.find((entry) => entry.id === ref.id);
+    return page === undefined
+      ? { id: ref.id, title: null, slug: null, isPublic: null }
+      : { id: page.id, title: page.title, slug: page.slug, isPublic: page.isPublic };
+  });
+  return { site, pages };
 };
 
-const PageList = ({
-  siteId,
-  pages,
+/** The page `/s/<slug>` opens: the homepage, else the first page in the menu. */
+const homepageOf = (site: Site): PageId | null =>
+  site.homepage?.id ?? firstLinkedPage(site.navigation);
+
+const PageRow = ({
+  site,
+  page,
+  isHomepage,
+  isExplicitHomepage,
+  inNavigation,
+  busy,
+  onSetHomepage,
+  onClearHomepage,
+  onAddToNavigation,
 }: {
-  readonly siteId: SiteId;
-  readonly pages: readonly PageSummary[];
+  readonly site: Site;
+  readonly page: HubPage;
+  readonly isHomepage: boolean;
+  /** The site names this page as its homepage, rather than following the menu. */
+  readonly isExplicitHomepage: boolean;
+  readonly inNavigation: boolean;
+  readonly busy: boolean;
+  readonly onSetHomepage: () => void;
+  readonly onClearHomepage: () => void;
+  readonly onAddToNavigation: () => void;
 }): ReactElement => {
   const { t } = useTranslator();
+  const editHref = `#/sites/${String(site.id)}/pages/${String(page.id)}`;
+  const title = page.title ?? t('common.pageFallback', { id: page.id });
   return (
-    <section>
-      <h2>{t('sites.pages')}</h2>
-      <p>
-        <a href={`#/sites/${String(siteId)}/pages/new`}>{t('sites.addPage')}</a>
-      </p>
-      {pages.length === 0 ? (
+    <tr>
+      <th scope="row">
+        <a href={editHref}>{title}</a>
+        {isHomepage ? <span className="badge badge-accent">{t('siteHub.homepage')}</span> : null}
+      </th>
+      <td>
+        <span className="site-slug">{page.slug ?? ''}</span>
+      </td>
+      <td>
+        {page.isPublic === null ? (
+          t('common.unknown')
+        ) : (
+          <span className={page.isPublic ? 'badge' : 'badge badge-muted'}>
+            {page.isPublic ? t('common.public') : t('common.private')}
+          </span>
+        )}
+      </td>
+      <td>
+        {inNavigation ? (
+          t('siteHub.inNavigation')
+        ) : (
+          <button type="button" className="link-button" disabled={busy} onClick={onAddToNavigation}>
+            {t('siteHub.addToNavigation')}
+          </button>
+        )}
+      </td>
+      <td>
+        <span className="row-actions">
+          <a href={editHref}>{t('siteHub.edit')}</a>
+          {page.slug === null ? null : (
+            <a href={publicUrl(site.slug, page.slug)} target="_blank" rel="noreferrer">
+              {t('siteHub.view')}
+            </a>
+          )}
+          {isHomepage ? null : (
+            <button type="button" className="link-button" disabled={busy} onClick={onSetHomepage}>
+              {t('siteHub.setHomepage')}
+            </button>
+          )}
+          {isExplicitHomepage ? (
+            <button type="button" className="link-button" disabled={busy} onClick={onClearHomepage}>
+              {t('siteHub.clearHomepage')}
+            </button>
+          ) : null}
+        </span>
+      </td>
+    </tr>
+  );
+};
+
+const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
+  const { t } = useTranslator();
+  const [site, setSite] = useState(loaded.site);
+  const { state: saveState, save } = useSave();
+  const busy = saveState.status === 'saving';
+  const homepage = homepageOf(site);
+  const inNavigation = linkedPages(site.navigation);
+
+  const patch = (body: Readonly<Record<string, unknown>>): void => {
+    save(async () => {
+      setSite(await api.patchSite(site.id, body));
+    });
+  };
+
+  return (
+    <section className="hub-section" aria-labelledby="hub-pages">
+      <div className="hub-section-head">
+        <h3 id="hub-pages">{t('sites.pages')}</h3>
+        <a className="button-link" href={`#/sites/${String(site.id)}/pages/new`}>
+          {t('sites.addPage')}
+        </a>
+      </div>
+      {loaded.pages.length === 0 ? (
         <p>{t('sites.noPages')}</p>
       ) : (
-        <ul>
-          {pages.map((page) => (
-            <li key={String(page.id)}>
-              <a href={`#/sites/${String(siteId)}/pages/${String(page.id)}`}>
-                {page.title ?? t('common.pageFallback', { id: page.id })}
-              </a>
-              {page.isPublic === false ? <span> {t('sites.pagePrivate')}</span> : null}
-            </li>
-          ))}
-        </ul>
+        <TableScroll label={t('sites.pages')}>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{t('column.title')}</th>
+                <th scope="col">{t('column.slug')}</th>
+                <th scope="col">{t('siteHub.visibility')}</th>
+                <th scope="col">{t('page.navigation')}</th>
+                <th scope="col">{t('sites.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loaded.pages.map((page) => (
+                <PageRow
+                  key={String(page.id)}
+                  site={site}
+                  page={page}
+                  isHomepage={homepage === page.id}
+                  isExplicitHomepage={site.homepage?.id === page.id}
+                  inNavigation={inNavigation.has(page.id)}
+                  busy={busy}
+                  onSetHomepage={() => {
+                    patch(encodeSiteHomepage(page.id));
+                  }}
+                  onClearHomepage={() => {
+                    patch(encodeSiteHomepage(null));
+                  }}
+                  onAddToNavigation={() => {
+                    patch(encodeSiteNavigation([...site.navigation, pageLinkJson(page.id)]));
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
       )}
+      <SaveStatus state={saveState} />
     </section>
   );
 };
 
-/**
- * The other site-admin pages, one per member group the site document carries
- * (`SiteAdmin/IndexController::navigationAction`, `::resourcesAction`,
- * `::usersAction`, `::themeAction`).
- */
-const SITE_SECTIONS: readonly { readonly segment: string; readonly labelKey: MessageKey }[] = [
-  { segment: 'navigation', labelKey: 'page.navigation' },
-  { segment: 'resources', labelKey: 'page.siteResources' },
-  { segment: 'users', labelKey: 'page.siteUsers' },
-  { segment: 'theme', labelKey: 'page.siteTheme' },
-  { segment: 'settings', labelKey: 'page.siteSettings' },
-];
-
-const SectionLinks = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
+const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
   const { t } = useTranslator();
   return (
-    <nav aria-label={t('sites.sectionsLabel')}>
-      <ul>
-        {SITE_SECTIONS.map((section) => (
-          <li key={section.segment}>
-            <a href={`#/sites/${String(siteId)}/${section.segment}`}>{t(section.labelKey)}</a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <section className="hub-section" aria-labelledby="hub-about">
+      <div className="hub-section-head">
+        <h3 id="hub-about">{t('siteHub.about')}</h3>
+        <a href={siteHref(site.id, 'settings')}>{t('siteHub.editSettings')}</a>
+      </div>
+      <dl>
+        <dt>{t('siteHub.address')}</dt>
+        <dd>
+          <a href={publicUrl(site.slug)} target="_blank" rel="noreferrer">
+            /s/{site.slug}
+          </a>
+        </dd>
+        <dt>{t('siteHub.visibility')}</dt>
+        <dd>{site.isPublic ? t('common.public') : t('common.private')}</dd>
+        <dt>{t('sites.theme')}</dt>
+        <dd>{site.theme === 'default' ? t('sites.defaultThemeLabel') : site.theme}</dd>
+        {site.summary === null ? null : (
+          <>
+            <dt>{t('sites.summary')}</dt>
+            <dd>{site.summary}</dd>
+          </>
+        )}
+      </dl>
+    </section>
   );
 };
 
-/** The site edit form and its page list. */
 export const SiteDetail = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(() => load(siteId), [siteId]);
-
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  const site = state.data.site;
   return (
-    <div>
-      <SectionLinks siteId={siteId} />
-      <SiteEditForm
-        site={site}
-        users={state.data.users}
-        pages={state.data.pages}
-      />
-      <PageList siteId={siteId} pages={state.data.pages} />
-      <DeleteControl
-        label={t('sites.deleteLabel')}
-        rowName={site.title}
-        onConfirm={async () => {
-          await api.deleteSite(site.id);
-          window.location.hash = '#/sites';
-        }}
-      />
+    <div className="site-hub">
+      <PagesSection loaded={state.data} />
+      <AboutSection site={state.data.site} />
     </div>
   );
 };

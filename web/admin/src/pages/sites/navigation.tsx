@@ -1,370 +1,191 @@
 /**
  * The navigation editor (`SiteAdmin/IndexController::navigationAction`).
  *
- * `site.navigation` is a nested list of `{type, data, links}` nodes; the port
- * parses and resolves it in `crates/omeka-site/src/nav.rs`. The editor models
- * the four registered link types (`page`, `url`, `browse`, `browseItemSets`)
- * plus the fallback for a type the port does not know, whose `data` it keeps
- * verbatim. It writes the tree back with a partial `PATCH` of `o:navigation`,
- * so the rest of the site document is untouched.
+ * The menu shows as a tree of links beside a small rendering of the menu it
+ * builds. Every edit is a `NavigationAction` through `navigationReducer`
+ * (`navigationTree.ts`); this file owns only the gesture state. A link moves
+ * by drag and drop, or by keyboard with the page canvas's pattern: Space on a
+ * link's handle picks it up, the arrows move it (Left and Right change its
+ * level), Space drops it and Escape puts the tree back. The tree is written
+ * with a partial `PATCH` of `o:navigation`.
  */
-import type { ReactElement } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
 import { api } from '../../api/client';
-import { pageIdFromParam } from '../../api/parse';
 import { encodeSiteNavigation } from '../../api/write';
-import type { JsonValue, PageId, SiteId } from '../../api/types';
+import type { JsonValue, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
-import { CheckboxField, OptionSelect, SaveStatus, SubmitRow, TextField } from '../../app/fields';
+import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
-import type { PageSummary } from './editor';
+import { useUnsavedGuard } from './editor/shell/useUnsavedGuard';
+import { NavigationLinkFields, linkLabel, typeLabel } from './NavigationLinkFields';
+import type { PageOption } from './NavigationLinkFields';
+import {
+  keyboardMove,
+  linkIssues,
+  navigationJson,
+  navigationLinks,
+  navigationReducer,
+} from './navigationTree';
+import type { MoveDirection, NavLink, NavigationAction, Place } from './navigationTree';
 
-/** The link types the port models (`src/Site/Navigation/Link/*`). */
-export const NAVIGATION_TYPES = ['page', 'url', 'browse', 'browseItemSets'] as const;
-
-export type NavigationType = (typeof NAVIGATION_TYPES)[number];
-
-const isNavigationType = (value: string): value is NavigationType =>
-  NAVIGATION_TYPES.some((type) => type === value);
-
-const TYPE_LABELS: Readonly<Record<NavigationType, MessageKey>> = {
-  page: 'navigation.typePage',
-  url: 'navigation.typeUrl',
-  browse: 'navigation.typeBrowse',
-  browseItemSets: 'navigation.typeBrowseItemSets',
+const ARROWS: Readonly<Record<string, MoveDirection>> = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowRight: 'in',
+  ArrowLeft: 'out',
 };
 
-/** One node of the tree while it is being edited. */
-export interface NavigationDraft {
-  readonly key: number;
-  readonly type: string;
-  readonly label: string;
-  readonly pageId: PageId | null;
-  readonly url: string;
-  readonly targetBlank: boolean;
-  readonly query: string;
-  readonly links: readonly NavigationDraft[];
-  /** The stored `data` of a link type the editor does not model. */
-  readonly rawData: JsonValue | null;
-}
-
-let nextKey = 0;
-
-const draft = (partial: Partial<NavigationDraft> & { readonly type: string }): NavigationDraft => {
-  nextKey += 1;
-  return {
-    key: nextKey,
-    label: '',
-    pageId: null,
-    url: '',
-    targetBlank: false,
-    query: '',
-    links: [],
-    rawData: null,
-    ...partial,
-  };
+/** The drop a pointer over a row makes: its top third, middle or bottom third. */
+const placeAt = (event: DragEvent<HTMLElement>): Place => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const y = (event.clientY - rect.top) / Math.max(1, rect.height);
+  return y < 1 / 3 ? 'before' : y > 2 / 3 ? 'after' : 'inside';
 };
 
-const text = (value: JsonValue | undefined): string =>
-  typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
-
-const isJsonObject = (value: JsonValue): value is { readonly [key: string]: JsonValue } =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const isJsonArray = (value: JsonValue): value is readonly JsonValue[] => Array.isArray(value);
-
-const pageId = (value: JsonValue | undefined): PageId | null => {
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
-    return pageIdFromParam(String(value));
+/** A link's place for the announcement: its position among its siblings and its level. */
+const whereIs = (
+  links: readonly NavLink[],
+  key: number,
+  level = 1,
+): { readonly position: number; readonly count: number; readonly level: number } | null => {
+  const index = links.findIndex((link) => link.key === key);
+  if (index !== -1) {
+    return { position: index + 1, count: links.length, level };
   }
-  if (typeof value === 'string') {
-    return pageIdFromParam(value.trim());
+  for (const link of links) {
+    const found = whereIs(link.links, key, level + 1);
+    if (found !== null) {
+      return found;
+    }
   }
   return null;
 };
 
-const draftFromJson = (node: JsonValue): NavigationDraft => {
-  if (!isJsonObject(node)) {
-    return draft({ type: 'browse' });
-  }
-  const type = typeof node.type === 'string' ? node.type : 'browse';
-  const data = node.data !== undefined && isJsonObject(node.data) ? node.data : {};
-  const links =
-    node.links !== undefined && isJsonArray(node.links) ? node.links.map(draftFromJson) : [];
-  const parsed = draft({
-    type,
-    label: text(data.label),
-    pageId: pageId(data.id),
-    url: text(data.url),
-    targetBlank: data.target_blank === true,
-    query: text(data.query),
-    links,
-    rawData: isNavigationType(type) ? null : (node.data ?? null),
-  });
-  return parsed;
-};
+/** What every row reads and calls; the editor owns all of it. */
+interface TreeContext {
+  readonly pages: readonly PageOption[];
+  readonly issues: ReadonlySet<number>;
+  readonly openKey: number | null;
+  readonly pickedKey: number | null;
+  readonly drop: { readonly key: number; readonly place: Place } | null;
+  readonly run: (action: NavigationAction) => void;
+  readonly toggleOpen: (key: number) => void;
+  readonly addChild: (key: number) => void;
+  readonly handleRef: (key: number, element: HTMLButtonElement | null) => void;
+  readonly onPick: (link: NavLink) => void;
+  readonly onHandleKey: (link: NavLink, event: KeyboardEvent<HTMLButtonElement>) => void;
+  readonly onDragStart: (key: number) => void;
+  readonly onDragOver: (key: number, place: Place) => void;
+  readonly onDrop: (key: number, place: Place) => void;
+  readonly onDragEnd: () => void;
+}
 
-/** The stored tree as editable drafts. */
-export const navigationDrafts = (value: readonly JsonValue[]): readonly NavigationDraft[] =>
-  value.map(draftFromJson);
-
-const emptyToNull = (value: string): string | null => {
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-};
-
-const jsonFromDraft = (node: NavigationDraft): JsonValue => {
-  const links = node.links.map(jsonFromDraft);
-  if (!isNavigationType(node.type) || node.rawData !== null) {
-    return { type: node.type, data: node.rawData ?? {}, links };
-  }
-  switch (node.type) {
-    case 'page':
-      return {
-        type: 'page',
-        data: { id: node.pageId, label: emptyToNull(node.label) },
-        links,
-      };
-    case 'url':
-      return {
-        type: 'url',
-        data: {
-          label: node.label.trim(),
-          url: node.url.trim(),
-          target_blank: node.targetBlank,
-        },
-        links,
-      };
-    case 'browse':
-    case 'browseItemSets':
-      return {
-        type: node.type,
-        data: { label: emptyToNull(node.label), query: node.query.trim() },
-        links,
-      };
-  }
-};
-
-/** The tree as the `o:navigation` member stores it. */
-export const navigationJson = (drafts: readonly NavigationDraft[]): readonly JsonValue[] =>
-  drafts.map(jsonFromDraft);
-
-const mapNodes = (
-  drafts: readonly NavigationDraft[],
-  key: number,
-  map: (node: NavigationDraft) => NavigationDraft,
-): readonly NavigationDraft[] =>
-  drafts.map((node) =>
-    node.key === key
-      ? map(node)
-      : { ...node, links: mapNodes(node.links, key, map) },
-  );
-
-export const addNavigationLink = (
-  drafts: readonly NavigationDraft[],
-  key: number | null,
-  type: string = 'browse',
-): readonly NavigationDraft[] => {
-  const child = draft({ type });
-  if (key === null) {
-    return [...drafts, child];
-  }
-  return mapNodes(drafts, key, (node) => ({ ...node, links: [...node.links, child] }));
-};
-
-const removeFrom = (
-  drafts: readonly NavigationDraft[],
-  key: number,
-): readonly NavigationDraft[] =>
-  drafts
-    .filter((node) => node.key !== key)
-    .map((node) => ({ ...node, links: removeFrom(node.links, key) }));
-
-export const removeNavigationLink = removeFrom;
-
-const moveWithin = (
-  drafts: readonly NavigationDraft[],
-  key: number,
-  delta: number,
-): readonly NavigationDraft[] => {
-  const index = drafts.findIndex((node) => node.key === key);
-  if (index !== -1) {
-    const target = index + delta;
-    if (target < 0 || target >= drafts.length) {
-      return drafts;
-    }
-    const reordered = [...drafts];
-    const moved = reordered[index];
-    const swap = reordered[target];
-    if (moved === undefined || swap === undefined) {
-      return drafts;
-    }
-    reordered[index] = swap;
-    reordered[target] = moved;
-    return reordered;
-  }
-  return drafts.map((node) => ({ ...node, links: moveWithin(node.links, key, delta) }));
-};
-
-export const moveNavigationLink = moveWithin;
-
-export const patchNavigationLink = (
-  drafts: readonly NavigationDraft[],
-  key: number,
-  patch: Partial<NavigationDraft>,
-): readonly NavigationDraft[] => mapNodes(drafts, key, (node) => ({ ...node, ...patch }));
-
-const NavigationNode = ({
-  node,
-  pages,
-  depth,
-  onChange,
-  onRemove,
-  onMove,
-  onAddChild,
+const LinkRow = ({
+  link,
+  tree,
 }: {
-  readonly node: NavigationDraft;
-  readonly pages: readonly PageSummary[];
-  readonly depth: number;
-  readonly onChange: (key: number, patch: Partial<NavigationDraft>) => void;
-  readonly onRemove: (key: number) => void;
-  readonly onMove: (key: number, delta: number) => void;
-  readonly onAddChild: (key: number) => void;
+  readonly link: NavLink;
+  readonly tree: TreeContext;
 }): ReactElement => {
   const { t } = useTranslator();
-  const label = node.label === '' ? `#${String(depth + 1)}` : node.label;
-  const id = (suffix: string): string => `nav-${String(node.key)}-${suffix}`;
+  const label = linkLabel(link, tree.pages, t);
+  const open = tree.openKey === link.key;
+  const picked = tree.pickedKey === link.key;
+  const drop = tree.drop?.key === link.key ? tree.drop.place : undefined;
   return (
-    <li className="navigation-node">
-      <p>
+    <li className="nav-tree-item">
+      <div
+        className={picked ? 'nav-tree-row nav-tree-row-picked' : 'nav-tree-row'}
+        data-drop={drop}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', label);
+          tree.onDragStart(link.key);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          tree.onDragOver(link.key, placeAt(event));
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          tree.onDrop(link.key, placeAt(event));
+        }}
+        onDragEnd={tree.onDragEnd}
+      >
         <button
           type="button"
-          aria-label={t('navigation.moveUp', { label })}
+          className="nav-tree-handle"
+          ref={(element) => {
+            tree.handleRef(link.key, element);
+          }}
+          aria-label={t('siteHub.moveLink', { label })}
+          aria-pressed={picked}
           onClick={() => {
-            onMove(node.key, -1);
+            tree.onPick(link);
+          }}
+          onKeyDown={(event) => {
+            tree.onHandleKey(link, event);
           }}
         >
-          {t('navigation.moveUpShort')}
+          <span aria-hidden="true">⠿</span>
         </button>
-        <button
-          type="button"
-          aria-label={t('navigation.moveDown', { label })}
-          onClick={() => {
-            onMove(node.key, 1);
-          }}
-        >
-          {t('navigation.moveDownShort')}
-        </button>
-        <button
-          type="button"
-          aria-label={t('navigation.remove', { label })}
-          onClick={() => {
-            onRemove(node.key);
-          }}
-        >
-          {t('action.remove')}
-        </button>
-      </p>
-      <p>
-        <label htmlFor={id('type')}>{t('navigation.type')}</label>
-        <select
-          id={id('type')}
-          value={node.type}
-          onChange={(event) => {
-            onChange(node.key, { type: event.target.value });
-          }}
-        >
-          {isNavigationType(node.type) ? null : (
-            <option value={node.type}>{node.type}</option>
-          )}
-          {NAVIGATION_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(TYPE_LABELS[type])}
-            </option>
-          ))}
-        </select>
-      </p>
-      {node.type === 'page' ? (
-        <OptionSelect
-          id={id('page')}
-          label={t('navigation.page')}
-          options={pages.map((page) => ({
-            id: page.id,
-            label: page.title ?? t('common.pageFallback', { id: page.id }),
-          }))}
-          value={node.pageId}
-          onChange={(value) => {
-            onChange(node.key, { pageId: value });
-          }}
-          emptyLabel={t('common.none')}
-        />
-      ) : null}
-      {node.type === 'url' ? (
-        <TextField
-          id={id('url')}
-          label={t('navigation.url')}
-          value={node.url}
-          onChange={(value) => {
-            onChange(node.key, { url: value });
+        <span className="nav-tree-label">{label}</span>
+        <span className="badge">{typeLabel(link.type, t)}</span>
+        {tree.issues.has(link.key) ? (
+          <span className="badge badge-danger">{t('siteHub.needsTarget')}</span>
+        ) : null}
+        <span className="nav-tree-actions">
+          <button
+            type="button"
+            className="link-button"
+            aria-expanded={open}
+            aria-controls={`nav-${String(link.key)}-fields`}
+            aria-label={t('siteHub.editLink', { label })}
+            onClick={() => {
+              tree.toggleOpen(link.key);
+            }}
+          >
+            {t('siteHub.edit')}
+          </button>
+          <button
+            type="button"
+            className="link-button"
+            aria-label={t('siteHub.addChildTo', { label })}
+            onClick={() => {
+              tree.addChild(link.key);
+            }}
+          >
+            {t('navigation.addChild')}
+          </button>
+          <button
+            type="button"
+            className="link-button link-button-danger"
+            aria-label={t('navigation.remove', { label })}
+            onClick={() => {
+              tree.run({ type: 'remove', key: link.key });
+            }}
+          >
+            {t('action.remove')}
+          </button>
+        </span>
+      </div>
+      {open ? (
+        <NavigationLinkFields
+          link={link}
+          pages={tree.pages}
+          onChange={(patch) => {
+            tree.run({ type: 'patch', key: link.key, patch });
           }}
         />
       ) : null}
-      {node.type === 'url' ? (
-        <CheckboxField
-          id={id('target-blank')}
-          label={t('navigation.targetBlank')}
-          checked={node.targetBlank}
-          onChange={(checked) => {
-            onChange(node.key, { targetBlank: checked });
-          }}
-        />
-      ) : null}
-      {node.type === 'browse' || node.type === 'browseItemSets' ? (
-        <TextField
-          id={id('query')}
-          label={t('navigation.query')}
-          value={node.query}
-          onChange={(value) => {
-            onChange(node.key, { query: value });
-          }}
-        />
-      ) : null}
-      {isNavigationType(node.type) ? (
-        <TextField
-          id={id('label')}
-          label={t('navigation.label')}
-          value={node.label}
-          onChange={(value) => {
-            onChange(node.key, { label: value });
-          }}
-        />
-      ) : null}
-      <p>
-        <button
-          type="button"
-          onClick={() => {
-            onAddChild(node.key);
-          }}
-        >
-          {t('navigation.addChild')}
-        </button>
-      </p>
-      {node.links.length === 0 ? null : (
-        <ul>
-          {node.links.map((child) => (
-            <NavigationNode
-              key={child.key}
-              node={child}
-              pages={pages}
-              depth={depth + 1}
-              onChange={onChange}
-              onRemove={onRemove}
-              onMove={onMove}
-              onAddChild={onAddChild}
-            />
+      {link.links.length === 0 ? null : (
+        <ul className="nav-tree">
+          {link.links.map((child) => (
+            <LinkRow key={child.key} link={child} tree={tree} />
           ))}
         </ul>
       )}
@@ -372,11 +193,52 @@ const NavigationNode = ({
   );
 };
 
+/** The menu as the public site would show it: top-level links in a bar, children below. */
+const MenuPreview = ({
+  links,
+  pages,
+}: {
+  readonly links: readonly NavLink[];
+  readonly pages: readonly PageOption[];
+}): ReactElement => {
+  const { t } = useTranslator();
+  const items = (list: readonly NavLink[]): ReactElement => (
+    <ul>
+      {list.map((link) => (
+        <li key={link.key}>
+          <span className="menu-preview-link">{linkLabel(link, pages, t)}</span>
+          {link.links.length === 0 ? null : items(link.links)}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <aside className="menu-preview" aria-labelledby="menu-preview-title">
+      <h3 id="menu-preview-title">{t('siteHub.menuPreview')}</h3>
+      <div className="menu-preview-bar">
+        {links.length === 0 ? (
+          <ul>
+            <li>
+              <span className="menu-preview-link">{t('siteHub.homeLink')}</span>
+            </li>
+          </ul>
+        ) : (
+          items(links)
+        )}
+      </div>
+      {links.length === 0 ? <p className="field-note">{t('siteHub.emptyMenuNote')}</p> : null}
+    </aside>
+  );
+};
+
 export interface NavigationEditorProps {
   readonly siteId: SiteId;
-  readonly pages: readonly PageSummary[];
+  readonly pages: readonly PageOption[];
   readonly navigation: readonly JsonValue[];
 }
+
+const newestKey = (links: readonly NavLink[]): number =>
+  links.reduce((max, link) => Math.max(max, link.key, newestKey(link.links)), -1);
 
 export const SiteNavigationEditor = ({
   siteId,
@@ -384,80 +246,172 @@ export const SiteNavigationEditor = ({
   navigation,
 }: NavigationEditorProps): ReactElement => {
   const { t } = useTranslator();
-  const [nodes, setNodes] = useState<readonly NavigationDraft[]>(() =>
-    navigationDrafts(navigation),
-  );
+  const [links, setLinks] = useState<readonly NavLink[]>(() => navigationLinks(navigation));
+  const [savedJson, setSavedJson] = useState(() => JSON.stringify(navigationJson(links)));
+  const [openKey, setOpenKey] = useState<number | null>(null);
+  const [picked, setPicked] = useState<{
+    readonly key: number;
+    readonly before: readonly NavLink[];
+  } | null>(null);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [drop, setDrop] = useState<{ readonly key: number; readonly place: Place } | null>(null);
+  const [announcement, setAnnouncement] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const handles = useRef(new Map<number, HTMLButtonElement>());
   const { state: saveState, save } = useSave();
+
+  const json = navigationJson(links);
+  const dirty = JSON.stringify(json) !== savedJson;
+  useUnsavedGuard(dirty, t('siteHub.unsavedConfirm'));
+  const issues = linkIssues(links);
+
+  const pickedKey = picked?.key ?? null;
+  // A move across levels re-mounts the row, so focus follows the picked link.
+  useEffect(() => {
+    if (pickedKey !== null) {
+      handles.current.get(pickedKey)?.focus();
+    }
+  }, [links, pickedKey]);
+
+  const run = (action: NavigationAction): readonly NavLink[] => {
+    const next = navigationReducer(links, action);
+    setLinks(next);
+    return next;
+  };
+
+  const add = (parent: number | null): void => {
+    const next = run({ type: 'add', parent, linkType: 'page' });
+    setOpenKey(newestKey(next));
+  };
+
+  const tree: TreeContext = {
+    pages,
+    issues,
+    openKey,
+    pickedKey,
+    drop,
+    run,
+    toggleOpen: (key) => {
+      setOpenKey((current) => (current === key ? null : key));
+    },
+    addChild: add,
+    handleRef: (key, element) => {
+      if (element === null) {
+        handles.current.delete(key);
+      } else {
+        handles.current.set(key, element);
+      }
+    },
+    onPick: (link) => {
+      const label = linkLabel(link, pages, t);
+      if (pickedKey === link.key) {
+        setPicked(null);
+        setAnnouncement(t('siteHub.dropped', { label }));
+        return;
+      }
+      setPicked({ key: link.key, before: links });
+      setAnnouncement(t('siteHub.picked', { label }));
+    },
+    onHandleKey: (link, event) => {
+      if (pickedKey !== link.key) {
+        return;
+      }
+      const label = linkLabel(link, pages, t);
+      if (event.key === 'Escape' && picked !== null) {
+        event.preventDefault();
+        setLinks(picked.before);
+        setPicked(null);
+        setAnnouncement(t('siteHub.cancelled', { label }));
+        return;
+      }
+      const direction = ARROWS[event.key];
+      if (direction === undefined) {
+        return;
+      }
+      event.preventDefault();
+      const action = keyboardMove(links, link.key, direction);
+      if (action === null) {
+        return;
+      }
+      const where = whereIs(run(action), link.key);
+      if (where !== null) {
+        setAnnouncement(t('siteHub.moved', { label, ...where }));
+      }
+    },
+    onDragStart: setDragging,
+    onDragOver: (key, place) => {
+      if (drop?.key !== key || drop.place !== place) {
+        setDrop({ key, place });
+      }
+    },
+    onDrop: (key, place) => {
+      if (dragging !== null) {
+        run({ type: 'move', key: dragging, target: key, place });
+      }
+      setDragging(null);
+      setDrop(null);
+    },
+    onDragEnd: () => {
+      setDragging(null);
+      setDrop(null);
+    },
+  };
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
-    const pageLinkWithoutPage = nodes.some(
-      (node) => node.type === 'page' && node.pageId === null,
-    );
-    const urlLinkWithoutUrl = nodes.some(
-      (node) =>
-        node.type === 'url' && (node.url.trim() === '' || node.label.trim() === ''),
-    );
-    if (pageLinkWithoutPage || urlLinkWithoutUrl) {
+    if (issues.size > 0) {
       setFormError(t('navigation.errorMissingTarget'));
       return;
     }
     setFormError(null);
-    const body = encodeSiteNavigation(navigationJson(nodes));
     save(async () => {
-      await api.patchSite(siteId, body);
+      await api.patchSite(siteId, encodeSiteNavigation(json));
+      setSavedJson(JSON.stringify(json));
     });
   };
 
-  const onChange = (key: number, patch: Partial<NavigationDraft>): void => {
-    setNodes((current) => patchNavigationLink(current, key, patch));
-  };
-  const onRemove = (key: number): void => {
-    setNodes((current) => removeNavigationLink(current, key));
-  };
-  const onMove = (key: number, delta: number): void => {
-    setNodes((current) => moveNavigationLink(current, key, delta));
-  };
-  const onAddChild = (key: number): void => {
-    setNodes((current) => addNavigationLink(current, key));
-  };
-
   return (
-    <form onSubmit={submit}>
-      <ul className="navigation-nodes">
-        {nodes.map((node) => (
-          <NavigationNode
-            key={node.key}
-            node={node}
-            pages={pages}
-            depth={0}
-            onChange={onChange}
-            onRemove={onRemove}
-            onMove={onMove}
-            onAddChild={onAddChild}
-          />
-        ))}
-      </ul>
-      <p>
-        <button
-          type="button"
-          onClick={() => {
-            setNodes((current) => addNavigationLink(current, null));
-          }}
-        >
-          {t('navigation.addLink')}
-        </button>
-      </p>
-      {formError === null ? null : <p role="alert">{formError}</p>}
-      <SaveStatus state={saveState} />
-      <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+    <form className="nav-editor" onSubmit={submit}>
+      <div className="nav-editor-tree">
+        <p className="field-note">{t('siteHub.treeHelp')}</p>
+        {links.length === 0 ? <p>{t('siteHub.noLinks')}</p> : null}
+        <ul className="nav-tree" aria-label={t('siteHub.treeLabel')}>
+          {links.map((link) => (
+            <LinkRow key={link.key} link={link} tree={tree} />
+          ))}
+        </ul>
+        <p className="nav-live" role="status" aria-live="polite">
+          {announcement}
+        </p>
+        <p>
+          <button
+            type="button"
+            onClick={() => {
+              add(null);
+            }}
+          >
+            {t('navigation.addLink')}
+          </button>
+        </p>
+        {formError === null ? null : <p role="alert">{formError}</p>}
+        <SaveStatus state={saveState} />
+        <div className="nav-editor-save">
+          <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+          {dirty ? (
+            <span className="editor-dirty" role="status">
+              <span className="editor-dirty-dot" aria-hidden="true" />
+              {t('siteHub.unsaved')}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <MenuPreview links={links} pages={pages} />
     </form>
   );
 };
 
 interface NavigationLoaded {
-  readonly pages: readonly PageSummary[];
+  readonly pages: readonly PageOption[];
   readonly navigation: readonly JsonValue[];
 }
 
@@ -467,11 +421,7 @@ const loadNavigation = async (siteId: SiteId): Promise<NavigationLoaded> => {
     api.listSitePages({ siteId, perPage: 200 }),
   ]);
   return {
-    pages: pages.items.map((page) => ({
-      id: page.id,
-      title: page.title,
-      isPublic: page.isPublic,
-    })),
+    pages: pages.items.map((page) => ({ id: page.id, title: page.title })),
     navigation: site.navigation,
   };
 };

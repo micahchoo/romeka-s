@@ -1288,3 +1288,343 @@ fieldset.block-field {
   display: grid;
   gap: var(--space-2);
 }
+
+/* The site frame: a breadcrumb, the heading with the public link beside it,
+ * and the tab bar of the site's screens. `aria-current` marks the tab. */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+}
+
+.breadcrumb li + li::before {
+  content: "›";
+  margin-inline-end: var(--space-1);
+  color: var(--border-strong);
+}
+
+.breadcrumb [aria-current="page"] {
+  color: var(--text);
+}
+
+.site-frame-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3);
+}
+
+.site-frame-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.site-frame-view::after {
+  content: " ↗";
+}
+
+.site-tabs ul {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.site-tabs a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-tabs a:hover {
+  color: var(--text);
+}
+
+.site-tabs a[aria-current] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Small labels beside a title: homepage, visibility, link type. */
+.badge {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+td > .badge:first-child {
+  margin-inline-start: 0;
+}
+
+.badge-accent {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge-muted {
+  border-style: dashed;
+}
+
+.badge-danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* A button that reads as a link, for row actions that write. */
+.link-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.link-button:hover:not(:disabled) {
+  background: none;
+  color: #164f96;
+}
+
+.link-button-danger {
+  color: var(--danger);
+}
+
+/* A link that reads as the primary button. */
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.button-link:hover {
+  background: #164f96;
+}
+
+/* The site hub: the pages table, then the site's setup. */
+.hub-section {
+  margin: 0 0 var(--space-6);
+}
+
+.hub-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.hub-section-head h3 {
+  margin: 0;
+}
+
+.site-hub table {
+  background: var(--surface);
+}
+
+.site-hub tbody th {
+  font-weight: 500;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+/* The navigation editor: the tree of links beside the menu it builds. */
+.nav-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1000px) {
+  .nav-editor {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+}
+
+.nav-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-tree .nav-tree {
+  margin-inline-start: var(--space-5);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--border);
+}
+
+.nav-editor-tree > .nav-tree {
+  margin: 0 0 var(--space-3);
+}
+
+.nav-tree-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.nav-tree-row[data-drop="before"] {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+
+.nav-tree-row[data-drop="after"] {
+  box-shadow: 0 3px 0 var(--accent);
+}
+
+.nav-tree-row[data-drop="inside"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.nav-tree-row-picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.nav-tree-handle {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border-color: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+}
+
+.nav-tree-handle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav-tree-label {
+  font-weight: 600;
+}
+
+.nav-tree-label + .badge {
+  margin-inline-start: 0;
+}
+
+.nav-tree-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-inline-start: auto;
+}
+
+.nav-link-fields {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--bg);
+}
+
+.nav-link-fields .field-note {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+}
+
+.nav-live[role="status"] {
+  min-height: 1.5em;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+}
+
+.nav-editor-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.nav-editor-save .editor-dirty[role="status"] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.menu-preview {
+  position: sticky;
+  top: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.menu-preview h3 {
+  margin: 0 0 var(--space-3);
+}
+
+.menu-preview-bar {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--text);
+  color: #ffffff;
+}
+
+.menu-preview-bar ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-preview-bar > ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.menu-preview-bar ul ul {
+  margin-top: var(--space-1);
+  padding-inline-start: var(--space-2);
+  border-inline-start: 1px solid rgb(255 255 255 / 0.3);
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.menu-preview-link {
+  font-weight: 500;
+}

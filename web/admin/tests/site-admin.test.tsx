@@ -6,17 +6,10 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isUnknownArray } from '../src/api/parse';
+import { isRecord, isUnknownArray } from '../src/api/parse';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
-import {
-  addNavigationLink,
-  moveNavigationLink,
-  navigationDrafts,
-  navigationJson,
-  removeNavigationLink,
-} from '../src/pages/sites/navigation';
 import { siteSettingDrafts, siteSettingsWire } from '../src/pages/sites/siteSettingsSchema';
 import { SITE_SETTINGS_REGISTRY } from '../src/pages/sites/siteSettingsRegistry';
 import { loadFixture } from './loadFixture';
@@ -65,49 +58,122 @@ describe('site section routing', () => {
   });
 });
 
-describe('site detail', () => {
-  it('site_detail_lists_each_page_with_its_visibility', async () => {
-    installFetch((url) => {
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/site_pages/1') {
-        return jsonResponse(loadFixture('site-page-1.json'));
-      }
-      if (url.pathname === '/api/site_pages/2') {
-        return jsonResponse(loadFixture('site-page-2-private.json'));
-      }
-      return usersRoute(url) ?? notFound();
-    });
+const pagePatch = (fetchMock: ReturnType<typeof installFetch>): Record<string, unknown>[] =>
+  requestsFor(fetchMock, '/api/sites/1')
+    .filter((request) => request.init?.method === 'PATCH')
+    .map(requestBody);
+
+const siteRoutes = (url: URL): Response | null =>
+  url.pathname === '/api/sites/1' ? jsonResponse(site()) : sitePagesRoute(url);
+
+describe('site hub', () => {
+  it('hub_lists_each_page_with_its_visibility_homepage_and_menu_state', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
     render(<SitesPage param="1" rest={['1']} />);
 
-    const welcome = await screen.findByRole('link', { name: 'Welcome' });
-    const draft = screen.getByRole('link', { name: 'Draft' });
-    expect(welcome).toHaveAttribute('href', '#/sites/1/pages/1');
-    // The private page carries the marker; the public one does not.
-    expect(draft.parentElement).toHaveTextContent('Draft Private');
-    expect(welcome.parentElement).toHaveTextContent('Welcome');
-    expect(welcome.parentElement).not.toHaveTextContent('Private');
+    const table = await screen.findByRole('table');
+    const welcome = within(table).getByRole('row', { name: /Welcome/ });
+    const draft = within(table).getByRole('row', { name: /Draft/ });
+    expect(within(welcome).getByRole('link', { name: 'Welcome' })).toHaveAttribute(
+      'href',
+      '#/sites/1/pages/1',
+    );
+    expect(welcome).toHaveTextContent('Homepage');
+    expect(welcome).toHaveTextContent('Public');
+    expect(welcome).toHaveTextContent('In navigation');
+    expect(within(welcome).queryByRole('button', { name: 'Set as homepage' })).toBeNull();
+    expect(within(welcome).getByRole('link', { name: 'View' })).toHaveAttribute(
+      'href',
+      '/s/my-site/page/welcome',
+    );
+    expect(draft).toHaveTextContent('Private');
+    expect(draft).not.toHaveTextContent('Homepage');
+    expect(within(draft).getByRole('button', { name: 'Add to navigation' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add page' })).toHaveAttribute(
+      'href',
+      '#/sites/1/pages/new',
+    );
   });
 
-  it('site_detail_links_to_the_member_group_pages', async () => {
-    installFetch((url) => {
+  it('hub_sets_the_homepage_and_adds_a_page_to_the_menu_with_one_member_each', async () => {
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1']} />);
+
+    const draft = await screen.findByRole('row', { name: /Draft/ });
+    fireEvent.click(within(draft).getByRole('button', { name: 'Set as homepage' }));
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    fireEvent.click(within(draft).getByRole('button', { name: 'Add to navigation' }));
+    await screen.findByText('Saving...');
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+
+    expect(pagePatch(fetchMock)).toEqual([
+      { 'o:homepage': { 'o:id': 2 } },
+      {
+        'o:navigation': [
+          { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
+          { type: 'page', data: { id: 1, label: 'Welcome' }, links: [] },
+          { type: 'page', data: { id: 2, label: null }, links: [] },
+        ],
+      },
+    ]);
+  });
+
+  it('hub_clears_an_explicit_homepage_with_one_null_member_and_follows_the_menu', async () => {
+    const stored = site();
+    if (!isRecord(stored)) {
+      throw new Error('the site fixture is not an object');
+    }
+    const named = { ...stored, 'o:homepage': { '@id': 'http://localhost/api/site_pages/2', 'o:id': 2 } };
+    const followsMenu = { ...stored, 'o:homepage': null };
+    const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
+        return jsonResponse(init?.method === 'PATCH' ? followsMenu : named);
       }
-      if (url.pathname === '/api/site_pages/1' || url.pathname === '/api/site_pages/2') {
-        return jsonResponse(loadFixture('site-page-1.json'));
-      }
-      return usersRoute(url) ?? notFound();
+      return sitePagesRoute(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1']} />);
 
-    const nav = await screen.findByRole('navigation', { name: 'Site sections' });
-    expect(within(nav).getByRole('link', { name: 'Navigation' })).toHaveAttribute(
-      'href',
-      '#/sites/1/navigation',
+    const draft = await screen.findByRole('row', { name: /Draft/ });
+    const welcome = screen.getByRole('row', { name: /Welcome/ });
+    expect(draft).toHaveTextContent('Homepage');
+    expect(within(welcome).queryByRole('button', { name: 'Use the first menu page' })).toBeNull();
+    fireEvent.click(within(draft).getByRole('button', { name: 'Use the first menu page' }));
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+
+    expect(pagePatch(fetchMock)).toEqual([{ 'o:homepage': null }]);
+    expect(draft).not.toHaveTextContent('Homepage');
+    expect(welcome).toHaveTextContent('Homepage');
+    expect(screen.queryByRole('button', { name: 'Use the first menu page' })).toBeNull();
+  });
+
+  it('every_site_screen_shares_one_breadcrumb_heading_and_tab_bar', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
+    const { rerender } = render(<SitesPage param="1" rest={['1']} />);
+
+    const crumbs = await screen.findByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByRole('link', { name: 'Sites' })).toHaveAttribute('href', '#/sites');
+    expect(await within(crumbs).findByText('My Site')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { level: 2, name: 'My Site' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View site' })).toHaveAttribute('href', '/s/my-site');
+    const tabs = screen.getByRole('navigation', { name: 'Site sections' });
+    expect(within(tabs).getByRole('link', { name: 'Pages' })).toHaveAttribute(
+      'aria-current',
+      'page',
     );
-    expect(within(nav).getByRole('link', { name: 'Site settings' })).toHaveAttribute(
+
+    rerender(<SitesPage param="1" rest={['1', 'navigation']} />);
+    expect(await within(crumbs).findByRole('link', { name: 'My Site' })).toHaveAttribute(
+      'href',
+      '#/sites/1',
+    );
+    expect(within(crumbs).getByText('Navigation')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { level: 2, name: 'Navigation' })).toBeInTheDocument();
+    expect(within(tabs).getByRole('link', { name: 'Navigation' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(tabs).getByRole('link', { name: 'Pages' })).not.toHaveAttribute('aria-current');
+    expect(within(tabs).getByRole('link', { name: 'Site settings' })).toHaveAttribute(
       'href',
       '#/sites/1/settings',
     );
@@ -115,98 +181,110 @@ describe('site detail', () => {
 });
 
 describe('site navigation', () => {
+  const tree = (): HTMLElement => screen.getByRole('list', { name: 'Menu links' });
+
   it('navigation_editor_patches_the_tree_it_builds', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return sitePagesRoute(url) ?? notFound();
-    });
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
     render(<SitesPage param="1" rest={['1', 'navigation']} />);
 
-    // The two stored links load, then a third is added as a custom URL.
-    expect(await screen.findAllByLabelText('Link type')).toHaveLength(2);
+    expect(await screen.findByRole('button', { name: 'Move Browse' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move Welcome' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add link' }));
-    const types = screen.getAllByLabelText('Link type');
-    fireEvent.change(types[2] ?? first(types), { target: { value: 'url' } });
-    fireEvent.change(screen.getByLabelText('URL'), {
-      target: { value: 'https://example.org' },
-    });
-    const labels = screen.getAllByLabelText('Label');
-    fireEvent.change(labels[2] ?? first(labels), { target: { value: 'Example' } });
+    // A new link opens with its controls, as a page link until its type changes.
+    fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
+    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://example.org' } });
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Example' } });
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    expect(patch.url.pathname).toBe('/api/sites/1');
-    expect(requestBody(patch)).toEqual({
-      'o:navigation': [
-        { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
-        { type: 'page', data: { id: 1, label: 'Welcome' }, links: [] },
-        {
-          type: 'url',
-          data: { label: 'Example', url: 'https://example.org', target_blank: false },
-          links: [],
-        },
-      ],
-    });
+    expect(pagePatch(fetchMock)).toEqual([
+      {
+        'o:navigation': [
+          { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
+          { type: 'page', data: { id: 1, label: 'Welcome' }, links: [] },
+          {
+            type: 'url',
+            data: { label: 'Example', url: 'https://example.org', target_blank: false },
+            links: [],
+          },
+        ],
+      },
+    ]);
+    expect(screen.queryByText('Unsaved changes')).toBeNull();
   });
 
-  it('navigation_editor_rejects_a_url_link_with_no_target', async () => {
-    const fetchMock = installFetch((url) => {
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return sitePagesRoute(url) ?? notFound();
-    });
+  it('navigation_editor_nests_a_link_by_keyboard_and_escape_puts_it_back', async () => {
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
     render(<SitesPage param="1" rest={['1', 'navigation']} />);
 
-    await screen.findAllByLabelText('Link type');
+    const handle = await screen.findByRole('button', { name: 'Move Welcome' });
+    fireEvent.click(handle);
+    expect(handle).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    expect(screen.getByText('Welcome: position 1 of 2, level 1.')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Move Welcome' }), { key: 'Escape' });
+    expect(within(tree()).getAllByRole('button', { name: /^Move / }).map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Move Browse',
+      'Move Welcome',
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move Welcome' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Move Welcome' }), { key: 'ArrowRight' });
+    expect(screen.getByText('Welcome: position 1 of 1, level 2.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Welcome' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(pagePatch(fetchMock)).toEqual([
+      {
+        'o:navigation': [
+          {
+            type: 'browse',
+            data: { label: 'Browse', query: '' },
+            links: [{ type: 'page', data: { id: 1, label: 'Welcome' }, links: [] }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('the_menu_preview_shows_the_labels_the_public_menu_falls_back_to', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    await screen.findByRole('button', { name: 'Move Welcome' });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Welcome' }));
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add link' }));
-    const types = screen.getAllByLabelText('Link type');
-    fireEvent.change(types[2] ?? first(types), { target: { value: 'url' } });
+    fireEvent.change(screen.getByLabelText('Page'), { target: { value: '2' } });
+
+    const preview = screen.getByRole('complementary', { name: 'Menu preview' });
+    expect(within(preview).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Browse',
+      'Welcome',
+      'Draft',
+    ]);
+  });
+
+  it('navigation_editor_rejects_a_nested_url_link_with_no_target', async () => {
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add child link to Browse' }));
+    fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
+    expect(within(tree()).getByText('Needs a target')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'A page or URL link needs its target.',
     );
-    expect(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    ).toHaveLength(0);
-  });
-
-  it('navigation_model_round_trips_and_reorders_the_tree', () => {
-    const stored = [
-      { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
-      { type: 'url', data: { label: 'Home', url: '/', target_blank: true }, links: [] },
-    ];
-    const drafts = navigationDrafts(stored);
-    expect(navigationJson(drafts)).toEqual(stored);
-    const moved = moveNavigationLink(drafts, drafts[1]?.key ?? 0, -1);
-    expect(navigationJson(moved)[0]).toEqual(stored[1]);
-    const added = addNavigationLink(moved, null, 'page');
-    expect(navigationJson(added)).toHaveLength(3);
-    const removed = removeNavigationLink(added, drafts[0]?.key ?? 0);
-    expect(navigationJson(removed)).toHaveLength(2);
-  });
-
-  it('navigation_model_keeps_an_unknown_link_type_verbatim', () => {
-    const stored = [{ type: 'thirdParty', data: { keep: 'this' }, links: [] }];
-    expect(navigationJson(navigationDrafts(stored))).toEqual(stored);
+    expect(pagePatch(fetchMock)).toHaveLength(0);
   });
 });
 
 describe('site resources', () => {
-  it('site_resources_patches_the_item_pool_and_item_sets', async () => {
+  it('site_resources_patches_the_item_pool_query_and_item_sets', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
         return jsonResponse(site());
@@ -219,59 +297,33 @@ describe('site resources', () => {
       }
       if (url.pathname === '/api/items') {
         return listResponse(loadFixture('items-page.json'), 7);
+      }
+      if (url.pathname === '/api/resource_classes') {
+        return listResponse([], 0);
       }
       return notFound();
     });
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
     expect(await screen.findByText('Items in this site: 7')).toBeInTheDocument();
-    const pool = screen.getByLabelText('Item pool (JSON)');
-    fireEvent.change(pool, { target: { value: '{"search":"fish"}' } });
+    const pool = screen.getByRole('group', { name: 'Item pool' });
+    fireEvent.change(within(pool).getByLabelText('Full-text search'), {
+      target: { value: 'fish' },
+    });
     fireEvent.click(screen.getByLabelText('Featured photographs'));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    expect(requestBody(patch)).toEqual({
-      'o:item_pool': { search: 'fish' },
-      // The stored attachment (set 2) keeps its place; the new one appends.
-      'o:site_item_set': [
-        { 'o:item_set': { 'o:id': 2 } },
-        { 'o:item_set': { 'o:id': 1 } },
-      ],
-    });
-  });
-
-  it('site_resources_shows_a_typed_error_for_bad_pool_json', async () => {
-    const fetchMock = installFetch((url) => {
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/item_sets') {
-        return listResponse(loadFixture('item-sets-page.json'), 2);
-      }
-      if (url.pathname === '/api/items') {
-        return listResponse(loadFixture('items-page.json'), 7);
-      }
-      return notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'resources']} />);
-
-    fireEvent.change(await screen.findByLabelText('Item pool (JSON)'), {
-      target: { value: '{' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Item pool (JSON):');
-    expect(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    ).toHaveLength(0);
+    expect(pagePatch(fetchMock)).toEqual([
+      {
+        'o:item_pool': { fulltext_search: 'fish' },
+        // The stored attachment (set 2) keeps its place; the new one appends.
+        'o:site_item_set': [
+          { 'o:item_set': { 'o:id': 2 } },
+          { 'o:item_set': { 'o:id': 1 } },
+        ],
+      },
+    ]);
   });
 });
 
@@ -348,7 +400,7 @@ describe('site settings', () => {
       if (url.pathname === '/api/sites/1') {
         return jsonResponse(site());
       }
-      return notFound();
+      return usersRoute(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1', 'settings']} />);
 

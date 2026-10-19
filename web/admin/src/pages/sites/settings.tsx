@@ -1,6 +1,7 @@
 /**
- * The site settings page (`SiteAdmin/IndexController::indexAction`, the
- * `SiteSettingsForm` fields).
+ * The site settings page (`SiteAdmin/IndexController::editAction`): the
+ * site's own members (`SiteForm`) and the `SiteSettingsForm` fields, saved
+ * together by one partial update as upstream's edit form does.
  *
  * Upstream saves each field as its own `site_setting` row through a
  * server-rendered form. The port's site document carries the map as
@@ -15,13 +16,17 @@ import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import { isRecord } from '../../api/parse';
-import { encodeSiteSettings } from '../../api/write';
-import type { Site, SiteId } from '../../api/types';
+import { encodeSiteInfo, encodeSiteSettings } from '../../api/write';
+import type { Site, SiteId, User } from '../../api/types';
+import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { useSiteSaved } from './SiteFrame';
+import { SiteInfoFields, siteInfoOf } from './siteInfo';
+import type { SiteInfo } from './siteInfo';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
 import { siteSettingDrafts, siteSettingsWire } from './siteSettingsSchema';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
@@ -213,17 +218,25 @@ const SettingControl = ({
   );
 };
 
+interface Loaded {
+  readonly site: Site;
+  readonly users: readonly User[];
+}
+
 const SiteSettingsEditor = ({
   siteId,
-  site,
+  loaded,
 }: {
   readonly siteId: SiteId;
-  readonly site: Site;
+  readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator();
+  const siteSaved = useSiteSaved();
+  const [info, setInfo] = useState<SiteInfo>(() => siteInfoOf(loaded.site));
   const [drafts, setDrafts] = useState<Readonly<Record<string, SiteSettingDraft>>>(() =>
-    siteSettingDrafts(SITE_SETTINGS_REGISTRY, storedSettings(site)),
+    siteSettingDrafts(SITE_SETTINGS_REGISTRY, storedSettings(loaded.site)),
   );
+  const [formError, setFormError] = useState<string | null>(null);
   const { state: saveState, save } = useSave();
 
   const set = (key: string, value: SiteSettingDraft): void => {
@@ -232,44 +245,59 @@ const SiteSettingsEditor = ({
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
+    if (info.title.trim() === '') {
+      setFormError(t('sites.errorNoTitle'));
+      return;
+    }
+    setFormError(null);
     const values = siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts);
     save(async () => {
-      await api.patchSite(siteId, encodeSiteSettings(values));
+      siteSaved(
+        await api.patchSite(siteId, { ...encodeSiteInfo(info), ...encodeSiteSettings(values) }),
+      );
     });
   };
 
   return (
     <form onSubmit={submit}>
-      {SITE_SETTINGS_REGISTRY.settings.map((spec) => (
-        <SettingControl
-          key={spec.key}
-          spec={spec}
-          value={drafts[spec.key] ?? ''}
-          onChange={(value) => {
-            set(spec.key, value);
-          }}
-        />
-      ))}
+      <SiteInfoFields info={info} users={loaded.users} onChange={setInfo} />
+      <fieldset>
+        <legend>{t('siteHub.settingsLegend')}</legend>
+        {SITE_SETTINGS_REGISTRY.settings.map((spec) => (
+          <SettingControl
+            key={spec.key}
+            spec={spec}
+            value={drafts[spec.key] ?? ''}
+            onChange={(value) => {
+              set(spec.key, value);
+            }}
+          />
+        ))}
+      </fieldset>
+      {formError === null ? null : <p role="alert">{formError}</p>}
       <SaveStatus state={saveState} />
       <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
     </form>
   );
 };
 
-/** The settings form and the on-demand template manager. The manager is a lazy
- * chunk, so the settings route does not carry it until the user opens it. */
+/**
+ * The settings form, the on-demand template manager and the delete control.
+ * The manager is a lazy chunk, so the settings route does not carry it until
+ * the user opens it.
+ */
 const SiteSettingsLoaded = ({
   siteId,
-  site,
+  loaded,
 }: {
   readonly siteId: SiteId;
-  readonly site: Site;
+  readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator();
   const [managing, setManaging] = useState(false);
   return (
     <>
-      <SiteSettingsEditor key={String(siteId)} siteId={siteId} site={site} />
+      <SiteSettingsEditor key={String(siteId)} siteId={siteId} loaded={loaded} />
       <p>
         <button
           type="button"
@@ -294,26 +322,42 @@ const SiteSettingsLoaded = ({
         {managing ? (
           <TemplateManager
             siteId={siteId}
-            siteSettings={site.siteSettings}
+            siteSettings={loaded.site.siteSettings}
             onClose={() => {
               setManaging(false);
             }}
           />
         ) : null}
       </Suspense>
+      <DeleteControl
+        label={t('sites.deleteLabel')}
+        rowName={loaded.site.title}
+        onConfirm={async () => {
+          await api.deleteSite(siteId);
+          window.location.hash = '#/sites';
+        }}
+      />
     </>
   );
 };
 
-/** Loads the site and its settings, then renders the form. */
+const load = async (siteId: SiteId): Promise<Loaded> => {
+  const [site, users] = await Promise.all([
+    api.getSite(siteId),
+    api.listUsers({ perPage: 200, sortBy: 'name' }),
+  ]);
+  return { site, users: users.items };
+};
+
+/** Loads the site and the user list the owner select offers, then renders the form. */
 export const SiteSettingsPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
-  const state = useAsync(() => api.getSite(siteId), [siteId]);
+  const state = useAsync(() => load(siteId), [siteId]);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return <SiteSettingsLoaded key={String(siteId)} siteId={siteId} site={state.data} />;
+  return <SiteSettingsLoaded key={String(siteId)} siteId={siteId} loaded={state.data} />;
 };
