@@ -207,7 +207,7 @@ columns and validation the two member kinds share; `write::templates` holds
 | items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` built on create only |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | the create runs the ingester named by `o:ingester` and stores the file and payload it produced |
-| sites | yes | yes | create adds a welcome page and a site-admin permission; a `PUT` removes every page `o:page` does not name |
+| sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; a `PUT` removes every page `o:page` does not name |
 | site_pages | yes | yes | blocks replaced; `o:data` `{}` is stored as `[]` (PHP `json_decode(..., true)`) |
 | users | yes | yes | new users are inactive and have no password |
 | vocabularies | yes | yes | `o:class` and `o:property` list their members; an unlisted member is removed |

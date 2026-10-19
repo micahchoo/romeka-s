@@ -17,15 +17,6 @@ import { useTranslator } from '../../i18n';
 import { Breadcrumb } from './SiteFrame';
 import { ThemeSelect, slugFromTitle } from './siteInfo';
 
-/**
- * The navigation `SiteAdapter::hydrate` writes when a create sends none
- * (`default_navigation` in `crates/omeka-api/src/write/sites.rs`). The label is
- * stored data, matching upstream, so it is not a catalogue message.
- */
-const DEFAULT_NAVIGATION = [
-  { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
-];
-
 /** A new site's saved search: every public item (`o:item_pool` as `parse_str` stores it). */
 const DEFAULT_ITEM_POOL = { is_public: '1' };
 
@@ -53,8 +44,6 @@ export const SiteCreatePage = (): ReactElement => {
         slug: slug.trim(),
         theme,
         summary: null,
-        navigation: DEFAULT_NAVIGATION,
-        homepage: null,
         itemPool: DEFAULT_ITEM_POOL,
         isPublic,
         assignNewItems: true,
