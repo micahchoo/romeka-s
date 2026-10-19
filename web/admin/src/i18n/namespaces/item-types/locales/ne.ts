@@ -108,4 +108,6 @@ export const ne: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type} मा',
   'fieldsPage.used': '{count} वस्तु प्रकारहरू यसको प्रयोग गर्छन्:',
   'fieldsPage.unused': 'अहिलेसम्म प्रयोग नभएको',
+  'loading.resourceTemplate': 'संसाधन टेम्प्लेट लोड हुँदैछ...',
+  'route.invalidTemplateId': '"{param}" एक मान्य संसाधन टेम्प्लेट id होइन।',
 };

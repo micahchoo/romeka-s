@@ -53,6 +53,7 @@ describe('namespace tables', () => {
       );
       expect(ids, path).toEqual([id]);
     }
+    expect([...registered].sort()).toEqual(Object.keys(DEFINED).map(idOf).sort());
   });
 
   it('a_key_id_is_in_at_most_one_namespace', () => {

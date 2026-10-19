@@ -108,4 +108,6 @@ export const ml: ItemTypesMessages = {
   'fieldsPage.calledIn': '{type}-ൽ “{label}”',
   'fieldsPage.used': 'ഇത് ഉപയോഗിക്കുന്ന ഐറ്റം ടൈപ്പുകൾ: {count}',
   'fieldsPage.unused': 'ഇതുവരെ ഉപയോഗിച്ചിട്ടില്ല',
+  'loading.resourceTemplate': 'റിസോഴ്സ് ടെംപ്ലേറ്റ് ലോഡ് ചെയ്യുന്നു...',
+  'route.invalidTemplateId': '"{param}" എന്നത് സാധുവായ ഒരു റിസോഴ്സ് ടെംപ്ലേറ്റ് ഐഡി അല്ല.',
 };

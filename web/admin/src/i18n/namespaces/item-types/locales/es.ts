@@ -105,4 +105,6 @@ export const es: ItemTypesMessages = {
   'fieldsPage.calledIn': '«{label}» en {type}',
   'fieldsPage.used': 'Tipos de elemento que lo usan: {count}',
   'fieldsPage.unused': 'Aún sin usar',
+  'loading.resourceTemplate': 'Cargando la plantilla de recurso...',
+  'route.invalidTemplateId': '"{param}" no es un id de plantilla de recurso válido.',
 };

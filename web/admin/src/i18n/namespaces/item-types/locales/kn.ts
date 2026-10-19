@@ -108,4 +108,6 @@ export const kn: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type} ನಲ್ಲಿ',
   'fieldsPage.used': 'ಇದನ್ನು ಬಳಸುವ ಐಟಂ ಪ್ರಕಾರಗಳು: {count}',
   'fieldsPage.unused': 'ಇನ್ನೂ ಬಳಸಲಾಗಿಲ್ಲ',
+  'loading.resourceTemplate': 'ರಿಸೋರ್ಸ್ ಟೆಂಪ್ಲೇಟ್ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+  'route.invalidTemplateId': '"{param}" ಮಾನ್ಯವಾದ ಸಂಪನ್ಮೂಲ ಟೆಂಪ್ಲೇಟ್ ಐಡಿ ಅಲ್ಲ.',
 };

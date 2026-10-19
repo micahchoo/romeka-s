@@ -1,0 +1,15 @@
+{
+ "password.heading": "Set a password",
+ "password.new": "New password",
+ "password.confirm": "Confirm the new password",
+ "password.submit": "Set the password",
+ "password.errorEmpty": "Enter a new password.",
+ "password.errorMismatch": "The two passwords do not match.",
+ "password.done": "Your password is set. Sign in from the header to continue.",
+ "password.missingKey": "This link carries no password key. Request a new one.",
+ "forgot.heading": "Reset your password",
+ "forgot.submit": "Send the reset link",
+ "forgot.errorEmpty": "Enter your email address.",
+ "forgot.sent": "Check your mail for the reset link.",
+ "forgot.hint": "The answer is the same whether or not the address matches an account, so this page never says which addresses exist."
+}

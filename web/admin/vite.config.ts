@@ -48,6 +48,12 @@ export default defineConfig({
               name: 'editor-messages',
               test: /(i18n\/namespaces\/editor\/index|pages\/sites\/editor\/messages)\.ts$/,
             },
+            { name: 'common-messages', test: /i18n\/namespaces\/common\/index\.ts$/ },
+            { name: 'resources-messages', test: /i18n\/namespaces\/resources\/index\.ts$/ },
+            { name: 'sites-messages', test: /i18n\/namespaces\/sites\/index\.ts$/ },
+            { name: 'admin-messages', test: /i18n\/namespaces\/admin\/index\.ts$/ },
+            { name: 'account-messages', test: /i18n\/namespaces\/account\/index\.ts$/ },
+            { name: 'standards-messages', test: /i18n\/namespaces\/standards\/index\.ts$/ },
             { name: 'item-types-messages', test: /i18n\/namespaces\/item-types\/index\.ts$/ },
             { name: 'term-lists-messages', test: /i18n\/namespaces\/term-lists\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).

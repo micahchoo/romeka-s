@@ -108,4 +108,6 @@ export const te: ItemTypesMessages = {
   'fieldsPage.calledIn': '{type}లో “{label}”',
   'fieldsPage.used': 'దీనిని ఉపయోగిస్తున్న ఐటమ్ రకాలు: {count}',
   'fieldsPage.unused': 'ఇంకా ఉపయోగించబడలేదు',
+  'loading.resourceTemplate': 'రిసోర్స్ టెంప్లేట్ లోడ్ అవుతోంది...',
+  'route.invalidTemplateId': '"{param}" అనేది సరైన రిసోర్స్ టెంప్లేట్ ఐడి కాదు.',
 };

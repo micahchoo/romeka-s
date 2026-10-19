@@ -109,4 +109,6 @@ export const ta: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type}-இல்',
   'fieldsPage.used': 'இதைப் பயன்படுத்தும் உருப்படி வகைகள்: {count}',
   'fieldsPage.unused': 'இன்னும் பயன்படுத்தப்படவில்லை',
+  'loading.resourceTemplate': 'வள வார்ப்புரு ஏற்றப்படுகிறது...',
+  'route.invalidTemplateId': '"{param}" என்பது சரியான வள வார்ப்புரு அடையாள எண் அல்ல.',
 };

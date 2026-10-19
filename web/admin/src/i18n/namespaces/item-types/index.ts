@@ -109,6 +109,8 @@ export const en = {
   "fieldsPage.calledIn": "“{label}” in {type}",
   "fieldsPage.used": "Item types using it: {count}",
   "fieldsPage.unused": "Not used yet",
+  'loading.resourceTemplate': 'Loading resource template...',
+  'route.invalidTemplateId': '"{param}" is not a valid resource template id.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

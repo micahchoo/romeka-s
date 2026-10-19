@@ -108,4 +108,6 @@ export const hi: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type} में',
   'fieldsPage.used': 'आइटम प्रकार जो इसका उपयोग करते हैं: {count}',
   'fieldsPage.unused': 'अभी तक उपयोग नहीं किया गया',
+  'loading.resourceTemplate': 'रिसोर्स टेम्पलेट लोड हो रहा है...',
+  'route.invalidTemplateId': '"{param}" एक वैध रिसोर्स टेम्पलेट आईडी नहीं है।',
 };
