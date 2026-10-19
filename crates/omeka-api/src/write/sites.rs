@@ -74,10 +74,11 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         slug = slugify(&title);
     }
     let summary = trimmed(payload.str_member("o:summary"));
-    let navigation = payload
+    // Without `o:navigation`, the default is stored once the welcome page exists to link.
+    let sent_navigation = payload
         .get("o:navigation")
-        .map(crate::write::body::php_json)
-        .unwrap_or_else(site_defaults::default_navigation);
+        .map(crate::write::body::php_json);
+    let navigation = sent_navigation.clone().unwrap_or_else(|| json!([]));
     let item_pool = payload
         .get("o:item_pool")
         .map(crate::write::body::php_json)
@@ -102,7 +103,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let permissions = permissions(api, payload).await?;
     let item_sets = site_item_sets(api, payload, false).await?;
     named_pages(api, payload).await?;
-    let row = SiteRepo::new(api.pool())
+    let mut row = SiteRepo::new(api.pool())
         .create(&NewSite {
             owner_id: owner,
             slug,
@@ -136,7 +137,14 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         site_defaults::theme_settings(api, row.id, &row.theme).await?;
     }
     hydrate_site_settings(api, row.id, payload).await?;
-    site_defaults::welcome_page(api, row.id).await?;
+    let welcome = site_defaults::welcome_page(api, row.id).await?;
+    if sent_navigation.is_none() {
+        row.navigation = site_defaults::default_navigation(welcome);
+        SiteRepo::new(api.pool())
+            .update(&row)
+            .await
+            .map_err(db_error)?;
+    }
     api.read_member("sites", &row.id.0.to_string()).await
 }
 
