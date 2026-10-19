@@ -18,6 +18,7 @@ import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { standardsHref } from '../standards/routes';
 
 /**
  * `Vocabulary::PREFIX_REGEX`, `/^[a-z0-9_-]+$/i`: the prefix a create accepts.
@@ -101,7 +102,7 @@ const VocabularyEditor = ({
     save(async () => {
       if (vocabulary === null) {
         const created = await api.createVocabulary(write);
-        window.location.hash = `#/vocabularies/${String(created.id)}`;
+        window.location.hash = standardsHref('vocabularies', created.id);
       } else {
         onSaved(await api.updateVocabulary(vocabulary.id, write));
       }
@@ -184,7 +185,10 @@ export const VocabularyEditForm = ({
   return <VocabularyEditor vocabulary={vocabulary} users={state.data} onSaved={onSaved} />;
 };
 
-/** `#/vocabularies/new`. */
+/**
+ * `#/standards/vocabularies/new`. A create opens the new vocabulary's page,
+ * where its properties and classes are added.
+ */
 export const VocabularyCreatePage = (): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(loadUsers, []);

@@ -32,6 +32,13 @@ const TABLES = [
     type: 'ThemeMessages',
     from: '../messages',
   },
+  {
+    what: 'Standards page messages',
+    source: 'src/pages/standards/messages.ts',
+    dir: 'src/pages/standards/locales',
+    type: 'StandardsMessages',
+    from: '../messages',
+  },
 ];
 const TRANSLATOR = process.env.TRANSLATOR_DIR ?? '/mnt/Ghar/2TA/DevStuff/notebook/translator';
 const SERVER = process.env.SARVAM_URL ?? 'http://localhost:8086';

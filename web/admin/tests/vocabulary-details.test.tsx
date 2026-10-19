@@ -56,11 +56,11 @@ describe('vocabulary detail', () => {
 
     expect(screen.getByRole('link', { name: 'Abstract' })).toHaveAttribute(
       'href',
-      '#/properties/60',
+      '#/standards/properties/60',
     );
     expect(screen.getByRole('link', { name: 'Book' })).toHaveAttribute(
       'href',
-      '#/resource-classes/51',
+      '#/standards/classes/51',
     );
     expect(screen.getByText('bibo:abstract')).toBeInTheDocument();
     expect(screen.getByText('bibo:AcademicArticle')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('property detail', () => {
     expect(screen.getByText('A name given to the resource.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Dublin Core' })).toHaveAttribute(
       'href',
-      '#/vocabularies/1',
+      '#/standards/vocabularies/1',
     );
   });
 });
@@ -126,7 +126,7 @@ describe('resource class detail', () => {
     expect(screen.getByText('[None]')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Dublin Core Type' })).toHaveAttribute(
       'href',
-      '#/vocabularies/2',
+      '#/standards/vocabularies/2',
     );
   });
 });
@@ -183,27 +183,6 @@ describe('vocabulary family browse rows', () => {
   const pages: readonly (readonly [string, () => ReactElement, Readonly<Record<string, () => Response>>])[] =
     [
       [
-        'vocabularies',
-        () => <VocabulariesPage />,
-        { '/api/vocabularies': () => listResponse(loadFixture('vocabularies-page.json'), 2) },
-      ],
-      [
-        'properties',
-        () => <PropertiesPage />,
-        {
-          '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
-          '/api/vocabularies': () => listResponse(loadFixture('vocabularies-page.json'), 2),
-        },
-      ],
-      [
-        'resource classes',
-        () => <ResourceClassesPage />,
-        {
-          '/api/resource_classes': () => listResponse(loadFixture('resource-classes-page.json'), 2),
-          '/api/vocabularies': () => listResponse(loadFixture('vocabularies-page.json'), 2),
-        },
-      ],
-      [
         'resource templates',
         () => <ResourceTemplatesPage />,
         {
@@ -220,9 +199,6 @@ describe('vocabulary family browse rows', () => {
     render(<Page />);
 
     const links: Readonly<Record<string, readonly [string, string]>> = {
-      vocabularies: ['Dublin Core', '#/vocabularies/1'],
-      properties: ['dcterms:title', '#/properties/1'],
-      'resource classes': ['dctype:StillImage', '#/resource-classes/13'],
       'resource templates': ['Photograph', '#/resource-templates/2'],
     };
     const entry = links[name];

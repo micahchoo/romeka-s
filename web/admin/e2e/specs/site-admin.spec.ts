@@ -56,9 +56,9 @@ test('the site admin saves site settings, navigation and permissions', async ({
   await page.reload();
   await expect(page.getByLabel('Role').first()).toHaveValue('editor');
 
-  // Site resources: the item count the site currently holds renders.
+  // Site items: the count of items the site currently holds renders.
   await page.goto(`/#${detail}/resources`);
-  await expect(page.getByText(/Items in this site:/)).toBeVisible();
+  await expect(page.getByText(/Items on this site:/)).toBeVisible();
 
   await expectClean(diagnostics, 'site admin');
 });

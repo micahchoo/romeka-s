@@ -20,6 +20,7 @@ import type {
   SiteBlockAttachmentWrite,
   SiteBlockWrite,
   SitePageWrite,
+  SiteItemsCommand,
   SitePermissionWrite,
   SiteWrite,
   TemplatePropertyWrite,
@@ -109,6 +110,18 @@ export const encodeItem = (write: ItemWrite, mode: WriteMode): WireBody => ({
   ...(write.sites === null ? {} : { 'o:site': write.sites.map((id) => ref(id)) }),
 });
 
+/** The body of `POST /api/sites/{id}/items`; a dry run answers the counts and writes nothing. */
+export const encodeSiteItemsCommand = (command: SiteItemsCommand, dryRun: boolean): WireBody => {
+  const { selector } = command;
+  const selection =
+    selector.kind === 'query'
+      ? { query: selector.query }
+      : selector.kind === 'items'
+        ? { items: selector.items }
+        : { item_sets: selector.itemSets };
+  return { action: command.action, ...selection, dry_run: dryRun };
+};
+
 export const encodeItemSet = (write: ItemSetWrite, mode: WriteMode): WireBody => ({
   ...encodeResource(write, mode),
   'o:is_open': write.isOpen,
@@ -165,7 +178,6 @@ export interface SiteInfoWrite {
   readonly summary: string;
   readonly owner: UserId | null;
   readonly isPublic: boolean;
-  readonly assignNewItems: boolean;
 }
 
 /**
@@ -182,7 +194,6 @@ export const encodeSiteInfo = (info: SiteInfoWrite): WireBody => {
     'o:theme': info.theme,
     'o:summary': summary === '' ? null : summary,
     'o:is_public': info.isPublic,
-    'o:assign_new_items': info.assignNewItems,
     ...(info.owner === null ? {} : { 'o:owner': ref(info.owner) }),
   };
 };
@@ -192,13 +203,21 @@ export const encodeSiteHomepage = (page: PageId | null): WireBody => ({
   'o:homepage': page === null ? null : ref(page),
 });
 
-export const encodeSiteResources = (
-  itemPool: JsonValue | null,
-  itemSets: readonly ItemSetId[],
-): WireBody => ({
+/** The site's saved search; an empty search is stored as `[]`, as upstream does. */
+export const encodeSiteItemPool = (itemPool: JsonValue | null): WireBody => ({
   'o:item_pool': itemPool ?? [],
+});
+
+/** The item sets the site lists, in order. */
+export const encodeSiteItemSets = (itemSets: readonly ItemSetId[]): WireBody => ({
   'o:site_item_set': itemSets.map((id) => ({ 'o:item_set': ref(id) })),
 });
+
+/**
+ * "Keep this site in sync with the search", stored as upstream's
+ * `o:assign_new_items` so upstream still attaches new items to the site.
+ */
+export const encodeSiteSync = (on: boolean): WireBody => ({ 'o:assign_new_items': on });
 
 export const encodeSitePermissions = (
   permissions: readonly SitePermissionWrite[],

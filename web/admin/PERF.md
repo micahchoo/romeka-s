@@ -437,7 +437,25 @@ catalogue from a route chunk by its source in the Vite manifest (`src/i18n/local
 whose script needs more bytes per message, such as Devanagari in UTF-8, is measured against that
 ceiling when it lands.
 
-## Decision 12: seven Indic catalogues raise the catalogue ceiling (accepted)
+## Decision 12: the site's Items page costs 1598 B of initial payload (accepted)
+
+The site's Items page (`src/pages/sites/resources.tsx`, `siteItemsAdd.tsx`), the item picker and the
+Items list's bulk site actions add about 60 messages to each of the two catalogues, and both
+catalogues sit in the initial payload. Measured with `zlib.gzipSync` over the files `dist/index.html`
+references, the gzip `perf/bundle.mjs` uses: main at `0a8301a` built with `vite build` is 100672 B,
+this change is 102270 B, a cost of 1598 B, and 130 B under the 102400 B budget. A first draft cost
+about 2200 B and went over; merging messages into existing keys (`field.saved`) and shortening the
+help texts took it under. The page's own chunk is 4091 B js and 1125 B css gzip, against the
+10240 B per-chunk ceiling.
+
+**Verdict.** Accepted, with almost no headroom left. The next message-heavy feature should load the
+non-default locale's catalogue on demand instead of in the entry, which frees roughly half the
+catalogue bytes from the first paint.
+
+Decision 11 landed first on main, so only the English half of these messages reaches the first
+paint; the Spanish half moves to the lazy `es` chunk.
+
+## Decision 13: seven Indic catalogues raise the catalogue ceiling (accepted)
 
 **Premise.** Decision 11 said a locale whose script needs more bytes per message would be measured
 against `bundle.catalogueChunkGzipBytes` when it lands. Hindi, Marathi, Malayalam, Tamil, Kannada,
@@ -445,27 +463,33 @@ Telugu and Nepali land here. Their letters take 3 bytes each in UTF-8, where Spa
 
 **Change.** Seven catalogues under `src/i18n/locales/`, one registry entry each. The Theme page's own
 messages (Decision 10) now load the same way: English stays in the page chunk, and every other locale
-is a chunk under `src/pages/sites/themeEditor/locales/` that the page waits for with its site.
+is a chunk under `src/pages/sites/themeEditor/locales/` that the page waits for with its site. The
+Standards page's two messages are imported with its page, every locale, as before.
 
-**Measured.** `npm run build` then `npm run perf:check` on this branch, gzip bytes:
+**Measured.** `npm run build` then `npm run perf:check` on this branch merged with main `aff7104`,
+gzip bytes from `zlib.gzipSync` as `perf/bundle.mjs` measures them:
 
 | Asset | Bytes | Note |
 | --- | --- | --- |
-| initial js | 92026 | under 93184; only English is eager |
-| Hindi catalogue | 13800 | |
-| Marathi catalogue | 13949 | |
-| Nepali catalogue | 13843 | |
-| Telugu catalogue | 14149 | |
-| Kannada catalogue | 14110 | |
-| Tamil catalogue | 14253 | |
-| Malayalam catalogue | 14360 | the largest |
-| largest route chunk | 9789 | the Theme tables count as route chunks |
+| initial js | 93157 | 27 B under 93184; English is the only eager catalogue |
+| Spanish catalogue | 12642 | for comparison |
+| Hindi catalogue | 14598 | |
+| Nepali catalogue | 14651 | |
+| Marathi catalogue | 14775 | |
+| Kannada catalogue | 14975 | |
+| Telugu catalogue | 15056 | |
+| Tamil catalogue | 15179 | |
+| Malayalam catalogue | 15216 | the largest |
+| largest route chunk | 9830 | the Theme tables count as route chunks |
 
-These are single builds on one machine, and gzip output moves a few bytes with the input order.
+These are single builds on one machine, and gzip output moves a few bytes with the input order. Each
+new English key adds about 30 B to each Indic chunk.
 
-**Budget.** `bundle.catalogueChunkGzipBytes` moves from 13312 to 15360, 1000 B over Malayalam. That is
-the same margin Decision 11 left over Spanish. The route ceiling and the initial ceiling do not move.
-A visitor in an Indic language downloads about 2 KB more than a Spanish visitor before the first paint.
+**Budget.** `bundle.catalogueChunkGzipBytes` moves from 13312 to 16384, 1168 B over Malayalam. That is
+about the margin Decision 11 left over Spanish. The route ceiling and the initial ceiling do not move.
+The initial payload has 27 B left. These locales put the seven endonyms in the English catalogue and
+seven entries in the registry, both eager. The next change that grows the eager path needs its own
+decision.
 
 ## Budgets
 

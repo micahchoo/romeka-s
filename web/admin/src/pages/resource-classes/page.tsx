@@ -8,7 +8,7 @@ import {
 import { ResourceClassDetail } from './detail';
 import { ResourceClassList } from './list';
 
-/** `#/resource-classes` lists, `.../new` creates, `.../<id>` edits. */
+/** The Classes tab: its list, `new` to create one, or a class id. */
 export const ResourceClassesPage = ({
   param = null,
 }: {

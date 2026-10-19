@@ -496,9 +496,9 @@ export interface ItemWrite extends ResourceWrite {
   readonly itemSets: readonly ItemSetId[];
   readonly primaryMedia: MediaId | null;
   /**
-   * The sites the item stays on. A full update replaces the list, so an edit
-   * sends the stored one; `null` leaves `o:site` out, which on a create lets
-   * the server add the sites that assign new items.
+   * The sites the item belongs to. A full update replaces `o:site`, so an edit
+   * sends the sites the item had. `null` omits the member, which a create does
+   * so the sites that keep in sync with their search can take the item.
    */
   readonly sites: readonly SiteId[] | null;
 }
@@ -520,6 +520,34 @@ export interface UserWrite {
  * administrator can hand it over when no SMTP service is configured, and `sent`
  * says whether the invitation also went out by mail.
  */
+/**
+ * A change to which items a site holds (`POST /api/sites/{id}/items`, a Romeka
+ * route). `add` attaches the selected items, `remove` detaches them, `replace`
+ * makes them the site's whole membership.
+ */
+export type SiteItemsAction = 'add' | 'remove' | 'replace';
+
+/** The items a site change acts on: a stored-shape item query, items, or item sets. */
+export type SiteItemsSelector =
+  | { readonly kind: 'query'; readonly query: JsonValue }
+  | { readonly kind: 'items'; readonly items: readonly ItemId[] }
+  | { readonly kind: 'itemSets'; readonly itemSets: readonly ItemSetId[] };
+
+export interface SiteItemsCommand {
+  readonly action: SiteItemsAction;
+  readonly selector: SiteItemsSelector;
+}
+
+/** What a site change did, or would do on a dry run. */
+export interface SiteItemsChange {
+  /** Items the selector named. */
+  readonly matched: number;
+  readonly added: number;
+  readonly removed: number;
+  /** Items on the site after the change. */
+  readonly total: number;
+}
+
 export interface PasswordLink {
   readonly key: string;
   readonly link: string;
