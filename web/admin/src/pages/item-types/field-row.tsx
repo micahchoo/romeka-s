@@ -255,7 +255,7 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
           />
         </p>
         <p>
-          <label htmlFor={`${id}-lang`}>{t('field.language')}</label>
+          <label htmlFor={`${id}-lang`}>{t('itemTypes.fieldLanguage')}</label>
           <input
             id={`${id}-lang`}
             type="text"

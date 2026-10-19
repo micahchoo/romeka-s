@@ -16,7 +16,7 @@ import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
 import { useLocale, useTranslator, type Locale } from '../../i18n';
 import '../item-types/item-types.css';
-import { useItemTypesText, WithItemTypesMessages } from '../item-types/messages';
+import { useItemTypesText } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
 
 interface Use {
@@ -164,9 +164,5 @@ export const FieldsPage = (): ReactElement => {
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return (
-    <WithItemTypesMessages>
-      <FieldsList loaded={state.data} />
-    </WithItemTypesMessages>
-  );
+  return <FieldsList loaded={state.data} />;
 };

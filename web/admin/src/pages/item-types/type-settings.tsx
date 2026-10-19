@@ -139,7 +139,7 @@ export const TypeSettings = ({
         <p className="field-note">{t('use.note')}</p>
       </fieldset>
       <details className="advanced-fold">
-        <summary>{t('advanced.summary')}</summary>
+        <summary>{t('itemTypes.advancedSummary')}</summary>
         <OptionSelect
           id="type-title-property"
           label={t('advanced.title')}

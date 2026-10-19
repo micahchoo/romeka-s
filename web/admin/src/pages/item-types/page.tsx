@@ -16,7 +16,7 @@ import { NewType } from './ask';
 import { TypeEditor } from './editor';
 import './item-types.css';
 import { TypeList } from './list';
-import { useItemTypesText, WithItemTypesMessages } from './messages';
+import { useItemTypesText } from './messages';
 import { typeDraftFrom } from './model';
 import { loadTypeOptions, type TypeOptions } from './options';
 
@@ -80,9 +80,7 @@ export const ItemTypesPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => (
-  <WithItemTypesMessages>
-    <ItemTypesRoute param={param} />
-  </WithItemTypesMessages>
+  <ItemTypesRoute param={param} />
 );
 
 const ItemTypesRoute = ({ param }: { readonly param: string | null }): ReactElement => {

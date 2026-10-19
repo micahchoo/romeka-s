@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const ml: ItemTypesMessages = {
   'action.change': 'മാറ്റം',
-  'action.cancel': 'റദ്ദാക്കുക',
+  'itemTypes.actionCancel': 'റദ്ദാക്കുക',
   'list.lede':
     'ഒരു ഇനം തരം എന്നത് നിങ്ങളുടെ ശേഖരത്തിലെ ഒരു തരം വസ്തുവിനായി നിങ്ങൾ പൂരിപ്പിക്കുന്ന രൂപമാണ്. ഒരു കത്ത് അയക്കുന്നയാളെ ചോദിക്കുന്നു; ഒരു ഫോട്ടോ അത് എടുത്തത് ആരാണെന്ന് ചോദിക്കുന്നു.',
   'list.new': 'പുതിയ ഇനം തരം',
   'list.resource': 'ഇനം തരങ്ങൾ',
-  'list.empty': 'ഇനം തരങ്ങൾ ഒന്നുമില്ല.',
+  'itemTypes.listEmpty': 'ഇനം തരങ്ങൾ ഒന്നുമില്ല.',
   'list.type': 'ഇനം തരം',
   'list.fields': 'ഫീൽഡുകൾ',
   'list.items': 'ഇനങ്ങൾ',
@@ -66,7 +66,7 @@ export const ml: ItemTypesMessages = {
   'field.privateShort': 'സ്വകാര്യം',
   'field.more': 'സഹായ വാചകങ്ങളും ഭാഷയും',
   'field.help': 'ഫോമിലെ സഹായ വാചകം',
-  'field.language': 'പുതിയ മൂല്യങ്ങളുടെ ഭാഷ',
+  'itemTypes.fieldLanguage': 'പുതിയ മൂല്യങ്ങളുടെ ഭാഷ',
   'accepts.label': 'സ്വീകരിക്കുന്നു:',
   'accepts.any': 'ടെക്സ്റ്റ്, ഒരു വെബ് വിലാസം അല്ലെങ്കിൽ മറ്റൊരു റെക്കോർഡ്',
   'accepts.change': '{name} സ്വീകരിക്കുന്നത് മാറ്റുക',
@@ -88,7 +88,7 @@ export const ml: ItemTypesMessages = {
   'use.media': 'മീഡിയ',
   'use.note':
     'ഈ ബ്രൗസറിൽ മാത്രം ടൈപ്പ് ലിസ്റ്റ് ചുരുക്കുന്നു, ഈ ഫോമുകളിൽ. ടൈപ്പ് എല്ലായിടത്തും ഉപയോഗിക്കാം.',
-  'advanced.summary': 'അഡ്വാൻസ്ഡ്',
+  'itemTypes.advancedSummary': 'അഡ്വാൻസ്ഡ്',
   'advanced.title': 'ടൈറ്റിൽ വരുന്നത്',
   'advanced.titleDefault': 'ടൈറ്റിൽ (ഡിഫോൾട്ട്)',
   'advanced.description': 'വിവരണം വരുന്നത്',

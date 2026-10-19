@@ -64,20 +64,6 @@ const TABLES = [
     from: '../messages',
   },
   {
-    what: 'Term lists messages',
-    source: 'src/pages/term-lists/messages.ts',
-    dir: 'src/pages/term-lists/locales',
-    type: 'TermListMessages',
-    from: '../messages',
-  },
-  {
-    what: 'item type pages messages',
-    source: 'src/pages/item-types/messages.tsx',
-    dir: 'src/pages/item-types/locales',
-    type: 'ItemTypesMessages',
-    from: '../messages',
-  },
-  {
     what: 'vocabulary import messages',
     source: 'src/pages/vocabularies/messages.tsx',
     dir: 'src/pages/vocabularies/locales',
@@ -104,13 +90,6 @@ const TABLES = [
     dir: 'src/app/describe-locales',
     type: 'DescribeMessages',
     from: '../describe-messages',
-  },
-  {
-    what: 'lessons messages',
-    source: 'src/app/lessons/messages.ts',
-    dir: 'src/app/lessons/locales',
-    type: 'LessonsMessages',
-    from: '../messages',
   },
   {
     // The server's error patterns: the Rust registry generates the English.

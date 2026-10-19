@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const te: ItemTypesMessages = {
   'action.change': 'మార్పు',
-  'action.cancel': 'రద్దు చేయండి',
+  'itemTypes.actionCancel': 'రద్దు చేయండి',
   'list.lede':
     'ఒక వస్తువు రకం అనేది మీ సేకరణలో ఒక రకమైన వస్తువు కోసం మీరు నింపే రూపం. ఒక లేఖ పంపినవారిని అడుగుతుంది; ఒక ఛాయాచిత్రం దానిని ఎవరు తీశారో అడుగుతుంది.',
   'list.new': 'కొత్త వస్తువు రకం',
   'list.resource': 'వస్తువు రకాలు',
-  'list.empty': 'ఇంకా ఎటువంటి వస్తువు రకాలు లేవు.',
+  'itemTypes.listEmpty': 'ఇంకా ఎటువంటి వస్తువు రకాలు లేవు.',
   'list.type': 'వస్తువు రకం',
   'list.fields': 'ఫీల్డ్‌లు',
   'list.items': 'వస్తువులు',
@@ -66,7 +66,7 @@ export const te: ItemTypesMessages = {
   'field.privateShort': 'ప్రైవేట్‌గా',
   'field.more': 'సహాయక వచనం మరియు భాష',
   'field.help': 'ఫారమ్‌పై సహాయక వచనం',
-  'field.language': 'కొత్త విలువల భాష',
+  'itemTypes.fieldLanguage': 'కొత్త విలువల భాష',
   'accepts.label': 'అంగీకరిస్తుంది:',
   'accepts.any': 'టెక్స్ట్, వెబ్ అడ్రస్ లేదా మరొక రికార్డు',
   'accepts.change': '{name} దేనిని అంగీకరిస్తుందో మార్చండి',
@@ -88,7 +88,7 @@ export const te: ItemTypesMessages = {
   'use.media': 'మీడియా',
   'use.note':
     'ఈ బ్రౌజర్‌లో ఆ రూపాల్లో టైప్ జాబితాను మాత్రమే తగ్గిస్తుంది, టైప్ అన్ని చోట్లా ఉపయోగపడుతుంది.',
-  'advanced.summary': 'అధునాతన',
+  'itemTypes.advancedSummary': 'అధునాతన',
   'advanced.title': 'శీర్షిక దీని నుండి వస్తుంది',
   'advanced.titleDefault': 'శీర్షిక (డిఫాల్ట్)',
   'advanced.description': 'వివరణ దీని నుండి వస్తుంది',

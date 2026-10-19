@@ -247,7 +247,7 @@ const EditorHead = ({
       </div>
       <p className="type-editor-actions">
         <a className="button-link" href="#/resource-templates">
-          {t('action.cancel')}
+          {t('itemTypes.actionCancel')}
         </a>
         <button type="submit" form="type-form" disabled={saving}>
           {creating ? t('type.create') : t('type.save')}

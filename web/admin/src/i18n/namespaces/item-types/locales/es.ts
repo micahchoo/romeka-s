@@ -1,17 +1,19 @@
 /**
- * The Spanish item type pages messages. It is typed `ItemTypesMessages`, so a
- * key added to English and not here is a `tsc` error.
+ * The Spanish item type pages messages, written by hand.
+ *
+ * It is typed `ItemTypesMessages`, so a key added to English and not here is a
+ * `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const es: ItemTypesMessages = {
   'action.change': 'Cambiar',
-  'action.cancel': 'Cancelar',
+  'itemTypes.actionCancel': 'Cancelar',
   'list.lede':
     'Un tipo de elemento es el formulario que rellenas para una clase de cosa de tu colección. Una carta pide un remitente; una fotografía pide quién la tomó.',
   'list.new': 'Nuevo tipo de elemento',
   'list.resource': 'tipos de elemento',
-  'list.empty': 'Aún no hay tipos de elemento.',
+  'itemTypes.listEmpty': 'Aún no hay tipos de elemento.',
   'list.type': 'Tipo de elemento',
   'list.fields': 'Campos',
   'list.items': 'Elementos',
@@ -61,7 +63,7 @@ export const es: ItemTypesMessages = {
   'field.privateShort': 'Privado',
   'field.more': 'Texto de ayuda e idioma',
   'field.help': 'Texto de ayuda en el formulario',
-  'field.language': 'Idioma de los valores nuevos',
+  'itemTypes.fieldLanguage': 'Idioma de los valores nuevos',
   'accepts.label': 'Acepta:',
   'accepts.any': 'Texto, una dirección web u otro registro',
   'accepts.change': 'Cambiar lo que acepta {name}',
@@ -83,7 +85,7 @@ export const es: ItemTypesMessages = {
   'use.media': 'Multimedia',
   'use.note':
     'Solo acota la lista de tipos en esos formularios, en este navegador. El tipo sigue disponible en todas partes.',
-  'advanced.summary': 'Avanzado',
+  'itemTypes.advancedSummary': 'Avanzado',
   'advanced.title': 'El título sale de',
   'advanced.titleDefault': 'Título (por defecto)',
   'advanced.description': 'La descripción sale de',

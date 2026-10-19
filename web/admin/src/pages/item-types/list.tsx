@@ -51,7 +51,7 @@ export const TypeList = (): ReactElement => {
       </p>
       <ListPage<TypeRow>
         resourceLabel={t('list.resource')}
-        emptyMessage={t('list.empty')}
+        emptyMessage={t('itemTypes.listEmpty')}
         load={load}
         rowKey={(row) => String(row.template.id)}
         columns={[

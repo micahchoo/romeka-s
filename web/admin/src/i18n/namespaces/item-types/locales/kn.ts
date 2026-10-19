@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const kn: ItemTypesMessages = {
   'action.change': 'ಬದಲಾವಣೆ',
-  'action.cancel': 'ರದ್ದುಮಾಡಿ',
+  'itemTypes.actionCancel': 'ರದ್ದುಮಾಡಿ',
   'list.lede':
     'ಒಂದು ವಸ್ತುವಿನ ವಿಧವು ನಿಮ್ಮ ಸಂಗ್ರಹದಲ್ಲಿರುವ ಒಂದು ರೀತಿಯ ವಸ್ತುವಿಗಾಗಿ ನೀವು ಭರ್ತಿ ಮಾಡುವ ರೂಪವಾಗಿದೆ. ಒಂದು ಪತ್ರವು ಕಳುಹಿಸುವವರನ್ನು ಕೇಳುತ್ತದೆ; ಒಂದು ಛಾಯಾಚಿತ್ರವು ಅದನ್ನು ಯಾರು ತೆಗೆದರು ಎಂದು ಕೇಳುತ್ತದೆ.',
   'list.new': 'ಹೊಸ ವಸ್ತುವಿನ ವಿಧ',
   'list.resource': 'ವಸ್ತುವಿನ ವಿಧಗಳು',
-  'list.empty': 'ಇನ್ನೂ ಯಾವುದೇ ವಸ್ತುವಿನ ವಿಧಗಳಿಲ್ಲ.',
+  'itemTypes.listEmpty': 'ಇನ್ನೂ ಯಾವುದೇ ವಸ್ತುವಿನ ವಿಧಗಳಿಲ್ಲ.',
   'list.type': 'ವಸ್ತುವಿನ ವಿಧ',
   'list.fields': 'ಕ್ಷೇತ್ರಗಳು',
   'list.items': 'ವಸ್ತುಗಳು',
@@ -66,7 +66,7 @@ export const kn: ItemTypesMessages = {
   'field.privateShort': 'ಖಾಸಗಿ',
   'field.more': 'ಸಹಾಯ ಪಠ್ಯ ಮತ್ತು ಭಾಷೆ',
   'field.help': 'ಫಾರ್ಮ್‌ನಲ್ಲಿ ಸಹಾಯ ಪಠ್ಯ',
-  'field.language': 'ಹೊಸ ಮೌಲ್ಯಗಳ ಭಾಷೆ',
+  'itemTypes.fieldLanguage': 'ಹೊಸ ಮೌಲ್ಯಗಳ ಭಾಷೆ',
   'accepts.label': 'ಇವುಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತದೆ:',
   'accepts.any': 'ಪಠ್ಯ, ವೆಬ್ ವಿಳಾಸ ಅಥವಾ ಇನ್ನೊಂದು ದಾಖಲೆ',
   'accepts.change': '{name} ಏನನ್ನು ಸ್ವೀಕರಿಸುತ್ತದೆ ಎಂಬುದನ್ನು ಬದಲಾಯಿಸಿ',
@@ -88,7 +88,7 @@ export const kn: ItemTypesMessages = {
   'use.media': 'ಮೀಡಿಯಾ',
   'use.note':
     'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಆ ಫಾರ್ಮ್‌ಗಳಲ್ಲಿ ಟೈಪ್ ಪಟ್ಟಿಯನ್ನು ಕಿರಿದಾಗಿಸುತ್ತದೆ, ಆದರೆ ಟೈಪ್ ಎಲ್ಲೆಡೆ ಬಳಸಬಹುದಾಗಿದೆ.',
-  'advanced.summary': 'ಸುಧಾರಿತ',
+  'itemTypes.advancedSummary': 'ಸುಧಾರಿತ',
   'advanced.title': 'ಶೀರ್ಷಿಕೆಯು ಇಲ್ಲಿಂದ ಬರುತ್ತದೆ',
   'advanced.titleDefault': 'ಶೀರ್ಷಿಕೆ (ಡಿಫಾಲ್ಟ್)',
   'advanced.description': 'ವಿವರಣೆಯು ಇಲ್ಲಿಂದ ಬರುತ್ತದೆ',

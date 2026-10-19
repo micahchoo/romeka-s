@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const ne: ItemTypesMessages = {
   'action.change': 'परिवर्तन',
-  'action.cancel': 'रद्द',
+  'itemTypes.actionCancel': 'रद्द',
   'list.lede':
     'एउटा वस्तुको प्रकार तपाईँको सङ्ग्रहमा एक प्रकारको वस्तुका लागि तपाईँले भर्नु पर्ने फारम हो। एउटा पत्रले प्रेषकका लागि सोध्छ; एउटा तस्बिरले यसलाई कसले खिचेको हो भनेर सोध्छ।',
   'list.new': 'नयाँ वस्तुको प्रकार',
   'list.resource': 'वस्तुका प्रकारहरू',
-  'list.empty': 'अहिलेसम्म कुनै वस्तुका प्रकारहरू छैनन्।',
+  'itemTypes.listEmpty': 'अहिलेसम्म कुनै वस्तुका प्रकारहरू छैनन्।',
   'list.type': 'वस्तुको प्रकार',
   'list.fields': 'क्षेत्रहरू',
   'list.items': 'वस्तुहरू',
@@ -66,7 +66,7 @@ export const ne: ItemTypesMessages = {
   'field.privateShort': 'निजी',
   'field.more': 'सहयोग पाठ र भाषा',
   'field.help': 'फर्ममा सहयोग पाठ',
-  'field.language': 'नयाँ मानहरूको भाषा',
+  'itemTypes.fieldLanguage': 'नयाँ मानहरूको भाषा',
   'accepts.label': 'स्वीकार गर्दछ:',
   'accepts.any': 'पाठ, वेब ठेगाना वा अर्को रेकर्ड',
   'accepts.change': '{name} ले के स्वीकार गर्छ परिवर्तन गर्नुहोस्',
@@ -88,7 +88,7 @@ export const ne: ItemTypesMessages = {
   'use.media': 'मिडिया',
   'use.note':
     'यस ब्राउजरमा ती फर्महरूमा मात्र Type सूचीलाई साँघुरो बनाउँछ, यो जताततै प्रयोगयोग्य रहन्छ।',
-  'advanced.summary': 'उन्नत',
+  'itemTypes.advancedSummary': 'उन्नत',
   'advanced.title': 'शीर्षक यहाँबाट लिइन्छ',
   'advanced.titleDefault': 'शीर्षक (पूर्वनिर्धारित)',
   'advanced.description': 'विवरण यहाँबाट लिइन्छ',

@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const hi: ItemTypesMessages = {
   'action.change': 'परिवर्तन',
-  'action.cancel': 'रद्द',
+  'itemTypes.actionCancel': 'रद्द',
   'list.lede':
     'एक आइटम प्रकार आपकी संग्रह में एक तरह की चीज़ के लिए आप जो फ़ॉर्म भरते हैं, उसका रूप है। एक पत्र प्रेषक के लिए पूछता है; एक तस्वीर पूछती है कि इसे किसने लिया।',
   'list.new': 'नई आइटम प्रकार',
   'list.resource': 'आइटम प्रकार',
-  'list.empty': 'अभी तक कोई आइटम प्रकार नहीं है।',
+  'itemTypes.listEmpty': 'अभी तक कोई आइटम प्रकार नहीं है।',
   'list.type': 'आइटम प्रकार',
   'list.fields': 'फ़ील्ड्स',
   'list.items': 'आइटम',
@@ -66,7 +66,7 @@ export const hi: ItemTypesMessages = {
   'field.privateShort': 'निजी',
   'field.more': 'सहायता पाठ और भाषा',
   'field.help': 'फॉर्म पर सहायता पाठ',
-  'field.language': 'नई वैल्यू की भाषा',
+  'itemTypes.fieldLanguage': 'नई वैल्यू की भाषा',
   'accepts.label': 'स्वीकार करता है:',
   'accepts.any': 'टेक्स्ट, वेब एड्रेस या कोई अन्य रिकॉर्ड',
   'accepts.change': '{name} क्या स्वीकार करता है, बदलें',
@@ -88,7 +88,7 @@ export const hi: ItemTypesMessages = {
   'use.media': 'मीडिया',
   'use.note':
     'केवल इस ब्राउज़र में उन फ़ॉर्म पर Type सूची को संकुचित करता है, अन्यत्र उपयोग योग्य रहता है।',
-  'advanced.summary': 'उन्नत',
+  'itemTypes.advancedSummary': 'उन्नत',
   'advanced.title': 'शीर्षक यहाँ से आता है',
   'advanced.titleDefault': 'शीर्षक (डिफ़ॉल्ट)',
   'advanced.description': 'विवरण यहाँ से आता है',

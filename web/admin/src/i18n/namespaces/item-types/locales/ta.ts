@@ -6,16 +6,16 @@
  * a string here; a later run keeps it. It is typed `ItemTypesMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { ItemTypesMessages } from '../messages';
+import type { ItemTypesMessages } from '../index';
 
 export const ta: ItemTypesMessages = {
   'action.change': 'மாற்றம்',
-  'action.cancel': 'ரத்து செய்',
+  'itemTypes.actionCancel': 'ரத்து செய்',
   'list.lede':
     'ஒரு உருப்படி வகை என்பது உங்கள் சேகரிப்பில் உள்ள ஒரு வகை பொருளுக்காக நீங்கள் நிரப்பும் படிவமாகும். ஒரு கடிதம் அனுப்புபவரைப் பற்றிய தகவலைக் கேட்கிறது; ஒரு புகைப்படம் அதை எடுத்தவர் யார் என்று கேட்கிறது.',
   'list.new': 'புதிய உருப்படி வகை',
   'list.resource': 'உருப்படி வகைகள்',
-  'list.empty': 'இன்னும் உருப்படி வகைகள் எதுவும் இல்லை.',
+  'itemTypes.listEmpty': 'இன்னும் உருப்படி வகைகள் எதுவும் இல்லை.',
   'list.type': 'உருப்படி வகை',
   'list.fields': 'புலங்கள்',
   'list.items': 'உருப்படிகள்',
@@ -66,7 +66,7 @@ export const ta: ItemTypesMessages = {
   'field.privateShort': 'தனிப்பட்டது',
   'field.more': 'உதவி உரை மற்றும் மொழி',
   'field.help': 'படிவத்தில் உதவி உரை',
-  'field.language': 'புதிய மதிப்புகளின் மொழி',
+  'itemTypes.fieldLanguage': 'புதிய மதிப்புகளின் மொழி',
   'accepts.label': 'ஏற்றுக்கொள்பவை:',
   'accepts.any': 'உரை, ஒரு இணைய முகவரி அல்லது மற்றொரு பதிவு',
   'accepts.change': '{name} எதை ஏற்றுக்கொள்கிறது என்பதை மாற்றவும்',
@@ -88,7 +88,7 @@ export const ta: ItemTypesMessages = {
   'use.media': 'ஊடகங்கள்',
   'use.note':
     'இந்த உலாவியில் அந்த படிவங்களில் வகை பட்டியலை மட்டும் குறுகியதாக்குகிறது, மற்ற இடங்களில் வகை பயன்படுத்தத்தக்கதாகவே இருக்கும்.',
-  'advanced.summary': 'மேம்பட்ட',
+  'itemTypes.advancedSummary': 'மேம்பட்ட',
   'advanced.title': 'தலைப்பு இதிலிருந்து பெறப்படுகிறது',
   'advanced.titleDefault': 'தலைப்பு (இயல்புநிலை)',
   'advanced.description': 'விளக்கம் இதிலிருந்து பெறப்படுகிறது',
