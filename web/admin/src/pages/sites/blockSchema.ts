@@ -70,12 +70,15 @@ export interface LayoutSchema {
 export interface BlockLayoutSchema extends LayoutSchema {
   readonly name: string;
   readonly label: MessageKey;
+  /** The one line the insert picker shows under the label. */
+  readonly description: MessageKey;
 }
 
 /** One registered Romeka block, as the admin reads it. */
 export interface RomkaBlockSchema extends LayoutSchema {
   readonly name: string;
   readonly label: MessageKey;
+  readonly description: MessageKey;
   /** The upstream layout the block is stored under. */
   readonly carrier: string;
 }
@@ -245,6 +248,7 @@ const parseLayout = (value: unknown, path: Path): BlockLayoutSchema => {
   return {
     name: parseString(value.name, [...path, 'name']),
     label: parseLabel(value.label, [...path, 'label']),
+    description: parseLabel(value.description, [...path, 'description']),
     fields: parseFields(value.fields, [...path, 'fields']),
   };
 };

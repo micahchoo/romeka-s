@@ -45,7 +45,7 @@ describe("the editor's shared option lists", () => {
     const fetchMock = installFetch(handler);
     renderQuery(options());
 
-    await screen.findByText('7 items match.');
+    await screen.findByText('7 items in this site match.');
     expect(requestsFor(fetchMock, '/api/item_sets')).toHaveLength(0);
     expect(requestsFor(fetchMock, '/api/resource_classes')).toHaveLength(0);
     const itemSet = screen.getByLabelText('Item set');
@@ -55,7 +55,7 @@ describe("the editor's shared option lists", () => {
   it('asks for one match count after the typed query settles', async () => {
     const fetchMock = installFetch(handler);
     renderQuery(options());
-    await screen.findByText('7 items match.');
+    await screen.findByText('7 items in this site match.');
     const before = requestsFor(fetchMock, '/api/items').length;
 
     const fulltext = screen.getByLabelText('Full-text search');

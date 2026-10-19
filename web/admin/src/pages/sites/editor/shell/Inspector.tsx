@@ -12,6 +12,8 @@ import { useTranslator } from '../../../../i18n';
 import { blockLayoutOptions } from '../../blockRegistry';
 import type { DraftAction, BlockDraft, PageDraft, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { layoutLabel } from '../canvas/summary';
+import { Labelled } from '../Labelled';
 import { romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { isJsonArray, isJsonObject, layoutDataObject } from '../values';
@@ -52,8 +54,7 @@ const UnknownData = ({
   return (
     <div className="block-form">
       <p className="field-note">{t('editor.unknownLayout')}</p>
-      <p>
-        <label htmlFor={`block-data-${block.key}`}>{t('editor.unknownData')}</label>
+      <Labelled id={`block-data-${block.key}`} label={t('editor.unknownData')}>
         <textarea
           id={`block-data-${block.key}`}
           rows={8}
@@ -78,7 +79,7 @@ const UnknownData = ({
             }
           }}
         />
-      </p>
+      </Labelled>
       {error === null ? null : (
         <p className="field-error" role="alert">
           {error}
@@ -105,12 +106,14 @@ export const Inspector = ({
   return (
     <div className="block-inspector">
       <h2>
-        {t('editor.inspector')}
-        {position > 0 ? `: ${String(position)}` : ''}
+        {t('editor.blockHeading', {
+          label: layoutLabel(draft.registry, block, t),
+          position,
+          count: draft.blocks.length,
+        })}
       </h2>
       {romka === undefined ? (
-        <p>
-          <label htmlFor={`block-layout-${block.key}`}>{t('editor.blockLayout')}</label>
+        <Labelled id={`block-layout-${block.key}`} label={t('editor.blockLayout')}>
           <select
             id={`block-layout-${block.key}`}
             value={block.layout}
@@ -124,7 +127,7 @@ export const Inspector = ({
               </option>
             ))}
           </select>
-        </p>
+        </Labelled>
       ) : (
         <p className="field-note">
           {t('editor.romkaBlock', { name: t(romka.label) })} {t('editor.romkaGenerated')}

@@ -68,36 +68,38 @@ const ResourceBlocks = ({
             const label = labelOf(name);
             return (
               <li className="resource-page-block" key={`${name}-${String(index)}`}>
-                <span className="resource-page-block-label">{label}</span>
-                <button
-                  type="button"
-                  disabled={index === 0}
-                  aria-label={t('resourcePage.moveUp', { label })}
-                  onClick={() => {
-                    onChange(move(names, index, -1));
-                  }}
-                >
-                  {t('navigation.moveUpShort')}
-                </button>
-                <button
-                  type="button"
-                  disabled={index === names.length - 1}
-                  aria-label={t('resourcePage.moveDown', { label })}
-                  onClick={() => {
-                    onChange(move(names, index, 1));
-                  }}
-                >
-                  {t('navigation.moveDownShort')}
-                </button>
-                <button
-                  type="button"
-                  aria-label={t('resourcePage.remove', { label })}
-                  onClick={() => {
-                    onChange(names.filter((_, at) => at !== index));
-                  }}
-                >
-                  {t('action.remove')}
-                </button>
+                <div className="resource-page-block-row">
+                  <span className="resource-page-block-label">{label}</span>
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    aria-label={t('resourcePage.moveUp', { label })}
+                    onClick={() => {
+                      onChange(move(names, index, -1));
+                    }}
+                  >
+                    {t('navigation.moveUpShort')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === names.length - 1}
+                    aria-label={t('resourcePage.moveDown', { label })}
+                    onClick={() => {
+                      onChange(move(names, index, 1));
+                    }}
+                  >
+                    {t('navigation.moveDownShort')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('resourcePage.remove', { label })}
+                    onClick={() => {
+                      onChange(names.filter((_, at) => at !== index));
+                    }}
+                  >
+                    {t('action.remove')}
+                  </button>
+                </div>
               </li>
             );
           })}

@@ -4,7 +4,7 @@
  * order or selection the draft then renders, so the test breaks when the
  * gesture stops reaching the model.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -271,6 +271,24 @@ describe('the block picker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Line break' }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'addBlock', layout: 'lineBreak', index: 1 });
+  });
+
+  it('says in one line what each block adds', () => {
+    renderCanvas(load([rawBlock('html', { html: 'a' })]));
+    fireEvent.click(screen.getByRole('button', { name: 'Insert block at position 2' }));
+
+    expect(screen.getByRole('button', { name: 'Browse preview' })).toHaveAccessibleDescription(
+      'A list of items, sets or media in this site that match a search.',
+    );
+  });
+
+  it('offers templates that insert blocks and leaves out Blank, which inserts none', () => {
+    renderCanvas(load([rawBlock('html', { html: 'a' })]));
+    fireEvent.click(screen.getByRole('button', { name: 'Insert block at position 2' }));
+    const picker = screen.getByRole('dialog', { name: 'Insert a block or template' });
+
+    expect(within(picker).getByRole('button', { name: 'Gallery' })).toBeInTheDocument();
+    expect(within(picker).queryByRole('button', { name: 'Blank' })).toBeNull();
   });
 
   it('filters the layouts by the search text', () => {

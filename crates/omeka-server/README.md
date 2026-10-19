@@ -62,6 +62,11 @@ Readiness. `GET /ready` runs `SELECT 1` and answers `{"status":"ready"}` with 20
 or `{"status":"unavailable"}` with 503 when the pool is closed or unreachable.
 `GET /health` stays the process liveness answer and reads no shared state.
 
+The old admin path. `GET /admin` and `GET /admin/` answer 302 to the base URL's
+root, where the SPA lives. Upstream serves its admin under `/admin`, so an old
+bookmark lands there, and the SPA's relative asset paths would load nothing from
+under it. A deeper `/admin/...` path stays a 404.
+
 Shutdown. SIGTERM and SIGINT stop the listener, let the in-flight requests
 finish, and exit. `docker stop` and `systemctl stop` send SIGTERM, so both are
 covered without an entrypoint change.
@@ -256,7 +261,10 @@ settings, navigation and caller visibility as `show_page`. It reads the caller's
 visibility, so an attachment or asset the caller cannot see is dropped exactly
 as it would be on the saved page. It renders at the page's own URL with the
 request's query dropped, so the document matches the one the saved page serves
-and a credential in the preview URL never reaches a link in the page.
+and a credential in the preview URL never reaches a link in the page. The one
+difference is the user bar: the preview renders as a visitor sees the page, so
+`show_user_bar` is read as `-1` (never) for that render, although the caller is
+always a signed-in editor.
 
 The answer carries `Cache-Control: no-store`, `X-Robots-Tag: noindex` and
 `Content-Security-Policy: default-src 'self'; script-src 'none'; frame-ancestors

@@ -3,11 +3,13 @@
     {
       "name": "pageTitle",
       "label": "layout.pageTitle",
+      "description": "layoutHelp.pageTitle",
       "fields": []
     },
     {
       "name": "media",
       "label": "layout.media",
+      "description": "layoutHelp.media",
       "fields": [
         {
           "key": "attachments",
@@ -92,6 +94,7 @@
     {
       "name": "browsePreview",
       "label": "layout.browsePreview",
+      "description": "layoutHelp.browsePreview",
       "fields": [
         {
           "key": "resource_type",
@@ -166,6 +169,7 @@
     {
       "name": "listOfSites",
       "label": "layout.listOfSites",
+      "description": "layoutHelp.listOfSites",
       "fields": [
         {
           "key": "sort",
@@ -222,6 +226,7 @@
     {
       "name": "tableOfContents",
       "label": "layout.tableOfContents",
+      "description": "layoutHelp.tableOfContents",
       "fields": [
         {
           "key": "depth",
@@ -235,6 +240,7 @@
     {
       "name": "lineBreak",
       "label": "layout.lineBreak",
+      "description": "layoutHelp.lineBreak",
       "fields": [
         {
           "key": "break_type",
@@ -257,6 +263,7 @@
     {
       "name": "itemWithMetadata",
       "label": "layout.itemWithMetadata",
+      "description": "layoutHelp.itemWithMetadata",
       "fields": [
         {
           "key": "attachments",
@@ -268,6 +275,7 @@
     {
       "name": "pageDateTime",
       "label": "layout.pageDateTime",
+      "description": "layoutHelp.pageDateTime",
       "fields": [
         {
           "key": "display",
@@ -350,6 +358,7 @@
     {
       "name": "blockGroup",
       "label": "layout.blockGroup",
+      "description": "layoutHelp.blockGroup",
       "fields": [
         {
           "key": "span",
@@ -363,6 +372,7 @@
     {
       "name": "iiifPresentation",
       "label": "layout.iiifPresentation",
+      "description": "layoutHelp.iiifPresentation",
       "fields": [
         {
           "key": "manifest_url",
@@ -385,6 +395,7 @@
     {
       "name": "iiifImage",
       "label": "layout.iiifImage",
+      "description": "layoutHelp.iiifImage",
       "fields": [
         {
           "key": "image_url",
@@ -407,6 +418,7 @@
     {
       "name": "asset",
       "label": "layout.asset",
+      "description": "layoutHelp.asset",
       "fields": [
         {
           "key": "attachments",
@@ -440,6 +452,7 @@
     {
       "name": "html",
       "label": "layout.html",
+      "description": "layoutHelp.html",
       "fields": [
         {
           "key": "html",
@@ -451,6 +464,7 @@
     {
       "name": "listOfPages",
       "label": "layout.listOfPages",
+      "description": "layoutHelp.listOfPages",
       "fields": [
         {
           "key": "pagelist",
@@ -462,6 +476,7 @@
     {
       "name": "oembed",
       "label": "layout.oembed",
+      "description": "layoutHelp.oembed",
       "fields": [
         {
           "key": "url",
@@ -482,6 +497,7 @@
     {
       "name": "hero",
       "label": "romeka.hero",
+      "description": "romekaHelp.hero",
       "carrier": "html",
       "fields": [
         {

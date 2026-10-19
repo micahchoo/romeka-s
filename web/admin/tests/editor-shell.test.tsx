@@ -96,6 +96,19 @@ describe('the page editor shell', () => {
     expect(await within(inspector).findByRole('textbox', { name: 'HTML' })).toBeInTheDocument();
   });
 
+  it('heads the inspector with the block layout and position, not its draft key', async () => {
+    installFetch(handler());
+    await renderEditor();
+    const count = screen.getAllByRole('listitem', { name: /^Block \d+: / }).length;
+
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+
+    const inspector = screen.getByRole('region', { name: 'Block inspector' });
+    expect(within(inspector).getByRole('heading', { level: 2 })).toHaveTextContent(
+      `HTML, block 1 of ${String(count)}`,
+    );
+  });
+
   it('posts the changed draft to the preview route after the debounce', async () => {
     const fetchMock = installFetch(handler());
     await renderEditor();
