@@ -112,11 +112,22 @@ where
 
     /// `AbstractTargetSettings::set`: write the value for this site.
     pub async fn set(&self, site_id: SiteId, id: &str, value: &Value) -> Result<(), DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::set_on(&mut conn, site_id, id, value).await
+    }
+
+    /// [`Self::set`] on one connection, so a caller's transaction can include it.
+    pub(crate) async fn set_on(
+        conn: &mut DB::Connection,
+        site_id: SiteId,
+        id: &str,
+        value: &Value,
+    ) -> Result<(), DbError> {
         sqlx::query(DB::upsert_site_setting())
             .bind(id)
             .bind(bind_id(site_id))
             .bind(json_text(value)?)
-            .execute(self.pool)
+            .execute(conn)
             .await?;
         Ok(())
     }
