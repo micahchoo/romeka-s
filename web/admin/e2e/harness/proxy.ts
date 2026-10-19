@@ -34,7 +34,7 @@ const MIME_TYPES: Readonly<Record<string, string>> = {
 };
 
 export interface ProxyOptions {
-  /** `web/admin/dist`. */
+  /** The built SPA: the run's copy of `web/admin/dist`. */
   readonly distRoot: string;
   /** The file store root, served under `/files`. */
   readonly storeRoot: string;
