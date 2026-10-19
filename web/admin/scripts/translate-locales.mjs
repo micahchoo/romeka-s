@@ -49,6 +49,20 @@ const TABLES = [
     type: 'StandardsMessages',
     from: '../messages',
   },
+  {
+    what: 'item type pages messages',
+    source: 'src/pages/item-types/messages.tsx',
+    dir: 'src/pages/item-types/locales',
+    type: 'ItemTypesMessages',
+    from: '../messages',
+  },
+  {
+    what: 'describe strings',
+    source: 'src/app/describe-messages.ts',
+    dir: 'src/app/describe-locales',
+    type: 'DescribeMessages',
+    from: '../describe-messages',
+  },
 ];
 const TRANSLATOR = process.env.TRANSLATOR_DIR ?? '/mnt/Ghar/2TA/DevStuff/notebook/translator';
 const SERVER = process.env.SARVAM_URL ?? 'http://localhost:8086';

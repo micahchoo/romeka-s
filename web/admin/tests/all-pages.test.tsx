@@ -2,10 +2,10 @@
  * The pickers and label lookups read every page of a long list. A database
  * with more classes or properties than one page holds must not lose the rest.
  */
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { loadFormOptions } from '../src/app/options';
-import { ResourceTemplatesPage } from '../src/pages/resource-templates/page';
+import { ItemTypesPage } from '../src/pages/item-types/page';
 import { installFetch, listResponse, route } from './stub';
 
 const PROPERTY_COUNT = 450;
@@ -58,7 +58,7 @@ describe('every page of a long list', () => {
     expect(options.classes).toHaveLength(CLASS_COUNT);
   });
 
-  it('names the class of a template whose class is past the first page', async () => {
+  it('names the class of an item type whose class is past the first page', async () => {
     installFetch(
       route({
         '/api/resource_templates': () =>
@@ -81,11 +81,11 @@ describe('every page of a long list', () => {
             ],
             1,
           ),
-        '/api/users': empty,
+        '/api/items': empty,
         '/api/resource_classes': paged('resource_classes', CLASS_COUNT),
       }),
     );
-    render(<ResourceTemplatesPage />);
+    render(<ItemTypesPage />);
     const row = (await screen.findByRole('link', { name: 'Late class' })).closest('tr');
     if (row === null) {
       throw new Error('expected the template row');
@@ -93,7 +93,7 @@ describe('every page of a long list', () => {
     expect(within(row).getByText(`Class ${String(CLASS_COUNT)}`)).toBeInTheDocument();
   });
 
-  it('offers every property in the template form', async () => {
+  it('offers every property and class in the item type editor', async () => {
     installFetch(
       route({
         '/api/users': empty,
@@ -102,13 +102,22 @@ describe('every page of a long list', () => {
         '/api/data_types': empty,
       }),
     );
-    render(<ResourceTemplatesPage param="new" />);
-    const picker = await screen.findByLabelText('Add property');
-    expect(within(picker).getByRole('option', { name: `ex:n${String(PROPERTY_COUNT)}` })).toBeInTheDocument();
-    expect(
-      within(await screen.findByLabelText('Suggested class')).getByRole('option', {
-        name: `Class ${String(CLASS_COUNT)}`,
-      }),
-    ).toBeInTheDocument();
+    render(<ItemTypesPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('What kind of thing is this?'), {
+      target: { value: 'Spoon' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const last = String(PROPERTY_COUNT);
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Add a field' }), {
+      target: { value: `ex:n${last}` },
+    });
+    const fields = screen.getByRole('list', { name: `Matches for “ex:n${last}”` });
+    expect(within(fields).getAllByRole('button')[0]).toHaveTextContent(`ex:n${last}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Change the standard class' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a standard class' }), {
+      target: { value: `Class ${String(CLASS_COUNT)}` },
+    });
+    const classes = screen.getByRole('list', { name: `Matches for “Class ${String(CLASS_COUNT)}”` });
+    expect(within(classes).getAllByRole('button')[0]).toHaveTextContent(`ex:n${String(CLASS_COUNT)}`);
   });
 });

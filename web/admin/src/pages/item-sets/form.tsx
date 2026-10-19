@@ -10,6 +10,7 @@ import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
+import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
 
@@ -72,7 +73,7 @@ const ItemSetEditor = ({
   return (
     <div>
       <form onSubmit={submit}>
-        <ResourceFields idPrefix="item-set" draft={draft} onChange={setDraft} options={options} />
+        <ResourceFields idPrefix="item-set" kind="item-sets" draft={draft} onChange={setDraft} options={options} />
         <CheckboxField
           id="item-set-open"
           label={t('itemSets.open')}
@@ -86,6 +87,7 @@ const ItemSetEditor = ({
           template={templateById(options.templates, draft.resourceTemplate)}
           properties={options.properties}
           dataTypes={options.dataTypes}
+          createField={createLocalField}
         />
         <FormErrors errors={formErrors} />
         <SaveStatus state={saveState} />

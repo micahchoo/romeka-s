@@ -1,0 +1,13 @@
+{
+ "type.label": "Type",
+ "type.none": "No type",
+ "value.kind": "Kind",
+ "type.classLine": "Standard class: {name}",
+ "advanced.summary": "Advanced",
+ "advanced.classDiffers": "This class is not the one its type suggests.",
+ "help.what": "What is {name}?",
+ "help.none": "No definition is stored for this term.",
+ "picker.matches": "Matches for “{query}”",
+ "picker.none": "Nothing matches “{query}”.",
+ "picker.create": "Create a new field “{name}”"
+}

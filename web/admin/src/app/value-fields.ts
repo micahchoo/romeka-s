@@ -25,6 +25,7 @@ import {
   valueErrors,
 } from './draft';
 import type { ResourceDraft, ValueDraft, ValueKind } from './draft';
+import type { Termed } from './plain-terms';
 
 /** What one template row says about its property's values. */
 export interface FieldRule {
@@ -43,6 +44,8 @@ export interface PropertyField {
   readonly label: string;
   /** The template's alternate comment, else the property comment. */
   readonly comment: string | null;
+  /** The property itself, whose stored comment is the term's definition. */
+  readonly property: Termed;
   /** `null` for a property the template does not list. */
   readonly rule: FieldRule | null;
   readonly values: readonly ValueDraft[];
@@ -73,6 +76,9 @@ export const templateById = (
   id: TemplateId | null,
 ): ResourceTemplate | null => templates.find((entry) => entry.id === id) ?? null;
 
+/** What laying out a form reads of a template: its rows. */
+export type TemplateLayout = Pick<ResourceTemplate, 'properties'>;
+
 interface TemplateRow {
   readonly property: Property;
   readonly label: string | null;
@@ -82,7 +88,7 @@ interface TemplateRow {
 
 /** The template's rows whose property the property list names, in template order. */
 const templateRows = (
-  template: ResourceTemplate | null,
+  template: TemplateLayout | null,
   properties: readonly Property[],
 ): readonly TemplateRow[] =>
   (template?.properties ?? []).flatMap((entry) => {
@@ -111,7 +117,7 @@ const templateRows = (
  */
 export const layoutFields = (
   values: readonly ValueDraft[],
-  template: ResourceTemplate | null,
+  template: TemplateLayout | null,
   properties: readonly Property[],
 ): readonly PropertyField[] => {
   const valuesOf = (id: PropertyId): readonly ValueDraft[] =>
@@ -123,6 +129,7 @@ export const layoutFields = (
       term: row.property.term,
       label: row.label ?? row.property.label ?? row.property.term,
       comment: row.comment ?? row.property.comment,
+      property: row.property,
       rule: row.rule,
       values: valuesOf(row.property.id),
     }),
@@ -140,6 +147,7 @@ export const layoutFields = (
       term: value.term,
       label: property?.label ?? value.term,
       comment: property?.comment ?? null,
+      property: property ?? { term: value.term, localName: value.term, label: null, comment: null },
       rule: null,
       values: valuesOf(value.propertyId),
     });
@@ -184,7 +192,7 @@ export const addPropertyValue = (draft: ResourceDraft, property: Property): Reso
  */
 export const withTemplateRows = (
   draft: ResourceDraft,
-  template: ResourceTemplate | null,
+  template: TemplateLayout | null,
   properties: readonly Property[],
 ): ResourceDraft => {
   const missing = templateRows(template, properties).filter(
@@ -197,26 +205,33 @@ export const withTemplateRows = (
 };
 
 /**
- * The draft after the user picks a template. The template's class is applied
- * when the resource has none (`applyResourceTemplate(true)` sets the class only
- * while the class select is empty). Every empty value goes and each template
- * row without a value gets a fresh one, as `rewritePropertyField` removes the
- * untouched default values and starts the row again with its defaults; a typed
- * value always stays. Choosing no template changes nothing but the template.
+ * The draft after the user picks a template. The class follows the type while
+ * the user has not chosen another: it is set when the resource has none or
+ * still has the previous type's class, and kept when it was overridden.
+ * (Upstream's `applyResourceTemplate(true)` sets it only while the class is
+ * empty; with the class behind an "Advanced" fold, a type picked by mistake
+ * would otherwise leave its class behind.) Every empty value goes and each
+ * template row without a value gets a fresh one, as `rewritePropertyField`
+ * removes the untouched default values and starts the row again with its
+ * defaults; a typed value always stays. Choosing no template changes nothing
+ * but the template.
  */
 export const withTemplate = (
   draft: ResourceDraft,
   template: ResourceTemplate | null,
   properties: readonly Property[],
+  previous: ResourceTemplate | null = null,
 ): ResourceDraft => {
   if (template === null) {
     return { ...draft, resourceTemplate: null };
   }
+  const followsType =
+    draft.resourceClass === null || draft.resourceClass === (previous?.resourceClass?.id ?? null);
   return withTemplateRows(
     {
       ...draft,
       resourceTemplate: template.id,
-      resourceClass: draft.resourceClass ?? template.resourceClass?.id ?? null,
+      resourceClass: followsType ? (template.resourceClass?.id ?? null) : draft.resourceClass,
       values: draft.values.filter((value) => !isBlank(value)),
     },
     template,
@@ -243,11 +258,6 @@ export const missingRequired = (fields: readonly PropertyField[]): readonly Prop
     (field) => field.rule?.isRequired === true && field.values.every((value) => isBlank(value)),
   );
 
-/**
- * The data types one value may switch to: the row's list, or the core three
- * when it has none. A stored type outside that list stays offered, so opening
- * a value never changes its type.
- */
 /** Every reason the form refuses to send the draft, required fields first. */
 export const draftErrors = (
   draft: ResourceDraft,
@@ -277,6 +287,11 @@ export const openDraft = (
   return withTemplateRows(draft, templateById(templates, draft.resourceTemplate), properties);
 };
 
+/**
+ * The data types one value may switch to: the row's list, or the core three
+ * when it has none. A stored type outside that list stays offered, so opening
+ * a value never changes its type.
+ */
 export const typeChoices = (field: PropertyField, value: ValueDraft): readonly string[] => {
   const allowed = field.rule === null || field.rule.dataTypes.length === 0
     ? CORE_TYPES
@@ -286,19 +301,3 @@ export const typeChoices = (field: PropertyField, value: ValueDraft): readonly s
 
 export const setValueType = (draft: ResourceDraft, key: string, type: string): ResourceDraft =>
   patchValue(draft, key, { type, kind: baseKind(type) });
-
-/** Properties whose label or term contains the query, ignoring case. */
-export const matchProperties = (
-  properties: readonly Property[],
-  query: string,
-): readonly Property[] => {
-  const needle = query.trim().toLowerCase();
-  if (needle === '') {
-    return [];
-  }
-  return properties.filter(
-    (property) =>
-      property.term.toLowerCase().includes(needle) ||
-      (property.label ?? '').toLowerCase().includes(needle),
-  );
-};
