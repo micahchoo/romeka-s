@@ -306,8 +306,14 @@ manifest path the frame built.
 | GET | `/assets/<path>` | 200 | the theme asset's bytes |
 
 The media type is the asset kind's (`text/css` for a stylesheet,
-`application/javascript` for a script), and the answer carries
-`cache-control: public, max-age=86400`. A path no bundled theme ships answers
+`application/javascript` for a script). The frame links each head asset as
+`<path>?v=<version>`, where the version is a digest of the bytes
+(`omeka_site::theme::ThemeAsset::version`), so a deploy that changes the sheet
+changes the URL every page links. A request whose `v` names the current bytes
+answers `cache-control: public, max-age=31536000, immutable`; any other request
+(no `v`, or the `v` of an older sheet) answers `cache-control: no-cache`, so the
+client revalidates with the weak `ETag` the cache layer adds and never keeps a
+stale sheet. A path no bundled theme ships answers
 the API's 404 error document; another method is a 405 with `Allow: GET`. The
 lookup searches the bundled themes in registry order, which is unambiguous
 while one theme ships.

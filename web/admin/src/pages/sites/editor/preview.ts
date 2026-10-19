@@ -10,7 +10,7 @@
 import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from '../../../api/auth';
 import { defaultBaseUrl } from '../../../api/client';
 import { parseApiErrors } from '../../../api/parse';
-import type { PageId, SiteId } from '../../../api/types';
+import type { ApiErrors, PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
 import type { BlockKey, PageContent } from './draft';
@@ -67,7 +67,8 @@ export type PreviewResult =
   | { readonly kind: 'html'; readonly html: string }
   /** The route answered 404, so the server has no preview yet. */
   | { readonly kind: 'unavailable' }
-  | { readonly kind: 'error'; readonly message: string };
+  /** The route refused the body; `errors` is the API's error document, when it sent one. */
+  | { readonly kind: 'error'; readonly message: string; readonly errors: ApiErrors | null };
 
 const parsedOrNull = (text: string): unknown => {
   try {
@@ -77,16 +78,17 @@ const parsedOrNull = (text: string): unknown => {
   }
 };
 
-const errorMessage = async (response: Response): Promise<string> => {
+const errorResult = async (response: Response): Promise<PreviewResult> => {
   const text = await response.text();
   const errors = parseApiErrors(parsedOrNull(text));
   for (const messages of Object.values(errors ?? {})) {
     const first = messages[0];
     if (first !== undefined) {
-      return first;
+      return { kind: 'error', message: first, errors };
     }
   }
-  return text === '' ? `Preview failed with ${String(response.status)}.` : text;
+  const message = text === '' ? `Preview failed with ${String(response.status)}.` : text;
+  return { kind: 'error', message, errors };
 };
 
 export const requestPreview = async (
@@ -105,7 +107,7 @@ export const requestPreview = async (
     return { kind: 'unavailable' };
   }
   if (!response.ok) {
-    return { kind: 'error', message: await errorMessage(response) };
+    return errorResult(response);
   }
   return { kind: 'html', html: await response.text() };
 };

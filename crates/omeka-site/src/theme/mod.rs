@@ -33,7 +33,12 @@
 //! A second theme implements [`Theme`] and adds itself to [`THEMES`]. Nothing
 //! else in the crate names [`DefaultTheme`].
 
+pub mod choices;
+pub mod color;
+pub mod custom_css;
 pub mod default;
+pub mod palette;
+pub mod presets;
 pub mod search;
 pub mod style;
 pub mod tokens;
@@ -117,6 +122,16 @@ pub struct ThemeAsset {
     pub kind: AssetKind,
     /// The asset's bytes.
     pub content: &'static str,
+}
+
+impl ThemeAsset {
+    /// A digest of the bytes, 16 hex digits. The frame links
+    /// `<path>?v=<version>`, so a deploy that changes the bytes changes the URL
+    /// and the asset route may let a client keep one URL's bytes for good.
+    #[must_use]
+    pub fn version(&self) -> String {
+        crate::blocks::canonical::byte_hash(self.content)
+    }
 }
 
 /// A theme's manifest: the id a site stores, the settings it reads and the

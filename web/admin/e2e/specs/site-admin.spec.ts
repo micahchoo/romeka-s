@@ -29,13 +29,13 @@ test('the site admin saves site settings, navigation and permissions', async ({
 
   // Site settings: each key is stored as a `site_setting` row and read back.
   await page.goto(`/#${detail}/settings`);
-  const installationTitle = page.getByLabel('Installation title');
+  const installationTitle = page.getByLabel('Name in the browser tab');
   await expect(installationTitle).toBeVisible();
   await installationTitle.fill('E2E Library');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Installation title')).toHaveValue('E2E Library');
+  await expect(page.getByLabel('Name in the browser tab')).toHaveValue('E2E Library');
 
   // Navigation: a URL link is added and survives a reload.
   await page.goto(`/#${detail}/navigation`);

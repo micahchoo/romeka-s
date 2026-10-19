@@ -70,6 +70,23 @@ pub async fn store(
     Ok(())
 }
 
+/// The sanitiser's refusals for a map's `custom_css`, one message per refusal
+/// with its line and column, or `None` when the CSS passes or the map carries
+/// none. The site write and the preview answer these as a 422 under
+/// `o:theme_settings`. The render sanitises again, so this check is what tells
+/// the curator, not what keeps the page safe.
+#[must_use]
+pub fn custom_css_errors(settings: &Value) -> Option<Vec<String>> {
+    let css = settings.get("custom_css")?.as_str()?;
+    let refusals = omeka_site::theme::custom_css::sanitize(css.trim()).err()?;
+    Some(
+        refusals
+            .iter()
+            .map(|refusal| format!("Custom CSS: {refusal}"))
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

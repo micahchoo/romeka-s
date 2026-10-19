@@ -3,12 +3,16 @@
     {
       "key": "installation_title",
       "labelKey": "siteSetting.installationTitle",
+      "helpKey": "siteSetting.installationTitleHelp",
+      "group": "navigation",
       "kind": "text",
       "default": "Romeka S"
     },
     {
       "key": "locale",
       "labelKey": "siteSetting.locale",
+      "helpKey": "siteSetting.localeHelp",
+      "group": "language",
       "kind": "choice",
       "choices": [
         "en",
@@ -19,6 +23,8 @@
     {
       "key": "attachment_link_type",
       "labelKey": "siteSetting.attachmentLinkType",
+      "helpKey": "siteSetting.attachmentLinkTypeHelp",
+      "group": "itemPages",
       "kind": "choice",
       "choices": [
         "item",
@@ -30,36 +36,46 @@
     {
       "key": "browse_attached_items",
       "labelKey": "siteSetting.browseAttachedItems",
+      "helpKey": "siteSetting.browseAttachedItemsHelp",
+      "group": "browsing",
       "kind": "boolean",
       "default": false
     },
     {
       "key": "browse_heading_property_term",
       "labelKey": "siteSetting.browseHeadingPropertyTerm",
-      "kind": "text",
-      "default": null
+      "helpKey": "siteSetting.browseHeadingPropertyTermHelp",
+      "group": "browsing",
+      "kind": "property"
     },
     {
       "key": "browse_body_property_term",
       "labelKey": "siteSetting.browseBodyPropertyTerm",
-      "kind": "text",
-      "default": null
+      "helpKey": "siteSetting.browseBodyPropertyTermHelp",
+      "group": "browsing",
+      "kind": "property"
     },
     {
       "key": "filter_locale_values",
       "labelKey": "siteSetting.filterLocaleValues",
+      "helpKey": "siteSetting.filterLocaleValuesHelp",
+      "group": "language",
       "kind": "boolean",
       "default": false
     },
     {
       "key": "exclude_resources_not_in_site",
       "labelKey": "siteSetting.excludeResourcesNotInSite",
+      "helpKey": "siteSetting.excludeResourcesNotInSiteHelp",
+      "group": "advanced",
       "kind": "boolean",
       "default": false
     },
     {
       "key": "iiif_viewer_theme",
       "labelKey": "siteSetting.iiifViewerTheme",
+      "helpKey": "siteSetting.iiifViewerThemeHelp",
+      "group": "itemPages",
       "kind": "choice",
       "choices": [
         "light",
@@ -70,6 +86,8 @@
     {
       "key": "subnav_display",
       "labelKey": "siteSetting.subnavDisplay",
+      "helpKey": "siteSetting.subnavDisplayHelp",
+      "group": "navigation",
       "kind": "choice",
       "choices": [
         "show",
@@ -80,12 +98,16 @@
     {
       "key": "show_page_pagination",
       "labelKey": "siteSetting.showPagePagination",
+      "helpKey": "siteSetting.showPagePaginationHelp",
+      "group": "navigation",
       "kind": "boolean",
       "default": true
     },
     {
       "key": "search_type",
       "labelKey": "siteSetting.searchType",
+      "helpKey": "siteSetting.searchTypeHelp",
+      "group": "search",
       "kind": "choice",
       "choices": [
         "sitewide",
@@ -96,6 +118,8 @@
     {
       "key": "search_resource_names",
       "labelKey": "siteSetting.searchResourceNames",
+      "helpKey": "siteSetting.searchResourceNamesHelp",
+      "group": "search",
       "kind": "multiChoice",
       "choices": [
         "site_pages",
@@ -110,6 +134,8 @@
     {
       "key": "show_user_bar",
       "labelKey": "siteSetting.showUserBar",
+      "helpKey": "siteSetting.showUserBarHelp",
+      "group": "navigation",
       "kind": "choice",
       "choices": [
         "-1",
@@ -121,30 +147,39 @@
     {
       "key": "disable_jsonld_embed",
       "labelKey": "siteSetting.disableJsonldEmbed",
+      "helpKey": "siteSetting.disableJsonldEmbedHelp",
+      "group": "advanced",
       "kind": "boolean",
       "default": false
     },
     {
       "key": "favicon",
       "labelKey": "siteSetting.favicon",
-      "kind": "text",
-      "default": null
+      "helpKey": "siteSetting.faviconHelp",
+      "group": "navigation",
+      "kind": "asset"
     },
     {
       "key": "show_locale_label",
       "labelKey": "siteSetting.showLocaleLabel",
+      "helpKey": "siteSetting.showLocaleLabelHelp",
+      "group": "language",
       "kind": "boolean",
       "default": true
     },
     {
       "key": "pagination_per_page",
       "labelKey": "siteSetting.paginationPerPage",
+      "helpKey": "siteSetting.paginationPerPageHelp",
+      "group": "browsing",
       "kind": "number",
       "default": null
     },
     {
       "key": "browse_defaults_public_items",
       "labelKey": "siteSetting.browseDefaultsPublicItems",
+      "helpKey": "siteSetting.browseDefaultsPublicItemsHelp",
+      "group": "browsing",
       "kind": "sort",
       "sortBy": "id",
       "sortOrder": "desc"
@@ -152,12 +187,16 @@
     {
       "key": "show_attached_pages",
       "labelKey": "siteSetting.showAttachedPages",
+      "helpKey": "siteSetting.showAttachedPagesHelp",
+      "group": "itemPages",
       "kind": "boolean",
       "default": true
     },
     {
       "key": "property_label_information",
       "labelKey": "siteSetting.propertyLabelInformation",
+      "helpKey": "siteSetting.propertyLabelInformationHelp",
+      "group": "itemPages",
       "kind": "choice",
       "choices": [
         "none",
@@ -165,50 +204,6 @@
         "term"
       ],
       "default": "none"
-    },
-    {
-      "key": "show_value_annotations",
-      "labelKey": "siteSetting.showValueAnnotations",
-      "kind": "choice",
-      "choices": [
-        "collapsed",
-        "expanded"
-      ],
-      "default": null
-    },
-    {
-      "key": "item_media_embed",
-      "labelKey": "siteSetting.itemMediaEmbed",
-      "kind": "boolean",
-      "default": false
-    },
-    {
-      "key": "vocabulary_scope",
-      "labelKey": "siteSetting.vocabularyScope",
-      "kind": "choice",
-      "choices": [
-        "sitewide",
-        "cross-site"
-      ],
-      "default": null
-    },
-    {
-      "key": "search_apply_templates",
-      "labelKey": "siteSetting.searchApplyTemplates",
-      "kind": "text",
-      "default": null
-    },
-    {
-      "key": "search_restrict_templates",
-      "labelKey": "siteSetting.searchRestrictTemplates",
-      "kind": "boolean",
-      "default": false
-    },
-    {
-      "key": "iiif_viewer_sidebar",
-      "labelKey": "siteSetting.iiifViewerSidebar",
-      "kind": "boolean",
-      "default": false
     }
   ]
 }

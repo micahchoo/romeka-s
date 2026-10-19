@@ -35,8 +35,15 @@ const detachedSite = (): Record<string, unknown> => {
   return { ...fixture };
 };
 
-const usersRoute = (url: URL): Response | null =>
-  url.pathname === '/api/users' ? jsonResponse(loadFixture('users-page.json')) : null;
+const usersRoute = (url: URL): Response | null => {
+  if (url.pathname === '/api/users') {
+    return jsonResponse(loadFixture('users-page.json'));
+  }
+  // The settings page offers the properties for the browse title pickers.
+  return url.pathname === '/api/properties'
+    ? jsonResponse(loadFixture('properties-page.json'))
+    : null;
+};
 
 const notFound = (): Response =>
   jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
