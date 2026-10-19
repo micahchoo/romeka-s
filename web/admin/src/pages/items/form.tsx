@@ -14,6 +14,8 @@ import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
 import { loadAssignableSites, SitesFieldset } from './sites';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 interface ItemEditorProps {
   /** The stored item to edit, or `null` to create one. */
@@ -33,7 +35,7 @@ const loadItemOptions = async (): Promise<ItemOptions> => {
 };
 
 const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(item, options.templates, options.properties),
   );
@@ -132,7 +134,7 @@ const OptionsState = ({
   readonly load: () => Promise<ItemOptions>;
   readonly children: (options: ItemOptions) => ReactElement;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const state = useAsync(load, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;

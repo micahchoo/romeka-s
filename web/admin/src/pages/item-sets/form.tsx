@@ -13,6 +13,8 @@ import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 interface Loaded {
   readonly itemSet: ItemSet | null;
@@ -34,7 +36,7 @@ const ItemSetEditor = ({
   readonly itemSetId: ItemSetId | null;
   readonly loaded: Loaded;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const { options } = loaded;
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(loaded.itemSet, options.templates, options.properties),
@@ -116,7 +118,7 @@ export const ItemSetForm = ({
 }: {
   readonly itemSetId: ItemSetId | null;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const state = useAsync(() => load(itemSetId), [itemSetId]);
 
   if (state.status === 'loading') {

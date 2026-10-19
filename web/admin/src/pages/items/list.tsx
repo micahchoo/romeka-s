@@ -8,6 +8,8 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { BulkSiteActions } from './BulkSiteActions';
 import { classLabelOf, classLabels as buildClassLabels, ownerNameOf, userNames } from './labels';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 const PER_PAGE = 25;
 
@@ -21,7 +23,7 @@ interface ItemsView {
 }
 
 export const ItemsList = (): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, resources);
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
 

@@ -3,10 +3,11 @@ import { itemSetIdFromParam } from '../../api/parse';
 import { useTranslator } from '../../i18n';
 import { ItemSetForm } from './form';
 import { ItemSetList } from './list';
+import { resources } from '../../i18n/namespaces/resources';
 
 /** `#/item-sets` lists, `#/item-sets/new` creates, `#/item-sets/<id>` edits. */
 export const ItemSetsPage = ({ param = null }: { readonly param?: string | null } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(resources);
   if (param === null) {
     return <ItemSetList />;
   }

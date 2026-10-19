@@ -5,6 +5,8 @@ import { formatDateTime } from '../../app/format';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 const PER_PAGE = 25;
 
@@ -27,7 +29,7 @@ const load = async (page: number): Promise<ApiPage<ItemSetRow>> => {
 
 /** `Admin/ItemSetController::browseAction`: the item set browse table. */
 export const ItemSetList = (): ReactElement => {
-  const { t, locale } = useTranslator();
+  const { t, locale } = useTranslator(common, resources);
   const resource = t('resource.itemSets');
   return (
     <div>

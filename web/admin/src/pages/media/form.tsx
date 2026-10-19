@@ -12,6 +12,8 @@ import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 
 const nullable = (text: string): string | null => (text.trim() === '' ? null : text);
 
@@ -27,7 +29,7 @@ interface MediaEditorProps {
  * always sends the values it holds. The thumbnail travels unchanged.
  */
 const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(media, options.templates, options.properties),
   );
@@ -99,7 +101,7 @@ export const MediaEditForm = ({
   readonly media: Media;
   readonly onSaved: (media: Media) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const state = useAsync(loadFormOptions, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;

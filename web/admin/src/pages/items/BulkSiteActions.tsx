@@ -11,6 +11,8 @@ import type { ItemId, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
 import './bulk.css';
 
 type Mode = 'add' | 'remove';
@@ -22,7 +24,7 @@ export const BulkSiteActions = ({
 }: {
   readonly picked: readonly ItemId[];
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, resources);
   const [mode, setMode] = useState<Mode | null>(null);
   const [siteId, setSiteId] = useState<SiteId | null>(null);
   const [busy, setBusy] = useState(false);
