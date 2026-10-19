@@ -49,7 +49,37 @@ const TABLES = [
     type: 'StandardsMessages',
     from: '../messages',
   },
+  {
+    what: 'item type pages messages',
+    source: 'src/pages/item-types/messages.tsx',
+    dir: 'src/pages/item-types/locales',
+    type: 'ItemTypesMessages',
+    from: '../messages',
+  },
+  {
+    what: 'describe strings',
+    source: 'src/app/describe-messages.ts',
+    dir: 'src/app/describe-locales',
+    type: 'DescribeMessages',
+    from: '../describe-messages',
+  },
+  {
+    // The server's error patterns: the Rust registry generates the English.
+    what: 'server messages',
+    source: 'src/generated/serverMessages.json',
+    english: (module) => module.default.messages,
+    dir: 'src/i18n/locales',
+    file: (tag) => `${tag}.server.ts`,
+    name: (tag) => `${tag}Server`,
+    sources: 'sources.server.json',
+    type: 'ServerCatalogue',
+    from: '../serverMessages',
+  },
 ];
+// A table names its English export `en`, a locale file `<tag>.ts` exporting `<tag>`, unless it says otherwise.
+const englishOf = (table, module) => (table.english ? table.english(module) : module.en);
+const fileOf = (table, tag) => (table.file ? table.file(tag) : `${tag}.ts`);
+const nameOf = (table, tag) => (table.name ? table.name(tag) : tag);
 const TRANSLATOR = process.env.TRANSLATOR_DIR ?? '/mnt/Ghar/2TA/DevStuff/notebook/translator';
 const SERVER = process.env.SARVAM_URL ?? 'http://localhost:8086';
 const MARKER = '@machine-translated';
@@ -101,9 +131,16 @@ async function translate(language, source, history) {
   });
   let best = null;
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
-    const raw = await complete(prompt, attempt ? 0.6 : 0, attempt, Math.max(256, source.length * 4), stopFor(language));
+    let raw = '';
+    try {
+      raw = await complete(prompt, attempt ? 0.6 : 0, attempt, Math.max(256, source.length * 4), stopFor(language));
+    } catch (error) {
+      // llama.cpp sometimes refuses its own output with a 500; that attempt is simply lost.
+      console.log(`  attempt ${String(attempt)} failed: ${String(error)}`);
+    }
     const output = cleanOutput(raw, language);
-    const flags = check(source, output, language, []);
+    // The earlier pairs let md-translator flag an answer copied from another source string.
+    const flags = check(source, output, language, history);
     if (placeholders(source) !== placeholders(output)) flags.push('placeholders');
     if (NAMES.some((name) => source.includes(name) && !output.includes(name))) flags.push('names');
     if (!best || flags.length < best.flags.length) best = { output, flags };
@@ -121,7 +158,7 @@ function write(path, header, table, tag, en, catalogue) {
       const line = `  ${quote(key)}: ${quote(catalogue[key])},`;
       return line.length <= 100 ? line : `  ${quote(key)}:\n    ${quote(catalogue[key])},`;
     });
-  writeFileSync(path, `${header}export const ${tag}: ${table.type} = {\n${entries.join('\n')}\n};\n`);
+  writeFileSync(path, `${header}export const ${nameOf(table, tag)}: ${table.type} = {\n${entries.join('\n')}\n};\n`);
 }
 
 const header = (table, name) => `/**
@@ -140,24 +177,24 @@ const tags = process.argv.slice(2);
 const targets = tags.length
   ? tags
   : Object.keys(LANGUAGES).filter((tag) => {
-      const path = join(ADMIN, TABLES[0].dir, `${tag}.ts`);
+      const path = join(ADMIN, TABLES[0].dir, fileOf(TABLES[0], tag));
       return existsSync(path) && readFileSync(path, 'utf8').includes(MARKER);
     });
 
 let flaggedTotal = 0;
 for (const table of TABLES) {
-  const { en } = await import(join(ADMIN, table.source));
-  const sourcesPath = join(ADMIN, table.dir, 'sources.json');
+  const en = englishOf(table, await import(join(ADMIN, table.source)));
+  const sourcesPath = join(ADMIN, table.dir, table.sources ?? 'sources.json');
   // With no record yet, every translation present is taken as made from today's English.
   const sources = existsSync(sourcesPath) ? JSON.parse(readFileSync(sourcesPath, 'utf8')) : en;
   const changed = new Set(Object.keys(en).filter((key) => key in sources && sources[key] !== en[key]));
   for (const tag of targets) {
     const language = LANGUAGES[tag];
     if (!language || tag === 'en') throw new Error(`${tag}: md-translator has no such target language`);
-    const path = join(ADMIN, table.dir, `${tag}.ts`);
+    const path = join(ADMIN, table.dir, fileOf(table, tag));
     const text = existsSync(path) ? readFileSync(path, 'utf8') : '';
     if (text && !text.includes(MARKER)) throw new Error(`${path} is hand-written; this script fills only ${MARKER} files`);
-    const existing = text ? (await import(path))[tag] : {};
+    const existing = text ? (await import(path))[nameOf(table, tag)] : {};
     const kept = text ? text.slice(0, text.indexOf('export const')) : header(table, language.name);
 
     const catalogue = {};

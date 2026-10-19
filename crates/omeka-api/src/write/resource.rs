@@ -145,10 +145,7 @@ async fn require_template_values(
                 .map(|property| property.label)
                 .unwrap_or_default(),
         };
-        messages.push(format!(
-            "The \"{}\" resource template requires a \"{label}\" value",
-            row.label
-        ));
+        messages.push(crate::messages::template_requires_value(&row.label, label));
     }
     if messages.is_empty() {
         return Ok(());
@@ -320,8 +317,8 @@ const ASSET_CLASS: &str = "Omeka\\Entity\\Asset";
 /// `AbstractEntityAdapter::findEntity` for a body-supplied reference: the
 /// criteria is the value the body carried, printed as `json_encode` prints it.
 pub fn not_found(class: &str, raw: &Value) -> ApiError {
-    ApiError::not_found(format!(
-        "{class} entity with criteria {} not found",
-        crate::write::body::ref_criteria(raw)
+    ApiError::not_found(crate::messages::entity_not_found(
+        class,
+        crate::write::body::ref_criteria(raw),
     ))
 }

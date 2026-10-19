@@ -20,6 +20,7 @@ use omeka_db::rows::{NewResource, NewValue};
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, db_error};
 use crate::write::body::{Payload, is_numeric, ref_row};
 use crate::write::resource;
@@ -111,7 +112,7 @@ pub(crate) async fn collect_at(
             errors
                 .entry(key.clone())
                 .or_default()
-                .push(format!("The property \"{key}\" is not recognized."));
+                .push(messages::property_not_recognized(key));
             continue;
         }
         let Some(array) = value.as_array() else {
@@ -155,10 +156,7 @@ async fn ensure_resource(api: &Api<'_>, id: ResourceId) -> Result<(), ApiError> 
         .map_err(db_error)?
         .is_none()
     {
-        return Err(ApiError::not_found(format!(
-            "Resource not found with id {}.",
-            id.0
-        )));
+        return Err(ApiError::not_found(messages::resource_not_found(id.0)));
     }
     Ok(())
 }
@@ -222,9 +220,8 @@ fn parse_scalar(
                 return Ok(None);
             }
             let Some(id) = ref_row(raw) else {
-                return Err(ApiError::not_found(format!(
-                    "Resource not found with id {}.",
-                    crate::write::body::php_display(raw)
+                return Err(ApiError::not_found(messages::resource_not_found(
+                    crate::write::body::php_display(raw),
                 )));
             };
             ValueKind::Resource(ResourceId(id))

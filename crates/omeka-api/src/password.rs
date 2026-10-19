@@ -25,9 +25,6 @@ use crate::errors::ApiError;
 /// The bcrypt cost. Upstream's `password_hash` runs PHP's default, 10.
 pub const BCRYPT_COST: u32 = 10;
 
-/// The message `PasswordConfirm::passwordIsValid` reports through its callback.
-pub const INVALID_PASSWORD: &str = "The password is invalid";
-
 /// `Config['password']['symbol_list']`.
 pub const SYMBOL_LIST: &str = "`~!@#$%^&*()-=_+[]\\{}|;:\",./<>?'";
 

@@ -18,6 +18,7 @@ use axum::extract::{FromRequest, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
+use omeka_api::messages;
 
 /// The request body, capped by [`axum::extract::DefaultBodyLimit`] and rejected
 /// with the typed document.
@@ -45,16 +46,16 @@ pub(crate) async fn timeout_request(
 ) -> Response {
     match tokio::time::timeout(timeout, next.run(request)).await {
         Ok(response) => response,
-        Err(_) => error_document(StatusCode::REQUEST_TIMEOUT, "Request Timeout"),
+        Err(_) => error_document(StatusCode::REQUEST_TIMEOUT, messages::REQUEST_TIMEOUT),
     }
 }
 
 /// A limit failure carries the shape every API failure carries.
 fn limit_error(status: StatusCode) -> Response {
     let message = if status == StatusCode::PAYLOAD_TOO_LARGE {
-        "Request body too large"
+        messages::BODY_TOO_LARGE
     } else {
-        "Bad Request"
+        messages::BAD_REQUEST
     };
     error_document(status, message)
 }

@@ -24,8 +24,9 @@ pub use resources::{
     ValueAnnotationRow, resource_type,
 };
 pub use sites::{
-    NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage, SiteBlockAttachmentRow,
-    SiteBlockRow, SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, SiteSettingRow,
+    NewFirstPage, NewFirstPageBlock, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
+    NewWholeSite, SiteBlockAttachmentRow, SiteBlockRow, SiteItemSetRow, SitePageRow,
+    SitePermissionRow, SiteRow, SiteSettingRow,
 };
 pub use system::{
     AssetRow, FulltextSearchRow, ItemItemSetRow, ItemSiteRow, JobRow, MigrationRow, ModuleRow,

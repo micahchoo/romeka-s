@@ -35,6 +35,7 @@ use omeka_media::thumbnailer::ImageThumbnailer;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::{Payload, php_json, ref_row};
@@ -182,13 +183,13 @@ async fn ingest(
 /// the create branch refuses the fallback with the same 422.
 fn ingester_name(payload: &Payload) -> Result<String, ApiError> {
     if !payload.truthy("o:ingester") {
-        return Err(validation("o:ingester", "Media must set an ingester."));
+        return Err(validation("o:ingester", messages::MEDIA_INGESTER_REQUIRED));
     }
     let Some(ingester) = payload.str_member("o:ingester").map(str::to_string) else {
-        return Err(validation("o:ingester", "Media must set an ingester."));
+        return Err(validation("o:ingester", messages::MEDIA_INGESTER_REQUIRED));
     };
     if IngesterRegistry::with_defaults().find(&ingester).is_none() {
-        return Err(validation("o:ingester", "Media must set a valid ingester."));
+        return Err(validation("o:ingester", messages::MEDIA_INGESTER_INVALID));
     }
     Ok(ingester)
 }
@@ -416,7 +417,7 @@ pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError
 /// `isset`, so a present non-numeric value reaches the lookup and is a 404.
 async fn item(api: &Api<'_>, payload: &Payload) -> Result<ItemRow, ApiError> {
     let Some(raw) = payload.present_ref("o:item") else {
-        return Err(validation("o:item", "Media must belong to an item."));
+        return Err(validation("o:item", messages::MEDIA_ITEM_REQUIRED));
     };
     let Some(id) = ref_row(raw) else {
         return Err(ref_not_found(ITEM_CLASS, raw));

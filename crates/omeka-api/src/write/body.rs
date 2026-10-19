@@ -14,6 +14,7 @@
 use serde_json::{Map, Value, json};
 
 use crate::errors::ApiError;
+use crate::messages;
 use crate::write::multipart::{Multipart, UploadedFile};
 
 /// A create body: JSON, or the `data` and `file` fields of a multipart
@@ -70,12 +71,10 @@ impl Payload {
     /// Parse a request body. Upstream's two 400 messages are reproduced.
     pub fn parse(bytes: &[u8]) -> Result<Self, ApiError> {
         let value: Value = serde_json::from_slice(bytes)
-            .map_err(|_| ApiError::bad_request("JSON: Syntax error"))?;
+            .map_err(|_| ApiError::bad_request(messages::JSON_SYNTAX))?;
         match value {
             Value::Object(object) => Ok(Self { object }),
-            _ => Err(ApiError::bad_request(
-                "JSON: Content must be an object or array.",
-            )),
+            _ => Err(ApiError::bad_request(messages::JSON_NOT_CONTAINER)),
         }
     }
 
@@ -422,9 +421,6 @@ pub fn php_json(value: &Value) -> Value {
 /// method whose `Content-Type` is not JSON or multipart.
 pub fn content_type_error(media_type: Option<&str>) -> ApiError {
     ApiError::UnsupportedMediaType {
-        message: format!(
-            "Invalid Content-Type header. Expecting \"application/json\", got \"{}\".",
-            media_type.unwrap_or("none")
-        ),
+        message: messages::invalid_content_type(media_type.unwrap_or("none")),
     }
 }
