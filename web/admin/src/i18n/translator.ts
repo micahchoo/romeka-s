@@ -41,11 +41,14 @@ export const assertComplete = (
   }
 };
 
-/** A locale-bound message lookup. */
-export interface Translator {
+/**
+ * A locale-bound message lookup over the keys `K`: the shell's by default,
+ * and a namespace's too when `useTranslator(namespace)` built it.
+ */
+export interface Translator<K extends string = MessageKey> {
   readonly locale: Locale;
   /** The message for `key`, with `{name}` placeholders filled from `params`. */
-  readonly t: (key: MessageKey, params?: MessageParams) => string;
+  readonly t: (key: K, params?: MessageParams) => string;
   /** A number in the locale's grouping, for counts and byte sizes. */
   readonly number: (value: number) => string;
 }
@@ -70,6 +73,29 @@ export const createTranslator = (locale: Locale, catalogue: Catalogue): Translat
   return {
     locale,
     t: (key, params) => interpolate(catalogue[key], params),
+    number: (value) => numbers.format(value),
+  };
+};
+
+/**
+ * A translator over several complete tables, for a caller that declared
+ * namespaces: the shell catalogue and each namespace's table in one locale.
+ * Every table was checked complete when it loaded and key ids are unique
+ * across tables, so a typed key is always found; the id itself is what an
+ * impossible miss would print.
+ */
+export const translatorOver = (
+  locale: Locale,
+  tables: readonly Readonly<Record<string, string>>[],
+): Translator<string> => {
+  const merged: Record<string, string> = {};
+  for (const table of tables) {
+    Object.assign(merged, table);
+  }
+  const numbers = new Intl.NumberFormat(locale);
+  return {
+    locale,
+    t: (key, params) => interpolate(merged[key] ?? key, params),
     number: (value) => numbers.format(value),
   };
 };
