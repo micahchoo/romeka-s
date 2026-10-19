@@ -443,7 +443,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
-    use crate::blocks::schema::FieldKind;
+    use crate::blocks::schema::{Field, FieldKind};
     use crate::blocks::{layout_id, parse};
 
     /// Where the admin reads the generated templates.
@@ -547,7 +547,7 @@ mod tests {
         };
         for key in object.keys() {
             assert!(
-                schema.fields.iter().any(|field| field.key == key),
+                schema.fields.iter().any(|field| field.writes(key)),
                 "{template}: {layout} has no data field `{key}`"
             );
         }
@@ -563,10 +563,10 @@ mod tests {
         for (key, value) in object {
             let field = fields
                 .iter()
-                .find(|field| field.key == key)
+                .find(|field| field.writes(key))
                 .unwrap_or_else(|| panic!("{template}: {} has no setting `{key}`", block.name()));
             assert!(
-                kind_accepts(field.kind, value),
+                kind_accepts(field, key, value),
                 "{template}: {} setting `{key}` has the wrong kind",
                 block.name()
             );
@@ -574,14 +574,20 @@ mod tests {
     }
 
     /// Whether a value has the JSON kind a field declares.
-    fn kind_accepts(kind: FieldKind, value: &JsonValue) -> bool {
-        match kind {
-            FieldKind::Text | FieldKind::Html | FieldKind::PageList => value.is_string(),
+    fn kind_accepts(field: &Field, key: &str, value: &JsonValue) -> bool {
+        match field.kind {
+            FieldKind::Text { .. }
+            | FieldKind::Html
+            | FieldKind::PageList
+            | FieldKind::Color
+            | FieldKind::Sides { .. } => value.is_string(),
+            FieldKind::Link { url_key } if key == url_key => value.is_string(),
+            FieldKind::Link { .. } => value.is_number() || numeric_string(value),
             FieldKind::Integer { .. } => value.is_number() || numeric_string(value),
             FieldKind::Boolean => value.is_boolean(),
             FieldKind::Choice { .. } => value.is_string(),
             FieldKind::PageRef | FieldKind::AssetRef => value.is_number() || numeric_string(value),
-            FieldKind::ItemQuery => value.is_string() || value.is_object(),
+            FieldKind::ItemQuery { .. } => value.is_string() || value.is_object(),
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()
             }

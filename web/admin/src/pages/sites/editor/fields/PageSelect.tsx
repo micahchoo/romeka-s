@@ -18,6 +18,8 @@ export interface PageSelectProps {
   readonly required?: boolean;
   /** The site's pages when the editor already loaded them; the control then makes no request. */
   readonly pages?: readonly SitePage[];
+  /** Names the select without a visible label, inside a group that shows one. */
+  readonly hideLabel?: boolean;
 }
 
 export const PageSelect = ({
@@ -28,6 +30,7 @@ export const PageSelect = ({
   onChange,
   required = false,
   pages,
+  hideLabel = false,
 }: PageSelectProps): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(
@@ -47,9 +50,10 @@ export const PageSelect = ({
       : options;
   return (
     <div className="block-field">
-      <label htmlFor={id}>{label}</label>
+      {hideLabel ? null : <label htmlFor={id}>{label}</label>}
       <select
         id={id}
+        {...(hideLabel ? { 'aria-label': label } : {})}
         value={value}
         required={required}
         onChange={(event) => {

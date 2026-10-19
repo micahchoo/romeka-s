@@ -52,7 +52,7 @@ describe('the repeat field control', () => {
     const entry = { id: '', page: '', alt_link_title: '', caption: '' };
     const { dispatch, key } = renderHarness('asset', { attachments: [entry] });
 
-    fireEvent.change(screen.getByLabelText('Alternative link title'), {
+    fireEvent.change(screen.getByLabelText('Link text'), {
       target: { value: 'Read more' },
     });
 

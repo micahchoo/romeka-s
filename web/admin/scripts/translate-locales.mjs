@@ -36,6 +36,13 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'page editor field messages',
+    source: 'src/pages/sites/editor/messages.ts',
+    dir: 'src/pages/sites/editor/locales',
+    type: 'EditorMessages',
+    from: '../messages',
+  },
+  {
     what: 'Standards page messages',
     source: 'src/pages/standards/messages.ts',
     dir: 'src/pages/standards/locales',

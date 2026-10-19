@@ -17,6 +17,10 @@ export interface NestedControlProps {
   readonly value: JsonValue | undefined;
   readonly onChange: (value: JsonValue) => void;
   readonly path: string;
+  /** The entry the field belongs to, and the entry's fields. */
+  readonly record: Readonly<Record<string, JsonValue>>;
+  readonly siblings: readonly BlockField[];
+  readonly onPatch: (values: Readonly<Record<string, JsonValue>>) => void;
 }
 
 export type RenderControl = (props: NestedControlProps) => ReactElement;
@@ -70,6 +74,11 @@ export const RepeatField = ({
                     onChange(replaceAt(value, index, { ...record, [field.key]: next }));
                   },
                   path: `${path}.${String(index)}.${field.key}`,
+                  record,
+                  siblings: fields,
+                  onPatch: (values) => {
+                    onChange(replaceAt(value, index, { ...record, ...values }));
+                  },
                 }),
               )}
               <p className="repeat-actions">
