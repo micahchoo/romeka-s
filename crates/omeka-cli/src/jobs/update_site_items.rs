@@ -8,23 +8,20 @@
 //! runs, so the job and the API select and write the same rows. `remove_all` is
 //! a `replace` with an empty selection.
 //!
-//! Upstream grants `view-all` so the search sees private items, because a job
-//! may have no owner. The job reads as a global administrator for the same
-//! reason.
+//! The job reads through [`crate::system_api`], as a global administrator, so
+//! the search sees private items as upstream's `view-all` grant lets it.
 
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use serde_json::Value;
 
-use omeka_api::auth::Actor;
-use omeka_api::jsonld::BaseUrl;
-use omeka_api::read::Api;
 use omeka_api::site_items::{self, Action, Command, Mode, Selector};
-use omeka_db::ids::{SiteId, UserId};
+use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteRepo;
 
 use super::{Job, JobContext, JobError};
+use crate::system_api;
 
 /// `Omeka\Job\UpdateSiteItems`.
 pub struct UpdateSiteItems;
@@ -54,11 +51,7 @@ impl Job for UpdateSiteItems {
             )
         })?;
         let sites = parse_sites(context, sites_value).await?;
-        let base =
-            BaseUrl::parse(JOB_BASE_URL).map_err(|error| JobError::Runtime(error.to_string()))?;
-        let api = Api::load(context.pool, base, Actor::new(UserId(0), "global_admin"))
-            .await
-            .map_err(api_error)?;
+        let api = system_api::load(context.pool).await?;
         for (site_id, query) in sites {
             let selector = if clears {
                 Selector::Items(Vec::new())
@@ -66,20 +59,10 @@ impl Job for UpdateSiteItems {
                 Selector::Query(query)
             };
             let command = Command { action, selector };
-            site_items::apply(&api, SiteId::from(site_id), &command, Mode::Write)
-                .await
-                .map_err(api_error)?;
+            site_items::apply(&api, SiteId::from(site_id), &command, Mode::Write).await?;
         }
         Ok(())
     }
-}
-
-/// The read surface's base URL. The change writes rows and serves no document, so no `@id`
-/// built from it leaves the job.
-const JOB_BASE_URL: &str = "http://localhost";
-
-fn api_error(error: omeka_api::errors::ApiError) -> JobError {
-    JobError::Runtime(error.to_string())
 }
 
 async fn parse_sites(

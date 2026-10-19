@@ -115,4 +115,6 @@ export const teServer: ServerCatalogue = {
   'server.settingsNotObject': 'ఒక ఆబ్జెక్ట్ ఆశించబడింది.',
   'server.settingUnavailable': '{key} సెట్టింగ్ అందుబాటులో లేదు.',
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
+  'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
+  'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
 };

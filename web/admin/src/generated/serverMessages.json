@@ -92,6 +92,8 @@
     "server.settingsDenied": "Permission denied for the current user to access the global settings.",
     "server.settingsNotObject": "Expected an object.",
     "server.settingUnavailable": "The setting {key} is not available.",
-    "server.settingNotText": "The setting {key} must be a string or null."
+    "server.settingNotText": "The setting {key} must be a string or null.",
+    "server.settingNotFlag": "The setting {key} must be true, false or null.",
+    "server.settingNotNames": "The setting {key} must be a list of strings or null."
   }
 }

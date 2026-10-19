@@ -118,4 +118,7 @@ export const taServer: ServerCatalogue = {
   'server.settingsNotObject': 'ஒரு பொருளை (object) எதிர்பார்த்தேன்.',
   'server.settingUnavailable': '{key} என்ற அமைப்பானது கிடைக்கவில்லை.',
   'server.settingNotText': '{key} என்பது ஒரு சரமாக (string) அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotFlag': '{key} என்பது true, false அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotNames':
+    '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
 };

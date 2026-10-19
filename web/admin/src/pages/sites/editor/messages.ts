@@ -216,6 +216,9 @@ export const en = {
   'query.mediaCount': 'Media in this site that match: {count}.',
   'attachments.mainMedia': 'Main media',
   'attachments.pick': 'Add or remove items',
+  'layoutData.pageLegend': 'Page layout',
+  'layoutGroup.pageGrid': 'Grid',
+  'choice.unset': 'Not set',
 };
 
 /** One page editor message id. */

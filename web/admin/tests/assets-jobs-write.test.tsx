@@ -8,6 +8,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
+import { setLocale } from '../src/i18n';
 import { AssetsPage } from '../src/pages/assets/page';
 import { JobsPage } from '../src/pages/jobs/page';
 import { loadFixture } from './loadFixture';
@@ -246,5 +247,29 @@ describe('the job detail view', () => {
 
     expect(await screen.findByText('[Unknown]')).toBeInTheDocument();
     expect(screen.getByText('[Never]')).toBeInTheDocument();
+  });
+
+  // `JobRepresentation::statusLabel` runs the stored status through
+  // `@translate`, and the dates print in the locale.
+  it('job_detail_labels_the_status_and_dates_in_the_active_locale', async () => {
+    installFetch(withFixture({ '/api/jobs/1': () => jsonResponse(job()) }));
+    await setLocale('es');
+    try {
+      render(<JobsPage param="1" />);
+
+      expect(await screen.findByText('Completado')).toBeInTheDocument();
+      expect(screen.getAllByText('3 ene 2024, 11:00')).toHaveLength(2);
+    } finally {
+      await setLocale('en');
+    }
+  });
+
+  it('job_detail_labels_an_unknown_status_as_upstream_does', async () => {
+    const odd: unknown = Object.assign({}, job(), { 'o:status': 'paused' });
+    installFetch(withFixture({ '/api/jobs/1': () => jsonResponse(odd) }));
+    render(<JobsPage param="1" />);
+
+    expect(await screen.findByText('[Unknown]')).toBeInTheDocument();
+    expect(screen.queryByText('paused')).not.toBeInTheDocument();
   });
 });

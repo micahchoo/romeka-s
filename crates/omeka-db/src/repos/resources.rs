@@ -10,6 +10,7 @@
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::values::insert_value;
 use super::{
     Paging, QueryFilter, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, new_id,
     push_paging,
@@ -18,8 +19,8 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, SiteId, TemplateId, UserId};
 use crate::rows::{
-    ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, ResourceRow, ValueAnnotationRow,
-    resource_type,
+    ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, NewWholeItem, ResourceRow,
+    ValueAnnotationRow, resource_type,
 };
 use crate::time;
 
@@ -239,13 +240,37 @@ where
 
     pub async fn create(&self, new: &NewItem) -> Result<ItemRow, DbError> {
         let mut tx = self.pool.begin().await?;
-        let resource = insert_resource(&mut tx, &new.resource, resource_type::ITEM).await?;
+        let row = Self::insert_item(&mut tx, new).await?;
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    /// Create an item with its item-set links and its values in one transaction, so a failed
+    /// value leaves no item, no link and no value behind.
+    pub async fn create_whole(&self, new: &NewWholeItem) -> Result<ItemRow, DbError> {
+        let mut tx = self.pool.begin().await?;
+        let row = Self::insert_item(&mut tx, &new.item).await?;
+        for item_set_id in &new.item_sets {
+            sqlx::query(DB::insert_item_item_set())
+                .bind(bind_id(row.id()))
+                .bind(bind_id(*item_set_id))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for content in &new.values {
+            insert_value(&mut tx, &content.on(row.resource.id)).await?;
+        }
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    async fn insert_item(conn: &mut DB::Connection, new: &NewItem) -> Result<ItemRow, DbError> {
+        let resource = insert_resource(conn, &new.resource, resource_type::ITEM).await?;
         sqlx::query("INSERT INTO item (id, primary_media_id) VALUES (?, ?)")
             .bind(bind_id(resource.id))
             .bind(bind_opt_id(new.primary_media_id))
-            .execute(&mut *tx)
+            .execute(&mut *conn)
             .await?;
-        tx.commit().await?;
         Ok(ItemRow {
             resource,
             primary_media_id: new.primary_media_id,

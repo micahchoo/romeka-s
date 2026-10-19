@@ -111,8 +111,9 @@ fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
     }
 }
 
-/// The `User` document a sign-in and `GET /api/me` answer: the user, plus the
-/// admin locale they resolve to, so the client renders in it.
+/// The `User` document a sign-in and `GET /api/me` answer: the user, their
+/// settings, and the admin locale they resolve to, so the client renders in
+/// it and knows which lessons the user has seen.
 ///
 /// # Errors
 /// [`ApiError::Internal`] when a setting cannot be read.
@@ -122,6 +123,7 @@ pub async fn session_user_response(
     row: &UserRow,
 ) -> Result<ApiResponse, ApiError> {
     let mut document = user_doc(base, row);
+    document.user_settings = crate::settings::load_user(pool, row.id).await?;
     document.admin_locale = crate::settings::admin_locale(pool, row.id).await?;
     Ok(ApiResponse::document(serialize(&document)?))
 }
@@ -507,18 +509,23 @@ const DATA_TYPE_CLASS: &str = "Omeka\\Api\\Resource";
 ///
 /// Upstream returns the registered data types in registration order and ignores
 /// the query, and its plain `Response` reports no total, so the answer carries
-/// no `Omeka-S-Total-Results` and no page window.
-pub fn search_data_types(api: &Api<'_>, params: &Params) -> ApiResponse {
+/// no `Omeka-S-Total-Results` and no page window. The core types come first and
+/// each term list's `customvocab:<id>` follows, as the Custom Vocab module
+/// appends them (`Module::addVocabularyServices`).
+pub async fn search_data_types(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
-    let rows: Vec<crate::wire::data_type::DataType> = DATA_TYPES
+    let mut rows: Vec<crate::wire::data_type::DataType> = DATA_TYPES
         .iter()
         .map(|(name, label)| data_type_doc(api, name, label))
         .collect();
-    let body = serialize(&rows).unwrap_or_else(|_| "[]".to_string());
-    ApiResponse::collection(
+    for (name, label) in super::term_lists::data_types(api).await? {
+        rows.push(data_type_doc(api, &name, &label));
+    }
+    let body = serialize(&rows)?;
+    Ok(ApiResponse::collection(
         body,
         link_header(api.base(), "data_types", params, &window, 0),
-    )
+    ))
 }
 
 /// `GET /api/data_types/{id}` (`DataTypeAdapter::read`).
@@ -526,12 +533,21 @@ pub fn search_data_types(api: &Api<'_>, params: &Params) -> ApiResponse {
 /// Upstream builds a `Resource` for any id and the representation looks the id
 /// up in the data type manager, which throws for an unregistered name and
 /// becomes a 500. The port answers 404 instead.
-pub fn read_data_type(api: &Api<'_>, id: &str) -> Result<ApiResponse, ApiError> {
-    let Some((name, label)) = DATA_TYPES.iter().find(|(name, _)| *name == id) else {
+pub async fn read_data_type(api: &Api<'_>, id: &str) -> Result<ApiResponse, ApiError> {
+    let label = match DATA_TYPES.iter().find(|(name, _)| *name == id) {
+        Some((_, label)) => Some((*label).to_string()),
+        None if omeka_core::term_list::list_id(id).is_some() => super::term_lists::data_types(api)
+            .await?
+            .into_iter()
+            .find(|(name, _)| name == id)
+            .map(|(_, label)| label),
+        None => None,
+    };
+    let Some(label) = label else {
         return Err(not_found(DATA_TYPE_CLASS, id));
     };
     Ok(ApiResponse::document(serialize(&data_type_doc(
-        api, name, label,
+        api, id, &label,
     ))?))
 }
 

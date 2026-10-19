@@ -213,4 +213,7 @@ export const ml: EditorMessages = {
   'query.mediaCount': 'ഈ സൈറ്റിലെ {count} എണ്ണം മീഡിയ.',
   'attachments.mainMedia': 'പ്രധാന മീഡിയ',
   'attachments.pick': 'ഇനങ്ങൾ ചേർക്കുകയോ നീക്കം ചെയ്യുകയോ ചെയ്യുക',
+  'layoutData.pageLegend': 'പേജ് ലേഔട്ട്',
+  'layoutGroup.pageGrid': 'ഗ്രിഡ്',
+  'choice.unset': 'നിശ്ചയിച്ചിട്ടില്ല',
 };

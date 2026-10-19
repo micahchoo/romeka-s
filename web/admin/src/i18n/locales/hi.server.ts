@@ -112,4 +112,6 @@ export const hiServer: ServerCatalogue = {
   'server.settingsNotObject': 'एक ऑब्जेक्ट की अपेक्षा थी।',
   'server.settingUnavailable': 'सेटिंग {key} उपलब्ध नहीं है।',
   'server.settingNotText': 'सेटिंग {key} एक स्ट्रिंग या नल होनी चाहिए।',
+  'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
+  'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
 };

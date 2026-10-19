@@ -33,7 +33,7 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 `src/routes.rs` expands the upstream lookup (`api` route, `:resource`
 segment, adapter instance) into one row per path, method, and handler:
-`2 + 17 * 7 = 121` rows. Method semantics come from Laminas
+`2 + 18 * 7 = 128` rows. Method semantics come from Laminas
 `AbstractRestfulController` and `ApiController`:
 
 - collection: `GET` search, `POST` create
@@ -440,7 +440,9 @@ Login and `GET /api/me` add `o:admin_locale` to the user document, from
 `src/settings.rs`: the user's `locale` setting, else the global one
 (`MvcListeners::bootstrapLocale`). The same module is the boundary for
 `o:user_settings` on the user read and write, and for the port's
-`/api/settings`. Only the keys in `API_SETTINGS` (`locale`) cross it.
+`/api/settings`. Only the keys in `USER_SETTINGS` (`locale`, and the port-only
+`romeka_hide_lessons` and `romeka_lessons_seen` the admin lessons keep) and
+`GLOBAL_SETTINGS` (`locale`) cross it.
 
 `loginAction`, `logoutAction`, `createPasswordAction` and
 `forgotPasswordAction` are `application/src/Controller/LoginController.php`;

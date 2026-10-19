@@ -115,4 +115,6 @@ export const knServer: ServerCatalogue = {
   'server.settingsNotObject': 'ನಿರೀಕ್ಷಿತ ಒಂದು ಆಬ್ಜೆಕ್ಟ್.',
   'server.settingUnavailable': 'ಸೆಟ್ಟಿಂಗ್ {key} ಲಭ್ಯವಿಲ್ಲ.',
   'server.settingNotText': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್ ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotFlag': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸತ್ಯ, ಸುಳ್ಳು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
 };

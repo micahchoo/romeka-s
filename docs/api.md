@@ -55,6 +55,13 @@ One row per (resource, path, method) in `crates/omeka-api/src/routes.rs`. The ha
 | assets | PUT | /api/{resource}/{id} | update | served (update) |
 | assets | PATCH | /api/{resource}/{id} | patch (partial update) | served (partial update) |
 | assets | DELETE | /api/{resource}/{id} | delete | served (delete) |
+| custom_vocabs | GET | /api/{resource} | search | served (search) |
+| custom_vocabs | POST | /api/{resource} | create | served (create) |
+| custom_vocabs | GET | /api/{resource}/{id} | read | served (read) |
+| custom_vocabs | POST | /api/{resource}/{id} | create | served (create) |
+| custom_vocabs | PUT | /api/{resource}/{id} | update | served (update) |
+| custom_vocabs | PATCH | /api/{resource}/{id} | patch (partial update) | served (partial update) |
+| custom_vocabs | DELETE | /api/{resource}/{id} | delete | served (delete) |
 | data_types | GET | /api/{resource} | search | served (search) |
 | data_types | POST | /api/{resource} | create | 501: no handler yet |
 | data_types | GET | /api/{resource}/{id} | read | served (read) |
@@ -188,6 +195,7 @@ Create, update and delete (`write::access::adapter` in `crates/omeka-api/src/wri
 | `resource_classes` | the admin roles | the admin roles | the admin roles |
 | `properties` | the admin roles | the admin roles | the admin roles |
 | `jobs` | the admin roles | the admin roles | the admin roles |
+| `custom_vocabs` | `editor`, `site_admin`, `global_admin` | `editor`, `site_admin`, `global_admin` | `editor`, `site_admin`, `global_admin` |
 | `users` | the admin roles | `researcher`, `author`, `reviewer`, `editor`, `site_admin`, `global_admin` | the admin roles |
 | `sites` | any caller | any caller | any caller |
 | `site_pages` | any caller | any caller | any caller |
@@ -280,6 +288,58 @@ One asset document. `AssetRepresentation::getJsonLd` repeats `o:id`, which the e
 | `o:media_type` | `media_type` | `String` |  |
 | `o:asset_url` | `asset_url` | `String` |  |
 | `o:alt_text` | `alt_text` | `Option<String>` | null when unset |
+
+### `custom_vocabs`
+
+CustomVocab\Api\Representation\CustomVocabRepresentation, registered by `crates/omeka-api/src/adapters/custom_vocabs.rs`. Implemented operations in the registry: search, read, create, update, delete.
+
+| Method | Path | Operation | Handler |
+| --- | --- | --- | --- |
+| GET | /api/{resource} | search | served (search) |
+| POST | /api/{resource} | create | served (create) |
+| GET | /api/{resource}/{id} | read | served (read) |
+| POST | /api/{resource}/{id} | create | served (create) |
+| PUT | /api/{resource}/{id} | update | served (update) |
+| PATCH | /api/{resource}/{id} | patch (partial update) | served (partial update) |
+| DELETE | /api/{resource}/{id} | delete | served (delete) |
+
+List parameters (`GET /api/custom_vocabs`).
+
+| Parameter | Kind | Read by |
+| --- | --- | --- |
+| `limit` | string | `Limit::from_params (paging.rs)` |
+| `offset` | string | `Limit::from_params (paging.rs)` |
+| `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
+| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_custom_vocabs (term_lists.rs)` |
+| `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+
+Request body members (`POST` and `PUT`).
+
+| Member | Kind | Read by |
+| --- | --- | --- |
+| `o:label` | any JSON | `crates/omeka-api/src/write/term_lists.rs` |
+| `o:lang` | any JSON | `crates/omeka-api/src/write/term_lists.rs` |
+| `o:terms` | any JSON | `crates/omeka-api/src/write/term_lists.rs` |
+| `o:uris` | any JSON | `crates/omeka-api/src/write/term_lists.rs` |
+| value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
+
+Response members of `CustomVocab` (`crates/omeka-api/src/wire/custom_vocab.rs`).
+
+One term list document. `o:terms` is the list as stored and `o:uris` the URI to label map as stored, each `null` when the column is.
+
+| JSON key | Rust field | Type | Notes |
+| --- | --- | --- | --- |
+| `@context` | `context` | `String` |  |
+| `@id` | `id` | `String` |  |
+| `@type` | `jsonld_type` | `JsonLdType` |  |
+| `o:id` | `o_id` | `u64` |  |
+| `o:label` | `label` | `String` |  |
+| `o:lang` | `lang` | `Option<String>` | null when unset |
+| `o:terms` | `terms` | `Option<serde_json::Value>` | null when unset |
+| `o:uris` | `uris` | `Option<serde_json::Value>` | null when unset |
+| `o:item_set` | `item_set` | `Option<ResourceRef>` | null when unset |
+| `o:owner` | `owner` | `Option<ResourceRef>` | null when unset |
 
 ### `data_types`
 
@@ -1259,17 +1319,6 @@ The JSON-LD `@type` value: a string, or a list when `getJsonLdType` appends the 
 | `Single` |  | `String` |
 | `Many` |  | `Vec<String>` |
 
-### `ResourceValueType`
-
-The `type` of a resource-valued value object, from `Application/config/module.config.php` `data_types` and the `DataType\Resource\*` names.
-
-| Variant | Wire value | Payload |
-| --- | --- | --- |
-| `All` | `resource` | `` |
-| `Item` | `resource:item` | `` |
-| `ItemSet` | `resource:itemset` | `` |
-| `Media` | `resource:media` | `` |
-
 ### `JsonLdDate`
 
 `{"@value": <ISO 8601>, "@type": "xsd:dateTime"}`.  Used by `AbstractResourceEntityRepresentation::getJsonLd`, `SiteRepresentation::getJsonLd`, `SitePageRepresentation::getJsonLd`, and `JobRepresentation::getJsonLd`.
@@ -1373,14 +1422,6 @@ One entry of a site's stored navigation JSON (`o:navigation`).  Stored shape fro
 ### `XsdDateTime`
 
 Its value is `http://www.w3.org/2001/XMLSchema#dateTime`.
-
-### `LiteralType`
-
-Its value is `literal`.
-
-### `UriType`
-
-Its value is `uri`.
 
 ## Errors
 

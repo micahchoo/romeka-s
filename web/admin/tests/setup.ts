@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+
+// The 1 s findBy/waitFor default failed lazy-chunk renders that take ~1.1 s
+// under the load of parallel gates; a real hang still fails at 5 s.
+configure({ asyncUtilTimeout: 5000 });
 
 afterEach(() => {
   cleanup();

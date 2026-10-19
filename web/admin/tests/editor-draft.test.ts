@@ -5,16 +5,10 @@
  * survive an edit and a save.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  draftReducer,
-  emptyDraft,
-  isDirty,
-  nextBlockKey,
-  toApi,
-  toPageWrite,
-  toSavedTemplate,
-  validate,
-} from '../src/pages/sites/editor/draft';
+import { emptyDraft, nextBlockKey, validate } from '../src/pages/sites/editor/draft';
+import { isDirty } from '../src/pages/sites/editor/history';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
+import { toApi, toPageWrite, toSavedTemplate } from '../src/pages/sites/editor/wire';
 import type { ValidationIssue } from '../src/pages/sites/editor/draft';
 import type { TemplateBlock, TemplateContent } from '../src/pages/sites/templates';
 import {

@@ -56,7 +56,7 @@ const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
 };
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
   // A create hands its record to this page, so the heading and the fields
   // render without reading the item back.
   const [seeded] = useState(() => writtenItems.take(itemId));
@@ -109,9 +109,9 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         <dt>{t('column.owner')}</dt>
         <dd>{ownerName ?? t('common.noOwner')}</dd>
         <dt>{t('column.created')}</dt>
-        <dd>{formatDateTime(item.created)}</dd>
+        <dd>{formatDateTime(item.created, locale)}</dd>
         <dt>{t('column.modified')}</dt>
-        <dd>{item.modified === null ? t('common.never') : formatDateTime(item.modified)}</dd>
+        <dd>{item.modified === null ? t('common.never') : formatDateTime(item.modified, locale)}</dd>
       </dl>
 
       {readsState.status === 'error' ? (

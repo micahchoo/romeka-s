@@ -27,7 +27,7 @@ const load = async (page: number): Promise<ApiPage<ItemSetRow>> => {
 
 /** `Admin/ItemSetController::browseAction`: the item set browse table. */
 export const ItemSetList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
   const resource = t('resource.itemSets');
   return (
     <div>
@@ -49,7 +49,7 @@ export const ItemSetList = (): ReactElement => {
             ),
           },
           { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
-          { header: t('column.created'), cell: (row) => formatDateTime(row.itemSet.created) },
+          { header: t('column.created'), cell: (row) => formatDateTime(row.itemSet.created, locale) },
           { header: t('column.public'), cell: (row) => (row.itemSet.isPublic ? t('common.yes') : t('common.no')) },
           { header: t('column.open'), cell: (row) => (row.itemSet.isOpen ? t('common.yes') : t('common.no')) },
         ]}

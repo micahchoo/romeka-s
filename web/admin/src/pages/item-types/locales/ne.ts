@@ -80,6 +80,8 @@ export const ne: ItemTypesMessages = {
   'accepts.itemSet': 'वस्तु समूह',
   'accepts.media': 'मिडिया फाइल',
   'accepts.missing': '{id} (स्थापित छैन)',
+  'accepts.termLists': 'शब्द सूचीहरू',
+  'accepts.termList': 'शब्द सूची: {list}',
   'use.legend': 'प्रयोग गरिएको',
   'use.items': 'वस्तुहरू',
   'use.itemSets': 'वस्तु समूह',

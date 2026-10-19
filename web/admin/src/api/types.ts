@@ -20,6 +20,7 @@ export type PropertyId = Id<'PropertyId'>;
 export type ResourceId = Id<'ResourceId'>;
 export type SiteId = Id<'SiteId'>;
 export type TemplateId = Id<'TemplateId'>;
+export type TermListId = Id<'TermListId'>;
 export type UserId = Id<'UserId'>;
 export type VocabularyId = Id<'VocabularyId'>;
 
@@ -133,11 +134,24 @@ export interface User {
    */
   readonly localeSetting: string | null;
   /**
+   * The user's lesson settings, from the port's `o:user_settings`. A single-user
+   * read, a sign-in and `GET /api/me` carry them; any other read, and a user who
+   * stores none, reads as lessons shown and none seen.
+   */
+  readonly lessons: LessonSettings;
+  /**
    * The admin locale the session resolves to, the port's `o:admin_locale`: the
    * user's setting, else the global one (`MvcListeners::bootstrapLocale`). Only
    * a sign-in and `GET /api/me` carry it; `null` when neither setting exists.
    */
   readonly adminLocale: string | null;
+}
+
+/** `romeka_hide_lessons` and `romeka_lessons_seen`, two port-only user settings. */
+export interface LessonSettings {
+  readonly hidden: boolean;
+  /** Lesson ids as stored. The admin's lesson registry decides what they name. */
+  readonly seen: readonly string[];
 }
 
 /** Fields shared by a vocabulary member (a property or a resource class). */
@@ -283,6 +297,47 @@ export interface Vocabulary {
   readonly label: string;
   readonly comment: string | null;
   readonly owner: ResourceRef<UserId> | null;
+}
+
+/** The data type a term list registers: `customvocab:<id>`. */
+export type TermListName = string & { readonly __brand: 'TermListName' };
+
+/**
+ * What a term list offers. The module stores three nullable columns and
+ * `CustomVocabRepresentation::type` reads them by precedence: an item set,
+ * then URIs, then terms. `empty` is a stored list with none of the three.
+ */
+export type TermListSource =
+  | { readonly kind: 'terms'; readonly terms: readonly string[] }
+  | { readonly kind: 'uris'; readonly uris: readonly TermListUri[] }
+  | { readonly kind: 'items'; readonly itemSet: ResourceRef<ItemSetId> }
+  | { readonly kind: 'empty' };
+
+export interface TermListUri {
+  readonly uri: string;
+  /** Empty when the list shows the URI itself. */
+  readonly label: string;
+}
+
+/** `CustomVocabRepresentation` (Custom Vocab module v2.1.0). */
+export interface TermList {
+  readonly id: TermListId;
+  readonly apiUrl: string;
+  readonly dataType: TermListName;
+  readonly label: string;
+  readonly lang: string | null;
+  readonly source: TermListSource;
+  readonly owner: ResourceRef<UserId> | null;
+}
+
+/** The members `CustomVocabAdapter::hydrate` reads. One source is sent. */
+export interface TermListWrite {
+  readonly label: string;
+  readonly lang: string | null;
+  readonly source:
+    | { readonly kind: 'terms'; readonly terms: readonly string[] }
+    | { readonly kind: 'uris'; readonly uris: readonly TermListUri[] }
+    | { readonly kind: 'items'; readonly itemSet: ItemSetId };
 }
 
 export interface ResourceTemplateProperty {
@@ -530,6 +585,19 @@ export interface UserWrite {
    * Default option, which removes it; absent leaves the stored one alone.
    */
   readonly localeSetting?: string;
+  /** `romeka_hide_lessons`, sent in `o:user_settings`; absent leaves it alone. */
+  readonly lessonsHidden?: boolean;
+}
+
+/**
+ * A user's settings write, the port's `o:user_settings` member. A member left
+ * out keeps what the user stores, so each caller sends only what it changed.
+ */
+export interface UserSettingsWrite {
+  /** `''` is the Default option, which removes the row. */
+  readonly locale?: string | undefined;
+  readonly lessonsHidden?: boolean | undefined;
+  readonly lessonsSeen?: readonly string[] | undefined;
 }
 
 /**
