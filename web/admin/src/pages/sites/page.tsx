@@ -6,10 +6,8 @@ import { useTranslator } from '../../i18n';
 import { SiteCreatePage } from './create';
 import { SiteDetail } from './detail';
 import { SiteList } from './list';
-import { SiteSettingsPage } from './settings';
 import { SiteFrame, SITE_TABS } from './SiteFrame';
 import type { SiteView } from './SiteFrame';
-import { SiteUsersPage } from './users';
 import { sites } from '../../i18n/namespaces/sites';
 
 /**
@@ -38,6 +36,19 @@ const SiteResourcesPage = lazy(() =>
  */
 const SiteThemePage = lazy(() =>
   import('./theme').then((module) => ({ default: module.SiteThemePage })),
+);
+
+/**
+ * The Settings and Users tabs are their own chunks: the settings form renders
+ * every registry setting, and the users tab its role picker, which the sites
+ * list and the hub do not need.
+ */
+const SiteSettingsPage = lazy(() =>
+  import('./settings').then((module) => ({ default: module.SiteSettingsPage })),
+);
+
+const SiteUsersPage = lazy(() =>
+  import('./users').then((module) => ({ default: module.SiteUsersPage })),
 );
 
 type SiteRoute =
@@ -107,7 +118,11 @@ const SiteScreenView = ({
         </Suspense>
       );
     case 'users':
-      return <SiteUsersPage key={String(siteId)} siteId={siteId} />;
+      return (
+        <Suspense fallback={<p role="status">{t('loading.site')}</p>}>
+          <SiteUsersPage key={String(siteId)} siteId={siteId} />
+        </Suspense>
+      );
     case 'theme':
       return (
         <Suspense fallback={<p role="status">{t('loading.site')}</p>}>
@@ -115,7 +130,11 @@ const SiteScreenView = ({
         </Suspense>
       );
     case 'settings':
-      return <SiteSettingsPage key={String(siteId)} siteId={siteId} />;
+      return (
+        <Suspense fallback={<p role="status">{t('loading.site')}</p>}>
+          <SiteSettingsPage key={String(siteId)} siteId={siteId} />
+        </Suspense>
+      );
   }
 };
 

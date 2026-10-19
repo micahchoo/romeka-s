@@ -229,6 +229,7 @@
  "foaf:firstName": "The first name of a person.",
  "foaf:lastName": "The last name of a person.",
  "foaf:givenName": "The given name of some person.",
+ "foaf:givenname": "The given name of some person.",
  "foaf:surname": "The surname of some person.",
  "foaf:family_name": "The family name of some person.",
  "foaf:familyName": "The family name of some person.",
@@ -270,6 +271,5 @@
  "foaf:membershipClass": "Indicates the class of individuals that are a member of a Group",
  "foaf:birthday": "The birthday of this Agent, represented in mm-dd string form, eg. '12-31'.",
  "foaf:age": "The age in years of some agent.",
- "foaf:status": "A string expressing what the user is happy for the general public (normally) to know about their current activity.",
- "foaf:givenname": "The given name of some person."
+ "foaf:status": "A string expressing what the user is happy for the general public (normally) to know about their current activity."
 }

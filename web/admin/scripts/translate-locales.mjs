@@ -10,9 +10,11 @@
  * Each table's `sources.json` records the English every translation was made
  * from, so a key whose English has since changed is translated again. Only a
  * run over every machine-translated locale (no tags) updates that record.
- * A table with `format: 'json'` is a JSON file `{ note, terms }` instead of a
- * TypeScript module, for data another reader shares (the public site reads
- * the vocabulary tables), and its `note` carries the marker.
+ * A table with `json` is a JSON file instead of a TypeScript module, for data
+ * another reader shares (the public site reads the vocabulary tables; Rust
+ * reads the site strings). `json.note` names the key that carries the marker,
+ * `json.nest` the key the strings sit under (or none: beside the note), and
+ * `json.indent` the file's indent, so a rewrite leaves the file byte for byte.
  *
  * The model is sarvam-30b behind llama.cpp (`SARVAM_URL`, default
  * http://localhost:8086). The prompt and the answer checks are md-translator's
@@ -43,7 +45,6 @@ import { fileURLToPath } from 'node:url';
 
 const ADMIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 // The key a JSON table keeps its note under; it is not a message.
-const NOTE = '//';
 // Every English table and where its translations live. The main catalogue's
 // files decide which locales are machine-translated; each other table follows.
 const { NAMESPACES } = await import(join(ADMIN, 'src/i18n/namespaces/registry.ts'));
@@ -76,10 +77,9 @@ const TABLES = [
   ...['labels', 'comments'].map((kind) => ({
     what: `vocabulary ${kind}`,
     source: `src/i18n/locales/vocabulary/${kind}/en.json`,
-    english: (module) => module.default.terms,
     dir: `src/i18n/locales/vocabulary/${kind}`,
     file: (tag) => `${tag}.json`,
-    format: 'json',
+    json: { note: 'note', nest: 'terms', indent: 1 },
     names: ['Dublin Core', 'DCMI', 'BIBO', 'FOAF', 'RDF', 'URI'],
     preamble:
       'The following are English {K} from the metadata vocabularies Dublin Core, BIBO and FOAF, as Romeka S, ' +
@@ -93,15 +93,18 @@ const TABLES = [
     // string the admin already translated keeps the admin's wording.
     what: 'public site strings',
     source: '../../crates/omeka-site/src/i18n/locales/en.json',
-    english: (module) => Object.fromEntries(Object.entries(module.default).filter(([key]) => key !== NOTE)),
     dir: '../../crates/omeka-site/src/i18n/locales',
     file: (tag) => `${tag}.json`,
-    json: true,
+    // A missing or extra key fails `every_shipped_locale_parses` in omeka-site.
+    json: { note: '//', indent: 2 },
     reuse: true,
   },
 ];
 // A table names its English export `en`, a locale file `<tag>.ts` exporting `<tag>`, unless it says otherwise.
-const englishOf = (table, module) => (table.english ? table.english(module) : module.en);
+const englishOf = (table, module) => {
+  if (table.english) return table.english(module);
+  return table.json ? jsonParts(table, module.default).strings : module.en;
+};
 const fileOf = (table, tag) => (table.file ? table.file(tag) : `${tag}.ts`);
 const nameOf = (table, tag) => (table.name ? table.name(tag) : tag);
 // A table names its own proper names and prompt, or takes the catalogue's.
@@ -184,14 +187,11 @@ async function translate(language, source, history, preamble = PREAMBLE, names =
 }
 
 function write(path, header, table, tag, en, catalogue) {
-  if (table.format === 'json') {
-    const terms = Object.fromEntries(Object.keys(en).filter((key) => key in catalogue).map((key) => [key, catalogue[key]]));
-    writeFileSync(path, `${JSON.stringify({ note: header, terms }, null, 1)}\n`);
-    return;
-  }
   if (table.json) {
+    const { note, nest, indent } = table.json;
     const ordered = Object.fromEntries(Object.keys(en).filter((key) => key in catalogue).map((key) => [key, catalogue[key]]));
-    writeFileSync(path, `${JSON.stringify({ [NOTE]: header, ...ordered }, null, 2)}\n`);
+    const document = nest ? { [note]: header, [nest]: ordered } : { [note]: header, ...ordered };
+    writeFileSync(path, `${JSON.stringify(document, null, indent)}\n`);
     return;
   }
   const entries = Object.keys(en)
@@ -206,11 +206,12 @@ function write(path, header, table, tag, en, catalogue) {
 // A JSON file has no comment, so its note carries the marker.
 const jsonNote = (table, name) =>
   `The ${name} ${table.what}. ${MARKER}: written by scripts/translate-locales.mjs with sarvam-30b and md-translator's checks, and not yet reviewed by a reader of ${name}. Correct a string here; a later run keeps it.`;
-// A JSON file has no comment, so its note is a string under NOTE.
-const jsonHeader = (name) =>
-  `${MARKER}: written by scripts/translate-locales.mjs with sarvam-30b and md-translator's checks, and not yet ` +
-  `reviewed by a reader of ${name}. Correct a string here; a later run keeps it. A missing or extra key fails ` +
-  'every_shipped_locale_parses in omeka-site.';
+/** A JSON table's note and its strings, read from the file's own shape. */
+function jsonParts(table, document) {
+  const { note, nest } = table.json;
+  const { [note]: kept, ...rest } = document;
+  return { kept, strings: nest ? rest[nest] : rest };
+}
 
 const header = (table, name) => `/**
  * The ${name} ${table.what}.
@@ -254,12 +255,9 @@ for (const table of TABLES) {
     if (text && !text.includes(MARKER)) throw new Error(`${path} is hand-written; this script fills only ${MARKER} files`);
     let existing = {};
     let kept = header(table, language.name);
-    if (table.format === 'json') {
-      if (text) ({ note: kept, terms: existing } = JSON.parse(text));
+    if (table.json) {
+      if (text) ({ kept, strings: existing } = jsonParts(table, JSON.parse(text)));
       else kept = jsonNote(table, language.name);
-    } else if (table.json) {
-      if (text) ({ [NOTE]: kept, ...existing } = JSON.parse(text));
-      else kept = jsonHeader(language.name);
     } else if (text) {
       existing = (await import(path))[nameOf(table, tag)];
       kept = text.slice(0, text.indexOf('export const'));
