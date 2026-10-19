@@ -280,6 +280,10 @@ messages! {
     fn setting_unavailable(key) = "The setting {key} is not available.";
     /// A settings value that is neither a string nor null.
     fn setting_not_text(key) = "The setting {key} must be a string or null.";
+    /// A switch setting whose value is not a boolean.
+    fn setting_not_flag(key) = "The setting {key} must be true, false or null.";
+    /// A list setting whose value is not a list of strings.
+    fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

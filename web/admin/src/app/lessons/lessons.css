@@ -1,0 +1,77 @@
+/* A lesson: a note in place, under the line it explains. */
+.lesson {
+  display: grid;
+  flex-basis: 100%;
+  gap: var(--space-1);
+  max-width: 44rem;
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.lesson[hidden] {
+  display: none;
+}
+
+form .lesson p,
+.lesson p {
+  display: block;
+  margin: 0;
+}
+
+.lesson-step {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+form .lesson p.lesson-actions,
+.lesson p.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+/* Filled, so it reads apart from a term's own "?" beside it. */
+.lesson-toggle {
+  width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lesson-toggle[aria-expanded='true'] {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.lesson-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lesson-line > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lessons-switch {
+  display: grid;
+  gap: var(--space-1);
+}

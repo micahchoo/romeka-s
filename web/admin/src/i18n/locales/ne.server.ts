@@ -97,4 +97,6 @@ export const neServer: ServerCatalogue = {
   'server.settingsNotObject': 'एउटा अब्जेक्ट अपेक्षित थियो।',
   'server.settingUnavailable': 'सेटिङ {key} उपलब्ध छैन।',
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
+  'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
+  'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
 };

@@ -94,4 +94,6 @@ export const esServer: ServerCatalogue = {
   'server.settingsNotObject': 'Se esperaba un objeto.',
   'server.settingUnavailable': 'El ajuste {key} no está disponible.',
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
+  'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
+  'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
 };

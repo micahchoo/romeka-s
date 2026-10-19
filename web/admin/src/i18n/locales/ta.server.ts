@@ -28,7 +28,8 @@ export const taServer: ServerCatalogue = {
   'server.invalidContentType':
     'தவறான Content-Type தலைப்பு. "application/json" எதிர்பார்க்கப்பட்டது, ஆனால் "{received}" கிடைத்தது.',
   'server.bodyNotObject': 'கோரிக்கை உடல் ஒரு JSON பொருளாக இருக்க வேண்டும்.',
-  'server.siteItemsOneSelector': '"query", "items" அல்லது "item_sets" ஆகியவற்றில் சரியாக ஒன்றைக் குறிப்பிடவும்',
+  'server.siteItemsOneSelector':
+    '"query", "items" அல்லது "item_sets" ஆகியவற்றில் சரியாக ஒன்றைக் குறிப்பிடவும்',
   'server.invalidCredentials': 'மின்னஞ்சல் அல்லது கடவுச்சொல் தவறானது',
   'server.inactiveAccount': 'பயனர் செயல்பாட்டில் இல்லை.',
   'server.unknownKey': 'தவறான கடவுச்சொல் உருவாக்கும் சாவி.',
@@ -102,4 +103,7 @@ export const taServer: ServerCatalogue = {
   'server.settingsNotObject': 'ஒரு பொருளை (object) எதிர்பார்த்தேன்.',
   'server.settingUnavailable': '{key} என்ற அமைப்பானது கிடைக்கவில்லை.',
   'server.settingNotText': '{key} என்பது ஒரு சரமாக (string) அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotFlag': '{key} என்பது true, false அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.settingNotNames':
+    '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
 };
