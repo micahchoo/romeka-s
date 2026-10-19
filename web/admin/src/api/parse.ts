@@ -320,6 +320,33 @@ const parseThumbnailUrls = (value: unknown, path: Path): ThumbnailUrls => {
   return urls;
 };
 
+/**
+ * The members a value carries: the core types by name, and a module's type
+ * (`customvocab:3`, `numeric:timestamp`) by the members it holds, so it edits
+ * as the kind it is shaped like instead of being dropped.
+ */
+const valueShape = (
+  type: string,
+  object: Readonly<Record<string, unknown>>,
+): 'literal' | 'uri' | 'resource' | 'other' => {
+  if (type === 'literal') {
+    return 'literal';
+  }
+  if (type === 'uri') {
+    return 'uri';
+  }
+  if (type.startsWith('resource') || 'value_resource_id' in object) {
+    return 'resource';
+  }
+  if (typeof object['@value'] === 'string') {
+    return 'literal';
+  }
+  if (typeof object['@id'] === 'string') {
+    return 'uri';
+  }
+  return 'other';
+};
+
 const parseValue = (raw: unknown, path: Path = []): Value => {
   const object = asRecord(raw, path);
   const base = {
@@ -331,7 +358,9 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     isPublic: asBoolean(field(object, 'is_public', path), [...path, 'is_public']),
   };
 
-  if (base.type === 'literal') {
+  const shape = valueShape(base.type, object);
+
+  if (shape === 'literal') {
     return {
       ...base,
       kind: 'literal',
@@ -340,7 +369,7 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     };
   }
 
-  if (base.type === 'uri') {
+  if (shape === 'uri') {
     return {
       ...base,
       kind: 'uri',
@@ -350,7 +379,7 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     };
   }
 
-  if (base.type.startsWith('resource')) {
+  if (shape === 'resource') {
     const resourceName = asString(
       field(object, 'value_resource_name', path),
       [...path, 'value_resource_name'],

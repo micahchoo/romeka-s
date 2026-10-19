@@ -48,12 +48,16 @@ const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
 const ownerMember = (owner: UserId | null, mode: WriteMode): Record<string, unknown> =>
   mode === 'update' || owner !== null ? { 'o:owner': ref(owner) } : {};
 
+/**
+ * `Literal::hydrate` reads `@language` and `Uri::hydrate` reads `o:lang`, the
+ * member each one's `getJsonLd` writes.
+ */
 const encodeValue = (value: ValueWrite): Record<string, unknown> => {
-  switch (value.type) {
+  switch (value.kind) {
     case 'literal':
       return {
         property_id: value.propertyId,
-        type: 'literal',
+        type: value.type,
         '@value': value.text,
         ...(value.lang === null ? {} : { '@language': value.lang }),
         is_public: value.isPublic,
@@ -61,22 +65,22 @@ const encodeValue = (value: ValueWrite): Record<string, unknown> => {
     case 'uri':
       return {
         property_id: value.propertyId,
-        type: 'uri',
+        type: value.type,
         '@id': value.uri,
         ...(value.label === null ? {} : { 'o:label': value.label }),
+        ...(value.lang === null ? {} : { 'o:lang': value.lang }),
         is_public: value.isPublic,
       };
     case 'resource':
       return {
         property_id: value.propertyId,
-        type: 'resource',
+        type: value.type,
         value_resource_id: value.resourceId,
         is_public: value.isPublic,
       };
   }
 };
 
-/** Groups values under their property term, the key `ValueHydrator` reads. */
 const encodeValues = (values: readonly ValueWrite[]): Record<string, unknown[]> => {
   const groups: Record<string, unknown[]> = {};
   for (const value of values) {
@@ -131,10 +135,7 @@ export const encodeUser = (write: UserWrite): WireBody => ({
 });
 
 export const encodeMedia = (write: MediaWrite): WireBody => ({
-  'o:is_public': write.isPublic,
-  'o:resource_class': ref(write.resourceClass),
-  'o:resource_template': ref(write.resourceTemplate),
-  'o:thumbnail': ref(write.thumbnail),
+  ...encodeResource(write, 'update'),
   'o:lang': write.lang,
   'o:alt_text': write.altText,
 });

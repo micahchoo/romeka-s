@@ -13,6 +13,7 @@
 //! values and stored beside the value; a value that carried one and no longer
 //! does takes its annotation with it, as `orphanRemoval` does upstream.
 
+use omeka_core::value::{literal_is_valid, uri_is_valid};
 use omeka_db::ids::{AnnotationId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{ResourceRepo, TemplateRepo, ValueRepo};
 use omeka_db::rows::{NewResource, NewValue};
@@ -194,15 +195,14 @@ fn parse_scalar(
         .get("is_public")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let lang = object
-        .get("@language")
-        .and_then(Value::as_str)
-        .map(str::to_string);
     let data = match object.get("type").and_then(Value::as_str).unwrap_or("") {
         "uri" => {
             let Some(uri) = object.get("@id").and_then(Value::as_str) else {
                 return Ok(None);
             };
+            if !uri_is_valid(uri) {
+                return Ok(None);
+            }
             let label = object
                 .get("o:label")
                 .and_then(Value::as_str)
@@ -233,9 +233,22 @@ fn parse_scalar(
             let Some(text) = object.get("@value").and_then(Value::as_str) else {
                 return Ok(None);
             };
+            if !literal_is_valid(text) {
+                return Ok(None);
+            }
             ValueKind::Literal(text.to_string())
         }
     };
+    // `Uri::hydrate` reads `o:lang`, the member its `getJsonLd` writes;
+    // `Literal::hydrate` reads `@language`.
+    let lang_key = match data {
+        ValueKind::Uri { .. } => "o:lang",
+        _ => "@language",
+    };
+    let lang = object
+        .get(lang_key)
+        .and_then(Value::as_str)
+        .map(str::to_string);
     Ok(Some((property, data, lang, is_public)))
 }
 

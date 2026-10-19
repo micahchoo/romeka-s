@@ -1,17 +1,21 @@
 /**
- * The locale store: the selected locale, where it is kept, and who may read it.
+ * The locale store: the active locale and its translator, where the choice is
+ * kept, and who may read it.
  *
- * The locale lives in `localStorage` so a reload keeps the choice, and it is
- * read back through [`parseLocale`], the boundary that narrows the stored
- * string. Components subscribe with [`useLocale`]; the translator is built per
- * locale with [`useTranslator`].
+ * The active locale is the one the UI renders in, so it changes only once its
+ * catalogue has arrived: [`setLocale`] and [`restoreLocale`] load first and
+ * switch after. English is in the bundle and is active until then. The choice
+ * lives in `localStorage` so a reload keeps it, and it is read back through
+ * [`parseLocale`], the boundary that narrows the stored string.
  *
  * This is the same shape as `src/api/auth.ts`, a module store with a
  * `useSyncExternalStore` hook, so a component under test renders without a
  * provider.
  */
-import { useMemo, useSyncExternalStore } from 'react';
-import { DEFAULT_LOCALE, LOCALE_TAGS, parseLocale } from './locale';
+import { useSyncExternalStore } from 'react';
+import { en } from './catalogue';
+import { CATALOGUE_LOADERS } from './catalogues';
+import { DEFAULT_LOCALE, parseLocale } from './locale';
 import type { Locale } from './locale';
 import { createTranslator } from './translator';
 import type { Translator } from './translator';
@@ -22,31 +26,36 @@ export const LOCALE_STORAGE = 'romeka.locale';
 type Listener = () => void;
 
 const listeners = new Set<Listener>();
-let current: Locale = DEFAULT_LOCALE;
-let loaded = false;
+let active: Translator = createTranslator(DEFAULT_LOCALE, en);
+/** The latest switch asked for. A slower, older load must not overwrite it. */
+let latest = 0;
 
-const readStored = (): Locale => {
-  const raw = window.localStorage.getItem(LOCALE_STORAGE);
-  return raw === null ? DEFAULT_LOCALE : parseLocale(raw);
-};
-
-const publish = (): void => {
+const activate = (translator: Translator): void => {
+  active = translator;
+  document.documentElement.lang = translator.locale;
   for (const listener of listeners) {
     listener();
   }
 };
 
 /**
- * The selected locale. The first call reads `localStorage`, so a reload keeps
- * the choice.
+ * Load a locale's catalogue and make it active, or reject with the load error
+ * and leave the active locale as it was. When a newer switch starts first, this
+ * one resolves without switching.
  */
-export const currentLocale = (): Locale => {
-  if (!loaded) {
-    loaded = true;
-    current = readStored();
+const load = async (locale: Locale): Promise<boolean> => {
+  latest += 1;
+  const ticket = latest;
+  const translator = createTranslator(locale, await CATALOGUE_LOADERS[locale]());
+  if (ticket !== latest) {
+    return false;
   }
-  return current;
+  activate(translator);
+  return true;
 };
+
+/** The locale the UI renders in. */
+export const currentLocale = (): Locale => active.locale;
 
 /** Subscribe to locale changes, for `useSyncExternalStore`. */
 export const subscribeLocale = (listener: Listener): (() => void) => {
@@ -56,30 +65,33 @@ export const subscribeLocale = (listener: Listener): (() => void) => {
   };
 };
 
-/** Select a locale, store it, and re-render every subscriber. */
-export const setLocale = (locale: Locale): void => {
-  window.localStorage.setItem(LOCALE_STORAGE, locale);
-  loaded = true;
-  current = locale;
-  applyDocumentLang();
-  publish();
+/**
+ * Load a locale's catalogue, then store the choice and re-render every
+ * subscriber in it. The `lang` attribute follows, or a screen reader announces
+ * Spanish text as English (WCAG 3.1.1). Rejects, with nothing changed, when the
+ * catalogue fails to load.
+ */
+export const setLocale = async (locale: Locale): Promise<void> => {
+  if (await load(locale)) {
+    window.localStorage.setItem(LOCALE_STORAGE, locale);
+  }
 };
 
 /**
- * Write the selected locale to the document's `lang` attribute. The SPA opens
- * with `lang="en"` in `index.html`, so a switch to another language must update
- * it, or a screen reader announces Spanish text as English (WCAG 3.1.1). Called
- * once at startup and on every switch.
+ * Make the stored locale active, so a reload keeps the choice. `main.tsx`
+ * awaits it before the first render, so a reload in Spanish paints Spanish
+ * first and never English.
  */
-export const applyDocumentLang = (): void => {
-  document.documentElement.lang = LOCALE_TAGS[currentLocale()];
+export const restoreLocale = async (): Promise<void> => {
+  const raw = window.localStorage.getItem(LOCALE_STORAGE);
+  await load(raw === null ? DEFAULT_LOCALE : parseLocale(raw));
 };
 
-/** The selected locale, tracked so a switch re-renders the caller. */
-export const useLocale = (): Locale => useSyncExternalStore(subscribeLocale, currentLocale, currentLocale);
+const activeTranslator = (): Translator => active;
 
-/** The translator for the selected locale. Memoised per locale. */
-export const useTranslator = (): Translator => {
-  const locale = useLocale();
-  return useMemo(() => createTranslator(locale), [locale]);
-};
+/** The translator for the active locale, tracked so a switch re-renders the caller. */
+export const useTranslator = (): Translator =>
+  useSyncExternalStore(subscribeLocale, activeTranslator, activeTranslator);
+
+/** The active locale, tracked so a switch re-renders the caller. */
+export const useLocale = (): Locale => useTranslator().locale;

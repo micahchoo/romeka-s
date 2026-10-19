@@ -384,25 +384,127 @@ form p {
   margin: 0 0 var(--space-3);
 }
 
-/* One value is one card, so its property, type, text and visibility read as a
- * unit however narrow the column gets. */
-.value-rows {
+/* One property is one card: its label, term, template rules and every value
+ * of it read as a unit however narrow the column gets. A value is one wrapping
+ * row inside the card, its text input taking the width that is left. */
+.property-fields {
   display: grid;
   gap: var(--space-3);
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-4);
   padding: 0;
   list-style: none;
 }
 
-.value-row {
-  padding: var(--space-2) var(--space-3) 0;
+.property-field {
+  padding: var(--space-3) var(--space-3) 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
-.value-field-wide input {
+form p.property-field-head {
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 var(--space-1);
+}
+
+.property-field-label {
+  font-weight: 600;
+}
+
+.property-field-term {
+  color: var(--text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+}
+
+.property-field-comment {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.field-badge {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.field-badge-required {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.value-rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.value-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.value-row > p {
+  margin-bottom: var(--space-2);
+}
+
+.value-row > .value-field-wide {
   flex: 1 1 18rem;
+}
+
+.value-field-wide input,
+.value-field-wide textarea {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.value-field-wide textarea {
+  resize: vertical;
+}
+
+.value-lang-field input {
+  width: 6rem;
+}
+
+.add-field input {
+  flex: 0 1 20rem;
+  min-width: 0;
+}
+
+.add-field-matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.add-field-more,
+.add-field-empty {
+  color: var(--text-muted);
+}
+
+.form-errors ul {
+  margin: 0;
+  padding-inline-start: var(--space-4);
 }
 
 /* One block is one card; its JSON textareas take the row width so a long

@@ -8,23 +8,21 @@
  * the browser-stored admin choice, which is the user-level locale of that
  * chain.
  */
+import { CATALOGUE_LOADERS } from './catalogues';
 
-/** The locales a catalogue exists for, in switch order. */
-export type Locale = 'en' | 'es';
+/** A locale a catalogue exists for: a key of [`CATALOGUE_LOADERS`]. */
+export type Locale = keyof typeof CATALOGUE_LOADERS;
 
-/** The locale the SPA opens with when nothing is stored. Upstream's default is `en_US`. */
-export const DEFAULT_LOCALE: Locale = 'en';
+/**
+ * The locale the SPA opens with when nothing is stored, and the one whose
+ * catalogue is in the initial bundle. Upstream's default is `en_US`.
+ */
+export const DEFAULT_LOCALE = 'en' satisfies Locale;
+
+const isLocale = (value: string): value is Locale => Object.hasOwn(CATALOGUE_LOADERS, value);
 
 /** Every shipped locale, in switch order. The first is [`DEFAULT_LOCALE`]. */
-export const LOCALES: readonly Locale[] = ['en', 'es'];
-
-/** The BCP 47 tag for a locale, the value stored and handed to `Intl`. */
-export const LOCALE_TAGS: Readonly<Record<Locale, string>> = {
-  en: 'en',
-  es: 'es',
-};
-
-const isLocale = (value: string): value is Locale => LOCALES.some((locale) => locale === value);
+export const LOCALES: readonly Locale[] = Object.keys(CATALOGUE_LOADERS).filter(isLocale);
 
 /**
  * A stored tag as a `Locale`, falling back to [`DEFAULT_LOCALE`]. The boundary
