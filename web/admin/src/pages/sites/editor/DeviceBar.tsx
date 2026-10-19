@@ -6,6 +6,7 @@ import type { ReactElement } from 'react';
 import { useTranslator } from '../../../i18n';
 import { DEVICES } from './frameFit';
 import type { DeviceWidth } from './frameFit';
+import { sites } from '../../../i18n/namespaces/sites';
 
 export const DeviceBar = ({
   device,
@@ -14,7 +15,7 @@ export const DeviceBar = ({
   readonly device: DeviceWidth;
   readonly onChange: (device: DeviceWidth) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   return (
     <div className="editor-preview-widths" role="group" aria-label={t('editor.previewWidth')}>
       {DEVICES.map((preset) => (

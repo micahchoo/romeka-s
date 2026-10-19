@@ -22,6 +22,8 @@ import { ItemPicker } from './editor/fields/ItemPicker';
 import { ItemQueryField } from './editor/fields/ItemQueryField';
 import { formatQuery, parseQuery, queryValue, withQueryValue } from './editor/fields/query';
 import { itemPoolFromQuery, itemPoolQuery } from './itemPool';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 
 const PREVIEW_DELAY_MS = 300;
 const SET_RESULTS = 20;
@@ -75,7 +77,7 @@ const PreviewLine = ({
   readonly idle: boolean;
   readonly describe: (change: SiteItemsChange) => string;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   return (
     <p className="site-items-preview" role="status">
       {idle
@@ -91,7 +93,7 @@ const PreviewLine = ({
 
 /** By item set: find a set, see what it would add, attach it with its items. */
 export const ItemSetPanel = ({ site, version, busy, run, onSite }: AddPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [term, setTerm] = useState('');
   const [chosen, setChosen] = useState<ItemSet | null>(null);
   const [withItems, setWithItems] = useState(true);
@@ -262,7 +264,7 @@ const withPublicOnly = (query: string, on: boolean): string => {
 
 /** By search: the saved search, what it matches, and a button that adds the rest. */
 export const SearchPanel = ({ site, version, busy, run, onSite }: AddPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [query, setQuery] = useState(() => itemPoolQuery(site.itemPool));
   const pool = useMemo(() => itemPoolFromQuery(query), [query]);
   const command = useMemo<SiteItemsCommand>(
@@ -334,7 +336,7 @@ export const SearchPanel = ({ site, version, busy, run, onSite }: AddPanelProps)
 
 /** Pick items: choose them one by one and add the ones the site lacks. */
 export const PickPanel = ({ site, version, busy, run }: AddPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
   const command = useMemo<SiteItemsCommand | null>(
     () => (picked.length === 0 ? null : { action: 'add', selector: { kind: 'items', items: picked } }),

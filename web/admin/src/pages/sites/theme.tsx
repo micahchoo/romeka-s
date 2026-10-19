@@ -49,6 +49,8 @@ import type { CssRefusal } from './themeEditor/CustomCssTab';
 import type { ContentKey, ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
 import { useThemeText } from './themeEditor/messages';
+import { common } from '../../i18n/namespaces/common';
+import { sites } from '../../i18n/namespaces/sites';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -217,7 +219,7 @@ const ThemeFileActions = ({
 };
 
 const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site: Site }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const tt = useThemeText();
   const [draft, setDraft] = useState<ThemeDraft>(() => draftFromStored(storedSettings(site)));
   const [blocks, setBlocks] = useState<ResourcePageBlocksDraft>(() =>
@@ -450,7 +452,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 
 /** Loads the site and its theme settings, then renders the editor. */
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
   // The page's own table suspends the route until it arrives, so no label renders in English.
   useThemeText();
