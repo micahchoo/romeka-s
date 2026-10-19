@@ -3,7 +3,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isUnknownArray } from '../src/api/parse';
+import { isRecord, isUnknownArray } from '../src/api/parse';
 import { UsersPage } from '../src/pages/users/page';
 import { loadFixture } from './loadFixture';
 import {
@@ -208,7 +208,46 @@ describe('user edit form', () => {
       'o:email': 'ada@example.org',
       'o:role': 'reviewer',
       'o:is_active': false,
+      // The user stores no locale, so the select sits on Default and keeps it so.
+      'o:user_settings': { locale: '' },
     });
+  });
+
+  it('user_edit_shows_the_stored_locale_and_puts_the_chosen_one', async () => {
+    const row = userFixture(0);
+    if (!isRecord(row)) {
+      throw new Error('expected a user record');
+    }
+    const stored = { ...row, 'o:user_settings': { locale: 'es_ES' } };
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/users/3'
+        ? jsonResponse(stored)
+        : jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 }),
+    );
+    render(<UsersPage param="3" />);
+
+    // Upstream's region tag narrows to the locale the SPA ships.
+    const select = await screen.findByLabelText('Locale');
+    expect(select).toHaveValue('es');
+    expect(screen.getByRole('option', { name: 'Default' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Español' })).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: 'en' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    const put = first(
+      requestsFor(fetchMock, '/api/users/3').filter((request) => request.init?.method === 'PUT'),
+    );
+    expect(requestBody(put)['o:user_settings']).toEqual({ locale: 'en' });
+  });
+
+  it('an_invite_has_no_user_settings', async () => {
+    installFetch(() => jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 }));
+    render(<UsersPage param="new" />);
+
+    expect(await screen.findByLabelText('Display name')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Locale')).toBeNull();
   });
 
   it('user_edit_surfaces_a_403_permission_message', async () => {

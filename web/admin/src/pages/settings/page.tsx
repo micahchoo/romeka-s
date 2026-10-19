@@ -1,5 +1,12 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { api } from '../../api/client';
+import type { GlobalSettings } from '../../api/types';
+import { ErrorNotice } from '../../app/errors';
+import { SaveStatus } from '../../app/fields';
+import { LocaleSelect, localeValue } from '../../app/locale-select';
+import { useSave } from '../../app/save';
+import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { MessageKey } from '../../i18n';
 
@@ -29,13 +36,30 @@ const EMPTY_VALUES: Readonly<Record<string, string>> = Object.fromEntries(
 );
 
 /**
- * `Admin/SettingController::browseAction`. The port serves no settings
- * endpoint, so this form keeps edits in page state and does not persist them.
+ * `Admin/SettingController::browseAction`. The port's `/api/settings` stores
+ * only the locale so far, so the locale is saved and every other field keeps
+ * its edits in page state and does not persist them.
  */
 export const SettingsPage = (): ReactElement => {
   const { t } = useTranslator();
+  const stored = useAsync(() => api.getSettings(), []);
+  if (stored.status === 'loading') {
+    return <p role="status">{t('loading.page')}</p>;
+  }
+  // A caller other than a global admin is refused, as upstream's ACL refuses
+  // them the settings controller.
+  if (stored.status === 'error') {
+    return <ErrorNotice error={stored.error} />;
+  }
+  return <SettingsForm stored={stored.data} />;
+};
+
+const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactElement => {
+  const { t } = useTranslator();
   const [values, setValues] = useState<Readonly<Record<string, string>>>(EMPTY_VALUES);
   const [saved, setSaved] = useState(false);
+  const [locale, setLocale] = useState(localeValue(stored.locale));
+  const { state: saveState, save } = useSave();
 
   const setValue = (id: string, value: string): void => {
     setSaved(false);
@@ -47,9 +71,21 @@ export const SettingsPage = (): ReactElement => {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          setSaved(true);
+          setSaved(false);
+          save(async () => {
+            await api.updateSettings({ locale });
+            setSaved(true);
+          });
         }}
       >
+        <LocaleSelect
+          id="setting-locale"
+          value={locale}
+          onChange={(value) => {
+            setSaved(false);
+            setLocale(value);
+          }}
+        />
         {SETTING_FIELDS.map((field) =>
           field.kind === 'text' ? (
             <p key={field.id}>
@@ -77,8 +113,11 @@ export const SettingsPage = (): ReactElement => {
             </p>
           ),
         )}
-        <button type="submit">{t('action.save')}</button>
+        <button type="submit" disabled={saveState.status === 'saving'}>
+          {t('action.save')}
+        </button>
       </form>
+      {saveState.status === 'error' ? <SaveStatus state={saveState} /> : null}
       {saved ? <p role="status">{t('settings.saved')}</p> : null}
       <p>{t('settings.note')}</p>
     </section>

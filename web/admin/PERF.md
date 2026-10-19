@@ -491,6 +491,28 @@ The initial payload has 27 B left. These locales put the seven endonyms in the E
 seven entries in the registry, both eager. The next change that grows the eager path needs its own
 decision.
 
+## Decision 14: the admin locale and translated server errors raise the initial ceiling (accepted)
+
+**Premise.** Decision 13 left 27 B of initial payload. Two changes need the eager path. The admin
+locale follows the user and global `locale` settings (`src/api/session.ts`, the header switch, the
+client calls). Server error text is translated at the fetch boundary (`src/api/client.ts`). Each runs
+before any route loads, on sign-in or on the first failed request, so it cannot wait on a route chunk.
+
+**Measured.** `npm run build` then `npm run perf:check`, gzip bytes from `zlib.gzipSync`:
+
+| Build | initial js | Note |
+| --- | --- | --- |
+| main `a624b37` | 93157 | Decision 13 |
+| + admin locale (`admin/user-locale`) | 93418 | 261 B: the session step, the switch write, three client calls |
+
+These are single builds on one machine. The translated server errors land next, measured on their
+own branch against this one.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 93184 to 94208, one KiB. This is a stopgap. The
+English catalogue holds every page's strings and is eager. Splitting it into per-route namespaces,
+with English lazy per route, would free several KB of the first paint. That split is queued as its
+own unit, and the ceiling should come back down when it lands.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
