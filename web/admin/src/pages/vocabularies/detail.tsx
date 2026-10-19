@@ -8,6 +8,7 @@ import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { MessageKey } from '../../i18n';
+import { PublishPanel } from '../publish/panel';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { VocabularyEditForm, isPermanentVocabulary } from './form';
@@ -196,6 +197,13 @@ export const VocabularyDetail = ({
           setAdded((prior) => ({ ...prior, classes: [...prior.classes, resourceClass] }));
         }}
       />
+
+      {editable ? (
+        <PublishPanel
+          key={`${vocabulary.namespaceUri} ${String(properties.length + classes.length)}`}
+          target={{ kind: 'vocabulary', id: vocabulary.id }}
+        />
+      ) : null}
 
       {editable ? (
         <>

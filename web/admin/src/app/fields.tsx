@@ -4,6 +4,7 @@ import { useLocale, useTranslator } from '../i18n';
 import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
+import { useLesson } from './lessons/lesson';
 import type { FormOptions, Option } from './options';
 import { classOptions, selectedOption, templateOptions, userOptions } from './options';
 import { plainName } from './plain-terms';
@@ -18,6 +19,8 @@ export interface OptionSelectProps<IdT extends number> {
   readonly value: IdT | null;
   readonly onChange: (value: IdT | null) => void;
   readonly emptyLabel?: string;
+  /** Shown after the select on its line, such as a lesson's "?". */
+  readonly after?: ReactNode;
 }
 
 export const OptionSelect = <IdT extends number>({
@@ -27,6 +30,7 @@ export const OptionSelect = <IdT extends number>({
   value,
   onChange,
   emptyLabel,
+  after,
 }: OptionSelectProps<IdT>): ReactElement => {
   const { t } = useTranslator();
   return (
@@ -46,6 +50,7 @@ export const OptionSelect = <IdT extends number>({
           </option>
         ))}
       </select>
+      {after}
     </p>
   );
 };
@@ -129,6 +134,7 @@ export const ResourceFields = ({
   const typeClass = selected?.resourceClass?.id ?? null;
   const differs = selected === null ? draft.resourceClass !== null : draft.resourceClass !== typeClass;
   const shownClass = options.classes.find((entry) => entry.id === typeClass) ?? null;
+  const lesson = useLesson('type-pick', kind === 'items');
   return (
     <fieldset>
       <legend>{t('field.resourceLegend')}</legend>
@@ -143,7 +149,9 @@ export const ResourceFields = ({
             withTemplate(draft, templateById(options.templates, value), options.properties, selected),
           );
         }}
+        after={lesson.toggle}
       />
+      {lesson.panel}
       {shownClass === null ? null : (
         <p className="type-class-line">
           {describe('type.classLine', { name: plainName(shownClass, locale) })}{' '}

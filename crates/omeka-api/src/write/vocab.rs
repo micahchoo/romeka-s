@@ -20,6 +20,7 @@ use omeka_db::rows::{NewVocabulary, VocabularyRow};
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
+use crate::publish::guard::{self, VocabularyChange};
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::{Payload, ref_row};
@@ -130,6 +131,16 @@ pub async fn update_vocabulary(
     )
     .await?;
     validate_vocabulary(api, &input, Some(id), classes.as_ref(), properties.as_ref()).await?;
+    guard::vocabulary(
+        api,
+        row.id,
+        VocabularyChange::Update {
+            namespace: &input.namespace_uri,
+            classes: classes.as_ref().map(|plan| plan.local_names.as_slice()),
+            properties: properties.as_ref().map(|plan| plan.local_names.as_slice()),
+        },
+    )
+    .await?;
     VocabularyRepo::new(api.pool())
         .update(&VocabularyRow {
             id: row.id,
@@ -164,6 +175,7 @@ pub async fn delete_vocabulary(api: &Api<'_>, raw_id: &str) -> Result<ApiRespons
         return Err(not_found(VOCABULARY_CLASS, raw_id));
     };
     access::vocabulary_entity(api.actor(), VOCABULARY_CLASS, row.owner_id)?;
+    guard::vocabulary(api, row.id, VocabularyChange::Delete).await?;
     let answer = api.read_member("vocabularies", raw_id).await?;
     repo.delete(row.id).await.map_err(db_error)?;
     Ok(answer)
@@ -428,6 +440,19 @@ async fn update_member(
         input.target(VocabularyTarget::Stored(stored.vocabulary_id)),
     )
     .await?;
+    let vocabulary_id = input.vocabulary_or(stored.vocabulary_id);
+    if input.local_name != stored.local_name || vocabulary_id != stored.vocabulary_id {
+        let stays = vocabulary_id == stored.vocabulary_id;
+        guard::vocabulary(
+            api,
+            stored.vocabulary_id,
+            VocabularyChange::Member {
+                from: &stored.local_name,
+                to: stays.then_some(input.local_name.as_str()),
+            },
+        )
+        .await?;
+    }
     vocab_member::update(
         api,
         member,
@@ -457,6 +482,15 @@ async fn delete_member(
     let Some(row) = vocab_member::get(api, member, id).await? else {
         return Err(not_found(member.php_class(), raw_id));
     };
+    guard::vocabulary(
+        api,
+        row.vocabulary_id,
+        VocabularyChange::Member {
+            from: &row.local_name,
+            to: None,
+        },
+    )
+    .await?;
     let answer = api.read_member(resource_name(member), raw_id).await?;
     vocab_member::delete(api, member, row.id).await?;
     Ok(answer)

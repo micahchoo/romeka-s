@@ -16,6 +16,11 @@
  * think in, which the chat endpoint cannot switch off. A string whose best of
  * four attempts still fails a check is written and printed for review.
  *
+ * The public site's strings are one more table, kept as JSON under
+ * `crates/omeka-site/src/i18n/locales/`, because Rust reads them. A string the
+ * admin already translated takes the admin's translation there, so the admin
+ * and the site name a thing alike.
+ *
  * It runs under bun, not node: it imports TypeScript from the catalogues and
  * from md-translator.
  */
@@ -24,6 +29,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ADMIN = join(dirname(fileURLToPath(import.meta.url)), '..');
+// The key a JSON table keeps its note under; it is not a message.
+const NOTE = '//';
 // Every English table and where its translations live. The main catalogue's
 // files decide which locales are machine-translated; each other table follows.
 const TABLES = [
@@ -50,6 +57,20 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'Term lists messages',
+    source: 'src/pages/term-lists/messages.ts',
+    dir: 'src/pages/term-lists/locales',
+    type: 'TermListMessages',
+    from: '../messages',
+  },
+  {
+    what: 'Publish panel messages',
+    source: 'src/pages/publish/messages.ts',
+    dir: 'src/pages/publish/locales',
+    type: 'PublishMessages',
+    from: '../messages',
+  },
+  {
     what: 'item type pages messages',
     source: 'src/pages/item-types/messages.tsx',
     dir: 'src/pages/item-types/locales',
@@ -64,11 +85,32 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'item form messages',
+    source: 'src/pages/items/messages.ts',
+    dir: 'src/pages/items/locales',
+    type: 'ItemMessages',
+    from: '../messages',
+  },
+  {
+    what: 'Jobs page messages',
+    source: 'src/pages/jobs/messages.ts',
+    dir: 'src/pages/jobs/locales',
+    type: 'JobsMessages',
+    from: '../messages',
+  },
+  {
     what: 'describe strings',
     source: 'src/app/describe-messages.ts',
     dir: 'src/app/describe-locales',
     type: 'DescribeMessages',
     from: '../describe-messages',
+  },
+  {
+    what: 'lessons messages',
+    source: 'src/app/lessons/messages.ts',
+    dir: 'src/app/lessons/locales',
+    type: 'LessonsMessages',
+    from: '../messages',
   },
   {
     // The server's error patterns: the Rust registry generates the English.
@@ -81,6 +123,18 @@ const TABLES = [
     sources: 'sources.server.json',
     type: 'ServerCatalogue',
     from: '../serverMessages',
+  },
+  {
+    // The public site's catalogue: Rust reads the JSON with `include_str!`, and
+    // a test generates the English from the Rust statics. It runs last, so a
+    // string the admin already translated keeps the admin's wording.
+    what: 'public site strings',
+    source: '../../crates/omeka-site/src/i18n/locales/en.json',
+    english: (module) => Object.fromEntries(Object.entries(module.default).filter(([key]) => key !== NOTE)),
+    dir: '../../crates/omeka-site/src/i18n/locales',
+    file: (tag) => `${tag}.json`,
+    json: true,
+    reuse: true,
   },
 ];
 // A table names its English export `en`, a locale file `<tag>.ts` exporting `<tag>`, unless it says otherwise.
@@ -108,7 +162,8 @@ const { LANGUAGES } = await import(join(TRANSLATOR, 'src/languages.ts'));
 const { buildPrompt, cleanOutput, stopFor } = await import(join(TRANSLATOR, 'src/prompt.ts'));
 const { check } = await import(join(TRANSLATOR, 'src/checks.ts'));
 
-const placeholders = (text) => (text.match(/\{[a-zA-Z]+\}/g) ?? []).sort().join();
+// The site's strings take printf's `%s` where the admin's take braces.
+const placeholders = (text) => (text.match(/\{[a-zA-Z]+\}|%s/g) ?? []).sort().join();
 // A string with no word outside its placeholders, names and acronyms, as `{field} URI` or `Omeka S`, is the same in every language.
 const wordless = (text) =>
   !/[A-Za-z]/.test(NAMES.reduce((rest, name) => rest.replaceAll(name, ''), text).replace(/\{[a-zA-Z]+\}/g, '').replace(/\b[A-Z]{2,}\b/g, ''));
@@ -159,6 +214,11 @@ async function translate(language, source, history) {
 }
 
 function write(path, header, table, tag, en, catalogue) {
+  if (table.json) {
+    const ordered = Object.fromEntries(Object.keys(en).filter((key) => key in catalogue).map((key) => [key, catalogue[key]]));
+    writeFileSync(path, `${JSON.stringify({ [NOTE]: header, ...ordered }, null, 2)}\n`);
+    return;
+  }
   const entries = Object.keys(en)
     .filter((key) => key in catalogue)
     .map((key) => {
@@ -167,6 +227,12 @@ function write(path, header, table, tag, en, catalogue) {
     });
   writeFileSync(path, `${header}export const ${nameOf(table, tag)}: ${table.type} = {\n${entries.join('\n')}\n};\n`);
 }
+
+// A JSON file has no comment, so its note is a string under NOTE.
+const jsonHeader = (name) =>
+  `${MARKER}: written by scripts/translate-locales.mjs with sarvam-30b and md-translator's checks, and not yet ` +
+  `reviewed by a reader of ${name}. Correct a string here; a later run keeps it. A missing or extra key fails ` +
+  'every_shipped_locale_parses in omeka-site.';
 
 const header = (table, name) => `/**
  * The ${name} ${table.what}.
@@ -189,6 +255,8 @@ const targets = tags.length
     });
 
 let flaggedTotal = 0;
+// Per locale, each English string an earlier table translated, and its translation.
+const translated = Object.fromEntries(targets.map((tag) => [tag, new Map()]));
 for (const table of TABLES) {
   const en = englishOf(table, await import(join(ADMIN, table.source)));
   const sourcesPath = join(ADMIN, table.dir, table.sources ?? 'sources.json');
@@ -201,14 +269,22 @@ for (const table of TABLES) {
     const path = join(ADMIN, table.dir, fileOf(table, tag));
     const text = existsSync(path) ? readFileSync(path, 'utf8') : '';
     if (text && !text.includes(MARKER)) throw new Error(`${path} is hand-written; this script fills only ${MARKER} files`);
-    const existing = text ? (await import(path))[nameOf(table, tag)] : {};
-    const kept = text ? text.slice(0, text.indexOf('export const')) : header(table, language.name);
+    let existing = {};
+    let kept = header(table, language.name);
+    if (table.json) {
+      if (text) ({ [NOTE]: kept, ...existing } = JSON.parse(text));
+      else kept = jsonHeader(language.name);
+    } else if (text) {
+      existing = (await import(path))[nameOf(table, tag)];
+      kept = text.slice(0, text.indexOf('export const'));
+    }
 
     const catalogue = {};
     const missing = [];
     for (const key of Object.keys(en)) {
       if (endonym(key)) catalogue[key] = en[key];
       else if (key in existing && !changed.has(key)) catalogue[key] = existing[key];
+      else if (table.reuse && translated[tag].has(en[key])) catalogue[key] = translated[tag].get(en[key]);
       else if (wordless(en[key])) catalogue[key] = en[key];
       else missing.push(key);
     }
@@ -228,6 +304,9 @@ for (const table of TABLES) {
     }
     write(path, kept, table, tag, en, catalogue);
     console.log(`${tag} ${table.what}: ${missing.length} translated`);
+    for (const key of Object.keys(en)) {
+      if (!endonym(key) && !translated[tag].has(en[key])) translated[tag].set(en[key], catalogue[key]);
+    }
   }
   if (tags.length) {
     if (changed.size) console.log(`${table.what}: sources.json not updated, because only some locales ran`);

@@ -153,7 +153,10 @@ fn value(depth: u32) -> BoxedStrategy<Value> {
 
 fn value_literal(depth: u32) -> BoxedStrategy<ValueLiteral> {
     (
-        Just(LiteralType),
+        prop_oneof![
+            Just(LiteralType::Literal),
+            any::<u64>().prop_map(LiteralType::TermList)
+        ],
         any::<u64>(),
         text(),
         any::<bool>(),
@@ -179,7 +182,7 @@ fn value_literal(depth: u32) -> BoxedStrategy<ValueLiteral> {
 
 fn value_uri(depth: u32) -> BoxedStrategy<ValueUri> {
     (
-        Just(UriType),
+        prop_oneof![Just(UriType::Uri), any::<u64>().prop_map(UriType::TermList)],
         any::<u64>(),
         text(),
         any::<bool>(),
@@ -208,12 +211,15 @@ fn value_uri(depth: u32) -> BoxedStrategy<ValueUri> {
 fn value_resource(depth: u32) -> BoxedStrategy<ValueResource> {
     (
         (
-            prop::sample::select(vec![
-                ResourceValueType::All,
-                ResourceValueType::Item,
-                ResourceValueType::ItemSet,
-                ResourceValueType::Media,
-            ]),
+            prop_oneof![
+                prop::sample::select(vec![
+                    ResourceValueType::All,
+                    ResourceValueType::Item,
+                    ResourceValueType::ItemSet,
+                    ResourceValueType::Media,
+                ]),
+                any::<u64>().prop_map(ResourceValueType::TermList),
+            ],
             any::<u64>(),
             text(),
             any::<bool>(),

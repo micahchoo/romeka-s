@@ -16,7 +16,8 @@ use common::{
 };
 use omeka_db::ids::{ItemId, PropertyId, SiteId, UserId};
 use omeka_db::repos::{
-    ItemRepo, Paging, PropertyFilter, PropertyRepo, SiteRepo, SiteSettingRepo, UserRepo, ValueRepo,
+    ItemRepo, Paging, PropertyFilter, PropertyRepo, SettingRepo, SiteRepo, SiteSettingRepo,
+    UserRepo, ValueRepo,
 };
 use omeka_db::rows::{NewItem, NewProperty, NewResource, NewUser, NewValue};
 use omeka_site::settings::{SITE_SETTINGS, site_settings_registry};
@@ -450,4 +451,170 @@ async fn user_bar_follows_show_user_bar_and_the_session() {
     set(&pool, site, "show_user_bar", json!(1)).await;
     let always = send(app, get("/s/museum/page/welcome", false)).await;
     assert!(always.body.contains("id=\"user-bar\""), "{}", always.body);
+}
+
+/// An unset or empty site `locale` falls back to the global `locale` setting,
+/// then English (`MvcListeners::bootstrapLocale`, `MvcListeners.php:132-146`,
+/// and the site override at `:378-381`). A set site locale wins.
+#[tokio::test]
+async fn site_locale_falls_back_to_the_global_locale() {
+    let (pool, seed) = settings_pool().await;
+    let app = router(pool.clone());
+    let site = db_site(&seed);
+
+    let english = send(app.clone(), get("/s/museum/page/welcome", false)).await;
+    assert!(
+        english.body.contains("<html lang=\"en\""),
+        "{}",
+        english.body
+    );
+
+    SettingRepo::new(&pool)
+        .set("locale", &json!("es"))
+        .await
+        .unwrap();
+    let global = send(app.clone(), get("/s/museum/page/welcome", false)).await;
+    assert!(global.body.contains("<html lang=\"es\""), "{}", global.body);
+
+    set(&pool, site, "locale", json!("")).await;
+    let empty = send(app.clone(), get("/s/museum/page/welcome", false)).await;
+    assert!(empty.body.contains("<html lang=\"es\""), "{}", empty.body);
+
+    set(&pool, site, "locale", json!("en_US")).await;
+    let own = send(app, get("/s/museum/page/welcome", false)).await;
+    assert!(own.body.contains("<html lang=\"en\""), "{}", own.body);
+}
+
+/// Give `item` a public `dcterms:description` in `lang`.
+async fn add_description(pool: &SqlitePool, item: ItemId, lang: &str, text: &str) {
+    ValueRepo::new(pool)
+        .create(&NewValue {
+            resource_id: item.as_resource(),
+            property_id: property(pool, "description").await,
+            value_resource_id: None,
+            value_annotation_id: None,
+            r#type: "literal".to_string(),
+            lang: Some(lang.to_string()),
+            value: Some(text.to_string()),
+            uri: None,
+            is_public: true,
+        })
+        .await
+        .unwrap();
+}
+
+/// With `filter_locale_values` on, the browse body keeps a value whose
+/// language matches the site locale in any case, or is empty, and drops
+/// another language (`resource-values.phtml:11-14`, `strcasecmp`, and
+/// `AbstractResourceEntityRepresentation::value`, which lowercases `lang`).
+#[tokio::test]
+async fn browse_body_filters_the_locale_without_case() {
+    let (pool, seed) = settings_pool().await;
+    let app = router(pool.clone());
+    let site = db_site(&seed);
+    let upper = add_item(&pool, seed.user, "Alpha").await;
+    add_description(&pool, upper, "fr", "Une description").await;
+    add_description(&pool, upper, "ES", "Una descripcion").await;
+    let untagged = add_item(&pool, seed.user, "Beta").await;
+    add_description(&pool, untagged, "", "An untagged description").await;
+    attach(&pool, upper, site).await;
+    attach(&pool, untagged, site).await;
+    set(&pool, site, "locale", json!("es")).await;
+    set(&pool, site, "filter_locale_values", json!(true)).await;
+    set(
+        &pool,
+        site,
+        "browse_body_property_term",
+        json!("dcterms:description"),
+    )
+    .await;
+
+    let answer = send(app, get("/s/museum/item", false)).await;
+    assert!(answer.body.contains("Una descripcion"), "{}", answer.body);
+    assert!(
+        answer.body.contains("An untagged description"),
+        "{}",
+        answer.body
+    );
+    assert!(!answer.body.contains("Une description"), "{}", answer.body);
+}
+
+/// A 404 under a site that resolves renders in that site's locale and layout,
+/// as upstream's `ExceptionListener` renders `error/404` after `prepareSite`
+/// set the site locale. A slug that resolves to no site keeps the default
+/// English page over a placeholder.
+#[tokio::test]
+async fn not_found_under_a_site_uses_the_site_locale() {
+    let (pool, seed) = settings_pool().await;
+    let app = router(pool.clone());
+    set(&pool, db_site(&seed), "locale", json!("es")).await;
+
+    for path in ["/s/museum/page/missing", "/s/museum/item/999999"] {
+        let answer = send(app.clone(), get(path, false)).await;
+        assert_eq!(answer.status, StatusCode::NOT_FOUND, "{path}");
+        assert!(answer.body.contains("<html lang=\"es\""), "{}", answer.body);
+        assert!(
+            answer.body.contains("<h1>Página no encontrada</h1>"),
+            "{}",
+            answer.body
+        );
+        assert!(
+            answer.body.contains("<a href=\"/s/museum\">Museum</a>"),
+            "{}",
+            answer.body
+        );
+    }
+
+    let unknown = send(app, get("/s/nope/page/missing", false)).await;
+    assert_eq!(unknown.status, StatusCode::NOT_FOUND);
+    assert!(
+        unknown.body.contains("<html lang=\"en\""),
+        "{}",
+        unknown.body
+    );
+    assert!(
+        unknown.body.contains("<h1>Page not found</h1>"),
+        "{}",
+        unknown.body
+    );
+}
+
+/// The embedded JSON-LD carries the stored title, or null for an untitled
+/// resource, as the API representation does
+/// (`AbstractResourceEntityRepresentation.php:127`, `title()`); the
+/// `[Untitled]` placeholder is display text only.
+#[tokio::test]
+async fn jsonld_title_is_the_raw_title() {
+    let (pool, seed) = settings_pool().await;
+    let app = router(pool.clone());
+    let site = db_site(&seed);
+    let untitled = ItemRepo::new(&pool)
+        .create(&NewItem {
+            resource: NewResource {
+                owner_id: Some(seed.user),
+                title: None,
+                is_public: true,
+                ..NewResource::default()
+            },
+            primary_media_id: None,
+        })
+        .await
+        .unwrap()
+        .id();
+    attach(&pool, untitled, site).await;
+    let titled = add_item(&pool, seed.user, "Alpha").await;
+    attach(&pool, titled, site).await;
+
+    let answer = send(
+        app.clone(),
+        get(&format!("/s/museum/item/{}", untitled.0), false),
+    )
+    .await;
+    assert!(answer.body.contains("\"o:title\":null"), "{}", answer.body);
+    let answer = send(app, get(&format!("/s/museum/item/{}", titled.0), false)).await;
+    assert!(
+        answer.body.contains("\"o:title\":\"Alpha\""),
+        "{}",
+        answer.body
+    );
 }

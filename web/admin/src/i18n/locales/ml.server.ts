@@ -106,7 +106,21 @@ export const mlServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'എല്ലാ ബ്ലോക്കുകൾക്കും ഒരു ലേഔട്ട് വേണം.',
   'server.blockDataScalar': 'ബ്ലോക്ക് ഡാറ്റ ഒരു സ്കെയിലാർ വാല്യൂ ആകാൻ പാടില്ല.',
   'server.siteSettingsNotObject': 'പ്രതീക്ഷിച്ചത് ഒരു ഒബ്‌ജക്റ്റ് അല്ലെങ്കിൽ നൾ, {kind} ലഭിച്ചു.',
-  'server.customCssRefusal': 'കസ്റ്റം CSS: {refusal}',
+  'server.cssTooLarge':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: കസ്റ്റം CSS പരമാവധി {max} ബൈറ്റുകളിൽ; ഇത് {bytes} ആണ്.',
+  'server.cssImport': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: @import അനുവദനീയമല്ല.',
+  'server.cssDocument': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: @document അനുവദനീയമല്ല.',
+  'server.cssForeignUrl':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: url({url}) അനുവദനീയമല്ല; ഒരു URL /files/ അല്ലെങ്കിൽ /assets/ എന്നതിന് താഴെയുള്ള ഒരു പാതയായിരിക്കണം.',
+  'server.cssExpression': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: expression() അനുവദനീയമല്ല.',
+  'server.cssBehavior': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: behavior അനുവദനീയമല്ല.',
+  'server.cssMozBinding': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: -moz-binding അനുവദനീയമല്ല.',
+  'server.cssStyleBreakout': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: </style അനുവദനീയമല്ല.',
+  'server.cssBadUrl': 'കസ്റ്റം CSS: വരി {line}, കോളം {column}: ഈ url( സാധുവായ CSS അല്ല.',
+  'server.cssUnclosedString':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: ഈ സ്ട്രിംഗ് ക്ലോസ് ചെയ്തിട്ടില്ല.',
+  'server.cssStrayClose':
+    'കസ്റ്റം CSS: വരി {line}, കോളം {column}: {bracket} ഒന്നും ക്ലോസ് ചെയ്യുന്നില്ല.',
   'server.navNotArray': 'അസാധുവായ നാവിഗേഷൻ: നാവിഗേഷൻ ഒരു അറേ ആയിരിക്കണം',
   'server.navLinkMissingType': 'അസാധുവായ നാവിഗേഷൻ: ലിങ്ക് ടൈപ്പ് ഇല്ല',
   'server.navLinkMissingData': 'അസാധുവായ നാവിഗേഷൻ: ലിങ്ക് ഡാറ്റ ഇല്ല',
@@ -122,4 +136,33 @@ export const mlServer: ServerCatalogue = {
   'server.settingsNotObject': 'ഒരു ഒബ്‌ജക്റ്റ് പ്രതീക്ഷിച്ചു.',
   'server.settingUnavailable': '{key} എന്ന ക്രമീകരണം ലഭ്യമല്ല.',
   'server.settingNotText': '{key} ഒരു സ്ട്രിംഗ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.settingNotFlag': '{key} ട്രൂ, ഫോൾസ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.settingNotNames': '{key} സ്ട്രിംഗുകളുടെ ഒരു ലിസ്റ്റ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.publicationTermsRemoved':
+    'പ്രസിദ്ധീകരിച്ച ഒരു പദം നീക്കം ചെയ്യാനോ പുനർനാമകരണം ചെയ്യാനോ കഴിയില്ല: {terms}. പകരം അത് ഡിപ്രിക്കേറ്റ് ചെയ്യുക.',
+  'server.publicationNamespaceFixed':
+    'ഒരു പ്രസിദ്ധീകരിച്ച പദാവലി അതിന്റെ നെയിംസ്‌പേസ് നിലനിർത്തുന്നു, അതിനാൽ അതിന്റെ പദങ്ങൾ അവയുടെ URIs നിലനിർത്തുന്നു.',
+  'server.publicationNotDeletable':
+    'ഒരു പ്രസിദ്ധീകരിച്ച പദപ്പട്ടികയോ പദാവലിയോ നീക്കം ചെയ്യാൻ കഴിയില്ല. പകരം അതിന്റെ പദങ്ങൾ ഡിപ്രിക്കേറ്റ് ചെയ്യുക.',
+  'server.publicationDeprecationFixed':
+    '"{term}"-ന്റെ ഡിപ്രിക്കേഷൻ പ്രസിദ്ധീകരിക്കുകയും അത് പിൻവലിക്കാൻ കഴിയില്ല.',
+  'server.publicationItemsList':
+    'ഇനങ്ങളുടെ ഒരു പട്ടിക പ്രസിദ്ധീകരിക്കാൻ കഴിയില്ല. ഓരോ ഇനത്തിനും ഇതിനകം തന്നെ സ്വന്തം വിലാസമുണ്ട്.',
+  'server.publicationForeignNamespace':
+    '{namespace} ഈ ആർക്കൈവിന്റെ നെയിംസ്‌പേസ് അല്ല. ഈ ആർക്കൈവിന്റെ /vocab/ വിലാസത്തിന് കീഴിലോ, w3id.org-ലോ, purl.org-ലോ ഉള്ള ഒരു പദാവലി പ്രസിദ്ധീകരിക്കുക.',
+  'server.publicationSlugInvalid':
+    'ഒരു വിലാസപ്പേര് ചെറിയ അക്ഷരങ്ങൾ, അക്കങ്ങൾ, ഒരു ഹൈഫൻ എന്നിവ ഉപയോഗിക്കുന്നു, 64 അക്ഷരങ്ങൾ വരെ.',
+  'server.publicationSlugTaken': '/vocab/{slug}/ എന്ന വിലാസം നേരത്തെ തന്നെ എടുത്തിട്ടുണ്ട്.',
+  'server.publicationNamespaceNotPersistent':
+    'ഈ ആർക്കൈവിന്റെ നെയിംസ്‌പേസ് അല്ലാത്ത മറ്റൊന്ന് w3id.org അല്ലെങ്കിൽ purl.org-ൽ ആയിരിക്കണം, കൂടാതെ / അല്ലെങ്കിൽ # എന്നതിൽ അവസാനിക്കണം.',
+  'server.publicationAddressFixed':
+    'ഒരു പ്രസിദ്ധീകരിച്ച പദപ്പട്ടികയോ പദാവലിയോ അത് ആദ്യം പ്രസിദ്ധീകരിച്ച വിലാസം നിലനിർത്തുന്നു.',
+  'server.publicationTermNotPublished':
+    '"{term}" ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല, അതിനാൽ അത് ഡിപ്രീക്കേറ്റ് ചെയ്യാൻ കഴിയില്ല. അത് നീക്കം ചെയ്യുക.',
+  'server.publicationUnknownTerm': '"{term}" ഈ പട്ടികയുടെയോ പദാവലിയുടെയോ ഒരു പദമല്ല.',
+  'server.publicationMatchInvalid':
+    'ഒരു മാച്ച് (match) ഒരു അബ്സല്യൂട്ട് http അല്ലെങ്കിൽ https URI ആയിരിക്കണം.',
+  'server.publicationMatchTermLists':
+    'പദപ്പട്ടികയിലെ ലിങ്കുകൾ ഒരു അതോറിറ്റിയിലേക്ക് മാത്രമായിരിക്കണം.',
+  'server.publicationTermIriInvalid': '{uri} എന്ന ടേം URI ഒരു സാധുവായ IRI അല്ല.',
 };

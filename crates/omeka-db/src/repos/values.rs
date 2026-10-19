@@ -10,7 +10,7 @@ use super::{Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, push
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{PropertyId, ResourceId, ValueId};
-use crate::rows::{NewValue, ValueRow};
+use crate::rows::{NewValue, ValueContent, ValueRow};
 
 /// `value` rows.
 pub struct ValueRepo<'a, DB: Backend = Sqlite> {
@@ -37,27 +37,10 @@ where
     }
 
     pub async fn create(&self, new: &NewValue) -> Result<ValueRow, DbError> {
-        // MariaDB reserves `VALUE`, so the table name after `INSERT INTO` must be quoted there.
-        let table = DB::quote_identifier("value");
-        let sql = format!(
-            "INSERT INTO {table}
-                 (resource_id, property_id, value_resource_id, value_annotation_id, type, lang,
-                  value, uri, is_public)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        );
-        let query = sqlx::query(&sql)
-            .bind(bind_id(new.resource_id))
-            .bind(bind_id(new.property_id))
-            .bind(bind_opt_id(new.value_resource_id))
-            .bind(bind_opt_id(new.value_annotation_id))
-            .bind(&new.r#type)
-            .bind(&new.lang)
-            .bind(&new.value)
-            .bind(&new.uri)
-            .bind(new.is_public);
-        let id = insert_id(query, self.pool).await?;
+        let mut conn = self.pool.acquire().await?;
+        let id = insert_value(&mut conn, new).await?;
         Ok(ValueRow {
-            id: ValueId::from(id),
+            id,
             resource_id: new.resource_id,
             property_id: new.property_id,
             value_resource_id: new.value_resource_id,
@@ -68,6 +51,30 @@ where
             uri: new.uri.clone(),
             is_public: new.is_public,
         })
+    }
+
+    /// Delete some of a resource's values and insert new ones, all in one transaction: a failed
+    /// insert keeps the values it would have replaced. An id that is not a value of this
+    /// resource deletes nothing.
+    pub async fn rewrite(
+        &self,
+        resource_id: ResourceId,
+        delete: &[ValueId],
+        insert: &[ValueContent],
+    ) -> Result<(), DbError> {
+        let mut tx = self.pool.begin().await?;
+        for id in delete {
+            sqlx::query("DELETE FROM value WHERE id = ? AND resource_id = ?")
+                .bind(bind_id(*id))
+                .bind(bind_id(resource_id))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for content in insert {
+            insert_value(&mut tx, &content.on(resource_id)).await?;
+        }
+        tx.commit().await?;
+        Ok(())
     }
 
     pub async fn get(&self, id: ValueId) -> Result<Option<ValueRow>, DbError> {
@@ -151,4 +158,39 @@ where
         let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ValueRow::from_db_row::<DB>).collect()
     }
+}
+
+/// Insert one `value` row on this connection, so a caller can make it part of a transaction.
+pub(crate) async fn insert_value<DB: Backend>(
+    conn: &mut DB::Connection,
+    new: &NewValue,
+) -> Result<ValueId, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Encode<'x, DB> + Type<DB>,
+{
+    // MariaDB reserves `VALUE`, so the table name after `INSERT INTO` must be quoted there.
+    let table = DB::quote_identifier("value");
+    let sql = format!(
+        "INSERT INTO {table}
+             (resource_id, property_id, value_resource_id, value_annotation_id, type, lang,
+              value, uri, is_public)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    let query = sqlx::query(&sql)
+        .bind(bind_id(new.resource_id))
+        .bind(bind_id(new.property_id))
+        .bind(bind_opt_id(new.value_resource_id))
+        .bind(bind_opt_id(new.value_annotation_id))
+        .bind(&new.r#type)
+        .bind(&new.lang)
+        .bind(&new.value)
+        .bind(&new.uri)
+        .bind(new.is_public);
+    Ok(ValueId::from(insert_id(query, conn).await?))
 }

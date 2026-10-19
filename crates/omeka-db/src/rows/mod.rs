@@ -11,7 +11,10 @@
 //! resource tables (`item`, `item_set`, `media`, `value_annotation`) share their primary key with
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
+mod custom_vocabs;
+mod publications;
 mod resources;
+mod rewrites;
 mod sites;
 mod system;
 mod templates;
@@ -19,13 +22,17 @@ mod users;
 mod values;
 mod vocabularies;
 
+pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
+pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{
-    ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, ResourceRow,
-    ValueAnnotationRow, resource_type,
+    ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, NewWholeItem,
+    ResourceRow, ValueAnnotationRow, resource_type,
 };
+pub use rewrites::{MergeWrite, PromoteList, PromoteWrite, TextValueRow};
 pub use sites::{
-    NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage, SiteBlockAttachmentRow,
-    SiteBlockRow, SiteItemSetRow, SitePageRow, SitePermissionRow, SiteRow, SiteSettingRow,
+    NewFirstPage, NewFirstPageBlock, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
+    NewWholeSite, SiteBlockAttachmentRow, SiteBlockRow, SiteItemSetRow, SitePageRow,
+    SitePermissionRow, SiteRow, SiteSettingRow,
 };
 pub use system::{
     AssetRow, FulltextSearchRow, ItemItemSetRow, ItemSiteRow, JobRow, MigrationRow, ModuleRow,
@@ -36,7 +43,7 @@ pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,
     UserSettingRow,
 };
-pub use values::{NewValue, ValueRow};
+pub use values::{NewValue, ValueContent, ValueRow};
 pub use vocabularies::{
     ClassRow, NewClass, NewProperty, NewVocabulary, PropertyRow, VocabularyRow,
 };
@@ -67,6 +74,9 @@ macro_rules! sqlite_row_parser {
 sqlite_row_parser!(
     AssetRow,
     ClassRow,
+    CustomVocabRow,
+    PublicationRow,
+    PublicationVersionRow,
     FulltextSearchRow,
     ItemItemSetRow,
     ItemRow,
@@ -90,6 +100,7 @@ sqlite_row_parser!(
     SiteSettingRow,
     TemplatePropertyRow,
     TemplateRow,
+    TextValueRow,
     UserRow,
     UserSettingRow,
     ValueAnnotationRow,

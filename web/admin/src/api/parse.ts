@@ -18,6 +18,7 @@ import type {
   ItemSetId,
   Job,
   JsonValue,
+  LessonSettings,
   Media,
   MediaId,
   Module,
@@ -151,40 +152,40 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:is_active',
 ]);
 
-function brandId<Name extends string>(value: number): Id<Name> {
+export function brandId<Name extends string>(value: number): Id<Name> {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the single place a validated number becomes a branded id
   return value as Id<Name>;
 }
 
-const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
+export const asRecord = (value: unknown, path: Path): Record<string, unknown> => {
   if (!isRecord(value)) {
     throw new ParseError(path, 'object');
   }
   return value;
 };
 
-const asString = (value: unknown, path: Path): string => {
+export const asString = (value: unknown, path: Path): string => {
   if (typeof value !== 'string') {
     throw new ParseError(path, 'string');
   }
   return value;
 };
 
-const asNumber = (value: unknown, path: Path): number => {
+export const asNumber = (value: unknown, path: Path): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new ParseError(path, 'number');
   }
   return value;
 };
 
-const asBoolean = (value: unknown, path: Path): boolean => {
+export const asBoolean = (value: unknown, path: Path): boolean => {
   if (typeof value !== 'boolean') {
     throw new ParseError(path, 'boolean');
   }
   return value;
 };
 
-const asIdNumber = (value: unknown, path: Path): number => {
+export const asIdNumber = (value: unknown, path: Path): number => {
   const id = asNumber(value, path);
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new ParseError(path, 'a positive integer');
@@ -192,7 +193,7 @@ const asIdNumber = (value: unknown, path: Path): number => {
   return id;
 };
 
-const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
+export const field = (object: Record<string, unknown>, key: string, path: Path): unknown => {
   if (!(key in object)) {
     throw new ParseError([...path, key], 'a value');
   }
@@ -200,7 +201,7 @@ const field = (object: Record<string, unknown>, key: string, path: Path): unknow
 };
 
 /** A field upstream always sends, whose value may be null. */
-const nullableField = <T>(
+export const nullableField = <T>(
   object: Record<string, unknown>,
   key: string,
   path: Path,
@@ -257,7 +258,7 @@ const asDateTime = (value: unknown, path: Path): string => {
   return text;
 };
 
-const asRef = <IdT extends number>(
+export const asRef = <IdT extends number>(
   value: unknown,
   path: Path,
   brand: (id: number) => IdT,
@@ -269,7 +270,7 @@ const asRef = <IdT extends number>(
   };
 };
 
-const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
+export const asRefUser = (value: unknown, path: Path): ResourceRef<UserId> =>
   asRef(value, path, brandId<'UserId'>);
 
 const asRefClass = (value: unknown, path: Path): ResourceRef<ClassId> =>
@@ -525,6 +526,7 @@ export const parseUser: Parser<User> = (raw, path = []) => {
     role: asString(field(object, 'o:role', path), [...path, 'o:role']),
     isActive: asBoolean(field(object, 'o:is_active', path), [...path, 'o:is_active']),
     localeSetting: parseLocaleSetting(object, 'o:user_settings', path),
+    lessons: parseLessonSettings(object, path),
     adminLocale: optionalString(object, 'o:admin_locale', path),
   };
 };
@@ -539,6 +541,19 @@ const parseLocaleSetting = (
   return value === undefined || value === null
     ? null
     : optionalString(asRecord(value, [...path, key]), 'locale', [...path, key]);
+};
+
+/** The two lesson keys of `o:user_settings`; an absent key is its default. */
+const parseLessonSettings = (object: Record<string, unknown>, path: Path): LessonSettings => {
+  const raw = object['o:user_settings'];
+  const at = [...path, 'o:user_settings'];
+  const settings = raw === undefined || raw === null ? {} : asRecord(raw, at);
+  const hidden = settings.romeka_hide_lessons;
+  const seen = settings.romeka_lessons_seen;
+  return {
+    hidden: hidden === undefined ? false : asBoolean(hidden, [...at, 'romeka_hide_lessons']),
+    seen: seen === undefined ? [] : parseListOf(asString)(seen, [...at, 'romeka_lessons_seen']),
+  };
 };
 
 /** `GET /api/settings`, a port route that answers one map of setting keys. */
@@ -1003,7 +1018,7 @@ export function jobIdFromParam(text: string): Id<'JobId'> | null {
   return value === null ? null : brandId<'JobId'>(value);
 }
 
-const positiveInt = (text: string): number | null => {
+export const positiveInt = (text: string): number | null => {
   if (!/^\d+$/.test(text)) {
     return null;
   }

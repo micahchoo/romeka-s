@@ -20,4 +20,9 @@ export const mr: DescribeMessages = {
   'picker.matches': '“{query}” साठी जुळणारे निकाल',
   'picker.none': '“{query}” साठी कोणतीही जुळणी नाही.',
   'picker.create': '“{name}” नावाचे नवीन क्षेत्र तयार करा',
+  'tags.legend': 'टॅग्स',
+  'tags.add': 'टॅग जोडा',
+  'tags.hint':
+    'नंतर गोष्टी शोधण्यासाठी मोफत शब्द. शोधण्यासाठी Enter दाबा किंवा एक जोडण्यासाठी स्वल्पविराम टाईप करा.',
+  'tags.remove': '“{tag}” हा टॅग काढून टाका',
 };

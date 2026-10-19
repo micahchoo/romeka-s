@@ -70,6 +70,9 @@ const ADAPTER_WRITES: &[(&str, Grant, Grant, Grant)] = &[
     ),
     ("properties", Grant::Admins, Grant::Admins, Grant::Admins),
     ("jobs", Grant::Admins, Grant::Admins, Grant::Admins),
+    // The Custom Vocab module's `Module::onBootstrap` grants `editor` the three
+    // writes; the entity assertion then limits update and delete to the owner.
+    ("custom_vocabs", EDITORS, EDITORS, EDITORS),
     (
         "users",
         Grant::Admins,
@@ -93,6 +96,10 @@ const TEMPLATE_ROLES: &[&str] = &["author", "editor"];
 /// `UserAdapter` update is granted to every authenticated role.
 const USER_WRITE_ROLES: &[&str] = &["researcher", "author", "reviewer", "editor"];
 
+/// The term list writes the Custom Vocab module grants.
+const EDITOR_ROLES: &[&str] = &["editor"];
+/// The grant `CustomVocabAdapter` carries.
+const EDITORS: Grant = Grant::Roles(EDITOR_ROLES);
 /// The grant the four resource entity adapters carry.
 const RESOURCE: Grant = Grant::Roles(RESOURCE_ROLES);
 /// The grant `ResourceTemplateAdapter` carries.

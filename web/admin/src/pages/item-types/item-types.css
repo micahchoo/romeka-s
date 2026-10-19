@@ -277,6 +277,18 @@
   margin: var(--space-1) 0;
 }
 
+.type-field-accepts-group {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.type-field-accepts-group > legend {
+  padding: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .type-field-type-id {
   font-size: 12px;
 }

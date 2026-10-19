@@ -30,6 +30,10 @@ export const en = {
   "picker.matches": "Matches for “{query}”",
   "picker.none": "Nothing matches “{query}”.",
   "picker.create": "Create a new field “{name}”",
+  "tags.legend": "Tags",
+  "tags.add": "Add a tag",
+  "tags.hint": "Free words to find things by later. Press Enter or type a comma to add one.",
+  "tags.remove": "Remove the tag “{tag}”",
 } as const;
 
 type DescribeMessageKey = keyof typeof en;
@@ -49,6 +53,10 @@ const es: DescribeMessages = {
   "picker.matches": "Resultados para «{query}»",
   "picker.none": "Nada coincide con «{query}».",
   "picker.create": "Crear un campo nuevo «{name}»",
+  "tags.legend": "Etiquetas",
+  "tags.add": "Añadir una etiqueta",
+  "tags.hint": "Palabras libres para encontrar las cosas más tarde. Pulse Intro o escriba una coma para añadir una.",
+  "tags.remove": "Quitar la etiqueta «{tag}»",
 };
 
 const MESSAGES: Readonly<Record<Locale, DescribeMessages>> = {

@@ -17,7 +17,7 @@
 
 use omeka_db::ids::{ItemSetId, PageId, SiteId, UserId};
 use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
-use omeka_db::rows::{NewSite, SiteRow};
+use omeka_db::rows::{NewSite, NewWholeSite, SiteRow};
 use serde_json::{Value, json};
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -74,7 +74,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         slug = slugify(&title);
     }
     let summary = trimmed(payload.str_member("o:summary"));
-    // Without `o:navigation`, the default is stored once the welcome page exists to link.
+    // Without `o:navigation`, the stored default links the welcome page.
     let sent_navigation = payload
         .get("o:navigation")
         .map(crate::write::body::php_json);
@@ -98,54 +98,60 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     )
     .await?;
     let owner = owner(api, payload).await?;
-    // Resolve every reference the body names before the first insert, so a
-    // failure leaves nothing (`SiteAdapter::hydrate` runs before the flush).
-    let permissions = permissions(api, payload).await?;
-    let item_sets = site_item_sets(api, payload, false).await?;
+    // Resolve every reference and build every row before the one write, which
+    // commits them together (`SiteAdapter::hydrate` runs before the flush).
+    let permissions = match permissions(api, payload).await? {
+        // A create body that names permissions replaces the caller's grant:
+        // upstream hydrates the membership members on create as well as update.
+        Some(named) => named,
+        None => api
+            .actor()
+            .user()
+            .map(|user| (user, "admin".to_string()))
+            .into_iter()
+            .collect(),
+    };
+    let item_sets = site_item_sets(api, payload, false)
+        .await?
+        .unwrap_or_default();
     named_pages(api, payload).await?;
-    let mut row = SiteRepo::new(api.pool())
-        .create(&NewSite {
-            owner_id: owner,
-            slug,
-            theme,
-            title,
-            summary,
-            navigation,
-            item_pool,
-            thumbnail_id,
-            homepage_id,
-            is_public: payload.bool_member("o:is_public", true),
-            assign_new_items: payload.bool_member("o:assign_new_items", false),
-            ..NewSite::default()
+    let mut settings = crate::site_settings::new_site_rows(payload.get("o:site_settings"))?;
+    let theme_settings = match payload.get("o:theme_settings") {
+        Some(Value::Null) => None,
+        Some(sent) => Some(sent.clone()),
+        None => Some(site_defaults::theme_settings()),
+    };
+    if let Some(map) = theme_settings {
+        settings.push((crate::theme_settings::key(&theme), map));
+    }
+    let first_page = site_defaults::welcome_page(api).await?;
+    let site = SiteRepo::new(api.pool())
+        .create_whole(&NewWholeSite {
+            site: NewSite {
+                owner_id: owner,
+                slug,
+                theme,
+                title,
+                summary,
+                navigation,
+                item_pool,
+                thumbnail_id,
+                homepage_id,
+                is_public: payload.bool_member("o:is_public", true),
+                assign_new_items: payload.bool_member("o:assign_new_items", false),
+                ..NewSite::default()
+            },
+            first_page,
+            navigation_linking_first_page: sent_navigation
+                .is_none()
+                .then_some(site_defaults::default_navigation as fn(PageId) -> Value),
+            permissions,
+            item_sets,
+            settings,
         })
         .await
         .map_err(db_error)?;
-    if let Some(user) = api.actor().user() {
-        SiteRepo::new(api.pool())
-            .set_permission(row.id, user, "admin")
-            .await
-            .map_err(db_error)?;
-    }
-    // Upstream hydrates the membership members on create as well as update
-    // (`SiteAdapter::hydrate`): a create body that names permissions replaces
-    // the caller's grant.
-    apply_permissions(api, row.id, permissions.as_deref()).await?;
-    apply_item_sets(api, row.id, item_sets.as_deref()).await?;
-    if payload.has("o:theme_settings") {
-        hydrate_theme_settings(api, row.id, &row.theme, payload).await?;
-    } else {
-        site_defaults::theme_settings(api, row.id, &row.theme).await?;
-    }
-    hydrate_site_settings(api, row.id, payload).await?;
-    let welcome = site_defaults::welcome_page(api, row.id).await?;
-    if sent_navigation.is_none() {
-        row.navigation = site_defaults::default_navigation(welcome);
-        SiteRepo::new(api.pool())
-            .update(&row)
-            .await
-            .map_err(db_error)?;
-    }
-    api.read_member("sites", &row.id.0.to_string()).await
+    api.read_member("sites", &site.id.0.to_string()).await
 }
 
 pub async fn update(

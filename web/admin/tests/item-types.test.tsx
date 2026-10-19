@@ -190,6 +190,36 @@ describe('a stored item type', () => {
     });
   });
 
+  it('offers term lists as their own group, by label, and sends the list type', async () => {
+    const places = {
+      '@id': 'http://localhost/api/data_types/customvocab:3',
+      '@type': ['o:DataType'],
+      'o:id': 'customvocab:3',
+      'o:label': 'Places',
+    };
+    const fetchMock = await openPhotograph({
+      '/api/data_types': () => {
+        const fixture: unknown = loadFixture('data-types-page.json');
+        const types: readonly unknown[] = Array.isArray(fixture) ? fixture : [];
+        return jsonResponse([...types, places]);
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Change what Caption accepts' }));
+    const accepts = screen.getByRole('group', { name: 'What Caption accepts' });
+    const lists = within(accepts).getByRole('group', { name: 'Term lists' });
+    expect(within(lists).getAllByRole('checkbox').map((box) => box.closest('label')?.textContent)).toEqual([
+      'Places',
+    ]);
+    expect(within(accepts).getAllByRole('checkbox', { name: 'Places' })).toHaveLength(1);
+    expect(within(accepts).queryByRole('checkbox', { name: 'Text' })).not.toBeNull();
+    expect(within(lists).queryByRole('checkbox', { name: 'Text' })).toBeNull();
+    fireEvent.click(within(lists).getByRole('checkbox', { name: 'Places' }));
+    expect(screen.getAllByText(/Term list: Places/).length).toBeGreaterThan(0);
+
+    const rows = rowsSent(await save(fetchMock));
+    expect(rows[1]?.['o:data_type']).toEqual(['literal', 'customvocab:3']);
+  });
+
   it('moves a field with the arrow keys on its handle and keeps the handle focused', async () => {
     const fetchMock = await openPhotograph();
     const handle = screen.getByRole('button', { name: /^Move Caption, field 2 of 3/ });

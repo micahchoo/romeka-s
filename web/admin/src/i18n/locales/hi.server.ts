@@ -101,7 +101,20 @@ export const hiServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सभी ब्लॉक्स का लेआउट होना चाहिए।',
   'server.blockDataScalar': 'ब्लॉक डेटा स्केलर वैल्यू नहीं होना चाहिए।',
   'server.siteSettingsNotObject': 'अपेक्षित ऑब्जेक्ट या नल, प्राप्त हुआ {kind}।',
-  'server.customCssRefusal': 'कस्टम CSS: {refusal}',
+  'server.cssTooLarge':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: कस्टम CSS अधिकतम {max} बाइट्स हो सकती है; यह {bytes} है।',
+  'server.cssImport': 'कस्टम CSS: लाइन {line}, कॉलम {column}: @import की अनुमति नहीं है।',
+  'server.cssDocument': 'कस्टम CSS: लाइन {line}, कॉलम {column}: @document की अनुमति नहीं है।',
+  'server.cssForeignUrl':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: url({url}) की अनुमति नहीं है; एक URL /files/ या /assets/ के अंतर्गत एक पथ होना चाहिए।',
+  'server.cssExpression': 'कस्टम CSS: लाइन {line}, कॉलम {column}: expression() की अनुमति नहीं है।',
+  'server.cssBehavior': 'कस्टम CSS: लाइन {line}, कॉलम {column}: behavior की अनुमति नहीं है।',
+  'server.cssMozBinding': 'कस्टम CSS: लाइन {line}, कॉलम {column}: -moz-binding की अनुमति नहीं है।',
+  'server.cssStyleBreakout': 'कस्टम CSS: लाइन {line}, कॉलम {column}: </style की अनुमति नहीं है।',
+  'server.cssBadUrl': 'कस्टम CSS: लाइन {line}, कॉलम {column}: यह url( वैध CSS नहीं है।',
+  'server.cssUnclosedString': 'कस्टम CSS: लाइन {line}, कॉलम {column}: यह स्ट्रिंग बंद नहीं है।',
+  'server.cssStrayClose':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: {bracket} कुछ भी बंद नहीं करता है।',
   'server.navNotArray': 'अमान्य नेविगेशन: नेविगेशन एक ऐरे होना चाहिए',
   'server.navLinkMissingType': 'अमान्य नेविगेशन: लिंक में टाइप (type) अनुपस्थित है',
   'server.navLinkMissingData': 'अमान्य नेविगेशन: लिंक में डेटा (data) अनुपस्थित है',
@@ -118,4 +131,30 @@ export const hiServer: ServerCatalogue = {
   'server.settingsNotObject': 'एक ऑब्जेक्ट की अपेक्षा थी।',
   'server.settingUnavailable': 'सेटिंग {key} उपलब्ध नहीं है।',
   'server.settingNotText': 'सेटिंग {key} एक स्ट्रिंग या नल होनी चाहिए।',
+  'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
+  'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
+  'server.publicationTermsRemoved':
+    'एक प्रकाशित शब्द को हटाया या उसका नाम बदला नहीं जा सकता: {terms}। इसके बजाय इसे अप्रचलित (deprecate) करें।',
+  'server.publicationNamespaceFixed':
+    'एक प्रकाशित शब्दावली अपना नेमस्पेस बनाए रखती है, इसलिए इसके शब्द अपने URI बनाए रखते हैं।',
+  'server.publicationNotDeletable':
+    'एक प्रकाशित शब्द सूची या शब्दावली को हटाया नहीं जा सकता। इसके बजाय इसके शब्दों को अप्रचलित करें।',
+  'server.publicationDeprecationFixed':
+    '"{term}" का अप्रचलन प्रकाशित हो चुका है और इसे वापस नहीं लिया जा सकता।',
+  'server.publicationItemsList':
+    'वस्तुओं की सूची प्रकाशित नहीं की जा सकती। प्रत्येक वस्तु का अपना पता पहले से है।',
+  'server.publicationForeignNamespace':
+    'नेमस्पेस {namespace} इस संग्रह का नहीं है। इस संग्रह के /vocab/ पते के अंतर्गत एक शब्दावली प्रकाशित करें, या w3id.org या purl.org पर।',
+  'server.publicationSlugInvalid':
+    'एक पते के नाम में छोटे अक्षर, अंक और एकल हाइफ़न का उपयोग किया जाता है, जो 64 वर्णों तक होता है।',
+  'server.publicationSlugTaken': 'पता /vocab/{slug}/ पहले से लिया जा चुका है।',
+  'server.publicationNamespaceNotPersistent':
+    'इस संग्रह के अलावा अन्य नेमस्पेस w3id.org या purl.org पर होना चाहिए और / या # पर समाप्त होना चाहिए।',
+  'server.publicationAddressFixed': 'एक प्रकाशित शब्द सूची या शब्दावली अपना मूल पता बनाए रखती है।',
+  'server.publicationTermNotPublished':
+    '"{term}" अभी तक प्रकाशित नहीं हुआ है, इसलिए इसे अप्रचलित नहीं किया जा सकता। इसके बजाय इसे हटा दें।',
+  'server.publicationUnknownTerm': '"{term}" इस सूची या शब्दावली का शब्द नहीं है।',
+  'server.publicationMatchInvalid': 'मिलान एक पूर्ण http या https URI होना चाहिए।',
+  'server.publicationMatchTermLists': 'केवल एक शब्द सूची के शब्द ही किसी प्राधिकरण से जुड़ते हैं।',
+  'server.publicationTermIriInvalid': 'शब्द URI {uri} एक वैध IRI नहीं है।',
 };

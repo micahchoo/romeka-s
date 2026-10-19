@@ -445,6 +445,13 @@ export const en = {
   'siteSettingSort.dateDesc': 'Newest first',
   'siteSettingChoice.locale.en': 'English',
   'siteSettingChoice.locale.es': 'Spanish',
+  'siteSettingChoice.locale.hi': 'Hindi',
+  'siteSettingChoice.locale.mr': 'Marathi',
+  'siteSettingChoice.locale.ml': 'Malayalam',
+  'siteSettingChoice.locale.ta': 'Tamil',
+  'siteSettingChoice.locale.kn': 'Kannada',
+  'siteSettingChoice.locale.te': 'Telugu',
+  'siteSettingChoice.locale.ne': 'Nepali',
   'siteSettingChoice.attachment_link_type.item': 'Item page',
   'siteSettingChoice.attachment_link_type.media': 'Media page',
   'siteSettingChoice.attachment_link_type.original': 'Original file',
@@ -809,6 +816,8 @@ export const en = {
   'editor.outlineToggle': 'Show the outline',
   'preview.insertHere': 'Insert a block here',
   'preview.insertIntoGroup': 'Add a block to this group',
+  // Term lists (the Custom Vocab module built into core) and the term picker.
+  'page.termLists': 'Term lists',
   // The site's Items page, the item picker and the Items list's bulk site actions.
   'siteItems.count': 'Items on this site: {count}',
   'siteItems.counting': 'Counting…',

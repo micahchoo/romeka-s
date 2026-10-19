@@ -231,6 +231,40 @@ const TABLES: &[(&str, &[&str])] = &[
         "fulltext_search",
         &["id", "resource", "owner_id", "is_public", "title", "text"],
     ),
+    // Not in `schema.sql`: the Custom Vocab module's table (`Module::install`, v2.1.0), which the
+    // port builds into core so an install with the module reads the same rows.
+    (
+        "custom_vocab",
+        &[
+            "id",
+            "item_set_id",
+            "owner_id",
+            "label",
+            "lang",
+            "terms",
+            "uris",
+        ],
+    ),
+];
+
+/// Romeka's own tables (`0003_publication.sql`). Upstream never reads them, so they sit apart from
+/// [`TABLES`] and the upstream tables stay exactly upstream's.
+const ROMEKA_TABLES: &[(&str, &[&str])] = &[
+    (
+        "romeka_publication",
+        &[
+            "id",
+            "custom_vocab_id",
+            "vocabulary_id",
+            "slug",
+            "namespace_uri",
+            "terms",
+        ],
+    ),
+    (
+        "romeka_publication_version",
+        &["id", "publication_id", "version", "created", "snapshot"],
+    ),
 ];
 
 async fn columns(pool: &SqlitePool, table: &str) -> Vec<String> {
@@ -250,6 +284,15 @@ async fn every_upstream_table_has_its_upstream_columns_in_order() {
 }
 
 #[tokio::test]
+async fn every_romeka_table_has_its_columns_and_a_romeka_prefix() {
+    let pool = common::memory().await;
+    for (table, expected) in ROMEKA_TABLES {
+        assert!(table.starts_with("romeka_"), "{table}");
+        assert_eq!(&columns(&pool, table).await, expected, "table {table}");
+    }
+}
+
+#[tokio::test]
 async fn no_table_beyond_the_upstream_set_and_the_port_infrastructure() {
     let pool = common::memory().await;
     let rows = sqlx::query("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -261,7 +304,11 @@ async fn no_table_beyond_the_upstream_set_and_the_port_infrastructure() {
     found.retain(|name| name != "_sqlx_migrations");
     found.retain(|name| name != "fulltext_search_fts");
     found.retain(|name| !name.starts_with("fulltext_search_fts_"));
-    let mut expected: Vec<String> = TABLES.iter().map(|(table, _)| table.to_string()).collect();
+    let mut expected: Vec<String> = TABLES
+        .iter()
+        .chain(ROMEKA_TABLES)
+        .map(|(table, _)| table.to_string())
+        .collect();
     found.sort();
     expected.sort();
     assert_eq!(found, expected);
@@ -480,6 +527,9 @@ index_proofs! {
     (schema_index_vocabulary_uniq_9099c97b9b267fdf, "vocabulary", true, ["namespace_uri"]),
     (schema_index_vocabulary_uniq_9099c97b93b1868e, "vocabulary", true, ["prefix"]),
     (schema_index_vocabulary_idx_9099c97b7e3c61f9, "vocabulary", false, ["owner_id"]),
+    (schema_index_custom_vocab_uniq_8533d2a5ea750e8, "custom_vocab", true, ["label"]),
+    (schema_index_custom_vocab_idx_8533d2a5960278d7, "custom_vocab", false, ["item_set_id"]),
+    (schema_index_custom_vocab_idx_8533d2a57e3c61f9, "custom_vocab", false, ["owner_id"]),
 }
 
 foreign_key_proofs! {
@@ -531,4 +581,6 @@ foreign_key_proofs! {
     (schema_foreign_key_value_fk_1d7758349b66727e, "value", "value_annotation_id", "value_annotation", "id", "SET NULL"),
     (schema_foreign_key_value_annotation_fk_c03ba4ebf396750, "value_annotation", "id", "resource", "id", "CASCADE"),
     (schema_foreign_key_vocabulary_fk_9099c97b7e3c61f9, "vocabulary", "owner_id", "user", "id", "SET NULL"),
+    (schema_foreign_key_custom_vocab_fk_8533d2a5960278d7, "custom_vocab", "item_set_id", "item_set", "id", "SET NULL"),
+    (schema_foreign_key_custom_vocab_fk_8533d2a57e3c61f9, "custom_vocab", "owner_id", "user", "id", "SET NULL"),
 }

@@ -104,7 +104,20 @@ export const knServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'ಎಲ್ಲಾ ಬ್ಲಾಕ್‌ಗಳಿಗೆ ಲೇಔಟ್ ಇರಬೇಕು.',
   'server.blockDataScalar': 'ಬ್ಲಾಕ್ ಡೇಟಾ ಸ್ಕೇಲಾರ್ ಮೌಲ್ಯವಾಗಿರಬಾರದು.',
   'server.siteSettingsNotObject': 'ನಿರೀಕ್ಷಿತ ಆಬ್ಜೆಕ್ಟ್ ಅಥವಾ ನಲ್, {kind} ದೊರೆತಿದೆ.',
-  'server.customCssRefusal': 'ಕಸ್ಟಮ್ CSS: {refusal}',
+  'server.cssTooLarge':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಕಸ್ಟಮ್ CSS ಗರಿಷ್ಠ {max} ಬೈಟ್‌ಗಳಷ್ಟಿರಬಹುದು; ಇದು {bytes}.',
+  'server.cssImport': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: @import ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssDocument': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: @document ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssForeignUrl':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: url({url}) ಅನುಮತಿಸಲಾಗಿಲ್ಲ; ಒಂದು URL /files/ ಅಥವಾ /assets/ ಅಡಿಯಲ್ಲಿ ಒಂದು ಹಾದಿಯಾಗಿರಬೇಕು.',
+  'server.cssExpression': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: expression() ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssBehavior': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: behavior ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssMozBinding': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: -moz-binding ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssStyleBreakout': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: </style ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssBadUrl': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಈ url( ಮಾನ್ಯವಾದ CSS ಅಲ್ಲ.',
+  'server.cssUnclosedString':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಈ ಸ್ಟ್ರಿಂಗ್ ಮುಚ್ಚಲ್ಪಟ್ಟಿಲ್ಲ.',
+  'server.cssStrayClose': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: {bracket} ಏನೂ ಮುಚ್ಚುವುದಿಲ್ಲ.',
   'server.navNotArray': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ನ್ಯಾವಿಗೇಷನ್ ಅರೇ ಆಗಿರಬೇಕು',
   'server.navLinkMissingType': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ಲಿಂಕ್ ಪ್ರಕಾರ ಕಾಣೆಯಾಗಿದೆ',
   'server.navLinkMissingData': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ಲಿಂಕ್ ಡೇಟಾ ಕಾಣೆಯಾಗಿದೆ',
@@ -121,4 +134,31 @@ export const knServer: ServerCatalogue = {
   'server.settingsNotObject': 'ನಿರೀಕ್ಷಿತ ಒಂದು ಆಬ್ಜೆಕ್ಟ್.',
   'server.settingUnavailable': 'ಸೆಟ್ಟಿಂಗ್ {key} ಲಭ್ಯವಿಲ್ಲ.',
   'server.settingNotText': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್ ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotFlag': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸತ್ಯ, ಸುಳ್ಳು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.publicationTermsRemoved':
+    'ಪ್ರಕಟಿತ ಪದವನ್ನು ತೆಗೆದುಹಾಕಲು ಅಥವಾ ಮರುನಾಮಕರಣ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ: {terms}. ಅದನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
+  'server.publicationNamespaceFixed':
+    'ಪ್ರಕಟಿತ ಶಬ್ದಕೋಶವು ಅದರ ನೇಮ್‌ಸ್ಪೇಸ್ ಅನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತದೆ, ಆದ್ದರಿಂದ ಅದರ ಪದಗಳು ತಮ್ಮ URI ಗಳನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತವೆ.',
+  'server.publicationNotDeletable':
+    'ಪ್ರಕಟಿತ ಪದಗಳ ಪಟ್ಟಿ ಅಥವಾ ಶಬ್ದಕೋಶವನ್ನು ಅಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದರ ಪದಗಳನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
+  'server.publicationDeprecationFixed':
+    '"{term}" ನ ಡಿಪ್ರಿಕೇಶನ್ ಪ್ರಕಟವಾಗಿದೆ ಮತ್ತು ಅದನ್ನು ಹಿಂಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'server.publicationItemsList':
+    'ಐಟಂಗಳ ಪಟ್ಟಿಯನ್ನು ಪ್ರಕಟಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಪ್ರತಿ ಐಟಂ ಈಗಾಗಲೇ ತನ್ನದೇ ಆದ ವಿಳಾಸವನ್ನು ಹೊಂದಿದೆ.',
+  'server.publicationForeignNamespace':
+    'ನೇಮ್‌ಸ್ಪೇಸ್ {namespace} ಈ ಆರ್ಕೈವ್‌ನದ್ದಲ್ಲ. ಈ ಆರ್ಕೈವ್‌ನ /vocab/ ವಿಳಾಸದ ಅಡಿಯಲ್ಲಿ ಬರುವ ಶಬ್ದಕೋಶವನ್ನು ಪ್ರಕಟಿಸಿ, ಅಥವಾ w3id.org ಅಥವಾ purl.org ನಲ್ಲಿ ಪ್ರಕಟಿಸಿ.',
+  'server.publicationSlugInvalid':
+    'ವಿಳಾಸದ ಹೆಸರು ಸಣ್ಣ ಅಕ್ಷರಗಳು, ಅಂಕಿಗಳು ಮತ್ತು ಒಂದೇ ಹೈಫನ್ ಅನ್ನು ಬಳಸುತ್ತದೆ, ಗರಿಷ್ಠ 64 ಅಕ್ಷರಗಳು.',
+  'server.publicationSlugTaken': 'ವಿಳಾಸ /vocab/{slug}/ ಈಗಾಗಲೇ ಬಳಕೆಯಲ್ಲಿದೆ.',
+  'server.publicationNamespaceNotPersistent':
+    'ಈ ಆರ್ಕೈವ್‌ನದ್ದಲ್ಲದ ನೇಮ್‌ಸ್ಪೇಸ್ w3id.org ಅಥವಾ purl.org ನಲ್ಲಿರಬೇಕು ಮತ್ತು ಕೊನೆಯಲ್ಲಿ / ಅಥವಾ # ನೊಂದಿಗೆ ಕೊನೆಗೊಳ್ಳಬೇಕು.',
+  'server.publicationAddressFixed':
+    'ಪ್ರಕಟಿತ ಪದಗಳ ಪಟ್ಟಿ ಅಥವಾ ಶಬ್ದಕೋಶವು ಅದು ಮೊದಲು ಪ್ರಕಟವಾದ ವಿಳಾಸವನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತದೆ.',
+  'server.publicationTermNotPublished':
+    '"{term}" ಇನ್ನೂ ಪ್ರಕಟವಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಅದನ್ನು ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದನ್ನು ತೆಗೆದುಹಾಕಿ.',
+  'server.publicationUnknownTerm': '"{term}" ಈ ಪಟ್ಟಿಯ ಅಥವಾ ಶಬ್ದಕೋಶದ ಪದವಲ್ಲ.',
+  'server.publicationMatchInvalid': 'ಹೊಂದಾಣಿಕೆಯು ಸಂಪೂರ್ಣ http ಅಥವಾ https URI ಆಗಿರಬೇಕು.',
+  'server.publicationMatchTermLists': 'ಕೇವಲ ಪದಗಳ ಪಟ್ಟಿಯ ಪದಗಳು ಮಾತ್ರ ಅಧಿಕಾರಕ್ಕೆ ಲಿಂಕ್ ಆಗುತ್ತವೆ.',
+  'server.publicationTermIriInvalid': 'ಪದದ URI {uri} ಮಾನ್ಯವಾದ IRI ಅಲ್ಲ.',
 };

@@ -21,6 +21,7 @@ export type AdminPageId =
   | 'media'
   | 'sites'
   | 'resource-templates'
+  | 'term-lists'
   | 'fields'
   | 'standards'
   | 'users'
@@ -45,20 +46,12 @@ export interface AdminPage {
 
 export type PageGroupId = 'content' | 'describe' | 'admin';
 
-/**
- * Routes another unit adds a page row for. The nav lists them now so the
- * Describe order is settled, and shows each link once its row exists.
- */
-type PendingRoute = 'term-lists';
-
-export type NavRoute = AdminPageId | PendingRoute;
-
 export interface PageGroup {
   readonly id: PageGroupId;
   readonly titleKey: MessageKey;
-  readonly pages: readonly NavRoute[];
+  readonly pages: readonly AdminPageId[];
   /** A labelled run of links after the group's own, such as Describe's Advanced. */
-  readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly NavRoute[] };
+  readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly AdminPageId[] };
 }
 
 /**
@@ -138,6 +131,13 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     upstream: 'Admin/PropertyController.php browseAction',
     element: lazy(() =>
       import('../pages/fields/page').then((module) => ({ default: module.FieldsPage })),
+    ),
+  },
+  'term-lists': {
+    titleKey: 'page.termLists',
+    upstream: 'CustomVocab Controller/Admin/IndexController.php browseAction addAction editAction',
+    element: lazy(() =>
+      import('../pages/term-lists/page').then((module) => ({ default: module.TermListsPage })),
     ),
   },
   standards: {

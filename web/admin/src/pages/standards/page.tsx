@@ -6,6 +6,7 @@
  */
 import type { ComponentType, ReactElement } from 'react';
 import type { MessageKey } from '../../i18n';
+import { useLesson } from '../../app/lessons/lesson';
 import { useTranslator } from '../../i18n';
 import { useStandardsText } from './messages';
 import { PropertiesPage } from '../properties/page';
@@ -45,13 +46,19 @@ export const StandardsPage = ({
   const { t } = useTranslator();
   const text = useStandardsText();
   const [segment = 'vocabularies', param = null] = rest;
+  const lesson = useLesson('standards', param === null);
   if (!isStandardsTab(segment)) {
     return <p role="alert">{t('shell.noPage')}</p>;
   }
   const Page = TABS[segment].element;
   return (
     <>
-      {param === null ? <p className="lede">{text('standards.lede')}</p> : null}
+      {param === null ? (
+        <p className="lede">
+          {text('standards.lede')} {lesson.toggle}
+        </p>
+      ) : null}
+      {lesson.panel}
       <nav className="tabs" aria-label={t('page.standards')}>
         <ul>
           {STANDARDS_TABS.map((tab) => (

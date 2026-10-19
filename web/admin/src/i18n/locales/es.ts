@@ -421,6 +421,13 @@ export const es: Catalogue = {
   'siteSettingSort.dateDesc': 'Más recientes primero',
   'siteSettingChoice.locale.en': 'Inglés',
   'siteSettingChoice.locale.es': 'Español',
+  'siteSettingChoice.locale.hi': 'Hindi',
+  'siteSettingChoice.locale.mr': 'Maratí',
+  'siteSettingChoice.locale.ml': 'Malayálam',
+  'siteSettingChoice.locale.ta': 'Tamil',
+  'siteSettingChoice.locale.kn': 'Canarés',
+  'siteSettingChoice.locale.te': 'Telugu',
+  'siteSettingChoice.locale.ne': 'Nepalí',
   'siteSettingChoice.attachment_link_type.item': 'Página del elemento',
   'siteSettingChoice.attachment_link_type.media': 'Página del medio',
   'siteSettingChoice.attachment_link_type.original': 'Archivo original',
@@ -774,6 +781,8 @@ export const es: Catalogue = {
   'editor.outlineToggle': 'Mostrar el esquema',
   'preview.insertHere': 'Insertar un bloque aquí',
   'preview.insertIntoGroup': 'Añadir un bloque a este grupo',
+  // Term lists and the term picker.
+  'page.termLists': 'Listas de términos',
   // La página Elementos del sitio, el selector de elementos y las acciones de sitio de la lista de elementos.
   'siteItems.count': 'Elementos de este sitio: {count}',
   'siteItems.counting': 'Contando…',

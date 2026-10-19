@@ -25,6 +25,7 @@ import type {
   SiteCreate,
   TemplatePropertyWrite,
   UserId,
+  UserSettingsWrite,
   UserWrite,
   ValueWrite,
   VocabularyDiff,
@@ -41,7 +42,7 @@ export type WireBody = Readonly<Record<string, unknown>>;
 export type WriteMode = 'create' | 'update';
 
 /** A `{"o:id": N}` reference; `{"o:id": null}` clears the member. */
-const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
+export const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
 
 /**
  * `hydrateOwner`'s member: a create with no chosen owner omits it so the server
@@ -135,15 +136,21 @@ export const encodeUser = (write: UserWrite): WireBody => ({
   'o:email': write.email,
   'o:role': write.role,
   'o:is_active': write.isActive,
-  ...(write.localeSetting === undefined ? {} : encodeUserLocale(write.localeSetting)),
+  ...(write.localeSetting === undefined && write.lessonsHidden === undefined
+    ? {}
+    : encodeUserSettings({ locale: write.localeSetting, lessonsHidden: write.lessonsHidden })),
 });
 
 /**
- * The user's `locale` setting alone, the port's `o:user_settings` member. A
+ * The port's `o:user_settings` member, with only the keys the write names. A
  * `PATCH` with only this member leaves every other user field as stored.
  */
-export const encodeUserLocale = (locale: string): WireBody => ({
-  'o:user_settings': { locale },
+export const encodeUserSettings = (write: UserSettingsWrite): WireBody => ({
+  'o:user_settings': {
+    ...(write.locale === undefined ? {} : { locale: write.locale }),
+    ...(write.lessonsHidden === undefined ? {} : { romeka_hide_lessons: write.lessonsHidden }),
+    ...(write.lessonsSeen === undefined ? {} : { romeka_lessons_seen: write.lessonsSeen }),
+  },
 });
 
 export const encodeMedia = (write: MediaWrite): WireBody => ({
