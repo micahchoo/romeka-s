@@ -238,8 +238,6 @@ messages! {
     fn vocabulary_change_stale(name) = "\"{name}\" has changed since the comparison. Compare the file again.";
     /// A reviewed change to a member the vocabulary does not have.
     fn vocabulary_member_missing(name) = "\"{name}\" is not a member of this vocabulary.";
-    /// Two local names the port's schema folds to one (`COLLATE NOCASE`; upstream's is binary).
-    fn vocabulary_case_clash(first, second) = "\"{first}\" and \"{second}\" differ only in letter case, and this archive cannot store both.";
 
     // Users.
 

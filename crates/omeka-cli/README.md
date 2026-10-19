@@ -352,9 +352,15 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   the CLI or the API sets works in both. This crate held a PBKDF2 scheme of its
   own until the login routes landed; the session login and the CLI must share one
   scheme, and bcrypt is the one upstream uses.
-- Default vocabularies ship as `data/default-vocabularies.json`, extracted from
-  the four RDF files at the frozen SHA by `scripts/generate-default-vocabularies.py`.
-  There is no RDF import command yet.
+- Default vocabularies are upstream's four RDF files, bundled in
+  `omeka_api::vocab_import::defaults` and read with the API's RDF importer, as
+  `InstallDefaultVocabulariesTask` reads them with `RdfImporter`.
+  `tests/default_vocabularies.rs` checks a fresh install against an upstream
+  install read through its API. `romeka install` also corrects an install made
+  from the older JSON bundle, which gave every FOAF member its local name as its
+  label and no comment and lacked `foaf:givenname`: it adds a missing member and
+  replaces only text that is still that fallback, so an edited label is kept. A
+  member it adds goes after the existing ones, as upstream's Update adds it.
 - `BatchUpdate`'s data maps are a `term -> literals` shape, not the full API
   hydrate array.
 - `import media` derives `media_type` from the file extension; upstream sniffs

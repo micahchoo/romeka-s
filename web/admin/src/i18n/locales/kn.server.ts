@@ -86,8 +86,6 @@ export const knServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" ಅನ್ನು ಹೋಲಿಕೆ ಮಾಡಿದ ನಂತರ ಬದಲಾಗಿದೆ. ಫೈಲ್ ಅನ್ನು ಮತ್ತೆ ಹೋಲಿಸಿ.',
   'server.vocabularyMemberMissing': '"{name}" ಈ ಶಬ್ದಕೋಶದ ಸದಸ್ಯನಲ್ಲ.',
-  'server.vocabularyCaseClash':
-    '"{first}" ಮತ್ತು "{second}" ಕೇವಲ ಅಕ್ಷರಗಳ ಗಾತ್ರದಲ್ಲಿ ಮಾತ್ರ ಭಿನ್ನವಾಗಿವೆ, ಮತ್ತು ಈ ಆರ್ಕೈವ್ ಎರಡನ್ನೂ ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
   'server.nameEmpty': 'ಹೆಸರು ಖಾಲಿ ಇರಬಾರದು.',
   'server.emailTaken': 'ಇಮೇಲ್ {email} ಈಗಾಗಲೇ ಬಳಕೆಯಲ್ಲಿದೆ.',
   'server.userRoleRequired': 'ಬಳಕೆದಾರರಿಗೆ ಪಾತ್ರವಿರಬೇಕು.',

@@ -86,8 +86,6 @@ export const teServer: ServerCatalogue = {
   'server.vocabularyUrlStatus': 'URL వద్ద ఉన్న సర్వర్ {status} స్టేటస్‌తో సమాధానం ఇచ్చింది.',
   'server.vocabularyChangeStale': '"{name}" పోలికలో మార్పు చెందింది. ఫైల్‌ను మళ్ళీ పోల్చండి.',
   'server.vocabularyMemberMissing': '"{name}" ఈ వొకాబులరీలో సభ్యుడు కాదు.',
-  'server.vocabularyCaseClash':
-    '"{first}" మరియు "{second}" కేవలం అక్షరాల కేస్‌లో మాత్రమే తేడా ఉన్నాయి, మరియు ఈ ఆర్కైవ్ రెండింటినీ నిల్వ చేయలేదు.',
   'server.nameEmpty': 'పేరు ఖాళీగా ఉండకూడదు.',
   'server.emailTaken': 'ఈమెయిల్ {email} ఇప్పటికే ఉపయోగించబడింది.',
   'server.userRoleRequired': 'వినియోగదారులకు పాత్ర ఉండాలి.',

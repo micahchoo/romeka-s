@@ -81,8 +81,6 @@ export const neServer: ServerCatalogue = {
   'server.vocabularyUrlStatus': 'URL मा रहेको सर्भरले {status} स्थितिमा जवाफ दियो।',
   'server.vocabularyChangeStale': '"{name}" तुलनाबाट परिवर्तन भएको छ। फाइल फेरि तुलना गर्नुहोस्।',
   'server.vocabularyMemberMissing': '"{name}" यो शब्दावलीको सदस्य होइन।',
-  'server.vocabularyCaseClash':
-    '"{first}" र "{second}" केवल अक्षरको केसमा भिन्न छन्, र यो अभिलेखले दुवै भण्डारण गर्न सक्दैन।',
   'server.nameEmpty': 'नाम खाली हुन सक्दैन।',
   'server.emailTaken': 'इमेल {email} पहिले नै लिइएको छ।',
   'server.userRoleRequired': 'प्रयोगकर्ताहरूलाई एउटा भूमिका तोकिनुपर्छ।',

@@ -66,7 +66,6 @@
     "server.vocabularyUrlStatus": "The server at the URL answered with status {status}.",
     "server.vocabularyChangeStale": "\"{name}\" has changed since the comparison. Compare the file again.",
     "server.vocabularyMemberMissing": "\"{name}\" is not a member of this vocabulary.",
-    "server.vocabularyCaseClash": "\"{first}\" and \"{second}\" differ only in letter case, and this archive cannot store both.",
     "server.nameEmpty": "The name cannot be empty.",
     "server.emailTaken": "The email {email} is already taken.",
     "server.userRoleRequired": "Users must have a role.",

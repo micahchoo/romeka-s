@@ -123,26 +123,76 @@ async fn an_uploaded_file_imports_every_member_upstream_stores() {
 }
 
 /// Upstream stores FOAF's `givenName` and `givenname` side by side (its `local_name` is
-/// `utf8mb4_bin`); this schema folds case, so the import is refused before anything is written,
-/// naming the pair.
+/// `utf8mb4_bin`), and so does this schema: the import stores all 62 properties upstream does.
 #[tokio::test]
-async fn local_names_that_differ_only_in_case_are_refused_before_any_write() {
+async fn local_names_that_differ_only_in_case_import_as_two_members() {
     let (app, _seed) = seeded_router().await;
     let answer = import(&app, FOAF, "foaf", upload(&fixture("foaf.rdf"))).await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    let id = answer.json()["o:id"].as_u64().unwrap();
+    let properties = members(&app, "properties", id).await;
+    assert_eq!(properties, oracle("foaf", "properties"));
+    for local_name in ["givenName", "givenname"] {
+        assert!(
+            properties.iter().any(|(name, ..)| name == local_name),
+            "foaf:{local_name} is stored"
+        );
+    }
     assert_eq!(
-        answer.status,
-        StatusCode::UNPROCESSABLE_ENTITY,
-        "{}",
-        answer.body
+        members(&app, "resource_classes", id).await,
+        oracle("foaf", "classes")
     );
+}
+
+/// `RdfImporter::update` adds a member whose name differs from a stored one only in case.
+#[tokio::test]
+async fn an_update_adds_a_member_differing_only_in_case() {
+    let (app, _seed) = seeded_router().await;
+    let turtle = |members: &str| {
+        json!({
+            "import_type": "upload",
+            "format": "turtle",
+            "file": format!(
+                "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+                 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+                 @prefix ex: <{EX}> .\n{members}"
+            ),
+        })
+    };
+    let upper = "ex:givenName a rdf:Property ; rdfs:label \"Given name\" .\n";
+    let lower = "ex:givenname a rdf:Property ; rdfs:label \"Given name (old)\" .\n";
+    let created = import(&app, EX, "ex", turtle(upper)).await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let id = created.json()["o:id"].as_u64().unwrap();
+    let diff = post(
+        &app,
+        &format!("/api/vocabularies/{id}/diff"),
+        &json!({ "source": turtle(&format!("{upper}{lower}")) }),
+    )
+    .await;
+    assert_eq!(diff.status, StatusCode::OK, "{}", diff.body);
+    let diff = diff.json();
     assert_eq!(
-        source_errors(&answer),
+        diff["properties"]["new"],
+        json!([{ "o:local_name": "givenname", "o:label": "Given name (old)", "o:comment": null }])
+    );
+    let applied = post(&app, &format!("/api/vocabularies/{id}/diff/apply"), &diff).await;
+    assert_eq!(applied.status, StatusCode::OK, "{}", applied.body);
+    assert_eq!(
+        members(&app, "properties", id).await,
         [
-            "\"givenName\" and \"givenname\" differ only in letter case, and this archive cannot store both."
+            (
+                "givenName".to_string(),
+                "Given name".to_string(),
+                Value::Null
+            ),
+            (
+                "givenname".to_string(),
+                "Given name (old)".to_string(),
+                Value::Null
+            ),
         ]
     );
-    let list = send(app.clone(), get("/api/vocabularies?prefix=foaf", false)).await;
-    assert_eq!(list.json(), json!([]));
 }
 
 /// `RdfImporter::import`: a file with no member in the namespace is refused with upstream's
