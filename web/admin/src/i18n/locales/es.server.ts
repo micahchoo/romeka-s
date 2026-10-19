@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 79); the other
- * 31 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 83); the other
+ * 35 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -90,4 +90,8 @@ export const esServer: ServerCatalogue = {
   'server.navUrlMissingUrl': 'Navegación no válida: al enlace URL le falta la URL',
   'server.navUrlInvalidCharacter': 'Navegación no válida: el enlace URL contiene un carácter no válido',
   'server.navUrlInvalidScheme': 'Navegación no válida: el enlace URL tiene un esquema no válido',
+  'server.settingsDenied': 'Permiso denegado al usuario actual para que acceda a la configuración global.',
+  'server.settingsNotObject': 'Se esperaba un objeto.',
+  'server.settingUnavailable': 'El ajuste {key} no está disponible.',
+  'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
 };

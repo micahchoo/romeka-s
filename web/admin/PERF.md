@@ -504,9 +504,10 @@ before any route loads, on sign-in or on the first failed request, so it cannot 
 | --- | --- | --- |
 | main `a624b37` | 93157 | Decision 13 |
 | + admin locale (`admin/user-locale`) | 93418 | 261 B: the session step, the switch write, three client calls |
+| + translated server errors (`admin/i18n-errors`) | 93728 | 310 B: the boundary call and the locale's loader table |
 
-These are single builds on one machine. The translated server errors land next, measured on their
-own branch against this one.
+These are single builds on one machine. The pattern table and each locale's server catalogue are lazy
+chunks, fetched with the first error in a non-English locale. 480 B of the ceiling remain.
 
 **Budget.** `bundle.initialJsGzipBytes` moves from 93184 to 94208, one KiB. This is a stopgap. The
 English catalogue holds every page's strings and is eager. Splitting it into per-route namespaces,

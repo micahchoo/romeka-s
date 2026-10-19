@@ -21,6 +21,13 @@ export type ServerTranslate = (message: string) => string;
  */
 const SERVER_CATALOGUE_LOADERS = {
   es: () => import('./locales/es.server').then((module) => module.esServer),
+  hi: () => import('./locales/hi.server').then((module) => module.hiServer),
+  mr: () => import('./locales/mr.server').then((module) => module.mrServer),
+  ml: () => import('./locales/ml.server').then((module) => module.mlServer),
+  ta: () => import('./locales/ta.server').then((module) => module.taServer),
+  kn: () => import('./locales/kn.server').then((module) => module.knServer),
+  te: () => import('./locales/te.server').then((module) => module.teServer),
+  ne: () => import('./locales/ne.server').then((module) => module.neServer),
 } satisfies Readonly<
   Record<Exclude<Locale, typeof DEFAULT_LOCALE>, () => Promise<ServerCatalogue>>
 >;

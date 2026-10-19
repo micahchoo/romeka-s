@@ -25,6 +25,7 @@ use sqlx::SqlitePool;
 
 use crate::auth::Actor;
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::response::serialize;
 use crate::read::{Api, ApiResponse, db_error};
 
@@ -36,11 +37,6 @@ pub const API_SETTINGS: &[&str] = &[LOCALE];
 
 /// The member a user's settings travel in.
 pub const USER_SETTINGS_MEMBER: &str = "o:user_settings";
-
-/// The message a caller other than a global admin gets on the global settings.
-/// `AclFactory` grants `Omeka\Controller\Admin\Setting` to `global_admin` only.
-pub const SETTINGS_DENIED: &str =
-    "Permission denied for the current user to access the global settings.";
 
 /// One write a settings map asks for: a value to store, or `None` to remove the row.
 type Change = (&'static str, Option<Value>);
@@ -157,7 +153,7 @@ fn authorize_global(actor: &Actor) -> Result<(), ApiError> {
         Ok(())
     } else {
         Err(ApiError::PermissionDenied {
-            message: SETTINGS_DENIED.to_string(),
+            message: messages::SETTINGS_DENIED.to_string(),
         })
     }
 }
@@ -169,21 +165,19 @@ fn parse_map(member: &str, value: &Value) -> Result<Vec<Change>, ApiError> {
         ApiError::Validation(errors)
     };
     let Value::Object(map) = value else {
-        return Err(invalid("Expected an object.".to_string()));
+        return Err(invalid(messages::SETTINGS_NOT_OBJECT.to_string()));
     };
     let mut changes = Vec::with_capacity(map.len());
     for (key, stored) in map {
         let Some(known) = API_SETTINGS.iter().find(|known| **known == key.as_str()) else {
-            return Err(invalid(format!("The setting {key} is not available.")));
+            return Err(invalid(messages::setting_unavailable(key)));
         };
         let change = match stored {
             Value::Null => None,
             Value::String(text) if text.is_empty() => None,
             Value::String(_) => Some(stored.clone()),
             _ => {
-                return Err(invalid(format!(
-                    "The setting {key} must be a string or null."
-                )));
+                return Err(invalid(messages::setting_not_text(key)));
             }
         };
         changes.push((*known, change));

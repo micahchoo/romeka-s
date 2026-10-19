@@ -269,6 +269,17 @@ messages! {
     const NAV_URL_INVALID_CHARACTER = "Invalid navigation: URL link contains invalid character";
     /// `Site\Navigation\Link\Url::isValid`.
     const NAV_URL_INVALID_SCHEME = "Invalid navigation: URL link invalid scheme";
+
+    // The user and global settings (`crate::settings`).
+
+    /// `AclFactory` grants the settings controller to `global_admin` only.
+    const SETTINGS_DENIED = "Permission denied for the current user to access the global settings.";
+    /// An `o:user_settings` or global settings body that is not a JSON object.
+    const SETTINGS_NOT_OBJECT = "Expected an object.";
+    /// A settings key the admin has no field for.
+    fn setting_unavailable(key) = "The setting {key} is not available.";
+    /// A settings value that is neither a string nor null.
+    fn setting_not_text(key) = "The setting {key} must be a string or null.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

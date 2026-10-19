@@ -78,6 +78,10 @@
     "server.navUrlMissingLabel": "Invalid navigation: URL link missing label",
     "server.navUrlMissingUrl": "Invalid navigation: URL link missing URL",
     "server.navUrlInvalidCharacter": "Invalid navigation: URL link contains invalid character",
-    "server.navUrlInvalidScheme": "Invalid navigation: URL link invalid scheme"
+    "server.navUrlInvalidScheme": "Invalid navigation: URL link invalid scheme",
+    "server.settingsDenied": "Permission denied for the current user to access the global settings.",
+    "server.settingsNotObject": "Expected an object.",
+    "server.settingUnavailable": "The setting {key} is not available.",
+    "server.settingNotText": "The setting {key} must be a string or null."
   }
 }
