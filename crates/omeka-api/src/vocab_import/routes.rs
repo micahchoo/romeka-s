@@ -189,36 +189,9 @@ pub async fn import(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiError
     if members.is_empty() {
         return Err(source_error(vec![messages::VOCABULARY_NO_MEMBERS.into()]));
     }
-    let clashes: Vec<String> = [&members.classes, &members.properties]
-        .into_iter()
-        .flat_map(|terms| case_clashes(terms))
-        .collect();
-    if !clashes.is_empty() {
-        return Err(source_error(clashes));
-    }
     body.insert("o:class".into(), member_list(&members.classes));
     body.insert("o:property".into(), member_list(&members.properties));
     crate::write::vocab::create_vocabulary(api, &Payload::from_object(body)).await
-}
-
-/// Each pair of local names that differ only in ASCII letter case.
-///
-/// The `local_name` columns are `COLLATE NOCASE` here and `utf8mb4_bin` upstream, so FOAF's
-/// `givenName` and `givenname`, which upstream stores side by side, would collide at insert after
-/// the vocabulary row was written. The pair is refused before any write instead.
-fn case_clashes(terms: &[Term]) -> Vec<String> {
-    terms
-        .iter()
-        .enumerate()
-        .flat_map(|(at, first)| {
-            terms[at + 1..]
-                .iter()
-                .filter(|second| first.local_name.eq_ignore_ascii_case(&second.local_name))
-                .map(|second| {
-                    messages::vocabulary_case_clash(&first.local_name, &second.local_name)
-                })
-        })
-        .collect()
 }
 
 /// The `o:class` / `o:property` list `RdfImporter::import` hands the create.
@@ -349,17 +322,14 @@ fn plan(stored: &[MemberRow], changes: &MemberDiff) -> Plan {
             plan.problems.push(messages::LOCAL_NAME_EMPTY.into());
         } else if term.label.is_empty() {
             plan.problems.push(messages::LABEL_EMPTY.into());
-        } else if let Some(taken) = stored
+        } else if stored
             .iter()
             .map(|row| &row.local_name)
             .chain(plan.create.iter().map(|input| &input.local_name))
-            .find(|name| name.eq_ignore_ascii_case(&term.local_name))
+            .any(|name| *name == term.local_name)
         {
-            plan.problems.push(if *taken == term.local_name {
-                messages::local_name_taken(&term.local_name)
-            } else {
-                messages::vocabulary_case_clash(taken, &term.local_name)
-            });
+            plan.problems
+                .push(messages::local_name_taken(&term.local_name));
         } else {
             plan.create.push(MemberInput {
                 // `RdfImporter::update` builds the entity without an owner.

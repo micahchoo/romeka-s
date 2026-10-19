@@ -178,57 +178,45 @@ async fn seed(pool: &SqlitePool) -> (ItemSetId, UserId) {
 /// loads holds the same rows the served database holds. Returns each property's
 /// `prefix:localName` with its id.
 async fn install_vocabularies(pool: &SqlitePool) -> Vec<(String, PropertyId)> {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../omeka-cli/data/default-vocabularies.json"
-    );
-    let raw = std::fs::read_to_string(path).expect("default vocabularies file");
-    let data: serde_json::Value = serde_json::from_str(&raw).expect("default vocabularies json");
     let mut terms = Vec::new();
-    for vocabulary in data["vocabularies"].as_array().expect("vocabularies array") {
-        let prefix = vocabulary["prefix"].as_str().expect("prefix").to_string();
+    for vocabulary in &crate::vocab_import::defaults::DEFAULT_VOCABULARIES {
+        let members = vocabulary.members().expect("bundled vocabulary parses");
         let row = VocabularyRepo::new(pool)
             .create(&NewVocabulary {
                 owner_id: None,
-                namespace_uri: vocabulary["namespace_uri"]
-                    .as_str()
-                    .expect("namespace")
-                    .to_string(),
-                prefix: prefix.clone(),
-                label: vocabulary["label"].as_str().expect("label").to_string(),
-                comment: vocabulary["comment"].as_str().map(str::to_string),
+                namespace_uri: vocabulary.namespace_uri.to_string(),
+                prefix: vocabulary.prefix.to_string(),
+                label: vocabulary.label.to_string(),
+                comment: Some(vocabulary.comment.to_string()),
             })
             .await
             .expect("probe vocabulary");
-        for class in vocabulary["classes"].as_array().expect("classes") {
+        for class in members.classes {
             ClassRepo::new(pool)
                 .create(&NewClass {
                     owner_id: None,
                     vocabulary_id: row.id,
-                    local_name: class["local_name"]
-                        .as_str()
-                        .expect("local name")
-                        .to_string(),
-                    label: class["label"].as_str().expect("label").to_string(),
-                    comment: class["comment"].as_str().map(str::to_string),
+                    local_name: class.local_name,
+                    label: class.label,
+                    comment: class.comment,
                 })
                 .await
                 .expect("probe class");
         }
-        for property in vocabulary["properties"].as_array().expect("properties") {
-            let local_name = property["local_name"].as_str().expect("local name");
+        for property in members.properties {
+            let term = format!("{}:{}", vocabulary.prefix, property.local_name);
             let id = PropertyRepo::new(pool)
                 .create(&NewProperty {
                     owner_id: None,
                     vocabulary_id: row.id,
-                    local_name: local_name.to_string(),
-                    label: property["label"].as_str().expect("label").to_string(),
-                    comment: property["comment"].as_str().map(str::to_string),
+                    local_name: property.local_name,
+                    label: property.label,
+                    comment: property.comment,
                 })
                 .await
                 .expect("probe property")
                 .id;
-            terms.push((format!("{prefix}:{local_name}"), id));
+            terms.push((term, id));
         }
     }
     terms

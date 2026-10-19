@@ -5,7 +5,7 @@ answer for each one under `oracle/`.
 
 | File | Origin |
 | --- | --- |
-| `dcterms.rdf`, `dctype.rdf`, `bibo.owl`, `foaf.rdf` | upstream `application/data/vocabularies/` at the frozen SHA, the four files `InstallDefaultVocabulariesTask` imports |
+| `dcterms.rdf`, `dctype.rdf`, `bibo.owl`, `foaf.rdf` | upstream `application/data/vocabularies/` at the frozen SHA, the four files `InstallDefaultVocabulariesTask` imports; the same bytes as the install bundle in `data/vocabularies/` |
 | `dctype.ttl`, `dctype.nt`, `dctype.jsonld` | `dctype.rdf` re-serialised by upstream's EasyRdf (`Graph::serialise`) |
 | `skos.rdf` | `https://www.w3.org/2009/08/skos-reference/skos.rdf`, fetched 2026-10-18 |
 | `dcat.ttl` | `https://www.w3.org/ns/dcat.ttl`, fetched 2026-10-18; labels in many languages |

@@ -10,12 +10,14 @@
 //! - [`diff`] is `RdfImporter::calculateDiff`: new members, and changed labels and comments. It
 //!   also lists the stored members the file no longer has, which upstream does not compute. They
 //!   are kept, as upstream keeps them, and so are the values that use them.
+//! - [`defaults`] is upstream's four default vocabularies, the files `romeka install` reads.
 //! - [`routes`] answers the three Romeka routes that reach both, and [`fetch`] is the guarded URL
 //!   read behind a `url` source.
 //!
 //! The format and source choices are upstream's form (`Form/VocabularyForm`), so a reader who
 //! knows the upstream admin finds the same options.
 
+pub mod defaults;
 pub mod diff;
 pub mod fetch;
 mod graph;

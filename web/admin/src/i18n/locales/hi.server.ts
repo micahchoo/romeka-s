@@ -84,8 +84,6 @@ export const hiServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" की तुलना में परिवर्तन हुआ है। फ़ाइल की फिर से तुलना करें।',
   'server.vocabularyMemberMissing': '"{name}" इस शब्दावली का सदस्य नहीं है।',
-  'server.vocabularyCaseClash':
-    '"{first}" और "{second}" केवल अक्षर के केस में भिन्न हैं, और यह संग्रह दोनों को संग्रहीत नहीं कर सकता।',
   'server.nameEmpty': 'नाम खाली नहीं हो सकता।',
   'server.emailTaken': 'ईमेल {email} पहले से लिया जा चुका है।',
   'server.userRoleRequired': 'उपयोगकर्ताओं की एक भूमिका होनी चाहिए।',
