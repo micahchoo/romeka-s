@@ -42,7 +42,7 @@ const timingFailures = (budget, summary) => {
 const row = (label, actual, limit, unit) => {
   const cell = actual === null ? 'n/a' : unit === 'B' ? String(Math.round(actual)) : actual.toFixed(1);
   console.log(
-    `${label.padEnd(16)} ${cell.padStart(9)} ${unit.padEnd(4)} budget ${String(limit).padStart(6)}`,
+    `${label.padEnd(17)} ${cell.padStart(9)} ${unit.padEnd(4)} budget ${String(limit).padStart(6)}`,
   );
 };
 
@@ -54,9 +54,11 @@ const main = () => {
     (best, chunk) => (best === null || chunk.gzipBytes > best.gzipBytes ? chunk : best),
     null,
   );
+  const largestCatalogue = Math.max(0, ...measured.catalogueChunks.map((chunk) => chunk.gzipBytes));
   console.log(`dist measured from ${APP_ROOT}/dist`);
   row('initial js', measured.initialJsGzipBytes, budget.bundle.initialJsGzipBytes, 'B');
   row('initial css', measured.initialCssGzipBytes, budget.bundle.initialCssGzipBytes, 'B');
+  row('largest catalogue', largestCatalogue, budget.bundle.catalogueChunkGzipBytes, 'B');
   row('largest chunk', largest === null ? null : largest.gzipBytes, budget.bundle.chunkGzipBytes, 'B');
   console.log(
     `lazy chunks: ${String(measured.chunks.length)}, largest ${largest === null ? 'none' : largest.name}`,

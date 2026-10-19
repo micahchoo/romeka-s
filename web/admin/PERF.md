@@ -398,6 +398,45 @@ groups (`build.rolldownOptions.output.codeSplitting`), the messages and the mode
 when the route opens. A first Theme visit now fetches about 17.9 KB gzip where it fetched 6.3 KB; the
 first paint and every other route are unchanged.
 
+## Decision 11: only the active locale's catalogue loads (accepted, supersedes Decision 9's budget)
+
+**Premise.** Decision 9 named the limiter: the Spanish catalogue shipped to every English visitor and
+the reverse, in one shared chunk on the first paint.
+
+**Change.** `src/i18n/catalogues.ts` is now the locale registry: each locale maps to a loader. English
+resolves from the bundle, because it is the default, the fallback and the type every catalogue is
+checked against. Every other locale is a dynamic import, so Vite emits it as its own chunk. The store
+switches only after the chosen catalogue arrives, and `main.tsx` waits for the stored locale's
+catalogue before the first render, so a reload in Spanish paints Spanish first. Adding a locale is one
+file under `src/i18n/locales/` and one registry entry; no locale other than English enters the
+initial bundle.
+
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `c8bf5ae` built the
+same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 103180 | 91807 | 11373 B less for every visitor |
+| shared chunk (`jsx-runtime-*`) | 26363 | 15511 | the Spanish strings left it |
+| entry (`index-*`) | 73412 | 72891 | |
+| Spanish catalogue (`es-*`) | none | 12003 | fetched only in Spanish, before the first render |
+| largest route chunk | 9752 | 9748 | the sites route page |
+
+A visitor in Spanish now downloads 91807 + 12003 = 103810 B before the first paint, 630 B more than
+before, in one more request that starts after the entry runs. The timings do not resolve that
+request: a cold load timed in the browser, 15 runs per side interleaved over `vite preview` on
+localhost, gave a Spanish first paint of 64 ms median before and after, and every after median sat
+inside the before range. The box's load average was 287 during the run, so those timings bound the
+cost on localhost and say nothing about a slow network, where the extra request costs one round trip.
+
+**Budget.** `bundle.initialJsGzipBytes` moves 103424 to 93184, which leaves 1377 B. A catalogue chunk
+is not a route: a visitor in that locale waits on it before the first paint, and it is about as large
+as the English catalogue inside the initial payload. So it gets its own ceiling,
+`bundle.catalogueChunkGzipBytes`, 13312 B over the 12003 B Spanish chunk. `perf/bundle.mjs` tells a
+catalogue from a route chunk by its source in the Vite manifest (`src/i18n/locales/`). A new locale
+whose script needs more bytes per message, such as Devanagari in UTF-8, is measured against that
+ceiling when it lands.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
