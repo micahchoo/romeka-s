@@ -14,13 +14,13 @@
  * `useSyncExternalStore` hook, so a component under test renders without a
  * provider.
  */
-import { use, useSyncExternalStore } from 'react';
+import { use, useRef, useSyncExternalStore } from 'react';
 import { en } from './catalogue';
 import type { Catalogue, MessageKey } from './catalogue';
 import { CATALOGUE_LOADERS } from './catalogues';
 import { DEFAULT_LOCALE, parseLocale } from './locale';
 import type { Locale } from './locale';
-import { followLocale, loadNamespaces, tableFor } from './namespace';
+import { followLocale, loadNamespaces, tableFor, thenableFor } from './namespace';
 import type { KeyOf, Namespace, Table } from './namespace';
 import { createTranslator, translatorOver } from './translator';
 import type { Translator } from './translator';
@@ -126,6 +126,32 @@ const extend = (
 };
 
 /**
+ * A namespace's table for a render, suspending while it is in flight.
+ *
+ * React replays a component whose promise settled while it waited, and it
+ * mounts the hooks after the suspension point only from inside `use()`. So a
+ * read that suspended must call `use()` again on the replay, at the same
+ * place, although its table has meanwhile arrived; skipping it renders the
+ * later hooks as updates (React error 467, recovered as 520). `suspendedAt`
+ * is a ref, which React keeps across the replay, recording the reads that
+ * suspended. A read that never suspended never calls `use()`, so a render with
+ * every table at hand stays synchronous.
+ */
+export const readTable = <K extends string>(
+  namespace: Namespace<K>,
+  locale: Locale,
+  suspendedAt: Set<number>,
+  index: number,
+): Table<K> => {
+  const table = tableFor(namespace, locale);
+  if (table instanceof Promise) {
+    suspendedAt.add(index);
+    return use(table);
+  }
+  return suspendedAt.has(index) ? use(thenableFor(namespace, locale)) : table;
+};
+
+/**
  * The translator for the active locale over the shell catalogue and the
  * namespaces named, tracked so a switch re-renders the caller. A namespace
  * whose table has not arrived suspends the caller until it has, so the nearest
@@ -135,11 +161,10 @@ export const useTranslator = <const N extends readonly Namespace<string>[]>(
   ...namespaces: N
 ): Translator<MessageKey | KeyOf<N[number]>> => {
   const snapshot = useSyncExternalStore(subscribeLocale, activeSnapshot, activeSnapshot);
-  const tables: Table<string>[] = [];
-  for (const namespace of namespaces) {
-    const table = tableFor(namespace, snapshot.translator.locale);
-    tables.push(table instanceof Promise ? use(table) : table);
-  }
+  const suspendedAt = useRef<Set<number>>(new Set());
+  const tables = namespaces.map((namespace, index) =>
+    readTable(namespace, snapshot.translator.locale, suspendedAt.current, index),
+  );
   return extend(snapshot, namespaces, tables);
 };
 

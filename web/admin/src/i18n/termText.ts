@@ -24,12 +24,12 @@
  * first paint, and importing a namespace module is what defines it and starts
  * its fetch.
  */
-import { use, useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { DEFAULT_LOCALE } from './locale';
 import type { Locale } from './locale';
 import { defineNamespace, tableFor } from './namespace';
 import type { Namespace, NamespaceLoaders, NamespaceOptions, Table } from './namespace';
-import { useLocale } from './store';
+import { readTable, useLocale } from './store';
 
 /** A vocabulary file's terms, keyed by term. */
 export type TermFile = Readonly<Record<string, string>>;
@@ -119,8 +119,8 @@ export const vocabularyLabels = defineTermTable(
 
 /** A namespace's table in `locale`, suspending the caller until it has arrived. */
 export const useTermTable = (namespace: Namespace<string>, locale: Locale): Table<string> => {
-  const table = tableFor(namespace, locale);
-  return table instanceof Promise ? use(table) : table;
+  const suspendedAt = useRef<Set<number>>(new Set());
+  return readTable(namespace, locale, suspendedAt.current, 0);
 };
 
 /**

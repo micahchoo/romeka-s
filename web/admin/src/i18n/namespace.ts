@@ -47,6 +47,8 @@ interface Entry {
   readonly loaders: NamespaceLoaders<string>;
   readonly loaded: Map<Locale, Table<string>>;
   readonly pending: Map<Locale, Promise<Table<string>>>;
+  /** One settled thenable per loaded table, so `use()` returns it at once and every render calls it. */
+  readonly settled: Map<Locale, Promise<Table<string>>>;
 }
 
 const entries = new Map<Namespace<string>, Entry>();
@@ -118,6 +120,7 @@ export const defineNamespace = <K extends string>(
     english: en,
     loaders,
     loaded: new Map([[DEFAULT_LOCALE, en]]),
+    settled: new Map(),
     pending: new Map(),
   };
   entries.set(namespace, entry);
@@ -139,6 +142,33 @@ export const tableFor = <K extends string>(
   }
   entry.wanted = true;
   return entry.loaded.get(locale) ?? load(namespace, entry, locale);
+};
+
+/**
+ * The table to hand to `use()`, the same object on every render. React replays
+ * a component whose promise settled while it waited, and it mounts the hooks
+ * after the suspension point only from inside `use()`. A replay that skipped
+ * `use()` because the table had meanwhile arrived renders those hooks as
+ * updates (React error 467), so a caller always calls `use()` on this. A
+ * loaded table is a promise already marked fulfilled, which `use()` reads
+ * without suspending.
+ */
+export const thenableFor = <K extends string>(namespace: Namespace<K>, locale: Locale): Promise<Table<K>> => {
+  const table = tableFor(namespace, locale);
+  if (table instanceof Promise) {
+    return table;
+  }
+  const entry = entries.get(namespace);
+  if (entry === undefined) {
+    throw new Error(`namespace ${namespace.id} was not made by defineNamespace`);
+  }
+  const cached = entry.settled.get(locale);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const settled = Object.assign(Promise.resolve(table), { status: 'fulfilled', value: table });
+  entry.settled.set(locale, settled);
+  return settled;
 };
 
 /**
