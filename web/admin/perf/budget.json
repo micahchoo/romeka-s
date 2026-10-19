@@ -4,7 +4,7 @@
     "initialJsGzipBytes": 93184,
     "initialCssGzipBytes": 6144,
     "chunkGzipBytes": 10240,
-    "catalogueChunkGzipBytes": 13312
+    "catalogueChunkGzipBytes": 15360
   },
   "timings": {
     "fcp": 250,

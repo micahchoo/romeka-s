@@ -828,6 +828,13 @@ export const en = {
   'locale.label': 'Language',
   'locale.en': 'English',
   'locale.es': 'Español',
+  'locale.hi': 'हिन्दी',
+  'locale.mr': 'मराठी',
+  'locale.ml': 'മലയാളം',
+  'locale.ta': 'தமிழ்',
+  'locale.kn': 'ಕನ್ನಡ',
+  'locale.te': 'తెలుగు',
+  'locale.ne': 'नेपाली',
 
   // The page editor shell: the toolbar, the preview and the inspector.
   'editor.loading': 'Loading the editor...',

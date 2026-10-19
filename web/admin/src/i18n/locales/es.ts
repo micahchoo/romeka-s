@@ -790,6 +790,13 @@ export const es: Catalogue = {
   'locale.label': 'Idioma',
   'locale.en': 'English',
   'locale.es': 'Español',
+  'locale.hi': 'हिन्दी',
+  'locale.mr': 'मराठी',
+  'locale.ml': 'മലയാളം',
+  'locale.ta': 'தமிழ்',
+  'locale.kn': 'ಕನ್ನಡ',
+  'locale.te': 'తెలుగు',
+  'locale.ne': 'नेपाली',
 
   'editor.loading': 'Cargando el editor...',
   'editor.toolbar': 'Acciones del editor',

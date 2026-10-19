@@ -437,6 +437,36 @@ catalogue from a route chunk by its source in the Vite manifest (`src/i18n/local
 whose script needs more bytes per message, such as Devanagari in UTF-8, is measured against that
 ceiling when it lands.
 
+## Decision 12: seven Indic catalogues raise the catalogue ceiling (accepted)
+
+**Premise.** Decision 11 said a locale whose script needs more bytes per message would be measured
+against `bundle.catalogueChunkGzipBytes` when it lands. Hindi, Marathi, Malayalam, Tamil, Kannada,
+Telugu and Nepali land here. Their letters take 3 bytes each in UTF-8, where Spanish takes 1 or 2.
+
+**Change.** Seven catalogues under `src/i18n/locales/`, one registry entry each. The Theme page's own
+messages (Decision 10) now load the same way: English stays in the page chunk, and every other locale
+is a chunk under `src/pages/sites/themeEditor/locales/` that the page waits for with its site.
+
+**Measured.** `npm run build` then `npm run perf:check` on this branch, gzip bytes:
+
+| Asset | Bytes | Note |
+| --- | --- | --- |
+| initial js | 92026 | under 93184; only English is eager |
+| Hindi catalogue | 13800 | |
+| Marathi catalogue | 13949 | |
+| Nepali catalogue | 13843 | |
+| Telugu catalogue | 14149 | |
+| Kannada catalogue | 14110 | |
+| Tamil catalogue | 14253 | |
+| Malayalam catalogue | 14360 | the largest |
+| largest route chunk | 9789 | the Theme tables count as route chunks |
+
+These are single builds on one machine, and gzip output moves a few bytes with the input order.
+
+**Budget.** `bundle.catalogueChunkGzipBytes` moves from 13312 to 15360, 1000 B over Malayalam. That is
+the same margin Decision 11 left over Spanish. The route ceiling and the initial ceiling do not move.
+A visitor in an Indic language downloads about 2 KB more than a Spanish visitor before the first paint.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

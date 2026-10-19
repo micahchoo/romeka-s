@@ -1,19 +1,22 @@
 /**
- * The Theme page's messages, in English and Spanish.
+ * The Theme page's messages.
  *
- * They live beside the page rather than in `src/i18n/catalogue.ts` because
- * the main catalogues are part of the first paint, and the page's 150-odd
- * labels, help lines and choice names would take that payload over its
- * budget (`perf/budget.json`, `PERF.md`). Here they load with the page. The
- * guarantees are the main catalogue's: `es` is typed against `en`, so a key
- * added in English and missing in Spanish is a `tsc` error, and
- * `src/generated/themeSettings.json` names only keys this table holds.
+ * They live beside the page rather than in `src/i18n/catalogue.ts` because the
+ * English catalogue is part of the first paint, and the page's 150-odd labels,
+ * help lines and choice names would take that payload over its budget
+ * (`perf/budget.json`, `PERF.md`). English is here, in the page chunk; every
+ * other locale is its own chunk under `locales/`, loaded through
+ * [`THEME_LOADERS`] like the main catalogue's `CATALOGUE_LOADERS`. The
+ * guarantees are the main catalogue's: each table is typed against `en`, so a
+ * key added in English and missing elsewhere is a `tsc` error, a locale with
+ * no loader is a `tsc` error, and `src/generated/themeSettings.json` names only
+ * keys this table holds.
  */
-import { useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocale } from '../../../i18n';
 import type { Locale, MessageParams } from '../../../i18n';
 
-const en = {
+export const en = {
   'theme.design': 'Design',
   'theme.customCssTab': 'Custom CSS',
   'theme.sections': 'Theme sections',
@@ -149,140 +152,54 @@ const en = {
 /** A Theme page message id. */
 export type ThemeMessageKey = keyof typeof en;
 
-const es: Readonly<Record<ThemeMessageKey, string>> = {
-  'theme.design': 'Diseño',
-  'theme.customCssTab': 'CSS propio',
-  'theme.sections': 'Secciones del tema',
-  'theme.presets': 'Empezar con un estilo',
-  'theme.presetsHelp': 'Un clic aplica todos los valores. El encabezado, el pie y el CSS propio se mantienen.',
-  'themePreset.plain': 'Sencillo',
-  'themePreset.plainDescription': 'El aspecto original: letra del sistema y un azul suave.',
-  'themePreset.archive': 'Archivo',
-  'themePreset.archiveDescription': 'Papel cálido, letra con serifa y cabecera centrada.',
-  'themePreset.gallery': 'Galería',
-  'themePreset.galleryDescription': 'Oscuro y centrado en la imagen, casi sin adornos.',
-  'themePreset.editorial': 'Editorial',
-  'themePreset.editorialDescription': 'Títulos con serifa marcada sobre una columna estrecha.',
-  'themePreset.civic': 'Cívico',
-  'themePreset.civicDescription': 'Una banda de marca viva y letra sin serifa clara.',
-  'theme.palette': 'Paleta',
-  'theme.onBrand': 'Texto sobre la marca',
-  'theme.contrast': 'Contraste',
-  'theme.contrastPass': 'Todos los pares de texto y fondo cumplen WCAG AA (4,5:1).',
-  'theme.contrastFail': 'Pares por debajo de AA 4,5:1: {count}. No se puede guardar hasta que cumplan.',
-  'theme.contrastPair': '{foreground} sobre {background}',
-  'theme.contrastUse': 'Usar {colour}',
-  'theme.contrastUseLabel': 'Usar {colour} para {role}',
-  'theme.hexHint': 'Use un color hexadecimal, por ejemplo #1a5d8f.',
-  'theme.fineTune': 'Ajuste fino',
-  'theme.fineTuneHelp': 'Cambie valores sueltos. Un valor cambiado muestra un botón Restablecer.',
-  'theme.colours': 'Colores',
-  'theme.typography': 'Tipografía',
-  'theme.layout': 'Disposición',
-  'theme.headerFooter': 'Encabezado y pie de página',
-  'theme.reset': 'Restablecer',
-  'theme.resetLabel': 'Restablecer {label} al valor del estilo',
-  'theme.resetPreset': 'Restablecer el estilo',
-  'theme.export': 'Exportar el tema',
-  'theme.import': 'Importar un tema',
-  'theme.importError': 'Ese archivo no es un tema exportado desde esta página.',
-  'theme.imported': 'Tema importado. Guarde para conservarlo.',
-  'theme.blocked': 'Corrija los problemas de arriba antes de guardar.',
-  'theme.cssErrors': 'Hay problemas en su CSS. No se guarda hasta corregirlos.',
-  'theme.cssSize': '{used} de {max} bytes',
-  'theme.themeCss': 'CSS del tema',
-  'theme.themeCssHelp': 'Solo lectura. Su CSS se carga después de estas reglas, así que sus reglas ganan.',
-  'theme.variables': 'Variables',
-  'theme.variable': 'Variable',
-  'theme.value': 'Valor',
-  'theme.meaning': 'Significado',
-  'theme.stylesheet': 'Hoja de estilo completa del tema',
-  'theme.copy': 'Copiar',
-  'theme.copied': 'Copiado.',
-  'theme.variablesWait': 'Los valores aparecen cuando carga la vista previa.',
-  'theme.varBorder': 'Líneas y bordes: el color del texto mezclado con el fondo.',
-  'theme.varSpace': 'Los pasos de espaciado, según la densidad.',
-  'theme.varRadiusSm': 'El radio de esquina menor.',
-  'theme.varFontSize': 'Un tamaño de texto, según el tamaño base y la escala.',
-  'theme.varLineHeight': 'El interlineado del cuerpo, según la densidad.',
-  'themeSetting.preset': 'Estilo',
-  'themeSetting.presetHelp': 'El aspecto del que parte el sitio.',
-  'themeSetting.derivePalette': 'Crear la paleta a partir del color de marca',
-  'themeSetting.derivePaletteHelp': 'Activado: cada color sale de la marca y cumple el contraste. Desactivado: los colores del estilo.',
-  'themeSetting.brandColor': 'Color de marca',
-  'themeSetting.brandColorHelp': 'Bandas del encabezado, botones sólidos y la marca de la página actual.',
-  'themeSetting.colorScheme': 'Esquema de color',
-  'themeSetting.colorSchemeHelp': 'Claro, oscuro o según el sistema del lector.',
-  'themeSetting.accentColor': 'Color de acento',
-  'themeSetting.accentColorHelp': 'Énfasis pequeño, como el enlace de búsqueda avanzada.',
-  'themeSetting.backgroundColor': 'Fondo de la página',
-  'themeSetting.backgroundColorHelp': 'Detrás de todo el contenido.',
-  'themeSetting.surfaceColor': 'Superficie',
-  'themeSetting.surfaceColorHelp': 'Tarjetas, el banner y otras zonas interiores.',
-  'themeSetting.textColor': 'Texto',
-  'themeSetting.textColorHelp': 'El texto y los títulos.',
-  'themeSetting.mutedColor': 'Texto atenuado',
-  'themeSetting.mutedColorHelp': 'Pies de foto, fechas y otro texto secundario.',
-  'themeSetting.linkColor': 'Enlace',
-  'themeSetting.linkColorHelp': 'Los enlaces del texto.',
-  'themeSetting.headingFont': 'Fuente de los títulos',
-  'themeSetting.headingFontHelp': 'Los títulos y el título del sitio.',
-  'themeSetting.bodyFont': 'Fuente del cuerpo',
-  'themeSetting.bodyFontHelp': 'El resto del texto.',
-  'themeSetting.baseFontSize': 'Tamaño de fuente base (px)',
-  'themeSetting.baseFontSizeHelp': 'El tamaño del texto. Los títulos crecen a partir de él.',
-  'themeSetting.typeRatio': 'Proporción de la escala tipográfica',
-  'themeSetting.typeRatioHelp': 'Cuánto mayor es cada nivel de título que el siguiente.',
-  'themeSetting.density': 'Densidad',
-  'themeSetting.densityHelp': 'El espacio alrededor y entre el contenido.',
-  'themeSetting.cornerRadius': 'Radio de las esquinas (px)',
-  'themeSetting.cornerRadiusHelp': 'Cuán redondeadas son las esquinas.',
-  'themeSetting.contentWidth': 'Ancho del contenido',
-  'themeSetting.contentWidthHelp': 'Cuánto se ensanchan el contenido y el encabezado en una pantalla grande.',
-  'themeSetting.headerLayout': 'Disposición del encabezado',
-  'themeSetting.headerLayoutHelp': 'Dónde van el logotipo, el título y el menú.',
-  'themeSetting.headerStyle': 'Estilo del encabezado',
-  'themeSetting.headerStyleHelp': 'Cómo se separa el encabezado de la página.',
-  'themeSetting.buttonStyle': 'Estilo de los botones',
-  'themeSetting.buttonStyleHelp': 'El aspecto de los botones.',
-  'themeSetting.logo': 'Logotipo',
-  'themeSetting.logoHelp': 'Una imagen antes del título del sitio.',
-  'themeSetting.banner': 'Imagen del banner',
-  'themeSetting.bannerHelp': 'Una imagen ancha encima del encabezado.',
-  'themeSetting.bannerText': 'Texto del banner',
-  'themeSetting.bannerTextHelp': 'Una línea corta en el banner.',
-  'themeSetting.footerText': 'Texto del pie de página',
-  'themeSetting.footerTextHelp': 'Texto al pie de cada página.',
-  'themeSetting.customCss': 'CSS propio',
-  'themeSetting.customCssHelp': 'Se carga después del tema, así que sus reglas ganan. url() solo puede nombrar /files/ y /assets/ de este sitio.',
-  'themeChoice.light': 'Claro',
-  'themeChoice.dark': 'Oscuro',
-  'themeChoice.auto': 'Automático',
-  'themeChoice.compact': 'Compacta',
-  'themeChoice.comfortable': 'Cómoda',
-  'themeChoice.spacious': 'Amplia',
-  'themeChoice.narrow': 'Estrecho',
-  'themeChoice.standard': 'Normal',
-  'themeChoice.wide': 'Ancho',
-  'themeChoice.logoLeft': 'Logotipo a la izquierda',
-  'themeChoice.centred': 'Centrado',
-  'themeChoice.plain': 'Línea fina',
-  'themeChoice.band': 'Banda de marca',
-  'themeChoice.rule': 'Línea doble',
-  'themeChoice.minimal': 'Mínimo',
-  'themeChoice.soft': 'Suave',
-  'themeChoice.solid': 'Sólido',
-  'themeChoice.outline': 'Contorno',
-  'themeChoice.systemSans': 'Sin serifa del sistema',
-  'themeChoice.systemSerif': 'Con serifa del sistema',
-  'themeChoice.humanist': 'Sin serifa humanista',
-  'themeChoice.geometric': 'Sin serifa geométrica',
-  'themeChoice.transitionalSerif': 'Serifa de transición',
-  'themeChoice.didone': 'Serifa de alto contraste',
-  'themeChoice.mono': 'Monoespaciada',
+/** A complete Theme page table: every message id, no fallback at read time. */
+export type ThemeMessages = Readonly<Record<ThemeMessageKey, string>>;
+
+/** How each locale's table arrives. `Record<Locale, …>` makes a missing locale a `tsc` error. */
+const THEME_LOADERS: Readonly<Record<Locale, () => Promise<ThemeMessages>>> = {
+  en: () => Promise.resolve(en),
+  es: () => import('./locales/es').then((module) => module.es),
+  hi: () => import('./locales/hi').then((module) => module.hi),
+  mr: () => import('./locales/mr').then((module) => module.mr),
+  ml: () => import('./locales/ml').then((module) => module.ml),
+  ta: () => import('./locales/ta').then((module) => module.ta),
+  kn: () => import('./locales/kn').then((module) => module.kn),
+  te: () => import('./locales/te').then((module) => module.te),
+  ne: () => import('./locales/ne').then((module) => module.ne),
 };
 
-const MESSAGES: Readonly<Record<Locale, Readonly<Record<ThemeMessageKey, string>>>> = { en, es };
+const loaded = new Map<Locale, ThemeMessages>([['en', en]]);
+
+/**
+ * The active locale's table, or `null` until the first one arrives. A later
+ * locale switch keeps the previous table until the new one loads, as the main
+ * store keeps its translator, so the page never unmounts a draft to wait.
+ */
+export const useThemeMessages = (): ThemeMessages | null => {
+  const locale = useLocale();
+  const [table, setTable] = useState<ThemeMessages | null>(() => loaded.get(locale) ?? null);
+  useEffect(() => {
+    const cached = loaded.get(locale);
+    if (cached !== undefined) {
+      setTable(cached);
+      return undefined;
+    }
+    let current = true;
+    void THEME_LOADERS[locale]().then((messages) => {
+      loaded.set(locale, messages);
+      if (current) {
+        setTable(messages);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [locale]);
+  return table;
+};
+
+/** The table the page renders with. English outside a provider, as in a component test. */
+export const ThemeMessagesContext = createContext<ThemeMessages>(en);
 
 /** Every Theme page message id. */
 export const THEME_MESSAGE_KEYS: ReadonlySet<string> = new Set(Object.keys(en));
@@ -299,12 +216,13 @@ const interpolate = (template: string, params: MessageParams | undefined): strin
         return value === undefined ? match : String(value);
       });
 
-/** The Theme page's message lookup in the current locale. */
+/** The Theme page's message lookup in the table [`ThemeMessagesContext`] provides. */
 export const useThemeText = (): ((key: ThemeMessageKey, params?: MessageParams) => string) => {
-  const locale = useLocale();
-  return useMemo(() => {
-    const messages = MESSAGES[locale];
-    return (key: ThemeMessageKey, params?: MessageParams): string =>
-      interpolate(messages[key], params);
-  }, [locale]);
+  const messages = useContext(ThemeMessagesContext);
+  return useMemo(
+    () =>
+      (key: ThemeMessageKey, params?: MessageParams): string =>
+        interpolate(messages[key], params),
+    [messages],
+  );
 };
