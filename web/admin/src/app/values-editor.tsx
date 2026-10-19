@@ -6,7 +6,7 @@ import { lazy, Suspense, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
 import { useTranslator } from '../i18n';
-import type { Translator } from '../i18n';
+import type { KeyOf, MessageKey, Translator } from '../i18n';
 import { patchValue, removeValue } from './draft';
 import type { ResourceDraft, ValueDraft } from './draft';
 import {
@@ -24,6 +24,10 @@ import { useDescribeText } from './describe-messages';
 import { useLesson } from './lessons/lesson';
 import { isLocalTerm } from './local-fields';
 import { TermHelp, StandardTermPicker } from './standard-term-picker';
+import { common } from '../i18n/namespaces/common';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common>;
 
 // Most resources hold no term list value, so the picker loads on first use.
 const TermPicker = lazy(() =>
@@ -39,7 +43,7 @@ const CORE_TYPE_LABELS = {
 const isCoreType = (type: string): type is keyof typeof CORE_TYPE_LABELS =>
   type in CORE_TYPE_LABELS;
 
-const typeLabel = (type: string, dataTypes: readonly DataType[], t: Translator['t']): string => {
+const typeLabel = (type: string, dataTypes: readonly DataType[], t: Translator<MessageId>['t']): string => {
   if (isCoreType(type)) {
     return t(CORE_TYPE_LABELS[type]);
   }
@@ -68,7 +72,7 @@ const ValueRow = ({
   draft,
   onChange,
 }: ValueRowProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const describe = useDescribeText();
   const id = (suffix: string): string => `${idPrefix}-${value.key}-${suffix}`;
   const patch = (next: Partial<ValueDraft>): void => {
@@ -232,7 +236,7 @@ const FieldGroup = ({
   onChange,
   lessons,
 }: FieldGroupProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const labelId = `${idPrefix}-field-${String(field.propertyId)}-label`;
   const rule = field.rule;
   const required = useLesson('required', lessons.required);
@@ -299,7 +303,7 @@ interface AddFieldProps extends Change {
 
 /** "Add another field": a plain-words search over every property. */
 const AddField = ({ properties, draft, onChange, createField }: AddFieldProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   return (
     <div className="add-field">
       <StandardTermPicker
@@ -342,7 +346,7 @@ export const ValuesEditor = ({
   createField,
   showLessons = false,
 }: ValuesEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common);
   const [created, setCreated] = useState<readonly Property[]>([]);
   const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
   const fields = layoutFields(draft.values, template, properties);

@@ -45,12 +45,10 @@ describe('translator', () => {
 
   it('translator_fills_named_placeholders', async () => {
     const en = await translator('en');
-    expect(en.t('list.pager', { page: 1, lastPage: 3, total: 60, resource: 'items' })).toBe(
-      'Page 1 of 3 (60 items) ',
-    );
-    expect(en.t('route.invalidItemId', { param: 'abc' })).toBe('"abc" is not a valid item id.');
+    expect(en.t('format.bytes', { size: 2048 })).toBe('2048 bytes');
+    expect(en.t('format.httpSuffix', { status: 422 })).toBe(' (HTTP 422)');
     // A placeholder with no value stays as written rather than becoming `undefined`.
-    expect(en.t('list.pager', { page: 1 })).toContain('{lastPage}');
+    expect(en.t('format.bytes', { status: 1 })).toContain('{size}');
   });
 
   it('translator_formats_numbers_in_the_locale', async () => {

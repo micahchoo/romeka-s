@@ -13,6 +13,7 @@ import { api } from '../api/client';
 import { useTranslator } from '../i18n';
 import { formatError } from './format';
 import { useSave } from './save';
+import { account } from '../i18n/namespaces/account';
 
 export interface PasswordPageProps {
   /** The one-time key the URL carried, or `null` when the link has none. */
@@ -20,7 +21,7 @@ export interface PasswordPageProps {
 }
 
 export const PasswordPage = ({ passwordKey }: PasswordPageProps): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(account);
   const { t } = translator;
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
