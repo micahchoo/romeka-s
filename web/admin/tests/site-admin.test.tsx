@@ -12,6 +12,7 @@ import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
 import { siteSettingDrafts, siteSettingsWire } from '../src/pages/sites/siteSettingsSchema';
 import { SITE_SETTINGS_REGISTRY } from '../src/pages/sites/siteSettingsRegistry';
+import { CATALOGUES } from '../src/i18n/catalogues';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
 
@@ -393,24 +394,128 @@ describe('site users', () => {
   });
 });
 
-describe('site settings', () => {
-  it('site_settings_patch_the_map_with_the_schema_defaults_filled_in', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return usersRoute(url) ?? notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'settings']} />);
+const propertiesRoute = (url: URL): Response | null =>
+  url.pathname === '/api/properties' ? listResponse(loadFixture('properties-page.json'), 2) : null;
 
-    const title = await screen.findByLabelText('Installation title');
+/** The settings page against a site whose stored map is `stored`. */
+const renderSettings = (
+  stored: Readonly<Record<string, unknown>> = {},
+): ReturnType<typeof installFetch> => {
+  const raw = site();
+  const base = isRecord(raw) ? raw : {};
+  const current = isRecord(base['o:site_settings']) ? base['o:site_settings'] : {};
+  const document = { ...base, 'o:site_settings': { ...current, ...stored } };
+  const fetchMock = installFetch((url) => {
+    if (url.pathname === '/api/sites/1') {
+      return jsonResponse(document);
+    }
+    return usersRoute(url) ?? propertiesRoute(url) ?? notFound();
+  });
+  render(<SitesPage param="1" rest={['1', 'settings']} />);
+  return fetchMock;
+};
+
+const savedSettings = async (
+  fetchMock: ReturnType<typeof installFetch>,
+): Promise<Record<string, unknown>> => {
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect(await screen.findByText('Saved.')).toBeInTheDocument();
+  const body = first(pagePatch(fetchMock));
+  const settings = body['o:site_settings'];
+  if (!isRecord(settings)) {
+    throw new Error('the save sent no o:site_settings map');
+  }
+  return settings;
+};
+
+/** The keys no renderer reads (no accessor caller outside `settings.rs`). */
+const UNREAD_KEYS = {
+  show_value_annotations: 'expanded',
+  item_media_embed: true,
+  vocabulary_scope: 'cross-site',
+  search_apply_templates: [3, 4],
+  search_restrict_templates: true,
+  iiif_viewer_sidebar: true,
+} as const;
+
+describe('site settings', () => {
+  it('every_visible_setting_has_a_label_help_and_group_in_both_locales', () => {
+    expect(SITE_SETTINGS_REGISTRY.settings.length).toBeGreaterThan(0);
+    for (const spec of SITE_SETTINGS_REGISTRY.settings) {
+      for (const catalogue of Object.values(CATALOGUES)) {
+        expect(catalogue[spec.labelKey].trim(), spec.key).not.toBe('');
+        expect(catalogue[spec.helpKey].trim(), spec.key).toMatch(/\.$/);
+      }
+      expect(spec.group, spec.key).toBeTruthy();
+    }
+  });
+
+  it('the_form_shows_six_groups_with_advanced_collapsed_and_no_unread_setting', async () => {
+    renderSettings();
+    await screen.findByLabelText('Name in the browser tab');
+    for (const legend of ['Browsing', 'Search', 'Item and media pages', 'Language']) {
+      expect(screen.getByRole('group', { name: legend })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('group', { name: 'Navigation and chrome' })).toBeInTheDocument();
+    const advanced = screen.getByText('Advanced').closest('details');
+    expect(advanced).not.toBeNull();
+    expect(advanced?.open).toBe(false);
+    expect(screen.getByLabelText('Title shown in lists')).toHaveAccessibleDescription(
+      "Which field to show as each item's title on browse pages. Usually Title.",
+    );
+    for (const key of Object.keys(UNREAD_KEYS)) {
+      expect(document.getElementById(`site-setting-${key}`)).toBeNull();
+    }
+  });
+
+  it('a_save_leaves_the_unread_settings_out_so_their_rows_stay', async () => {
+    const fetchMock = renderSettings(UNREAD_KEYS);
+    fireEvent.change(await screen.findByLabelText('Name in the browser tab'), {
+      target: { value: 'Archive' },
+    });
+    const settings = await savedSettings(fetchMock);
+    expect(settings['installation_title']).toBe('Archive');
+    for (const key of Object.keys(UNREAD_KEYS)) {
+      expect(settings).not.toHaveProperty(key);
+    }
+  });
+
+  it('the_browse_title_is_picked_from_the_properties_and_stored_as_its_term', async () => {
+    const fetchMock = renderSettings({ browse_body_property_term: 'foaf:name' });
+    const heading = await screen.findByLabelText('Title shown in lists');
+    expect(within(heading).getByRole('option', { name: 'Title (dcterms:title)' })).toBeInTheDocument();
+    // A stored term the property list lacks stays selected instead of vanishing.
+    expect(screen.getByLabelText('Text shown under each title')).toHaveValue('foaf:name');
+    const [search] = screen.getAllByRole('searchbox', { name: 'Search fields' });
+    if (search === undefined) {
+      throw new Error('the browse title picker has no search box');
+    }
+    fireEvent.change(search, { target: { value: 'desc' } });
+    expect(within(heading).queryByRole('option', { name: 'Title (dcterms:title)' })).toBeNull();
+    fireEvent.change(heading, { target: { value: 'dcterms:description' } });
+    const settings = await savedSettings(fetchMock);
+    expect(settings['browse_heading_property_term']).toBe('dcterms:description');
+    expect(settings['browse_body_property_term']).toBe('foaf:name');
+  });
+
+  it('the_sort_choices_read_as_words', async () => {
+    renderSettings();
+    const by = await screen.findByLabelText('Sort by');
+    const order = screen.getByLabelText('Sort order');
+    expect(within(order).getByRole('option', { name: 'Newest first' })).toBeInTheDocument();
+    fireEvent.change(by, { target: { value: 'title' } });
+    expect(within(by).getByRole('option', { name: 'Title' })).toBeInTheDocument();
+    expect(within(order).getByRole('option', { name: 'A to Z' })).toBeInTheDocument();
+  });
+
+  it('site_settings_patch_the_map_with_the_schema_defaults_filled_in', async () => {
+    const fetchMock = renderSettings();
+
+    const title = await screen.findByLabelText('Name in the browser tab');
     expect(title).toHaveValue('Library');
-    expect(screen.getByLabelText('Show page pagination')).not.toBeChecked();
+    expect(screen.getByLabelText('Previous and next page links')).not.toBeChecked();
     fireEvent.change(title, { target: { value: 'Archive' } });
-    fireEvent.click(screen.getByLabelText('Show page pagination'));
+    fireEvent.click(screen.getByLabelText('Previous and next page links'));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
