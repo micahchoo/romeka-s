@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
-import { encodeSiteNavigation } from '../../api/write';
+import { encodeSiteHomepage, encodeSiteNavigation } from '../../api/write';
 import type { PageId, Site, SiteId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus } from '../../app/fields';
@@ -57,17 +57,22 @@ const PageRow = ({
   site,
   page,
   isHomepage,
+  isExplicitHomepage,
   inNavigation,
   busy,
   onSetHomepage,
+  onClearHomepage,
   onAddToNavigation,
 }: {
   readonly site: Site;
   readonly page: HubPage;
   readonly isHomepage: boolean;
+  /** The site names this page as its homepage, rather than following the menu. */
+  readonly isExplicitHomepage: boolean;
   readonly inNavigation: boolean;
   readonly busy: boolean;
   readonly onSetHomepage: () => void;
+  readonly onClearHomepage: () => void;
   readonly onAddToNavigation: () => void;
 }): ReactElement => {
   const { t } = useTranslator();
@@ -113,6 +118,11 @@ const PageRow = ({
               {t('siteHub.setHomepage')}
             </button>
           )}
+          {isExplicitHomepage ? (
+            <button type="button" className="link-button" disabled={busy} onClick={onClearHomepage}>
+              {t('siteHub.clearHomepage')}
+            </button>
+          ) : null}
         </span>
       </td>
     </tr>
@@ -162,10 +172,14 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
                   site={site}
                   page={page}
                   isHomepage={homepage === page.id}
+                  isExplicitHomepage={site.homepage?.id === page.id}
                   inNavigation={inNavigation.has(page.id)}
                   busy={busy}
                   onSetHomepage={() => {
-                    patch({ 'o:homepage': { 'o:id': page.id } });
+                    patch(encodeSiteHomepage(page.id));
+                  }}
+                  onClearHomepage={() => {
+                    patch(encodeSiteHomepage(null));
                   }}
                   onAddToNavigation={() => {
                     patch(encodeSiteNavigation([...site.navigation, pageLinkJson(page.id)]));

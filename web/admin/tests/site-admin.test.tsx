@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isUnknownArray } from '../src/api/parse';
+import { isRecord, isUnknownArray } from '../src/api/parse';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
@@ -116,6 +116,34 @@ describe('site hub', () => {
         ],
       },
     ]);
+  });
+
+  it('hub_clears_an_explicit_homepage_with_one_null_member_and_follows_the_menu', async () => {
+    const stored = site();
+    if (!isRecord(stored)) {
+      throw new Error('the site fixture is not an object');
+    }
+    const named = { ...stored, 'o:homepage': { '@id': 'http://localhost/api/site_pages/2', 'o:id': 2 } };
+    const followsMenu = { ...stored, 'o:homepage': null };
+    const fetchMock = installFetch((url, init) => {
+      if (url.pathname === '/api/sites/1') {
+        return jsonResponse(init?.method === 'PATCH' ? followsMenu : named);
+      }
+      return sitePagesRoute(url) ?? notFound();
+    });
+    render(<SitesPage param="1" rest={['1']} />);
+
+    const draft = await screen.findByRole('row', { name: /Draft/ });
+    const welcome = screen.getByRole('row', { name: /Welcome/ });
+    expect(draft).toHaveTextContent('Homepage');
+    expect(within(welcome).queryByRole('button', { name: 'Use the first menu page' })).toBeNull();
+    fireEvent.click(within(draft).getByRole('button', { name: 'Use the first menu page' }));
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+
+    expect(pagePatch(fetchMock)).toEqual([{ 'o:homepage': null }]);
+    expect(draft).not.toHaveTextContent('Homepage');
+    expect(welcome).toHaveTextContent('Homepage');
+    expect(screen.queryByRole('button', { name: 'Use the first menu page' })).toBeNull();
   });
 
   it('every_site_screen_shares_one_breadcrumb_heading_and_tab_bar', async () => {

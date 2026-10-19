@@ -1,16 +1,10 @@
 /**
  * The site's own members (`SiteForm`: title, slug, theme, summary, owner,
  * visibility, assign new items), as the Settings tab and the Add site form edit
- * them.
- *
- * Upstream's edit form saves them with a partial update
- * (`SiteAdmin/IndexController::editAction`, `isPartial => true`). A full `PUT`
- * would also reset `o:page`, `o:navigation`, `o:item_pool` and
- * `o:site_item_set`, and an absent `o:page` deletes every page of the site.
+ * them. `encodeSiteInfo` (`api/write.ts`) is the body they save with.
  */
 import type { ReactElement } from 'react';
 import type { Site, User, UserId } from '../../api/types';
-import type { WireBody } from '../../api/write';
 import { CheckboxField, OptionSelect, TextField } from '../../app/fields';
 import { userOptions } from '../../app/options';
 import { useTranslator } from '../../i18n';
@@ -40,20 +34,6 @@ export const siteInfoOf = (site: Site): SiteInfo => ({
   isPublic: site.isPublic,
   assignNewItems: site.assignNewItems,
 });
-
-/** The partial update body. An unset owner is left as stored, as the PUT form did. */
-export const siteInfoBody = (info: SiteInfo): WireBody => {
-  const summary = info.summary.trim();
-  return {
-    'o:title': info.title.trim(),
-    'o:slug': info.slug.trim(),
-    'o:theme': info.theme,
-    'o:summary': summary === '' ? null : summary,
-    'o:is_public': info.isPublic,
-    'o:assign_new_items': info.assignNewItems,
-    ...(info.owner === null ? {} : { 'o:owner': { 'o:id': info.owner } }),
-  };
-};
 
 /**
  * The slug the server would derive from a title (`SiteSlugTrait::slugify`):
