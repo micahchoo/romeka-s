@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
@@ -17,10 +17,12 @@ const ADMIN_DIR: &str = concat!(
 /// The site's copy of the label tables.
 const SITE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/data/vocabulary-labels");
 
-/// The install seed: the English every fresh install stores.
-const SEED: &str = concat!(
+/// A fresh upstream install read back through its API: the English every
+/// install stores. `omeka-cli`'s `default_vocabularies` test holds
+/// `romeka install` to it.
+const INSTALLED: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../omeka-cli/data/default-vocabularies.json"
+    "/../omeka-cli/tests/fixtures/oracle-default-vocabularies.json"
 );
 
 /// Every `<tag>.json` table of one kind, by tag. `sources.json` is the
@@ -115,49 +117,54 @@ fn every_locale_names_every_term() {
     }
 }
 
-/// Upstream's catalogue names 176 property labels, 101 class labels and 4
-/// vocabulary labels; 12 more are msgids the application shares, which the
-/// pot lists without their vocabulary comment. Comments: 165, 104 and 4.
+/// The guard translates a stored text only when it equals the English, so the
+/// English tables hold exactly the text a fresh install stores: every
+/// vocabulary, class and property, and nothing else.
 #[test]
-fn the_english_tables_hold_upstreams_terms() {
-    let tables = admin_tables("labels");
-    let labels = terms(&tables.iter().find(|(tag, _)| tag == "en").unwrap().1);
-    let tables = admin_tables("comments");
-    let comments = terms(&tables.iter().find(|(tag, _)| tag == "en").unwrap().1);
-    assert_eq!(labels.len(), 176 + 101 + 4 + 12);
-    assert_eq!(comments.len(), 165 + 104 + 4);
-}
-
-/// Every vocabulary, class and property a fresh install stores has its
-/// English, so the guard can recognise it.
-#[test]
-fn every_seeded_term_has_its_english() {
-    let tables = admin_tables("labels");
-    let labels: BTreeSet<String> = terms(&tables.iter().find(|(tag, _)| tag == "en").unwrap().1)
-        .into_iter()
-        .map(|(key, _)| key)
-        .collect();
-    let tables = admin_tables("comments");
-    let comments: BTreeSet<String> = terms(&tables.iter().find(|(tag, _)| tag == "en").unwrap().1)
-        .into_iter()
-        .map(|(key, _)| key)
-        .collect();
-    let seed: Value = serde_json::from_str(&std::fs::read_to_string(SEED).unwrap()).unwrap();
-    for vocabulary in seed["vocabularies"].as_array().unwrap() {
+fn the_english_tables_are_the_installed_text() {
+    let installed: Value =
+        serde_json::from_str(&std::fs::read_to_string(INSTALLED).unwrap()).unwrap();
+    let mut stored: [BTreeMap<String, String>; 2] = Default::default();
+    for vocabulary in installed.as_array().unwrap() {
         let prefix = vocabulary["prefix"].as_str().unwrap();
-        assert!(labels.contains(prefix), "{prefix}");
         let members = vocabulary["classes"]
             .as_array()
             .unwrap()
             .iter()
-            .chain(vocabulary["properties"].as_array().unwrap());
-        for member in members {
-            let term = format!("{prefix}:{}", member["local_name"].as_str().unwrap());
-            assert!(labels.contains(&term), "{term} has no English label");
-            if member["comment"].is_string() {
-                assert!(comments.contains(&term), "{term} has no English comment");
+            .chain(vocabulary["properties"].as_array().unwrap())
+            .map(|member| {
+                (
+                    format!("{prefix}:{}", member["local_name"].as_str().unwrap()),
+                    member,
+                )
+            });
+        for (term, row) in std::iter::once((prefix.to_string(), vocabulary)).chain(members) {
+            for (table, field) in stored.iter_mut().zip(["label", "comment"]) {
+                if let Some(text) = row[field].as_str() {
+                    table.insert(term.clone(), text.to_string());
+                }
             }
         }
+    }
+    for (kind, stored) in ["labels", "comments"].into_iter().zip(stored) {
+        let tables = admin_tables(kind);
+        let english: BTreeMap<String, String> =
+            terms(&tables.iter().find(|(tag, _)| tag == "en").unwrap().1)
+                .into_iter()
+                .collect();
+        let wrong: Vec<String> = english
+            .keys()
+            .chain(stored.keys())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|term| english.get(*term) != stored.get(*term))
+            .map(|term| format!("{term}: {:?} != {:?}", english.get(term), stored.get(term)))
+            .collect();
+        assert!(
+            wrong.is_empty(),
+            "{kind}/en.json against the install:\n{}",
+            wrong.join("\n")
+        );
     }
 }
 

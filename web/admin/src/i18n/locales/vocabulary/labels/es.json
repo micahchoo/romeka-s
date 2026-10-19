@@ -251,6 +251,7 @@
   "foaf:firstName": "nombre",
   "foaf:lastName": "apellidos",
   "foaf:givenName": "Nombre (en desuso, \"given name\")",
+  "foaf:givenname": "Nombre (en desuso, \"given name\")",
   "foaf:surname": "Apellidos (en desuso, \"surname\")",
   "foaf:family_name": "apellidos (en desuso, \"family name\")",
   "foaf:familyName": "apellidos (en desuso, \"family name\")",
@@ -292,7 +293,6 @@
   "foaf:membershipClass": "claseDeAfiliación",
   "foaf:birthday": "cumpleaños",
   "foaf:age": "edad",
-  "foaf:status": "estado",
-  "foaf:givenname": "Nombre (en desuso, \"given name\")"
+  "foaf:status": "estado"
  }
 }
