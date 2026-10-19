@@ -142,6 +142,13 @@
       },
       "blocks": [
         {
+          "layout": "pageTitle",
+          "data": {},
+          "layoutData": {
+            "grid_column_span": "3"
+          }
+        },
+        {
           "layout": "media",
           "data": {
             "layout": "",

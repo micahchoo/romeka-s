@@ -178,6 +178,11 @@ rendering. A test keeps the file byte-identical and checks every block against t
 layout block's `o:data` parses, a Romeka block's settings name schema fields and carry their kinds,
 and every `o:data` key names a field its layout declares (the `asset` layout's index keys excepted).
 
+`blocks::templates::welcome_blocks` is the first page a site created through the API starts with (a hero,
+an introduction and a preview of the latest items), stored by `omeka-api`'s site create in place of upstream's
+style sampler. The chooser does not offer it. The about and gallery templates open with a `pageTitle` block;
+the hero templates do not, because the hero's heading is the page's visible title.
+
 A site's own templates are not stored here. They are one `site_setting` row,
 `romeka_page_templates`, a JSON list of `{id, name, description, layout, layout_data, blocks}` that
 upstream ignores; the admin writes it through `o:site_settings`.
