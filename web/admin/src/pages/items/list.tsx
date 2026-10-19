@@ -5,9 +5,10 @@ import type { ClassId, Item, ItemId, UserId } from '../../api/types';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { BulkSiteActions } from './BulkSiteActions';
 import { classLabelOf, classLabels as buildClassLabels, ownerNameOf, userNames } from './labels';
+import type { TermName } from './labels';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -19,11 +20,12 @@ interface ItemsView {
   readonly page: number;
   readonly lastPage: number;
   readonly names: ReadonlyMap<UserId, string>;
-  readonly classLabels: ReadonlyMap<ClassId, string>;
+  readonly classLabels: ReadonlyMap<ClassId, TermName>;
 }
 
 export const ItemsList = (): ReactElement => {
   const { t, locale } = useTranslator(common, resources);
+  const text = useTermText();
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
 
@@ -108,7 +110,7 @@ export const ItemsList = (): ReactElement => {
                 <td>
                   <a href={`#/items/${String(item.id)}`}>{item.title ?? t('common.untitled')}</a>
                 </td>
-                <td>{classLabelOf(view.classLabels, item.resourceClass) ?? ''}</td>
+                <td>{classLabelOf(view.classLabels, item.resourceClass, text) ?? ''}</td>
                 <td>{ownerNameOf(view.names, item.owner) ?? t('common.noOwner')}</td>
                 <td>{formatDateTime(item.created, locale)}</td>
               </tr>

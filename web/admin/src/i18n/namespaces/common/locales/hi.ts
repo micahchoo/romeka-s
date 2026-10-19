@@ -91,4 +91,9 @@ export const hi: CommonMessages = {
   'valueField.addValue': '{field} में मान जोड़ें',
   'valueField.addField': 'एक और फ़ील्ड जोड़ें',
   'valueField.addFieldHint': 'इसका वर्णन करें, या एक शब्द टाइप करें',
+  'tags.legend': 'टैग',
+  'tags.add': 'एक टैग जोड़ें',
+  'tags.hint':
+    'बाद में चीज़ों को खोजने के लिए मुफ़्त शब्द। Enter दबाएँ या एक जोड़ने के लिए अल्पविराम टाइप करें।',
+  'tags.remove': 'टैग “{tag}” हटाएँ',
 };

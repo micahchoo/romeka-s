@@ -6,10 +6,13 @@
  * type name, and for a list of items it reads the item set's items, so a
  * caller only says which list and receives the entry the user picked. The
  * stored value is the entry's own text: the word, the URI, or the item id.
+ * A term the list's publication deprecates is not offered for a new value, but
+ * a stored value that uses it still shows as itself.
  */
 import { useId, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
 import { api } from '../../api/client';
+import { getDeprecatedKeys } from '../../api/publication';
 import { getTermList, termListIdFromParam } from '../../api/term-lists';
 import type { TermList, TermListName } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
@@ -27,53 +30,56 @@ export interface TermChoice {
 
 interface Loaded {
   readonly list: TermList;
+  /** The entries offered for a new value. */
   readonly choices: readonly TermChoice[];
+  /** The deprecated entries, which only a stored value still uses. */
+  readonly retired: readonly TermChoice[];
 }
 
 /** The most entries the open list shows; typing narrows the rest. */
 const SHOWN = 50;
 const ITEMS_PER_LIST = 500;
 
-const load = async (name: TermListName): Promise<Loaded> => {
-  const id = termListIdFromParam(name.slice('customvocab:'.length));
-  if (id === null) {
-    throw new Error(`Not a term list: ${name}`);
-  }
-  const list = await getTermList(api, id);
+const entries = async (list: TermList): Promise<readonly TermChoice[]> => {
   const source = list.source;
   switch (source.kind) {
     case 'terms':
-      return {
-        list,
-        choices: source.terms.map((term) => ({ kind: 'literal', value: term, label: term })),
-      };
+      return source.terms.map((term) => ({ kind: 'literal', value: term, label: term }));
     case 'uris':
-      return {
-        list,
-        choices: source.uris.map((entry) => ({
-          kind: 'uri',
-          value: entry.uri,
-          label: entry.label === '' ? entry.uri : entry.label,
-        })),
-      };
+      return source.uris.map((entry) => ({
+        kind: 'uri',
+        value: entry.uri,
+        label: entry.label === '' ? entry.uri : entry.label,
+      }));
     case 'items': {
       const items = await api.listItems({
         itemSetId: source.itemSet.id,
         perPage: ITEMS_PER_LIST,
         sortBy: 'title',
       });
-      return {
-        list,
-        choices: items.items.map((item) => ({
-          kind: 'resource',
-          value: String(item.id),
-          label: item.title ?? `#${String(item.id)}`,
-        })),
-      };
+      return items.items.map((item) => ({
+        kind: 'resource',
+        value: String(item.id),
+        label: item.title ?? `#${String(item.id)}`,
+      }));
     }
     case 'empty':
-      return { list, choices: [] };
+      return [];
   }
+};
+
+const load = async (name: TermListName): Promise<Loaded> => {
+  const id = termListIdFromParam(name.slice('customvocab:'.length));
+  if (id === null) {
+    throw new Error(`Not a term list: ${name}`);
+  }
+  const [list, deprecated] = await Promise.all([getTermList(api, id), getDeprecatedKeys(api, id)]);
+  const all = await entries(list);
+  return {
+    list,
+    choices: all.filter((choice) => !deprecated.has(choice.value)),
+    retired: all.filter((choice) => deprecated.has(choice.value)),
+  };
 };
 
 /** Case and accent folded, so "du" finds "Dún Laoghaire". */
@@ -127,7 +133,9 @@ const Combobox = ({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
 
-  const current = loaded.choices.find((choice) => choice.value === value) ?? null;
+  const current =
+    [...loaded.choices, ...loaded.retired].find((choice) => choice.value === value) ?? null;
+  const retired = current !== null && loaded.retired.includes(current);
   const shown = matching(loaded.choices, query ?? '').slice(0, SHOWN);
   const activeChoice = shown[Math.min(active, shown.length - 1)];
 
@@ -227,6 +235,11 @@ const Combobox = ({
       {open && query !== null && shown.length === 0 ? (
         <span className="field-hint" role="status">
           {tl('termPicker.noMatch', { query })}
+        </span>
+      ) : null}
+      {current !== null && retired && query === null ? (
+        <span className="field-hint" role="note">
+          {tl('termPicker.deprecated', { value: current.label })}
         </span>
       ) : null}
       {value !== '' && current === null && query === null ? (

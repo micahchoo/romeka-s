@@ -27,6 +27,10 @@ import {
   type PropertyField,
 } from '../src/app/value-fields';
 import { searchTerms } from '../src/app/plain-terms';
+import { termText } from '../src/i18n';
+
+/** English: every label and comment as stored. */
+const ENGLISH = termText('en');
 
 const property = (id: number, term: string, label: string, comment: string | null = null): Property =>
   parseProperty({
@@ -142,7 +146,7 @@ describe('the template lays out the value fields', () => {
   ]);
 
   it('puts the template rows first, in template order, then the other properties as they appear', () => {
-    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES);
+    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES, ENGLISH);
     expect(terms(fields)).toEqual([
       'dcterms:description',
       'dcterms:creator',
@@ -153,7 +157,7 @@ describe('the template lays out the value fields', () => {
   });
 
   it('labels a template row with its alternate label and comment, and keeps the term beside it', () => {
-    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES);
+    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES, ENGLISH);
     expect(fieldOf(fields, 'dcterms:description')).toMatchObject({
       label: 'Caption',
       comment: 'What the picture shows.',
@@ -167,18 +171,18 @@ describe('the template lays out the value fields', () => {
   });
 
   it('gives a template row the stored values of its property', () => {
-    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES);
+    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES, ENGLISH);
     expect(fieldOf(fields, 'dcterms:creator').values.map((value) => value.text)).toEqual(['Ada']);
     expect(fieldOf(fields, 'dcterms:description').values).toEqual([]);
   });
 
   it('leaves out a template row whose property the property list does not name', () => {
-    const fields = layoutFields([], template(8, [{ id: 999 }, { id: 2 }]), PROPERTIES);
+    const fields = layoutFields([], template(8, [{ id: 999 }, { id: 2 }]), PROPERTIES, ENGLISH);
     expect(terms(fields)).toEqual(['dcterms:creator']);
   });
 
   it('with no template, lists the properties in the order their values appear', () => {
-    expect(terms(layoutFields(storedDraft().values, null, PROPERTIES))).toEqual([
+    expect(terms(layoutFields(storedDraft().values, null, PROPERTIES, ENGLISH))).toEqual([
       'dcterms:date',
       'dcterms:creator',
       'dcterms:relation',
@@ -264,7 +268,7 @@ describe('required template rows', () => {
   it('names a required row that has no filled value', () => {
     const draft = withTemplate(emptyResourceDraft(), required, PROPERTIES);
     const blank = patchValue(draft, valueKey(draft, 'dcterms:creator'), { text: '   ' });
-    expect(missingRequired(layoutFields(blank.values, required, PROPERTIES)).map((f) => f.label)).toEqual([
+    expect(missingRequired(layoutFields(blank.values, required, PROPERTIES, ENGLISH)).map((f) => f.label)).toEqual([
       'Photographer',
     ]);
   });
@@ -272,7 +276,7 @@ describe('required template rows', () => {
   it('is satisfied by one filled value', () => {
     const draft = withTemplate(emptyResourceDraft(), required, PROPERTIES);
     const filled = patchValue(draft, valueKey(draft, 'dcterms:creator'), { text: 'Ada' });
-    expect(missingRequired(layoutFields(filled.values, required, PROPERTIES))).toEqual([]);
+    expect(missingRequired(layoutFields(filled.values, required, PROPERTIES, ENGLISH))).toEqual([]);
   });
 });
 
@@ -280,7 +284,7 @@ describe('data types on a row', () => {
   it('offers only the data types the template row lists', () => {
     const rowTemplate = template(12, [{ id: 12, dataTypes: ['resource:item', 'uri'] }]);
     const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
-    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:relation');
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:relation');
     const [value] = field.values;
     if (value === undefined) {
       throw new Error('expected the seeded relation value');
@@ -290,7 +294,7 @@ describe('data types on a row', () => {
   });
 
   it('offers the three core kinds when the row lists none, and keeps a stored type it does not list', () => {
-    const field = fieldOf(layoutFields(storedDraft().values, null, PROPERTIES), 'dcterms:relation');
+    const field = fieldOf(layoutFields(storedDraft().values, null, PROPERTIES, ENGLISH), 'dcterms:relation');
     const [value] = field.values;
     if (value === undefined) {
       throw new Error('expected the stored relation value');
@@ -313,7 +317,7 @@ describe('data types on a row', () => {
   it('adds a value with the row defaults', () => {
     const rowTemplate = template(13, [{ id: 2, private: true, lang: 'en', dataTypes: ['literal'] }]);
     const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
-    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator');
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator');
     const added = addFieldValue(draft, field);
     expect(added.values.map((value) => [value.term, value.lang, value.isPublic])).toEqual([
       ['dcterms:creator', 'en', false],
@@ -338,7 +342,7 @@ describe('a term list on a row (Custom Vocab)', () => {
   it('seeds a row whose first type is a term list with a value edited through that list', () => {
     const rowTemplate = template(20, [{ id: 2, dataTypes: ['customvocab:3', 'literal'] }]);
     const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
-    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator');
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator');
     const value = only(field);
     expect(value.type).toBe('customvocab:3');
     expect(typeChoices(field, value)).toEqual(['customvocab:3', 'literal']);
@@ -348,12 +352,12 @@ describe('a term list on a row (Custom Vocab)', () => {
   it('offers the list as a kind beside text, and switching to it edits through the list', () => {
     const rowTemplate = template(21, [{ id: 2, dataTypes: ['literal', 'customvocab:3'] }]);
     const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
-    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator');
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator');
     const value = only(field);
     expect(typeChoices(field, value)).toEqual(['literal', 'customvocab:3']);
     expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
     const switched = setValueType(draft, value.key, 'customvocab:3');
-    expect(valueInput(only(fieldOf(layoutFields(switched.values, rowTemplate, PROPERTIES), 'dcterms:creator')), INSTALLED)).toEqual({
+    expect(valueInput(only(fieldOf(layoutFields(switched.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator')), INSTALLED)).toEqual({
       kind: 'term-list',
       termList: 'customvocab:3',
     });
@@ -362,7 +366,7 @@ describe('a term list on a row (Custom Vocab)', () => {
   it('edits a value of a list the server no longer lists as its base kind', () => {
     const rowTemplate = template(23, [{ id: 2, dataTypes: ['customvocab:999'] }]);
     const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
-    const value = only(fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES), 'dcterms:creator'));
+    const value = only(fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator'));
     expect(value.type).toBe('customvocab:999');
     expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
   });
@@ -424,7 +428,7 @@ describe('a term list on a row (Custom Vocab)', () => {
 
 describe('adding another field', () => {
   it('finds a property from plain words, its label or its term, best first', () => {
-    const terms = (query: string) => searchTerms(PROPERTIES, query, 'en').map((entry) => entry.term);
+    const terms = (query: string) => searchTerms(PROPERTIES, query, ENGLISH).map((entry) => entry.term);
     expect(terms('who wrote it')[0]).toBe('dcterms:creator');
     expect(terms('creat')).toEqual(['dcterms:creator']);
     expect(terms('BIBO:')).toEqual(['bibo:annotates']);

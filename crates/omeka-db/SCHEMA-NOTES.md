@@ -78,9 +78,12 @@ Evidence, measured:
    ASCII letters A-Z only, so a non-ASCII case pair (`İ` and `i`) is distinct where upstream folds
    it. SQLite has no built-in Unicode collation; closing that gap needs a custom collation and is a
    follow-up. `password_creation.id` is upstream `utf8mb4_bin` and stays case-sensitive, matching
-   upstream. The columns that carry `NOCASE` are:
-   `user.email`, `vocabulary.namespace_uri`, `vocabulary.prefix`, `resource_class.local_name`,
-   `property.local_name`, `resource_template.label`, `asset.storage_id`, `media.storage_id`,
+   upstream. `property.local_name` and `resource_class.local_name` are `utf8mb4_bin` upstream and
+   binary here (SQLite's default `BINARY`) from `migrations/0004_term_local_name_binary.sql`; 0001
+   gave them `NOCASE`, which refused FOAF's `givenName` beside `givenname`. Measured on the oracle
+   database (`information_schema.columns`), those two and `password_creation.id` are upstream's
+   only binary columns. The columns that carry `NOCASE` are:
+   `user.email`, `vocabulary.namespace_uri`, `vocabulary.prefix`, `resource_template.label`, `asset.storage_id`, `media.storage_id`,
    `site.slug`, `site_page.slug`, `setting.id`, `module.id`, `api_key.id`, `site_setting.id`,
    `user_setting.id`, `session.id`, `migration.version`, `fulltext_search.resource`.
    Other `utf8mb4_unicode_ci` columns (for example `value.type`, `job.class`) have no uniqueness or
@@ -151,6 +154,22 @@ DDL with its two `ADD CONSTRAINT` statements folded into `CREATE TABLE IF NOT EX
 that already runs the module keeps its table and rows. Deleting a list is a repository-level removal:
 `CustomVocabRepo::delete` sets the list's values back to `literal` and removes its
 `customvocab:<id>` name from every template row, in one transaction.
+
+## Romeka tables
+
+`0003_publication.sql` adds the two tables publishing needs. Upstream has neither and reads neither, so
+an install that shares the database sees its own tables unchanged. Both names start with `romeka_`.
+
+- `romeka_publication`: one row per term list or vocabulary with Romeka state. `custom_vocab_id` and
+  `vocabulary_id` name the target (a `CHECK` allows at most one) and go to `NULL` when upstream
+  deletes it, so the published versions keep serving. `slug` is unique across both kinds, because
+  both are served under `/vocab/<slug>/`. `terms` is JSON: each term's minted local name,
+  deprecation and authority links, keyed by the term.
+- `romeka_publication_version`: one row per publish, `UNIQUE (publication_id, version)`, cascading
+  from its record. `snapshot` is the published scheme as JSON. `PublicationRepo` has no statement
+  that updates or deletes a version.
+
+The MySQL file is the same schema with `IF NOT EXISTS`, InnoDB and utf8mb4, as `0002` writes.
 
 ## Not translated
 

@@ -334,6 +334,18 @@ page carry the global and the user `Locale` select (`src/app/locale-select.tsx`)
 To add a string, add the key to `en`; `tsc` then fails until `es` has it. To add a locale, add it to
 `Locale` and `LOCALES`, add its catalogue to `CATALOGUES`, and add `locale.<tag>` labels.
 
+The built-in vocabularies' labels and comments (Dublin Core, Dublin Core Type, BIBO, FOAF) are shown
+in the locale through `useTermText()` (`termText.ts`), upstream's `$translate($property->label())`.
+The text is keyed by term (`dcterms:title`, or a vocabulary's prefix), and a stored text is
+translated only while it is still the built-in English, so a user's vocabulary, an edited label and
+a template's alternate label show as stored. The tables are
+`locales/vocabulary/{labels,comments}/<tag>.json`, typed against English, and the public site reads
+the label tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English and Spanish come from
+upstream's catalogues (`scripts/extract-vocabulary-text.mjs`); the other locales from
+`scripts/translate-locales.mjs`. The first `useTermText()` render in a locale fetches its tables as
+lazy chunks and renders again when they arrive (PERF.md Decision 16). A new locale adds its two files to `TABLE_LOADERS`, then runs
+`UPDATE_GENERATED=1 cargo test -p omeka-site vocabulary` and adds the tag to the site's `TABLES`.
+
 ## Wire shapes
 
 These are the upstream details the parsers depend on. They are read from the PHP representations at

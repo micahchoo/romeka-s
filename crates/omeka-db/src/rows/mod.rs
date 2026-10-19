@@ -12,7 +12,9 @@
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
 mod custom_vocabs;
+mod publications;
 mod resources;
+mod rewrites;
 mod sites;
 mod system;
 mod templates;
@@ -21,10 +23,12 @@ mod values;
 mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
+pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{
     ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, NewWholeItem,
     ResourceRow, ValueAnnotationRow, resource_type,
 };
+pub use rewrites::{MergeWrite, PromoteList, PromoteWrite, TextValueRow};
 pub use sites::{
     NewFirstPage, NewFirstPageBlock, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
     NewWholeSite, SiteBlockAttachmentRow, SiteBlockRow, SiteItemSetRow, SitePageRow,
@@ -71,6 +75,8 @@ sqlite_row_parser!(
     AssetRow,
     ClassRow,
     CustomVocabRow,
+    PublicationRow,
+    PublicationVersionRow,
     FulltextSearchRow,
     ItemItemSetRow,
     ItemRow,
@@ -94,6 +100,7 @@ sqlite_row_parser!(
     SiteSettingRow,
     TemplatePropertyRow,
     TemplateRow,
+    TextValueRow,
     UserRow,
     UserSettingRow,
     ValueAnnotationRow,

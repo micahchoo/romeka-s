@@ -91,4 +91,9 @@ export const te: CommonMessages = {
   'valueField.addValue': '{field} కి విలువను జోడించండి',
   'valueField.addField': 'మరొక ఫీల్డ్‌ను జోడించండి',
   'valueField.addFieldHint': 'దీనిని వివరించండి, లేదా ఒక పదాన్ని టైప్ చేయండి',
+  'tags.legend': 'ట్యాగ్‌లు',
+  'tags.add': 'ట్యాగ్‌ను జోడించండి',
+  'tags.hint':
+    'తర్వాత విషయాలను కనుగొనడానికి ఉచిత పదాలు. ఒకదాన్ని జోడించడానికి Enter నొక్కండి లేదా కామా టైప్ చేయండి.',
+  'tags.remove': 'ట్యాగ్ “{tag}” ను తొలగించండి',
 };

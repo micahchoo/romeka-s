@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, ClassId, ResourceClass } from '../../api/types';
-import { vocabularyLabelOf, vocabularyLabels } from '../../app/labels';
+import { vocabularyLabels } from '../../app/labels';
+import type { TermName } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useAsync } from '../../app/useAsync';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { loadTemplateUsage } from '../standards/usage';
@@ -15,7 +16,7 @@ const PER_PAGE = 100;
 
 interface ClassRow {
   readonly resourceClass: ResourceClass;
-  readonly vocabularyLabel: string | null;
+  readonly vocabulary: TermName | null;
   readonly templates: number;
 }
 
@@ -28,7 +29,7 @@ const load = async (page: number): Promise<ApiPage<ClassRow>> => {
   const labels = vocabularyLabels(vocabularies.items);
   return mapPage(classes, (resourceClass) => ({
     resourceClass,
-    vocabularyLabel: vocabularyLabelOf(labels, resourceClass.vocabulary),
+    vocabulary: labels.get(resourceClass.vocabulary.id) ?? null,
     templates: usage.classes.get(resourceClass.id) ?? 0,
   }));
 };
@@ -52,6 +53,7 @@ const ItemCount = ({ classId }: { readonly classId: ClassId }): ReactElement | n
  */
 export const ResourceClassList = (): ReactElement => {
   const { t, number } = useTranslator(common, standards);
+  const text = useTermText();
   const resource = t('resource.resourceClasses');
   return (
     <div>
@@ -67,13 +69,19 @@ export const ResourceClassList = (): ReactElement => {
           {
             header: t('column.term'),
             cell: ({ resourceClass }) => (
-              <DefinedTerm term={resourceClass.term} comment={resourceClass.comment}>
+              <DefinedTerm term={resourceClass.term} comment={text.comment(resourceClass.term, resourceClass.comment)}>
                 <a href={standardsHref('classes', resourceClass.id)}>{resourceClass.term}</a>
               </DefinedTerm>
             ),
           },
-          { header: t('column.label'), cell: (row) => row.resourceClass.label ?? '' },
-          { header: t('column.vocabulary'), cell: (row) => row.vocabularyLabel ?? '' },
+          {
+            header: t('column.label'),
+            cell: (row) => text.label(row.resourceClass.term, row.resourceClass.label) ?? '',
+          },
+          {
+            header: t('column.vocabulary'),
+            cell: ({ vocabulary }) => (vocabulary === null ? '' : text.label(vocabulary.term, vocabulary.label)),
+          },
           { header: t('page.itemTypes'), cell: (row) => number(row.templates), numeric: true },
           {
             header: t('page.items'),

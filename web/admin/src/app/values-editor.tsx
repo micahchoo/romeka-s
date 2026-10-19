@@ -5,7 +5,7 @@
 import { lazy, Suspense, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
-import { useTranslator } from '../i18n';
+import { useTermText, useTranslator } from '../i18n';
 import type { KeyOf, MessageKey, Translator } from '../i18n';
 import { patchValue, removeValue } from './draft';
 import type { ResourceDraft, ValueDraft } from './draft';
@@ -349,7 +349,8 @@ export const ValuesEditor = ({
   const { t } = useTranslator(common);
   const [created, setCreated] = useState<readonly Property[]>([]);
   const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
-  const fields = layoutFields(draft.values, template, properties);
+  const text = useTermText();
+  const fields = layoutFields(draft.values, template, properties, text);
   const lessonsOf = showLessons ? fieldLessons(fields) : () => NO_LESSONS;
   return (
     <fieldset className="values-editor">

@@ -175,15 +175,14 @@ async fn local_name_is_unique_within_a_vocabulary() {
     properties.create(&new).await.unwrap();
     let error = properties.create(&new).await.unwrap_err();
     assert!(error.is_unique_violation(), "{error}");
-    // `local_name` is `utf8mb4_unicode_ci` upstream, so the key is case-insensitive.
-    let error = properties
+    // `local_name` is `utf8mb4_bin` upstream, so a name differing only in case is another term.
+    properties
         .create(&NewProperty {
             local_name: "TITLE".to_string(),
             ..new.clone()
         })
         .await
-        .unwrap_err();
-    assert!(error.is_unique_violation(), "{error}");
+        .expect("a local name differing only in case is a second property");
 
     let second = VocabularyRepo::new(&pool)
         .create(&NewVocabulary {

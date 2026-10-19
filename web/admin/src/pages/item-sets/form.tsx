@@ -2,7 +2,7 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { ItemSet, ItemSetId, ItemSetWrite } from '../../api/types';
-import { toValueWrites, type ResourceDraft } from '../../app/draft';
+import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { DeleteControl } from '../../app/delete';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
@@ -11,8 +11,9 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
+import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -37,6 +38,7 @@ const ItemSetEditor = ({
   readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator(common, resources);
+  const text = useTermText();
   const { options } = loaded;
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(loaded.itemSet, options.templates, options.properties),
@@ -48,7 +50,7 @@ const ItemSetEditor = ({
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = draftErrors(draft, options.templates, options.properties, t);
+    const errors = draftErrors(draft, options.templates, options.properties, t, text);
     setFormErrors(errors);
     if (errors.length > 0) {
       return;
@@ -60,7 +62,7 @@ const ItemSetEditor = ({
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
       isOpen,
-      values: toValueWrites(draft.values),
+      values: toValueWrites(allValues(draft)),
     };
     save(async () => {
       if (itemSetId === null) {
@@ -90,6 +92,12 @@ const ItemSetEditor = ({
           properties={options.properties}
           dataTypes={options.dataTypes}
           createField={createLocalField}
+        />
+        <TagsField
+          idPrefix="item-set"
+          draft={draft}
+          onChange={setDraft}
+          properties={options.properties}
         />
         <FormErrors errors={formErrors} />
         <SaveStatus state={saveState} />

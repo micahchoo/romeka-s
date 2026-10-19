@@ -23,12 +23,14 @@ mod dates_cldr;
 mod machine_translated;
 mod messages;
 mod search_labels;
+mod vocabulary;
 
 use dates::{DateNames, EN_NAMES, ES_NAMES};
 use dates_cldr::{HI_NAMES, KN_NAMES, ML_NAMES, MR_NAMES, NE_NAMES, TA_NAMES, TE_NAMES};
 use machine_translated::Catalogue;
 pub use messages::{EN, ES, Messages};
 pub use search_labels::{EN_SEARCH, ES_SEARCH, SearchLabels};
+pub use vocabulary::term_label;
 
 /// A locale the site layer can render in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

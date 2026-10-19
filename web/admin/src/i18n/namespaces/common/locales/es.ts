@@ -89,4 +89,8 @@ export const es: CommonMessages = {
   'valueField.addValue': 'Añadir valor a {field}',
   'valueField.addField': 'Añadir otro campo',
   'valueField.addFieldHint': 'Descríbelo o escribe un término',
+  "tags.legend": "Etiquetas",
+  "tags.add": "Añadir una etiqueta",
+  "tags.hint": "Palabras libres para encontrar las cosas más tarde. Pulse Intro o escriba una coma para añadir una.",
+  "tags.remove": "Quitar la etiqueta «{tag}»",
 };

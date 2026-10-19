@@ -28,4 +28,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'term-lists', what: 'Term lists messages', type: 'TermListMessages' },
   { id: 'item-types', what: 'item type pages messages', type: 'ItemTypesMessages' },
   { id: 'lessons', what: 'lessons messages', type: 'LessonsMessages' },
+  { id: 'publish', what: 'Publish panel messages', type: 'PublishMessages' },
 ];

@@ -18,14 +18,15 @@ mod common;
 use omeka_db::ids::{ItemId, PageId, PropertyId, ResourceId, UserId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, CustomVocabRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo,
-    JobRepo, MatchKind, ModuleRepo, Paging, PasswordCreationRepo, PropertyFilter, PropertyRepo,
-    QueryFilter, SessionRepo, SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserRepo,
-    UserSettingRepo, ValueQuery, ValueRepo, VocabularyRepo,
+    JobRepo, MatchKind, ModuleRepo, NewPublicationVersion, Paging, PasswordCreationRepo,
+    PropertyFilter, PropertyRepo, PublicationRepo, QueryFilter, SessionRepo, SettingRepo,
+    SiteFilter, SiteRepo, SiteSettingRepo, UserRepo, UserSettingRepo, ValueQuery, ValueRepo,
+    VocabularyRepo,
 };
 use omeka_db::rows::{
     FulltextSearchRow, NewClass, NewCustomVocab, NewFirstPage, NewFirstPageBlock, NewItem,
     NewItemSet, NewJob, NewPasswordCreation, NewProperty, NewSite, NewSiteBlock, NewSitePage,
-    NewUser, NewValue, NewVocabulary, NewWholeItem, NewWholeSite, ValueContent,
+    NewUser, NewValue, NewVocabulary, NewWholeItem, NewWholeSite, PublicationTarget, ValueContent,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -138,7 +139,7 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
         .fetch_one(&db.pool)
         .await
         .expect("count migrations");
-    assert_eq!(applied, 2, "two migration files");
+    assert_eq!(applied, 3, "three migration files");
 
     db.cleanup().await;
 }
@@ -198,6 +199,50 @@ async fn a_created_datetime_round_trips_through_mysql_datetime() {
         "the returned instant is the stored one"
     );
     assert_eq!(stored.modified, user.modified);
+
+    db.cleanup().await;
+}
+
+/// `property.local_name` is `utf8mb4_bin` upstream, so FOAF's `givenName` and `givenname` are two
+/// properties, and a lookup matches case exactly. The SQLite schema agrees from migration 0004.
+#[tokio::test]
+async fn local_names_differing_only_in_case_are_two_properties() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let foaf = VocabularyRepo::<MySql>::new(&db.pool)
+        .create(&NewVocabulary {
+            owner_id: None,
+            namespace_uri: "http://xmlns.com/foaf/0.1/".to_string(),
+            prefix: "foaf".to_string(),
+            label: "Friend of a Friend".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create vocabulary");
+    let properties = PropertyRepo::<MySql>::new(&db.pool);
+    for local_name in ["givenName", "givenname"] {
+        properties
+            .create(&NewProperty {
+                owner_id: None,
+                vocabulary_id: foaf.id,
+                local_name: local_name.to_string(),
+                label: "Given name".to_string(),
+                comment: None,
+            })
+            .await
+            .unwrap_or_else(|error| panic!("foaf:{local_name} is stored: {error}"));
+    }
+    let lower = properties
+        .find(foaf.id, "givenname")
+        .await
+        .expect("find")
+        .expect("foaf:givenname");
+    assert_eq!(lower.local_name, "givenname");
+    assert_eq!(
+        properties.find(foaf.id, "GIVENNAME").await.expect("find"),
+        None
+    );
 
     db.cleanup().await;
 }
@@ -669,6 +714,103 @@ async fn a_term_list_round_trips_and_its_delete_resets_its_values() {
             .expect("read types");
     assert_eq!(types, ["literal", "literal"]);
     assert_eq!(repo.get(list.id).await.expect("read list"), None);
+
+    db.cleanup().await;
+}
+
+/// `0003_publication.sql`: a publish appends numbered versions, the slug is unique, term state
+/// saves without a version, and the versions outlive the deleted list.
+#[tokio::test]
+async fn a_publication_appends_versions_and_outlives_its_list() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let list = CustomVocabRepo::<MySql>::new(&db.pool)
+        .create(&NewCustomVocab {
+            item_set_id: None,
+            owner_id: None,
+            label: "Places".to_string(),
+            lang: Some("en".to_string()),
+            terms: Some(json!(["Cork", "Dublin"])),
+            uris: None,
+        })
+        .await
+        .expect("create list");
+    let target = PublicationTarget::TermList(list.id);
+    let repo = PublicationRepo::<MySql>::new(&db.pool);
+    let drafted = repo
+        .save_terms(
+            target,
+            &json!({"Cork": {"exact_match": "https://sws.geonames.org/2965140/"}}),
+        )
+        .await
+        .expect("save term state");
+    assert_eq!(repo.latest(drafted.id).await.expect("latest"), None);
+
+    let terms = json!({"Cork": {"local": "1"}, "Dublin": {"local": "2"}});
+    let created = chrono::NaiveDate::from_ymd_opt(2026, 10, 18)
+        .and_then(|day| day.and_hms_opt(9, 30, 0))
+        .expect("a date");
+    for snapshot in [json!({"n": 1}), json!({"n": 2})] {
+        repo.publish(
+            target,
+            &NewPublicationVersion {
+                slug: "places",
+                namespace_uri: "http://localhost/vocab/places/",
+                terms: &terms,
+                snapshot: &snapshot,
+            },
+            created,
+        )
+        .await
+        .expect("publish");
+    }
+    let versions = repo.versions(drafted.id).await.expect("versions");
+    assert_eq!(
+        versions
+            .iter()
+            .map(|row| (row.version, row.created, row.snapshot.clone()))
+            .collect::<Vec<_>>(),
+        [(1, created, json!({"n": 1})), (2, created, json!({"n": 2}))]
+    );
+
+    let other = VocabularyRepo::<MySql>::new(&db.pool)
+        .create(&NewVocabulary {
+            owner_id: None,
+            namespace_uri: "http://localhost/vocab/places#".to_string(),
+            prefix: "places".to_string(),
+            label: "Places".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create vocabulary");
+    let taken = repo
+        .publish(
+            PublicationTarget::Vocabulary(other.id),
+            &NewPublicationVersion {
+                slug: "places",
+                namespace_uri: "http://localhost/vocab/places#",
+                terms: &json!({}),
+                snapshot: &json!({}),
+            },
+            created,
+        )
+        .await;
+    assert!(taken.is_err(), "the slug is unique");
+
+    assert!(
+        CustomVocabRepo::<MySql>::new(&db.pool)
+            .delete(list.id)
+            .await
+            .expect("delete list")
+    );
+    let record = repo
+        .by_slug("places")
+        .await
+        .expect("by slug")
+        .expect("the record stays");
+    assert_eq!(record.target, None);
+    assert_eq!(repo.versions(record.id).await.expect("versions").len(), 2);
 
     db.cleanup().await;
 }

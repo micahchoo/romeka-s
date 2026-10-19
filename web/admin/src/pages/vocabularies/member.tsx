@@ -28,7 +28,7 @@ import { EditPanel, OptionSelect, SaveStatus, SubmitRow, TextField } from '../..
 import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { standardsHref } from '../standards/routes';
 import { common } from '../../i18n/namespaces/common';
@@ -119,6 +119,7 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
   onSaved,
 }: MemberEditorProps<MemberT>): ReactElement => {
   const { t } = useTranslator(common, standards);
+  const text = useTermText();
   const member = target.kind === 'edit' ? target.member : null;
   const [localName, setLocalName] = useState(member?.localName ?? '');
   const [label, setLabel] = useState(member?.label ?? '');
@@ -170,7 +171,7 @@ const MemberEditor = <MemberT extends VocabularyMemberRow>({
               label={t('column.vocabulary')}
               options={target.vocabularies.map((entry) => ({
                 id: entry.id,
-                label: entry.label === '' ? entry.prefix : entry.label,
+                label: entry.label === '' ? entry.prefix : text.label(entry.prefix, entry.label),
               }))}
               value={vocabulary}
               onChange={setVocabulary}
@@ -318,24 +319,28 @@ export const MemberDetail = <MemberT extends VocabularyMemberRow>({
   onSaved,
 }: MemberDetailProps<MemberT>): ReactElement => {
   const { t } = useTranslator(common, standards);
+  const text = useTermText();
+  const label = text.label(member.term, member.label);
   return (
     <section>
-      <h2>{member.label ?? member.term}</h2>
+      <h2>{label ?? member.term}</h2>
 
       <dl>
         <dt>{t('column.id')}</dt>
         <dd>{member.id}</dd>
         <dt>{t('column.label')}</dt>
-        <dd>{member.label ?? t('common.none')}</dd>
+        <dd>{label ?? t('common.none')}</dd>
         <dt>{t('column.term')}</dt>
         <dd>{member.term}</dd>
         <dt>{t('detail.localName')}</dt>
         <dd>{member.localName}</dd>
         <dt>{t('column.comment')}</dt>
-        <dd>{member.comment ?? t('common.none')}</dd>
+        <dd>{text.comment(member.term, member.comment) ?? t('common.none')}</dd>
         <dt>{t('column.vocabulary')}</dt>
         <dd>
-          <a href={standardsHref('vocabularies', vocabulary.id)}>{vocabulary.label}</a>
+          <a href={standardsHref('vocabularies', vocabulary.id)}>
+            {text.label(vocabulary.prefix, vocabulary.label)}
+          </a>
         </dd>
       </dl>
 
@@ -345,7 +350,7 @@ export const MemberDetail = <MemberT extends VocabularyMemberRow>({
 
       <DeleteControl
         label={t(kind.deleteKey)}
-        rowName={member.label ?? member.term}
+        rowName={label ?? member.term}
         onConfirm={async () => {
           await kind.remove(member.id);
           window.location.hash = standardsHref(kind.tab);

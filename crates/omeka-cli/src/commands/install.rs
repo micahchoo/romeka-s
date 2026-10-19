@@ -12,10 +12,8 @@
 
 use std::path::PathBuf;
 
-use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo, UserRepo, VocabularyRepo};
-use omeka_db::rows::{
-    NewClass, NewProperty, NewTemplate, NewTemplateProperty, NewUser, NewVocabulary,
-};
+use omeka_db::repos::{PropertyRepo, TemplateRepo, UserRepo, VocabularyRepo};
+use omeka_db::rows::{NewTemplate, NewTemplateProperty, NewUser};
 use omeka_db::{migrate, open_file};
 
 use omeka_core::permissions::Role;
@@ -77,6 +75,9 @@ pub struct InstallReport {
     pub vocabularies_inserted: usize,
     pub classes_inserted: usize,
     pub properties_inserted: usize,
+    /// Default vocabulary members an older bundle left with their local name as the label,
+    /// given the bundled file's label and comment.
+    pub vocabulary_members_corrected: usize,
     pub template_created: bool,
     pub user_created: bool,
     /// The site settings the upgrade moved out of a theme blob into their own
@@ -93,7 +94,7 @@ pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
     let pool = open_file(&options.database).await?;
     migrate(&pool).await?;
 
-    let counts = install_vocabularies(&pool).await?;
+    let vocabularies = vocabularies::converge(&pool).await?;
     let template_created = install_base_resource_template(&pool).await?;
     let user_created = install_admin_user(&pool, options).await?;
     install_default_settings(&pool, options).await?;
@@ -103,66 +104,14 @@ pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
 
     Ok(InstallReport {
         database: options.database.clone(),
-        vocabularies_inserted: counts.0,
-        classes_inserted: counts.1,
-        properties_inserted: counts.2,
+        vocabularies_inserted: vocabularies.vocabularies_inserted,
+        classes_inserted: vocabularies.classes_inserted,
+        properties_inserted: vocabularies.properties_inserted,
+        vocabulary_members_corrected: vocabularies.members_corrected,
         template_created,
         user_created,
         settings_moved,
     })
-}
-
-async fn install_vocabularies(pool: &sqlx::SqlitePool) -> Result<(usize, usize, usize), CliError> {
-    let vocabularies_repo = VocabularyRepo::new(pool);
-    let classes = ClassRepo::new(pool);
-    let properties = PropertyRepo::new(pool);
-
-    let mut inserted = (0, 0, 0);
-    for vocabulary in vocabularies::default_vocabularies()? {
-        if vocabularies_repo
-            .get_by_prefix(&vocabulary.prefix)
-            .await?
-            .is_some()
-        {
-            continue;
-        }
-        let row = vocabularies_repo
-            .create(&NewVocabulary {
-                owner_id: None,
-                namespace_uri: vocabulary.namespace_uri,
-                prefix: vocabulary.prefix,
-                label: vocabulary.label,
-                comment: vocabulary.comment,
-            })
-            .await?;
-        inserted.0 += 1;
-
-        for term in vocabulary.classes {
-            classes
-                .create(&NewClass {
-                    owner_id: None,
-                    vocabulary_id: row.id,
-                    local_name: term.local_name,
-                    label: term.label,
-                    comment: term.comment,
-                })
-                .await?;
-            inserted.1 += 1;
-        }
-        for term in vocabulary.properties {
-            properties
-                .create(&NewProperty {
-                    owner_id: None,
-                    vocabulary_id: row.id,
-                    local_name: term.local_name,
-                    label: term.label,
-                    comment: term.comment,
-                })
-                .await?;
-            inserted.2 += 1;
-        }
-    }
-    Ok(inserted)
 }
 
 async fn install_base_resource_template(pool: &sqlx::SqlitePool) -> Result<bool, CliError> {
@@ -279,7 +228,7 @@ mod tests {
     use super::*;
     use crate::testing::temp_db;
     use omeka_api::password;
-    use omeka_db::repos::Paging;
+    use omeka_db::repos::{ClassRepo, Paging};
 
     fn options(database: PathBuf) -> InstallOptions {
         InstallOptions {
@@ -300,7 +249,7 @@ mod tests {
 
         assert_eq!(report.vocabularies_inserted, 4);
         assert_eq!(report.classes_inserted, 105);
-        assert_eq!(report.properties_inserted, 183);
+        assert_eq!(report.properties_inserted, 184);
         assert!(report.template_created);
         assert!(report.user_created);
 

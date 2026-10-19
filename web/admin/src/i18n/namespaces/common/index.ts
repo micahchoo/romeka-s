@@ -104,6 +104,10 @@ export const en = {
   'valueField.addValue': 'Add value to {field}',
   'valueField.addField': 'Add another field',
   'valueField.addFieldHint': 'Describe it, or type a term',
+  "tags.legend": "Tags",
+  "tags.add": "Add a tag",
+  "tags.hint": "Free words to find things by later. Press Enter or type a comma to add one.",
+  "tags.remove": "Remove the tag “{tag}”",
 } as const;
 
 /** A complete table of this namespace, in one locale. */

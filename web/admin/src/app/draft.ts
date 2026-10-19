@@ -5,6 +5,7 @@
  * here, before they can reach a request body.
  */
 import { resourceIdFromParam } from '../api/parse';
+import { TAG_TERM, TAG_TYPE } from '../api/tags';
 import type { KeyOf, MessageKey, Translator } from '../i18n';
 import type { common } from '../i18n/namespaces/common';
 import type {
@@ -45,6 +46,11 @@ export interface ResourceDraft {
   readonly resourceTemplate: TemplateId | null;
   readonly thumbnail: AssetId | null;
   readonly values: readonly ValueDraft[];
+  /**
+   * The tags: plain-text `dcterms:subject` values, edited in the Tags field
+   * and kept out of `values` so the values editor never shows them twice.
+   */
+  readonly tags: readonly ValueDraft[];
 }
 
 let nextKey = 0;
@@ -116,22 +122,37 @@ export const emptyResourceDraft = (): ResourceDraft => ({
   resourceTemplate: null,
   thumbnail: null,
   values: [],
+  tags: [],
 });
 
+/** A tag: a `dcterms:subject` value typed `literal`. A URI or list value there is not one. */
+export const isTag = (value: Pick<ValueDraft, 'term' | 'type'>): boolean =>
+  value.term === TAG_TERM && value.type === TAG_TYPE;
+
 /** The draft a stored entity edits into, dropping values the base cannot render. */
-export const resourceDraftFrom = (entity: ResourceEntity<number>): ResourceDraft => ({
-  isPublic: entity.isPublic,
-  owner: entity.owner?.id ?? null,
-  resourceClass: entity.resourceClass?.id ?? null,
-  resourceTemplate: entity.resourceTemplate?.id ?? null,
-  thumbnail: entity.thumbnail?.id ?? null,
-  values: [...entity.values].flatMap(([term, entries]) =>
+export const resourceDraftFrom = (entity: ResourceEntity<number>): ResourceDraft => {
+  const drafts = [...entity.values].flatMap(([term, entries]) =>
     entries.flatMap((value) => {
       const draft = draftFromValue(term, value);
       return draft === null ? [] : [draft];
     }),
-  ),
-});
+  );
+  return {
+    isPublic: entity.isPublic,
+    owner: entity.owner?.id ?? null,
+    resourceClass: entity.resourceClass?.id ?? null,
+    resourceTemplate: entity.resourceTemplate?.id ?? null,
+    thumbnail: entity.thumbnail?.id ?? null,
+    values: drafts.filter((draft) => !isTag(draft)),
+    tags: drafts.filter(isTag),
+  };
+};
+
+/** Every value the draft writes: the values editor's, then the tags. */
+export const allValues = (draft: ResourceDraft): readonly ValueDraft[] => [
+  ...draft.values,
+  ...draft.tags,
+];
 
 const emptyToNull = (text: string): string | null => {
   const trimmed = text.trim();

@@ -91,4 +91,9 @@ export const kn: CommonMessages = {
   'valueField.addValue': '{field} ಗೆ ಮೌಲ್ಯವನ್ನು ಸೇರಿಸಿ',
   'valueField.addField': 'ಮತ್ತೊಂದು ಕ್ಷೇತ್ರವನ್ನು ಸೇರಿಸಿ',
   'valueField.addFieldHint': 'ಇದನ್ನು ವಿವರಿಸಿ, ಅಥವಾ ಒಂದು ಪದವನ್ನು ಟೈಪ್ ಮಾಡಿ',
+  'tags.legend': 'ಟ್ಯಾಗ್‌ಗಳು',
+  'tags.add': 'ಟ್ಯಾಗ್ ಸೇರಿಸಿ',
+  'tags.hint':
+    'ನಂತರ ವಿಷಯಗಳಿಂದ ಹುಡುಕಲು ಮುಕ್ತ ಪದಗಳು. ಹುಡುಕಲು ಎಂಟರ್ ಒತ್ತಿರಿ ಅಥವಾ ಒಂದನ್ನು ಸೇರಿಸಲು ಅಲ್ಪವಿರಾಮವನ್ನು ಟೈಪ್ ಮಾಡಿ.',
+  'tags.remove': '“{tag}” ಟ್ಯಾಗ್ ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
 };

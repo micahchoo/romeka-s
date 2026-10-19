@@ -51,7 +51,9 @@
 	# limit reads the last entry of that header.
 	# Caddy streams the body to the server and sets no size limit of its own, so
 	# the server's max_body_bytes is the one cap on an upload.
-	@app path /api /api/* /api-context /assets/* /health /ready /s /s/* /admin /admin/
+	# /vocab/* is the published term lists and vocabularies, served in whatever
+	# syntax the Accept header asks for, so the proxy must not answer it itself.
+	@app path /api /api/* /api-context /assets/* /health /ready /s /s/* /vocab /vocab/* /admin /admin/
 	handle @app {
 		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
 	}

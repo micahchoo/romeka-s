@@ -534,8 +534,11 @@ async fn run_install(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     let report = install::run(&options).await?;
     println!("installed {}", report.database.display());
     println!(
-        "  vocabularies: {}  classes: {}  properties: {}",
-        report.vocabularies_inserted, report.classes_inserted, report.properties_inserted
+        "  vocabularies: {}  classes: {}  properties: {}  members corrected: {}",
+        report.vocabularies_inserted,
+        report.classes_inserted,
+        report.properties_inserted,
+        report.vocabulary_members_corrected
     );
     println!(
         "  default template: {}",

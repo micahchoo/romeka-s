@@ -18,6 +18,8 @@ export {
   useLocale,
   useTranslator,
 } from './store';
+export { loadTermText, termText, useTermText } from './termText';
+export type { TermText } from './termText';
 export { localizeServerErrors, serverTranslator } from './serverText';
 export type { ServerTranslate } from './serverText';
 export { createTranslator, MissingMessageError, assertComplete, translatorOver } from './translator';

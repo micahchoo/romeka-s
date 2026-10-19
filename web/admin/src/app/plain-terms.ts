@@ -12,7 +12,7 @@
  * curated word or the term itself, and a result far below the best is
  * dropped.
  */
-import type { Locale } from "../i18n";
+import type { Locale, TermText } from "../i18n";
 
 /** What the search reads of a property or a class. */
 export interface Termed {
@@ -629,10 +629,22 @@ const plainOf = (term: string, locale: Locale): Plain | undefined => {
   return entry === undefined ? undefined : inLocale(entry, locale);
 };
 
-/** The plain name: the curated one, else the stored label, else the term. */
-export const plainName = (entry: Termed, locale: Locale): string =>
-  plainOf(entry.term, locale)?.[0] ??
-  (entry.label === null || entry.label === "" ? entry.term : entry.label);
+/**
+ * The plain name in `text`'s locale: the curated one, else the label (a
+ * built-in term's translation, any other label as stored), else the term.
+ */
+export const plainName = (entry: Termed, text: TermText): string => {
+  const curated = plainOf(entry.term, text.locale)?.[0];
+  if (curated !== undefined) {
+    return curated;
+  }
+  const label = text.label(entry.term, entry.label);
+  return label === null || label === "" ? entry.term : label;
+};
+
+/** The definition in `text`'s locale: a built-in term's translation, any other as stored. */
+export const termComment = (entry: Termed, text: TermText): string | null =>
+  text.comment(entry.term, entry.comment);
 
 /** The curated one-line hint, if the table names the term. */
 export const plainHint = (term: string, locale: Locale): string | null =>
@@ -708,12 +720,12 @@ const scoreOf = (
   entry: Termed,
   query: readonly string[],
   phrase: string,
-  locale: Locale,
+  text: TermText,
 ): number => {
   const curated = PLAIN_TERMS[entry.term];
   const names = words(
     [
-      plainName(entry, locale),
+      plainName(entry, text),
       entry.label ?? "",
       entry.localName,
       entry.term,
@@ -722,9 +734,10 @@ const scoreOf = (
   const pool = words(
     curated === undefined
       ? ""
-      : `${inLocale(curated, locale)[2]} ${curated.en[2]}`,
+      : `${inLocale(curated, text.locale)[2]} ${curated.en[2]}`,
   );
-  const comment = words(entry.comment ?? "");
+  const translated = text.comment(entry.term, entry.comment);
+  const comment = words(`${translated ?? ""} ${entry.comment ?? ""}`);
   let score = 0;
   for (const word of query) {
     const weight = WEAK.has(word) ? 0.25 : 1;
@@ -736,7 +749,7 @@ const scoreOf = (
         COMMENT * (comment.includes(word) ? 1 : 0),
       );
   }
-  const exact = [plainName(entry, locale), entry.label ?? "", entry.term].some(
+  const exact = [plainName(entry, text), entry.label ?? "", entry.term].some(
     (name) => name.toLowerCase() === phrase,
   );
   return exact ? score + 2 * NAME : score;
@@ -749,7 +762,7 @@ const scoreOf = (
 export const searchTerms = <T extends Termed>(
   entries: readonly T[],
   query: string,
-  locale: Locale,
+  text: TermText,
   limit = 8,
 ): readonly T[] => {
   const phrase = query.trim().toLowerCase();
@@ -758,7 +771,7 @@ export const searchTerms = <T extends Termed>(
     return [];
   }
   const scored = entries
-    .map((entry) => ({ entry, score: scoreOf(entry, tokens, phrase, locale) }))
+    .map((entry) => ({ entry, score: scoreOf(entry, tokens, phrase, text) }))
     .filter((row) => row.score >= FLOOR)
     .sort((a, b) => b.score - a.score);
   const best = scored[0]?.score ?? 0;

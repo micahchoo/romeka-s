@@ -2,7 +2,7 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Item, ItemSetId, ItemWrite, Site, SiteId } from '../../api/types';
-import { toValueWrites, type ResourceDraft } from '../../app/draft';
+import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { loadFormOptions, type FormOptions } from '../../app/options';
@@ -10,9 +10,10 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
+import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { loadAssignableSites, SitesFieldset } from './sites';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -36,6 +37,7 @@ const loadItemOptions = async (): Promise<ItemOptions> => {
 
 const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator(common, resources);
+  const text = useTermText();
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(item, options.templates, options.properties),
   );
@@ -56,7 +58,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = draftErrors(draft, options.templates, options.properties, t);
+    const errors = draftErrors(draft, options.templates, options.properties, t, text);
     setFormErrors(errors);
     if (errors.length > 0) {
       return;
@@ -67,7 +69,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       resourceClass: draft.resourceClass,
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
-      values: toValueWrites(draft.values),
+      values: toValueWrites(allValues(draft)),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
       // A create naming no site leaves `o:site` out, so the synced sites take the item.
@@ -92,6 +94,12 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         dataTypes={options.dataTypes}
         createField={createLocalField}
         showLessons
+      />
+      <TagsField
+        idPrefix="item"
+        draft={draft}
+        onChange={setDraft}
+        properties={options.properties}
       />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>

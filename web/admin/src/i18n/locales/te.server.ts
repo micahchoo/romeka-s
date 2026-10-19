@@ -86,8 +86,6 @@ export const teServer: ServerCatalogue = {
   'server.vocabularyUrlStatus': 'URL వద్ద ఉన్న సర్వర్ {status} స్టేటస్‌తో సమాధానం ఇచ్చింది.',
   'server.vocabularyChangeStale': '"{name}" పోలికలో మార్పు చెందింది. ఫైల్‌ను మళ్ళీ పోల్చండి.',
   'server.vocabularyMemberMissing': '"{name}" ఈ వొకాబులరీలో సభ్యుడు కాదు.',
-  'server.vocabularyCaseClash':
-    '"{first}" మరియు "{second}" కేవలం అక్షరాల కేస్‌లో మాత్రమే తేడా ఉన్నాయి, మరియు ఈ ఆర్కైవ్ రెండింటినీ నిల్వ చేయలేదు.',
   'server.nameEmpty': 'పేరు ఖాళీగా ఉండకూడదు.',
   'server.emailTaken': 'ఈమెయిల్ {email} ఇప్పటికే ఉపయోగించబడింది.',
   'server.userRoleRequired': 'వినియోగదారులకు పాత్ర ఉండాలి.',
@@ -137,4 +135,30 @@ export const teServer: ServerCatalogue = {
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
   'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
   'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
+  'server.publicationTermsRemoved':
+    'ఒక పబ్లిష్డ్ టర్మ్ తొలగించలేము లేదా రీనేమ్ చేయలేము: {terms}. దానికి బదులుగా డిప్రికేట్ చేయండి.',
+  'server.publicationNamespaceFixed':
+    'ఒక పబ్లిష్డ్ వోకాబులరీ తన నేమ్‌స్పేస్‌ను ఉంచుకుంటుంది, కాబట్టి దాని టర్మ్స్ వాటి URIsని ఉంచుకుంటాయి.',
+  'server.publicationNotDeletable':
+    'ఒక పబ్లిష్డ్ టర్మ్ లిస్ట్ లేదా వోకాబులరీని తొలగించలేము. దానికి బదులుగా దాని టర్మ్స్‌ను డిప్రికేట్ చేయండి.',
+  'server.publicationDeprecationFixed':
+    '"{term}" యొక్క డిప్రికేషన్ పబ్లిష్ చేయబడింది మరియు దానిని వెనక్కి తీసుకోలేము.',
+  'server.publicationItemsList':
+    'ఐటమ్స్ యొక్క లిస్ట్ పబ్లిష్ చేయలేము. ప్రతి ఐటమ్‌కు ఇప్పటికే దాని స్వంత అడ్రస్ ఉంది.',
+  'server.publicationForeignNamespace':
+    'నేమ్‌స్పేస్ {namespace} ఈ ఆర్కైవ్ యొక్కది కాదు. ఈ ఆర్కైవ్ యొక్క /vocab/ అడ్రస్ కింద ఉన్న నేమ్‌స్పేస్‌తో ఒక వోకాబులరీని పబ్లిష్ చేయండి, లేదా w3id.org లేదా purl.org లో.',
+  'server.publicationSlugInvalid':
+    'ఒక అడ్రస్ నేమ్ లో చిన్న అక్షరాలు, అంకెలు మరియు సింగిల్ హైఫన్‌లు, 64 క్యారెక్టర్ల వరకు ఉంటాయి.',
+  'server.publicationSlugTaken': 'అడ్రస్ /vocab/{slug}/ ఇప్పటికే తీసుకోబడింది.',
+  'server.publicationNamespaceNotPersistent':
+    'ఈ ఆర్కైవ్ యొక్క ఇతర నేమ్‌స్పేస్ w3id.org లేదా purl.org లో ఉండాలి మరియు / లేదా # తో ముగియాలి.',
+  'server.publicationAddressFixed':
+    'ఒక పబ్లిష్డ్ టర్మ్ లిస్ట్ లేదా వోకాబులరీ అది మొదట పబ్లిష్ అయిన అడ్రస్‌ను ఉంచుకుంటుంది.',
+  'server.publicationTermNotPublished':
+    '"{term}" ఇంకా పబ్లిష్ కాలేదు, కాబట్టి దానిని డిప్రికేట్ చేయలేము. దానిని తొలగించండి.',
+  'server.publicationUnknownTerm': '"{term}" ఈ లిస్ట్ లేదా వోకాబులరీకి చెందిన పదం కాదు.',
+  'server.publicationMatchInvalid': 'ఒక మ్యాచ్ అబ్సల్యూట్ http లేదా https URI అయి ఉండాలి.',
+  'server.publicationMatchTermLists':
+    'కేవలం ఒక టర్మ్ లిస్ట్ లోని టర్మ్స్ మాత్రమే అథారిటీకి లింక్ అవుతాయి.',
+  'server.publicationTermIriInvalid': 'టర్మ్ URI {uri} ఒక సరైన IRI కాదు.',
 };

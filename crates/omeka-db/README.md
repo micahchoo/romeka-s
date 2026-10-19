@@ -74,6 +74,11 @@ leaves a bare annotation. `ResourceRepo::delete` removes the annotation's values
 row, and the reference from the value clears through `ON DELETE SET NULL`. The api layer deletes an
 annotation with the value that carried it, because upstream maps the pair `orphanRemoval`.
 
+`ValueRewriteRepo` holds the bulk value rewrites behind tags: `text_values` reads a type's text
+values with the resource columns a permission check needs, and `promote` and `merge` each write
+in one transaction. Each statement re-checks the value's type, so a value another writer retyped
+after the read stays as that writer left it.
+
 `SiteRepo::create_whole` writes a new site, its first page and blocks, its permissions, item sets
 and settings in one transaction, the way upstream's one flush stores them, so a failing row leaves
 no partial site. The first page's id exists only inside that transaction, so a navigation that
@@ -96,6 +101,17 @@ a user name or a vocabulary label calls this instead of comparing bytes, and the
 EXISTS` on every statement. Point the port at an Omeka S database that already exists and the
 migration leaves its tables alone. It creates `_sqlx_migrations` in that database for its own
 bookkeeping.
+
+`migrations/0004_term_local_name_binary.sql` makes `property.local_name` and
+`resource_class.local_name` case-sensitive, as upstream's `utf8mb4_bin` is, so FOAF's `givenName`
+and `givenname` are two terms. SQLite changes a collation only by rebuilding the table, and the
+drop in a rebuild runs every `ON DELETE` action of the tables that point at it. `migrate`
+therefore runs the SQLite set on one connection with foreign key enforcement off, which is the
+order SQLite's `ALTER TABLE` documentation gives, and fails if any reference is broken afterwards.
+A later rebuild migration relies on the same arrangement. `tests/term_collation_upgrade.rs`
+proves every row of every table survives the upgrade; with `ROMEKA_UPGRADE_DB` naming a real
+database it runs the same check on a copy of it. MySQL needs no such step: its
+`0001_init.sql` already carries upstream's `utf8mb4_bin` on both columns.
 
 `migrate` and `migrate_mysql` are both no-ops on a second run.
 

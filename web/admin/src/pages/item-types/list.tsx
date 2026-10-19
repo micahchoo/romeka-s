@@ -8,7 +8,7 @@ import type { ApiPage, ResourceClass, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
 import { ListPage, mapPage } from '../../app/list';
 import { plainName } from '../../app/plain-terms';
-import { useLocale, useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { useItemTypesText } from './messages';
 
 const PER_PAGE = 25;
@@ -40,7 +40,7 @@ const load = async (page: number): Promise<ApiPage<TypeRow>> => {
 export const TypeList = (): ReactElement => {
   const t = useItemTypesText();
   const { number } = useTranslator();
-  const locale = useLocale();
+  const text = useTermText();
   return (
     <div className="type-list">
       <p className="type-lede">{t('list.lede')}</p>
@@ -74,7 +74,7 @@ export const TypeList = (): ReactElement => {
                 t('class.noneShort')
               ) : (
                 <>
-                  {plainName(row.resourceClass, locale)}{' '}
+                  {plainName(row.resourceClass, text)}{' '}
                   <code className="property-field-term">{row.resourceClass.term}</code>
                 </>
               ),

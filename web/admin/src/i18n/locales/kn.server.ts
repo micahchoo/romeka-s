@@ -86,8 +86,6 @@ export const knServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" ಅನ್ನು ಹೋಲಿಕೆ ಮಾಡಿದ ನಂತರ ಬದಲಾಗಿದೆ. ಫೈಲ್ ಅನ್ನು ಮತ್ತೆ ಹೋಲಿಸಿ.',
   'server.vocabularyMemberMissing': '"{name}" ಈ ಶಬ್ದಕೋಶದ ಸದಸ್ಯನಲ್ಲ.',
-  'server.vocabularyCaseClash':
-    '"{first}" ಮತ್ತು "{second}" ಕೇವಲ ಅಕ್ಷರಗಳ ಗಾತ್ರದಲ್ಲಿ ಮಾತ್ರ ಭಿನ್ನವಾಗಿವೆ, ಮತ್ತು ಈ ಆರ್ಕೈವ್ ಎರಡನ್ನೂ ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
   'server.nameEmpty': 'ಹೆಸರು ಖಾಲಿ ಇರಬಾರದು.',
   'server.emailTaken': 'ಇಮೇಲ್ {email} ಈಗಾಗಲೇ ಬಳಕೆಯಲ್ಲಿದೆ.',
   'server.userRoleRequired': 'ಬಳಕೆದಾರರಿಗೆ ಪಾತ್ರವಿರಬೇಕು.',
@@ -138,4 +136,29 @@ export const knServer: ServerCatalogue = {
   'server.settingNotText': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್ ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotFlag': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸತ್ಯ, ಸುಳ್ಳು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.publicationTermsRemoved':
+    'ಪ್ರಕಟಿತ ಪದವನ್ನು ತೆಗೆದುಹಾಕಲು ಅಥವಾ ಮರುನಾಮಕರಣ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ: {terms}. ಅದನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
+  'server.publicationNamespaceFixed':
+    'ಪ್ರಕಟಿತ ಶಬ್ದಕೋಶವು ಅದರ ನೇಮ್‌ಸ್ಪೇಸ್ ಅನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತದೆ, ಆದ್ದರಿಂದ ಅದರ ಪದಗಳು ತಮ್ಮ URI ಗಳನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತವೆ.',
+  'server.publicationNotDeletable':
+    'ಪ್ರಕಟಿತ ಪದಗಳ ಪಟ್ಟಿ ಅಥವಾ ಶಬ್ದಕೋಶವನ್ನು ಅಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದರ ಪದಗಳನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
+  'server.publicationDeprecationFixed':
+    '"{term}" ನ ಡಿಪ್ರಿಕೇಶನ್ ಪ್ರಕಟವಾಗಿದೆ ಮತ್ತು ಅದನ್ನು ಹಿಂಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'server.publicationItemsList':
+    'ಐಟಂಗಳ ಪಟ್ಟಿಯನ್ನು ಪ್ರಕಟಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಪ್ರತಿ ಐಟಂ ಈಗಾಗಲೇ ತನ್ನದೇ ಆದ ವಿಳಾಸವನ್ನು ಹೊಂದಿದೆ.',
+  'server.publicationForeignNamespace':
+    'ನೇಮ್‌ಸ್ಪೇಸ್ {namespace} ಈ ಆರ್ಕೈವ್‌ನದ್ದಲ್ಲ. ಈ ಆರ್ಕೈವ್‌ನ /vocab/ ವಿಳಾಸದ ಅಡಿಯಲ್ಲಿ ಬರುವ ಶಬ್ದಕೋಶವನ್ನು ಪ್ರಕಟಿಸಿ, ಅಥವಾ w3id.org ಅಥವಾ purl.org ನಲ್ಲಿ ಪ್ರಕಟಿಸಿ.',
+  'server.publicationSlugInvalid':
+    'ವಿಳಾಸದ ಹೆಸರು ಸಣ್ಣ ಅಕ್ಷರಗಳು, ಅಂಕಿಗಳು ಮತ್ತು ಒಂದೇ ಹೈಫನ್ ಅನ್ನು ಬಳಸುತ್ತದೆ, ಗರಿಷ್ಠ 64 ಅಕ್ಷರಗಳು.',
+  'server.publicationSlugTaken': 'ವಿಳಾಸ /vocab/{slug}/ ಈಗಾಗಲೇ ಬಳಕೆಯಲ್ಲಿದೆ.',
+  'server.publicationNamespaceNotPersistent':
+    'ಈ ಆರ್ಕೈವ್‌ನದ್ದಲ್ಲದ ನೇಮ್‌ಸ್ಪೇಸ್ w3id.org ಅಥವಾ purl.org ನಲ್ಲಿರಬೇಕು ಮತ್ತು ಕೊನೆಯಲ್ಲಿ / ಅಥವಾ # ನೊಂದಿಗೆ ಕೊನೆಗೊಳ್ಳಬೇಕು.',
+  'server.publicationAddressFixed':
+    'ಪ್ರಕಟಿತ ಪದಗಳ ಪಟ್ಟಿ ಅಥವಾ ಶಬ್ದಕೋಶವು ಅದು ಮೊದಲು ಪ್ರಕಟವಾದ ವಿಳಾಸವನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತದೆ.',
+  'server.publicationTermNotPublished':
+    '"{term}" ಇನ್ನೂ ಪ್ರಕಟವಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಅದನ್ನು ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದನ್ನು ತೆಗೆದುಹಾಕಿ.',
+  'server.publicationUnknownTerm': '"{term}" ಈ ಪಟ್ಟಿಯ ಅಥವಾ ಶಬ್ದಕೋಶದ ಪದವಲ್ಲ.',
+  'server.publicationMatchInvalid': 'ಹೊಂದಾಣಿಕೆಯು ಸಂಪೂರ್ಣ http ಅಥವಾ https URI ಆಗಿರಬೇಕು.',
+  'server.publicationMatchTermLists': 'ಕೇವಲ ಪದಗಳ ಪಟ್ಟಿಯ ಪದಗಳು ಮಾತ್ರ ಅಧಿಕಾರಕ್ಕೆ ಲಿಂಕ್ ಆಗುತ್ತವೆ.',
+  'server.publicationTermIriInvalid': 'ಪದದ URI {uri} ಮಾನ್ಯವಾದ IRI ಅಲ್ಲ.',
 };

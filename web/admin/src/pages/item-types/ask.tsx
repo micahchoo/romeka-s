@@ -5,7 +5,7 @@
 import { useId, useState } from "react";
 import type { ReactElement } from "react";
 import { plainName } from "../../app/plain-terms";
-import { useLocale } from "../../i18n";
+import { useLocale, useTermText } from "../../i18n";
 import { TypeEditor } from "./editor";
 import { useItemTypesText } from "./messages";
 import type { TypeDraft } from "./model";
@@ -30,6 +30,7 @@ export const NewType = ({
 }): ReactElement => {
   const t = useItemTypesText();
   const locale = useLocale();
+  const text = useTermText();
   const inputId = useId();
   const [kind, setKind] = useState("");
   const [draft, setDraft] = useState<TypeDraft | null>(null);
@@ -106,7 +107,7 @@ export const NewType = ({
           </h2>
           {className === undefined ? null : (
             <p className="type-class-line">
-              {t("class.line", { name: plainName(className, locale) })}{" "}
+              {t("class.line", { name: plainName(className, text) })}{" "}
               <code>{className.term}</code>
             </p>
           )}

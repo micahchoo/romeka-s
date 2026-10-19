@@ -11,8 +11,9 @@ import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
+import type { TermName } from './labels';
 import { ItemEditForm } from './form';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -24,12 +25,12 @@ interface ItemReads {
   readonly media: readonly Media[];
   readonly mediaTotal: number;
   readonly ownerNames: ReadonlyMap<UserId, string>;
-  readonly classLabels: ReadonlyMap<ClassId, string>;
+  readonly classLabels: ReadonlyMap<ClassId, TermName>;
 }
 
 /** The label maps before their reads answer, so a ref falls back to `#id`. */
 const NO_NAMES: ReadonlyMap<UserId, string> = new Map();
-const NO_CLASSES: ReadonlyMap<ClassId, string> = new Map();
+const NO_CLASSES: ReadonlyMap<ClassId, TermName> = new Map();
 
 /** One media of the item: the image links to the original file. */
 const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
@@ -59,6 +60,7 @@ const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
   const { t, locale } = useTranslator(common, resources);
+  const text = useTermText();
   // A create hands its record to this page, so the heading and the fields
   // render without reading the item back.
   const [seeded] = useState(() => writtenItems.take(itemId));
@@ -95,7 +97,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const reads = readsState.status === 'ready' ? readsState.data : null;
   const item = edited ?? itemState.data;
   const ownerName = ownerNameOf(reads?.ownerNames ?? NO_NAMES, item.owner);
-  const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass);
+  const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass, text);
   return (
     <section>
       <h2>{item.title ?? t('common.untitled')}</h2>

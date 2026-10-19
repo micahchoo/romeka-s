@@ -171,14 +171,14 @@ export const asString = (value: unknown, path: Path): string => {
   return value;
 };
 
-const asNumber = (value: unknown, path: Path): number => {
+export const asNumber = (value: unknown, path: Path): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new ParseError(path, 'number');
   }
   return value;
 };
 
-const asBoolean = (value: unknown, path: Path): boolean => {
+export const asBoolean = (value: unknown, path: Path): boolean => {
   if (typeof value !== 'boolean') {
     throw new ParseError(path, 'boolean');
   }

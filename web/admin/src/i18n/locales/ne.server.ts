@@ -81,8 +81,6 @@ export const neServer: ServerCatalogue = {
   'server.vocabularyUrlStatus': 'URL मा रहेको सर्भरले {status} स्थितिमा जवाफ दियो।',
   'server.vocabularyChangeStale': '"{name}" तुलनाबाट परिवर्तन भएको छ। फाइल फेरि तुलना गर्नुहोस्।',
   'server.vocabularyMemberMissing': '"{name}" यो शब्दावलीको सदस्य होइन।',
-  'server.vocabularyCaseClash':
-    '"{first}" र "{second}" केवल अक्षरको केसमा भिन्न छन्, र यो अभिलेखले दुवै भण्डारण गर्न सक्दैन।',
   'server.nameEmpty': 'नाम खाली हुन सक्दैन।',
   'server.emailTaken': 'इमेल {email} पहिले नै लिइएको छ।',
   'server.userRoleRequired': 'प्रयोगकर्ताहरूलाई एउटा भूमिका तोकिनुपर्छ।',
@@ -132,4 +130,29 @@ export const neServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
+  'server.publicationTermsRemoved':
+    'प्रकाशित शब्दलाई हटाउन वा पुन: नामकरण गर्न सकिँदैन: {terms}। यसलाई यसको सट्टा डिप्रिकेट गर्नुहोस्।',
+  'server.publicationNamespaceFixed':
+    'प्रकाशित शब्दावलीले यसको नेमस्पेस कायम राख्छ, त्यसैले यसका शब्दहरूले तिनीहरूको URIs कायम राख्छन्।',
+  'server.publicationNotDeletable':
+    'प्रकाशित शब्द सूची वा शब्दावली मेटाउन सकिँदैन। यसको सट्टा यसका शब्दहरू डिप्रिकेट गर्नुहोस्।',
+  'server.publicationDeprecationFixed':
+    '"{term}" को डिप्रिकेसन प्रकाशित भइसकेको छ र यसलाई फिर्ता लिन सकिँदैन।',
+  'server.publicationItemsList':
+    'वस्तुहरूको सूची प्रकाशित गर्न सकिँदैन। प्रत्येक वस्तुको पहिले नै आफ्नै ठेगाना छ।',
+  'server.publicationForeignNamespace':
+    'नेमस्पेस {namespace} यो आर्काइभको होइन। यस आर्काइभको /vocab/ ठेगाना अन्तर्गत एउटा शब्दावली प्रकाशित गर्नुहोस्, वा w3id.org वा purl.org मा।',
+  'server.publicationSlugInvalid':
+    'एउटा ठेगानाको नामले सानो अक्षर, अङ्क र एउटा हाइफन प्रयोग गर्छ, जसमा 64 वटा क्यारेक्टरसम्म हुन्छ।',
+  'server.publicationSlugTaken': 'ठेगाना /vocab/{slug}/ पहिले नै लिइएको छ।',
+  'server.publicationNamespaceNotPersistent':
+    'यो आर्काइभको नेमस्पेस बाहेक अन्य नेमस्पेस w3id.org वा purl.org मा हुनुपर्छ र / वा # मा समाप्त हुनुपर्छ।',
+  'server.publicationAddressFixed':
+    'प्रकाशित शब्द सूची वा शब्दावलीले यसलाई पहिलो पटक प्रकाशित गरिएको ठेगानालाई कायम राख्छ।',
+  'server.publicationTermNotPublished':
+    '"{term}" अझै प्रकाशित भएको छैन, त्यसैले यसलाई डिप्रिकेट गर्न सकिँदैन। यसको सट्टा यसलाई हटाउनुहोस्।',
+  'server.publicationUnknownTerm': '"{term}" यो सूची वा शब्दावलीको शब्द होइन।',
+  'server.publicationMatchInvalid': 'मिलान (match) एउटा पूर्ण http वा https URI हुनुपर्छ।',
+  'server.publicationMatchTermLists': 'केवल एउटा शब्द सूचीको शब्दले एउटा आधिकारिकतालाई लिङ्क गर्छ।',
+  'server.publicationTermIriInvalid': 'शब्द URI {uri} एउटा मान्य IRI होइन।',
 };
