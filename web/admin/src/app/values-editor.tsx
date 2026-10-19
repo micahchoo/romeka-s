@@ -2,7 +2,7 @@
  * The values of one resource, one group per property, laid out by the chosen
  * template (`value-fields.ts` owns the layout and the rules).
  */
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
 import { useTermText, useTranslator } from '../i18n';
@@ -13,13 +13,22 @@ import {
   addFieldValue,
   addPropertyValue,
   layoutFields,
+  pickTerm,
   setValueType,
   typeChoices,
+  valueInput,
   type PropertyField,
   type TemplateLayout,
 } from './value-fields';
 import { useDescribeText } from './describe-messages';
+import { useLesson } from './lessons/lesson';
+import { isLocalTerm } from './local-fields';
 import { TermHelp, StandardTermPicker } from './standard-term-picker';
+
+// Most resources hold no term list value, so the picker loads on first use.
+const TermPicker = lazy(() =>
+  import('../pages/term-lists/term-picker').then((module) => ({ default: module.TermPicker })),
+);
 
 const CORE_TYPE_LABELS = {
   literal: 'field.kindText',
@@ -66,6 +75,7 @@ const ValueRow = ({
     onChange(patchValue(draft, value.key, next));
   };
   const choices = typeChoices(field, value);
+  const input = valueInput(value, dataTypes);
   const named = { field: field.label };
   return (
     <li className="value-row">
@@ -88,7 +98,25 @@ const ValueRow = ({
           </select>
         </p>
       ) : null}
-      {value.kind === 'literal' ? (
+      {input.kind === 'term-list' ? (
+        <Suspense
+          fallback={
+            <p className="value-field-wide">
+              <input type="text" disabled aria-labelledby={labelId} value={value.text} />
+            </p>
+          }
+        >
+          <TermPicker
+            id={id('text')}
+            fieldLabelId={labelId}
+            termList={input.termList}
+            value={value.text}
+            onPick={(choice) => {
+              onChange(pickTerm(draft, value.key, choice));
+            }}
+          />
+        </Suspense>
+      ) : input.kind === 'literal' ? (
         <p className="value-field-wide">
           <textarea
             id={id('text')}
@@ -103,13 +131,13 @@ const ValueRow = ({
       ) : (
         <p className="value-field-wide">
           <label htmlFor={id('text')}>
-            {t(value.kind === 'uri' ? 'field.uri' : 'field.resourceId')}
+            {t(input.kind === 'uri' ? 'field.uri' : 'field.resourceId')}
           </label>
           <input
             id={id('text')}
             type="text"
-            aria-label={t(value.kind === 'uri' ? 'valueField.uri' : 'valueField.resourceId', named)}
-            inputMode={value.kind === 'resource' ? 'numeric' : undefined}
+            aria-label={t(input.kind === 'uri' ? 'valueField.uri' : 'valueField.resourceId', named)}
+            inputMode={input.kind === 'resource' ? 'numeric' : undefined}
             value={value.text}
             onChange={(event) => {
               patch({ text: event.target.value });
@@ -117,7 +145,7 @@ const ValueRow = ({
           />
         </p>
       )}
-      {value.kind === 'uri' ? (
+      {input.kind === 'uri' ? (
         <p>
           <label htmlFor={id('label')}>{t('field.label')}</label>
           <input
@@ -131,7 +159,7 @@ const ValueRow = ({
           />
         </p>
       ) : null}
-      {value.kind === 'resource' ? null : (
+      {input.kind === 'resource' || input.kind === 'term-list' ? null : (
         <p className="value-lang-field">
           <label htmlFor={id('lang')}>{t('field.language')}</label>
           <input
@@ -174,16 +202,41 @@ const ValueRow = ({
   );
 };
 
+/** The lessons a field group is the anchor of. */
+interface FieldLessons {
+  readonly required: boolean;
+  readonly local: boolean;
+}
+
+const NO_LESSONS: FieldLessons = { required: false, local: false };
+
+/** The first required field and the first local one anchor their lessons. */
+const fieldLessons = (fields: readonly PropertyField[]): ((field: PropertyField) => FieldLessons) => {
+  const required = fields.find((field) => field.rule?.isRequired === true);
+  const local = fields.find((field) => isLocalTerm(field.term));
+  return (field) => ({ required: field === required, local: field === local });
+};
+
 interface FieldGroupProps extends Change {
   readonly idPrefix: string;
   readonly field: PropertyField;
   readonly dataTypes: readonly DataType[];
+  readonly lessons: FieldLessons;
 }
 
-const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupProps): ReactElement => {
+const FieldGroup = ({
+  idPrefix,
+  field,
+  dataTypes,
+  draft,
+  onChange,
+  lessons,
+}: FieldGroupProps): ReactElement => {
   const { t } = useTranslator();
   const labelId = `${idPrefix}-field-${String(field.propertyId)}-label`;
   const rule = field.rule;
+  const required = useLesson('required', lessons.required);
+  const local = useLesson('local-field', lessons.local);
   return (
     <li className="property-field">
       <p className="property-field-head">
@@ -194,15 +247,19 @@ const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupP
           <span className="property-field-term">{field.term}</span>
         )}
         <TermHelp entry={field.property} />
+        {local.toggle}
         {rule?.isRequired === true ? (
           <span className="field-badge field-badge-required">{t('valueField.required')}</span>
         ) : null}
+        {required.toggle}
         {rule?.isPrivate === true ? (
           <span className="field-badge" title={t('valueField.privateHint')}>
             {t('valueField.private')}
           </span>
         ) : null}
       </p>
+      {local.panel}
+      {required.panel}
       {field.comment === null ? null : <p className="property-field-comment">{field.comment}</p>}
       {field.values.length === 0 ? null : (
         <ul className="value-rows">
@@ -271,6 +328,8 @@ export interface ValuesEditorProps extends Change {
   readonly dataTypes: readonly DataType[];
   /** Makes a new property for "Add another field"; without it none is offered. */
   readonly createField?: (name: string, properties: readonly Property[]) => Promise<Property>;
+  /** Anchor the item form's lessons here; a preview of the form shows none. */
+  readonly showLessons?: boolean;
 }
 
 export const ValuesEditor = ({
@@ -281,12 +340,14 @@ export const ValuesEditor = ({
   properties: loaded,
   dataTypes,
   createField,
+  showLessons = false,
 }: ValuesEditorProps): ReactElement => {
   const { t } = useTranslator();
   const [created, setCreated] = useState<readonly Property[]>([]);
   const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
   const text = useTermText();
   const fields = layoutFields(draft.values, template, properties, text);
+  const lessonsOf = showLessons ? fieldLessons(fields) : () => NO_LESSONS;
   return (
     <fieldset className="values-editor">
       <legend>{t('field.valuesLegend')}</legend>
@@ -299,6 +360,7 @@ export const ValuesEditor = ({
             dataTypes={dataTypes}
             draft={draft}
             onChange={onChange}
+            lessons={lessonsOf(field)}
           />
         ))}
       </ul>

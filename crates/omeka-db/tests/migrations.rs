@@ -36,7 +36,7 @@ async fn migrating_twice_leaves_the_schema_unchanged() {
     let pool = common::memory().await;
     let first = schema(&pool).await;
     let applied = migration_rows(&pool).await;
-    assert_eq!(applied, 1, "one migration file");
+    assert_eq!(applied, 3, "three migration files");
 
     migrate(&pool).await.unwrap();
 

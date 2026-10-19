@@ -18,6 +18,8 @@ use omeka_core::resource::{Media, ResourceKind, Timestamp};
 use omeka_core::site::{
     BlockLayout, BlockLayoutData, PageLayout, PageLayoutData, Site, SiteBlock, SitePage, Slug,
 };
+use omeka_core::term_list;
+use omeka_core::value_shape::ValueShape;
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
@@ -323,9 +325,9 @@ impl<'a> Loader<'a> {
             "@id": self.base.api_resource(resource, row.id.0),
             "@type": [jsonld_type],
             "o:id": row.id.0,
-            // Machine output: the placeholder stays the source-language one
-            // whatever the site's locale.
-            "o:title": display_title(row, &omeka_site::i18n::EN),
+            // `AbstractResourceEntityRepresentation::title()`: the stored
+            // title, null when there is none. The placeholder is display text.
+            "o:title": row.title,
         })
         .to_string()
     }
@@ -370,7 +372,7 @@ impl<'a> Loader<'a> {
             if !value.is_public {
                 continue;
             }
-            if filter_locale && !value.lang.as_deref().is_none_or(|lang| lang == locale) {
+            if filter_locale && !in_locale(value.lang.as_deref(), locale) {
                 continue;
             }
             let Some(info) = self.catalog.property(value.property_id) else {
@@ -863,12 +865,7 @@ impl<'a> Loader<'a> {
             }
             // `resource-values.phtml` keeps a value whose language is empty or
             // the site's locale when `filter_locale_values` is on.
-            if filter_locale
-                && !value
-                    .lang
-                    .as_deref()
-                    .is_none_or(|lang| lang.is_empty() || lang.eq_ignore_ascii_case(locale))
-            {
+            if filter_locale && !in_locale(value.lang.as_deref(), locale) {
                 continue;
             }
             // `displayValues` drops a referenced item or item set that is not
@@ -915,35 +912,39 @@ impl<'a> Loader<'a> {
         info: &omeka_api::read::catalog::PropertyInfo,
         label: String,
     ) -> Result<ValueRef, DbError> {
-        let (text, html, class) = match value.r#type.as_str() {
-            // `DataType\Uri::render`: a link with the stored label, else the URI.
-            "uri" => {
-                let uri = value.uri.clone().unwrap_or_default();
-                let label = value.value.clone().unwrap_or_default();
-                let text = if label.is_empty() { uri.clone() } else { label };
-                let html = crate::site::load::link_new_tab(&text, &uri);
-                (text, html, "uri".to_string())
-            }
-            // `DataType\Resource\AbstractResource::render`: `linkPretty('square')`.
-            name if name.starts_with("resource") => match value.value_resource_id {
-                Some(id) => match self.value_resource_ref(id).await? {
-                    Some((kind, reference)) => {
-                        let text = reference.title.clone();
-                        let html = link_pretty(&reference);
-                        (text, html, format!("resource {}", resource_name(kind)))
-                    }
+        let (text, html, class) = if term_list::list_id(&value.r#type).is_some() {
+            self.term_list_value(value).await?
+        } else {
+            match value.r#type.as_str() {
+                // `DataType\Uri::render`: a link with the stored label, else the URI.
+                "uri" => {
+                    let uri = value.uri.clone().unwrap_or_default();
+                    let label = value.value.clone().unwrap_or_default();
+                    let text = if label.is_empty() { uri.clone() } else { label };
+                    let html = crate::site::load::link_new_tab(&text, &uri);
+                    (text, html, "uri".to_string())
+                }
+                // `DataType\Resource\AbstractResource::render`: `linkPretty('square')`.
+                name if name.starts_with("resource") => match value.value_resource_id {
+                    Some(id) => match self.value_resource_ref(id).await? {
+                        Some((kind, reference)) => {
+                            let text = reference.title.clone();
+                            let html = link_pretty(&reference);
+                            (text, html, format!("resource {}", resource_name(kind)))
+                        }
+                        None => (String::new(), String::new(), "resource".to_string()),
+                    },
                     None => (String::new(), String::new(), "resource".to_string()),
                 },
-                None => (String::new(), String::new(), "resource".to_string()),
-            },
-            // `DataType\Literal::render`: escaped text with newlines as `<br />`.
-            _ => {
-                let text = value.value.clone().unwrap_or_default();
-                (
-                    text.clone(),
-                    nl2br(&omeka_site::html::escape_html(&text)),
-                    "literal".to_string(),
-                )
+                // `DataType\Literal::render`: escaped text with newlines as `<br />`.
+                _ => {
+                    let text = value.value.clone().unwrap_or_default();
+                    (
+                        text.clone(),
+                        nl2br(&omeka_site::html::escape_html(&text)),
+                        "literal".to_string(),
+                    )
+                }
             }
         };
         Ok(ValueRef {
@@ -956,6 +957,43 @@ impl<'a> Loader<'a> {
             lang: value.lang.clone().filter(|lang| !lang.is_empty()),
             class,
         })
+    }
+
+    /// A term list value as `DataType\CustomVocab::render` draws it: the item as
+    /// `linkPretty('square')`, a URI as a new-tab link with its label, else the
+    /// text. `resource-values.phtml` gives the `<dd>` the type name with `:`
+    /// and `_` as `-`, and no `resource` or `uri` class, because the type name
+    /// is neither.
+    async fn term_list_value(&self, value: &ValueRow) -> Result<(String, String, String), DbError> {
+        let class = value.r#type.replace([':', '_'], "-");
+        let shape = ValueShape::of(
+            &value.r#type,
+            value.uri.is_some(),
+            value.value_resource_id.is_some(),
+        );
+        let (text, html) = match (shape, value.value_resource_id) {
+            (ValueShape::Resource, Some(id)) => match self.value_resource_ref(id).await? {
+                Some((_, reference)) => (reference.title.clone(), link_pretty(&reference)),
+                None => (String::new(), String::new()),
+            },
+            (ValueShape::Uri, _) => {
+                let uri = value.uri.clone().unwrap_or_default();
+                let label = value.value.clone().unwrap_or_default();
+                let text = if label.is_empty() { uri.clone() } else { label };
+                let html = omeka_site::html::hyperlink(
+                    &text,
+                    Some(&uri),
+                    &[omeka_site::html::Attr::text("target", "_blank")],
+                );
+                (text, html)
+            }
+            _ => {
+                let text = value.value.clone().unwrap_or_default();
+                let html = nl2br(&omeka_site::html::escape_html(&text));
+                (text, html)
+            }
+        };
+        Ok((text, html, class))
     }
 
     /// The template's property rows in `list_properties` order, `None` when
@@ -976,6 +1014,15 @@ impl<'a> Loader<'a> {
     /// The value text for its data type: a literal, a URI, or the display title
     /// of the resource a `resource*` value points at.
     async fn value_text(&self, value: &ValueRow) -> Result<String, DbError> {
+        if term_list::list_id(&value.r#type).is_some() {
+            // `CustomVocab::toString` is the stored value unless the value is
+            // an item, which reads as the item's title here as it does for the
+            // core resource types.
+            return match value.value_resource_id {
+                Some(id) => self.resource_title(id).await,
+                None => Ok(value.value.clone().unwrap_or_default()),
+            };
+        }
         match value.r#type.as_str() {
             "uri" => Ok(value.uri.clone().unwrap_or_default()),
             name if name.starts_with("resource") => match value.value_resource_id {
@@ -1420,6 +1467,14 @@ fn nl2br(text: &str) -> String {
         }
     }
     out
+}
+
+/// Whether a value counts under `filter_locale_values`: an untagged or empty
+/// language, or the site locale in any case (`resource-values.phtml:11-14`
+/// with `strcasecmp`, and `AbstractResourceEntityRepresentation::value`, which
+/// lowercases both sides). Both the browse body and the show values read it.
+fn in_locale(lang: Option<&str>, locale: &str) -> bool {
+    lang.is_none_or(|lang| lang.is_empty() || lang.eq_ignore_ascii_case(locale))
 }
 
 /// Order values as `displayValues` does.

@@ -141,6 +141,33 @@ transaction:
 first, then `resource`, so both the value's `resource_id` and any pointing value's
 `value_resource_id` are gone before the row disappears.
 
+## Module tables
+
+`0002_custom_vocab.sql` adds `custom_vocab`, the table the Custom Vocab module (v2.1.0,
+`Module::install`) creates, because the port builds term lists into core. The SQLite file applies
+the translation rules above: `terms` and `uris` are `(DC2Type:json)` text, `label` collates NOCASE
+and stays unique, and both foreign keys keep `ON DELETE SET NULL`. The MySQL file is the module's
+DDL with its two `ADD CONSTRAINT` statements folded into `CREATE TABLE IF NOT EXISTS`, so an install
+that already runs the module keeps its table and rows. Deleting a list is a repository-level removal:
+`CustomVocabRepo::delete` sets the list's values back to `literal` and removes its
+`customvocab:<id>` name from every template row, in one transaction.
+
+## Romeka tables
+
+`0003_publication.sql` adds the two tables publishing needs. Upstream has neither and reads neither, so
+an install that shares the database sees its own tables unchanged. Both names start with `romeka_`.
+
+- `romeka_publication`: one row per term list or vocabulary with Romeka state. `custom_vocab_id` and
+  `vocabulary_id` name the target (a `CHECK` allows at most one) and go to `NULL` when upstream
+  deletes it, so the published versions keep serving. `slug` is unique across both kinds, because
+  both are served under `/vocab/<slug>/`. `terms` is JSON: each term's minted local name,
+  deprecation and authority links, keyed by the term.
+- `romeka_publication_version`: one row per publish, `UNIQUE (publication_id, version)`, cascading
+  from its record. `snapshot` is the published scheme as JSON. `PublicationRepo` has no statement
+  that updates or deletes a version.
+
+The MySQL file is the same schema with `IF NOT EXISTS`, InnoDB and utf8mb4, as `0002` writes.
+
 ## Not translated
 
 - The `resource_type` prefix index and the FULLTEXT behaviour are the only MySQL-specific index

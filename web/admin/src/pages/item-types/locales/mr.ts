@@ -81,6 +81,8 @@ export const mr: ItemTypesMessages = {
   'accepts.itemSet': 'वस्तूंचा संच',
   'accepts.media': 'मीडिया फाईल',
   'accepts.missing': '{id} (स्थापित नाही)',
+  'accepts.termLists': 'संज्ञा सूची',
+  'accepts.termList': 'शब्दसूची: {list}',
   'use.legend': 'वापरले जाते',
   'use.items': 'वस्तू',
   'use.itemSets': 'वस्तूंचा संच',

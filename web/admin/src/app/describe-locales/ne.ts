@@ -20,4 +20,9 @@ export const ne: DescribeMessages = {
   'picker.matches': '“{query}” का लागि मेलहरू',
   'picker.none': '“{query}” का लागि केही पनि मेल खाँदैन।',
   'picker.create': 'नयाँ क्षेत्र “{name}” सिर्जना गर्नुहोस्',
+  'tags.legend': 'ट्यागहरू',
+  'tags.add': 'ट्याग थप्नुहोस्',
+  'tags.hint':
+    'पछि कुराहरू खोज्नका लागि नि:शुल्क शब्दहरू। Enter थिच्नुहोस् वा थप्नका लागि अल्पविराम टाइप गर्नुहोस्।',
+  'tags.remove': 'ट्याग “{tag}” हटाउनुहोस्',
 };

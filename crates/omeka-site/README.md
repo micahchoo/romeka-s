@@ -78,8 +78,9 @@ Stored text reaches the page as CSS in `theme::custom_css` and nowhere else. `cu
 reads the text with `cssparser` and refuses `@import`, `@document`, any `url()` (or URL string in
 `src()`, `image()`, `image-set()`, `cross-fade()`) that is not a path under this site's `/files/` or
 `/assets/`, `expression()`, `behavior`, `-moz-binding`, `</style`, more than 64 KB, and text the tokenizer
-cannot read. Each refusal names its line and column. The site write and the preview answer refusals as a
-422 under `o:theme_settings`; `ThemeSettings::from_value` sanitises again on read and drops refused CSS
+cannot read. Each refusal is a `CssProblem` kind with its line and column; the sentence a curator reads
+is one entry per kind in `omeka-api`'s message registry, so the admin translates it whole. The site
+write and the preview answer refusals as a 422 under `o:theme_settings`; `ThemeSettings::from_value` sanitises again on read and drops refused CSS
 whole. The frame prints the CSS in `<style id="custom-css">` after the theme sheet, so its rules win.
 
 ### The bundled theme's stylesheet
@@ -305,7 +306,7 @@ Six lookups: `search` (a browse), `read` (one resource), `read_media`, `read_ass
 - Module view listeners (`trigger('view.show.before')` and friends). There are no modules.
 - `$this->lang()` as a view helper. The port carries the same information on
   `i18n::Locale` and `i18n::Translator`; full translation catalogs are excluded
-  by DESIGN.md, so two locales ship (see below).
+  by DESIGN.md, so nine locales ship (see below).
 - The exact Laminas menu and pagination markup (per-item classes, `aria` attributes).
 - From the advanced form: the `dataType()->getSelect` input (the site layer has no data-type
   registry), the `resource-template-restrict` hidden inputs (`search_restrict_templates` needs a
@@ -326,9 +327,16 @@ and `RenderContext::translator()` exposes the result. The theme and the blocks r
 through `Translator::messages()` and dates through `Translator::format_datetime`. The search views
 read `Translator::search_labels()` (`i18n::SearchLabels`), the same shape for the second catalogue.
 
-Two locales ship: English (the source language) and Spanish, whose terms follow upstream's
-`application/language/es.po`. A region tag (`es_ES`, `en_US`) narrows to its language; an unknown tag
-falls back to English. The running server keeps `SiteSettings::default()` until a `site_setting`
+Nine locales ship. English is the source language. Spanish is hand-written, and its terms follow
+upstream's `application/language/es.po`. Hindi, Marathi, Malayalam, Tamil, Kannada, Telugu and Nepali
+(`hi mr ml ta kn te ne`, the admin's languages) are machine-translated: their strings live in
+`src/i18n/locales/<tag>.json`, which `web/admin/scripts/translate-locales.mjs` fills from
+`locales/en.json` with sarvam-30b, reusing the admin's translation where the English is the same. A
+locale file that lacks a key or adds one fails `every_shipped_locale_parses`. Their dates come from
+CLDR, not the model: `web/admin/scripts/cldr-dates.mjs` writes `src/i18n/dates_cldr.rs` from node's
+ICU, with the names, the `dateStyle`/`timeStyle` patterns, the day periods and the digits of each
+locale's default numbering system (Devanagari for `mr` and `ne`, Latin for the rest). A region tag
+(`es_ES`, `en_US`, `hi_IN`) narrows to its language; an unknown tag falls back to English. The running server keeps `SiteSettings::default()` until a `site_setting`
 repository exists, so a live render is English today; the render layer honours whatever a caller sets.
 
 The built-in vocabularies' labels (Dublin Core, Dublin Core Type, BIBO, FOAF) print in the site's

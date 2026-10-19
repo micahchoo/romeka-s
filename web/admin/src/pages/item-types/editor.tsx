@@ -10,11 +10,11 @@ import { useTermText } from '../../i18n';
 import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
-import { createLocalField } from '../../app/local-fields';
+import { createLocalField, isLocalTerm } from '../../app/local-fields';
 import { useSave } from '../../app/save';
 import { StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, setUsedFor, usedFor, type ResourceKind } from '../../app/type-use';
-import { FieldRow } from './field-row';
+import { FieldRow, type TermLesson } from './field-row';
 import { useItemTypesText } from './messages';
 import {
   addField,
@@ -189,6 +189,12 @@ const FieldList = ({
   if (draft.fields.length === 0) {
     return <p className="field-note">{t('fields.empty')}</p>;
   }
+  const isLocal = (field: TypeDraft['fields'][number]): boolean =>
+    isLocalTerm(properties.find((entry) => entry.id === field.propertyId)?.term ?? '');
+  const firstStandard = draft.fields.findIndex((field) => !isLocal(field));
+  const firstLocal = draft.fields.findIndex(isLocal);
+  const termLesson = (index: number): TermLesson =>
+    index === firstStandard ? 'term' : index === firstLocal ? 'local-field' : null;
   return (
     <ol className="type-field-list">
       {draft.fields.map((field, index) => (
@@ -208,6 +214,7 @@ const FieldList = ({
           freeProperties={freeProperties(draft, properties, field.propertyId)}
           dataTypes={options.dataTypes}
           createField={createField}
+          termLesson={termLesson(index)}
         />
       ))}
     </ol>

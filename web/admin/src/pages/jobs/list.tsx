@@ -5,6 +5,7 @@ import { formatDateTime } from '../../app/format';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { useJobStatusLabel } from './messages';
 
 const PER_PAGE = 25;
 
@@ -24,7 +25,8 @@ const load = async (page: number): Promise<ApiPage<JobRow>> => {
 
 /** `Admin/JobController::browseAction`: ID, class, status, owner. */
 export const JobList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
+  const statusLabel = useJobStatusLabel();
   const resource = t('resource.jobs');
   return (
     <ListPage<JobRow>
@@ -39,15 +41,18 @@ export const JobList = (): ReactElement => {
           numeric: true,
         },
         { header: t('column.class'), cell: (row) => row.job.jobClass },
-        { header: t('column.status'), cell: (row) => row.job.status ?? t('common.unknown') },
+        {
+          header: t('column.status'),
+          cell: (row) => statusLabel(row.job.status) ?? t('common.unknown'),
+        },
         { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
         {
           header: t('column.started'),
-          cell: (row) => (row.job.started === null ? '' : formatDateTime(row.job.started)),
+          cell: (row) => (row.job.started === null ? '' : formatDateTime(row.job.started, locale)),
         },
         {
           header: t('column.ended'),
-          cell: (row) => (row.job.ended === null ? '' : formatDateTime(row.job.ended)),
+          cell: (row) => (row.job.ended === null ? '' : formatDateTime(row.job.ended, locale)),
         },
       ]}
     />

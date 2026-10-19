@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 83); the other
- * 35 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 126); the other
+ * 78 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -62,6 +62,27 @@ export const esServer: ServerCatalogue = {
   'server.localNameTaken': 'El nombre local "{name}" ya está en uso.',
   'server.vocabularyRequired': 'Se debe establecer un vocabulario.',
   'server.duplicateTemplateProperty': 'Intentando añadir propiedad duplicada con ID {id}',
+  'server.vocabularyNoFile': 'No se ha indicado ningún archivo para importar.',
+  'server.vocabularyNoUrl': 'No se ha indicado ninguna URL para importar.',
+  'server.vocabularyNotParsed': 'No se pudo leer el archivo de vocabulario.',
+  'server.vocabularyNotLoaded': 'No se pudo cargar el vocabulario desde la URL.',
+  'server.vocabularyNoMembers':
+    'No se encontraron clases ni propiedades. ¿Seguro que el URI del espacio de nombres es correcto?',
+  'server.vocabularyPermanent': 'No se puede editar un vocabulario permanente',
+  'server.vocabularyFormatUnknown':
+    'No se pudo detectar el formato del archivo. Elija el formato en la lista.',
+  'server.vocabularyFormatInvalid': '"{format}" no es un formato de archivo de vocabulario.',
+  'server.vocabularyUrlScheme': 'Solo se pueden importar URL http y https.',
+  'server.vocabularyUrlPrivate':
+    'La URL apunta a una dirección de red privada o local, que el servidor no consulta.',
+  'server.vocabularyUrlTooLarge': 'El archivo de la URL supera {size}.',
+  'server.vocabularyUrlTimeout': 'El servidor de la URL no respondió a tiempo.',
+  'server.vocabularyUrlStatus': 'El servidor de la URL respondió con el estado {status}.',
+  'server.vocabularyChangeStale':
+    '"{name}" ha cambiado desde la comparación. Vuelva a comparar el archivo.',
+  'server.vocabularyMemberMissing': '"{name}" no pertenece a este vocabulario.',
+  'server.vocabularyCaseClash':
+    '"{first}" y "{second}" solo se diferencian en mayúsculas y minúsculas, y aquí no se pueden guardar ambos.',
   'server.nameEmpty': 'El nombre no puede estar vacío.',
   'server.emailTaken': 'El correo electrónico {email} ya está en uso.',
   'server.userRoleRequired': 'Los perfiles deben tener asignado un rol.',
@@ -78,7 +99,17 @@ export const esServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'Todos los bloques deben tener un diseño.',
   'server.blockDataScalar': 'Los datos del bloque no deben ser valores escalables.',
   'server.siteSettingsNotObject': 'Se esperaba un objeto o null, se recibió {kind}.',
-  'server.customCssRefusal': 'CSS personalizado: {refusal}',
+  'server.cssTooLarge': 'CSS propio: línea {line}, columna {column}: el CSS propio puede ocupar como máximo {max} bytes; este ocupa {bytes}.',
+  'server.cssImport': 'CSS propio: línea {line}, columna {column}: @import no está permitido.',
+  'server.cssDocument': 'CSS propio: línea {line}, columna {column}: @document no está permitido.',
+  'server.cssForeignUrl': 'CSS propio: línea {line}, columna {column}: url({url}) no está permitida; una URL debe ser una ruta dentro de /files/ o /assets/.',
+  'server.cssExpression': 'CSS propio: línea {line}, columna {column}: expression() no está permitido.',
+  'server.cssBehavior': 'CSS propio: línea {line}, columna {column}: behavior no está permitido.',
+  'server.cssMozBinding': 'CSS propio: línea {line}, columna {column}: -moz-binding no está permitido.',
+  'server.cssStyleBreakout': 'CSS propio: línea {line}, columna {column}: </style no está permitido.',
+  'server.cssBadUrl': 'CSS propio: línea {line}, columna {column}: este url( no es CSS válido.',
+  'server.cssUnclosedString': 'CSS propio: línea {line}, columna {column}: esta cadena no está cerrada.',
+  'server.cssStrayClose': 'CSS propio: línea {line}, columna {column}: {bracket} no cierra nada.',
   'server.navNotArray': 'Navegación no válida: debe almacenarse en un vector o "array"',
   'server.navLinkMissingType': 'Navegación no válida: falta el tipo de enlace',
   'server.navLinkMissingData': 'Navegación no válida: faltan datos del enlace',
@@ -94,4 +125,32 @@ export const esServer: ServerCatalogue = {
   'server.settingsNotObject': 'Se esperaba un objeto.',
   'server.settingUnavailable': 'El ajuste {key} no está disponible.',
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
+  'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
+  'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
+  'server.publicationTermsRemoved':
+    'Un término publicado no se puede quitar ni renombrar: {terms}. Márcalo como obsoleto.',
+  'server.publicationNamespaceFixed':
+    'Un vocabulario publicado conserva su espacio de nombres, así que sus términos conservan sus URI.',
+  'server.publicationNotDeletable':
+    'Una lista de términos o un vocabulario publicados no se pueden borrar. Marca sus términos como obsoletos.',
+  'server.publicationDeprecationFixed':
+    'La marca de obsoleto de "{term}" está publicada y no se puede retirar.',
+  'server.publicationItemsList':
+    'Una lista de ítems no se puede publicar. Cada ítem ya tiene su propia dirección.',
+  'server.publicationForeignNamespace':
+    'El espacio de nombres {namespace} no es de este archivo. Publica un vocabulario cuyo espacio de nombres esté bajo la dirección /vocab/ de este archivo, o en w3id.org o purl.org.',
+  'server.publicationSlugInvalid':
+    'El nombre de una dirección usa minúsculas, dígitos y guiones sueltos, hasta 64 caracteres.',
+  'server.publicationSlugTaken': 'La dirección /vocab/{slug}/ ya está ocupada.',
+  'server.publicationNamespaceNotPersistent':
+    'Un espacio de nombres que no es el de este archivo debe estar en w3id.org o purl.org y terminar con / o #.',
+  'server.publicationAddressFixed':
+    'Una lista de términos o un vocabulario publicados conservan la dirección de su primera publicación.',
+  'server.publicationTermNotPublished':
+    '"{term}" aún no está publicado, así que no se puede marcar como obsoleto. Quítalo.',
+  'server.publicationUnknownTerm': '"{term}" no es un término de esta lista o vocabulario.',
+  'server.publicationMatchInvalid': 'Un enlace debe ser un URI http o https absoluto.',
+  'server.publicationMatchTermLists':
+    'Solo los términos de una lista de términos se enlazan a una autoridad.',
+  'server.publicationTermIriInvalid': 'El URI de término {uri} no es un IRI válido.',
 };

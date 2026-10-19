@@ -10,7 +10,7 @@ import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { BLOCK_REGISTRY } from '../src/pages/sites/blockRegistry';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
-import { draftReducer } from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
 import { RomkaForm } from '../src/pages/sites/editor/fields/RomkaForm';
 import { romkaFor, settingsOf } from '../src/pages/sites/editor/romeka';
 import { apply, blockAt, load } from './editor-draft-helpers';

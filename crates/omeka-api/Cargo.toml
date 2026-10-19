@@ -39,6 +39,16 @@ thiserror = { workspace = true }
 # `rt` feature is the minimum the blocking pool needs; every other tokio feature
 # this crate tests with is a dev-dependency.
 tokio = { version = "1", features = ["rt"] }
+# The vocabulary importer reads the RDF serialisations upstream's EasyRdf reads
+# (`Stdlib/RdfImporter`): RDF/XML, Turtle, N-Triples and JSON-LD. oxrdfio is the
+# Oxigraph project's parser set, one crate per syntax behind one interface.
+oxrdfio = "0.2"
+# The term types oxrdfio's parsers yield.
+oxrdf = "0.3"
+# The importer fetches a vocabulary URL through a resolver that refuses private
+# and local addresses (`vocab_import/fetch.rs`), which needs ureq's own
+# resolver seam. The same version omeka-media already builds.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen

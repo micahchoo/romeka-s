@@ -10,6 +10,7 @@ import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
+import { useLesson } from '../../app/lessons/lesson';
 import { PLAIN_TERMS, plainHint, plainName, searchTerms, termComment } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
@@ -114,13 +115,17 @@ const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
   const text = useTermText();
   const inputId = useId();
   const [query, setQuery] = useState('');
+  const lesson = useLesson('fields-page');
   const shown =
     query.trim() === ''
       ? browseOrder(loaded, text)
       : searchTerms(loaded.properties, query, text, 30);
   return (
     <section className="fields-page">
-      <p className="type-lede">{t('fieldsPage.lede')}</p>
+      <p className="type-lede">
+        {t('fieldsPage.lede')} {lesson.toggle}
+      </p>
+      {lesson.panel}
       <p className="fields-search">
         <label htmlFor={inputId}>{t('fieldsPage.search')}</label>
         <input

@@ -403,3 +403,42 @@ fn the_search_views_render_in_the_site_locale() {
         "the frame's form label follows the locale"
     );
 }
+
+/// A Hindi site renders the frame and the search views from the Hindi
+/// catalogue: `lang="hi"`, the footer, the form label and the results heading.
+#[test]
+fn a_hindi_site_renders_the_frame_and_search_in_hindi() {
+    let site = site();
+    let hindi = crate::view::RenderContext {
+        settings: crate::settings::SiteSettings {
+            locale: Some("hi_IN".to_string()),
+            ..Default::default()
+        },
+        ..context(&site, &NoResources)
+    };
+    let document = render(&View::Index, &hindi);
+    assert!(
+        document.starts_with("<!DOCTYPE html>\n<html lang=\"hi\">"),
+        "{document}"
+    );
+    assert!(
+        document.contains("<span class=\"powered-by\">Romeka S द्वारा संचालित</span>"),
+        "{document}"
+    );
+    assert!(document.contains("aria-label=\"खोज\""), "{document}");
+
+    let results = SearchResults {
+        needle: "बिल्ली".to_string(),
+        sections: vec![SearchSection::new(
+            SearchResource::Items,
+            vec![SearchHit::new("एक आइटम", "/s/main/item/1")],
+            1,
+        )],
+    };
+    let document = render(&View::Search(&results), &hindi);
+    assert!(
+        document.contains("<h1>“बिल्ली” के लिए खोज परिणाम</h1>"),
+        "{document}"
+    );
+    assert!(document.contains(">सभी परिणाम देखें (कुल 1)</a>"), "{document}");
+}

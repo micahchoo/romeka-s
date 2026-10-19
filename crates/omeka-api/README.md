@@ -33,7 +33,7 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 `src/routes.rs` expands the upstream lookup (`api` route, `:resource`
 segment, adapter instance) into one row per path, method, and handler:
-`2 + 17 * 7 = 121` rows. Method semantics come from Laminas
+`2 + 18 * 7 = 128` rows. Method semantics come from Laminas
 `AbstractRestfulController` and `ApiController`:
 
 - collection: `GET` search, `POST` create
@@ -207,7 +207,7 @@ columns and validation the two member kinds share; `write::templates` holds
 | items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` built on create only |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | the create runs the ingester named by `o:ingester` and stores the file and payload it produced |
-| sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; a `PUT` removes every page `o:page` does not name |
+| sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; every row of one create commits together or not at all; a `PUT` removes every page `o:page` does not name |
 | site_pages | yes | yes | blocks replaced; `o:data` `{}` is stored as `[]` (PHP `json_decode(..., true)`) |
 | users | yes | yes | new users are inactive and have no password |
 | vocabularies | yes | yes | `o:class` and `o:property` list their members; an unlisted member is removed |
@@ -423,6 +423,22 @@ the `o:item_pool` shape, item ids, or item set ids). `omeka-server` serves it as
 A selector resolves through the items list endpoint's own filters for the
 caller, and the writes go in batches of 1000 rows inside one transaction.
 
+### Tags
+
+`src/tagging/` is the step from tag to term. A tag is a plain-text `dcterms:subject`
+value; a URI or list value on the same property is an expert heading and no tag
+operation touches it. A scope is every tag, or the words stored with one list's
+`customvocab:<id>` type on any property. `census` counts each spelling once per
+resource the caller can see. `merge` rewrites spellings to a kept one and deletes a
+value the merge makes repeat on its resource, unless it carries an annotation;
+on a list of words the list's entries follow. `promote` (`tagging/promote.rs`) makes
+or extends a list from tags, retypes the tag values to the list, and makes the
+item type of each changed resource offer the list on its subject field, adding
+the field when the type has none. Every write touches only resources the caller
+may update, runs in one transaction (`ValueRewriteRepo`), and reindexes the
+changed resources after it commits. `distinct` remembers spellings someone said
+are different, in the `romeka_distinct_values` setting.
+
 ### The account routes
 
 `src/login.rs` holds the flows; `omeka-server` puts them on the wire.
@@ -440,7 +456,9 @@ Login and `GET /api/me` add `o:admin_locale` to the user document, from
 `src/settings.rs`: the user's `locale` setting, else the global one
 (`MvcListeners::bootstrapLocale`). The same module is the boundary for
 `o:user_settings` on the user read and write, and for the port's
-`/api/settings`. Only the keys in `API_SETTINGS` (`locale`) cross it.
+`/api/settings`. Only the keys in `USER_SETTINGS` (`locale`, and the port-only
+`romeka_hide_lessons` and `romeka_lessons_seen` the admin lessons keep) and
+`GLOBAL_SETTINGS` (`locale`) cross it.
 
 `loginAction`, `logoutAction`, `createPasswordAction` and
 `forgotPasswordAction` are `application/src/Controller/LoginController.php`;

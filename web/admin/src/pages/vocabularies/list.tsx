@@ -5,6 +5,8 @@ import { ListPage } from '../../app/list';
 import { useTermText, useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
+import { useStandardsText } from '../standards/messages';
+import './import.css';
 
 const PER_PAGE = 25;
 
@@ -41,12 +43,14 @@ const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
 /** `Admin/VocabularyController::browseAction`: label, prefix, namespace, members. */
 export const VocabularyList = (): ReactElement => {
   const { t, number } = useTranslator();
-  const text = useTermText();
+  const text = useStandardsText();
+  const terms = useTermText();
   const resource = t('resource.vocabularies');
   return (
     <div>
-      <p>
+      <p className="vocabulary-actions">
         <a href={standardsHref('vocabularies', 'new')}>{t('vocabularies.add')}</a>
+        <a href={standardsHref('vocabularies', 'import')}>{text('standards.import')}</a>
       </p>
       <ListPage<VocabularyRow>
         resourceLabel={resource}
@@ -57,9 +61,9 @@ export const VocabularyList = (): ReactElement => {
           {
             header: t('column.label'),
             cell: ({ vocabulary }) => {
-              const label = text.label(vocabulary.prefix, vocabulary.label);
+              const label = terms.label(vocabulary.prefix, vocabulary.label);
               return (
-                <DefinedTerm term={label} comment={text.comment(vocabulary.prefix, vocabulary.comment)}>
+                <DefinedTerm term={label} comment={terms.comment(vocabulary.prefix, vocabulary.comment)}>
                   <a href={standardsHref('vocabularies', vocabulary.id)}>{label}</a>
                 </DefinedTerm>
               );

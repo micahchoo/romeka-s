@@ -344,9 +344,47 @@ describe('the site Theme page', () => {
     fireEvent.change(editor, { target: { value: "@import 'x.css';" } });
 
     expect(
-      await screen.findByRole('button', { name: 'Line 1, column 1: @import is not allowed.' }, { timeout: 3000 }),
+      await screen.findByRole(
+        'button',
+        { name: 'Custom CSS: Line 1, column 1: @import is not allowed.' },
+        { timeout: 3000 },
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('shows a refused @import in spanish and still marks its line', async () => {
+    await setLocale('es');
+    installFetch((url, init) => {
+      if (url.pathname.endsWith('/preview') && typeof init?.body === 'string' && init.body.includes('@import')) {
+        return jsonResponse(
+          { errors: { 'o:theme_settings': ['Custom CSS: Line 2, column 1: @import is not allowed.'] } },
+          { status: 422 },
+        );
+      }
+      return themeHandler(url);
+    });
+    try {
+      const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'CSS propio' }));
+      const editor = await screen.findByRole('textbox', { name: 'CSS propio' });
+      fireEvent.change(editor, { target: { value: "a { color: red }\n@import 'x.css';" } });
+
+      const refusal = await screen.findByRole(
+        'button',
+        { name: 'CSS propio: línea 2, columna 1: @import no está permitido.' },
+        { timeout: 3000 },
+      );
+      const marked = [...container.querySelectorAll('.css-editor-gutter [data-bad="true"]')];
+      expect(marked.map((line) => line.textContent)).toEqual(['2']);
+      fireEvent.click(refusal);
+      expect(editor).toHaveFocus();
+      expect(editor).toBeInstanceOf(HTMLTextAreaElement);
+      expect(editor instanceof HTMLTextAreaElement ? editor.selectionStart : null).toBe('a { color: red }\n'.length);
+    } finally {
+      await setLocale('en');
+    }
   });
 });
 

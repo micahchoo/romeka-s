@@ -18,8 +18,10 @@ import {
   layoutFields,
   missingRequired,
   newResourceDraft,
+  pickTerm,
   setValueType,
   typeChoices,
+  valueInput,
   withTemplate,
   withTemplateRows,
   type PropertyField,
@@ -320,6 +322,106 @@ describe('data types on a row', () => {
     expect(added.values.map((value) => [value.term, value.lang, value.isPublic])).toEqual([
       ['dcterms:creator', 'en', false],
       ['dcterms:creator', 'en', false],
+    ]);
+  });
+});
+
+describe('a term list on a row (Custom Vocab)', () => {
+  const INSTALLED = [
+    { id: 'customvocab:3', label: 'Places' },
+    { id: 'customvocab:5', label: 'Links' },
+  ];
+  const only = (field: PropertyField): PropertyField['values'][number] => {
+    const [value] = field.values;
+    if (value === undefined) {
+      throw new Error(`expected one value on ${field.term}`);
+    }
+    return value;
+  };
+
+  it('seeds a row whose first type is a term list with a value edited through that list', () => {
+    const rowTemplate = template(20, [{ id: 2, dataTypes: ['customvocab:3', 'literal'] }]);
+    const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator');
+    const value = only(field);
+    expect(value.type).toBe('customvocab:3');
+    expect(typeChoices(field, value)).toEqual(['customvocab:3', 'literal']);
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
+  });
+
+  it('offers the list as a kind beside text, and switching to it edits through the list', () => {
+    const rowTemplate = template(21, [{ id: 2, dataTypes: ['literal', 'customvocab:3'] }]);
+    const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
+    const field = fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator');
+    const value = only(field);
+    expect(typeChoices(field, value)).toEqual(['literal', 'customvocab:3']);
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
+    const switched = setValueType(draft, value.key, 'customvocab:3');
+    expect(valueInput(only(fieldOf(layoutFields(switched.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator')), INSTALLED)).toEqual({
+      kind: 'term-list',
+      termList: 'customvocab:3',
+    });
+  });
+
+  it('edits a value of a list the server no longer lists as its base kind', () => {
+    const rowTemplate = template(23, [{ id: 2, dataTypes: ['customvocab:999'] }]);
+    const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
+    const value = only(fieldOf(layoutFields(draft.values, rowTemplate, PROPERTIES, ENGLISH), 'dcterms:creator'));
+    expect(value.type).toBe('customvocab:999');
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'literal' });
+  });
+
+  it('stores a picked entry in its own shape and sends the list type back unchanged', () => {
+    const rowTemplate = template(22, [{ id: 2, dataTypes: ['customvocab:5'] }]);
+    const draft = withTemplate(emptyResourceDraft(), rowTemplate, PROPERTIES);
+    const key = valueKey(draft, 'dcterms:creator');
+    const common = { term: 'dcterms:creator', propertyId: 2, type: 'customvocab:5', isPublic: true };
+    const uri = pickTerm(draft, key, { kind: 'uri', value: 'http://example.org/cork', label: 'Cork' });
+    expect(toValueWrites(uri.values)).toEqual([
+      { ...common, kind: 'uri', uri: 'http://example.org/cork', label: 'Cork', lang: null },
+    ]);
+    const bare = pickTerm(draft, key, { kind: 'uri', value: 'http://example.org/x', label: 'http://example.org/x' });
+    expect(toValueWrites(bare.values)).toEqual([
+      { ...common, kind: 'uri', uri: 'http://example.org/x', label: null, lang: null },
+    ]);
+    const item = pickTerm(draft, key, { kind: 'resource', value: '9', label: 'A letter' });
+    expect(toValueWrites(item.values)).toEqual([{ ...common, kind: 'resource', resourceId: 9 }]);
+    const word = pickTerm(item, key, { kind: 'literal', value: 'Cork', label: 'Cork' });
+    expect(toValueWrites(word.values)).toEqual([{ ...common, kind: 'literal', text: 'Cork', lang: null }]);
+    expect(toValueWrites(pickTerm(word, key, null).values)).toEqual([]);
+  });
+
+  it('opens a stored term list value as that list and saves it back unchanged', () => {
+    const stored = resourceDraftFrom(
+      parseItem({
+        '@id': 'http://localhost/api/items/6',
+        '@type': 'o:Item',
+        'o:id': 6,
+        'o:is_public': true,
+        'o:owner': null,
+        'o:resource_class': null,
+        'o:resource_template': null,
+        'o:thumbnail': null,
+        'o:title': null,
+        'thumbnail_display_urls': {},
+        'o:created': { '@value': '2026-10-18T00:00:00+00:00', '@type': 'http://www.w3.org/2001/XMLSchema#dateTime' },
+        'o:modified': null,
+        'o:primary_media': null,
+        'o:media': [],
+        'o:item_set': [],
+        'o:site': [],
+        'dcterms:creator': [
+          { type: 'customvocab:3', property_id: 2, property_label: 'Creator', is_public: true, '@value': 'Cork', '@language': 'en' },
+        ],
+      }),
+    );
+    const [value] = stored.values;
+    if (value === undefined) {
+      throw new Error('expected the stored term list value');
+    }
+    expect(valueInput(value, INSTALLED)).toEqual({ kind: 'term-list', termList: 'customvocab:3' });
+    expect(toValueWrites(stored.values)).toEqual([
+      { term: 'dcterms:creator', propertyId: 2, type: 'customvocab:3', kind: 'literal', text: 'Cork', lang: 'en', isPublic: true },
     ]);
   });
 });

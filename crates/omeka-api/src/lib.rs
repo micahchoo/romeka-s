@@ -20,14 +20,17 @@ pub mod login;
 pub mod messages;
 pub mod origin;
 pub mod password;
+pub mod publish;
 pub mod read;
 pub mod routes;
 pub mod session;
 pub mod settings;
 pub mod site_items;
 pub mod site_settings;
+pub mod tagging;
 pub mod theme_settings;
 pub mod token;
+pub mod vocab_import;
 pub mod wire;
 pub mod write;
 

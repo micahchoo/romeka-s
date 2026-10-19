@@ -66,6 +66,26 @@ export const mrServer: ServerCatalogue = {
   'server.localNameTaken': 'स्थानिक नाव "{name}" आधीच वापरले गेले आहे.',
   'server.vocabularyRequired': 'शब्दसंग्रह सेट करणे आवश्यक आहे.',
   'server.duplicateTemplateProperty': 'आयडी {id} सह डुप्लिकेट प्रॉपर्टी जोडण्याचा प्रयत्न',
+  'server.vocabularyNoFile': 'फाईल इम्पोर्ट धोरणासाठी कोणतीही फाईल निर्दिष्ट केलेली नाही.',
+  'server.vocabularyNoUrl': 'URL इम्पोर्ट धोरणासाठी URL निर्दिष्ट केलेले नाही.',
+  'server.vocabularyNotParsed': 'शब्दसंग्रह फाईलचे विश्लेषण करण्यात अपयश आले.',
+  'server.vocabularyNotLoaded': 'URL वरून शब्दसंग्रह लोड करण्यात अपयश आले.',
+  'server.vocabularyNoMembers':
+    'कोणतेही क्लासेस किंवा गुणधर्म आढळले नाहीत. तुम्ही योग्य नेमस्पेस URI वापरला आहे का?',
+  'server.vocabularyPermanent': 'कायमस्वरूपी शब्दसंग्रह संपादित करू शकत नाही',
+  'server.vocabularyFormatUnknown': 'फाईलचे स्वरूप ओळखता आले नाही. सूचीमधून स्वरूप निवडा.',
+  'server.vocabularyFormatInvalid': '"{format}" ही शब्दसंग्रह फाईल फॉरमॅट नाही.',
+  'server.vocabularyUrlScheme': 'केवळ http आणि https URL आयात केले जाऊ शकतात.',
+  'server.vocabularyUrlPrivate':
+    'URL एक खाजगी किंवा स्थानिक नेटवर्क पत्ता दर्शवते, ज्यावरून सर्व्हर माहिती घेत नाही.',
+  'server.vocabularyUrlTooLarge': 'URL वरील फाईल {size} पेक्षा मोठी आहे.',
+  'server.vocabularyUrlTimeout': 'URL वरील सर्व्हरने वेळेत उत्तर दिले नाही.',
+  'server.vocabularyUrlStatus': 'URL वरील सर्व्हरने {status} स्थितीसह उत्तर दिले.',
+  'server.vocabularyChangeStale':
+    '"{name}" ची तुलना केल्यापासून त्यात बदल झाला आहे. फाईलची पुन्हा तुलना करा.',
+  'server.vocabularyMemberMissing': '"{name}" या शब्दसंग्रहाचा सदस्य नाही.',
+  'server.vocabularyCaseClash':
+    '"{first}" आणि "{second}" मध्ये केवळ अक्षरांच्या केसमध्ये फरक आहे, आणि हा संग्रह दोन्ही साठवू शकत नाही.',
   'server.nameEmpty': 'नाव रिकामे असू शकत नाही.',
   'server.emailTaken': 'ईमेल {email} आधीच वापरले गेले आहे.',
   'server.userRoleRequired': 'वापरकर्त्यांना भूमिका असणे आवश्यक आहे.',
@@ -82,7 +102,22 @@ export const mrServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सर्व ब्लॉक्सना लेआउट असणे आवश्यक आहे.',
   'server.blockDataScalar': 'ब्लॉक डेटा स्केलर व्हॅल्यू नसावा.',
   'server.siteSettingsNotObject': 'अपेक्षित ऑब्जेक्ट किंवा नल, {kind} मिळाले.',
-  'server.customCssRefusal': 'सानुकूल CSS: {refusal}',
+  'server.cssTooLarge':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: कस्टमाइज्ड CSS जास्तीत जास्त {max} बाइट्स असू शकते; हे {bytes} आहे.',
+  'server.cssImport': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: @import ला परवानगी नाही.',
+  'server.cssDocument': 'कस्टमाइजित CSS: ओळ {line}, स्तंभ {column}: @document ला परवानगी नाही.',
+  'server.cssForeignUrl':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: url({url}) ला परवानगी नाही; URL हे /files/ किंवा /assets/ अंतर्गत मार्ग असणे आवश्यक आहे.',
+  'server.cssExpression':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: expression() ला परवानगी नाही.',
+  'server.cssBehavior': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: behavior ला परवानगी नाही.',
+  'server.cssMozBinding':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: -moz-binding ला परवानगी नाही.',
+  'server.cssStyleBreakout': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: </style ला परवानगी नाही.',
+  'server.cssBadUrl': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: हे url( वैध CSS नाही.',
+  'server.cssUnclosedString':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: ही स्ट्रिंग बंद केलेली नाही.',
+  'server.cssStrayClose': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: {bracket} कशाशीही जुळत नाही.',
   'server.navNotArray': 'अवैध नेव्हिगेशन: नेव्हिगेशन ॲरे असणे आवश्यक आहे',
   'server.navLinkMissingType': 'अवैध नेव्हिगेशन: लिंकचा प्रकार गहाळ आहे',
   'server.navLinkMissingData': 'अवैध नेव्हिगेशन: लिंकचा डेटा गहाळ आहे',
@@ -99,4 +134,31 @@ export const mrServer: ServerCatalogue = {
   'server.settingsNotObject': 'अपेक्षित एक ऑब्जेक्ट आहे.',
   'server.settingUnavailable': '{key} हे सेटिंग उपलब्ध नाही.',
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
+  'server.publicationTermsRemoved':
+    'प्रकाशित शब्द काढता येत नाही किंवा त्याचे नाव बदलता येत नाही: {terms}. त्याऐवजी ते अप्रचलित (deprecate) करा.',
+  'server.publicationNamespaceFixed':
+    'प्रकाशित शब्दसंग्रह त्याचे नेमस्पेस राखतो, त्यामुळे त्याच्या संज्ञा त्यांचे URIs राखतात.',
+  'server.publicationNotDeletable':
+    'प्रकाशित संज्ञा सूची किंवा शब्दसंग्रह हटवता येत नाही. त्याऐवजी त्याच्या संज्ञा अप्रचलित करा.',
+  'server.publicationDeprecationFixed':
+    '"{term}" चे अप्रचलन प्रकाशित झाले आहे आणि ते मागे घेता येणार नाही.',
+  'server.publicationItemsList':
+    'वस्तूंच्या सूचीचे प्रकाशन शक्य नाही. प्रत्येक वस्तूचा स्वतःचा पत्ता आधीच आहे.',
+  'server.publicationForeignNamespace':
+    '{namespace} हे या संग्रहाचे नेमस्पेस नाही. /vocab/ पत्त्याखाली या संग्रहाच्या नेमस्पेस अंतर्गत शब्दसंग्रह प्रकाशित करा, किंवा w3id.org किंवा purl.org वर.',
+  'server.publicationSlugInvalid':
+    'पत्त्याच्या नावामध्ये लहान अक्षरे, अंक आणि एक हायफन, जास्तीत जास्त 64 अक्षरे वापरली जातात.',
+  'server.publicationSlugTaken': '/vocab/{slug}/ हा पत्ता आधीच वापरला गेला आहे.',
+  'server.publicationNamespaceNotPersistent':
+    'या संग्रहाच्या नेमस्पेस व्यतिरिक्त इतर नेमस्पेस w3id.org किंवा purl.org वर असावा आणि / किंवा # ने समाप्त व्हावा.',
+  'server.publicationAddressFixed':
+    'प्रकाशित संज्ञा सूची किंवा शब्दसंग्रह तो पत्ता राखतो ज्यावर तो प्रथम प्रकाशित झाला होता.',
+  'server.publicationTermNotPublished':
+    '"{term}" अद्याप प्रकाशित झाले नसल्यामुळे, ते अप्रचलित करता येणार नाही. त्याऐवजी ते काढून टाका.',
+  'server.publicationUnknownTerm': '"{term}" या सूचीचा किंवा शब्दसंग्रहाचा शब्द नाही.',
+  'server.publicationMatchInvalid': 'जुळणी ही एक निरपेक्ष http किंवा https URI असणे आवश्यक आहे.',
+  'server.publicationMatchTermLists': 'केवळ संज्ञा सूचीतील संज्ञा अधिकृततेशी जोडल्या जातात.',
+  'server.publicationTermIriInvalid': '{uri} हा शब्द वैध IRI नाही.',
 };

@@ -4,8 +4,8 @@ import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
 import { AuthBadge } from './auth';
-import { isAdminPageId, PAGE_GROUPS, PAGES } from './pages';
-import type { AdminPageId, NavRoute } from './pages';
+import { PAGE_GROUPS, PAGES } from './pages';
+import type { AdminPageId } from './pages';
 import { parseAuthRoute, parseHash, useHash } from './router';
 import { useAsync } from './useAsync';
 
@@ -59,7 +59,7 @@ const LocaleSwitch = (): ReactElement => {
           setLocale(chosen)
             .then(() => {
               const user = currentUser();
-              return user === null ? undefined : api.updateUserLocale(user.id, chosen);
+              return user === null ? undefined : api.updateUserSettings(user.id, { locale: chosen });
             })
             .catch((error: unknown) => {
               console.error(error);
@@ -110,11 +110,11 @@ const NavLinks = ({
   pages,
   activeId,
 }: {
-  readonly pages: readonly NavRoute[];
+  readonly pages: readonly AdminPageId[];
   readonly activeId: AdminPageId | null;
 }): ReactElement[] => {
   const { t } = useTranslator();
-  return pages.filter(isAdminPageId).map((id) => (
+  return pages.map((id) => (
     <li key={id}>
       <a className="nav-link" href={`#/${id}`} aria-current={activeId === id ? 'page' : undefined}>
         {t(PAGES[id].titleKey)}

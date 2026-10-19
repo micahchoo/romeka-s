@@ -41,11 +41,14 @@ mod http;
 mod limits;
 mod logging;
 pub mod mail;
+mod publish;
 mod serve;
 mod settings;
 pub mod settings_upgrade;
 mod site;
 mod site_items;
+mod tags;
+mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use logging::init_logging;
@@ -137,9 +140,12 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(site_items::router())
+        .merge(tags::router())
+        .merge(vocab_import::router())
         .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())
+        .merge(publish::router())
         .fallback(not_found)
         .with_state(state);
     routes.layer(

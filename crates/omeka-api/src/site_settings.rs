@@ -82,16 +82,37 @@ pub async fn store(pool: &SqlitePool, site: SiteId, value: Option<&Value>) -> Re
                 }
             }
         }
-        Some(other) => {
-            let mut errors = ValidationErrors::new();
-            errors.insert(
-                "o:site_settings".to_string(),
-                vec![messages::site_settings_not_object(json_kind(other))],
-            );
-            return Err(ApiError::Validation(errors));
-        }
+        Some(other) => return Err(not_object(other)),
     }
     Ok(())
+}
+
+/// The rows a site created with this `o:site_settings` member starts with.
+///
+/// [`store`] on a site that has no rows yet, as a value: a `null` member or
+/// key writes nothing, and a theme-owned key stays the theme's.
+///
+/// # Errors
+/// [`ApiError::Validation`] for a member that is neither an object nor `null`.
+pub fn new_site_rows(value: Option<&Value>) -> Result<Vec<(String, Value)>, ApiError> {
+    match value {
+        None | Some(Value::Null) => Ok(Vec::new()),
+        Some(Value::Object(map)) => Ok(map
+            .iter()
+            .filter(|(key, stored)| !theme_settings::owns(key) && !stored.is_null())
+            .map(|(key, stored)| (key.clone(), stored.clone()))
+            .collect()),
+        Some(other) => Err(not_object(other)),
+    }
+}
+
+fn not_object(value: &Value) -> ApiError {
+    let mut errors = ValidationErrors::new();
+    errors.insert(
+        "o:site_settings".to_string(),
+        vec![messages::site_settings_not_object(json_kind(value))],
+    );
+    ApiError::Validation(errors)
 }
 
 /// The JSON type name a value carries, for the error message.

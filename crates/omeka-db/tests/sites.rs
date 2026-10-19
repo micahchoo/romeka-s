@@ -5,9 +5,12 @@
 
 mod common;
 
+use omeka_db::ids::{PageId, UserId};
+use omeka_db::repos::SiteSettingRepo;
 use omeka_db::repos::{ItemRepo, ItemSetRepo, ItemSiteRepo, SiteFilter, SiteRepo, UserRepo};
 use omeka_db::rows::{
-    ItemSiteRow, NewItem, NewItemSet, NewSite, NewSiteBlock, NewSitePage, NewUser,
+    ItemSiteRow, NewFirstPage, NewFirstPageBlock, NewItem, NewItemSet, NewSite, NewSiteBlock,
+    NewSitePage, NewUser, NewWholeSite,
 };
 use sqlx::SqlitePool;
 
@@ -387,4 +390,129 @@ async fn item_site_memberships_attach_once_and_list_in_order() {
         vec![row],
         "attaching twice keeps one membership"
     );
+}
+
+fn link_first_page(page: PageId) -> serde_json::Value {
+    serde_json::json!([{ "type": "page", "data": { "id": page.0 }, "links": [] }])
+}
+
+fn whole_site(slug: &str, permissions: Vec<(UserId, String)>) -> NewWholeSite {
+    NewWholeSite {
+        site: NewSite {
+            slug: slug.to_string(),
+            theme: "default".to_string(),
+            title: "Whole".to_string(),
+            ..Default::default()
+        },
+        first_page: NewFirstPage {
+            slug: "welcome".to_string(),
+            title: "Welcome".to_string(),
+            is_public: true,
+            blocks: vec![
+                NewFirstPageBlock {
+                    layout: "html".to_string(),
+                    data: serde_json::json!({ "html": "<p>One</p>" }),
+                    layout_data: None,
+                },
+                NewFirstPageBlock {
+                    layout: "browsePreview".to_string(),
+                    data: serde_json::json!({ "limit": 6 }),
+                    layout_data: Some(serde_json::json!({ "class": "wide" })),
+                },
+            ],
+        },
+        navigation_linking_first_page: Some(link_first_page),
+        permissions,
+        item_sets: Vec::new(),
+        settings: vec![("locale".to_string(), serde_json::json!("es"))],
+    }
+}
+
+async fn count(pool: &SqlitePool, table: &str) -> i64 {
+    sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn create_whole_stores_the_site_with_its_first_page_and_rows() {
+    let pool = common::memory().await;
+    let user = UserRepo::new(&pool)
+        .create(&NewUser {
+            email: "whole@example.org".to_string(),
+            name: "Whole".to_string(),
+            password_hash: None,
+            role: "editor".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .unwrap();
+    let item_set = ItemSetRepo::new(&pool)
+        .create(&NewItemSet::default())
+        .await
+        .unwrap();
+    let mut new = whole_site("whole", vec![(user.id, "admin".to_string())]);
+    new.item_sets = vec![item_set.id()];
+    let sites = SiteRepo::new(&pool);
+
+    let site = sites.create_whole(&new).await.unwrap();
+
+    let stored = sites.get(site.id).await.unwrap().unwrap();
+    assert_eq!(stored, site);
+    assert_eq!(stored.modified, Some(stored.created));
+    let pages = sites.list_pages(site.id).await.unwrap();
+    assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].slug, "welcome");
+    assert_eq!(stored.navigation, link_first_page(pages[0].id));
+    let blocks = sites.list_blocks(pages[0].id).await.unwrap();
+    let shape: Vec<(&str, i64)> = blocks
+        .iter()
+        .map(|block| (block.layout.as_str(), block.position))
+        .collect();
+    assert_eq!(shape, [("html", 1), ("browsePreview", 2)]);
+    assert_eq!(
+        blocks[1].layout_data,
+        Some(serde_json::json!({ "class": "wide" }))
+    );
+    let permissions = sites.list_permissions(site.id).await.unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(
+        (permissions[0].user_id, permissions[0].role.as_str()),
+        (user.id, "admin")
+    );
+    let item_sets = sites.list_item_sets(site.id).await.unwrap();
+    assert_eq!(item_sets.len(), 1);
+    assert_eq!(
+        (item_sets[0].item_set_id, item_sets[0].position),
+        (item_set.id(), Some(1))
+    );
+    assert_eq!(
+        SiteSettingRepo::new(&pool)
+            .get(site.id, "locale")
+            .await
+            .unwrap(),
+        Some(serde_json::json!("es"))
+    );
+}
+
+/// A permission for a user that does not exist fails on its foreign key after the site, page
+/// and blocks are inserted, and the whole create rolls back.
+#[tokio::test]
+async fn create_whole_leaves_nothing_when_a_later_row_fails() {
+    let pool = common::memory().await;
+    let new = whole_site("broken", vec![(UserId(999), "admin".to_string())]);
+
+    assert!(SiteRepo::new(&pool).create_whole(&new).await.is_err());
+
+    for table in [
+        "site",
+        "site_page",
+        "site_page_block",
+        "site_permission",
+        "site_setting",
+    ] {
+        assert_eq!(count(&pool, table).await, 0, "{table}");
+    }
 }

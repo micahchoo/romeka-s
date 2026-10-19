@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import type { Property, ResourceClass, Vocabulary, VocabularyId } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
@@ -8,6 +8,7 @@ import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
 import { useTermText, useTranslator } from '../../i18n';
 import type { MessageKey } from '../../i18n';
+import { PublishPanel } from '../publish/panel';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { VocabularyEditForm, isPermanentVocabulary } from './form';
@@ -17,6 +18,11 @@ import {
   VocabularyMemberAddForm,
 } from './member';
 import type { MemberKind, VocabularyMemberRow } from './member';
+
+/** The update panel is its own chunk, fetched when a vocabulary page opens. */
+const VocabularyUpdate = lazy(() =>
+  import('./update').then((module) => ({ default: module.VocabularyUpdate })),
+);
 
 /**
  * The API's `vocabulary_id` filter narrows the properties and classes to this
@@ -129,6 +135,7 @@ export const VocabularyDetail = ({
   const state = useAsync(() => load(vocabularyId), [vocabularyId]);
   const [edited, setEdited] = useState<Vocabulary | null>(null);
   const [added, setAdded] = useState<Members>({ properties: [], classes: [] });
+  const [reloaded, setReloaded] = useState<Members | null>(null);
 
   if (state.status === 'loading') {
     return <p role="status">{t('loading.vocabulary')}</p>;
@@ -139,8 +146,15 @@ export const VocabularyDetail = ({
 
   const vocabulary = edited ?? state.data.vocabulary;
   const editable = !isPermanentVocabulary(vocabulary);
-  const properties = [...state.data.properties, ...added.properties];
-  const classes = [...state.data.classes, ...added.classes];
+  const stored = reloaded ?? state.data;
+  const properties = [...stored.properties, ...added.properties];
+  const classes = [...stored.classes, ...added.classes];
+  const reload = (): void => {
+    void load(vocabularyId).then((fresh) => {
+      setAdded({ properties: [], classes: [] });
+      setReloaded(fresh);
+    });
+  };
   return (
     <section>
       <h2>{text.label(vocabulary.prefix, vocabulary.label)}</h2>
@@ -189,10 +203,21 @@ export const VocabularyDetail = ({
       />
 
       {editable ? (
+        <PublishPanel
+          key={`${vocabulary.namespaceUri} ${String(properties.length + classes.length)}`}
+          target={{ kind: 'vocabulary', id: vocabulary.id }}
+        />
+      ) : null}
+
+      {editable ? (
         <>
           <EditPanel label={t('vocabularies.editLabel')}>
             <VocabularyEditForm vocabulary={vocabulary} onSaved={setEdited} />
           </EditPanel>
+
+          <Suspense fallback={null}>
+            <VocabularyUpdate vocabulary={vocabulary} onApplied={reload} />
+          </Suspense>
 
           <DeleteControl
             label={t('vocabularies.deleteLabel')}

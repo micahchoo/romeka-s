@@ -210,6 +210,10 @@ A site, page or resource the caller cannot see is the same 404, because the
 public routes read through the same visibility the API applies
 (`SitePageVisibilityFilter`, `ResourceVisibilityFilter`), so the row is absent
 rather than denied. The error page carries `content-type: text/html; charset=utf-8`.
+A missing page or resource under a site the caller can see renders the 404 in
+that site's theme, layout and locale, as `ExceptionListener` does after
+`prepareSite`; a slug that names no visible site renders it in English over a
+placeholder site.
 A `cross-site-search` action the controller does not name, and a
 `/:controller/search` whose controller has no search action (`media`, `page`),
 are 404s.
@@ -229,7 +233,9 @@ form posts to), `search_resource_names` (the sections a results page renders)
 and `browse_attached_items` (which adds `site_attachments_only`). The site
 loader reads them, and the rest of `SITE_SETTINGS`, from the `site_setting`
 rows (`site/settings.rs`); the page size is the site `pagination_per_page`,
-then the global setting, then 25.
+then the global setting, then 25. The site `locale` falls back the same way: an
+unset or empty site locale takes the global `locale` setting, then English
+(`MvcListeners::bootstrapLocale` and the site override after it).
 
 Not ported, all answering 404: `media` browse (its controller has no browse
 action), and `/:controller/:id` with an action other than `show`.
@@ -254,6 +260,41 @@ what `GET /api/items` lists for the caller. `dry_run: true` answers the counts a
 writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
+
+## Tags
+
+The tag routes are a Romeka addition (`src/tags.rs`); every decision is in
+`omeka_api::tagging`. A tag is a plain-text `dcterms:subject` value. Upstream has no
+tag concept and no bulk rewrite.
+
+| Route | Body | Response |
+| --- | --- | --- |
+| `GET /api/tags` | none | 200 `{values: [{value, resources, editable}], distinct}` |
+| `GET /api/custom_vocabs/:id/values` | none | the same, for the list's words; 404 |
+| `POST /api/tags/promote` | `{tags, list, dry_run?}` | 200 `{list, created, changed, skipped, templates, templates_skipped}`; 400, 403, 415, 422 |
+| `POST /api/tags/merge`, `POST /api/custom_vocabs/:id/merge` | `{from, to, dry_run?}` | 200 `{changed, skipped}`; 400, 403, 404, 415 |
+| `POST /api/tags/distinct`, `POST /api/custom_vocabs/:id/distinct` | `{values}` | 200 the census; 400, 403, 404, 415 |
+
+A write changes only the resources the caller may update and counts the others
+as `skipped`. Each write runs in one transaction, and `dry_run: true` answers the
+same counts and writes nothing.
+
+## Published term lists and vocabularies
+
+Two Romeka additions (`src/publish.rs`); every rule is in `omeka_api::publish`.
+
+| Route | Answer |
+| --- | --- |
+| `GET /api/{custom_vocabs,vocabularies}/:id/publication` | 200 the admin's view: state, address, versions, terms, Turtle preview |
+| `POST` the same path, `{action: publish \| deprecate \| undeprecate \| link, ...}` | 200 the view after the command; 400, 403, 404, 415, 422 |
+| `GET /vocab/:slug`, `/vocab/:slug/`, `/vocab/:slug/:local` | 200 the newest version (or `?version=N`) of the scheme or one term; 404, 406 |
+
+`/vocab/*` negotiates on `Accept`: `text/turtle` (also the answer to `*/*` or no
+header), `application/ld+json`, `application/rdf+xml`, `application/n-triples`
+and `text/html`. `?format=ttl|jsonld|rdf|nt|html` overrides the header. Every
+answer carries `Vary: Accept` and `Access-Control-Allow-Origin: *`, because the
+point of publishing is that other sites read it. The prefix is forwarded by
+`deploy/Caddyfile` and the e2e harness proxy.
 
 ## Live preview
 

@@ -5,12 +5,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
-import {
-  dataObject,
-  draftReducer,
-  emptyDraft,
-  toApi,
-} from '../src/pages/sites/editor/draft';
+import { emptyDraft } from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
+import { dataObject } from '../src/pages/sites/editor/values';
+import { toApi } from '../src/pages/sites/editor/wire';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
 import {
   at,

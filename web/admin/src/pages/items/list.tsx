@@ -22,7 +22,7 @@ interface ItemsView {
 }
 
 export const ItemsList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
   const text = useTermText();
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
@@ -110,7 +110,7 @@ export const ItemsList = (): ReactElement => {
                 </td>
                 <td>{classLabelOf(view.classLabels, item.resourceClass, text) ?? ''}</td>
                 <td>{ownerNameOf(view.names, item.owner) ?? t('common.noOwner')}</td>
-                <td>{formatDateTime(item.created)}</td>
+                <td>{formatDateTime(item.created, locale)}</td>
               </tr>
             ))
           )}

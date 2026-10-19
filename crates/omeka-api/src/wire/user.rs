@@ -30,7 +30,8 @@ pub struct User {
     pub role: String,
     #[serde(rename = "o:is_active")]
     pub is_active: bool,
-    /// Port addition: the user's settings the admin edits, on a single-user read.
+    /// Port addition: the user's settings the admin edits, on a single-user
+    /// read, `POST /api/login` and `GET /api/me`.
     #[serde(
         rename = "o:user_settings",
         default,

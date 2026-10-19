@@ -1,0 +1,96 @@
+.publish-panel {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.publish-state {
+  font-weight: 600;
+}
+
+.publish-address dd,
+.publish-terms code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+#publish-namespace {
+  width: min(100%, 32rem);
+}
+
+.publish-terms td {
+  vertical-align: top;
+  white-space: normal;
+}
+
+.publish-terms td > button {
+  margin-right: var(--space-2);
+}
+
+.publish-links form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.publish-links input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.publish-form fieldset label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.publish-promise {
+  padding: var(--space-3);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.publish-code {
+  max-height: 24rem;
+  overflow: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  white-space: pre;
+  font-size: 0.85rem;
+}
+
+.publish-refusal {
+  color: var(--text-muted);
+}
+
+/* A phone has no room for four columns and an open links form: each term becomes a block. */
+@media (max-width: 40rem) {
+  .publish-terms,
+  .publish-terms tbody,
+  .publish-terms tr,
+  .publish-terms td {
+    display: block;
+  }
+
+  .publish-terms thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .publish-terms tr {
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .publish-terms td {
+    padding: var(--space-1) 0;
+    border: 0;
+  }
+}

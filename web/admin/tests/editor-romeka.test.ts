@@ -5,11 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import generated from '../src/generated/blocks.json';
-import {
-  draftReducer,
-  toApi,
-  validate,
-} from '../src/pages/sites/editor/draft';
+import { validate } from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
+import { toApi } from '../src/pages/sites/editor/wire';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
 import { carrierOf, settingsOf } from '../src/pages/sites/editor/romeka';
 import {

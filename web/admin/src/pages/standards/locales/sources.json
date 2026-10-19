@@ -1,4 +1,5 @@
 {
  "standards.lede": "The shared vocabularies your fields and item types are saved in. You do not need to change them to catalogue a collection.",
- "standards.define": "What {term} means"
+ "standards.define": "What {term} means",
+ "standards.import": "Import a vocabulary"
 }

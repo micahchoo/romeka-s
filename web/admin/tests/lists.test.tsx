@@ -64,7 +64,7 @@ describe('item sets page', () => {
     expect(await screen.findByText('Featured photographs')).toBeInTheDocument();
     expect(screen.getByText('Working drafts')).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getByText('2024-02-10 08:15')).toBeInTheDocument();
+    expect(screen.getByText('Feb 10, 2024, 8:15 AM')).toBeInTheDocument();
     expect(screen.getAllByText('Yes')).toHaveLength(2);
     expect(screen.getAllByText('No')).toHaveLength(2);
   });
@@ -104,7 +104,7 @@ describe('item sets page', () => {
 });
 
 describe('jobs page', () => {
-  it('job_browse_shows_class_status_owner_and_times', async () => {
+  it('job_browse_shows_class_status_label_owner_and_times', async () => {
     installFetch(
       route({
         '/api/jobs': () => listResponse(loadFixture('jobs-page.json'), 2),
@@ -114,10 +114,10 @@ describe('jobs page', () => {
     render(<JobsPage />);
 
     expect(await screen.findByText('Omeka\\Job\\UpdateSiteItems')).toBeInTheDocument();
-    expect(screen.getByText('completed')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getAllByText('2024-01-03 11:00')).toHaveLength(2);
-    expect(screen.getByText('in_progress')).toBeInTheDocument();
+    expect(screen.getAllByText('Jan 3, 2024, 11:00 AM')).toHaveLength(2);
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(screen.getByText('[No owner]')).toBeInTheDocument();
   });
 });
@@ -190,7 +190,7 @@ describe('users page', () => {
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('ada@example.org')).toBeInTheDocument();
     expect(screen.getByText('global_admin')).toBeInTheDocument();
-    expect(screen.getByText('2026-10-15 08:00')).toBeInTheDocument();
+    expect(screen.getByText('Oct 15, 2026, 8:00 AM')).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
     expect(screen.getByText('editor')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();

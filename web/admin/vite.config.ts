@@ -17,7 +17,7 @@ export default defineConfig({
     // written into an iframe on this origin, so its theme sheet under `/assets`
     // must resolve here too; the dev server serves no `/assets` of its own.
     proxy: Object.fromEntries(
-      ['/api', '/api-context', '/s', '/files', '/assets'].map((path) => [path, devTarget]),
+      ['/api', '/api-context', '/s', '/files', '/assets', '/vocab'].map((path) => [path, devTarget]),
     ),
   },
   build: {
@@ -38,6 +38,8 @@ export default defineConfig({
             { name: 'theme-messages', test: /pages\/sites\/themeEditor\/messages\.ts$/ },
             // The page editor's field messages in English (PERF.md Decision 14).
             { name: 'editor-messages', test: /pages\/sites\/editor\/messages\.ts$/ },
+            // The lessons, which several page chunks share (PERF.md Decision 16).
+            { name: 'lessons', test: /app\/lessons\/(lesson\.tsx|messages\.ts|registry\.ts|seen\.ts)$/ },
             {
               name: 'theme-model',
               test: /(pages\/sites\/themeEditor\/(colour|palette|registry|draft)\.ts|generated\/themeSettings\.json)$/,

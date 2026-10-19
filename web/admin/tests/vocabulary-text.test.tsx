@@ -27,6 +27,8 @@ const routes: Readonly<Record<string, () => Response>> = {
   '/api/vocabularies': () => jsonResponse(loadFixture('vocabularies-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
   '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
+  // The item form offers the sites an item can join (pages/items/sites.tsx).
+  '/api/sites': () => jsonResponse(loadFixture('sites-page.json')),
 };
 
 const serve = (): void => {

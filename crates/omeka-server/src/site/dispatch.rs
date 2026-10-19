@@ -29,7 +29,7 @@ use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{PublicRoute, kind_for_controller, page_url, parse_public_path};
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::theme::{DefaultTheme, Theme, theme_for};
-use omeka_site::view::{NoResources, RenderContext, ResourceProvider, View};
+use omeka_site::view::{ErrorView, NoResources, RenderContext, ResourceProvider, View};
 use serde_json::Value;
 use sqlx::SqlitePool;
 
@@ -74,32 +74,42 @@ pub(crate) async fn dispatch(
     );
     let common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
 
+    // Past `prepareSite` the site locale is set, so upstream's
+    // `ExceptionListener` renders `error/404` in the site's locale and layout.
+    match route_to(&common, route).await {
+        Err(SiteError::NotFound) => Ok(Outcome::NotFound(not_found_page(&common))),
+        outcome => outcome,
+    }
+}
+
+/// The page or resource a route names under a resolved site.
+async fn route_to(common: &Common<'_>, route: PublicRoute) -> Result<Outcome, SiteError> {
     match route {
-        PublicRoute::Home { .. } => home(&common),
-        PublicRoute::Page { page_slug, .. } => show_page(&common, &page_slug).await,
-        PublicRoute::PageBrowse { .. } => search::page_browse(&common).await,
+        PublicRoute::Home { .. } => home(common),
+        PublicRoute::Page { page_slug, .. } => show_page(common, &page_slug).await,
+        PublicRoute::PageBrowse { .. } => search::page_browse(common).await,
         PublicRoute::ResourceBrowse { controller, .. } if controller == "search" => {
-            search::site_search(&common).await
+            search::site_search(common).await
         }
-        PublicRoute::ResourceBrowse { controller, .. } => browse(&common, &controller).await,
-        PublicRoute::ResourceShow { controller, id, .. } => show(&common, &controller, id).await,
+        PublicRoute::ResourceBrowse { controller, .. } => browse(common, &controller).await,
+        PublicRoute::ResourceShow { controller, id, .. } => show(common, &controller, id).await,
         PublicRoute::CrossSiteSearch { action, .. } => {
-            search::cross_site_search(&common, action.as_deref()).await
+            search::cross_site_search(common, action.as_deref()).await
         }
         // `Site\IndexController::searchAction` is `/s/:site/index/search`
         // (`site/resource` with controller `index`); the port keeps
         // `/s/:site/search` too.
         PublicRoute::ResourceAction {
             controller, action, ..
-        } if action == "search" && controller == "index" => search::site_search(&common).await,
+        } if action == "search" && controller == "index" => search::site_search(common).await,
         PublicRoute::ResourceAction {
             controller, action, ..
         } if action == "search" => match SearchResource::from_controller(&controller) {
             // `Site\PageController` has no search action; a site page advanced
             // form does not exist upstream.
             Some(resource) if resource != SearchResource::SitePages => {
-                let action = search::browse_action(&common, resource);
-                search::advanced_form(&common, resource, action).await
+                let action = search::browse_action(common, resource);
+                search::advanced_form(common, resource, action).await
             }
             _ => Err(SiteError::NotFound),
         },
@@ -108,11 +118,18 @@ pub(crate) async fn dispatch(
             id,
             action,
             ..
-        } if action == "show" => show(&common, &controller, id).await,
+        } if action == "show" => show(common, &controller, id).await,
         PublicRoute::ResourceAction { .. } | PublicRoute::ResourceShowAction { .. } => {
             Err(SiteError::NotFound)
         }
     }
+}
+
+/// `view/error/404.phtml` inside the resolved site's layout and locale.
+fn not_found_page(common: &Common<'_>) -> String {
+    let ctx = common.context(None, &NoResources);
+    let error = ErrorView::not_found(ctx.translator().messages());
+    common.theme.render(&View::Error(&error), &ctx)
 }
 
 /// The rows and settings one public render reads, owned for the request.

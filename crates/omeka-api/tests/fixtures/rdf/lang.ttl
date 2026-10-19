@@ -1,0 +1,54 @@
+@prefix ex: <http://example.org/ns#> .
+@prefix other: <http://example.org/other#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc11: <http://purl.org/dc/elements/1.1/> .
+
+ex:Thing a owl:Class ;
+  rdfs:label "Chose"@fr, "Thing"@en ;
+  rdfs:comment "Une chose."@fr, "A thing."@en .
+
+ex:Place a rdfs:Class ;
+  skos:prefLabel "Lieu"@fr ;
+  rdfs:label "Place"@en ;
+  rdfs:comment "Somewhere." .
+
+ex:Both a rdfs:Class, owl:Class ;
+  rdfs:label "Both kinds" .
+
+ex:Typed a rdfs:Class ;
+  rdfs:label "Typed label"^^xsd:string .
+
+ex:EmptyLabel a rdfs:Class ;
+  rdfs:label "" .
+
+ex:Titled a owl:Class ;
+  dc11:title "From DC elements" .
+
+other:Outside a rdfs:Class ;
+  rdfs:label "Not in this vocabulary" .
+
+[] a owl:Class ;
+  rdfs:label "A blank node" .
+
+<http://example.org/ns#deep/path> a rdfs:Class ;
+  rdfs:label "Local name is not the tail" .
+
+ex:noLabel a rdf:Property .
+
+ex:knows a rdf:Property, owl:ObjectProperty, owl:SymmetricProperty ;
+  rdfs:label "knows"@en ;
+  ex:name "custom name" ;
+  ex:note "custom note" .
+
+ex:age a owl:DatatypeProperty, owl:FunctionalProperty ;
+  rdfs:label "age" ;
+  rdfs:comment "Years."@en, "Años."@es .
+
+ex:partOf a owl:TransitiveProperty ; rdfs:label "part of" .
+ex:id a owl:InverseFunctionalProperty ; rdfs:label "identifier" .
+ex:annotation a owl:AnnotationProperty ; rdfs:label "Not imported" .
+ex:ontologyProp a owl:OntologyProperty ; rdfs:label "Not imported either" .

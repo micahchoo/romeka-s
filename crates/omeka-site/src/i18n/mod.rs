@@ -9,26 +9,27 @@
 //!
 //! Upstream's catalogues are gettext `.po`/`.mo` files under
 //! `application/language/` (30 locales plus `template.pot` at this SHA).
-//! DESIGN.md excludes full catalog completeness, so the port ships two: English
-//! (the source language) and Spanish, whose terms follow upstream's `es.po` so
-//! an overlapping string has its upstream translation.
+//! DESIGN.md excludes full catalog completeness, so the port ships English (the
+//! source language), Spanish, whose terms follow upstream's `es.po` so an
+//! overlapping string has its upstream translation, and the seven Indic locales
+//! the admin ships, machine-translated ([`machine_translated`]).
 //!
-//! Dates: upstream's `View\Helper\I18n::dateFormat` prefers PHP `intl` (which
-//! formats in the locale) and falls back to a fixed English PHP date pattern
-//! when `intl` is absent (`application/src/View/Helper/I18n.php:93-140`). The
-//! port has no ICU, so it carries a small per-locale date-name table and the
-//! same `date_format`/`time_format` mapping. English reproduces the fallback
-//! branch; Spanish names and patterns follow ICU's `es` data, which is the
-//! branch `intl` would take.
+//! Dates follow upstream's `I18n::dateFormat`; [`dates`] says how.
 
-use chrono::{Datelike, NaiveDateTime};
+use chrono::NaiveDateTime;
 
-use crate::search::SearchResource;
-
+mod dates;
+mod dates_cldr;
+mod machine_translated;
 mod messages;
+mod search_labels;
 mod vocabulary;
 
+use dates::{DateNames, EN_NAMES, ES_NAMES};
+use dates_cldr::{HI_NAMES, KN_NAMES, ML_NAMES, MR_NAMES, NE_NAMES, TA_NAMES, TE_NAMES};
+use machine_translated::Catalogue;
 pub use messages::{EN, ES, Messages};
+pub use search_labels::{EN_SEARCH, ES_SEARCH, SearchLabels};
 pub use vocabulary::term_label;
 
 /// A locale the site layer can render in.
@@ -39,29 +40,90 @@ pub enum Locale {
     En,
     /// Spanish, the shipped second locale.
     Es,
+    /// Hindi, machine-translated.
+    Hi,
+    /// Marathi, machine-translated.
+    Mr,
+    /// Malayalam, machine-translated.
+    Ml,
+    /// Tamil, machine-translated.
+    Ta,
+    /// Kannada, machine-translated.
+    Kn,
+    /// Telugu, machine-translated.
+    Te,
+    /// Nepali, machine-translated.
+    Ne,
+}
+
+/// The tables one locale renders with.
+struct Tables {
+    messages: &'static Messages,
+    search: &'static SearchLabels,
+    names: &'static DateNames,
+}
+
+impl Tables {
+    fn machine(catalogue: &'static Catalogue, names: &'static DateNames) -> Self {
+        Self {
+            messages: &catalogue.messages,
+            search: &catalogue.search,
+            names,
+        }
+    }
 }
 
 impl Locale {
+    /// Every shipped locale, in the order the site settings offer them.
+    pub const ALL: [Self; 9] = [
+        Self::En,
+        Self::Es,
+        Self::Hi,
+        Self::Mr,
+        Self::Ml,
+        Self::Ta,
+        Self::Kn,
+        Self::Te,
+        Self::Ne,
+    ];
+
+    /// Every shipped locale's tag, the choices of `site_setting.locale`.
+    pub const TAGS: [&'static str; 9] = {
+        let mut tags = [""; 9];
+        let mut index = 0;
+        while index < tags.len() {
+            tags[index] = Self::ALL[index].tag();
+            index += 1;
+        }
+        tags
+    };
+
     /// The BCP 47 tag, the value `site_setting.locale` stores.
     #[must_use]
     pub const fn tag(self) -> &'static str {
         match self {
             Self::En => "en",
             Self::Es => "es",
+            Self::Hi => "hi",
+            Self::Mr => "mr",
+            Self::Ml => "ml",
+            Self::Ta => "ta",
+            Self::Kn => "kn",
+            Self::Te => "te",
+            Self::Ne => "ne",
         }
     }
 
     /// The locale a stored tag names. A bare language matches its region tags
-    /// (`en_US` is English), and an unknown tag falls back to [`Locale::En`],
-    /// the installation default.
+    /// (`en_US` is English, `hi_IN` is Hindi), and an unknown tag falls back to
+    /// [`Locale::En`], the installation default.
     #[must_use]
     pub fn parse(tag: &str) -> Self {
         let language = tag.split(['_', '-']).next().unwrap_or("");
-        match language {
-            "es" => Self::Es,
-            "en" => Self::En,
-            _ => Self::default(),
-        }
+        Self::ALL
+            .into_iter()
+            .find(|locale| locale.tag() == language)
+            .unwrap_or_default()
     }
 
     /// The translator for this locale.
@@ -70,275 +132,28 @@ impl Locale {
         Translator { locale: self }
     }
 
-    const fn messages(self) -> &'static Messages {
+    fn tables(self) -> Tables {
         match self {
-            Self::En => &EN,
-            Self::Es => &ES,
-        }
-    }
-
-    const fn names(self) -> &'static DateNames {
-        match self {
-            Self::En => &EN_NAMES,
-            Self::Es => &ES_NAMES,
-        }
-    }
-
-    const fn search(self) -> &'static SearchLabels {
-        match self {
-            Self::En => &EN_SEARCH,
-            Self::Es => &ES_SEARCH,
+            Self::En => Tables {
+                messages: &EN,
+                search: &EN_SEARCH,
+                names: &EN_NAMES,
+            },
+            Self::Es => Tables {
+                messages: &ES,
+                search: &ES_SEARCH,
+                names: &ES_NAMES,
+            },
+            Self::Hi => Tables::machine(&machine_translated::HI, &HI_NAMES),
+            Self::Mr => Tables::machine(&machine_translated::MR, &MR_NAMES),
+            Self::Ml => Tables::machine(&machine_translated::ML, &ML_NAMES),
+            Self::Ta => Tables::machine(&machine_translated::TA, &TA_NAMES),
+            Self::Kn => Tables::machine(&machine_translated::KN, &KN_NAMES),
+            Self::Te => Tables::machine(&machine_translated::TE, &TE_NAMES),
+            Self::Ne => Tables::machine(&machine_translated::NE, &NE_NAMES),
         }
     }
 }
-
-/// The labels the public search reads: the sitewide search form, the advanced
-/// search form and the results pages.
-///
-/// These are the strings `view/common/search-form.phtml`,
-/// `view/common/advanced-search*.phtml` and the search result templates pass to
-/// `translate()`. They sit beside [`Messages`] rather than inside it because
-/// only the search views read them, and the `property[i][type]` select carries a
-/// fixed option table ([`SearchLabels::comparisons`]) instead of one field per
-/// comparison.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SearchLabels {
-    /// `common/search-form.phtml` and the forms' submit label.
-    pub search: &'static str,
-    /// `search-form.phtml`: the fulltext input's aria label.
-    pub query: &'static str,
-    /// `search-form.phtml`: the submit button's label.
-    pub submit: &'static str,
-    /// `advanced-search/sort.phtml`.
-    pub sort: &'static str,
-    /// `advanced-search/sort.phtml`: the `sort_by` select's empty option.
-    pub select_sort_by: &'static str,
-    /// `advanced-search/sort.phtml`: the `sort_order` select's empty option.
-    pub select_sort_order: &'static str,
-    /// `advanced-search/sort.phtml`: the `asc` option.
-    pub ascending: &'static str,
-    /// `advanced-search/sort.phtml`: the `desc` option.
-    pub descending: &'static str,
-    /// `advanced-search/fulltext.phtml`.
-    pub search_full_text: &'static str,
-    /// `advanced-search/properties.phtml`: the field group's label.
-    pub search_by_value: &'static str,
-    /// `advanced-search/properties.phtml`: the text input's aria label.
-    pub query_text: &'static str,
-    /// `advanced-search/properties.phtml`: the property select's aria label.
-    pub property: &'static str,
-    /// `advanced-search/properties.phtml`: the type select's aria label.
-    pub query_type: &'static str,
-    /// `advanced-search/properties.phtml`: the joiner select's aria label.
-    pub joiner: &'static str,
-    /// `advanced-search/properties.phtml`: the `and` joiner option.
-    pub and: &'static str,
-    /// `advanced-search/properties.phtml`: the `or` joiner option.
-    pub or: &'static str,
-    /// `advanced-search/properties.phtml`: the property select's empty option.
-    pub any_property: &'static str,
-    /// `advanced-search/resource-class.phtml`.
-    pub search_by_class: &'static str,
-    /// `advanced-search/item-sets.phtml`.
-    pub search_by_item_set: &'static str,
-    /// `advanced-search/item-sets.phtml`: the `in` condition option.
-    pub in_set: &'static str,
-    /// `advanced-search/item-sets.phtml`: the `not_in` condition option.
-    pub not_in_set: &'static str,
-    /// `advanced-search/has-media.phtml`.
-    pub search_by_media_presence: &'static str,
-    /// `advanced-search/has-media.phtml`: the select's empty option.
-    pub select_media_presence: &'static str,
-    /// `advanced-search/has-media.phtml`: the `1` option.
-    pub has_media: &'static str,
-    /// `advanced-search/has-media.phtml`: the `0` option.
-    pub has_no_media: &'static str,
-    /// `advanced-search/ids.phtml`.
-    pub search_by_id: &'static str,
-    /// `view/omeka/site/index/search.phtml`: the results heading pattern.
-    pub search_results: &'static str,
-    /// `index/search.phtml` and `common/cross-site-search/results.phtml`.
-    pub no_result_found: &'static str,
-    /// `index/search.phtml`: the per-section count link pattern.
-    pub view_all_results: &'static str,
-    /// `common/cross-site-search/item-results.phtml`: the heading pattern.
-    pub item_results: &'static str,
-    /// `common/cross-site-search/item-set-results.phtml`: the heading pattern.
-    pub item_set_results: &'static str,
-    /// `common/cross-site-search/site-page-results.phtml`: the heading pattern.
-    pub site_page_results: &'static str,
-    /// `common/cross-site-search/item-results.phtml`: the advanced form link.
-    pub advanced_item_search: &'static str,
-    /// `common/cross-site-search/item-set-results.phtml`: the same link.
-    pub advanced_item_set_search: &'static str,
-    /// `view/omeka/site/item-set/search.phtml`: the page title. Upstream spells
-    /// it with a capital S, unlike the cross-site link above.
-    pub advanced_item_set_form_title: &'static str,
-    /// `view/omeka/site/page/browse.phtml`: the heading.
-    pub pages: &'static str,
-    /// `page/browse.phtml`: the empty-result message.
-    pub no_pages_found: &'static str,
-    /// The section label for `site_pages` (`SiteSettingsForm`).
-    pub site_pages: &'static str,
-    /// The section label for `items`.
-    pub items: &'static str,
-    /// The section label for `item_sets`.
-    pub item_sets: &'static str,
-    /// The `property[i][type]` select's options, `(value, label)`, in the order
-    /// `advanced-search/properties.phtml` writes them.
-    pub comparisons: [(&'static str, &'static str); 14],
-    /// The `sort_by` select's options, `(value, label)`. Upstream reads them
-    /// from `sort_defaults.public` (`config/module.config.php`); the port offers
-    /// the fields its sort understands.
-    pub sort_fields: [(&'static str, &'static str); 3],
-}
-
-impl SearchLabels {
-    /// The label a results section prints for one resource
-    /// (`index/search.phtml`'s `$resourceLabels`).
-    #[must_use]
-    pub const fn resource_label(&self, resource: SearchResource) -> &'static str {
-        match resource {
-            SearchResource::SitePages => self.site_pages,
-            SearchResource::Items => self.items,
-            SearchResource::ItemSets => self.item_sets,
-        }
-    }
-
-    /// `pageTitle(...)` of an advanced form view: `item/search.phtml` for items,
-    /// `item-set/search.phtml` for item sets.
-    #[must_use]
-    pub const fn form_title(&self, resource: SearchResource) -> &'static str {
-        match resource {
-            SearchResource::ItemSets => self.advanced_item_set_form_title,
-            _ => self.advanced_item_search,
-        }
-    }
-}
-
-/// The English search labels, the source language.
-pub static EN_SEARCH: SearchLabels = SearchLabels {
-    search: "Search",
-    query: "Query",
-    submit: "Submit",
-    sort: "Sort",
-    select_sort_by: "Select sort by…",
-    select_sort_order: "Select sort order…",
-    ascending: "Ascending",
-    descending: "Descending",
-    search_full_text: "Search full-text",
-    search_by_value: "Search by value",
-    query_text: "Query text",
-    property: "Property",
-    query_type: "Query type",
-    joiner: "Joiner",
-    and: "AND",
-    or: "OR",
-    any_property: "[Any Property]",
-    search_by_class: "Search by class",
-    search_by_item_set: "Search by item set",
-    in_set: "In",
-    not_in_set: "Not in",
-    search_by_media_presence: "Search by media presence",
-    select_media_presence: "Select media presence…",
-    has_media: "Has media",
-    has_no_media: "Has no media",
-    search_by_id: "Search by ID",
-    search_results: "Search results for “%s”",
-    no_result_found: "No result found",
-    view_all_results: "View all results (%s total)",
-    item_results: "Item results for \"%s\"",
-    item_set_results: "Item set results for \"%s\"",
-    site_page_results: "Site page results for \"%s\"",
-    advanced_item_search: "Advanced item search",
-    advanced_item_set_search: "Advanced item set search",
-    advanced_item_set_form_title: "Advanced item set Search",
-    pages: "Pages",
-    no_pages_found: "No pages found",
-    site_pages: "Site pages",
-    items: "Items",
-    item_sets: "Item sets",
-    comparisons: [
-        ("eq", "is exactly"),
-        ("neq", "is not exactly"),
-        ("in", "contains"),
-        ("nin", "does not contain"),
-        ("sw", "starts with"),
-        ("nsw", "does not start with"),
-        ("ew", "ends with"),
-        ("new", "does not end with"),
-        ("res", "is resource with ID"),
-        ("nres", "is not resource with ID"),
-        ("ex", "has any value"),
-        ("nex", "has no values"),
-        ("dt", "has data type"),
-        ("ndt", "does not have data type"),
-    ],
-    sort_fields: [("title", "Title"), ("created", "Created"), ("id", "ID")],
-};
-
-/// The Spanish search labels. Terms match `application/language/es.po` where the
-/// message id is the same; a string that catalogue leaves untranslated keeps the
-/// English text, which is what gettext falls back to.
-pub static ES_SEARCH: SearchLabels = SearchLabels {
-    search: "Búsqueda",
-    query: "Consulta",
-    submit: "Enviar",
-    sort: "Ordenar",
-    select_sort_by: "Seleccionar ordenar por...",
-    select_sort_order: "Seleccionar orden de clasificación...",
-    ascending: "Ascendente",
-    descending: "Descendente",
-    search_full_text: "Buscar en cualquier campo",
-    search_by_value: "Buscar por valor",
-    query_text: "Consulta de texto",
-    property: "Propiedad",
-    query_type: "Tipo de consulta",
-    joiner: "Unión (joiner)",
-    and: "Y",
-    or: "O",
-    any_property: "[Any Property]",
-    search_by_class: "Buscar por clase",
-    search_by_item_set: "Buscar por conjunto de fichas",
-    in_set: "En",
-    not_in_set: "No en",
-    search_by_media_presence: "Buscar por presencia de medios",
-    select_media_presence: "Seleccionar presencia de medios...",
-    has_media: "Tiene medios",
-    has_no_media: "No tiene medios",
-    search_by_id: "Buscar por ID",
-    search_results: "Resultados de búsqueda para \"%s\"",
-    no_result_found: "No se encontraron resultados",
-    view_all_results: "Ver todos los resultados (%s total)",
-    item_results: "Item results for \"%s\"",
-    item_set_results: "Item set results for \"%s\"",
-    site_page_results: "Site page results for \"%s\"",
-    advanced_item_search: "Búsqueda avanzada de fichas",
-    advanced_item_set_search: "Búsqueda avanzada de conjuntos de fichas",
-    advanced_item_set_form_title: "Búsqueda avanzada de conjunto de fichas",
-    pages: "Páginas",
-    no_pages_found: "No se encontraron páginas",
-    site_pages: "Páginas del sitio",
-    items: "Fichas",
-    item_sets: "Conjuntos de fichas",
-    comparisons: [
-        ("eq", "es exactamente"),
-        ("neq", "no es exactamente"),
-        ("in", "contiene"),
-        ("nin", "no contiene"),
-        ("sw", "comienza con"),
-        ("nsw", "no comienza con"),
-        ("ew", "termina con"),
-        ("new", "no termina con"),
-        ("res", "es un recurso con ID"),
-        ("nres", "no es un recurso con ID"),
-        ("ex", "contiene información"),
-        ("nex", "está vacío"),
-        ("dt", "has data type"),
-        ("ndt", "does not have data type"),
-    ],
-    sort_fields: [("title", "Título"), ("created", "Creado"), ("id", "ID")],
-};
 
 /// `sprintf($pattern, $value)` for the one-argument patterns the search views
 /// print, e.g. `Search results for “%s”`.
@@ -365,87 +180,6 @@ pub fn sprintf(pattern: &str, values: &[&str]) -> String {
     out
 }
 
-/// One locale's date names and patterns. Indexed by month (one-based) and
-/// weekday (Sunday is zero).
-struct DateNames {
-    months: [&'static str; 12],
-    months_short: [&'static str; 12],
-    weekdays: [&'static str; 7],
-    short: &'static str,
-    medium: &'static str,
-    long: &'static str,
-    full: &'static str,
-}
-
-/// The English fallback branch: `I18n::dateFormat`'s patterns and the language's
-/// own names.
-static EN_NAMES: DateNames = DateNames {
-    months: [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ],
-    months_short: [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ],
-    weekdays: [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-    ],
-    short: "n/j/y",
-    medium: "M j, Y",
-    long: "F j, Y",
-    full: "l, F j, Y",
-};
-
-/// The Spanish names and ICU `es` patterns, the branch `intl` would format in.
-static ES_NAMES: DateNames = DateNames {
-    months: [
-        "enero",
-        "febrero",
-        "marzo",
-        "abril",
-        "mayo",
-        "junio",
-        "julio",
-        "agosto",
-        "septiembre",
-        "octubre",
-        "noviembre",
-        "diciembre",
-    ],
-    months_short: [
-        "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic",
-    ],
-    weekdays: [
-        "domingo",
-        "lunes",
-        "martes",
-        "miércoles",
-        "jueves",
-        "viernes",
-        "sábado",
-    ],
-    short: "j/n/y",
-    medium: "j M Y",
-    long: "j \\d\\e F \\d\\e Y",
-    full: "l, j \\d\\e F \\d\\e Y",
-};
-
 /// A locale and its catalogue, the value the theme and the blocks render with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Translator {
@@ -467,21 +201,21 @@ impl Translator {
 
     /// The catalogue for this locale.
     #[must_use]
-    pub const fn messages(self) -> &'static Messages {
-        self.locale.messages()
+    pub fn messages(self) -> &'static Messages {
+        self.locale.tables().messages
     }
 
     /// The search labels for this locale.
     #[must_use]
-    pub const fn search_labels(self) -> &'static SearchLabels {
-        self.locale.search()
+    pub fn search_labels(self) -> &'static SearchLabels {
+        self.locale.tables().search
     }
 
     /// `I18n::dateFormat` for this locale: the `date_format` and `time_format`
     /// a `pageDateTime` block stores, applied to a naive timestamp.
     ///
-    /// `full` asks for a timezone abbreviation (`T`) the naive timestamp cannot
-    /// supply, so the port prints nothing there, as the block module documents.
+    /// `full` asks for a timezone the naive timestamp cannot supply, so the
+    /// port prints none there, as the block module documents.
     #[must_use]
     pub fn format_datetime(
         self,
@@ -489,73 +223,8 @@ impl Translator {
         date_format: &str,
         time_format: &str,
     ) -> String {
-        let names = self.locale.names();
-        let date = match date_format {
-            "none" => "",
-            "short" => names.short,
-            "long" => names.long,
-            "full" => names.full,
-            _ => names.medium,
-        };
-        let time = match time_format {
-            "full" => "g:i:sa T",
-            "long" => "g:i:sa",
-            "medium" | "short" => "g:ia",
-            _ => "",
-        };
-        let pattern = format!("{date} {time}");
-        format_php_date(value, pattern.trim(), names)
+        dates::format_datetime(value, date_format, time_format, self.locale.tables().names)
     }
-}
-
-/// Apply the PHP date characters the formatter uses: `l F j Y n y M g i s a T`,
-/// with a backslash escaping the next character. `T` has no value here and
-/// prints nothing.
-fn format_php_date(value: NaiveDateTime, pattern: &str, names: &DateNames) -> String {
-    let mut out = String::with_capacity(pattern.len());
-    let mut chars = pattern.chars();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '\\' => {
-                if let Some(literal) = chars.next() {
-                    out.push(literal);
-                }
-            }
-            'l' => out.push_str(weekday_name(value, names)),
-            'F' => out.push_str(month_name(value, names)),
-            'M' => out.push_str(month_short_name(value, names)),
-            'j' => out.push_str(trim_zero(&value.format("%d").to_string())),
-            'Y' => out.push_str(&value.format("%Y").to_string()),
-            'n' => out.push_str(trim_zero(&value.format("%m").to_string())),
-            'y' => out.push_str(&value.format("%y").to_string()),
-            'g' => out.push_str(trim_zero(&value.format("%I").to_string())),
-            'i' => out.push_str(&value.format("%M").to_string()),
-            's' => out.push_str(&value.format("%S").to_string()),
-            'a' => out.push_str(&value.format("%p").to_string().to_ascii_lowercase()),
-            'T' => {}
-            other => out.push(other),
-        }
-    }
-    out
-}
-
-fn weekday_name(value: NaiveDateTime, names: &DateNames) -> &'static str {
-    let index = usize::try_from(value.weekday().num_days_from_sunday()).unwrap_or(0);
-    names.weekdays.get(index).copied().unwrap_or("")
-}
-
-fn month_name(value: NaiveDateTime, names: &DateNames) -> &'static str {
-    let index = usize::try_from(value.month0()).unwrap_or(0);
-    names.months.get(index).copied().unwrap_or("")
-}
-
-fn month_short_name(value: NaiveDateTime, names: &DateNames) -> &'static str {
-    let index = usize::try_from(value.month0()).unwrap_or(0);
-    names.months_short.get(index).copied().unwrap_or("")
-}
-
-fn trim_zero(value: &str) -> &str {
-    value.strip_prefix('0').unwrap_or(value)
 }
 
 #[cfg(test)]
@@ -572,6 +241,9 @@ mod tests {
         assert_eq!(Locale::parse("en_US"), Locale::En);
         assert_eq!(Locale::parse("es"), Locale::Es);
         assert_eq!(Locale::parse("es_419"), Locale::Es);
+        assert_eq!(Locale::parse("hi_IN"), Locale::Hi);
+        assert_eq!(Locale::parse("ne-NP"), Locale::Ne);
+        assert_eq!(Locale::parse("ta"), Locale::Ta);
         assert_eq!(Locale::parse("de_DE"), Locale::En);
         assert_eq!(Locale::parse(""), Locale::En);
         assert_eq!(Locale::default(), Locale::En);
@@ -580,9 +252,145 @@ mod tests {
     /// The tag round-trips through parse.
     #[test]
     fn locale_tags_round_trip() {
-        for locale in [Locale::En, Locale::Es] {
+        for locale in Locale::ALL {
             assert_eq!(Locale::parse(locale.tag()), locale);
         }
+        assert_eq!(Locale::TAGS.map(Locale::parse), Locale::ALL);
+        assert_eq!(
+            Locale::TAGS,
+            ["en", "es", "hi", "mr", "ml", "ta", "kn", "te", "ne"]
+        );
+    }
+
+    /// Each Indic locale prints what ICU 78.2 (CLDR 48) prints for the same
+    /// timestamp, `Intl.DateTimeFormat(tag, { dateStyle | timeStyle })` in node
+    /// 24.14: the CLDR names, the CLDR order and, for `mr` and `ne`, the
+    /// Devanagari digits of their default numbering system. The timestamp is
+    /// not the generator's sample, so the patterns are tested, not echoed.
+    #[test]
+    fn indic_dates_match_icu() {
+        let morning = stamp();
+        let evening =
+            NaiveDateTime::parse_from_str("2026-10-16 21:05:07", "%Y-%m-%d %H:%M:%S").unwrap();
+        let icu = [
+            (
+                Locale::Hi,
+                [
+                    "16/10/26",
+                    "16 अक्टू॰ 2026",
+                    "16 अक्टूबर 2026",
+                    "शुक्रवार, 16 अक्टूबर 2026",
+                    "9:30 am",
+                    "9:05:07 pm",
+                ],
+            ),
+            (
+                Locale::Mr,
+                [
+                    "१६/१०/२६",
+                    "१६ ऑक्टो, २०२६",
+                    "१६ ऑक्टोबर, २०२६",
+                    "शुक्रवार, १६ ऑक्टोबर, २०२६",
+                    "९:३० AM",
+                    "९:०५:०७ PM",
+                ],
+            ),
+            (
+                Locale::Ml,
+                [
+                    "16/10/26",
+                    "2026 ഒക്ടോ 16",
+                    "2026 ഒക്‌ടോബർ 16",
+                    "2026 ഒക്‌ടോബർ 16, വെള്ളിയാഴ്‌ച",
+                    "9:30 AM",
+                    "9:05:07 PM",
+                ],
+            ),
+            (
+                Locale::Ta,
+                [
+                    "16/10/26",
+                    "16 அக்., 2026",
+                    "16 அக்டோபர், 2026",
+                    "வெள்ளி, 16 அக்டோபர், 2026",
+                    "9:30 AM",
+                    "9:05:07 PM",
+                ],
+            ),
+            (
+                Locale::Kn,
+                [
+                    "16/10/26",
+                    "ಅಕ್ಟೋ 16, 2026",
+                    "ಅಕ್ಟೋಬರ್ 16, 2026",
+                    "ಶುಕ್ರವಾರ, ಅಕ್ಟೋಬರ್ 16, 2026",
+                    "09:30 AM",
+                    "09:05:07 PM",
+                ],
+            ),
+            (
+                Locale::Te,
+                [
+                    "16-10-26",
+                    "16 అక్టో, 2026",
+                    "16 అక్టోబర్, 2026",
+                    "16, అక్టోబర్ 2026, శుక్రవారం",
+                    "9:30 AM",
+                    "9:05:07 PM",
+                ],
+            ),
+            (
+                Locale::Ne,
+                [
+                    "२६/१०/१६",
+                    "२०२६ अक्टोबर १६",
+                    "२०२६ अक्टोबर १६",
+                    "२०२६ अक्टोबर १६, शुक्रबार",
+                    "०९:३०",
+                    "२१:०५:०७",
+                ],
+            ),
+        ];
+        for (locale, [short, medium, long, full, time_short, time_medium]) in icu {
+            let tr = locale.translator();
+            assert_eq!(
+                tr.format_datetime(morning, "short", "none"),
+                short,
+                "{locale:?}"
+            );
+            assert_eq!(
+                tr.format_datetime(morning, "medium", "none"),
+                medium,
+                "{locale:?}"
+            );
+            assert_eq!(
+                tr.format_datetime(morning, "long", "none"),
+                long,
+                "{locale:?}"
+            );
+            assert_eq!(
+                tr.format_datetime(morning, "full", "none"),
+                full,
+                "{locale:?}"
+            );
+            assert_eq!(
+                tr.format_datetime(morning, "none", "short"),
+                time_short,
+                "{locale:?}"
+            );
+            assert_eq!(
+                tr.format_datetime(evening, "none", "medium"),
+                time_medium,
+                "{locale:?}"
+            );
+        }
+        // A date and a time join with a space, as the fallback branch joins them.
+        assert_eq!(
+            Locale::Hi
+                .translator()
+                .format_datetime(morning, "long", "short"),
+            "16 अक्टूबर 2026 9:30 am"
+        );
     }
 
     /// English reproduces `I18n::dateFormat`'s fallback patterns.
