@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Property, ResourceClass } from '../../api/types';
 import { OptionSelect } from '../../app/fields';
+import { useLesson } from '../../app/lessons/lesson';
 import { userOptions } from '../../app/options';
 import { plainName } from '../../app/plain-terms';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
@@ -29,6 +30,7 @@ export const ClassLine = ({
   const locale = useLocale();
   const [changing, setChanging] = useState(false);
   const current = classes.find((entry) => entry.id === draft.resourceClass) ?? null;
+  const lesson = useLesson('type-class');
   return (
     <div className="type-class">
       <p className="type-class-line">
@@ -51,7 +53,9 @@ export const ClassLine = ({
         >
           {t('action.change')}
         </button>
+        {lesson.toggle}
       </p>
+      {lesson.panel}
       {changing ? (
         <div className="type-class-picker">
           <StandardTermPicker

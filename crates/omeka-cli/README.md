@@ -116,6 +116,11 @@ whose column count differs from the header is reported and skipped; the rest
 import. The exit code is 1 when any row failed. Values are literals only (no URI
 or resource-value columns yet).
 
+A row imports whole or not at all: its item, item-set link and values commit in
+one transaction, so a failed row leaves nothing. After the commit the item joins
+each site that keeps in sync with its item pool (`assign_new_items`) and whose
+pool selects it, as an API create that names no `o:site` does.
+
 ## Export
 
 ```
@@ -321,7 +326,11 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
 - `BatchDelete`: `resource` (`items`, `item_sets`, `media`), optional `query`.
 - `BatchUpdate`: `resource`, optional `query`, and any of `data` (replace),
   `data_append`, `data_remove`. Each is an object mapping `prefix:local_name` to
-  one string or an array of strings.
+  one string or an array of strings. One resource's edit commits in one
+  transaction, so a failed insert keeps the values a replace would delete. An
+  edited item joins each synced site whose pool selects it now and did not
+  before, as an API update does; an item removed from a site by hand stays out
+  until an edit makes it newly match.
 - `IndexFulltextSearch`: no arguments. Clears `fulltext_search` and indexes
   items, item sets and media.
 - `UpdateSiteItems`: `action` (`add`, `replace`, `remove`, `remove_all`) and

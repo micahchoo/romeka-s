@@ -15,6 +15,9 @@ export const LOCAL_PREFIX = 'local';
 
 export const localNamespace = (origin: string): string => `${origin}/vocab/local/`;
 
+/** A term of this archive's own vocabulary, such as `local:shelfMark`. */
+export const isLocalTerm = (term: string): boolean => term.startsWith(`${LOCAL_PREFIX}:`);
+
 /**
  * The local name for a field named in plain words: ASCII camel case, as the
  * standard vocabularies write theirs ("Number of pages" is `numberOfPages`).

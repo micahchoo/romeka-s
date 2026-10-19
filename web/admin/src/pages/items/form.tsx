@@ -89,6 +89,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         properties={options.properties}
         dataTypes={options.dataTypes}
         createField={createLocalField}
+        showLessons
       />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>

@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use sqlx::SqlitePool;
 use tempfile::TempDir;
 
-use omeka_db::ids::JobId;
+use omeka_db::ids::{ItemId, JobId, SiteId};
+use omeka_db::repos::{ItemSiteRepo, SiteRepo};
+use omeka_db::rows::NewSite;
 use omeka_db::{migrate, open_file};
 use serde_json::Value;
 
@@ -47,6 +49,42 @@ pub async fn seeded_db() -> TempDb {
     .await
     .expect("seed database");
     database
+}
+
+/// Make the database refuse to store a value whose text is `text`, so a test can
+/// fail a write after some of its rows went in.
+pub async fn refuse_value(pool: &SqlitePool, text: &str) {
+    let trigger = format!(
+        "CREATE TRIGGER refuse_value BEFORE INSERT ON value WHEN NEW.value = '{text}'
+         BEGIN SELECT RAISE(ABORT, 'value refused'); END"
+    );
+    sqlx::query(&trigger)
+        .execute(pool)
+        .await
+        .expect("create refusing trigger");
+}
+
+/// A site that keeps in sync with `item_pool`, the stored item query.
+pub async fn synced_site(pool: &SqlitePool, slug: &str, item_pool: Value) -> SiteId {
+    SiteRepo::new(pool)
+        .create(&NewSite {
+            slug: slug.to_string(),
+            title: slug.to_string(),
+            item_pool,
+            assign_new_items: true,
+            ..NewSite::default()
+        })
+        .await
+        .expect("create synced site")
+        .id
+}
+
+/// The items attached to a site.
+pub async fn site_items(pool: &SqlitePool, site: SiteId) -> Vec<ItemId> {
+    ItemSiteRepo::new(pool)
+        .site_items(site)
+        .await
+        .expect("read site items")
 }
 
 /// Compose a job row in `starting`, the way `Dispatcher::dispatch` composes one

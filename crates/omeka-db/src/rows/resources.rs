@@ -9,6 +9,7 @@ use crate::backend::Backend;
 use chrono::NaiveDateTime;
 use serde_json::Value;
 
+use super::ValueContent;
 use crate::error::DbError;
 use crate::ids::{
     AnnotationId, AssetId, ClassId, ItemId, ItemSetId, MediaId, ResourceId, TemplateId, UserId,
@@ -111,6 +112,16 @@ impl ItemRow {
 pub struct NewItem {
     pub resource: NewResource,
     pub primary_media_id: Option<MediaId>,
+}
+
+/// Everything one item create writes, for `ItemRepo::create_whole`: the item,
+/// its item-set links and its values. Upstream writes the same graph in one
+/// Doctrine flush.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct NewWholeItem {
+    pub item: NewItem,
+    pub item_sets: Vec<ItemSetId>,
+    pub values: Vec<ValueContent>,
 }
 
 /// An `item_set`: a `resource` row plus `item_set.is_open`.
