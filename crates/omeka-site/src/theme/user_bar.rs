@@ -2,7 +2,7 @@
 //! `View/Helper/UserBar.php`).
 
 use crate::html::escape_html;
-use crate::i18n::Translator;
+use crate::i18n::{Translator, sprintf1};
 use crate::view::RenderContext;
 
 /// `common/user-bar.phtml`: the admin bar a signed-in caller sees, or a login
@@ -24,13 +24,16 @@ pub(crate) fn render(ctx: &RenderContext<'_>, tr: Translator) -> String {
              <a href=\"/admin\" class=\"admin-dashboard\">{dashboard}</a>\
              </div>\
              <div class=\"user-links\">\
-             <span class=\"user-id\">{signed_in} <strong>{name}</strong></span> \
+             <span class=\"user-id\">{signed_in}</span> \
              <a href=\"/logout\" class=\"logout\">{logout}</a>\
              </div></nav>\n",
             label = escape_html(messages.user_bar_label),
             dashboard = escape_html(messages.admin_dashboard),
-            signed_in = escape_html(messages.signed_in_as),
-            name = escape_html(name),
+            // `user-bar.phtml:22`: sprintf('Signed in as %s', '<strong>name</strong>').
+            signed_in = sprintf1(
+                &escape_html(messages.signed_in_as),
+                &format!("<strong>{}</strong>", escape_html(name)),
+            ),
             logout = escape_html(messages.log_out),
         )
     } else {

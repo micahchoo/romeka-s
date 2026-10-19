@@ -43,7 +43,7 @@
 
 use crate::blocks;
 use crate::html::{Attr, escape_html, hyperlink, pagination};
-use crate::i18n::Translator;
+use crate::i18n::{Translator, sprintf1};
 use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
@@ -713,9 +713,11 @@ fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
     );
     if let Some(parent) = &media.parent_item {
         out.push_str(&format!(
-            "<p class=\"media-parent-item\">{} {}</p>",
-            escape_html(ctx.translator().messages().part_of),
-            hyperlink(&parent.title, Some(&parent.url), &[])
+            "<p class=\"media-parent-item\">{}</p>",
+            sprintf1(
+                &escape_html(ctx.translator().messages().part_of),
+                &hyperlink(&parent.title, Some(&parent.url), &[])
+            )
         ));
     }
     // The media renderer's markup has no wrapper of its own, so the page wraps
