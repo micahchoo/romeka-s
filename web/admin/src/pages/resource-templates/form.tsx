@@ -11,6 +11,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { isTermListName } from '../../api/parse';
 import type {
   ClassId,
   DataType,
@@ -92,6 +93,19 @@ const dataTypeIds = (options: TemplateFormOptions, row: PropertyRowDraft): reado
   ...options.dataTypes.map((dataType) => dataType.id),
   ...row.dataTypes.filter((id) => !options.dataTypes.some((dataType) => dataType.id === id)),
 ];
+
+/**
+ * The data types split the way the module's optgroup splits them: the core and
+ * other types, then the term lists (`CustomVocab::getOptgroupLabel`). An empty
+ * group is left out.
+ */
+const dataTypeGroups = (
+  order: readonly string[],
+): readonly { readonly key: 'core' | 'term-lists'; readonly ids: readonly string[] }[] =>
+  [
+    { key: 'core' as const, ids: order.filter((id) => !isTermListName(id)) },
+    { key: 'term-lists' as const, ids: order.filter(isTermListName) },
+  ].filter((group) => group.ids.length > 0);
 
 const dataTypeLabel = (options: TemplateFormOptions, id: string): string =>
   options.dataTypes.find((dataType) => dataType.id === id)?.label ?? id;
@@ -266,21 +280,28 @@ const TemplateEditor = ({
                   </p>
                   <fieldset>
                     <legend>{t('detail.dataTypes')}</legend>
-                    {order.map((id) => (
-                      <label key={id}>
-                        <input
-                          type="checkbox"
-                          checked={row.dataTypes.includes(id)}
-                          onChange={(event) => {
-                            patchRow(row.key, {
-                              dataTypes: event.target.checked
-                                ? [...row.dataTypes, id]
-                                : row.dataTypes.filter((value) => value !== id),
-                            });
-                          }}
-                        />
-                        {dataTypeLabel(options, id)}
-                      </label>
+                    {dataTypeGroups(order).map((group) => (
+                      <div key={group.key} className="data-type-group">
+                        {group.key === 'term-lists' ? (
+                          <p className="data-type-group-label">{t('termLists.dataTypeGroup')}</p>
+                        ) : null}
+                        {group.ids.map((id) => (
+                          <label key={id}>
+                            <input
+                              type="checkbox"
+                              checked={row.dataTypes.includes(id)}
+                              onChange={(event) => {
+                                patchRow(row.key, {
+                                  dataTypes: event.target.checked
+                                    ? [...row.dataTypes, id]
+                                    : row.dataTypes.filter((value) => value !== id),
+                                });
+                              }}
+                            />
+                            {dataTypeLabel(options, id)}
+                          </label>
+                        ))}
+                      </div>
                     ))}
                   </fieldset>
                   <p>

@@ -26,6 +26,7 @@ mod relations;
 mod resources;
 mod resources_generic;
 mod system;
+mod term_lists;
 mod values;
 mod vocab;
 mod window;
@@ -142,7 +143,8 @@ impl<'a> Api<'a> {
             "sites" => meta::search_sites(self, params).await,
             "site_pages" => meta::search_site_pages(self, params).await,
             "api_resources" => Ok(meta::search_api_resources(self, params)),
-            "data_types" => Ok(meta::search_data_types(self, params)),
+            "data_types" => meta::search_data_types(self, params).await,
+            "custom_vocabs" => term_lists::search_custom_vocabs(self, params).await,
             "resources" => resources_generic::search_resources(self, params).await,
             other => Err(unimplemented_operation(other, Operation::Search)),
         }
@@ -172,7 +174,8 @@ impl<'a> Api<'a> {
             "sites" => meta::read_site(self, id).await,
             "site_pages" => meta::read_site_page(self, id).await,
             "api_resources" => Ok(meta::read_api_resource(self, id)),
-            "data_types" => meta::read_data_type(self, id),
+            "data_types" => meta::read_data_type(self, id).await,
+            "custom_vocabs" => term_lists::read_custom_vocab(self, id).await,
             "resources" => resources_generic::read_resource(self, id).await,
             other => Err(unimplemented_operation(other, Operation::Read)),
         }

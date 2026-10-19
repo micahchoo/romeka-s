@@ -141,6 +141,17 @@ transaction:
 first, then `resource`, so both the value's `resource_id` and any pointing value's
 `value_resource_id` are gone before the row disappears.
 
+## Module tables
+
+`0002_custom_vocab.sql` adds `custom_vocab`, the table the Custom Vocab module (v2.1.0,
+`Module::install`) creates, because the port builds term lists into core. The SQLite file applies
+the translation rules above: `terms` and `uris` are `(DC2Type:json)` text, `label` collates NOCASE
+and stays unique, and both foreign keys keep `ON DELETE SET NULL`. The MySQL file is the module's
+DDL with its two `ADD CONSTRAINT` statements folded into `CREATE TABLE IF NOT EXISTS`, so an install
+that already runs the module keeps its table and rows. Deleting a list is a repository-level removal:
+`CustomVocabRepo::delete` sets the list's values back to `literal` and removes its
+`customvocab:<id>` name from every template row, in one transaction.
+
 ## Not translated
 
 - The `resource_type` prefix index and the FULLTEXT behaviour are the only MySQL-specific index

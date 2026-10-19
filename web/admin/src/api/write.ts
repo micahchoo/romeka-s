@@ -23,6 +23,7 @@ import type {
   SitePermissionWrite,
   SiteWrite,
   TemplatePropertyWrite,
+  TermListWrite,
   UserId,
   UserWrite,
   ValueWrite,
@@ -313,4 +314,20 @@ export const encodeResourceTemplate = (
 export const encodeAsset = (write: AssetWrite): WireBody => ({
   'o:name': write.name,
   'o:alt_text': write.altText,
+});
+
+/**
+ * `CustomVocabAdapter::hydrate`. The source the form chose is sent and the
+ * other two are cleared, as the module's own form does, so a list never keeps
+ * a hidden source that outranks the one shown.
+ */
+export const encodeTermList = (write: TermListWrite): WireBody => ({
+  'o:label': write.label,
+  'o:lang': write.lang ?? '',
+  'o:item_set': write.source.kind === 'items' ? ref(write.source.itemSet) : null,
+  'o:terms': write.source.kind === 'terms' ? write.source.terms : null,
+  'o:uris':
+    write.source.kind === 'uris'
+      ? Object.fromEntries(write.source.uris.map((entry) => [entry.uri, entry.label]))
+      : null,
 });

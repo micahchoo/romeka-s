@@ -51,6 +51,7 @@ define_id!(AttachmentId, "site_block_attachment");
 define_id!(SiteItemSetId, "site_item_set");
 define_id!(SitePermissionId, "site_permission");
 define_id!(JobId, "job");
+define_id!(CustomVocabId, "custom_vocab");
 
 impl ItemId {
     /// The `resource` row this item shares its id with (`item.id` references `resource.id`).

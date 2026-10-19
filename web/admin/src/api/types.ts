@@ -20,6 +20,7 @@ export type PropertyId = Id<'PropertyId'>;
 export type ResourceId = Id<'ResourceId'>;
 export type SiteId = Id<'SiteId'>;
 export type TemplateId = Id<'TemplateId'>;
+export type TermListId = Id<'TermListId'>;
 export type UserId = Id<'UserId'>;
 export type VocabularyId = Id<'VocabularyId'>;
 
@@ -272,6 +273,47 @@ export interface Vocabulary {
   readonly label: string;
   readonly comment: string | null;
   readonly owner: ResourceRef<UserId> | null;
+}
+
+/** The data type a term list registers: `customvocab:<id>`. */
+export type TermListName = string & { readonly __brand: 'TermListName' };
+
+/**
+ * What a term list offers. The module stores three nullable columns and
+ * `CustomVocabRepresentation::type` reads them by precedence: an item set,
+ * then URIs, then terms. `empty` is a stored list with none of the three.
+ */
+export type TermListSource =
+  | { readonly kind: 'terms'; readonly terms: readonly string[] }
+  | { readonly kind: 'uris'; readonly uris: readonly TermListUri[] }
+  | { readonly kind: 'items'; readonly itemSet: ResourceRef<ItemSetId> }
+  | { readonly kind: 'empty' };
+
+export interface TermListUri {
+  readonly uri: string;
+  /** Empty when the list shows the URI itself. */
+  readonly label: string;
+}
+
+/** `CustomVocabRepresentation` (Custom Vocab module v2.1.0). */
+export interface TermList {
+  readonly id: TermListId;
+  readonly apiUrl: string;
+  readonly dataType: TermListName;
+  readonly label: string;
+  readonly lang: string | null;
+  readonly source: TermListSource;
+  readonly owner: ResourceRef<UserId> | null;
+}
+
+/** The members `CustomVocabAdapter::hydrate` reads. One source is sent. */
+export interface TermListWrite {
+  readonly label: string;
+  readonly lang: string | null;
+  readonly source:
+    | { readonly kind: 'terms'; readonly terms: readonly string[] }
+    | { readonly kind: 'uris'; readonly uris: readonly TermListUri[] }
+    | { readonly kind: 'items'; readonly itemSet: ItemSetId };
 }
 
 export interface ResourceTemplateProperty {

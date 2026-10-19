@@ -368,8 +368,8 @@ mod tests {
         let rows = ROUTES.len();
         let adapters = adapters::ADAPTERS.len();
         assert_eq!(rows, 2 + adapters * 7);
-        // 2 + 17 * 7
-        assert_eq!(rows, 121);
+        // 2 + 18 * 7
+        assert_eq!(rows, 128);
     }
 
     #[test]

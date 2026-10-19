@@ -17,14 +17,14 @@ mod common;
 
 use omeka_db::ids::{ItemId, PropertyId, ResourceId};
 use omeka_db::repos::{
-    ClassFilter, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo, JobRepo, MatchKind,
-    ModuleRepo, Paging, PasswordCreationRepo, PropertyFilter, PropertyRepo, QueryFilter,
-    SessionRepo, SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserRepo, UserSettingRepo,
-    ValueQuery, ValueRepo, VocabularyRepo,
+    ClassFilter, ClassRepo, CustomVocabRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo,
+    JobRepo, MatchKind, ModuleRepo, Paging, PasswordCreationRepo, PropertyFilter, PropertyRepo,
+    QueryFilter, SessionRepo, SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserRepo,
+    UserSettingRepo, ValueQuery, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
-    FulltextSearchRow, NewClass, NewItem, NewItemSet, NewJob, NewPasswordCreation, NewProperty,
-    NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue, NewVocabulary,
+    FulltextSearchRow, NewClass, NewCustomVocab, NewItem, NewItemSet, NewJob, NewPasswordCreation,
+    NewProperty, NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue, NewVocabulary,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -137,7 +137,7 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
         .fetch_one(&db.pool)
         .await
         .expect("count migrations");
-    assert_eq!(applied, 1, "one migration file");
+    assert_eq!(applied, 2, "two migration files");
 
     db.cleanup().await;
 }
@@ -524,6 +524,67 @@ async fn a_fulltext_index_row_is_saved_searched_and_deleted() {
             .expect("search after delete")
             .is_empty()
     );
+
+    db.cleanup().await;
+}
+
+/// The term list table from the Custom Vocab module: the JSON columns round-trip through
+/// `LONGTEXT`, and a delete sets the list's values back to `literal`, which writes the `value`
+/// table MariaDB reserves.
+#[tokio::test]
+async fn a_term_list_round_trips_and_its_delete_resets_its_values() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let title = title_property(&db.pool).await;
+    let item = item_titled(&db.pool, "Bronze helmet", title).await;
+    let repo = CustomVocabRepo::<MySql>::new(&db.pool);
+    let list = repo
+        .create(&NewCustomVocab {
+            item_set_id: None,
+            owner_id: None,
+            label: "Places".to_string(),
+            lang: Some("en".to_string()),
+            terms: Some(json!(["Cork", "Dublin"])),
+            uris: Some(json!({"http://www.wikidata.org/entity/Q36405": "Cork"})),
+        })
+        .await
+        .expect("create list");
+    assert_eq!(
+        repo.get(list.id).await.expect("read list"),
+        Some(list.clone())
+    );
+    assert!(
+        repo.find_by_label("PLACES").await.expect("find").is_some(),
+        "the label collates without case"
+    );
+
+    let name = format!("customvocab:{}", list.id);
+    ValueRepo::<MySql>::new(&db.pool)
+        .create(&NewValue {
+            resource_id: item.as_resource(),
+            property_id: title,
+            value_resource_id: None,
+            value_annotation_id: None,
+            r#type: name.clone(),
+            lang: None,
+            value: Some("Cork".to_string()),
+            uri: None,
+            is_public: true,
+        })
+        .await
+        .expect("create value");
+
+    assert!(repo.delete(list.id).await.expect("delete list"));
+
+    let types: Vec<String> =
+        sqlx::query_scalar("SELECT type FROM value WHERE resource_id = ? ORDER BY id")
+            .bind(item.0 as i64)
+            .fetch_all(&db.pool)
+            .await
+            .expect("read types");
+    assert_eq!(types, ["literal", "literal"]);
+    assert_eq!(repo.get(list.id).await.expect("read list"), None);
 
     db.cleanup().await;
 }

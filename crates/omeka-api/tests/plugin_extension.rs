@@ -124,10 +124,10 @@ fn the_route_table_gains_the_plugin_resource() {
 
     assert_eq!(
         routes.table().len(),
-        2 + 18 * 7,
-        "seventeen core adapters plus the plugin's, each with seven member rows"
+        2 + 19 * 7,
+        "eighteen core adapters plus the plugin's, each with seven member rows"
     );
-    assert_eq!(routes.registry().adapter_names().len(), 18);
+    assert_eq!(routes.registry().adapter_names().len(), 19);
 
     assert_eq!(
         adapter_target(&routes.resolve(ApiPath::Collection("widgets"), Method::Get)),
@@ -152,7 +152,7 @@ fn the_route_table_gains_the_plugin_resource() {
 
 #[test]
 fn the_core_routes_are_unchanged_when_no_plugin_is_registered() {
-    assert_eq!(routes::ROUTES.len(), 2 + 17 * 7);
+    assert_eq!(routes::ROUTES.len(), 2 + 18 * 7);
 
     let unknown = routes::resolve(ApiPath::Collection("widgets"), Method::Get);
     match unknown {

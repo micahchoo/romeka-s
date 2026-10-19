@@ -24,6 +24,7 @@ import {
   parseSite,
   parseSitePage,
   parseUser,
+  parseTermList,
   parseVocabulary,
 } from './parse';
 import type {
@@ -64,6 +65,9 @@ import type {
   UserId,
   UserWrite,
   Vocabulary,
+  TermList,
+  TermListId,
+  TermListWrite,
   VocabularyId,
   VocabularyMemberWrite,
   VocabularyWrite,
@@ -77,6 +81,7 @@ import {
   encodeSite,
   encodeSitePage,
   encodeUser,
+  encodeTermList,
   encodeVocabulary,
   encodeVocabularyMember,
 } from './write';
@@ -536,6 +541,28 @@ export class ApiClient {
 
   async deleteResourceTemplate(id: TemplateId): Promise<void> {
     await this.deleteJson(`/api/resource_templates/${String(id)}`);
+  }
+
+  async listTermLists(query: ResourceQuery = {}): Promise<ApiPage<TermList>> {
+    return this.searchPage('custom_vocabs', query, parseTermList);
+  }
+
+  async getTermList(id: TermListId): Promise<TermList> {
+    return parseTermList(await this.requestJson(`/api/custom_vocabs/${String(id)}`));
+  }
+
+  async createTermList(write: TermListWrite): Promise<TermList> {
+    return parseTermList(await this.writeJson('POST', '/api/custom_vocabs', encodeTermList(write)));
+  }
+
+  async updateTermList(id: TermListId, write: TermListWrite): Promise<TermList> {
+    return parseTermList(
+      await this.writeJson('PATCH', `/api/custom_vocabs/${String(id)}`, encodeTermList(write)),
+    );
+  }
+
+  async deleteTermList(id: TermListId): Promise<void> {
+    await this.deleteJson(`/api/custom_vocabs/${String(id)}`);
   }
 
   async listDataTypes(query: ResourceQuery = {}): Promise<ApiPage<DataType>> {

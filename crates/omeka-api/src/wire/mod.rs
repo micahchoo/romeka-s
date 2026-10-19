@@ -11,6 +11,7 @@
 pub mod api_resource;
 pub mod asset;
 pub mod common;
+pub mod custom_vocab;
 pub mod data_type;
 pub mod item;
 pub mod item_set;

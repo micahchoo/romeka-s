@@ -108,6 +108,7 @@ mod tests {
         assert!(names.contains(&"items"));
         assert!(names.contains(&"data_types"));
         assert!(names.contains(&"resources"));
-        assert_eq!(names.len(), 17);
+        assert!(names.contains(&"custom_vocabs"));
+        assert_eq!(names.len(), 18);
     }
 }

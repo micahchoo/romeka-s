@@ -18,7 +18,7 @@ use support::{admin, base, open_seeded};
 async fn every_export_resource_answers() {
     let (pool, seed) = open_seeded(3).await;
     let names = export::resources();
-    assert_eq!(names.len(), 17);
+    assert_eq!(names.len(), 18);
     for name in names {
         export::documents(&pool, base(), admin(seed.user), &Selection::new(name))
             .await

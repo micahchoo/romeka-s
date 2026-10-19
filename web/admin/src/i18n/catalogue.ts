@@ -930,6 +930,9 @@ export const en = {
   'editor.outlineToggle': 'Show the outline',
   'preview.insertHere': 'Insert a block here',
   'preview.insertIntoGroup': 'Add a block to this group',
+  // Term lists (the Custom Vocab module built into core) and the term picker.
+  'page.termLists': 'Term lists',
+  'termLists.dataTypeGroup': 'Term lists',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

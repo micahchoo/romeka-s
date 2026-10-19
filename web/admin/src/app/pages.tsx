@@ -23,6 +23,7 @@ export type AdminPageId =
   | 'properties'
   | 'resource-classes'
   | 'resource-templates'
+  | 'term-lists'
   | 'users'
   | 'modules'
   | 'jobs'
@@ -60,7 +61,7 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'vocabulary',
     titleKey: 'group.vocabulary',
-    pages: ['vocabularies', 'properties', 'resource-classes', 'resource-templates'],
+    pages: ['vocabularies', 'properties', 'resource-classes', 'resource-templates', 'term-lists'],
   },
   {
     id: 'admin',
@@ -139,6 +140,13 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
       import('../pages/resource-templates/page').then((module) => ({
         default: module.ResourceTemplatesPage,
       })),
+    ),
+  },
+  'term-lists': {
+    titleKey: 'page.termLists',
+    upstream: 'CustomVocab Controller/Admin/IndexController.php browseAction addAction editAction',
+    element: lazy(() =>
+      import('../pages/term-lists/page').then((module) => ({ default: module.TermListsPage })),
     ),
   },
   users: {

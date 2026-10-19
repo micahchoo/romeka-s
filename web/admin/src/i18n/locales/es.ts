@@ -891,4 +891,7 @@ export const es: Catalogue = {
   'editor.outlineToggle': 'Mostrar el esquema',
   'preview.insertHere': 'Insertar un bloque aquí',
   'preview.insertIntoGroup': 'Añadir un bloque a este grupo',
+  // Term lists and the term picker.
+  'page.termLists': 'Listas de términos',
+  'termLists.dataTypeGroup': 'Listas de términos',
 };

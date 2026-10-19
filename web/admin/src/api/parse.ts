@@ -41,6 +41,10 @@ import type {
   SitePageBlock,
   SitePermission,
   TemplateId,
+  TermList,
+  TermListName,
+  TermListSource,
+  TermListUri,
   ThumbnailType,
   ThumbnailUrls,
   User,
@@ -317,6 +321,18 @@ const parseThumbnailUrls = (value: unknown, path: Path): ThumbnailUrls => {
     urls[type] = asString(entry, [...path, type]);
   }
   return urls;
+};
+
+/** Whether a data type name names a term list (`^customvocab:(\d+)$`). */
+export const isTermListName = (name: string): name is TermListName =>
+  /^customvocab:\d+$/.test(name);
+
+const termListName = (id: number): TermListName => {
+  const name = `customvocab:${String(id)}`;
+  if (!isTermListName(name)) {
+    throw new ParseError([], 'a term list id');
+  }
+  return name;
 };
 
 const parseValue = (raw: unknown, path: Path = []): Value => {
@@ -615,6 +631,45 @@ export const parseDataType: Parser<DataType> = (raw, path = []) => {
   };
 };
 
+const parseTermListUris = (value: unknown, path: Path): readonly TermListUri[] =>
+  Object.entries(asRecord(value, path)).map(([uri, label]) => ({
+    uri,
+    label: asString(label, [...path, uri]),
+  }));
+
+/** `CustomVocabRepresentation::type`: an item set, then URIs, then terms. */
+const parseTermListSource = (object: Record<string, unknown>, path: Path): TermListSource => {
+  const itemSet = nullableField(object, 'o:item_set', path, (value, at) =>
+    asRef(value, at, brandId<'ItemSetId'>),
+  );
+  if (itemSet !== null) {
+    return { kind: 'items', itemSet };
+  }
+  const rawUris = field(object, 'o:uris', path);
+  if (isRecord(rawUris)) {
+    const uris = parseTermListUris(rawUris, [...path, 'o:uris']);
+    if (uris.length > 0) {
+      return { kind: 'uris', uris };
+    }
+  }
+  const terms = nullableField(object, 'o:terms', path, parseListOf(asString)) ?? [];
+  return terms.length > 0 ? { kind: 'terms', terms } : { kind: 'empty' };
+};
+
+export const parseTermList: Parser<TermList> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const id = asIdNumber(field(object, 'o:id', path), [...path, 'o:id']);
+  return {
+    id: brandId<'TermListId'>(id),
+    apiUrl: asString(field(object, '@id', path), [...path, '@id']),
+    dataType: termListName(id),
+    label: asString(field(object, 'o:label', path), [...path, 'o:label']),
+    lang: nullableField(object, 'o:lang', path, asString),
+    source: parseTermListSource(object, path),
+    owner: nullableField(object, 'o:owner', path, asRefUser),
+  };
+};
+
 const parseTemplateProperty = (raw: unknown, path: Path = []): ResourceTemplateProperty => {
   const object = asRecord(raw, path);
   return {
@@ -879,6 +934,12 @@ export function templateIdFromParam(text: string): TemplateId | null {
 export function assetIdFromParam(text: string): AssetId | null {
   const value = positiveInt(text);
   return value === null ? null : brandId<'AssetId'>(value);
+}
+
+/** Parses a term list id out of a URL fragment such as `#/term-lists/3`. */
+export function termListIdFromParam(text: string): Id<'TermListId'> | null {
+  const value = positiveInt(text);
+  return value === null ? null : brandId<'TermListId'>(value);
 }
 
 /** Parses a job id out of a URL fragment such as `#/jobs/12`. */
