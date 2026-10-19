@@ -7,22 +7,30 @@
  * per kind and every control stays small. The `attachments` kind is the
  * exception: it lives outside `o:data` and needs the block's `o:attachment`
  * rows, so `BlockForm` renders it and this returns `null` for it.
+ *
+ * A field whose `when` test fails renders nothing. Every control shows the
+ * field's help line, so the schema is the one place a field explains itself.
  */
 import type { ReactElement, ReactNode } from 'react';
 import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
+import { useEditorText } from '../messages';
 import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
-import { Checked, Labelled } from '../Labelled';
+import { Checked, Help, Labelled, helpId } from '../Labelled';
 import { AssetPicker } from './AssetPicker';
+import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
-import { ItemQueryField } from './ItemQueryField';
+import { ItemQueryField, isQueryResource } from './ItemQueryField';
+import { LinkField } from './LinkField';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
+import { SidesField } from './SidesField';
+import { isShown } from './visibility';
 
 type FieldOf<Type extends BlockField['type']> = Extract<BlockField, { type: Type }>;
 
@@ -50,9 +58,28 @@ interface ControlProps {
   readonly blockKey: BlockKey | null;
   readonly idPrefix: string;
   readonly path: string;
+  /** The values beside this one, which `link`, `sides` and `itemQuery` read. */
+  readonly record: Readonly<Record<string, JsonValue>>;
+  readonly onPatch: (values: Readonly<Record<string, JsonValue>>) => void;
   /** The editor's shared lists, so a control makes no request of its own. */
   readonly options?: EditorOptions;
 }
+
+/** A control that renders its own label, followed by the field's help line. */
+const WithHelp = ({
+  id,
+  help,
+  children,
+}: {
+  readonly id: string;
+  readonly help: string;
+  readonly children: ReactNode;
+}): ReactElement => (
+  <div className="block-field-help">
+    {children}
+    <Help id={id} text={help} />
+  </div>
+);
 
 const TextControl = ({
   field,
@@ -62,15 +89,17 @@ const TextControl = ({
   error,
   invalid,
 }: ControlProps & { readonly field: FieldOf<'text'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
-    <Labelled id={id} label={t(field.label)} error={error}>
+    <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
       <input
         id={id}
         type="text"
         value={asText(value)}
         required={field.required}
         aria-invalid={invalid}
+        aria-describedby={helpId(id)}
+        {...(field.placeholder === null ? {} : { placeholder: e(field.placeholder) })}
         onChange={(event) => {
           onChange(event.target.value);
         }}
@@ -86,18 +115,18 @@ const HtmlControl = ({
   onChange,
   error,
 }: ControlProps & { readonly field: FieldOf<'html'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
-    <>
+    <WithHelp id={id} help={e(field.help)}>
       <HtmlEditor
         id={id}
-        label={t(field.label)}
+        label={e(field.label)}
         value={asText(value)}
         required={field.required}
         onChange={onChange}
       />
       {error}
-    </>
+    </WithHelp>
   );
 };
 
@@ -109,15 +138,16 @@ const IntegerControl = ({
   error,
   invalid,
 }: ControlProps & { readonly field: FieldOf<'integer'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
-    <Labelled id={id} label={t(field.label)} error={error}>
+    <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
       <input
         id={id}
         type="number"
         value={asText(value)}
         required={field.required}
         aria-invalid={invalid}
+        aria-describedby={helpId(id)}
         {...(field.min === null ? {} : { min: field.min })}
         {...(field.max === null ? {} : { max: field.max })}
         onChange={(event) => {
@@ -140,8 +170,16 @@ const BooleanControl = ({
   value,
   onChange,
 }: ControlProps & { readonly field: FieldOf<'boolean'> }): ReactElement => {
-  const { t } = useTranslator();
-  return <Checked id={id} label={t(field.label)} checked={value === true} onChange={onChange} />;
+  const e = useEditorText();
+  return (
+    <Checked
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      checked={value === true}
+      onChange={onChange}
+    />
+  );
 };
 
 const ChoiceControl = ({
@@ -153,11 +191,12 @@ const ChoiceControl = ({
   invalid,
 }: ControlProps & { readonly field: FieldOf<'choice'> }): ReactElement => {
   const { t } = useTranslator();
+  const e = useEditorText();
   if (field.multiple) {
     const selected = asList(value);
     return (
-      <fieldset className="block-field">
-        <legend>{t(field.label)}</legend>
+      <fieldset className="block-field" aria-describedby={helpId(id)}>
+        <legend>{e(field.label)}</legend>
         {field.options.map((option) => (
           <label key={option.value}>
             <input
@@ -172,23 +211,26 @@ const ChoiceControl = ({
                 );
               }}
             />
-            {t(option.label)}
+            {e(option.label)}
           </label>
         ))}
+        <Help id={id} text={e(field.help)} />
         {error}
       </fieldset>
     );
   }
-  const current = asText(value);
+  // A block stored without the key renders the schema default, so show that.
+  const current = asText(value ?? (typeof field.default === 'string' ? field.default : undefined));
   const named = field.options.some((option) => option.value === current);
   const empty = field.options.some((option) => option.value === '');
   return (
-    <Labelled id={id} label={t(field.label)} error={error}>
+    <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
       <select
         id={id}
         value={current}
         required={field.required}
         aria-invalid={invalid}
+        aria-describedby={helpId(id)}
         onChange={(event) => {
           onChange(event.target.value);
         }}
@@ -199,7 +241,7 @@ const ChoiceControl = ({
         {empty || field.required ? null : <option value="">{t('field.selectOption')}</option>}
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
-            {t(option.label)}
+            {e(option.label)}
           </option>
         ))}
       </select>
@@ -216,12 +258,12 @@ const PageRefControl = ({
   siteId,
   options,
 }: ControlProps & { readonly field: FieldOf<'pageRef'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
-    <>
+    <WithHelp id={id} help={e(field.help)}>
       <PageSelect
         id={id}
-        label={t(field.label)}
+        label={e(field.label)}
         siteId={siteId}
         value={asText(value)}
         required={field.required}
@@ -229,7 +271,7 @@ const PageRefControl = ({
         {...(options?.pages === undefined ? {} : { pages: options.pages })}
       />
       {error}
-    </>
+    </WithHelp>
   );
 };
 
@@ -240,12 +282,13 @@ const AssetRefControl = ({
   onChange,
   error,
 }: ControlProps & { readonly field: FieldOf<'assetRef'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
     <>
       <AssetPicker
         id={id}
-        label={t(field.label)}
+        label={e(field.label)}
+        description={e(field.help)}
         value={asText(value)}
         required={field.required}
         onChange={onChange}
@@ -263,31 +306,35 @@ const ItemQueryControl = ({
   error,
   siteId,
   options,
+  record,
 }: ControlProps & { readonly field: FieldOf<'itemQuery'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
+  const resource = field.resourceKey === null ? 'items' : record[field.resourceKey];
   return (
-    <>
+    <WithHelp id={id} help={e(field.help)}>
       <ItemQueryField
         id={id}
-        label={t(field.label)}
+        label={e(field.label)}
         value={asText(value)}
         required={field.required}
         onChange={onChange}
         siteId={siteId}
+        resource={isQueryResource(resource) ? resource : 'items'}
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
         {...(options?.classes === undefined ? {} : { classes: options.classes })}
       />
       {error}
-    </>
+    </WithHelp>
   );
 };
 
 const RepeatControl = (props: ControlProps & { readonly field: FieldOf<'repeat'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   const { field, value, onChange, issues, blockKey, siteId, idPrefix, path, error, options } = props;
   const entries = Array.isArray(value) ? value : [];
   const renderControl: RenderControl = (nested) => (
     <FieldControl
+      key={nested.path}
       {...nested}
       issues={issues}
       blockKey={blockKey}
@@ -297,9 +344,9 @@ const RepeatControl = (props: ControlProps & { readonly field: FieldOf<'repeat'>
     />
   );
   return (
-    <>
+    <WithHelp id={props.id} help={e(field.help)}>
       <RepeatField
-        label={t(field.label)}
+        label={e(field.label)}
         fields={field.fields}
         value={entries}
         onChange={onChange}
@@ -307,7 +354,7 @@ const RepeatControl = (props: ControlProps & { readonly field: FieldOf<'repeat'>
         path={path}
       />
       {error}
-    </>
+    </WithHelp>
   );
 };
 
@@ -320,19 +367,80 @@ const PageListControl = ({
   siteId,
   options,
 }: ControlProps & { readonly field: FieldOf<'pageList'> }): ReactElement => {
-  const { t } = useTranslator();
+  const e = useEditorText();
   return (
-    <>
+    <WithHelp id={id} help={e(field.help)}>
       <PageListField
         id={id}
-        label={t(field.label)}
+        label={e(field.label)}
         value={asText(value)}
         siteId={siteId}
         {...(options?.pages === undefined ? {} : { pages: options.pages })}
         onChange={onChange}
       />
       {error}
-    </>
+    </WithHelp>
+  );
+};
+
+const ColorControl = ({
+  field,
+  id,
+  value,
+  onChange,
+}: ControlProps & { readonly field: FieldOf<'color'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <ColorField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      value={asText(value)}
+      onChange={onChange}
+    />
+  );
+};
+
+const SidesControl = ({
+  field,
+  id,
+  record,
+  onPatch,
+}: ControlProps & { readonly field: FieldOf<'sides'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <SidesField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      keys={field.keys}
+      record={record}
+      onPatch={onPatch}
+    />
+  );
+};
+
+const LinkControl = ({
+  field,
+  id,
+  record,
+  onPatch,
+  siteId,
+  options,
+}: ControlProps & { readonly field: FieldOf<'link'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <LinkField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      pageKey={field.key}
+      urlKey={field.urlKey}
+      record={record}
+      onPatch={onPatch}
+      siteId={siteId}
+      {...(options?.pages === undefined ? {} : { pages: options.pages })}
+    />
   );
 };
 
@@ -347,12 +455,22 @@ export interface FieldControlProps {
   readonly blockKey: BlockKey | null;
   readonly siteId: SiteId;
   readonly idPrefix: string;
+  /** The stored values of this field's list, which a `when` test and the
+   * multi-key controls read. */
+  readonly record: Readonly<Record<string, JsonValue>>;
+  /** The fields of the same list, whose defaults a `when` test falls back to. */
+  readonly siblings: readonly BlockField[];
+  /** Writes several keys of the list as one edit. */
+  readonly onPatch: (values: Readonly<Record<string, JsonValue>>) => void;
   /** The editor's shared lists, so a control makes no request of its own. */
   readonly options?: EditorOptions;
 }
 
 export const FieldControl = (props: FieldControlProps): ReactElement | null => {
   const { t } = useTranslator();
+  if (!isShown(props.field, props.record, props.siblings)) {
+    return null;
+  }
   const id = `${props.idPrefix}-${props.path}`;
   const issue = issueFor(props.issues, props.blockKey, props.path);
   const message = issue === null ? null : issueMessage(issue);
@@ -389,6 +507,12 @@ export const FieldControl = (props: FieldControlProps): ReactElement | null => {
       return <RepeatControl {...common} field={props.field} />;
     case 'pageList':
       return <PageListControl {...common} field={props.field} />;
+    case 'color':
+      return <ColorControl {...common} field={props.field} />;
+    case 'sides':
+      return <SidesControl {...common} field={props.field} />;
+    case 'link':
+      return <LinkControl {...common} field={props.field} />;
     case 'attachments':
       return null;
   }

@@ -24,6 +24,7 @@ import {
   parseResourceTemplate,
   parseSite,
   parseSitePage,
+  parseGlobalSettings,
   parseUser,
   parseVocabulary,
 } from './parse';
@@ -66,6 +67,7 @@ import type {
   User,
   UserId,
   UserWrite,
+  GlobalSettings,
   Vocabulary,
   VocabularyId,
   VocabularyMemberWrite,
@@ -81,6 +83,7 @@ import {
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
+  encodeUserLocale,
   encodeVocabulary,
   encodeVocabularyMember,
 } from './write';
@@ -328,6 +331,23 @@ export class ApiClient {
 
   async updateUser(id: UserId, write: UserWrite): Promise<User> {
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
+  }
+
+  /** Store one user's `locale` setting and nothing else; `''` removes it. */
+  async updateUserLocale(id: UserId, locale: string): Promise<void> {
+    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserLocale(locale));
+  }
+
+  /** `GET /api/settings`, a port route only a global admin may read. */
+  async getSettings(): Promise<GlobalSettings> {
+    return parseGlobalSettings(await this.requestJson('/api/settings'));
+  }
+
+  /** `PATCH /api/settings`: store the global `locale`; `''` removes it. */
+  async updateSettings(write: GlobalSettings): Promise<GlobalSettings> {
+    return parseGlobalSettings(
+      await this.writeJson('PATCH', '/api/settings', { locale: write.locale ?? '' }),
+    );
   }
 
   async updateMedia(id: MediaId, write: MediaWrite): Promise<Media> {

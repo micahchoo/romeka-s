@@ -11,7 +11,7 @@ use omeka_core::ids::{AssetId, PageId};
 use serde_json::Value as JsonValue;
 
 use super::romeka::{PlainRefs, RomkaBlock};
-use super::schema::{ChoiceOption, LayoutSchema, asset_ref, choice, html, option, page_ref, text};
+use super::schema::{ChoiceOption, LayoutSchema, asset_ref, choice, html, link, option, text};
 use crate::html::{Attr, escape_html, hyperlink, open_tag};
 use crate::slug::page_url;
 use crate::view::RenderContext;
@@ -37,15 +37,50 @@ const ALIGNMENT: &[ChoiceOption] = &[
 /// The block's settings fields, in the order its form shows them.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("heading", "romekaField.hero.heading").required(),
-        text("subheading", "romekaField.hero.subheading"),
-        html("body", "romekaField.hero.body"),
-        asset_ref("background", "romekaField.hero.background"),
-        choice("overlay", "romekaField.hero.overlay", OVERLAY).default_text("medium"),
-        choice("alignment", "romekaField.hero.alignment", ALIGNMENT).default_text("left"),
-        text("cta_label", "romekaField.hero.cta_label"),
-        page_ref("cta_page", "romekaField.hero.cta_page"),
-        text("cta_url", "romekaField.hero.cta_url"),
+        text(
+            "heading",
+            "romekaField.hero.heading",
+            "fieldHelp.hero.heading",
+        )
+        .placeholder("fieldExample.hero.heading")
+        .required(),
+        text(
+            "subheading",
+            "romekaField.hero.subheading",
+            "fieldHelp.hero.subheading",
+        ),
+        html("body", "romekaField.hero.body", "fieldHelp.hero.body"),
+        asset_ref(
+            "background",
+            "romekaField.hero.background",
+            "fieldHelp.hero.background",
+        ),
+        choice(
+            "overlay",
+            "romekaField.hero.overlay",
+            "fieldHelp.hero.overlay",
+            OVERLAY,
+        )
+        .default_text("medium"),
+        choice(
+            "alignment",
+            "romekaField.hero.alignment",
+            "fieldHelp.hero.alignment",
+            ALIGNMENT,
+        )
+        .default_text("left"),
+        text(
+            "cta_label",
+            "romekaField.hero.cta_label",
+            "fieldHelp.hero.cta_label",
+        )
+        .placeholder("fieldExample.hero.cta_label"),
+        link(
+            "cta_page",
+            "cta_url",
+            "romekaField.hero.cta_page",
+            "fieldHelp.hero.cta_page",
+        ),
     ],
 };
 

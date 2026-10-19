@@ -491,6 +491,57 @@ The initial payload has 27 B left. These locales put the seven endonyms in the E
 seven entries in the registry, both eager. The next change that grows the eager path needs its own
 decision.
 
+## Decision 14: the admin locale and translated server errors raise the initial ceiling (accepted)
+
+**Premise.** Decision 13 left 27 B of initial payload. Two changes need the eager path. The admin
+locale follows the user and global `locale` settings (`src/api/session.ts`, the header switch, the
+client calls). Server error text is translated at the fetch boundary (`src/api/client.ts`). Each runs
+before any route loads, on sign-in or on the first failed request, so it cannot wait on a route chunk.
+
+**Measured.** `npm run build` then `npm run perf:check`, gzip bytes from `zlib.gzipSync`:
+
+| Build | initial js | Note |
+| --- | --- | --- |
+| main `a624b37` | 93157 | Decision 13 |
+| + admin locale (`admin/user-locale`) | 93418 | 261 B: the session step, the switch write, three client calls |
+
+These are single builds on one machine. The translated server errors land next, measured on their
+own branch against this one.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 93184 to 94208, one KiB. This is a stopgap. The
+English catalogue holds every page's strings and is eager. Splitting it into per-route namespaces,
+with English lazy per route, would free several KB of the first paint. That split is queued as its
+own unit, and the ceiling should come back down when it lands.
+
+## Decision 15: the block field messages leave the main catalogue (accepted)
+
+Every block field, Romeka field and styling field now has a plain label, one help line, readable
+choice names and, for visible text, an example placeholder, and the styling form has named
+sections. Those strings, and the old block field labels they replace (196 keys in all, plus the
+controls' own words), live in `src/pages/sites/editor/messages.ts` with one table per locale under
+`editor/locales/`, loaded through `EDITOR_LOADERS` the way the Theme page loads its messages
+(Decision 10). `SitePageEditor` waits for the active table before it renders, and
+`parseBlockRegistry` checks a field's label, help, example and choice names against that table.
+`vite.config.ts` names the English table's chunk `editor-messages`.
+
+Measured with `vite build` then `npm run perf:check` and `perf/bundle.mjs`, gzip bytes, against the
+base commit `b1c59db` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 93419 | 92282 | the block field keys left the English catalogue |
+| English catalogue chunk (`jsx-runtime-*`) | 16332 | 15194 | |
+| largest catalogue chunk (Malayalam) | 15214 | 13753 | the same keys left every locale |
+| `editor-messages` (English table) | none | 3487 | loads with the editor and the site's Items page |
+| `editor/fields` chunk | 4134 | 5966 | the colour, padding and link controls, the grouped form |
+| fields css | none | 860 | `editor/fields/controls.css` |
+| registry, shared (`preview-*`) | 6169 | 7007 | `blocks.json` carries help keys, conditions and groups |
+| sites route page | 9860 | 9915 | the largest lazy chunk, under the 10240 B ceiling |
+
+**Verdict.** Accepted. The feature takes 1137 B off the first paint instead of adding to it. The
+editor's first open now fetches the English table (3487 B), and a visitor in another locale
+also fetches that locale's table.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

@@ -310,9 +310,7 @@ async fn page_body_class_follows_the_layout_data() {
     let answer = send(app, get("/s/museum/page/welcome", false)).await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
     assert!(
-        answer
-            .body
-            .contains("class=\"minimal page site-page-welcome\""),
+        answer.body.contains("class=\"page site-page-welcome\""),
         "{}",
         answer.body
     );

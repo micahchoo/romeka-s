@@ -219,6 +219,7 @@ pub fn templates() -> Vec<Template> {
                 "grid_row_gap": 10,
             }),
             blocks: vec![
+                layout_block("pageTitle", json!({})).spanning(3),
                 layout_block(
                     "media",
                     json!({
@@ -260,6 +261,54 @@ pub fn templates() -> Vec<Template> {
             blocks: Vec::new(),
         },
     ]
+}
+
+/// The blocks of the first page a new site is born with: a banner, a line of
+/// introduction and the latest items, so the site looks finished before a
+/// curator edits it. The chooser does not offer them; the site create stores
+/// them once ([`welcome_blocks`]).
+///
+/// The call to action is a relative URL because a page's own URL is always
+/// `/s/<site>/page/<page>`, so `../item` reaches the item browse after a slug
+/// change and on an upstream installation alike.
+fn welcome() -> Vec<TemplateBlock> {
+    vec![
+        romka_block(
+            &Hero,
+            json!({
+                "heading": "Welcome",
+                "subheading": "A new collection, ready for its first visitors.",
+                "overlay": "medium",
+                "alignment": "left",
+                "cta_label": "Explore the collection",
+                "cta_url": "../item",
+            }),
+        ),
+        layout_block(
+            "html",
+            json!({
+                "html": "<p>This is the first page of your site. Change these words, give the banner a background image, or start a new page from a template. Everything here is yours to edit.</p>",
+            }),
+        ),
+        layout_block(
+            "browsePreview",
+            json!({
+                "resource_type": "items",
+                "limit": 6,
+                "components": ["resource-heading", "resource-body", "thumbnail"],
+                "heading": "Recently added",
+                "link-text": "Browse all items",
+            }),
+        ),
+    ]
+}
+
+/// The welcome page's blocks in the shape a site page stores them. A Romeka
+/// block arrives as its carrier with an empty body, which the write path fills
+/// with the plain rendering.
+#[must_use]
+pub fn welcome_blocks() -> Vec<TemplateBlockEntry> {
+    welcome().iter().map(block_entry).collect()
 }
 
 /// The whole template registry, as `templates.json` holds it.
@@ -394,7 +443,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
-    use crate::blocks::schema::FieldKind;
+    use crate::blocks::schema::{Field, FieldKind};
     use crate::blocks::{layout_id, parse};
 
     /// Where the admin reads the generated templates.
@@ -456,27 +505,32 @@ mod tests {
                 template.id
             );
             for block in &template.blocks {
-                match block {
-                    TemplateBlock::Layout { layout, data, .. } => {
-                        let id = layout_id(layout).unwrap_or_else(|| {
-                            panic!("{}: `{layout}` is not a registered layout", template.id)
-                        });
-                        parse::parse_block_data(&id, data)
-                            .unwrap_or_else(|error| panic!("{}: {layout}: {error}", template.id));
-                        check_data_keys(template.id, layout, data);
-                    }
-                    TemplateBlock::Romka {
-                        block, settings, ..
-                    } => {
-                        assert!(
-                            romeka::block(block.name()).is_some(),
-                            "{}: `{}` is not a registered Romeka block",
-                            template.id,
-                            block.name()
-                        );
-                        check_settings(template.id, *block, settings);
-                    }
-                }
+                check_block(template.id, block);
+            }
+        }
+        for block in &welcome() {
+            check_block("welcome", block);
+        }
+    }
+
+    fn check_block(template: &str, block: &TemplateBlock) {
+        match block {
+            TemplateBlock::Layout { layout, data, .. } => {
+                let id = layout_id(layout)
+                    .unwrap_or_else(|| panic!("{template}: `{layout}` is not a registered layout"));
+                parse::parse_block_data(&id, data)
+                    .unwrap_or_else(|error| panic!("{template}: {layout}: {error}"));
+                check_data_keys(template, layout, data);
+            }
+            TemplateBlock::Romka {
+                block, settings, ..
+            } => {
+                assert!(
+                    romeka::block(block.name()).is_some(),
+                    "{template}: `{}` is not a registered Romeka block",
+                    block.name()
+                );
+                check_settings(template, *block, settings);
             }
         }
     }
@@ -493,7 +547,7 @@ mod tests {
         };
         for key in object.keys() {
             assert!(
-                schema.fields.iter().any(|field| field.key == key),
+                schema.fields.iter().any(|field| field.writes(key)),
                 "{template}: {layout} has no data field `{key}`"
             );
         }
@@ -509,10 +563,10 @@ mod tests {
         for (key, value) in object {
             let field = fields
                 .iter()
-                .find(|field| field.key == key)
+                .find(|field| field.writes(key))
                 .unwrap_or_else(|| panic!("{template}: {} has no setting `{key}`", block.name()));
             assert!(
-                kind_accepts(field.kind, value),
+                kind_accepts(field, key, value),
                 "{template}: {} setting `{key}` has the wrong kind",
                 block.name()
             );
@@ -520,14 +574,20 @@ mod tests {
     }
 
     /// Whether a value has the JSON kind a field declares.
-    fn kind_accepts(kind: FieldKind, value: &JsonValue) -> bool {
-        match kind {
-            FieldKind::Text | FieldKind::Html | FieldKind::PageList => value.is_string(),
+    fn kind_accepts(field: &Field, key: &str, value: &JsonValue) -> bool {
+        match field.kind {
+            FieldKind::Text { .. }
+            | FieldKind::Html
+            | FieldKind::PageList
+            | FieldKind::Color
+            | FieldKind::Sides { .. } => value.is_string(),
+            FieldKind::Link { url_key } if key == url_key => value.is_string(),
+            FieldKind::Link { .. } => value.is_number() || numeric_string(value),
             FieldKind::Integer { .. } => value.is_number() || numeric_string(value),
             FieldKind::Boolean => value.is_boolean(),
             FieldKind::Choice { .. } => value.is_string(),
             FieldKind::PageRef | FieldKind::AssetRef => value.is_number() || numeric_string(value),
-            FieldKind::ItemQuery => value.is_string() || value.is_object(),
+            FieldKind::ItemQuery { .. } => value.is_string() || value.is_object(),
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()
             }

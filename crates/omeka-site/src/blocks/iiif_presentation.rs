@@ -23,9 +23,23 @@ pub struct IiifPresentation;
 /// `show_title` checkbox.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("manifest_url", "blockField.iiifPresentation.manifest_url"),
-        text("title", "blockField.iiifPresentation.title"),
-        boolean("show_title", "blockField.iiifPresentation.show_title").default_bool(false),
+        text(
+            "manifest_url",
+            "blockField.iiifPresentation.manifest_url",
+            "fieldHelp.iiifPresentation.manifest_url",
+        )
+        .placeholder("fieldExample.url"),
+        text(
+            "title",
+            "blockField.iiifPresentation.title",
+            "fieldHelp.iiif.title",
+        ),
+        boolean(
+            "show_title",
+            "blockField.iiifPresentation.show_title",
+            "fieldHelp.iiif.show_title",
+        )
+        .default_bool(false),
     ],
 };
 

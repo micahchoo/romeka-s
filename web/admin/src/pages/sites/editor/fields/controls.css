@@ -1,0 +1,183 @@
+/* The grouped field controls: help lines, the styling sections, the colour,
+ * padding and link controls, and the attachment rows. Loaded with the fields
+ * chunk, so none of it is on the first paint. */
+.block-field-help {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.layout-data-form {
+  gap: var(--space-3);
+}
+
+.layout-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.layout-group > legend,
+.layout-group > summary {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+}
+
+.layout-group:disabled {
+  color: var(--text-muted);
+}
+
+.layout-advanced:not([open]) {
+  padding-bottom: var(--space-2);
+}
+
+.layout-advanced > summary {
+  cursor: pointer;
+}
+
+.color-field {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.color-field > input[type="color"] {
+  flex: 0 0 2.5rem;
+  height: 2.25rem;
+  padding: 2px;
+}
+
+.color-field > input[type="text"] {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+}
+
+.sides-presets,
+.link-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.sides-presets {
+  gap: var(--space-1);
+}
+
+.sides-presets > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sides-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.sides-inputs--linked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sides-inputs > div,
+.sides-inputs--linked {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sides-inputs input,
+.link-field > input,
+.link-field > .block-field > select {
+  width: 100%;
+}
+
+.link-field > .block-field {
+  gap: 0;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.attachment-thumb {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: calc(var(--radius) / 2);
+  background: var(--bg);
+  object-fit: cover;
+}
+
+.media-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  border: 0;
+}
+
+.media-choice > legend {
+  margin-bottom: var(--space-1);
+  font-weight: 500;
+}
+
+.media-choice > label {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  width: 5rem;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.media-choice > label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.media-choice > label > input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.media-choice > label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.attachments-field > .item-picker {
+  margin-top: var(--space-2);
+}
+
+/* Padding sits alone in its section, so its group needs no second frame. */
+.layout-group > .sides-field {
+  padding: 0;
+  border: 0;
+}
+
+.layout-group > .sides-field > legend {
+  padding: 0;
+}
+
+/* Inside a block's rows the picker's results are a compact strip of picks. */
+.attachments-field .item-picker-grid {
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+}

@@ -14,12 +14,16 @@ test('the hero block saves and the public page renders the banner', async ({ pag
   await page.getByRole('link', { name: SITE_TITLE }).click();
   await page.getByRole('link', { name: 'Welcome' }).click();
 
+  // The welcome page starts with the starter's own banner, so the spec counts
+  // from what is already there.
+  const heroCards = page.locator('.canvas-card').filter({ hasText: 'Hero banner' });
+  await expect(heroCards).toHaveCount(1);
   await page.getByRole('button', { name: /Insert block at position/ }).last().click();
   const picker = page.getByRole('dialog', { name: 'Insert a block or template' });
   await picker.getByRole('button', { name: 'Hero banner' }).click();
 
   // The card carries the Romeka block's label, not the carrier layout's.
-  await expect(page.locator('.canvas-card').filter({ hasText: 'Hero banner' })).toHaveCount(1);
+  await expect(heroCards).toHaveCount(2);
 
   // The shell selects the new block, so its settings form is the inspector.
   await page.getByRole('textbox', { name: 'Heading', exact: true }).fill(HEADING);
@@ -32,14 +36,12 @@ test('the hero block saves and the public page renders the banner', async ({ pag
 
   // The reload reads the saved page back, carrier and generated html included.
   await page.reload();
-  await expect(
-    page.locator('.canvas-card').filter({ hasText: 'Hero banner' }),
-  ).toHaveCount(1);
+  await expect(heroCards).toHaveCount(2);
 
   const response = await page.goto(`/s/${SITE_SLUG}/page/${WELCOME_SLUG}`);
   expect(response?.status()).toBe(200);
-  const hero = page.locator('.romeka-hero');
-  await expect(hero).toHaveCount(1);
+  await expect(page.locator('.romeka-hero')).toHaveCount(2);
+  const hero = page.locator('.romeka-hero').last();
   await expect(hero.locator('.romeka-hero-heading')).toHaveText(HEADING);
   await expect(hero.locator('.romeka-hero-subheading')).toHaveText(SUBHEADING);
 });

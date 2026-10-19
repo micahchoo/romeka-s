@@ -13,7 +13,7 @@ use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId};
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage};
 
-use crate::i18n::Translator;
+use crate::i18n::{Messages, Translator};
 use crate::nav::{NavItem, PageRef};
 use crate::resource_page::ResourcePageBlocks;
 use crate::search::{AdvancedSearchForm, CrossSitePage, SearchList, SearchResults};
@@ -420,25 +420,21 @@ pub struct ErrorView {
 }
 
 impl ErrorView {
-    /// `view/error/404.phtml`.
+    /// `view/error/404.phtml`, in the catalogue's locale.
     #[must_use]
-    pub fn not_found() -> Self {
+    pub fn not_found(messages: &Messages) -> Self {
         Self {
-            title: "Page not found".to_string(),
-            message: Some(
-                "The page you are trying to view does not exist. \
-                 Use the back button to return to the last page."
-                    .to_string(),
-            ),
+            title: messages.page_not_found.to_string(),
+            message: Some(messages.page_not_found_message.to_string()),
         }
     }
 
     /// `view/error/403.phtml`, which prints only the heading unless
     /// `display_errors` is on.
     #[must_use]
-    pub fn forbidden() -> Self {
+    pub fn forbidden(messages: &Messages) -> Self {
         Self {
-            title: "Forbidden".to_string(),
+            title: messages.forbidden.to_string(),
             message: None,
         }
     }

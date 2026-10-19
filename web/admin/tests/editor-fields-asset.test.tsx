@@ -172,7 +172,7 @@ describe('the page reference control', () => {
   it('lists the site pages and writes the chosen id into the entry', async () => {
     const { dispatch, key } = renderAsset(entry(), listHandler(() => jsonResponse(firstAsset())));
 
-    const select = await screen.findByLabelText('Page');
+    const select = await screen.findByLabelText('Links to page');
     await waitFor(() => {
       expect(select).toHaveTextContent('Welcome');
     });

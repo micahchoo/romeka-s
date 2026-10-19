@@ -87,7 +87,7 @@ test('a setting in each group changes the public site', async ({ page, diagnosti
     .getByRole('group', { name: 'Navigation and chrome' })
     .getByLabel('Name in the browser tab')
     .fill('Settings Archive');
-  await page.locator('summary', { hasText: 'Advanced' }).click();
+  await page.locator('summary', { hasText: /^Advanced$/ }).click();
   await page.getByLabel('Leave out linked data').check();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();

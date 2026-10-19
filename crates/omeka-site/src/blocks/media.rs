@@ -23,7 +23,7 @@
 use omeka_core::site::{BlockData, MediaData, SiteBlock};
 
 use crate::blocks::BlockLayout;
-use crate::blocks::schema::{LayoutSchema, attachments, choice, option};
+use crate::blocks::schema::{LayoutSchema, When, attachments, choice, option};
 use crate::html::escape_html;
 use crate::view::{AttachmentRef, MediaRef, RenderContext, ResourceView, Thumbnail};
 
@@ -36,10 +36,15 @@ pub struct Media;
 /// "Vertical" and "Embed media".
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        attachments("blockField.media.attachments", true),
+        attachments(
+            "blockField.media.attachments",
+            "fieldHelp.media.attachments",
+            true,
+        ),
         choice(
             "layout",
             "blockField.media.layout",
+            "fieldHelp.media.layout",
             &[
                 option("", "blockChoice.vertical"),
                 option("horizontal", "blockChoice.horizontal"),
@@ -49,6 +54,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
         choice(
             "media_display",
             "blockField.media.media_display",
+            "fieldHelp.media.media_display",
             &[
                 option("", "blockChoice.embed"),
                 option("thumbnail", "blockChoice.thumbnail"),
@@ -58,16 +64,19 @@ const SCHEMA: LayoutSchema = LayoutSchema {
         choice(
             "thumbnail_type",
             "blockField.media.thumbnail_type",
+            "fieldHelp.media.thumbnail_type",
             &[
                 option("large", "blockChoice.size_large"),
                 option("medium", "blockChoice.size_medium"),
                 option("square", "blockChoice.size_square"),
             ],
         )
-        .default_text("square"),
+        .default_text("square")
+        .when(When::equals("media_display", "thumbnail")),
         choice(
             "show_title_option",
             "blockField.media.show_title_option",
+            "fieldHelp.media.show_title_option",
             &[
                 option("item_title", "blockChoice.item_title"),
                 option("file_name", "blockChoice.file_name"),

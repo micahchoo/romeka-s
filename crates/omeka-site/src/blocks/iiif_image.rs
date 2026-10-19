@@ -24,9 +24,23 @@ pub struct IiifImage;
 /// checkbox.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("image_url", "blockField.iiifImage.image_url"),
-        text("title", "blockField.iiifImage.title"),
-        boolean("show_title", "blockField.iiifImage.show_title").default_bool(false),
+        text(
+            "image_url",
+            "blockField.iiifImage.image_url",
+            "fieldHelp.iiifImage.image_url",
+        )
+        .placeholder("fieldExample.url"),
+        text(
+            "title",
+            "blockField.iiifImage.title",
+            "fieldHelp.iiif.title",
+        ),
+        boolean(
+            "show_title",
+            "blockField.iiifImage.show_title",
+            "fieldHelp.iiif.show_title",
+        )
+        .default_bool(false),
     ],
 };
 

@@ -223,7 +223,7 @@ test('the public site pages meet the axe budget', async ({ page }) => {
 
   const welcome = await page.goto(`/s/${SITE_SLUG}/page/welcome`);
   expect(welcome?.status()).toBe(200);
-  await expect(page.getByText('Welcome to your new site.')).toBeVisible();
+  await expect(page.getByText('This is the first page of your site.')).toBeVisible();
   await expectAxeBudget(page, 'public welcome page');
 
   const browse = await page.goto(`/s/${SITE_SLUG}/item`);

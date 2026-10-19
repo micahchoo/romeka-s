@@ -161,10 +161,11 @@ export const Inspector = ({
           idPrefix={`block-${block.key}-layout`}
           schema={layoutData}
           values={layoutDataObject(block)}
+          grid={draft.layout === 'grid'}
           siteId={siteId}
           options={options}
-          onChange={(key, value) => {
-            dispatch({ type: 'setLayoutData', blockKey: block.key, key, value });
+          onChange={(values) => {
+            dispatch({ type: 'setLayoutDataValues', blockKey: block.key, values });
           }}
         />
       </Suspense>

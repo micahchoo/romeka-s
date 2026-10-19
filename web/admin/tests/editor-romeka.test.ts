@@ -120,7 +120,6 @@ describe('adding a Romeka block', () => {
       'alignment',
       'cta_label',
       'cta_page',
-      'cta_url',
     ]);
   });
 });

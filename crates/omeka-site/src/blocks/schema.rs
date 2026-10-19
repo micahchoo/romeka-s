@@ -33,10 +33,15 @@ pub const EMPTY: LayoutSchema = LayoutSchema { fields: &[] };
 /// One editable member of a layout's `data` or of a repeat group.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Field {
-    /// The stored key, e.g. `resource_type`.
+    /// The stored key, e.g. `resource_type`. A field that writes several keys
+    /// ([`FieldKind::Sides`], [`FieldKind::Link`]) names its first, or the
+    /// group's own name.
     pub key: &'static str,
     /// The catalogue key for the field's label.
     pub label: &'static str,
+    /// The catalogue key for the one line under the control that says what the
+    /// visitor sees.
+    pub help: &'static str,
     /// What the field holds and how a form renders it, flattened so the JSON
     /// carries one `type` beside the option list.
     #[serde(flatten)]
@@ -47,6 +52,74 @@ pub struct Field {
     /// Whether the control is required (`oembed.url`).
     #[serde(skip_serializing_if = "is_false")]
     pub required: bool,
+    /// The sibling value the control depends on; absent for a control that
+    /// always shows. A hidden control keeps its stored value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub when: Option<When>,
+    /// The section of the styling form the field sits in (layout data only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<Group>,
+    /// Whether the form tucks the field under its "Advanced" disclosure.
+    #[serde(skip_serializing_if = "is_false")]
+    pub advanced: bool,
+}
+
+/// A condition on one sibling field's value, which decides whether a control
+/// shows. The sibling's schema default stands in for an absent value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct When {
+    /// The sibling's key, in the same field list.
+    pub field: &'static str,
+    /// What the sibling's value must be.
+    #[serde(flatten)]
+    pub test: Test,
+}
+
+/// The test a [`When`] applies to the sibling's value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(tag = "test", rename_all = "camelCase")]
+pub enum Test {
+    /// The value is exactly this string (a choice).
+    Equals {
+        /// The value that shows the control.
+        value: &'static str,
+    },
+    /// The value is present: not empty, not zero, not false.
+    Set,
+}
+
+impl When {
+    /// Shows the control when `field` holds `value`.
+    pub const fn equals(field: &'static str, value: &'static str) -> Self {
+        Self {
+            field,
+            test: Test::Equals { value },
+        }
+    }
+
+    /// Shows the control when `field` holds any value.
+    pub const fn set(field: &'static str) -> Self {
+        Self {
+            field,
+            test: Test::Set,
+        }
+    }
+}
+
+/// The sections of the block styling form, in the order it shows them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Group {
+    /// Padding.
+    Spacing,
+    /// Maximum width and minimum height.
+    Size,
+    /// Colour and image behind the block.
+    Background,
+    /// Where the block and its text sit.
+    Alignment,
+    /// Position and span on a grid page.
+    Grid,
 }
 
 /// The value a field starts from, as the JSON kind that carries it.
@@ -69,7 +142,11 @@ pub enum FieldDefault {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum FieldKind {
     /// A text input.
-    Text,
+    Text {
+        /// The catalogue key for an example shown in the empty input.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        placeholder: Option<&'static str>,
+    },
     /// A rich-text HTML input (upstream's WYSIWYG).
     Html,
     /// A number input, with a lower bound where upstream sets one.
@@ -96,7 +173,12 @@ pub enum FieldKind {
     /// A reference to an asset.
     AssetRef,
     /// A search query over the site's resources (`Omeka\Form\Element\Query`).
-    ItemQuery,
+    ItemQuery {
+        /// The sibling choice that names the resource type the query searches
+        /// (`browsePreview.resource_type`); absent for an items query.
+        #[serde(rename = "resourceKey", skip_serializing_if = "Option::is_none")]
+        resource_key: Option<&'static str>,
+    },
     /// The block's attachments, edited as a separate list rather than in
     /// `data` (`site_page_block.attachment`). `media` marks the layouts whose
     /// attachments may carry a media choice (`blockAttachmentsForm`).
@@ -112,6 +194,35 @@ pub enum FieldKind {
     },
     /// The `listOfPages` page tree, stored as a JSON string.
     PageList,
+    /// A `<hex-color>` (`#rgb` or `#rrggbb`), the only colour the renderer
+    /// accepts.
+    Color,
+    /// One CSS length per side, each stored under its own key.
+    Sides {
+        /// The four stored keys.
+        keys: SideKeys,
+    },
+    /// A link target: a page of the site under the field's `key`, or a URL
+    /// under `url_key`. The control writes one and clears the other, because
+    /// the renderer prefers the page.
+    Link {
+        /// The key that holds the URL.
+        #[serde(rename = "urlKey")]
+        url_key: &'static str,
+    },
+}
+
+/// The stored keys of a [`FieldKind::Sides`] control.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SideKeys {
+    /// The top side's key.
+    pub top: &'static str,
+    /// The right side's key.
+    pub right: &'static str,
+    /// The bottom side's key.
+    pub bottom: &'static str,
+    /// The left side's key.
+    pub left: &'static str,
 }
 
 /// One accepted value of a [`FieldKind::Choice`], with its label key.
@@ -128,168 +239,167 @@ pub const fn option(value: &'static str, label: &'static str) -> ChoiceOption {
     ChoiceOption { value, label }
 }
 
-/// A text input.
-pub const fn text(key: &'static str, label: &'static str) -> Field {
+/// A field of `kind` with no default, no condition and no group.
+const fn field(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    kind: FieldKind,
+) -> Field {
     Field {
         key,
         label,
-        kind: FieldKind::Text,
+        help,
+        kind,
         default: None,
         required: false,
+        when: None,
+        group: None,
+        advanced: false,
     }
+}
+
+/// A text input.
+pub const fn text(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Text { placeholder: None })
 }
 
 /// A rich-text HTML input.
-pub const fn html(key: &'static str, label: &'static str) -> Field {
-    Field {
-        key,
-        label,
-        kind: FieldKind::Html,
-        default: None,
-        required: false,
-    }
+pub const fn html(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Html)
 }
 
 /// A number input with no bound.
-pub const fn integer(key: &'static str, label: &'static str) -> Field {
-    Field {
+pub const fn integer(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(
         key,
         label,
-        kind: FieldKind::Integer {
+        help,
+        FieldKind::Integer {
             min: None,
             max: None,
         },
-        default: None,
-        required: false,
-    }
+    )
 }
 
 /// A number input whose smallest accepted value is `min`.
-pub const fn integer_min(key: &'static str, label: &'static str, min: i64) -> Field {
-    Field {
+pub const fn integer_min(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    min: i64,
+) -> Field {
+    field(
         key,
         label,
-        kind: FieldKind::Integer {
+        help,
+        FieldKind::Integer {
             min: Some(min),
             max: None,
         },
-        default: None,
-        required: false,
-    }
+    )
 }
 
 /// A checkbox.
-pub const fn boolean(key: &'static str, label: &'static str) -> Field {
-    Field {
-        key,
-        label,
-        kind: FieldKind::Boolean,
-        default: None,
-        required: false,
-    }
+pub const fn boolean(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Boolean)
 }
 
 /// A select over `options`.
 pub const fn choice(
     key: &'static str,
     label: &'static str,
+    help: &'static str,
     options: &'static [ChoiceOption],
 ) -> Field {
-    Field {
+    field(
         key,
         label,
-        kind: FieldKind::Choice {
+        help,
+        FieldKind::Choice {
             options,
             multiple: false,
         },
-        default: None,
-        required: false,
-    }
+    )
 }
 
 /// A group of checkboxes over `options`.
 pub const fn multi_choice(
     key: &'static str,
     label: &'static str,
+    help: &'static str,
     options: &'static [ChoiceOption],
 ) -> Field {
-    Field {
+    field(
         key,
         label,
-        kind: FieldKind::Choice {
+        help,
+        FieldKind::Choice {
             options,
             multiple: true,
         },
-        default: None,
-        required: false,
-    }
+    )
 }
 
 /// A reference to a page of the site.
-pub const fn page_ref(key: &'static str, label: &'static str) -> Field {
-    Field {
-        key,
-        label,
-        kind: FieldKind::PageRef,
-        default: None,
-        required: false,
-    }
+pub const fn page_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::PageRef)
 }
 
 /// A reference to an asset.
-pub const fn asset_ref(key: &'static str, label: &'static str) -> Field {
-    Field {
-        key,
-        label,
-        kind: FieldKind::AssetRef,
-        default: None,
-        required: false,
-    }
+pub const fn asset_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::AssetRef)
 }
 
-/// A search query over the site's resources.
-pub const fn item_query(key: &'static str, label: &'static str) -> Field {
-    Field {
+/// A search query over the site's items.
+pub const fn item_query(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(
         key,
         label,
-        kind: FieldKind::ItemQuery,
-        default: None,
-        required: false,
-    }
+        help,
+        FieldKind::ItemQuery { resource_key: None },
+    )
 }
 
 /// The block's attachments. `media` marks a layout whose attachments may name
 /// a media; the key is not a `data` member, so it names the list itself.
-pub const fn attachments(label: &'static str, media: bool) -> Field {
-    Field {
-        key: "attachments",
-        label,
-        kind: FieldKind::Attachments { media },
-        default: None,
-        required: false,
-    }
+pub const fn attachments(label: &'static str, help: &'static str, media: bool) -> Field {
+    field("attachments", label, help, FieldKind::Attachments { media })
 }
 
 /// A repeat group whose records hold `fields`.
-pub const fn repeat(label: &'static str, fields: &'static [Field]) -> Field {
-    Field {
-        key: "attachments",
-        label,
-        kind: FieldKind::Repeat { fields },
-        default: None,
-        required: false,
-    }
+pub const fn repeat(label: &'static str, help: &'static str, fields: &'static [Field]) -> Field {
+    field("attachments", label, help, FieldKind::Repeat { fields })
 }
 
 /// The `listOfPages` page tree.
-pub const fn page_list(key: &'static str, label: &'static str) -> Field {
-    Field {
-        key,
-        label,
-        kind: FieldKind::PageList,
-        default: None,
-        required: false,
-    }
+pub const fn page_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::PageList)
+}
+
+/// A hex colour.
+pub const fn color(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Color)
+}
+
+/// Four CSS lengths, one per side, edited as one control named `key`.
+pub const fn sides(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    keys: SideKeys,
+) -> Field {
+    field(key, label, help, FieldKind::Sides { keys })
+}
+
+/// A page of the site under `page_key`, or a URL under `url_key`.
+pub const fn link(
+    page_key: &'static str,
+    url_key: &'static str,
+    label: &'static str,
+    help: &'static str,
+) -> Field {
+    field(page_key, label, help, FieldKind::Link { url_key })
 }
 
 impl Field {
@@ -332,77 +442,195 @@ impl Field {
             ..self
         }
     }
+
+    /// Shows the control only while `when` holds.
+    pub const fn when(self, when: When) -> Self {
+        Self {
+            when: Some(when),
+            ..self
+        }
+    }
+
+    /// Puts the field in a section of the styling form.
+    pub const fn group(self, group: Group) -> Self {
+        Self {
+            group: Some(group),
+            ..self
+        }
+    }
+
+    /// Tucks the field under the form's "Advanced" disclosure.
+    pub const fn advanced(self) -> Self {
+        Self {
+            advanced: true,
+            ..self
+        }
+    }
+
+    /// Shows the catalogue example `key` in the empty text input. Only a text
+    /// field has one, so any other kind fails the build.
+    pub const fn placeholder(self, key: &'static str) -> Self {
+        match self.kind {
+            FieldKind::Text { .. } => Self {
+                kind: FieldKind::Text {
+                    placeholder: Some(key),
+                },
+                ..self
+            },
+            _ => panic!("only a text field has a placeholder"),
+        }
+    }
+
+    /// Searches the resource type the sibling choice `key` names. Only an item
+    /// query has one, so any other kind fails the build.
+    pub const fn resource_from(self, key: &'static str) -> Self {
+        match self.kind {
+            FieldKind::ItemQuery { .. } => Self {
+                kind: FieldKind::ItemQuery {
+                    resource_key: Some(key),
+                },
+                ..self
+            },
+            _ => panic!("only an item query searches a resource type"),
+        }
+    }
+
+    /// Whether the field writes the stored key `key`.
+    #[must_use]
+    pub fn writes(&self, key: &str) -> bool {
+        match self.kind {
+            FieldKind::Sides { keys } => {
+                [keys.top, keys.right, keys.bottom, keys.left].contains(&key)
+            }
+            FieldKind::Link { url_key } => self.key == key || url_key == key,
+            _ => self.key == key,
+        }
+    }
 }
 
 /// `Form/BlockLayoutDataForm.php`: the styling every block's `layout_data`
-/// carries. `grid_column_position` and `grid_column_span` come from the page
-/// editor's grid rather than that form, and are declared here because
-/// `AbstractLayout` reads them.
+/// carries, in the sections the styling form shows. `grid_column_position` and
+/// `grid_column_span` come from the page editor's grid rather than that form,
+/// and are declared here because `AbstractLayout` reads them. The four padding
+/// keys are one [`sides`] control.
 pub const BLOCK_LAYOUT_DATA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("template_name", "blockLayoutData.template_name"),
-        text("class", "blockLayoutData.class"),
+        sides(
+            "padding",
+            "blockLayoutData.padding",
+            "fieldHelp.layout.padding",
+            SideKeys {
+                top: "padding_top",
+                right: "padding_right",
+                bottom: "padding_bottom",
+                left: "padding_left",
+            },
+        )
+        .group(Group::Spacing),
         text(
-            "grid_column_position",
-            "blockLayoutData.grid_column_position",
-        ),
-        text("grid_column_span", "blockLayoutData.grid_column_span"),
+            "max_width",
+            "blockLayoutData.max_width",
+            "fieldHelp.layout.length",
+        )
+        .placeholder("fieldExample.layout.max_width")
+        .group(Group::Size),
+        text(
+            "min_height",
+            "blockLayoutData.min_height",
+            "fieldHelp.layout.length",
+        )
+        .placeholder("fieldExample.layout.min_height")
+        .group(Group::Size),
+        color(
+            "background_color",
+            "blockLayoutData.background_color",
+            "fieldHelp.layout.background_color",
+        )
+        .group(Group::Background),
+        asset_ref(
+            "background_image_asset",
+            "blockLayoutData.background_image_asset",
+            "fieldHelp.layout.background_image_asset",
+        )
+        .group(Group::Background),
         choice(
-            "alignment_block",
-            "blockLayoutData.alignment_block",
+            "background_image_size",
+            "blockLayoutData.background_image_size",
+            "fieldHelp.layout.background_image_size",
+            &[
+                option("cover", "blockChoice.cover"),
+                option("contain", "blockChoice.contain"),
+            ],
+        )
+        .group(Group::Background)
+        .when(When::set("background_image_asset")),
+        choice(
+            "background_image_position_y",
+            "blockLayoutData.background_image_position_y",
+            "fieldHelp.layout.background_image_position",
+            &[
+                option("top", "blockChoice.top"),
+                option("center", "blockChoice.center"),
+                option("bottom", "blockChoice.bottom"),
+            ],
+        )
+        .group(Group::Background)
+        .when(When::set("background_image_asset")),
+        choice(
+            "background_image_position_x",
+            "blockLayoutData.background_image_position_x",
+            "fieldHelp.layout.background_image_position",
             &[
                 option("left", "blockChoice.left"),
                 option("center", "blockChoice.center"),
                 option("right", "blockChoice.right"),
             ],
-        ),
+        )
+        .group(Group::Background)
+        .when(When::set("background_image_asset")),
+        choice(
+            "alignment_block",
+            "blockLayoutData.alignment_block",
+            "fieldHelp.layout.alignment_block",
+            &[
+                option("left", "blockChoice.left"),
+                option("center", "blockChoice.center"),
+                option("right", "blockChoice.right"),
+            ],
+        )
+        .group(Group::Alignment),
         choice(
             "alignment_text",
             "blockLayoutData.alignment_text",
+            "fieldHelp.layout.alignment_text",
             &[
                 option("left", "blockChoice.left"),
                 option("center", "blockChoice.center"),
                 option("right", "blockChoice.right"),
                 option("justify", "blockChoice.justify"),
             ],
-        ),
-        text("max_width", "blockLayoutData.max_width"),
-        text("min_height", "blockLayoutData.min_height"),
-        text("padding_top", "blockLayoutData.padding_top"),
-        text("padding_right", "blockLayoutData.padding_right"),
-        text("padding_bottom", "blockLayoutData.padding_bottom"),
-        text("padding_left", "blockLayoutData.padding_left"),
-        text("background_color", "blockLayoutData.background_color"),
-        asset_ref(
-            "background_image_asset",
-            "blockLayoutData.background_image_asset",
-        ),
-        choice(
-            "background_image_position_y",
-            "blockLayoutData.background_image_position_y",
-            &[
-                option("top", "blockChoice.top"),
-                option("center", "blockChoice.center"),
-                option("bottom", "blockChoice.bottom"),
-            ],
-        ),
-        choice(
-            "background_image_position_x",
-            "blockLayoutData.background_image_position_x",
-            &[
-                option("left", "blockChoice.left"),
-                option("center", "blockChoice.center"),
-                option("right", "blockChoice.right"),
-            ],
-        ),
-        choice(
-            "background_image_size",
-            "blockLayoutData.background_image_size",
-            &[
-                option("cover", "blockChoice.cover"),
-                option("contain", "blockChoice.contain"),
-            ],
-        ),
+        )
+        .group(Group::Alignment),
+        text(
+            "grid_column_position",
+            "blockLayoutData.grid_column_position",
+            "fieldHelp.layout.grid_column_position",
+        )
+        .placeholder("fieldExample.layout.grid_column_position")
+        .group(Group::Grid),
+        text(
+            "grid_column_span",
+            "blockLayoutData.grid_column_span",
+            "fieldHelp.layout.grid_column_span",
+        )
+        .group(Group::Grid),
+        text(
+            "template_name",
+            "blockLayoutData.template_name",
+            "fieldHelp.layout.template_name",
+        )
+        .advanced(),
+        text("class", "blockLayoutData.class", "fieldHelp.layout.class").advanced(),
     ],
 };
 
@@ -411,11 +639,36 @@ pub const BLOCK_LAYOUT_DATA: LayoutSchema = LayoutSchema {
 /// here because `View/Helper/PageLayout::render` reads it.
 pub const PAGE_LAYOUT_DATA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("template_name", "pageLayoutData.template_name"),
-        text("class", "pageLayoutData.class"),
-        integer_min("grid_columns", "pageLayoutData.grid_columns", 0),
-        integer_min("grid_column_gap", "pageLayoutData.grid_column_gap", 0).default_int(10),
-        integer_min("grid_row_gap", "pageLayoutData.grid_row_gap", 0).default_int(10),
+        text(
+            "template_name",
+            "pageLayoutData.template_name",
+            "fieldHelp.layout.template_name",
+        )
+        .advanced(),
+        text("class", "pageLayoutData.class", "fieldHelp.layout.class").advanced(),
+        integer_min(
+            "grid_columns",
+            "pageLayoutData.grid_columns",
+            "fieldHelp.page.grid_columns",
+            0,
+        )
+        .group(Group::Grid),
+        integer_min(
+            "grid_column_gap",
+            "pageLayoutData.grid_column_gap",
+            "fieldHelp.page.grid_gap",
+            0,
+        )
+        .default_int(10)
+        .group(Group::Grid),
+        integer_min(
+            "grid_row_gap",
+            "pageLayoutData.grid_row_gap",
+            "fieldHelp.page.grid_gap",
+            0,
+        )
+        .default_int(10)
+        .group(Group::Grid),
     ],
 };
 
@@ -546,104 +799,5 @@ fn is_false(value: &bool) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::blocks::parse;
-
-    /// Where the admin reads the generated registry.
-    const ADMIN_FILE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../web/admin/src/generated/blocks.json"
-    );
-
-    /// The admin's file is the registry's serialisation, byte for byte. A
-    /// difference fails with the command that rewrites it, so the boundary is
-    /// enforced by a test rather than a convention.
-    #[test]
-    fn generated_registry_matches_the_admin_file() {
-        let rendered = format!(
-            "{}\n",
-            serde_json::to_string_pretty(&registry()).expect("the registry serialises")
-        );
-        if std::env::var_os("UPDATE_GENERATED").is_some() {
-            let path = std::path::Path::new(ADMIN_FILE);
-            std::fs::create_dir_all(path.parent().expect("the file has a parent"))
-                .expect("the generated directory exists");
-            std::fs::write(path, &rendered).expect("the registry file is writable");
-            return;
-        }
-        let current = std::fs::read_to_string(ADMIN_FILE).unwrap_or_default();
-        assert_eq!(
-            current, rendered,
-            "run UPDATE_GENERATED=1 cargo test -p omeka-site to rewrite {ADMIN_FILE}"
-        );
-    }
-
-    /// Every registered layout the admin offers declares a schema, and only the
-    /// two layouts that carry no data leave it empty. The registry lists them
-    /// all, in the registry's order, and never the fallback.
-    #[test]
-    fn every_registered_layout_declares_a_schema() {
-        let names: Vec<&str> = layouts()
-            .iter()
-            .filter(|layout| layout_id(layout.name()).is_some())
-            .map(|layout| layout.name())
-            .collect();
-        let listed: Vec<&str> = registry().layouts.iter().map(|entry| entry.name).collect();
-        assert_eq!(listed, names);
-        assert!(!listed.contains(&"fallback"), "{listed:?}");
-        for layout in layouts() {
-            let name = layout.name();
-            let empty = matches!(name, "pageTitle" | "fallback");
-            assert_eq!(
-                layout.schema().fields.is_empty(),
-                empty,
-                "{name} schema emptiness"
-            );
-        }
-    }
-
-    /// The registry lists every registered Romeka block, with the carrier and
-    /// the catalogue key the admin reads.
-    #[test]
-    fn the_registry_lists_every_romeka_block() {
-        let listed: Vec<&str> = registry().romeka.iter().map(|entry| entry.name).collect();
-        let names: Vec<&str> = romeka::blocks().iter().map(|block| block.name()).collect();
-        assert_eq!(listed, names);
-        for entry in &registry().romeka {
-            assert_eq!(entry.label, format!("romeka.{}", entry.name));
-            assert_eq!(entry.carrier, "html", "{} carrier", entry.name);
-            assert!(!entry.schema.fields.is_empty(), "{} fields", entry.name);
-        }
-    }
-
-    /// Every field key a schema names is one its layout's `data` parse reads.
-    /// An attachments list is stored as rows beside `data` and a repeat group
-    /// names its records rather than a key, so the check descends to the keys
-    /// that carry values.
-    #[test]
-    fn every_schema_field_names_a_key_its_layout_reads() {
-        for layout in layouts() {
-            let Some(id) = layout_id(layout.name()) else {
-                continue;
-            };
-            let read = parse::data_keys(&id);
-            assert_keys_are_read(layout.name(), layout.schema().fields, &read);
-        }
-    }
-
-    fn assert_keys_are_read(layout: &str, fields: &'static [Field], read: &[&'static str]) {
-        for field in fields {
-            match field.kind {
-                FieldKind::Attachments { .. } => {}
-                FieldKind::Repeat { fields: inner } => assert_keys_are_read(layout, inner, read),
-                _ => assert!(
-                    read.contains(&field.key),
-                    "{} declares `{}`, which its parse does not read",
-                    layout,
-                    field.key
-                ),
-            }
-        }
-    }
-}
+#[path = "schema_tests.rs"]
+mod tests;

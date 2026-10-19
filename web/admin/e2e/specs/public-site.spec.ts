@@ -24,6 +24,6 @@ test('the public site renders the page the admin shows', async ({ page }) => {
   const welcome = await page.goto(`/s/${SITE_SLUG}/page/${WELCOME_SLUG}`);
   expect(welcome?.status()).toBe(200);
   await expect(page).toHaveTitle(/Welcome/);
-  await expect(page.getByText('Welcome to your new site.')).toBeVisible();
+  await expect(page.getByText('This is the first page of your site.')).toBeVisible();
   await expect(page.getByText('Powered by Romeka S')).toBeVisible();
 });

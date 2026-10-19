@@ -6,6 +6,9 @@
  * With no tags it fills every catalogue marked `@machine-translated`. The
  * locale file is the store: a run translates only missing keys and drops keys
  * English no longer has, so a hand correction in the file is never undone.
+ * Each table's `sources.json` records the English every translation was made
+ * from, so a key whose English has since changed is translated again. Only a
+ * run over every machine-translated locale (no tags) updates that record.
  *
  * The model is sarvam-30b behind llama.cpp (`SARVAM_URL`, default
  * http://localhost:8086). The prompt and the answer checks are md-translator's
@@ -30,6 +33,13 @@ const TABLES = [
     source: 'src/pages/sites/themeEditor/messages.ts',
     dir: 'src/pages/sites/themeEditor/locales',
     type: 'ThemeMessages',
+    from: '../messages',
+  },
+  {
+    what: 'page editor field messages',
+    source: 'src/pages/sites/editor/messages.ts',
+    dir: 'src/pages/sites/editor/locales',
+    type: 'EditorMessages',
     from: '../messages',
   },
   {
@@ -151,6 +161,10 @@ const targets = tags.length
 let flaggedTotal = 0;
 for (const table of TABLES) {
   const { en } = await import(join(ADMIN, table.source));
+  const sourcesPath = join(ADMIN, table.dir, 'sources.json');
+  // With no record yet, every translation present is taken as made from today's English.
+  const sources = existsSync(sourcesPath) ? JSON.parse(readFileSync(sourcesPath, 'utf8')) : en;
+  const changed = new Set(Object.keys(en).filter((key) => key in sources && sources[key] !== en[key]));
   for (const tag of targets) {
     const language = LANGUAGES[tag];
     if (!language || tag === 'en') throw new Error(`${tag}: md-translator has no such target language`);
@@ -164,12 +178,12 @@ for (const table of TABLES) {
     const missing = [];
     for (const key of Object.keys(en)) {
       if (endonym(key)) catalogue[key] = en[key];
-      else if (key in existing) catalogue[key] = existing[key];
+      else if (key in existing && !changed.has(key)) catalogue[key] = existing[key];
       else if (wordless(en[key])) catalogue[key] = en[key];
       else missing.push(key);
     }
     const history = Object.keys(en)
-      .filter((key) => key in existing && !endonym(key))
+      .filter((key) => key in existing && !endonym(key) && !changed.has(key))
       .map((key) => [en[key], existing[key]]);
 
     for (const key of missing) {
@@ -184,6 +198,11 @@ for (const table of TABLES) {
     }
     write(path, kept, table, tag, en, catalogue);
     console.log(`${tag} ${table.what}: ${missing.length} translated`);
+  }
+  if (tags.length) {
+    if (changed.size) console.log(`${table.what}: sources.json not updated, because only some locales ran`);
+  } else {
+    writeFileSync(sourcesPath, `${JSON.stringify(en, null, 1)}\n`);
   }
 }
 if (flaggedTotal) console.log(`${flaggedTotal} flagged: read each against its English and correct the file.`);
