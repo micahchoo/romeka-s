@@ -2,7 +2,9 @@
  * The two text lines a canvas card shows: the layout's catalogue label and a
  * one-line summary of the block's content.
  */
-import type { Translator } from '../../../../i18n';
+import type { KeyOf, MessageKey, Translator } from '../../../../i18n';
+import type { editor } from '../../../../i18n/namespaces/editor';
+import type { sites } from '../../../../i18n/namespaces/sites';
 import type { BlockRegistry } from '../../blockSchema';
 import type { TemplateBlock } from '../../templates';
 import type { BlockDraft, LayoutData } from '../draft';
@@ -25,7 +27,7 @@ const clip = (text: string): string =>
   text.length > MAX_SUMMARY ? `${text.slice(0, MAX_SUMMARY - 1)}...` : text;
 
 /** The message lookup a card reads its labels through. */
-export type Translate = Translator['t'];
+export type Translate = Translator<MessageKey | KeyOf<typeof sites> | KeyOf<typeof editor>>['t'];
 
 /** The card's content summary: HTML text, the page title, or an attachment count. */
 export const blockSummary = (

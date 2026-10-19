@@ -16,6 +16,9 @@ import type { DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { Checked, Labelled } from '../Labelled';
 import type { EditorOptions } from '../options';
 import { layoutObject } from '../values';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 const LayoutDataForm = lazy(() =>
   import('../fields').then((module) => ({ default: module.LayoutDataForm })),
@@ -44,7 +47,7 @@ export const PageSettings = ({
   onDeleted,
   onOpenSaveTemplate,
 }: PageSettingsProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const titleIssue = issues.some((issue) => issue.blockKey === null && issue.field === 'title');
 
   return (

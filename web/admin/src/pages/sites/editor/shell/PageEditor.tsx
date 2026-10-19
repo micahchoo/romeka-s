@@ -25,6 +25,9 @@ import { blockOf } from './selection';
 import type { Selection, SelectionSource } from './selection';
 import { usePreview } from './usePreview';
 import { useUnsavedGuard } from './useUnsavedGuard';
+import { common } from '../../../../i18n/namespaces/common';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { editor } from '../../../../i18n/namespaces/editor';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
@@ -92,7 +95,7 @@ export const PageEditor = ({
   site,
   options,
 }: PageEditorProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, sites, editor);
   const [draft, dispatch] = useReducer(draftReducer, page, startDraft);
   const [siteSettings, setSiteSettings] = useState<JsonValue | null>(site.siteSettings);
   const [choosing, setChoosing] = useState(page === null);

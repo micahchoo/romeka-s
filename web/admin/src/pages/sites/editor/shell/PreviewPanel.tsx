@@ -12,6 +12,7 @@ import { useTranslator } from '../../../../i18n';
 import { DeviceBar } from '../DeviceBar';
 import { fitFrame, frameStyle, useBoxSize } from '../frameFit';
 import type { DeviceWidth } from '../frameFit';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 export type PreviewStatus = 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
 
@@ -22,7 +23,7 @@ export interface PreviewPanelProps {
 }
 
 export const PreviewPanel = ({ html, status, message }: PreviewPanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const [device, setDevice] = useState<DeviceWidth>('fit');
   const frameBox = useRef<HTMLDivElement | null>(null);
   const box = useBoxSize(frameBox);

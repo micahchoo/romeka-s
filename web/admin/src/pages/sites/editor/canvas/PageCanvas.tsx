@@ -24,6 +24,8 @@ import { romkaState } from '../romekaHash';
 import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel } from './summary';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
+import { editor } from '../../../../i18n/namespaces/editor';
+import { sites } from '../../../../i18n/namespaces/sites';
 import './canvas.css';
 
 export interface PageCanvasProps {
@@ -59,7 +61,7 @@ const InsertPoint = ({
   onChooseTemplate,
   onDropIndex,
 }: InsertPointProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   return (
     <li
       className="canvas-insert"
@@ -101,7 +103,7 @@ export const PageCanvas = ({
   onSelect,
   dispatch,
 }: PageCanvasProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites, editor);
   const selectedKey = selection?.key ?? null;
   const list = useRef<HTMLUListElement | null>(null);
   useEffect(() => {

@@ -16,6 +16,7 @@ import type { InsertTarget } from '../frame/geometry';
 import type { DeviceWidth } from '../frameFit';
 import type { Selection } from './selection';
 import type { PreviewState } from './usePreview';
+import { sites } from '../../../../i18n/namespaces/sites';
 
 export interface LivePanelProps {
   readonly preview: PreviewState;
@@ -44,7 +45,7 @@ export const LivePanel = ({
   onSelect,
   dispatch,
 }: LivePanelProps): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(sites);
   const [device, setDevice] = useState<DeviceWidth>('fit');
   const templates = useInsertChoices(siteSettings);
 
