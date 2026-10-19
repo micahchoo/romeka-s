@@ -16,7 +16,7 @@ fn layout_matches_upstream_layout() {
     );
     assert!(document.contains("<title>Romeka S</title>"), "{document}");
     assert!(
-        document.contains("href=\"/assets/css/style.css\""),
+        document.contains("href=\"/assets/css/style.css?v="),
         "{document}"
     );
     assert!(
@@ -87,9 +87,12 @@ fn layout_links_the_theme_manifest_assets() {
         .iter()
         .filter(|asset| asset.kind.is_head())
     {
-        let element = asset
-            .kind
-            .element(&format!("{}/{}", ctx.asset_base, asset.path));
+        let element = asset.kind.element(&format!(
+            "{}/{}?v={}",
+            ctx.asset_base,
+            asset.path,
+            asset.version()
+        ));
         assert!(document.contains(&element), "{document}");
     }
     // A view-referenced image is shipped but not linked from the head.
@@ -116,7 +119,7 @@ fn layout_uses_the_context_asset_base() {
     ctx.asset_base = "/theme/assets/".to_string();
     let document = DefaultTheme.render(&View::Index, &ctx);
     assert!(
-        document.contains("href=\"/theme/assets/css/style.css\""),
+        document.contains("href=\"/theme/assets/css/style.css?v="),
         "{document}"
     );
     assert!(!document.contains("/theme/assets//"), "{document}");
@@ -550,4 +553,29 @@ fn browse_renders_the_placeholder_for_a_resource_without_a_thumbnail() {
         ),
         "{document}"
     );
+}
+
+/// A site's own CSS renders in its own `<style>` after the theme sheet, so its
+/// rules win; CSS the sanitiser refuses renders nothing.
+#[test]
+fn layout_renders_custom_css_after_the_theme_sheet() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "custom_css": ".site-title a { color: #cc0000 }"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    let sheet_at = document.find("css/style.css").expect("stylesheet link");
+    let custom_at = document
+        .find("<style id=\"custom-css\">\n.site-title a { color: #cc0000 }\n</style>")
+        .expect("the custom CSS block");
+    assert!(sheet_at < custom_at, "{document}");
+
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "custom_css": "p {} </style><script>alert(1)</script>"
+    }));
+    let hostile = DefaultTheme.render(&View::Index, &ctx);
+    assert!(!hostile.contains("custom-css"), "{hostile}");
+    assert!(!hostile.contains("<script>alert(1)"), "{hostile}");
 }

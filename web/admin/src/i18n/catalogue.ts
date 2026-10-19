@@ -437,40 +437,6 @@ export const en = {
   'siteSetting.searchRestrictTemplates': 'Search restrict templates',
   'siteSetting.iiifViewerSidebar': 'IIIF viewer sidebar',
 
-  // Theme tokens (`SiteAdmin/IndexController::themeAction`), generated into
-  // `generated/themeSettings.json` by `crates/omeka-site/src/theme/tokens.rs`.
-  'theme.palette': 'Palette',
-  'theme.typography': 'Typography',
-  'theme.layout': 'Layout',
-  'theme.headerFooter': 'Header and footer',
-  'themeSetting.colorScheme': 'Colour scheme',
-  'themeSetting.brandColor': 'Brand colour',
-  'themeSetting.accentColor': 'Accent colour',
-  'themeSetting.backgroundColor': 'Page background',
-  'themeSetting.surfaceColor': 'Surface',
-  'themeSetting.textColor': 'Text',
-  'themeSetting.mutedColor': 'Muted text',
-  'themeSetting.linkColor': 'Link',
-  'themeSetting.headingFont': 'Heading font',
-  'themeSetting.bodyFont': 'Body font',
-  'themeSetting.baseFontSize': 'Base font size (px)',
-  'themeSetting.typeRatio': 'Type scale ratio',
-  'themeSetting.density': 'Density',
-  'themeSetting.cornerRadius': 'Corner radius (px)',
-  'themeSetting.headerLayout': 'Header layout',
-  'themeSetting.logo': 'Logo',
-  'themeSetting.banner': 'Banner image',
-  'themeSetting.bannerText': 'Banner text',
-  'themeSetting.footerText': 'Footer text',
-  'theme.contrast': 'Contrast',
-  'theme.contrastTextBackground': 'Text on background',
-  'theme.contrastLinkBackground': 'Link on background',
-  'theme.contrastTextBrand': 'Text on brand',
-  'theme.contrastPass': 'Passes AA',
-  'theme.contrastFail': 'Below AA 4.5:1',
-  'theme.contrastBlocked': 'Fix the contrast before saving.',
-  'theme.hexHint': 'Use a hex colour, e.g. #1a5d8f.',
-
   // The resource page block editor. The resource and layout labels come from
   // `generated/resourcePageBlocks.json`, written by
   // `crates/omeka-site/src/resource_page_schema.rs`.
