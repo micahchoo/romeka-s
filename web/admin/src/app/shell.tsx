@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect } from 'react';
-import type { ReactElement } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
+import type { ReactElement, RefObject } from 'react';
 import { api } from '../api/client';
 import { setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
 import { AuthBadge } from './auth';
-import { PAGE_GROUPS, PAGES } from './pages';
+import { isAdminPageId, PAGE_GROUPS, PAGES } from './pages';
+import type { AdminPageId, NavRoute } from './pages';
 import { parseAuthRoute, parseHash, useHash } from './router';
 import { useAsync } from './useAsync';
 
@@ -90,6 +91,75 @@ const useSessionProbe = (): void => {
   }, []);
 };
 
+const NavLinks = ({
+  pages,
+  activeId,
+}: {
+  readonly pages: readonly NavRoute[];
+  readonly activeId: AdminPageId | null;
+}): ReactElement[] => {
+  const { t } = useTranslator();
+  return pages.filter(isAdminPageId).map((id) => (
+    <li key={id}>
+      <a className="nav-link" href={`#/${id}`} aria-current={activeId === id ? 'page' : undefined}>
+        {t(PAGES[id].titleKey)}
+      </a>
+    </li>
+  ));
+};
+
+/** The gap left before a link the strip scrolls to, so it does not touch the edge. */
+const NAV_STRIP_INSET = 16;
+
+/**
+ * Bring the active link into the phone nav strip, which scrolls sideways and
+ * would otherwise open at its start whatever the route. The wide rail does not
+ * scroll, so the guard leaves it alone.
+ */
+const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElement | null> => {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = ref.current;
+    const link = nav?.querySelector('[aria-current="page"]');
+    if (nav === null || !(link instanceof HTMLElement) || nav.scrollWidth <= nav.clientWidth) {
+      return;
+    }
+    const navBox = nav.getBoundingClientRect();
+    const linkBox = link.getBoundingClientRect();
+    if (linkBox.left < navBox.left || linkBox.right > navBox.right) {
+      // A link under a sub-heading keeps its heading in view: "Advanced Standards".
+      const start = (link.closest('.nav-sub') ?? link).getBoundingClientRect().left;
+      nav.scrollLeft += start - navBox.left - NAV_STRIP_INSET;
+    }
+  }, [activeId]);
+  return ref;
+};
+
+const AdminNav = ({ activeId }: { readonly activeId: AdminPageId | null }): ReactElement => {
+  const { t } = useTranslator();
+  const ref = useActiveLinkInView(activeId);
+  return (
+    <nav className="app-nav" aria-label={t('shell.navLabel')} ref={ref}>
+      {PAGE_GROUPS.map((group) => (
+        <section key={group.id} className="nav-group">
+          <h2 className="nav-group-title">{t(group.titleKey)}</h2>
+          <ul className="nav-list">
+            <NavLinks pages={group.pages} activeId={activeId} />
+            {group.sub === undefined ? null : (
+              <li className="nav-sub">
+                <h3 className="nav-sub-title">{t(group.sub.titleKey)}</h3>
+                <ul className="nav-list">
+                  <NavLinks pages={group.sub.pages} activeId={activeId} />
+                </ul>
+              </li>
+            )}
+          </ul>
+        </section>
+      ))}
+    </nav>
+  );
+};
+
 /** The layout a set-password or forgot link opens: the header, and no admin nav. */
 const AuthLayout = ({ children }: { readonly children: ReactElement }): ReactElement => {
   const { t } = useTranslator();
@@ -136,26 +206,7 @@ export const Shell = (): ReactElement => {
         <LocaleSwitch />
         <AuthBadge />
       </header>
-      <nav className="app-nav" aria-label={t('shell.navLabel')}>
-        {PAGE_GROUPS.map((group) => (
-          <section key={group.id} className="nav-group">
-            <h2 className="nav-group-title">{t(group.titleKey)}</h2>
-            <ul className="nav-list">
-              {group.pages.map((id) => (
-                <li key={id}>
-                  <a
-                    className="nav-link"
-                    href={`#/${id}`}
-                    aria-current={activeId === id ? 'page' : undefined}
-                  >
-                    {t(PAGES[id].titleKey)}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </nav>
+      <AdminNav activeId={activeId} />
       <main
         className={
           page !== null && route !== null && page.wide?.(route.rest) === true

@@ -51,7 +51,9 @@ a {
 }
 
 /* Shell layout: one column under 900px, a fixed nav rail beside the content
- * above it. Grid areas keep the header full width at both sizes. */
+ * above it. Grid areas keep the header full width at both sizes. The rows are
+ * sized, or a short page shares the viewport height among all three and the
+ * header and nav strip stretch to fill it. */
 .shell {
   display: grid;
   grid-template-areas:
@@ -59,6 +61,7 @@ a {
     "nav"
     "main";
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 }
 
@@ -161,7 +164,31 @@ a {
   font-weight: 600;
 }
 
+/* A labelled run inside a group, such as Describe's Advanced: inline in the
+ * phone strip, a small heading over its links on the rail. */
+.nav-sub {
+  display: flex;
+  align-items: baseline;
+}
+
+.nav-sub-title {
+  margin: 0 var(--space-1) 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 @media (min-width: 900px) {
+  .nav-sub {
+    display: block;
+  }
+
+  .nav-sub-title {
+    margin: var(--space-2) 0 2px;
+    padding-inline-start: var(--space-2);
+  }
+
   .app-nav {
     flex-direction: column;
     gap: var(--space-4);
@@ -191,6 +218,32 @@ a {
  * takes the whole width; the route table names them (`app/pages.tsx`). */
 .app-main--wide {
   max-width: none;
+}
+
+/* A page's one-paragraph introduction under its heading. */
+.lede {
+  max-width: 42rem;
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+/* A standard term with its "?": the stored comment opens under it in place,
+ * wrapping inside a table cell that otherwise keeps one line. */
+.definition-toggle {
+  min-height: 0;
+  margin-inline-start: var(--space-1);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.definition {
+  display: block;
+  max-width: 36rem;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  white-space: normal;
 }
 
 h1 {
@@ -1430,7 +1483,8 @@ fieldset.block-field {
   content: " ↗";
 }
 
-.site-tabs ul {
+.site-tabs ul,
+.tabs ul {
   display: flex;
   gap: var(--space-1);
   margin: 0 0 var(--space-5);
@@ -1440,7 +1494,8 @@ fieldset.block-field {
   border-bottom: 1px solid var(--border);
 }
 
-.site-tabs a {
+.site-tabs a,
+.tabs a {
   display: block;
   padding: var(--space-2) var(--space-3);
   border-bottom: 2px solid transparent;
@@ -1450,11 +1505,13 @@ fieldset.block-field {
   white-space: nowrap;
 }
 
-.site-tabs a:hover {
+.site-tabs a:hover,
+.tabs a:hover {
   color: var(--text);
 }
 
-.site-tabs a[aria-current] {
+.site-tabs a[aria-current],
+.tabs a[aria-current] {
   border-bottom-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
