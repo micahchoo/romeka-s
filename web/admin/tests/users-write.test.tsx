@@ -208,8 +208,9 @@ describe('user edit form', () => {
       'o:email': 'ada@example.org',
       'o:role': 'reviewer',
       'o:is_active': false,
-      // The user stores no locale, so the select sits on Default and keeps it so.
-      'o:user_settings': { locale: '' },
+      // The user stores no locale, so the select sits on Default and keeps it so;
+      // lessons were never switched off, so the switch stays on.
+      'o:user_settings': { locale: '', romeka_hide_lessons: false },
     });
   });
 
@@ -239,7 +240,35 @@ describe('user edit form', () => {
     const put = first(
       requestsFor(fetchMock, '/api/users/3').filter((request) => request.init?.method === 'PUT'),
     );
-    expect(requestBody(put)['o:user_settings']).toEqual({ locale: 'en' });
+    expect(requestBody(put)['o:user_settings']).toEqual({
+      locale: 'en',
+      romeka_hide_lessons: false,
+    });
+  });
+
+  it('user_edit_shows_the_stored_lessons_switch_and_puts_the_chosen_one', async () => {
+    const row = userFixture(0);
+    if (!isRecord(row)) {
+      throw new Error('expected a user record');
+    }
+    const stored = { ...row, 'o:user_settings': { romeka_hide_lessons: true } };
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/users/3'
+        ? jsonResponse(stored)
+        : jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 }),
+    );
+    render(<UsersPage param="3" />);
+
+    const lessons = await screen.findByLabelText('Show lessons');
+    expect(lessons).not.toBeChecked();
+    fireEvent.click(lessons);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    const put = first(
+      requestsFor(fetchMock, '/api/users/3').filter((request) => request.init?.method === 'PUT'),
+    );
+    expect(requestBody(put)['o:user_settings']).toEqual({ locale: '', romeka_hide_lessons: false });
   });
 
   it('an_invite_has_no_user_settings', async () => {

@@ -59,7 +59,7 @@ const LocaleSwitch = (): ReactElement => {
           setLocale(chosen)
             .then(() => {
               const user = currentUser();
-              return user === null ? undefined : api.updateUserLocale(user.id, chosen);
+              return user === null ? undefined : api.updateUserSettings(user.id, { locale: chosen });
             })
             .catch((error: unknown) => {
               console.error(error);

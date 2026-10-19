@@ -19,6 +19,8 @@ import {
   type TemplateLayout,
 } from './value-fields';
 import { useDescribeText } from './describe-messages';
+import { useLesson } from './lessons/lesson';
+import { isLocalTerm } from './local-fields';
 import { TermHelp, StandardTermPicker } from './standard-term-picker';
 
 const CORE_TYPE_LABELS = {
@@ -174,16 +176,41 @@ const ValueRow = ({
   );
 };
 
+/** The lessons a field group is the anchor of. */
+interface FieldLessons {
+  readonly required: boolean;
+  readonly local: boolean;
+}
+
+const NO_LESSONS: FieldLessons = { required: false, local: false };
+
+/** The first required field and the first local one anchor their lessons. */
+const fieldLessons = (fields: readonly PropertyField[]): ((field: PropertyField) => FieldLessons) => {
+  const required = fields.find((field) => field.rule?.isRequired === true);
+  const local = fields.find((field) => isLocalTerm(field.term));
+  return (field) => ({ required: field === required, local: field === local });
+};
+
 interface FieldGroupProps extends Change {
   readonly idPrefix: string;
   readonly field: PropertyField;
   readonly dataTypes: readonly DataType[];
+  readonly lessons: FieldLessons;
 }
 
-const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupProps): ReactElement => {
+const FieldGroup = ({
+  idPrefix,
+  field,
+  dataTypes,
+  draft,
+  onChange,
+  lessons,
+}: FieldGroupProps): ReactElement => {
   const { t } = useTranslator();
   const labelId = `${idPrefix}-field-${String(field.propertyId)}-label`;
   const rule = field.rule;
+  const required = useLesson('required', lessons.required);
+  const local = useLesson('local-field', lessons.local);
   return (
     <li className="property-field">
       <p className="property-field-head">
@@ -194,15 +221,19 @@ const FieldGroup = ({ idPrefix, field, dataTypes, draft, onChange }: FieldGroupP
           <span className="property-field-term">{field.term}</span>
         )}
         <TermHelp entry={field.property} />
+        {local.toggle}
         {rule?.isRequired === true ? (
           <span className="field-badge field-badge-required">{t('valueField.required')}</span>
         ) : null}
+        {required.toggle}
         {rule?.isPrivate === true ? (
           <span className="field-badge" title={t('valueField.privateHint')}>
             {t('valueField.private')}
           </span>
         ) : null}
       </p>
+      {local.panel}
+      {required.panel}
       {field.comment === null ? null : <p className="property-field-comment">{field.comment}</p>}
       {field.values.length === 0 ? null : (
         <ul className="value-rows">
@@ -271,6 +302,8 @@ export interface ValuesEditorProps extends Change {
   readonly dataTypes: readonly DataType[];
   /** Makes a new property for "Add another field"; without it none is offered. */
   readonly createField?: (name: string, properties: readonly Property[]) => Promise<Property>;
+  /** Anchor the item form's lessons here; a preview of the form shows none. */
+  readonly showLessons?: boolean;
 }
 
 export const ValuesEditor = ({
@@ -281,11 +314,13 @@ export const ValuesEditor = ({
   properties: loaded,
   dataTypes,
   createField,
+  showLessons = false,
 }: ValuesEditorProps): ReactElement => {
   const { t } = useTranslator();
   const [created, setCreated] = useState<readonly Property[]>([]);
   const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
   const fields = layoutFields(draft.values, template, properties);
+  const lessonsOf = showLessons ? fieldLessons(fields) : () => NO_LESSONS;
   return (
     <fieldset className="values-editor">
       <legend>{t('field.valuesLegend')}</legend>
@@ -298,6 +333,7 @@ export const ValuesEditor = ({
             dataTypes={dataTypes}
             draft={draft}
             onChange={onChange}
+            lessons={lessonsOf(field)}
           />
         ))}
       </ul>

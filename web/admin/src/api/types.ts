@@ -133,11 +133,24 @@ export interface User {
    */
   readonly localeSetting: string | null;
   /**
+   * The user's lesson settings, from the port's `o:user_settings`. A single-user
+   * read, a sign-in and `GET /api/me` carry them; any other read, and a user who
+   * stores none, reads as lessons shown and none seen.
+   */
+  readonly lessons: LessonSettings;
+  /**
    * The admin locale the session resolves to, the port's `o:admin_locale`: the
    * user's setting, else the global one (`MvcListeners::bootstrapLocale`). Only
    * a sign-in and `GET /api/me` carry it; `null` when neither setting exists.
    */
   readonly adminLocale: string | null;
+}
+
+/** `romeka_hide_lessons` and `romeka_lessons_seen`, two port-only user settings. */
+export interface LessonSettings {
+  readonly hidden: boolean;
+  /** Lesson ids as stored. The admin's lesson registry decides what they name. */
+  readonly seen: readonly string[];
 }
 
 /** Fields shared by a vocabulary member (a property or a resource class). */
@@ -530,6 +543,19 @@ export interface UserWrite {
    * Default option, which removes it; absent leaves the stored one alone.
    */
   readonly localeSetting?: string;
+  /** `romeka_hide_lessons`, sent in `o:user_settings`; absent leaves it alone. */
+  readonly lessonsHidden?: boolean;
+}
+
+/**
+ * A user's settings write, the port's `o:user_settings` member. A member left
+ * out keeps what the user stores, so each caller sends only what it changed.
+ */
+export interface UserSettingsWrite {
+  /** `''` is the Default option, which removes the row. */
+  readonly locale?: string | undefined;
+  readonly lessonsHidden?: boolean | undefined;
+  readonly lessonsSeen?: readonly string[] | undefined;
 }
 
 /**

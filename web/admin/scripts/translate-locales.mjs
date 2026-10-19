@@ -64,6 +64,13 @@ const TABLES = [
     from: '../describe-messages',
   },
   {
+    what: 'lessons messages',
+    source: 'src/app/lessons/messages.ts',
+    dir: 'src/app/lessons/locales',
+    type: 'LessonsMessages',
+    from: '../messages',
+  },
+  {
     // The server's error patterns: the Rust registry generates the English.
     what: 'server messages',
     source: 'src/generated/serverMessages.json',

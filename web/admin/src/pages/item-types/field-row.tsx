@@ -6,6 +6,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
 import type { DataType, Property } from '../../api/types';
+import { useLesson } from '../../app/lessons/lesson';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { acceptChoices, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
 import { useItemTypesText, type ItemTypesText } from './messages';
@@ -26,6 +27,9 @@ export const acceptLabel = (
 /** The drag payload type, so a drop only accepts a field of this editor. */
 export const FIELD_DRAG = 'application/x-romeka-type-field';
 
+/** The lesson a row's standard term anchors, if any (`FieldList` picks the rows). */
+export type TermLesson = 'term' | 'local-field' | null;
+
 export interface FieldRowProps {
   readonly field: FieldDraft;
   readonly index: number;
@@ -40,6 +44,7 @@ export interface FieldRowProps {
   readonly freeProperties: readonly Property[];
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
+  readonly termLesson: TermLesson;
 }
 
 const AcceptsEditor = ({
@@ -87,6 +92,7 @@ interface SettingsProps {
   readonly freeProperties: readonly Property[];
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
+  readonly termLesson: TermLesson;
 }
 
 /** The standard term behind the field, and the picker that changes it. */
@@ -97,14 +103,17 @@ const TermLine = ({
   patch,
   freeProperties,
   createField,
+  termLesson,
 }: SettingsProps): ReactElement => {
   const t = useItemTypesText();
   const [changing, setChanging] = useState(false);
+  const lesson = useLesson(termLesson ?? 'term', termLesson !== null);
   return (
     <>
       <p className="type-field-term">
         <code>{term}</code>
         {property === undefined ? null : <TermHelp entry={property} />}
+        {lesson.toggle}
         <button
           type="button"
           className="link-button"
@@ -117,6 +126,7 @@ const TermLine = ({
           {t('action.change')}
         </button>
       </p>
+      {lesson.panel}
       {changing ? (
         <StandardTermPicker
           label={t('field.pickTerm')}
@@ -244,18 +254,25 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
 const FieldSettings = (props: SettingsProps): ReactElement => {
   const t = useItemTypesText();
   const { field, property, term, patch } = props;
+  const [renamed, setRenamed] = useState(false);
+  const lesson = useLesson('rename', renamed);
   return (
     <div className="type-field-body">
-      <input
-        className="type-field-name"
-        type="text"
-        aria-label={t('field.name', { term })}
-        placeholder={property?.label ?? term}
-        value={field.alternateLabel ?? ''}
-        onChange={(event) => {
-          patch({ alternateLabel: textOrNull(event.target.value) });
-        }}
-      />
+      <div className="lesson-line">
+        <input
+          className="type-field-name"
+          type="text"
+          aria-label={t('field.name', { term })}
+          placeholder={property?.label ?? term}
+          value={field.alternateLabel ?? ''}
+          onChange={(event) => {
+            setRenamed(true);
+            patch({ alternateLabel: textOrNull(event.target.value) });
+          }}
+        />
+        {lesson.toggle}
+      </div>
+      {lesson.panel}
       <TermLine {...props} />
       <AcceptsLine {...props} />
       <FlagsLine {...props} />
@@ -330,6 +347,7 @@ export const FieldRow = ({
   freeProperties,
   dataTypes,
   createField,
+  termLesson,
 }: FieldRowProps): ReactElement => {
   const t = useItemTypesText();
   const handle = useRef<HTMLButtonElement>(null);
@@ -396,6 +414,7 @@ export const FieldRow = ({
         freeProperties={freeProperties}
         dataTypes={dataTypes}
         createField={createField}
+        termLesson={termLesson}
       />
       <RowActions
         field={field}

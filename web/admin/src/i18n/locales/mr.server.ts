@@ -99,4 +99,6 @@ export const mrServer: ServerCatalogue = {
   'server.settingsNotObject': 'अपेक्षित एक ऑब्जेक्ट आहे.',
   'server.settingUnavailable': '{key} हे सेटिंग उपलब्ध नाही.',
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
 };
