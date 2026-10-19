@@ -5,7 +5,8 @@
  * queries and line lengths are the device's. A transform then shrinks the frame
  * to the box, never enlarges it, and the layout height grows by the same factor
  * so the scaled frame still fills the box's height. `fit` lays the page out at
- * the box's own width, so it reads at full size.
+ * the box's own width, but never narrower than [`FIT_MIN_WIDTH`]: an editor
+ * panel is phone-narrow, and a page laid out there shows its phone header.
  */
 import type { CSSProperties, RefObject } from 'react';
 import { useLayoutEffect, useState } from 'react';
@@ -13,6 +14,9 @@ import type { MessageKey } from '../../../i18n';
 
 /** A device width in CSS pixels, or `fit`: the width of the box itself. */
 export type DeviceWidth = number | 'fit';
+
+/** The narrowest layout Fit gives the page: a small desktop, past the public theme's widest breakpoint (60rem). */
+export const FIT_MIN_WIDTH = 1024;
 
 /** The device choices every preview offers. Fit is first and the default. */
 export const DEVICES: readonly { readonly key: MessageKey; readonly width: DeviceWidth }[] = [
@@ -38,7 +42,7 @@ export interface FrameFit {
 }
 
 export const fitFrame = (device: DeviceWidth, box: Box): FrameFit => {
-  const width = device === 'fit' ? box.width : device;
+  const width = device === 'fit' ? Math.max(box.width, FIT_MIN_WIDTH) : device;
   const scale = box.width > 0 && width > 0 ? Math.min(1, box.width / width) : 1;
   return {
     width,
