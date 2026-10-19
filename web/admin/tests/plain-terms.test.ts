@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { plainName, searchTerms, type Termed } from '../src/app/plain-terms';
 import { localNameFor } from '../src/app/local-fields';
-import type { Locale } from '../src/i18n';
+import { termText, type Locale } from '../src/i18n';
 
 const entry = (term: string, label: string, comment: string | null = null): Termed => ({
   term,
@@ -50,7 +50,7 @@ const PROPERTIES: readonly Termed[] = [
 ];
 
 const terms = (query: string, locale: Locale = 'en') =>
-  searchTerms(PROPERTIES, query, locale).map((found) => found.term);
+  searchTerms(PROPERTIES, query, termText(locale)).map((found) => found.term);
 
 describe('plain-words search', () => {
   it('finds the creator from how a person asks for it', () => {
@@ -77,7 +77,7 @@ describe('plain-words search', () => {
 
   it('reads English plain words in a locale they are not curated in', () => {
     expect(terms('who wrote it', 'hi')[0]).toBe('dcterms:creator');
-    expect(plainName(entry('dcterms:provenance', 'Provenance'), 'hi')).toBe('Where it came from');
+    expect(plainName(entry('dcterms:provenance', 'Provenance'), termText('hi'))).toBe('Where it came from');
   });
 
   it('finds nothing for an empty or unrelated query', () => {
@@ -86,9 +86,9 @@ describe('plain-words search', () => {
   });
 
   it('names a common term in plain words and any other by its label', () => {
-    expect(plainName(entry('dcterms:provenance', 'Provenance'), 'en')).toBe('Where it came from');
-    expect(plainName(entry('dcterms:provenance', 'Provenance'), 'es')).toBe('Procedencia');
-    expect(plainName(entry('local:condition', 'Condition'), 'en')).toBe('Condition');
+    expect(plainName(entry('dcterms:provenance', 'Provenance'), termText('en'))).toBe('Where it came from');
+    expect(plainName(entry('dcterms:provenance', 'Provenance'), termText('es'))).toBe('Procedencia');
+    expect(plainName(entry('local:condition', 'Condition'), termText('en'))).toBe('Condition');
   });
 });
 

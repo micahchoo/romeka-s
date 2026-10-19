@@ -13,7 +13,7 @@ import { createLocalField } from '../../app/local-fields';
 import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { loadAssignableSites, SitesFieldset } from './sites';
 
 interface ItemEditorProps {
@@ -35,6 +35,7 @@ const loadItemOptions = async (): Promise<ItemOptions> => {
 
 const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   const [draft, setDraft] = useState<ResourceDraft>(() =>
     openDraft(item, options.templates, options.properties),
   );
@@ -55,7 +56,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = draftErrors(draft, options.templates, options.properties, t);
+    const errors = draftErrors(draft, options.templates, options.properties, t, text);
     setFormErrors(errors);
     if (errors.length > 0) {
       return;

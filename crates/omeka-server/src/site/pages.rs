@@ -12,6 +12,7 @@
 
 use std::collections::BTreeMap;
 
+use omeka_api::read::catalog::Catalog;
 use omeka_core::site::{Site, Slug};
 use omeka_db::DbError;
 use omeka_db::ids as db;
@@ -20,7 +21,7 @@ use omeka_db::repos::{
     SiteFilter, SiteRepo,
 };
 use omeka_db::rows::SitePageRow;
-use omeka_site::i18n::Messages;
+use omeka_site::i18n::Translator;
 use omeka_site::search::{FormOption, SearchHit, SiteRef};
 use omeka_site::slug::{page_url, site_url};
 use sqlx::SqlitePool;
@@ -98,24 +99,37 @@ pub(crate) async fn page_hits(
 ///
 /// Upstream narrows the property and class selects to the members the site uses
 /// when `vocabulary_scope` is `sitewide`; the port lists every row, which is the
-/// `cross-site` scope.
+/// `cross-site` scope. Laminas `formSelect` translates each option label, so a
+/// built-in term's label is in the site's locale.
 pub(crate) async fn form_options(
     pool: &SqlitePool,
+    catalog: &Catalog,
     site: db::SiteId,
-    messages: &Messages,
+    translator: Translator,
 ) -> Result<FormOptions, DbError> {
+    let messages = translator.messages();
+    let label = |vocabulary: db::VocabularyId, local_name: &str, stored: &str| {
+        let term = format!("{}:{local_name}", catalog.prefix(vocabulary));
+        translator.term_label(&term, stored).to_string()
+    };
     let properties = PropertyRepo::new(pool)
         .list(&PropertyFilter::default(), &Paging::default())
         .await?
         .into_iter()
-        .map(|row| FormOption::new(row.id.0.to_string(), row.label))
+        .map(|row| {
+            let text = label(row.vocabulary_id, &row.local_name, &row.label);
+            FormOption::new(row.id.0.to_string(), text)
+        })
         .collect();
     let classes = ClassRepo::new(pool)
         .list(&ClassFilter::default(), &Paging::default())
         .await?
         .into_iter()
         .filter(|row| !row.label.is_empty())
-        .map(|row| FormOption::new(row.id.0.to_string(), row.label))
+        .map(|row| {
+            let text = label(row.vocabulary_id, &row.local_name, &row.label);
+            FormOption::new(row.id.0.to_string(), text)
+        })
         .collect();
     let mut item_sets = Vec::new();
     for entry in SiteRepo::new(pool).list_item_sets(site).await? {

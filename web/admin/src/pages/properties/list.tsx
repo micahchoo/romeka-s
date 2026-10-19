@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, Property } from '../../api/types';
-import { vocabularyLabelOf, vocabularyLabels } from '../../app/labels';
+import { vocabularyLabels } from '../../app/labels';
+import type { TermName } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { loadTemplateUsage } from '../standards/usage';
@@ -12,7 +13,7 @@ const PER_PAGE = 100;
 
 interface PropertyRow {
   readonly property: Property;
-  readonly vocabularyLabel: string | null;
+  readonly vocabulary: TermName | null;
   readonly templates: number;
 }
 
@@ -25,7 +26,7 @@ const load = async (page: number): Promise<ApiPage<PropertyRow>> => {
   const labels = vocabularyLabels(vocabularies.items);
   return mapPage(properties, (property) => ({
     property,
-    vocabularyLabel: vocabularyLabelOf(labels, property.vocabulary),
+    vocabulary: labels.get(property.vocabulary.id) ?? null,
     templates: usage.properties.get(property.id) ?? 0,
   }));
 };
@@ -37,6 +38,7 @@ const load = async (page: number): Promise<ApiPage<PropertyRow>> => {
  */
 export const PropertyList = (): ReactElement => {
   const { t, number } = useTranslator();
+  const text = useTermText();
   const resource = t('resource.properties');
   return (
     <div>
@@ -52,13 +54,19 @@ export const PropertyList = (): ReactElement => {
           {
             header: t('column.term'),
             cell: ({ property }) => (
-              <DefinedTerm term={property.term} comment={property.comment}>
+              <DefinedTerm term={property.term} comment={text.comment(property.term, property.comment)}>
                 <a href={standardsHref('properties', property.id)}>{property.term}</a>
               </DefinedTerm>
             ),
           },
-          { header: t('column.label'), cell: (row) => row.property.label ?? '' },
-          { header: t('column.vocabulary'), cell: (row) => row.vocabularyLabel ?? '' },
+          {
+            header: t('column.label'),
+            cell: (row) => text.label(row.property.term, row.property.label) ?? '',
+          },
+          {
+            header: t('column.vocabulary'),
+            cell: ({ vocabulary }) => (vocabulary === null ? '' : text.label(vocabulary.term, vocabulary.label)),
+          },
           { header: t('page.itemTypes'), cell: (row) => number(row.templates), numeric: true },
         ]}
       />

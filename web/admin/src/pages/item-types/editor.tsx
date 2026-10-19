@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import type { ReactElement, SyntheticEvent } from 'react';
+import { useTermText } from '../../i18n';
 import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
@@ -59,6 +60,7 @@ export const TypeEditor = ({
   onSaved,
 }: TypeEditorProps): ReactElement => {
   const t = useItemTypesText();
+  const text = useTermText();
   const [draft, setDraft] = useState(initial);
   const [kinds, setKinds] = useState<readonly ResourceKind[]>(() =>
     template === null ? RESOURCE_KINDS : usedFor(template.id),
@@ -76,7 +78,11 @@ export const TypeEditor = ({
     const position = next.fields.findIndex((entry) => entry.key === key);
     const field = next.fields[position];
     const property = properties.find((entry) => entry.id === field?.propertyId);
-    const name = field?.alternateLabel ?? property?.label ?? property?.term ?? '';
+    const name =
+      field?.alternateLabel ??
+      (property === undefined ? null : text.label(property.term, property.label)) ??
+      property?.term ??
+      '';
     setDraft(next);
     setMoved({
       key,

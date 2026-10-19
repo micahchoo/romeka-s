@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, Vocabulary } from '../../api/types';
 import { ListPage } from '../../app/list';
-import { useTranslator } from '../../i18n';
+import { useTermText, useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { useStandardsText } from '../standards/messages';
@@ -44,6 +44,7 @@ const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
 export const VocabularyList = (): ReactElement => {
   const { t, number } = useTranslator();
   const text = useStandardsText();
+  const terms = useTermText();
   const resource = t('resource.vocabularies');
   return (
     <div>
@@ -59,11 +60,14 @@ export const VocabularyList = (): ReactElement => {
         columns={[
           {
             header: t('column.label'),
-            cell: ({ vocabulary }) => (
-              <DefinedTerm term={vocabulary.label} comment={vocabulary.comment}>
-                <a href={standardsHref('vocabularies', vocabulary.id)}>{vocabulary.label}</a>
-              </DefinedTerm>
-            ),
+            cell: ({ vocabulary }) => {
+              const label = terms.label(vocabulary.prefix, vocabulary.label);
+              return (
+                <DefinedTerm term={label} comment={terms.comment(vocabulary.prefix, vocabulary.comment)}>
+                  <a href={standardsHref('vocabularies', vocabulary.id)}>{label}</a>
+                </DefinedTerm>
+              );
+            },
           },
           { header: t('column.prefix'), cell: ({ vocabulary }) => vocabulary.prefix },
           { header: t('column.namespace'), cell: ({ vocabulary }) => vocabulary.namespaceUri },

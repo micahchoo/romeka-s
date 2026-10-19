@@ -9,6 +9,9 @@
  * Each table's `sources.json` records the English every translation was made
  * from, so a key whose English has since changed is translated again. Only a
  * run over every machine-translated locale (no tags) updates that record.
+ * A table with `format: 'json'` is a JSON file `{ note, terms }` instead of a
+ * TypeScript module, for data another reader shares (the public site reads
+ * the vocabulary tables), and its `note` carries the marker.
  *
  * The model is sarvam-30b behind llama.cpp (`SARVAM_URL`, default
  * http://localhost:8086). The prompt and the answer checks are md-translator's
@@ -124,6 +127,22 @@ const TABLES = [
     type: 'ServerCatalogue',
     from: '../serverMessages',
   },
+  // The built-in vocabularies' text, keyed by term. The admin and the public
+  // site both read these JSON files, so they are written as JSON.
+  ...['labels', 'comments'].map((kind) => ({
+    what: `vocabulary ${kind}`,
+    source: `src/i18n/locales/vocabulary/${kind}/en.json`,
+    english: (module) => module.default.terms,
+    dir: `src/i18n/locales/vocabulary/${kind}`,
+    file: (tag) => `${tag}.json`,
+    format: 'json',
+    names: ['Dublin Core', 'DCMI', 'BIBO', 'FOAF', 'RDF', 'URI'],
+    preamble:
+      'The following are English {K} from the metadata vocabularies Dublin Core, BIBO and FOAF, as Romeka S, ' +
+      'a web admin app for digital collections, shows them, with faithful, complete {L} translations in a formal style. ' +
+      'Every word is translated. Punctuation, acronyms and the names {N} are kept unchanged, in Latin letters.',
+    kind: kind === 'labels' ? 'names of classes and properties' : 'definitions of classes and properties',
+  })),
   {
     // The public site's catalogue: Rust reads the JSON with `include_str!`, and
     // a test generates the English from the Rust statics. It runs last, so a
@@ -141,6 +160,12 @@ const TABLES = [
 const englishOf = (table, module) => (table.english ? table.english(module) : module.en);
 const fileOf = (table, tag) => (table.file ? table.file(tag) : `${tag}.ts`);
 const nameOf = (table, tag) => (table.name ? table.name(tag) : tag);
+// A table names its own proper names and prompt, or takes the catalogue's.
+const namesOf = (table) => [...NAMES, ...(table.names ?? [])];
+const preambleOf = (table) =>
+  table.preamble
+    ? table.preamble.replace('{K}', table.kind).replace('{N}', namesOf(table).join(', '))
+    : PREAMBLE;
 const TRANSLATOR = process.env.TRANSLATOR_DIR ?? '/mnt/Ghar/2TA/DevStuff/notebook/translator';
 const SERVER = process.env.SARVAM_URL ?? 'http://localhost:8086';
 const MARKER = '@machine-translated';
@@ -165,8 +190,8 @@ const { check } = await import(join(TRANSLATOR, 'src/checks.ts'));
 // The site's strings take printf's `%s` where the admin's take braces.
 const placeholders = (text) => (text.match(/\{[a-zA-Z]+\}|%s/g) ?? []).sort().join();
 // A string with no word outside its placeholders, names and acronyms, as `{field} URI` or `Omeka S`, is the same in every language.
-const wordless = (text) =>
-  !/[A-Za-z]/.test(NAMES.reduce((rest, name) => rest.replaceAll(name, ''), text).replace(/\{[a-zA-Z]+\}/g, '').replace(/\b[A-Z]{2,}\b/g, ''));
+const wordless = (text, names = NAMES) =>
+  !/[A-Za-z]/.test(names.reduce((rest, name) => rest.replaceAll(name, ''), text).replace(/\{[a-zA-Z]+\}/g, '').replace(/\b[A-Z]{2,}\b/g, ''));
 // Endonyms are the same in every catalogue, and English holds them.
 const endonym = (key) => key.startsWith('locale.') && key !== 'locale.label';
 
@@ -183,10 +208,10 @@ async function complete(prompt, temperature, seed, maxTokens, stop) {
 }
 
 /** The best of up to four answers, and the checks it still fails. */
-async function translate(language, source, history) {
+async function translate(language, source, history, preamble = PREAMBLE, names = NAMES) {
   const prompt = buildPrompt({
     language,
-    preamble: PREAMBLE,
+    preamble,
     examples: language.examples,
     context: history.slice(-CONTEXT),
     source,
@@ -204,7 +229,7 @@ async function translate(language, source, history) {
     // The earlier pairs let md-translator flag an answer copied from another source string.
     const flags = check(source, output, language, history);
     if (placeholders(source) !== placeholders(output)) flags.push('placeholders');
-    if (NAMES.some((name) => source.includes(name) && !output.includes(name))) flags.push('names');
+    if (names.some((name) => source.includes(name) && !output.includes(name))) flags.push('names');
     if (!best || flags.length < best.flags.length) best = { output, flags };
     if (!flags.length) break;
   }
@@ -214,6 +239,11 @@ async function translate(language, source, history) {
 }
 
 function write(path, header, table, tag, en, catalogue) {
+  if (table.format === 'json') {
+    const terms = Object.fromEntries(Object.keys(en).filter((key) => key in catalogue).map((key) => [key, catalogue[key]]));
+    writeFileSync(path, `${JSON.stringify({ note: header, terms }, null, 1)}\n`);
+    return;
+  }
   if (table.json) {
     const ordered = Object.fromEntries(Object.keys(en).filter((key) => key in catalogue).map((key) => [key, catalogue[key]]));
     writeFileSync(path, `${JSON.stringify({ [NOTE]: header, ...ordered }, null, 2)}\n`);
@@ -228,6 +258,9 @@ function write(path, header, table, tag, en, catalogue) {
   writeFileSync(path, `${header}export const ${nameOf(table, tag)}: ${table.type} = {\n${entries.join('\n')}\n};\n`);
 }
 
+// A JSON file has no comment, so its note carries the marker.
+const jsonNote = (table, name) =>
+  `The ${name} ${table.what}. ${MARKER}: written by scripts/translate-locales.mjs with sarvam-30b and md-translator's checks, and not yet reviewed by a reader of ${name}. Correct a string here; a later run keeps it.`;
 // A JSON file has no comment, so its note is a string under NOTE.
 const jsonHeader = (name) =>
   `${MARKER}: written by scripts/translate-locales.mjs with sarvam-30b and md-translator's checks, and not yet ` +
@@ -271,7 +304,10 @@ for (const table of TABLES) {
     if (text && !text.includes(MARKER)) throw new Error(`${path} is hand-written; this script fills only ${MARKER} files`);
     let existing = {};
     let kept = header(table, language.name);
-    if (table.json) {
+    if (table.format === 'json') {
+      if (text) ({ note: kept, terms: existing } = JSON.parse(text));
+      else kept = jsonNote(table, language.name);
+    } else if (table.json) {
       if (text) ({ [NOTE]: kept, ...existing } = JSON.parse(text));
       else kept = jsonHeader(language.name);
     } else if (text) {
@@ -285,7 +321,7 @@ for (const table of TABLES) {
       if (endonym(key)) catalogue[key] = en[key];
       else if (key in existing && !changed.has(key)) catalogue[key] = existing[key];
       else if (table.reuse && translated[tag].has(en[key])) catalogue[key] = translated[tag].get(en[key]);
-      else if (wordless(en[key])) catalogue[key] = en[key];
+      else if (wordless(en[key], namesOf(table))) catalogue[key] = en[key];
       else missing.push(key);
     }
     const history = Object.keys(en)
@@ -293,7 +329,7 @@ for (const table of TABLES) {
       .map((key) => [en[key], existing[key]]);
 
     for (const key of missing) {
-      const { output, flags } = await translate(language, en[key], history);
+      const { output, flags } = await translate(language, en[key], history, preambleOf(table), namesOf(table));
       catalogue[key] = output;
       if (flags.length) {
         flaggedTotal++;

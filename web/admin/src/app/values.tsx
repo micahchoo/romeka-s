@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { Value } from '../api/types';
-import { useTranslator } from '../i18n';
+import { useTermText, useTranslator } from '../i18n';
 import { TableScroll } from './table-scroll';
 
 const renderValue = (value: Value): ReactElement => {
@@ -39,6 +39,7 @@ export interface ValuesListProps {
  */
 export const ValuesList = ({ values }: ValuesListProps): ReactElement => {
   const { t } = useTranslator();
+  const text = useTermText();
   if (values.size === 0) {
     return <p>{t('values.none')}</p>;
   }
@@ -60,7 +61,7 @@ export const ValuesList = ({ values }: ValuesListProps): ReactElement => {
               <tbody>
                 {entries.map((entry, index) => (
                   <tr key={`${term}-${String(index)}`}>
-                    <td>{entry.propertyLabel}</td>
+                    <td>{text.label(term, entry.propertyLabel)}</td>
                     <td>{entry.type}</td>
                     <td>{renderValue(entry)}</td>
                     <td>{entry.isPublic ? t('common.yes') : t('common.no')}</td>

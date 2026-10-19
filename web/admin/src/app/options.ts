@@ -4,6 +4,7 @@
  * option lists are typed before any form sees them.
  */
 import { api } from '../api/client';
+import type { TermText } from '../i18n';
 import type {
   DataType,
   ItemSet,
@@ -43,10 +44,12 @@ export interface Option<IdT extends number> {
 export const userOptions = (users: readonly User[]): readonly Option<User['id']>[] =>
   users.map((user) => ({ id: user.id, label: user.name }));
 
+/** Each class by its label in the locale `text` speaks, else its term. */
 export const classOptions = (
   classes: readonly ResourceClass[],
+  text: TermText,
 ): readonly Option<ResourceClass['id']>[] =>
-  classes.map((entry) => ({ id: entry.id, label: entry.label ?? entry.term }));
+  classes.map((entry) => ({ id: entry.id, label: text.label(entry.term, entry.label) ?? entry.term }));
 
 export const templateOptions = (
   templates: readonly ResourceTemplate[],

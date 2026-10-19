@@ -12,7 +12,7 @@ import { userOptions } from '../../app/options';
 import { plainName } from '../../app/plain-terms';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, type ResourceKind } from '../../app/type-use';
-import { useLocale, useTranslator, type Locale } from '../../i18n';
+import { useTermText, useTranslator, type TermText } from '../../i18n';
 import { useItemTypesText } from './messages';
 import type { TypeDraft } from './model';
 import type { TypeOptions } from './options';
@@ -27,7 +27,7 @@ export const ClassLine = ({
   readonly onChange: (draft: TypeDraft) => void;
 }): ReactElement => {
   const t = useItemTypesText();
-  const locale = useLocale();
+  const text = useTermText();
   const [changing, setChanging] = useState(false);
   const current = classes.find((entry) => entry.id === draft.resourceClass) ?? null;
   const lesson = useLesson('type-class');
@@ -38,7 +38,7 @@ export const ClassLine = ({
           t('class.none')
         ) : (
           <>
-            {t('class.line', { name: plainName(current, locale) })} <code>{current.term}</code>
+            {t('class.line', { name: plainName(current, text) })} <code>{current.term}</code>
             <TermHelp entry={current} />
           </>
         )}
@@ -91,10 +91,10 @@ const KIND_LABELS = {
   media: 'use.media',
 } as const;
 
-const propertyChoices = (properties: readonly Property[], locale: Locale) =>
+const propertyChoices = (properties: readonly Property[], text: TermText) =>
   properties.map((property) => ({
     id: property.id,
-    label: `${plainName(property, locale)} (${property.term})`,
+    label: `${plainName(property, text)} (${property.term})`,
   }));
 
 export interface TypeSettingsProps {
@@ -116,8 +116,8 @@ export const TypeSettings = ({
 }: TypeSettingsProps): ReactElement => {
   const t = useItemTypesText();
   const shared = useTranslator();
-  const locale = useLocale();
-  const choices = propertyChoices(properties, locale);
+  const text = useTermText();
+  const choices = propertyChoices(properties, text);
   return (
     <>
       <fieldset className="type-use">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { useLocale, useTranslator } from '../i18n';
+import { useTermText, useTranslator } from '../i18n';
 import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
@@ -128,7 +128,7 @@ export const ResourceFields = ({
 }: ResourceFieldsProps): ReactElement => {
   const { t } = useTranslator();
   const describe = useDescribeText();
-  const locale = useLocale();
+  const text = useTermText();
   const [open, setOpen] = useState(false);
   const selected = templateById(options.templates, draft.resourceTemplate);
   const typeClass = selected?.resourceClass?.id ?? null;
@@ -154,7 +154,7 @@ export const ResourceFields = ({
       {lesson.panel}
       {shownClass === null ? null : (
         <p className="type-class-line">
-          {describe('type.classLine', { name: plainName(shownClass, locale) })}{' '}
+          {describe('type.classLine', { name: plainName(shownClass, text) })}{' '}
           <code>{shownClass.term}</code>
         </p>
       )}
@@ -188,7 +188,7 @@ export const ResourceFields = ({
         <OptionSelect
           id={`${idPrefix}-class`}
           label={t('field.class')}
-          options={classOptions(options.classes)}
+          options={classOptions(options.classes, text)}
           value={draft.resourceClass}
           onChange={(value) => {
             onChange({ ...draft, resourceClass: value });

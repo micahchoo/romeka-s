@@ -8,3 +8,4 @@ export {
   ownerNameOf,
   userNames,
 } from '../../app/labels';
+export type { TermName } from '../../app/labels';

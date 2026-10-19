@@ -6,18 +6,19 @@
  */
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useLocale } from '../i18n';
+import { useLocale, useTermText } from '../i18n';
 import { useDescribeText } from './describe-messages';
 import './describe.css';
-import { plainHint, plainName, searchTerms, type Termed } from './plain-terms';
+import { plainHint, plainName, searchTerms, termComment, type Termed } from './plain-terms';
 
 /** "?": the term's `rdfs:comment`, shown under the control that asks. */
 export const TermHelp = ({ entry }: { readonly entry: Termed }): ReactElement => {
   const t = useDescribeText();
-  const locale = useLocale();
+  const text = useTermText();
   const [open, setOpen] = useState(false);
   const id = useId();
-  const name = plainName(entry, locale);
+  const name = plainName(entry, text);
+  const comment = termComment(entry, text);
   return (
     <span className="term-help">
       <button
@@ -34,7 +35,7 @@ export const TermHelp = ({ entry }: { readonly entry: Termed }): ReactElement =>
       </button>
       <span id={id} className="term-help-text" hidden={!open}>
         <strong>{name}</strong> <code>{entry.term}</code>{' '}
-        {entry.comment === null || entry.comment.trim() === '' ? t('help.none') : entry.comment}
+        {comment === null || comment.trim() === '' ? t('help.none') : comment}
       </span>
     </span>
   );
@@ -61,11 +62,12 @@ export const StandardTermPicker = <T extends Termed>({
 }: StandardTermPickerProps<T>): ReactElement => {
   const t = useDescribeText();
   const locale = useLocale();
+  const text = useTermText();
   const inputId = useId();
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const matches = searchTerms(entries, query, locale);
+  const matches = searchTerms(entries, query, text);
   const typed = query.trim();
   const create =
     onCreate === undefined
@@ -109,9 +111,9 @@ export const StandardTermPicker = <T extends Termed>({
                   setQuery('');
                 }}
               >
-                <span className="term-match-name">{plainName(entry, locale)}</span>
+                <span className="term-match-name">{plainName(entry, text)}</span>
                 <span className="term-match-hint">
-                  {plainHint(entry.term, locale) ?? entry.comment ?? ''}
+                  {plainHint(entry.term, locale) ?? termComment(entry, text) ?? ''}
                 </span>
                 <code className="term-match-term">{entry.term}</code>
               </button>
