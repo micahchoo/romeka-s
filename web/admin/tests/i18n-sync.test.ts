@@ -2,12 +2,12 @@
  * The namespace tables against the shell catalogue and each other.
  *
  * A key id is unique across the shell and every namespace, so one id names one
- * string. While the split moves keys out of the shell catalogue, a key may sit
- * in both for a phase; then its text must agree in every locale, so the move
- * can never change what a reader sees.
+ * string. Should a move between tables ever leave a key in both for a phase,
+ * its text must agree in every locale, so the move never changes what a reader
+ * sees.
  */
 import { describe, expect, it } from 'vitest';
-import { CATALOGUE_LOADERS, LOCALES } from '../src/i18n';
+import { CATALOGUE_LOADERS, LOCALES, en } from '../src/i18n';
 import { NAMESPACES as REGISTERED } from '../src/i18n/namespaces/registry';
 
 const ENGLISH = import.meta.glob<Readonly<Record<string, string>>>(
@@ -56,8 +56,8 @@ describe('namespace tables', () => {
     expect([...registered].sort()).toEqual(Object.keys(DEFINED).map(idOf).sort());
   });
 
-  it('a_key_id_is_in_at_most_one_namespace', () => {
-    const owner = new Map<string, string>();
+  it('a_key_id_is_in_at_most_one_namespace_or_the_shell', () => {
+    const owner = new Map<string, string>(Object.keys(en).map((key) => [key, 'shell']));
     const twice: string[] = [];
     for (const id of NAMESPACES) {
       for (const key of Object.keys(tableOf(id, 'en') ?? {})) {

@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLocale } from '../src/i18n';
 import { loadTermText, termText } from '../src/i18n/termComments';
-import { es } from '../src/i18n/locales/es';
+import { es } from '../src/i18n/namespaces/resources/locales/es';
 import { ItemsPage } from '../src/pages/items/page';
 import { PropertiesPage } from '../src/pages/properties/page';
 import { loadFixture } from './loadFixture';
