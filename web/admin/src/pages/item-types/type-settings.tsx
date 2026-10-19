@@ -9,11 +9,10 @@ import type { Property, ResourceClass } from '../../api/types';
 import { OptionSelect } from '../../app/fields';
 import { userOptions } from '../../app/options';
 import { plainName } from '../../app/plain-terms';
-import { TermHelp, TermPicker } from '../../app/term-picker';
+import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, type ResourceKind } from '../../app/type-use';
 import { useLocale, useTranslator, type Locale } from '../../i18n';
-import { useLocalText } from '../../app/local-messages';
-import { TYPES } from './messages';
+import { useItemTypesText } from './messages';
 import type { TypeDraft } from './model';
 import type { TypeOptions } from './options';
 
@@ -26,7 +25,7 @@ export const ClassLine = ({
   readonly classes: readonly ResourceClass[];
   readonly onChange: (draft: TypeDraft) => void;
 }): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const locale = useLocale();
   const [changing, setChanging] = useState(false);
   const current = classes.find((entry) => entry.id === draft.resourceClass) ?? null;
@@ -55,7 +54,7 @@ export const ClassLine = ({
       </p>
       {changing ? (
         <div className="type-class-picker">
-          <TermPicker
+          <StandardTermPicker
             label={t('class.pick')}
             placeholder={t('class.pickHint')}
             entries={classes}
@@ -111,7 +110,7 @@ export const TypeSettings = ({
   options,
   properties,
 }: TypeSettingsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const shared = useTranslator();
   const locale = useLocale();
   const choices = propertyChoices(properties, locale);

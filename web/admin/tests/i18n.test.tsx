@@ -1,15 +1,16 @@
 /**
  * i18n tests: the translator, a missing key failing, the locale store
- * persisting, and the shell switch changing what renders.
+ * persisting and loading a catalogue before it switches, and the shell switch
+ * changing what renders.
  *
  * The catalogues are `Catalogue` typed, so a missing key is a `tsc` error and
  * the `npm run typecheck` gate catches it. These tests cover the runtime guard
  * that backs that type, and the behaviour a user sees.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  CATALOGUES,
+  CATALOGUE_LOADERS,
   DEFAULT_LOCALE,
   LOCALES,
   LOCALE_STORAGE,
@@ -21,8 +22,12 @@ import {
   missingKeys,
   parseLocale,
 } from '../src/i18n';
+import type { Locale } from '../src/i18n';
 import { Shell } from '../src/app/shell';
 import { jsonResponse } from './stub';
+
+const translator = async (locale: Locale) =>
+  createTranslator(locale, await CATALOGUE_LOADERS[locale]());
 
 afterEach(() => {
   window.localStorage.clear();
@@ -32,14 +37,14 @@ afterEach(() => {
 });
 
 describe('translator', () => {
-  it('translator_reads_the_locale_catalogue', () => {
-    expect(createTranslator('en').t('page.items')).toBe('Items');
-    expect(createTranslator('es').t('page.items')).toBe('Elementos');
-    expect(createTranslator('es').locale).toBe('es');
+  it('translator_reads_the_locale_catalogue', async () => {
+    expect((await translator('en')).t('page.items')).toBe('Items');
+    expect((await translator('es')).t('page.items')).toBe('Elementos');
+    expect((await translator('es')).locale).toBe('es');
   });
 
-  it('translator_fills_named_placeholders', () => {
-    const en = createTranslator('en');
+  it('translator_fills_named_placeholders', async () => {
+    const en = await translator('en');
     expect(en.t('list.pager', { page: 1, lastPage: 3, total: 60, resource: 'items' })).toBe(
       'Page 1 of 3 (60 items) ',
     );
@@ -48,18 +53,20 @@ describe('translator', () => {
     expect(en.t('list.pager', { page: 1 })).toContain('{lastPage}');
   });
 
-  it('translator_formats_numbers_in_the_locale', () => {
-    expect(createTranslator('en').number(5989397)).toBe('5,989,397');
-    expect(createTranslator('es').number(5989397)).toBe('5.989.397');
+  it('translator_formats_numbers_in_the_locale', async () => {
+    expect((await translator('en')).number(5989397)).toBe('5,989,397');
+    expect((await translator('es')).number(5989397)).toBe('5.989.397');
   });
 });
 
 describe('catalogue completeness', () => {
-  it('every_shipped_locale_catalogue_has_every_message', () => {
+  it('every_shipped_locale_catalogue_has_every_message', async () => {
+    expect(LOCALES).toEqual(['en', 'es', 'hi', 'mr', 'ml', 'ta', 'kn', 'te', 'ne']);
     for (const locale of LOCALES) {
-      expect(missingKeys(CATALOGUES[locale])).toEqual([]);
+      const catalogue = await CATALOGUE_LOADERS[locale]();
+      expect(missingKeys(catalogue)).toEqual([]);
       expect(() => {
-        assertComplete(locale, CATALOGUES[locale]);
+        assertComplete(locale, catalogue);
       }).not.toThrow();
     }
   });
@@ -102,7 +109,7 @@ describe('locale parsing', () => {
 describe('locale store', () => {
   it('set_locale_stores_the_choice_and_the_store_reads_it_back', async () => {
     const store = await import('../src/i18n/store');
-    store.setLocale('es');
+    await store.setLocale('es');
 
     expect(window.localStorage.getItem(LOCALE_STORAGE)).toBe('es');
     expect(store.currentLocale()).toBe('es');
@@ -113,17 +120,48 @@ describe('locale store', () => {
     vi.resetModules();
 
     const reloaded = await import('../src/i18n/store');
+    // English is in the bundle and renders until the stored catalogue arrives.
+    expect(reloaded.currentLocale()).toBe('en');
+    await reloaded.restoreLocale();
 
     expect(reloaded.currentLocale()).toBe('es');
+    expect(document.documentElement.lang).toBe('es');
+  });
+
+  it('the_last_locale_chosen_wins_when_an_earlier_load_is_still_in_flight', async () => {
+    const store = await import('../src/i18n/store');
+
+    await Promise.all([store.setLocale('es'), store.setLocale('en')]);
+
+    expect(store.currentLocale()).toBe('en');
+    expect(window.localStorage.getItem(LOCALE_STORAGE)).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('a_catalogue_that_fails_to_load_leaves_the_locale_and_the_stored_choice', async () => {
+    vi.doMock('../src/i18n/locales/es', () => {
+      throw new Error('chunk offline');
+    });
+    try {
+      const store = await import('../src/i18n/store');
+
+      await expect(store.setLocale('es')).rejects.toThrow();
+
+      expect(store.currentLocale()).toBe('en');
+      expect(window.localStorage.getItem(LOCALE_STORAGE)).toBeNull();
+      expect(document.documentElement.lang).toBe('en');
+    } finally {
+      vi.doUnmock('../src/i18n/locales/es');
+    }
   });
 
   it('set_locale_writes_the_document_language', async () => {
     const store = await import('../src/i18n/store');
 
-    store.setLocale('es');
+    await store.setLocale('es');
     expect(document.documentElement.lang).toBe('es');
 
-    store.setLocale('en');
+    await store.setLocale('en');
     expect(document.documentElement.lang).toBe('en');
   });
 
@@ -132,6 +170,7 @@ describe('locale store', () => {
     vi.resetModules();
 
     const reloaded = await import('../src/i18n/store');
+    await reloaded.restoreLocale();
 
     expect(reloaded.currentLocale()).toBe(DEFAULT_LOCALE);
   });
@@ -160,6 +199,28 @@ describe('shell locale switch', () => {
 
     expect(await screen.findByText('Romeka S admin')).toBeInTheDocument();
     expect(window.localStorage.getItem(LOCALE_STORAGE)).toBe('en');
+  });
+});
+
+describe('shell after a reload in Spanish', () => {
+  it('the_first_render_after_restore_is_already_spanish', async () => {
+    window.localStorage.setItem(LOCALE_STORAGE, 'es');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() =>
+        Promise.resolve(jsonResponse({ errors: { error: 'offline' } }, { status: 503 })),
+      ),
+    );
+    vi.resetModules();
+    const i18n = await import('../src/i18n');
+    const { Shell: ReloadedShell } = await import('../src/app/shell');
+    await i18n.restoreLocale();
+
+    render(<ReloadedShell />);
+
+    expect(screen.getByText('Administración de Romeka S')).toBeInTheDocument();
+    expect(screen.queryByText('Romeka S admin')).toBeNull();
+    await act(() => i18n.setLocale('en'));
   });
 });
 

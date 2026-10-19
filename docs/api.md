@@ -413,17 +413,17 @@ List parameters (`GET /api/items`).
 | `fulltext_search` | string | `SearchQuery::parse (query.rs)` |
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
-| `is_public` | boolean | `search_items (resources.rs)` |
+| `is_public` | boolean | `item_filter (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `limit` | string | `Limit::from_params (paging.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `offset` | string | `Limit::from_params (paging.rs)` |
-| `owner_id` | table id | `search_items (resources.rs)` |
+| `owner_id` | table id | `item_filter (resources.rs)` |
 | `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
-| `property` | table rows | `SearchQuery::parse (query.rs)`, `search_items (resources.rs)` |
-| `resource_class_id` | table id | `search_items (resources.rs)` |
-| `resource_template_id` | table id | `search_items (resources.rs)` |
+| `property` | table rows | `SearchQuery::parse (query.rs)`, `item_search (resources.rs)` |
+| `resource_class_id` | table id | `item_filter (resources.rs)` |
+| `resource_template_id` | table id | `item_filter (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |

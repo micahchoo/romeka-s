@@ -7,14 +7,13 @@
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useLocale } from '../i18n';
-import { useLocalText } from './local-messages';
-import { DESCRIBE } from './describe-messages';
+import { useDescribeText } from './describe-messages';
 import './describe.css';
 import { plainHint, plainName, searchTerms, type Termed } from './plain-terms';
 
 /** "?": the term's `rdfs:comment`, shown under the control that asks. */
 export const TermHelp = ({ entry }: { readonly entry: Termed }): ReactElement => {
-  const { t } = useLocalText(DESCRIBE);
+  const t = useDescribeText();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -41,7 +40,7 @@ export const TermHelp = ({ entry }: { readonly entry: Termed }): ReactElement =>
   );
 };
 
-export interface TermPickerProps<T extends Termed> {
+export interface StandardTermPickerProps<T extends Termed> {
   readonly label: string;
   readonly entries: readonly T[];
   readonly onPick: (entry: T) => void;
@@ -52,15 +51,15 @@ export interface TermPickerProps<T extends Termed> {
 }
 
 /** A search box and the ranked matches under it, each with its term. */
-export const TermPicker = <T extends Termed>({
+export const StandardTermPicker = <T extends Termed>({
   label,
   entries,
   onPick,
   onCreate,
   placeholder,
   autoFocus,
-}: TermPickerProps<T>): ReactElement => {
-  const { t } = useLocalText(DESCRIBE);
+}: StandardTermPickerProps<T>): ReactElement => {
+  const t = useDescribeText();
   const locale = useLocale();
   const inputId = useId();
   const [query, setQuery] = useState('');
@@ -84,7 +83,7 @@ export const TermPicker = <T extends Termed>({
           }
         };
   return (
-    <div className="term-picker">
+    <div className="standard-term-picker">
       <p>
         <label htmlFor={inputId}>{label}</label>
         <input

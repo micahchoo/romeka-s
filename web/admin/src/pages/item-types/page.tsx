@@ -12,12 +12,11 @@ import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { useLocalText } from '../../app/local-messages';
 import { NewType } from './ask';
 import { TypeEditor } from './editor';
 import './item-types.css';
 import { TypeList } from './list';
-import { TYPES } from './messages';
+import { useItemTypesText, WithItemTypesMessages } from './messages';
 import { typeDraftFrom } from './model';
 import { loadTypeOptions, type TypeOptions } from './options';
 
@@ -46,7 +45,7 @@ const loadType = async (
 
 const EditType = ({ templateId }: { readonly templateId: TemplateId }): ReactElement => {
   const { t } = useTranslator();
-  const types = useLocalText(TYPES);
+  const typesText = useItemTypesText();
   const state = useAsync(() => loadType(templateId), [templateId]);
   const [saved, setSaved] = useState<ResourceTemplate | null>(null);
   if (state.status === 'loading') {
@@ -65,7 +64,7 @@ const EditType = ({ templateId }: { readonly templateId: TemplateId }): ReactEle
         onSaved={setSaved}
       />
       <DeleteControl
-        label={types.t('type.delete')}
+        label={typesText('type.delete')}
         rowName={template.label}
         onConfirm={async () => {
           await api.deleteResourceTemplate(template.id);
@@ -80,7 +79,13 @@ export const ItemTypesPage = ({
   param = null,
 }: {
   readonly param?: string | null;
-} = {}): ReactElement => {
+} = {}): ReactElement => (
+  <WithItemTypesMessages>
+    <ItemTypesRoute param={param} />
+  </WithItemTypesMessages>
+);
+
+const ItemTypesRoute = ({ param }: { readonly param: string | null }): ReactElement => {
   const { t } = useTranslator();
   if (param === null) {
     return <TypeList />;

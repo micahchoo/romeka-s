@@ -385,7 +385,8 @@ where
     /// Attach an item to a site (`Item::$sites`, `Entity/Item.php:48`).
     /// Attaching twice is a no-op.
     pub async fn add_to_site(&self, item_id: ItemId, site_id: SiteId) -> Result<(), DbError> {
-        sqlx::query(DB::insert_item_site())
+        let sql = format!("{}(?, ?)", DB::insert_item_site());
+        sqlx::query(&sql)
             .bind(bind_id(item_id))
             .bind(bind_id(site_id))
             .execute(self.pool)

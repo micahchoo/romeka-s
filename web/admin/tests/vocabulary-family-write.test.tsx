@@ -179,7 +179,7 @@ describe('vocabulary edit and delete', () => {
         ),
       ).toHaveLength(1);
     });
-    expect(window.location.hash).toBe('#/vocabularies');
+    expect(window.location.hash).toBe('#/standards/vocabularies');
   });
 
   it('a_permanent_vocabulary_offers_no_edit_or_delete', async () => {
@@ -313,7 +313,7 @@ describe('property create, edit and delete', () => {
         ),
       ).toHaveLength(1);
     });
-    expect(window.location.hash).toBe('#/properties');
+    expect(window.location.hash).toBe('#/standards/properties');
   });
 });
 
@@ -391,6 +391,6 @@ describe('resource class create, edit and delete', () => {
         ),
       ).toHaveLength(1);
     });
-    expect(window.location.hash).toBe('#/resource-classes');
+    expect(window.location.hash).toBe('#/standards/classes');
   });
 });

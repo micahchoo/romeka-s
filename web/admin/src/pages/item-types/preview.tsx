@@ -8,8 +8,7 @@ import type { DataType, Property } from '../../api/types';
 import { emptyResourceDraft, isBlank, type ResourceDraft } from '../../app/draft';
 import { withTemplateRows, type TemplateLayout } from '../../app/value-fields';
 import { ValuesEditor } from '../../app/values-editor';
-import { useLocalText } from '../../app/local-messages';
-import { TYPES } from './messages';
+import { useItemTypesText } from './messages';
 import { asLayout, type TypeDraft } from './model';
 
 /** The template's rows laid in again, keeping whatever was typed. */
@@ -37,7 +36,7 @@ export const TypePreview = ({
   properties,
   dataTypes,
 }: TypePreviewProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const layout = useMemo(() => asLayout(draft), [draft]);
   const [preview, setPreview] = useState(() => relaid(emptyResourceDraft(), layout, properties));
   const [shownFor, setShownFor] = useState(layout);

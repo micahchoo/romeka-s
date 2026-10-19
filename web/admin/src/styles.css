@@ -51,7 +51,9 @@ a {
 }
 
 /* Shell layout: one column under 900px, a fixed nav rail beside the content
- * above it. Grid areas keep the header full width at both sizes. */
+ * above it. Grid areas keep the header full width at both sizes. The rows are
+ * sized, or a short page shares the viewport height among all three and the
+ * header and nav strip stretch to fill it. */
 .shell {
   display: grid;
   grid-template-areas:
@@ -59,6 +61,7 @@ a {
     "nav"
     "main";
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 }
 
@@ -161,7 +164,31 @@ a {
   font-weight: 600;
 }
 
+/* A labelled run inside a group, such as Describe's Advanced: inline in the
+ * phone strip, a small heading over its links on the rail. */
+.nav-sub {
+  display: flex;
+  align-items: baseline;
+}
+
+.nav-sub-title {
+  margin: 0 var(--space-1) 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 @media (min-width: 900px) {
+  .nav-sub {
+    display: block;
+  }
+
+  .nav-sub-title {
+    margin: var(--space-2) 0 2px;
+    padding-inline-start: var(--space-2);
+  }
+
   .app-nav {
     flex-direction: column;
     gap: var(--space-4);
@@ -191,6 +218,32 @@ a {
  * takes the whole width; the route table names them (`app/pages.tsx`). */
 .app-main--wide {
   max-width: none;
+}
+
+/* A page's one-paragraph introduction under its heading. */
+.lede {
+  max-width: 42rem;
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+/* A standard term with its "?": the stored comment opens under it in place,
+ * wrapping inside a table cell that otherwise keeps one line. */
+.definition-toggle {
+  min-height: 0;
+  margin-inline-start: var(--space-1);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.definition {
+  display: block;
+  max-width: 36rem;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  white-space: normal;
 }
 
 h1 {
@@ -670,6 +723,72 @@ fieldset label {
 legend {
   padding: 0 var(--space-1);
   font-weight: 600;
+}
+
+/* The site settings form: one section per group, each setting a label and
+ * control over one muted sentence. */
+.settings-group {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-group > legend,
+.settings-group > summary {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-group > summary {
+  cursor: pointer;
+}
+
+.settings-group-intro {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+.site-setting {
+  margin: 0 0 var(--space-4);
+}
+
+div.site-setting > label:first-child:not(:has(input)) {
+  display: block;
+  margin: 0 0 var(--space-1);
+  font-weight: 500;
+}
+
+div.site-setting > label:has(input) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+fieldset.site-setting {
+  padding: var(--space-2) var(--space-3);
+}
+
+fieldset.site-setting select {
+  margin-inline-end: var(--space-4);
+}
+
+.setting-help {
+  max-width: 64ch;
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+fieldset .setting-help {
+  margin: 0 0 var(--space-2);
+}
+
+.property-picker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* Loading and error states carry a surface, not bare text. */
@@ -1198,89 +1317,6 @@ fieldset.block-field {
   margin-bottom: var(--space-3);
 }
 
-/* The site Theme page: token controls, the contrast readout, and the side-by-
-   side live preview the page editor also uses. */
-
-/* The form keeps a fixed, readable width; the preview scales its frame into
- * whatever is left. */
-.theme-editor {
-  display: grid;
-  grid-template-columns: 28rem minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .theme-editor {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.theme-editor form fieldset {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3) var(--space-4);
-}
-
-.theme-editor form legend {
-  font-weight: 600;
-  padding: 0 var(--space-1);
-}
-
-.theme-colour {
-  display: grid;
-  grid-template-columns: 8rem 3rem 8rem;
-  justify-content: start;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-}
-
-.theme-colour input[type='color'] {
-  width: 3rem;
-  height: 2rem;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: none;
-}
-
-.theme-colour .field-note {
-  grid-column: 2 / span 2;
-}
-
-.theme-contrast {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-}
-
-.theme-contrast h3 {
-  font-size: 15px;
-  margin: 0 0 var(--space-2);
-}
-
-.theme-contrast ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.theme-contrast li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: var(--space-3);
-  white-space: nowrap;
-  padding: var(--space-1) 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.contrast-ratio {
-  font-variant-numeric: tabular-nums;
-}
-
 /* One block of a resource page is one line: its name, then its three actions. */
 .resource-page-blocks {
   margin: 0 0 var(--space-3);
@@ -1301,15 +1337,6 @@ fieldset.block-field {
   flex: 1 1 auto;
   min-width: 0;
   margin-inline-end: var(--space-2);
-}
-
-.contrast-pass .contrast-state {
-  color: #1a7f37;
-}
-
-.contrast-fail .contrast-state {
-  color: var(--danger);
-  font-weight: 600;
 }
 
 .template-chooser {
@@ -1430,7 +1457,8 @@ fieldset.block-field {
   content: " ↗";
 }
 
-.site-tabs ul {
+.site-tabs ul,
+.tabs ul {
   display: flex;
   gap: var(--space-1);
   margin: 0 0 var(--space-5);
@@ -1440,7 +1468,8 @@ fieldset.block-field {
   border-bottom: 1px solid var(--border);
 }
 
-.site-tabs a {
+.site-tabs a,
+.tabs a {
   display: block;
   padding: var(--space-2) var(--space-3);
   border-bottom: 2px solid transparent;
@@ -1450,11 +1479,13 @@ fieldset.block-field {
   white-space: nowrap;
 }
 
-.site-tabs a:hover {
+.site-tabs a:hover,
+.tabs a:hover {
   color: var(--text);
 }
 
-.site-tabs a[aria-current] {
+.site-tabs a[aria-current],
+.tabs a[aria-current] {
   border-bottom-color: var(--accent);
   color: var(--accent);
   font-weight: 600;

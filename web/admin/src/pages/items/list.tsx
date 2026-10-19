@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { ClassId, Item, UserId } from '../../api/types';
+import type { ClassId, Item, ItemId, UserId } from '../../api/types';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
+import { BulkSiteActions } from './BulkSiteActions';
 import { classLabelOf, classLabels as buildClassLabels, ownerNameOf, userNames } from './labels';
 
 const PER_PAGE = 25;
@@ -22,6 +23,7 @@ interface ItemsView {
 export const ItemsList = (): ReactElement => {
   const { t } = useTranslator();
   const [page, setPage] = useState(1);
+  const [picked, setPicked] = useState<readonly ItemId[]>([]);
 
   const state = useAsync(async () => {
     // Upstream admin browse defaults: sort_by=id, sort_order=desc.
@@ -49,14 +51,34 @@ export const ItemsList = (): ReactElement => {
   }
 
   const view = state.data;
+  const pageIds = view.items.map((item) => item.id);
+  const allPicked = pageIds.length > 0 && pageIds.every((id) => picked.includes(id));
+  const pick = (id: ItemId, on: boolean): void => {
+    setPicked((current) => (on ? [...current, id] : current.filter((entry) => entry !== id)));
+  };
   return (
     <section>
       <p>
         <a href="#/items/new">{t('items.add')}</a>
       </p>
+      <BulkSiteActions picked={picked} />
       <table>
         <thead>
           <tr>
+            <th>
+              <input
+                type="checkbox"
+                aria-label={t('items.selectAll')}
+                checked={allPicked}
+                onChange={(event) => {
+                  const on = event.target.checked;
+                  setPicked((current) => [
+                    ...current.filter((id) => !pageIds.includes(id)),
+                    ...(on ? pageIds : []),
+                  ]);
+                }}
+              />
+            </th>
             <th>{t('column.title')}</th>
             <th>{t('column.resourceClass')}</th>
             <th>{t('column.owner')}</th>
@@ -66,11 +88,21 @@ export const ItemsList = (): ReactElement => {
         <tbody>
           {view.items.length === 0 ? (
             <tr>
-              <td colSpan={4}>{t('items.empty')}</td>
+              <td colSpan={5}>{t('items.empty')}</td>
             </tr>
           ) : (
             view.items.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={t('items.selectItem', { title: item.title ?? t('common.untitled') })}
+                    checked={picked.includes(item.id)}
+                    onChange={(event) => {
+                      pick(item.id, event.target.checked);
+                    }}
+                  />
+                </td>
                 <td>
                   <a href={`#/items/${String(item.id)}`}>{item.title ?? t('common.untitled')}</a>
                 </td>

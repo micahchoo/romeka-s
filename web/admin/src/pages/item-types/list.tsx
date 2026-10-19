@@ -8,9 +8,8 @@ import type { ApiPage, ResourceClass, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
 import { ListPage, mapPage } from '../../app/list';
 import { plainName } from '../../app/plain-terms';
-import { useLocale } from '../../i18n';
-import { useLocalText } from '../../app/local-messages';
-import { TYPES } from './messages';
+import { useLocale, useTranslator } from '../../i18n';
+import { useItemTypesText } from './messages';
 
 const PER_PAGE = 25;
 
@@ -39,7 +38,8 @@ const load = async (page: number): Promise<ApiPage<TypeRow>> => {
 };
 
 export const TypeList = (): ReactElement => {
-  const { t, number } = useLocalText(TYPES);
+  const t = useItemTypesText();
+  const { number } = useTranslator();
   const locale = useLocale();
   return (
     <div className="type-list">

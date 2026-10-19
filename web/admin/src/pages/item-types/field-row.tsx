@@ -6,16 +6,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
 import type { DataType, Property } from '../../api/types';
-import { useLocalText, type LocalText } from '../../app/local-messages';
-import { TermHelp, TermPicker } from '../../app/term-picker';
+import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
 import { acceptChoices, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
-import { TYPES, type TypesKey } from './messages';
+import { useItemTypesText, type ItemTypesText } from './messages';
 import { patchField, textOrNull, toggleDataType, type FieldDraft, type TypeDraft } from './model';
 
 export const acceptLabel = (
   type: string,
   dataTypes: readonly DataType[],
-  t: LocalText<TypesKey>['t'],
+  t: ItemTypesText,
 ): string => {
   if (isCoreAccepts(type)) {
     return t(CORE_ACCEPTS[type]);
@@ -54,7 +53,7 @@ const AcceptsEditor = ({
   readonly name: string;
   readonly onToggle: (type: string, on: boolean) => void;
 }): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   return (
     <fieldset className="type-field-accepts-list">
       <legend>{t('accepts.legend', { name })}</legend>
@@ -99,7 +98,7 @@ const TermLine = ({
   freeProperties,
   createField,
 }: SettingsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const [changing, setChanging] = useState(false);
   return (
     <>
@@ -119,7 +118,7 @@ const TermLine = ({
         </button>
       </p>
       {changing ? (
-        <TermPicker
+        <StandardTermPicker
           label={t('field.pickTerm')}
           placeholder={t('field.pickHint')}
           entries={freeProperties}
@@ -140,7 +139,7 @@ const TermLine = ({
 
 /** What the field accepts, summed up, and the list that changes it. */
 const AcceptsLine = ({ field, name: shownName, patch, dataTypes }: SettingsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const id = useId();
   const [accepting, setAccepting] = useState(false);
   return (
@@ -183,7 +182,7 @@ const AcceptsLine = ({ field, name: shownName, patch, dataTypes }: SettingsProps
 
 /** Required, private, and the help text and language under a fold. */
 const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const id = useId();
   return (
     <>
@@ -243,7 +242,7 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
 };
 
 const FieldSettings = (props: SettingsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const { field, property, term, patch } = props;
   return (
     <div className="type-field-body">
@@ -282,7 +281,7 @@ const RowActions = ({
   onMove,
   onRemove,
 }: RowActionsProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   return (
     <div className="type-field-actions">
       <button
@@ -332,7 +331,7 @@ export const FieldRow = ({
   dataTypes,
   createField,
 }: FieldRowProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const handle = useRef<HTMLButtonElement>(null);
   const property = properties.find((entry) => entry.id === field.propertyId);
   const term = property?.term ?? `#${String(field.propertyId)}`;

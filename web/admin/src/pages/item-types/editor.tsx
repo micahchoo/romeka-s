@@ -11,11 +11,10 @@ import type { Property, ResourceTemplate } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
 import { createLocalField } from '../../app/local-fields';
 import { useSave } from '../../app/save';
-import { TermPicker } from '../../app/term-picker';
+import { StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, setUsedFor, usedFor, type ResourceKind } from '../../app/type-use';
-import { useLocalText } from '../../app/local-messages';
 import { FieldRow } from './field-row';
-import { TYPES } from './messages';
+import { useItemTypesText } from './messages';
 import {
   addField,
   freeProperties,
@@ -59,7 +58,7 @@ export const TypeEditor = ({
   options,
   onSaved,
 }: TypeEditorProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const [draft, setDraft] = useState(initial);
   const [kinds, setKinds] = useState<readonly ResourceKind[]>(() =>
     template === null ? RESOURCE_KINDS : usedFor(template.id),
@@ -130,7 +129,7 @@ export const TypeEditor = ({
           <p className="sr-only" role="status">
             {moved?.message ?? ''}
           </p>
-          <TermPicker
+          <StandardTermPicker
             label={t('fields.add')}
             placeholder={t('fields.addHint')}
             entries={freeProperties(draft, properties, null)}
@@ -180,7 +179,7 @@ const FieldList = ({
   options,
   createField,
 }: FieldListProps): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   if (draft.fields.length === 0) {
     return <p className="field-note">{t('fields.empty')}</p>;
   }
@@ -223,7 +222,7 @@ const EditorHead = ({
   readonly creating: boolean;
   readonly saving: boolean;
 }): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   return (
     <header className="type-editor-head">
       <div className="type-editor-title">
@@ -259,7 +258,7 @@ const EditorTabs = ({
   readonly tab: Tab;
   readonly onTab: (tab: Tab) => void;
 }): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   return (
     <div className="type-tabs" role="tablist" aria-label={t('tabs.label')}>
       {(['fields', 'preview'] as const).map((entry) => (

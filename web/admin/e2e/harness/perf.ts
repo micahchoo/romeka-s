@@ -82,6 +82,8 @@ export interface BundleMeasure {
   readonly initialJsGzipBytes: number;
   readonly initialCssGzipBytes: number;
   readonly initialFiles: readonly MeasuredFile[];
+  /** A locale's catalogue, fetched before the first render in that locale. */
+  readonly catalogueChunks: readonly MeasuredFile[];
   /** Every other emitted js or css asset, fetched when its route first opens. */
   readonly chunks: readonly MeasuredFile[];
 }
@@ -323,6 +325,7 @@ export const measureBundleFromDist = (): BundleMeasure => {
     initialJsGzipBytes: numberField(doc, 'initialJsGzipBytes', 'bundle'),
     initialCssGzipBytes: numberField(doc, 'initialCssGzipBytes', 'bundle'),
     initialFiles: files(doc.initialFiles, 'initialFiles'),
+    catalogueChunks: files(doc.catalogueChunks, 'catalogueChunks'),
     chunks: files(doc.chunks, 'chunks'),
   };
 };

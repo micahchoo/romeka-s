@@ -78,11 +78,11 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
   // resource class, a resource template, and the create form of each.
   await page.goto('/#/vocabularies');
   await page.getByRole('link', { name: 'Bibliographic Ontology' }).click();
-  await expect(page).toHaveURL(/#\/vocabularies\/\d+$/);
+  await expect(page).toHaveURL(/#\/standards\/vocabularies\/\d+$/);
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin vocabulary show');
 
-  await page.locator('.edit-toggle').first().click();
+  await page.getByRole('button', { name: 'Edit this vocabulary' }).click();
   await expect(page.locator('#vocabulary-label')).toBeVisible();
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin vocabulary edit');
@@ -94,7 +94,7 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
 
   await page.goto('/#/properties');
   await page.locator('tbody a').first().click();
-  await expect(page).toHaveURL(/#\/properties\/\d+$/);
+  await expect(page).toHaveURL(/#\/standards\/properties\/\d+$/);
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin property show');
 
@@ -110,7 +110,7 @@ test('the admin detail and form surfaces meet the axe budget', async ({ page, di
 
   await page.goto('/#/resource-classes');
   await page.locator('tbody a').first().click();
-  await expect(page).toHaveURL(/#\/resource-classes\/\d+$/);
+  await expect(page).toHaveURL(/#\/standards\/classes\/\d+$/);
   await diagnostics.idle();
   await expectAxeBudget(page, 'admin resource class show');
 

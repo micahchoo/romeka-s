@@ -6,6 +6,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
+import { setLocale } from '../src/i18n';
+import { hi } from '../src/pages/item-types/locales/hi';
 import { ItemTypesPage } from '../src/pages/item-types/page';
 import { loadFixture } from './loadFixture';
 import {
@@ -320,6 +322,33 @@ describe('a new item type', () => {
     await waitFor(() => {
       expect(window.location.hash).toBe('#/resource-templates/2');
     });
+  });
+
+  it('asks in the active locale and starts a letter with English labels where plain words are not curated', async () => {
+    const fetchMock = installFetch(routes({ '/api/resource_templates': created }));
+    await setLocale('hi');
+    try {
+      render(<ItemTypesPage param="new" />);
+      fireEvent.change(await screen.findByLabelText(hi['ask.question']), {
+        target: { value: 'Letter' },
+      });
+      expect(screen.queryByText('What kind of thing is this?')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: hi['ask.useFields'] }));
+      fireEvent.click(await screen.findByRole('button', { name: hi['type.create'] }));
+      const body = requestBody(
+        await waitFor(() => sent(fetchMock, '/api/resource_templates', 'POST')),
+      );
+      expect(rowsSent(body).map((row) => row['o:alternate_label'])).toEqual([
+        null,
+        'Sender',
+        'Recipient',
+        'Date written',
+        'Place',
+        null,
+      ]);
+    } finally {
+      await setLocale('en');
+    }
   });
 
   it('starts a kind it does not know as a physical object with a title', async () => {

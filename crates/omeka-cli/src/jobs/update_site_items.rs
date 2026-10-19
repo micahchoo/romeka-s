@@ -1,29 +1,30 @@
 //! Port of `application/src/Job/UpdateSiteItems.php`.
 //!
 //! Arguments: `action` (`add`, `replace`, `remove`, `remove_all`) and `sites`, an
-//! object keyed by site id whose values are item queries (or null for all
-//! items). `replace` and `remove_all` clear the site's item assignments first;
-//! `add` and `replace` then attach the matching items; `remove` detaches them.
-//! Every site id is checked to exist before any change, as upstream validates
-//! the whole argument before writing.
+//! object keyed by site id whose values are item queries (or anything else for
+//! all items). Every site id is checked to exist before any change, as upstream
+//! validates the whole argument before writing. The change itself is
+//! `omeka_api::site_items`, the module the admin's `POST /api/sites/{id}/items`
+//! runs, so the job and the API select and write the same rows. `remove_all` is
+//! a `replace` with an empty selection.
+//!
+//! Upstream grants `view-all` so the search sees private items, because a job
+//! may have no owner. The job reads as a global administrator for the same
+//! reason.
 
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use serde_json::Value;
 
-use omeka_db::ids::{ItemId, SiteId};
-use omeka_db::repos::{ItemRepo, Paging, SiteRepo};
+use omeka_api::auth::Actor;
+use omeka_api::jsonld::BaseUrl;
+use omeka_api::read::Api;
+use omeka_api::site_items::{self, Action, Command, Mode, Selector};
+use omeka_db::ids::{SiteId, UserId};
+use omeka_db::repos::SiteRepo;
 
-use super::query::BatchQuery;
 use super::{Job, JobContext, JobError};
-use crate::store;
-
-/// The valid actions (`UpdateSiteItems::$actions`).
-const ACTIONS: [&str; 4] = ["add", "replace", "remove", "remove_all"];
-
-/// Upstream chunks item ids at 1000 (`UpdateSiteItems::updateSiteItems`).
-const ITEM_CHUNK: usize = 1000;
 
 /// `Omeka\Job\UpdateSiteItems`.
 pub struct UpdateSiteItems;
@@ -35,29 +36,56 @@ impl Job for UpdateSiteItems {
     }
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
-        let action = context.required_str("action")?.to_string();
-        if !ACTIONS.contains(&action.as_str()) {
-            return Err(JobError::InvalidArgument(format!(
-                "invalid \"action\" string \"{action}\" passed to the UpdateSiteItems job"
-            )));
-        }
+        let raw_action = context.required_str("action")?.to_string();
+        let (action, clears) = match raw_action.as_str() {
+            "add" => (Action::Add, false),
+            "replace" => (Action::Replace, false),
+            "remove" => (Action::Remove, false),
+            "remove_all" => (Action::Replace, true),
+            _ => {
+                return Err(JobError::InvalidArgument(format!(
+                    "invalid \"action\" string \"{raw_action}\" passed to the UpdateSiteItems job"
+                )));
+            }
+        };
         let sites_value = context.arg("sites").ok_or_else(|| {
             JobError::InvalidArgument(
                 "no \"sites\" array passed to the UpdateSiteItems job".to_string(),
             )
         })?;
         let sites = parse_sites(context, sites_value).await?;
-        for (site_id, query) in &sites {
-            update_site(context, &action, *site_id, query).await?;
+        let base =
+            BaseUrl::parse(JOB_BASE_URL).map_err(|error| JobError::Runtime(error.to_string()))?;
+        let api = Api::load(context.pool, base, Actor::new(UserId(0), "global_admin"))
+            .await
+            .map_err(api_error)?;
+        for (site_id, query) in sites {
+            let selector = if clears {
+                Selector::Items(Vec::new())
+            } else {
+                Selector::Query(query)
+            };
+            let command = Command { action, selector };
+            site_items::apply(&api, SiteId::from(site_id), &command, Mode::Write)
+                .await
+                .map_err(api_error)?;
         }
         Ok(())
     }
 }
 
+/// The read surface's base URL. The change writes rows and serves no document, so no `@id`
+/// built from it leaves the job.
+const JOB_BASE_URL: &str = "http://localhost";
+
+fn api_error(error: omeka_api::errors::ApiError) -> JobError {
+    JobError::Runtime(error.to_string())
+}
+
 async fn parse_sites(
     context: &JobContext<'_>,
     value: &Value,
-) -> Result<BTreeMap<u64, BatchQuery>, JobError> {
+) -> Result<BTreeMap<u64, Value>, JobError> {
     let sites_missing = || {
         JobError::InvalidArgument(
             "no \"sites\" array passed to the UpdateSiteItems job".to_string(),
@@ -68,69 +96,22 @@ async fn parse_sites(
 
     let mut sites = BTreeMap::new();
     for (key, query) in object {
-        let site_id: u64 = key.parse().map_err(|_| {
+        let invalid = || {
             JobError::InvalidArgument(format!(
                 "invalid site ID \"{key}\" passed to the UpdateSiteItems job"
             ))
-        })?;
+        };
+        let site_id: u64 = key.parse().map_err(|_| invalid())?;
         if SiteRepo::new(context.pool)
             .get(SiteId::from(site_id))
             .await?
             .is_none()
         {
-            return Err(JobError::InvalidArgument(format!(
-                "invalid site ID \"{key}\" passed to the UpdateSiteItems job"
-            )));
+            return Err(invalid());
         }
-        let query = if query.is_object() {
-            serde_json::from_value(query)
-                .map_err(|error| JobError::InvalidArgument(format!("site \"{key}\": {error}")))?
-        } else {
-            BatchQuery::default()
-        };
         sites.insert(site_id, query);
     }
     Ok(sites)
-}
-
-async fn update_site(
-    context: &JobContext<'_>,
-    action: &str,
-    site_id: u64,
-    query: &BatchQuery,
-) -> Result<(), JobError> {
-    let ids: Vec<ItemId> = ItemRepo::new(context.pool)
-        .list(&query.item_filter(), &Paging::default())
-        .await?
-        .into_iter()
-        .map(|row| row.id())
-        .collect();
-    let site = SiteId::from(site_id);
-
-    if action == "replace" || action == "remove_all" {
-        store::item_site_clear(context.pool, site).await?;
-    }
-    if action == "add" || action == "replace" {
-        for chunk in ids.chunks(ITEM_CHUNK) {
-            if context.should_stop().await? {
-                return Ok(());
-            }
-            for id in chunk {
-                store::item_site_add(context.pool, *id, site).await?;
-            }
-        }
-    }
-    if action == "remove" {
-        for chunk in ids.chunks(ITEM_CHUNK) {
-            if context.should_stop().await? {
-                return Ok(());
-            }
-            for id in chunk {
-                store::item_site_remove(context.pool, *id, site).await?;
-            }
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -138,7 +119,7 @@ mod tests {
     use super::*;
     use crate::jobs::Runner;
     use crate::testing::{compose, seeded_db};
-    use omeka_db::repos::SiteRepo;
+    use omeka_db::repos::ItemRepo;
     use omeka_db::rows::{NewItem, NewResource, NewSite};
 
     async fn count(site: SiteId, pool: &sqlx::SqlitePool) -> i64 {
@@ -153,11 +134,12 @@ mod tests {
     async fn update_site_items_adds_then_clears_assignments() {
         let db = seeded_db().await;
         let items = ItemRepo::new(&db.pool);
-        for title in ["one", "two", "three"] {
+        for (title, is_public) in [("one", true), ("two", true), ("three", false)] {
             items
                 .create(&NewItem {
                     resource: NewResource {
                         title: Some(title.to_string()),
+                        is_public,
                         ..NewResource::default()
                     },
                     primary_media_id: None,
@@ -199,6 +181,20 @@ mod tests {
         .await;
         Runner::new(&db.pool).run(clear_id).await.expect("run");
         assert_eq!(count(site.id, &db.pool).await, 0);
+
+        let public = serde_json::json!({ site.id.0.to_string(): {"is_public": "1"} });
+        let replace_id = compose(
+            &db.pool,
+            &UpdateSiteItems,
+            serde_json::json!({"action": "replace", "sites": public}),
+        )
+        .await;
+        Runner::new(&db.pool).run(replace_id).await.expect("run");
+        assert_eq!(
+            count(site.id, &db.pool).await,
+            2,
+            "the query selects the items the items list would"
+        );
     }
 
     #[tokio::test]

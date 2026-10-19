@@ -1,83 +1,144 @@
 /**
- * The site Theme page and its pure pieces: the token schema, the WCAG contrast
- * functions, and the page that saves and previews a palette.
+ * The site Theme page and its pure pieces: the draft a stored map opens as,
+ * the map a save writes, the contrast gate with its suggestions, the theme
+ * file, and the page that saves and previews a theme.
  *
  * The page runs through the real typed client against a stubbed fetch, so the
  * body it PATCHes and the body it POSTs to the preview are the bytes the server
  * would get.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { parseThemeSettingsRegistry } from '../src/pages/sites/themeSettingsSchema';
-import {
-  themeSettingDrafts,
-  themeSettingsWire,
-} from '../src/pages/sites/themeSettingsSchema';
-import { THEME_SETTINGS_REGISTRY } from '../src/pages/sites/themeSettingsRegistry';
 import {
   parseResourcePageBlocksRegistry,
   resourcePageBlockDrafts,
   resourcePageBlocksWire,
 } from '../src/pages/sites/resourcePageBlocksSchema';
 import { RESOURCE_PAGE_BLOCKS_REGISTRY } from '../src/pages/sites/resourcePageBlocksRegistry';
-import { contrastChecks, contrastRatio, parseHex } from '../src/pages/sites/contrast';
+import { AA, contrast } from '../src/pages/sites/themeEditor/colour';
+import {
+  contrastChecks,
+  draftFromStored,
+  draftWire,
+  exportTheme,
+  importTheme,
+  resolve,
+  setOverride,
+} from '../src/pages/sites/themeEditor/draft';
+import { parseThemeRegistry, THEME_REGISTRY } from '../src/pages/sites/themeEditor/registry';
+import { setLocale } from '../src/i18n';
 import { SitesPage } from '../src/pages/sites/page';
 import { loadFixture } from './loadFixture';
+
+// The Hindi Theme table arrives only when a test opens the gate, so the page's
+// wait is observable: the site has loaded and the table has not.
+const hindiTheme = vi.hoisted(() => {
+  let open: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return {
+    gate,
+    open: () => {
+      open();
+    },
+  };
+});
+vi.mock('../src/pages/sites/themeEditor/locales/hi', async (importOriginal) => {
+  await hindiTheme.gate;
+  return importOriginal();
+});
 import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
-describe('the theme token schema', () => {
-  it('the generated registry is the Rust schema', () => {
-    const keys = THEME_SETTINGS_REGISTRY.settings.map((spec) => spec.key);
-    expect(keys).toContain('brand_color');
-    expect(keys).toContain('footer_text');
-    expect(THEME_SETTINGS_REGISTRY.settings).toHaveLength(19);
-    const brand = THEME_SETTINGS_REGISTRY.settings.find((spec) => spec.key === 'brand_color');
-    expect(brand?.kind).toBe('colour');
-    if (brand?.kind === 'colour') {
-      expect(brand.dark).toMatch(/^#/);
-      expect(brand.default).toMatch(/^#/);
-    }
+describe('the theme draft', () => {
+  it('the generated registry lists the presets, the pairs and every token', () => {
+    expect(THEME_REGISTRY.presets.map((preset) => preset.id)).toEqual([
+      'plain',
+      'archive',
+      'gallery',
+      'editorial',
+      'civic',
+    ]);
+    expect(THEME_REGISTRY.pairs).toContainEqual(['on-brand', 'brand']);
+    expect(THEME_REGISTRY.settings.map((setting) => setting.key)).toContain('custom_css');
   });
 
-  it('a registry with an unknown label key fails to parse', () => {
+  it('a registry with an unknown catalogue key fails to parse', () => {
     expect(() =>
-      parseThemeSettingsRegistry({
-        settings: [{ key: 'brand_color', labelKey: 'themeSetting.nope', kind: 'text', default: null }],
+      parseThemeRegistry({
+        newSitePreset: 'plain',
+        settings: [{ key: 'x', labelKey: 'themeSetting.nope', helpKey: 'theme.reset', kind: 'text' }],
+        presets: [],
+        colours: [],
+        pairs: [],
+        aa: 4.5,
       }),
     ).toThrow();
   });
 
-  it('drafts read stored values and take the default otherwise', () => {
-    const drafts = themeSettingDrafts(THEME_SETTINGS_REGISTRY, { brand_color: '#123456', logo: 7 });
-    expect(drafts['brand_color']).toBe('#123456');
-    expect(drafts['logo']).toBe('7');
-    expect(drafts['footer_text']).toBe('');
-    // The dark scheme supplies the neutral defaults.
-    const dark = themeSettingDrafts(THEME_SETTINGS_REGISTRY, { color_scheme: 'dark' });
-    expect(dark['background_color']).toBe('#12161a');
-    expect(dark['text_color']).toBe('#e8ecef');
+  it('a map from before presets opens as plain, derivation off, with only its real changes', () => {
+    const draft = draftFromStored({
+      brand_color: '#6aa9d6',
+      text_color: '#111111',
+      heading_font: 'system-serif',
+      base_font_size: 16,
+      logo: 7,
+    });
+    expect(draft.preset).toBe('plain');
+    expect(draft.derive).toBe(false);
+    expect(draft.overrides).toEqual({ text_color: '#111111' });
+    expect(draft.content.logo).toBe('7');
   });
 
-  it('the wire map carries each token in its storage shape', () => {
-    const wire = themeSettingsWire(THEME_SETTINGS_REGISTRY, {
-      ...themeSettingDrafts(THEME_SETTINGS_REGISTRY, {}),
-      brand_color: '#123456',
-      logo: '9',
-      banner: '',
-      footer_text: '<p>Hi</p>',
-      base_font_size: 18,
+  it('a stored preset derives by default and keeps a refused value out', () => {
+    const draft = draftFromStored({ preset: 'civic', base_font_size: 400, link_color: 'red' });
+    expect(draft.derive).toBe(true);
+    expect(draft.overrides).toEqual({});
+  });
+
+  it('the wire map carries the design, the content and trimmed custom CSS', () => {
+    let draft = draftFromStored({ preset: 'archive', banner: 3 });
+    draft = setOverride(draft, 'base_font_size', 19);
+    draft = { ...draft, customCss: '  a { color: red }\n', content: { ...draft.content, footer_text: ' ' } };
+    expect(draftWire(draft)).toEqual({
+      preset: 'archive',
+      derive_palette: true,
+      base_font_size: 19,
+      custom_css: 'a { color: red }',
+      logo: null,
+      banner: 3,
+      banner_text: null,
+      footer_text: null,
     });
-    expect(wire['brand_color']).toBe('#123456');
-    expect(wire['logo']).toBe(9);
-    expect(wire['banner']).toBeNull();
-    expect(wire['footer_text']).toBe('<p>Hi</p>');
-    expect(wire['base_font_size']).toBe(18);
-    // An out-of-range number is clamped to the schema's bounds.
-    const clamped = themeSettingsWire(THEME_SETTINGS_REGISTRY, {
-      ...themeSettingDrafts(THEME_SETTINGS_REGISTRY, {}),
-      corner_radius: 900,
-    });
-    expect(clamped['corner_radius']).toBe(24);
+  });
+
+  it('a failing pair offers the nearest colour that passes on every background it sits on', () => {
+    const draft = setOverride(draftFromStored({ preset: 'plain' }), 'muted_color', '#bbbbbb');
+    const checks = contrastChecks(resolve(draft));
+    const muted = checks.filter((check) => check.foreground === 'muted' && !check.passes);
+    expect(muted.length).toBeGreaterThan(0);
+    const suggestion = muted[0]?.suggestion ?? '';
+    const palette = resolve(setOverride(draft, 'muted_color', suggestion)).light;
+    expect(contrast(suggestion, palette.background)).toBeGreaterThanOrEqual(AA);
+    expect(contrast(suggestion, palette.surface)).toBeGreaterThanOrEqual(AA);
+  });
+
+  it('the automatic scheme checks both palettes', () => {
+    const checks = contrastChecks(resolve(setOverride(draftFromStored({ preset: 'civic' }), 'color_scheme', 'auto')));
+    expect(new Set(checks.map((check) => check.shade))).toEqual(new Set(['light', 'dark']));
+    expect(checks.every((check) => check.passes)).toBe(true);
+  });
+
+  it('a theme file round-trips the design and keeps the site content', () => {
+    const source = setOverride(draftFromStored({ preset: 'gallery' }), 'brand_color', '#ff6600');
+    const target = draftFromStored({ preset: 'plain', logo: 9 });
+    const imported = importTheme(exportTheme({ ...source, customCss: 'p { margin: 0 }' }), target);
+    expect(imported?.preset).toBe('gallery');
+    expect(imported?.overrides).toEqual({ brand_color: '#ff6600' });
+    expect(imported?.customCss).toBe('p { margin: 0 }');
+    expect(imported?.content.logo).toBe('9');
+    expect(importTheme('{"preset": "gallery"}', target)).toBeNull();
+    expect(importTheme('not json', target)).toBeNull();
   });
 });
 
@@ -135,48 +196,6 @@ describe('the resource page block schema', () => {
   });
 });
 
-describe('the contrast checks', () => {
-  it('parses hex colours and computes the WCAG ratio', () => {
-    expect(parseHex('#fff')).toEqual({ r: 255, g: 255, b: 255 });
-    expect(parseHex('#zzz')).toBeNull();
-    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1);
-  });
-
-  it('the default palette passes all three pairs', () => {
-    const checks = contrastChecks({
-      text: '#222222',
-      background: '#ffffff',
-      link: '#1a5d8f',
-      brand: '#6aa9d6',
-    });
-    expect(checks.map((check) => check.key)).toEqual([
-      'text-background',
-      'link-background',
-      'text-brand',
-    ]);
-    expect(checks.every((check) => check.passes)).toBe(true);
-  });
-
-  it('a low-contrast pair fails, and a non-hex value has no ratio', () => {
-    const checks = contrastChecks({
-      text: '#eeeeee',
-      background: '#ffffff',
-      link: '#1a5d8f',
-      brand: '#6aa9d6',
-    });
-    expect(checks[0]?.passes).toBe(false);
-    expect(checks[0]?.ratio).not.toBeNull();
-    const invalid = contrastChecks({
-      text: 'red',
-      background: '#ffffff',
-      link: '#1a5d8f',
-      brand: '#6aa9d6',
-    });
-    expect(invalid[0]?.ratio).toBeNull();
-    expect(invalid[0]?.passes).toBe(false);
-  });
-});
-
 const site = (): unknown => loadFixture('site-admin.json');
 
 /** The preview route answers an HTML document, not JSON. */
@@ -197,17 +216,12 @@ const themeHandler = (url: URL): Response => {
 };
 
 describe('the site Theme page', () => {
-  it('patches the token map without touching the site settings', async () => {
+  it('applies a preset in one click and saves it with the resource page blocks', async () => {
     const fetchMock = installFetch(themeHandler);
-    const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
+    render(<SitesPage param="1" rest={['1', 'theme']} />);
 
-    await waitFor(() => {
-      expect(container.querySelector('#theme-setting-brand_color')).not.toBeNull();
-    });
-    const brand = container.querySelector('#theme-setting-brand_color');
-    if (brand !== null) {
-      fireEvent.change(brand, { target: { value: '#abcdef' } });
-    }
+    fireEvent.click(await screen.findByRole('button', { name: /^Civic/ }));
+    expect(screen.getByRole('button', { name: /^Civic/ })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
@@ -216,12 +230,12 @@ describe('the site Theme page', () => {
     );
     const body = requestBody(patch);
     expect(body).not.toHaveProperty('o:site_settings');
-    const tokens = body['o:theme_settings'];
-    expect(tokens).toMatchObject({ brand_color: '#abcdef', color_scheme: 'light' });
-    // The resource page block map travels in the same member, so a token save
-    // does not drop it. The site stores no override, so the theme's set is
-    // written.
-    expect(tokens).toMatchObject({
+    const settings = body['o:theme_settings'];
+    // The fixture's map predates presets, so derivation starts off, and a
+    // preset keeps the switch where the curator left it.
+    expect(settings).toMatchObject({ preset: 'civic', derive_palette: false, logo: 7 });
+    expect(settings).not.toHaveProperty('brand_color');
+    expect(settings).toMatchObject({
       resource_page_blocks: {
         items: {
           main: ['mediaEmbeds', 'values', 'itemSets', 'sitePages', 'mediaList', 'linkedResources'],
@@ -231,7 +245,22 @@ describe('the site Theme page', () => {
     });
   });
 
-  it('blocks saving a palette below AA 4.5:1', async () => {
+  it('waits for the active locale\'s Theme messages rather than painting English first', async () => {
+    installFetch(themeHandler);
+    await setLocale('hi');
+    try {
+      render(<SitesPage param="1" rest={['1', 'theme']} />);
+      // While the Hindi table is held back, the site loads but no English tab ever appears.
+      await expect(screen.findByRole('tab', { name: 'Design' }, { timeout: 500 })).rejects.toThrow();
+
+      hindiTheme.open();
+      expect(await screen.findByRole('tab', { name: 'डिज़ाइन' })).toBeInTheDocument();
+    } finally {
+      await setLocale('en');
+    }
+  });
+
+  it('blocks a palette below AA and applies the suggested colour', async () => {
     installFetch(themeHandler);
     const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
 
@@ -243,30 +272,86 @@ describe('the site Theme page', () => {
       fireEvent.change(text, { target: { value: '#eeeeee' } });
     }
 
-    expect(await screen.findByText('Fix the contrast before saving.')).toBeInTheDocument();
-    const row = container.querySelector('[data-contrast="text-background"]');
-    expect(row?.getAttribute('data-pass')).toBe('false');
-    expect(container.querySelector('[data-contrast="link-background"]')?.getAttribute('data-pass')).toBe('true');
+    expect(await screen.findByText('Fix the problems above before saving.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    const row = container.querySelector('[data-contrast="text-background"]');
+    expect(row).not.toBeNull();
+    if (row instanceof HTMLElement) {
+      fireEvent.click(within(row).getByRole('button', { name: /^Use #[0-9a-f]{6} for Text$/ }));
+    }
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+    expect(screen.getByText(/Every text and background pair passes/)).toBeInTheDocument();
   });
 
-  it('posts the unsaved tokens to the preview route', async () => {
+  it('a fine-tuned value shows Reset, and Reset returns it to the preset', async () => {
     const fetchMock = installFetch(themeHandler);
-    render(<SitesPage param="1" rest={['1', 'theme']} />);
+    const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+    await waitFor(() => {
+      expect(container.querySelector('#theme-setting-content_width')).not.toBeNull();
+    });
+    const width = container.querySelector('#theme-setting-content_width');
+    if (width !== null) {
+      fireEvent.change(width, { target: { value: 'narrow' } });
+    }
+    const reset = screen.getByRole('button', { name: 'Reset Content width to the preset value' });
+    fireEvent.click(reset);
+    expect(screen.queryByRole('button', { name: 'Reset Content width to the preset value' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    const patch = first(
+      requestsFor(fetchMock, '/api/sites/1').filter((request) => request.init?.method === 'PATCH'),
+    );
+    expect(requestBody(patch)['o:theme_settings']).not.toHaveProperty('content_width');
+  });
+
+  it('posts the unsaved theme to the preview route', async () => {
+    const fetchMock = installFetch(themeHandler);
+    const { container } = render(<SitesPage param="1" rest={['1', 'theme']} />);
+    await waitFor(() => {
+      expect(container.querySelector('#theme-setting-brand_color')).not.toBeNull();
+    });
+    const brand = container.querySelector('#theme-setting-brand_color');
+    if (brand !== null) {
+      fireEvent.change(brand, { target: { value: '#abcdef' } });
+    }
 
     await waitFor(
       () => {
-        expect(requestsFor(fetchMock, '/s/my-site/preview')).not.toHaveLength(0);
+        const bodies = requestsFor(fetchMock, '/s/my-site/preview').map(requestBody);
+        expect(bodies.some((body) => isBrand(body['o:theme_settings'], '#abcdef'))).toBe(true);
       },
       { timeout: 3000 },
     );
-    const preview = first(requestsFor(fetchMock, '/s/my-site/preview'));
-    expect(preview.init?.method).toBe('POST');
-    const body = requestBody(preview);
-    expect(body['o:id']).toBe(1);
-    expect(body['o:theme_settings']).toMatchObject({ brand_color: '#6aa9d6' });
+  });
+
+  it('shows the sanitiser errors from the preview and blocks the save', async () => {
+    installFetch((url, init) => {
+      if (url.pathname.endsWith('/preview') && typeof init?.body === 'string' && init.body.includes('@import')) {
+        return jsonResponse(
+          { errors: { 'o:theme_settings': ['Custom CSS: Line 1, column 1: @import is not allowed.'] } },
+          { status: 422 },
+        );
+      }
+      return themeHandler(url);
+    });
+    render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Custom CSS' }));
+    const editor = await screen.findByRole('textbox', { name: 'Custom CSS' });
+    fireEvent.change(editor, { target: { value: "@import 'x.css';" } });
+
+    expect(
+      await screen.findByRole('button', { name: 'Line 1, column 1: @import is not allowed.' }, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 });
+
+const isBrand = (settings: unknown, brand: string): boolean =>
+  typeof settings === 'object' && settings !== null && 'brand_color' in settings && settings.brand_color === brand;
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -4,11 +4,17 @@
  * reorders or removes any of them. A kind the table does not know starts as a
  * physical object with a title, which fits anything one can hold.
  */
-import type { Property, ResourceClass } from '../../api/types';
-import type { Locale } from '../../i18n';
-import { fieldKey, type FieldDraft, type TypeDraft } from './model';
+import type { Property, ResourceClass } from "../../api/types";
+import { curatedLocale, type CuratedLocale } from "../../app/plain-terms";
+import type { Locale } from "../../i18n";
+import { fieldKey, type FieldDraft, type TypeDraft } from "./model";
 
-type Localised = Readonly<Record<Locale, string>>;
+/** Starter names and labels are plain words, curated where plain terms are. */
+type Localised = Readonly<Record<CuratedLocale, string>>;
+
+/** A starter's text in a UI locale, English where the locale is not curated. */
+export const localised = (text: Localised, locale: Locale): string =>
+  text[curatedLocale(locale)];
 
 interface StarterField {
   readonly term: string;
@@ -28,136 +34,177 @@ export interface Starter {
   readonly fields: readonly StarterField[];
 }
 
-const TEXT = ['literal'];
-const ITEM = ['resource:item'];
+const TEXT = ["literal"];
+const ITEM = ["resource:item"];
 
 const TITLE: StarterField = {
-  term: 'dcterms:title',
-  label: { en: 'Title', es: 'Título' },
+  term: "dcterms:title",
+  label: { en: "Title", es: "Título" },
   dataTypes: TEXT,
   required: true,
 };
 
 export const STARTERS: readonly Starter[] = [
   {
-    id: 'letter',
-    name: { en: 'Letter', es: 'Carta' },
-    words: ['letter', 'letters', 'carta', 'cartas'],
-    classTerm: 'bibo:Letter',
+    id: "letter",
+    name: { en: "Letter", es: "Carta" },
+    words: ["letter", "letters", "carta", "cartas"],
+    classTerm: "bibo:Letter",
     fields: [
       TITLE,
-      { term: 'dcterms:creator', label: { en: 'Sender', es: 'Remitente' }, dataTypes: TEXT },
-      { term: 'bibo:recipient', label: { en: 'Recipient', es: 'Destinatario' }, dataTypes: TEXT },
       {
-        term: 'dcterms:created',
-        label: { en: 'Date written', es: 'Fecha de escritura' },
+        term: "dcterms:creator",
+        label: { en: "Sender", es: "Remitente" },
         dataTypes: TEXT,
       },
-      { term: 'dcterms:spatial', label: { en: 'Place', es: 'Lugar' }, dataTypes: TEXT },
       {
-        term: 'dcterms:description',
-        label: { en: 'Description', es: 'Descripción' },
+        term: "bibo:recipient",
+        label: { en: "Recipient", es: "Destinatario" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:created",
+        label: { en: "Date written", es: "Fecha de escritura" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:spatial",
+        label: { en: "Place", es: "Lugar" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:description",
+        label: { en: "Description", es: "Descripción" },
         dataTypes: TEXT,
       },
     ],
   },
   {
-    id: 'photograph',
-    name: { en: 'Photograph', es: 'Fotografía' },
+    id: "photograph",
+    name: { en: "Photograph", es: "Fotografía" },
     words: [
-      'photograph',
-      'photographs',
-      'photo',
-      'photos',
-      'picture',
-      'pictures',
-      'fotografia',
-      'fotografias',
-      'foto',
-      'fotos',
+      "photograph",
+      "photographs",
+      "photo",
+      "photos",
+      "picture",
+      "pictures",
+      "fotografia",
+      "fotografias",
+      "foto",
+      "fotos",
     ],
-    classTerm: 'dctype:StillImage',
+    classTerm: "dctype:StillImage",
     fields: [
       TITLE,
-      { term: 'dcterms:creator', label: { en: 'Photographer', es: 'Fotógrafo' }, dataTypes: TEXT },
       {
-        term: 'dcterms:created',
-        label: { en: 'Date taken', es: 'Fecha de la foto' },
+        term: "dcterms:creator",
+        label: { en: "Photographer", es: "Fotógrafo" },
         dataTypes: TEXT,
       },
-      { term: 'dcterms:spatial', label: { en: 'Place', es: 'Lugar' }, dataTypes: TEXT },
       {
-        term: 'dcterms:subject',
-        label: { en: 'Who is in it', es: 'Quién aparece' },
+        term: "dcterms:created",
+        label: { en: "Date taken", es: "Fecha de la foto" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:spatial",
+        label: { en: "Place", es: "Lugar" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:subject",
+        label: { en: "Who is in it", es: "Quién aparece" },
         dataTypes: ITEM,
       },
     ],
   },
   {
-    id: 'postcard',
-    name: { en: 'Postcard', es: 'Postal' },
-    words: ['postcard', 'postcards', 'postal', 'postales'],
-    classTerm: 'bibo:Letter',
+    id: "postcard",
+    name: { en: "Postcard", es: "Postal" },
+    words: ["postcard", "postcards", "postal", "postales"],
+    classTerm: "bibo:Letter",
     fields: [
       TITLE,
-      { term: 'dcterms:creator', label: { en: 'Sender', es: 'Remitente' }, dataTypes: TEXT },
-      { term: 'bibo:recipient', label: { en: 'Recipient', es: 'Destinatario' }, dataTypes: TEXT },
       {
-        term: 'dcterms:spatial',
-        label: { en: 'Postmark place', es: 'Lugar del matasellos' },
+        term: "dcterms:creator",
+        label: { en: "Sender", es: "Remitente" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "bibo:recipient",
+        label: { en: "Recipient", es: "Destinatario" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "dcterms:spatial",
+        label: { en: "Postmark place", es: "Lugar del matasellos" },
         dataTypes: TEXT,
       },
     ],
   },
   {
-    id: 'diary',
-    name: { en: 'Diary', es: 'Diario' },
-    words: ['diary', 'diaries', 'journal', 'journals', 'diario', 'diarios'],
-    classTerm: 'bibo:Document',
+    id: "diary",
+    name: { en: "Diary", es: "Diario" },
+    words: ["diary", "diaries", "journal", "journals", "diario", "diarios"],
+    classTerm: "bibo:Document",
     fields: [
       TITLE,
-      { term: 'dcterms:creator', label: { en: 'Writer', es: 'Autor' }, dataTypes: TEXT },
       {
-        term: 'dcterms:date',
-        label: { en: 'Dates covered', es: 'Fechas que abarca' },
+        term: "dcterms:creator",
+        label: { en: "Writer", es: "Autor" },
         dataTypes: TEXT,
       },
       {
-        term: 'bibo:numPages',
-        label: { en: 'Number of pages', es: 'Número de páginas' },
+        term: "dcterms:date",
+        label: { en: "Dates covered", es: "Fechas que abarca" },
+        dataTypes: TEXT,
+      },
+      {
+        term: "bibo:numPages",
+        label: { en: "Number of pages", es: "Número de páginas" },
         dataTypes: TEXT,
       },
     ],
   },
   {
-    id: 'person',
-    name: { en: 'Person', es: 'Persona' },
-    words: ['person', 'people', 'persons', 'persona', 'personas'],
-    classTerm: 'foaf:Person',
-    titleTerm: 'foaf:name',
+    id: "person",
+    name: { en: "Person", es: "Persona" },
+    words: ["person", "people", "persons", "persona", "personas"],
+    classTerm: "foaf:Person",
+    titleTerm: "foaf:name",
     fields: [
-      { term: 'foaf:name', label: { en: 'Name', es: 'Nombre' }, dataTypes: TEXT, required: true },
       {
-        term: 'dcterms:description',
-        label: { en: 'Relationship', es: 'Parentesco' },
+        term: "foaf:name",
+        label: { en: "Name", es: "Nombre" },
+        dataTypes: TEXT,
+        required: true,
+      },
+      {
+        term: "dcterms:description",
+        label: { en: "Relationship", es: "Parentesco" },
         dataTypes: TEXT,
       },
-      { term: 'dcterms:date', label: { en: 'Born', es: 'Nació' }, dataTypes: TEXT },
+      {
+        term: "dcterms:date",
+        label: { en: "Born", es: "Nació" },
+        dataTypes: TEXT,
+      },
     ],
   },
 ];
 
 /** What an unknown kind starts as. */
 export const FALLBACK: Starter = {
-  id: 'other',
-  name: { en: 'Physical object', es: 'Objeto físico' },
+  id: "other",
+  name: { en: "Physical object", es: "Objeto físico" },
   words: [],
-  classTerm: 'dctype:PhysicalObject',
+  classTerm: "dctype:PhysicalObject",
   fields: [TITLE],
 };
 
 const fold = (text: string): string =>
-  text.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  text.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 
 /** The starter a typed kind names, or `null` for a kind the table does not know. */
 export const starterFor = (kind: string): Starter | null => {
@@ -184,7 +231,7 @@ export const draftFromStarter = (
     if (property === undefined) {
       return [];
     }
-    const label = entry.label[locale];
+    const label = localised(entry.label, locale);
     return [
       {
         key: fieldKey(),
@@ -201,8 +248,12 @@ export const draftFromStarter = (
   return {
     label: name.trim(),
     owner: null,
-    resourceClass: classes.find((entry) => entry.term === starter.classTerm)?.id ?? null,
-    titleProperty: starter.titleTerm === undefined ? null : (byTerm(starter.titleTerm)?.id ?? null),
+    resourceClass:
+      classes.find((entry) => entry.term === starter.classTerm)?.id ?? null,
+    titleProperty:
+      starter.titleTerm === undefined
+        ? null
+        : (byTerm(starter.titleTerm)?.id ?? null),
     descriptionProperty: null,
     fields,
   };

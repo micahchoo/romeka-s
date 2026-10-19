@@ -18,18 +18,16 @@ const info: SiteInfoWrite = {
   summary: '   ',
   owner: null,
   isPublic: true,
-  assignNewItems: false,
 };
 
 describe('encodeSiteInfo', () => {
-  it('trims text, turns a blank summary into null and leaves an unset owner out', () => {
+  it('trims text, turns a blank summary into null and leaves the owner and sync alone', () => {
     expect(encodeSiteInfo(info)).toEqual({
       'o:title': 'My site',
       'o:slug': 'my-site',
       'o:theme': 'default',
       'o:summary': null,
       'o:is_public': true,
-      'o:assign_new_items': false,
     });
   });
 

@@ -18,9 +18,8 @@ import {
   type PropertyField,
   type TemplateLayout,
 } from './value-fields';
-import { DESCRIBE } from './describe-messages';
-import { useLocalText } from './local-messages';
-import { TermHelp, TermPicker } from './term-picker';
+import { useDescribeText } from './describe-messages';
+import { TermHelp, StandardTermPicker } from './standard-term-picker';
 
 const CORE_TYPE_LABELS = {
   literal: 'field.kindText',
@@ -61,7 +60,7 @@ const ValueRow = ({
   onChange,
 }: ValueRowProps): ReactElement => {
   const { t } = useTranslator();
-  const describe = useLocalText(DESCRIBE);
+  const describe = useDescribeText();
   const id = (suffix: string): string => `${idPrefix}-${value.key}-${suffix}`;
   const patch = (next: Partial<ValueDraft>): void => {
     onChange(patchValue(draft, value.key, next));
@@ -72,7 +71,7 @@ const ValueRow = ({
     <li className="value-row">
       {choices.length > 1 ? (
         <p>
-          <label htmlFor={id('type')}>{describe.t('value.kind')}</label>
+          <label htmlFor={id('type')}>{describe('value.kind')}</label>
           <select
             id={id('type')}
             aria-label={t('valueField.dataType', named)}
@@ -246,7 +245,7 @@ const AddField = ({ properties, draft, onChange, createField }: AddFieldProps): 
   const { t } = useTranslator();
   return (
     <div className="add-field">
-      <TermPicker
+      <StandardTermPicker
         label={t('valueField.addField')}
         placeholder={t('valueField.addFieldHint')}
         entries={properties}

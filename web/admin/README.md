@@ -284,8 +284,11 @@ sends exactly what a proxy would have appended.
 
 ## Development against a live API
 
-Requests are same-origin by default. To point the client at a running Romeka S, set the base URL
-before the client module loads:
+Requests are same-origin by default. `npm run dev` forwards the port's routes (`/api`,
+`/api-context`, `/s`, `/files` and the theme's `/assets`) to `ROMEKA_DEV_TARGET`, by default
+`http://localhost:8080`, so a running `romeka serve` there backs the dev server and the Theme and
+page previews load the real theme sheet. To point the client at another origin instead, set the base
+URL before the client module loads:
 
 ```js
 window.ROMEKA_BASE = 'http://localhost:8080';

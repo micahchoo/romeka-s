@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { useLocale, useTranslator } from '../i18n';
-import { useLocalText } from './local-messages';
-import { DESCRIBE } from './describe-messages';
+import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
 import type { FormOptions, Option } from './options';
@@ -123,7 +122,7 @@ export const ResourceFields = ({
   options,
 }: ResourceFieldsProps): ReactElement => {
   const { t } = useTranslator();
-  const describe = useLocalText(DESCRIBE);
+  const describe = useDescribeText();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const selected = templateById(options.templates, draft.resourceTemplate);
@@ -135,10 +134,10 @@ export const ResourceFields = ({
       <legend>{t('field.resourceLegend')}</legend>
       <OptionSelect
         id={`${idPrefix}-template`}
-        label={describe.t('type.label')}
+        label={describe('type.label')}
         options={templateOptions(typesFor(options.templates, kind, draft.resourceTemplate))}
         value={draft.resourceTemplate}
-        emptyLabel={describe.t('type.none')}
+        emptyLabel={describe('type.none')}
         onChange={(value) => {
           onChange(
             withTemplate(draft, templateById(options.templates, value), options.properties, selected),
@@ -147,7 +146,7 @@ export const ResourceFields = ({
       />
       {shownClass === null ? null : (
         <p className="type-class-line">
-          {describe.t('type.classLine', { name: plainName(shownClass, locale) })}{' '}
+          {describe('type.classLine', { name: plainName(shownClass, locale) })}{' '}
           <code>{shownClass.term}</code>
         </p>
       )}
@@ -176,8 +175,8 @@ export const ResourceFields = ({
           setOpen(event.currentTarget.open);
         }}
       >
-        <summary>{describe.t('advanced.summary')}</summary>
-        {differs ? <p className="field-note">{describe.t('advanced.classDiffers')}</p> : null}
+        <summary>{describe('advanced.summary')}</summary>
+        {differs ? <p className="field-note">{describe('advanced.classDiffers')}</p> : null}
         <OptionSelect
           id={`${idPrefix}-class`}
           label={t('field.class')}

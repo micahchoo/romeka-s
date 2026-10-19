@@ -1,7 +1,8 @@
 /**
  * The site's own members (`SiteForm`: title, slug, theme, summary, owner,
- * visibility, assign new items), as the Settings tab and the Add site form edit
- * them. `encodeSiteInfo` (`api/write.ts`) is the body they save with.
+ * visibility), as the Settings tab and the Add site form edit them.
+ * `encodeSiteInfo` (`api/write.ts`) is the body they save with. Upstream's
+ * "assign new items" lives on the site's Items page as "Keep this site in sync".
  */
 import type { ReactElement } from 'react';
 import type { Site, User, UserId } from '../../api/types';
@@ -22,7 +23,6 @@ export interface SiteInfo {
   readonly summary: string;
   readonly owner: UserId | null;
   readonly isPublic: boolean;
-  readonly assignNewItems: boolean;
 }
 
 export const siteInfoOf = (site: Site): SiteInfo => ({
@@ -32,7 +32,6 @@ export const siteInfoOf = (site: Site): SiteInfo => ({
   summary: site.summary ?? '',
   owner: site.owner?.id ?? null,
   isPublic: site.isPublic,
-  assignNewItems: site.assignNewItems,
 });
 
 /**
@@ -138,14 +137,6 @@ export const SiteInfoFields = ({
         checked={info.isPublic}
         onChange={(isPublic) => {
           set({ isPublic });
-        }}
-      />
-      <CheckboxField
-        id="site-assign-new-items"
-        label={t('sites.assignNewItems')}
-        checked={info.assignNewItems}
-        onChange={(assignNewItems) => {
-          set({ assignNewItems });
         }}
       />
     </fieldset>

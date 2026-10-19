@@ -11,12 +11,12 @@ import type { Property, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
 import { PLAIN_TERMS, plainHint, plainName, searchTerms } from '../../app/plain-terms';
-import { TermHelp } from '../../app/term-picker';
+import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
 import { useLocale, useTranslator, type Locale } from '../../i18n';
-import { useLocalText } from '../../app/local-messages';
 import '../item-types/item-types.css';
-import { TYPES } from '../item-types/messages';
+import { useItemTypesText, WithItemTypesMessages } from '../item-types/messages';
+import { standardsHref } from '../standards/routes';
 
 interface Use {
   readonly template: ResourceTemplate;
@@ -60,7 +60,7 @@ const FieldEntry = ({
   readonly property: Property;
   readonly uses: readonly Use[];
 }): ReactElement => {
-  const { t } = useLocalText(TYPES);
+  const t = useItemTypesText();
   const locale = useLocale();
   const name = plainName(property, locale);
   const renamed = uses.filter((use) => use.label !== null && use.label !== name);
@@ -83,7 +83,7 @@ const FieldEntry = ({
         <p className="fields-entry-hint">
           {plainHint(property.term, locale) ?? property.comment ?? ''}
         </p>
-        <a className="property-field-term" href={`#/properties/${String(property.id)}`}>
+        <a className="property-field-term" href={standardsHref('properties', property.id)}>
           {property.term}
         </a>
       </div>
@@ -108,7 +108,8 @@ const FieldEntry = ({
 };
 
 const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
-  const { t, number } = useLocalText(TYPES);
+  const t = useItemTypesText();
+  const { number } = useTranslator();
   const locale = useLocale();
   const inputId = useId();
   const [query, setQuery] = useState('');
@@ -158,5 +159,9 @@ export const FieldsPage = (): ReactElement => {
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return <FieldsList loaded={state.data} />;
+  return (
+    <WithItemTypesMessages>
+      <FieldsList loaded={state.data} />
+    </WithItemTypesMessages>
+  );
 };

@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { plainName, searchTerms, type Termed } from '../src/app/plain-terms';
 import { localNameFor } from '../src/app/local-fields';
+import type { Locale } from '../src/i18n';
 
 const entry = (term: string, label: string, comment: string | null = null): Termed => ({
   term,
@@ -48,7 +49,7 @@ const PROPERTIES: readonly Termed[] = [
   entry('local:condition', 'Condition', null),
 ];
 
-const terms = (query: string, locale: 'en' | 'es' = 'en') =>
+const terms = (query: string, locale: Locale = 'en') =>
   searchTerms(PROPERTIES, query, locale).map((found) => found.term);
 
 describe('plain-words search', () => {
@@ -72,6 +73,11 @@ describe('plain-words search', () => {
 
   it('reads Spanish words in the Spanish locale', () => {
     expect(terms('quién escribió', 'es')[0]).toBe('dcterms:creator');
+  });
+
+  it('reads English plain words in a locale they are not curated in', () => {
+    expect(terms('who wrote it', 'hi')[0]).toBe('dcterms:creator');
+    expect(plainName(entry('dcterms:provenance', 'Provenance'), 'hi')).toBe('Where it came from');
   });
 
   it('finds nothing for an empty or unrelated query', () => {
