@@ -10,7 +10,9 @@
  *
  * A field whose `when` test fails renders nothing. Every control shows the
  * field's help line, so the schema is the one place a field explains itself.
+ * A required field says it is empty only after the user has left it once.
  */
+import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
@@ -148,6 +150,7 @@ const IntegerControl = ({
         required={field.required}
         aria-invalid={invalid}
         aria-describedby={helpId(id)}
+        {...(typeof field.default === 'number' ? { placeholder: String(field.default) } : {})}
         {...(field.min === null ? {} : { min: field.min })}
         {...(field.max === null ? {} : { max: field.max })}
         onChange={(event) => {
@@ -222,7 +225,12 @@ const ChoiceControl = ({
   // A block stored without the key renders the schema default, so show that.
   const current = asText(value ?? (typeof field.default === 'string' ? field.default : undefined));
   const named = field.options.some((option) => option.value === current);
-  const empty = field.options.some((option) => option.value === '');
+  // "Not set" is a state only a field with no default and no empty choice of
+  // its own can be in; a default stands in for an empty value, so it never is.
+  const unsettable =
+    !field.required &&
+    field.default === null &&
+    !field.options.some((option) => option.value === '');
   return (
     <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
       <select
@@ -238,7 +246,7 @@ const ChoiceControl = ({
         {current === '' || named ? null : (
           <option value={current}>{t('field.optionFallback', { value: current })}</option>
         )}
-        {empty || field.required ? null : <option value="">{t('field.selectOption')}</option>}
+        {unsettable ? <option value="">{e('choice.unset')}</option> : null}
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
             {e(option.label)}
@@ -466,13 +474,50 @@ export interface FieldControlProps {
   readonly options?: EditorOptions;
 }
 
+const control = (common: ControlProps & FieldControlProps): ReactElement | null => {
+  switch (common.field.type) {
+    case 'text':
+      return <TextControl {...common} field={common.field} />;
+    case 'html':
+      return <HtmlControl {...common} field={common.field} />;
+    case 'integer':
+      return <IntegerControl {...common} field={common.field} />;
+    case 'boolean':
+      return <BooleanControl {...common} field={common.field} />;
+    case 'choice':
+      return <ChoiceControl {...common} field={common.field} />;
+    case 'pageRef':
+      return <PageRefControl {...common} field={common.field} />;
+    case 'assetRef':
+      return <AssetRefControl {...common} field={common.field} />;
+    case 'itemQuery':
+      return <ItemQueryControl {...common} field={common.field} />;
+    case 'repeat':
+      return <RepeatControl {...common} field={common.field} />;
+    case 'pageList':
+      return <PageListControl {...common} field={common.field} />;
+    case 'color':
+      return <ColorControl {...common} field={common.field} />;
+    case 'sides':
+      return <SidesControl {...common} field={common.field} />;
+    case 'link':
+      return <LinkControl {...common} field={common.field} />;
+    case 'attachments':
+      return null;
+  }
+};
+
 export const FieldControl = (props: FieldControlProps): ReactElement | null => {
   const { t } = useTranslator();
+  // A new block starts with its required fields empty, so "required" waits
+  // until the user has been in the field and left it.
+  const [visited, setVisited] = useState(false);
   if (!isShown(props.field, props.record, props.siblings)) {
     return null;
   }
   const id = `${props.idPrefix}-${props.path}`;
-  const issue = issueFor(props.issues, props.blockKey, props.path);
+  const found = issueFor(props.issues, props.blockKey, props.path);
+  const issue = found?.kind === 'required' && !visited ? null : found;
   const message = issue === null ? null : issueMessage(issue);
   const error =
     message === null ? null : (
@@ -480,40 +525,18 @@ export const FieldControl = (props: FieldControlProps): ReactElement | null => {
         {t(message.key, message.params)}
       </p>
     );
-  const common = {
-    ...props,
-    id,
-    error,
-    invalid: issue !== null,
-  };
-  switch (props.field.type) {
-    case 'text':
-      return <TextControl {...common} field={props.field} />;
-    case 'html':
-      return <HtmlControl {...common} field={props.field} />;
-    case 'integer':
-      return <IntegerControl {...common} field={props.field} />;
-    case 'boolean':
-      return <BooleanControl {...common} field={props.field} />;
-    case 'choice':
-      return <ChoiceControl {...common} field={props.field} />;
-    case 'pageRef':
-      return <PageRefControl {...common} field={props.field} />;
-    case 'assetRef':
-      return <AssetRefControl {...common} field={props.field} />;
-    case 'itemQuery':
-      return <ItemQueryControl {...common} field={props.field} />;
-    case 'repeat':
-      return <RepeatControl {...common} field={props.field} />;
-    case 'pageList':
-      return <PageListControl {...common} field={props.field} />;
-    case 'color':
-      return <ColorControl {...common} field={props.field} />;
-    case 'sides':
-      return <SidesControl {...common} field={props.field} />;
-    case 'link':
-      return <LinkControl {...common} field={props.field} />;
-    case 'attachments':
-      return null;
+  const rendered = control({ ...props, id, error, invalid: issue !== null });
+  if (!props.field.required) {
+    return rendered;
   }
+  return (
+    <div
+      className="field-visit"
+      onBlur={() => {
+        setVisited(true);
+      }}
+    >
+      {rendered}
+    </div>
+  );
 };

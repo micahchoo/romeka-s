@@ -706,7 +706,10 @@ button[type="submit"]:hover:not(:disabled) {
   border-color: #164f96;
 }
 
+/* A fieldset is min-content wide by default, so one long select option (the
+   class list) pushed the form past a phone screen. */
 fieldset {
+  min-width: 0;
   margin: 0 0 var(--space-4);
   padding: var(--space-3);
   border: 1px solid var(--border);
@@ -1310,11 +1313,6 @@ fieldset.block-field {
   font-size: 15px;
 }
 
-.page-grid-fields {
-  display: grid;
-  gap: var(--space-2);
-}
-
 .editor-canvas .canvas-toolbar {
   margin-bottom: var(--space-3);
 }
@@ -1762,4 +1760,59 @@ td > .badge:first-child {
 
 .menu-preview-link {
   font-weight: 500;
+}
+
+/* The term picker: a type-ahead field whose entries open under it. */
+.field-hint {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.875em;
+}
+
+.term-picker {
+  position: relative;
+}
+
+.term-picker > label {
+  display: block;
+}
+
+.term-picker > input {
+  width: 100%;
+}
+
+.term-picker-options {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  max-height: 16em;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+.term-picker-options > li {
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+
+.term-picker-options > li[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.term-list-kinds > label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.term-list-kinds > label > input {
+  margin: 0;
 }

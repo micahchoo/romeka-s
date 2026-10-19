@@ -74,6 +74,11 @@ leaves a bare annotation. `ResourceRepo::delete` removes the annotation's values
 row, and the reference from the value clears through `ON DELETE SET NULL`. The api layer deletes an
 annotation with the value that carried it, because upstream maps the pair `orphanRemoval`.
 
+`SiteRepo::create_whole` writes a new site, its first page and blocks, its permissions, item sets
+and settings in one transaction, the way upstream's one flush stores them, so a failing row leaves
+no partial site. The first page's id exists only inside that transaction, so a navigation that
+links the page is passed as a function of its id.
+
 ### Ordering text
 
 `repos::compare_text_ci` and `repos::compare_opt_text_ci` are the one rule a caller applies to order

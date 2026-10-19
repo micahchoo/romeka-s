@@ -266,7 +266,7 @@ async fn carry_blocks(api: &Api<'_>, site: SiteId, blocks: &mut [Block]) -> Resu
     for block in blocks.iter_mut() {
         let (data, layout_data) = carry_block(
             api,
-            site,
+            Some(site),
             &block.layout,
             std::mem::take(&mut block.data),
             block.layout_data.take(),
@@ -288,10 +288,11 @@ async fn carry_blocks(api: &Api<'_>, site: SiteId, blocks: &mut [Block]) -> Resu
 /// outside this product: the write keeps that edit and leaves the hash alone.
 ///
 /// The preview route reuses this function, so a preview renders the same plain
-/// rendering a save would store.
+/// rendering a save would store. `site` is `None` for the welcome page of a
+/// site not yet stored: no block can name a page of that site.
 pub async fn carry_block(
     api: &Api<'_>,
-    site: SiteId,
+    site: Option<SiteId>,
     layout: &str,
     mut data: Value,
     layout_data: Option<Value>,
@@ -339,7 +340,7 @@ pub async fn carry_block(
 /// another origin.
 async fn plain_refs(
     api: &Api<'_>,
-    site: SiteId,
+    site: Option<SiteId>,
     carrier: &RomkaCarrier,
 ) -> Result<PlainRefs, ApiError> {
     let mut refs = PlainRefs::new();
@@ -357,6 +358,9 @@ async fn plain_refs(
             );
         }
     }
+    let Some(site) = site else {
+        return Ok(refs);
+    };
     let Some(site_row) = SiteRepo::new(api.pool())
         .get(site)
         .await

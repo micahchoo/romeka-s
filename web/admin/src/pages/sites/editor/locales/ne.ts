@@ -208,4 +208,7 @@ export const ne: EditorMessages = {
   'query.mediaCount': 'यस साइटमा रहेका मिडिया जुन मेल खान्छन्: {count}।',
   'attachments.mainMedia': 'मुख्य मिडिया',
   'attachments.pick': 'वस्तुहरू थप्नुहोस् वा हटाउनुहोस्',
+  'layoutData.pageLegend': 'पृष्ठ लेआउट',
+  'layoutGroup.pageGrid': 'ग्रिड',
+  'choice.unset': 'सेट नगरिएको',
 };

@@ -10,6 +10,8 @@
 //! loaded for the whole page, so building a document issues no queries.
 
 use indexmap::IndexMap;
+use omeka_core::term_list;
+use omeka_core::value_shape::ValueShape;
 use omeka_db::ids::{AnnotationId, ResourceId, TemplateId};
 use omeka_db::rows::{ValueRow, resource_type};
 
@@ -91,29 +93,37 @@ fn build_value(
         Some(id) if depth < MAX_ANNOTATION_DEPTH => annotation_map(api, relations, id, depth + 1),
         _ => None,
     };
-    let value = if row.r#type == "uri" {
-        Value::Uri(ValueUri {
-            data_type: UriType,
+    // `DataType\CustomVocab::getJsonLd` builds each shape the way the core type
+    // does, except that a URI carries no `o:lang`.
+    let list = term_list::list_id(&row.r#type);
+    let shape = ValueShape::of(
+        &row.r#type,
+        row.uri.is_some(),
+        row.value_resource_id.is_some(),
+    );
+    let value = match shape {
+        ValueShape::Uri => Value::Uri(ValueUri {
+            data_type: list.map_or(UriType::Uri, UriType::TermList),
             property_id: row.property_id.0,
             property_label: label,
             is_public: row.is_public,
             annotation,
             id: row.uri.clone().unwrap_or_default(),
             label: row.value.clone().filter(|value| !value.is_empty()),
-            lang: row.lang.clone(),
-        })
-    } else if is_resource_type(&row.r#type) {
-        Value::Resource(resource_value(api, relations, row, label, annotation)?)
-    } else {
-        Value::Literal(ValueLiteral {
-            data_type: LiteralType,
+            lang: row.lang.clone().filter(|_| list.is_none()),
+        }),
+        ValueShape::Resource => {
+            Value::Resource(resource_value(api, relations, row, label, annotation)?)
+        }
+        ValueShape::Literal => Value::Literal(ValueLiteral {
+            data_type: list.map_or(LiteralType::Literal, LiteralType::TermList),
             property_id: row.property_id.0,
             property_label: label,
             is_public: row.is_public,
             annotation,
             value: row.value.clone().unwrap_or_default(),
             language: row.lang.clone(),
-        })
+        }),
     };
     Some((term, value))
 }
@@ -195,11 +205,6 @@ fn order_by_template(
     *map = ordered;
 }
 
-/// Upstream data type names that store a reference to another resource.
-fn is_resource_type(name: &str) -> bool {
-    name == "resource" || name.starts_with("resource:")
-}
-
 /// The `value_resource_name` a target resource reports
 /// (`Entity\Resource::getResourceName`).
 fn resource_name(stored_type: &str) -> &'static str {
@@ -214,6 +219,9 @@ fn resource_name(stored_type: &str) -> &'static str {
 /// The `type` member of a resource value. The stored data type name wins when
 /// it names a specific kind; a bare `resource` follows the target's kind.
 fn resource_value_type(stored: &str, target_type: &str) -> ResourceValueType {
+    if let Some(list) = term_list::list_id(stored) {
+        return ResourceValueType::TermList(list);
+    }
     match stored {
         "resource:item" => ResourceValueType::Item,
         "resource:itemset" => ResourceValueType::ItemSet,

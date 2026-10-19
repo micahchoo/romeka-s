@@ -1,46 +1,50 @@
 /**
  * The inspector when no block is selected: the page's own members. The title,
- * slug and visibility edit the page row; the layout picker and the grid fields
- * edit the page's `o:layout_data`, which the renderer reads for every page.
+ * slug, visibility and layout edit the page row. The page's `o:layout_data`
+ * (the grid and the advanced template and class) is the schema's
+ * `pageLayoutData`, rendered by the same form a block's styling uses, so each
+ * field carries its help and the list cannot drift from the renderer's. That
+ * form is the fields chunk, loaded on demand as the block inspector loads it.
  */
 import type { ReactElement } from 'react';
+import { Suspense, lazy } from 'react';
 import { api } from '../../../../api/client';
-import type { PageId } from '../../../../api/types';
+import type { PageId, SiteId } from '../../../../api/types';
 import { DeleteControl } from '../../../../app/delete';
 import { useTranslator } from '../../../../i18n';
-import { useEditorText } from '../messages';
-import { gridGap, pageColumns } from '../canvas/grid';
 import type { DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { Checked, Labelled } from '../Labelled';
+import type { EditorOptions } from '../options';
+import { layoutObject } from '../values';
+
+const LayoutDataForm = lazy(() =>
+  import('../fields').then((module) => ({ default: module.LayoutDataForm })),
+);
 
 export interface PageSettingsProps {
   readonly draft: PageDraft;
   readonly dispatch: (action: DraftAction) => void;
   readonly issues: readonly ValidationIssue[];
   readonly pageId: PageId | null;
+  readonly siteId: SiteId;
+  readonly options: EditorOptions;
   /** Called after the page row is deleted, so the shell can return to the site. */
   readonly onDeleted: () => void;
   /** Open the shell's save-as-template dialog. */
   readonly onOpenSaveTemplate: () => void;
 }
 
-const numberFrom = (text: string): number => {
-  const value = Number.parseInt(text, 10);
-  return Number.isNaN(value) ? 0 : value;
-};
-
 export const PageSettings = ({
   draft,
   dispatch,
   issues,
   pageId,
+  siteId,
+  options,
   onDeleted,
   onOpenSaveTemplate,
 }: PageSettingsProps): ReactElement => {
   const { t } = useTranslator();
-  const e = useEditorText();
-  const grid = draft.layout === 'grid';
-  const columns = pageColumns(draft.layoutData);
   const titleIssue = issues.some((issue) => issue.blockKey === null && issue.field === 'title');
 
   return (
@@ -85,70 +89,38 @@ export const PageSettings = ({
           dispatch({ type: 'setPage', field: 'isPublic', value });
         }}
       />
-      <Labelled id="page-layout" label={t('page.layout')}>
-        <select
-          id="page-layout"
-          value={draft.layout}
-          onChange={(event) => {
-            dispatch({
-              type: 'setPageLayout',
-              layout: event.target.value === 'grid' ? 'grid' : 'normal',
-            });
+      <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
+        <LayoutDataForm
+          idPrefix="page-layout"
+          owner="page"
+          schema={draft.registry.pageLayoutData}
+          values={layoutObject(draft.layoutData)}
+          grid={draft.layout === 'grid'}
+          siteId={siteId}
+          options={options}
+          onChange={(values) => {
+            for (const [key, value] of Object.entries(values)) {
+              dispatch({ type: 'setPageLayoutData', key, value });
+            }
           }}
         >
-          <option value="normal">{t('canvas.normal')}</option>
-          <option value="grid">{t('canvas.grid')}</option>
-        </select>
-      </Labelled>
-      {grid ? (
-        <div className="page-grid-fields">
-          <Labelled id="page-grid-columns" label={e('pageLayoutData.grid_columns')}>
-            <input
-              id="page-grid-columns"
-              type="number"
-              min={1}
-              value={columns > 0 ? String(columns) : ''}
+          <Labelled id="page-layout" label={t('page.layout')}>
+            <select
+              id="page-layout"
+              value={draft.layout}
               onChange={(event) => {
                 dispatch({
-                  type: 'setPageLayoutData',
-                  key: 'grid_columns',
-                  value: numberFrom(event.target.value),
+                  type: 'setPageLayout',
+                  layout: event.target.value === 'grid' ? 'grid' : 'normal',
                 });
               }}
-            />
+            >
+              <option value="normal">{t('canvas.normal')}</option>
+              <option value="grid">{t('canvas.grid')}</option>
+            </select>
           </Labelled>
-          <Labelled id="page-grid-column-gap" label={e('pageLayoutData.grid_column_gap')}>
-            <input
-              id="page-grid-column-gap"
-              type="number"
-              min={0}
-              value={String(gridGap(draft.layoutData, 'grid_column_gap'))}
-              onChange={(event) => {
-                dispatch({
-                  type: 'setPageLayoutData',
-                  key: 'grid_column_gap',
-                  value: numberFrom(event.target.value),
-                });
-              }}
-            />
-          </Labelled>
-          <Labelled id="page-grid-row-gap" label={e('pageLayoutData.grid_row_gap')}>
-            <input
-              id="page-grid-row-gap"
-              type="number"
-              min={0}
-              value={String(gridGap(draft.layoutData, 'grid_row_gap'))}
-              onChange={(event) => {
-                dispatch({
-                  type: 'setPageLayoutData',
-                  key: 'grid_row_gap',
-                  value: numberFrom(event.target.value),
-                });
-              }}
-            />
-          </Labelled>
-        </div>
-      ) : null}
+        </LayoutDataForm>
+      </Suspense>
       {pageId === null ? null : (
         <DeleteControl
           label={t('page.deleteLabel')}

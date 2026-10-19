@@ -1,6 +1,6 @@
 /**
  * The block field controls. `BlockForm` renders a block's `o:data` fields and
- * its attachments, `LayoutDataForm` renders the `o:layout_data` styling fields,
+ * its attachments, `LayoutDataForm` renders a block's or a page's `o:layout_data`,
  * and both dispatch through the caller, which owns the draft.
  */
 export { BlockForm } from './BlockForm';

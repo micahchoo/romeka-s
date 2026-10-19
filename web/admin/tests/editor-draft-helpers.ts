@@ -5,11 +5,9 @@
 import { parseSitePage } from '../src/api/parse';
 import type { JsonValue } from '../src/api/types';
 import { BLOCK_REGISTRY } from '../src/pages/sites/blockRegistry';
-import {
-  dataObject,
-  draftReducer,
-  fromApi,
-} from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
+import { dataObject } from '../src/pages/sites/editor/values';
+import { fromApi } from '../src/pages/sites/editor/wire';
 import type {
   BlockAttachment,
   BlockDraft,

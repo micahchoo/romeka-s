@@ -763,6 +763,7 @@ export const kn: Catalogue = {
   'editor.outlineToggle': 'ರೂಪರೇಖೆಯನ್ನು ತೋರಿಸಿ',
   'preview.insertHere': 'ಇಲ್ಲಿ ಒಂದು ಬ್ಲಾಕ್ ಅನ್ನು ಸೇರಿಸಿ',
   'preview.insertIntoGroup': 'ಈ ಗುಂಪಿಗೆ ಒಂದು ಬ್ಲಾಕ್ ಅನ್ನು ಸೇರಿಸಿ',
+  'page.termLists': 'ಪದಗಳ ಪಟ್ಟಿ',
   'siteItems.count': 'ಈ ಸೈಟ್‌ನಲ್ಲಿರುವ ಅಂಶಗಳು: {count}',
   'siteItems.counting': 'ಎಣಿಕೆ…',
   'siteItems.countError': 'ಅಂಶಗಳನ್ನು ಎಣಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',

@@ -210,4 +210,7 @@ export const mr: EditorMessages = {
   'query.mediaCount': 'या साइटवरील {count} शी जुळणारे मीडिया.',
   'attachments.mainMedia': 'मुख्य मीडिया',
   'attachments.pick': 'आयटम जोडा किंवा काढून टाका',
+  'layoutData.pageLegend': 'पृष्ठ मांडणी',
+  'layoutGroup.pageGrid': 'ग्रीड',
+  'choice.unset': 'सेट केलेले नाही',
 };
