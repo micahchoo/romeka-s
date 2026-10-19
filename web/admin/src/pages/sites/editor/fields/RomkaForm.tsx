@@ -50,6 +50,13 @@ export const RomkaForm = ({
               value,
             });
           }}
+          record={settings}
+          siblings={romka.fields}
+          onPatch={(values) => {
+            for (const [key, value] of Object.entries(values)) {
+              dispatch({ type: 'setRomkaSetting', blockKey: block.key, field: key, value });
+            }
+          }}
           path={field.key}
           issues={mine}
           blockKey={block.key}

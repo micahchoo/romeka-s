@@ -1032,6 +1032,13 @@ fieldset.block-field {
   color: var(--text-muted);
 }
 
+/* The one help line under a block field (`Labelled.tsx`). */
+.field-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 /* The rich-text editor: a toolbar, then a bordered editing surface. */
 .html-field {
   gap: var(--space-2);
@@ -1118,7 +1125,6 @@ fieldset.block-field {
 /* One attachment, repeat entry or page node is one card, like a value row. */
 .attachment-rows,
 .repeat-rows,
-.item-results,
 .page-list {
   display: grid;
   gap: var(--space-3);
@@ -1133,10 +1139,6 @@ fieldset.block-field {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-}
-
-.item-results {
-  gap: var(--space-1);
 }
 
 .page-list .page-list {

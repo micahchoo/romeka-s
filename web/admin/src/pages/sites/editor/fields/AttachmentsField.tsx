@@ -4,20 +4,24 @@
  * (`site_page_block.attachment`), so a change goes through `setAttachments`
  * rather than `setField`.
  *
- * The item picker searches `/api/items`; the media select is limited to the
- * chosen item's media through `api.listMediaForItem`, which the server reads as
- * `item_id` (`MediaAdapter::buildQuery`).
+ * Items are picked with the shared `ItemPicker` (search as you type,
+ * thumbnails, keyboard): picking an item appends its row and unpicking removes
+ * it. Each row shows the item's thumbnail and title. The media choice is a row
+ * of thumbnails limited to the item's media through `api.listMediaForItem`,
+ * which the server reads as `item_id` (`MediaAdapter::buildQuery`).
  */
 import type { ReactElement } from 'react';
-import { useState } from 'react';
 import { api } from '../../../../api/client';
-import type { Item, ItemId, MediaId } from '../../../../api/types';
-import { formatError } from '../../../../app/format';
-import { toError, useAsync } from '../../../../app/useAsync';
-import { mediaName } from '../../../../app/media';
+import type { Item, ItemId, Media, MediaId } from '../../../../api/types';
+import { useAsync } from '../../../../app/useAsync';
+import { mediaName, previewImageUrl } from '../../../../app/media';
 import { useTranslator } from '../../../../i18n';
 import type { BlockAttachment } from '../draft';
+import { Help, helpId } from '../Labelled';
+import { useEditorText } from '../messages';
 import { HtmlEditor } from './HtmlEditor';
+import { ItemPicker } from './ItemPicker';
+import './controls.css';
 
 /** Replaces one entry of a list, the one place a row edit writes the list. */
 const replaceAt = <T,>(values: readonly T[], index: number, next: T): readonly T[] =>
@@ -36,110 +40,52 @@ const moveAt = <T,>(values: readonly T[], index: number, delta: number): readonl
   return next;
 };
 
-const ItemPicker = ({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly value: ItemId | null;
-  readonly onChange: (value: ItemId | null) => void;
-}): ReactElement => {
-  const translator = useTranslator();
-  const { t } = translator;
-  const [term, setTerm] = useState('');
-  const [results, setResults] = useState<readonly Item[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const selected = useAsync(
-    (): Promise<Item | null> => (value === null ? Promise.resolve(null) : api.getItem(value)),
-    [value],
+/** The rows after the picker's set changed: unpicked items leave, new ones append. */
+export const syncAttachments = (
+  attachments: readonly BlockAttachment[],
+  picked: readonly ItemId[],
+): readonly BlockAttachment[] => {
+  const kept = attachments.filter((row) => row.item === null || picked.includes(row.item));
+  const added = picked
+    .filter((item) => !kept.some((row) => row.item === item))
+    .map((item): BlockAttachment => ({ item, media: null, caption: '' }));
+  return [...kept, ...added];
+};
+
+/** The picked item's thumbnail and title at the top of its row. */
+const AttachedItem = ({ itemId }: { readonly itemId: ItemId | null }): ReactElement => {
+  const { t } = useTranslator();
+  const state = useAsync(
+    (): Promise<Item | null> => (itemId === null ? Promise.resolve(null) : api.getItem(itemId)),
+    [itemId],
   );
-
-  const search = (): void => {
-    setError(null);
-    api.listItems({ search: term, perPage: 10 }).then(
-      (page) => {
-        setResults(page.items);
-      },
-      (cause: unknown) => {
-        setError(formatError(toError(cause), translator));
-      },
-    );
-  };
-
+  const item = state.status === 'ready' ? state.data : null;
+  const thumbnail = item?.thumbnailDisplayUrls.square;
   return (
-    <div className="block-field attachment-item">
-      <label htmlFor={`${id}-search`}>{label}</label>
-      <p className="attachment-current">
-        {value === null
-          ? t('attachments.none')
-          : selected.status === 'ready' && selected.data !== null
-            ? (selected.data.title ?? t('common.untitled'))
-            : selected.status === 'error'
-              ? t('attachments.itemFallback', { id: value })
-              : t('attachments.itemLoading')}
-      </p>
-      <p>
-        <input
-          id={`${id}-search`}
-          type="search"
-          value={term}
-          onChange={(event) => {
-            setTerm(event.target.value);
-          }}
-        />
-        <button type="button" onClick={search}>
-          {t('query.search')}
-        </button>
-        {value === null ? null : (
-          <button
-            type="button"
-            onClick={() => {
-              onChange(null);
-              setResults(null);
-            }}
-          >
-            {t('attachments.change')}
-          </button>
-        )}
-      </p>
-      {error === null ? null : (
-        <p className="field-error" role="alert">
-          {t('attachments.searchError', { message: error })}
-        </p>
-      )}
-      {results === null ? null : results.length === 0 ? (
-        <p className="attachment-empty">{t('attachments.noResults')}</p>
+    <p className="attachment-item">
+      {thumbnail === undefined ? (
+        <span className="attachment-thumb" aria-hidden="true" />
       ) : (
-        <ul className="item-results">
-          {results.map((item) => (
-            <li key={String(item.id)}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(item.id);
-                  setResults(null);
-                }}
-              >
-                {item.title ?? t('common.untitled')}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <img className="attachment-thumb" src={thumbnail} alt="" />
       )}
-    </div>
+      <strong>
+        {itemId === null
+          ? t('attachments.none')
+          : item !== null
+            ? (item.title ?? t('common.untitled'))
+            : state.status === 'error'
+              ? t('attachments.itemFallback', { id: itemId })
+              : t('attachments.itemLoading')}
+      </strong>
+    </p>
   );
 };
 
-/** One media option of the media select. */
-interface MediaOption {
-  readonly id: MediaId;
-  readonly label: string;
-}
+const mediaThumbnail = (media: Media): string | null =>
+  media.thumbnailDisplayUrls.square ?? previewImageUrl(media);
 
-const MediaSelect = ({
+/** The media an attachment shows: the item's main media, or one of its media. */
+const MediaChoice = ({
   id,
   itemId,
   value,
@@ -149,47 +95,64 @@ const MediaSelect = ({
   readonly itemId: ItemId | null;
   readonly value: MediaId | null;
   readonly onChange: (value: MediaId | null) => void;
-}): ReactElement => {
+}): ReactElement | null => {
   const { t } = useTranslator();
+  const e = useEditorText();
   const state = useAsync(
-    (): Promise<readonly MediaOption[]> =>
+    (): Promise<readonly Media[]> =>
       itemId === null
         ? Promise.resolve([])
-        : api.listMediaForItem(itemId, { perPage: 200 }).then((page) =>
-            page.items.map((media) => ({
-              id: media.id,
-              label: mediaName(media) ?? t('common.untitled'),
-            })),
-          ),
-    [itemId, t],
+        : api.listMediaForItem(itemId, { perPage: 200 }).then((page) => page.items),
+    [itemId],
   );
-  const options = state.status === 'ready' ? state.data : [];
+  const media = state.status === 'ready' ? state.data : [];
+  if (itemId === null) {
+    return null;
+  }
   return (
-    <div className="block-field">
-      <label htmlFor={id}>{t('attachments.media')}</label>
-      <select
-        id={id}
-        value={value === null ? '' : String(value)}
-        disabled={itemId === null}
-        onChange={(event) => {
-          const media = options.find((option) => String(option.id) === event.target.value);
-          onChange(media?.id ?? null);
-        }}
-      >
-        <option value="">{t('attachments.noMedia')}</option>
-        {options.map((option) => (
-          <option key={String(option.id)} value={String(option.id)}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <fieldset className="media-choice">
+      <legend>{t('attachments.media')}</legend>
+      <label>
+        <input
+          type="radio"
+          name={id}
+          checked={value === null}
+          onChange={() => {
+            onChange(null);
+          }}
+        />
+        <span className="attachment-thumb" aria-hidden="true" />
+        <span>{e('attachments.mainMedia')}</span>
+      </label>
+      {media.map((entry) => {
+        const thumbnail = mediaThumbnail(entry);
+        return (
+          <label key={String(entry.id)}>
+            <input
+              type="radio"
+              name={id}
+              checked={value === entry.id}
+              onChange={() => {
+                onChange(entry.id);
+              }}
+            />
+            {thumbnail === null ? (
+              <span className="attachment-thumb" aria-hidden="true" />
+            ) : (
+              <img className="attachment-thumb" src={thumbnail} alt="" />
+            )}
+            <span>{mediaName(entry) ?? t('common.untitled')}</span>
+          </label>
+        );
+      })}
+    </fieldset>
   );
 };
 
 export interface AttachmentsFieldProps {
   readonly id: string;
   readonly label: string;
+  readonly help: string;
   /** Whether an attachment may name a media (`blockAttachmentsForm`). */
   readonly media: boolean;
   readonly attachments: readonly BlockAttachment[];
@@ -199,87 +162,86 @@ export interface AttachmentsFieldProps {
 export const AttachmentsField = ({
   id,
   label,
+  help,
   media,
   attachments,
   onChange,
 }: AttachmentsFieldProps): ReactElement => {
   const { t } = useTranslator();
+  const e = useEditorText();
+  const picked = [
+    ...new Set(attachments.flatMap((row) => (row.item === null ? [] : [row.item]))),
+  ];
   return (
-    <fieldset className="block-field attachments-field">
+    <fieldset className="block-field attachments-field" aria-describedby={helpId(id)}>
       <legend>{label}</legend>
-      <ul className="attachment-rows">
-        {attachments.map((attachment, index) => (
-          <li className="attachment-row" key={String(index)}>
-            <ItemPicker
-              id={`${id}-${String(index)}-item`}
-              label={t('attachments.item')}
-              value={attachment.item}
-              onChange={(item) => {
-                onChange(replaceAt(attachments, index, { ...attachment, item, media: null }));
-              }}
-            />
-            {media ? (
-              <MediaSelect
-                id={`${id}-${String(index)}-media`}
-                itemId={attachment.item}
-                value={attachment.media}
-                onChange={(next) => {
-                  onChange(replaceAt(attachments, index, { ...attachment, media: next }));
+      <Help id={id} text={help} />
+      {attachments.length === 0 ? null : (
+        <ul className="attachment-rows" aria-label={label}>
+          {attachments.map((attachment, index) => (
+            <li className="attachment-row" key={String(index)}>
+              <AttachedItem itemId={attachment.item} />
+              {media ? (
+                <MediaChoice
+                  id={`${id}-${String(index)}-media`}
+                  itemId={attachment.item}
+                  value={attachment.media}
+                  onChange={(next) => {
+                    onChange(replaceAt(attachments, index, { ...attachment, media: next }));
+                  }}
+                />
+              ) : null}
+              <HtmlEditor
+                id={`${id}-${String(index)}-caption`}
+                label={t('attachments.caption')}
+                value={attachment.caption}
+                onChange={(caption) => {
+                  onChange(replaceAt(attachments, index, { ...attachment, caption }));
                 }}
               />
-            ) : null}
-            <HtmlEditor
-              id={`${id}-${String(index)}-caption`}
-              label={t('attachments.caption')}
-              value={attachment.caption}
-              onChange={(caption) => {
-                onChange(replaceAt(attachments, index, { ...attachment, caption }));
-              }}
-            />
-            <p className="attachment-actions">
-              <button
-                type="button"
-                disabled={index === 0}
-                aria-label={t('attachments.moveUp', { position: index + 1 })}
-                onClick={() => {
-                  onChange(moveAt(attachments, index, -1));
-                }}
-              >
-                {t('blocks.moveUpText')}
-              </button>
-              <button
-                type="button"
-                disabled={index === attachments.length - 1}
-                aria-label={t('attachments.moveDown', { position: index + 1 })}
-                onClick={() => {
-                  onChange(moveAt(attachments, index, 1));
-                }}
-              >
-                {t('blocks.moveDownText')}
-              </button>
-              <button
-                type="button"
-                aria-label={t('attachments.remove', { position: index + 1 })}
-                onClick={() => {
-                  onChange(attachments.filter((_, at) => at !== index));
-                }}
-              >
-                {t('action.remove')}
-              </button>
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p>
-        <button
-          type="button"
-          onClick={() => {
-            onChange([...attachments, { item: null, media: null, caption: '' }]);
-          }}
-        >
-          {t('attachments.add')}
-        </button>
-      </p>
+              <p className="attachment-actions">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  aria-label={t('attachments.moveUp', { position: index + 1 })}
+                  onClick={() => {
+                    onChange(moveAt(attachments, index, -1));
+                  }}
+                >
+                  {t('blocks.moveUpText')}
+                </button>
+                <button
+                  type="button"
+                  disabled={index === attachments.length - 1}
+                  aria-label={t('attachments.moveDown', { position: index + 1 })}
+                  onClick={() => {
+                    onChange(moveAt(attachments, index, 1));
+                  }}
+                >
+                  {t('blocks.moveDownText')}
+                </button>
+                <button
+                  type="button"
+                  aria-label={t('attachments.remove', { position: index + 1 })}
+                  onClick={() => {
+                    onChange(attachments.filter((_, at) => at !== index));
+                  }}
+                >
+                  {t('action.remove')}
+                </button>
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ItemPicker
+        id={`${id}-picker`}
+        label={e('attachments.pick')}
+        picked={picked}
+        onChange={(next) => {
+          onChange(syncAttachments(attachments, next));
+        }}
+      />
     </fieldset>
   );
 };

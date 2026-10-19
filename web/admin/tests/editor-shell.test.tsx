@@ -327,7 +327,7 @@ describe('the page editor shell', () => {
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
     fireEvent.click(await screen.findByRole('button', { name: '1 issue' }));
 
-    const field = await screen.findByLabelText('oEmbed URL');
+    const field = await screen.findByLabelText('Media URL');
     await waitFor(() => {
       expect(document.activeElement).toBe(field);
     });

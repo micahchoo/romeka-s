@@ -19,7 +19,7 @@ pub struct Html;
 /// `BlockLayout/Html.php::form`: one `html` textarea
 /// (`application/src/Site/BlockLayout/Html.php`).
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[html("html", "blockField.html.html")],
+    fields: &[html("html", "blockField.html.html", "fieldHelp.html.html")],
 };
 
 impl BlockLayout for Html {

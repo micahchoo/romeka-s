@@ -40,6 +40,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
         choice(
             "resource_type",
             "blockField.browsePreview.resource_type",
+            "fieldHelp.browsePreview.resource_type",
             &[
                 option("items", "blockChoice.items"),
                 option("item_sets", "blockChoice.item_sets"),
@@ -47,11 +48,23 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             ],
         )
         .default_text("items"),
-        item_query("query", "blockField.browsePreview.query").default_text(""),
-        integer("limit", "blockField.browsePreview.limit").default_int(12),
+        item_query(
+            "query",
+            "blockField.browsePreview.query",
+            "fieldHelp.browsePreview.query",
+        )
+        .resource_from("resource_type")
+        .default_text(""),
+        integer(
+            "limit",
+            "blockField.browsePreview.limit",
+            "fieldHelp.browsePreview.limit",
+        )
+        .default_int(12),
         multi_choice(
             "components",
             "blockField.browsePreview.components",
+            "fieldHelp.browsePreview.components",
             &[
                 option("resource-heading", "blockChoice.resource-heading"),
                 option("resource-body", "blockChoice.resource-body"),
@@ -59,8 +72,19 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             ],
         )
         .default_list(&["resource-heading", "resource-body", "thumbnail"]),
-        text("heading", "blockField.browsePreview.heading").default_text(""),
-        text("link-text", "blockField.browsePreview.link-text"),
+        text(
+            "heading",
+            "blockField.browsePreview.heading",
+            "fieldHelp.browsePreview.heading",
+        )
+        .placeholder("fieldExample.browsePreview.heading")
+        .default_text(""),
+        text(
+            "link-text",
+            "blockField.browsePreview.link-text",
+            "fieldHelp.browsePreview.link-text",
+        )
+        .placeholder("fieldExample.browsePreview.link-text"),
     ],
 };
 

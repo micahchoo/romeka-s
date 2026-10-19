@@ -26,8 +26,15 @@ pub struct Oembed;
 /// the fetch, not fields the admin edits, so the schema leaves them out.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        text("url", "blockField.oembed.url").required(),
-        boolean("refresh", "blockField.oembed.refresh").default_bool(false),
+        text("url", "blockField.oembed.url", "fieldHelp.oembed.url")
+            .placeholder("fieldExample.url")
+            .required(),
+        boolean(
+            "refresh",
+            "blockField.oembed.refresh",
+            "fieldHelp.oembed.refresh",
+        )
+        .default_bool(false),
     ],
 };
 
