@@ -369,9 +369,9 @@ comments wait for their first read, so a view that shows labels only never fetch
 module is exported from `src/i18n/index.ts`, which is in the first paint. The text is keyed by term,
 and a stored text is translated only while it is still the built-in English, so a user's vocabulary,
 an edited label and a template's alternate label show as stored. The public site reads the label
-tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English and Spanish come from upstream's
-catalogues (`scripts/extract-vocabulary-text.mjs`); the other locales from
-`scripts/translate-locales.mjs`. A new locale adds its two files to the loaders in `termText.ts` and
+tables too (`crates/omeka-site/src/i18n/vocabulary.rs`). English is the text a fresh install
+stores and Spanish is upstream's `es.po` (`scripts/extract-vocabulary-text.mjs`); the other locales
+come from `scripts/translate-locales.mjs`. A new locale adds its two files to the loaders in `termText.ts` and
 `termComments.ts`, then runs `UPDATE_GENERATED=1 cargo test -p omeka-site vocabulary` and adds the
 tag to the site's `TABLES`.
 

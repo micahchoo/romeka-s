@@ -9,6 +9,7 @@ import { api } from '../../api/client';
 import { markDistinct, mergeValues } from '../../api/tags';
 import type { Rewrite, ValueCount, ValueScope } from '../../api/tags';
 import { ErrorNotice } from '../../app/errors';
+import { useLesson } from '../../app/lessons/lesson';
 import { useTranslator } from '../../i18n';
 import { useTermListText } from './messages';
 import { RewriteCounts } from './rewrite-counts';
@@ -37,6 +38,7 @@ export const MergePrompt = ({
   const tl = useTermListText();
   const [kept, setKept] = useState(group[0]?.value ?? '');
   const [step, setStep] = useState<Step>({ kind: 'choose' });
+  const lesson = useLesson('term-merge');
   const from = group.map((count) => count.value).filter((value) => value !== kept);
 
   const run = (task: () => Promise<void>): void => {
@@ -74,7 +76,10 @@ export const MergePrompt = ({
   return (
     <section className="merge-prompt" aria-label={tl('merge.title')}>
       <h3>{tl('merge.title')}</h3>
-      <p>{tl('merge.intro')}</p>
+      <p>
+        {tl('merge.intro')} {lesson.toggle}
+      </p>
+      {lesson.panel}
       <fieldset
         className="merge-choices"
         aria-label={tl('merge.title')}

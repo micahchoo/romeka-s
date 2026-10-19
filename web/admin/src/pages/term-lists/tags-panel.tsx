@@ -11,6 +11,7 @@ import { getCensus, promoteTags } from '../../api/tags';
 import type { Census, Promotion } from '../../api/tags';
 import { listTermLists } from '../../api/term-lists';
 import { ErrorNotice } from '../../app/errors';
+import { useLesson } from '../../app/lessons/lesson';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { MergePrompt } from './merge-prompt';
@@ -200,11 +201,16 @@ const PromotionPreview = ({
 }): ReactElement => {
   const { t } = useTranslator(common);
   const tl = useTermListText();
+  const lesson = useLesson('tag-promote');
   const names = (named: readonly { readonly label: string }[]): string =>
     named.length === 0 ? tl('rewrite.none') : named.map((entry) => entry.label).join(', ');
   return (
     <section className="promote-preview" aria-labelledby="promote-preview-title">
-      <h3 id="promote-preview-title">{tl('tags.promoteTitle', { list })}</h3>
+      <div className="lesson-line">
+        <h3 id="promote-preview-title">{tl('tags.promoteTitle', { list })}</h3>
+        {lesson.toggle}
+      </div>
+      {lesson.panel}
       {preview.created ? <p>{tl('tags.newList')}</p> : null}
       <RewriteCounts rewrite={preview} skipped="tags.skipped" />
       <dl className="rewrite-counts">

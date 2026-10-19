@@ -6,6 +6,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import type { Publication, PublicationCommand, PublicationTerm } from '../../api/publication';
+import { useLesson } from '../../app/lessons/lesson';
 import { usePublishText } from './messages';
 import type { PublishMessageKey } from './messages';
 
@@ -61,6 +62,8 @@ const TermLinks = ({
   const [exact, setExact] = useState(term.exactMatch ?? '');
   const [close, setClose] = useState(term.closeMatch ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
+  const lesson = useLesson('authority-link', opened);
   const id = `publish-links-${encodeURIComponent(term.key).replace(/%/g, '_')}`;
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -78,7 +81,12 @@ const TermLinks = ({
     });
   };
   return (
-    <details className="publish-links">
+    <details
+      className="publish-links"
+      onToggle={(event) => {
+        setOpened(event.currentTarget.open);
+      }}
+    >
       <summary aria-label={text('publish.linksLabel', { term: term.label })}>
         {text('publish.links')}
       </summary>
@@ -108,8 +116,9 @@ const TermLinks = ({
           />
         </p>
         <p id={`${id}-hint`} className="field-hint">
-          {text('publish.linksHint')}
+          {text('publish.linksHint')} {lesson.toggle}
         </p>
+        {lesson.panel}
         {error === null ? null : <p role="alert">{error}</p>}
         <p className="form-actions">
           <button type="submit" disabled={busy}>

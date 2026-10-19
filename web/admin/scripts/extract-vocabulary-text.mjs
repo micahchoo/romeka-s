@@ -1,21 +1,19 @@
 /**
- * Write the English and Spanish text of the four built-in vocabularies from
- * upstream's gettext catalogues.
+ * Write the English and Spanish text of the four built-in vocabularies.
  *
  *   node scripts/extract-vocabulary-text.mjs <omeka-s checkout>
  *
- * Upstream's `application/language/template.pot` marks each vocabulary, class
- * and property label and comment with an extracted comment such as
- * `#. Property label for Dublin Core:title`. That comment names the term, so
- * this script keys each text by term (`dcterms:title`, `bibo:Document`, or the
- * vocabulary prefix), never by its English. The pot merges a msgid that the
- * application also uses (`Title`) and drops its vocabulary comment, so a term
- * the pot does not name takes its English from the install seed,
- * `crates/omeka-cli/data/default-vocabularies.json`.
+ * English is the text a fresh install stores, keyed by term (`dcterms:title`,
+ * `bibo:Document`, or the vocabulary prefix), in install order. Its source is
+ * `crates/omeka-cli/tests/fixtures/oracle-default-vocabularies.json`, a fresh
+ * upstream install read back through its API; `romeka install` is held to it
+ * by that crate's `default_vocabularies` test. The translation guard compares
+ * a stored text against this English, so it must be the stored text exactly.
  *
- * Spanish is `es.po`'s msgstr for each English msgid. A term whose msgid has
- * no msgstr keeps the translation already in `es.json`, which is written by
- * hand, and the script lists every such term. A term with neither stops it.
+ * Spanish is upstream `application/language/es.po`'s msgstr for each English
+ * msgid. A term whose msgid has no msgstr keeps the translation already in
+ * `es.json`, which is written by hand, and the script lists every such term.
+ * A term with neither stops it.
  *
  * The files are `src/i18n/locales/vocabulary/{labels,comments}/<tag>.json`.
  * The other locales are filled by `scripts/translate-locales.mjs`.
@@ -25,13 +23,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ADMIN = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SEED = join(ADMIN, '../../crates/omeka-cli/data/default-vocabularies.json');
+const INSTALLED = join(ADMIN, '../../crates/omeka-cli/tests/fixtures/oracle-default-vocabularies.json');
 const OUT = join(ADMIN, 'src/i18n/locales/vocabulary');
 
 const upstream = process.argv[2];
 if (!upstream) throw new Error('usage: extract-vocabulary-text.mjs <omeka-s checkout>');
 
-/** The entries of a `.po` or `.pot` file: extracted comments, msgid, msgstr. */
+/** The entries of a `.po` file: msgctxt, msgid, msgstr. */
 const parsePo = (path) => {
   const entries = [];
   let entry = null;
@@ -45,10 +43,9 @@ const parsePo = (path) => {
       flush();
       continue;
     }
-    entry ??= { comments: [] };
+    entry ??= {};
     const keyword = line.match(/^(msgctxt|msgid_plural|msgid|msgstr(?:\[\d\])?)\s+(".*")$/);
-    if (line.startsWith('#.')) entry.comments.push(line.slice(2).trim());
-    else if (keyword) {
+    if (keyword) {
       field = keyword[1];
       entry[field] = JSON.parse(keyword[2]);
     } else if (line.startsWith('"') && field) entry[field] += JSON.parse(line);
@@ -57,61 +54,23 @@ const parsePo = (path) => {
   return entries;
 };
 
-const seed = JSON.parse(readFileSync(SEED, 'utf8')).vocabularies;
-const prefixOf = new Map(seed.map((vocabulary) => [vocabulary.label, vocabulary.prefix]));
-const language = join(upstream, 'application/language');
-
-// The pot's English per term, from its extracted comments.
-const potEnglish = { label: new Map(), comment: new Map() };
-for (const entry of parsePo(join(language, 'template.pot'))) {
-  for (const comment of entry.comments) {
-    const term = comment.match(/^(?:Property|Class) (label|comment) for (.+):([^:]+)$/);
-    const vocabulary = comment.match(/^Vocabulary (label|comment) for (.+)$/);
-    const [what, key] = term
-      ? [term[1], `${prefixOf.get(term[2])}:${term[3]}`]
-      : vocabulary
-        ? [vocabulary[1], prefixOf.get(vocabulary[2])]
-        : [null, null];
-    if (!what) continue;
-    if (key.startsWith('undefined')) throw new Error(`no seed vocabulary for "${comment}"`);
-    potEnglish[what].set(key, entry.msgid);
-  }
-}
-
-// Seed order: each vocabulary, then its classes, then its properties; the
-// terms only the pot names follow their vocabulary.
 const english = { label: {}, comment: {} };
-for (const vocabulary of seed) {
-  const keys = [
-    vocabulary.prefix,
-    ...[...vocabulary.classes, ...vocabulary.properties].map((term) => `${vocabulary.prefix}:${term.local_name}`),
-  ];
-  const seeded = new Map([
+for (const vocabulary of JSON.parse(readFileSync(INSTALLED, 'utf8'))) {
+  const rows = [
     [vocabulary.prefix, vocabulary],
-    ...[...vocabulary.classes, ...vocabulary.properties].map((term) => [
-      `${vocabulary.prefix}:${term.local_name}`,
-      term,
-    ]),
-  ]);
-  for (const what of ['label', 'comment']) {
-    const extra = [...potEnglish[what].keys()].filter(
-      (key) => !seeded.has(key) && (key === vocabulary.prefix || key.startsWith(`${vocabulary.prefix}:`)),
-    );
-    for (const key of [...keys, ...extra]) {
-      const text = potEnglish[what].get(key) ?? seeded.get(key)?.[what];
-      if (text) english[what][key] = text;
-    }
-  }
+    ...[...vocabulary.classes, ...vocabulary.properties].map((term) => [`${vocabulary.prefix}:${term.local_name}`, term]),
+  ];
+  for (const what of ['label', 'comment']) for (const [key, row] of rows) if (row[what]) english[what][key] = row[what];
 }
 
 const spanish = new Map(
-  parsePo(join(language, 'es.po'))
+  parsePo(join(upstream, 'application/language/es.po'))
     .filter((entry) => entry.msgctxt === undefined && entry.msgstr)
     .map((entry) => [entry.msgid, entry.msgstr]),
 );
 
 const NOTES = {
-  en: 'The English text of the built-in vocabularies, keyed by term. Written by scripts/extract-vocabulary-text.mjs from upstream application/language/template.pot and the install seed.',
+  en: 'The English text of the built-in vocabularies, keyed by term. Written by scripts/extract-vocabulary-text.mjs from the text a fresh upstream install stores.',
   es: "The Spanish text of the built-in vocabularies, keyed by term. Written by scripts/extract-vocabulary-text.mjs from upstream application/language/es.po; a term es.po leaves untranslated keeps the hand-written text here.",
 };
 

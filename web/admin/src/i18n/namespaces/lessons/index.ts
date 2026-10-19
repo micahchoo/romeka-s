@@ -14,6 +14,7 @@ export const en = {
   'lesson.step': 'Step {number} of {count}: {rung}',
   'lesson.gotIt': 'Got it',
   'lesson.recall': 'Show the lesson: {title}',
+  'lesson.chip': 'Lesson',
   'lesson.learnMore': 'Read about {standard}',
   'rung.describe': 'Describe',
   'rung.kinds': 'Kinds of things',
@@ -24,6 +25,9 @@ export const en = {
   'standard.rdfClasses': 'classes in RDF Schema',
   'standard.linkedData': 'linked data',
   'standard.localVocabulary': 'vocabularies in Omeka S',
+  'standard.skos': 'controlled vocabularies in SKOS',
+  'standard.skosMapping': 'matching terms across vocabularies in SKOS',
+  'standard.coolUris': 'web addresses that do not change',
   'term.title': 'Standard terms',
   'term.body':
     'The code under each field, such as dcterms:creator, is its standard term from Dublin Core. Values are saved under that term, so another archive that reads Dublin Core knows what each value is without asking you.',
@@ -48,6 +52,18 @@ export const en = {
   'localField.title': 'Your own vocabulary',
   'localField.body':
     'Its name starts with local: because no shared standard had this field, so it is a term in this archive’s own vocabulary. Its address is on this site, so other archives can still read the value and look up what it means.',
+  'termMerge.title': 'One spelling',
+  'termMerge.body':
+    'Merging changes every value written another way into the one spelling you keep. With one spelling for each thing, a search or a list of values finds every record, not only the ones typed the same way.',
+  'tagPromote.title': 'A controlled vocabulary',
+  'tagPromote.body':
+    'Promoting makes the chosen tags the words of a list, and the Subject field of these item types then offers that list. People pick a word from it instead of typing one, so each thing keeps one spelling.',
+  'authorityLink.title': 'Links to an authority',
+  'authorityLink.body':
+    'An exact match says that this term and a record in an authority, such as GeoNames or Wikidata, name the same thing. The published list carries the link as skos:exactMatch, so software that knows that record can join your records to everything else linked to it.',
+  'publish.title': 'Addresses that last',
+  'publish.body':
+    'Publishing gives each term a web address that never changes, and later versions can add terms but never remove one. Records here and in other archives can cite those addresses and trust that the links keep working.',
   'switch.label': 'Show lessons',
   'switch.hint':
     'Short notes that explain the standard behind an action, the first time you take it.',

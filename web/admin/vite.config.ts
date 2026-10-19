@@ -57,7 +57,7 @@ export default defineConfig({
             { name: 'item-types-messages', test: /i18n\/namespaces\/item-types\/index\.ts$/ },
             { name: 'term-lists-messages', test: /i18n\/namespaces\/term-lists\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
-            { name: 'lessons', test: /(app\/lessons\/(lesson\.tsx|messages\.ts|registry\.ts|seen\.ts)|i18n\/namespaces\/lessons\/index\.ts)$/ },
+            { name: 'lessons', test: /(app\/lessons\/(lesson\.tsx|messages\.ts|queue\.ts|registry\.ts|seen\.ts)|i18n\/namespaces\/lessons\/index\.ts)$/ },
             {
               name: 'theme-model',
               test: /(pages\/sites\/themeEditor\/(colour|palette|registry|draft)\.ts|generated\/themeSettings\.json)$/,

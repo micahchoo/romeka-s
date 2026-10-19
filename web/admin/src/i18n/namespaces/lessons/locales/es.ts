@@ -11,6 +11,7 @@ export const es: LessonsMessages = {
   'lesson.step': 'Paso {number} de {count}: {rung}',
   'lesson.gotIt': 'Entendido',
   'lesson.recall': 'Mostrar la lección: {title}',
+  'lesson.chip': 'Lección',
   'lesson.learnMore': 'Leer sobre {standard}',
   'rung.describe': 'Describir',
   'rung.kinds': 'Tipos de cosas',
@@ -21,6 +22,9 @@ export const es: LessonsMessages = {
   'standard.rdfClasses': 'las clases de RDF Schema',
   'standard.linkedData': 'los datos enlazados',
   'standard.localVocabulary': 'los vocabularios en Omeka S',
+  'standard.skos': 'los vocabularios controlados en SKOS',
+  'standard.skosMapping': 'la correspondencia de términos entre vocabularios en SKOS',
+  'standard.coolUris': 'las direcciones web que no cambian',
   'term.title': 'Términos estándar',
   'term.body':
     'El código bajo cada campo, como dcterms:creator, es su término estándar de Dublin Core. Los valores se guardan con ese término, así que otro archivo que lea Dublin Core sabe qué es cada valor sin preguntarte.',
@@ -45,6 +49,18 @@ export const es: LessonsMessages = {
   'localField.title': 'Tu propio vocabulario',
   'localField.body':
     'Su nombre empieza por local: porque ningún estándar compartido tenía este campo, así que es un término del vocabulario propio de este archivo. Su dirección está en este sitio, así que otros archivos pueden leer el valor y consultar qué significa.',
+  'termMerge.title': 'Una sola grafía',
+  'termMerge.body':
+    'Al fusionar, cada valor escrito de otra forma pasa a la grafía que conservas. Con una sola grafía para cada cosa, una búsqueda o una lista de valores encuentra todos los registros, no solo los que se escribieron igual.',
+  'tagPromote.title': 'Un vocabulario controlado',
+  'tagPromote.body':
+    'Al pasarlas a una lista, las etiquetas elegidas son las palabras de esa lista, y el campo Tema de estos tipos de elemento ofrece la lista. Las personas eligen una palabra en lugar de escribirla, así que cada cosa conserva una sola grafía.',
+  'authorityLink.title': 'Enlaces a una autoridad',
+  'authorityLink.body':
+    'Una coincidencia exacta dice que este término y un registro de una autoridad, como GeoNames o Wikidata, nombran la misma cosa. La lista publicada lleva el enlace como skos:exactMatch, así que el software que conoce ese registro puede unir tus registros con todo lo que está enlazado a él.',
+  'publish.title': 'Direcciones que duran',
+  'publish.body':
+    'Al publicar, cada término recibe una dirección web que nunca cambia, y las versiones siguientes pueden añadir términos, pero nunca quitar uno. Los registros de este y de otros archivos pueden citar esas direcciones y confiar en que los enlaces siguen funcionando.',
   'switch.label': 'Mostrar lecciones',
   'switch.hint':
     'Notas breves que explican el estándar detrás de una acción, la primera vez que la haces.',

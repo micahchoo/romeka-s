@@ -8,6 +8,25 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Describe: the admin's Vocabulary group becomes Describe, ordered around the work. Item types (resource templates)
+  are a plain-words editor with a live preview of the item form, starter kinds and a class picker; a Fields page
+  searches properties by meaning; Standards holds vocabularies, properties and classes as tabs, with a "?" that
+  shows each term's stored definition. The old routes still open the right screen.
+- The resource template drives the item, item set and media forms: its rows, labels, required and private flags,
+  data types, default language and class. A write that misses a required template value answers 422, as upstream.
+- Term lists: the Custom Vocab module built into core (`custom_vocab`, `/api/custom_vocabs`, `customvocab:<id>`
+  data types), with a type-ahead picker in the item editor. Migration 0002.
+- Tags: a Tags field writes plain `dcterms:subject` values; the Term lists page counts tags, merges look-alike
+  spellings and promotes tags into a list.
+- Import and update a vocabulary from an RDF file or URL, with a diff before an update. The URL fetch refuses
+  private and loopback addresses on every redirect hop.
+- Publish a term list (SKOS) or a vocabulary (RDFS/OWL) at `/vocab/<slug>/`, by content negotiation, with versions;
+  a published term can only be added or deprecated. Migration 0003.
+- Lessons: a short note the first time an action rests on a standard, once per user, with a "?" to recall it and a
+  "Show lessons" switch in the user settings.
+
 ### Changed
 
 - Corrected the pages that still called the golden fixtures missing and two `omeka-api` test targets
@@ -22,6 +41,14 @@ semantic versioning.
 
 ### Fixed
 
+- An admin edit no longer removes an item from its sites, a media save no longer erases its values, and
+  `resource:item` types and URI languages survive a save.
+- Upstream drops a blank literal or URI value, and reads a URI value's language from `o:lang`; so does the port.
+- Vocabulary terms are case-sensitive, as upstream's are (migration 0004): FOAF stores both `givenName` and
+  `givenname`. The default vocabularies install from upstream's RDF files, and `romeka install` corrects an older
+  install's FOAF labels and comments.
+- The admin shell keeps its header and nav at their own height on a phone, and the nav strip scrolls to the active
+  link; a fieldset no longer overflows a 375 px screen.
 - A site page renders its normal or grid layout and each block's `layout_data` (grid position and
   span, class, alignment, sizes, padding, background colour) with upstream's markup.
 - A block's `o:attachment` is read, written and rendered. A missing item, or a media that is not the
