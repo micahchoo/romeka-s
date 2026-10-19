@@ -16,7 +16,14 @@
       "kind": "choice",
       "choices": [
         "en",
-        "es"
+        "es",
+        "hi",
+        "mr",
+        "ml",
+        "ta",
+        "kn",
+        "te",
+        "ne"
       ],
       "default": "en"
     },

@@ -427,7 +427,7 @@ pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
     SiteSettingSpec {
         key: "locale",
         label: "Site language",
-        kind: SettingKind::Choice(&["en", "es"]),
+        kind: SettingKind::Choice(&Locale::TAGS),
         default: SettingDefault::Text("en"),
         group: Some(SettingGroup::Language),
     },
