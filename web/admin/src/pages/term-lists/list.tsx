@@ -27,7 +27,8 @@ export const KIND_LABEL: Readonly<Record<TermList['source']['kind'], TermListMes
 
 /**
  * How many items use a list: the `dt` property query counts them. The empty
- * `property` means any property; the port drops a row that omits the key.
+ * `property` means any property; `buildPropertyQuery` skips a row that omits
+ * the key, so it is sent.
  */
 const usage = async (list: TermList): Promise<number> =>
   (

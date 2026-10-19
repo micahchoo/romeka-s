@@ -1,12 +1,13 @@
 /**
  * Term lists end to end: a list of words is created on the Term lists page, a
- * resource template row allows it, an item stores a word from it, the list
- * page counts that item, and the public item page shows the word.
+ * resource template row allows it, a new item picks a word from it in the
+ * item editor, the stored value keeps the list's type, an unchanged save keeps
+ * the item byte for byte, the list page counts that item, and the public item
+ * page shows the word.
  */
 import { expect, expectClean, test } from '../fixtures';
 import { SITE_SLUG } from '../harness/seed';
 import { isArray, numberField, record, stringField } from '../harness/json';
-import { readHarness } from '../harness/state';
 
 const LIST = 'E2E places';
 const TEMPLATE = 'E2E place template';
@@ -35,30 +36,50 @@ test('a term list limits a template row and its value renders on the site', asyn
   await page.getByLabel('Add property').selectOption({ label: 'dcterms:spatial' });
   await page.getByRole('button', { name: 'Add property' }).click();
   await page.getByRole('checkbox', { name: LIST }).check();
+  await page.getByLabel('Add property').selectOption({ label: 'dcterms:title' });
+  await page.getByRole('button', { name: 'Add property' }).click();
   await page.getByRole('button', { name: 'Add resource template' }).click();
   await expect(page).toHaveURL(/#\/resource-templates\/\d+$/);
   await expectClean(diagnostics, 'template create');
 
-  // The item editor is being rebuilt to follow the template, so the item is
-  // written through the API with a word from the list.
   const lists: unknown = await (await page.request.get('/api/custom_vocabs')).json();
   const listId = (isArray(lists) ? lists : [])
     .map((entry) => record(entry, 'term list'))
     .filter((entry) => stringField(entry, 'o:label', 'term list') === LIST)
     .map((entry) => numberField(entry, 'o:id', 'term list'))[0];
   expect(listId).toBeDefined();
-  const { keyIdentity, keyCredential } = readHarness();
-  const created = await page.request.post('/api/items', {
-    params: { key_identity: keyIdentity, key_credential: keyCredential },
-    data: {
-      'dcterms:title': [{ type: 'literal', property_id: 'auto', '@value': ITEM }],
-      'dcterms:spatial': [
-        { type: `customvocab:${String(listId)}`, property_id: 'auto', '@value': 'Dún Laoghaire' },
-      ],
-    },
-  });
-  expect(created.status()).toBe(200);
-  const itemId = numberField(record(await created.json(), 'item'), 'o:id', 'item');
+
+  // The row allows only the list, so its value is picked from the list.
+  await page.goto('/#/items/new');
+  await page.getByLabel('Resource template').selectOption({ label: TEMPLATE });
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(ITEM);
+  const picker = page.getByRole('combobox', { name: `Spatial Coverage Term list: ${LIST}` });
+  await picker.fill('laog');
+  await expect(page.locator('.term-picker').getByRole('option')).toHaveText(['Dún Laoghaire']);
+  await picker.press('ArrowDown');
+  await picker.press('Enter');
+  await expect(picker).toHaveValue('Dún Laoghaire');
+  await page.getByRole('button', { name: 'Add item' }).click();
+  await expect(page).toHaveURL(/#\/items\/\d+$/);
+  await expectClean(diagnostics, 'item create with a term');
+
+  const itemId = Number(/#\/items\/(\d+)$/.exec(page.url())?.[1]);
+  const stored = async (): Promise<Record<string, unknown>> => {
+    const document = record(await (await page.request.get(`/api/items/${String(itemId)}`)).json(), 'item');
+    return Object.fromEntries(Object.entries(document).filter(([key]) => key !== 'o:modified'));
+  };
+  const before = await stored();
+  expect(before['dcterms:spatial']).toMatchObject([
+    { type: `customvocab:${String(listId)}`, '@value': 'Dún Laoghaire', '@language': 'en' },
+  ]);
+
+  // Reopened, the picker shows the stored word, and an unchanged save keeps the item.
+  await page.getByRole('button', { name: 'Edit this item' }).click();
+  await expect(picker).toHaveValue('Dún Laoghaire');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('[role=status]')).toHaveText('Saved.');
+  await expectClean(diagnostics, 'unchanged save with a term');
+  expect(await stored()).toEqual(before);
 
   // The list page counts the item.
   await page.goto('/#/term-lists');

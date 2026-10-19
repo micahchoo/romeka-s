@@ -2,7 +2,7 @@
  * The values of one resource, one group per property, laid out by the chosen
  * template (`value-fields.ts` owns the layout and the rules).
  */
-import { useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DataType, Property, ResourceTemplate } from '../api/types';
 import { useTranslator } from '../i18n';
@@ -14,10 +14,17 @@ import {
   addPropertyValue,
   layoutFields,
   matchProperties,
+  pickTerm,
   setValueType,
   typeChoices,
+  valueInput,
   type PropertyField,
 } from './value-fields';
+
+// Most resources hold no term list value, so the picker loads on first use.
+const TermPicker = lazy(() =>
+  import('../pages/term-lists/term-picker').then((module) => ({ default: module.TermPicker })),
+);
 
 /** How many matches "Add another field" lists before asking for a longer query. */
 const MATCH_LIMIT = 12;
@@ -66,6 +73,7 @@ const ValueRow = ({
     onChange(patchValue(draft, value.key, next));
   };
   const choices = typeChoices(field, value);
+  const input = valueInput(value);
   const named = { field: field.label };
   return (
     <li className="value-row">
@@ -88,7 +96,25 @@ const ValueRow = ({
           </select>
         </p>
       ) : null}
-      {value.kind === 'literal' ? (
+      {input.kind === 'term-list' ? (
+        <Suspense
+          fallback={
+            <p className="value-field-wide">
+              <input type="text" disabled aria-labelledby={labelId} value={value.text} />
+            </p>
+          }
+        >
+          <TermPicker
+            id={id('text')}
+            fieldLabelId={labelId}
+            termList={input.termList}
+            value={value.text}
+            onPick={(choice) => {
+              onChange(pickTerm(draft, value.key, choice));
+            }}
+          />
+        </Suspense>
+      ) : input.kind === 'literal' ? (
         <p className="value-field-wide">
           <textarea
             id={id('text')}
@@ -103,13 +129,13 @@ const ValueRow = ({
       ) : (
         <p className="value-field-wide">
           <label htmlFor={id('text')}>
-            {t(value.kind === 'uri' ? 'field.uri' : 'field.resourceId')}
+            {t(input.kind === 'uri' ? 'field.uri' : 'field.resourceId')}
           </label>
           <input
             id={id('text')}
             type="text"
-            aria-label={t(value.kind === 'uri' ? 'valueField.uri' : 'valueField.resourceId', named)}
-            inputMode={value.kind === 'resource' ? 'numeric' : undefined}
+            aria-label={t(input.kind === 'uri' ? 'valueField.uri' : 'valueField.resourceId', named)}
+            inputMode={input.kind === 'resource' ? 'numeric' : undefined}
             value={value.text}
             onChange={(event) => {
               patch({ text: event.target.value });
@@ -117,7 +143,7 @@ const ValueRow = ({
           />
         </p>
       )}
-      {value.kind === 'uri' ? (
+      {input.kind === 'uri' ? (
         <p>
           <label htmlFor={id('label')}>{t('field.label')}</label>
           <input
@@ -131,7 +157,7 @@ const ValueRow = ({
           />
         </p>
       ) : null}
-      {value.kind === 'resource' ? null : (
+      {input.kind === 'resource' || input.kind === 'term-list' ? null : (
         <p className="value-lang-field">
           <label htmlFor={id('lang')}>{t('field.language')}</label>
           <input

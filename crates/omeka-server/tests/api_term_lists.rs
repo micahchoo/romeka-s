@@ -273,6 +273,52 @@ async fn a_term_value_keeps_the_list_type_and_takes_the_list_language() {
     assert_eq!(outside.json()["dcterms:spatial"][0]["@value"], "Paris");
 }
 
+/// `buildPropertyQuery` counts a list's items the way the admin asks: a `dt`
+/// row whose `property` is present and empty narrows by data type alone. A row
+/// with no `property` key fails `array_key_exists('property', $queryRow)` and
+/// is skipped, so it matches every item. Both measured on the oracle: of 178
+/// public items, an empty `property` with `dt=customvocab:999` matched 0 and a
+/// row without the key matched 178.
+#[tokio::test]
+async fn a_data_type_row_with_an_empty_property_counts_a_lists_items() {
+    let (pool, seed) = seeded_pool().await;
+    let property = spatial(&pool, seed.vocabulary).await;
+    let id = list(&pool, json!({"o:label": "Places", "o:terms": ["Cork"]})).await;
+    let name = format!("customvocab:{id}");
+    let tagged = item_with(&pool, property, json!({"type": name, "@value": "Cork"})).await;
+    assert_eq!(tagged.status, StatusCode::OK, "{}", tagged.body);
+    let plain = item_with(
+        &pool,
+        property,
+        json!({"type": "literal", "@value": "Cork"}),
+    )
+    .await;
+    assert_eq!(plain.status, StatusCode::OK, "{}", plain.body);
+    let ids = |answer: &Answer| -> Vec<u64> {
+        assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+        answer
+            .json()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["o:id"].as_u64().unwrap())
+            .collect()
+    };
+    let every = ids(&read(&pool, "/api/items?per_page=100").await);
+    assert!(every.len() >= 2, "{every:?}");
+
+    let by_type = format!(
+        "/api/items?per_page=100&property[0][property]=&property[0][type]=dt&property[0][text]={name}"
+    );
+    assert_eq!(
+        ids(&read(&pool, &by_type).await),
+        vec![tagged.json()["o:id"].as_u64().unwrap()]
+    );
+
+    let keyless = format!("/api/items?per_page=100&property[0][type]=dt&property[0][text]={name}");
+    assert_eq!(ids(&read(&pool, &keyless).await), every);
+}
+
 /// `DataType\CustomVocab::hydrate` for links: `o:label` is the list's label for
 /// the URI whatever the body says, and `getJsonLd` writes no `o:lang`.
 #[tokio::test]

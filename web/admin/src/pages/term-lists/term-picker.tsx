@@ -90,6 +90,8 @@ const matching = (choices: readonly TermChoice[], query: string): readonly TermC
 export interface TermPickerProps {
   /** The input's id; the caller's other fields key off the same prefix. */
   readonly id: string;
+  /** The element naming the field the value belongs to, read before the list's name. */
+  readonly fieldLabelId?: string;
   readonly termList: TermListName;
   /** The stored value: the word, the URI, or the item id. Empty for none. */
   readonly value: string;
@@ -111,6 +113,7 @@ export const TermPicker = (props: TermPickerProps): ReactElement => {
 
 const Combobox = ({
   id,
+  fieldLabelId,
   value,
   onPick,
   loaded,
@@ -118,6 +121,7 @@ const Combobox = ({
   const tl = useTermListText();
   const listboxId = useId();
   const hintId = useId();
+  const labelId = useId();
   // `null` while the user is not typing: the field then shows the stored entry.
   const [query, setQuery] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -172,7 +176,9 @@ const Combobox = ({
 
   return (
     <div className="value-field-wide term-picker">
-      <label htmlFor={id}>{tl('termPicker.typeLabel', { list: loaded.list.label })}</label>
+      <label id={labelId} htmlFor={id}>
+        {tl('termPicker.typeLabel', { list: loaded.list.label })}
+      </label>
       <input
         id={id}
         type="text"
@@ -181,6 +187,7 @@ const Combobox = ({
         aria-autocomplete="list"
         aria-expanded={expanded}
         aria-controls={listboxId}
+        aria-labelledby={fieldLabelId === undefined ? undefined : `${fieldLabelId} ${labelId}`}
         aria-describedby={hintId}
         aria-activedescendant={
           expanded && activeChoice !== undefined ? optionId(shown.indexOf(activeChoice)) : undefined
