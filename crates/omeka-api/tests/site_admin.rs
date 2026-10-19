@@ -437,3 +437,98 @@ async fn site_create_hydrates_the_membership_and_settings_it_sends() {
     // The welcome page still lands.
     assert_eq!(document["o:page"].as_array().expect("pages").len(), 1);
 }
+
+/// Custom CSS the sanitiser refuses is a 422 whose messages name each line,
+/// and the site keeps the map it had.
+#[tokio::test]
+async fn refused_custom_css_is_a_422_and_stores_nothing() {
+    let seed = seed().await;
+    let body = json!({ "o:theme_settings": {
+        "preset": "civic",
+        "custom_css": "a { color: red }\n@import 'x.css';"
+    } });
+    let error = api(&seed)
+        .await
+        .update(
+            "sites",
+            &seed.site.0.to_string(),
+            body.to_string().as_bytes(),
+            true,
+        )
+        .await
+        .expect_err("refused CSS");
+    assert_eq!(error.status(), http::StatusCode::UNPROCESSABLE_ENTITY);
+    let omeka_api::errors::ApiError::Validation(errors) = error else {
+        panic!("a validation error, got {error:?}");
+    };
+    assert_eq!(
+        errors.get("o:theme_settings"),
+        Some(&vec![
+            "Custom CSS: Line 2, column 1: @import is not allowed.".to_string()
+        ])
+    );
+    assert!(read_site(&seed).await.get("o:theme_settings").is_none());
+}
+
+/// Custom CSS the sanitiser accepts is stored as written.
+#[tokio::test]
+async fn accepted_custom_css_round_trips() {
+    let seed = seed().await;
+    let settings = json!({ "preset": "civic", "custom_css": ".site-title a { color: #cc0000 }" });
+    api(&seed)
+        .await
+        .update(
+            "sites",
+            &seed.site.0.to_string(),
+            json!({ "o:theme_settings": settings })
+                .to_string()
+                .as_bytes(),
+            true,
+        )
+        .await
+        .expect("patch");
+    assert_eq!(read_site(&seed).await["o:theme_settings"], settings);
+}
+
+/// A create carrying refused CSS writes no site at all.
+#[tokio::test]
+async fn a_create_with_refused_css_writes_no_site() {
+    let seed = seed().await;
+    let body = json!({
+        "o:title": "Refused",
+        "o:slug": "refused",
+        "o:theme": "default",
+        "o:theme_settings": { "custom_css": "p {} </style><script>alert(1)</script>" }
+    });
+    let error = api(&seed)
+        .await
+        .create("sites", body.to_string().as_bytes(), None)
+        .await
+        .expect_err("refused CSS");
+    assert_eq!(error.status(), http::StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(
+        SiteRepo::new(&seed.pool)
+            .get_by_slug("refused")
+            .await
+            .expect("lookup")
+            .is_none()
+    );
+}
+
+/// A site created without theme settings starts from the new-site preset with
+/// its palette derived, rather than the plain look of a site from before
+/// presets.
+#[tokio::test]
+async fn a_new_site_without_theme_settings_starts_from_the_new_site_preset() {
+    let seed = seed().await;
+    let body = json!({ "o:title": "Fresh", "o:slug": "fresh", "o:theme": "default" });
+    let response = api(&seed)
+        .await
+        .create("sites", body.to_string().as_bytes(), None)
+        .await
+        .expect("create");
+    assert_eq!(
+        document(&response)["o:theme_settings"],
+        omeka_site::theme::tokens::new_site_settings()
+    );
+}

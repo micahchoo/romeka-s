@@ -20,6 +20,7 @@ import type {
   SiteBlockAttachmentWrite,
   SiteBlockWrite,
   SitePageWrite,
+  SiteItemsCommand,
   SitePermissionWrite,
   SiteWrite,
   TemplatePropertyWrite,
@@ -48,12 +49,16 @@ const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
 const ownerMember = (owner: UserId | null, mode: WriteMode): Record<string, unknown> =>
   mode === 'update' || owner !== null ? { 'o:owner': ref(owner) } : {};
 
+/**
+ * `Literal::hydrate` reads `@language` and `Uri::hydrate` reads `o:lang`, the
+ * member each one's `getJsonLd` writes.
+ */
 const encodeValue = (value: ValueWrite): Record<string, unknown> => {
-  switch (value.type) {
+  switch (value.kind) {
     case 'literal':
       return {
         property_id: value.propertyId,
-        type: 'literal',
+        type: value.type,
         '@value': value.text,
         ...(value.lang === null ? {} : { '@language': value.lang }),
         is_public: value.isPublic,
@@ -61,22 +66,22 @@ const encodeValue = (value: ValueWrite): Record<string, unknown> => {
     case 'uri':
       return {
         property_id: value.propertyId,
-        type: 'uri',
+        type: value.type,
         '@id': value.uri,
         ...(value.label === null ? {} : { 'o:label': value.label }),
+        ...(value.lang === null ? {} : { 'o:lang': value.lang }),
         is_public: value.isPublic,
       };
     case 'resource':
       return {
         property_id: value.propertyId,
-        type: 'resource',
+        type: value.type,
         value_resource_id: value.resourceId,
         is_public: value.isPublic,
       };
   }
 };
 
-/** Groups values under their property term, the key `ValueHydrator` reads. */
 const encodeValues = (values: readonly ValueWrite[]): Record<string, unknown[]> => {
   const groups: Record<string, unknown[]> = {};
   for (const value of values) {
@@ -103,7 +108,20 @@ export const encodeItem = (write: ItemWrite, mode: WriteMode): WireBody => ({
   ...encodeResource(write, mode),
   'o:item_set': write.itemSets.map((id) => ref(id)),
   'o:primary_media': ref(write.primaryMedia),
+  ...(write.sites === null ? {} : { 'o:site': write.sites.map((id) => ref(id)) }),
 });
+
+/** The body of `POST /api/sites/{id}/items`; a dry run answers the counts and writes nothing. */
+export const encodeSiteItemsCommand = (command: SiteItemsCommand, dryRun: boolean): WireBody => {
+  const { selector } = command;
+  const selection =
+    selector.kind === 'query'
+      ? { query: selector.query }
+      : selector.kind === 'items'
+        ? { items: selector.items }
+        : { item_sets: selector.itemSets };
+  return { action: command.action, ...selection, dry_run: dryRun };
+};
 
 export const encodeItemSet = (write: ItemSetWrite, mode: WriteMode): WireBody => ({
   ...encodeResource(write, mode),
@@ -118,10 +136,7 @@ export const encodeUser = (write: UserWrite): WireBody => ({
 });
 
 export const encodeMedia = (write: MediaWrite): WireBody => ({
-  'o:is_public': write.isPublic,
-  'o:resource_class': ref(write.resourceClass),
-  'o:resource_template': ref(write.resourceTemplate),
-  'o:thumbnail': ref(write.thumbnail),
+  ...encodeResource(write, 'update'),
   'o:lang': write.lang,
   'o:alt_text': write.altText,
 });
@@ -164,7 +179,6 @@ export interface SiteInfoWrite {
   readonly summary: string;
   readonly owner: UserId | null;
   readonly isPublic: boolean;
-  readonly assignNewItems: boolean;
 }
 
 /**
@@ -181,7 +195,6 @@ export const encodeSiteInfo = (info: SiteInfoWrite): WireBody => {
     'o:theme': info.theme,
     'o:summary': summary === '' ? null : summary,
     'o:is_public': info.isPublic,
-    'o:assign_new_items': info.assignNewItems,
     ...(info.owner === null ? {} : { 'o:owner': ref(info.owner) }),
   };
 };
@@ -191,13 +204,21 @@ export const encodeSiteHomepage = (page: PageId | null): WireBody => ({
   'o:homepage': page === null ? null : ref(page),
 });
 
-export const encodeSiteResources = (
-  itemPool: JsonValue | null,
-  itemSets: readonly ItemSetId[],
-): WireBody => ({
+/** The site's saved search; an empty search is stored as `[]`, as upstream does. */
+export const encodeSiteItemPool = (itemPool: JsonValue | null): WireBody => ({
   'o:item_pool': itemPool ?? [],
+});
+
+/** The item sets the site lists, in order. */
+export const encodeSiteItemSets = (itemSets: readonly ItemSetId[]): WireBody => ({
   'o:site_item_set': itemSets.map((id) => ({ 'o:item_set': ref(id) })),
 });
+
+/**
+ * "Keep this site in sync with the search", stored as upstream's
+ * `o:assign_new_items` so upstream still attaches new items to the site.
+ */
+export const encodeSiteSync = (on: boolean): WireBody => ({ 'o:assign_new_items': on });
 
 export const encodeSitePermissions = (
   permissions: readonly SitePermissionWrite[],

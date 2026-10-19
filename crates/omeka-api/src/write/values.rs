@@ -24,6 +24,7 @@
 use std::collections::HashMap;
 
 use omeka_core::term_list::{self, TermList, php_trim};
+use omeka_core::value::{literal_is_valid, uri_is_valid};
 use omeka_db::ids::{AnnotationId, CustomVocabId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{CustomVocabRepo, ResourceRepo, TemplateRepo, ValueRepo};
 use omeka_db::rows::{NewResource, NewValue, resource_type};
@@ -313,15 +314,14 @@ fn parse_scalar(
         return Ok(term_value(list, object)?
             .map(|(data, lang)| (property, type_name.to_string(), data, lang, is_public)));
     }
-    let lang = object
-        .get("@language")
-        .and_then(Value::as_str)
-        .map(str::to_string);
     let data = match type_name {
         "uri" => {
             let Some(uri) = object.get("@id").and_then(Value::as_str) else {
                 return Ok(None);
             };
+            if !uri_is_valid(uri) {
+                return Ok(None);
+            }
             let label = object
                 .get("o:label")
                 .and_then(Value::as_str)
@@ -352,9 +352,22 @@ fn parse_scalar(
             let Some(text) = object.get("@value").and_then(Value::as_str) else {
                 return Ok(None);
             };
+            if !literal_is_valid(text) {
+                return Ok(None);
+            }
             ValueKind::Literal(text.to_string())
         }
     };
+    // `Uri::hydrate` reads `o:lang`, the member its `getJsonLd` writes;
+    // `Literal::hydrate` reads `@language`.
+    let lang_key = match data {
+        ValueKind::Uri { .. } => "o:lang",
+        _ => "@language",
+    };
+    let lang = object
+        .get(lang_key)
+        .and_then(Value::as_str)
+        .map(str::to_string);
     // `ValueHydrator` stores `$dataType->getName()`: a resource value keeps the
     // core name it was sent with. A name the port does not register is stored
     // under its shape, the port's fallback for module types it does not know.

@@ -2,7 +2,7 @@
  * Item write tests: create through the add form and update through the edit
  * panel of the show page. Both run through the real client and parsers.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { Shell } from '../src/app/shell';
@@ -24,6 +24,7 @@ const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
+  '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
 };
 
 const detailHandler = (url: URL): Response => {
@@ -81,6 +82,8 @@ describe('item create form', () => {
     expect(body['o:resource_template']).toEqual({ 'o:id': null });
     expect(body['o:item_set']).toEqual([{ 'o:id': 1 }]);
     expect(body['o:primary_media']).toEqual({ 'o:id': null });
+    // No `o:site`, so the sites that keep in sync with their search can take the item.
+    expect(body['o:site']).toBeUndefined();
     expect(body['dcterms:title']).toEqual([
       { property_id: 1, type: 'literal', '@value': 'Created item', is_public: true },
     ]);
@@ -138,20 +141,21 @@ describe('item edit form', () => {
 
     fireEvent.click(await screen.findByText('Edit this item'));
 
-    const titleInput = await screen.findByLabelText('Title');
+    const titleInput = await screen.findByRole('textbox', { name: 'Title' });
     expect(titleInput).toHaveValue('Fixture Item One');
-    expect(screen.getByLabelText('URI')).toHaveValue('http://example.org/subjects/fixtures');
-    expect(screen.getByLabelText('Label')).toHaveValue('Fixtures');
-    expect(screen.getByLabelText('Resource ID')).toHaveValue('9');
+    expect(screen.getByDisplayValue('http://example.org/subjects/fixtures')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Fixtures')).toBeInTheDocument();
+    expect(screen.getByLabelText('dcterms:relation resource ID')).toHaveValue('9');
 
     fireEvent.change(titleInput, { target: { value: 'Fixture Item One edited' } });
-    fireEvent.change(screen.getByLabelText('Add property'), {
-      target: { value: '4' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Add value' }));
-    fireEvent.change(screen.getByLabelText('Value'), {
-      target: { value: 'A description' },
-    });
+    // The "Photograph" template names dcterms:description "Caption", in English.
+    fireEvent.click(screen.getByRole('button', { name: 'Add value to Caption' }));
+    const captions = screen.getAllByRole('textbox', { name: 'Caption' });
+    const added = captions.at(-1);
+    if (added === undefined) {
+      throw new Error('expected the added caption input');
+    }
+    fireEvent.change(added, { target: { value: 'A description' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -195,10 +199,16 @@ describe('item edit form', () => {
       },
     ]);
     expect(body['dcterms:relation']).toEqual([
-      { property_id: 12, type: 'resource', value_resource_id: 9, is_public: true },
+      { property_id: 12, type: 'resource:item', value_resource_id: 9, is_public: true },
     ]);
     expect(body['dcterms:description']).toEqual([
-      { property_id: 4, type: 'literal', '@value': 'A description', is_public: true },
+      {
+        property_id: 4,
+        type: 'literal',
+        '@value': 'A description',
+        '@language': 'en',
+        is_public: true,
+      },
     ]);
 
     expect(
@@ -216,8 +226,12 @@ describe('item edit form', () => {
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByText('Edit this item'));
-    await screen.findByLabelText('Title');
-    fireEvent.click(screen.getByRole('button', { name: 'Remove dcterms:subject value' }));
+    await screen.findByRole('textbox', { name: 'Title' });
+    const subject = screen.getByDisplayValue('http://example.org/subjects/fixtures').closest('li');
+    if (subject === null) {
+      throw new Error('expected the subject value row');
+    }
+    fireEvent.click(within(subject).getByRole('button', { name: /^Remove .* value$/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -236,7 +250,73 @@ describe('item edit form', () => {
     const body = requestBody(put);
     expect(body['dcterms:subject']).toBeUndefined();
     expect(body['dcterms:relation']).toEqual([
-      { property_id: 12, type: 'resource', value_resource_id: 9, is_public: true },
+      { property_id: 12, type: 'resource:item', value_resource_id: 9, is_public: true },
     ]);
+  });
+
+  it('item_edit_keeps_the_sites_the_item_belongs_to', async () => {
+    // A full `PUT` replaces `o:site`, so an edit that left it out would take the
+    // item off every site the editor may assign.
+    const onSites = {
+      ...itemFixture(),
+      'o:site': [{ '@id': 'http://localhost/api/sites/5', 'o:id': 5 }],
+    };
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/items/1' ? jsonResponse(onSites) : detailHandler(url),
+    );
+    render(<ItemsPage param="1" />);
+
+    fireEvent.click(await screen.findByText('Edit this item'));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(
+        requestsFor(fetchMock, '/api/items/1').filter((request) => request.init?.method === 'PUT'),
+      ).toHaveLength(1);
+    });
+    const put = requestsFor(fetchMock, '/api/items/1').find(
+      (request) => request.init?.method === 'PUT',
+    );
+    if (put === undefined) {
+      throw new Error('expected a PUT to /api/items/1');
+    }
+    expect(requestBody(put)['o:site']).toEqual([{ 'o:id': 5 }]);
+  });
+});
+
+describe('item site membership', () => {
+  /**
+   * `ItemAdapter::hydrate` replaces the site list on a full update, so a `PUT`
+   * that left `o:site` out would take the item off every site.
+   */
+  it('item_edit_keeps_the_sites_the_item_belongs_to', async () => {
+    const stored = {
+      ...itemFixture(),
+      'o:site': [{ '@id': 'http://localhost/api/sites/2', 'o:id': 2 }],
+    };
+    const fetchMock = installFetch((url) => {
+      if (url.pathname === '/api/items/1') {
+        return jsonResponse(stored);
+      }
+      return detailHandler(url);
+    });
+    render(<ItemsPage param="1" />);
+    fireEvent.click(await screen.findByText('Edit this item'));
+    await screen.findByRole('textbox', { name: 'Title' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(
+        requestsFor(fetchMock, '/api/items/1').filter((request) => request.init?.method === 'PUT'),
+      ).toHaveLength(1);
+    });
+    const put = requestsFor(fetchMock, '/api/items/1').find(
+      (request) => request.init?.method === 'PUT',
+    );
+    if (put === undefined) {
+      throw new Error('expected a PUT to /api/items/1');
+    }
+    expect(requestBody(put)['o:site']).toEqual([{ 'o:id': 2 }]);
   });
 });

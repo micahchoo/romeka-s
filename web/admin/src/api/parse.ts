@@ -25,6 +25,7 @@ import type {
   Path,
   Parser,
   PasswordLink,
+  SiteItemsChange,
   Property,
   PropertyId,
   ResourceClass,
@@ -335,6 +336,33 @@ const termListName = (id: number): TermListName => {
   return name;
 };
 
+/**
+ * The members a value carries: the core types by name, and a module's type
+ * (`customvocab:3`, `numeric:timestamp`) by the members it holds, so it edits
+ * as the kind it is shaped like instead of being dropped.
+ */
+const valueShape = (
+  type: string,
+  object: Readonly<Record<string, unknown>>,
+): 'literal' | 'uri' | 'resource' | 'other' => {
+  if (type === 'literal') {
+    return 'literal';
+  }
+  if (type === 'uri') {
+    return 'uri';
+  }
+  if (type.startsWith('resource') || 'value_resource_id' in object) {
+    return 'resource';
+  }
+  if (typeof object['@value'] === 'string') {
+    return 'literal';
+  }
+  if (typeof object['@id'] === 'string') {
+    return 'uri';
+  }
+  return 'other';
+};
+
 const parseValue = (raw: unknown, path: Path = []): Value => {
   const object = asRecord(raw, path);
   const base = {
@@ -346,7 +374,9 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     isPublic: asBoolean(field(object, 'is_public', path), [...path, 'is_public']),
   };
 
-  if (base.type === 'literal') {
+  const shape = valueShape(base.type, object);
+
+  if (shape === 'literal') {
     return {
       ...base,
       kind: 'literal',
@@ -355,7 +385,7 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     };
   }
 
-  if (base.type === 'uri') {
+  if (shape === 'uri') {
     return {
       ...base,
       kind: 'uri',
@@ -365,7 +395,7 @@ const parseValue = (raw: unknown, path: Path = []): Value => {
     };
   }
 
-  if (base.type.startsWith('resource')) {
+  if (shape === 'resource') {
     const resourceName = asString(
       field(object, 'value_resource_name', path),
       [...path, 'value_resource_name'],
@@ -518,6 +548,18 @@ export const parsePasswordLink: Parser<PasswordLink> = (raw, path = []) => {
     key: asString(field(object, 'key', path), [...path, 'key']),
     link: asString(field(object, 'link', path), [...path, 'link']),
     sent: asBoolean(field(object, 'sent', path), [...path, 'sent']),
+  };
+};
+
+/** `POST /api/sites/<id>/items`, a Romeka route answering four counts. */
+export const parseSiteItemsChange: Parser<SiteItemsChange> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const count = (name: string): number => asNumber(field(object, name, path), [...path, name]);
+  return {
+    matched: count('matched'),
+    added: count('added'),
+    removed: count('removed'),
+    total: count('total'),
   };
 };
 

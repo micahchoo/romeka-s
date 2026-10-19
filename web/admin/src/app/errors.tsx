@@ -1,5 +1,5 @@
 /**
- * The error surface every page load shares.
+ * The error surfaces every page load and every form shares.
  *
  * A 403 means the API refused the caller, and the way out is a key, so a
  * forbidden page renders the sign-in form under its message. Any other error
@@ -27,3 +27,15 @@ export const ErrorNotice = ({ error }: { readonly error: Error }): ReactElement 
     </>
   );
 };
+
+/** The reasons a form refused to send, one line each, announced together. */
+export const FormErrors = ({ errors }: { readonly errors: readonly string[] }): ReactElement | null =>
+  errors.length === 0 ? null : (
+    <div role="alert" className="form-errors">
+      <ul>
+        {errors.map((error) => (
+          <li key={error}>{error}</li>
+        ))}
+      </ul>
+    </div>
+  );

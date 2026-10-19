@@ -11,12 +11,12 @@
 //! A referenced id that does not exist is a 404, because upstream `findEntity`
 //! throws `NotFoundException` before the row is written.
 
-use omeka_db::ids::{AssetId, ClassId, ResourceId, TemplateId, UserId};
-use omeka_db::repos::{AssetRepo, ClassRepo, TemplateRepo, UserRepo};
+use omeka_db::ids::{AssetId, ClassId, PropertyId, ResourceId, TemplateId, UserId};
+use omeka_db::repos::{AssetRepo, ClassRepo, PropertyRepo, TemplateRepo, UserRepo, ValueRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
 use serde_json::Value;
 
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ValidationErrors};
 use crate::read::{Api, db_error};
 use crate::write::body::{Payload, ref_row};
 use crate::write::values::{self, ValueInput};
@@ -96,6 +96,13 @@ pub(crate) async fn hydrate_at(
         (true, Some(row)) => row.title.clone(),
         _ => values::title_for(api, resource_template_id, &values).await?,
     };
+    if let Some(template) = resource_template_id {
+        let present = match (keep_stored_values, existing) {
+            (true, Some(row)) => stored_properties(api, row.id).await?,
+            _ => values.iter().map(|value| value.property).collect(),
+        };
+        require_template_values(api, template, &present).await?;
+    }
 
     Ok(Hydrated {
         resource: NewResource {
@@ -110,6 +117,60 @@ pub(crate) async fn hydrate_at(
         values,
         keep_stored_values,
     })
+}
+
+/// `AbstractResourceEntityAdapter::validateEntity`: every required property of
+/// the template needs a value with the same property id, and each one missing
+/// is a message under `o:resource_template_property`.
+async fn require_template_values(
+    api: &Api<'_>,
+    template: TemplateId,
+    present: &[PropertyId],
+) -> Result<(), ApiError> {
+    let repo = TemplateRepo::new(api.pool());
+    let Some(row) = repo.get(template).await.map_err(db_error)? else {
+        return Ok(());
+    };
+    let mut messages = Vec::new();
+    for prop in repo.list_properties(template).await.map_err(db_error)? {
+        if !prop.is_required || present.contains(&prop.property_id) {
+            continue;
+        }
+        let label = match prop.alternate_label.filter(|label| !label.is_empty()) {
+            Some(label) => label,
+            None => PropertyRepo::new(api.pool())
+                .get(prop.property_id)
+                .await
+                .map_err(db_error)?
+                .map(|property| property.label)
+                .unwrap_or_default(),
+        };
+        messages.push(format!(
+            "The \"{}\" resource template requires a \"{label}\" value",
+            row.label
+        ));
+    }
+    if messages.is_empty() {
+        return Ok(());
+    }
+    let mut errors = ValidationErrors::new();
+    errors.insert("o:resource_template_property".to_string(), messages);
+    Err(ApiError::Validation(errors))
+}
+
+/// The properties of a resource's stored values, which a partial update that
+/// names no value keeps.
+async fn stored_properties(
+    api: &Api<'_>,
+    resource: ResourceId,
+) -> Result<Vec<PropertyId>, ApiError> {
+    Ok(ValueRepo::new(api.pool())
+        .list_for_resource(resource)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .map(|row| row.property_id)
+        .collect())
 }
 
 /// Copy the writable resource columns of `new` onto a stored row, leaving the

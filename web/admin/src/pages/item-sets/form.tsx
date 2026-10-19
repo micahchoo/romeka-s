@@ -2,28 +2,15 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { ItemSet, ItemSetId, ItemSetWrite } from '../../api/types';
-import {
-  emptyResourceDraft,
-  literalTextOf,
-  resourceDraftFrom,
-  toValueWrites,
-  valueErrors,
-  withLiteralText,
-  type ResourceDraft,
-} from '../../app/draft';
+import { toValueWrites, type ResourceDraft } from '../../app/draft';
 import { DeleteControl } from '../../app/delete';
-import {
-  CheckboxField,
-  ResourceFields,
-  SaveStatus,
-  SubmitRow,
-  TextField,
-  ValuesEditor,
-} from '../../app/fields';
-import { ErrorNotice } from '../../app/errors';
-import { loadFormOptions, titleProperty, type FormOptions } from '../../app/options';
+import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
+import { ErrorNotice, FormErrors } from '../../app/errors';
+import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
+import { draftErrors, openDraft, templateById } from '../../app/value-fields';
+import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
 
 interface Loaded {
@@ -47,31 +34,22 @@ const ItemSetEditor = ({
   readonly loaded: Loaded;
 }): ReactElement => {
   const { t } = useTranslator();
+  const { options } = loaded;
   const [draft, setDraft] = useState<ResourceDraft>(() =>
-    loaded.itemSet === null ? emptyResourceDraft() : resourceDraftFrom(loaded.itemSet),
+    openDraft(loaded.itemSet, options.templates, options.properties),
   );
   const [isOpen, setIsOpen] = useState(loaded.itemSet?.isOpen ?? false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<readonly string[]>([]);
   const { state: saveState, save } = useSave();
-
-  const title = titleProperty(
-    loaded.options.properties,
-    loaded.options.templates,
-    draft.resourceTemplate,
-  );
-  const titleText = title === null ? '' : literalTextOf(draft.values, title.term);
-  const excludeTerms = title === null ? [] : [title.term];
   const stored = loaded.itemSet;
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = valueErrors(draft.values, t);
-    const first = errors[0];
-    if (first !== undefined) {
-      setFormError(first);
+    const errors = draftErrors(draft, options.templates, options.properties, t);
+    setFormErrors(errors);
+    if (errors.length > 0) {
       return;
     }
-    setFormError(null);
     const write: ItemSetWrite = {
       isPublic: draft.isPublic,
       owner: draft.owner,
@@ -94,22 +72,7 @@ const ItemSetEditor = ({
   return (
     <div>
       <form onSubmit={submit}>
-        <ResourceFields
-          idPrefix="item-set"
-          draft={draft}
-          onChange={setDraft}
-          options={loaded.options}
-        />
-        {title === null ? null : (
-          <TextField
-            id="item-set-title"
-            label={title.label ?? title.term}
-            value={titleText}
-            onChange={(value) => {
-              setDraft(withLiteralText(draft, title, value));
-            }}
-          />
-        )}
+        <ResourceFields idPrefix="item-set" draft={draft} onChange={setDraft} options={options} />
         <CheckboxField
           id="item-set-open"
           label={t('itemSets.open')}
@@ -120,10 +83,11 @@ const ItemSetEditor = ({
           idPrefix="item-set"
           draft={draft}
           onChange={setDraft}
-          properties={loaded.options.properties}
-          excludeTerms={excludeTerms}
+          template={templateById(options.templates, draft.resourceTemplate)}
+          properties={options.properties}
+          dataTypes={options.dataTypes}
         />
-        {formError === null ? null : <p role="alert">{formError}</p>}
+        <FormErrors errors={formErrors} />
         <SaveStatus state={saveState} />
         <SubmitRow
           label={itemSetId === null ? t('itemSets.add') : t('action.save')}

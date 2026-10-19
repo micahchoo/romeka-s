@@ -111,7 +111,9 @@ img {
 /* The frame: header, banner, logo, navigation, search and footer. */
 
 header {
-  border-bottom: 1px solid var(--color-border);
+  background: var(--header-background);
+  border-bottom: var(--header-border);
+  color: var(--header-text);
   padding: var(--space-2) var(--space-3);
 }
 
@@ -156,6 +158,7 @@ header {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  color: var(--color-text);
   cursor: pointer;
   display: flex;
   font-weight: 600;
@@ -205,23 +208,23 @@ header {
 
 #top-nav a {
   border-bottom: 2px solid transparent;
+  color: var(--header-link);
   padding: var(--space-1) 0;
   text-decoration: none;
 }
 
 #top-nav a:hover,
 #top-nav a:focus {
-  border-bottom-color: var(--color-border);
-  color: var(--color-link);
+  border-bottom-color: color-mix(in srgb, var(--header-link) 40%, transparent);
 }
 
 #top-nav .nav-item.current > a {
-  border-bottom-color: var(--color-brand);
+  border-bottom-color: var(--header-mark);
   font-weight: 600;
 }
 
 #top-nav .nav-item:hover > a {
-  border-bottom-color: color-mix(in srgb, var(--color-brand) 60%, var(--color-border));
+  border-bottom-color: color-mix(in srgb, var(--header-mark) 60%, transparent);
 }
 
 .header-centred {
@@ -265,11 +268,10 @@ header {
 
 #search-form button {
   align-items: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 0;
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  color: var(--color-text);
+  color: var(--button-text);
   cursor: pointer;
   display: flex;
   font-weight: 600;
@@ -278,8 +280,10 @@ header {
 }
 
 #search-form button:hover,
-#search-form button:focus {
-  background: color-mix(in srgb, var(--color-brand) 25%, var(--color-surface));
+#search-form button:focus,
+.sitewide-search-form input[type="submit"]:hover,
+.sitewide-search-form input[type="submit"]:focus {
+  box-shadow: inset 0 0 0 1px var(--button-border);
 }
 
 /* Above the mobile breakpoint the menu is always open; the button is for
@@ -330,6 +334,11 @@ header {
   #top-nav .nav-item:hover > .navigation,
   #top-nav .nav-item:focus-within > .navigation {
     display: flex;
+  }
+
+  /* The panel sits on the page background, not the header's band. */
+  #top-nav .nav-item > .navigation a {
+    color: var(--color-link);
   }
 }
 
@@ -1217,10 +1226,10 @@ footer {
 }
 
 .sitewide-search-form input[type="submit"] {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
   border-radius: var(--radius-sm);
-  color: var(--color-text);
+  color: var(--button-text);
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
 }

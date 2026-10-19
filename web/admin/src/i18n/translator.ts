@@ -3,14 +3,11 @@
  *
  * There is no read-time fallback. A key is a `MessageKey`, and a catalogue is
  * `Record<MessageKey, string>`, so a missing key is a compile error. The
- * runtime guard exists for a catalogue built at the edge (a test, a future
- * remote catalogue) and shares `missingKeys` with the test that proves it
- * fails.
+ * runtime guard exists for a catalogue that arrives at the edge (a lazy chunk,
+ * a test) and shares `missingKeys` with the test that proves it fails.
  */
 import { missingKeys } from './catalogue';
-import type { MessageKey, MessageParams } from './catalogue';
-import { CATALOGUES } from './catalogues';
-import { LOCALE_TAGS } from './locale';
+import type { Catalogue, MessageKey, MessageParams } from './catalogue';
 import type { Locale } from './locale';
 
 /** Raised when a catalogue is incomplete, naming the missing ids. */
@@ -31,7 +28,7 @@ export class MissingMessageError extends Error {
 /**
  * Throws a `MissingMessageError` when a catalogue lacks any English key. The
  * shipped catalogues are `Catalogue` typed, so this never fires for them; it is
- * the check a catalogue built at the edge must pass, and the test that proves a
+ * the check a catalogue loaded at runtime must pass, and the test that proves a
  * missing key fails calls it directly.
  */
 export const assertComplete = (
@@ -63,11 +60,13 @@ const interpolate = (template: string, params: MessageParams | undefined): strin
   });
 };
 
-/** A translator for one locale, or a `MissingMessageError` when its catalogue is short. */
-export const createTranslator = (locale: Locale): Translator => {
-  const catalogue = CATALOGUES[locale];
+/**
+ * A translator for one locale over its loaded catalogue, or a
+ * `MissingMessageError` when the catalogue is short.
+ */
+export const createTranslator = (locale: Locale, catalogue: Catalogue): Translator => {
   assertComplete(locale, catalogue);
-  const numbers = new Intl.NumberFormat(LOCALE_TAGS[locale]);
+  const numbers = new Intl.NumberFormat(locale);
   return {
     locale,
     t: (key, params) => interpolate(catalogue[key], params),

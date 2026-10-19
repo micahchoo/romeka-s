@@ -18,6 +18,7 @@ import {
   parseMedia,
   parseModule,
   parsePasswordLink,
+  parseSiteItemsChange,
   parseProperty,
   parseResourceClass,
   parseResourceTemplate,
@@ -50,6 +51,8 @@ import type {
   PageId,
   Parser,
   PasswordLink,
+  SiteItemsChange,
+  SiteItemsCommand,
   Property,
   PropertyId,
   ResourceClass,
@@ -79,6 +82,7 @@ import {
   encodeMedia,
   encodeResourceTemplate,
   encodeSite,
+  encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
   encodeTermList,
@@ -361,6 +365,24 @@ export class ApiClient {
    */
   async patchSite(id: SiteId, body: WireBody): Promise<Site> {
     return parseSite(await this.writeJson('PATCH', `/api/sites/${String(id)}`, body));
+  }
+
+  /**
+   * Change which items a site holds (a Romeka route). A dry run answers the
+   * same counts and writes nothing, which is how the admin previews a change.
+   */
+  async changeSiteItems(
+    id: SiteId,
+    command: SiteItemsCommand,
+    dryRun = false,
+  ): Promise<SiteItemsChange> {
+    return parseSiteItemsChange(
+      await this.writeJson(
+        'POST',
+        `/api/sites/${String(id)}/items`,
+        encodeSiteItemsCommand(command, dryRun),
+      ),
+    );
   }
 
   async createSitePage(write: SitePageWrite): Promise<SitePage> {

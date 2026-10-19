@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyDocumentLang } from './i18n';
+import { restoreLocale } from './i18n';
 import { Shell } from './app/shell';
 import './styles.css';
 
@@ -9,12 +9,19 @@ if (rootElement === null) {
   throw new Error('index.html is missing the #root element');
 }
 
-// The stored locale, not the `lang="en"` in `index.html`, is the document's
-// language from the first render.
-applyDocumentLang();
+const render = (): void => {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <Shell />
+    </StrictMode>,
+  );
+};
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <Shell />
-  </StrictMode>,
-);
+// The stored locale's catalogue arrives before the first render, so a reload
+// in Spanish never paints English first. A catalogue that fails to load
+// leaves the admin in English rather than blank.
+void restoreLocale()
+  .catch((error: unknown) => {
+    console.error(error);
+  })
+  .finally(render);

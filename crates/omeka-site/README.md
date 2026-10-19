@@ -34,23 +34,62 @@ implements `Theme`, adds itself to `THEMES`, and changes nothing else in the cra
 
 ### Design tokens
 
-The bundled theme is edited by tokens, not code. `theme::tokens::SETTINGS` declares the
-palette, the two font stacks (curated system stacks, so no font file is requested), the type
-scale, the density, the corner radius, the header layout, the logo and banner assets, and the
-footer text. `ThemeSettings::css` emits them as CSS custom properties in one `<style>` in the
-head, and `theme/style.css` uses those properties everywhere and names no colour of its own.
-`theme::tokens::registry()` is serialised to `web/admin/src/generated/themeSettings.json`,
-which the admin Theme page renders and a Rust test keeps byte-identical. A resource without a
-thumbnail shows the theme's `img/placeholder.svg`, the port's stand-in for upstream's
-`default.png`.
+The bundled theme is edited by tokens, not code. A site stores its choices in the theme's settings map
+(`theme_settings_<theme>`, served as `o:theme_settings`):
+
+| Key | What it holds |
+| --- | --- |
+| `preset` | one of `theme::presets::PRESETS`: `plain`, `archive`, `gallery`, `editorial`, `civic` |
+| `derive_palette` | whether the palette is derived from the brand colour (default on) |
+| `brand_color` and the six other `*_color` keys | colours set by hand |
+| `color_scheme`, the fonts, sizes, `density`, `corner_radius`, `content_width`, `header_layout`, `header_style`, `button_style` | tokens set by hand |
+| `logo`, `banner`, `banner_text`, `footer_text` | header and footer content |
+| `custom_css` | the site's own CSS |
+
+`theme::tokens::Choices::from_value` is the boundary: it keeps the values the theme accepts and drops
+the rest. `theme::tokens::resolve` is the one function that turns choices into effective tokens: the
+preset's values, then a palette derived from the brand colour when derivation is on, then the values
+set by hand. A map with no `preset` was stored before presets and reads as `plain` with derivation off,
+the look those sites had; a site created through the API starts from `presets::NEW_SITE_PRESET`
+(`tokens::new_site_settings`, written by `omeka-api`'s site create).
+
+`theme::palette::derive` builds a light and a dark palette from one colour in OKLab
+(`theme::color`): the backgrounds take the brand's hue at the preset's lightness, and each text colour
+steps away from both backgrounds until it reaches AA 4.5:1. `palette::PAIRS` lists every text and
+background pair `style.css` draws; a test derives palettes from a spread of brands (near white, near
+black, pure yellow and a ring of hues) for every preset and checks every pair in both shades. Text on the
+brand colour (`--color-on-brand`) is never stored; the theme picks it.
+
+`Tokens::css` emits the tokens as CSS custom properties in one `<style>` in the head, and
+`theme/style.css` uses those properties everywhere and names no colour of its own. A test checks that
+every property the sheet reads is one the tokens emit, for every preset. The font stacks are curated
+system stacks, so no font file is requested.
+
+`theme::tokens::registry()` is serialised to `web/admin/src/generated/themeSettings.json`, which the
+admin Theme page renders. `theme::tokens_schema::samples()` is serialised to
+`web/admin/src/generated/themeSamples.json`: derived palettes, nearest-passing suggestions and resolved
+maps, which an admin test replays against its copy of the arithmetic. A Rust test keeps both files
+byte-identical. A resource without a thumbnail shows the theme's `img/placeholder.svg`, the port's
+stand-in for upstream's `default.png`.
+
+### Custom CSS
+
+Stored text reaches the page as CSS in `theme::custom_css` and nowhere else. `custom_css::sanitize`
+reads the text with `cssparser` and refuses `@import`, `@document`, any `url()` (or URL string in
+`src()`, `image()`, `image-set()`, `cross-fade()`) that is not a path under this site's `/files/` or
+`/assets/`, `expression()`, `behavior`, `-moz-binding`, `</style`, more than 64 KB, and text the tokenizer
+cannot read. Each refusal names its line and column. The site write and the preview answer refusals as a
+422 under `o:theme_settings`; `ThemeSettings::from_value` sanitises again on read and drops refused CSS
+whole. The frame prints the CSS in `<style id="custom-css">` after the theme sheet, so its rules win.
 
 ### The bundled theme's stylesheet
 
 `theme::style::STYLE_CSS` is the bundled theme's own CSS, held as data (`theme/style.css`). The
 theme's manifest lists it at `css/style.css`, and the document frame emits a `<link>` for every
-manifest asset whose kind is a head asset, under `RenderContext::asset_base`. The head carries no
-other stylesheet, so the caller serves `{asset_base}/css/style.css` from
-`theme::theme_asset("default", "css/style.css")` and the page is styled. The sheet's block rules are
+manifest asset whose kind is a head asset, under `RenderContext::asset_base`. The link carries
+`?v=<ThemeAsset::version>`, a digest of the bytes, so a deploy that changes the sheet changes the URL;
+the caller serves `{asset_base}/css/style.css` from `theme::theme_asset("default", "css/style.css")`,
+immutable for the current version and revalidated otherwise. The sheet's block rules are
 the subset of upstream `application/asset/css/page-blocks.css` that applies to the markup this port
 emits, its page-grid rules are `application/asset/css/page-grid.css`, and it adds a rule for every
 block wrapper class no upstream rule names. A stored block `class` is arbitrary, so only a

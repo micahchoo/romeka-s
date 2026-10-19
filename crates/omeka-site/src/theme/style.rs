@@ -494,6 +494,44 @@ mod tests {
         }
     }
 
+    /// Every custom property the sheet reads is one the tokens emit, for every
+    /// preset, so a token renamed on one side cannot leave the sheet reading
+    /// nothing. And every header and button property the tokens emit has a
+    /// reader in the sheet.
+    #[test]
+    fn style_css_reads_only_properties_the_tokens_emit() {
+        let read: std::collections::BTreeSet<&str> = STYLE_CSS
+            .split("var(--")
+            .skip(1)
+            .filter_map(|tail| tail.split([')', ',']).next())
+            .collect();
+        for preset in crate::theme::presets::PresetId::KEYS {
+            let css = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+                "preset": preset
+            }))
+            .css();
+            for name in &read {
+                assert!(
+                    css.contains(&format!("--{name}:")),
+                    "the sheet reads --{name}, which the {preset} tokens do not emit"
+                );
+            }
+        }
+        for name in [
+            "header-background",
+            "header-text",
+            "header-link",
+            "header-border",
+            "header-mark",
+            "button-background",
+            "button-text",
+            "button-border",
+            "content-width",
+        ] {
+            assert!(read.contains(name), "--{name} has no reader in the sheet");
+        }
+    }
+
     /// The sheet's rules are balanced, no rule is empty, and every rule
     /// declares something.
     #[test]

@@ -488,13 +488,16 @@ export interface SitePageWrite {
 /**
  * A value as `POST`/`PUT` accepts it, one per `ValueHydrator` value object.
  * The resource key is the property term; `propertyId` is what the wire object
- * carries as `property_id`.
+ * carries as `property_id`. `kind` picks the members the data type reads and
+ * `type` is the data type name sent as is, so `resource:item` or a module's
+ * type survives an edit.
  */
 export type ValueWrite =
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'literal';
+      readonly kind: 'literal';
+      readonly type: string;
       readonly text: string;
       readonly lang: string | null;
       readonly isPublic: boolean;
@@ -502,15 +505,18 @@ export type ValueWrite =
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'uri';
+      readonly kind: 'uri';
+      readonly type: string;
       readonly uri: string;
       readonly label: string | null;
+      readonly lang: string | null;
       readonly isPublic: boolean;
     }
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'resource';
+      readonly kind: 'resource';
+      readonly type: string;
       readonly resourceId: ResourceId;
       readonly isPublic: boolean;
     };
@@ -531,6 +537,12 @@ export interface ResourceWrite {
 export interface ItemWrite extends ResourceWrite {
   readonly itemSets: readonly ItemSetId[];
   readonly primaryMedia: MediaId | null;
+  /**
+   * The sites the item belongs to. A full update replaces `o:site`, so an edit
+   * sends the sites the item had. `null` omits the member, which a create does
+   * so the sites that keep in sync with their search can take the item.
+   */
+  readonly sites: readonly SiteId[] | null;
 }
 
 export interface ItemSetWrite extends ResourceWrite {
@@ -550,6 +562,34 @@ export interface UserWrite {
  * administrator can hand it over when no SMTP service is configured, and `sent`
  * says whether the invitation also went out by mail.
  */
+/**
+ * A change to which items a site holds (`POST /api/sites/{id}/items`, a Romeka
+ * route). `add` attaches the selected items, `remove` detaches them, `replace`
+ * makes them the site's whole membership.
+ */
+export type SiteItemsAction = 'add' | 'remove' | 'replace';
+
+/** The items a site change acts on: a stored-shape item query, items, or item sets. */
+export type SiteItemsSelector =
+  | { readonly kind: 'query'; readonly query: JsonValue }
+  | { readonly kind: 'items'; readonly items: readonly ItemId[] }
+  | { readonly kind: 'itemSets'; readonly itemSets: readonly ItemSetId[] };
+
+export interface SiteItemsCommand {
+  readonly action: SiteItemsAction;
+  readonly selector: SiteItemsSelector;
+}
+
+/** What a site change did, or would do on a dry run. */
+export interface SiteItemsChange {
+  /** Items the selector named. */
+  readonly matched: number;
+  readonly added: number;
+  readonly removed: number;
+  /** Items on the site after the change. */
+  readonly total: number;
+}
+
 export interface PasswordLink {
   readonly key: string;
   readonly link: string;
@@ -557,11 +597,7 @@ export interface PasswordLink {
 }
 
 /** `MediaAdapter::hydrate` on update: the shared columns plus these. */
-export interface MediaWrite {
-  readonly isPublic: boolean;
-  readonly resourceClass: ClassId | null;
-  readonly resourceTemplate: TemplateId | null;
-  readonly thumbnail: AssetId | null;
+export interface MediaWrite extends ResourceWrite {
   readonly lang: string | null;
   readonly altText: string | null;
 }

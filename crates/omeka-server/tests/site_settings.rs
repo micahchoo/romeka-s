@@ -19,6 +19,7 @@ use omeka_db::repos::{
     ItemRepo, Paging, PropertyFilter, PropertyRepo, SiteRepo, SiteSettingRepo, UserRepo, ValueRepo,
 };
 use omeka_db::rows::{NewItem, NewProperty, NewResource, NewUser, NewValue};
+use omeka_site::settings::{SITE_SETTINGS, site_settings_registry};
 use serde_json::json;
 use sqlx::SqlitePool;
 
@@ -147,6 +148,60 @@ async fn api_site_settings_read_and_write_rows() {
         Some(json!("Archive"))
     );
     assert_eq!(repo.get(site, "pagination_per_page").await.unwrap(), None);
+}
+
+/// The admin form writes only the keys the registry offers. A stored key the
+/// registry leaves out, because no renderer reads it, keeps its row through
+/// that write.
+#[tokio::test]
+async fn a_form_save_keeps_the_rows_the_form_does_not_offer() {
+    let (pool, seed) = settings_pool().await;
+    let app = router(pool.clone());
+    let site = db_site(&seed);
+    let offered: Vec<&str> = site_settings_registry()
+        .settings
+        .iter()
+        .map(|entry| entry.key)
+        .collect();
+    let unoffered: Vec<&str> = SITE_SETTINGS
+        .iter()
+        .map(|spec| spec.key)
+        .filter(|key| !offered.contains(key))
+        .collect();
+    assert!(!unoffered.is_empty(), "the registry offers every key");
+    for key in &unoffered {
+        set(&pool, site, key, json!(format!("kept {key}"))).await;
+    }
+
+    let form: serde_json::Map<String, serde_json::Value> = offered
+        .iter()
+        .map(|key| ((*key).to_string(), serde_json::Value::Null))
+        .chain([("installation_title".to_string(), json!("Archive"))])
+        .collect();
+    let body = json!({ "o:site_settings": form }).to_string();
+    let answer = send(
+        app,
+        json_request(
+            "PATCH",
+            &append_key(&format!("/api/sites/{}", seed.site)),
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+
+    let repo = SiteSettingRepo::new(&pool);
+    assert_eq!(
+        repo.get(site, "installation_title").await.unwrap(),
+        Some(json!("Archive"))
+    );
+    for key in &unoffered {
+        assert_eq!(
+            repo.get(site, key).await.unwrap(),
+            Some(json!(format!("kept {key}"))),
+            "{key}"
+        );
+    }
 }
 
 /// The page size is the site `pagination_per_page`, else the global setting,
