@@ -144,14 +144,7 @@ test('the navigation tree reorders by drag and by keyboard, and the public menu 
   await expect(menu.locator('li li > a')).toHaveAttribute('href', 'https://example.org/docs');
 });
 
-/**
- * `useUnsavedGuard` listens to `hashchange`, which React treats as a discrete
- * event: the shell's own `hashchange` listener re-renders the route in the
- * microtask after it returns, so the editor unmounts and its guard listener is
- * removed before the browser reaches it. A `popstate` listener runs first and
- * keeps the draft (measured on this harness). This fails until the hook moves.
- */
-test.fail('a dirty navigation tree asks before a tab click leaves it', async ({ page }) => {
+test('a dirty navigation tree asks before a tab click leaves it', async ({ page }) => {
   const hub = await createSite(page, 'Guard Site Three', 'guard-site-three');
   await page.goto(`/#${hub}/navigation`);
   await page.getByRole('button', { name: 'Add link' }).click();
