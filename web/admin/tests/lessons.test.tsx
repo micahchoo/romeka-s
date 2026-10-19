@@ -11,7 +11,7 @@ import { isRecord, isUnknownArray, parseUser } from '../src/api/parse';
 import { setSession } from '../src/api/session';
 import { useLesson } from '../src/app/lessons/lesson';
 import { en } from '../src/app/lessons/messages';
-import { es } from '../src/app/lessons/locales/es';
+import { es } from '../src/i18n/namespaces/lessons/locales/es';
 import { LESSONS, RUNGS } from '../src/app/lessons/registry';
 import type { WrittenLessonId } from '../src/app/lessons/registry';
 import { loadFixture } from './loadFixture';

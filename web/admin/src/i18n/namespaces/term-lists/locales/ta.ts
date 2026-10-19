@@ -6,7 +6,7 @@
  * a string here; a later run keeps it. It is typed `TermListMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { TermListMessages } from '../messages';
+import type { TermListMessages } from '../index';
 
 export const ta: TermListMessages = {
   'termLists.resource': 'கலைச்சொல் பட்டியல்கள்',

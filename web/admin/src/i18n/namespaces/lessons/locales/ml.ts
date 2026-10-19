@@ -6,7 +6,7 @@
  * a string here; a later run keeps it. It is typed `LessonsMessages`, so a key
  * added to English and not here is a `tsc` error.
  */
-import type { LessonsMessages } from '../messages';
+import type { LessonsMessages } from '../index';
 
 export const ml: LessonsMessages = {
   'lesson.label': 'പാഠം: {title}',

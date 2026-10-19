@@ -1,8 +1,10 @@
 /**
- * The Spanish lessons messages, written by hand. It is typed `LessonsMessages`,
- * so a key added to English and not here is a `tsc` error.
+ * The Spanish lessons messages, written by hand.
+ *
+ * It is typed `LessonsMessages`, so a key added to English and not here is a
+ * `tsc` error.
  */
-import type { LessonsMessages } from '../messages';
+import type { LessonsMessages } from '../index';
 
 export const es: LessonsMessages = {
   'lesson.label': 'Lección: {title}',

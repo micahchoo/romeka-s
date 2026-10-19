@@ -1,5 +1,10 @@
-/** The Spanish Term lists messages. Typed `TermListMessages`, so a key added to English and not here is a `tsc` error. */
-import type { TermListMessages } from '../messages';
+/**
+ * The Spanish Term lists messages, written by hand.
+ *
+ * It is typed `TermListMessages`, so a key added to English and not here is a
+ * `tsc` error.
+ */
+import type { TermListMessages } from '../index';
 
 export const es: TermListMessages = {
   'termLists.resource': 'listas de términos',

@@ -15,6 +15,7 @@ export {
   restoreLocale,
   setLocale,
   subscribeLocale,
+  useLoadedTranslator,
   useLocale,
   useTranslator,
 } from './store';

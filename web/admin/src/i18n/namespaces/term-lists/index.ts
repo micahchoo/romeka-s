@@ -1,0 +1,56 @@
+/**
+ * The Term lists messages.
+ *
+ * English is here, in the chunk of the routes that import it; every other
+ * locale is its own chunk under `locales/`, fetched the first time a route in
+ * that locale reads it. Each locale file is typed `TermListMessages`, so a key added
+ * here and missing there is a `tsc` error.
+ */
+import { defineNamespace } from '../../namespace';
+import type { Table } from '../../namespace';
+
+export const en = {
+  'termLists.resource': 'term lists',
+  'termLists.invalidId': '"{param}" is not a term list id.',
+  'termLists.intro': 'A term list turns a field into a choice from a fixed set of entries, so the same place or subject is always spelled the same way.',
+  'termLists.add': 'Add term list',
+  'termLists.legend': 'Term list',
+  'termLists.kindLegend': 'What the list holds',
+  'termLists.kindTerms': 'A list of words',
+  'termLists.kindItems': 'Items from an item set',
+  'termLists.kindUris': 'Links (URIs) with labels',
+  'termLists.kindEmpty': 'Nothing yet',
+  'termLists.termsLabel': 'Words, one per line',
+  'termLists.urisLabel': 'Links, one per line: the URI, a space, then the label',
+  'termLists.itemSetLabel': 'Item set',
+  'termLists.selectItemSet': 'Select an item set',
+  'termLists.langLabel': 'Language of the words',
+  'termLists.langHint': 'Optional. Every word picked from the list carries this language tag, for example en.',
+  'termLists.errorNoEntries': 'Add at least one entry.',
+  'termLists.errorNoItemSet': 'Choose an item set.',
+  'termLists.columnKind': 'Holds',
+  'termLists.columnEntries': 'Entries',
+  'termLists.columnUsage': 'Items using it',
+  'termLists.editLabel': 'Edit this term list',
+  'termLists.deleteLabel': 'Delete this term list',
+  'termLists.deleteNote': 'Deleting a list keeps the values chosen from it. They stay on their items as plain text.',
+  'termPicker.loading': 'Loading the list...',
+  'termPicker.noMatch': 'No entry matches "{query}".',
+  'termPicker.notInList': '"{value}" is not in this list. Pick an entry to replace it.',
+  'termPicker.hint': 'Type to filter the {list} list, then pick an entry.',
+  'termPicker.typeLabel': 'Term list: {list}',
+} as const;
+
+/** A complete table of this namespace, in one locale. */
+export type TermListMessages = Table<keyof typeof en>;
+
+export const termLists = defineNamespace('term-lists', en, {
+  es: () => import('./locales/es').then((module) => module.es),
+  hi: () => import('./locales/hi').then((module) => module.hi),
+  mr: () => import('./locales/mr').then((module) => module.mr),
+  ml: () => import('./locales/ml').then((module) => module.ml),
+  ta: () => import('./locales/ta').then((module) => module.ta),
+  kn: () => import('./locales/kn').then((module) => module.kn),
+  te: () => import('./locales/te').then((module) => module.te),
+  ne: () => import('./locales/ne').then((module) => module.ne),
+});

@@ -14,7 +14,7 @@
  * `useSyncExternalStore` hook, so a component under test renders without a
  * provider.
  */
-import { use, useSyncExternalStore } from 'react';
+import { use, useEffect, useState, useSyncExternalStore } from 'react';
 import { en } from './catalogue';
 import type { Catalogue, MessageKey } from './catalogue';
 import { CATALOGUE_LOADERS } from './catalogues';
@@ -141,6 +141,40 @@ export const useTranslator = <const N extends readonly Namespace<string>[]>(
     tables.push(table instanceof Promise ? use(table) : table);
   }
   return extend(snapshot, namespaces, tables);
+};
+
+/**
+ * The same translator, or `null` while a named table is in flight, for text
+ * that must never hold up its page, as a lesson beside a field. It never
+ * suspends; the table's arrival renders the caller again.
+ */
+export const useLoadedTranslator = <const N extends readonly Namespace<string>[]>(
+  ...namespaces: N
+): Translator<MessageKey | KeyOf<N[number]>> | null => {
+  const snapshot = useSyncExternalStore(subscribeLocale, activeSnapshot, activeSnapshot);
+  const found = namespaces.map((namespace) => tableFor(namespace, snapshot.translator.locale));
+  const waiting = found.filter((table) => table instanceof Promise);
+  const [, setArrivals] = useState(0);
+  const pending = waiting.length > 0 ? Promise.all(waiting) : null;
+  useEffect(() => {
+    if (pending === null) {
+      return undefined;
+    }
+    let live = true;
+    pending.then(
+      () => {
+        if (live) {
+          setArrivals((count) => count + 1);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [pending]);
+  const tables = found.flatMap((table) => (table instanceof Promise ? [] : [table]));
+  return tables.length === found.length ? extend(snapshot, namespaces, tables) : null;
 };
 
 /** The active locale, tracked so a switch re-renders the caller. */
