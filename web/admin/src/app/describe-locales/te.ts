@@ -20,4 +20,9 @@ export const te: DescribeMessages = {
   'picker.matches': '“{query}” కోసం మ్యాచెస్',
   'picker.none': '“{query}” కు ఎటువంటి మ్యాచెస్ లేవు.',
   'picker.create': 'కొత్త ఫీల్డ్ “{name}” సృష్టించండి',
+  'tags.legend': 'ట్యాగ్‌లు',
+  'tags.add': 'ట్యాగ్‌ను జోడించండి',
+  'tags.hint':
+    'తర్వాత విషయాలను కనుగొనడానికి ఉచిత పదాలు. ఒకదాన్ని జోడించడానికి Enter నొక్కండి లేదా కామా టైప్ చేయండి.',
+  'tags.remove': 'ట్యాగ్ “{tag}” ను తొలగించండి',
 };

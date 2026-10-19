@@ -26,6 +26,7 @@ import { useTranslator } from '../../i18n';
 import { PublishPanel } from '../publish/panel';
 import { useTermListText } from './messages';
 import { KIND_LABEL } from './list';
+import { ListMerges } from './list-merges';
 
 type Kind = TermListWrite['source']['kind'];
 
@@ -245,6 +246,7 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
     [id],
   );
   const [saved, setSaved] = useState<TermList | null>(null);
+  const [merged, setMerged] = useState({ version: 0, message: '' });
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
   }
@@ -258,7 +260,25 @@ export const TermListEditPage = ({ id }: { readonly id: TermListId }): ReactElem
       <p>
         <a href="#/term-lists">{t('page.termLists')}</a>
       </p>
-      <TermListEditor list={list} itemSets={state.data.itemSets} onSaved={setSaved} />
+      <p role="status">{merged.message}</p>
+      <ListMerges
+        list={list}
+        onMerged={(message) => {
+          const shown = (): void => {
+            setMerged((current) => ({ version: current.version + 1, message }));
+          };
+          getTermList(api, id).then((fresh) => {
+            setSaved(fresh);
+            shown();
+          }, shown);
+        }}
+      />
+      <TermListEditor
+        key={merged.version}
+        list={list}
+        itemSets={state.data.itemSets}
+        onSaved={setSaved}
+      />
       <PublishPanel key={JSON.stringify(list.source)} target={{ kind: 'term_list', id: list.id }} />
       <p>{tl('termLists.deleteNote')}</p>
       <DeleteControl

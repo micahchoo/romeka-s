@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/client';
 import { listTermLists } from '../../api/term-lists';
 import type { ApiPage, ItemSet, TermList } from '../../api/types';
@@ -7,6 +8,7 @@ import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { useTermListText } from './messages';
 import type { TermListMessageKey } from './messages';
+import { TagsPanel } from './tags-panel';
 
 const PER_PAGE = 25;
 
@@ -83,27 +85,36 @@ export const TermListList = (): ReactElement => {
   const { t } = useTranslator();
   const tl = useTermListText();
   const resource = tl('termLists.resource');
+  const [version, setVersion] = useState(0);
   return (
-    <div>
-      <p>{tl('termLists.intro')}</p>
-      <p>
-        <a href="#/term-lists/new">{tl('termLists.add')}</a>
-      </p>
-      <ListPage<TermListRow>
-        resourceLabel={resource}
-        emptyMessage={t('list.empty', { resource })}
-        load={load}
-        rowKey={(row) => String(row.list.id)}
-        columns={[
-          {
-            header: t('column.label'),
-            cell: (row) => <a href={`#/term-lists/${String(row.list.id)}`}>{row.list.label}</a>,
-          },
-          { header: tl('termLists.columnKind'), cell: (row) => tl(KIND_LABEL[row.list.source.kind]) },
-          { header: tl('termLists.columnEntries'), cell: entries },
-          { header: tl('termLists.columnUsage'), cell: (row) => row.usage, numeric: true },
-          { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
-        ]}
+    <div className="term-lists-layout">
+      <div>
+        <p>{tl('termLists.intro')}</p>
+        <p>
+          <a href="#/term-lists/new">{tl('termLists.add')}</a>
+        </p>
+        <ListPage<TermListRow>
+          key={version}
+          resourceLabel={resource}
+          emptyMessage={t('list.empty', { resource })}
+          load={load}
+          rowKey={(row) => String(row.list.id)}
+          columns={[
+            {
+              header: t('column.label'),
+              cell: (row) => <a href={`#/term-lists/${String(row.list.id)}`}>{row.list.label}</a>,
+            },
+            { header: tl('termLists.columnKind'), cell: (row) => tl(KIND_LABEL[row.list.source.kind]) },
+            { header: tl('termLists.columnEntries'), cell: entries },
+            { header: tl('termLists.columnUsage'), cell: (row) => row.usage, numeric: true },
+            { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
+          ]}
+        />
+      </div>
+      <TagsPanel
+        onPromoted={() => {
+          setVersion((current) => current + 1);
+        }}
       />
     </div>
   );

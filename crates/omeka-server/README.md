@@ -261,6 +261,24 @@ writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
 
+## Tags
+
+The tag routes are a Romeka addition (`src/tags.rs`); every decision is in
+`omeka_api::tagging`. A tag is a plain-text `dcterms:subject` value. Upstream has no
+tag concept and no bulk rewrite.
+
+| Route | Body | Response |
+| --- | --- | --- |
+| `GET /api/tags` | none | 200 `{values: [{value, resources, editable}], distinct}` |
+| `GET /api/custom_vocabs/:id/values` | none | the same, for the list's words; 404 |
+| `POST /api/tags/promote` | `{tags, list, dry_run?}` | 200 `{list, created, changed, skipped, templates, templates_skipped}`; 400, 403, 415, 422 |
+| `POST /api/tags/merge`, `POST /api/custom_vocabs/:id/merge` | `{from, to, dry_run?}` | 200 `{changed, skipped}`; 400, 403, 404, 415 |
+| `POST /api/tags/distinct`, `POST /api/custom_vocabs/:id/distinct` | `{values}` | 200 the census; 400, 403, 404, 415 |
+
+A write changes only the resources the caller may update and counts the others
+as `skipped`. Each write runs in one transaction, and `dry_run: true` answers the
+same counts and writes nothing.
+
 ## Published term lists and vocabularies
 
 Two Romeka additions (`src/publish.rs`); every rule is in `omeka_api::publish`.
