@@ -226,18 +226,25 @@ fn layout_with_head(
     let menu_label = "Menu";
     let mut theme_assets = String::new();
     for asset in info.assets.iter().filter(|asset| asset.kind.is_head()) {
-        theme_assets.push_str(
-            &asset
-                .kind
-                .element(&format!("{assets}/{}", escape_html(asset.path))),
-        );
+        theme_assets.push_str(&asset.kind.element(&format!(
+            "{assets}/{}?v={}",
+            escape_html(asset.path),
+            asset.version()
+        )));
         theme_assets.push('\n');
     }
     // The design tokens as custom properties, one `<style>` in the head. Every
     // value is validated at the storage boundary, so nothing a curator stored
     // reaches the sheet as CSS.
     let tokens = ctx.theme_settings.css();
-    let header = ctx.theme_settings.header_layout.class();
+    let header = ctx.theme_settings.tokens.header_layout.class();
+    // The site's own CSS follows the theme sheet so its rules win. It passed
+    // the sanitiser when it was read, which refuses `</style` among the rest,
+    // so it cannot end this element.
+    let custom_css = match &ctx.theme_settings.custom_css {
+        Some(css) => format!("<style id=\"custom-css\">\n{}\n</style>\n", css.as_str()),
+        None => String::new(),
+    };
     let logo = logo_markup(ctx);
     let banner = banner_markup(ctx);
     let footer_text = footer_text(ctx);
@@ -268,6 +275,7 @@ fn layout_with_head(
          {favicon}\
          <style>\n{tokens}</style>\n\
          {theme_assets}\
+         {custom_css}\
          {head_extra}\
          </head>\n\
          <body class=\"minimal {body}\">\n\

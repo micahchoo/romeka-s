@@ -20,7 +20,7 @@
 
 use axum::Router;
 use axum::body::Body;
-use axum::extract::Path;
+use axum::extract::{Path, RawQuery};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::Response;
 use axum::routing::any;
@@ -29,27 +29,41 @@ use omeka_site::theme::{ThemeAsset, theme_asset, themes};
 
 use crate::AppState;
 
-/// How long a client may reuse a served asset.
+/// The cache header for a URL whose `?v=` names the bytes it gets.
 ///
-/// The asset URL carries no version query, so the value balances reuse against
-/// picking up a redeploy: a day. The response also carries the weak `ETag` the
-/// cache layer adds (`crate::http::conditional_get`), so a client that holds the
-/// bytes can revalidate instead of waiting the day out.
-const CACHE_CONTROL: &str = "public, max-age=86400";
+/// The frame links every head asset as `<path>?v=<ThemeAsset::version>`, a
+/// digest of the bytes, so a deploy that changes a sheet changes the URL every
+/// page links. One URL then always means one set of bytes, and a client may
+/// keep them for a year without asking again.
+const IMMUTABLE: &str = "public, max-age=31536000, immutable";
+
+/// The cache header for any other request: no version, or a version that is
+/// not the current bytes (a page cached before a deploy). The client keeps the
+/// bytes but revalidates them with the weak `ETag` the cache layer adds
+/// (`crate::http::conditional_get`), so a stale copy is never shown.
+const REVALIDATE: &str = "no-cache";
 
 /// The `/assets` routes, mounted into [`crate::build_router`].
 pub(crate) fn router() -> Router<AppState> {
     Router::new().route("/assets/{*path}", any(handle))
 }
 
-async fn handle(method: Method, Path(path): Path<String>) -> Response {
+async fn handle(method: Method, Path(path): Path<String>, RawQuery(query): RawQuery) -> Response {
     if method != Method::GET {
         return method_not_allowed();
     }
     match asset(&path) {
-        Some(asset) => asset_response(asset),
+        Some(asset) => {
+            let current = requested_version(query.as_deref()) == Some(asset.version().as_str());
+            asset_response(asset, if current { IMMUTABLE } else { REVALIDATE })
+        }
         None => crate::not_found().await,
     }
+}
+
+/// The `v` member of a query string.
+fn requested_version(query: Option<&str>) -> Option<&str> {
+    query?.split('&').find_map(|pair| pair.strip_prefix("v="))
 }
 
 /// The bundled asset at a manifest path, the first theme in registry order that
@@ -60,13 +74,13 @@ fn asset(path: &str) -> Option<&'static ThemeAsset> {
         .find_map(|theme| theme_asset(theme.info().name, path))
 }
 
-fn asset_response(asset: &ThemeAsset) -> Response {
+fn asset_response(asset: &ThemeAsset, cache_control: &'static str) -> Response {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, asset.kind.media_type())
         .header(
             header::CACHE_CONTROL,
-            HeaderValue::from_static(CACHE_CONTROL),
+            HeaderValue::from_static(cache_control),
         )
         .body(Body::from(asset.content))
         .unwrap_or_else(|_| crate::empty_internal_error())

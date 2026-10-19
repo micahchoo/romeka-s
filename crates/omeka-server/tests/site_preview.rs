@@ -771,3 +771,63 @@ async fn preview_renders_without_the_user_bar() {
         "the preview carries the user bar"
     );
 }
+
+/// Draft custom CSS reaches the preview after the theme sheet, and CSS the
+/// sanitiser refuses is a 422 naming the line, the answer the site write gives.
+#[tokio::test]
+async fn preview_applies_draft_custom_css_and_refuses_unsafe_css() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+    let mut body = page_body(
+        Some(seed.public_page),
+        "vis-pub-public",
+        "Vis public page",
+        json!([{"o:layout": "pageTitle", "o:data": {}}]),
+    );
+    body["o:theme_settings"] = json!({"custom_css": "body { color: #cc0000 }"});
+    let answer = send(
+        app.clone(),
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer
+            .body
+            .contains("<style id=\"custom-css\">\nbody { color: #cc0000 }\n</style>"),
+        "{}",
+        answer.body
+    );
+
+    body["o:theme_settings"] =
+        json!({"custom_css": "body {\n  background: url(https://evil.example/x)\n}"});
+    let refused = send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+    assert_eq!(
+        refused.status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "{}",
+        refused.body
+    );
+    let message = refused.json()["errors"]["o:theme_settings"][0]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        message.starts_with("Custom CSS: Line 2, column 15: url("),
+        "{message}"
+    );
+}

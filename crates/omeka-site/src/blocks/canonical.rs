@@ -48,8 +48,9 @@ pub fn content_hash(html: &str) -> String {
 /// The FNV-1a 64 hash of the raw bytes, as 16 lowercase hex digits.
 ///
 /// This is the algorithm carrier version 1 stored. It is still computed to
-/// accept a v1 hash that a write recorded before the canonical form existed,
-/// and it is otherwise unused.
+/// accept a v1 hash that a write recorded before the canonical form existed.
+/// A theme asset's URL version (`theme::ThemeAsset::version`) is the same
+/// digest of the asset's bytes.
 #[must_use]
 pub fn byte_hash(html: &str) -> String {
     hex(fnv1a(html.as_bytes()))

@@ -1,20 +1,19 @@
 /**
- * The site Theme page: the design tokens a curator edits, a live WCAG contrast
- * readout, and a live preview of the site's homepage rendered with the unsaved
- * tokens.
+ * The site Theme page: pick a preset, set a brand colour, fine-tune single
+ * tokens, write custom CSS, and watch the site's homepage change beside the
+ * controls.
  *
- * The controls come from the generated schema in
- * `src/generated/themeSettings.json`, written by
- * `crates/omeka-site/src/theme/tokens.rs`. A save PATCHes the site's
- * `o:theme_settings` map; a preview POSTs the same map to
- * `/s/<slug>/preview`, which renders it and stores nothing.
- *
- * The contrast gate is the reason this page exists beside the generic settings
- * form: a palette below AA 4.5:1 cannot be saved.
+ * The draft (`themeEditor/draft.ts`) is the stored shape the theme reads. A
+ * save PATCHes it as the site's `o:theme_settings`; a preview POSTs it to
+ * `/s/<slug>/preview`, which renders it and stores nothing. The swatches and
+ * the contrast gate resolve the draft in the browser, with the same
+ * arithmetic as the theme, so they react on every keystroke; a palette below
+ * AA 4.5:1 cannot be saved. Custom CSS is checked by the server's sanitiser,
+ * through the preview while the curator types and again on save.
  */
 import type { ReactElement } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api } from '../../api/client';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError, api } from '../../api/client';
 import { isRecord } from '../../api/parse';
 import type { JsonValue, Site, SiteId, SitePage } from '../../api/types';
 import { encodeSiteThemeSettings } from '../../api/write';
@@ -23,7 +22,6 @@ import { SaveStatus } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
 import { HtmlEditor } from './editor/fields/HtmlEditor';
 import { PreviewPanel } from './editor/shell/PreviewPanel';
@@ -33,250 +31,42 @@ import { ResourcePageBlocksField } from './ResourcePageBlocksField';
 import { RESOURCE_PAGE_BLOCKS_REGISTRY } from './resourcePageBlocksRegistry';
 import { resourcePageBlockDrafts, resourcePageBlocksWire } from './resourcePageBlocksSchema';
 import type { ResourcePageBlocksDraft } from './resourcePageBlocksSchema';
-import { THEME_SETTINGS_REGISTRY } from './themeSettingsRegistry';
+import { BrandPanel, ContrastPanel } from './themeEditor/BrandPanel';
+import { FineTune } from './themeEditor/FineTune';
+import { PresetGallery } from './themeEditor/PresetGallery';
 import {
-  isHexColour,
-  themeSettingDrafts,
-  themeSettingsWire,
-} from './themeSettingsSchema';
-import type { ThemeSettingDraft, ThemeSettingSpec } from './themeSettingsSchema';
-import { contrastChecks, formatRatio } from './contrast';
+  applyPreset,
+  contrastChecks,
+  draftFromStored,
+  draftProblems,
+  draftWire,
+  exportTheme,
+  importTheme,
+  resolve,
+  setOverride,
+} from './themeEditor/draft';
+import type { ContentKey, ThemeDraft } from './themeEditor/draft';
+import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
+import { useThemeText } from './themeEditor/messages';
+import './themeEditor/theme.css';
 
-/** The control groups, in the order the page shows them. */
-const GROUPS: readonly { readonly titleKey: MessageKey; readonly keys: readonly string[] }[] = [
-  {
-    titleKey: 'theme.palette',
-    keys: [
-      'color_scheme',
-      'brand_color',
-      'accent_color',
-      'background_color',
-      'surface_color',
-      'text_color',
-      'muted_color',
-      'link_color',
-    ],
-  },
-  {
-    titleKey: 'theme.typography',
-    keys: ['heading_font', 'body_font', 'base_font_size', 'type_ratio'],
-  },
-  { titleKey: 'theme.layout', keys: ['density', 'corner_radius', 'header_layout'] },
-  { titleKey: 'theme.headerFooter', keys: ['logo', 'banner', 'banner_text', 'footer_text'] },
-];
+const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
 
-/** A friendlier label than the stored value, for the known choices. */
-const CHOICE_LABELS: Readonly<Record<string, string>> = {
-  light: 'Light',
-  dark: 'Dark',
-  auto: 'Automatic',
-  compact: 'Compact',
-  comfortable: 'Comfortable',
-  spacious: 'Spacious',
-  'logo-left': 'Logo left',
-  centred: 'Centred',
-  'system-sans': 'System sans',
-  'system-serif': 'System serif',
-  humanist: 'Humanist sans',
-  geometric: 'Geometric sans',
-  'transitional-serif': 'Transitional serif',
-  mono: 'Monospace',
-};
-
-const choiceLabel = (value: string): string => CHOICE_LABELS[value] ?? value;
+/** The CSS editor's byte ceiling, from the generated schema. */
+const CSS_MAX_BYTES = ((): number => {
+  const setting = settingFor('custom_css');
+  return setting?.kind === 'css' ? setting.maxBytes : 65536;
+})();
 
 const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
   const value = site.themeSettings;
   return isRecord(value) ? value : {};
 };
 
-const ColourControl = ({
-  spec,
-  value,
-  onChange,
-}: {
-  readonly spec: Extract<ThemeSettingSpec, { readonly kind: 'colour' }>;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}): ReactElement => {
-  const { t } = useTranslator();
-  const id = `theme-setting-${spec.key}`;
-  const invalid = value !== '' && !isHexColour(value);
-  return (
-    <p className="theme-colour">
-      <label htmlFor={id}>{t(spec.labelKey)}</label>
-      <input
-        id={`${id}-swatch`}
-        type="color"
-        aria-label={t(spec.labelKey)}
-        value={isHexColour(value) ? value : spec.default}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      />
-      <input
-        id={id}
-        type="text"
-        spellCheck={false}
-        value={value}
-        aria-invalid={invalid}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      />
-      {invalid ? (
-        <span className="field-note" role="alert">
-          {t('theme.hexHint')}
-        </span>
-      ) : null}
-    </p>
-  );
-};
-
-/** One control per token kind. */
-const TokenControl = ({
-  spec,
-  value,
-  onChange,
-}: {
-  readonly spec: ThemeSettingSpec;
-  readonly value: ThemeSettingDraft;
-  readonly onChange: (value: ThemeSettingDraft) => void;
-}): ReactElement => {
-  const { t } = useTranslator();
-  const id = `theme-setting-${spec.key}`;
-  if (spec.kind === 'colour') {
-    return (
-      <ColourControl
-        spec={spec}
-        value={typeof value === 'string' ? value : spec.default}
-        onChange={onChange}
-      />
-    );
-  }
-  if (spec.kind === 'font' || spec.kind === 'choice') {
-    return (
-      <p>
-        <label htmlFor={id}>{t(spec.labelKey)}</label>
-        <select
-          id={id}
-          value={typeof value === 'string' ? value : spec.default}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-        >
-          {spec.choices.map((choice) => (
-            <option key={choice} value={choice}>
-              {choiceLabel(choice)}
-            </option>
-          ))}
-        </select>
-      </p>
-    );
-  }
-  if (spec.kind === 'number') {
-    const current = typeof value === 'number' ? value : spec.default;
-    return (
-      <p>
-        <label htmlFor={id}>{t(spec.labelKey)}</label>
-        <input
-          id={`${id}-range`}
-          type="range"
-          min={spec.min}
-          max={spec.max}
-          step={spec.step}
-          aria-label={t(spec.labelKey)}
-          value={current}
-          onChange={(event) => {
-            onChange(Number(event.target.value));
-          }}
-        />
-        <input
-          id={id}
-          type="number"
-          min={spec.min}
-          max={spec.max}
-          step={spec.step}
-          value={current}
-          onChange={(event) => {
-            onChange(Number(event.target.value));
-          }}
-        />
-        {spec.key === 'type_ratio' ? (
-          <span className="field-note">{(current / 100).toFixed(2)}</span>
-        ) : null}
-      </p>
-    );
-  }
-  if (spec.kind === 'asset') {
-    return (
-      <AssetPicker
-        id={id}
-        label={t(spec.labelKey)}
-        value={typeof value === 'string' ? value : ''}
-        onChange={onChange}
-      />
-    );
-  }
-  if (spec.kind === 'html') {
-    return (
-      <HtmlEditor
-        id={id}
-        label={t(spec.labelKey)}
-        value={typeof value === 'string' ? value : ''}
-        onChange={onChange}
-      />
-    );
-  }
-  return (
-    <p>
-      <label htmlFor={id}>{t(spec.labelKey)}</label>
-      <input
-        id={id}
-        type="text"
-        value={typeof value === 'string' ? value : ''}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      />
-    </p>
-  );
-};
-
-/** The AA readout for the three pairs the palette is checked against. */
-const ContrastReadout = ({
-  checks,
-}: {
-  readonly checks: ReturnType<typeof contrastChecks>;
-}): ReactElement => {
-  const { t } = useTranslator();
-  return (
-    <section className="theme-contrast" aria-label={t('theme.contrast')}>
-      <h3>{t('theme.contrast')}</h3>
-      <ul>
-        {checks.map((check) => (
-          <li
-            key={check.key}
-            className={check.passes ? 'contrast-pass' : 'contrast-fail'}
-            data-contrast={check.key}
-            data-pass={String(check.passes)}
-          >
-            <span className="contrast-label">{t(check.labelKey)}</span>
-            <span className="contrast-ratio">{formatRatio(check.ratio)}</span>
-            <span className="contrast-state">
-              {check.passes ? t('theme.contrastPass') : t('theme.contrastFail')}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-};
-
-/** The preview request body: the stored page plus the unsaved tokens. */
+/** The preview request body: the stored page plus the unsaved theme map. */
 const previewBody = (
   page: SitePage,
-  tokens: Readonly<Record<string, JsonValue>>,
+  settings: Readonly<Record<string, JsonValue>>,
 ): Readonly<Record<string, unknown>> => ({
   'o:id': page.id,
   'o:title': page.title,
@@ -284,7 +74,7 @@ const previewBody = (
   'o:is_public': page.isPublic,
   'o:layout': page.layout ?? '',
   'o:layout_data': page.layoutData,
-  'o:theme_settings': tokens,
+  'o:theme_settings': settings,
 });
 
 interface PreviewState {
@@ -293,56 +83,153 @@ interface PreviewState {
   readonly message: string | null;
 }
 
-/** A token's wire value as a string, for the contrast checks. */
-const wireColour = (tokens: Readonly<Record<string, JsonValue>>, key: string): string => {
-  const value = tokens[key];
-  return typeof value === 'string' ? value : '';
+/** The sanitiser's messages for the theme map, from an API error document. */
+const cssMessages = (errors: Readonly<Record<string, readonly string[]>> | null): readonly string[] =>
+  errors?.['o:theme_settings'] ?? [];
+
+type Tab = 'design' | 'css';
+
+/** The header and footer content: logo, banner and footer, each with its help line. */
+const ContentSection = ({
+  draft,
+  onChange,
+}: {
+  readonly draft: ThemeDraft;
+  readonly onChange: (key: ContentKey, value: string) => void;
+}): ReactElement => {
+  const tt = useThemeText();
+  const help = (key: ContentKey): ReactElement | null => {
+    const setting = settingFor(key);
+    return setting === undefined ? null : <p className="field-note theme-help">{tt(setting.helpKey)}</p>;
+  };
+  return (
+    <fieldset className="theme-section">
+      <legend>{tt('theme.headerFooter')}</legend>
+      <AssetPicker
+        id="theme-setting-logo"
+        label={tt('themeSetting.logo')}
+        value={draft.content.logo}
+        onChange={(value) => {
+          onChange('logo', value);
+        }}
+      />
+      {help('logo')}
+      <AssetPicker
+        id="theme-setting-banner"
+        label={tt('themeSetting.banner')}
+        value={draft.content.banner}
+        onChange={(value) => {
+          onChange('banner', value);
+        }}
+      />
+      {help('banner')}
+      <p>
+        <label htmlFor="theme-setting-banner_text">{tt('themeSetting.bannerText')}</label>
+        <input
+          id="theme-setting-banner_text"
+          type="text"
+          value={draft.content.banner_text}
+          onChange={(event) => {
+            onChange('banner_text', event.target.value);
+          }}
+        />
+      </p>
+      {help('banner_text')}
+      <HtmlEditor
+        id="theme-setting-footer_text"
+        label={tt('themeSetting.footerText')}
+        value={draft.content.footer_text}
+        onChange={(value) => {
+          onChange('footer_text', value);
+        }}
+      />
+      {help('footer_text')}
+    </fieldset>
+  );
 };
 
-const ThemeEditor = ({
-  siteId,
-  site,
+/** Export, import and reset: the theme as a file, and the way back to the preset. */
+const ThemeFileActions = ({
+  draft,
+  siteSlug,
+  onImport,
+  onReset,
 }: {
-  readonly siteId: SiteId;
-  readonly site: Site;
+  readonly draft: ThemeDraft;
+  readonly siteSlug: string;
+  readonly onImport: (draft: ThemeDraft | null) => void;
+  readonly onReset: () => void;
 }): ReactElement => {
-  const { t } = useTranslator();
-  const [drafts, setDrafts] = useState<Readonly<Record<string, ThemeSettingDraft>>>(() =>
-    themeSettingDrafts(THEME_SETTINGS_REGISTRY, storedSettings(site)),
+  const tt = useThemeText();
+  const file = useRef<HTMLInputElement | null>(null);
+  const download = (): void => {
+    const url = URL.createObjectURL(new Blob([exportTheme(draft)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${siteSlug}-theme.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <p className="theme-file-actions">
+      <button type="button" onClick={download}>
+        {tt('theme.export')}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          file.current?.click();
+        }}
+      >
+        {tt('theme.import')}
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        aria-label={tt('theme.import')}
+        onChange={(event) => {
+          const chosen = event.target.files?.[0];
+          event.target.value = '';
+          if (chosen !== undefined) {
+            void chosen.text().then((text) => {
+              onImport(importTheme(text, draft));
+            });
+          }
+        }}
+      />
+      <button type="button" onClick={onReset} disabled={Object.keys(draft.overrides).length === 0}>
+        {tt('theme.resetPreset')}
+      </button>
+    </p>
   );
+};
+
+const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site: Site }): ReactElement => {
+  const { t } = useTranslator();
+  const tt = useThemeText();
+  const [draft, setDraft] = useState<ThemeDraft>(() => draftFromStored(storedSettings(site)));
   const [blocks, setBlocks] = useState<ResourcePageBlocksDraft>(() =>
     resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, storedSettings(site)),
   );
+  const [tab, setTab] = useState<Tab>('design');
   const [page, setPage] = useState<SitePage | null>(null);
-  const [preview, setPreview] = useState<PreviewState>({
-    html: null,
-    status: 'idle',
-    message: null,
-  });
+  const [preview, setPreview] = useState<PreviewState>({ html: null, status: 'idle', message: null });
+  const [cssErrors, setCssErrors] = useState<readonly string[]>([]);
+  const [notice, setNotice] = useState<'imported' | 'importError' | null>(null);
   const { state: saveState, save } = useSave();
 
-  const set = useCallback((key: string, value: ThemeSettingDraft): void => {
-    setDrafts((current) => ({ ...current, [key]: value }));
-  }, []);
+  const resolved = useMemo(() => resolve(draft), [draft]);
+  const checks = useMemo(() => contrastChecks(resolved), [resolved]);
+  const problems = useMemo(() => draftProblems(draft), [draft]);
+  const settings = useMemo(() => draftWire(draft), [draft]);
+  const blocked = problems.badHex || problems.failing > 0 || cssErrors.length > 0;
 
-  const tokens = useMemo(
-    () => themeSettingsWire(THEME_SETTINGS_REGISTRY, drafts),
-    [drafts],
-  );
-  const checks = useMemo(
-    () =>
-      contrastChecks({
-        text: wireColour(tokens, 'text_color'),
-        background: wireColour(tokens, 'background_color'),
-        link: wireColour(tokens, 'link_color'),
-        brand: wireColour(tokens, 'brand_color'),
-      }),
-    [tokens],
-  );
-  const invalidHex = THEME_SETTINGS_REGISTRY.settings.some(
-    (spec) => spec.kind === 'colour' && typeof drafts[spec.key] === 'string' && !isHexColour(drafts[spec.key]),
-  );
-  const blocked = invalidHex || checks.some((check) => !check.passes);
+  const update = useCallback((change: (current: ThemeDraft) => ThemeDraft): void => {
+    setDraft(change);
+    setNotice(null);
+  }, []);
 
   // The homepage, or the first page, is what the preview renders.
   useEffect(() => {
@@ -369,19 +256,25 @@ const ThemeEditor = ({
     };
   }, [site]);
 
-  // A short debounce keeps a slider drag from firing one request per pixel.
+  // A short debounce keeps a slider drag or a burst of typing from firing one
+  // request per change. A refused CSS draft keeps the last good render and
+  // marks the CSS instead.
   useEffect(() => {
     if (page === null) {
       return;
     }
     setPreview((current) => ({ ...current, status: 'loading' }));
     const timer = setTimeout(() => {
-      requestPreview(site.slug, previewBody(page, tokens)).then(
+      requestPreview(site.slug, previewBody(page, settings)).then(
         (result) => {
           if (result.kind === 'html') {
+            setCssErrors([]);
             setPreview({ html: result.html, status: 'ready', message: null });
           } else if (result.kind === 'unavailable') {
             setPreview({ html: null, status: 'unavailable', message: null });
+          } else if (cssMessages(result.errors).length > 0) {
+            setCssErrors(cssMessages(result.errors));
+            setPreview((current) => ({ ...current, status: 'ready' }));
           } else {
             setPreview({ html: null, status: 'error', message: result.message });
           }
@@ -398,7 +291,7 @@ const ThemeEditor = ({
     return () => {
       clearTimeout(timer);
     };
-  }, [page, tokens, site.slug]);
+  }, [page, settings, site.slug]);
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
@@ -406,50 +299,131 @@ const ThemeEditor = ({
       return;
     }
     save(async () => {
-      const settings: Readonly<Record<string, JsonValue>> = {
-        ...tokens,
-        resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
-      };
-      await api.patchSite(siteId, encodeSiteThemeSettings(settings));
+      try {
+        await api.patchSite(
+          siteId,
+          encodeSiteThemeSettings({
+            ...settings,
+            resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
+          }),
+        );
+      } catch (error: unknown) {
+        if (error instanceof ApiError && cssMessages(error.errors).length > 0) {
+          setCssErrors(cssMessages(error.errors));
+          setTab('css');
+        }
+        throw error;
+      }
     });
   };
 
-  const specFor = (key: string): ThemeSettingSpec | undefined =>
-    THEME_SETTINGS_REGISTRY.settings.find((spec) => spec.key === key);
+  const tabButton = (key: Tab, label: string): ReactElement => (
+    <button
+      type="button"
+      role="tab"
+      id={`theme-tab-${key}`}
+      aria-selected={tab === key}
+      aria-controls={`theme-panel-${key}`}
+      onClick={() => {
+        setTab(key);
+      }}
+    >
+      {label}
+      {key === 'css' && cssErrors.length > 0 ? <span className="theme-tab-badge">{cssErrors.length}</span> : null}
+    </button>
+  );
 
   return (
     <div className="theme-editor">
       <form onSubmit={submit}>
-        {GROUPS.map((group) => (
-          <fieldset key={group.titleKey}>
-            <legend>{t(group.titleKey)}</legend>
-            {group.keys.map((key) => {
-              const spec = specFor(key);
-              if (spec === undefined) {
-                return null;
-              }
-              return (
-                <TokenControl
-                  key={key}
-                  spec={spec}
-                  value={drafts[key] ?? ''}
-                  onChange={(value) => {
-                    set(key, value);
-                  }}
-                />
-              );
-            })}
-          </fieldset>
-        ))}
-        <ContrastReadout checks={checks} />
-        <ResourcePageBlocksField
-          registry={RESOURCE_PAGE_BLOCKS_REGISTRY}
-          drafts={blocks}
-          onChange={setBlocks}
-        />
+        <div className="theme-tabs" role="tablist" aria-label={tt('theme.sections')}>
+          {tabButton('design', tt('theme.design'))}
+          {tabButton('css', tt('theme.customCssTab'))}
+        </div>
+        {tab === 'design' ? (
+          <div role="tabpanel" id="theme-panel-design" aria-labelledby="theme-tab-design">
+            <PresetGallery
+              draft={draft}
+              onApply={(preset) => {
+                update((current) => applyPreset(current, preset));
+              }}
+            />
+            <BrandPanel
+              draft={draft}
+              resolved={resolved}
+              onBrand={(value) => {
+                update((current) => setOverride(current, 'brand_color', value));
+              }}
+              onDerive={(derive) => {
+                update((current) => ({ ...current, derive }));
+              }}
+            />
+            <ContrastPanel
+              checks={checks}
+              onUse={(role, colour) => {
+                const key = THEME_REGISTRY.colours.find((entry) => entry.role === role)?.key;
+                if (key !== undefined) {
+                  update((current) => setOverride(current, key, colour));
+                }
+              }}
+            />
+            <FineTune
+              draft={draft}
+              resolved={resolved}
+              onSet={(key, value) => {
+                update((current) => setOverride(current, key, value));
+              }}
+            />
+            <ContentSection
+              draft={draft}
+              onChange={(key, value) => {
+                update((current) => ({ ...current, content: { ...current.content, [key]: value } }));
+              }}
+            />
+            <ResourcePageBlocksField
+              registry={RESOURCE_PAGE_BLOCKS_REGISTRY}
+              drafts={blocks}
+              onChange={setBlocks}
+            />
+            <ThemeFileActions
+              draft={draft}
+              siteSlug={site.slug}
+              onImport={(imported) => {
+                if (imported === null) {
+                  setNotice('importError');
+                } else {
+                  setDraft(imported);
+                  setNotice('imported');
+                }
+              }}
+              onReset={() => {
+                update((current) => applyPreset(current, current.preset));
+              }}
+            />
+            {notice === null ? null : (
+              <p className={notice === 'imported' ? 'field-note' : 'field-error'} role="status">
+                {tt(notice === 'imported' ? 'theme.imported' : 'theme.importError')}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div role="tabpanel" id="theme-panel-css" aria-labelledby="theme-tab-css">
+            <Suspense fallback={<p role="status">{t('loading.page')}</p>}>
+              <CustomCssTab
+                value={draft.customCss}
+                maxBytes={CSS_MAX_BYTES}
+                errors={cssErrors}
+                previewHtml={preview.html}
+                onChange={(customCss) => {
+                  update((current) => ({ ...current, customCss }));
+                }}
+              />
+            </Suspense>
+          </div>
+        )}
         {blocked ? (
           <p className="field-error" role="alert">
-            {t('theme.contrastBlocked')}
+            {tt('theme.blocked')}
           </p>
         ) : null}
         <SaveStatus state={saveState} />
@@ -464,7 +438,7 @@ const ThemeEditor = ({
   );
 };
 
-/** Loads the site and its tokens, then renders the editor. */
+/** Loads the site and its theme settings, then renders the editor. */
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator();
   const state = useAsync(() => api.getSite(siteId), [siteId]);

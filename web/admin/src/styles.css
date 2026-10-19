@@ -1162,89 +1162,6 @@ fieldset.block-field {
   margin-bottom: var(--space-3);
 }
 
-/* The site Theme page: token controls, the contrast readout, and the side-by-
-   side live preview the page editor also uses. */
-
-/* The form keeps a fixed, readable width; the preview scales its frame into
- * whatever is left. */
-.theme-editor {
-  display: grid;
-  grid-template-columns: 28rem minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .theme-editor {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.theme-editor form fieldset {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3) var(--space-4);
-}
-
-.theme-editor form legend {
-  font-weight: 600;
-  padding: 0 var(--space-1);
-}
-
-.theme-colour {
-  display: grid;
-  grid-template-columns: 8rem 3rem 8rem;
-  justify-content: start;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-}
-
-.theme-colour input[type='color'] {
-  width: 3rem;
-  height: 2rem;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: none;
-}
-
-.theme-colour .field-note {
-  grid-column: 2 / span 2;
-}
-
-.theme-contrast {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-}
-
-.theme-contrast h3 {
-  font-size: 15px;
-  margin: 0 0 var(--space-2);
-}
-
-.theme-contrast ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.theme-contrast li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: var(--space-3);
-  white-space: nowrap;
-  padding: var(--space-1) 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.contrast-ratio {
-  font-variant-numeric: tabular-nums;
-}
-
 /* One block of a resource page is one line: its name, then its three actions. */
 .resource-page-blocks {
   margin: 0 0 var(--space-3);
@@ -1265,15 +1182,6 @@ fieldset.block-field {
   flex: 1 1 auto;
   min-width: 0;
   margin-inline-end: var(--space-2);
-}
-
-.contrast-pass .contrast-state {
-  color: #1a7f37;
-}
-
-.contrast-fail .contrast-state {
-  color: var(--danger);
-  font-weight: 600;
 }
 
 .template-chooser {

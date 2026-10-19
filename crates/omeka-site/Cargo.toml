@@ -11,6 +11,11 @@ workspace = true
 
 [dependencies]
 chrono.workspace = true
+# The custom CSS sanitiser (`theme/custom_css.rs`) reads a site's CSS with a
+# real tokenizer. `ammonia` (through omeka-core) already builds this crate, at
+# this version and with these features, so it adds no crate to the build and
+# no code to the binary. MPL-2.0.
+cssparser = { version = "0.38", default-features = false }
 omeka-core = { path = "../omeka-core" }
 serde.workspace = true
 serde_json.workspace = true
