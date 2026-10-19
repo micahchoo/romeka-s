@@ -446,13 +446,16 @@ export interface SitePageWrite {
 /**
  * A value as `POST`/`PUT` accepts it, one per `ValueHydrator` value object.
  * The resource key is the property term; `propertyId` is what the wire object
- * carries as `property_id`.
+ * carries as `property_id`. `kind` picks the members the data type reads and
+ * `type` is the data type name sent as is, so `resource:item` or a module's
+ * type survives an edit.
  */
 export type ValueWrite =
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'literal';
+      readonly kind: 'literal';
+      readonly type: string;
       readonly text: string;
       readonly lang: string | null;
       readonly isPublic: boolean;
@@ -460,15 +463,18 @@ export type ValueWrite =
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'uri';
+      readonly kind: 'uri';
+      readonly type: string;
       readonly uri: string;
       readonly label: string | null;
+      readonly lang: string | null;
       readonly isPublic: boolean;
     }
   | {
       readonly term: string;
       readonly propertyId: PropertyId;
-      readonly type: 'resource';
+      readonly kind: 'resource';
+      readonly type: string;
       readonly resourceId: ResourceId;
       readonly isPublic: boolean;
     };
@@ -489,6 +495,12 @@ export interface ResourceWrite {
 export interface ItemWrite extends ResourceWrite {
   readonly itemSets: readonly ItemSetId[];
   readonly primaryMedia: MediaId | null;
+  /**
+   * The sites the item stays on. A full update replaces the list, so an edit
+   * sends the stored one; `null` leaves `o:site` out, which on a create lets
+   * the server add the sites that assign new items.
+   */
+  readonly sites: readonly SiteId[] | null;
 }
 
 export interface ItemSetWrite extends ResourceWrite {
@@ -515,11 +527,7 @@ export interface PasswordLink {
 }
 
 /** `MediaAdapter::hydrate` on update: the shared columns plus these. */
-export interface MediaWrite {
-  readonly isPublic: boolean;
-  readonly resourceClass: ClassId | null;
-  readonly resourceTemplate: TemplateId | null;
-  readonly thumbnail: AssetId | null;
+export interface MediaWrite extends ResourceWrite {
   readonly lang: string | null;
   readonly altText: string | null;
 }

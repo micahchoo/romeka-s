@@ -82,11 +82,11 @@ test('records the bundle and the user-path timings', async ({ page, baseURL, dia
       RUNS,
       async () => {
         await page.goto('/#/items/new');
-        await page.locator('#item-title').waitFor();
+        await page.getByRole('textbox', { name: 'Title', exact: true }).waitFor();
       },
       async (index) => {
         const title = `${CREATE_PREFIX} ${String(index)}`;
-        await page.locator('#item-title').fill(title);
+        await page.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
         const result = await page.evaluate(measureInPage, {
           action: SUBMIT,
           ready: DETAIL_TITLE,
