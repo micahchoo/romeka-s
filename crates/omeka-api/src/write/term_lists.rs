@@ -82,7 +82,11 @@ async fn stored(api: &Api<'_>, raw_id: &str) -> Result<CustomVocabRow, ApiError>
 /// `Module::onBootstrap`: an editor may update or delete a list they own
 /// (`OwnsEntityAssertion`), and both admin roles may change any. The adapter
 /// grant has already refused every other role.
-fn owner_only(api: &Api<'_>, row: &CustomVocabRow, operation: Operation) -> Result<(), ApiError> {
+pub(crate) fn owner_only(
+    api: &Api<'_>,
+    row: &CustomVocabRow,
+    operation: Operation,
+) -> Result<(), ApiError> {
     let actor = api.actor();
     if crate::write::access::is_admin_role(actor.role()) {
         return Ok(());

@@ -20,6 +20,7 @@ import type {
 } from '../api/types';
 import type { Translator } from '../i18n';
 import {
+  allValues,
   draftKey,
   emptyResourceDraft,
   isBlank,
@@ -270,7 +271,7 @@ export const draftErrors = (
   t: Translator['t'],
 ): readonly string[] => [
   ...missingRequired(
-    layoutFields(draft.values, templateById(templates, draft.resourceTemplate), properties),
+    layoutFields(allValues(draft), templateById(templates, draft.resourceTemplate), properties),
   ).map((field) => t('valueField.requiredError', { field: field.label })),
   ...valueErrors(draft.values, t),
 ];
