@@ -6,6 +6,7 @@ import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { RESOURCE_CLASS_KIND, MemberDetail } from '../vocabularies/member';
+import { standards } from '../../i18n/namespaces/standards';
 
 interface Loaded {
   readonly resourceClass: ResourceClass;
@@ -25,7 +26,7 @@ const load = async (classId: ClassId): Promise<Loaded> => {
  * offers.
  */
 export const ResourceClassDetail = ({ classId }: { readonly classId: ClassId }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(standards);
   const state = useAsync(() => load(classId), [classId]);
   const [edited, setEdited] = useState<ResourceClass | null>(null);
 

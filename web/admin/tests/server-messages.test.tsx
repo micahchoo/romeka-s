@@ -8,7 +8,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import generated from '../src/generated/serverMessages.json';
 import { setLocale, serverTranslator } from '../src/i18n';
-import { es } from '../src/i18n/locales/es';
+import { es as esCommon } from '../src/i18n/namespaces/common/locales/es';
+import { es as esStandards } from '../src/i18n/namespaces/standards/locales/es';
 import { esServer } from '../src/i18n/locales/es.server';
 import { createServerTranslator } from '../src/i18n/serverMessages';
 import type { ServerCatalogue } from '../src/i18n/serverMessages';
@@ -41,14 +42,14 @@ describe('server messages in the active locale', () => {
     });
     render(<VocabulariesPage param="new" />);
 
-    fireEvent.change(await screen.findByLabelText(es['detail.namespaceUri']), {
+    fireEvent.change(await screen.findByLabelText(esStandards['detail.namespaceUri']), {
       target: { value: 'http://purl.org/ontology/bibo/' },
     });
-    fireEvent.change(screen.getByLabelText(es['column.prefix']), { target: { value: 'bibo' } });
-    fireEvent.change(screen.getByLabelText(es['field.label']), {
+    fireEvent.change(screen.getByLabelText(esStandards['column.prefix']), { target: { value: 'bibo' } });
+    fireEvent.change(screen.getByLabelText(esCommon['field.label']), {
       target: { value: 'Bibliographic' },
     });
-    fireEvent.click(screen.getByRole('button', { name: es['vocabularies.add'] }));
+    fireEvent.click(screen.getByRole('button', { name: esStandards['vocabularies.add'] }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'El prefijo "bibo" ya está en uso. (HTTP 422)',

@@ -7,6 +7,8 @@ import { useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { loadTemplateUsage } from '../standards/usage';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 
 const PER_PAGE = 100;
 
@@ -36,7 +38,7 @@ const load = async (page: number): Promise<ApiPage<PropertyRow>> => {
  * property, so the table does not show one.
  */
 export const PropertyList = (): ReactElement => {
-  const { t, number } = useTranslator();
+  const { t, number } = useTranslator(common, standards);
   const resource = t('resource.properties');
   return (
     <div>
