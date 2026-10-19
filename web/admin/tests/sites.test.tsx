@@ -48,8 +48,6 @@ const usersRoute = (url: URL): Response | null => {
 const notFound = (): Response =>
   jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
 
-const NAVIGATION = [{ type: 'browse', data: { label: 'Browse', query: '' }, links: [] }];
-
 describe('site routing', () => {
   it('router_keeps_the_segments_of_a_nested_site_page_route', () => {
     expect(parseHash('#/sites/1/pages/2')).toEqual({
@@ -98,7 +96,7 @@ describe('site browse and create', () => {
     );
   });
 
-  it('site_create_derives_the_slug_from_the_title_and_posts_the_new_site', async () => {
+  it('site_create_derives_the_slug_from_the_title_and_posts_the_new_site_without_navigation', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites' && init?.method === 'POST') {
         return jsonResponse(siteFixture(0));
@@ -126,8 +124,6 @@ describe('site browse and create', () => {
       'o:title': 'New site',
       'o:theme': 'default',
       'o:summary': null,
-      'o:navigation': NAVIGATION,
-      'o:homepage': { 'o:id': null },
       'o:item_pool': { is_public: '1' },
       'o:is_public': true,
       'o:assign_new_items': true,
