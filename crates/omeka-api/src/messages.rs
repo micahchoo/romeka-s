@@ -12,8 +12,8 @@
 //! catalogue that lacks a key is then a `tsc` error in the admin.
 //!
 //! The wire stays byte-for-byte upstream's text. A free-form message (a
-//! storage failure, a `serde_json` parse error, a CSS refusal from
-//! `omeka-site`) is not a pattern and reaches the admin as it is.
+//! storage failure, a `serde_json` parse error) is not a pattern and reaches
+//! the admin as it is.
 
 /// One registered pattern: its Rust name and its English text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -245,8 +245,41 @@ messages! {
     /// `o:site_settings` that is neither an object nor null; `kind` names the
     /// JSON type.
     fn site_settings_not_object(kind) = "Expected an object or null, got {kind}.";
-    /// A custom CSS refusal; `refusal` is the sanitiser's own sentence.
-    fn custom_css_refusal(refusal) = "Custom CSS: {refusal}";
+    // The custom CSS sanitiser's refusals (`omeka_site::theme::custom_css`),
+    // one per kind. The Theme page marks the line it reads from the English.
+
+    /// More than the sanitiser's byte limit.
+    fn css_too_large(line, column, max, bytes) =
+        "Custom CSS: Line {line}, column {column}: custom CSS may be at most {max} bytes; this is {bytes}.";
+    /// An `@import` rule.
+    fn css_import(line, column) = "Custom CSS: Line {line}, column {column}: @import is not allowed.";
+    /// An `@document` rule.
+    fn css_document(line, column) =
+        "Custom CSS: Line {line}, column {column}: @document is not allowed.";
+    /// A URL outside the site's `/files/` and `/assets/`.
+    fn css_foreign_url(line, column, url) =
+        "Custom CSS: Line {line}, column {column}: url({url}) is not allowed; a URL must be a path under /files/ or /assets/.";
+    /// `expression()`.
+    fn css_expression(line, column) =
+        "Custom CSS: Line {line}, column {column}: expression() is not allowed.";
+    /// The `behavior` property.
+    fn css_behavior(line, column) =
+        "Custom CSS: Line {line}, column {column}: behavior is not allowed.";
+    /// The `-moz-binding` property.
+    fn css_moz_binding(line, column) =
+        "Custom CSS: Line {line}, column {column}: -moz-binding is not allowed.";
+    /// `</style`, which would end the element.
+    fn css_style_breakout(line, column) =
+        "Custom CSS: Line {line}, column {column}: </style is not allowed.";
+    /// A `url(` the tokenizer cannot read.
+    fn css_bad_url(line, column) =
+        "Custom CSS: Line {line}, column {column}: this url( is not valid CSS.";
+    /// A string that a newline or the end of the text cuts off.
+    fn css_unclosed_string(line, column) =
+        "Custom CSS: Line {line}, column {column}: this string is not closed.";
+    /// A `)`, `]` or `}` with no opening bracket.
+    fn css_stray_close(line, column, bracket) =
+        "Custom CSS: Line {line}, column {column}: {bracket} closes nothing.";
     /// `SiteAdapter::validateNavigation`.
     const NAV_NOT_ARRAY = "Invalid navigation: navigation must be an array";
     /// `SiteAdapter::validateNavigation`.

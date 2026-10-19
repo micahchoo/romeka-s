@@ -82,7 +82,20 @@ export const hiServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सभी ब्लॉक्स का लेआउट होना चाहिए।',
   'server.blockDataScalar': 'ब्लॉक डेटा स्केलर वैल्यू नहीं होना चाहिए।',
   'server.siteSettingsNotObject': 'अपेक्षित ऑब्जेक्ट या नल, प्राप्त हुआ {kind}।',
-  'server.customCssRefusal': 'कस्टम CSS: {refusal}',
+  'server.cssTooLarge':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: कस्टम CSS अधिकतम {max} बाइट्स हो सकती है; यह {bytes} है।',
+  'server.cssImport': 'कस्टम CSS: लाइन {line}, कॉलम {column}: @import की अनुमति नहीं है।',
+  'server.cssDocument': 'कस्टम CSS: लाइन {line}, कॉलम {column}: @document की अनुमति नहीं है।',
+  'server.cssForeignUrl':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: url({url}) की अनुमति नहीं है; एक URL /files/ या /assets/ के अंतर्गत एक पथ होना चाहिए।',
+  'server.cssExpression': 'कस्टम CSS: लाइन {line}, कॉलम {column}: expression() की अनुमति नहीं है।',
+  'server.cssBehavior': 'कस्टम CSS: लाइन {line}, कॉलम {column}: behavior की अनुमति नहीं है।',
+  'server.cssMozBinding': 'कस्टम CSS: लाइन {line}, कॉलम {column}: -moz-binding की अनुमति नहीं है।',
+  'server.cssStyleBreakout': 'कस्टम CSS: लाइन {line}, कॉलम {column}: </style की अनुमति नहीं है।',
+  'server.cssBadUrl': 'कस्टम CSS: लाइन {line}, कॉलम {column}: यह url( वैध CSS नहीं है।',
+  'server.cssUnclosedString': 'कस्टम CSS: लाइन {line}, कॉलम {column}: यह स्ट्रिंग बंद नहीं है।',
+  'server.cssStrayClose':
+    'कस्टम CSS: लाइन {line}, कॉलम {column}: {bracket} कुछ भी बंद नहीं करता है।',
   'server.navNotArray': 'अमान्य नेविगेशन: नेविगेशन एक ऐरे होना चाहिए',
   'server.navLinkMissingType': 'अमान्य नेविगेशन: लिंक में टाइप (type) अनुपस्थित है',
   'server.navLinkMissingData': 'अमान्य नेविगेशन: लिंक में डेटा (data) अनुपस्थित है',

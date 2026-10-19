@@ -86,7 +86,22 @@ export const taServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'அனைத்துத் தொகுதிகளும் ஒரு அமைப்பைக் கொண்டிருக்க வேண்டும்.',
   'server.blockDataScalar': 'பிளாக் தரவு ஒரு ஸ்கேலார் மதிப்பாக இருக்கக்கூடாது.',
   'server.siteSettingsNotObject': 'எதிர்பார்க்கப்பட்ட பொருள் அல்லது null, {kind} கிடைத்தது.',
-  'server.customCssRefusal': 'தனிப்பயன் CSS: {refusal}',
+  'server.cssTooLarge':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: தனிப்பயன் CSS அதிகபட்சம் {max} பைட்டுகளாக இருக்கலாம்; இது {bytes} ஆகும்.',
+  'server.cssImport': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: @import அனுமதிக்கப்படாது.',
+  'server.cssDocument': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: @document அனுமதிக்கப்படாது.',
+  'server.cssForeignUrl':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: url({url}) அனுமதிக்கப்படாது; ஒரு URL என்பது /files/ அல்லது /assets/ இன் கீழ் ஒரு பாதையாக (path) இருக்க வேண்டும்.',
+  'server.cssExpression':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: expression() அனுமதிக்கப்படாது.',
+  'server.cssBehavior': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: behavior அனுமதிக்கப்படாது.',
+  'server.cssMozBinding':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: -moz-binding அனுமதிக்கப்படாது.',
+  'server.cssStyleBreakout': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: </style அனுமதிக்கப்படாது.',
+  'server.cssBadUrl': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: இந்த url( சரியான CSS அல்ல.',
+  'server.cssUnclosedString':
+    'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: இந்தச் சரம் மூடப்படவில்லை.',
+  'server.cssStrayClose': 'தனிப்பயன் CSS: வரி {line}, நிரல் {column}: {bracket} எதையும் மூடாது.',
   'server.navNotArray': 'தவறான வழிசெலுத்தல்: வழிசெலுத்தல் ஒரு வரிசையாக (array) இருக்க வேண்டும்',
   'server.navLinkMissingType': 'தவறான வழிசெலுத்தல்: இணைப்பு வகை விடுபட்டுள்ளது',
   'server.navLinkMissingData': 'தவறான வழிசெலுத்தல்: இணைப்பு தரவு விடுபட்டுள்ளது',
