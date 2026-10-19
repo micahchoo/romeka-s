@@ -20,8 +20,8 @@ mod values;
 mod vocabularies;
 
 pub use resources::{
-    ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, ResourceRow,
-    ValueAnnotationRow, resource_type,
+    ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, NewWholeItem,
+    ResourceRow, ValueAnnotationRow, resource_type,
 };
 pub use sites::{
     NewFirstPage, NewFirstPageBlock, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
@@ -37,7 +37,7 @@ pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,
     UserSettingRow,
 };
-pub use values::{NewValue, ValueRow};
+pub use values::{NewValue, ValueContent, ValueRow};
 pub use vocabularies::{
     ClassRow, NewClass, NewProperty, NewVocabulary, PropertyRow, VocabularyRow,
 };
