@@ -1,0 +1,192 @@
+/* The site's Items page: a header with the count and the sync switch, three add
+ * panels behind tabs, then the items on the site. */
+.site-items {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 60rem;
+}
+
+.site-items h3,
+.site-items h4,
+.site-items p {
+  margin: 0;
+}
+
+.site-items-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Live regions that read as page text, so they opt out of the boxed
+ * `[role="status"]` surface. */
+.site-items-total[role="status"],
+.site-items-preview[role="status"] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.site-items-total {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* The button that writes a change: the primary action of its panel. */
+.site-items-apply {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.site-items-apply:hover:not(:disabled) {
+  border-color: #164f96;
+  background: #164f96;
+}
+
+.site-items-sync,
+.site-items-panel,
+.site-items-add {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.site-items-sync {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.site-items-sync label,
+.site-items-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.site-items-message:empty {
+  display: none;
+}
+
+.site-items-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-items-tabs [role="tab"] {
+  margin-bottom: -1px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.site-items-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--border) var(--border) var(--surface);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.site-items-add [role="tabpanel"] {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--surface);
+}
+
+.site-items-preview {
+  min-height: 1.5em;
+  font-weight: 600;
+}
+
+.site-items-sets,
+.site-items-attached,
+.site-items-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-items-sets {
+  gap: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.site-items-sets:empty {
+  display: none;
+}
+
+.site-items-sets li + li {
+  border-top: 1px solid var(--border);
+}
+
+.site-items-sets button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  text-align: start;
+}
+
+.site-items-sets button:active:not(:disabled) {
+  transform: none;
+}
+
+.site-items-sets button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-weight: 600;
+}
+
+.site-items-badge {
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.site-items-attached li,
+.site-items-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.site-items-list a,
+.site-items-attached span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.site-items-thumb {
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg);
+}
+
+.site-items-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}

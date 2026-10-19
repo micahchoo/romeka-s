@@ -291,9 +291,12 @@ title drops every other value, as upstream does:
   `property_id` (`"auto"` takes the term from its key), `type`
   (`literal`/`uri`/`resource*`), and its object (`@value`, `@id`, or
   `value_resource_id`). A value object may also carry `@annotation`.
-- items: `o:item_set`, `o:primary_media`, `o:site`, `o:media`. On a create that
-  does not name `o:site`, the item joins every site whose `assign_new_items` is
-  true; a named site is joined when the caller may assign items there
+- items: `o:item_set`, `o:primary_media`, `o:site`, `o:media`. A site whose
+  `assign_new_items` is true keeps in sync with its `o:item_pool`
+  (`src/site_items.rs`): a create that does not name `o:site`, and every update,
+  joins the item to each such site whose pool newly selects it. Upstream's create
+  joins every such site whatever its pool, which is the same for the empty pool.
+  A named site is joined when the caller may assign items there
   (`AclFactory`'s `can-assign-items`: the site's owner or a site `admin` or
   `editor`), or, on a create, when the site assigns new items. A `PUT` replaces
   the membership, dropping the sites the caller may assign and the body omits.
@@ -322,7 +325,7 @@ title drops every other value, as upstream does:
   `write::navigation`: the tree must be a list of objects with a `type` and
   `data`, each link type's `data` must satisfy its own `isValid`, page links
   must be unique, and a `links` child must be a list. `o:item_pool` must be an
-  array. `o:thumbnail.o:id` is stored as the site's `thumbnail_id` without a
+  array, a JSON list or object, as PHP's `is_array` reads it. `o:thumbnail.o:id` is stored as the site's `thumbnail_id` without a
   lookup, as a resource thumbnail is; the asset repository is not built yet, so
   an unknown asset id is stored rather than answered as a 404.
 - site_pages: `o:site` (create), `o:title`, `o:slug`, `o:is_public`,
@@ -410,6 +413,15 @@ A request resolves to a caller in two steps. The session cookie
 (`romeka_session`) comes first, then the key pair, so the admin SPA and an API
 client can both reach the same routes. A caller with no session and no key is
 anonymous.
+
+### A site's items
+
+`src/site_items.rs` is the one place that changes a site's `item_site` rows in
+bulk: a command (`add`, `remove`, `replace`) over a selector (an item query in
+the `o:item_pool` shape, item ids, or item set ids). `omeka-server` serves it as
+`POST /api/sites/{id}/items`, and `romeka`'s `UpdateSiteItems` job runs it too.
+A selector resolves through the items list endpoint's own filters for the
+caller, and the writes go in batches of 1000 rows inside one transaction.
 
 ### The account routes
 

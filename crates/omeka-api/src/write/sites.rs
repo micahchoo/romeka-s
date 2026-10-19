@@ -569,7 +569,8 @@ async fn validate(
         );
     }
     crate::write::navigation::validate(navigation, &mut errors);
-    if !item_pool.is_array() {
+    // PHP's `is_array` is true for a JSON object too: a saved search is a keyed array.
+    if !(item_pool.is_array() || item_pool.is_object()) {
         errors.insert(
             "o:item_pool".to_string(),
             vec!["A site must have item pool data.".to_string()],

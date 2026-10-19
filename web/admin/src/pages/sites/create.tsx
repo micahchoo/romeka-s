@@ -1,7 +1,12 @@
 /**
  * `SiteAdmin/IndexController::addAction`: the new site form. It asks only for
- * what a new site needs; the summary, owner, item pool and the rest live in the
- * site's Settings and Resources tabs once it exists.
+ * what a new site needs; the summary, owner and the rest live in the site's
+ * Settings tab once it exists.
+ *
+ * A new site starts with every public item and keeps in sync with that search,
+ * so it shows something on its first visit. Upstream sets `o:assign_new_items`
+ * on create for the same reason; the saved search narrows it to public items,
+ * and the create applies the search once.
  */
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
@@ -20,6 +25,9 @@ import { ThemeSelect, slugFromTitle } from './siteInfo';
 const DEFAULT_NAVIGATION = [
   { type: 'browse', data: { label: 'Browse', query: '' }, links: [] },
 ];
+
+/** A new site's saved search: every public item (`o:item_pool` as `parse_str` stores it). */
+const DEFAULT_ITEM_POOL = { is_public: '1' };
 
 export const SiteCreatePage = (): ReactElement => {
   const { t } = useTranslator();
@@ -47,10 +55,14 @@ export const SiteCreatePage = (): ReactElement => {
         summary: null,
         navigation: DEFAULT_NAVIGATION,
         homepage: null,
-        itemPool: null,
+        itemPool: DEFAULT_ITEM_POOL,
         isPublic,
         assignNewItems: true,
         owner: null,
+      });
+      await api.changeSiteItems(created.id, {
+        action: 'add',
+        selector: { kind: 'query', query: DEFAULT_ITEM_POOL },
       });
       window.location.hash = `#/sites/${String(created.id)}`;
     });
@@ -80,6 +92,7 @@ export const SiteCreatePage = (): ReactElement => {
             checked={isPublic}
             onChange={setIsPublic}
           />
+          <p className="field-note">{t('sites.createItemsNote')}</p>
         </fieldset>
         {formError === null ? null : <p role="alert">{formError}</p>}
         <SaveStatus state={saveState} />

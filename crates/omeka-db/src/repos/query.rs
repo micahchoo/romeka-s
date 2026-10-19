@@ -108,6 +108,9 @@ pub struct QueryFilter {
     pub item_set_ids: Vec<ItemSetId>,
     /// `not_item_set_id`: items in none of these sets.
     pub not_item_set_ids: Vec<ItemSetId>,
+    /// `id`, as the PHP integer casts of the values the query sent: items with one of these ids.
+    /// `None` adds nothing; an empty list matches no item. Only the item kind renders it.
+    pub ids: Option<Vec<i64>>,
 }
 
 impl QueryFilter {
@@ -120,6 +123,7 @@ impl QueryFilter {
             && !self.site_attachments_only
             && self.item_set_ids.is_empty()
             && self.not_item_set_ids.is_empty()
+            && self.ids.is_none()
     }
 
     /// The additions for `ItemAdapter::buildQuery`.
@@ -132,6 +136,15 @@ impl QueryFilter {
         for<'x> String: Encode<'x, DB> + Type<DB>,
     {
         self.push_value(statement)?;
+        if let Some(ids) = &self.ids {
+            // The leading NULL keeps an empty list valid SQL; it never equals an id.
+            statement.push(" AND resource.id IN (NULL");
+            for id in ids {
+                statement.push(", ");
+                statement.bind(*id)?;
+            }
+            statement.push(")");
+        }
         if let Some(site_id) = self.site_id {
             statement.push(
                 " AND EXISTS (SELECT 1 FROM item_site

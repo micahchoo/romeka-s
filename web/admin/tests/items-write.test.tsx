@@ -81,6 +81,8 @@ describe('item create form', () => {
     expect(body['o:resource_template']).toEqual({ 'o:id': null });
     expect(body['o:item_set']).toEqual([{ 'o:id': 1 }]);
     expect(body['o:primary_media']).toEqual({ 'o:id': null });
+    // No `o:site`, so the sites that keep in sync with their search can take the item.
+    expect(body['o:site']).toBeUndefined();
     expect(body['dcterms:title']).toEqual([
       { property_id: 1, type: 'literal', '@value': 'Created item', is_public: true },
     ]);
@@ -238,5 +240,35 @@ describe('item edit form', () => {
     expect(body['dcterms:relation']).toEqual([
       { property_id: 12, type: 'resource', value_resource_id: 9, is_public: true },
     ]);
+  });
+
+  it('item_edit_keeps_the_sites_the_item_belongs_to', async () => {
+    // A full `PUT` replaces `o:site`, so an edit that left it out would take the
+    // item off every site the editor may assign.
+    const onSites = {
+      ...itemFixture(),
+      'o:site': [{ '@id': 'http://localhost/api/sites/5', 'o:id': 5 }],
+    };
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/items/1' ? jsonResponse(onSites) : detailHandler(url),
+    );
+    render(<ItemsPage param="1" />);
+
+    fireEvent.click(await screen.findByText('Edit this item'));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(
+        requestsFor(fetchMock, '/api/items/1').filter((request) => request.init?.method === 'PUT'),
+      ).toHaveLength(1);
+    });
+    const put = requestsFor(fetchMock, '/api/items/1').find(
+      (request) => request.init?.method === 'PUT',
+    );
+    if (put === undefined) {
+      throw new Error('expected a PUT to /api/items/1');
+    }
+    expect(requestBody(put)['o:site']).toEqual([{ 'o:id': 5 }]);
   });
 });

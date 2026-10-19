@@ -53,7 +53,7 @@ describe('site section routing', () => {
     });
     render(<Shell />);
 
-    expect(await screen.findByText('Items in this site: 7')).toBeInTheDocument();
+    expect(await screen.findByText('Items on this site: 7')).toBeInTheDocument();
     window.location.hash = '';
   });
 });
@@ -283,11 +283,18 @@ describe('site navigation', () => {
   });
 });
 
-describe('site resources', () => {
-  it('site_resources_patches_the_item_pool_query_and_item_sets', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
+describe('site items', () => {
+  const siteItemsRoutes =
+    (dryRun: Record<string, unknown>) =>
+    (url: URL, init?: RequestInit): Response | null => {
+      if (url.pathname === '/api/sites/1/items') {
+        const raw = init?.body;
+        const body: unknown = typeof raw === 'string' ? JSON.parse(raw) : null;
+        return jsonResponse(
+          isRecord(body) && body['dry_run'] === true
+            ? dryRun
+            : { ...dryRun, total: 9 },
+        );
       }
       if (url.pathname === '/api/sites/1') {
         return jsonResponse(site());
@@ -301,31 +308,75 @@ describe('site resources', () => {
       if (url.pathname === '/api/resource_classes') {
         return listResponse([], 0);
       }
-      return notFound();
-    });
+      return null;
+    };
+  const itemChanges = (fetchMock: ReturnType<typeof installFetch>): Record<string, unknown>[] =>
+    requestsFor(fetchMock, '/api/sites/1/items').map(requestBody);
+
+  it('the search tab counts what it would add, then saves the search and adds the items', async () => {
+    const fetchMock = installFetch(
+      (url, init) =>
+        siteItemsRoutes({ matched: 3, added: 2, removed: 0, total: 9 })(url, init) ?? notFound(),
+    );
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
-    expect(await screen.findByText('Items in this site: 7')).toBeInTheDocument();
-    const pool = screen.getByRole('group', { name: 'Item pool' });
-    // The pool is a set of items, not a list, so it offers no sort.
-    expect(within(pool).queryByLabelText('Sort by')).not.toBeInTheDocument();
-    fireEvent.change(within(pool).getByLabelText('Full-text search'), {
+    expect(await screen.findByText('Items on this site: 7')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'By search' }));
+    const search = screen.getByRole('group', { name: 'Search for items' });
+    // The search selects a set of items, so it offers no sort.
+    expect(within(search).queryByLabelText('Sort by')).not.toBeInTheDocument();
+    fireEvent.change(within(search).getByLabelText('Full-text search'), {
       target: { value: 'fish' },
     });
-    fireEvent.click(screen.getByLabelText('Featured photographs'));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('3 items match, 2 not on this site yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add items (2)' }));
 
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    expect(pagePatch(fetchMock)).toEqual([
-      {
-        'o:item_pool': { fulltext_search: 'fish' },
-        // The stored attachment (set 2) keeps its place; the new one appends.
-        'o:site_item_set': [
-          { 'o:item_set': { 'o:id': 2 } },
-          { 'o:item_set': { 'o:id': 1 } },
-        ],
-      },
+    expect(await screen.findByText('Items added: 2.')).toBeInTheDocument();
+    expect(pagePatch(fetchMock)).toEqual([{ 'o:item_pool': { fulltext_search: 'fish' } }]);
+    expect(itemChanges(fetchMock).filter((body) => body['dry_run'] === false)).toEqual([
+      { action: 'add', query: { fulltext_search: 'fish' }, dry_run: false },
     ]);
+  });
+
+  it('the item set tab attaches a set and adds its items in one action', async () => {
+    const fetchMock = installFetch(
+      (url, init) =>
+        siteItemsRoutes({ matched: 4, added: 4, removed: 0, total: 9 })(url, init) ?? notFound(),
+    );
+    render(<SitesPage param="1" rest={['1', 'resources']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Featured photographs' }));
+    expect(
+      await screen.findByText('Featured photographs: 4 items, 4 not on this site yet.'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Attach the set and add items (4)' }));
+
+    expect(
+      await screen.findByText('Items added: 4.'),
+    ).toBeInTheDocument();
+    expect(pagePatch(fetchMock)).toEqual([
+      // The stored attachment (set 2) keeps its place; the new one appends.
+      { 'o:site_item_set': [{ 'o:item_set': { 'o:id': 2 } }, { 'o:item_set': { 'o:id': 1 } }] },
+    ]);
+    expect(itemChanges(fetchMock).filter((body) => body['dry_run'] === false)).toEqual([
+      { action: 'add', item_sets: [1], dry_run: false },
+    ]);
+  });
+
+  it('the sync switch stores assign_new_items', async () => {
+    const fetchMock = installFetch(
+      (url, init) =>
+        siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound(),
+    );
+    render(<SitesPage param="1" rest={['1', 'resources']} />);
+
+    fireEvent.click(
+      await screen.findByRole('switch', { name: 'Keep this site in sync with the search' }),
+    );
+    expect(
+      await screen.findByText('Saved.'),
+    ).toBeInTheDocument();
+    expect(pagePatch(fetchMock)).toEqual([{ 'o:assign_new_items': true }]);
   });
 });
 

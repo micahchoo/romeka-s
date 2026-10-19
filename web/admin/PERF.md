@@ -347,6 +347,21 @@ The largest lazy chunk is the shared registry at 6167 B against the 10240 B ceil
 first open now fetches about 3.9 KB more gzip than an editor opened without a preview did before,
 and nothing on the paint path changes beyond the 192 B of the initial js.
 
+## Decision 9: the site's Items page costs 1598 B of initial payload (accepted)
+
+The site's Items page (`src/pages/sites/resources.tsx`, `siteItemsAdd.tsx`), the item picker and the
+Items list's bulk site actions add about 60 messages to each of the two catalogues, and both
+catalogues sit in the initial payload. Measured with `zlib.gzipSync` over the files `dist/index.html`
+references, the gzip `perf/bundle.mjs` uses: main at `0a8301a` built with `vite build` is 100672 B,
+this change is 102270 B, a cost of 1598 B, and 130 B under the 102400 B budget. A first draft cost
+about 2200 B and went over; merging messages into existing keys (`field.saved`) and shortening the
+help texts took it under. The page's own chunk is 4091 B js and 1125 B css gzip, against the
+10240 B per-chunk ceiling.
+
+**Verdict.** Accepted, with almost no headroom left. The next message-heavy feature should load the
+non-default locale's catalogue on demand instead of in the entry, which frees roughly half the
+catalogue bytes from the first paint.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

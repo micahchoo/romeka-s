@@ -72,6 +72,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       values: toValueWrites(draft.values),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
+      sites: item === null ? null : item.sites.map((ref) => ref.id),
     };
     save(async () => {
       const saved =

@@ -96,6 +96,9 @@ describe('site browse and create', () => {
       if (url.pathname === '/api/sites' && init?.method === 'POST') {
         return jsonResponse(siteFixture(0));
       }
+      if (url.pathname === '/api/sites/1/items' && init?.method === 'POST') {
+        return jsonResponse({ matched: 3, added: 3, removed: 0, total: 3 });
+      }
       return notFound();
     });
     render(<SitesPage param="new" />);
@@ -118,9 +121,15 @@ describe('site browse and create', () => {
       'o:summary': null,
       'o:navigation': NAVIGATION,
       'o:homepage': { 'o:id': null },
-      'o:item_pool': [],
+      'o:item_pool': { is_public: '1' },
       'o:is_public': true,
       'o:assign_new_items': true,
+    });
+    // A new site starts with every public item: the saved search is applied once.
+    expect(requestBody(first(requestsFor(fetchMock, '/api/sites/1/items')))).toEqual({
+      action: 'add',
+      query: { is_public: '1' },
+      dry_run: false,
     });
     expect(window.location.hash).toBe('#/sites/1');
     window.location.hash = '';
@@ -167,9 +176,10 @@ describe('site settings save', () => {
       'o:theme': 'default',
       'o:summary': null,
       'o:is_public': true,
-      'o:assign_new_items': false,
       'o:owner': { 'o:id': 1 },
     });
+    // The sync switch lives on the Items page, so a settings save leaves it alone.
+    expect(body).not.toHaveProperty('o:assign_new_items');
     // An absent `o:page` keeps the pages only on a partial update; the body
     // also leaves the menu and the item pool to their own tabs.
     expect(body).not.toHaveProperty('o:page');

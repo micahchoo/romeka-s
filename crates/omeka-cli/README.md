@@ -325,7 +325,10 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
 - `IndexFulltextSearch`: no arguments. Clears `fulltext_search` and indexes
   items, item sets and media.
 - `UpdateSiteItems`: `action` (`add`, `replace`, `remove`, `remove_all`) and
-  `sites`, an object keyed by site id whose values are item queries or null.
+  `sites`, an object keyed by site id whose values are item queries or null. The
+  query selects what `GET /api/items` lists for a global administrator, because
+  the job runs `omeka_api::site_items`, the change `POST /api/sites/{id}/items`
+  runs.
 
 ## Where this deviates from upstream
 

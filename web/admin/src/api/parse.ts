@@ -25,6 +25,7 @@ import type {
   Path,
   Parser,
   PasswordLink,
+  SiteItemsChange,
   Property,
   PropertyId,
   ResourceClass,
@@ -502,6 +503,18 @@ export const parsePasswordLink: Parser<PasswordLink> = (raw, path = []) => {
     key: asString(field(object, 'key', path), [...path, 'key']),
     link: asString(field(object, 'link', path), [...path, 'link']),
     sent: asBoolean(field(object, 'sent', path), [...path, 'sent']),
+  };
+};
+
+/** `POST /api/sites/<id>/items`, a Romeka route answering four counts. */
+export const parseSiteItemsChange: Parser<SiteItemsChange> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const count = (name: string): number => asNumber(field(object, name, path), [...path, name]);
+  return {
+    matched: count('matched'),
+    added: count('added'),
+    removed: count('removed'),
+    total: count('total'),
   };
 };
 

@@ -1,5 +1,5 @@
 //! Raw SQL for the tables `omeka-db` has row structs for but no repository:
-//! `setting`, `job`, `fulltext_search` and `item_site`.
+//! `setting`, `job` and `fulltext_search`.
 //!
 //! `DESIGN.md` says SQL strings live in `omeka-db` only. This unit may not edit
 //! another crate, and the db unit shipped these rows without repositories
@@ -13,7 +13,7 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use omeka_db::DbError;
-use omeka_db::ids::{ItemId, JobId, SiteId, UserId};
+use omeka_db::ids::{JobId, UserId};
 use omeka_db::rows::JobRow;
 
 /// Upstream's datetime storage format, matching `omeka-db/src/time.rs`.
@@ -231,37 +231,4 @@ pub async fn fulltext_save(pool: &SqlitePool, row: &FulltextRow) -> Result<(), D
     .execute(pool)
     .await?;
     Ok(())
-}
-
-/// Remove every `item_site` row for a site, upstream's `remove_all` step.
-pub async fn item_site_clear(pool: &SqlitePool, site: SiteId) -> Result<(), DbError> {
-    sqlx::query("DELETE FROM item_site WHERE site_id = ?")
-        .bind(site.0 as i64)
-        .execute(pool)
-        .await?;
-    Ok(())
-}
-
-/// Attach an item to a site, ignoring a duplicate as upstream `INSERT IGNORE` does.
-pub async fn item_site_add(pool: &SqlitePool, item: ItemId, site: SiteId) -> Result<(), DbError> {
-    sqlx::query("INSERT OR IGNORE INTO item_site (item_id, site_id) VALUES (?, ?)")
-        .bind(item.0 as i64)
-        .bind(site.0 as i64)
-        .execute(pool)
-        .await?;
-    Ok(())
-}
-
-/// Detach an item from a site.
-pub async fn item_site_remove(
-    pool: &SqlitePool,
-    item: ItemId,
-    site: SiteId,
-) -> Result<bool, DbError> {
-    let done = sqlx::query("DELETE FROM item_site WHERE item_id = ? AND site_id = ?")
-        .bind(item.0 as i64)
-        .bind(site.0 as i64)
-        .execute(pool)
-        .await?;
-    Ok(done.rows_affected() > 0)
 }
