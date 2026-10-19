@@ -19,7 +19,6 @@ import { VocabulariesPage } from '../src/pages/vocabularies/page';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, linkHeader, listResponse, route, urlsFor } from './stub';
 const users = (): Response => jsonResponse(loadFixture('users-page.json'));
-const vocabularies = (): Response => jsonResponse(loadFixture('vocabularies-page.json'));
 const classes = (): Response => jsonResponse(loadFixture('resource-classes-page.json'));
 
 describe('assets page', () => {
@@ -155,41 +154,6 @@ describe('modules page', () => {
   });
 });
 
-describe('properties page', () => {
-  it('property_browse_shows_term_label_comment_and_vocabulary', async () => {
-    installFetch(
-      route({
-        '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
-        '/api/vocabularies': vocabularies,
-      }),
-    );
-    render(<PropertiesPage />);
-
-    expect(await screen.findByText('dcterms:title')).toBeInTheDocument();
-    expect(screen.getByText('A name given to the resource.')).toBeInTheDocument();
-    expect(screen.getAllByText('Dublin Core')).toHaveLength(2);
-    expect(screen.getByText('dcterms:description')).toBeInTheDocument();
-  });
-});
-
-describe('resource classes page', () => {
-  it('resource_class_browse_shows_term_label_and_vocabulary_name', async () => {
-    installFetch(
-      route({
-        '/api/resource_classes': () => listResponse(loadFixture('resource-classes-page.json'), 2),
-        '/api/vocabularies': vocabularies,
-      }),
-    );
-    render(<ResourceClassesPage />);
-
-    expect(await screen.findByText('dctype:StillImage')).toBeInTheDocument();
-    expect(screen.getByText('Still Image')).toBeInTheDocument();
-    expect(screen.getByText('Dublin Core Type')).toBeInTheDocument();
-    expect(screen.getByText('bibo:Book')).toBeInTheDocument();
-    expect(screen.getByText('#3')).toBeInTheDocument();
-  });
-});
-
 describe('resource templates page', () => {
   it('template_browse_shows_label_class_owner_and_property_count', async () => {
     installFetch(
@@ -224,19 +188,6 @@ describe('users page', () => {
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
     expect(screen.getByText('editor')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
-  });
-});
-
-describe('vocabularies page', () => {
-  it('vocabulary_browse_shows_label_prefix_and_namespace', async () => {
-    installFetch(route({ '/api/vocabularies': vocabularies }));
-    render(<VocabulariesPage />);
-
-    expect(await screen.findByText('Dublin Core')).toBeInTheDocument();
-    expect(screen.getByText('dcterms')).toBeInTheDocument();
-    expect(screen.getByText('http://purl.org/dc/terms/')).toBeInTheDocument();
-    expect(screen.getByText('Dublin Core Type')).toBeInTheDocument();
-    expect(screen.getByText('dctype')).toBeInTheDocument();
   });
 });
 

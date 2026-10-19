@@ -8,7 +8,7 @@ import {
 import { PropertyDetail } from './detail';
 import { PropertyList } from './list';
 
-/** `#/properties` lists, `#/properties/new` creates, `#/properties/<id>` edits. */
+/** The Properties tab: its list, `new` to create one, or a property id. */
 export const PropertiesPage = ({
   param = null,
 }: {

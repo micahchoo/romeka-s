@@ -15,4 +15,11 @@ import type { Catalogue } from './catalogue';
 export const CATALOGUE_LOADERS = {
   en: () => Promise.resolve(en),
   es: () => import('./locales/es').then((module) => module.es),
+  hi: () => import('./locales/hi').then((module) => module.hi),
+  mr: () => import('./locales/mr').then((module) => module.mr),
+  ml: () => import('./locales/ml').then((module) => module.ml),
+  ta: () => import('./locales/ta').then((module) => module.ta),
+  kn: () => import('./locales/kn').then((module) => module.kn),
+  te: () => import('./locales/te').then((module) => module.te),
+  ne: () => import('./locales/ne').then((module) => module.ne),
 } satisfies Readonly<Record<string, () => Promise<Catalogue>>>;

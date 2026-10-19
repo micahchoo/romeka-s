@@ -26,8 +26,28 @@ import {
   setOverride,
 } from '../src/pages/sites/themeEditor/draft';
 import { parseThemeRegistry, THEME_REGISTRY } from '../src/pages/sites/themeEditor/registry';
+import { setLocale } from '../src/i18n';
 import { SitesPage } from '../src/pages/sites/page';
 import { loadFixture } from './loadFixture';
+
+// The Hindi Theme table arrives only when a test opens the gate, so the page's
+// wait is observable: the site has loaded and the table has not.
+const hindiTheme = vi.hoisted(() => {
+  let open: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return {
+    gate,
+    open: () => {
+      open();
+    },
+  };
+});
+vi.mock('../src/pages/sites/themeEditor/locales/hi', async (importOriginal) => {
+  await hindiTheme.gate;
+  return importOriginal();
+});
 import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
 describe('the theme draft', () => {
@@ -223,6 +243,21 @@ describe('the site Theme page', () => {
         media: { main: ['mediaRender', 'values'] },
       },
     });
+  });
+
+  it('waits for the active locale\'s Theme messages rather than painting English first', async () => {
+    installFetch(themeHandler);
+    await setLocale('hi');
+    try {
+      render(<SitesPage param="1" rest={['1', 'theme']} />);
+      // While the Hindi table is held back, the site loads but no English tab ever appears.
+      await expect(screen.findByRole('tab', { name: 'Design' }, { timeout: 500 })).rejects.toThrow();
+
+      hindiTheme.open();
+      expect(await screen.findByRole('tab', { name: 'डिज़ाइन' })).toBeInTheDocument();
+    } finally {
+      await setLocale('en');
+    }
   });
 
   it('blocks a palette below AA and applies the suggested colour', async () => {
