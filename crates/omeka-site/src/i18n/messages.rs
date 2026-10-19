@@ -28,7 +28,9 @@ pub struct Messages {
     pub item_sets: &'static str,
     /// `BlockLayout/ItemWithMetadata.php::render`: a block with no attachments.
     pub no_item_selected: &'static str,
-    /// `media/show.phtml`'s `sprintf($translate('Part of %s'), ...)` prefix.
+    /// `media/show.phtml`'s `sprintf($translate('Part of %s'), ...)` pattern,
+    /// over the parent item's link. A pattern, not a prefix, so a language
+    /// that puts the item first can.
     pub part_of: &'static str,
     /// `block-layout/page-date-time.phtml`.
     pub created: &'static str,
@@ -36,7 +38,8 @@ pub struct Messages {
     pub modified: &'static str,
     /// `common/user-bar.phtml`: the bar's aria label.
     pub user_bar_label: &'static str,
-    /// `common/user-bar.phtml`: the "Signed in as %s" prefix.
+    /// `common/user-bar.phtml`: the `Signed in as %s` pattern, over the user's
+    /// name.
     pub signed_in_as: &'static str,
     /// `common/user-bar.phtml`: the logout link.
     pub log_out: &'static str,
@@ -94,11 +97,11 @@ pub static EN: Messages = Messages {
     items: "Items",
     item_sets: "Item sets",
     no_item_selected: "No item selected",
-    part_of: "Part of",
+    part_of: "Part of %s",
     created: "Created",
     modified: "Modified",
     user_bar_label: "Omeka User",
-    signed_in_as: "Signed in as",
+    signed_in_as: "Signed in as %s",
     log_out: "Logout",
     log_in: "Log in",
     admin_dashboard: "Admin dashboard",
@@ -134,11 +137,11 @@ pub static ES: Messages = Messages {
     items: "Fichas",
     item_sets: "Conjuntos de fichas",
     no_item_selected: "Ninguna ficha seleccionada",
-    part_of: "Parte de",
+    part_of: "Parte de %s",
     created: "Creado",
     modified: "Modificado",
     user_bar_label: "Usuario de Omeka",
-    signed_in_as: "Sesión iniciada como",
+    signed_in_as: "Sesión iniciada como %s",
     log_out: "Cerrar sesión",
     log_in: "Iniciar sesión",
     admin_dashboard: "Panel de administración",

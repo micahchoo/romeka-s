@@ -172,6 +172,24 @@ mod tests {
         );
     }
 
+    /// A Hindi site renders the block with the Hindi label and CLDR's Hindi
+    /// month name, in CLDR's `hi` long pattern.
+    #[test]
+    fn page_date_time_renders_cldr_dates_in_hindi() {
+        let site = site();
+        let mut ctx = context(&site, &crate::view::NoResources);
+        ctx.settings.locale = Some("hi".to_string());
+        ctx.page_created = Some(timestamp());
+        let stored = block(
+            "pageDateTime",
+            json!({"display": "created", "date_format": "long", "time_format": "none"}),
+        );
+        assert_eq!(
+            PageDateTime.render(&stored, &ctx),
+            "<div class=\"page-date-time\"><div class=\"created\"><span class=\"property\">बनाया गया</span>: <span class=\"value\">16 अक्टूबर 2026</span></div></div>"
+        );
+    }
+
     /// `display` picks the rows: `created` alone hides the modified row.
     #[test]
     fn page_date_time_display_selects_rows() {
