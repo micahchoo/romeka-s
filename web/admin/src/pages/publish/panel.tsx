@@ -11,6 +11,7 @@ import { getPublication, sendPublicationCommand } from '../../api/publication';
 import type { Publication, PublicationCommand, PublicationTarget } from '../../api/publication';
 import { ErrorNotice } from '../../app/errors';
 import { formatDateTime } from '../../app/format';
+import { useLesson } from '../../app/lessons/lesson';
 
 /** A version's `created`, which the server writes in UTC without a zone. */
 const dateOf = (created: string, locale: Locale): string => formatDateTime(`${created}Z`, locale);
@@ -48,6 +49,7 @@ const PublishForm = ({
   const latest = publication.versions.at(-1);
   const url = archiveUrl(publication, slug);
   const chooseAddress = !publication.slugFixed || !publication.namespaceFixed;
+  const lesson = useLesson('publish', publication.state === 'draft');
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -139,7 +141,12 @@ const PublishForm = ({
           )}
         </>
       ) : null}
-      {publication.state === 'draft' ? <p className="publish-promise">{text('publish.promise')}</p> : null}
+      {publication.state === 'draft' ? (
+        <p className="publish-promise">
+          {text('publish.promise')} {lesson.toggle}
+        </p>
+      ) : null}
+      {lesson.panel}
       {latest !== undefined && !publication.changed ? (
         <p>{text('publish.noChanges', { version: latest.version })}</p>
       ) : null}

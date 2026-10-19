@@ -39,7 +39,7 @@ export default defineConfig({
             // The page editor's field messages in English (PERF.md Decision 14).
             { name: 'editor-messages', test: /pages\/sites\/editor\/messages\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
-            { name: 'lessons', test: /app\/lessons\/(lesson\.tsx|messages\.ts|registry\.ts|seen\.ts)$/ },
+            { name: 'lessons', test: /app\/lessons\/(lesson\.tsx|messages\.ts|queue\.ts|registry\.ts|seen\.ts)$/ },
             {
               name: 'theme-model',
               test: /(pages\/sites\/themeEditor\/(colour|palette|registry|draft)\.ts|generated\/themeSettings\.json)$/,

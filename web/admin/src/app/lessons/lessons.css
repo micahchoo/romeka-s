@@ -41,23 +41,32 @@ form .lesson p.lesson-actions,
   margin-top: var(--space-1);
 }
 
-/* Filled, so it reads apart from a term's own "?" beside it. */
+/* A labelled chip with a book, so it never reads as a term's round "?". */
 .lesson-toggle {
-  width: 1.5rem;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
   min-height: 1.5rem;
-  padding: 0;
+  padding: 0 0.5rem;
   border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--surface);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
 }
 
-.lesson-toggle[aria-expanded='true'] {
+.lesson-toggle:hover:not(:disabled) {
+  border-color: var(--accent);
   background: var(--surface);
-  color: var(--accent);
+}
+
+.lesson-toggle[aria-expanded='true'],
+.lesson-toggle[aria-expanded='true']:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--surface);
 }
 
 .lesson-line {

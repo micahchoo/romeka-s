@@ -12,9 +12,9 @@
 import { api } from '../../api/client';
 import { currentUser, subscribeSession } from '../../api/session';
 import type { User, UserId } from '../../api/types';
-import type { WrittenLessonId } from './registry';
+import type { LessonId } from './registry';
 
-/** What a lesson's anchor shows: nothing, the lesson open, or its "?". */
+/** What a lesson's anchor shows: nothing, the lesson open, or its "Lesson" chip. */
 export type LessonView = 'off' | 'fresh' | 'seen';
 
 interface Known {
@@ -58,7 +58,7 @@ export const subscribeLessons = (listener: () => void): (() => void) => {
   };
 };
 
-export const lessonView = (id: WrittenLessonId): LessonView => {
+export const lessonView = (id: LessonId): LessonView => {
   if (known === null || known.hidden) {
     return 'off';
   }
@@ -70,7 +70,7 @@ export const lessonView = (id: WrittenLessonId): LessonView => {
 let writes = Promise.resolve();
 
 /** Record that the lesson has shown, here and on the server. */
-export const markSeen = (id: WrittenLessonId): void => {
+export const markSeen = (id: LessonId): void => {
   if (known === null || known.hidden || known.seen.has(id)) {
     return;
   }

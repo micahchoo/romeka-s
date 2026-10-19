@@ -6,9 +6,7 @@
  * kind it is, fix its values, link them, then make standards of your own.
  *
  * A lesson id is stored in each user's `romeka_lessons_seen` setting, so an id
- * never changes once it ships. A slot is a lesson whose screen another unit is
- * still building: it has an id and a rung, and no text, so
- * `useLesson` cannot render it (`WrittenLessonId` excludes it).
+ * never changes once it ships.
  */
 import type { LessonsMessageKey } from './messages';
 
@@ -23,6 +21,9 @@ export const STANDARDS = {
   rdfClasses: 'https://www.w3.org/TR/rdf-schema/#ch_classes',
   linkedData: 'https://www.w3.org/DesignIssues/LinkedData.html',
   localVocabulary: 'https://omeka.org/s/docs/user-manual/content/vocabularies/',
+  skos: 'https://www.w3.org/TR/skos-primer/',
+  skosMapping: 'https://www.w3.org/TR/skos-reference/#mapping',
+  coolUris: 'https://www.w3.org/Provider/Style/URI',
 } as const;
 
 export type StandardId = keyof typeof STANDARDS;
@@ -32,20 +33,12 @@ interface LessonText {
   readonly body: LessonsMessageKey;
 }
 
-interface WrittenLesson {
+interface Lesson {
   readonly rung: Rung;
   /** The UI moment that shows the lesson, for the next person who places one. */
   readonly trigger: string;
   readonly standard: StandardId;
   readonly text: LessonText;
-}
-
-/** A planned lesson: its screen is not built yet, so it names no standard or text. */
-interface LessonSlot {
-  readonly rung: Rung;
-  readonly trigger: string;
-  readonly standard: null;
-  readonly text: null;
 }
 
 export const LESSONS = {
@@ -99,36 +92,31 @@ export const LESSONS = {
   },
   'term-merge': {
     rung: 'fixedValues',
-    trigger: 'Term lists: two terms merge into one (authority control).',
-    standard: null,
-    text: null,
+    trigger: 'Term lists and the Tags panel: the first merge prompt for alike spellings.',
+    standard: 'skos',
+    text: { title: 'termMerge.title', body: 'termMerge.body' },
   },
   'tag-promote': {
     rung: 'fixedValues',
-    trigger: 'Tags: a free tag becomes a term in a vocabulary.',
-    standard: null,
-    text: null,
+    trigger: 'Tags panel: the first "Promote to list" preview.',
+    standard: 'skos',
+    text: { title: 'tagPromote.title', body: 'tagPromote.body' },
   },
   'authority-link': {
     rung: 'linkedData',
-    trigger: 'Term lists: a term links to an authority record.',
-    standard: null,
-    text: null,
+    trigger: "Publish panel of a term list: the first time a term's Links opens.",
+    standard: 'skosMapping',
+    text: { title: 'authorityLink.title', body: 'authorityLink.body' },
   },
   publish: {
     rung: 'makingStandards',
-    trigger: 'Publishing: a record or vocabulary gets an address that does not change.',
-    standard: null,
-    text: null,
+    trigger: 'Publish panel: a term list or vocabulary that was never published.',
+    standard: 'coolUris',
+    text: { title: 'publish.title', body: 'publish.body' },
   },
-} as const satisfies Readonly<Record<string, WrittenLesson | LessonSlot>>;
+} as const satisfies Readonly<Record<string, Lesson>>;
 
 export type LessonId = keyof typeof LESSONS;
-
-/** A lesson with text, the only kind a screen can show. */
-export type WrittenLessonId = {
-  [Id in LessonId]: (typeof LESSONS)[Id]['text'] extends null ? never : Id;
-}[LessonId];
 
 /** The rung's place on the ladder, from 1. */
 export const rungNumber = (rung: Rung): number => RUNGS.indexOf(rung) + 1;
