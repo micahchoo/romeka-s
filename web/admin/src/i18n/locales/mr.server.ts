@@ -66,6 +66,26 @@ export const mrServer: ServerCatalogue = {
   'server.localNameTaken': 'स्थानिक नाव "{name}" आधीच वापरले गेले आहे.',
   'server.vocabularyRequired': 'शब्दसंग्रह सेट करणे आवश्यक आहे.',
   'server.duplicateTemplateProperty': 'आयडी {id} सह डुप्लिकेट प्रॉपर्टी जोडण्याचा प्रयत्न',
+  'server.vocabularyNoFile': 'फाईल इम्पोर्ट धोरणासाठी कोणतीही फाईल निर्दिष्ट केलेली नाही.',
+  'server.vocabularyNoUrl': 'URL इम्पोर्ट धोरणासाठी URL निर्दिष्ट केलेले नाही.',
+  'server.vocabularyNotParsed': 'शब्दसंग्रह फाईलचे विश्लेषण करण्यात अपयश आले.',
+  'server.vocabularyNotLoaded': 'URL वरून शब्दसंग्रह लोड करण्यात अपयश आले.',
+  'server.vocabularyNoMembers':
+    'कोणतेही क्लासेस किंवा गुणधर्म आढळले नाहीत. तुम्ही योग्य नेमस्पेस URI वापरला आहे का?',
+  'server.vocabularyPermanent': 'कायमस्वरूपी शब्दसंग्रह संपादित करू शकत नाही',
+  'server.vocabularyFormatUnknown': 'फाईलचे स्वरूप ओळखता आले नाही. सूचीमधून स्वरूप निवडा.',
+  'server.vocabularyFormatInvalid': '"{format}" ही शब्दसंग्रह फाईल फॉरमॅट नाही.',
+  'server.vocabularyUrlScheme': 'केवळ http आणि https URL आयात केले जाऊ शकतात.',
+  'server.vocabularyUrlPrivate':
+    'URL एक खाजगी किंवा स्थानिक नेटवर्क पत्ता दर्शवते, ज्यावरून सर्व्हर माहिती घेत नाही.',
+  'server.vocabularyUrlTooLarge': 'URL वरील फाईल {size} पेक्षा मोठी आहे.',
+  'server.vocabularyUrlTimeout': 'URL वरील सर्व्हरने वेळेत उत्तर दिले नाही.',
+  'server.vocabularyUrlStatus': 'URL वरील सर्व्हरने {status} स्थितीसह उत्तर दिले.',
+  'server.vocabularyChangeStale':
+    '"{name}" ची तुलना केल्यापासून त्यात बदल झाला आहे. फाईलची पुन्हा तुलना करा.',
+  'server.vocabularyMemberMissing': '"{name}" या शब्दसंग्रहाचा सदस्य नाही.',
+  'server.vocabularyCaseClash':
+    '"{first}" आणि "{second}" मध्ये केवळ अक्षरांच्या केसमध्ये फरक आहे, आणि हा संग्रह दोन्ही साठवू शकत नाही.',
   'server.nameEmpty': 'नाव रिकामे असू शकत नाही.',
   'server.emailTaken': 'ईमेल {email} आधीच वापरले गेले आहे.',
   'server.userRoleRequired': 'वापरकर्त्यांना भूमिका असणे आवश्यक आहे.',

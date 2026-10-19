@@ -49,8 +49,12 @@ import type {
   UserId,
   Value,
   Vocabulary,
+  VocabularyDiff,
   VocabularyId,
   VocabularyMember,
+  VocabularyMemberDiff,
+  VocabularyTerm,
+  VocabularyTextChange,
 } from './types';
 
 /** The id parser a resource-entity core uses to brand its numeric `o:id`. */
@@ -611,6 +615,56 @@ export const parseVocabulary: Parser<Vocabulary> = (raw, path = []) => {
     label: asString(field(object, 'o:label', path), [...path, 'o:label']),
     comment: nullableField(object, 'o:comment', path, asString),
     owner: nullableField(object, 'o:owner', path, asRefUser),
+  };
+};
+
+const parseVocabularyTerm: Parser<VocabularyTerm> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  return {
+    localName: asString(field(object, 'o:local_name', path), [...path, 'o:local_name']),
+    label: asString(field(object, 'o:label', path), [...path, 'o:label']),
+    comment: nullableField(object, 'o:comment', path, asString),
+  };
+};
+
+const parseTextChange =
+  <T>(parse: (value: unknown, path: Path) => T): Parser<VocabularyTextChange<T>> =>
+  (raw, path = []) => {
+    const object = asRecord(raw, path);
+    return {
+      localName: asString(field(object, 'o:local_name', path), [...path, 'o:local_name']),
+      from: parse(field(object, 'from', path), [...path, 'from']),
+      to: parse(field(object, 'to', path), [...path, 'to']),
+    };
+  };
+
+const asNullableString = (value: unknown, path: Path): string | null =>
+  value === null ? null : asString(value, path);
+
+const parseMemberDiff: Parser<VocabularyMemberDiff> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const list = <T>(key: string, parse: Parser<T>): readonly T[] =>
+    parseListOf(parse)(field(object, key, path), [...path, key]);
+  return {
+    added: list('new', parseVocabularyTerm),
+    label: list('label', parseTextChange(asString)),
+    comment: list('comment', parseTextChange(asNullableString)),
+    removed: list('removed', (entry, at = []) => {
+      const kept = asRecord(entry, at);
+      return {
+        localName: asString(field(kept, 'o:local_name', at), [...at, 'o:local_name']),
+        label: asString(field(kept, 'o:label', at), [...at, 'o:label']),
+      };
+    }),
+  };
+};
+
+/** The answer of `POST /api/vocabularies/{id}/diff`. */
+export const parseVocabularyDiff: Parser<VocabularyDiff> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  return {
+    classes: parseMemberDiff(field(object, 'classes', path), [...path, 'classes']),
+    properties: parseMemberDiff(field(object, 'properties', path), [...path, 'properties']),
   };
 };
 

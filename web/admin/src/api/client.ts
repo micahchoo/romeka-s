@@ -28,6 +28,7 @@ import {
   parseGlobalSettings,
   parseUser,
   parseVocabulary,
+  parseVocabularyDiff,
 } from './parse';
 import type {
   ApiErrors,
@@ -73,6 +74,8 @@ import type {
   VocabularyId,
   VocabularyMemberWrite,
   VocabularyWrite,
+  VocabularyDiff,
+  VocabularySource,
 } from './types';
 import {
   encodeAsset,
@@ -86,6 +89,9 @@ import {
   encodeUser,
   encodeUserLocale,
   encodeVocabulary,
+  encodeVocabularyDiff,
+  encodeVocabularyImport,
+  encodeVocabularySource,
   encodeVocabularyMember,
 } from './write';
 import type { WireBody } from './write';
@@ -515,6 +521,40 @@ export class ApiClient {
 
   async deleteVocabulary(id: VocabularyId): Promise<void> {
     await this.deleteJson(`/api/vocabularies/${String(id)}`);
+  }
+
+  /**
+   * Create a vocabulary from RDF (a Romeka route): the server reads the file or
+   * fetches the URL and stores every class and property in the namespace.
+   */
+  async importVocabulary(write: VocabularyWrite, source: VocabularySource): Promise<Vocabulary> {
+    return parseVocabulary(
+      await this.writeJson(
+        'POST',
+        '/api/vocabularies/import',
+        encodeVocabularyImport(write, source),
+      ),
+    );
+  }
+
+  /** What an update from this source would change (a Romeka route). Nothing is written. */
+  async diffVocabulary(id: VocabularyId, source: VocabularySource): Promise<VocabularyDiff> {
+    return parseVocabularyDiff(
+      await this.writeJson('POST', `/api/vocabularies/${String(id)}/diff`, {
+        source: encodeVocabularySource(source),
+      }),
+    );
+  }
+
+  /** Apply a reviewed diff (a Romeka route). A change that no longer applies is refused. */
+  async applyVocabularyDiff(id: VocabularyId, diff: VocabularyDiff): Promise<Vocabulary> {
+    return parseVocabulary(
+      await this.writeJson(
+        'POST',
+        `/api/vocabularies/${String(id)}/diff/apply`,
+        encodeVocabularyDiff(diff),
+      ),
+    );
   }
 
   async createResourceClass(write: VocabularyMemberWrite): Promise<ResourceClass> {

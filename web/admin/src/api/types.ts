@@ -285,6 +285,54 @@ export interface Vocabulary {
   readonly owner: ResourceRef<UserId> | null;
 }
 
+/** The serialisations a vocabulary import reads (`VocabularyForm`'s `format` select). */
+export type VocabularyFormat = 'guess' | 'rdfxml' | 'turtle' | 'ntriples' | 'jsonld';
+
+/** Where an import or an update reads its RDF: an uploaded file's text, or a URL. */
+export type VocabularyOrigin =
+  | { readonly kind: 'upload'; readonly text: string }
+  | { readonly kind: 'url'; readonly url: string };
+
+/**
+ * `VocabularyForm`'s file and advanced fieldsets. An empty language keeps the
+ * first label in the file; an empty property keeps upstream's default path.
+ */
+export interface VocabularySource {
+  readonly origin: VocabularyOrigin;
+  readonly format: VocabularyFormat;
+  readonly lang: string;
+  readonly labelProperty: string;
+  readonly commentProperty: string;
+}
+
+/** One class or property a file declares. */
+export interface VocabularyTerm {
+  readonly localName: string;
+  readonly label: string;
+  readonly comment: string | null;
+}
+
+/** A label or comment the file changes, from the stored text to the file's. */
+export interface VocabularyTextChange<T> {
+  readonly localName: string;
+  readonly from: T;
+  readonly to: T;
+}
+
+/** What an update from a file would do to one kind of member (`RdfImporter::calculateDiff`). */
+export interface VocabularyMemberDiff {
+  readonly added: readonly VocabularyTerm[];
+  readonly label: readonly VocabularyTextChange<string>[];
+  readonly comment: readonly VocabularyTextChange<string | null>[];
+  /** Stored members the file no longer declares. They are kept. */
+  readonly removed: readonly { readonly localName: string; readonly label: string }[];
+}
+
+export interface VocabularyDiff {
+  readonly classes: VocabularyMemberDiff;
+  readonly properties: VocabularyMemberDiff;
+}
+
 export interface ResourceTemplateProperty {
   readonly property: ResourceRef<PropertyId>;
   readonly alternateLabel: string | null;

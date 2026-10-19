@@ -1,0 +1,61 @@
+{
+    "classes": [
+        {
+            "local_name": "Place",
+            "label": "Place",
+            "comment": null
+        },
+        {
+            "local_name": "Both",
+            "label": "Both",
+            "comment": null
+        },
+        {
+            "local_name": "Typed",
+            "label": "Typed",
+            "comment": null
+        },
+        {
+            "local_name": "EmptyLabel",
+            "label": "EmptyLabel",
+            "comment": null
+        },
+        {
+            "local_name": "Thing",
+            "label": "Thing",
+            "comment": null
+        },
+        {
+            "local_name": "Titled",
+            "label": "Titled",
+            "comment": null
+        }
+    ],
+    "properties": [
+        {
+            "local_name": "noLabel",
+            "label": "noLabel",
+            "comment": null
+        },
+        {
+            "local_name": "knows",
+            "label": "custom name",
+            "comment": "custom note"
+        },
+        {
+            "local_name": "age",
+            "label": "age",
+            "comment": null
+        },
+        {
+            "local_name": "partOf",
+            "label": "partOf",
+            "comment": null
+        },
+        {
+            "local_name": "id",
+            "label": "id",
+            "comment": null
+        }
+    ]
+}
