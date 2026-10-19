@@ -85,6 +85,7 @@ const routes: Readonly<Record<string, () => Response>> = {
   '/api/properties': () => jsonResponse(PROPERTIES),
   '/api/item_sets': () => jsonResponse([]),
   '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
+  '/api/sites': () => jsonResponse([]),
 };
 
 const install = () =>

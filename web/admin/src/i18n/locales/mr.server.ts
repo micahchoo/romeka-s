@@ -102,7 +102,22 @@ export const mrServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सर्व ब्लॉक्सना लेआउट असणे आवश्यक आहे.',
   'server.blockDataScalar': 'ब्लॉक डेटा स्केलर व्हॅल्यू नसावा.',
   'server.siteSettingsNotObject': 'अपेक्षित ऑब्जेक्ट किंवा नल, {kind} मिळाले.',
-  'server.customCssRefusal': 'सानुकूल CSS: {refusal}',
+  'server.cssTooLarge':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: कस्टमाइज्ड CSS जास्तीत जास्त {max} बाइट्स असू शकते; हे {bytes} आहे.',
+  'server.cssImport': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: @import ला परवानगी नाही.',
+  'server.cssDocument': 'कस्टमाइजित CSS: ओळ {line}, स्तंभ {column}: @document ला परवानगी नाही.',
+  'server.cssForeignUrl':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: url({url}) ला परवानगी नाही; URL हे /files/ किंवा /assets/ अंतर्गत मार्ग असणे आवश्यक आहे.',
+  'server.cssExpression':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: expression() ला परवानगी नाही.',
+  'server.cssBehavior': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: behavior ला परवानगी नाही.',
+  'server.cssMozBinding':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: -moz-binding ला परवानगी नाही.',
+  'server.cssStyleBreakout': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: </style ला परवानगी नाही.',
+  'server.cssBadUrl': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: हे url( वैध CSS नाही.',
+  'server.cssUnclosedString':
+    'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: ही स्ट्रिंग बंद केलेली नाही.',
+  'server.cssStrayClose': 'कस्टमाइज्ड CSS: ओळ {line}, स्तंभ {column}: {bracket} कशाशीही जुळत नाही.',
   'server.navNotArray': 'अवैध नेव्हिगेशन: नेव्हिगेशन ॲरे असणे आवश्यक आहे',
   'server.navLinkMissingType': 'अवैध नेव्हिगेशन: लिंकचा प्रकार गहाळ आहे',
   'server.navLinkMissingData': 'अवैध नेव्हिगेशन: लिंकचा डेटा गहाळ आहे',
@@ -119,4 +134,6 @@ export const mrServer: ServerCatalogue = {
   'server.settingsNotObject': 'अपेक्षित एक ऑब्जेक्ट आहे.',
   'server.settingUnavailable': '{key} हे सेटिंग उपलब्ध नाही.',
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
 };

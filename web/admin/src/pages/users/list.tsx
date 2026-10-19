@@ -8,7 +8,7 @@ const PER_PAGE = 25;
 
 /** `Admin/UserController::browseAction`: email, name, role, active, created. */
 export const UserList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
   const resource = t('resource.users');
   return (
     <div>
@@ -28,7 +28,7 @@ export const UserList = (): ReactElement => {
           { header: t('column.email'), cell: (user) => user.email },
           { header: t('column.role'), cell: (user) => user.role },
           { header: t('column.active'), cell: (user) => (user.isActive ? t('common.yes') : t('common.no')) },
-          { header: t('column.created'), cell: (user) => formatDateTime(user.created) },
+          { header: t('column.created'), cell: (user) => formatDateTime(user.created, locale) },
         ]}
       />
     </div>

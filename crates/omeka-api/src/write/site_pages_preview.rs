@@ -114,7 +114,7 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
             // block's own renderer, with its hash recorded.
             let (data, layout_data) = super::site_pages::carry_block(
                 api,
-                site,
+                Some(site),
                 &block.layout,
                 block.data,
                 block.layout_data,

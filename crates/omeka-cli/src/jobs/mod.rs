@@ -46,6 +46,13 @@ pub enum JobError {
     Runtime(String),
 }
 
+/// A read-layer failure inside a job is a runtime failure of the job.
+impl From<omeka_api::errors::ApiError> for JobError {
+    fn from(error: omeka_api::errors::ApiError) -> Self {
+        Self::Runtime(error.to_string())
+    }
+}
+
 /// One enterable job, the port's `Omeka\Job\JobInterface` plus the class name
 /// stored in `job.class`.
 #[async_trait]

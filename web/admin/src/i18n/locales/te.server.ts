@@ -106,7 +106,19 @@ export const teServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'అన్ని బ్లాక్‌లకు లేఅవుట్ ఉండాలి.',
   'server.blockDataScalar': 'బ్లాక్ డేటా స్కేలార్ విలువ కాకూడదు.',
   'server.siteSettingsNotObject': 'ఆశించిన ఆబ్జెక్ట్ లేదా నల్, {kind} వచ్చింది.',
-  'server.customCssRefusal': 'కస్టమ్ CSS: {refusal}',
+  'server.cssTooLarge':
+    'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: కస్టమ్ CSS గరిష్టంగా {max} బైట్లు ఉండవచ్చు; ఇది {bytes}.',
+  'server.cssImport': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: @import అనుమతించబడదు.',
+  'server.cssDocument': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: @document అనుమతించబడదు.',
+  'server.cssForeignUrl':
+    'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: url({url}) అనుమతించబడదు; ఒక URL తప్పనిసరిగా /files/ లేదా /assets/ కింద పాత్ అయి ఉండాలి.',
+  'server.cssExpression': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: expression() అనుమతించబడదు.',
+  'server.cssBehavior': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: behavior అనుమతించబడదు.',
+  'server.cssMozBinding': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: -moz-binding అనుమతించబడదు.',
+  'server.cssStyleBreakout': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: </style అనుమతించబడదు.',
+  'server.cssBadUrl': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: ఈ url( సరైన CSS కాదు.',
+  'server.cssUnclosedString': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: ఈ స్ట్రింగ్ మూసివేయబడలేదు.',
+  'server.cssStrayClose': 'కస్టమ్ CSS: లైన్ {line}, కాలమ్ {column}: {bracket} ఏమీ మూసివేయదు.',
   'server.navNotArray': 'చెల్లని నావిగేషన్: నావిగేషన్ తప్పనిసరిగా ఒక అర్రే అయి ఉండాలి',
   'server.navLinkMissingType': 'చGFSలని నావిగేషన్: లింక్ రకం లేదు',
   'server.navLinkMissingData': 'చGFSలని నావిగేషన్: లింక్ డేటా లేదు',
@@ -123,4 +135,6 @@ export const teServer: ServerCatalogue = {
   'server.settingsNotObject': 'ఒక ఆబ్జెక్ట్ ఆశించబడింది.',
   'server.settingUnavailable': '{key} సెట్టింగ్ అందుబాటులో లేదు.',
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
+  'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
+  'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
 };

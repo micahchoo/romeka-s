@@ -18,8 +18,6 @@
 //! The site write calls it before storing, and the frame calls it again before
 //! rendering, so text stored by any other path is checked on the way out too.
 
-use std::fmt;
-
 use cssparser::{ParseError, Parser, Token};
 
 /// The most custom CSS a site may store, in bytes.
@@ -71,11 +69,17 @@ pub enum CssProblem {
     MozBinding,
     /// `</style`, which ends the element.
     StyleBreakout,
-    /// Text the tokenizer cannot read.
-    Syntax(&'static str),
+    /// A `url(` the tokenizer cannot read.
+    BadUrl,
+    /// A string that a newline or the end of the text cuts off.
+    UnclosedString,
+    /// A `)`, `]` or `}` with no opening bracket.
+    StrayClose(char),
 }
 
-/// One refusal, at a 1-based line and column of the source.
+/// One refusal, at a 1-based line and column of the source. The sentence a
+/// curator reads is the API's (`omeka-api`'s message registry), so the admin
+/// can translate it whole.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CssError {
     /// The 1-based line.
@@ -84,29 +88,6 @@ pub struct CssError {
     pub column: u32,
     /// What was refused.
     pub problem: CssProblem,
-}
-
-impl fmt::Display for CssError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Line {}, column {}: ", self.line, self.column)?;
-        match &self.problem {
-            CssProblem::TooLarge(bytes) => write!(
-                f,
-                "custom CSS may be at most {MAX_BYTES} bytes; this is {bytes}."
-            ),
-            CssProblem::Import => f.write_str("@import is not allowed."),
-            CssProblem::Document => f.write_str("@document is not allowed."),
-            CssProblem::ForeignUrl(url) => write!(
-                f,
-                "url({url}) is not allowed; a URL must be a path under /files/ or /assets/."
-            ),
-            CssProblem::Expression => f.write_str("expression() is not allowed."),
-            CssProblem::Behavior => f.write_str("behavior is not allowed."),
-            CssProblem::MozBinding => f.write_str("-moz-binding is not allowed."),
-            CssProblem::StyleBreakout => f.write_str("</style is not allowed."),
-            CssProblem::Syntax(what) => write!(f, "{what}."),
-        }
-    }
 }
 
 /// Check custom CSS, keeping it unchanged when nothing in it is refused.
@@ -213,19 +194,11 @@ fn walk(parser: &mut Parser<'_>, strings_are_urls: bool, errors: &mut Vec<CssErr
             Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
                 nested_urls = Some(false);
             }
-            Token::BadUrl(_) => errors.push(at(CssProblem::Syntax("this url( is not valid CSS"))),
-            Token::BadString(_) => {
-                errors.push(at(CssProblem::Syntax("this string is not closed")));
-            }
-            Token::CloseParenthesis => {
-                errors.push(at(CssProblem::Syntax(") closes nothing")));
-            }
-            Token::CloseSquareBracket => {
-                errors.push(at(CssProblem::Syntax("] closes nothing")));
-            }
-            Token::CloseCurlyBracket => {
-                errors.push(at(CssProblem::Syntax("} closes nothing")));
-            }
+            Token::BadUrl(_) => errors.push(at(CssProblem::BadUrl)),
+            Token::BadString(_) => errors.push(at(CssProblem::UnclosedString)),
+            Token::CloseParenthesis => errors.push(at(CssProblem::StrayClose(')'))),
+            Token::CloseSquareBracket => errors.push(at(CssProblem::StrayClose(']'))),
+            Token::CloseCurlyBracket => errors.push(at(CssProblem::StrayClose('}'))),
             _ => {}
         }
         if let Some(urls) = nested_urls {

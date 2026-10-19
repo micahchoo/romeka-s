@@ -106,7 +106,20 @@ export const knServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'ಎಲ್ಲಾ ಬ್ಲಾಕ್‌ಗಳಿಗೆ ಲೇಔಟ್ ಇರಬೇಕು.',
   'server.blockDataScalar': 'ಬ್ಲಾಕ್ ಡೇಟಾ ಸ್ಕೇಲಾರ್ ಮೌಲ್ಯವಾಗಿರಬಾರದು.',
   'server.siteSettingsNotObject': 'ನಿರೀಕ್ಷಿತ ಆಬ್ಜೆಕ್ಟ್ ಅಥವಾ ನಲ್, {kind} ದೊರೆತಿದೆ.',
-  'server.customCssRefusal': 'ಕಸ್ಟಮ್ CSS: {refusal}',
+  'server.cssTooLarge':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಕಸ್ಟಮ್ CSS ಗರಿಷ್ಠ {max} ಬೈಟ್‌ಗಳಷ್ಟಿರಬಹುದು; ಇದು {bytes}.',
+  'server.cssImport': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: @import ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssDocument': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: @document ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssForeignUrl':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: url({url}) ಅನುಮತಿಸಲಾಗಿಲ್ಲ; ಒಂದು URL /files/ ಅಥವಾ /assets/ ಅಡಿಯಲ್ಲಿ ಒಂದು ಹಾದಿಯಾಗಿರಬೇಕು.',
+  'server.cssExpression': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: expression() ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssBehavior': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: behavior ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssMozBinding': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: -moz-binding ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssStyleBreakout': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: </style ಅನುಮತಿಸಲಾಗಿಲ್ಲ.',
+  'server.cssBadUrl': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಈ url( ಮಾನ್ಯವಾದ CSS ಅಲ್ಲ.',
+  'server.cssUnclosedString':
+    'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: ಈ ಸ್ಟ್ರಿಂಗ್ ಮುಚ್ಚಲ್ಪಟ್ಟಿಲ್ಲ.',
+  'server.cssStrayClose': 'ಕಸ್ಟಮ್ CSS: ಸಾಲು {line}, ಕಾಲಮ್ {column}: {bracket} ಏನೂ ಮುಚ್ಚುವುದಿಲ್ಲ.',
   'server.navNotArray': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ನ್ಯಾವಿಗೇಷನ್ ಅರೇ ಆಗಿರಬೇಕು',
   'server.navLinkMissingType': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ಲಿಂಕ್ ಪ್ರಕಾರ ಕಾಣೆಯಾಗಿದೆ',
   'server.navLinkMissingData': 'ಅಮಾನ್ಯ ನ್ಯಾವಿಗೇಷನ್: ಲಿಂಕ್ ಡೇಟಾ ಕಾಣೆಯಾಗಿದೆ',
@@ -123,4 +136,6 @@ export const knServer: ServerCatalogue = {
   'server.settingsNotObject': 'ನಿರೀಕ್ಷಿತ ಒಂದು ಆಬ್ಜೆಕ್ಟ್.',
   'server.settingUnavailable': 'ಸೆಟ್ಟಿಂಗ್ {key} ಲಭ್ಯವಿಲ್ಲ.',
   'server.settingNotText': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್ ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotFlag': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸತ್ಯ, ಸುಳ್ಳು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
+  'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
 };

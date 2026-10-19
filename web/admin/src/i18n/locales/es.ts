@@ -774,6 +774,8 @@ export const es: Catalogue = {
   'editor.outlineToggle': 'Mostrar el esquema',
   'preview.insertHere': 'Insertar un bloque aquí',
   'preview.insertIntoGroup': 'Añadir un bloque a este grupo',
+  // Term lists and the term picker.
+  'page.termLists': 'Listas de términos',
   // La página Elementos del sitio, el selector de elementos y las acciones de sitio de la lista de elementos.
   'siteItems.count': 'Elementos de este sitio: {count}',
   'siteItems.counting': 'Contando…',

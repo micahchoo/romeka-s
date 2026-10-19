@@ -543,7 +543,31 @@ base commit `b1c59db` built the same way from a `git archive` copy with the same
 editor's first open now fetches the English table (3487 B), and a visitor in another locale
 also fetches that locale's table.
 
-## Decision 16: the vocabulary import loads on demand (accepted)
+## Decision 16: the lessons load as one shared chunk (accepted)
+
+The lessons (`src/app/lessons/`) anchor on six routes: Standards, Fields, Item types, the item form
+and the user form. The registry, the seen-state, the component and the English table are one named
+chunk, `lessons`, in `vite.config.ts`; each other locale's table is its own chunk under
+`app/lessons/locales/`. A first build without the group folded them into the shared `plain-terms`
+chunk, which then measured 10498 B, over the 10240 B ceiling.
+
+Measured with `vite build` then `perf/bundle.mjs`, gzip bytes, against main `3af0c3d` built the same
+way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 92488 | 92701 | the lesson settings in `parseUser` and `encodeUserSettings` |
+| initial css | 4724 | 4724 | |
+| `lessons` | none | 3209 | registry, seen-state, component, English table |
+| lessons css | none | 469 | named `plain-terms-*.css` by the chunk that imports it first |
+| `plain-terms` | 7486 | 7487 | |
+| Spanish lessons table | none | 1226 | fetched only in Spanish |
+
+**Verdict.** Accepted. The initial payload grows 213 B, because the seen-state arrives with the
+session (`GET /api/me`), so the session parser reads it. That removes a request: the alternative was
+one more user read on the first page that shows a lesson. These are single builds on one machine.
+
+## Decision 17: the vocabulary import loads on demand (accepted)
 
 The Vocabularies tab gains "Import a vocabulary" and, on a vocabulary's page, "Update from a file or
 web address". Measured with `vite build` then `npm run perf:pages` and `zlib.gzipSync` over the

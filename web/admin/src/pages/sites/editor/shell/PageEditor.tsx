@@ -14,15 +14,10 @@ import { useTranslator } from '../../../../i18n';
 import { BLOCK_REGISTRY } from '../../blockRegistry';
 import type { TemplateChoice } from '../../templates';
 import type { EditorOptions } from '../options';
-import {
-  draftReducer,
-  emptyDraft,
-  fromApi,
-  isDirty,
-  nextBlockKey,
-  toPageWrite,
-  validate,
-} from '../draft';
+import { emptyDraft, nextBlockKey, validate } from '../draft';
+import { isDirty } from '../history';
+import { draftReducer } from '../reducer';
+import { fromApi, toPageWrite } from '../wire';
 import type { DraftAction, PageDraft } from '../draft';
 import { Inspector } from './Inspector';
 import { PageSettings } from './PageSettings';
@@ -346,6 +341,8 @@ export const PageEditor = ({
                 dispatch={action}
                 issues={issues}
                 pageId={pageId}
+                siteId={siteId}
+                options={options}
                 onDeleted={() => {
                   guard.allowLeave();
                   window.location.hash = `#/sites/${String(siteId)}`;

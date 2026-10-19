@@ -755,6 +755,7 @@ export const hi: Catalogue = {
   'editor.outlineToggle': 'आउटलाइन दिखाएं',
   'preview.insertHere': 'यहाँ एक ब्लॉक डालें',
   'preview.insertIntoGroup': 'इस समूह में एक ब्लॉक जोड़ें',
+  'page.termLists': 'शब्द सूचियाँ',
   'siteItems.count': 'इस साइट पर आइटम: {count}',
   'siteItems.counting': 'गणना की जा रही है…',
   'siteItems.countError': 'आइटम की गणना नहीं की जा सकी: {message}',

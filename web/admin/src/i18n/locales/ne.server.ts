@@ -100,7 +100,21 @@ export const neServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'सबै ब्लकहरूको लेआउट हुनुपर्छ।',
   'server.blockDataScalar': 'ब्लक डेटा स्केलर मान हुनु हुँदैन।',
   'server.siteSettingsNotObject': 'अपेक्षित अब्जेक्ट वा नल, {kind} प्राप्त भयो।',
-  'server.customCssRefusal': 'अनुकूलित CSS: {refusal}',
+  'server.cssTooLarge':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: अनुकूलित CSS बढीमा {max} बाइट्समा हुन सक्छ; यो {bytes} हो।',
+  'server.cssImport': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: @import अनुमति छैन।',
+  'server.cssDocument': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: @document अनुमति छैन।',
+  'server.cssForeignUrl':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: url({url}) अनुमति छैन; एउटा URL /files/ वा /assets/ अन्तर्गतको पथ हुनुपर्छ।',
+  'server.cssExpression': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: expression() अनुमति छैन।',
+  'server.cssBehavior': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: behavior अनुमति छैन।',
+  'server.cssMozBinding': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: -moz-binding अनुमति छैन।',
+  'server.cssStyleBreakout': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: </style अनुमति छैन।',
+  'server.cssBadUrl': 'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: यो url( मान्य CSS होइन।',
+  'server.cssUnclosedString':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: यो स्ट्रिङ बन्द गरिएको छैन।',
+  'server.cssStrayClose':
+    'अनुकूलित CSS: लाइन {line}, स्तम्भ {column}: {bracket} ले केही पनि बन्द गर्दैन।',
   'server.navNotArray': 'अमान्य नेभिगेसन: नेभिगेसन एरे हुनुपर्छ',
   'server.navLinkMissingType': 'अमान्य नेभिगेसन: लिङ्कको प्रकार छुटेको',
   'server.navLinkMissingData': 'अमान्य नेभिगेसन: लिङ्कको डेटा छुटेको',
@@ -116,4 +130,6 @@ export const neServer: ServerCatalogue = {
   'server.settingsNotObject': 'एउटा अब्जेक्ट अपेक्षित थियो।',
   'server.settingUnavailable': 'सेटिङ {key} उपलब्ध छैन।',
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
+  'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
+  'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
 };

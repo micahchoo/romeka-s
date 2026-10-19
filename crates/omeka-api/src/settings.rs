@@ -6,8 +6,12 @@
 //! `user-settings` fieldset straight into `user_setting`, and
 //! `Admin\SettingController::browseAction` writes `SettingForm` into `setting`.
 //! The port's admin is an SPA, so both travel over HTTP, and this module is the
-//! boundary. Only the keys in [`API_SETTINGS`] cross it: a caller cannot reach
-//! a row the port's admin has no field for.
+//! boundary. Only the keys in [`USER_SETTINGS`] and [`GLOBAL_SETTINGS`] cross
+//! it: a caller cannot reach a row the port's admin has no field for.
+//!
+//! Two user keys are port-only, so upstream ignores their rows: the admin's
+//! lessons record which lessons a user has seen ([`LESSONS_SEEN`]) and whether
+//! the user switched lessons off ([`HIDE_LESSONS`]).
 //!
 //! A user's settings travel as `o:user_settings` on the user document and the
 //! user write, the way `o:site_settings` travels on the site
@@ -32,8 +36,36 @@ use crate::read::{Api, ApiResponse, db_error};
 /// The `locale` key, in `setting` and in `user_setting` alike.
 pub const LOCALE: &str = "locale";
 
-/// The keys the API reads and writes. Each one has a field in the admin.
-pub const API_SETTINGS: &[&str] = &[LOCALE];
+/// The ids of the admin lessons a user has seen, a list of strings.
+pub const LESSONS_SEEN: &str = "romeka_lessons_seen";
+
+/// `true` when the user switched the admin lessons off.
+pub const HIDE_LESSONS: &str = "romeka_hide_lessons";
+
+/// What a setting's value may be on the wire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Shape {
+    /// A string; an empty string removes the row.
+    Text,
+    /// `true` or `false`; `false` removes the row, because it is the default.
+    Flag,
+    /// A list of strings; an empty list removes the row.
+    Names,
+}
+
+/// The user keys the API reads and writes. Each one has a field in the admin.
+pub const USER_SETTINGS: &[&str] = &[LOCALE, HIDE_LESSONS, LESSONS_SEEN];
+
+/// The global keys the API reads and writes.
+pub const GLOBAL_SETTINGS: &[&str] = &[LOCALE];
+
+fn shape(key: &str) -> Shape {
+    match key {
+        HIDE_LESSONS => Shape::Flag,
+        LESSONS_SEEN => Shape::Names,
+        _ => Shape::Text,
+    }
+}
 
 /// The member a user's settings travel in.
 pub const USER_SETTINGS_MEMBER: &str = "o:user_settings";
@@ -66,7 +98,7 @@ pub async fn admin_locale(pool: &SqlitePool, user: UserId) -> Result<Option<Stri
 pub async fn load_user(pool: &SqlitePool, user: UserId) -> Result<Option<Value>, ApiError> {
     let repo = UserSettingRepo::new(pool);
     let mut map = Map::new();
-    for key in API_SETTINGS {
+    for key in USER_SETTINGS {
         if let Some(value) = repo.get(user, key).await.map_err(db_error)? {
             map.insert((*key).to_string(), value);
         }
@@ -80,10 +112,9 @@ pub async fn load_user(pool: &SqlitePool, user: UserId) -> Result<Option<Value>,
 ///
 /// # Errors
 /// [`ApiError::Validation`], keyed by `o:user_settings`, for a member that is
-/// not an object, a key the API does not expose, or a value that is not a
-/// string or `null`.
+/// not an object, a key the API does not expose, or a value of the wrong shape.
 pub fn parse_user(value: &Value) -> Result<Vec<Change>, ApiError> {
-    parse_map(USER_SETTINGS_MEMBER, value)
+    parse_map(USER_SETTINGS_MEMBER, USER_SETTINGS, value)
 }
 
 /// Apply the writes [`parse_user`] returned.
@@ -116,7 +147,7 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     authorize_global(api.actor())?;
     let repo = SettingRepo::new(api.pool());
     let mut map = Map::new();
-    for key in API_SETTINGS {
+    for key in GLOBAL_SETTINGS {
         if let Some(value) = repo.get(key).await.map_err(db_error)? {
             map.insert((*key).to_string(), value);
         }
@@ -137,7 +168,7 @@ pub async fn write_global(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, Ap
     let body: Value =
         serde_json::from_slice(bytes).map_err(|_| ApiError::bad_request(messages::JSON_SYNTAX))?;
     let repo = SettingRepo::new(api.pool());
-    for (key, value) in parse_map("settings", &body)? {
+    for (key, value) in parse_map("settings", GLOBAL_SETTINGS, &body)? {
         match value {
             Some(value) => repo.set(key, &value).await.map_err(db_error)?,
             None => {
@@ -158,7 +189,11 @@ fn authorize_global(actor: &Actor) -> Result<(), ApiError> {
     }
 }
 
-fn parse_map(member: &str, value: &Value) -> Result<Vec<Change>, ApiError> {
+fn parse_map(
+    member: &str,
+    known: &'static [&'static str],
+    value: &Value,
+) -> Result<Vec<Change>, ApiError> {
     let invalid = |message: String| {
         let mut errors = ValidationErrors::new();
         errors.insert(member.to_string(), vec![message]);
@@ -169,18 +204,25 @@ fn parse_map(member: &str, value: &Value) -> Result<Vec<Change>, ApiError> {
     };
     let mut changes = Vec::with_capacity(map.len());
     for (key, stored) in map {
-        let Some(known) = API_SETTINGS.iter().find(|known| **known == key.as_str()) else {
+        let Some(name) = known.iter().find(|name| **name == key.as_str()) else {
             return Err(invalid(messages::setting_unavailable(key)));
         };
-        let change = match stored {
-            Value::Null => None,
-            Value::String(text) if text.is_empty() => None,
-            Value::String(_) => Some(stored.clone()),
-            _ => {
-                return Err(invalid(messages::setting_not_text(key)));
+        let change = match (shape(name), stored) {
+            (_, Value::Null) => None,
+            (Shape::Text, Value::String(text)) if text.is_empty() => None,
+            (Shape::Flag, Value::Bool(false)) => None,
+            (Shape::Names, Value::Array(names)) if names.is_empty() => None,
+            (Shape::Text, Value::String(_)) | (Shape::Flag, Value::Bool(true)) => {
+                Some(stored.clone())
             }
+            (Shape::Names, Value::Array(names)) if names.iter().all(Value::is_string) => {
+                Some(stored.clone())
+            }
+            (Shape::Text, _) => return Err(invalid(messages::setting_not_text(key))),
+            (Shape::Flag, _) => return Err(invalid(messages::setting_not_flag(key))),
+            (Shape::Names, _) => return Err(invalid(messages::setting_not_names(key))),
         };
-        changes.push((*known, change));
+        changes.push((*name, change));
     }
     Ok(changes)
 }
@@ -213,5 +255,39 @@ mod tests {
         assert!(parse_user(&json!({"default_resource_template": 1})).is_err());
         assert!(parse_user(&json!({"locale": 3})).is_err());
         assert!(parse_user(&json!(["locale"])).is_err());
+    }
+
+    #[test]
+    fn the_lesson_keys_are_user_settings_of_their_own_shape() {
+        // The writes are independent rows, so their order is not part of the answer.
+        let sorted = |value: Value| {
+            let mut changes = parse_user(&value).unwrap();
+            changes.sort_by_key(|(key, _)| *key);
+            changes
+        };
+        assert_eq!(
+            sorted(json!({"romeka_lessons_seen": ["term"], "romeka_hide_lessons": true})),
+            vec![
+                (HIDE_LESSONS, Some(json!(true))),
+                (LESSONS_SEEN, Some(json!(["term"]))),
+            ]
+        );
+        assert_eq!(
+            sorted(json!({"romeka_lessons_seen": [], "romeka_hide_lessons": false})),
+            vec![(HIDE_LESSONS, None), (LESSONS_SEEN, None)],
+            "the default value removes the row"
+        );
+        assert!(parse_user(&json!({"romeka_lessons_seen": [1]})).is_err());
+        assert!(parse_user(&json!({"romeka_hide_lessons": "true"})).is_err());
+        assert!(parse_user(&json!({"locale": true})).is_err());
+        assert!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"romeka_hide_lessons": true})
+            )
+            .is_err(),
+            "lessons are a user setting only"
+        );
     }
 }

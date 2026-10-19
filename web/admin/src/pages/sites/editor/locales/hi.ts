@@ -208,4 +208,7 @@ export const hi: EditorMessages = {
   'query.mediaCount': 'इस साइट पर वे मीडिया जो मेल खाते हैं: {count}।',
   'attachments.mainMedia': 'मुख्य मीडिया',
   'attachments.pick': 'आइटम जोड़ें या हटाएँ',
+  'layoutData.pageLegend': 'पृष्ठ लेआउट',
+  'layoutGroup.pageGrid': 'ग्रिड',
+  'choice.unset': 'सेट नहीं है',
 };

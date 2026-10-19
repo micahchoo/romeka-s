@@ -21,9 +21,18 @@ describe('fitFrame', () => {
     });
   });
 
-  it('lays the page out at the panel width itself under Fit, at full scale', () => {
-    expect(fitFrame('fit', { width: 900, height: 600 })).toEqual({
-      width: 900,
+  it('lays a narrow panel out at a desktop width under Fit, scaled down', () => {
+    expect(fitFrame('fit', { width: 256, height: 600 })).toEqual({
+      width: 1024,
+      height: 2400,
+      scale: 0.25,
+      left: 0,
+    });
+  });
+
+  it('lays a wide panel out at the panel width itself under Fit, at full scale', () => {
+    expect(fitFrame('fit', { width: 1100, height: 600 })).toEqual({
+      width: 1100,
       height: 600,
       scale: 1,
       left: 0,

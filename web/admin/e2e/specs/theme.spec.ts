@@ -105,7 +105,7 @@ test('custom CSS the sanitiser refuses shows its error and is not saved', async 
   await page.getByRole('tab', { name: 'Custom CSS' }).click();
   const editor = page.getByRole('textbox', { name: 'Custom CSS' });
   await editor.fill('.site-title a { color: blue; }\n@import url(https://evil.example/x.css);');
-  await expect(page.getByRole('button', { name: /^Line 2, column 1: @import is not allowed/ })).toBeVisible({
+  await expect(page.getByRole('button', { name: /^Custom CSS: Line 2, column 1: @import is not allowed/ })).toBeVisible({
     timeout: 10_000,
   });
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();

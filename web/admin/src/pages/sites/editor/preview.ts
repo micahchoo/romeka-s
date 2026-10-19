@@ -15,7 +15,7 @@ import type { ApiErrors, PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
 import type { BlockKey, PageContent } from './draft';
-import { toPageWrite } from './draft';
+import { toPageWrite } from './wire';
 import { canonicalBlocks } from './groups';
 
 /** What one render request sends, and the key of every block it sends, in body order. */
@@ -68,8 +68,16 @@ export type PreviewResult =
   | { readonly kind: 'html'; readonly html: string }
   /** The route answered 404, so the server has no preview yet. */
   | { readonly kind: 'unavailable' }
-  /** The route refused the body; `errors` is the API's error document, when it sent one. */
-  | { readonly kind: 'error'; readonly message: string; readonly errors: ApiErrors | null };
+  /**
+   * The route refused the body; `errors` is the API's error document, when it
+   * sent one, in the active locale, and `sourceErrors` the same in English.
+   */
+  | {
+      readonly kind: 'error';
+      readonly message: string;
+      readonly errors: ApiErrors | null;
+      readonly sourceErrors: ApiErrors | null;
+    };
 
 const parsedOrNull = (text: string): unknown => {
   try {
@@ -86,11 +94,11 @@ const errorResult = async (response: Response): Promise<PreviewResult> => {
   for (const messages of Object.values(errors ?? {})) {
     const first = messages[0];
     if (first !== undefined) {
-      return { kind: 'error', message: first, errors };
+      return { kind: 'error', message: first, errors, sourceErrors: parsed };
     }
   }
   const message = text === '' ? `Preview failed with ${String(response.status)}.` : text;
-  return { kind: 'error', message, errors };
+  return { kind: 'error', message, errors, sourceErrors: parsed };
 };
 
 export const requestPreview = async (

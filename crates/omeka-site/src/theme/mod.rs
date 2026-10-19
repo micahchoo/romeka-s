@@ -43,6 +43,7 @@ pub mod search;
 pub mod style;
 pub mod tokens;
 pub mod tokens_schema;
+mod user_bar;
 
 pub use default::{DEFAULT_INFO, DefaultTheme};
 pub use tokens::ThemeSettings;

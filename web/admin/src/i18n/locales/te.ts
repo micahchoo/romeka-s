@@ -758,6 +758,7 @@ export const te: Catalogue = {
   'editor.outlineToggle': 'అవుట్‌లైన్‌ను చూపండి',
   'preview.insertHere': 'ఇక్కడ ఒక బ్లాక్‌ను చేర్చండి',
   'preview.insertIntoGroup': 'ఈ సమూహానికి ఒక బ్లాక్‌ను జోడించండి',
+  'page.termLists': 'పదాల జాబితాలు',
   'siteItems.count': 'ఈ సైట్‌లోని అంశాలు: {count}',
   'siteItems.counting': 'లెక్కిస్తోంది…',
   'siteItems.countError': 'అంశాలను లెక్కించలేకపోయాము: {message}',

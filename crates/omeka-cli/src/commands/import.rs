@@ -26,20 +26,28 @@
 //! `title` column is the first non-empty `dcterms:title` cell. Every item joins
 //! the item set named by `--item-set`. A row whose column count differs from the
 //! header is reported and skipped; the rest import.
+//!
+//! A row imports whole or not at all: the item, its item-set link and its values
+//! commit in one transaction, so a row reported as an error leaves nothing
+//! behind. After the commit the item joins every site that keeps in sync with its
+//! item pool and whose pool selects it, as an API create that names no `o:site`
+//! does (`omeka_api::site_items`).
 
 use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use omeka_db::ids::{ItemSetId, PropertyId};
-use omeka_db::open_file;
-use omeka_db::repos::{ClassRepo, ItemRepo, ItemSetRepo, PropertyRepo, TemplateRepo, ValueRepo};
+use omeka_api::site_items;
+use omeka_db::ids::{ItemId, ItemSetId, PropertyId};
+use omeka_db::repos::{ClassRepo, ItemRepo, ItemSetRepo, PropertyRepo, TemplateRepo};
 use omeka_db::rows::{
-    NewItem, NewResource, NewTemplate, NewTemplateProperty, NewValue, TemplateRow,
+    NewItem, NewResource, NewTemplate, NewTemplateProperty, NewWholeItem, TemplateRow, ValueContent,
 };
+use omeka_db::{DbError, open_file};
 
 use crate::csv;
 use crate::error::CliError;
+use crate::system_api;
 
 /// Input for `romeka import template`.
 #[derive(Debug, Clone)]
@@ -206,7 +214,7 @@ pub async fn import_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
     let columns = resolve_columns(&pool, &header.fields).await?;
 
     let items = ItemRepo::new(&pool);
-    let values = ValueRepo::new(&pool);
+    let api = system_api::load(&pool).await?;
     let mut report = CsvReport {
         item_set: options.item_set_id,
         imported: 0,
@@ -225,8 +233,18 @@ pub async fn import_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
             });
             continue;
         }
-        match import_row(&items, &values, item_set_id, &columns, &record.fields).await {
-            Ok(()) => report.imported += 1,
+        match import_row(&items, item_set_id, &columns, &record.fields).await {
+            Ok(item) => {
+                site_items::attach_new_matches(&api, item, &[])
+                    .await
+                    .map_err(|error| {
+                        CliError::message(format!(
+                            "line {}: item {} imported, but joining its synced sites failed: {error}",
+                            record.line, item.0
+                        ))
+                    })?;
+                report.imported += 1;
+            }
             Err(error) => report.errors.push(RowError {
                 line: record.line,
                 message: error.to_string(),
@@ -264,12 +282,11 @@ async fn resolve_columns(
 
 async fn import_row(
     items: &ItemRepo<'_>,
-    values: &ValueRepo<'_>,
     item_set_id: ItemSetId,
     columns: &[Column],
     fields: &[String],
-) -> Result<(), CliError> {
-    let mut cells = Vec::new();
+) -> Result<ItemId, DbError> {
+    let mut values = Vec::new();
     let mut title = None;
     for (column, field) in columns.iter().zip(fields.iter()) {
         let text = field.trim();
@@ -279,44 +296,32 @@ async fn import_row(
         if column.is_title && title.is_none() {
             title = Some(text.to_string());
         }
-        cells.push((column.property, text.to_string()));
+        values.push(ValueContent::literal(column.property, text));
     }
 
     let item = items
-        .create(&NewItem {
-            resource: NewResource {
-                title,
-                is_public: true,
-                ..NewResource::default()
+        .create_whole(&NewWholeItem {
+            item: NewItem {
+                resource: NewResource {
+                    title,
+                    is_public: true,
+                    ..NewResource::default()
+                },
+                primary_media_id: None,
             },
-            primary_media_id: None,
+            item_sets: vec![item_set_id],
+            values,
         })
         .await?;
-    items.add_to_item_set(item.id(), item_set_id).await?;
-    for (property, text) in cells {
-        values
-            .create(&NewValue {
-                resource_id: item.resource.id,
-                property_id: property,
-                value_resource_id: None,
-                value_annotation_id: None,
-                r#type: "literal".to_string(),
-                lang: None,
-                value: Some(text),
-                uri: None,
-                is_public: true,
-            })
-            .await?;
-    }
-    Ok(())
+    Ok(item.id())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{seeded_db, temp_db};
+    use crate::testing::{refuse_value, seeded_db, site_items, synced_site, temp_db};
     use omeka_db::ids::PropertyId;
-    use omeka_db::repos::{ItemFilter, Paging};
+    use omeka_db::repos::{ItemFilter, Paging, ValueRepo};
 
     async fn write(dir: &std::path::Path, name: &str, contents: &str) -> PathBuf {
         let path = dir.join(name);
@@ -447,6 +452,92 @@ mod tests {
         assert_eq!(report.errors.len(), 1);
         assert_eq!(report.errors[0].line, 3);
         assert!(report.errors[0].message.contains("expected 2 columns"));
+    }
+
+    async fn count(pool: &sqlx::SqlitePool, table: &str) -> i64 {
+        sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+            .fetch_one(pool)
+            .await
+            .expect("count rows")
+    }
+
+    async fn import(db: &crate::testing::TempDb, csv: &str) -> CsvReport {
+        let item_set = omeka_db::repos::ItemSetRepo::new(&db.pool)
+            .create(&omeka_db::rows::NewItemSet::default())
+            .await
+            .expect("create item set");
+        let file = write(db.path.parent().expect("dir"), "items.csv", csv).await;
+        import_csv(&CsvOptions {
+            database: db.path.clone(),
+            file,
+            item_set_id: item_set.id().0,
+        })
+        .await
+        .expect("import csv")
+    }
+
+    #[tokio::test]
+    async fn csv_import_leaves_nothing_of_a_row_whose_value_fails() {
+        let db = seeded_db().await;
+        refuse_value(&db.pool, "refused").await;
+
+        let report = import(
+            &db,
+            "dcterms:title,dcterms:creator\nGood,Ada\nBad,refused\n",
+        )
+        .await;
+
+        assert_eq!(report.imported, 1);
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0].line, 3);
+        assert_eq!(count(&db.pool, "item").await, 1, "only the good row's item");
+        assert_eq!(count(&db.pool, "item_item_set").await, 1);
+        assert_eq!(count(&db.pool, "value").await, 2, "Good and Ada");
+        assert_eq!(
+            count(&db.pool, "resource").await,
+            2,
+            "the item set and the good item"
+        );
+    }
+
+    #[tokio::test]
+    async fn csv_import_joins_an_item_to_the_synced_sites_whose_pool_selects_it() {
+        let db = seeded_db().await;
+        let by_creator = |name: &str| {
+            serde_json::json!({"property": [
+                {"property": "dcterms:creator", "type": "eq", "text": name}
+            ]})
+        };
+        let ada_site = synced_site(&db.pool, "ada", by_creator("Ada")).await;
+        let grace_site = synced_site(&db.pool, "grace", by_creator("Grace")).await;
+        let unsynced = omeka_db::repos::SiteRepo::new(&db.pool)
+            .create(&omeka_db::rows::NewSite {
+                slug: "manual".to_string(),
+                title: "Manual".to_string(),
+                ..omeka_db::rows::NewSite::default()
+            })
+            .await
+            .expect("create site")
+            .id;
+
+        let report = import(
+            &db,
+            "dcterms:title,dcterms:creator\nFirst,Ada\nSecond,Alan\n",
+        )
+        .await;
+        assert_eq!(report.imported, 2);
+
+        let first = ItemRepo::new(&db.pool)
+            .list(&ItemFilter::default(), &Paging::default())
+            .await
+            .expect("list items")
+            .into_iter()
+            .find(|item| item.resource.title.as_deref() == Some("First"))
+            .expect("First imported")
+            .id();
+        assert_eq!(site_items(&db.pool, ada_site).await, [first]);
+        assert!(site_items(&db.pool, grace_site).await.is_empty());
+        assert!(site_items(&db.pool, unsynced).await.is_empty());
     }
 
     #[tokio::test]

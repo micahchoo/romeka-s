@@ -91,6 +91,42 @@ impl Default for NewSite {
     }
 }
 
+/// Everything one site create writes, for `SiteRepo::create_whole`: the site,
+/// the first page with its blocks, and the site's membership and setting rows.
+/// Upstream writes the same graph in one Doctrine flush (`SiteAdapter::hydrate`).
+#[derive(Debug, Clone)]
+pub struct NewWholeSite {
+    pub site: NewSite,
+    pub first_page: NewFirstPage,
+    /// When set, the site stores this function of the first page's id as its
+    /// navigation in place of `site.navigation`. The page id exists only once
+    /// the page row does, and the page row needs the site's id first.
+    pub navigation_linking_first_page: Option<fn(PageId) -> Value>,
+    /// Each user's role. A user named twice keeps the last role.
+    pub permissions: Vec<(UserId, String)>,
+    /// Stored at positions 1, 2, ... in this order.
+    pub item_sets: Vec<ItemSetId>,
+    /// `site_setting` rows, key and value.
+    pub settings: Vec<(String, Value)>,
+}
+
+/// The page a site is created with, with its blocks in position order.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewFirstPage {
+    pub slug: String,
+    pub title: String,
+    pub is_public: bool,
+    pub blocks: Vec<NewFirstPageBlock>,
+}
+
+/// One block of the first page. Its position is its index plus one.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewFirstPageBlock {
+    pub layout: String,
+    pub data: Value,
+    pub layout_data: Option<Value>,
+}
+
 /// One row of `site_page`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SitePageRow {

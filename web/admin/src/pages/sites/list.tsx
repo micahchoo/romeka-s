@@ -8,7 +8,7 @@ const PER_PAGE = 25;
 
 /** `SiteAdmin/IndexController::indexAction`: the site browse table. */
 export const SiteList = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
   const resource = t('resource.sites');
   return (
     <div>
@@ -28,7 +28,7 @@ export const SiteList = (): ReactElement => {
           { header: t('column.slug'), cell: (site) => site.slug },
           { header: t('column.theme'), cell: (site) => site.theme },
           { header: t('column.public'), cell: (site) => (site.isPublic ? t('common.yes') : t('common.no')) },
-          { header: t('column.created'), cell: (site) => formatDateTime(site.created) },
+          { header: t('column.created'), cell: (site) => formatDateTime(site.created, locale) },
         ]}
       />
     </div>

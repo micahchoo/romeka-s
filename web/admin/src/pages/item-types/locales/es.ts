@@ -75,6 +75,8 @@ export const es: ItemTypesMessages = {
   'accepts.itemSet': 'Un conjunto de elementos',
   'accepts.media': 'Un archivo multimedia',
   'accepts.missing': '{id} (no instalado)',
+  'accepts.termLists': 'Listas de términos',
+  'accepts.termList': 'Lista de términos: {list}',
   'use.legend': 'Se usa para',
   'use.items': 'Elementos',
   'use.itemSets': 'Conjuntos de elementos',

@@ -8,15 +8,26 @@
 //! invalid value. `ResourceTitleHydrator` then takes the resource title from the
 //! title property's first non-empty value.
 //!
+//! A `type` of `customvocab:<id>` names a term list (`DataType\CustomVocab`).
+//! The value keeps that name in the `type` column, and the object's own shape
+//! decides what it stores: a `value_resource_id` is an item, an `@id` a URI
+//! with the list's label for it, an `@value` text in the list's language. The
+//! module does not check that the text or URI is one of the list's entries, and
+//! neither does the port. A name whose list does not exist is ignored, as
+//! `ValueHydrator` ignores a data type the manager cannot create.
+//!
 //! An object may also carry `@annotation` (`ValueHydrator` lines 134-153). A
 //! non-empty one is hydrated as a `value_annotations` resource with its own
 //! values and stored beside the value; a value that carried one and no longer
 //! does takes its annotation with it, as `orphanRemoval` does upstream.
 
+use std::collections::HashMap;
+
+use omeka_core::term_list::{self, TermList, php_trim};
 use omeka_core::value::{literal_is_valid, uri_is_valid};
-use omeka_db::ids::{AnnotationId, PropertyId, ResourceId, TemplateId};
-use omeka_db::repos::{ResourceRepo, TemplateRepo, ValueRepo};
-use omeka_db::rows::{NewResource, NewValue};
+use omeka_db::ids::{AnnotationId, CustomVocabId, PropertyId, ResourceId, TemplateId};
+use omeka_db::repos::{CustomVocabRepo, ResourceRepo, TemplateRepo, ValueRepo};
+use omeka_db::rows::{NewResource, NewValue, resource_type};
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -54,6 +65,8 @@ const JSONLD_KEYWORDS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValueInput {
     pub property: PropertyId,
+    /// The `type` column: the data type name the value is stored under.
+    pub data_type: String,
     pub data: ValueKind,
     pub lang: Option<String>,
     pub is_public: bool,
@@ -104,6 +117,7 @@ pub(crate) async fn collect_at(
 ) -> Result<Vec<ValueInput>, ApiError> {
     let mut inputs = Vec::new();
     let mut errors = ValidationErrors::new();
+    let mut lists = TermLists::default();
     for (key, value) in payload.members() {
         if is_control(api, key, control) {
             continue;
@@ -119,9 +133,9 @@ pub(crate) async fn collect_at(
             continue;
         };
         for item in array {
-            if let Some(input) = parse_one(api, key, item, depth).await? {
+            if let Some(input) = parse_one(api, &mut lists, key, item, depth).await? {
                 if let ValueKind::Resource(id) = &input.data {
-                    ensure_resource(api, *id).await?;
+                    ensure_resource(api, *id, &input.data_type).await?;
                 }
                 inputs.push(input);
             }
@@ -149,21 +163,117 @@ fn is_control(api: &Api<'_>, key: &str, control: &[&str]) -> bool {
 /// `DataType\Resource\AbstractResource::hydrate`: the named value resource must
 /// exist, and a missing one is the 404 `EntityManager::find` leaves to the
 /// exception strategy.
-async fn ensure_resource(api: &Api<'_>, id: ResourceId) -> Result<(), ApiError> {
-    if ResourceRepo::new(api.pool())
+///
+/// A term list value hydrates through `resource:item`, whose
+/// `getValidValueResources` admits an item only; another kind is the
+/// `ValidationException` that method throws.
+async fn ensure_resource(api: &Api<'_>, id: ResourceId, data_type: &str) -> Result<(), ApiError> {
+    let Some(row) = ResourceRepo::new(api.pool())
         .get(id)
         .await
         .map_err(db_error)?
-        .is_none()
-    {
+    else {
         return Err(ApiError::not_found(messages::resource_not_found(id.0)));
+    };
+    if term_list::list_id(data_type).is_some() && row.resource_type != resource_type::ITEM {
+        let mut errors = ValidationErrors::new();
+        errors.insert(
+            "value".to_string(),
+            vec![format!(
+                "Invalid value resource {} for type {data_type}",
+                row.resource_type
+            )],
+        );
+        return Err(ApiError::Validation(errors));
     }
     Ok(())
 }
 
-/// The scalar half of one value object: its property, its object, its language
-/// and its visibility.
-type Scalar = (PropertyId, ValueKind, Option<String>, bool);
+/// The term lists one request names, read once each.
+#[derive(Default)]
+struct TermLists {
+    read: HashMap<u64, Option<TermList>>,
+}
+
+impl TermLists {
+    /// The list a data type name names, `None` when the name is not a term list
+    /// name or the list does not exist.
+    async fn get(&mut self, api: &Api<'_>, data_type: &str) -> Result<Option<&TermList>, ApiError> {
+        let Some(id) = term_list::list_id(data_type) else {
+            return Ok(None);
+        };
+        if let std::collections::hash_map::Entry::Vacant(entry) = self.read.entry(id) {
+            let list = CustomVocabRepo::new(api.pool())
+                .get(CustomVocabId(id))
+                .await
+                .map_err(db_error)?
+                .map(|row| {
+                    TermList::from_columns(
+                        row.label,
+                        row.lang,
+                        row.item_set_id.map(|set| set.0),
+                        row.terms.as_ref(),
+                        row.uris.as_ref(),
+                    )
+                });
+            entry.insert(list);
+        }
+        Ok(self.read.get(&id).and_then(Option::as_ref))
+    }
+}
+
+/// `DataType\CustomVocab::isValid` and `::hydrate` for one object: the first
+/// of `value_resource_id`, `@id` and `@value` that is usable decides the
+/// shape. `None` when none is, which `ValueHydrator` ignores.
+fn term_value(
+    list: &TermList,
+    object: &serde_json::Map<String, Value>,
+) -> Result<Option<(ValueKind, Option<String>)>, ApiError> {
+    if let Some(raw) = object
+        .get("value_resource_id")
+        .filter(|raw| is_numeric(raw))
+    {
+        let Some(id) = ref_row(raw) else {
+            return Err(ApiError::not_found(format!(
+                "Resource not found with id {}.",
+                crate::write::body::php_display(raw)
+            )));
+        };
+        return Ok(Some((ValueKind::Resource(ResourceId(id)), None)));
+    }
+    if let Some(uri) = object
+        .get("@id")
+        .and_then(Value::as_str)
+        .filter(|uri| !php_trim(uri).is_empty())
+    {
+        // `DataType\Uri::hydrate` reads `o:lang`; the list's language goes to
+        // `@language`, which that hydrate does not read.
+        let lang = object
+            .get("o:lang")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let data = ValueKind::Uri {
+            uri: uri.to_string(),
+            label: list.uri_label(uri),
+        };
+        return Ok(Some((data, lang)));
+    }
+    if let Some(text) = object
+        .get("@value")
+        .and_then(Value::as_str)
+        .filter(|text| !php_trim(text).is_empty())
+    {
+        return Ok(Some((
+            ValueKind::Literal(text.to_string()),
+            list.lang.clone(),
+        )));
+    }
+    Ok(None)
+}
+
+/// The scalar half of one value object: its property, its data type name, its
+/// object, its language and its visibility.
+type Scalar = (PropertyId, String, ValueKind, Option<String>, bool);
 
 /// The scalar half of one value object; `None` when the object names no usable
 /// property, type or object (`ValueHydrator` ignores an invalid value). A
@@ -173,6 +283,7 @@ fn parse_scalar(
     api: &Api<'_>,
     term: &str,
     object: &serde_json::Map<String, Value>,
+    list: Option<&TermList>,
 ) -> Result<Option<Scalar>, ApiError> {
     let property = match object.get("property_id") {
         Some(Value::String(name)) if name == "auto" => {
@@ -193,7 +304,15 @@ fn parse_scalar(
         .get("is_public")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let data = match object.get("type").and_then(Value::as_str).unwrap_or("") {
+    let type_name = object.get("type").and_then(Value::as_str).unwrap_or("");
+    if term_list::list_id(type_name).is_some() {
+        let Some(list) = list else {
+            return Ok(None);
+        };
+        return Ok(term_value(list, object)?
+            .map(|(data, lang)| (property, type_name.to_string(), data, lang, is_public)));
+    }
+    let data = match type_name {
         "uri" => {
             let Some(uri) = object.get("@id").and_then(Value::as_str) else {
                 return Ok(None);
@@ -246,12 +365,24 @@ fn parse_scalar(
         .get(lang_key)
         .and_then(Value::as_str)
         .map(str::to_string);
-    Ok(Some((property, data, lang, is_public)))
+    // `ValueHydrator` stores `$dataType->getName()`: a resource value keeps the
+    // core name it was sent with. A name the port does not register is stored
+    // under its shape, the port's fallback for module types it does not know.
+    let stored = match &data {
+        ValueKind::Literal(_) => "literal",
+        ValueKind::Uri { .. } => "uri",
+        ValueKind::Resource(_) => match type_name {
+            "resource:item" | "resource:itemset" | "resource:media" => type_name,
+            _ => "resource",
+        },
+    };
+    Ok(Some((property, stored.to_string(), data, lang, is_public)))
 }
 
 /// A value as PHP interpolates it into a message string.
 async fn parse_one(
     api: &Api<'_>,
+    lists: &mut TermLists,
     term: &str,
     value: &Value,
     depth: u8,
@@ -259,7 +390,10 @@ async fn parse_one(
     let Some(object) = value.as_object() else {
         return Ok(None);
     };
-    let Some((property, data, lang, is_public)) = parse_scalar(api, term, object)? else {
+    let type_name = object.get("type").and_then(Value::as_str).unwrap_or("");
+    let list = lists.get(api, type_name).await?;
+    let Some((property, data_type, data, lang, is_public)) = parse_scalar(api, term, object, list)?
+    else {
         return Ok(None);
     };
     let annotation = match object.get("@annotation") {
@@ -283,6 +417,7 @@ async fn parse_one(
     };
     Ok(Some(ValueInput {
         property,
+        data_type,
         data,
         lang,
         is_public,
@@ -310,17 +445,17 @@ pub async fn store(
             }
             None => None,
         };
-        let (r#type, value, uri, value_resource_id) = match &input.data {
-            ValueKind::Literal(text) => ("literal", Some(text.clone()), None, None),
-            ValueKind::Uri { uri, label } => ("uri", label.clone(), Some(uri.clone()), None),
-            ValueKind::Resource(id) => ("resource", None, None, Some(*id)),
+        let (value, uri, value_resource_id) = match &input.data {
+            ValueKind::Literal(text) => (Some(text.clone()), None, None),
+            ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
+            ValueKind::Resource(id) => (None, None, Some(*id)),
         };
         repo.create(&NewValue {
             resource_id: resource,
             property_id: input.property,
             value_resource_id,
             value_annotation_id: annotation_id,
-            r#type: r#type.to_string(),
+            r#type: input.data_type.clone(),
             lang: input.lang.clone(),
             value,
             uri,

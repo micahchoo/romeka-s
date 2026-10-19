@@ -18,6 +18,7 @@
 mod assets;
 mod attachments;
 mod collation;
+mod custom_vocabs;
 mod fulltext;
 mod item_sites;
 mod jobs;
@@ -37,6 +38,7 @@ mod vocabularies;
 pub use assets::{AssetFilter, AssetOwner, AssetRepo};
 pub use attachments::SiteBlockAttachmentRepo;
 pub use collation::{compare_opt_text_ci, compare_text_ci};
+pub use custom_vocabs::CustomVocabRepo;
 pub use fulltext::{FulltextMatch, FulltextRepo, has_word, match_expression};
 pub use item_sites::ItemSiteRepo;
 pub use jobs::{JobFilter, JobRepo};

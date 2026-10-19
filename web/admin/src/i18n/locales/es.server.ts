@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 99); the other
- * 51 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 111); the other
+ * 63 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -99,7 +99,17 @@ export const esServer: ServerCatalogue = {
   'server.blockLayoutRequired': 'Todos los bloques deben tener un diseño.',
   'server.blockDataScalar': 'Los datos del bloque no deben ser valores escalables.',
   'server.siteSettingsNotObject': 'Se esperaba un objeto o null, se recibió {kind}.',
-  'server.customCssRefusal': 'CSS personalizado: {refusal}',
+  'server.cssTooLarge': 'CSS propio: línea {line}, columna {column}: el CSS propio puede ocupar como máximo {max} bytes; este ocupa {bytes}.',
+  'server.cssImport': 'CSS propio: línea {line}, columna {column}: @import no está permitido.',
+  'server.cssDocument': 'CSS propio: línea {line}, columna {column}: @document no está permitido.',
+  'server.cssForeignUrl': 'CSS propio: línea {line}, columna {column}: url({url}) no está permitida; una URL debe ser una ruta dentro de /files/ o /assets/.',
+  'server.cssExpression': 'CSS propio: línea {line}, columna {column}: expression() no está permitido.',
+  'server.cssBehavior': 'CSS propio: línea {line}, columna {column}: behavior no está permitido.',
+  'server.cssMozBinding': 'CSS propio: línea {line}, columna {column}: -moz-binding no está permitido.',
+  'server.cssStyleBreakout': 'CSS propio: línea {line}, columna {column}: </style no está permitido.',
+  'server.cssBadUrl': 'CSS propio: línea {line}, columna {column}: este url( no es CSS válido.',
+  'server.cssUnclosedString': 'CSS propio: línea {line}, columna {column}: esta cadena no está cerrada.',
+  'server.cssStrayClose': 'CSS propio: línea {line}, columna {column}: {bracket} no cierra nada.',
   'server.navNotArray': 'Navegación no válida: debe almacenarse en un vector o "array"',
   'server.navLinkMissingType': 'Navegación no válida: falta el tipo de enlace',
   'server.navLinkMissingData': 'Navegación no válida: faltan datos del enlace',
@@ -115,4 +125,6 @@ export const esServer: ServerCatalogue = {
   'server.settingsNotObject': 'Se esperaba un objeto.',
   'server.settingUnavailable': 'El ajuste {key} no está disponible.',
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
+  'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
+  'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
 };
