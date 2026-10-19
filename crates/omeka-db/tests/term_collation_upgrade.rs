@@ -92,6 +92,23 @@ async fn contents(pool: &SqlitePool) -> Vec<(String, Vec<String>)> {
     dump
 }
 
+/// Asserts the upgrade kept every row of every table the archive had, and that
+/// each table a later migration added starts empty.
+fn assert_kept(before: &[(String, Vec<String>)], after: &[(String, Vec<String>)]) {
+    for (table, rows) in after {
+        match before.iter().find(|(name, _)| name == table) {
+            Some((_, kept)) => assert_eq!(rows, kept, "{table} keeps every row"),
+            None => assert!(rows.is_empty(), "{table} is new and starts empty"),
+        }
+    }
+    for (table, _) in before {
+        assert!(
+            after.iter().any(|(name, _)| name == table),
+            "{table} still exists"
+        );
+    }
+}
+
 async fn fresh_schema() -> Vec<(String, String, Option<String>)> {
     schema(&common::memory().await).await
 }
@@ -244,14 +261,19 @@ async fn an_archive_from_before_the_upgrade_keeps_every_row() {
 
     migrate(&pool).await.unwrap();
 
-    assert_eq!(contents(&pool).await, before);
+    assert_kept(&before, &contents(&pool).await);
     let new_schema = schema(&pool).await;
     assert_ne!(
         new_schema, old_schema,
         "the upgrade changed the term tables"
     );
+    let kept_objects: Vec<_> = new_schema
+        .iter()
+        .filter(|entry| old_schema.iter().any(|old| old.1 == entry.1))
+        .cloned()
+        .collect();
     assert_eq!(
-        without_term_collation(new_schema.clone()),
+        without_term_collation(kept_objects),
         without_term_collation(old_schema),
         "every table, index, key and trigger is kept but the collation"
     );
@@ -338,10 +360,7 @@ async fn a_real_database_upgrades_with_every_row_kept() {
     migrate(&pool).await.unwrap();
 
     let after = contents(&pool).await;
-    for ((table, rows), (_, kept)) in before.iter().zip(&after) {
-        assert_eq!(rows.len(), kept.len(), "{table} keeps every row");
-    }
-    assert_eq!(after, before);
+    assert_kept(&before, &after);
     assert_eq!(schema(&pool).await, fresh_schema().await);
     let rows: usize = after.iter().map(|(_, rows)| rows.len()).sum();
     eprintln!(
