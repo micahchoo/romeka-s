@@ -8,26 +8,36 @@
  * the client reads into `ApiPage.total`; the request asks for one row and only
  * uses the header.
  */
-import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
-import { api } from '../../../../api/client';
-import type { ResourceQuery } from '../../../../api/client';
-import type { ItemSet, ResourceClass, SiteId } from '../../../../api/types';
-import { useAsync } from '../../../../app/useAsync';
-import { useTranslator } from '../../../../i18n';
-import type { MessageKey } from '../../../../i18n';
-import { Labelled } from '../Labelled';
-import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../../../../api/client";
+import type { ResourceQuery } from "../../../../api/client";
+import type { ItemSet, ResourceClass, SiteId } from "../../../../api/types";
+import { useAsync } from "../../../../app/useAsync";
+import { useTranslator } from "../../../../i18n";
+import type { MessageKey } from "../../../../i18n";
+import { Labelled } from "../Labelled";
+import {
+  QUERY_KEYS,
+  formatQuery,
+  parseQuery,
+  queryId,
+  queryValue,
+  withQueryValue,
+} from "./query";
 
 /** How long the builder waits before it asks for a match count. */
 const COUNT_DELAY_MS = 400;
 
 /** The sort fields `AbstractResourceEntityAdapter` orders items by, and their labels. */
-const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageKey | null }[] = [
-  { value: 'title', label: 'query.sort_title' },
-  { value: 'created', label: 'query.sort_created' },
-  { value: 'modified', label: 'query.sort_modified' },
-  { value: 'id', label: 'query.sort_id' },
+const SORT_FIELDS: readonly {
+  readonly value: string;
+  readonly label: MessageKey | null;
+}[] = [
+  { value: "title", label: "query.sort_title" },
+  { value: "created", label: "query.sort_created" },
+  { value: "modified", label: "query.sort_modified" },
+  { value: "id", label: "query.sort_id" },
 ];
 
 export interface ItemQueryFieldProps {
@@ -42,6 +52,9 @@ export interface ItemQueryFieldProps {
   /** The site whose items a block shows. The count is scoped to it, because the
    * public render adds `site_id` to the stored query. */
   readonly siteId?: SiteId;
+  /** False for a query that selects a set rather than lists one, such as a
+   * site's item pool: no order applies, so the sort row is left out. */
+  readonly sortable?: boolean;
 }
 
 /** A value that settles after `delay` without a change, so a typed query is one request. */
@@ -59,7 +72,10 @@ const useSettled = (value: string, delay: number): string => {
 };
 
 /** The list request one stored query makes: one row, for the total header. */
-const countQuery = (value: string, siteId: SiteId | undefined): ResourceQuery => {
+const countQuery = (
+  value: string,
+  siteId: SiteId | undefined,
+): ResourceQuery => {
   const pairs = parseQuery(value);
   const fulltext = queryValue(pairs, QUERY_KEYS.fulltext).trim();
   const itemSet = queryId(pairs, QUERY_KEYS.itemSet);
@@ -69,11 +85,11 @@ const countQuery = (value: string, siteId: SiteId | undefined): ResourceQuery =>
   return {
     perPage: 1,
     ...(siteId === undefined ? {} : { site_id: siteId }),
-    ...(fulltext === '' ? {} : { fulltext_search: fulltext }),
+    ...(fulltext === "" ? {} : { fulltext_search: fulltext }),
     ...(itemSet === null ? {} : { item_set_id: itemSet }),
     ...(resourceClass === null ? {} : { resource_class_id: resourceClass }),
-    ...(sortBy === '' ? {} : { sortBy }),
-    ...(sortOrder === 'asc' || sortOrder === 'desc' ? { sortOrder } : {}),
+    ...(sortBy === "" ? {} : { sortBy }),
+    ...(sortOrder === "asc" || sortOrder === "desc" ? { sortOrder } : {}),
   };
 };
 
@@ -99,9 +115,11 @@ const IdSelect = ({
         onChange(event.target.value);
       }}
     >
-      <option value="">{t('query.any')}</option>
-      {value !== '' && !named ? (
-        <option value={value}>{t('query.optionFallback', { id: value })}</option>
+      <option value="">{t("query.any")}</option>
+      {value !== "" && !named ? (
+        <option value={value}>
+          {t("query.optionFallback", { id: value })}
+        </option>
       ) : null}
       {options.map((option) => (
         <option key={String(option.id)} value={String(option.id)}>
@@ -115,11 +133,11 @@ const IdSelect = ({
 const countMessage = (count: number, scoped: boolean): MessageKey =>
   count === 0
     ? scoped
-      ? 'query.siteNoMatch'
-      : 'query.noMatch'
+      ? "query.siteNoMatch"
+      : "query.noMatch"
     : scoped
-      ? 'query.siteMatchCount'
-      : 'query.matchCount';
+      ? "query.siteMatchCount"
+      : "query.matchCount";
 
 export const ItemQueryField = ({
   id,
@@ -130,6 +148,7 @@ export const ItemQueryField = ({
   itemSets,
   classes,
   siteId,
+  sortable = true,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator();
   const pairs = parseQuery(value);
@@ -140,12 +159,14 @@ export const ItemQueryField = ({
   const sortOrder = queryValue(pairs, QUERY_KEYS.sortOrder);
   const itemSetState = useAsync(
     async (): Promise<readonly ItemSet[]> =>
-      itemSets ?? (await api.listItemSets({ perPage: 200, sortBy: 'title' })).items,
+      itemSets ??
+      (await api.listItemSets({ perPage: 200, sortBy: "title" })).items,
     [itemSets],
   );
   const classState = useAsync(
     async (): Promise<readonly ResourceClass[]> =>
-      classes ?? (await api.listResourceClasses({ perPage: 200, sortBy: 'label' })).items,
+      classes ??
+      (await api.listResourceClasses({ perPage: 200, sortBy: "label" })).items,
     [classes],
   );
   const counted = useSettled(value, COUNT_DELAY_MS);
@@ -153,21 +174,23 @@ export const ItemQueryField = ({
     () => api.listItems(countQuery(counted, siteId)).then((page) => page.total),
     [counted, siteId],
   );
-  const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
-  const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
+  const itemSetOptions =
+    itemSets ?? (itemSetState.status === "ready" ? itemSetState.data : []);
+  const classOptions =
+    classes ?? (classState.status === "ready" ? classState.data : []);
 
   const set = (key: string, next: string): void => {
     onChange(formatQuery(withQueryValue(pairs, key, next)));
   };
   const sortFields =
-    sortBy !== '' && !SORT_FIELDS.some((field) => field.value === sortBy)
+    sortBy !== "" && !SORT_FIELDS.some((field) => field.value === sortBy)
       ? [{ value: sortBy, label: null }, ...SORT_FIELDS]
       : SORT_FIELDS;
 
   return (
     <fieldset className="block-field query-field">
       <legend>{label}</legend>
-      <Labelled id={`${id}-fulltext`} label={t('query.fulltext')}>
+      <Labelled id={`${id}-fulltext`} label={t("query.fulltext")}>
         <input
           id={`${id}-fulltext`}
           type="search"
@@ -178,7 +201,7 @@ export const ItemQueryField = ({
           }}
         />
       </Labelled>
-      <Labelled id={`${id}-item-set`} label={t('query.itemSet')}>
+      <Labelled id={`${id}-item-set`} label={t("query.itemSet")}>
         <IdSelect
           id={`${id}-item-set`}
           value={itemSet}
@@ -187,11 +210,11 @@ export const ItemQueryField = ({
           }}
           options={itemSetOptions.map((entry) => ({
             id: entry.id,
-            label: entry.title ?? t('common.untitled'),
+            label: entry.title ?? t("common.untitled"),
           }))}
         />
       </Labelled>
-      <Labelled id={`${id}-class`} label={t('query.resourceClass')}>
+      <Labelled id={`${id}-class`} label={t("query.resourceClass")}>
         <IdSelect
           id={`${id}-class`}
           value={resourceClass}
@@ -204,42 +227,48 @@ export const ItemQueryField = ({
           }))}
         />
       </Labelled>
-      <Labelled id={`${id}-sort-by`} label={t('query.sort')}>
-        <div className="block-field-pair">
-          <select
-            id={`${id}-sort-by`}
-            value={sortBy}
-            onChange={(event) => {
-              set(QUERY_KEYS.sortBy, event.target.value);
-            }}
-          >
-            <option value="">{t('query.sortNone')}</option>
-            {sortFields.map((field) => (
-              <option key={field.value} value={field.value}>
-                {field.label === null ? t('query.optionFallback', { id: field.value }) : t(field.label)}
-              </option>
-            ))}
-          </select>
-          <select
-            id={`${id}-sort-order`}
-            aria-label={t('query.sortOrder')}
-            value={sortOrder}
-            onChange={(event) => {
-              set(QUERY_KEYS.sortOrder, event.target.value);
-            }}
-          >
-            <option value="">{t('query.sortNone')}</option>
-            <option value="asc">{t('query.orderAsc')}</option>
-            <option value="desc">{t('query.orderDesc')}</option>
-          </select>
-        </div>
-      </Labelled>
+      {sortable ? (
+        <Labelled id={`${id}-sort-by`} label={t("query.sort")}>
+          <div className="block-field-pair">
+            <select
+              id={`${id}-sort-by`}
+              value={sortBy}
+              onChange={(event) => {
+                set(QUERY_KEYS.sortBy, event.target.value);
+              }}
+            >
+              <option value="">{t("query.sortNone")}</option>
+              {sortFields.map((field) => (
+                <option key={field.value} value={field.value}>
+                  {field.label === null
+                    ? t("query.optionFallback", { id: field.value })
+                    : t(field.label)}
+                </option>
+              ))}
+            </select>
+            <select
+              id={`${id}-sort-order`}
+              aria-label={t("query.sortOrder")}
+              value={sortOrder}
+              onChange={(event) => {
+                set(QUERY_KEYS.sortOrder, event.target.value);
+              }}
+            >
+              <option value="">{t("query.sortNone")}</option>
+              <option value="asc">{t("query.orderAsc")}</option>
+              <option value="desc">{t("query.orderDesc")}</option>
+            </select>
+          </div>
+        </Labelled>
+      ) : null}
       <p className="query-count" role="status">
-        {matches.status === 'loading'
-          ? t('query.counting')
-          : matches.status === 'error'
-            ? t('query.countError')
-            : t(countMessage(matches.data, siteId !== undefined), { count: matches.data })}
+        {matches.status === "loading"
+          ? t("query.counting")
+          : matches.status === "error"
+            ? t("query.countError")
+            : t(countMessage(matches.data, siteId !== undefined), {
+                count: matches.data,
+              })}
       </p>
     </fieldset>
   );

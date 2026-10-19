@@ -1,7 +1,8 @@
 /**
- * The page editor: one draft, a canvas, an inspector and a live preview. The
- * shell owns the reducer and the save; the canvas and the field controls are
- * lazy chunks that receive the draft and dispatch actions back.
+ * The page editor: one draft, the Outline, the live preview and the inspector.
+ * The shell owns the reducer, the selection and the save; the Outline, the
+ * preview and the field controls are lazy chunks that receive the draft and
+ * dispatch actions back.
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useEffect, useReducer, useRef, useState } from 'react';
@@ -9,12 +10,10 @@ import { api, defaultBaseUrl } from '../../../../api/client';
 import type { JsonValue, PageId, Site, SiteId, SitePage } from '../../../../api/types';
 import { SaveStatus } from '../../../../app/fields';
 import { useSave } from '../../../../app/save';
-import { toError } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { BLOCK_REGISTRY } from '../../blockRegistry';
 import type { TemplateChoice } from '../../templates';
 import type { EditorOptions } from '../options';
-import { previewBody, requestPreview } from '../preview';
 import {
   draftReducer,
   emptyDraft,
@@ -24,20 +23,21 @@ import {
   toPageWrite,
   validate,
 } from '../draft';
-import type { BlockKey, DraftAction, PageDraft } from '../draft';
+import type { DraftAction, PageDraft } from '../draft';
 import { Inspector } from './Inspector';
 import { PageSettings } from './PageSettings';
-import type { PreviewStatus } from './PreviewPanel';
+import { blockOf } from './selection';
+import type { Selection, SelectionSource } from './selection';
+import { usePreview } from './usePreview';
 import { useUnsavedGuard } from './useUnsavedGuard';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
 );
 
-/** The live preview is its own chunk. The shell renders no frame until a preview
- * mode is chosen, so the panel loads on the first render request. */
-const PreviewPanel = lazy(() =>
-  import('./PreviewPanel').then((module) => ({ default: module.PreviewPanel })),
+/** The live preview is its own chunk, fetched on the first render beside the Outline. */
+const LivePanel = lazy(() =>
+  import('./LivePanel').then((module) => ({ default: module.LivePanel })),
 );
 
 /** The create screen's chooser is its own chunk, so the editor shell does not
@@ -59,10 +59,25 @@ const DialogFallback = ({ label }: { readonly label: string }): ReactElement => 
   </div>
 );
 
-/** How long the shell waits after the last change before it asks for a render. */
-const PREVIEW_DELAY_MS = 400;
+/** Whether the Outline is open is a per-viewer convenience, so it lives in this
+ * browser only and defaults to open when storage is unavailable. */
+const OUTLINE_KEY = 'romeka.editor.outline';
 
-type PreviewMode = 'none' | 'split' | 'full';
+const storedOutlineOpen = (): boolean => {
+  try {
+    return window.localStorage.getItem(OUTLINE_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+};
+
+const storeOutlineOpen = (open: boolean): void => {
+  try {
+    window.localStorage.setItem(OUTLINE_KEY, open ? 'open' : 'closed');
+  } catch {
+    // A viewer without storage gets the default again next time.
+  }
+};
 
 export interface PageEditorProps {
   readonly siteId: SiteId;
@@ -87,11 +102,9 @@ export const PageEditor = ({
   const [siteSettings, setSiteSettings] = useState<JsonValue | null>(site.siteSettings);
   const [choosing, setChoosing] = useState(page === null);
   const [savingTemplate, setSavingTemplate] = useState(false);
-  const [selected, setSelected] = useState<BlockKey | null>(null);
-  const [preview, setPreview] = useState<PreviewMode>('none');
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewStatus, setPreviewStatus] = useState<PreviewStatus>('idle');
-  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [outlineOpen, setOutlineOpen] = useState(storedOutlineOpen);
+  const preview = usePreview(draft, site.slug, siteId, pageId);
   const { state: saveState, save } = useSave();
   const inspector = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLDivElement | null>(null);
@@ -101,7 +114,10 @@ export const PageEditor = ({
   const valid = issues.length === 0;
   const dirty = isDirty(draft);
   const guard = useUnsavedGuard(dirty, t('editor.leaveConfirm'));
-  const selectedBlock = draft.blocks.find((block) => block.key === selected) ?? null;
+  const selectedBlock = blockOf(draft, selection);
+  // Without a working preview the Outline is the only surface, so it stays open.
+  const outlineForced = preview.status === 'unavailable' || preview.status === 'error';
+  const outlineShown = outlineOpen || outlineForced;
   const publicUrl =
     draft.slug === ''
       ? `${defaultBaseUrl()}/s/${encodeURIComponent(site.slug)}`
@@ -117,54 +133,18 @@ export const PageEditor = ({
     }
   });
 
-  useEffect(() => {
-    if (preview === 'none') {
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setPreviewStatus('loading');
-      requestPreview(site.slug, previewBody(draft, siteId, pageId)).then(
-        (result) => {
-          if (cancelled) {
-            return;
-          }
-          if (result.kind === 'html') {
-            setPreviewHtml(result.html);
-            setPreviewStatus('ready');
-            setPreviewMessage(null);
-          } else if (result.kind === 'unavailable') {
-            setPreviewStatus('unavailable');
-            setPreviewMessage(null);
-          } else {
-            setPreviewStatus('error');
-            setPreviewMessage(result.message);
-          }
-        },
-        (error: unknown) => {
-          if (!cancelled) {
-            setPreviewStatus('error');
-            setPreviewMessage(toError(error).message);
-          }
-        },
-      );
-    }, PREVIEW_DELAY_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [draft, preview, site.slug, siteId, pageId]);
-
-  const action = (next: DraftAction): void => {
+  /** Every edit enters here; `from` names the surface it came from, so a block
+   * it adds is revealed in the other one. */
+  const action = (next: DraftAction, from: SelectionSource = 'outline'): void => {
     if (next.type === 'addBlock') {
-      setSelected(nextBlockKey(draft));
+      setSelection({ key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
     } else if (next.type === 'insertBlocks' && next.blocks.length > 0) {
-      setSelected(nextBlockKey(draft));
+      setSelection({ key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
     } else if (next.type === 'removeBlock') {
-      if (selected === next.blockKey) {
-        setSelected(null);
+      if (selection?.key === next.blockKey) {
+        setSelection(null);
       }
       focusAfter.current = 'canvas';
     }
@@ -218,7 +198,7 @@ export const PageEditor = ({
       return;
     }
     const key = issue.blockKey;
-    setSelected(key);
+    setSelection({ key, from: 'issue' });
     focusAfter.current = null;
     setTimeout(() => {
       const control = document.getElementById(`block-${key}-${issue.field}`);
@@ -250,7 +230,13 @@ export const PageEditor = ({
   }
 
   return (
-    <div className={`editor editor--preview-${preview}`}>
+    <div
+      className={[
+        'editor',
+        outlineShown ? 'editor--outline' : '',
+        preview.status === 'unavailable' ? 'editor--no-preview' : '',
+      ].join(' ')}
+    >
       <div className="editor-toolbar" role="region" aria-label={t('editor.toolbar')}>
         <button
           type="button"
@@ -278,34 +264,30 @@ export const PageEditor = ({
             {t('editor.viewPublic')}
           </a>
         )}
-        <div className="editor-preview-toggle" role="group" aria-label={t('editor.preview')}>
-          {(
-            [
-              ['none', t('editor.previewNone')],
-              ['split', t('editor.previewSplit')],
-              ['full', t('editor.previewFull')],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={preview === mode}
-              onClick={() => {
-                setPreview(mode);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className="editor-outline-toggle"
+          aria-pressed={outlineShown}
+          disabled={outlineForced}
+          title={t('editor.outlineToggle')}
+          onClick={() => {
+            setOutlineOpen(!outlineOpen);
+            storeOutlineOpen(!outlineOpen);
+          }}
+        >
+          {t('editor.outline')}
+        </button>
+        {preview.status === 'unavailable' ? (
+          <span className="field-note">{t('editor.previewUnavailable')}</span>
+        ) : null}
         <SaveStatus state={saveState} />
       </div>
       <div className="editor-main">
-        {preview === 'full' ? null : (
+        {outlineShown ? (
           <div
             className="editor-canvas"
             role="region"
-            aria-label={t('editor.canvas')}
+            aria-label={t('editor.outline')}
             tabIndex={-1}
             ref={canvas}
           >
@@ -325,16 +307,29 @@ export const PageEditor = ({
               <PageCanvas
                 draft={draft}
                 siteSettings={siteSettings}
-                selectedKey={selected}
-                onSelect={setSelected}
+                selection={selection}
+                onSelect={(key) => {
+                  setSelection(key === null ? null : { key, from: 'outline' });
+                }}
                 dispatch={action}
               />
             </Suspense>
           </div>
-        )}
-        {preview === 'none' ? null : (
+        ) : null}
+        {preview.status === 'unavailable' ? null : (
           <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
-            <PreviewPanel html={previewHtml} status={previewStatus} message={previewMessage} />
+            <LivePanel
+              preview={preview}
+              draft={draft}
+              selection={selection}
+              siteSettings={siteSettings}
+              onSelect={(key) => {
+                setSelection({ key, from: 'preview' });
+              }}
+              dispatch={(next) => {
+                action(next, 'preview');
+              }}
+            />
           </Suspense>
         )}
         <div

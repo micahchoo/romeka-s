@@ -307,6 +307,8 @@ describe('site resources', () => {
 
     expect(await screen.findByText('Items in this site: 7')).toBeInTheDocument();
     const pool = screen.getByRole('group', { name: 'Item pool' });
+    // The pool is a set of items, not a list, so it offers no sort.
+    expect(within(pool).queryByLabelText('Sort by')).not.toBeInTheDocument();
     fireEvent.change(within(pool).getByLabelText('Full-text search'), {
       target: { value: 'fish' },
     });

@@ -15,3 +15,6 @@ class StillResizeObserver {
   disconnect(): void {}
 }
 globalThis.ResizeObserver = StillResizeObserver;
+
+// jsdom has no layout, so it ships no scrollIntoView either.
+Element.prototype.scrollIntoView = function scrollIntoView(): void {};

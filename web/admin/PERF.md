@@ -322,6 +322,31 @@ and the largest lazy chunk is the sites route page at 7643 B, 2597 B of slack. T
 97732 B js gzip and 3504 B css gzip, the raise over Decision 6's 88411 B being the pages added since.
 `npm run perf:check` passes on all three.
 
+## Decision 8: the live preview loads on every editor open (accepted)
+
+The preview is now the editor's main surface, so its chunk loads on every open, beside the Outline,
+instead of on a mode switch. It stays lazy: a static import would add about 3 KB to the shell for no
+gain in latency, because both lazy chunks start on the first render. Measured with `npm run
+perf:bundle` after `vite build`, gzip bytes, against commit `8259d09` built the same way from a
+`git archive` copy with the same `node_modules`:
+
+| Chunk | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 99320 | 99512 | the shell's route-level width flag |
+| initial css | 3684 | 3698 | the empty live region rule |
+| shell (`editor/shell/index.ts`) | 4705 | 5113 | `usePreview`, `selection`; the mode toggle left |
+| canvas (`editor/canvas/index.ts`) | 4894 | 4385 | the picker and its template choices left |
+| canvas css | 1253 | 943 | the picker styles left |
+| preview panel | 851 (`PreviewPanel`) | 3213 (`LivePanel`) | `frame/`: markers, guard, geometry, anchor, two frames and the overlay |
+| preview css | none | 650 | `frame/frame.css` |
+| picker, shared | none | 1003 js, 517 css | `BlockPicker`, which the Outline and the preview both open |
+| device bar, shared | none | 621 | `DeviceBar`, which the editor and the Theme page both show |
+| registry, shared (`preview-*`) | 6631 | 6167 | the template registry moved to the picker chunk |
+
+The largest lazy chunk is the shared registry at 6167 B against the 10240 B ceiling. The editor's
+first open now fetches about 3.9 KB more gzip than an editor opened without a preview did before,
+and nothing on the paint path changes beyond the 192 B of the initial js.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
