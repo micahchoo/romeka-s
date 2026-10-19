@@ -67,6 +67,7 @@ import type {
   TemplateId,
   User,
   UserId,
+  UserSettingsWrite,
   UserWrite,
   GlobalSettings,
   Vocabulary,
@@ -84,7 +85,7 @@ import {
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
-  encodeUserLocale,
+  encodeUserSettings,
   encodeVocabulary,
   encodeVocabularyMember,
 } from './write';
@@ -339,9 +340,9 @@ export class ApiClient {
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
   }
 
-  /** Store one user's `locale` setting and nothing else; `''` removes it. */
-  async updateUserLocale(id: UserId, locale: string): Promise<void> {
-    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserLocale(locale));
+  /** Store the settings the write names and nothing else; `locale: ''` removes it. */
+  async updateUserSettings(id: UserId, write: UserSettingsWrite): Promise<void> {
+    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserSettings(write));
   }
 
   /** `GET /api/settings`, a port route only a global admin may read. */

@@ -5,6 +5,8 @@ import type { PasswordLink, User, UserId, UserWrite } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { CheckboxField, SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { ErrorNotice } from '../../app/errors';
+import { LessonsSwitch } from '../../app/lessons/lesson';
+import { followLessonsSwitch } from '../../app/lessons/seen';
 import { LocaleSelect, localeValue } from '../../app/locale-select';
 import { useSave } from '../../app/save';
 import { toError, useAsync } from '../../app/useAsync';
@@ -37,6 +39,7 @@ const UserEditor = ({
   const [role, setRole] = useState(user?.role ?? '');
   const [isActive, setIsActive] = useState(user?.isActive ?? false);
   const [localeSetting, setLocaleSetting] = useState(localeValue(user?.localeSetting ?? null));
+  const [showLessons, setShowLessons] = useState(!(user?.lessons.hidden ?? false));
   const [formError, setFormError] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ readonly id: UserId; readonly link: PasswordLink } | null>(
     null,
@@ -64,9 +67,17 @@ const UserEditor = ({
         const created = await api.createUser(write);
         setInvite({ id: created.id, link: await api.createPasswordLink(created.id) });
       } else {
-        const write: UserWrite = { name, email, role, isActive, localeSetting };
+        const write: UserWrite = {
+          name,
+          email,
+          role,
+          isActive,
+          localeSetting,
+          lessonsHidden: !showLessons,
+        };
         const saved = await api.updateUser(userId, write);
         setIsActive(saved.isActive);
+        followLessonsSwitch(saved.id, saved.lessons.hidden);
       }
     });
   };
@@ -140,6 +151,7 @@ const UserEditor = ({
           <fieldset>
             <legend>{t('users.settingsLegend')}</legend>
             <LocaleSelect id="user-locale" value={localeSetting} onChange={setLocaleSetting} />
+            <LessonsSwitch id="user-lessons" checked={showLessons} onChange={setShowLessons} />
           </fieldset>
         )}
         {formError === null ? null : <p role="alert">{formError}</p>}

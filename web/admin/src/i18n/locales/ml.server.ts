@@ -103,4 +103,6 @@ export const mlServer: ServerCatalogue = {
   'server.settingsNotObject': 'ഒരു ഒബ്‌ജക്റ്റ് പ്രതീക്ഷിച്ചു.',
   'server.settingUnavailable': '{key} എന്ന ക്രമീകരണം ലഭ്യമല്ല.',
   'server.settingNotText': '{key} ഒരു സ്ട്രിംഗ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.settingNotFlag': '{key} ട്രൂ, ഫോൾസ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.settingNotNames': '{key} സ്ട്രിംഗുകളുടെ ഒരു ലിസ്റ്റ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
 };

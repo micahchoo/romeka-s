@@ -18,6 +18,7 @@ import type {
   ItemSetId,
   Job,
   JsonValue,
+  LessonSettings,
   Media,
   MediaId,
   Module,
@@ -521,6 +522,7 @@ export const parseUser: Parser<User> = (raw, path = []) => {
     role: asString(field(object, 'o:role', path), [...path, 'o:role']),
     isActive: asBoolean(field(object, 'o:is_active', path), [...path, 'o:is_active']),
     localeSetting: parseLocaleSetting(object, 'o:user_settings', path),
+    lessons: parseLessonSettings(object, path),
     adminLocale: optionalString(object, 'o:admin_locale', path),
   };
 };
@@ -535,6 +537,19 @@ const parseLocaleSetting = (
   return value === undefined || value === null
     ? null
     : optionalString(asRecord(value, [...path, key]), 'locale', [...path, key]);
+};
+
+/** The two lesson keys of `o:user_settings`; an absent key is its default. */
+const parseLessonSettings = (object: Record<string, unknown>, path: Path): LessonSettings => {
+  const raw = object['o:user_settings'];
+  const at = [...path, 'o:user_settings'];
+  const settings = raw === undefined || raw === null ? {} : asRecord(raw, at);
+  const hidden = settings.romeka_hide_lessons;
+  const seen = settings.romeka_lessons_seen;
+  return {
+    hidden: hidden === undefined ? false : asBoolean(hidden, [...at, 'romeka_hide_lessons']),
+    seen: seen === undefined ? [] : parseListOf(asString)(seen, [...at, 'romeka_lessons_seen']),
+  };
 };
 
 /** `GET /api/settings`, a port route that answers one map of setting keys. */
