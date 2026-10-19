@@ -11,13 +11,15 @@
 import { ParseError, isRecord, isUnknownArray, parseListOf } from '../../api/parse';
 import type { JsonValue, Path } from '../../api/types';
 import raw from '../../generated/templates.json';
-import { MESSAGE_KEYS } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf } from '../../i18n';
+import { editor } from '../../i18n/namespaces/editor';
 import type { BuiltinTemplate, TemplateBlock, TemplateLayout } from './templates';
 
-const MESSAGE_KEY_SET: ReadonlySet<string> = new Set(MESSAGE_KEYS);
 
-const isMessageKey = (value: string): value is MessageKey => MESSAGE_KEY_SET.has(value);
+/** A message id of the `editor` namespace, the table these keys are read from. */
+type MessageKey = KeyOf<typeof editor>;
+
+const isMessageKey = editor.has;
 
 const parseString = (value: unknown, path: Path): string => {
   if (typeof value !== 'string') {

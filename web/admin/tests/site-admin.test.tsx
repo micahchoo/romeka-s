@@ -12,7 +12,8 @@ import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
 import { siteSettingDrafts, siteSettingsWire } from '../src/pages/sites/siteSettingsSchema';
 import { SITE_SETTINGS_REGISTRY } from '../src/pages/sites/siteSettingsRegistry';
-import { CATALOGUE_LOADERS } from '../src/i18n/catalogues';
+import { tableFor } from '../src/i18n';
+import { sites } from '../src/i18n/namespaces/sites';
 import { LOCALES } from '../src/i18n/locale';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
@@ -493,7 +494,8 @@ const UNREAD_KEYS = {
 describe('site settings', () => {
   it('every_visible_setting_has_a_label_help_and_group_in_every_locale', async () => {
     expect(SITE_SETTINGS_REGISTRY.settings.length).toBeGreaterThan(0);
-    const catalogues = await Promise.all(LOCALES.map((locale) => CATALOGUE_LOADERS[locale]()));
+    // The setting labels live in the `sites` namespace.
+    const catalogues = await Promise.all(LOCALES.map(async (locale) => tableFor(sites, locale)));
     for (const spec of SITE_SETTINGS_REGISTRY.settings) {
       for (const catalogue of catalogues) {
         expect(catalogue[spec.labelKey].trim(), spec.key).not.toBe('');
