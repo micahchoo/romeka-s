@@ -28,6 +28,7 @@ use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
 use serde_json::Value;
 
 use crate::errors::{ApiError, NestedError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::site_items;
 use crate::write::access::{self, SiteRole};
@@ -197,7 +198,7 @@ fn validate_request(payload: &Payload) -> Result<(), ApiError> {
     if payload.has("o:item_set") && !payload.get("o:item_set").is_some_and(|v| v.is_array()) {
         errors.insert(
             "o:item_set".to_string(),
-            vec!["Item sets must be an array".to_string()],
+            vec![messages::ITEM_SETS_NOT_ARRAY.to_string()],
         );
     }
     if payload.has("o:media") && !payload.get("o:media").is_some_and(|v| v.is_array()) {
@@ -205,7 +206,7 @@ fn validate_request(payload: &Payload) -> Result<(), ApiError> {
         // `ItemAdapter::validateRequest` that a client reads in the document.
         errors.insert(
             "o:item_set".to_string(),
-            vec!["Media must be an array".to_string()],
+            vec![messages::MEDIA_NOT_ARRAY.to_string()],
         );
     }
     if errors.is_empty() {
@@ -247,7 +248,7 @@ async fn inline_media(
         // entry is a new one.
         if entry.id().is_some() {
             errors.push(NestedError::Message(
-                "Media must belong to this item.".to_string(),
+                messages::MEDIA_NOT_THIS_ITEM.to_string(),
             ));
         } else {
             match media::prepare(api, &entry, file, Some(position)).await {
@@ -471,7 +472,7 @@ fn primary_media_error() -> ApiError {
     let mut errors = ValidationErrors::new();
     errors.insert(
         "o:primary_media".to_string(),
-        vec!["Primary media must belong to this item.".to_string()],
+        vec![messages::PRIMARY_MEDIA_NOT_THIS_ITEM.to_string()],
     );
     ApiError::Validation(errors)
 }

@@ -17,6 +17,7 @@ use omeka_site::blocks::romeka::{self, PlainRefs};
 use omeka_site::slug::page_url;
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::routes::Operation;
 use crate::write::body::{self, Payload, php_json, ref_row};
@@ -73,7 +74,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     // `is_numeric` guard, so a non-numeric one is a 404 rather than a missing
     // site.
     let Some(raw_site) = payload.present_ref("o:site") else {
-        return Err(validation("o:site", "A page must belong to a site."));
+        return Err(validation("o:site", messages::PAGE_SITE_REQUIRED));
     };
     let Some(site_id) = ref_row(raw_site) else {
         return Err(ref_not_found("Omeka\\Entity\\Site", raw_site));
@@ -220,7 +221,7 @@ pub(crate) fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
             .and_then(Value::as_str)
             .filter(|name| !name.is_empty());
         let Some(layout) = layout else {
-            return Err(validation("o:block", "All blocks must have a layout."));
+            return Err(validation("o:block", messages::BLOCK_LAYOUT_REQUIRED));
         };
         let data = match object.get("o:data") {
             None => Value::Array(Vec::new()),
@@ -228,10 +229,7 @@ pub(crate) fn parse_blocks(payload: &Payload) -> Result<Vec<Block>, ApiError> {
                 Ok(Value::Object(map)) => php_json(&Value::Object(map)),
                 Ok(Value::Array(items)) => Value::Array(items),
                 _ => {
-                    return Err(validation(
-                        "o:block",
-                        "Block data must not be a scalar value.",
-                    ));
+                    return Err(validation("o:block", messages::BLOCK_DATA_SCALAR));
                 }
             },
             Some(value) => php_json(value),
@@ -535,21 +533,18 @@ pub(crate) async fn validate(
     if title.is_empty() {
         errors.insert(
             "o:title".to_string(),
-            vec!["A page must have a title.".to_string()],
+            vec![messages::PAGE_TITLE_REQUIRED.to_string()],
         );
     }
     if slug.is_empty() {
-        errors.insert(
-            "o:slug".to_string(),
-            vec!["The slug cannot be empty.".to_string()],
-        );
+        errors.insert("o:slug".to_string(), vec![messages::SLUG_EMPTY.to_string()]);
     } else if !slug
         .bytes()
         .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
     {
         errors.insert(
             "o:slug".to_string(),
-            vec!["A slug can only contain letters, numbers, underscores, and hyphens.".to_string()],
+            vec![messages::SLUG_INVALID.to_string()],
         );
     } else {
         let taken = SiteRepo::new(api.pool())
@@ -559,10 +554,7 @@ pub(crate) async fn validate(
             .into_iter()
             .any(|page| page.slug == slug && existing.map(|row| row.id) != Some(page.id));
         if taken {
-            errors.insert(
-                "o:slug".to_string(),
-                vec![format!("The slug \"{slug}\" is already taken.")],
-            );
+            errors.insert("o:slug".to_string(), vec![messages::slug_taken(slug)]);
         }
     }
     if errors.is_empty() {

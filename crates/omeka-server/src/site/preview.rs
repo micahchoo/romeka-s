@@ -190,5 +190,8 @@ fn html_response(html: String) -> Response {
 
 /// An unknown site, answered with the API's 404 document.
 fn not_found() -> Response {
-    crate::document_response(StatusCode::NOT_FOUND, &ErrorDocument::general("Not Found"))
+    crate::document_response(
+        StatusCode::NOT_FOUND,
+        &ErrorDocument::general(omeka_api::messages::NOT_FOUND),
+    )
 }

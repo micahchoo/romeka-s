@@ -19,6 +19,7 @@ use omeka_db::repos::{VocabularyFilter, VocabularyRepo};
 use omeka_db::rows::{NewVocabulary, VocabularyRow};
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::{Payload, ref_row};
@@ -237,34 +238,27 @@ async fn validate_vocabulary(
         vocab_member::push(
             &mut errors,
             "o:namespace_uri",
-            "The namespace URI cannot be empty.",
+            messages::NAMESPACE_URI_EMPTY,
         );
     }
     if namespace_taken(api, &input.namespace_uri, self_id).await? {
         vocab_member::push(
             &mut errors,
             "o:namespace_uri",
-            format!(
-                "The namespace URI \"{}\" is already taken.",
-                input.namespace_uri
-            ),
+            messages::namespace_uri_taken(&input.namespace_uri),
         );
     }
     if input.prefix.is_empty() {
-        vocab_member::push(&mut errors, "o:prefix", "The prefix cannot be empty.");
+        vocab_member::push(&mut errors, "o:prefix", messages::PREFIX_EMPTY);
     }
     if !input.prefix.is_empty() && !prefix_is_valid(&input.prefix) {
-        vocab_member::push(
-            &mut errors,
-            "o:prefix",
-            "The prefix may only contain letters, numbers, hyphens, and underscores.",
-        );
+        vocab_member::push(&mut errors, "o:prefix", messages::PREFIX_INVALID);
     }
     if prefix_taken(api, &input.prefix, self_id).await? {
         vocab_member::push(
             &mut errors,
             "o:prefix",
-            format!("The prefix \"{}\" is already taken.", input.prefix),
+            messages::prefix_taken(&input.prefix),
         );
     }
     for reserved in ["^o$", "^o-"] {
@@ -272,13 +266,13 @@ async fn validate_vocabulary(
             vocab_member::push(
                 &mut errors,
                 "o:prefix",
-                format!("The prefix \"{}\" is reserved.", input.prefix),
+                messages::prefix_reserved(&input.prefix),
             );
             break;
         }
     }
     if input.label.is_empty() {
-        vocab_member::push(&mut errors, "o:label", "The label cannot be empty.");
+        vocab_member::push(&mut errors, "o:label", messages::LABEL_EMPTY);
     }
     for plan in [classes, properties].into_iter().flatten() {
         push_duplicate_local_names(&mut errors, &plan.local_names);
@@ -296,11 +290,7 @@ fn push_duplicate_local_names(errors: &mut ValidationErrors, local_names: &[Stri
     let mut seen: Vec<&str> = Vec::new();
     for name in local_names {
         if seen.contains(&name.as_str()) {
-            vocab_member::push(
-                errors,
-                "o:resource_class",
-                format!("The local name \"{name}\" is already taken."),
-            );
+            vocab_member::push(errors, "o:resource_class", messages::local_name_taken(name));
         } else {
             seen.push(name);
         }

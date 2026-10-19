@@ -17,6 +17,7 @@ pub mod errors;
 pub mod jsonld;
 pub mod limits;
 pub mod login;
+pub mod messages;
 pub mod origin;
 pub mod password;
 pub mod read;

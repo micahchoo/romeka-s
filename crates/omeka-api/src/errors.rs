@@ -13,6 +13,7 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::messages;
 use crate::routes::{Method, Operation, Resolution};
 
 /// `ApiJsonRenderer` non-validation payload: `{"error": "<message>"}`.
@@ -106,10 +107,7 @@ impl NotImplemented {
     pub fn adapter(resource: &str, operation: Operation) -> Self {
         Self {
             errors: NotImplementedErrors {
-                error: format!(
-                    "The {resource} adapter does not implement the {} operation.",
-                    operation.adapter_name()
-                ),
+                error: messages::adapter_not_implemented(resource, operation.adapter_name()),
             },
         }
     }
@@ -118,7 +116,7 @@ impl NotImplemented {
     pub fn endpoint(endpoint: &str) -> Self {
         Self {
             errors: NotImplementedErrors {
-                error: format!("The {endpoint} endpoint is not implemented yet."),
+                error: messages::endpoint_not_implemented(endpoint),
             },
         }
     }
@@ -193,7 +191,7 @@ impl ApiError {
             | Self::NotFound { message }
             | Self::UnsupportedMediaType { message }
             | Self::Internal { message } => ErrorDocument::general(message.clone()),
-            Self::MethodNotAllowed { .. } => ErrorDocument::general(METHOD_NOT_ALLOWED_MESSAGE),
+            Self::MethodNotAllowed { .. } => ErrorDocument::general(messages::METHOD_NOT_ALLOWED),
             Self::Validation(errors) => ErrorDocument::validation(errors.clone()),
             Self::MergedValidation { key, errors } => {
                 ErrorDocument::merged(key.clone(), errors.clone())
@@ -202,9 +200,6 @@ impl ApiError {
         }
     }
 }
-
-/// Laminas' text for a 405 response body.
-pub const METHOD_NOT_ALLOWED_MESSAGE: &str = "Method Not Allowed";
 
 impl From<Resolution> for ApiError {
     fn from(resolution: Resolution) -> Self {

@@ -1,0 +1,102 @@
+/**
+ * The Marathi server messages.
+ *
+ * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks, and not yet reviewed by a reader of Marathi. Correct
+ * a string here; a later run keeps it. It is typed `ServerCatalogue`, so a key
+ * added to English and not here is a `tsc` error.
+ */
+import type { ServerCatalogue } from '../serverMessages';
+
+export const mrServer: ServerCatalogue = {
+  'server.methodNotAllowed': 'पद्धत अनुमत नाही',
+  'server.notFound': 'सापडले नाही',
+  'server.badRequest': 'चुकीची विनंती',
+  'server.requestTimeout': 'विनंतीची वेळ संपली',
+  'server.bodyTooLarge': 'विनंतीचा आकार खूप मोठा',
+  'server.internalError': 'अंतर्गत सर्व्हर त्रुटी',
+  'server.tooManyRequests': 'खूप जास्त विनंत्या',
+  'server.unknownResource': 'API "{resource}" संसाधनाला समर्थन देत नाही.',
+  'server.adapterNotImplemented': '{resource} अडॅप्टर {operation} ही प्रक्रिया राबवत नाही.',
+  'server.endpointNotImplemented': '{endpoint} एंडपॉईंट अद्याप कार्यान्वित केलेला नाही.',
+  'server.permissionDenied':
+    'सध्याच्या वापरकर्त्याला {operation} {resource} संसाधनासाठी परवानगी नाकारली आहे.',
+  'server.entityNotFound': '{criteria} निकषांसह {class} घटक सापडला नाही',
+  'server.jsonSyntax': 'JSON: वाक्यरचना त्रुटी',
+  'server.jsonNotContainer': 'JSON: मजकूर ऑब्जेक्ट किंवा ॲरे असणे आवश्यक आहे.',
+  'server.invalidContentType':
+    'अवैध Content-Type हेडर. "application/json" अपेक्षित आहे, {received} मिळाले.',
+  'server.bodyNotObject': 'विनंतीचा मुख्य भाग (body) JSON ऑब्जेक्ट असणे आवश्यक आहे.',
+  'server.siteItemsOneSelector': '"query", "items" किंवा "item_sets" पैकी नेमके एक नाव',
+  'server.invalidCredentials': 'ईमेल किंवा पासवर्ड अवैध आहे',
+  'server.inactiveAccount': 'वापरकर्ता सक्रिय नाही.',
+  'server.unknownKey': 'अवैध पासवर्ड निर्मिती की.',
+  'server.authenticationRequired': 'प्रमाणीकरण आवश्यक.',
+  'server.invalidPassword': 'पासवर्ड अवैध आहे',
+  'server.crossOriginRefused':
+    'सत्र-प्रमाणित लिहिण्यासाठी (write) कॉन्फिगर केलेल्या बेस URL मधून येणे आवश्यक आहे.',
+  'server.propertyNotRecognized': '"{term}" ही संज्ञा ओळखली गेली नाही.',
+  'server.resourceNotFound': '{id} आयडीसह संसाधन सापडले नाही.',
+  'server.templateRequiresValue':
+    '"{template}" संसाधन टेम्पलेटला "{property}" मूल्याची आवश्यकता आहे',
+  'server.itemSetsNotArray': 'आयटम सेट हे एक ॲरे (array) असणे आवश्यक आहे',
+  'server.mediaNotArray': 'मीडिया हे एक ॲरे असणे आवश्यक आहे',
+  'server.mediaNotThisItem': 'मीडिया या आयटमचा भाग असणे आवश्यक आहे.',
+  'server.primaryMediaNotThisItem': 'प्राथमिक मीडिया या आयटमचा भाग असणे आवश्यक आहे.',
+  'server.mediaIngesterRequired': 'मीडियाने इनगेस्टर सेट करणे आवश्यक आहे.',
+  'server.mediaIngesterInvalid': 'मीडियाने वैध इनगेस्टर सेट करणे आवश्यक आहे.',
+  'server.mediaItemRequired': 'मीडिया एखाद्या आयटमचा भाग असणे आवश्यक आहे.',
+  'server.noFileUploaded': 'कोणतीही फाईल अपलोड केली गेली नाही',
+  'server.assetMediaType':
+    '"{file}" चे प्रमाणीकरण करताना त्रुटी. मीडिया प्रकार "{media}" सह फाईल्स साठवता येत नाहीत.',
+  'server.assetExtension':
+    '"{file}" चे प्रमाणीकरण करताना त्रुटी. रिझॉल्व्ह केलेल्या एक्सटेन्शन "{extension}" सह फाईल्स साठवता येत नाहीत.',
+  'server.assetNameRequired': 'ॲसेटला नाव असणे आवश्यक आहे.',
+  'server.classesNotArray': 'क्लासेस ॲरे असणे आवश्यक आहे',
+  'server.propertiesNotArray': 'प्रॉपर्टीज ॲरे असणे आवश्यक आहे',
+  'server.namespaceUriEmpty': 'नेमस्पेस URI रिकामे असू शकत नाही.',
+  'server.namespaceUriTaken': 'नेमस्पेस URI "{uri}" आधीच वापरले गेले आहे.',
+  'server.prefixEmpty': 'प्रीफिक्स रिकामे असू शकत नाही.',
+  'server.prefixInvalid': 'प्रीफिक्समध्ये केवळ अक्षरे, संख्या, हायफन आणि अंडरस्कोअर असू शकतात.',
+  'server.prefixTaken': 'प्रीफिक्स "{prefix}" आधीच वापरले गेले आहे.',
+  'server.prefixReserved': 'प्रीफिक्स "{prefix}" आरक्षित आहे.',
+  'server.labelEmpty': 'लेबल रिकामे असू शकत नाही.',
+  'server.labelTaken': 'लेबल आधीच वापरले गेले आहे.',
+  'server.localNameEmpty': 'स्थानिक नाव रिकामे असू शकत नाही.',
+  'server.localNameTaken': 'स्थानिक नाव "{name}" आधीच वापरले गेले आहे.',
+  'server.vocabularyRequired': 'शब्दसंग्रह सेट करणे आवश्यक आहे.',
+  'server.duplicateTemplateProperty': 'आयडी {id} सह डुप्लिकेट प्रॉपर्टी जोडण्याचा प्रयत्न',
+  'server.nameEmpty': 'नाव रिकामे असू शकत नाही.',
+  'server.emailTaken': 'ईमेल {email} आधीच वापरले गेले आहे.',
+  'server.userRoleRequired': 'वापरकर्त्यांना भूमिका असणे आवश्यक आहे.',
+  'server.invalidEmail': 'इनपुट ही वैध ईमेल पत्ता नाही. मूलभूत स्वरूप local-part@hostname वापरा',
+  'server.siteTitleRequired': 'साइटला शीर्षक असणे आवश्यक आहे.',
+  'server.siteThemeRequired': 'साइटला थीम असणे आवश्यक आहे.',
+  'server.siteItemPoolRequired': 'साइटला आयटम पूल डेटा असणे आवश्यक आहे.',
+  'server.homepageNotInSite': 'होमपेज त्याच्या मूळ साइटचा भाग असणे आवश्यक आहे.',
+  'server.slugEmpty': 'स्लग रिकामे असू शकत नाही.',
+  'server.slugInvalid': 'स्लगमध्ये फक्त अक्षरे, संख्या, अंडरस्कोर्स आणि हायफन्स असू शकतात.',
+  'server.slugTaken': 'स्लग "{slug}" आधीच वापरला गेला आहे.',
+  'server.pageSiteRequired': 'पेज साइटचा भाग असणे आवश्यक आहे.',
+  'server.pageTitleRequired': 'पेजला शीर्षक असणे आवश्यक आहे.',
+  'server.blockLayoutRequired': 'सर्व ब्लॉक्सना लेआउट असणे आवश्यक आहे.',
+  'server.blockDataScalar': 'ब्लॉक डेटा स्केलर व्हॅल्यू नसावा.',
+  'server.siteSettingsNotObject': 'अपेक्षित ऑब्जेक्ट किंवा नल, {kind} मिळाले.',
+  'server.customCssRefusal': 'सानुकूल CSS: {refusal}',
+  'server.navNotArray': 'अवैध नेव्हिगेशन: नेव्हिगेशन ॲरे असणे आवश्यक आहे',
+  'server.navLinkMissingType': 'अवैध नेव्हिगेशन: लिंकचा प्रकार गहाळ आहे',
+  'server.navLinkMissingData': 'अवैध नेव्हिगेशन: लिंकचा डेटा गहाळ आहे',
+  'server.navInvalidLinkData': 'अवैध नेव्हिगेशन: अवैध लिंक डेटा',
+  'server.navPageLinksNotUnique': 'अवैध नेव्हिगेशन: पेज लिंक्स अद्वितीय असणे आवश्यक आहे',
+  'server.navLinksNotArray': 'अवैध नेव्हिगेशन: लिंक्स ॲरे असणे आवश्यक आहे',
+  'server.navPageLinkMissingPage': 'अवैध नेव्हिगेशन: पेज लिंकमध्ये पेज आयडी गहाळ आहे',
+  'server.navUrlMissingLabel': 'अवैध नेव्हिगेशन: URL लिंकमध्ये लेबल गहाळ आहे',
+  'server.navUrlMissingUrl': 'अवैध नेव्हिगेशन: URL लिंकमध्ये URL गहाळ आहे',
+  'server.navUrlInvalidCharacter': 'अवैध नेव्हिगेशन: URL लिंकमध्ये अवैध वर्ण आहे',
+  'server.navUrlInvalidScheme': 'अवैध नेव्हिगेशन: URL लिंकमध्ये अवैध योजना आहे',
+  'server.settingsDenied':
+    'सध्याच्या वापरकर्त्याला जागतिक सेटिंग्जमध्ये प्रवेश करण्यासाठी परवानगी नाकारली गेली आहे.',
+  'server.settingsNotObject': 'अपेक्षित एक ऑब्जेक्ट आहे.',
+  'server.settingUnavailable': '{key} हे सेटिंग उपलब्ध नाही.',
+  'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
+};

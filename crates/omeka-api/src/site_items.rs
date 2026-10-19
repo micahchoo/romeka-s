@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::errors::ApiError;
+use crate::messages;
 use crate::read::params::Params;
 use crate::read::response::serialize;
 use crate::read::{Api, ApiResponse, db_error, matching_item_ids, not_found, parse_id};
@@ -271,9 +272,7 @@ pub fn parse_body(bytes: &[u8]) -> Result<(Command, Mode), ApiError> {
         (None, Some(items), None) => Selector::Items(items.into_iter().map(ItemId).collect()),
         (None, None, Some(sets)) => Selector::ItemSets(sets),
         _ => {
-            return Err(ApiError::bad_request(
-                "name exactly one of \"query\", \"items\" or \"item_sets\"",
-            ));
+            return Err(ApiError::bad_request(messages::SITE_ITEMS_ONE_SELECTOR));
         }
     };
     let mode = if body.dry_run {
