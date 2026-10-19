@@ -482,11 +482,15 @@ reach them.
 `cargo build -p omeka-cli` runs on every setup, so a warm target costs a fraction of a second and a
 stale `debug/romeka` never serves the specs. Set `ROMEKA_BIN` to use a prebuilt binary and skip cargo.
 
-The harness origin is a small HTTP server, not the coordinator's proxy. It serves `dist`, serves the
+The harness origin is a small HTTP server, not the coordinator's proxy. It serves the build, serves the
 file store under `/files`, and forwards `/health`, `/api-context`, `/api` and `/s/` to the port. Every
 `/api` request leaves it with `key_identity` and `key_credential` appended, which is how a reverse
 proxy presents an API key to upstream. The browser is signed out in these specs, so the app sends no
 key of its own and the origin's pair is the only one on the request. Nothing binds a fixed port.
+
+The origin serves a copy of `dist` in the run's temporary directory, made right after the build. A
+`npm run build` started while a run is live empties `dist` before it writes it again; a page load in
+that gap would answer 404 and fail whichever spec was on it.
 
 The origin also answers the auth routes while the port serves none of them. `globalSetup` probes
 `POST /api/login` once, after health: the port answers 404 for an unknown `/api` resource, which is

@@ -186,7 +186,8 @@ test('the publish lesson opens on a draft and the links lesson waits for it', as
   diagnostics,
 }) => {
   const list = await json(page.request, '/api/custom_vocabs', {
-    'o:label': 'E2E lesson towns',
+    // Labels are unique, so a repeated run needs its own; each run starts from a fresh database.
+    'o:label': `E2E lesson towns ${String(test.info().repeatEachIndex)}`,
     'o:lang': 'en',
     'o:terms': 'Tralee\nDingle',
   });
@@ -215,7 +216,7 @@ test('the publish lesson opens on a draft and the links lesson waits for it', as
 
   // Once published, the list is no longer a draft, so the publish lesson has no moment.
   const region = page.getByRole('region', { name: 'Publish' });
-  await region.getByLabel('Address name').fill('e2e-lesson-towns');
+  await region.getByLabel('Address name').fill(`e2e-lesson-towns-${String(test.info().repeatEachIndex)}`);
   await region.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(region.getByText('Published version 1.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Show the lesson: Addresses that last' })).toHaveCount(0);

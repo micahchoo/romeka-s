@@ -9,7 +9,7 @@
  * Nothing here binds a fixed port and nothing reads the coordinator's proxy.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -63,6 +63,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const dbPath = join(workDir, 'db.sqlite');
 
   buildApp();
+  // The origin serves a copy of the build, not `dist` itself. A build started
+  // while the run is live empties `dist` before it writes it again, and every
+  // page load in that gap answered 404 (a spec failed on "not found").
+  const servedRoot = join(workDir, 'dist');
+  cpSync(DIST_ROOT, servedRoot, { recursive: true });
   const cli = ensureCli();
   runCli(
     cli,
@@ -91,7 +96,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const serverPort = await freePort();
   const serverUrl = `http://127.0.0.1:${String(serverPort)}`;
   const proxy = await startProxy({
-    distRoot: DIST_ROOT,
+    distRoot: servedRoot,
     storeRoot: storeRoot(workDir),
     target: serverUrl,
     identity: key.identity,
@@ -165,7 +170,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     console.log(
       [
         'e2e harness ready',
-        `  origin     ${proxy.url} (serves ${DIST_ROOT}, /files and /s)`,
+        `  origin     ${proxy.url} (serves ${servedRoot}, a copy of ${DIST_ROOT}, /files and /s)`,
         `  port       ${serverUrl}`,
         `  work dir   ${workDir}`,
         `  seeded     item set ${String(seeded.itemSetId)}, items ${seeded.itemIds.join(', ')}`,
