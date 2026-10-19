@@ -347,6 +347,31 @@ The largest lazy chunk is the shared registry at 6167 B against the 10240 B ceil
 first open now fetches about 3.9 KB more gzip than an editor opened without a preview did before,
 and nothing on the paint path changes beyond the 192 B of the initial js.
 
+## Decision 9: the site settings help text grows the eager catalogues (accepted)
+
+**Change.** The site settings form gives every setting a plain label, one help sentence, readable
+choice names and a group intro, in English and Spanish (`siteSetting*` keys in
+`src/i18n/catalogue.ts` and `src/i18n/locales/es.ts`). Both catalogues are eager, so every string
+is on the first paint.
+
+**Measured.** `vite build` then `npm run perf:bundle`, gzip bytes, against commit `0a8301a` built the
+same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 100672 | 103180 | over the 102400 budget by 780 |
+| shared chunk with both catalogues (`jsx-runtime-*`) | 23870 | 26363 | the new strings, 10410 B raw across the two files |
+| entry (`index-*`) | 73397 | 73412 | |
+| sites route page | 8353 | 9752 | the grouped form, the property and asset pickers |
+| initial css | 4445 | 4596 | the group and help styles |
+
+**Verdict.** Accepted, and `bundle.initialJsGzipBytes` moves 102400 to 103424, one KiB, which leaves
+244 B. The strings are the feature, and the brief puts every user-facing string in the catalogue.
+The limiter is that the Spanish catalogue ships to every English visitor and the reverse. Loading
+only the active locale's catalogue would remove roughly half of the shared chunk's strings from the
+first paint. That change is in `src/i18n/`, outside this unit, and is the next step before another
+wave adds strings.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

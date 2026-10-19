@@ -570,6 +570,72 @@ legend {
   font-weight: 600;
 }
 
+/* The site settings form: one section per group, each setting a label and
+ * control over one muted sentence. */
+.settings-group {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-group > legend,
+.settings-group > summary {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-group > summary {
+  cursor: pointer;
+}
+
+.settings-group-intro {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+.site-setting {
+  margin: 0 0 var(--space-4);
+}
+
+div.site-setting > label:first-child:not(:has(input)) {
+  display: block;
+  margin: 0 0 var(--space-1);
+  font-weight: 500;
+}
+
+div.site-setting > label:has(input) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+fieldset.site-setting {
+  padding: var(--space-2) var(--space-3);
+}
+
+fieldset.site-setting select {
+  margin-inline-end: var(--space-4);
+}
+
+.setting-help {
+  max-width: 64ch;
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+fieldset .setting-help {
+  margin: 0 0 var(--space-2);
+}
+
+.property-picker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* Loading and error states carry a surface, not bare text. */
 [role="status"],
 [role="alert"] {
