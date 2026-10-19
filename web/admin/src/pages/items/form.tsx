@@ -2,7 +2,7 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Item, ItemSetId, ItemWrite } from '../../api/types';
-import { toValueWrites, type ResourceDraft } from '../../app/draft';
+import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { loadFormOptions, type FormOptions } from '../../app/options';
@@ -10,6 +10,7 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
+import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
@@ -51,7 +52,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       resourceClass: draft.resourceClass,
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
-      values: toValueWrites(draft.values),
+      values: toValueWrites(allValues(draft)),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
       sites: item === null ? null : item.sites.map((ref) => ref.id),
@@ -74,6 +75,12 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         properties={options.properties}
         dataTypes={options.dataTypes}
         createField={createLocalField}
+      />
+      <TagsField
+        idPrefix="item"
+        draft={draft}
+        onChange={setDraft}
+        properties={options.properties}
       />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>

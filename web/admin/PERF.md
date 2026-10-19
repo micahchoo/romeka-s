@@ -543,6 +543,27 @@ base commit `b1c59db` built the same way from a `git archive` copy with the same
 editor's first open now fetches the English table (3487 B), and a visitor in another locale
 also fetches that locale's table.
 
+## Decision 16: tags cost the forms 2.4 KB and the Term lists page 2.5 KB (accepted)
+
+Tags add a Tags field to the item, item set and media forms and a Tags panel with merge prompts to
+the Term lists page. The field's four strings live in `src/app/describe-messages.ts`, which imports
+every locale with the forms; the panel's strings live in the Term lists table, one chunk per locale.
+Measured with `vite build` and `zlib.gzipSync` (the gzip `perf/bundle.mjs` uses), against the base
+`ed7100a` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 92599 | 92641 | `draft.ts` splits the tags out of the values |
+| describe strings (`plain-terms-*`) | 7539 | 8599 | four strings in nine locales |
+| `tags-field` | none | 1028 | the field, with the forms |
+| `tags-field` css | none | 319 | |
+| Term lists page (`page-*`) | 2334 | 4340 | the panel, the merge prompt, the similarity rule |
+| Term lists English table (`messages-*`) | 1138 | 1651 | |
+| largest chunk | 9887 | 9893 | not a chunk this change touches |
+
+**Verdict.** Accepted. The first paint grows 42 B. A form's first open fetches about 2.4 KB more,
+and the Term lists page about 2.5 KB more with its table, all under the 10240 B chunk ceiling.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

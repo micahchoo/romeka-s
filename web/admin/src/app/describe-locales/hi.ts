@@ -20,4 +20,9 @@ export const hi: DescribeMessages = {
   'picker.matches': '“{query}” के लिए मिलान',
   'picker.none': '“{query}” के लिए कुछ भी मेल नहीं खाता।',
   'picker.create': 'एक नया फ़ील्ड “{name}” बनाएँ',
+  'tags.legend': 'टैग',
+  'tags.add': 'एक टैग जोड़ें',
+  'tags.hint':
+    'बाद में चीज़ों को खोजने के लिए मुफ़्त शब्द। Enter दबाएँ या एक जोड़ने के लिए अल्पविराम टाइप करें।',
+  'tags.remove': 'टैग “{tag}” हटाएँ',
 };

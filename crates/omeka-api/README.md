@@ -423,6 +423,22 @@ the `o:item_pool` shape, item ids, or item set ids). `omeka-server` serves it as
 A selector resolves through the items list endpoint's own filters for the
 caller, and the writes go in batches of 1000 rows inside one transaction.
 
+### Tags
+
+`src/tagging/` is the step from tag to term. A tag is a plain-text `dcterms:subject`
+value; a URI or list value on the same property is an expert heading and no tag
+operation touches it. A scope is every tag, or the words stored with one list's
+`customvocab:<id>` type on any property. `census` counts each spelling once per
+resource the caller can see. `merge` rewrites spellings to a kept one and deletes a
+value the merge makes repeat on its resource, unless it carries an annotation;
+on a list of words the list's entries follow. `promote` (`tagging/promote.rs`) makes
+or extends a list from tags, retypes the tag values to the list, and makes the
+item type of each changed resource offer the list on its subject field, adding
+the field when the type has none. Every write touches only resources the caller
+may update, runs in one transaction (`ValueRewriteRepo`), and reindexes the
+changed resources after it commits. `distinct` remembers spellings someone said
+are different, in the `romeka_distinct_values` setting.
+
 ### The account routes
 
 `src/login.rs` holds the flows; `omeka-server` puts them on the wire.

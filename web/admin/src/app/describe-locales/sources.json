@@ -9,5 +9,9 @@
  "help.none": "No definition is stored for this term.",
  "picker.matches": "Matches for “{query}”",
  "picker.none": "Nothing matches “{query}”.",
- "picker.create": "Create a new field “{name}”"
+ "picker.create": "Create a new field “{name}”",
+ "tags.legend": "Tags",
+ "tags.add": "Add a tag",
+ "tags.hint": "Free words to find things by later. Press Enter or type a comma to add one.",
+ "tags.remove": "Remove the tag “{tag}”"
 }

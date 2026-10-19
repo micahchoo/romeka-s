@@ -166,7 +166,7 @@ export const asString = (value: unknown, path: Path): string => {
   return value;
 };
 
-const asNumber = (value: unknown, path: Path): number => {
+export const asNumber = (value: unknown, path: Path): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new ParseError(path, 'number');
   }
