@@ -9,6 +9,7 @@ import { formatDateTime } from '../../app/format';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { JobUpdateForm } from './form';
+import { useJobStatusLabel } from './messages';
 
 /**
  * `Admin/JobController::showAction` with `::deleteAction`: one job, its columns
@@ -16,7 +17,8 @@ import { JobUpdateForm } from './form';
  * serves no stop endpoint, so the stop confirm upstream shows has no form here.
  */
 export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElement => {
-  const { t } = useTranslator();
+  const { t, locale } = useTranslator();
+  const statusLabel = useJobStatusLabel();
   const state = useAsync(() => api.getJob(jobId), [jobId]);
   const [edited, setEdited] = useState<Job | null>(null);
 
@@ -38,7 +40,7 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
         <dt>{t('column.class')}</dt>
         <dd>{job.jobClass}</dd>
         <dt>{t('column.status')}</dt>
-        <dd>{job.status ?? t('common.unknown')}</dd>
+        <dd>{statusLabel(job.status) ?? t('common.unknown')}</dd>
         <dt>{t('column.owner')}</dt>
         <dd>
           {job.owner === null ? (
@@ -48,9 +50,9 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
           )}
         </dd>
         <dt>{t('column.started')}</dt>
-        <dd>{job.started === null ? t('common.never') : formatDateTime(job.started)}</dd>
+        <dd>{job.started === null ? t('common.never') : formatDateTime(job.started, locale)}</dd>
         <dt>{t('column.ended')}</dt>
-        <dd>{job.ended === null ? t('common.never') : formatDateTime(job.ended)}</dd>
+        <dd>{job.ended === null ? t('common.never') : formatDateTime(job.ended, locale)}</dd>
       </dl>
 
       <h3>{t('jobs.args')}</h3>

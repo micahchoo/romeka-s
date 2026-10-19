@@ -56,6 +56,8 @@ pub(crate) enum Outcome {
     Html(String),
     /// A 302 to the given location.
     Redirect(String),
+    /// A 404 document rendered inside a site that resolved.
+    NotFound(String),
 }
 
 /// A public route that could not be served.
@@ -103,6 +105,7 @@ async fn handle(
 fn outcome_response(outcome: Outcome) -> Response {
     match outcome {
         Outcome::Html(html) => html_response(StatusCode::OK, html),
+        Outcome::NotFound(html) => html_response(StatusCode::NOT_FOUND, html),
         Outcome::Redirect(location) => match HeaderValue::from_str(&location) {
             Ok(value) => Response::builder()
                 .status(StatusCode::FOUND)
@@ -139,11 +142,11 @@ fn error_response(uri: &Uri, error: SiteError) -> Response {
     }
 }
 
-/// The error page inside the site layout. `prepareSite` returns no site when the
-/// slug does not resolve, so the layout renders over a placeholder whose slug
-/// comes from the request path when it parses and `none` otherwise. The error
-/// layout reads only the title and message, so the placeholder's other fields
-/// never reach the document.
+/// The error page for a slug that resolves to no site the caller can see.
+/// `prepareSite` returns no site then, so the layout renders over a placeholder
+/// whose slug comes from the request path when it parses and `none` otherwise.
+/// The error layout reads only the title and message, so the placeholder's
+/// other fields never reach the document.
 fn render_not_found(path: &str) -> String {
     let site = placeholder_site(path);
     let ctx = RenderContext::new(&site, &NoResources);

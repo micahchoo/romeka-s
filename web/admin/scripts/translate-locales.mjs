@@ -64,6 +64,13 @@ const TABLES = [
     from: '../messages',
   },
   {
+    what: 'Jobs page messages',
+    source: 'src/pages/jobs/messages.ts',
+    dir: 'src/pages/jobs/locales',
+    type: 'JobsMessages',
+    from: '../messages',
+  },
+  {
     what: 'describe strings',
     source: 'src/app/describe-messages.ts',
     dir: 'src/app/describe-locales',
