@@ -39,7 +39,7 @@ describe('the block form scalar controls', () => {
     const block = draftFor('oembed', { url: '', refresh: false });
     const dispatch = renderBlock(block, 'oembed').dispatch;
 
-    fireEvent.change(screen.getByLabelText('oEmbed URL'), {
+    fireEvent.change(screen.getByLabelText('Media URL'), {
       target: { value: 'https://example.org/watch' },
     });
 
@@ -52,7 +52,7 @@ describe('the block form scalar controls', () => {
     const block = draftFor('oembed', { url: '', refresh: false });
     const dispatch = renderBlock(block, 'oembed').dispatch;
 
-    fireEvent.click(screen.getByLabelText('Refresh oEmbed'));
+    fireEvent.click(screen.getByLabelText('Fetch the embed again'));
 
     expect(actionsOf(dispatch)).toEqual([
       { type: 'setField', blockKey: block.key, field: 'refresh', value: true },
@@ -63,8 +63,8 @@ describe('the block form scalar controls', () => {
     const block = draftFor('tableOfContents', { depth: 1 });
     const dispatch = renderBlock(block, 'tableOfContents').dispatch;
 
-    fireEvent.change(screen.getByLabelText('Depth'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Depth'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Levels of sub-pages'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Levels of sub-pages'), { target: { value: '' } });
 
     expect(actionsOf(dispatch)).toEqual([
       { type: 'setField', blockKey: block.key, field: 'depth', value: 3 },
@@ -76,7 +76,7 @@ describe('the block form scalar controls', () => {
     const block = draftFor('lineBreak', { break_type: 'transparent' });
     const dispatch = renderBlock(block, 'lineBreak').dispatch;
 
-    fireEvent.change(screen.getByLabelText('Break type'), { target: { value: 'opaque' } });
+    fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'opaque' } });
 
     expect(actionsOf(dispatch)).toEqual([
       { type: 'setField', blockKey: block.key, field: 'break_type', value: 'opaque' },
@@ -118,7 +118,7 @@ describe('the block form scalar controls', () => {
     renderBlock(block, 'oembed', [{ kind: 'required', blockKey: block.key, field: 'url' }]);
 
     expect(screen.getByText('This field is required.')).toBeInTheDocument();
-    expect(screen.getByLabelText('oEmbed URL')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Media URL')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('an issue for another block does not render', () => {

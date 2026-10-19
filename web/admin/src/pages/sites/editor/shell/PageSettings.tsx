@@ -8,6 +8,7 @@ import { api } from '../../../../api/client';
 import type { PageId } from '../../../../api/types';
 import { DeleteControl } from '../../../../app/delete';
 import { useTranslator } from '../../../../i18n';
+import { useEditorText } from '../messages';
 import { gridGap, pageColumns } from '../canvas/grid';
 import type { DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { Checked, Labelled } from '../Labelled';
@@ -37,6 +38,7 @@ export const PageSettings = ({
   onOpenSaveTemplate,
 }: PageSettingsProps): ReactElement => {
   const { t } = useTranslator();
+  const e = useEditorText();
   const grid = draft.layout === 'grid';
   const columns = pageColumns(draft.layoutData);
   const titleIssue = issues.some((issue) => issue.blockKey === null && issue.field === 'title');
@@ -100,7 +102,7 @@ export const PageSettings = ({
       </Labelled>
       {grid ? (
         <div className="page-grid-fields">
-          <Labelled id="page-grid-columns" label={t('pageLayoutData.grid_columns')}>
+          <Labelled id="page-grid-columns" label={e('pageLayoutData.grid_columns')}>
             <input
               id="page-grid-columns"
               type="number"
@@ -115,7 +117,7 @@ export const PageSettings = ({
               }}
             />
           </Labelled>
-          <Labelled id="page-grid-column-gap" label={t('pageLayoutData.grid_column_gap')}>
+          <Labelled id="page-grid-column-gap" label={e('pageLayoutData.grid_column_gap')}>
             <input
               id="page-grid-column-gap"
               type="number"
@@ -130,7 +132,7 @@ export const PageSettings = ({
               }}
             />
           </Labelled>
-          <Labelled id="page-grid-row-gap" label={t('pageLayoutData.grid_row_gap')}>
+          <Labelled id="page-grid-row-gap" label={e('pageLayoutData.grid_row_gap')}>
             <input
               id="page-grid-row-gap"
               type="number"

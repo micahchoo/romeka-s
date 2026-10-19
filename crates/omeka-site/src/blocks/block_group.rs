@@ -23,7 +23,13 @@ pub struct BlockGroup;
 /// `BlockLayout/BlockGroup.php::form`: one hidden `span`, the number of blocks
 /// the group wraps.
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[integer_min("span", "blockField.blockGroup.span", 0).default_int(0)],
+    fields: &[integer_min(
+        "span",
+        "blockField.blockGroup.span",
+        "fieldHelp.blockGroup.span",
+        0,
+    )
+    .default_int(0)],
 };
 
 impl BlockLayout for BlockGroup {

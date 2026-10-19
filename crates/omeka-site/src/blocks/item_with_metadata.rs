@@ -30,6 +30,7 @@ pub struct ItemWithMetadata;
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[attachments(
         "blockField.itemWithMetadata.attachments",
+        "fieldHelp.itemWithMetadata.attachments",
         false,
     )],
 };
