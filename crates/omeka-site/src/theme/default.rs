@@ -223,7 +223,7 @@ fn layout_with_head(
     // never reaches the menu. The theme builds the list here so the current
     // page carries `aria-current` and the items carry their own classes.
     let nav_menu = header_menu(ctx);
-    let menu_label = "Menu";
+    let menu_label = tr.messages().menu;
     let mut theme_assets = String::new();
     for asset in info.assets.iter().filter(|asset| asset.kind.is_head()) {
         theme_assets.push_str(&asset.kind.element(&format!(

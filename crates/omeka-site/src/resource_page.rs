@@ -21,6 +21,7 @@
 use omeka_core::resource::ResourceKind;
 
 use crate::html::{escape_html, hyperlink};
+use crate::i18n::{Messages, sprintf};
 use crate::settings::SiteSettings;
 use crate::view::{LinkedResource, RenderContext, ResourceRef, ResourceView, Thumbnail, ValueRef};
 
@@ -192,7 +193,7 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
         "itemSets" => item_sets(resource, ctx),
         "sitePages" => site_pages(resource, ctx),
         "mediaList" => media_list(resource, ctx),
-        "linkedResources" => linked_resources(resource),
+        "linkedResources" => linked_resources(resource, ctx.translator().messages()),
         "mediaRender" => media_render(resource),
         _ => String::new(),
     }
@@ -305,8 +306,10 @@ fn site_pages(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     if !ctx.settings.show_attached_pages() || resource.site_pages.is_empty() {
         return String::new();
     }
-    let mut out =
-        String::from("<dl class=\"site-pages\"><div class=\"property\"><dt>Site pages</dt>");
+    let mut out = format!(
+        "<dl class=\"site-pages\"><div class=\"property\"><dt>{}</dt>",
+        escape_html(ctx.translator().messages().site_pages)
+    );
     for page in &resource.site_pages {
         out.push_str("<dd class=\"value\">");
         out.push_str(&hyperlink(&page.title, Some(&page.url), &[]));
@@ -336,7 +339,7 @@ fn media_list(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
 
 /// `linked-resources.phtml`: one table per property, one row per linking
 /// resource. The filter and pagination controls are not reproduced.
-fn linked_resources(resource: &ResourceView) -> String {
+fn linked_resources(resource: &ResourceView, messages: &Messages) -> String {
     if resource.linked_resources.is_empty() {
         return String::new();
     }
@@ -349,8 +352,12 @@ fn linked_resources(resource: &ResourceView) -> String {
                 out.push_str("</tbody></table>");
             }
             out.push_str("<table><caption class=\"linked-resource-property\">");
-            out.push_str(&escape_html(&caption(link, resource)));
-            out.push_str("</caption><thead><tr><th>Title</th><th>Class</th></tr></thead><tbody>");
+            out.push_str(&escape_html(&caption(link, resource, messages)));
+            out.push_str(&format!(
+                "</caption><thead><tr><th>{}</th><th>{}</th></tr></thead><tbody>",
+                escape_html(messages.title),
+                escape_html(messages.class)
+            ));
             open = Some(key);
         }
         out.push_str("<tr class=\"linked-resource\"><td>");
@@ -364,14 +371,18 @@ fn linked_resources(resource: &ResourceView) -> String {
     out
 }
 
-/// `%s with "%s: %s"`, the table caption.
-fn caption(link: &LinkedResource, resource: &ResourceView) -> String {
+/// `%s with "%s: %s"`, the table caption: the translated resource label, then
+/// the property label and the title as stored.
+fn caption(link: &LinkedResource, resource: &ResourceView, messages: &Messages) -> String {
     let kind = match link.kind {
-        ResourceKind::Item => "Items",
-        ResourceKind::ItemSet => "Item sets",
-        ResourceKind::Media => "Media",
+        ResourceKind::Item => messages.items,
+        ResourceKind::ItemSet => messages.item_sets,
+        ResourceKind::Media => messages.media,
     };
-    format!("{kind} with \"{}: {}\"", link.property, resource.title)
+    sprintf(
+        messages.linked_caption,
+        &[kind, &link.property, &resource.title],
+    )
 }
 
 /// `linkPretty('square')`: the thumbnail when there is one, then the display
@@ -408,166 +419,5 @@ fn link_pretty_target(entry: &ResourceRef, target_blank: bool) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::view::{NoResources, RenderContext, ResourceView};
-    use omeka_core::ids::ResourceId;
-    use omeka_core::resource::ResourceKind;
-    use omeka_core::site::Site;
-
-    fn site() -> Site {
-        Site::new(
-            omeka_core::ids::SiteId::new(1),
-            omeka_core::site::Slug::parse("main").expect("a valid slug"),
-            "default".to_string(),
-            "Main",
-        )
-    }
-
-    fn context<'a>(site: &'a Site, resources: &'a NoResources) -> RenderContext<'a> {
-        RenderContext::new(site, resources)
-    }
-
-    fn resource(kind: ResourceKind) -> ResourceView {
-        ResourceView::new(ResourceId::new(1), kind, "/s/main/item/1", "An item")
-    }
-
-    fn value() -> ValueRef {
-        ValueRef {
-            property_id: 1,
-            property: "Title".to_string(),
-            property_term: "dcterms:title".to_string(),
-            vocabulary: "Dublin Core".to_string(),
-            value: "An item".to_string(),
-            html: "An item".to_string(),
-            lang: None,
-            class: "literal".to_string(),
-        }
-    }
-
-    /// The default item blocks render media, values, item sets, site pages, the
-    /// media list and linked resources, in that order, and the empty lists
-    /// leave their blocks out.
-    #[test]
-    fn item_default_blocks_render_in_theme_order() {
-        let site = site();
-        let resources = NoResources;
-        let ctx = context(&site, &resources);
-        let mut item = resource(ResourceKind::Item);
-        item.values.push(value());
-        item.media.push(ResourceRef {
-            url: "/s/main/media/9".to_string(),
-            title: "A file".to_string(),
-            thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
-        });
-        item.item_sets.push(ResourceRef {
-            url: "/s/main/item-set/2".to_string(),
-            title: "A set".to_string(),
-            thumbnail: None,
-        });
-        let out = render_blocks(&item, &ctx);
-        assert!(
-            out.contains("<dl class=\"values\"><div class=\"property\"><dt>Title</dt>"),
-            "{out}"
-        );
-        assert!(out.contains("<dl class=\"item-sets\">"), "{out}");
-        assert!(out.contains("<dl class=\"media-list\">"), "{out}");
-        assert!(!out.contains("<div class=\"media-embeds\">"), "{out}");
-        let values_at = out.find("<dl class=\"values\">").expect("values");
-        let sets_at = out.find("<dl class=\"item-sets\">").expect("item sets");
-        let media_at = out.find("<dl class=\"media-list\">").expect("media list");
-        assert!(values_at < sets_at && sets_at < media_at, "{out}");
-    }
-
-    /// The media page renders its own markup, then its values.
-    #[test]
-    fn media_default_blocks_render_the_file_then_values() {
-        let site = site();
-        let resources = NoResources;
-        let ctx = context(&site, &resources);
-        let mut media = resource(ResourceKind::Media);
-        media.media_embeds.push(crate::view::MediaRef {
-            url: "/s/main/media/1".to_string(),
-            original_url: None,
-            title: "A file".to_string(),
-            thumbnail: None,
-            embed: Some("<div class=\"media-render html\">A file</div>".to_string()),
-        });
-        media.values.push(value());
-        assert_eq!(
-            render_blocks(&media, &ctx),
-            "<div class=\"media-render html\">A file</div>\
-             <dl class=\"values\"><div class=\"property\"><dt>Title</dt>\
-             <dd class=\"value literal\" lang=\"\"><span class=\"value-content\">An item</span></dd>\
-             </div></dl>"
-        );
-    }
-
-    /// The stored configuration wins, and a resource it omits renders nothing.
-    #[test]
-    fn stored_configuration_replaces_the_default() {
-        let site = site();
-        let resources = NoResources;
-        let mut ctx = context(&site, &resources);
-        ctx.resource_page_blocks = Some(ResourcePageBlocks::parse(&serde_json::json!({
-            "items": {"main": ["values"]}
-        })));
-        let mut item = resource(ResourceKind::Item);
-        item.values.push(value());
-        assert_eq!(
-            render_blocks(&item, &ctx),
-            "<dl class=\"values\"><div class=\"property\"><dt>Title</dt>\
-             <dd class=\"value literal\" lang=\"\"><span class=\"value-content\">An item</span></dd>\
-             </div></dl>"
-        );
-        let other = resource(ResourceKind::Media);
-        assert_eq!(render_blocks(&other, &ctx), "");
-    }
-
-    /// `property_label_information` adds the term or the vocabulary label, and
-    /// `show_locale_label` adds the language span.
-    #[test]
-    fn value_labels_follow_the_site_settings() {
-        let site = site();
-        let resources = NoResources;
-        let mut ctx = context(&site, &resources);
-        ctx.settings.property_label_information = Some("term".to_string());
-        ctx.settings.show_locale_label = Some(true);
-        let mut item = resource(ResourceKind::Item);
-        let mut labelled = value();
-        labelled.lang = Some("fr".to_string());
-        item.values.push(labelled);
-        let out = render_blocks(&item, &ctx);
-        assert!(
-            out.contains("<dt>Title<span class=\"field-term\">(dcterms:title)</span></dt>"),
-            "{out}"
-        );
-        assert!(out.contains("lang=\"fr\""), "{out}");
-        assert!(out.contains("<span class=\"language\">fr</span>"), "{out}");
-    }
-
-    /// A resource value is a pretty link and its class names the resource kind.
-    #[test]
-    fn resource_value_renders_a_pretty_link() {
-        let site = site();
-        let resources = NoResources;
-        let ctx = context(&site, &resources);
-        let mut item = resource(ResourceKind::Item);
-        item.values.push(ValueRef {
-            property_id: 2,
-            property: "Subject".to_string(),
-            property_term: "dcterms:subject".to_string(),
-            vocabulary: "Dublin Core".to_string(),
-            value: "Another item".to_string(),
-            html: "<a href=\"/s/main/item/2\" class=\"resource-link\"><img src=\"/files/square/2.jpg\" alt=\"X\"><span class=\"resource-name\">Another item</span></a>".to_string(),
-            lang: None,
-            class: "resource items".to_string(),
-        });
-        let out = render_blocks(&item, &ctx);
-        assert!(
-            out.contains("<dd class=\"value resource items\" lang=\"\">"),
-            "{out}"
-        );
-        assert!(out.contains("class=\"resource-link\""), "{out}");
-    }
-}
+#[path = "resource_page_tests.rs"]
+mod tests;

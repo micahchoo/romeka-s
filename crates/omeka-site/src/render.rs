@@ -51,7 +51,10 @@ pub fn render_iiif_viewer(
 ) -> String {
     match media {
         Some(media) => theme.render(&View::IiifViewer(&media), ctx),
-        None => theme.render(&View::Error(&ErrorView::not_found()), ctx),
+        None => theme.render(
+            &View::Error(&ErrorView::not_found(ctx.translator().messages())),
+            ctx,
+        ),
     }
 }
 

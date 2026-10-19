@@ -134,10 +134,7 @@ fn method_not_allowed() -> Response {
 
 fn error_response(uri: &Uri, error: SiteError) -> Response {
     match error {
-        SiteError::NotFound => html_response(
-            StatusCode::NOT_FOUND,
-            render_error(uri.path(), &ErrorView::not_found()),
-        ),
+        SiteError::NotFound => html_response(StatusCode::NOT_FOUND, render_not_found(uri.path())),
         SiteError::Internal(_) => crate::empty_internal_error(),
     }
 }
@@ -147,10 +144,11 @@ fn error_response(uri: &Uri, error: SiteError) -> Response {
 /// comes from the request path when it parses and `none` otherwise. The error
 /// layout reads only the title and message, so the placeholder's other fields
 /// never reach the document.
-fn render_error(path: &str, error: &ErrorView) -> String {
+fn render_not_found(path: &str) -> String {
     let site = placeholder_site(path);
     let ctx = RenderContext::new(&site, &NoResources);
-    DefaultTheme.render(&View::Error(error), &ctx)
+    let error = ErrorView::not_found(ctx.translator().messages());
+    DefaultTheme.render(&View::Error(&error), &ctx)
 }
 
 fn placeholder_site(path: &str) -> Site {
