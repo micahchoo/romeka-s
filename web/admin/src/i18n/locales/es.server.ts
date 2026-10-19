@@ -81,8 +81,6 @@ export const esServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" ha cambiado desde la comparación. Vuelva a comparar el archivo.',
   'server.vocabularyMemberMissing': '"{name}" no pertenece a este vocabulario.',
-  'server.vocabularyCaseClash':
-    '"{first}" y "{second}" solo se diferencian en mayúsculas y minúsculas, y aquí no se pueden guardar ambos.',
   'server.nameEmpty': 'El nombre no puede estar vacío.',
   'server.emailTaken': 'El correo electrónico {email} ya está en uso.',
   'server.userRoleRequired': 'Los perfiles deben tener asignado un rol.',

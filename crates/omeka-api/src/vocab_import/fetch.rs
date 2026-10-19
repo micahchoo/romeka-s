@@ -70,7 +70,9 @@ pub enum FetchError {
 pub enum Reach {
     /// Public addresses only: every server path uses this.
     Public,
-    /// Any address. Only a test reaches its own loopback server through this.
+    /// Any address. Only a unit test reaches its own loopback server through this, and the
+    /// variant does not exist outside the crate's own tests.
+    #[cfg(test)]
     Any,
 }
 
@@ -157,8 +159,10 @@ impl Resolver for PublicOnly {
         timeout: NextTimeout,
     ) -> Result<ResolvedSocketAddrs, ureq::Error> {
         let resolved = DefaultResolver::default().resolve(uri, config, timeout)?;
-        if self.reach == Reach::Any {
-            return Ok(resolved);
+        match self.reach {
+            Reach::Public => {}
+            #[cfg(test)]
+            Reach::Any => return Ok(resolved),
         }
         let mut kept = self.empty();
         for address in resolved.iter().filter(|address| is_public(address.ip())) {

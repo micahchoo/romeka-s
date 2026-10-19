@@ -88,8 +88,6 @@ export const mlServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" താരതമ്യത്തിന് ശേഷം മാറിയിട്ടുണ്ട്. ഫയൽ വീണ്ടും താരതമ്യം ചെയ്യുക.',
   'server.vocabularyMemberMissing': '"{name}" ഈ വൊക്കാബുലറിയിൽ അംഗമല്ല.',
-  'server.vocabularyCaseClash':
-    '"{first}", "{second}" എന്നിവയിൽ അക്ഷരങ്ങൾ മാത്രം വ്യത്യാസമുണ്ട്, ഈ ആർക്കൈവിന് രണ്ടും സൂക്ഷിക്കാൻ കഴിയില്ല.',
   'server.nameEmpty': 'പേര് ശൂന്യമാകാൻ പാടില്ല.',
   'server.emailTaken': '{email} എന്ന ഇമെയിൽ ഉപയോഗിച്ചു.',
   'server.userRoleRequired': 'ഉപയോക്താക്കൾക്ക് ഒരു റോൾ ഉണ്ടായിരിക്കണം.',

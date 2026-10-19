@@ -201,6 +201,50 @@ async fn a_created_datetime_round_trips_through_mysql_datetime() {
     db.cleanup().await;
 }
 
+/// `property.local_name` is `utf8mb4_bin` upstream, so FOAF's `givenName` and `givenname` are two
+/// properties, and a lookup matches case exactly. The SQLite schema agrees from migration 0004.
+#[tokio::test]
+async fn local_names_differing_only_in_case_are_two_properties() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let foaf = VocabularyRepo::<MySql>::new(&db.pool)
+        .create(&NewVocabulary {
+            owner_id: None,
+            namespace_uri: "http://xmlns.com/foaf/0.1/".to_string(),
+            prefix: "foaf".to_string(),
+            label: "Friend of a Friend".to_string(),
+            comment: None,
+        })
+        .await
+        .expect("create vocabulary");
+    let properties = PropertyRepo::<MySql>::new(&db.pool);
+    for local_name in ["givenName", "givenname"] {
+        properties
+            .create(&NewProperty {
+                owner_id: None,
+                vocabulary_id: foaf.id,
+                local_name: local_name.to_string(),
+                label: "Given name".to_string(),
+                comment: None,
+            })
+            .await
+            .unwrap_or_else(|error| panic!("foaf:{local_name} is stored: {error}"));
+    }
+    let lower = properties
+        .find(foaf.id, "givenname")
+        .await
+        .expect("find")
+        .expect("foaf:givenname");
+    assert_eq!(lower.local_name, "givenname");
+    assert_eq!(
+        properties.find(foaf.id, "GIVENNAME").await.expect("find"),
+        None
+    );
+
+    db.cleanup().await;
+}
+
 /// The three `utf8mb4_bin` columns (`property.local_name`, `resource_class.local_name` and
 /// `password_creation.id`) reach sqlx as `VARBINARY`. Each read goes through `Backend::text`, which
 /// must decode the column's bytes as the UTF-8 text they hold.

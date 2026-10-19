@@ -7,6 +7,9 @@ pub enum DbError {
     Sqlx(#[from] sqlx::Error),
     #[error("migration error: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
+    /// A migration left this many rows referencing a row that does not exist.
+    #[error("migration left {0} broken foreign key references")]
+    BrokenReferences(i64),
     /// A stored column holds a value the row type cannot represent. This is the row-parsing
     /// boundary: the database file is external data, so a bad value is an error, not a panic.
     #[error("column `{column}`: {reason}")]

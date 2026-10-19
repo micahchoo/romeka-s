@@ -78,9 +78,12 @@ Evidence, measured:
    ASCII letters A-Z only, so a non-ASCII case pair (`İ` and `i`) is distinct where upstream folds
    it. SQLite has no built-in Unicode collation; closing that gap needs a custom collation and is a
    follow-up. `password_creation.id` is upstream `utf8mb4_bin` and stays case-sensitive, matching
-   upstream. The columns that carry `NOCASE` are:
-   `user.email`, `vocabulary.namespace_uri`, `vocabulary.prefix`, `resource_class.local_name`,
-   `property.local_name`, `resource_template.label`, `asset.storage_id`, `media.storage_id`,
+   upstream. `property.local_name` and `resource_class.local_name` are `utf8mb4_bin` upstream and
+   binary here (SQLite's default `BINARY`) from `migrations/0004_term_local_name_binary.sql`; 0001
+   gave them `NOCASE`, which refused FOAF's `givenName` beside `givenname`. Measured on the oracle
+   database (`information_schema.columns`), those two and `password_creation.id` are upstream's
+   only binary columns. The columns that carry `NOCASE` are:
+   `user.email`, `vocabulary.namespace_uri`, `vocabulary.prefix`, `resource_template.label`, `asset.storage_id`, `media.storage_id`,
    `site.slug`, `site_page.slug`, `setting.id`, `module.id`, `api_key.id`, `site_setting.id`,
    `user_setting.id`, `session.id`, `migration.version`, `fulltext_search.resource`.
    Other `utf8mb4_unicode_ci` columns (for example `value.type`, `job.class`) have no uniqueness or

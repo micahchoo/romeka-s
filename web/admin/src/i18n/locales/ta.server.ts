@@ -87,8 +87,6 @@ export const taServer: ServerCatalogue = {
   'server.vocabularyChangeStale':
     '"{name}" ஒப்பீட்டிற்குப் பிறகு மாறியுள்ளது. கோப்பை மீண்டும் ஒப்பிடவும்.',
   'server.vocabularyMemberMissing': '"{name}" இந்த சொல்லகராதியின் உறுப்பினர் அல்ல.',
-  'server.vocabularyCaseClash':
-    '"{first}" மற்றும் "{second}" எழுத்து வடிவத்தில் மட்டுமே வேறுபடுகின்றன, மேலும் இந்த ஆவணக் காப்பகம் இரண்டையும் சேமிக்க முடியாது.',
   'server.nameEmpty': 'பெயர் காலியாக இருக்கக்கூடாது.',
   'server.emailTaken': 'மின்னஞ்சல் {email} ஏற்கனவே பயன்படுத்தப்பட்டுள்ளது.',
   'server.userRoleRequired': 'பயனர்களுக்கு ஒரு பங்கு இருக்க வேண்டும்.',
