@@ -19,6 +19,8 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { standardsHref } from '../standards/routes';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 
 /**
  * `Vocabulary::PREFIX_REGEX`, `/^[a-z0-9_-]+$/i`: the prefix a create accepts.
@@ -60,7 +62,7 @@ const VocabularyEditor = ({
   readonly users: readonly User[];
   readonly onSaved: (vocabulary: Vocabulary) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const create = vocabulary === null;
   const stored = valuesFrom(vocabulary);
   const [namespaceUri, setNamespaceUri] = useState(stored.namespaceUri);
@@ -174,7 +176,7 @@ export const VocabularyEditForm = ({
   readonly vocabulary: Vocabulary;
   readonly onSaved: (vocabulary: Vocabulary) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const state = useAsync(loadUsers, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
@@ -190,7 +192,7 @@ export const VocabularyEditForm = ({
  * where its properties and classes are added.
  */
 export const VocabularyCreatePage = (): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const state = useAsync(loadUsers, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.vocabularyForm')}</p>;

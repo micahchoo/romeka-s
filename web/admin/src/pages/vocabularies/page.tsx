@@ -5,6 +5,8 @@ import { useTranslator } from '../../i18n';
 import { VocabularyCreatePage } from './form';
 import { VocabularyDetail } from './detail';
 import { VocabularyList } from './list';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 
 /** The import form is its own chunk: most visits to the tab never open it. */
 const VocabularyImportPage = lazy(() =>
@@ -17,7 +19,7 @@ export const VocabulariesPage = ({
 }: {
   readonly param?: string | null;
 } = {}): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   if (param === null) {
     return <VocabularyList />;
   }

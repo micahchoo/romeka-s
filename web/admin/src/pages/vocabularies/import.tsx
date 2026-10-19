@@ -24,12 +24,14 @@ import {
   readSource,
 } from "./source";
 import type { SourceDraft } from "./source";
+import { common } from "../../i18n/namespaces/common";
+import { standards } from "../../i18n/namespaces/standards";
 
 /** `Vocabulary::PREFIX_REGEX`. */
 const PREFIX_PATTERN = /^[a-z0-9_-]+$/i;
 
 const ImportForm = (): ReactElement => {
-  const translator = useTranslator();
+  const translator = useTranslator(common, standards);
   const { t } = translator;
   const text = useImportText();
   const [source, setSource] = useState<SourceDraft>(EMPTY_SOURCE);

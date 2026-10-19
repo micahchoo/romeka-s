@@ -7,7 +7,7 @@ import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { MessageKey } from '../../i18n';
+import type { KeyOf, MessageKey } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { VocabularyEditForm, isPermanentVocabulary } from './form';
@@ -17,6 +17,11 @@ import {
   VocabularyMemberAddForm,
 } from './member';
 import type { MemberKind, VocabularyMemberRow } from './member';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
+
+/** A message id this file names: the shell's or its namespaces'. */
+type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof standards>;
 
 /** The update panel is its own chunk, fetched when a vocabulary page opens. */
 const VocabularyUpdate = lazy(() =>
@@ -51,12 +56,12 @@ const MemberTable = <MemberT extends VocabularyMemberRow>({
 }: {
   readonly kind: MemberKind<MemberT>;
   readonly members: readonly MemberT[];
-  readonly emptyKey: MessageKey;
+  readonly emptyKey: MessageId;
   /** The vocabulary the add form writes to, or `null` for a permanent one. */
   readonly vocabulary: VocabularyId | null;
   readonly onAdded: (member: MemberT) => void;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   return (
     <>
       {members.length === 0 ? (
@@ -126,7 +131,7 @@ export const VocabularyDetail = ({
 }: {
   readonly vocabularyId: VocabularyId;
 }): ReactElement => {
-  const { t } = useTranslator();
+  const { t } = useTranslator(common, standards);
   const state = useAsync(() => load(vocabularyId), [vocabularyId]);
   const [edited, setEdited] = useState<Vocabulary | null>(null);
   const [added, setAdded] = useState<Members>({ properties: [], classes: [] });

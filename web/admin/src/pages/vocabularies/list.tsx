@@ -6,6 +6,8 @@ import { useTranslator } from '../../i18n';
 import { DefinedTerm } from '../standards/definition';
 import { standardsHref } from '../standards/routes';
 import { useStandardsText } from '../standards/messages';
+import { common } from '../../i18n/namespaces/common';
+import { standards } from '../../i18n/namespaces/standards';
 import './import.css';
 
 const PER_PAGE = 25;
@@ -42,7 +44,7 @@ const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
 
 /** `Admin/VocabularyController::browseAction`: label, prefix, namespace, members. */
 export const VocabularyList = (): ReactElement => {
-  const { t, number } = useTranslator();
+  const { t, number } = useTranslator(common, standards);
   const text = useStandardsText();
   const resource = t('resource.vocabularies');
   return (
