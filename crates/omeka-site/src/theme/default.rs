@@ -278,7 +278,7 @@ fn layout_with_head(
          {custom_css}\
          {head_extra}\
          </head>\n\
-         <body class=\"minimal {body}\">\n\
+         <body{body}>\n\
          <a class=\"skip-link\" id=\"skipnav\" href=\"#content\">{skip}</a>\n\
          {user_bar}\
          {banner}\
@@ -297,7 +297,10 @@ fn layout_with_head(
          <footer>\n{footer_text}<span class=\"powered-by\">{powered_by}</span>\n</footer>\n\
          </body>\n</html>",
         lang = tr.locale().tag(),
-        body = escape_html(body_class),
+        body = match body_class {
+            "" => String::new(),
+            class => format!(" class=\"{}\"", escape_html(class)),
+        },
         header = header,
         logo = logo,
         banner = banner,

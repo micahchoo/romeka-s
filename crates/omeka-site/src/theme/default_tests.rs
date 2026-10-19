@@ -19,10 +19,7 @@ fn layout_matches_upstream_layout() {
         document.contains("href=\"/assets/css/style.css?v="),
         "{document}"
     );
-    assert!(
-        document.contains("<body class=\"minimal home\">"),
-        "{document}"
-    );
+    assert!(document.contains("<body class=\"home\">"), "{document}");
     assert!(
         document.contains("<p>This site has no pages.</p>"),
         "{document}"
@@ -139,7 +136,7 @@ fn item_view_matches_upstream_item_show() {
         "{document}"
     );
     assert!(
-        document.contains("<body class=\"minimal item resource show\">"),
+        document.contains("<body class=\"item resource show\">"),
         "{document}"
     );
     assert!(
@@ -194,7 +191,7 @@ fn iiif_viewer_matches_the_media_renderer_container() {
         "{document}"
     );
     assert!(
-        document.contains("<body class=\"minimal iiif-viewer\">"),
+        document.contains("<body class=\"iiif-viewer\">"),
         "{document}"
     );
     assert!(
@@ -327,10 +324,7 @@ fn error_views_match_upstream_error_templates() {
         document.contains("<title>Page not found · Romeka S</title>"),
         "{document}"
     );
-    assert!(
-        document.contains("<body class=\"minimal error\">"),
-        "{document}"
-    );
+    assert!(document.contains("<body class=\"error\">"), "{document}");
     assert!(document.contains("<h1>Page not found</h1>"), "{document}");
     assert!(
         document.contains(

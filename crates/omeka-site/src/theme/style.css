@@ -8,17 +8,38 @@
    Every colour, type size, space and corner comes from a custom property the
    document frame emits from the site's design tokens. This sheet names no
    colour and no type size of its own, so the Theme page in the admin is the
-   only place those values change. The two exceptions are layout constraints
-   that no token describes: a reading measure in `ch` and the header's mobile
-   breakpoint. */
+   only place those values change. The exceptions are layout constraints that
+   no token describes (a reading measure in `ch`, the header's mobile
+   breakpoint) and the scrim over a photograph, which no token describes
+   either.
 
+   Text sits only on the pairs the palette gate checks (`palette::PAIRS`):
+   text, muted, link and accent on the background or the surface, and the
+   on-brand colour on the brand. The brand colour itself is a fill, a rule or
+   a mark, never text on the page background. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-background);
+}
+
+/* The footer sits at the bottom of a short page. */
 body {
+  display: flex;
+  flex-direction: column;
   margin: 0;
+  min-height: 100vh;
   background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: var(--line-height);
+  text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -29,18 +50,19 @@ h5,
 h6 {
   font-family: var(--font-heading);
   line-height: 1.2;
+  margin: 1.4em 0 0.5em;
   text-wrap: balance;
 }
 
 h1 {
   font-size: var(--font-size-h1);
   line-height: 1.1;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 h2 {
   font-size: var(--font-size-h2);
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
 }
 
 h3 {
@@ -56,14 +78,37 @@ h6 {
   font-size: var(--font-size-base);
 }
 
+p,
+ul,
+ol,
+dl,
+blockquote {
+  margin: 0 0 1em;
+}
+
+blockquote {
+  border-left: 3px solid var(--color-brand);
+  color: var(--color-muted);
+  font-style: italic;
+  padding-left: var(--space-3);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-4) 0;
+}
+
 a {
   color: var(--color-link);
-  text-underline-offset: 0.15em;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
 }
 
 a:hover,
 a:focus {
   color: color-mix(in srgb, var(--color-link) 72%, var(--color-text));
+  text-decoration-thickness: 0.12em;
 }
 
 :focus-visible {
@@ -74,6 +119,55 @@ a:focus {
 img {
   max-width: 100%;
   height: auto;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input[type="text"],
+input[type="search"],
+select,
+textarea {
+  background: var(--color-background);
+  border: 1px solid color-mix(in srgb, var(--color-text) 35%, var(--color-background));
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Every button-like control: the search buttons, the form submits, the hero's
+   call to action on a plain page and the "browse all" link under a preview.
+   The button tokens (`--button-*`) are the preset's soft, solid or outline
+   style. */
+#page-actions input[type="submit"],
+.sitewide-search-form input[type="submit"],
+.preview-block > a:last-child {
+  align-items: center;
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+  color: var(--button-text);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 600;
+  gap: var(--space-1);
+  line-height: 1.2;
+  padding: var(--space-2) var(--space-3);
+  text-decoration: none;
+}
+
+#page-actions input[type="submit"]:hover,
+#page-actions input[type="submit"]:focus,
+.sitewide-search-form input[type="submit"]:hover,
+.sitewide-search-form input[type="submit"]:focus,
+.preview-block > a:last-child:hover,
+.preview-block > a:last-child:focus {
+  box-shadow: inset 0 0 0 1px var(--button-border);
+  color: var(--button-text);
 }
 
 /* A label that a sighted reader does not need but a screen reader does. */
@@ -108,13 +202,16 @@ img {
   color: var(--color-background);
 }
 
-/* The frame: header, banner, logo, navigation, search and footer. */
+/* The frame: header, banner, logo, navigation, search and footer. The header
+   style token decides how the header sets itself off: a band of the brand, a
+   printed double rule, a thin rule under a brand stripe, or nothing. */
 
 header {
   background: var(--header-background);
   border-bottom: var(--header-border);
+  border-top: var(--header-stripe);
   color: var(--header-text);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
 }
 
 .header-inner {
@@ -140,6 +237,7 @@ header {
 
 .site-title {
   font-size: var(--font-size-h3);
+  letter-spacing: -0.01em;
   line-height: 1.1;
   margin: 0 auto 0 0;
 }
@@ -155,16 +253,17 @@ header {
 
 .nav-menu-toggle {
   align-items: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: transparent;
+  border: 1px solid currentColor;
   border-radius: var(--radius-sm);
-  color: var(--color-text);
+  color: var(--header-link);
   cursor: pointer;
   display: flex;
   font-weight: 600;
   gap: var(--space-2);
   margin-left: auto;
   padding: var(--space-1) var(--space-2);
+  width: max-content;
 }
 
 .nav-menu-icon {
@@ -189,10 +288,10 @@ header {
 #top-nav .navigation {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-1) var(--space-4);
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--space-2) 0 0;
 }
 
 #top-nav .nav-item {
@@ -209,6 +308,7 @@ header {
 #top-nav a {
   border-bottom: 2px solid transparent;
   color: var(--header-link);
+  font-weight: 500;
   padding: var(--space-1) 0;
   text-decoration: none;
 }
@@ -220,13 +320,15 @@ header {
 
 #top-nav .nav-item.current > a {
   border-bottom-color: var(--header-mark);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 #top-nav .nav-item:hover > a {
   border-bottom-color: color-mix(in srgb, var(--header-mark) 60%, transparent);
 }
 
+/* The centred layout is a masthead: a large title over a spaced, small-capital
+   menu. */
 .header-centred {
   text-align: center;
 }
@@ -236,7 +338,14 @@ header {
 }
 
 .header-centred .site-title {
+  flex: 1 0 100%;
   margin: 0;
+}
+
+.header-centred #top-nav a {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .header-centred #top-nav .navigation {
@@ -249,48 +358,76 @@ header {
 }
 
 #search {
-  flex: 0 1 20rem;
+  flex: 0 1 18rem;
   margin-left: auto;
 }
 
+/* The header's search draws only in the header's own link colour, so it reads
+   on every header style, the brand band included. */
 #search-form {
+  border: 1px solid var(--header-link);
+  border-radius: var(--radius-sm);
   display: flex;
+  overflow: hidden;
   width: 100%;
 }
 
 #search-form input[type="text"] {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  border: 0;
+  border-radius: 0;
   flex: 1 1 auto;
   min-width: 0;
-  padding: var(--space-1) var(--space-2);
 }
 
 #search-form button {
   align-items: center;
-  background: var(--button-background);
-  border: 1px solid var(--button-border);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  color: var(--button-text);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--header-link);
+  color: var(--header-link);
   cursor: pointer;
   display: flex;
   font-weight: 600;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
 }
 
 #search-form button:hover,
-#search-form button:focus,
-.sitewide-search-form input[type="submit"]:hover,
-.sitewide-search-form input[type="submit"]:focus {
-  box-shadow: inset 0 0 0 1px var(--button-border);
+#search-form button:focus {
+  box-shadow: inset 0 -3px 0 var(--header-mark);
+}
+
+/* Below the breakpoint the search takes the whole row, and a centred
+   masthead keeps its menu button on the centre line. */
+@media (max-width: 29.99rem) {
+  header {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  #search {
+    flex-basis: 100%;
+  }
+
+  .header-centred .nav-menu-toggle {
+    margin: 0 auto;
+  }
 }
 
 /* Above the mobile breakpoint the menu is always open; the button is for
-   narrow screens only, where the details element collapses it with no script. */
-@media (min-width: 40rem) {
+   narrow screens only, where the details element collapses it with no script.
+   The breakpoint is low enough that an editor's narrow preview still shows the
+   whole menu. */
+@media (min-width: 30rem) {
   .nav-menu-toggle {
     display: none;
+  }
+
+  .header-centred {
+    padding-top: var(--space-4);
+  }
+
+  .header-centred .site-title {
+    font-size: var(--font-size-h2);
   }
 
   .nav-menu > nav {
@@ -303,6 +440,7 @@ header {
 
   #top-nav .navigation {
     justify-content: flex-end;
+    padding: 0;
   }
 
   /* A child page sits in a dropdown panel under its parent, closed until the
@@ -326,6 +464,7 @@ header {
     min-width: 12rem;
     padding: var(--space-1) var(--space-2);
     position: absolute;
+    text-align: left;
     top: 100%;
     white-space: nowrap;
     z-index: 5;
@@ -339,6 +478,8 @@ header {
   /* The panel sits on the page background, not the header's band. */
   #top-nav .nav-item > .navigation a {
     color: var(--color-link);
+    letter-spacing: normal;
+    text-transform: none;
   }
 }
 
@@ -361,17 +502,72 @@ header {
   padding: var(--space-2) var(--space-3);
 }
 
+/* The padding sits outside the content width, so the column lines up with
+   the header's. */
 #content {
+  flex: 1 0 auto;
   margin: 0 auto;
-  max-width: var(--content-width);
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
   padding: var(--space-4) var(--space-3) var(--space-5);
+  width: 100%;
+}
+
+#content > :first-child,
+.blocks > .blocks-inner > .block:first-child,
+.blocks > .blocks-inner > .block:first-child > :first-child {
+  margin-top: 0;
+}
+
+/* The page header: the page title block, or the title a browse or resource
+   view prints first. A short bar sets it off, in the accent colour because the
+   gate holds the accent to AA on the background, so the bar shows in every
+   preset and shade (a brand near the background colour would vanish). */
+.block-pageTitle h2,
+.resource #content > h2:first-child {
+  font-size: var(--font-size-h1);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 0 0 var(--space-4);
+}
+
+.block-pageTitle h2::after,
+.resource #content > h2:first-child::after {
+  background: var(--color-accent);
+  content: "";
+  display: block;
+  height: 4px;
+  margin-top: var(--space-3);
+  width: 3rem;
+}
+
+/* A resource view prints its title, then the kind of resource ("Item"). The
+   kind reads first, as a small label over the title. */
+.resource #content:has(> h2:first-child + h3) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.resource #content > h2:first-child + h3 {
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  grid-row: 1;
+  letter-spacing: 0.1em;
+  margin: 0 0 var(--space-2);
+  text-transform: uppercase;
+}
+
+.resource #content:has(> h2:first-child + h3) > h2:first-child {
+  grid-row: 2;
 }
 
 footer {
+  background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   color: var(--color-muted);
   font-size: var(--font-size-sm);
-  padding: var(--space-3);
+  padding: var(--space-4) var(--space-3);
   text-align: center;
 }
 
@@ -614,7 +810,8 @@ footer {
 }
 
 /* Resource lists: a responsive card grid. Every browse view and every preview
-   block renders through these rules. */
+   block renders through these rules. The thumbnail runs to the card's edges and
+   the whole card answers the pointer, though only its link takes a click. */
 
 .resource-list {
   display: grid;
@@ -639,7 +836,26 @@ footer {
   /* The card stretches to its grid track. A `width` here would resolve against
      the track and then add the padding and border on top, so the card would
      overhang the track and the last column would pass the content edge. */
-  padding: var(--space-2);
+  padding: 0 0 var(--space-3);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.resource-list .resource:hover,
+.resource-list .resource:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color-text) 45%, transparent);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resource-list .resource:hover,
+  .resource-list .resource:focus-within {
+    transform: none;
+  }
+}
+
+.resource-list .page.resource {
+  padding: var(--space-3);
 }
 
 .resource-list .page.resource h4 {
@@ -657,7 +873,8 @@ footer {
 
 .resource-list .resource-link img {
   aspect-ratio: 4 / 3;
-  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
   display: block;
   object-fit: cover;
   width: 100%;
@@ -665,11 +882,17 @@ footer {
 
 .resource-list .resource-name {
   display: block;
+  font-family: var(--font-heading);
   font-size: var(--font-size-lg);
   font-weight: 600;
-  margin-top: var(--space-2);
+  line-height: 1.25;
+  margin: var(--space-3) var(--space-3) 0;
+}
+
+.resource-list .resource-link:hover .resource-name,
+.resource-list .resource-link:focus .resource-name {
   text-decoration: underline;
-  text-underline-offset: 0.15em;
+  text-underline-offset: 0.18em;
 }
 
 .values .property .value .resource-link img,
@@ -683,6 +906,15 @@ footer {
 .resource .description {
   color: var(--color-muted);
   margin-top: var(--space-1);
+}
+
+.resource-list .description {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  display: -webkit-box;
+  font-size: var(--font-size-sm);
+  margin: var(--space-1) var(--space-3) 0;
+  overflow: hidden;
 }
 
 .resource-placeholder {
@@ -699,15 +931,22 @@ footer {
 
 .browse-controls {
   align-items: center;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: space-between;
-  margin: var(--space-3) 0;
+  margin: 0 0 var(--space-4);
+  padding-bottom: var(--space-3);
+}
+
+.browse-controls .pagination > ul {
+  margin: 0;
 }
 
 .advanced-search {
   color: var(--color-accent);
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -734,17 +973,19 @@ footer {
 
 .pagination a:hover,
 .pagination a:focus {
-  background: color-mix(in srgb, var(--color-brand) 25%, var(--color-surface));
+  border-color: var(--color-brand);
 }
 
 .pagination .active {
   border-color: var(--color-brand);
+  box-shadow: inset 0 -3px 0 var(--color-brand);
   color: var(--color-text);
   font-weight: 600;
 }
 
 /* Values, as the item and media views print them: a definition list that
-   stacks on narrow screens and runs in two columns above the breakpoint. */
+   stacks on narrow screens and runs in two columns above the breakpoint. The
+   term is a small muted label, so the values carry the weight. */
 
 .values,
 .item-sets,
@@ -755,18 +996,29 @@ footer {
 .values .property,
 .item-sets .property,
 .media-list .property {
-  border-bottom: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
   display: grid;
   gap: var(--space-1) var(--space-3);
-  grid-template-columns: 12rem minmax(0, 1fr);
+  grid-template-columns: 10rem minmax(0, 1fr);
   padding: var(--space-2) 0;
+}
+
+.values .property:last-child,
+.item-sets .property:last-child,
+.media-list .property:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
 
 .values .property dt,
 .item-sets .property dt,
 .media-list .property dt {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   grid-column: 1;
+  letter-spacing: 0.04em;
+  padding-top: 0.15em;
+  text-transform: uppercase;
 }
 
 .values .property .value,
@@ -788,13 +1040,15 @@ footer {
 .field-term {
   color: var(--color-muted);
   font-size: var(--font-size-sm);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .values .property .value .resource-link,
 .media-list .property .value .resource-link {
   align-items: center;
   display: inline-flex;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 @media (max-width: 39.99rem) {
@@ -807,6 +1061,43 @@ footer {
   .values .property dt,
   .item-sets .property dt,
   .media-list .property dt {
+    margin-bottom: var(--space-1);
+  }
+}
+
+/* An item with media lays its files beside its values on a wide screen: the
+   gallery holds the left column while the values and everything after them
+   run down the right. */
+@media (min-width: 60rem) {
+  .item.resource #content:has(> .media-embeds) {
+    align-items: start;
+    column-gap: var(--space-5);
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+  }
+
+  .item.resource #content:has(> .media-embeds) > * {
+    grid-column: 1 / -1;
+  }
+
+  .item.resource #content > .media-embeds {
+    grid-column: 1;
+    grid-row: 3 / span 12;
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .item.resource #content > .media-embeds ~ * {
+    grid-column: 2;
+  }
+
+  /* The side column is narrow under every content width, so each label sits
+     over its value. */
+  .item.resource #content > .media-embeds ~ dl .property {
+    display: block;
+  }
+
+  .item.resource #content > .media-embeds ~ dl .property dt {
     margin-bottom: var(--space-1);
   }
 }
@@ -1341,7 +1632,31 @@ footer {
   min-height: calc(var(--space-5) * 7);
   overflow: hidden;
   background: var(--color-surface);
+  border-radius: var(--radius);
   color: var(--color-text);
+}
+
+/* With no photograph the banner is a field of the brand colour, the strongest
+   statement of the site's identity, and the overlay has nothing to dim. */
+.romeka-hero-no-image {
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+}
+
+.romeka-hero-no-image .romeka-hero-overlay {
+  display: none;
+}
+
+.romeka-hero-no-image .romeka-hero-cta,
+.romeka-hero-no-image .romeka-hero-cta:hover,
+.romeka-hero-no-image .romeka-hero-cta:focus {
+  background: var(--color-on-brand);
+  color: var(--color-brand);
+}
+
+.romeka-hero-no-image .romeka-hero-cta:hover,
+.romeka-hero-no-image .romeka-hero-cta:focus {
+  box-shadow: 0 0 0 2px var(--color-brand), 0 0 0 4px var(--color-on-brand);
 }
 
 /* Over a photograph the copy sits on a dark scrim in every colour scheme, so
@@ -1435,8 +1750,8 @@ footer {
   color: var(--color-text);
   display: inline-block;
   font-weight: 600;
-  margin-top: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   text-decoration: none;
 }
 
