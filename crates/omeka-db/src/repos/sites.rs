@@ -9,13 +9,16 @@
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::settings::SiteSettingRepo;
 use super::{
     Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, json_text, push_paging,
 };
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BlockId, ItemId, ItemSetId, PageId, SiteId, UserId};
-use crate::rows::{NewSite, NewSiteBlock, NewSitePage, SiteBlockRow, SitePageRow, SiteRow};
+use crate::rows::{
+    NewSite, NewSiteBlock, NewSitePage, NewWholeSite, SiteBlockRow, SitePageRow, SiteRow,
+};
 use crate::time;
 
 /// A list filter for `site`.
@@ -53,6 +56,63 @@ where
     }
 
     pub async fn create(&self, new: &NewSite) -> Result<SiteRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert_site(&mut conn, new).await
+    }
+
+    /// Create a site with its first page, blocks, permissions, item sets and settings, in one
+    /// transaction: a failing row leaves none of the others. `modified` equals `created`, as
+    /// upstream's `updateTimestamps` stores them on create.
+    pub async fn create_whole(&self, new: &NewWholeSite) -> Result<SiteRow, DbError> {
+        let mut tx = self.pool.begin().await?;
+        let mut site = Self::insert_site(&mut tx, &new.site).await?;
+        let page = Self::insert_page(
+            &mut tx,
+            &NewSitePage {
+                site_id: site.id,
+                slug: new.first_page.slug.clone(),
+                title: new.first_page.title.clone(),
+                is_public: new.first_page.is_public,
+                created: Some(site.created),
+                ..NewSitePage::default()
+            },
+        )
+        .await?;
+        for (position, block) in (1_i64..).zip(&new.first_page.blocks) {
+            Self::insert_block(
+                &mut tx,
+                &NewSiteBlock {
+                    page_id: page.id,
+                    layout: block.layout.clone(),
+                    data: block.data.clone(),
+                    layout_data: block.layout_data.clone(),
+                    position,
+                },
+            )
+            .await?;
+        }
+        if let Some(linking) = new.navigation_linking_first_page {
+            site.navigation = linking(page.id);
+            sqlx::query("UPDATE site SET navigation = ? WHERE id = ?")
+                .bind(json_text(&site.navigation)?)
+                .bind(bind_id(site.id))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for (user, role) in &new.permissions {
+            Self::upsert_permission(&mut tx, site.id, *user, role).await?;
+        }
+        for (position, item_set) in (1_i64..).zip(&new.item_sets) {
+            Self::upsert_item_set(&mut tx, site.id, *item_set, Some(position)).await?;
+        }
+        for (key, value) in &new.settings {
+            SiteSettingRepo::<DB>::set_on(&mut tx, site.id, key, value).await?;
+        }
+        tx.commit().await?;
+        Ok(site)
+    }
+
+    async fn insert_site(conn: &mut DB::Connection, new: &NewSite) -> Result<SiteRow, DbError> {
         let created = new.created.unwrap_or_else(time::now);
         let query = sqlx::query(
             "INSERT INTO site
@@ -73,7 +133,7 @@ where
         .bind(time::format(created))
         .bind(new.is_public)
         .bind(new.assign_new_items);
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, conn).await?;
         Ok(SiteRow {
             id: SiteId::from(id),
             thumbnail_id: new.thumbnail_id,
@@ -198,6 +258,14 @@ where
     }
 
     pub async fn add_page(&self, new: &NewSitePage) -> Result<SitePageRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert_page(&mut conn, new).await
+    }
+
+    async fn insert_page(
+        conn: &mut DB::Connection,
+        new: &NewSitePage,
+    ) -> Result<SitePageRow, DbError> {
         let created = new.created.unwrap_or_else(time::now);
         let query = sqlx::query(
             "INSERT INTO site_page
@@ -212,7 +280,7 @@ where
         .bind(new.layout_data.as_ref().map(json_text).transpose()?)
         .bind(time::format(created))
         .bind(time::format(created));
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, conn).await?;
         Ok(SitePageRow {
             id: PageId::from(id),
             site_id: new.site_id,
@@ -309,6 +377,14 @@ where
     }
 
     pub async fn add_block(&self, new: &NewSiteBlock) -> Result<SiteBlockRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert_block(&mut conn, new).await
+    }
+
+    async fn insert_block(
+        conn: &mut DB::Connection,
+        new: &NewSiteBlock,
+    ) -> Result<SiteBlockRow, DbError> {
         let query = sqlx::query(
             "INSERT INTO site_page_block (page_id, layout, data, layout_data, position)
              VALUES (?, ?, ?, ?, ?)",
@@ -318,7 +394,7 @@ where
         .bind(json_text(&new.data)?)
         .bind(new.layout_data.as_ref().map(json_text).transpose()?)
         .bind(new.position);
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, conn).await?;
         Ok(SiteBlockRow {
             id: BlockId::from(id),
             page_id: new.page_id,
@@ -386,11 +462,21 @@ where
         item_set_id: ItemSetId,
         position: Option<i64>,
     ) -> Result<(), DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::upsert_item_set(&mut conn, site_id, item_set_id, position).await
+    }
+
+    async fn upsert_item_set(
+        conn: &mut DB::Connection,
+        site_id: SiteId,
+        item_set_id: ItemSetId,
+        position: Option<i64>,
+    ) -> Result<(), DbError> {
         sqlx::query(DB::upsert_site_item_set())
             .bind(bind_id(site_id))
             .bind(bind_id(item_set_id))
             .bind(position)
-            .execute(self.pool)
+            .execute(conn)
             .await?;
         Ok(())
     }
@@ -433,11 +519,21 @@ where
         user_id: UserId,
         role: &str,
     ) -> Result<(), DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::upsert_permission(&mut conn, site_id, user_id, role).await
+    }
+
+    async fn upsert_permission(
+        conn: &mut DB::Connection,
+        site_id: SiteId,
+        user_id: UserId,
+        role: &str,
+    ) -> Result<(), DbError> {
         sqlx::query(DB::upsert_site_permission())
             .bind(bind_id(site_id))
             .bind(bind_id(user_id))
             .bind(role)
-            .execute(self.pool)
+            .execute(conn)
             .await?;
         Ok(())
     }

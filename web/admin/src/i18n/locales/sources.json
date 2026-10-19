@@ -719,6 +719,7 @@
  "editor.outlineToggle": "Show the outline",
  "preview.insertHere": "Insert a block here",
  "preview.insertIntoGroup": "Add a block to this group",
+ "page.termLists": "Term lists",
  "siteItems.count": "Items on this site: {count}",
  "siteItems.counting": "Counting…",
  "siteItems.countError": "Could not count the items: {message}",

@@ -3,11 +3,13 @@
  * it, what it accepts, whether it is required or private, and its help text
  * and language. Each smart default is shown and has its override in place.
  */
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
 import type { DataType, Property } from '../../api/types';
+import { useLesson } from '../../app/lessons/lesson';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
-import { acceptChoices, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
+import { isTermListName } from '../../api/term-lists';
+import { acceptChoices, acceptGroups, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
 import { useItemTypesText, type ItemTypesText } from './messages';
 import { patchField, textOrNull, toggleDataType, type FieldDraft, type TypeDraft } from './model';
 
@@ -20,11 +22,23 @@ export const acceptLabel = (
     return t(CORE_ACCEPTS[type]);
   }
   const registered = dataTypes.find((dataType) => dataType.id === type);
-  return registered === undefined ? t('accepts.missing', { id: type }) : registered.label;
+  if (registered === undefined) {
+    return t('accepts.missing', { id: type });
+  }
+  return isTermListName(type) ? t('accepts.termList', { list: registered.label }) : registered.label;
 };
+
+/** A choice's label inside its group, where the group's legend already says "Term lists". */
+const choiceLabel = (type: string, dataTypes: readonly DataType[], t: ItemTypesText): string =>
+  isTermListName(type)
+    ? (dataTypes.find((dataType) => dataType.id === type)?.label ?? t('accepts.missing', { id: type }))
+    : acceptLabel(type, dataTypes, t);
 
 /** The drag payload type, so a drop only accepts a field of this editor. */
 export const FIELD_DRAG = 'application/x-romeka-type-field';
+
+/** The lesson a row's standard term anchors, if any (`FieldList` picks the rows). */
+export type TermLesson = 'term' | 'local-field' | null;
 
 export interface FieldRowProps {
   readonly field: FieldDraft;
@@ -40,6 +54,7 @@ export interface FieldRowProps {
   readonly freeProperties: readonly Property[];
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
+  readonly termLesson: TermLesson;
 }
 
 const AcceptsEditor = ({
@@ -54,24 +69,34 @@ const AcceptsEditor = ({
   readonly onToggle: (type: string, on: boolean) => void;
 }): ReactElement => {
   const t = useItemTypesText();
+  const choice = (type: string): ReactElement => (
+    <label key={type}>
+      <input
+        type="checkbox"
+        checked={field.dataTypes.includes(type)}
+        onChange={(event) => {
+          onToggle(type, event.target.checked);
+        }}
+      />
+      {choiceLabel(type, dataTypes, t)}
+      {isInstalled(dataTypes, type) || isCoreAccepts(type) ? null : (
+        <code className="type-field-type-id">{type}</code>
+      )}
+    </label>
+  );
   return (
     <fieldset className="type-field-accepts-list">
       <legend>{t('accepts.legend', { name })}</legend>
-      {acceptChoices(dataTypes, field.dataTypes).map((type) => (
-        <label key={type}>
-          <input
-            type="checkbox"
-            checked={field.dataTypes.includes(type)}
-            onChange={(event) => {
-              onToggle(type, event.target.checked);
-            }}
-          />
-          {acceptLabel(type, dataTypes, t)}
-          {isInstalled(dataTypes, type) || isCoreAccepts(type) ? null : (
-            <code className="type-field-type-id">{type}</code>
-          )}
-        </label>
-      ))}
+      {acceptGroups(acceptChoices(dataTypes, field.dataTypes)).map((entry) =>
+        entry.group === 'kinds' ? (
+          <Fragment key={entry.group}>{entry.types.map(choice)}</Fragment>
+        ) : (
+          <fieldset key={entry.group} className="type-field-accepts-group">
+            <legend>{t('accepts.termLists')}</legend>
+            {entry.types.map(choice)}
+          </fieldset>
+        ),
+      )}
       <p className="field-note">{t('accepts.note')}</p>
     </fieldset>
   );
@@ -87,6 +112,7 @@ interface SettingsProps {
   readonly freeProperties: readonly Property[];
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
+  readonly termLesson: TermLesson;
 }
 
 /** The standard term behind the field, and the picker that changes it. */
@@ -97,14 +123,17 @@ const TermLine = ({
   patch,
   freeProperties,
   createField,
+  termLesson,
 }: SettingsProps): ReactElement => {
   const t = useItemTypesText();
   const [changing, setChanging] = useState(false);
+  const lesson = useLesson(termLesson ?? 'term', termLesson !== null);
   return (
     <>
       <p className="type-field-term">
         <code>{term}</code>
         {property === undefined ? null : <TermHelp entry={property} />}
+        {lesson.toggle}
         <button
           type="button"
           className="link-button"
@@ -117,6 +146,7 @@ const TermLine = ({
           {t('action.change')}
         </button>
       </p>
+      {lesson.panel}
       {changing ? (
         <StandardTermPicker
           label={t('field.pickTerm')}
@@ -244,18 +274,25 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
 const FieldSettings = (props: SettingsProps): ReactElement => {
   const t = useItemTypesText();
   const { field, property, term, patch } = props;
+  const [renamed, setRenamed] = useState(false);
+  const lesson = useLesson('rename', renamed);
   return (
     <div className="type-field-body">
-      <input
-        className="type-field-name"
-        type="text"
-        aria-label={t('field.name', { term })}
-        placeholder={property?.label ?? term}
-        value={field.alternateLabel ?? ''}
-        onChange={(event) => {
-          patch({ alternateLabel: textOrNull(event.target.value) });
-        }}
-      />
+      <div className="lesson-line">
+        <input
+          className="type-field-name"
+          type="text"
+          aria-label={t('field.name', { term })}
+          placeholder={property?.label ?? term}
+          value={field.alternateLabel ?? ''}
+          onChange={(event) => {
+            setRenamed(true);
+            patch({ alternateLabel: textOrNull(event.target.value) });
+          }}
+        />
+        {lesson.toggle}
+      </div>
+      {lesson.panel}
       <TermLine {...props} />
       <AcceptsLine {...props} />
       <FlagsLine {...props} />
@@ -330,6 +367,7 @@ export const FieldRow = ({
   freeProperties,
   dataTypes,
   createField,
+  termLesson,
 }: FieldRowProps): ReactElement => {
   const t = useItemTypesText();
   const handle = useRef<HTMLButtonElement>(null);
@@ -396,6 +434,7 @@ export const FieldRow = ({
         freeProperties={freeProperties}
         dataTypes={dataTypes}
         createField={createField}
+        termLesson={termLesson}
       />
       <RowActions
         field={field}

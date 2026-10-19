@@ -33,7 +33,7 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 `src/routes.rs` expands the upstream lookup (`api` route, `:resource`
 segment, adapter instance) into one row per path, method, and handler:
-`2 + 17 * 7 = 121` rows. Method semantics come from Laminas
+`2 + 18 * 7 = 128` rows. Method semantics come from Laminas
 `AbstractRestfulController` and `ApiController`:
 
 - collection: `GET` search, `POST` create
@@ -207,7 +207,7 @@ columns and validation the two member kinds share; `write::templates` holds
 | items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` built on create only |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | the create runs the ingester named by `o:ingester` and stores the file and payload it produced |
-| sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; a `PUT` removes every page `o:page` does not name |
+| sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; every row of one create commits together or not at all; a `PUT` removes every page `o:page` does not name |
 | site_pages | yes | yes | blocks replaced; `o:data` `{}` is stored as `[]` (PHP `json_decode(..., true)`) |
 | users | yes | yes | new users are inactive and have no password |
 | vocabularies | yes | yes | `o:class` and `o:property` list their members; an unlisted member is removed |
@@ -440,7 +440,9 @@ Login and `GET /api/me` add `o:admin_locale` to the user document, from
 `src/settings.rs`: the user's `locale` setting, else the global one
 (`MvcListeners::bootstrapLocale`). The same module is the boundary for
 `o:user_settings` on the user read and write, and for the port's
-`/api/settings`. Only the keys in `API_SETTINGS` (`locale`) cross it.
+`/api/settings`. Only the keys in `USER_SETTINGS` (`locale`, and the port-only
+`romeka_hide_lessons` and `romeka_lessons_seen` the admin lessons keep) and
+`GLOBAL_SETTINGS` (`locale`) cross it.
 
 `loginAction`, `logoutAction`, `createPasswordAction` and
 `forgotPasswordAction` are `application/src/Controller/LoginController.php`;

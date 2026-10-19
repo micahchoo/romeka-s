@@ -773,6 +773,7 @@ export const ml: Catalogue = {
   'editor.outlineToggle': 'രൂപരേഖ കാണിക്കുക',
   'preview.insertHere': 'ഇവിടെ ഒരു ബ്ലോക്ക് ചേർക്കുക',
   'preview.insertIntoGroup': 'ഈ ഗ്രൂപ്പിലേക്ക് ഒരു ബ്ലോക്ക് ചേർക്കുക',
+  'page.termLists': 'പദപ്പട്ടികകൾ',
   'siteItems.count': 'ഈ സൈറ്റിലെ ഇനങ്ങൾ: {count}',
   'siteItems.counting': 'എണ്ണുന്നു…',
   'siteItems.countError': 'ഇനങ്ങൾ എണ്ണാൻ കഴിഞ്ഞില്ല: {message}',

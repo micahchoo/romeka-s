@@ -80,6 +80,8 @@ export const ml: ItemTypesMessages = {
   'accepts.itemSet': 'ഒരു ഐറ്റം സെറ്റ്',
   'accepts.media': 'ഒരു മീഡിയ ഫയൽ',
   'accepts.missing': '{id} (ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല)',
+  'accepts.termLists': 'പദപ്പട്ടികകൾ',
+  'accepts.termList': 'ടേം ലിസ്റ്റ്: {list}',
   'use.legend': 'ഉപയോഗിക്കുന്നത്',
   'use.items': 'ഐറ്റങ്ങൾ',
   'use.itemSets': 'ഐറ്റം സെറ്റുകൾ',

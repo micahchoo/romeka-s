@@ -780,6 +780,7 @@ export const ta: Catalogue = {
   'editor.outlineToggle': 'அவுட்லைனைக் காட்டு',
   'preview.insertHere': 'இங்கே ஒரு தொகுதியைச் செருகவும்',
   'preview.insertIntoGroup': 'இந்தத் தொகுப்பிற்கு ஒரு தொகுதியைச் சேர்க்கவும்',
+  'page.termLists': 'சொல் பட்டியல்கள்',
   'siteItems.count': 'இந்தத் தளத்தில் உள்ள பொருட்கள்: {count}',
   'siteItems.counting': 'கணக்கிடப்படுகிறது…',
   'siteItems.countError': 'பொருட்களை எண்ண முடியவில்லை: {message}',

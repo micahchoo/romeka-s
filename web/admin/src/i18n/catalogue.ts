@@ -816,6 +816,8 @@ export const en = {
   'editor.outlineToggle': 'Show the outline',
   'preview.insertHere': 'Insert a block here',
   'preview.insertIntoGroup': 'Add a block to this group',
+  // Term lists (the Custom Vocab module built into core) and the term picker.
+  'page.termLists': 'Term lists',
   // The site's Items page, the item picker and the Items list's bulk site actions.
   'siteItems.count': 'Items on this site: {count}',
   'siteItems.counting': 'Counting…',

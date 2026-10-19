@@ -766,6 +766,7 @@ export const mr: Catalogue = {
   'editor.outlineToggle': 'रूपरेषा दाखवा',
   'preview.insertHere': 'येथे ब्लॉक समाविष्ट करा',
   'preview.insertIntoGroup': 'या गटात ब्लॉक जोडा',
+  'page.termLists': 'संज्ञा सूची',
   'siteItems.count': 'या साइटवरील घटक: {count}',
   'siteItems.counting': 'मोजणी सुरू आहे…',
   'siteItems.countError': 'घटक मोजता आले नाहीत: {message}',

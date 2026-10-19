@@ -67,6 +67,7 @@ import type {
   TemplateId,
   User,
   UserId,
+  UserSettingsWrite,
   UserWrite,
   GlobalSettings,
   Vocabulary,
@@ -84,7 +85,7 @@ import {
   encodeSiteItemsCommand,
   encodeSitePage,
   encodeUser,
-  encodeUserLocale,
+  encodeUserSettings,
   encodeVocabulary,
   encodeVocabularyMember,
 } from './write';
@@ -339,9 +340,9 @@ export class ApiClient {
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
   }
 
-  /** Store one user's `locale` setting and nothing else; `''` removes it. */
-  async updateUserLocale(id: UserId, locale: string): Promise<void> {
-    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserLocale(locale));
+  /** Store the settings the write names and nothing else; `locale: ''` removes it. */
+  async updateUserSettings(id: UserId, write: UserSettingsWrite): Promise<void> {
+    await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserSettings(write));
   }
 
   /** `GET /api/settings`, a port route only a global admin may read. */
@@ -745,7 +746,12 @@ export class ApiClient {
     return buildUrl(this.baseUrl, path, withApiKey(params, currentKey()));
   }
 
-  private async searchPage<T>(
+  /*
+   * The four request helpers are public so a resource family that only lazy
+   * pages read (`term-lists.ts`) keeps its parser and calls out of the initial
+   * payload instead of growing this class.
+   */
+  async searchPage<T>(
     resource: string,
     query: ResourceQuery,
     parse: Parser<T>,
@@ -766,12 +772,12 @@ export class ApiClient {
     };
   }
 
-  private async requestJson(path: string): Promise<unknown> {
+  async requestJson(path: string): Promise<unknown> {
     const response = await this.get(this.apiUrl(path));
     return readJsonBody(response);
   }
 
-  private async writeJson(
+  async writeJson(
     method: 'POST' | 'PUT' | 'PATCH',
     path: string,
     body: WireBody,
@@ -788,7 +794,7 @@ export class ApiClient {
     return readJsonBody(response);
   }
 
-  private async deleteJson(path: string): Promise<void> {
+  async deleteJson(path: string): Promise<void> {
     const response = await this.fetchFn(this.apiUrl(path), {
       method: 'DELETE',
       headers: { Accept: 'application/json' },

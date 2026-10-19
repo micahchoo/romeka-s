@@ -57,3 +57,49 @@ pub struct NewValue {
     pub uri: Option<String>,
     pub is_public: bool,
 }
+
+/// A value before its resource is known: [`NewValue`] without `resource_id`. A write that creates
+/// a resource and its values in one transaction takes these, and ties each to the new id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValueContent {
+    pub property_id: PropertyId,
+    pub value_resource_id: Option<ResourceId>,
+    pub value_annotation_id: Option<AnnotationId>,
+    /// `literal`, `uri`, `resource`, `resource:item`, `resource:itemset` or `resource:media`.
+    pub r#type: String,
+    pub lang: Option<String>,
+    pub value: Option<String>,
+    pub uri: Option<String>,
+    pub is_public: bool,
+}
+
+impl ValueContent {
+    /// A public literal, the value a CSV cell or a batch edit writes.
+    pub fn literal(property_id: PropertyId, text: impl Into<String>) -> Self {
+        Self {
+            property_id,
+            value_resource_id: None,
+            value_annotation_id: None,
+            r#type: "literal".to_string(),
+            lang: None,
+            value: Some(text.into()),
+            uri: None,
+            is_public: true,
+        }
+    }
+
+    /// This content as a value of `resource_id`.
+    pub fn on(&self, resource_id: ResourceId) -> NewValue {
+        NewValue {
+            resource_id,
+            property_id: self.property_id,
+            value_resource_id: self.value_resource_id,
+            value_annotation_id: self.value_annotation_id,
+            r#type: self.r#type.clone(),
+            lang: self.lang.clone(),
+            value: self.value.clone(),
+            uri: self.uri.clone(),
+            is_public: self.is_public,
+        }
+    }
+}

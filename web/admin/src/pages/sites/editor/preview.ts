@@ -15,7 +15,7 @@ import type { ApiErrors, PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
 import type { BlockKey, PageContent } from './draft';
-import { toPageWrite } from './draft';
+import { toPageWrite } from './wire';
 import { canonicalBlocks } from './groups';
 
 /** What one render request sends, and the key of every block it sends, in body order. */
