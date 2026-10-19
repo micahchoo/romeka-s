@@ -706,7 +706,10 @@ button[type="submit"]:hover:not(:disabled) {
   border-color: #164f96;
 }
 
+/* A fieldset is min-content wide by default, so one long select option (the
+   class list) pushed the form past a phone screen. */
 fieldset {
+  min-width: 0;
   margin: 0 0 var(--space-4);
   padding: var(--space-3);
   border: 1px solid var(--border);
