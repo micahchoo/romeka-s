@@ -22,6 +22,7 @@ use omeka_media::store::{FileStore, StorePrefix, extension_from_source_name, new
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::Payload;
@@ -43,7 +44,7 @@ pub async fn create(
     file: Option<UploadedFile>,
 ) -> Result<ApiResponse, ApiError> {
     let Some(file) = file else {
-        return Err(errors("file", vec!["No file was uploaded".to_string()]));
+        return Err(errors("file", vec![messages::NO_FILE_UPLOADED.to_string()]));
     };
     let source_name = file.filename.clone().unwrap_or_default();
     let media_type = detected_media_type(&file.bytes);
@@ -53,17 +54,15 @@ pub async fn create(
     // extension, both under the `file` key.
     let mut invalid = Vec::new();
     if !ALLOWED_MEDIA_TYPES.contains(&media_type.as_str()) {
-        invalid.push(format!(
-            "Error validating \"{source_name}\". Cannot store files with the media type \"{media_type}\"."
-        ));
+        invalid.push(messages::asset_media_type(&source_name, &media_type));
     }
     if !extension
         .as_deref()
         .is_some_and(|extension| ALLOWED_EXTENSIONS.contains(&extension))
     {
-        invalid.push(format!(
-            "Error validating \"{source_name}\". Cannot store files with the resolved extension \"{}\".",
-            extension.as_deref().unwrap_or("")
+        invalid.push(messages::asset_extension(
+            &source_name,
+            extension.as_deref().unwrap_or(""),
         ));
     }
     if !invalid.is_empty() {
@@ -80,7 +79,7 @@ pub async fn create(
     };
     if name.is_empty() {
         let mut invalid = ValidationErrors::new();
-        vocab_member::push(&mut invalid, "o:name", "An asset must have a name.");
+        vocab_member::push(&mut invalid, "o:name", messages::ASSET_NAME_REQUIRED);
         return Err(ApiError::Validation(invalid));
     }
     let alt_text = payload
@@ -144,7 +143,7 @@ fn validate(row: &AssetRow) -> Result<(), ApiError> {
         return Ok(());
     }
     let mut errors = ValidationErrors::new();
-    vocab_member::push(&mut errors, "o:name", "An asset must have a name.");
+    vocab_member::push(&mut errors, "o:name", messages::ASSET_NAME_REQUIRED);
     Err(ApiError::Validation(errors))
 }
 

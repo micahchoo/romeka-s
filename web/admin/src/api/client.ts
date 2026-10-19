@@ -3,6 +3,7 @@
  * every response body goes through the parsers in `parse.ts` before it is
  * returned. HTTP errors map to `ApiError` and carry the upstream error body.
  */
+import { localizeServerErrors } from '../i18n/serverText';
 import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import type { ApiKey } from './auth';
 import {
@@ -99,6 +100,11 @@ declare global {
 /** Upstream default page size for search responses (`Omeka\Paginator`). */
 const DEFAULT_PER_PAGE = 25;
 
+/**
+ * A refused request. `errors` is the server's error document and `message` its
+ * first message, both already in the active locale (`i18n/serverText.ts`), so
+ * every surface that shows them shows the user's language.
+ */
 export class ApiError extends Error {
   readonly status: number;
   readonly errors: ApiErrors | null;
@@ -812,7 +818,8 @@ export class ApiClient {
 
   private async apiError(response: Response): Promise<ApiError> {
     const text = await response.text().catch(() => '');
-    const errors = text === '' ? null : parseApiErrors(parseJson(text));
+    const parsed = text === '' ? null : parseApiErrors(parseJson(text));
+    const errors = parsed === null ? null : await localizeServerErrors(parsed);
     const message = firstErrorMessage(errors) ?? `HTTP ${String(response.status)}`;
     return new ApiError(response.status, errors, message);
   }

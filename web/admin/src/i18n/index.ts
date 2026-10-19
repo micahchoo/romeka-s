@@ -15,5 +15,7 @@ export {
   useLocale,
   useTranslator,
 } from './store';
+export { localizeServerErrors, serverTranslator } from './serverText';
+export type { ServerTranslate } from './serverText';
 export { createTranslator, MissingMessageError, assertComplete } from './translator';
 export type { Translator } from './translator';

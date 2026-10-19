@@ -46,6 +46,7 @@ use axum::response::Response;
 use axum::routing::{get, post};
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::login::{self, AuthError, SetPasswordError};
+use omeka_api::messages;
 use omeka_api::origin;
 use omeka_api::password::PasswordRules;
 use omeka_api::read::{session_user_response, user_response};
@@ -140,7 +141,7 @@ async fn current_user(State(state): State<AppState>, headers: HeaderMap) -> Resp
         }
         Ok(None) => crate::document_response(
             StatusCode::UNAUTHORIZED,
-            &omeka_api::errors::ErrorDocument::general(login::AUTHENTICATION_REQUIRED),
+            &omeka_api::errors::ErrorDocument::general(messages::AUTHENTICATION_REQUIRED),
         ),
         Err(error) => crate::error_response(error),
     }
@@ -269,7 +270,7 @@ pub(crate) async fn same_origin_write(
         );
         return crate::document_response(
             StatusCode::FORBIDDEN,
-            &omeka_api::errors::ErrorDocument::general(CROSS_ORIGIN_REFUSED),
+            &omeka_api::errors::ErrorDocument::general(messages::CROSS_ORIGIN_REFUSED),
         );
     }
     next.run(request).await
@@ -309,10 +310,6 @@ struct PasswordLinkBody {
     /// because the link is the part the caller can act on.
     sent: bool,
 }
-
-/// The message a refused cross-origin write carries.
-pub const CROSS_ORIGIN_REFUSED: &str =
-    "A session-authenticated write must come from the configured base URL.";
 
 /// One request body as a route's payload type, or `None` when it is not a JSON
 /// object.
@@ -375,7 +372,7 @@ async fn installation_title(pool: &sqlx::SqlitePool) -> String {
 fn bad_body() -> Response {
     crate::document_response(
         StatusCode::BAD_REQUEST,
-        &omeka_api::errors::ErrorDocument::general("The request body must be a JSON object."),
+        &omeka_api::errors::ErrorDocument::general(messages::BODY_NOT_OBJECT),
     )
 }
 

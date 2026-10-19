@@ -10,6 +10,7 @@
 import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from '../../../api/auth';
 import { defaultBaseUrl } from '../../../api/client';
 import { parseApiErrors } from '../../../api/parse';
+import { localizeServerErrors } from '../../../i18n/serverText';
 import type { ApiErrors, PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
@@ -80,7 +81,8 @@ const parsedOrNull = (text: string): unknown => {
 
 const errorResult = async (response: Response): Promise<PreviewResult> => {
   const text = await response.text();
-  const errors = parseApiErrors(parsedOrNull(text));
+  const parsed = parseApiErrors(parsedOrNull(text));
+  const errors = parsed === null ? null : await localizeServerErrors(parsed);
   for (const messages of Object.values(errors ?? {})) {
     const first = messages[0];
     if (first !== undefined) {

@@ -44,6 +44,7 @@ use crate::adapters;
 use crate::auth::Actor;
 use crate::errors::{ApiError, NotImplemented};
 use crate::jsonld::{self, BaseUrl};
+use crate::messages;
 use crate::routes::Operation;
 use crate::wire::{JsonLdDate, ResourceRef, ThumbnailDisplayUrls};
 use crate::write::access::{self, SiteRole};
@@ -353,9 +354,7 @@ impl<'a> Api<'a> {
             Ok(())
         } else {
             Err(ApiError::PermissionDenied {
-                message: "Permission denied for the current user to add-page the \
-                          Omeka\\Entity\\Site resource."
-                    .to_string(),
+                message: messages::permission_denied("add-page", "Omeka\\Entity\\Site"),
             })
         }
     }
@@ -482,10 +481,9 @@ fn unimplemented_operation(resource: &str, operation: Operation) -> ApiError {
 /// `Api\Manager::execute` permission message, keyed by the adapter's PHP class.
 pub(crate) fn permission_denied(resource: &str, operation: Operation) -> ApiError {
     ApiError::PermissionDenied {
-        message: format!(
-            "Permission denied for the current user to {} the {} resource.",
+        message: messages::permission_denied(
             operation.adapter_name(),
-            crate::adapters::php_class(resource)
+            crate::adapters::php_class(resource),
         ),
     }
 }
@@ -494,11 +492,7 @@ pub(crate) fn permission_denied(resource: &str, operation: Operation) -> ApiErro
 /// class (`EntityInterface::getResourceId`).
 pub(crate) fn entity_denied(class: &str, operation: Operation) -> ApiError {
     ApiError::PermissionDenied {
-        message: format!(
-            "Permission denied for the current user to {} the {} resource.",
-            operation.adapter_name(),
-            class
-        ),
+        message: messages::permission_denied(operation.adapter_name(), class),
     }
 }
 
@@ -530,8 +524,9 @@ pub(crate) fn resource_ref_opt(
 /// never casts the value.
 pub(crate) fn not_found(class: &str, raw_id: &str) -> ApiError {
     let criteria = serde_json::to_string(raw_id).unwrap_or_else(|_| format!("\"{raw_id}\""));
-    ApiError::not_found(format!(
-        "{class} entity with criteria {{\"id\":{criteria}}} not found"
+    ApiError::not_found(messages::entity_not_found(
+        class,
+        format!("{{\"id\":{criteria}}}"),
     ))
 }
 

@@ -17,6 +17,7 @@ use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::write::access;
 use crate::write::body::{Payload, ref_row};
@@ -149,10 +150,7 @@ fn validate_request(payload: &Payload) -> ValidationErrors {
             vocab_member::push(
                 &mut errors,
                 "o:property",
-                format!(
-                    "Attempting to add duplicate property with ID {}",
-                    crate::write::body::php_display(raw)
-                ),
+                messages::duplicate_template_property(crate::write::body::php_display(raw)),
             );
         }
         ids.push(raw.clone());
@@ -255,10 +253,10 @@ async fn validate(
     mut errors: ValidationErrors,
 ) -> Result<(), ApiError> {
     if input.label.trim().is_empty() {
-        vocab_member::push(&mut errors, "o:label", "The label cannot be empty.");
+        vocab_member::push(&mut errors, "o:label", messages::LABEL_EMPTY);
     }
     if label_taken(api, &input.label, self_id).await? {
-        vocab_member::push(&mut errors, "o:label", "The label is already taken.");
+        vocab_member::push(&mut errors, "o:label", messages::LABEL_TAKEN);
     }
     if errors.is_empty() {
         Ok(())

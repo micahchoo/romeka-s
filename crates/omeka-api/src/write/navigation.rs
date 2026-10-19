@@ -12,6 +12,7 @@
 use serde_json::Value;
 
 use crate::errors::ValidationErrors;
+use crate::messages;
 
 const KEY: &str = "o:navigation";
 
@@ -21,7 +22,7 @@ const KEY: &str = "o:navigation";
 /// does; a failure in a child list does not stop its parent.
 pub fn validate(navigation: &Value, errors: &mut ValidationErrors) {
     let Value::Array(nodes) = navigation else {
-        push(errors, "Invalid navigation: navigation must be an array");
+        push(errors, messages::NAV_NOT_ARRAY);
         return;
     };
     let mut pages = Vec::new();
@@ -31,19 +32,19 @@ pub fn validate(navigation: &Value, errors: &mut ValidationErrors) {
 fn validate_links(links: &[Value], pages: &mut Vec<f64>, errors: &mut ValidationErrors) {
     for node in links {
         let Some(object) = node.as_object() else {
-            push(errors, "Invalid navigation: link missing type");
+            push(errors, messages::NAV_LINK_MISSING_TYPE);
             return;
         };
         let Some(kind) = object.get("type").and_then(Value::as_str) else {
-            push(errors, "Invalid navigation: link missing type");
+            push(errors, messages::NAV_LINK_MISSING_TYPE);
             return;
         };
         let Some(data) = object.get("data") else {
-            push(errors, "Invalid navigation: link missing data");
+            push(errors, messages::NAV_LINK_MISSING_DATA);
             return;
         };
         if !link_is_valid(kind, data, errors) {
-            push(errors, "Invalid navigation: invalid link data");
+            push(errors, messages::NAV_INVALID_LINK_DATA);
             return;
         }
         if kind == "page" {
@@ -52,14 +53,14 @@ fn validate_links(links: &[Value], pages: &mut Vec<f64>, errors: &mut Validation
                 return;
             };
             if pages.contains(&id) {
-                push(errors, "Invalid navigation: page links must be unique");
+                push(errors, messages::NAV_PAGE_LINKS_NOT_UNIQUE);
                 return;
             }
             pages.push(id);
         }
         if let Some(children) = object.get("links") {
             let Some(children) = children.as_array() else {
-                push(errors, "Invalid navigation: links must be an array");
+                push(errors, messages::NAV_LINKS_NOT_ARRAY);
                 return;
             };
             validate_links(children, pages, errors);
@@ -72,7 +73,7 @@ fn link_is_valid(kind: &str, data: &Value, errors: &mut ValidationErrors) -> boo
     match kind {
         "page" => {
             if page_id(data).is_none() {
-                push(errors, "Invalid navigation: page link missing page ID");
+                push(errors, messages::NAV_PAGE_LINK_MISSING_PAGE);
                 return false;
             }
             true
@@ -93,24 +94,21 @@ fn url_is_valid(data: &Value, errors: &mut ValidationErrors) -> bool {
         .map(str::trim)
         .unwrap_or("");
     if label.is_empty() {
-        push(errors, "Invalid navigation: URL link missing label");
+        push(errors, messages::NAV_URL_MISSING_LABEL);
         return false;
     }
     let raw = data.get("url").and_then(Value::as_str).unwrap_or("");
     let url = raw.trim().replace(['\t', '\r', '\n'], "");
     if url.is_empty() {
-        push(errors, "Invalid navigation: URL link missing URL");
+        push(errors, messages::NAV_URL_MISSING_URL);
         return false;
     }
     if url.chars().any(|ch| (ch as u32) < 0x20) {
-        push(
-            errors,
-            "Invalid navigation: URL link contains invalid character",
-        );
+        push(errors, messages::NAV_URL_INVALID_CHARACTER);
         return false;
     }
     if scheme(&url.to_lowercase()).is_some_and(|scheme| scheme == "javascript") {
-        push(errors, "Invalid navigation: URL link invalid scheme");
+        push(errors, messages::NAV_URL_INVALID_SCHEME);
         return false;
     }
     true

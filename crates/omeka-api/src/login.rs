@@ -44,6 +44,7 @@ use omeka_db::rows::{NewPasswordCreation, UserRow};
 use crate::auth::Actor;
 use crate::errors::{ApiError, ErrorDocument};
 use crate::limits::{Limiter, Subject, Verdict};
+use crate::messages;
 use crate::password::{self, HashError};
 use crate::read::{db_error, not_found, parse_id, permission_denied};
 use crate::routes::Operation;
@@ -57,17 +58,6 @@ pub use crate::password::PasswordRules;
 
 /// `PasswordCreation::getExpiration`: `created` plus `P2W`.
 pub const KEY_LIFETIME_DAYS: i64 = 14;
-
-/// The `o:email` message for a refused login, `LoginController::loginAction:69`.
-pub const INVALID_CREDENTIALS: &str = "Email or password is invalid";
-/// The port's message for a correct password on an inactive account.
-pub const INACTIVE_ACCOUNT: &str = "The user is not active.";
-/// Laminas' text for 429.
-pub const TOO_MANY_REQUESTS: &str = "Too Many Requests";
-/// The body of a 500. The detail goes to the server's log, not to the caller.
-pub const INTERNAL_ERROR: &str = "Internal Server Error";
-/// `LoginController::createPasswordAction:109` for a key that is not there.
-pub const UNKNOWN_KEY: &str = "Invalid password creation key.";
 
 /// A logged-in session: the user the request authenticated as, and the token the
 /// response sets as a cookie.
@@ -114,10 +104,10 @@ impl AuthError {
     #[must_use]
     pub fn document(&self) -> ErrorDocument {
         match self {
-            Self::InvalidCredentials => ErrorDocument::general(INVALID_CREDENTIALS),
-            Self::Inactive => ErrorDocument::general(INACTIVE_ACCOUNT),
-            Self::RateLimited { .. } => ErrorDocument::general(TOO_MANY_REQUESTS),
-            Self::Internal { .. } => ErrorDocument::general(INTERNAL_ERROR),
+            Self::InvalidCredentials => ErrorDocument::general(messages::INVALID_CREDENTIALS),
+            Self::Inactive => ErrorDocument::general(messages::INACTIVE_ACCOUNT),
+            Self::RateLimited { .. } => ErrorDocument::general(messages::TOO_MANY_REQUESTS),
+            Self::Internal { .. } => ErrorDocument::general(messages::INTERNAL_ERROR),
         }
     }
 
@@ -246,9 +236,6 @@ pub async fn current_user(
     }
 }
 
-/// The message `GET /api/me` answers an anonymous caller with.
-pub const AUTHENTICATION_REQUIRED: &str = "Authentication required.";
-
 /// Why `POST /api/password` refused a key.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SetPasswordError {
@@ -276,16 +263,16 @@ impl SetPasswordError {
     #[must_use]
     pub fn document(&self) -> ErrorDocument {
         match self {
-            Self::UnknownKey => ErrorDocument::general(UNKNOWN_KEY),
+            Self::UnknownKey => ErrorDocument::general(messages::UNKNOWN_KEY),
             Self::InvalidPassword => {
                 let mut errors = crate::errors::ValidationErrors::new();
                 errors.insert(
                     "password".to_string(),
-                    vec![password::INVALID_PASSWORD.to_string()],
+                    vec![messages::INVALID_PASSWORD.to_string()],
                 );
                 ErrorDocument::validation(errors)
             }
-            Self::Internal { .. } => ErrorDocument::general(INTERNAL_ERROR),
+            Self::Internal { .. } => ErrorDocument::general(messages::INTERNAL_ERROR),
         }
     }
 }

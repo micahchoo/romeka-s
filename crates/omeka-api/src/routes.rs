@@ -353,7 +353,7 @@ fn not_implemented_target(adapter: &'static AdapterSpec, operation: Operation) -
 
 /// The upstream sentence from `Api\Manager::execute`.
 fn unknown_resource_message(name: &str) -> String {
-    format!("The API does not support the \"{name}\" resource.")
+    crate::messages::unknown_resource(name)
 }
 
 #[cfg(test)]

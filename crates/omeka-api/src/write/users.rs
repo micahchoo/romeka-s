@@ -16,6 +16,7 @@ use omeka_db::repos::UserRepo;
 use omeka_db::rows::{NewUser, UserRow};
 
 use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
 use crate::settings;
 use crate::write::access;
@@ -134,13 +135,13 @@ async fn validate(
 ) -> Result<(), ApiError> {
     let mut errors = ValidationErrors::new();
     if name.is_empty() {
-        errors.insert(
-            "o:name".to_string(),
-            vec!["The name cannot be empty.".to_string()],
-        );
+        errors.insert("o:name".to_string(), vec![messages::NAME_EMPTY.to_string()]);
     }
     if !email_is_valid(email) {
-        errors.insert("o:email".to_string(), vec![INVALID_EMAIL.to_string()]);
+        errors.insert(
+            "o:email".to_string(),
+            vec![messages::INVALID_EMAIL.to_string()],
+        );
     } else {
         let taken = match existing {
             Some(row) => row.email != email,
@@ -153,16 +154,13 @@ async fn validate(
                 .map_err(db_error)?
                 .is_some()
         {
-            errors.insert(
-                "o:email".to_string(),
-                vec![format!("The email {email} is already taken.")],
-            );
+            errors.insert("o:email".to_string(), vec![messages::email_taken(email)]);
         }
     }
     if role.is_empty() {
         errors.insert(
             "o:role".to_string(),
-            vec!["Users must have a role.".to_string()],
+            vec![messages::USER_ROLE_REQUIRED.to_string()],
         );
     }
     if errors.is_empty() {
@@ -172,19 +170,13 @@ async fn validate(
     }
 }
 
-/// `Laminas\Validator\EmailAddress::INVALID_FORMAT`: the message the validator
-/// answers for a value that is not `local-part@hostname` at all, which is what
-/// `UserAdapter::validateEntity` reports for `not-an-email`.
-const INVALID_EMAIL: &str =
-    "The input is not a valid email address. Use the basic format local-part@hostname";
-
 /// A minimal email shape check. `UserAdapter` uses `Laminas\Validator\EmailAddress`;
 /// this accepts the common case and rejects what upstream rejects in practice.
 ///
 /// The value only decides valid or invalid here. The other Laminas messages
 /// (`is not a valid hostname`, the dot-atom and quoted-string details) are not
 /// reproduced; an input that reaches one of them is still refused, with
-/// [`INVALID_EMAIL`]. Reported as a gap.
+/// [`messages::INVALID_EMAIL`]. Reported as a gap.
 fn email_is_valid(email: &str) -> bool {
     let mut parts = email.split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
