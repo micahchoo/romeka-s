@@ -756,6 +756,7 @@ export const ne: Catalogue = {
   'editor.outlineToggle': 'रूपरेखा देखाउनुहोस्',
   'preview.insertHere': 'यहाँ एउटा ब्लक प्रविष्ट गर्नुहोस्',
   'preview.insertIntoGroup': 'यस समूहमा एउटा ब्लक थप्नुहोस्',
+  'page.termLists': 'शब्द सूचीहरू',
   'siteItems.count': 'यस साइटमा रहेका वस्तुहरू: {count}',
   'siteItems.counting': 'गणना गर्दै…',
   'siteItems.countError': 'वस्तुहरू गणना गर्न सकिएन: {message}',

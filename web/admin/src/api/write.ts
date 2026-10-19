@@ -38,7 +38,7 @@ export type WireBody = Readonly<Record<string, unknown>>;
 export type WriteMode = 'create' | 'update';
 
 /** A `{"o:id": N}` reference; `{"o:id": null}` clears the member. */
-const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
+export const ref = (id: number | null): Record<string, unknown> => ({ 'o:id': id });
 
 /**
  * `hydrateOwner`'s member: a create with no chosen owner omits it so the server

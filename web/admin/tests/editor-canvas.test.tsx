@@ -8,7 +8,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { draftReducer } from '../src/pages/sites/editor/draft';
+import { draftReducer } from '../src/pages/sites/editor/reducer';
 import type { BlockKey, DraftAction, PageDraft } from '../src/pages/sites/editor/draft';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import { blockAt, keyOf, load, rawBlock } from './editor-draft-helpers';

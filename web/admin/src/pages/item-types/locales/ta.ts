@@ -80,6 +80,8 @@ export const ta: ItemTypesMessages = {
   'accepts.itemSet': 'ஒரு உருப்படித் தொகுப்பு',
   'accepts.media': 'ஒரு ஊடகக் கோப்பு',
   'accepts.missing': '{id} (நிறுவப்படவில்லை)',
+  'accepts.termLists': 'சொல் பட்டியல்கள்',
+  'accepts.termList': 'சொல் பட்டியல்: {list}',
   'use.legend': 'பயன்படுத்தப்படுகிறது',
   'use.items': 'உருப்படிகள்',
   'use.itemSets': 'உருப்படித் தொகுப்புகள்',

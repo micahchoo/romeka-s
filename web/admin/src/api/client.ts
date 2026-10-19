@@ -745,7 +745,12 @@ export class ApiClient {
     return buildUrl(this.baseUrl, path, withApiKey(params, currentKey()));
   }
 
-  private async searchPage<T>(
+  /*
+   * The four request helpers are public so a resource family that only lazy
+   * pages read (`term-lists.ts`) keeps its parser and calls out of the initial
+   * payload instead of growing this class.
+   */
+  async searchPage<T>(
     resource: string,
     query: ResourceQuery,
     parse: Parser<T>,
@@ -766,12 +771,12 @@ export class ApiClient {
     };
   }
 
-  private async requestJson(path: string): Promise<unknown> {
+  async requestJson(path: string): Promise<unknown> {
     const response = await this.get(this.apiUrl(path));
     return readJsonBody(response);
   }
 
-  private async writeJson(
+  async writeJson(
     method: 'POST' | 'PUT' | 'PATCH',
     path: string,
     body: WireBody,
@@ -788,7 +793,7 @@ export class ApiClient {
     return readJsonBody(response);
   }
 
-  private async deleteJson(path: string): Promise<void> {
+  async deleteJson(path: string): Promise<void> {
     const response = await this.fetchFn(this.apiUrl(path), {
       method: 'DELETE',
       headers: { Accept: 'application/json' },

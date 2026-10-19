@@ -20,6 +20,7 @@ const renderLayout = (values: Patch, grid = false) => {
   render(
     <LayoutDataForm
       idPrefix="block-b0-layout"
+      owner="block"
       schema={BLOCK_REGISTRY.blockLayoutData}
       values={values}
       onChange={onChange}
@@ -46,6 +47,17 @@ describe('the layout data form', () => {
     fireEvent.change(screen.getByLabelText('Block position'), { target: { value: 'center' } });
 
     expect(onChange).toHaveBeenCalledWith({ alignment_block: 'center' });
+  });
+
+  it('a choice with no default can go back to not set', () => {
+    const onChange = renderLayout({ alignment_text: 'center' });
+
+    const select = screen.getByLabelText('Text alignment');
+    expect(select).toHaveValue('center');
+    fireEvent.change(select, { target: { value: '' } });
+
+    expect(within(select).getByRole('option', { name: 'Not set' })).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith({ alignment_text: '' });
   });
 
   it('every control carries its help line', () => {
@@ -149,7 +161,7 @@ describe('the layout data form', () => {
     render(
       <LayoutDataForm
         idPrefix="page-layout"
-        legend="Page styling"
+        owner="page"
         schema={BLOCK_REGISTRY.pageLayoutData}
         values={{ grid_columns: 0 }}
         onChange={onChange}
