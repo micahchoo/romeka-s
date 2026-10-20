@@ -253,6 +253,10 @@ item-set records; for media, the media of the matched item.
 - A `newTypes` label that an existing template has is refused on save (`refuse_existing_labels`,
   fed by the caller) and flagged `type-exists` on Check when the template appeared after the save.
 - Case fold is lower-casing after trim and NFC (no full Unicode case fold; `ß` stays `ß`).
+- Duplicate or empty headers are sheet notes, shown as anomalies; they are not a flag kind.
+- Row keys: with a key column every key is `value#n` (`#1` included; an empty cell keys as `#n`);
+  without one, the line number. A line whose cells are all empty is not a row.
+- Extra cells that are all empty (a trailing delimiter) are dropped without a flag.
 - Decisions that name missing sources or sheets are orphans, not refusals, so a plan that drops a
   source can still be saved.
 
@@ -588,5 +592,6 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-evidence | unit-test-verified | 79 import2 tests, 917 api+server tests, 5 mutations caught, 100k walk median 387 ms warm |
 | P3-plan | unit-test-verified | 38 import2 tests, 378 omeka-api tests, clippy clean |
 | P0-compiler | unit-test-verified | 24/24 example tests, 711 admin tests, rg check of compiled patterns, perf 85,387 B |
