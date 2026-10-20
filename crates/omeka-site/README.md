@@ -41,7 +41,8 @@ The bundled theme is edited by tokens, not code. A site stores its choices in th
 | --- | --- |
 | `preset` | one of `theme::presets::PRESETS`: `plain`, `archive`, `gallery`, `editorial`, `civic` |
 | `derive_palette` | whether the palette is derived from the brand colour (default on) |
-| `brand_color` and the six other `*_color` keys | colours set by hand |
+| `brand_color` and the six other `*_color` keys | colours set by hand; under the `auto` scheme they are the light palette's |
+| `accent_color_dark` and the five other `*_color_dark` keys | the dark palette's colours under the `auto` scheme (`tokens::DARK_EDITABLE`); ignored under `light` and `dark` |
 | `color_scheme`, the fonts, sizes, `density`, `corner_radius`, `content_width`, `header_layout`, `header_style`, `button_style` | tokens set by hand |
 | `logo`, `banner`, `banner_text`, `footer_text` | header and footer content |
 | `custom_css` | the site's own CSS |
@@ -315,8 +316,6 @@ Six lookups: `search` (a browse), `read` (one resource), `read_media`, `read_ass
 
 ## Not ported
 
-- `resourcePageBlocks` (the `Site/ResourcePageBlockLayout/*` registry). The item, item-set and
-  media views print the values the provider supplies instead.
 - `searchFilters` and `browse()->renderSortSelector`. The browse views print the pagination and the
   advanced-search link without the filter UI.
 - Module view listeners (`trigger('view.show.before')` and friends). There are no modules.

@@ -145,4 +145,7 @@ export const kn: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ಟ್ರಾನ್ಸಿಷನಲ್ ಸೆರಿಫ್',
   'themeChoice.didone': 'ಹೈ-ಕಾಂಟ್ರಾಸ್ಟ್ ಸೆರಿಫ್',
   'themeChoice.mono': 'ಮೊನೊಸ್ಪೇಸ್',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ಸ್ವಯಂಚಾಲಿತ ಯೋಜನೆಯು ಓದುಗರ ವ್ಯವಸ್ಥೆಯನ್ನು ಅನುಸರಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ಪ್ರತಿ ಬಣ್ಣವು ಹಗುರವಾದ ಮೌಲ್ಯ ಮತ್ತು ಗಾಢವಾದ ಮೌಲ್ಯವನ್ನು ಹೊಂದಿರುತ್ತದೆ.',
 };

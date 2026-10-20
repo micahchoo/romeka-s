@@ -150,4 +150,7 @@ export const ta: ThemeMessages = {
   'themeChoice.transitionalSerif': 'டிரான்சிஷனல் செரிஃப்',
   'themeChoice.didone': 'ஹை-கான்ட்ராஸ்ட் செரிஃப்',
   'themeChoice.mono': 'மோனோஸ்பேஸ்',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'தானியங்கித் திட்டம் வாசகரின் கணினி அமைப்பைப் பின்பற்றுகிறது, எனவே ஒவ்வொரு நிறமும் ஒரு லேசான மதிப்பையும் ஒரு இருண்ட மதிப்பையும் கொண்டுள்ளது.',
 };

@@ -51,6 +51,8 @@ import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
 import { useThemeText } from './themeEditor/messages';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
+import { SaveBar, useUnsavedTab } from './unsaved';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -237,6 +239,14 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   const problems = useMemo(() => draftProblems(draft), [draft]);
   const settings = useMemo(() => draftWire(draft), [draft]);
   const blocked = problems.badHex || problems.failing > 0 || cssErrors.length > 0;
+  const stored = useMemo(
+    () => ({
+      ...settings,
+      resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
+    }),
+    [settings, blocks],
+  );
+  const unsaved = useUnsavedTab(stored);
 
   const update = useCallback((change: (current: ThemeDraft) => ThemeDraft): void => {
     setDraft(change);
@@ -312,13 +322,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     }
     save(async () => {
       try {
-        await api.patchSite(
-          siteId,
-          encodeSiteThemeSettings({
-            ...settings,
-            resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
-          }),
-        );
+        await api.patchSite(siteId, encodeSiteThemeSettings(stored));
+        unsaved.saved();
       } catch (error: unknown) {
         if (error instanceof ApiError && cssRefusals(error.errors, error.sourceErrors).length > 0) {
           setCssErrors(cssRefusals(error.errors, error.sourceErrors));
@@ -372,9 +377,12 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
             />
             <ContrastPanel
               checks={checks}
-              onUse={(role, colour) => {
-                const key = THEME_REGISTRY.colours.find((entry) => entry.role === role)?.key;
-                if (key !== undefined) {
+              onUse={(role, colour, shade) => {
+                const entry = THEME_REGISTRY.colours.find((colourEntry) => colourEntry.role === role);
+                // Under the automatic scheme a dark pair is fixed by the dark value.
+                const key =
+                  resolved.scheme === 'auto' && shade === 'dark' ? entry?.darkKey : entry?.key;
+                if (key !== undefined && key !== null) {
                   update((current) => setOverride(current, key, colour));
                 }
               }}
@@ -439,11 +447,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
           </p>
         ) : null}
         <SaveStatus state={saveState} />
-        <p className="form-actions">
-          <button type="submit" disabled={blocked || saveState.status === 'saving'}>
-            {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
-          </button>
-        </p>
+        <SaveBar dirty={unsaved.dirty}>
+          <p className="form-actions">
+            <button type="submit" disabled={blocked || saveState.status === 'saving'}>
+              {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
+            </button>
+          </p>
+        </SaveBar>
       </form>
       <PreviewPanel html={preview.html} status={preview.status} message={preview.message} />
     </div>
@@ -454,9 +464,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
+  const access = useSiteAccess();
   // The page's own table suspends the route until it arrives, so no label renders in English.
   useThemeText();
-  if (state.status === 'loading') {
+  if (access?.has('changeSite') === false) {
+    return <AccessNote>{t('siteAccess.theme')}</AccessNote>;
+  }
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
