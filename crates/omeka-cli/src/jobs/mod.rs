@@ -16,6 +16,8 @@
 mod batch_delete;
 mod batch_update;
 mod dispatcher;
+mod env;
+mod import_archive;
 mod index_fulltext_search;
 mod query;
 mod runner;
@@ -24,7 +26,9 @@ mod update_site_items;
 
 pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
-pub use dispatcher::{Dispatcher, JobContext};
+pub use dispatcher::{Dispatcher, JobCommand, JobContext};
+pub use env::JobEnv;
+pub use import_archive::{ImportArchive, UndoImport};
 pub use index_fulltext_search::IndexFulltextSearch;
 pub use query::BatchQuery;
 pub use runner::Runner;
@@ -68,9 +72,11 @@ static BATCH_DELETE: BatchDelete = BatchDelete;
 static BATCH_UPDATE: BatchUpdate = BatchUpdate;
 static INDEX_FULLTEXT_SEARCH: IndexFulltextSearch = IndexFulltextSearch;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
+static IMPORT_ARCHIVE: ImportArchive = ImportArchive;
+static UNDO_IMPORT: UndoImport = UndoImport;
 
 /// The job for a `job.class` value, the port's registry of the four upstream
-/// jobs. `Dispatcher::dispatch` resolves the class the same way through the
+/// jobs and the archive import's two. `Dispatcher::dispatch` resolves the class the same way through the
 /// service manager. `None` for a class this build does not register.
 #[must_use]
 pub fn job_for(class: &str) -> Option<&'static dyn Job> {
@@ -79,6 +85,8 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         "Omeka\\Job\\BatchUpdate" => Some(&BATCH_UPDATE),
         "Omeka\\Job\\IndexFulltextSearch" => Some(&INDEX_FULLTEXT_SEARCH),
         "Omeka\\Job\\UpdateSiteItems" => Some(&UPDATE_SITE_ITEMS),
+        omeka_server::IMPORT_JOB => Some(&IMPORT_ARCHIVE),
+        omeka_server::UNDO_JOB => Some(&UNDO_IMPORT),
         _ => None,
     }
 }

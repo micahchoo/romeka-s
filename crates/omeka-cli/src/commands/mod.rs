@@ -9,5 +9,6 @@ pub mod key;
 pub mod media;
 pub mod restore;
 pub mod serve;
+pub mod sweep;
 pub mod thumbnails;
 pub mod user;

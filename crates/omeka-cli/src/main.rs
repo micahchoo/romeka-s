@@ -16,6 +16,7 @@ use omeka_cli::commands::key::{
 };
 use omeka_cli::commands::media::{self, MediaOptions, MediaStatus};
 use omeka_cli::commands::restore::{self as restore, RestoreOptions};
+use omeka_cli::commands::sweep::{self as media_sweep, MIN_AGE, SweepOptions};
 use omeka_cli::commands::thumbnails::{
     self as media_thumbnails, ThumbnailOptions, ThumbnailStatus,
 };
@@ -397,6 +398,24 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
                         .help("Rebuild thumbnails that already exist"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("sweep")
+                .about("List, or with --delete remove, store files no media or asset row names")
+                .arg(database_arg())
+                .arg(
+                    Arg::with_name("store")
+                        .long("store")
+                        .value_name("DIR")
+                        .takes_value(true)
+                        .help("File store root; defaults to `files` beside the database"),
+                )
+                .arg(
+                    Arg::with_name("delete")
+                        .long("delete")
+                        .takes_value(false)
+                        .help("Remove the files; without it the run only reports them"),
+                ),
+        )
 }
 
 fn backup_cli<'a, 'b>() -> App<'a, 'b> {
@@ -452,7 +471,27 @@ fn job_command<'a, 'b>() -> App<'a, 'b> {
             SubCommand::with_name("run")
                 .about("Run one job in this process")
                 .arg(database_arg())
-                .arg(id_arg()),
+                .arg(id_arg())
+                .arg(
+                    Arg::with_name("store")
+                        .long("store")
+                        .value_name("DIR")
+                        .takes_value(true)
+                        .help("File store root; defaults to `files` beside the database"),
+                )
+                .arg(
+                    Arg::with_name("base-url")
+                        .long("base-url")
+                        .takes_value(true)
+                        .help("Base URL of the installation; defaults to http://localhost"),
+                )
+                .arg(
+                    Arg::with_name("archive-root")
+                        .long("archive-root")
+                        .value_name("DIR")
+                        .takes_value(true)
+                        .help("Archive import root; the archive import is off without it"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("list")
@@ -502,6 +541,13 @@ fn serve_command<'a, 'b>() -> App<'a, 'b> {
                 .long("base-url")
                 .takes_value(true)
                 .help("Base URL for JSON-LD links; defaults to http://<host>:<port>"),
+        )
+        .arg(
+            Arg::with_name("store")
+                .long("store")
+                .value_name("DIR")
+                .takes_value(true)
+                .help("File store root; defaults to `files` in the working directory"),
         )
 }
 
@@ -810,6 +856,39 @@ fn parse_columns(raw: &str) -> Vec<String> {
 }
 
 async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
+    if let ("sweep", Some(m)) = args.subcommand() {
+        let delete = m.is_present("delete");
+        let report = media_sweep::run(&SweepOptions {
+            database: PathBuf::from(value(m, "database")?),
+            store: m.value_of("store").map(PathBuf::from),
+            delete,
+            min_age: MIN_AGE,
+        })
+        .await?;
+        for path in &report.orphans {
+            match report.failed.iter().find(|(failed, _)| failed == path) {
+                Some((_, reason)) => println!("failed to remove {path}: {reason}"),
+                None if delete => println!("removed {path}"),
+                None => println!("orphan {path}"),
+            }
+        }
+        let verb = if delete { "removed" } else { "found" };
+        println!(
+            "{verb} {}, failed {}, skipped {} younger than 10 minutes{}",
+            report.orphans.len() - report.failed.len(),
+            report.failed.len(),
+            report.young,
+            if delete || report.orphans.is_empty() {
+                ""
+            } else {
+                "; run again with --delete to remove them"
+            }
+        );
+        if !report.failed.is_empty() {
+            return Ok(ExitCode::from(1));
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     if let ("thumbnails", Some(m)) = args.subcommand() {
         let report = media_thumbnails::run(&ThumbnailOptions {
             database: PathBuf::from(value(m, "database")?),
@@ -898,7 +977,14 @@ async fn run_job(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         ("run", Some(m)) => {
             let id = required_id(m)?;
             let database = PathBuf::from(value(m, "database")?);
-            match job_cmd::run(&job_cmd::RunOptions { database, id }).await {
+            let options = job_cmd::RunOptions {
+                database,
+                id,
+                store: m.value_of("store").map(PathBuf::from),
+                base_url: m.value_of("base-url").map(str::to_string),
+                archive_root: m.value_of("archive-root").map(PathBuf::from),
+            };
+            match job_cmd::run(&options).await {
                 Ok(status) => println!("job {} {}", id, status.as_str()),
                 Err(CliError::Job(error)) => {
                     eprintln!("job {id} error: {error}");
@@ -985,7 +1071,8 @@ async fn run_serve(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         .value_of("base-url")
         .map_or_else(|| format!("http://{host}:{port}"), str::to_string);
     println!("serving on {host}:{port} with {database}");
-    commands::serve::run(host, port, database, &base_url).await?;
+    let store = args.value_of("store").map(PathBuf::from);
+    commands::serve::run(host, port, database, &base_url, store.as_deref()).await?;
     Ok(ExitCode::SUCCESS)
 }
 

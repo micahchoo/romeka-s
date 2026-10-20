@@ -19,3 +19,7 @@ for v in 1 2 3 4; do
       properties: [$p[] | {local_name: .["o:local_name"], label: .["o:label"], comment: .["o:comment"]}]}'
 done | jq -s . > oracle-default-vocabularies.json
 ```
+
+`tiny.png` is a 34 by 30 RGBA PNG (a copy of `omeka-media`'s `ingest/url_response.png`).
+`tests/archive_import.rs` puts it in an archive folder so a run stores real originals and makes
+real thumbnails.

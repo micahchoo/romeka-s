@@ -1,22 +1,23 @@
 //! The job context, and the dispatcher that starts a job in a new process.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 use omeka_db::ids::JobId;
 use serde_json::Value;
 use sqlx::SqlitePool;
 
-use super::Job;
-use super::JobError;
 use super::status::JobStatus;
+use super::{Job, JobEnv, JobError};
 use crate::store;
 
-/// What a job sees: the pool, its own row id, and its `args` JSON.
+/// What a job sees: the pool, its own row id, its `args` JSON, and the
+/// process's [`JobEnv`].
 pub struct JobContext<'a> {
     pub pool: &'a SqlitePool,
     pub job_id: JobId,
     pub args: &'a Value,
+    pub env: &'a JobEnv,
 }
 
 impl JobContext<'_> {
@@ -54,16 +55,77 @@ impl JobContext<'_> {
     }
 }
 
+/// The `romeka job run <id>` command line a new job process runs.
+#[derive(Debug, Clone)]
+pub struct JobCommand {
+    /// The program to run `job run <id>` with. `None` means this executable,
+    /// which is the port's own `romeka` binary.
+    pub program: Option<PathBuf>,
+    pub database: PathBuf,
+    /// `--store`; the child's default (`files` beside the database) when `None`.
+    pub store: Option<PathBuf>,
+    /// `--base-url`.
+    pub base_url: Option<String>,
+    /// `--archive-root`.
+    pub archive_root: Option<PathBuf>,
+}
+
+impl JobCommand {
+    /// The command for `database` with every other flag left to its default.
+    #[must_use]
+    pub fn new(database: impl Into<PathBuf>) -> Self {
+        Self {
+            program: None,
+            database: database.into(),
+            store: None,
+            base_url: None,
+            archive_root: None,
+        }
+    }
+
+    /// Start `job run <id>` without waiting for it. The caller owns the child.
+    ///
+    /// # Errors
+    /// [`JobError::Runtime`] when the executable cannot be found or started.
+    pub fn spawn(&self, id: JobId) -> Result<Child, JobError> {
+        let program = match &self.program {
+            Some(program) => program.clone(),
+            None => std::env::current_exe().map_err(|error| {
+                JobError::Runtime(format!("cannot find the romeka executable: {error}"))
+            })?,
+        };
+        let mut command = Command::new(program);
+        command
+            .arg("job")
+            .arg("run")
+            .arg(id.0.to_string())
+            .arg("--database")
+            .arg(&self.database);
+        if let Some(store) = &self.store {
+            command.arg("--store").arg(store);
+        }
+        if let Some(base_url) = &self.base_url {
+            command.arg("--base-url").arg(base_url);
+        }
+        if let Some(root) = &self.archive_root {
+            command.arg("--archive-root").arg(root);
+        }
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| JobError::Runtime(format!("cannot start job {}: {error}", id.0)))
+    }
+}
+
 /// Starts a composed job in a new process, mirroring
 /// `Omeka\Job\DispatchStrategy\PhpCli`, which runs `perform-job.php` in the
 /// background. `dispatch` returns as soon as the child is started, so the caller
 /// is free even while the job runs.
 pub struct Dispatcher<'a> {
     pool: &'a SqlitePool,
-    database: &'a Path,
-    /// The program to run `job run <id>` with. `None` means this executable,
-    /// which is the port's own `romeka` binary.
-    program: Option<PathBuf>,
+    command: JobCommand,
 }
 
 impl<'a> Dispatcher<'a> {
@@ -72,8 +134,7 @@ impl<'a> Dispatcher<'a> {
     pub fn new(pool: &'a SqlitePool, database: &'a Path) -> Self {
         Self {
             pool,
-            database,
-            program: None,
+            command: JobCommand::new(database),
         }
     }
 
@@ -87,8 +148,10 @@ impl<'a> Dispatcher<'a> {
     ) -> Self {
         Self {
             pool,
-            database,
-            program: Some(program.into()),
+            command: JobCommand {
+                program: Some(program.into()),
+                ..JobCommand::new(database)
+            },
         }
     }
 
@@ -102,33 +165,11 @@ impl<'a> Dispatcher<'a> {
     /// process cannot be started. A start failure leaves the row `error`.
     pub async fn dispatch(&self, job: &dyn Job, args: Value) -> Result<JobId, JobError> {
         let id = store::job_create(self.pool, job.class(), &args, None).await?;
-        if let Err(error) = self.spawn(id) {
+        if let Err(error) = self.command.spawn(id) {
             let _ = store::job_append_log(self.pool, id, &error.to_string()).await;
             let _ = store::job_finish(self.pool, id, JobStatus::Error.as_str()).await;
             return Err(error);
         }
         Ok(id)
-    }
-
-    /// Start `job run <id> --database <path>` without waiting for it.
-    fn spawn(&self, id: JobId) -> Result<(), JobError> {
-        let program = match &self.program {
-            Some(program) => program.clone(),
-            None => std::env::current_exe().map_err(|error| {
-                JobError::Runtime(format!("cannot find the romeka executable: {error}"))
-            })?,
-        };
-        Command::new(program)
-            .arg("job")
-            .arg("run")
-            .arg(id.0.to_string())
-            .arg("--database")
-            .arg(self.database)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map(|_child| ())
-            .map_err(|error| JobError::Runtime(format!("cannot start job {}: {error}", id.0)))
     }
 }
