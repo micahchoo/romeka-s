@@ -446,7 +446,7 @@ migration so a fresh MySQL install builds the v2 schema.
   NULL DEFAULT 0, status, job_id, summary TEXT NULL, copied_from NULL, created, finished NULL)`,
   status CHECK over the v2 statuses, FKs as v1 (`ON DELETE SET NULL` for owner, job, copied_from).
   JSON members are LONGTEXT on MySQL.
-- `romeka_import_resource (import_id, kind VARCHAR(32), target_id, record VARCHAR(512), change
+- `romeka_import_resource (import_id, kind VARCHAR(32), target_id, record VARCHAR(512), change_kind
   VARCHAR(16) NOT NULL DEFAULT 'created', written DATETIME NOT NULL, PRIMARY KEY (import_id, kind,
   target_id))`, `ON DELETE CASCADE` from the import, an index on `(import_id, record)`.
 - `romeka_import_before (import_id, kind VARCHAR(32), target_id, image, PRIMARY KEY (import_id,
@@ -456,7 +456,10 @@ migration so a fresh MySQL install builds the v2 schema.
   (no `offset`: reserved in MySQL).
 - `romeka_import_entry` (the evidence index): `(import_id, source VARCHAR(64), path, size,
   modified, media_type, flags)`, keyed by `(import_id, source, path_hash)` where `path_hash` is the
-  SHA-256 of the path, so MySQL's 3072-byte key limit never binds.
+  SHA-256 of the path, computed in Rust (not a generated column), so MySQL's 3072-byte key limit
+  never binds.
+- On MySQL every key text column (`source`, `path`, `record`, upload `path`) is `utf8mb4_bin`, so
+  `A.jpg` and `a.jpg` stay two keys. No column is named `offset` or `change` (reserved words).
 
 The same unit deletes the v1 import code from `import2/base` (`crates/omeka-api/src/import/`, the
 v1 routes in `crates/omeka-server/src/imports*`, `crates/omeka-cli/src/jobs/import_archive.rs`),
