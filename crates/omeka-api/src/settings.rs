@@ -25,8 +25,11 @@
 //! [`read_global`] answers each of the three as it applies, and a `null` write
 //! restores the default.
 //!
-//! One global key is port-only: [`IMPORT_ALLOW_PRIVATE_URLS`] lets every
-//! fetch an ingester makes reach private addresses ([`address_policy`]).
+//! Five global keys are port-only: [`IMPORT_ALLOW_PRIVATE_URLS`] lets every
+//! fetch an ingester makes reach private addresses ([`address_policy`]), and
+//! four counts bound an import's uploads and how long its files stay
+//! ([`upload_settings`]). Each count answers its default when no row holds
+//! it, and a `null` write restores the default.
 //!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
@@ -69,6 +72,38 @@ pub const DISABLE_FILE_VALIDATION: &str = "disable_file_validation";
 /// (docs/import-v2.md "URL sources"). Port-only; upstream fetches any URL.
 pub const IMPORT_ALLOW_PRIVATE_URLS: &str = "import_allow_private_urls";
 
+/// The largest file one upload, one extracted ZIP entry or one URL fetch
+/// may be, in bytes (docs/import-v2.md "Staging", "URL sources").
+pub const IMPORT_UPLOAD_MAX_FILE: &str = "import_upload_max_file";
+
+/// The most bytes one import's uploads may hold, counting the uploads still
+/// in progress.
+pub const IMPORT_UPLOAD_MAX_TOTAL: &str = "import_upload_max_total";
+
+/// Days an import's uploaded files stay after it is done or undone, or after
+/// its last run attempt failed.
+pub const IMPORT_STAGING_KEEP_DAYS: &str = "import_staging_keep_days";
+
+/// Days a draft's uploaded files stay after the draft was last worked on.
+pub const IMPORT_DRAFT_STAGING_KEEP_DAYS: &str = "import_draft_staging_keep_days";
+
+/// The defaults of the four upload counts: 2 GiB, 50 GiB, 30 days, 7 days.
+pub const UPLOAD_DEFAULTS: UploadSettings = UploadSettings {
+    max_file: 2 * 1024 * 1024 * 1024,
+    max_total: 50 * 1024 * 1024 * 1024,
+    staging_keep_days: 30,
+    draft_staging_keep_days: 7,
+};
+
+/// The upload limits and the staging retention as they apply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UploadSettings {
+    pub max_file: u64,
+    pub max_total: u64,
+    pub staging_keep_days: u64,
+    pub draft_staging_keep_days: u64,
+}
+
 /// What a setting's value may be on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Shape {
@@ -82,6 +117,8 @@ enum Shape {
     /// list refuses every file. Each entry is trimmed, and empty and repeated
     /// entries are dropped, as `SettingForm`'s input filter does.
     AllowList,
+    /// A whole number above zero; no row means the key's default.
+    Count,
 }
 
 /// The user keys the API reads and writes. Each one has a field in the admin.
@@ -94,6 +131,10 @@ pub const GLOBAL_SETTINGS: &[&str] = &[
     EXTENSION_WHITELIST,
     DISABLE_FILE_VALIDATION,
     IMPORT_ALLOW_PRIVATE_URLS,
+    IMPORT_UPLOAD_MAX_FILE,
+    IMPORT_UPLOAD_MAX_TOTAL,
+    IMPORT_STAGING_KEEP_DAYS,
+    IMPORT_DRAFT_STAGING_KEEP_DAYS,
 ];
 
 fn shape(key: &str) -> Shape {
@@ -101,6 +142,10 @@ fn shape(key: &str) -> Shape {
         HIDE_LESSONS | DISABLE_FILE_VALIDATION | IMPORT_ALLOW_PRIVATE_URLS => Shape::Flag,
         LESSONS_SEEN => Shape::Names,
         MEDIA_TYPE_WHITELIST | EXTENSION_WHITELIST => Shape::AllowList,
+        IMPORT_UPLOAD_MAX_FILE
+        | IMPORT_UPLOAD_MAX_TOTAL
+        | IMPORT_STAGING_KEEP_DAYS
+        | IMPORT_DRAFT_STAGING_KEEP_DAYS => Shape::Count,
         _ => Shape::Text,
     }
 }
@@ -237,6 +282,46 @@ pub async fn address_policy(repo: &SettingRepo<'_>) -> Result<AddressPolicy, DbE
     })
 }
 
+/// The upload limits and the staging retention: each count as stored, else
+/// its [`UPLOAD_DEFAULTS`] value. A stored value that is not a whole number
+/// above zero reads as the default, so a hand-edited row cannot switch a
+/// limit off.
+///
+/// # Errors
+/// [`DbError`] when a setting row cannot be read.
+pub async fn upload_settings(repo: &SettingRepo<'_>) -> Result<UploadSettings, DbError> {
+    let count =
+        |stored: Option<Value>, default: u64| stored.as_ref().and_then(count_of).unwrap_or(default);
+    Ok(UploadSettings {
+        max_file: count(
+            repo.get(IMPORT_UPLOAD_MAX_FILE).await?,
+            UPLOAD_DEFAULTS.max_file,
+        ),
+        max_total: count(
+            repo.get(IMPORT_UPLOAD_MAX_TOTAL).await?,
+            UPLOAD_DEFAULTS.max_total,
+        ),
+        staging_keep_days: count(
+            repo.get(IMPORT_STAGING_KEEP_DAYS).await?,
+            UPLOAD_DEFAULTS.staging_keep_days,
+        ),
+        draft_staging_keep_days: count(
+            repo.get(IMPORT_DRAFT_STAGING_KEEP_DAYS).await?,
+            UPLOAD_DEFAULTS.draft_staging_keep_days,
+        ),
+    })
+}
+
+/// A whole number above zero, as a JSON number or a string of digits.
+fn count_of(value: &Value) -> Option<u64> {
+    match value {
+        Value::Number(number) => number.as_u64(),
+        Value::String(text) => text.trim().parse().ok(),
+        _ => None,
+    }
+    .filter(|count| *count > 0)
+}
+
 async fn allows_private_urls(repo: &SettingRepo<'_>) -> Result<bool, DbError> {
     Ok(repo
         .get(IMPORT_ALLOW_PRIVATE_URLS)
@@ -277,6 +362,18 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
         IMPORT_ALLOW_PRIVATE_URLS.to_string(),
         allows_private_urls(&repo).await.map_err(db_error)?.into(),
     );
+    let uploads = upload_settings(&repo).await.map_err(db_error)?;
+    for (key, value) in [
+        (IMPORT_UPLOAD_MAX_FILE, uploads.max_file),
+        (IMPORT_UPLOAD_MAX_TOTAL, uploads.max_total),
+        (IMPORT_STAGING_KEEP_DAYS, uploads.staging_keep_days),
+        (
+            IMPORT_DRAFT_STAGING_KEEP_DAYS,
+            uploads.draft_staging_keep_days,
+        ),
+    ] {
+        map.insert(key.to_string(), value.into());
+    }
     Ok(ApiResponse::document(serialize(&Value::Object(map))?))
 }
 
@@ -346,11 +443,17 @@ fn parse_map(
             (Shape::AllowList, Value::Array(names)) if names.iter().all(Value::is_string) => {
                 Some(allow_list(names))
             }
+            (Shape::Count, Value::Number(number))
+                if number.as_u64().is_some_and(|count| count > 0) =>
+            {
+                Some(stored.clone())
+            }
             (Shape::Text, _) => return Err(invalid(messages::setting_not_text(key))),
             (Shape::Flag, _) => return Err(invalid(messages::setting_not_flag(key))),
             (Shape::Names | Shape::AllowList, _) => {
                 return Err(invalid(messages::setting_not_names(key)));
             }
+            (Shape::Count, _) => return Err(invalid(messages::setting_not_count(key))),
         };
         changes.push((*name, change));
     }
@@ -438,6 +541,46 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn an_upload_count_is_a_whole_number_above_zero() {
+        assert_eq!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"import_upload_max_file": 1_048_576})
+            )
+            .unwrap(),
+            vec![(IMPORT_UPLOAD_MAX_FILE, Some(json!(1_048_576)))]
+        );
+        assert_eq!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"import_staging_keep_days": null})
+            )
+            .unwrap(),
+            vec![(IMPORT_STAGING_KEEP_DAYS, None)],
+            "null restores the default"
+        );
+        for refused in [json!(0), json!(-1), json!(1.5), json!("30"), json!(true)] {
+            assert!(
+                parse_map(
+                    "settings",
+                    GLOBAL_SETTINGS,
+                    &json!({"import_draft_staging_keep_days": refused})
+                )
+                .is_err(),
+                "{refused}"
+            );
+        }
+        assert_eq!(
+            count_of(&json!("12")),
+            Some(12),
+            "a stored string of digits reads"
+        );
+        assert_eq!(count_of(&json!(0)), None, "zero reads as the default");
     }
 
     #[test]

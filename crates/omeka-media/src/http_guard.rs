@@ -99,6 +99,10 @@ pub enum RefusedRange {
     Benchmarking,
     /// The reserved class E range `240.0.0.0/4`, `255.255.255.255` apart.
     Reserved,
+    /// The documentation ranges `192.0.2.0/24`, `198.51.100.0/24`,
+    /// `203.0.113.0/24` (RFC 5737) and `2001:db8::/32` (RFC 3849). No real
+    /// host lives there, so a name that resolves into one is refused.
+    Documentation,
 }
 
 impl fmt::Display for RefusedRange {
@@ -116,6 +120,7 @@ impl fmt::Display for RefusedRange {
             Self::ProtocolAssignment => "protocol assignment",
             Self::Benchmarking => "benchmarking",
             Self::Reserved => "reserved",
+            Self::Documentation => "documentation",
         })
     }
 }
@@ -153,6 +158,8 @@ fn refused_v4(ip: Ipv4Addr) -> Option<RefusedRange> {
         Some(RefusedRange::ProtocolAssignment)
     } else if a == 198 && (b & 0b1111_1110) == 18 {
         Some(RefusedRange::Benchmarking)
+    } else if matches!([a, b, c], [192, 0, 2] | [198, 51, 100] | [203, 0, 113]) {
+        Some(RefusedRange::Documentation)
     } else if a >= 240 {
         Some(RefusedRange::Reserved)
     } else {
@@ -180,6 +187,8 @@ fn refused_v6(ip: Ipv6Addr) -> Option<RefusedRange> {
         Some(RefusedRange::UniqueLocal)
     } else if ip.is_multicast() {
         Some(RefusedRange::Multicast)
+    } else if ip.segments()[..2] == [0x2001, 0x0db8] {
+        Some(RefusedRange::Documentation)
     } else {
         None
     }

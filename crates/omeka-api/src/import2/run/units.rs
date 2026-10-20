@@ -507,6 +507,18 @@ where
                         .ok()
                         .map(|at| source.walk.entries[at].disk_path())
                 });
+            let name = Path::new(file.path.as_str())
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            if let Some((stored, size)) = self.staged_file(&file.source, file.path.as_str()) {
+                let arrived = tokio::task::spawn_blocking(move || {
+                    media_in::arrive_stored(store.as_ref(), &validation, &stored, size, &name)
+                })
+                .await
+                .map_err(|error| RunError::State(error.to_string()))?;
+                return Ok(arrived.map_err(|error| error.failure(&shown)));
+            }
             let located = match (self.dirs.get(&file.source), entry) {
                 (Some(dir), Some(disk)) => dir.locate(&disk).map_err(|error| error.to_string()),
                 _ => Err("the source folder is not available".to_string()),
@@ -520,16 +532,12 @@ where
                     )));
                 }
             };
-            let name = Path::new(file.path.as_str())
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_default();
             let arrived = tokio::task::spawn_blocking(move || {
                 media_in::arrive_file(store.as_ref(), &validation, &path, &name)
             })
             .await
             .map_err(|error| RunError::State(error.to_string()))?;
-            return Ok(arrived.map_err(|error| file_error(&shown, error)));
+            return Ok(arrived.map_err(|error| error.failure(&shown)));
         }
         let (Some(ingester), Some(source)) = (
             record.resolved.ingester.clone(),
@@ -557,23 +565,6 @@ where
                 messages::import_source_refused(&shown, reason),
             ),
         }))
-    }
-}
-
-fn file_error(shown: &str, error: ArrivalError) -> (&'static str, String) {
-    match error {
-        ArrivalError::Unreadable(reason) => (
-            "import_file_unreadable",
-            messages::import_file_unreadable(shown, reason),
-        ),
-        ArrivalError::Refused(reason) => (
-            "import_file_refused",
-            messages::import_file_refused(shown, reason),
-        ),
-        ArrivalError::Store(reason) => (
-            "import_file_not_stored",
-            messages::import_file_not_stored(shown, reason),
-        ),
     }
 }
 

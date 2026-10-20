@@ -91,8 +91,14 @@ pub(super) async fn scan(
                 let job = compose_job(&state, &actor, SCAN_JOB, row.id, None).await?;
                 return start_job(&state, job, StatusCode::ACCEPTED).await;
             }
-            let scanned =
-                scan::scan(&state.pool, &state.archive_roots, row.id, &plan.sources).await?;
+            let scanned = scan::scan(
+                &state.pool,
+                &state.archive_roots,
+                &state.store,
+                row.id,
+                &plan.sources,
+            )
+            .await?;
             Ok(json(StatusCode::OK, &scanned))
         }
         .await,
@@ -168,7 +174,14 @@ pub(super) async fn run(
                 return Err(cannot_run(row.status));
             }
             let plan = stored_plan(&row)?;
-            scan::scan(&state.pool, &state.archive_roots, row.id, &plan.sources).await?;
+            scan::scan(
+                &state.pool,
+                &state.archive_roots,
+                &state.store,
+                row.id,
+                &plan.sources,
+            )
+            .await?;
             let derived = derive(&state, &actor, row.id, plan).await?;
             let found = check(&derived.plan, &derived.model);
             if found.digest != request.digest {

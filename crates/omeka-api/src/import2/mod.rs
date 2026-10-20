@@ -14,6 +14,8 @@
 //!   `matching` and `flags`.
 //! - [`run`]: the model written, with [`ledger`], [`media_in`] and [`left`].
 //! - [`undo`]: an import taken back, with [`touched`].
+//! - [`staging`]: the files a person uploaded, [`unzip`] for a ZIP among
+//!   them, and [`sweep`], which removes them once they are no longer kept.
 //!
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
@@ -40,11 +42,14 @@ pub mod run;
 pub mod scan;
 pub mod sheet;
 pub mod slots;
+pub mod staging;
 pub mod starters;
+pub mod sweep;
 pub mod tags;
 pub mod template;
 pub mod touched;
 pub mod undo;
+pub mod unzip;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};

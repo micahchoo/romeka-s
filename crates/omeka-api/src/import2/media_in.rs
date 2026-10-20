@@ -7,21 +7,30 @@
 //! sniffed from its first [`SNIFF_BYTES`], validated, and streamed into the
 //! store through [`Store::put_stream`] while its SHA-256 is computed. It
 //! gets no thumbnails, because the image decoder needs the whole file in
-//! memory. A URL record runs its ingester with the guarded HTTP client the
-//! caller built from `settings::address_policy`.
+//! memory. A staged file (an upload) takes the same two paths, read
+//! through the store instead of the disk.
+//!
+//! A URL record runs its ingester with the guarded HTTP client the caller
+//! built from `settings::address_policy`. The `url` ingester's download is
+//! the one that can be large, so the run fetches it here: a body that
+//! declares at most [`WHOLE_LIMIT`] bytes goes to the ingester whole, and
+//! any other body streams into the store like a large file, capped at the
+//! client's `import_upload_max_file`.
 //!
 //! Everything here is blocking; the run calls it on the blocking pool. Each
 //! function answers what it stored, so the run removes those bytes when the
 //! record's transaction does not commit.
 
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Cursor, Read};
 use std::path::Path;
+use std::sync::Mutex;
 
 use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
 use omeka_db::rows::StoredFile;
+use omeka_media::HttpClient;
 use omeka_media::IngesterRegistry;
 use omeka_media::data::MediaData;
 use omeka_media::file_render::ThumbnailType;
@@ -36,11 +45,13 @@ use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
 };
 use omeka_media::thumbnailer::ImageThumbnailer;
+use omeka_media::uri::HttpUri;
 use omeka_media::validation::FileValidation;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use super::evidence::SNIFF_BYTES;
+use super::staging::StoredReader;
 
 /// The largest file read whole: "No reader loads a whole file over 64 MB
 /// into memory".
@@ -74,6 +85,27 @@ pub enum ArrivalError {
     Store(String),
 }
 
+impl ArrivalError {
+    /// The run failure for a file shown as `shown`: its message key and text.
+    #[must_use]
+    pub fn failure(self, shown: &str) -> (&'static str, String) {
+        match self {
+            Self::Unreadable(reason) => (
+                "import_file_unreadable",
+                crate::messages::import_file_unreadable(shown, reason),
+            ),
+            Self::Refused(reason) => (
+                "import_file_refused",
+                crate::messages::import_file_refused(shown, reason),
+            ),
+            Self::Store(reason) => (
+                "import_file_not_stored",
+                crate::messages::import_file_not_stored(shown, reason),
+            ),
+        }
+    }
+}
+
 /// Store one folder file. `name` is the file name `media.source` keeps.
 ///
 /// # Errors
@@ -87,9 +119,53 @@ pub fn arrive_file(
     let unreadable = |error: io::Error| ArrivalError::Unreadable(error.to_string());
     let size = std::fs::metadata(path).map_err(unreadable)?.len();
     if size > WHOLE_LIMIT {
-        return stream_file(store, validation, path, name, size);
+        let mut head = Vec::with_capacity(SNIFF_BYTES);
+        File::open(path)
+            .map_err(unreadable)?
+            .take(SNIFF_BYTES as u64)
+            .read_to_end(&mut head)
+            .map_err(unreadable)?;
+        let file = File::open(path).map_err(unreadable)?;
+        return stream_file(store, validation, &head, Box::new(file), Some(size), name)
+            .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
     }
     let bytes = std::fs::read(path).map_err(unreadable)?;
+    arrive_whole(store, validation, bytes, name)
+}
+
+/// Store one staged file, read through the store from `stored`, its path
+/// there. `name` is the file name `media.source` keeps.
+///
+/// # Errors
+/// An [`ArrivalError`]; nothing new stays in the store then.
+pub fn arrive_stored(
+    store: &dyn Store,
+    validation: &FileValidation,
+    stored: &str,
+    size: u64,
+    name: &str,
+) -> Result<Arrived, ArrivalError> {
+    let unreadable =
+        |error: omeka_media::store::StoreError| ArrivalError::Unreadable(error.to_string());
+    if size > WHOLE_LIMIT {
+        let head = store
+            .read_range(stored, 0..SNIFF_BYTES as u64)
+            .map_err(unreadable)?;
+        let reader = StoredReader::new(store, stored.to_string(), 0..size);
+        return stream_file(store, validation, &head, Box::new(reader), Some(size), name)
+            .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
+    }
+    let bytes = store.read(stored).map_err(unreadable)?;
+    arrive_whole(store, validation, bytes, name)
+}
+
+/// A file small enough to read whole, through the upload ingester's path.
+fn arrive_whole(
+    store: &dyn Store,
+    validation: &FileValidation,
+    bytes: Vec<u8>,
+    name: &str,
+) -> Result<Arrived, ArrivalError> {
     let mut draft = draft(FILE_INGESTER, "file");
     draft.row.source = Some(name.to_string());
     let env = Env::new();
@@ -115,21 +191,18 @@ pub fn arrive_file(
     Ok(arrived(draft, stored))
 }
 
+/// Stream a file into the store: sniffed from `head` (its first bytes),
+/// validated, then `body` (the whole file, from its first byte) written
+/// while its SHA-256 is computed. No thumbnails.
 fn stream_file(
     store: &dyn Store,
     validation: &FileValidation,
-    path: &Path,
+    head: &[u8],
+    body: Box<dyn Read + '_>,
+    size: Option<u64>,
     name: &str,
-    size: u64,
 ) -> Result<Arrived, ArrivalError> {
-    let unreadable = |error: io::Error| ArrivalError::Unreadable(error.to_string());
-    let mut head = Vec::with_capacity(SNIFF_BYTES);
-    File::open(path)
-        .map_err(unreadable)?
-        .take(SNIFF_BYTES as u64)
-        .read_to_end(&mut head)
-        .map_err(unreadable)?;
-    let media_type = detected_media_type(&head);
+    let media_type = detected_media_type(head);
     let extension = extension_from_source_name(name)
         .or_else(|| extension_for_media_type(&media_type).map(str::to_string));
     let refusals = validation.refusals(name, &media_type, extension.as_deref());
@@ -140,12 +213,17 @@ fn stream_file(
     let storage_id = new_storage_id().map_err(|error| ArrivalError::Store(error.to_string()))?;
     let original = storage_path(StorePrefix::Original, &storage_id, extension.as_deref());
     let mut reader = Hashing {
-        inner: File::open(path).map_err(unreadable)?,
+        inner: body,
         hasher: Sha256::new(),
     };
     let written = store
-        .put_stream(&mut reader, Some(size), &original)
-        .map_err(|error| ArrivalError::Store(error.to_string()))?;
+        .put_stream(&mut reader, size, &original)
+        .map_err(|error| match error {
+            omeka_media::store::StoreError::Io { source, .. } if source.get_ref().is_some() => {
+                ArrivalError::Unreadable(FetchError::from_body(&source).message)
+            }
+            other => ArrivalError::Store(other.to_string()),
+        })?;
     let sha256 = omeka_media::text::hex_encode(&reader.hasher.finalize());
     Ok(Arrived {
         file: Some(StoredFile {
@@ -159,9 +237,82 @@ fn stream_file(
         ingester: FILE_INGESTER.to_string(),
         renderer: "file".to_string(),
         data: None,
-        source: Some(name.to_string()),
+        source: None,
         stored: vec![original],
     })
+}
+
+impl Arrived {
+    fn with(mut self, ingester: &str, source: Option<String>) -> Self {
+        self.ingester = ingester.to_string();
+        self.source = source;
+        self
+    }
+}
+
+/// The `url` ingester's download (`Ingester/Url.php`), streamed when it may
+/// be large: a body that declares at most [`WHOLE_LIMIT`] bytes is handed to
+/// the ingester whole, so it keeps its thumbnails; any other body streams
+/// into the store.
+fn arrive_download(
+    store: &dyn Store,
+    validation: &FileValidation,
+    http: &HttpClient,
+    source: &str,
+) -> Result<Arrived, ArrivalError> {
+    let Some(uri) = HttpUri::parse(source) else {
+        return Err(ArrivalError::Refused("Invalid ingest URL".to_string()));
+    };
+    let failed =
+        |reason: String| ArrivalError::Refused(format!("Error downloading {source}: {reason}"));
+    let mut response = http
+        .fetch_stream(uri.raw())
+        .map_err(|error| failed(error.to_string()))?;
+    if !response.is_ok() {
+        return Err(failed(format!("{} {}", response.status, response.reason)));
+    }
+    if response
+        .content_length
+        .is_some_and(|length| length <= WHOLE_LIMIT)
+    {
+        let whole = response
+            .into_response()
+            .map_err(|error| failed(error.to_string()))?;
+        let fetched = Fetched(Mutex::new(Some(whole)));
+        return run_ingester(store, validation, &fetched, "url", source);
+    }
+    let mut head = Vec::with_capacity(SNIFF_BYTES);
+    (&mut response)
+        .take(SNIFF_BYTES as u64)
+        .read_to_end(&mut head)
+        .map_err(|error| failed(FetchError::from_body(&error).message))?;
+    let size = response.content_length;
+    let name = uri
+        .path()
+        .rsplit('/')
+        .next()
+        .unwrap_or_default()
+        .to_string();
+    let body = Cursor::new(head.clone()).chain(response);
+    stream_file(store, validation, &head, Box::new(body), size, &name)
+        .map(|arrived| arrived.with("url", Some(uri.raw().to_string())))
+        .map_err(|error| match error {
+            ArrivalError::Unreadable(reason) => failed(reason),
+            other => other,
+        })
+}
+
+/// One response, fetched before the ingester asked for it.
+struct Fetched(Mutex<Option<HttpResponse>>);
+
+impl HttpFetch for Fetched {
+    fn fetch(&self, _url: &str) -> Result<HttpResponse, FetchError> {
+        self.0
+            .lock()
+            .ok()
+            .and_then(|mut held| held.take())
+            .ok_or_else(|| FetchError::new("the response was already read"))
+    }
 }
 
 /// Run a URL ingester (`url`, `html`, `youtube`, `iiif`,
@@ -171,6 +322,19 @@ fn stream_file(
 /// [`ArrivalError::Refused`] with the ingester's messages; nothing stays in
 /// the store then.
 pub fn arrive_url(
+    store: &dyn Store,
+    validation: &FileValidation,
+    http: &HttpClient,
+    ingester: &str,
+    source: &str,
+) -> Result<Arrived, ArrivalError> {
+    if ingester == "url" {
+        return arrive_download(store, validation, http, source);
+    }
+    run_ingester(store, validation, http, ingester, source)
+}
+
+fn run_ingester(
     store: &dyn Store,
     validation: &FileValidation,
     http: &dyn HttpFetch,

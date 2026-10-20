@@ -7,8 +7,8 @@
 //! file entries, because a sheet is read as rows, never imported as a file.
 //! The walk holds no database; the evidence index stores what it returns.
 
-mod identical;
-mod names;
+pub(crate) mod identical;
+pub(crate) mod names;
 #[cfg(test)]
 mod tests;
 
@@ -246,8 +246,7 @@ fn read_entry(dir: &Path, file: Found) -> Option<(FileEntry, bool)> {
         Ok((metadata, head))
     });
     let (metadata, head) = read.ok()?;
-    let is_sheet = is_sheet(&file.path, &head);
-    let sniffed = omeka_media::media_type::detected_media_type(whole_chars(&head));
+    let (sniffed, is_sheet) = sniff(&file.path, &head);
     Some((
         FileEntry {
             path: file.path,
@@ -258,6 +257,15 @@ fn read_entry(dir: &Path, file: Found) -> Option<(FileEntry, bool)> {
         },
         is_sheet,
     ))
+}
+
+/// The media type sniffed from a file's first [`SNIFF_BYTES`], and whether
+/// the file is a sheet.
+pub(crate) fn sniff(path: &RelPath, head: &[u8]) -> (String, bool) {
+    (
+        omeka_media::media_type::detected_media_type(whole_chars(head)),
+        is_sheet(path, head),
+    )
 }
 
 fn is_sheet(path: &RelPath, head: &[u8]) -> bool {

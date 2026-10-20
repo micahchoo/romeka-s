@@ -101,6 +101,40 @@ on_both!(uploads_list_per_import_and_delete_one, |pool| {
     assert_eq!(uploads.list(other).await.unwrap().len(), 1);
 });
 
+on_both!(unpacked_files_arrive_complete_in_one_batch, |pool| {
+    let id = draft!(pool, "a");
+    let other = draft!(pool, "b");
+    let uploads = UploadRepo::<Db>::new(pool);
+    uploads
+        .insert_complete(&[
+            upload(id, "z1", "Box/a.jpg", 3),
+            upload(id, "z2", "Box/b.jpg", 0),
+        ])
+        .await
+        .unwrap();
+    let rows = uploads.list(id).await.unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.is_complete()));
+    assert_eq!(rows[0].received, 3);
+    assert!(
+        uploads
+            .insert_complete(&[upload(id, "z3", "c.jpg", 1), upload(id, "z1", "d.jpg", 1)])
+            .await
+            .is_err(),
+        "a batch with a taken id fails"
+    );
+    assert_eq!(
+        uploads.list(id).await.unwrap().len(),
+        2,
+        "and none of it is stored"
+    );
+    uploads
+        .create(&upload(other, "u1", "B.jpg", 1))
+        .await
+        .unwrap();
+    assert_eq!(uploads.imports().await.unwrap(), vec![id, other]);
+});
+
 on_both!(
     the_sweep_finds_incomplete_uploads_older_than_a_time,
     |pool| {

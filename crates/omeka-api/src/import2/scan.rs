@@ -23,8 +23,9 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use omeka_db::Backend;
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
-use omeka_db::repos::{EntryRepo, ImportRepo};
-use omeka_db::rows::{EntryRow, NewEntry, NewScan, ScanRow};
+use omeka_db::repos::{EntryRepo, ImportRepo, UploadRepo};
+use omeka_db::rows::{EntryRow, NewEntry, NewScan, ScanRow, UploadRow};
+use omeka_media::store::Store;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
@@ -113,12 +114,18 @@ pub struct Walked {
     pub walk: Result<Walk, String>,
 }
 
-/// Walk every source of a plan. Blocking: it reads the disk.
-///
-/// A staging source has no files until P6-upload stores them; it walks as
-/// empty.
+/// The import's staging area as a scan reads it: the store, and the upload
+/// rows read before the walk.
+pub struct Staged {
+    pub store: Arc<dyn Store>,
+    pub import: ImportId,
+    pub uploads: Vec<UploadRow>,
+}
+
+/// Walk every source of a plan. Blocking: it reads the disk and the store.
+/// A staging source walks the import's uploads ([`super::staging::walk`]).
 #[must_use]
-pub fn walk_sources(roots: &ArchiveRoots, sources: &[SourcePlan]) -> Vec<Walked> {
+pub fn walk_sources(roots: &ArchiveRoots, sources: &[SourcePlan], staged: &Staged) -> Vec<Walked> {
     sources
         .iter()
         .map(|source| Walked {
@@ -128,7 +135,11 @@ pub fn walk_sources(roots: &ArchiveRoots, sources: &[SourcePlan]) -> Vec<Walked>
                     .source(root, path)
                     .map_err(|error| error.to_string())
                     .and_then(|dir| evidence::walk(&dir).map_err(|error| error.to_string())),
-                SourcePlan::Staging { .. } => Ok(Walk::default()),
+                SourcePlan::Staging { .. } => Ok(super::staging::walk(
+                    staged.store.as_ref(),
+                    staged.import,
+                    &staged.uploads,
+                )),
             },
         })
         .collect()
@@ -355,6 +366,7 @@ impl IndexCache {
 pub async fn scan<DB>(
     pool: &Pool<DB>,
     roots: &ArchiveRoots,
+    store: &Arc<dyn Store>,
     import: ImportId,
     sources: &[SourcePlan],
 ) -> Result<Scanned, ScanError>
@@ -370,9 +382,21 @@ where
 {
     let walk_roots = roots.clone();
     let walk_sources_of = sources.to_vec();
+    let staged = Staged {
+        store: Arc::clone(store),
+        import,
+        uploads: if sources
+            .iter()
+            .any(|source| matches!(source, SourcePlan::Staging { .. }))
+        {
+            UploadRepo::new(pool).list(import).await?
+        } else {
+            Vec::new()
+        },
+    };
     let now = Utc::now().naive_utc();
     let (scans, rows) = tokio::task::spawn_blocking(move || {
-        rows(&walk_sources(&walk_roots, &walk_sources_of), now)
+        rows(&walk_sources(&walk_roots, &walk_sources_of, &staged), now)
     })
     .await
     .map_err(|error| ScanError::Panicked(error.to_string()))?;
@@ -393,6 +417,7 @@ where
 pub async fn scan_import<DB>(
     pool: &Pool<DB>,
     roots: &ArchiveRoots,
+    store: &Arc<dyn Store>,
     import: ImportId,
 ) -> Result<Scanned, ScanError>
 where
@@ -412,7 +437,7 @@ where
         .ok_or(ScanError::Missing(import.0))?;
     let stored = row.ran_plan.as_ref().unwrap_or(&row.plan);
     let plan = ImportPlanV2::from_json(&stored.to_string())?;
-    scan(pool, roots, import, &plan.sources).await
+    scan(pool, roots, store, import, &plan.sources).await
 }
 
 /// The import's stored index, from the cache when no source was scanned

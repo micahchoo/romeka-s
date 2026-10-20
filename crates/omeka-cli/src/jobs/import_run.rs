@@ -90,6 +90,9 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
     let settings = SettingRepo::new(pool);
     let validation = omeka_api::settings::file_validation(&settings).await?;
     let policy = omeka_api::settings::address_policy(&settings).await?;
+    let max_file = omeka_api::settings::upload_settings(&settings)
+        .await?
+        .max_file;
     let sites = Sites {
         api: system_api::load(pool).await?,
     };
@@ -101,7 +104,9 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
         roots: &context.env.archive_roots,
         caches: &caches,
         validation,
-        http: HttpClient::new().with_address_policy(policy),
+        http: HttpClient::new()
+            .with_address_policy(policy)
+            .with_max_bytes(usize::try_from(max_file).unwrap_or(usize::MAX)),
         sites: &sites,
         removal: &removal,
     };
@@ -227,9 +232,14 @@ impl Job for ImportScan {
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
         let import = import_id(context)?;
-        let scanned = scan_import(context.pool, &context.env.archive_roots, import)
-            .await
-            .map_err(|error| JobError::Runtime(error.to_string()))?;
+        let scanned = scan_import(
+            context.pool,
+            &context.env.archive_roots,
+            &context.env.store,
+            import,
+        )
+        .await
+        .map_err(|error| JobError::Runtime(error.to_string()))?;
         let files: usize = scanned.sources.iter().map(|source| source.files).sum();
         context
             .log(&format!("Import {} scanned: {files} files.", import.0))

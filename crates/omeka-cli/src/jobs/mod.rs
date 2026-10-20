@@ -22,6 +22,8 @@ mod index_fulltext_search;
 mod query;
 mod runner;
 mod status;
+mod sweep;
+mod unzip;
 mod update_site_items;
 
 pub use batch_delete::BatchDelete;
@@ -33,6 +35,8 @@ pub use index_fulltext_search::IndexFulltextSearch;
 pub use query::BatchQuery;
 pub use runner::Runner;
 pub use status::JobStatus;
+pub use sweep::ImportSweep;
+pub use unzip::ImportUnzip;
 pub use update_site_items::UpdateSiteItems;
 
 use async_trait::async_trait;
@@ -75,6 +79,8 @@ static IMPORT_RUN: ImportRun = ImportRun;
 static IMPORT_SCAN: ImportScan = ImportScan;
 static IMPORT_UNDO: ImportUndo = ImportUndo;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
+static IMPORT_UNZIP: ImportUnzip = ImportUnzip;
+static IMPORT_SWEEP: ImportSweep = ImportSweep;
 
 /// The job for a `job.class` value, the port's registry of the four upstream
 /// jobs and Romeka's import jobs. `Dispatcher::dispatch` resolves the class the same way through the
@@ -89,6 +95,8 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         omeka_api::import2::run::RUN_JOB => Some(&IMPORT_RUN),
         omeka_api::import2::scan::SCAN_JOB => Some(&IMPORT_SCAN),
         omeka_api::import2::undo::UNDO_JOB => Some(&IMPORT_UNDO),
+        omeka_api::import2::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
+        omeka_api::import2::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
         _ => None,
     }
 }

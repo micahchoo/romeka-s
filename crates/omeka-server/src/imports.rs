@@ -10,7 +10,8 @@
 //! (`ImportRepo::start_run`, `start_undo`, `settle_dead`): every read first
 //! records the dead, and a start is one serialized transaction.
 //!
-//! `template.csv` and `sheets` are the list round trip (`lists`).
+//! `template.csv` and `sheets` are the list round trip (`lists`), and
+//! `uploads` the tus routes into the staging area (`uploads`).
 //!
 //! `GET /api/romeka/starters` serves the starter table the Item types page
 //! reads too, and `GET /api/romeka/jobs/{id}/log` the log the Jobs page polls.
@@ -21,6 +22,8 @@ mod multipart;
 mod progress;
 mod run;
 mod undo;
+mod uploads;
+mod uploads_body;
 mod wire;
 
 use axum::Router;
@@ -28,7 +31,7 @@ use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
-use axum::routing::{get, post};
+use axum::routing::{get, head, post};
 use omeka_api::import2::draft::{self, Start};
 use omeka_api::import2::plan::SourcePlan;
 use omeka_api::import2::starters::STARTERS;
@@ -64,6 +67,19 @@ pub(crate) fn router() -> Router<AppState> {
             get(lists::template),
         )
         .route("/api/romeka/imports/{id}/sheets", post(lists::upload))
+        .route(
+            "/api/romeka/imports/{id}/uploads",
+            get(uploads::list)
+                .post(uploads::create)
+                .options(uploads::options),
+        )
+        .route(
+            "/api/romeka/imports/{id}/uploads/{upload}",
+            head(uploads::head)
+                .patch(uploads::patch)
+                .delete(uploads::delete)
+                .options(uploads::options_one),
+        )
         .route("/api/romeka/jobs/{id}/log", get(job_log))
 }
 
@@ -260,6 +276,11 @@ async fn delete(
         async {
             admin(&state, &uri, &headers).await?;
             let id = parse_id(&id)?;
+            // The rows go with the draft, so its bytes go first.
+            if load(&state, &id.0.to_string()).await?.status == omeka_db::rows::ImportStatus::Draft
+            {
+                omeka_api::import2::staging::remove_all(&state.pool, &state.store, id).await?;
+            }
             draft::delete(&state.pool, id)
                 .await
                 .map_err(|error| draft_error(error, id, true))?;

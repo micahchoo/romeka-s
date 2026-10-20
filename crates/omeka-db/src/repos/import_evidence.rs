@@ -135,6 +135,38 @@ where
         rows.iter().map(UploadRow::from_db_row::<DB>).collect()
     }
 
+    /// Store files that arrived whole, such as the entries a ZIP unpacked to, in one
+    /// transaction: all of them or none.
+    pub async fn insert_complete(&self, rows: &[NewUpload]) -> Result<(), DbError> {
+        let created = time::format(time::now());
+        let mut tx = self.pool.begin().await?;
+        for row in rows {
+            sqlx::query(
+                "INSERT INTO romeka_import_upload (import_id, id, path, length, received, created)
+                 VALUES (?, ?, ?, ?, ?, ?)",
+            )
+            .bind(bind_id(row.import_id))
+            .bind(row.id.as_str())
+            .bind(row.path.as_str())
+            .bind(bind_id(row.length))
+            .bind(bind_id(row.length))
+            .bind(created.as_str())
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every import that holds an upload, by id: what the staging sweep looks at.
+    pub async fn imports(&self) -> Result<Vec<ImportId>, DbError> {
+        let rows =
+            sqlx::query("SELECT DISTINCT import_id FROM romeka_import_upload ORDER BY import_id")
+                .fetch_all(self.pool)
+                .await?;
+        rows.iter().map(|row| DB::id(row, "import_id")).collect()
+    }
+
     /// False when no such upload exists.
     pub async fn delete(&self, import: ImportId, id: &str) -> Result<bool, DbError> {
         let done = sqlx::query("DELETE FROM romeka_import_upload WHERE import_id = ? AND id = ?")

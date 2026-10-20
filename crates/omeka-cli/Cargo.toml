@@ -38,5 +38,7 @@ thiserror.workspace = true
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
 
 [dev-dependencies]
+# `tests/import_staging.rs` writes the ZIPs it uploads.
+flate2 = "1"
 axum = "0.8"
 tempfile = "3"
