@@ -23,7 +23,8 @@ export interface LivePanelProps {
   readonly draft: PageDraft;
   readonly selection: Selection | null;
   readonly siteSettings: JsonValue | null;
-  readonly onSelect: (key: BlockKey) => void;
+  /** `null` for a click on the page outside every block. */
+  readonly onSelect: (key: BlockKey | null) => void;
   readonly dispatch: (action: DraftAction) => void;
 }
 

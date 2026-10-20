@@ -22,12 +22,6 @@
   color: var(--text-muted);
 }
 
-.canvas-history {
-  display: flex;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-
 .canvas-live,
 .canvas-visually-hidden {
   position: absolute;
@@ -97,6 +91,18 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
+}
+
+/* The grip says the card can be dragged; the whole card is the drag source. */
+.canvas-card-grip {
+  flex: none;
+  color: var(--text-muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.canvas-card[draggable='true']:active .canvas-card-grip {
+  cursor: grabbing;
 }
 
 .canvas-card-thumb {
