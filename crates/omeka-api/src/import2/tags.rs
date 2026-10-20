@@ -2,30 +2,33 @@
 //! (`docs/import-v2.md`, `SourceRef` `tag` and `file`).
 //!
 //! File facts and the file tags (`File name`, `Folder`, `Size`, `Format`)
-//! come from the evidence index and never open the file. EXIF tags and
-//! `Pixel dimensions` read the file's headers through
+//! come from the evidence index and never open the file. EXIF, IPTC and XMP
+//! tags and `Pixel dimensions` read the file's headers through
 //! `omeka_media::image_metadata`, which seeks and never loads the pixels.
 //! [`TagCache`] reads each file once per (path, modified time, size), the
 //! three the index already holds, so a cached answer costs no system call.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::SystemTime;
 
 use super::archive::SourceDir;
 use super::evidence::FileEntry;
+pub use omeka_media::image_metadata::{Embedded, Metadata};
+
 use super::plan::{FileFact, TagId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TagKind {
-    /// Read from inside the file.
+    /// Read from inside the file: EXIF, IPTC or XMP. The tag's name says
+    /// which; the wire calls all three `exif`.
     Exif,
     /// A fact about the file.
     File,
 }
 
-/// Every tag, in the order the Sources tab lists them.
+/// The tags the Sources tab lists, in its order.
 pub const TAGS: [(TagId, TagKind); 11] = [
     (TagId::DateTimeOriginal, TagKind::Exif),
     (TagId::Artist, TagKind::Exif),
@@ -39,6 +42,55 @@ pub const TAGS: [(TagId, TagKind); 11] = [
     (TagId::PixelDimensions, TagKind::File),
     (TagId::Format, TagKind::File),
 ];
+
+/// The IPTC and XMP tags. A plan can name them and the derive reads them;
+/// the Sources tab does not list them yet, because the admin refuses a tag
+/// id it does not know, so they join [`TAGS`] with the admin's own ids.
+pub const IPTC_XMP_TAGS: [TagId; 14] = [
+    TagId::IptcByline,
+    TagId::IptcCaption,
+    TagId::IptcKeywords,
+    TagId::IptcObjectName,
+    TagId::IptcDateCreated,
+    TagId::IptcCity,
+    TagId::IptcCountry,
+    TagId::XmpTitle,
+    TagId::XmpDescription,
+    TagId::XmpCreator,
+    TagId::XmpSubject,
+    TagId::XmpRights,
+    TagId::XmpDateCreated,
+    TagId::XmpHierarchicalSubject,
+];
+
+/// The `image_metadata` key of a tag read from inside the file.
+fn embedded_key(tag: TagId) -> Option<&'static str> {
+    Some(match tag {
+        TagId::DateTimeOriginal => "DateTimeOriginal",
+        TagId::Artist => "Artist",
+        TagId::Copyright => "Copyright",
+        TagId::ImageDescription => "ImageDescription",
+        TagId::Gps => "GPS",
+        TagId::Model => "Model",
+        TagId::IptcByline => "IPTC By-line",
+        TagId::IptcCaption => "IPTC Caption-Abstract",
+        TagId::IptcKeywords => "IPTC Keywords",
+        TagId::IptcObjectName => "IPTC Object Name",
+        TagId::IptcDateCreated => "IPTC Date Created",
+        TagId::IptcCity => "IPTC City",
+        TagId::IptcCountry => "IPTC Country",
+        TagId::XmpTitle => "XMP dc:title",
+        TagId::XmpDescription => "XMP dc:description",
+        TagId::XmpCreator => "XMP dc:creator",
+        TagId::XmpSubject => "XMP dc:subject",
+        TagId::XmpRights => "XMP dc:rights",
+        TagId::XmpDateCreated => "XMP photoshop:DateCreated",
+        TagId::XmpHierarchicalSubject => "XMP lr:hierarchicalSubject",
+        TagId::FileName | TagId::Folder | TagId::Size | TagId::PixelDimensions | TagId::Format => {
+            return None;
+        }
+    })
+}
 
 /// A file fact. `size` is the byte count; `format` is the sniffed media
 /// type, never a guess from the extension.
@@ -55,7 +107,7 @@ pub fn file_fact(entry: &FileEntry, fact: FileFact) -> String {
 /// Reads the embedded metadata of one file, keyed as
 /// `omeka_media::image_metadata` keys it. Tests supply their own.
 pub trait TagReader: Send + Sync {
-    fn read(&self, file: &Path) -> BTreeMap<&'static str, String>;
+    fn read(&self, file: &Path) -> Metadata;
 }
 
 /// Reads from disk, as far as the headers. An unreadable file has no tags.
@@ -63,7 +115,7 @@ pub trait TagReader: Send + Sync {
 pub struct FsTagReader;
 
 impl TagReader for FsTagReader {
-    fn read(&self, file: &Path) -> BTreeMap<&'static str, String> {
+    fn read(&self, file: &Path) -> Metadata {
         std::fs::File::open(file)
             .map(|handle| omeka_media::image_metadata(&mut std::io::BufReader::new(handle)))
             .unwrap_or_default()
@@ -74,14 +126,14 @@ impl TagReader for FsTagReader {
 const CAPACITY: usize = 100_000;
 
 type FileKey = (PathBuf, Option<SystemTime>, u64);
-type Embedded = Arc<BTreeMap<&'static str, String>>;
+type Read = Arc<Metadata>;
 
 /// Tag values of files, each file read once while its index entry stays
 /// the same. Shared across previews, so asking again does not reread a
 /// large TIFF.
 pub struct TagCache<R = FsTagReader> {
     reader: R,
-    seen: Mutex<HashMap<FileKey, Embedded>>,
+    seen: Mutex<HashMap<FileKey, Read>>,
 }
 
 impl Default for TagCache {
@@ -98,7 +150,9 @@ impl<R: TagReader> TagCache<R> {
         }
     }
 
-    /// The value of `tag` for `entry`, `None` when the file has none.
+    /// The value of `tag` for `entry`, `None` when the file has none. A
+    /// tag that repeats (IPTC Keywords, an XMP bag) gives its values joined
+    /// by `; `; [`TagCache::embedded`] gives them apart.
     #[must_use]
     pub fn value(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<String> {
         let value = match tag {
@@ -107,24 +161,24 @@ impl<R: TagReader> TagCache<R> {
             TagId::Size => human_size(entry.size),
             TagId::Format => entry.sniffed.clone(),
             TagId::PixelDimensions => {
-                let tags = self.embedded(source, entry);
-                format!("{} × {}", tags.get("Width")?, tags.get("Height")?)
+                let tags = self.read(source, entry);
+                let one = |key| tags.get(key)?.values.first().cloned();
+                format!("{} × {}", one("Width")?, one("Height")?)
             }
-            TagId::DateTimeOriginal => self.exif(source, entry, "DateTimeOriginal")?,
-            TagId::Artist => self.exif(source, entry, "Artist")?,
-            TagId::Copyright => self.exif(source, entry, "Copyright")?,
-            TagId::ImageDescription => self.exif(source, entry, "ImageDescription")?,
-            TagId::Gps => self.exif(source, entry, "GPS")?,
-            TagId::Model => self.exif(source, entry, "Model")?,
+            _ => self.embedded(source, entry, tag)?.values.join("; "),
         };
         (!value.is_empty()).then_some(value)
     }
 
-    fn exif(&self, source: &SourceDir, entry: &FileEntry, key: &str) -> Option<String> {
-        self.embedded(source, entry).get(key).cloned()
+    /// The values of a tag read from inside the file, apart, and whether
+    /// its text was read as Windows-1252 (`encoding-suspect`). `None` for
+    /// a file fact and when the file has no such tag.
+    #[must_use]
+    pub fn embedded(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        self.read(source, entry).get(embedded_key(tag)?).cloned()
     }
 
-    fn embedded(&self, source: &SourceDir, entry: &FileEntry) -> Embedded {
+    fn read(&self, source: &SourceDir, entry: &FileEntry) -> Read {
         let disk = entry.disk_path();
         let key = (source.dir().join(&disk), entry.modified, entry.size);
         let seen = || self.seen.lock().unwrap_or_else(PoisonError::into_inner);
@@ -193,13 +247,34 @@ mod tests {
 
     struct Counting(AtomicUsize);
 
+    fn one(text: &str) -> Embedded {
+        Embedded {
+            values: vec![text.to_string()],
+            windows_1252: false,
+        }
+    }
+
     impl TagReader for Counting {
-        fn read(&self, _: &Path) -> BTreeMap<&'static str, String> {
+        fn read(&self, _: &Path) -> Metadata {
             self.0.fetch_add(1, Ordering::SeqCst);
-            BTreeMap::from([
-                ("Artist", "R. Mehta".to_string()),
-                ("Width", "7200".to_string()),
-                ("Height", "5400".to_string()),
+            Metadata::from([
+                ("Artist", one("R. Mehta")),
+                ("Width", one("7200")),
+                ("Height", one("5400")),
+                (
+                    "IPTC Keywords",
+                    Embedded {
+                        values: vec!["harbour".into(), "मुंबई".into()],
+                        windows_1252: false,
+                    },
+                ),
+                (
+                    "XMP dc:creator",
+                    Embedded {
+                        values: vec!["André".into()],
+                        windows_1252: true,
+                    },
+                ),
             ])
         }
     }
@@ -214,10 +289,49 @@ mod tests {
     }
 
     #[test]
-    fn the_tag_list_is_the_contracts_eleven() {
+    fn a57_the_listed_tags_are_the_contracts_eleven_and_seven_iptc_and_seven_xmp_are_readable() {
         assert_eq!(TAGS.len(), 11);
         let exif = TAGS.iter().filter(|(_, kind)| *kind == TagKind::Exif);
         assert_eq!(exif.count(), 6);
+        let embedded = TAGS
+            .iter()
+            .filter(|(_, kind)| *kind == TagKind::Exif)
+            .map(|(tag, _)| *tag)
+            .chain(IPTC_XMP_TAGS);
+        for tag in embedded {
+            let key = embedded_key(tag).expect("read from inside the file");
+            let name = serde_json::to_value(tag).expect("name");
+            assert_eq!(name, key, "a tag is named as the reader keys it");
+            assert_eq!(serde_json::from_value::<TagId>(name).expect("parse"), tag);
+        }
+        for (tag, kind) in TAGS {
+            assert_eq!(
+                embedded_key(tag).is_some(),
+                kind == TagKind::Exif,
+                "{tag:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a57_a_repeating_tag_gives_its_values_apart_or_joined_and_a58_marks_1252() {
+        let (_dir, source, entry) = scanned(b"\x89PNG\r\n\x1a\n");
+        let cache = TagCache::new(Counting(AtomicUsize::new(0)));
+        let keywords = cache
+            .embedded(&source, &entry, TagId::IptcKeywords)
+            .expect("keywords");
+        assert_eq!(keywords.values, ["harbour", "मुंबई"]);
+        assert_eq!(
+            cache.value(&source, &entry, TagId::IptcKeywords).as_deref(),
+            Some("harbour; मुंबई")
+        );
+        let creator = cache
+            .embedded(&source, &entry, TagId::XmpCreator)
+            .expect("creator");
+        assert!(creator.windows_1252);
+        assert_eq!(cache.embedded(&source, &entry, TagId::IptcCity), None);
+        assert_eq!(cache.embedded(&source, &entry, TagId::FileName), None);
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 1, "opened once");
     }
 
     #[test]

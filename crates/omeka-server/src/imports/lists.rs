@@ -1,7 +1,7 @@
 //! The list round trip (`docs/import-v2.md`, "The list round trip"):
 //! `GET …/template.csv?columns=` answers the list to fill in, and
-//! `POST …/sheets` stores a filled list in the import's staging area and
-//! adds it to the draft's plan. The rules live in
+//! `POST …/sheets` stores a filled list (CSV, TSV, .xlsx, .xls or .ods) in
+//! the import's staging area and adds it to the draft's plan. The rules live in
 //! `omeka_api::import2::template`; these handlers read the request, move
 //! the bytes through the store, and save the plan.
 
@@ -103,11 +103,20 @@ pub(super) async fn upload(
             let extension = name
                 .rsplit_once('.')
                 .map(|(_, extension)| extension.to_ascii_lowercase());
-            let tab = match extension.as_deref() {
-                Some("csv") => false,
-                Some("tsv") => true,
+            let (extension, tab) = match extension.as_deref() {
+                Some("csv") => ("csv", false),
+                Some("tsv") => ("tsv", true),
+                Some("xlsx") => ("xlsx", false),
+                Some("xls") => ("xls", false),
+                Some("ods") => ("ods", false),
                 _ => return Err(ImportError::BadRequest(messages::import_list_type(&name))),
             };
+            // A workbook named so is read as one, never as text by accident.
+            if !matches!(extension, "csv" | "tsv") && sheet::WorkbookKind::sniff(&bytes).is_none() {
+                return Err(ImportError::BadRequest(messages::import_list_unread(
+                    format!("\"{name}\" is not a {extension} workbook"),
+                )));
+            }
             let read = list_read(tab);
             let list = sheet::read(&bytes, &read, None)
                 .map_err(|error| ImportError::BadRequest(messages::import_list_unread(error)))?;
@@ -119,7 +128,6 @@ pub(super) async fn upload(
 
             let store = state.store.clone();
             let import = row.id;
-            let extension = if tab { "tsv" } else { "csv" };
             let stored = blocking(move || {
                 let folder = staging_path(import, &RelPath::parse("lists").map_err(internal)?);
                 let next = store

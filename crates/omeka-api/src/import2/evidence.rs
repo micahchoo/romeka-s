@@ -100,8 +100,8 @@ pub struct Anomalies {
 pub struct Walk {
     /// Sorted by path.
     pub entries: Vec<FileEntry>,
-    /// CSV and TSV files, and text files that read as delimited, sorted by
-    /// path. ODS joins in P8; until then an `.ods` file is a file entry.
+    /// CSV and TSV files, text files that read as delimited, and .xlsx,
+    /// .xls and .ods workbooks, sorted by path.
     pub sheets: Vec<FileEntry>,
     pub anomalies: Anomalies,
 }
@@ -266,7 +266,7 @@ fn is_sheet(path: &RelPath, head: &[u8]) -> bool {
         .rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase());
     match extension.as_deref() {
-        Some("csv" | "tsv") => true,
+        Some("csv" | "tsv" | "xlsx" | "xls" | "ods") => true,
         Some("txt") => super::sheet::looks_delimited(head),
         _ => false,
     }
