@@ -309,8 +309,9 @@ item-set records; for media, the media of the matched item.
 - The sheet cache holds at most 16 reads and 128 MB.
 - Walk anomalies per source live in `romeka_import_scan (import_id, source, anomalies, error,
   token)`, not in the entry table (0006 amended before it ever left the branch).
-- Run starts with the revision Check saw (`start_run(id, revision)`), so a save between Check and
-  Run answers `changed`.
+- Run starts with the revision it derived from (`start_run(id, revision)`), so a save between the
+  derive and the start answers `changed`.
+- The index loader reads entries unordered (`EntryRepo::all`) and sorts in Rust; no path index.
 
 ## Values
 
@@ -399,9 +400,9 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   transaction. Bytes reach the store before the commit and are removed if it fails. A record that
   fails is listed in `summary.failures` as `{ record, key, detail }` with a translatable key; the
   import ends `done` when any record committed, `run_failed` when none did.
-- **Stop.** `POST /imports/{id}/stop` asks a running job to stop after the record in hand; the
-  import ends `run_failed`, so it can be retried or undone.
-- **Retry.** A `run_failed` import, or a `done` import with failures, runs again from `ran_plan` against a rescan. Records whose key
+- **Stop.** `POST /imports/{id}/stop` sets `stop_requested` (no heartbeat); the job stops after the
+  record in hand and the import ends `run_failed`, so it can be retried or undone.
+- **Retry.** A `run_failed` import, or a `done` import whose `summary.failures` is not empty, runs again from `ran_plan` against a rescan. Records whose key
   is in the ledger are skipped, so retry converges. Records with no stable key cannot be told
   apart: media rows and item-set rows get a key from their row key, files from their entry.
 - **Copy.** `POST /imports { copyFrom }` makes a draft with the plan (decisions kept; those that no
@@ -653,6 +654,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-fixes | unit-test-verified | 2,007 workspace tests; 391 MySQL tests each on 8.0 and MariaDB 11; 9 messages rewritten, 0 glossary hits |
 | P3-wire | unit-test-verified | 1,953 workspace tests; S1 and S20 through the routes; digest and label mutations caught; preview 10k ~100 ms, 40k ~575 ms on a loaded machine |
 | P3-writes | unit-test-verified | 319 SQLite, 379 each on MySQL 8.0.46 and MariaDB 11.8.9; 24-case apply/restore property test; 5 mutations caught |
 | P3-derive | unit-test-verified | 149 import2 tests, 16 mutations (2 survivors fixed), 10k 95-116 ms, 40k 444-528 ms on a loaded machine |
