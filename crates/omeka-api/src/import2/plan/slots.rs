@@ -31,6 +31,11 @@ impl Slots {
 pub struct SlotRule {
     pub sources: Vec<SourceRef>,
     pub combine: Combine,
+    /// The value map: a value whose text, compared as a title, is a key
+    /// takes the mapped text; a key mapped to `""` drops the value. Plans
+    /// saved before the map existed have none, so a missing member is empty.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub map: IndexMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
