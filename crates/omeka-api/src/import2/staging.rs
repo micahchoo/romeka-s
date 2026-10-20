@@ -7,8 +7,10 @@
 //! never by the person's path, so a name never becomes a store path:
 //!
 //! - `files/<upload>`: a file whose every byte arrived;
-//! - `parts/<upload>/<offset>`: the chunks of an upload still in progress,
-//!   one per `PATCH`, named by the offset it starts at;
+//! - `parts/<upload>.<offset>`: the chunks of an upload still in progress,
+//!   one per `PATCH`, named by the offset it starts at. They share one flat
+//!   folder because the store lists files and not folders; the sweep can then
+//!   find the parts of an upload that no row names ([`remove_orphan_parts`]);
 //! - `meta/<upload>.json`: what a ZIP entry's name was before it was decoded
 //!   or renamed ([`Meta`]), and `meta/zip-<upload>.json`, what unpacking a
 //!   ZIP left out ([`Refused`]).
@@ -25,7 +27,7 @@
 //! upload's lock (the server keeps one per upload), so two requests for one
 //! upload never interleave.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Read};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -35,7 +37,7 @@ use omeka_db::DbError;
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{UploadAdvance, UploadRepo};
 use omeka_db::rows::{NewUpload, UploadRow};
-use omeka_media::store::{Store, StoreError, new_storage_id};
+use omeka_media::store::{ListedFile, Store, StoreError, new_storage_id};
 use serde::{Deserialize, Serialize};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
@@ -68,13 +70,28 @@ pub fn file_path(import: ImportId, upload: &str) -> String {
     format!("{}/files/{upload}", staging_path(import))
 }
 
-fn parts_path(import: ImportId, upload: &str) -> String {
-    format!("{}/parts/{upload}", staging_path(import))
+fn parts_folder(import: ImportId) -> String {
+    format!("{}/parts", staging_path(import))
 }
 
-/// Zero-padded, so the store lists the parts in offset order.
+/// Zero-padded, so the store lists the parts in offset order. An upload id
+/// is hex, so the first `.` ends it.
 fn part_path(import: ImportId, upload: &str, offset: u64) -> String {
-    format!("{}/{offset:020}", parts_path(import, upload))
+    format!("{}/{upload}.{offset:020}", parts_folder(import))
+}
+
+/// The parts of one upload, in offset order.
+pub(crate) fn part_files(
+    store: &dyn Store,
+    import: ImportId,
+    upload: &str,
+) -> Result<Vec<ListedFile>, StoreError> {
+    let prefix = format!("{}/{upload}.", parts_folder(import));
+    Ok(store
+        .list(&parts_folder(import))?
+        .into_iter()
+        .filter(|part| part.storage_path.starts_with(&prefix))
+        .collect())
 }
 
 fn meta_folder(import: ImportId) -> String {
@@ -423,6 +440,7 @@ where
     }
     let folders = [
         format!("{}/files", staging_path(import)),
+        parts_folder(import),
         meta_folder(import),
     ];
     let _ = blocking_store(store, move |store| {
@@ -438,14 +456,59 @@ where
 }
 
 async fn remove_parts(store: &Arc<dyn Store>, import: ImportId, upload: &str) {
-    let folder = parts_path(import, upload);
+    let upload = upload.to_string();
     let _ = blocking_store(store, move |store| {
-        for part in store.list(&folder)? {
+        for part in part_files(store, import, &upload)? {
             store.delete(&part.storage_path)?;
         }
         Ok(true)
     })
     .await;
+}
+
+/// Remove the parts of `import` whose upload no row names and that were
+/// last written before `before`: what a crash between a row's removal and its
+/// parts' removal leaves. The age keeps a part that a request is writing
+/// for a row created a moment ago. Answers how many uploads' parts went.
+///
+/// # Errors
+/// [`DbError`] when the rows cannot be read.
+pub async fn remove_orphan_parts<DB>(
+    pool: &Pool<DB>,
+    store: &Arc<dyn Store>,
+    import: ImportId,
+    before: SystemTime,
+) -> Result<usize, DbError>
+where
+    DB: Backend,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+{
+    let named: BTreeSet<String> = UploadRepo::new(pool)
+        .list(import)
+        .await?
+        .into_iter()
+        .map(|upload| upload.id)
+        .collect();
+    let swept = blocking_store(store, move |store| {
+        let folder = parts_folder(import);
+        let mut gone = BTreeSet::new();
+        for part in store.list(&folder)? {
+            let name = part.storage_path.rsplit('/').next().unwrap_or_default();
+            let upload = name.split('.').next().unwrap_or_default();
+            if !named.contains(upload) && part.modified < before {
+                store.delete(&part.storage_path)?;
+                gone.insert(upload.to_string());
+            }
+        }
+        Ok(gone.len())
+    })
+    .await;
+    Ok(swept.unwrap_or(0))
 }
 
 /// Each complete upload's store path, by its path in staging: where the run

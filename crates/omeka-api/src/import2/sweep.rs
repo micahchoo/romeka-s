@@ -11,12 +11,13 @@
 //! - a draft loses it `import_draft_staging_keep_days` (7) after it was last
 //!   worked on;
 //! - an upload still unfinished 24 hours after it began is removed, whatever
-//!   its import.
+//!   its import;
+//! - parts that no upload row names are removed an hour after they were
+//!   written ([`ORPHAN_GRACE`]).
 //!
-//! An import that is running or undoing keeps everything. The rows hold no
-//! time a plan was saved, so a draft's last work is the newest of its
-//! creation and its uploads; a draft whose plan is edited every day but that
-//! gets no new file is swept after 7 days all the same.
+//! An import that is running or undoing keeps everything. A draft's last
+//! work is the newest of its creation, its last plan save (`saved`) and its
+//! uploads.
 //!
 //! The clock is a parameter, so a test moves it.
 
@@ -38,6 +39,10 @@ pub const SWEEP_JOB: &str = "Romeka\\Job\\ImportSweep";
 
 /// How long an unfinished upload may stay.
 pub const UNFINISHED_KEEP: TimeDelta = TimeDelta::hours(24);
+
+/// How long a part with no upload row stays: long enough that a request
+/// writing a part for a row created a moment ago is never mistaken for one.
+pub const ORPHAN_GRACE: TimeDelta = TimeDelta::hours(1);
 
 /// How long staging stays, in days.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +86,7 @@ pub fn kept_until(
             let last = uploads
                 .iter()
                 .map(|upload| upload.created)
-                .chain([import.created])
+                .chain([import.created, import.saved])
                 .max()?;
             last.checked_add_signed(days(retention.draft_keep_days))
         }
@@ -127,7 +132,8 @@ pub fn due(
 pub struct Swept {
     /// Imports whose whole staging area went.
     pub imports: usize,
-    /// Unfinished uploads removed on their own.
+    /// Unfinished uploads removed on their own, and uploads whose parts
+    /// remained after their row was gone.
     pub uploads: usize,
 }
 
@@ -155,12 +161,23 @@ where
     let uploads = UploadRepo::new(pool);
     let imports = ImportRepo::new(pool);
     let mut held = Vec::new();
-    for id in uploads.imports().await? {
+    let holders = uploads.imports().await?;
+    let mut looked_at = holders.clone();
+    for id in imports.draft_ids().await? {
+        if !looked_at.contains(&id) {
+            looked_at.push(id);
+        }
+    }
+    let before = staging::system_time(now - ORPHAN_GRACE);
+    let mut swept = Swept::default();
+    for &id in &looked_at {
+        swept.uploads += staging::remove_orphan_parts(pool, store, id, before).await?;
+    }
+    for id in holders {
         if let Some(import) = imports.get(id).await? {
             held.push((import, uploads.list(id).await?));
         }
     }
-    let mut swept = Swept::default();
     for due in due(&held, now, retention) {
         match due {
             Due::Staging(import) => {
@@ -217,6 +234,7 @@ mod tests {
             stop_requested: false,
             copied_from: None,
             created,
+            saved: created,
             finished,
         }
     }
@@ -292,6 +310,77 @@ mod tests {
             "a draft's date moves with its newest upload"
         );
         assert_eq!(kept_until(&held[5].0, &held[5].1, RETENTION), None);
+    }
+
+    /// A plan save is work: a draft edited on the 26th keeps its files until
+    /// the 2nd of the next month, though no file came after the 20th.
+    #[test]
+    fn a_plan_save_moves_a_drafts_date() {
+        let mut draft = import(1, ImportStatus::Draft, at(10, 9), None);
+        let uploads = vec![upload(1, "a", at(20, 9), true)];
+        draft.saved = at(26, 9);
+        assert_eq!(
+            kept_until(&draft, &uploads, RETENTION),
+            Some(at(26, 9) + TimeDelta::days(7))
+        );
+        assert_eq!(due(&[(draft, uploads)], at(31, 9), RETENTION), []);
+    }
+
+    /// Parts that no row names are garbage; a live upload's parts are not.
+    #[tokio::test]
+    async fn a_sweep_removes_parts_that_no_row_names_after_the_grace() {
+        let site = site().await;
+        let open = crate::import2::staging::create(&site.pool, site.import, "b.jpg", 4, LIMITS)
+            .await
+            .unwrap();
+        crate::import2::staging::append(
+            &site.pool,
+            &site.store,
+            site.import,
+            &open.id,
+            0,
+            body(b"b"),
+        )
+        .await
+        .unwrap();
+        let ghost = format!(
+            "{}/parts/{}.{:020}",
+            crate::import2::staging::staging_path(site.import),
+            "f".repeat(40),
+            0
+        );
+        site.store.put(b"zz", &ghost).unwrap();
+        let now = chrono::Utc::now().naive_utc();
+
+        let early = sweep(&site.pool, &site.store, now, RETENTION)
+            .await
+            .unwrap();
+        assert_eq!(early, Swept::default(), "a part just written stays");
+        assert!(site.store.exists(&ghost).unwrap());
+
+        let later = sweep(
+            &site.pool,
+            &site.store,
+            now + TimeDelta::minutes(90),
+            RETENTION,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            later,
+            Swept {
+                imports: 0,
+                uploads: 1
+            }
+        );
+        assert!(!site.store.exists(&ghost).unwrap());
+        assert_eq!(
+            crate::import2::staging::part_files(site.store.as_ref(), site.import, &open.id)
+                .unwrap()
+                .len(),
+            1,
+            "the part of a live upload stays"
+        );
     }
 
     /// The sweep on a real staging area, with the clock moved forward.

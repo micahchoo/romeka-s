@@ -16,10 +16,11 @@
 //! unzip job when a `.zip` arrives whole. A refusal answers the import routes'
 //! error document with a `code` the admin branches on.
 //!
-//! The sweep has no clock of its own: an upload start dispatches the sweep
-//! job when none was dispatched in the last hour.
+//! An upload start dispatches the sweep job when none was dispatched in the
+//! last hour; `romeka serve` also starts it every hour.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -46,6 +47,9 @@ const TUS_VERSION: &str = "1.0.0";
 const OFFSET_TYPE: &str = "application/offset+octet-stream";
 /// The header that names the unzip job a finished `.zip` started.
 pub(crate) const UNZIP_HEADER: &str = "romeka-unzip-job";
+/// The most bytes one `PATCH` may carry. A chunk is a part in the store, so
+/// the limit bounds the work one request can ask for.
+const MAX_CHUNK: u64 = 64 * 1024 * 1024;
 /// How often an upload start may dispatch the sweep.
 const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
 
@@ -113,6 +117,16 @@ fn shared(error: ImportError) -> Box<Response> {
         .headers_mut()
         .insert("tus-resumable", HeaderValue::from_static(TUS_VERSION));
     Box::new(response)
+}
+
+fn chunk_too_large() -> Box<Response> {
+    Refusal::new(
+        StatusCode::PAYLOAD_TOO_LARGE,
+        Some("chunkTooLarge"),
+        messages::import_upload_chunk_too_large(MAX_CHUNK),
+    )
+    .with("limit", json!(MAX_CHUNK))
+    .refused()
 }
 
 fn staging_refusal(error: StagingError) -> Box<Response> {
@@ -461,16 +475,21 @@ pub(super) async fn patch(
                 )
                 .refused());
             };
+            if number(&headers, "content-length").is_some_and(|sent| sent > MAX_CHUNK) {
+                return Err(chunk_too_large());
+            }
             let key = format!("{}/{upload}", row.id.0);
             let lock = lock_of(&key);
             let held = lock.lock().await;
+            let reader = BodyReader::spawn(body, MAX_CHUNK);
+            let over = reader.over();
             let appended = staging::append(
                 &state.pool,
                 &state.store,
                 row.id,
                 &upload,
                 offset,
-                Box::new(BodyReader::spawn(body)),
+                Box::new(reader),
             )
             .await;
             drop(held);
@@ -484,6 +503,9 @@ pub(super) async fn patch(
                         messages::import_upload_not_found(&upload),
                     )
                     .refused());
+                }
+                Err(StagingError::Interrupted(_)) if over.load(Ordering::Relaxed) => {
+                    return Err(chunk_too_large());
                 }
                 Err(error) => return Err(staging_refusal(error)),
             };

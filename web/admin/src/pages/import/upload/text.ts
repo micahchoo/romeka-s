@@ -8,14 +8,14 @@ const UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
 const formats = new Map<string, Intl.NumberFormat>();
 
 /**
- * A size in the locale's unit words. The steps are 1024, the way a file
- * manager on Windows counts, so the 2 GB limit reads "2 GB".
+ * A size in the locale's unit words. The steps are 1000, as the unit words
+ * mean them: 1 GB is 1,000,000,000 bytes, the number a limit setting holds.
  */
 export const sizeText = (bytes: number, locale: Locale): string => {
   let value = bytes;
   let unit = 0;
-  while (value >= 1024 && unit < UNITS.length - 1) {
-    value /= 1024;
+  while (value >= 1000 && unit < UNITS.length - 1) {
+    value /= 1000;
     unit += 1;
   }
   const name = UNITS[unit] ?? 'byte';

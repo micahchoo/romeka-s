@@ -237,6 +237,7 @@ export const esServer: ServerCatalogue = {
   'server.importUploadPath': 'El nombre de archivo "{path}" no se puede usar: {reason}.',
   'server.importUploadTooLarge': 'Este archivo ocupa más de {limit} bytes, el archivo más grande que admite una importación.',
   'server.importUploadFull': 'Los archivos de esta importación pasarían de {limit} bytes, lo máximo que admite una importación. Quita algunos archivos, o deja que terminen los que aún están en camino, y vuelve a intentarlo.',
+  'server.importUploadChunkTooLarge': 'Esta petición lleva más de {limit} bytes. Envía el archivo en trozos más pequeños.',
   'server.importUploadInProgress': '"{path}" aún está en camino. Continúa esa subida en lugar de empezarla de nuevo.',
   'server.importUploadNotFound': 'Esta importación no tiene ninguna subida con el id "{upload}".',
   'server.importUploadOffset': 'El servidor tiene {received} bytes de este archivo. Envía los bytes que vienen después.',

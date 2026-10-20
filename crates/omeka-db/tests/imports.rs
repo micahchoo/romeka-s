@@ -25,6 +25,8 @@ fn job(status: &str) -> NewJob {
     }
 }
 
+const AGE_SAVED: &str = "UPDATE romeka_import SET saved = '2000-01-01 00:00:00' WHERE id = ?";
+
 const AGE_HEARTBEAT: &str =
     "UPDATE romeka_import SET summary = json_set(summary, '$.heartbeat', '2000-01-01 00:00:00')
      WHERE id = ?";
@@ -110,6 +112,31 @@ on_both!(
                 .unwrap(),
             PlanSave::Missing
         );
+    }
+);
+
+on_both!(
+    a_plan_save_moves_the_draft_clock_and_a_stale_one_does_not,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        let old = chrono::NaiveDate::from_ymd_opt(2000, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        exec_id!(pool, AGE_SAVED, id.0);
+        assert_eq!(imports.get(id).await.unwrap().unwrap().saved, old);
+
+        imports.save_plan(id, &json!({}), 5).await.unwrap();
+        assert_eq!(
+            imports.get(id).await.unwrap().unwrap().saved,
+            old,
+            "a stale save changes nothing"
+        );
+        imports.save_plan(id, &json!({}), 0).await.unwrap();
+        let row = imports.get(id).await.unwrap().unwrap();
+        assert!(row.saved > old, "a save sets the clock to now");
+        assert!(row.saved >= row.created);
     }
 );
 

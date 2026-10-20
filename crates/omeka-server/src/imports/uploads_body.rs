@@ -2,6 +2,8 @@
 //! header, and a request body as a blocking reader for the store.
 
 use std::io::{self, Read};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::body::{Body, Bytes};
 use http_body_util::BodyExt;
@@ -43,14 +45,23 @@ fn base64_decode(text: &str) -> Option<Vec<u8>> {
 }
 
 /// A request body read as a blocking [`Read`]: a task forwards its frames,
-/// and the reader waits for them on the blocking pool.
+/// and the reader waits for them on the blocking pool. It fails once the
+/// body passes `cap` bytes, and says so in the flag [`BodyReader::over`]
+/// returns, so the caller can tell that failure from a dropped connection.
 pub(super) struct BodyReader {
     frames: tokio::sync::mpsc::Receiver<io::Result<Bytes>>,
     held: Bytes,
+    cap: u64,
+    taken: u64,
+    over: Arc<AtomicBool>,
 }
 
 impl BodyReader {
-    pub(super) fn spawn(body: Body) -> Self {
+    pub(super) fn over(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.over)
+    }
+
+    pub(super) fn spawn(body: Body, cap: u64) -> Self {
         let (sender, frames) = tokio::sync::mpsc::channel(4);
         tokio::spawn(async move {
             let mut body = body;
@@ -70,6 +81,9 @@ impl BodyReader {
         Self {
             frames,
             held: Bytes::new(),
+            cap,
+            taken: 0,
+            over: Arc::default(),
         }
     }
 }
@@ -78,7 +92,14 @@ impl Read for BodyReader {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         while self.held.is_empty() {
             match self.frames.blocking_recv() {
-                Some(Ok(data)) => self.held = data,
+                Some(Ok(data)) => {
+                    self.taken += data.len() as u64;
+                    if self.taken > self.cap {
+                        self.over.store(true, Ordering::Relaxed);
+                        return Err(io::Error::other("past the chunk limit"));
+                    }
+                    self.held = data;
+                }
                 Some(Err(error)) => return Err(error),
                 None => return Ok(0),
             }

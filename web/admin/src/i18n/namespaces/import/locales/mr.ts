@@ -65,8 +65,7 @@ export const mr: ImportMessages = {
   'shell.simple': 'साधे',
   'shell.advanced': 'प्रगत',
   'shell.simpleNote': 'एका वेळी एक प्रश्न, सुचवलेल्या उत्तरांसह.',
-  'shell.advancedNote':
-    'सर्व सेटिंग्ज एकाच वेळी. साध्यामधील तुमची उत्तरे हीच सेटिंग्ज आहेत.',
+  'shell.advancedNote': 'सर्व सेटिंग्ज एकाच वेळी. साध्यामधील तुमची उत्तरे हीच सेटिंग्ज आहेत.',
   'shell.steps': 'पायऱ्या',
   'shell.settings': 'सेटिंग्ज',
   'shell.back': 'मागे',
@@ -131,4 +130,62 @@ export const mr: ImportMessages = {
   'lists.loading': 'पृष्ठ {page} लोड होत आहे...',
   'lists.search': 'शोध',
   'lists.showAll': 'सर्व दाखवा',
+  'upload.heading': 'या संगणकावरून फाईल्स जोडा',
+  'upload.dropHint': 'येथे फाईल्स, फोल्डर किंवा झिप फाईल ओढा.',
+  'upload.dropNow': 'त्यांना जोडण्यासाठी खाली सोडा.',
+  'upload.chooseFiles': 'फाईल्स निवडा',
+  'upload.chooseFolder': 'फोल्डर निवडा',
+  'upload.zipNote':
+    'फाईल पोहोचल्यानंतर झिप फाईल उघडली जाते. ज्या फोल्डर्सच्या नावांची सुरुवात बिंदूने (डॉट) होते, त्यांना वगळले जाते.',
+  'upload.limits':
+    'एक फाईल {file} पर्यंत असू शकते. या आयातीतील सर्व फाईल्स एकत्रितपणे {total} पर्यंत असू शकतात. सध्या वापरात: {used}.',
+  'upload.reading': 'तुम्ही जे फाईल्स जोडले आहेत ते वाचत आहे...',
+  'upload.loading': 'आधीच जोडलेल्या फाईल्स वाचत आहे...',
+  'upload.stored': 'या संगणकावरून तुम्ही जोडलेल्या फाईल्स: {count}, {size}.',
+  'upload.skipped': 'बिंदूने सुरू होणाऱ्या नावामुळे वगळले: {count}.',
+  'upload.alreadyHere': 'आधीच जोडले आहे, त्यामुळे पुन्हा पाठवले जात नाही: {count}.',
+  'upload.overallLabel': 'सर्व फाईल्स',
+  'upload.overall': '{size} पैकी {sent} पाठवले. पूर्ण झालेल्या फाईल्स: {count} पैकी {done}.',
+  'upload.pauseAll': 'सर्व थांबवा',
+  'upload.resumeAll': 'सर्व सुरू करा',
+  'upload.leaveNote':
+    'जर तुम्ही या पृष्ठावरून बाहेर गेलात, तर पाठवणे थांबते. परत या आणि पुन्हा त्याच फाईल्स जोडा जेणेकरून जिथे थांबले होते तिथून पुढे सुरू करता येईल.',
+  'upload.listLabel': 'पाठवल्या जाणाऱ्या फाईल्स',
+  'upload.doneList': 'पाठवल्या: {count}',
+  'upload.moreRows': 'आणि {count} अधिक.',
+  'upload.progress': '{size} पैकी {sent}',
+  'upload.state.waiting': 'प्रतीक्षा',
+  'upload.state.sending': 'पाठवणे',
+  'upload.state.paused': 'थांबवले',
+  'upload.state.needsFile': '{size} पैकी {sent} वर थांबले. पुढे सुरू ठेवण्यासाठी ही फाईल पुन्हा जोडा.',
+  'upload.state.unpacking': 'झिप फाईल उलगडत आहे...',
+  'upload.state.done': 'पाठवले',
+  'upload.state.unpacked': 'उलगडले. याची फाईल्स जोडल्या आहेत.',
+  'upload.pause': 'थांबवा',
+  'upload.resume': 'पुन्हा सुरू करा',
+  'upload.remove': 'काढून टाका',
+  'upload.retry': 'पुन्हा प्रयत्न करा',
+  'upload.pauseFile': '{name} थांबवा',
+  'upload.resumeFile': '{name} पुन्हा सुरू करा',
+  'upload.removeFile': '{name} काढून टाका',
+  'upload.retryFile': '{name} पुन्हा प्रयत्न करा',
+  'upload.announce.finished': '{name} पाठवले आहे. पूर्ण झालेल्या फाईल्स: {count} पैकी {done}.',
+  'upload.announce.failed': '{name} पाठवले गेले नाही. {reason}',
+  'upload.announce.allDone': 'सर्व फाईल्स पाठवल्या गेल्या.',
+  'upload.problem.fileTooLarge':
+    'ही फाईल {limit} पेक्षा मोठी आहे, जी एका फाईलची कमाल मर्यादा आहे. याचे लहान फाईल्समध्ये विभाजन करा, किंवा प्रशासकाला मर्यादा वाढवण्यास सांगा.',
+  'upload.problem.importFull':
+    'या आयातीमध्ये या फाईलसाठी जागा नाही: यात {limit} जागा आहे आणि {used} वापरली गेली आहे. काही फाईल्स काढून टाका, किंवा उर्वरित फाईल्स दुसऱ्या आयातीत टाका.',
+  'upload.problem.badName':
+    'सर्व्हर या नावाचा वापर करू शकत नाही. फाईलचे नाव बदला किंवा त्याचे फोल्डर बदला, आणि नंतर ती पुन्हा जोडा.',
+  'upload.problem.importStarted':
+    'ही आयात सुरू झाली आहे, त्यामुळे आता अधिक फाईल्स जोडता येणार नाहीत. त्यामध्ये फाईल्स जोडण्यासाठी त्याची प्रत तयार करा.',
+  'upload.problem.notAllowed':
+    'या आयातीची सुरुवात करणाऱ्या व्यक्तीला किंवा प्रशासकालाच त्यामध्ये फाईल्स जोडता येतात.',
+  'upload.problem.gone':
+    'सर्व्हरकडे आधीच पाठवलेला भाग नाही. अपूर्ण फाईल्स एका दिवसांनंतर पुसल्या जातात. पुन्हा सुरुवातीपासून पाठवण्याचा प्रयत्न करा.',
+  'upload.problem.zipRefused':
+    'झिप फाईल उलगडली गेली नाही: {reason} झिप फईल दुरुस्त करा, ती काढून टाका आणि पुन्हा जोडा.',
+  'upload.problem.connection': 'कनेक्शन खंडित झाले. ते तपासा, आणि पुन्हा प्रयत्न करा.',
+  'upload.problem.server': 'सर्व्हरने ही फाईल घेतली नाही: {message}',
 };

@@ -73,7 +73,7 @@ describe('the upload view', () => {
     expect(screen.getByRole('button', { name: 'Choose a folder' })).toBeInTheDocument();
     const folderInput = container.querySelector('input[type="file"]:not([multiple])');
     expect(folderInput instanceof HTMLInputElement ? folderInput.webkitdirectory : null).toBe(true);
-    expect(await screen.findByText('One file can be up to 2 GB. All the files of this import together can be up to 50 GB. In use now: 0 bytes.')).toBeInTheDocument();
+    expect(await screen.findByText('One file can be up to 2.1 GB. All the files of this import together can be up to 53.7 GB. In use now: 0 bytes.')).toBeInTheDocument();
 
     choose(container, [new File(['abcd'], 'a.tif'), new File(['abcd'], '.DS_Store')]);
     expect(await screen.findByRole('status')).toHaveTextContent('All files are sent.');
@@ -102,7 +102,7 @@ describe('the upload view', () => {
   });
 
   it('says in one sentence what to do about a file over the limit, at the file', async () => {
-    const { api } = serverApi({ refuseCreate: { status: 413, code: 'fileTooLarge', limit: 1024 ** 3 } });
+    const { api } = serverApi({ refuseCreate: { status: 413, code: 'fileTooLarge', limit: 1_000_000_000 } });
     const { container } = render(<UploadFiles importId={ID} api={api} wait={resolved} />);
     await screen.findByText(/One file can be up to/);
     choose(container, [new File(['abcd'], 'big.tif')]);

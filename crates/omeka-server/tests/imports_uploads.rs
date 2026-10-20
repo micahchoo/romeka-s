@@ -222,6 +222,124 @@ async fn an_upload_resumes_after_a_lost_patch() {
     assert_eq!(scanned.json()["sources"][0]["files"], 1);
 }
 
+const MIB: usize = 1024 * 1024;
+
+/// A `PATCH` with a chunked body of 1 MiB blocks over a real socket, until
+/// the server answers or `blocks` are sent. The body is never in memory: one
+/// block is written again and again. Answers the status line and how many
+/// blocks left before the server answered.
+async fn patch_streamed(
+    fixture: &imports_fixture::Fixture,
+    location: &str,
+    blocks: usize,
+) -> (String, usize) {
+    use std::io::{Read, Write};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let app = fixture.app.clone();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let head = format!(
+        "PATCH {} HTTP/1.1\r\nhost: localhost\r\ntus-resumable: 1.0.0\r\n\
+         content-type: application/offset+octet-stream\r\nupload-offset: 0\r\n\
+         transfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+        keyed(location, ADMIN)
+    );
+    let outcome = tokio::task::spawn_blocking(move || {
+        let mut socket = std::net::TcpStream::connect(address).unwrap();
+        let mut reader = socket.try_clone().unwrap();
+        let answered = Arc::new(AtomicBool::new(false));
+        let status = Arc::new(std::sync::Mutex::new(String::new()));
+        let listening = {
+            let (answered, status) = (Arc::clone(&answered), Arc::clone(&status));
+            std::thread::spawn(move || {
+                let mut text = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                while let Ok(read) = reader.read(&mut buffer) {
+                    if read == 0 {
+                        break;
+                    }
+                    text.extend_from_slice(&buffer[..read]);
+                    if text.contains(&b'\n') {
+                        *status.lock().unwrap() = String::from_utf8_lossy(&text)
+                            .lines()
+                            .next()
+                            .unwrap()
+                            .to_string();
+                        answered.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                }
+            })
+        };
+        socket.write_all(head.as_bytes()).unwrap();
+        let block = vec![b'x'; MIB];
+        let sent = AtomicUsize::new(0);
+        for _ in 0..blocks {
+            if answered.load(Ordering::SeqCst) {
+                break;
+            }
+            let framed = socket
+                .write_all(format!("{MIB:x}\r\n").as_bytes())
+                .and_then(|()| socket.write_all(&block))
+                .and_then(|()| socket.write_all(b"\r\n"));
+            if framed.is_err() {
+                break;
+            }
+            sent.fetch_add(1, Ordering::SeqCst);
+        }
+        let _ = socket.write_all(b"0\r\n\r\n");
+        listening.join().unwrap();
+        let line = status.lock().unwrap().clone();
+        (line, sent.load(Ordering::SeqCst))
+    })
+    .await
+    .unwrap();
+    server.abort();
+    outcome
+}
+
+/// One `PATCH` takes at most 64 MiB. The cap is read as the body streams, so
+/// a body that is far larger is not read to its end.
+#[tokio::test]
+async fn a_patch_over_64_mib_is_refused_with_413_and_keeps_nothing() {
+    let fixture = fixture().await;
+    let draft = staging_draft(&fixture).await;
+    let tus = Tus {
+        fixture: &fixture,
+        collection: format!("/api/romeka/imports/{}/uploads", draft["id"]),
+    };
+    let location = tus.create("big.tif", (600 * MIB) as u64).await;
+
+    let declared = tus
+        .send(
+            ADMIN,
+            "PATCH",
+            &location,
+            &[
+                ("content-type", "application/offset+octet-stream".into()),
+                ("upload-offset", "0".into()),
+                ("content-length", (65 * MIB).to_string()),
+            ],
+            b"x".to_vec(),
+        )
+        .await;
+    assert_eq!(declared.status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(declared.json()["code"], "chunkTooLarge");
+
+    let (status, sent) = patch_streamed(&fixture, &location, 512).await;
+    assert!(status.contains("413"), "{status}");
+    assert!(sent < 200, "the server read {sent} MiB of 512 MiB");
+
+    let head = tus.head(&location).await;
+    assert_eq!(header(&head, "upload-offset"), Some("0"), "no byte kept");
+
+    let fits = tus.patch(&location, 0, &vec![b'y'; MIB]).await;
+    assert_eq!(fits.status, StatusCode::NO_CONTENT, "{}", fits.body);
+}
+
 #[tokio::test]
 async fn the_import_limit_counts_uploads_in_progress() {
     let fixture = fixture().await;

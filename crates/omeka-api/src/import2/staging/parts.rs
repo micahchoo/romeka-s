@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use omeka_db::ids::ImportId;
 use omeka_media::store::{Store, StoreError};
 
-use super::{READ_CHUNK, StagingError, file_path, parts_path};
+use super::{READ_CHUNK, StagingError, file_path, part_files};
 
 /// Write one part; the byte count, or why the body did not arrive whole.
 pub(super) fn write_part(
@@ -61,8 +61,7 @@ pub(super) fn join_parts(
     upload: &str,
     length: u64,
 ) -> Result<(), StagingError> {
-    let parts: Vec<String> = store
-        .list(&parts_path(import, upload))?
+    let parts: Vec<String> = part_files(store, import, upload)?
         .into_iter()
         .map(|part| part.storage_path)
         .collect();

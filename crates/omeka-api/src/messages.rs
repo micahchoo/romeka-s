@@ -516,6 +516,8 @@ messages! {
     fn import_upload_too_large(limit) = "This file is larger than {limit} bytes, the largest file an import takes.";
     /// An upload that would take the import past `import_upload_max_total`.
     fn import_upload_full(limit) = "The files of this import would pass {limit} bytes, the most one import holds. Remove some files, or let the files still on their way finish, and try again.";
+    /// One `PATCH` with more bytes than the chunk limit.
+    fn import_upload_chunk_too_large(limit) = "This request carries more than {limit} bytes. Send the file in smaller chunks.";
     /// A new upload for a path an unfinished upload holds.
     fn import_upload_in_progress(path) = "\"{path}\" is still on its way. Go on with that upload instead of starting it again.";
     /// A tus request naming an upload the import does not hold.

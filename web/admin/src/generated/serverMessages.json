@@ -183,6 +183,7 @@
     "server.importUploadPath": "The file name \"{path}\" cannot be used: {reason}.",
     "server.importUploadTooLarge": "This file is larger than {limit} bytes, the largest file an import takes.",
     "server.importUploadFull": "The files of this import would pass {limit} bytes, the most one import holds. Remove some files, or let the files still on their way finish, and try again.",
+    "server.importUploadChunkTooLarge": "This request carries more than {limit} bytes. Send the file in smaller chunks.",
     "server.importUploadInProgress": "\"{path}\" is still on its way. Go on with that upload instead of starting it again.",
     "server.importUploadNotFound": "This import has no upload with the id \"{upload}\".",
     "server.importUploadOffset": "The server has {received} bytes of this file. Send the bytes that come after them.",

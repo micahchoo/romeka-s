@@ -178,8 +178,7 @@ async fn a_dropped_patch_keeps_nothing_and_the_upload_resumes_from_the_stored_of
         b"0123456789"
     );
     assert!(
-        site.store
-            .list(&parts_path(site.import, &row.id))
+        part_files(site.store.as_ref(), site.import, &row.id)
             .unwrap()
             .is_empty(),
         "the parts are gone once the file is whole"
@@ -208,8 +207,7 @@ async fn bytes_past_the_declared_length_are_refused_and_not_kept() {
     );
     assert_eq!(site.received(&row.id).await, 0);
     assert!(
-        site.store
-            .list(&parts_path(site.import, &row.id))
+        part_files(site.store.as_ref(), site.import, &row.id)
             .unwrap()
             .is_empty()
     );
@@ -415,8 +413,7 @@ async fn removing_the_staging_area_leaves_nothing_in_the_store() {
             .unwrap()
     );
     assert!(
-        site.store
-            .list(&parts_path(site.import, &open.id))
+        part_files(site.store.as_ref(), site.import, &open.id)
             .unwrap()
             .is_empty()
     );

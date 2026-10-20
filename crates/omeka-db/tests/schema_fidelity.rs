@@ -280,6 +280,7 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
             "stop_requested",
             "copied_from",
             "created",
+            "saved",
             "finished",
         ],
     ),
