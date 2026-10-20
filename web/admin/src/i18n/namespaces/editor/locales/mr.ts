@@ -116,8 +116,6 @@ export const mr: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'सूचीबद्ध पृष्ठे, क्रमाने.',
   'blockField.oembed.url': 'मीडिया यूआरएल',
   'fieldHelp.oembed.url': 'YouTube, Vimeo किंवा इतर oEmbed प्रदात्याकडून आलेली लिंक.',
-  'blockField.oembed.refresh': 'एम्बेड पुन्हा मिळवा',
-  'fieldHelp.oembed.refresh': 'सेव्ह केल्यावर प्रदात्याकडून एम्बेड पुन्हा मिळवते.',
   'romekaField.hero.heading': 'शीर्षक',
   'fieldHelp.hero.heading': 'बॅनर्सवरील मोठे मजकूर.',
   'fieldExample.hero.heading': 'उदा. संग्रहाचे स्वागत',

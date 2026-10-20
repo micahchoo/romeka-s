@@ -536,13 +536,6 @@
           "type": "text",
           "placeholder": "fieldExample.url",
           "required": true
-        },
-        {
-          "key": "refresh",
-          "label": "blockField.oembed.refresh",
-          "help": "fieldHelp.oembed.refresh",
-          "type": "boolean",
-          "default": false
         }
       ]
     }

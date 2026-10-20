@@ -105,8 +105,7 @@ export const hi: AdminMessages = {
   'settings.indexFulltextSearch': 'पूर्णपाठ खोज सूचकांक',
   'settings.versionNotifications': 'संस्करण अधिसूचना',
   'settings.saved': 'सेटिंग्स अपडेट की गईं।',
-  'settings.note':
-    'पोर्ट लोकेल और सुरक्षा सेटिंग्स को सहेजता है; अन्य परिवर्तन सहेजे नहीं जाते।',
+  'settings.note': 'पोर्ट लोकेल और सुरक्षा सेटिंग्स को सहेजता है; अन्य परिवर्तन सहेजे नहीं जाते।',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फ़ाइल सत्यापन अक्षम करें',
   'settings.disableFileValidationInfo':
@@ -121,6 +120,11 @@ export const hi: AdminMessages = {
   'settings.restoreExtensions': 'डिफ़ॉल्ट एक्सटेंशन को पुनर्स्थापित करें',
   'settings.restoredOnSave': 'सहेजने पर डिफ़ॉल्ट सूची पुनर्स्थापित हो जाती है।',
   'settings.emptyListRefusesAll': 'एक खाली सूची हर फ़ाइल को अस्वीकार कर देती है।',
+  'settings.allowPrivateUrls': 'निजी नेटवर्क पर URL की अनुमति दें',
+  'settings.allowPrivateUrlsInfo':
+    'मीडिया और इम्पोर्ट्स इस सर्वर या इसके निजी नेटवर्क की ओर इशारा करने वाले URL को अस्वीकार करते हैं: localhost, स्थानीय नेटवर्क और क्लाउड मेटाडेटा पते। उन्हें अनुमति देने के लिए इसे चुनें।',
+  'settings.allowPrivateUrlsWarning':
+    'यह चालू होने पर, मीडिया जोड़ सकने वाला कोई भी व्यक्ति इस सर्वर से उसके अपने नेटवर्क से फ़ाइलें मँगवा सकता है।',
   'settings.locale': 'लोकेल',
   'settings.localeDefault': 'डिफ़ॉल्ट',
   'systemInfo.omeka': 'Omeka S',

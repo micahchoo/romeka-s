@@ -59,7 +59,8 @@ const listNames = (draft: ListDraft): readonly string[] | null =>
 
 /**
  * `Admin/SettingController::browseAction`. The port's `/api/settings` stores
- * the locale and the three file validation settings, so those are saved;
+ * the locale, the three file validation settings and the private URL switch,
+ * so those are saved;
  * every other field keeps its edits in page state and does not persist them.
  */
 export const SettingsPage = (): ReactElement => {
@@ -82,6 +83,7 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
   const [saved, setSaved] = useState(false);
   const [locale, setLocale] = useState(localeValue(stored.locale));
   const [disabled, setDisabled] = useState(stored.disableFileValidation);
+  const [allowPrivate, setAllowPrivate] = useState(stored.importAllowPrivateUrls);
   const [mediaTypes, setMediaTypes] = useState<ListDraft>(listText(stored.mediaTypeWhitelist));
   const [extensions, setExtensions] = useState<ListDraft>(listText(stored.extensionWhitelist));
   const { state: saveState, save } = useSave();
@@ -109,10 +111,12 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
               mediaTypeWhitelist: listNames(mediaTypes),
               extensionWhitelist: listNames(extensions),
               disableFileValidation: disabled,
+              importAllowPrivateUrls: allowPrivate,
             });
             setMediaTypes(listText(answer.mediaTypeWhitelist));
             setExtensions(listText(answer.extensionWhitelist));
             setDisabled(answer.disableFileValidation);
+            setAllowPrivate(answer.importAllowPrivateUrls);
             setSaved(true);
           });
         }}
@@ -184,6 +188,37 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
             draft={extensions}
             onChange={edited(setExtensions)}
           />
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={allowPrivate}
+                aria-describedby={
+                  allowPrivate
+                    ? 'setting-import_allow_private_urls-info setting-import_allow_private_urls-note'
+                    : 'setting-import_allow_private_urls-info'
+                }
+                onChange={(event) => {
+                  edited(setAllowPrivate)(event.target.checked);
+                }}
+              />
+              {t('settings.allowPrivateUrls')}
+            </label>
+            <br />
+            <small id="setting-import_allow_private_urls-info">
+              {t('settings.allowPrivateUrlsInfo')}
+            </small>
+            {/* The note stays while the switch is on, saved or not: the risk is
+                the state, not the edit. */}
+            {allowPrivate ? (
+              <>
+                <br />
+                <small id="setting-import_allow_private_urls-note">
+                  {t('settings.allowPrivateUrlsWarning')}
+                </small>
+              </>
+            ) : null}
+          </p>
         </fieldset>
         <button type="submit" disabled={saveState.status === 'saving'}>
           {t('action.save')}

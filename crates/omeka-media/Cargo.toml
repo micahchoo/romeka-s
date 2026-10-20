@@ -40,7 +40,7 @@ tiff = "0.11"
 # The real HTTP client behind `HttpFetch`. Blocking, because the trait is.
 # `rustls` is the TLS provider; `gzip` is off, matching upstream's
 # `Accept-Encoding: identity` (`File/Downloader.php:57`).
-ureq = { version = "3", default-features = false, features = ["rustls"] }
+ureq = { version = "~3.4", default-features = false, features = ["rustls"] }
 # Joining a `Location` header onto the request URL for the same-scheme redirect
 # rule in `src/http_client.rs`. Already in the workspace tree via sqlx.
 url = "2"

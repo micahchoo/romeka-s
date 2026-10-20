@@ -119,6 +119,11 @@ export const es: AdminMessages = {
   'settings.restoreExtensions': 'Restaurar las extensiones predefinidas',
   'settings.restoredOnSave': 'La lista predefinida se restaura al guardar.',
   'settings.emptyListRefusesAll': 'Una lista vacía rechaza todos los ficheros.',
+  'settings.allowPrivateUrls': 'Permitir URL de redes privadas',
+  'settings.allowPrivateUrlsInfo':
+    'Los medios y las importaciones rechazan las URL que apuntan a este servidor o a su red privada: localhost, la red local y las direcciones de metadatos de la nube. Marque esta casilla para permitirlas.',
+  'settings.allowPrivateUrlsWarning':
+    'Mientras esté activado, cualquier persona que pueda añadir medios puede hacer que este servidor descargue contenido de su propia red.',
   'settings.locale': 'Idioma',
   'settings.localeDefault': 'Predefinido',
   'systemInfo.omeka': 'Omeka S',

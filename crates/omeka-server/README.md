@@ -122,6 +122,7 @@ flows on the wire, one handler per route:
 | --- | --- | --- |
 | `POST /api/login` | `{email, password}` | 200 the user document and `Set-Cookie`; 401, 403, 429 |
 | `POST /api/logout` | any body, ignored | 204, the cookie cleared |
+| `POST /logout?redirect=<path>` | any body, ignored | 303 to `redirect` when it is a path on this origin, else to `/`; the cookie cleared |
 | `GET /api/me` | | 200 the user document, or 401 |
 | `POST /api/password` | `{key, password}` | 200 the user document; 404, 422 |
 | `POST /api/password/forgot` | `{email}` | 204, or 429 |

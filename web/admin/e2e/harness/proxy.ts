@@ -50,14 +50,15 @@ export interface RunningProxy {
 }
 
 /**
- * Paths the port answers: the API, its context, health, the public site and
- * the published term lists and vocabularies.
+ * Paths the port answers: the API, its context, health, the public site, its
+ * Logout form and the published term lists and vocabularies.
  */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
   pathname.startsWith('/api/') ||
   pathname === '/api-context' ||
   pathname === '/health' ||
+  pathname === '/logout' ||
   pathname === '/s' ||
   pathname.startsWith('/s/') ||
   pathname === '/vocab' ||

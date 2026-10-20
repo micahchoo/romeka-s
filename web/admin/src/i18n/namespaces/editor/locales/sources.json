@@ -104,8 +104,6 @@
  "fieldHelp.listOfPages.pagelist": "The pages listed, in order.",
  "blockField.oembed.url": "Media URL",
  "fieldHelp.oembed.url": "A link from YouTube, Vimeo or another oEmbed provider.",
- "blockField.oembed.refresh": "Fetch the embed again",
- "fieldHelp.oembed.refresh": "Reloads the embed from the provider on save.",
  "romekaField.hero.heading": "Heading",
  "fieldHelp.hero.heading": "The large text on the banner.",
  "fieldExample.hero.heading": "e.g. Welcome to the collection",

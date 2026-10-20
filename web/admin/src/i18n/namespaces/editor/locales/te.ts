@@ -118,8 +118,6 @@ export const te: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'వరుస క్రమంలో జాబితా చేయబడిన పేజీలు.',
   'blockField.oembed.url': 'మీడియా URL',
   'fieldHelp.oembed.url': 'YouTube, Vimeo లేదా మరొక oEmbed ప్రొవైడర్ నుండి లింక్.',
-  'blockField.oembed.refresh': 'ఎంబెడ్‌ను మళ్ళీ పొందండి',
-  'fieldHelp.oembed.refresh': 'సేవ్ చేసినప్పుడు ప్రొవైడర్ నుండి ఎంబెడ్‌ను మళ్ళీ లోడ్ చేస్తుంది.',
   'romekaField.hero.heading': 'శీర్షిక',
   'fieldHelp.hero.heading': 'బ్యానర్‌పై ఉన్న పెద్ద టెక్స్ట్.',
   'fieldExample.hero.heading': 'ఉదాహరణకు, సేకరణకు స్వాగతం',

@@ -119,8 +119,6 @@ export const kn: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'ಪಟ್ಟಿಯಲ್ಲಿರುವ ಪುಟಗಳು, ಕ್ರಮದಲ್ಲಿ.',
   'blockField.oembed.url': 'ಮಾಧ್ಯಮ URL',
   'fieldHelp.oembed.url': 'YouTube, Vimeo ಅಥವಾ ಇತರ oEmbed ಒದಗಿಸುವವರಿಂದ ಲಿಂಕ್.',
-  'blockField.oembed.refresh': 'ಎಂಬೆಡ್ ಅನ್ನು ಮತ್ತೆ ಪಡೆದುಕೊಳ್ಳಿ',
-  'fieldHelp.oembed.refresh': 'ಉಳಿಸಿದಾಗ ಒದಗಿಸುವವರಿಂದ ಎಂಬೆಡ್ ಅನ್ನು ಮರುಲೋಡ್ ಮಾಡುತ್ತದೆ.',
   'romekaField.hero.heading': 'ಶೀರ್ಷಿಕೆ',
   'fieldHelp.hero.heading': 'ಬ್ಯಾನರ್‌ನಲ್ಲಿರುವ ದೊಡ್ಡ ಪಠ್ಯ.',
   'fieldExample.hero.heading': 'ಉದಾಹರಣೆಗೆ, ಸಂಗ್ರಹಕ್ಕೆ ಸ್ವಾಗತ',

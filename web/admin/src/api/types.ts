@@ -664,6 +664,11 @@ export interface GlobalSettings {
   readonly extensionWhitelist: readonly string[];
   /** `disable_file_validation`: every file passes when `true`. */
   readonly disableFileValidation: boolean;
+  /**
+   * `import_allow_private_urls`, a port setting: every fetch an ingester makes
+   * may reach loopback, link-local and private addresses when `true`.
+   */
+  readonly importAllowPrivateUrls: boolean;
 }
 
 /**
@@ -675,6 +680,7 @@ export interface GlobalSettingsWrite {
   readonly mediaTypeWhitelist: readonly string[] | null;
   readonly extensionWhitelist: readonly string[] | null;
   readonly disableFileValidation: boolean;
+  readonly importAllowPrivateUrls: boolean;
 }
 
 /**

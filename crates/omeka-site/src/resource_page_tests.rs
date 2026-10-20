@@ -79,6 +79,7 @@ fn media_default_blocks_render_the_file_then_values() {
         url: "/s/main/media/1".to_string(),
         original_url: None,
         title: "A file".to_string(),
+        media_type: None,
         thumbnail: None,
         embed: Some("<div class=\"media-render html\">A file</div>".to_string()),
     });
@@ -180,6 +181,17 @@ fn linked_item_in(locale: &str) -> String {
             title: "A letter".to_string(),
             thumbnail: None,
         },
+        class_label: Some("Letter".to_string()),
+    });
+    item.linked_resources.push(LinkedResource {
+        property: "Creator".to_string(),
+        kind: ResourceKind::Item,
+        resource: ResourceRef {
+            url: "/s/main/item/4".to_string(),
+            title: "A note".to_string(),
+            thumbnail: None,
+        },
+        class_label: None,
     });
     render_blocks(&item, &ctx)
 }
@@ -196,6 +208,16 @@ fn resource_page_labels_follow_the_site_locale() {
         "{en}"
     );
     assert!(en.contains("<th>Title</th><th>Class</th>"), "{en}");
+    assert!(
+        en.contains(
+            "A letter</span></a></td><td><span class=\"resource-class\">Letter</span></td>"
+        ),
+        "a linking resource's class fills the Class column: {en}"
+    );
+    assert!(
+        en.contains("A note</span></a></td><td></td>"),
+        "a linking resource with no class leaves the cell empty: {en}"
+    );
     let es = linked_item_in("es");
     assert!(es.contains("<dt>Páginas del sitio</dt>"), "{es}");
     assert!(
@@ -203,4 +225,148 @@ fn resource_page_labels_follow_the_site_locale() {
         "{es}"
     );
     assert!(es.contains("<th>Título</th><th>Clase</th>"), "{es}");
+}
+
+/// Blocks configured for a resource kind, rendered in `locale`.
+fn render_configured(resource: &ResourceView, blocks: &[&str], locale: &str) -> String {
+    let site = site();
+    let resources = NoResources;
+    let mut ctx = context(&site, &resources);
+    ctx.settings.locale = Some(locale.to_string());
+    let key = match resource.kind {
+        ResourceKind::Item => "items",
+        ResourceKind::ItemSet => "item_sets",
+        ResourceKind::Media => "media",
+    };
+    ctx.resource_page_blocks = Some(ResourcePageBlocks::parse(
+        &serde_json::json!({ key: { "main": blocks } }),
+    ));
+    render_blocks(resource, &ctx)
+}
+
+/// `resource-class.phtml`: the class label under upstream's heading, and
+/// nothing for a resource with no class.
+#[test]
+fn the_resource_class_block_prints_the_class_label() {
+    for kind in [
+        ResourceKind::Item,
+        ResourceKind::ItemSet,
+        ResourceKind::Media,
+    ] {
+        let mut classed = resource(kind);
+        classed.class_label = Some("Photograph <b>".to_string());
+        assert_eq!(
+            render_configured(&classed, &["resourceClass"], "en"),
+            "<dl class=\"resource-class\"><div class=\"property\"><dt>Resource class</dt>\
+             <dd class=\"value\">Photograph &lt;b&gt;</dd></div></dl>",
+            "{kind:?}"
+        );
+        assert!(
+            render_configured(&classed, &["resourceClass"], "es")
+                .contains("<dt>Clase de recurso</dt>"),
+            "{kind:?}"
+        );
+        assert_eq!(
+            render_configured(&resource(kind), &["resourceClass"], "en"),
+            ""
+        );
+    }
+}
+
+/// One media file as the media blocks see it.
+fn file(title: &str, media_type: Option<&str>, original: Option<&str>, alt: &str) -> MediaRef {
+    MediaRef {
+        url: format!("/s/main/media/{title}"),
+        original_url: original.map(str::to_string),
+        title: title.to_string(),
+        media_type: media_type.map(str::to_string),
+        thumbnail: original.map(|_| Thumbnail::new(format!("/files/square/{title}.jpg"), alt)),
+        embed: Some(format!("<div class=\"media-render file\">{title}</div>")),
+    }
+}
+
+/// `lightbox-gallery-item.phtml` without its script: each image file is its
+/// thumbnail, linked to the full image. Files that are not images, or that
+/// have no stored original, stay out of the grid.
+#[test]
+fn the_lightbox_gallery_links_each_image_to_its_full_file() {
+    let mut item = resource(ResourceKind::Item);
+    item.media_embeds = vec![
+        file(
+            "map",
+            Some("image/png"),
+            Some("/files/original/map.png"),
+            "A map",
+        ),
+        file(
+            "scan",
+            Some("application/pdf"),
+            Some("/files/original/scan.pdf"),
+            "",
+        ),
+        file(
+            "photo",
+            Some("image/jpeg"),
+            Some("/files/original/photo.jpg"),
+            "",
+        ),
+        file("remote", Some("image/jpeg"), None, ""),
+    ];
+    assert_eq!(
+        render_configured(&item, &["lightboxGallery"], "en"),
+        "<div class=\"lightbox-gallery\">\
+         <a href=\"/files/original/map.png\" class=\"resource-link\">\
+         <img src=\"/files/square/map.jpg\" alt=\"A map\"></a>\
+         <a href=\"/files/original/photo.jpg\" class=\"resource-link\">\
+         <img src=\"/files/square/photo.jpg\" alt=\"photo\"></a>\
+         </div>"
+    );
+
+    let mut bare = resource(ResourceKind::Item);
+    bare.media_embeds = vec![file(
+        "scan",
+        Some("application/pdf"),
+        Some("/files/original/scan.pdf"),
+        "",
+    )];
+    assert_eq!(render_configured(&bare, &["lightboxGallery"], "en"), "");
+}
+
+/// `lightbox-gallery-media.phtml`: an image media page shows its image in
+/// the gallery; any other file falls back to `media-render.phtml`.
+#[test]
+fn the_lightbox_gallery_on_a_media_page_falls_back_to_the_media_render() {
+    let mut image = resource(ResourceKind::Media);
+    image.media_embeds = vec![file(
+        "map",
+        Some("image/png"),
+        Some("/files/original/map.png"),
+        "A map",
+    )];
+    assert!(
+        render_configured(&image, &["lightboxGallery"], "en")
+            .starts_with("<div class=\"lightbox-gallery\"><a href=\"/files/original/map.png\""),
+    );
+    let mut pdf = resource(ResourceKind::Media);
+    pdf.media_embeds = vec![file(
+        "scan",
+        Some("application/pdf"),
+        Some("/files/original/scan.pdf"),
+        "",
+    )];
+    assert_eq!(
+        render_configured(&pdf, &["lightboxGallery"], "en"),
+        "<div class=\"media-render file\">scan</div>"
+    );
+}
+
+/// `LightboxGallery::getCompatibleResourceNames` names items and media; the
+/// admin never offers it for an item set.
+#[test]
+fn the_lightbox_gallery_is_offered_for_items_and_media_only() {
+    let spec = RESOURCE_PAGE_BLOCKS
+        .iter()
+        .find(|spec| spec.name == "lightboxGallery")
+        .expect("the layout is registered");
+    assert_eq!(spec.resources, &[ResourceKind::Item, ResourceKind::Media]);
 }

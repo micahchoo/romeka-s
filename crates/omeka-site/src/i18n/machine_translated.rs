@@ -93,7 +93,7 @@ flat_catalogue! {
     messages: [
         powered_by, no_pages, prev, next, advanced_search, item, item_set, media, items,
         item_sets, no_item_selected, part_of, created, modified, user_bar_label, signed_in_as,
-        admin_dashboard,
+        admin_dashboard, edit_page, edit_item, edit_item_set, edit_media, resource_class,
         log_out, log_in, skip_to_main, menu, home, browse, browse_item_sets, custom_url,
         missing_page, untitled, site_pages, title, class, linked_caption, page_not_found,
         page_not_found_message, forbidden,

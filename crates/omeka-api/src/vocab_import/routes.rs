@@ -16,12 +16,12 @@
 //! calls `ApiManager::create`, so every vocabulary rule applies to it.
 
 use omeka_db::ids::VocabularyId;
-use omeka_db::repos::VocabularyRepo;
+use omeka_db::repos::{SettingRepo, VocabularyRepo};
 use omeka_db::rows::VocabularyRow;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::fetch::{self, FetchError, Reach};
+use super::fetch::{self, FetchError};
 use super::{Diff, ExtractError, Format, LabelPreference, MemberDiff, Members, Term};
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -111,7 +111,11 @@ fn source_error(messages: Vec<String>) -> ApiError {
 }
 
 /// `RdfImporter::getMembers` for a parsed source: read the file or fetch the URL, then extract.
-async fn read_members(source: &Source, namespace_uri: &str) -> Result<Members, ApiError> {
+async fn read_members(
+    api: &Api<'_>,
+    source: &Source,
+    namespace_uri: &str,
+) -> Result<Members, ApiError> {
     let (bytes, content_type, base_iri, failure) = match &source.origin {
         Origin::Upload(text) => (
             text.clone().into_bytes(),
@@ -122,8 +126,11 @@ async fn read_members(source: &Source, namespace_uri: &str) -> Result<Members, A
         Origin::Url(url) => {
             let target = url.clone();
             let format = source.format;
+            let policy = crate::settings::address_policy(&SettingRepo::new(api.pool()))
+                .await
+                .map_err(db_error)?;
             let fetched =
-                tokio::task::spawn_blocking(move || fetch::fetch(&target, format, Reach::Public))
+                tokio::task::spawn_blocking(move || fetch::fetch(&target, format, policy))
                     .await
                     .map_err(ApiError::internal)?
                     .map_err(|error| {
@@ -185,7 +192,7 @@ pub async fn import(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiError
         .unwrap_or_default()
         .trim()
         .to_string();
-    let members = read_members(&source, &namespace_uri).await?;
+    let members = read_members(api, &source, &namespace_uri).await?;
     if members.is_empty() {
         return Err(source_error(vec![messages::VOCABULARY_NO_MEMBERS.into()]));
     }
@@ -219,7 +226,7 @@ pub async fn diff(api: &Api<'_>, raw_id: &str, bytes: &[u8]) -> Result<ApiRespon
     let vocabulary = editable(api, raw_id).await?;
     let mut body = Payload::parse(bytes)?.object().clone();
     let source = parse_source(body.remove(SOURCE_KEY))?;
-    let file = read_members(&source, &vocabulary.namespace_uri).await?;
+    let file = read_members(api, &source, &vocabulary.namespace_uri).await?;
     // Upstream compares an empty file too and shows every member unchanged; a file with no
     // member in the namespace is the wrong file or the wrong namespace, so it is refused as the
     // import refuses it.
