@@ -7,12 +7,19 @@
 //! the query: `url` is the manifest, `mirador_config` carries the sidebar and
 //! theme settings. The theme setting `iiif_viewer_theme` maps to Mirador's
 //! `selectedTheme`, and anything but `dark` becomes `light`.
+//!
+//! Two departures, both Romeka's. The site setting `iiif_viewer_sidebar`
+//! drives `window.sideBarOpen`, where upstream's block always sends `false`
+//! and only its media renderer reads the setting. And a curator may pick the
+//! viewer height ([`super::iiif`]); unset, it is upstream's `700px`.
 
 use omeka_core::site::{BlockData, IiifData, SiteBlock};
 
 use crate::blocks::BlockLayout;
-use crate::blocks::schema::{LayoutSchema, boolean, text};
-use crate::html::{escape_html, query_string};
+use crate::blocks::iiif::{height, height_field, preview_poster};
+use crate::blocks::schema::{LayoutSchema, boolean, manifest_source, text};
+use crate::html::escape_html;
+use crate::iiif_viewer::viewer_src;
 use crate::view::RenderContext;
 
 /// The `iiifPresentation` block.
@@ -20,15 +27,15 @@ use crate::view::RenderContext;
 pub struct IiifPresentation;
 
 /// `BlockLayout/IiifPresentation.php::form`: `manifest_url`, `title` and the
-/// `show_title` checkbox.
+/// `show_title` checkbox, plus Romeka's height. The manifest may be chosen as
+/// an item of this site, which stores that item's manifest URL.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        text(
+        manifest_source(
             "manifest_url",
             "blockField.iiifPresentation.manifest_url",
             "fieldHelp.iiifPresentation.manifest_url",
-        )
-        .placeholder("fieldExample.url"),
+        ),
         text(
             "title",
             "blockField.iiifPresentation.title",
@@ -40,6 +47,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "fieldHelp.iiif.show_title",
         )
         .default_bool(false),
+        height_field("fieldHelp.iiifPresentation.height"),
     ],
 };
 
@@ -56,7 +64,7 @@ impl BlockLayout for IiifPresentation {
         let BlockData::IiifPresentation(data) = &block.data else {
             return String::new();
         };
-        render_viewer(data, ctx)
+        render_viewer(block, data, ctx)
     }
 
     fn schema(&self) -> &'static LayoutSchema {
@@ -64,47 +72,39 @@ impl BlockLayout for IiifPresentation {
     }
 }
 
-fn render_viewer(data: &IiifData, ctx: &RenderContext<'_>) -> String {
+fn render_viewer(block: &SiteBlock, data: &IiifData, ctx: &RenderContext<'_>) -> String {
     let Some(manifest_url) = data.url.as_deref().filter(|url| !url.is_empty()) else {
         return String::new();
     };
     let title = data.title.clone().unwrap_or_default();
     let show_title = data.show_title.unwrap_or(false);
 
-    let theme = if ctx.settings.iiif_viewer_theme() == "dark" {
-        "dark"
-    } else {
-        "light"
-    };
-    // Built as a string rather than through a map, so the key order matches
-    // `json_encode`'s insertion order whatever serde_json's map type is.
-    let mirador = format!(
-        "{{\"window.sideBarOpen\":false,\"selectedTheme\":\"{}\"}}",
-        theme
-    );
-    let query = query_string(&[
-        ("url".to_string(), manifest_url.to_string()),
-        ("mirador_config".to_string(), mirador),
-    ])
-    .unwrap_or_default();
-    let src = format!("{}?{query}", ctx.iiif_viewer_url.trim_end_matches('?'));
-
+    let src = viewer_src(&ctx.iiif_viewer_url, manifest_url, &ctx.settings);
+    let height = height(block, "700px");
     let mut out = String::new();
     if show_title && !title.is_empty() {
         out.push_str(&format!("<h3>{}</h3>", escape_html(&title)));
     }
-    out.push_str(&format!(
-        "<iframe style=\"width: 100%; height: 700px;\" aria-label=\"{}\" src=\"{}\"></iframe>",
-        escape_html(&title),
-        escape_html(&src)
-    ));
+    let name = if title.is_empty() {
+        manifest_url
+    } else {
+        &title
+    };
+    match preview_poster(name, height, ctx) {
+        Some(poster) => out.push_str(&poster),
+        None => out.push_str(&format!(
+            "<iframe style=\"width: 100%; height: {height};\" aria-label=\"{}\" src=\"{}\"></iframe>",
+            escape_html(&title),
+            escape_html(&src)
+        )),
+    }
     out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blocks::test_support::{block, context, site};
+    use crate::blocks::test_support::{block, block_with_layout, context, site};
     use crate::settings::SiteSettings;
     use serde_json::json;
 
@@ -155,6 +155,67 @@ mod tests {
         assert_eq!(
             IiifPresentation.render(&block("iiifPresentation", json!({})), &ctx),
             ""
+        );
+    }
+
+    /// Romeka: the site's `iiif_viewer_sidebar` opens Mirador's sidebar, where
+    /// upstream's block always closes it.
+    #[test]
+    fn iiif_presentation_reads_the_sidebar_setting() {
+        let site = site();
+        let mut ctx = context(&site, &crate::view::NoResources);
+        ctx.settings = SiteSettings {
+            iiif_viewer_sidebar: Some(true),
+            ..SiteSettings::default()
+        };
+        let stored = block(
+            "iiifPresentation",
+            json!({"manifest_url": "https://example.org/m"}),
+        );
+        let out = IiifPresentation.render(&stored, &ctx);
+        assert!(out.contains("window.sideBarOpen%22%3Atrue"), "{out}");
+    }
+
+    /// The height a curator picks in `o:layout_data.romeka` sizes the viewer.
+    #[test]
+    fn iiif_presentation_takes_the_chosen_height() {
+        let site = site();
+        let ctx = context(&site, &crate::view::NoResources);
+        let stored = block_with_layout(
+            "iiifPresentation",
+            json!({"manifest_url": "https://example.org/m"}),
+            json!({"romeka": {"block": "iiifPresentation", "v": 1, "settings": {"height": "full"}}}),
+        );
+        let out = IiifPresentation.render(&stored, &ctx);
+        assert!(out.contains("width: 100%; height: 100vh;"), "{out}");
+    }
+
+    /// The editor's preview runs no script, so it shows a poster at the
+    /// viewer's height in place of the iframe.
+    #[test]
+    fn iiif_presentation_previews_as_a_poster() {
+        let site = site();
+        let mut ctx = context(&site, &crate::view::NoResources);
+        ctx.block_markers = crate::view::BlockMarkers::Preview;
+        let stored = block(
+            "iiifPresentation",
+            json!({"manifest_url": "https://example.org/m", "title": "Album"}),
+        );
+        let out = IiifPresentation.render(&stored, &ctx);
+        assert!(!out.contains("<iframe"), "{out}");
+        assert!(
+            out.contains("<div class=\"iiif-poster\" style=\"height: 700px;\"><p>IIIF viewer: Album. It opens on the public page.</p></div>"),
+            "{out}"
+        );
+        let untitled = block(
+            "iiifPresentation",
+            json!({"manifest_url": "https://example.org/m"}),
+        );
+        assert!(
+            IiifPresentation
+                .render(&untitled, &ctx)
+                .contains("IIIF viewer: https://example.org/m."),
+            "an untitled block names its manifest"
         );
     }
 }

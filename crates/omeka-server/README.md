@@ -122,6 +122,7 @@ flows on the wire, one handler per route:
 | --- | --- | --- |
 | `POST /api/login` | `{email, password}` | 200 the user document and `Set-Cookie`; 401, 403, 429 |
 | `POST /api/logout` | any body, ignored | 204, the cookie cleared |
+| `POST /logout?redirect=<path>` | any body, ignored | 303 to `redirect` when it is a path on this origin, else to `/`; the cookie cleared |
 | `GET /api/me` | | 200 the user document, or 401 |
 | `POST /api/password` | `{key, password}` | 200 the user document; 404, 422 |
 | `POST /api/password/forgot` | `{email}` | 204, or 429 |
@@ -372,7 +373,11 @@ manifest path the frame built.
 | GET | `/assets/<path>` | 200 | the theme asset's bytes |
 
 The media type is the asset kind's (`text/css` for a stylesheet,
-`application/javascript` for a script). The frame links each head asset as
+`application/javascript` for a script or a library, `image/png` for an
+OpenSeadragon button image). The vendored IIIF viewers are theme assets of the
+library kind: `vendor/mirador/mirador.min.js`, `vendor/openseadragon/openseadragon.min.js`
+and its `images/`, and `js/iiif-viewer.js`. The frame never links a library;
+the view that needs one does. The frame links each head asset as
 `<path>?v=<version>`, where the version is a digest of the bytes
 (`omeka_site::theme::ThemeAsset::version`), so a deploy that changes the sheet
 changes the URL every page links. A request whose `v` names the current bytes
@@ -389,6 +394,39 @@ The frame also links four core assets the port does not ship: `css/fonts.css`,
 upstream admin files that need the Font Awesome and Lato font binaries, which
 `verification/coverage/coverage.csv` marks `unported-admin-asset`, so they
 answer 404.
+
+## IIIF
+
+| Method | Path | Status | Body |
+| --- | --- | --- | --- |
+| GET | `/iiif-viewer?url=&mirador_config=` | 200 | the Mirador page (`IiifViewerController`) |
+| GET | `/iiif/3/item/<id>/manifest` | 200, 404 | the item's IIIF Presentation 3 manifest |
+| GET | `/iiif/3/item-set/<id>/collection` | 200, 404 | the item set's IIIF Presentation 3 collection |
+| GET | `/iiif/image/3/<media>/info.json` | 200, 404 | the stored image's Image API 3 description, level 1 |
+| GET | `/iiif/image/3/<media>/<region>/<size>/<rotation>/<quality>.<format>` | 200, 400, 404 | the image |
+
+`src/iiif/` holds them. The viewer page is upstream's contract: `url` is the one window's manifest, and
+of `mirador_config` only `window.sideBarOpen` (a boolean) and `selectedTheme` (`light` or `dark`) apply.
+It answers a Content-Security-Policy that loads scripts only from this origin and no inline script,
+and lets Mirador fetch a manifest and its images from any https origin.
+
+The manifests, the collection and the Image API are Romeka additions (upstream needs the IIIF Server
+module). They read through the API as a public page's caller: the session cookie, or no one, never a
+key in the query. A resource the caller may not see is a 404, as its `/s/` page is. Each answer
+carries `Access-Control-Allow-Origin: *`; a cross-origin fetch carries no cookie, so that shares no
+private document.
+
+A manifest has one canvas per media a canvas can paint, in media order: a stored image the
+thumbnailer decodes, with its derivatives, or a media ingested from a IIIF image service. A stored
+image's canvas is the original's size, its body is the "large" derivative at its own size with this
+server's Image API as the service, and the original is the canvas `rendering`. Sizes come from the
+file headers on first use and are kept in memory by storage path (`iiif::Dimensions`); nothing
+writes `media.data`.
+
+The Image API offers level 1 plus `sizeByPct`, `sizeByConfinedWh` and `png`, with no answer edge over
+4096 pixels and no upscaling. Each answer is kept in the store under
+`iiif/<storage id>/<region>/<size>/<rotation>/<quality>.<format>`, so a repeat is a read. Those files
+are not removed with their media. `deploy/Caddyfile` forwards `/iiif-viewer` and `/iiif/*`.
 
 ## Render contract
 

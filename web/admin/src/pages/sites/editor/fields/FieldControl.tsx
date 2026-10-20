@@ -28,6 +28,7 @@ import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
+import { ManifestSourceField } from './ManifestSourceField';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
@@ -534,6 +535,24 @@ const LinkControl = ({
   );
 };
 
+const ManifestSourceControl = ({
+  field,
+  id,
+  value,
+  onChange,
+}: ControlProps & { readonly field: FieldOf<'manifestSource'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <ManifestSourceField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      value={value}
+      onChange={onChange}
+    />
+  );
+};
+
 export interface FieldControlProps {
   readonly field: BlockField;
   readonly value: JsonValue | undefined;
@@ -586,6 +605,8 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <LinkControl {...common} field={common.field} />;
     case 'anchor':
       return <AnchorControl {...common} field={common.field} />;
+    case 'manifestSource':
+      return <ManifestSourceControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }

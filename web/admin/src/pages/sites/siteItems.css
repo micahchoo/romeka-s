@@ -1,4 +1,4 @@
-/* The site's Items page: a header with the count and the sync switch, three add
+/* The site's Items page: a header with the count and the sync switch, two add
  * panels behind tabs, then the items on the site. */
 .site-items {
   display: grid;
@@ -102,7 +102,6 @@
   font-weight: 600;
 }
 
-.site-items-sets,
 .site-items-attached,
 .site-items-list {
   display: grid;
@@ -112,49 +111,24 @@
   list-style: none;
 }
 
-.site-items-sets {
-  gap: 0;
-  max-height: 16rem;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.site-items-sets:empty {
-  display: none;
-}
-
-.site-items-sets li + li {
-  border-top: 1px solid var(--border);
-}
-
-.site-items-sets button {
+.site-items-panel .form-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  width: 100%;
-  border: 0;
-  border-radius: 0;
-  text-align: start;
+  margin: 0;
 }
 
-.site-items-sets button:active:not(:disabled) {
-  transform: none;
+.site-items-confirm,
+.site-items-attached-sets {
+  display: grid;
+  gap: var(--space-2);
 }
 
-.site-items-sets button[aria-pressed="true"] {
-  background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
-  font-weight: 600;
-}
-
-.site-items-badge {
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text-muted);
-  font-size: 12px;
+.site-items-confirm {
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
 }
 
 .site-items-attached li,

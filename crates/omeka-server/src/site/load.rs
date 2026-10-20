@@ -23,9 +23,9 @@ use omeka_core::value_shape::ValueShape;
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
-    AssetRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter,
-    MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo, TemplateRepo,
-    ValueRepo, compare_text_ci,
+    AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
+    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo,
+    TemplateRepo, ValueRepo, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
@@ -146,6 +146,9 @@ impl LoadedRow {
         }
     }
 }
+
+/// Where the bundled theme's files are served (`crate::assets`).
+const ASSET_BASE: &str = "/assets";
 
 /// The read side of one site render: the pool, the base URL, the property
 /// catalog, the site being served, and the caller's visibility facts.
@@ -459,27 +462,41 @@ impl<'a> Loader<'a> {
             &view,
             options,
         );
+        // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
+        // owns the head here, so the embed loads the library it calls.
+        let library = if row.renderer == "iiif" {
+            omeka_site::theme::library_script(
+                ASSET_BASE,
+                "vendor/openseadragon/openseadragon.min.js",
+            )
+        } else {
+            String::new()
+        };
         Ok(MediaRef {
             url: media_url,
             original_url: view.original_url.clone(),
             title: view.display_title.clone(),
+            media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
-                "<div class=\"media-render {}\">{}</div>",
-                row.renderer, rendered
+                "<div class=\"media-render {}\">{library}{rendered}</div>",
+                row.renderer
             )),
         })
     }
 
-    /// The environment the media renderers read, from the request base URL. The
-    /// IIIF and oEmbed settings are not ported to the site settings yet, so the
-    /// renderer defaults stand.
+    /// The environment the media renderers read: the request base URL, the
+    /// bundled theme's assets, where OpenSeadragon's images are served, and the
+    /// site's two IIIF viewer settings (`Renderer/IiifPresentation.php`).
     fn render_env(&self) -> RenderEnv {
+        let base = self.base.as_str();
         RenderEnv {
-            server_url: self.base.as_str().to_string(),
-            file_base_uri: format!("{}/files", self.base.as_str()),
-            asset_base_path: "/application/asset".to_string(),
-            ..RenderEnv::default()
+            server_url: base.to_string(),
+            file_base_uri: format!("{base}/files"),
+            asset_base_path: ASSET_BASE.to_string(),
+            viewer_url: format!("{base}/iiif-viewer"),
+            iiif_viewer_sidebar: self.settings.iiif_viewer_sidebar(),
+            iiif_viewer_theme: self.settings.iiif_viewer_theme().to_string(),
         }
     }
 
@@ -835,6 +852,8 @@ impl<'a> Loader<'a> {
             display_title(row, self.messages()),
         );
         view.jsonld = Some(self.jsonld(kind, row));
+        view.owner = row.owner_id.map(|id| omeka_core::ids::UserId::new(id.0));
+        view.class_label = self.class_label(row.resource_class_id).await?;
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
         view.description = description;
@@ -1092,6 +1111,20 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
+            if view.iiif_manifest.is_none()
+                && crate::iiif::paints_canvas(
+                    &entry.renderer,
+                    &entry.ingester,
+                    entry.media_type.as_deref(),
+                    entry.has_thumbnails,
+                )
+            {
+                view.iiif_manifest = Some(format!(
+                    "{}/iiif/3/item/{}/manifest",
+                    self.base.as_str(),
+                    row.id().0
+                ));
+            }
             let title = display_title(&entry.resource, self.messages());
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
@@ -1145,13 +1178,39 @@ impl<'a> Loader<'a> {
                 .property(value.property_id)
                 .map(|info| self.property_label(info))
                 .unwrap_or_default();
+            let class = ResourceRepo::new(self.pool)
+                .get(value.resource_id)
+                .await?
+                .and_then(|row| row.resource_class_id);
             out.push(LinkedResource {
                 property,
                 kind,
                 resource,
+                class_label: self.class_label(class).await?,
             });
         }
         Ok(out)
+    }
+
+    /// A resource class's label, translated by term the way a property label
+    /// is (`resourceClass()->label()` through `translate`). `None` when the
+    /// resource has no class or the row is gone.
+    async fn class_label(&self, class: Option<db::ClassId>) -> Result<Option<String>, DbError> {
+        let Some(id) = class else {
+            return Ok(None);
+        };
+        Ok(ClassRepo::new(self.pool).get(id).await?.map(|row| {
+            let term = format!(
+                "{}:{}",
+                self.catalog.prefix(row.vocabulary_id),
+                row.local_name
+            );
+            self.settings
+                .locale()
+                .translator()
+                .term_label(&term, &row.label)
+                .to_string()
+        }))
     }
 
     /// A resource a value points at, as its pretty link needs it. `None` when

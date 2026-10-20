@@ -127,6 +127,7 @@ mod tests {
             url: "/s/main/media/9".to_string(),
             original_url: Some("/files/original/9.jpg".to_string()),
             title: "A file".to_string(),
+            media_type: None,
             thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
             embed: Some("<iframe src=\"/embed/9\"></iframe>".to_string()),
         }
@@ -427,6 +428,10 @@ mod tests {
             )
         });
         documents.push(DefaultTheme.render(&View::Item(&attached), &ctx));
+        let mut with_manifest = attached.clone();
+        with_manifest.iiif_manifest =
+            Some("https://example.org/iiif/3/item/7/manifest".to_string());
+        documents.push(DefaultTheme.render(&View::Item(&with_manifest), &ctx));
         documents.push(DefaultTheme.render(&View::ItemSet(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Media(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Index, &ctx));
@@ -650,6 +655,8 @@ mod tests {
             "romeka-section-cards-3",
             "romeka-section-band",
             "romeka-bleed",
+            "iiif-poster",
+            "iiif-links",
             "page-layout-grid",
             "grid-template-columns-12",
             "grid-position-auto",

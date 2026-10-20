@@ -1,6 +1,7 @@
 /**
  * The block form: one control per field of a block's layout schema, over the
- * block's `o:data` and its `o:attachment` rows. Every edit goes out as an
+ * block's `o:data`, its `o:attachment` rows, and the Romeka settings an
+ * upstream block keeps in `o:layout_data.romeka`. Every edit goes out as an
  * action, so the component holds no block state of its own.
  */
 import type { ReactElement } from 'react';
@@ -10,6 +11,7 @@ import { useEditorText } from '../messages';
 import type { BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { settingsOf } from '../romeka';
 import { dataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
@@ -41,6 +43,7 @@ export const BlockForm = ({
     return <p className="field-note">{t('field.unknownLayout')}</p>;
   }
   const data = dataObject(block);
+  const settings = settingsOf(block);
   const mine = issues.filter((issue) => issue.blockKey === block.key);
   const idPrefix = `block-${block.key}`;
   return (
@@ -62,9 +65,14 @@ export const BlockForm = ({
           <FieldControl
             key={field.key}
             field={field}
-            value={data[field.key]}
+            value={field.romeka ? settings[field.key] : data[field.key]}
             onChange={(value) => {
-              dispatch({ type: 'setField', blockKey: block.key, field: field.key, value });
+              dispatch({
+                type: field.romeka ? 'setRomkaSetting' : 'setField',
+                blockKey: block.key,
+                field: field.key,
+                value,
+              });
             }}
             record={data}
             siblings={schema.fields}

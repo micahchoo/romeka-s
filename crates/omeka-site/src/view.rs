@@ -9,7 +9,8 @@
 //! resource's display title and description, its thumbnail, its item sets and
 //! its media, and a site entry for the list-of-sites block.
 
-use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId};
+use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId, UserId};
+use omeka_core::permissions::RoleSet;
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage};
 
@@ -51,6 +52,11 @@ pub struct ResourceView {
     pub url: String,
     /// `displayTitle`: the title, or the caller's placeholder.
     pub title: String,
+    /// `resource.owner_id`, which decides whether the caller may edit it.
+    pub owner: Option<UserId>,
+    /// The resource class label (`resourceClass()->label()`), translated by
+    /// term, `None` when the resource has no class.
+    pub class_label: Option<String>,
     /// `displayDescription`, `None` when the resource has none.
     pub description: Option<String>,
     /// The values `displayValues` prints, in property order.
@@ -81,6 +87,9 @@ pub struct ResourceView {
     /// `view.show.after` / `view.browse.after`, honouring
     /// `disable_jsonld_embed`). `None` when the caller did not build one.
     pub jsonld: Option<String>,
+    /// The item's IIIF manifest URL, absolute, when the item has a media a
+    /// canvas can paint. The item view links it and opens it in the viewer.
+    pub iiif_manifest: Option<String>,
 }
 
 impl ResourceView {
@@ -97,6 +106,8 @@ impl ResourceView {
             kind,
             url: url.into(),
             title: title.into(),
+            owner: None,
+            class_label: None,
             description: None,
             values: Vec::new(),
             thumbnail: None,
@@ -108,6 +119,7 @@ impl ResourceView {
             primary_media: None,
             parent_item: None,
             jsonld: None,
+            iiif_manifest: None,
         }
     }
 }
@@ -161,6 +173,8 @@ pub struct LinkedResource {
     pub kind: ResourceKind,
     /// The linking resource.
     pub resource: ResourceRef,
+    /// The linking resource's class label, `None` when it has no class.
+    pub class_label: Option<String>,
 }
 
 /// A media file, as the media block shows it.
@@ -173,6 +187,8 @@ pub struct MediaRef {
     pub original_url: Option<String>,
     /// The display title (`MediaRepresentation::displayTitle`).
     pub title: String,
+    /// `media.media_type`, e.g. `image/jpeg`, `None` when the media has no file.
+    pub media_type: Option<String>,
     /// The thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
     /// The rendered embed HTML from the media renderer, `None` when the media
@@ -340,43 +356,6 @@ impl ResourceProvider for NoResources {
     }
 }
 
-/// One stored media opened in the IIIF viewer page.
-///
-/// The viewer page stands in for upstream's `iiif-viewer` route
-/// (`Controller/IiifViewerController.php`, `view/omeka/iiif-viewer/index.phtml`).
-/// Upstream renders Mirador over a `url` query parameter; the port renders the
-/// OpenSeadragon container the media renderer emits
-/// (`omeka-media/src/render/iiif.rs`, from `Media/Renderer/IIIF.php`) inside the
-/// site theme, keyed by a stored media id. The tile source is the media's stored
-/// IIIF document: an image information document or a presentation manifest.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IiifViewerView {
-    /// `media.id`, which names the container and the OpenSeadragon instance.
-    pub media: MediaId,
-    /// `media.displayTitle`, the document title and the viewer's label.
-    pub title: String,
-    /// The IIIF document the viewer opens, as JSON. The theme escapes it into
-    /// the container's `data-tile-sources` attribute and the inline script
-    /// parses it back, exactly as the media renderer does.
-    pub tile_source: String,
-    /// The container height, a CSS length. `Renderer/IIIF.php:16` builds
-    /// `{int}px` and defaults to `400px`; the caller may set a page height.
-    pub height: String,
-}
-
-impl IiifViewerView {
-    /// A viewer for a media at the media renderer's default height, `400px`.
-    #[must_use]
-    pub fn new(media: MediaId, title: impl Into<String>, tile_source: impl Into<String>) -> Self {
-        Self {
-            media,
-            title: title.into(),
-            tile_source: tile_source.into(),
-            height: "400px".to_string(),
-        }
-    }
-}
-
 /// Which theme view to render.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View<'a> {
@@ -402,8 +381,6 @@ pub enum View<'a> {
     /// `view/omeka/site/item/search.phtml` and its siblings:
     /// `common/advanced-search.phtml`.
     AdvancedSearch(&'a AdvancedSearchForm),
-    /// The IIIF viewer page (`view/omeka/iiif-viewer/index.phtml`).
-    IiifViewer(&'a IiifViewerView),
     /// `view/error/404.phtml` and `view/error/403.phtml`, the two error pages
     /// `Mvc\ExceptionListener` renders inside the site layout.
     Error(&'a ErrorView),
@@ -485,6 +462,16 @@ pub enum BlockMarkers {
     Preview,
 }
 
+/// The signed-in caller of a public render: who the user bar names, and the
+/// roles that decide which edit links it offers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Viewer {
+    /// `user.name`.
+    pub name: String,
+    /// The caller's id, global role and permission on the rendered site.
+    pub roles: RoleSet,
+}
+
 /// Everything the site layer reads besides the site and page rows.
 pub struct RenderContext<'a> {
     /// The site being rendered (`site` row).
@@ -520,11 +507,9 @@ pub struct RenderContext<'a> {
     /// `favicon` setting (`Module.php:188-203`). `None` when the setting is
     /// unset or names an asset the caller cannot resolve.
     pub favicon_url: Option<String>,
-    /// Whether the caller is signed in, for the user bar
+    /// The signed-in caller, `None` when nobody is signed in
     /// (`View/Helper/UserBar.php:35-43`).
-    pub signed_in: bool,
-    /// The signed-in caller's display name, for the user bar.
-    pub user_name: Option<String>,
+    pub viewer: Option<Viewer>,
     /// Whether the shown resource is not in this site, so the document carries
     /// `<meta name="robots" content="noindex">` (`Module.php:925-931`).
     pub noindex: bool,
@@ -555,8 +540,7 @@ impl<'a> RenderContext<'a> {
             iiif_viewer_url: "/iiif-viewer".to_string(),
             current_path: String::new(),
             favicon_url: None,
-            signed_in: false,
-            user_name: None,
+            viewer: None,
             noindex: false,
             resources,
             block_markers: BlockMarkers::Off,
@@ -569,6 +553,14 @@ impl<'a> RenderContext<'a> {
     pub fn with_preview_markers(mut self) -> Self {
         self.block_markers = BlockMarkers::Preview;
         self
+    }
+
+    /// Whether this render is the admin preview: a block that needs a script
+    /// shows what it will be instead, and the page may point the curator at
+    /// the admin.
+    #[must_use]
+    pub(crate) fn is_preview(&self) -> bool {
+        self.block_markers == BlockMarkers::Preview
     }
 
     /// The marker value for one block, `None` when markers are off.

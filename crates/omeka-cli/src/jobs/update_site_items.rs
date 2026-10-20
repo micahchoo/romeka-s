@@ -54,7 +54,10 @@ impl Job for UpdateSiteItems {
         let api = system_api::load(context.pool).await?;
         for (site_id, query) in sites {
             let selector = if clears {
-                Selector::Items(Vec::new())
+                Selector::Picked {
+                    items: Vec::new(),
+                    item_sets: Vec::new(),
+                }
             } else {
                 Selector::Query(query)
             };

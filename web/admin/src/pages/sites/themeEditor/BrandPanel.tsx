@@ -99,7 +99,7 @@ export const ContrastPanel = ({
   onUse,
 }: {
   readonly checks: readonly PairCheck[];
-  readonly onUse: (role: Role, colour: string) => void;
+  readonly onUse: (role: Role, colour: string, shade: Shade) => void;
 }): ReactElement => {
   const t = useThemeText();
   const failing = checks.filter((check) => !check.passes);
@@ -138,7 +138,7 @@ export const ContrastPanel = ({
                       aria-label={t('theme.contrastUseLabel', { colour: check.suggestion, role })}
                       onClick={() => {
                         if (check.suggestion !== null) {
-                          onUse(check.foreground, check.suggestion);
+                          onUse(check.foreground, check.suggestion, check.shade);
                         }
                       }}
                     >

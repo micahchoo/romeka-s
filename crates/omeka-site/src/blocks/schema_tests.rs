@@ -200,7 +200,8 @@ fn every_field_has_help_and_layout_data_alone_groups() {
 }
 
 fn assert_keys_are_read(layout: &str, fields: &'static [Field], read: &[&'static str]) {
-    for field in fields {
+    // A Romeka setting lives in the layout data, which the data parse never reads.
+    for field in fields.iter().filter(|field| !field.romeka) {
         match field.kind {
             FieldKind::Attachments { .. } => {}
             FieldKind::Repeat { fields: inner } => assert_keys_are_read(layout, inner, read),

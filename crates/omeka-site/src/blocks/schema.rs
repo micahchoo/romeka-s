@@ -71,6 +71,11 @@ pub struct Field {
     /// Whether the form tucks the field under its "Advanced" disclosure.
     #[serde(skip_serializing_if = "is_false")]
     pub advanced: bool,
+    /// Whether the value is a Romeka setting of an upstream block, stored under
+    /// `o:layout_data.romeka.settings` rather than in `o:data`, which an
+    /// upstream save rebuilds (`docs/compat.md`, the one-way rule).
+    #[serde(skip_serializing_if = "is_false")]
+    pub romeka: bool,
 }
 
 /// A condition on one sibling field's value, which decides whether a control
@@ -221,6 +226,10 @@ pub enum FieldKind {
         /// The four stored keys.
         keys: SideKeys,
     },
+    /// A IIIF manifest URL, chosen as a URL or as an item of this site, whose
+    /// manifest this server publishes (`/iiif/3/item/<id>/manifest`). Either
+    /// way the stored value is the URL, so upstream opens the same manifest.
+    ManifestSource,
     /// A link target: a page of the site under the field's `key`, or a URL
     /// under `url_key`. The control writes one and clears the other, because
     /// the renderer prefers the page.
@@ -275,6 +284,7 @@ const fn field(
         when: None,
         group: None,
         advanced: false,
+        romeka: false,
     }
 }
 
@@ -396,6 +406,11 @@ pub const fn page_list(key: &'static str, label: &'static str, help: &'static st
     field(key, label, help, FieldKind::PageList)
 }
 
+/// A IIIF manifest, as a URL or as an item of this site.
+pub const fn manifest_source(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::ManifestSource)
+}
+
 /// A hex colour.
 pub const fn color(key: &'static str, label: &'static str, help: &'static str) -> Field {
     field(key, label, help, FieldKind::Color { token_key: None })
@@ -496,6 +511,15 @@ impl Field {
     pub const fn group(self, group: Group) -> Self {
         Self {
             group: Some(group),
+            ..self
+        }
+    }
+
+    /// Stores the value under `o:layout_data.romeka.settings`, as a Romeka
+    /// setting of an upstream block.
+    pub const fn romeka(self) -> Self {
+        Self {
+            romeka: true,
             ..self
         }
     }

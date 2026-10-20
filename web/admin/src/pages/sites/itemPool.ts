@@ -5,7 +5,7 @@
  * `parse_str($formData['item_pool'])`, so the stored value is the nested
  * array `parse_str` builds: an empty pool is `[]`, every leaf is a string.
  */
-import type { JsonValue } from '../../api/types';
+import type { ItemSetId, JsonValue } from '../../api/types';
 import { formatQuery, parseQuery } from './editor/fields/query';
 import type { QueryPair } from './editor/fields/query';
 
@@ -106,4 +106,23 @@ export const itemPoolFromQuery = (query: string): JsonValue => {
     assign(root, keyPath(pair.key), pair.value);
   }
   return toJson(root);
+};
+
+/** The pool the Items page writes from the site's item sets: `item_set_id[]=<id>` for each. */
+export const itemSetPool = (sets: readonly ItemSetId[]): JsonValue =>
+  itemPoolFromQuery(formatQuery(sets.map((set) => ({ key: 'item_set_id[]', value: String(set) }))));
+
+/**
+ * What a site's pool lets join it when an item is created: every new item (the
+ * empty pool, as upstream), the items made in its item sets, or the items a
+ * saved search selects.
+ */
+export type PoolKind = 'every' | 'sets' | 'search';
+
+export const poolKind = (pool: JsonValue | null): PoolKind => {
+  const entries = pool === null ? [] : (entriesOf(pool) ?? []);
+  if (entries.length === 0) {
+    return 'every';
+  }
+  return entries.every(([key]) => key === 'item_set_id') ? 'sets' : 'search';
 };

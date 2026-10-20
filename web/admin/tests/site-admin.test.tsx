@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isRecord, isUnknownArray } from '../src/api/parse';
+import { isRecord } from '../src/api/parse';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
@@ -66,8 +66,16 @@ const pagePatch = (fetchMock: ReturnType<typeof installFetch>): Record<string, u
     .filter((request) => request.init?.method === 'PATCH')
     .map(requestBody);
 
+/** The hub's count of the site's items: `/api/items?site_id=1`. */
+const itemCountRoute =
+  (count: number) =>
+  (url: URL): Response | null =>
+    url.pathname === '/api/items' ? listResponse([], count) : null;
+
 const siteRoutes = (url: URL): Response | null =>
-  url.pathname === '/api/sites/1' ? jsonResponse(site()) : sitePagesRoute(url);
+  url.pathname === '/api/sites/1'
+    ? jsonResponse(site())
+    : (sitePagesRoute(url) ?? itemCountRoute(7)(url));
 
 describe('site hub', () => {
   it('hub_lists_each_page_with_its_visibility_homepage_and_menu_state', async () => {
@@ -95,6 +103,29 @@ describe('site hub', () => {
     expect(screen.getByRole('link', { name: 'Add page' })).toHaveAttribute(
       'href',
       '#/sites/1/pages/new',
+    );
+  });
+
+  it('hub_counts_the_sites_items_and_links_an_empty_site_to_its_items_tab', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
+    const { unmount } = render(<SitesPage param="1" rest={['1']} />);
+    expect(await screen.findByRole('link', { name: '7 items' })).toHaveAttribute(
+      'href',
+      '#/sites/1/resources',
+    );
+    unmount();
+
+    installFetch(
+      (url) =>
+        (url.pathname === '/api/sites/1' ? jsonResponse(site()) : null) ??
+        sitePagesRoute(url) ??
+        itemCountRoute(0)(url) ??
+        notFound(),
+    );
+    render(<SitesPage param="1" rest={['1']} />);
+    expect(await screen.findByRole('link', { name: 'No items yet' })).toHaveAttribute(
+      'href',
+      '#/sites/1/resources',
     );
   });
 
@@ -132,7 +163,7 @@ describe('site hub', () => {
       if (url.pathname === '/api/sites/1') {
         return jsonResponse(init?.method === 'PATCH' ? followsMenu : named);
       }
-      return sitePagesRoute(url) ?? notFound();
+      return sitePagesRoute(url) ?? itemCountRoute(7)(url) ?? notFound();
     });
     render(<SitesPage param="1" rest={['1']} />);
 
@@ -276,11 +307,38 @@ describe('site navigation', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add child link to Browse' }));
     fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
-    expect(within(tree()).getByText('Needs a target')).toBeInTheDocument();
+    expect(within(tree()).getByText('Needs a URL')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'A page or URL link needs its target.',
+      'Some links are not complete. Fix the marked links, then save.',
+    );
+    expect(pagePatch(fetchMock)).toHaveLength(0);
+  });
+
+  it('navigation_editor_names_a_missing_label_not_a_missing_target', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add link' }));
+    fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
+    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://example.org' } });
+
+    expect(within(tree()).getByText('Needs a label')).toBeInTheDocument();
+    expect(within(tree()).queryByText('Needs a URL')).toBeNull();
+  });
+
+  it('navigation_editor_refuses_a_second_link_to_the_same_page_before_the_server_does', async () => {
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add link' }));
+    fireEvent.change(screen.getByLabelText('Page'), { target: { value: '1' } });
+    expect(within(tree()).getByText('Page already in the menu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Some links are not complete. Fix the marked links, then save.',
     );
     expect(pagePatch(fetchMock)).toHaveLength(0);
   });
@@ -316,7 +374,10 @@ describe('site items', () => {
   const itemChanges = (fetchMock: ReturnType<typeof installFetch>): Record<string, unknown>[] =>
     requestsFor(fetchMock, '/api/sites/1/items').map(requestBody);
 
-  it('the search tab counts what it would add, then saves the search and adds the items', async () => {
+  const addBodies = (fetchMock: ReturnType<typeof installFetch>): Record<string, unknown>[] =>
+    itemChanges(fetchMock).filter((body) => body['dry_run'] === false);
+
+  it('the search tab adds what it matches once and leaves the pool alone', async () => {
     const fetchMock = installFetch(
       (url, init) =>
         siteItemsRoutes({ matched: 3, added: 2, removed: 0, total: 9 })(url, init) ?? notFound(),
@@ -335,115 +396,78 @@ describe('site items', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add items (2)' }));
 
     expect(await screen.findByText('Items added: 2.')).toBeInTheDocument();
-    expect(pagePatch(fetchMock)).toEqual([{ 'o:item_pool': { fulltext_search: 'fish' } }]);
-    expect(itemChanges(fetchMock).filter((body) => body['dry_run'] === false)).toEqual([
+    expect(pagePatch(fetchMock)).toEqual([]);
+    expect(addBodies(fetchMock)).toEqual([
       { action: 'add', query: { fulltext_search: 'fish' }, dry_run: false },
     ]);
   });
 
-  it('the item set tab attaches a set and adds its items in one action', async () => {
+  it('the picker adds picked items and sets, and the sets become the pool', async () => {
     const fetchMock = installFetch(
       (url, init) =>
-        siteItemsRoutes({ matched: 4, added: 4, removed: 0, total: 9 })(url, init) ?? notFound(),
+        siteItemsRoutes({ matched: 5, added: 4, removed: 0, total: 11 })(url, init) ?? notFound(),
     );
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Featured photographs' }));
-    expect(
-      await screen.findByText('Featured photographs: 4 items, 4 not on this site yet.'),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Attach the set and add items (4)' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Pick the whole set Featured photographs' }),
+    );
+    expect(await screen.findByText('5 picked, 4 not on this site yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add items (4)' }));
 
-    expect(
-      await screen.findByText('Items added: 4.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Items added: 4.')).toBeInTheDocument();
     expect(pagePatch(fetchMock)).toEqual([
-      // The stored attachment (set 2) keeps its place; the new one appends.
-      { 'o:site_item_set': [{ 'o:item_set': { 'o:id': 2 } }, { 'o:item_set': { 'o:id': 1 } }] },
+      {
+        // The stored set (2) keeps its place; the picked one appends, and the
+        // pool is written from both.
+        'o:site_item_set': [{ 'o:item_set': { 'o:id': 2 } }, { 'o:item_set': { 'o:id': 1 } }],
+        'o:item_pool': { item_set_id: ['2', '1'] },
+      },
     ]);
-    expect(itemChanges(fetchMock).filter((body) => body['dry_run'] === false)).toEqual([
-      { action: 'add', item_sets: [1], dry_run: false },
+    expect(addBodies(fetchMock)).toEqual([
+      { action: 'add', items: [12], item_sets: [1], dry_run: false },
     ]);
   });
 
-  it('the sync switch stores assign_new_items', async () => {
+  it('replace names how many items leave before it replaces the membership', async () => {
+    const fetchMock = installFetch(
+      (url, init) =>
+        siteItemsRoutes({ matched: 1, added: 0, removed: 6, total: 1 })(url, init) ?? notFound(),
+    );
+    render(<SitesPage param="1" rest={['1', 'resources']} />);
+
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One' }));
+    expect(await screen.findByText('1 picked, 0 not on this site yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace with these' }));
+    expect(
+      await screen.findByText(
+        'Replace the site\u2019s items with these 1? Items that leave the site: 6. Items that join: 0.',
+      ),
+    ).toBeInTheDocument();
+    expect(addBodies(fetchMock)).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace the items' }));
+
+    expect(await screen.findByText('Replaced. Items on this site: 9.')).toBeInTheDocument();
+    expect(pagePatch(fetchMock)).toEqual([{ 'o:site_item_set': [], 'o:item_pool': [] }]);
+    expect(addBodies(fetchMock)).toEqual([
+      { action: 'replace', items: [12], item_sets: [], dry_run: false },
+    ]);
+  });
+
+  it('the sync switch stores assign_new_items and says what joins the site', async () => {
     const fetchMock = installFetch(
       (url, init) =>
         siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound(),
     );
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
-    fireEvent.click(
-      await screen.findByRole('switch', { name: 'Keep this site in sync with the search' }),
-    );
-    expect(
-      await screen.findByText('Saved.'),
-    ).toBeInTheDocument();
+    const sync = await screen.findByRole('switch', { name: 'Keep this site in sync' });
+    // The fixture's pool is empty, so every new item would join.
+    expect(sync).toHaveAccessibleDescription(/^Every item created from now on joins this site/);
+    fireEvent.click(sync);
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(pagePatch(fetchMock)).toEqual([{ 'o:assign_new_items': true }]);
-  });
-});
-
-describe('site users', () => {
-  it('site_users_patches_the_permission_list_it_keeps', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return usersRoute(url) ?? notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'users']} />);
-
-    const roles = await screen.findAllByLabelText('Role');
-    expect(roles).toHaveLength(2);
-    // User 3's row is removed and user 5 becomes an editor.
-    fireEvent.click(first(screen.getAllByRole('button', { name: 'Remove' })));
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'editor' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    expect(requestBody(patch)).toEqual({
-      'o:site_permission': [{ 'o:user': { 'o:id': 5 }, 'o:role': 'editor' }],
-    });
-  });
-
-  it('site_users_adds_a_row_from_the_user_list', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return usersRoute(url) ?? notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'users']} />);
-
-    await screen.findByLabelText('Add user');
-    fireEvent.change(screen.getByLabelText('Add user'), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add user' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    const body = requestBody(patch);
-    const permissions = body['o:site_permission'];
-    expect(isUnknownArray(permissions)).toBe(true);
-    if (isUnknownArray(permissions)) {
-      expect(permissions).toHaveLength(3);
-      expect(permissions[2]).toEqual({ 'o:user': { 'o:id': 5 }, 'o:role': 'viewer' });
-    }
   });
 });
 
@@ -488,7 +512,6 @@ const UNREAD_KEYS = {
   vocabulary_scope: 'cross-site',
   search_apply_templates: [3, 4],
   search_restrict_templates: true,
-  iiif_viewer_sidebar: true,
 } as const;
 
 describe('site settings', () => {

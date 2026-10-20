@@ -48,6 +48,17 @@ pub struct Messages {
     /// The user bar's link to the admin. Upstream labels it with the
     /// installation title; the port names the place, `Admin dashboard`.
     pub admin_dashboard: &'static str,
+    /// The user bar's link to the page editor. Upstream labels every edit
+    /// link `Edit`; the port names what opens.
+    pub edit_page: &'static str,
+    /// The user bar's link to the item's admin page.
+    pub edit_item: &'static str,
+    /// The user bar's link to the item set's admin page.
+    pub edit_item_set: &'static str,
+    /// The user bar's link to the media's admin page.
+    pub edit_media: &'static str,
+    /// `resource-page-block-layout/resource-class.phtml`: the label.
+    pub resource_class: &'static str,
     /// `view/layout/layout.phtml`: the skip link.
     pub skip_to_main: &'static str,
     /// The theme header's menu toggle and its `nav` label. Upstream's
@@ -82,6 +93,20 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
+    /// It opens on the public page.` pattern, over the block's title. A Romeka
+    /// string; upstream's preview runs the viewer.
+    pub iiif_poster: &'static str,
+    /// The item page's link that opens the item in the IIIF viewer. A Romeka
+    /// string.
+    pub iiif_view_in_viewer: &'static str,
+    /// The item page's link to the item's IIIF manifest. A Romeka string.
+    pub iiif_manifest: &'static str,
+    /// A browse preview of items on a site that holds no items, in the admin
+    /// preview. A port addition: upstream prints an empty list.
+    pub no_site_items_preview: &'static str,
+    /// The same empty browse preview on the public site, with no admin hint.
+    pub no_site_items: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -105,6 +130,11 @@ pub static EN: Messages = Messages {
     log_out: "Logout",
     log_in: "Log in",
     admin_dashboard: "Admin dashboard",
+    edit_page: "Edit this page",
+    edit_item: "Edit item",
+    edit_item_set: "Edit item set",
+    edit_media: "Edit media",
+    resource_class: "Resource class",
     skip_to_main: "Skip to main content",
     menu: "Menu",
     home: "Home",
@@ -121,6 +151,11 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    iiif_poster: "IIIF viewer: %s. It opens on the public page.",
+    iiif_view_in_viewer: "View in the IIIF viewer",
+    iiif_manifest: "IIIF manifest",
+    no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
+    no_site_items: "There are no items to show yet.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -145,6 +180,12 @@ pub static ES: Messages = Messages {
     log_out: "Cerrar sesión",
     log_in: "Iniciar sesión",
     admin_dashboard: "Panel de administración",
+    // "Edit this page" is not in `es.po`; the other edit labels are.
+    edit_page: "Editar esta página",
+    edit_item: "Editar ficha",
+    edit_item_set: "Editar conjunto de fichas",
+    edit_media: "Editar medios",
+    resource_class: "Clase de recurso",
     skip_to_main: "Saltar al contenido principal",
     // Not in `es.po`; the port's own translation.
     menu: "Menú",
@@ -165,6 +206,12 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
+    iiif_view_in_viewer: "Ver en el visor IIIF",
+    iiif_manifest: "Manifiesto IIIF",
+    // The admin's words, because only the admin preview shows it.
+    no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
+    no_site_items: "Todavía no hay fichas que mostrar.",
 };
 
 #[cfg(test)]

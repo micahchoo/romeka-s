@@ -1,14 +1,15 @@
 /**
  * The admin bar a signed-in curator sees on the public site: a styled strip
- * above the header with the way to the admin and the way out, readable on
- * every preset in the light and the dark scheme.
+ * above the header with the way to the admin, the page's editor and the way
+ * out, readable on every preset in the light and the dark scheme. Logout ends
+ * the session and returns to the page; Log in returns to it too.
  *
  * The session comes from `POST /api/login`, the route the sign-in form uses,
  * so the public page sees a signed-in caller the way a browser does. The theme
  * writes go through the keyed `request` context, which holds no session: a
  * session-authenticated write must carry the base URL's origin.
  */
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 import { expect, test } from '../fixtures';
 import { expectAxeBudget } from '../harness/axe';
@@ -63,7 +64,8 @@ test('the signed-in user bar is styled and meets the axe budget on every preset 
         const bar = page.getByRole('navigation', { name: 'Omeka User' });
         await expect(bar).toContainText(`Signed in as ${adminName}`);
         await expect(bar.getByRole('link', { name: 'Admin dashboard' })).toHaveAttribute('href', '/admin');
-        await expect(bar.getByRole('link', { name: 'Logout' })).toHaveAttribute('href', '/logout');
+        await expect(bar.getByRole('link', { name: 'Edit this page' })).toBeVisible();
+        await expect(bar.getByRole('button', { name: 'Logout' })).toBeVisible();
         // The sheet styles the bar: a surface fill, not the page's bare text.
         const fill = await bar.evaluate((element) => getComputedStyle(element).backgroundColor);
         const pageFill = await page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -74,5 +76,64 @@ test('the signed-in user bar is styled and meets the axe budget on every preset 
     }
   } finally {
     await storeThemeSettings(request, site, original);
+  }
+});
+
+const signIn = async (page: Page): Promise<void> => {
+  const { adminEmail, adminPassword } = readHarness();
+  const signedIn = await page.request.post('/api/login', {
+    data: { email: adminEmail, password: adminPassword },
+  });
+  expect(signedIn.status(), await signedIn.text()).toBe(200);
+};
+
+const WELCOME_PATH = `/s/${SITE_SLUG}/page/${WELCOME_SLUG}`;
+
+test('Logout ends the session and returns to the page', async ({ page }) => {
+  await signIn(page);
+  await page.goto(WELCOME_PATH);
+  const bar = page.getByRole('navigation', { name: 'Omeka User' });
+  await bar.getByRole('button', { name: 'Logout' }).click();
+
+  await expect(page).toHaveURL(WELCOME_PATH);
+  await expect(page.getByRole('navigation', { name: 'Omeka User' })).toHaveCount(0);
+  expect((await page.request.get('/api/me')).status()).toBe(401);
+});
+
+test('Edit this page opens the editor on that page', async ({ page }) => {
+  await signIn(page);
+  await page.goto(WELCOME_PATH);
+  const bar = page.getByRole('navigation', { name: 'Omeka User' });
+  await bar.getByRole('link', { name: 'Edit this page' }).click();
+
+  await expect(page).toHaveURL(/\/#\/sites\/\d+\/pages\/\d+$/);
+  await expect(page.getByRole('button', { name: /Insert block at position/ }).first()).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue('Welcome');
+});
+
+test('Log in on the public site returns the reader to the page', async ({ page, request }) => {
+  const site = await siteId(request);
+  const settings = async (value: unknown): Promise<void> => {
+    const response = await request.patch(`/api/sites/${String(site)}`, {
+      data: { 'o:site_settings': { show_user_bar: value } },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+  };
+  await settings(1);
+  try {
+    await page.goto(WELCOME_PATH);
+    await page.getByRole('navigation', { name: 'Omeka User' }).getByRole('link', { name: 'Log in' }).click();
+    await expect(page).toHaveURL(`/login?redirect=${encodeURIComponent(WELCOME_PATH)}`);
+
+    const { adminEmail, adminPassword, adminName } = readHarness();
+    const form = page.getByRole('form', { name: 'Sign in' });
+    await form.getByLabel('Email').fill(adminEmail);
+    await form.getByLabel('Password').fill(adminPassword);
+    await form.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page).toHaveURL(WELCOME_PATH);
+    await expect(page.getByRole('navigation', { name: 'Omeka User' })).toContainText(`Signed in as ${adminName}`);
+  } finally {
+    await settings(null);
   }
 });

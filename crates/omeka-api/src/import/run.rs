@@ -465,7 +465,7 @@ where
             fulltext::reindex(api, "media", row.resource.id).await?;
         }
         fulltext::reindex(api, "items", imported.item.resource.id).await?;
-        site_items::attach_new_matches(api, imported.item.id(), &[]).await?;
+        site_items::attach_on_create(api, imported.item.id()).await?;
         let thumbnails = imported.media.iter().filter(|m| m.has_thumbnails).count();
         self.summary.items += 1;
         self.summary.files += imported.media.iter().filter(|m| m.has_original).count();

@@ -120,9 +120,7 @@ export const encodeSiteItemsCommand = (command: SiteItemsCommand, dryRun: boolea
   const selection =
     selector.kind === 'query'
       ? { query: selector.query }
-      : selector.kind === 'items'
-        ? { items: selector.items }
-        : { item_sets: selector.itemSets };
+      : { items: selector.items, item_sets: selector.itemSets };
   return { action: command.action, ...selection, dry_run: dryRun };
 };
 

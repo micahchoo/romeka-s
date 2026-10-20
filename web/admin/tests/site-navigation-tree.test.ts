@@ -142,16 +142,31 @@ describe('navigation tree', () => {
     ]);
   });
 
-  it('issues_name_a_nested_page_link_without_a_page_and_a_url_link_without_a_url', () => {
+  it('issues_name_what_each_incomplete_link_lacks', () => {
     const links = navigationLinks([
       browse('A', [{ type: 'page', data: { id: null }, links: [] }]),
       { type: 'url', data: { label: 'X', url: '' }, links: [] },
+      { type: 'url', data: { label: '', url: 'https://example.org' }, links: [] },
       { type: 'page', data: { id: 2 }, links: [] },
     ]);
-    const issues = linkIssues(links);
-    expect(issues.size).toBe(2);
-    expect(issues.has(links[0]?.links[0]?.key ?? -1)).toBe(true);
-    expect(issues.has(links[1]?.key ?? -1)).toBe(true);
+    expect([...linkIssues(links).entries()]).toEqual([
+      [links[0]?.links[0]?.key, 'noPage'],
+      [links[1]?.key, 'noUrl'],
+      [links[2]?.key, 'noLabel'],
+    ]);
+  });
+
+  it('issues_mark_every_later_link_to_a_page_already_in_the_menu', () => {
+    const links = navigationLinks([
+      { type: 'page', data: { id: 2 }, links: [] },
+      browse('A', [{ type: 'page', data: { id: 2 }, links: [] }]),
+      { type: 'page', data: { id: 3 }, links: [] },
+      { type: 'page', data: { id: '2' }, links: [] },
+    ]);
+    expect([...linkIssues(links).entries()]).toEqual([
+      [links[1]?.links[0]?.key, 'samePage'],
+      [links[3]?.key, 'samePage'],
+    ]);
   });
 
   it('linked_pages_and_the_first_linked_page_read_the_whole_tree_in_order', () => {

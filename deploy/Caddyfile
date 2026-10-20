@@ -53,16 +53,50 @@
 	# the server's max_body_bytes is the one cap on an upload.
 	# /vocab/* is the published term lists and vocabularies, served in whatever
 	# syntax the Accept header asks for, so the proxy must not answer it itself.
-	@app path /api /api/* /api-context /assets/* /health /ready /s /s/* /vocab /vocab/* /admin /admin/
+	# /logout is the public site's Logout form, a POST the server answers.
+	# /iiif-viewer is the Mirador page and /iiif/* the IIIF manifests and images.
+	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/ /iiif-viewer /iiif/*
 	handle @app {
 		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
 	}
 
-	# The store the server wrote: /files/original/<name>.<ext> and the thumbnail
-	# directories. A miss is a 404 here, never the SPA shell.
-	handle_path /files/* {
-		root * {$ROMEKA_STORE}
-		file_server
+	# The store the server wrote: /files/original/<name>.<ext>, the thumbnail
+	# directories and the assets. A miss is a 404 here, never the SPA shell.
+	#
+	# Upstream serves every file to anyone. Here the server answers first
+	# whether this caller may see the resource that owns the file: 204 serves
+	# it, 403 or 404 is the answer the client gets. forward_auth sends the
+	# request's cookies and its URI (X-Forwarded-Uri, which carries an API key
+	# pair in the query string), never its body.
+	#
+	# `route` keeps the order as written: the auth check sees the URI before
+	# the /files prefix is stripped.
+	handle /files/* {
+		route {
+			# Set before the check, so a refusal carries it too.
+			header X-Content-Type-Options nosniff
+
+			# Only the server's answer may mark a request private.
+			request_header -X-Romeka-Private
+			forward_auth {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT} {
+				uri /api/romeka/files/allow
+				copy_headers X-Romeka-Private
+			}
+
+			# A private file must not sit in a shared cache, and one user's copy
+			# must not answer another user's request.
+			@private header X-Romeka-Private 1
+			header @private Cache-Control private
+			header @private +Vary Cookie
+
+			# An uploaded HTML, SVG or XML file runs no script on this origin.
+			@active path *.html *.htm *.svg *.xml
+			header @active Content-Security-Policy sandbox
+
+			uri strip_prefix /files
+			root * {$ROMEKA_STORE}
+			file_server
+		}
 	}
 
 	# Everything else is the admin SPA. A path that names a file is served or

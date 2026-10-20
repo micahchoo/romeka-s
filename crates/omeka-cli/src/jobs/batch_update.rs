@@ -11,24 +11,21 @@
 //! One resource's edit is atomic. The three maps apply in upstream's order
 //! (replace, append, remove) to the values read before the edit, and the deletes
 //! and inserts that result commit in one transaction, so a failed insert keeps
-//! the values a replace would have deleted. An edited item then joins every site
-//! that keeps in sync with its item pool and whose pool selects it now but did not
-//! before the edit, as an API update does (`omeka_api::site_items`).
+//! the values a replace would have deleted. An edit joins no site: a synced site
+//! takes an item only when it is created (`omeka_api::site_items::attach_on_create`).
 
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use serde::Deserialize;
 
-use omeka_api::read::Api;
-use omeka_api::site_items;
-use omeka_db::ids::{ItemId, PropertyId, ResourceId, ValueId};
+use omeka_db::ids::{PropertyId, ResourceId, ValueId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ValueRepo};
 use omeka_db::rows::{ValueContent, ValueRow};
 
 use super::query::{chunk_size, query_arg};
 use super::{Job, JobContext, JobError};
-use crate::{system_api, terms};
+use crate::terms;
 
 /// One map value: a single literal or a list of them.
 #[derive(Debug, Deserialize)]
@@ -141,18 +138,13 @@ impl Job for BatchUpdate {
             }
         };
 
-        // Only items belong to sites, so only an item edit runs the sync.
-        let sync = match resource.as_str() {
-            "items" => Some(system_api::load(context.pool).await?),
-            _ => None,
-        };
         let chunk = chunk_size(context).await?;
         for ids in ids.chunks(chunk) {
             if context.should_stop().await? {
                 return Ok(());
             }
             for id in ids {
-                if let Err(error) = update_one(context, sync.as_ref(), *id, &edit).await {
+                if let Err(error) = update_one(context, *id, &edit).await {
                     context.log(&format!("resource {}: {error}", id.0)).await?;
                 }
             }
@@ -217,11 +209,9 @@ async fn update_entries(context: &JobContext<'_>, name: &str) -> Result<Entries,
     Ok(entries)
 }
 
-/// Edit one resource in one transaction. `sync` is the read surface for an item, whose synced
-/// sites are read before the write and attached after its commit.
+/// Edit one resource in one transaction.
 async fn update_one(
     context: &JobContext<'_>,
-    sync: Option<&Api<'_>>,
     resource: ResourceId,
     edit: &Edit,
 ) -> Result<(), JobError> {
@@ -230,15 +220,7 @@ async fn update_one(
     if plan.delete.is_empty() && plan.insert.is_empty() {
         return Ok(());
     }
-    let item = ItemId(resource.0);
-    let synced_before = match sync {
-        Some(api) => site_items::synced_sites_matching(api, item).await?,
-        None => Vec::new(),
-    };
     values.rewrite(resource, &plan.delete, &plan.insert).await?;
-    if let Some(api) = sync {
-        site_items::attach_new_matches(api, item, &synced_before).await?;
-    }
     Ok(())
 }
 
@@ -247,6 +229,7 @@ mod tests {
     use super::*;
     use crate::jobs::Runner;
     use crate::testing::{compose, refuse_value, seeded_db, site_items, synced_site};
+    use omeka_db::ids::ItemId;
     use omeka_db::repos::ValueRepo;
     use omeka_db::rows::{NewItem, NewResource};
 
@@ -315,16 +298,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_batch_update_attaches_only_items_it_makes_match_a_synced_pool() {
+    async fn a_batch_update_joins_no_synced_site() {
         let db = seeded_db().await;
         let featured = serde_json::json!({"property": [
             {"property": "dcterms:subject", "type": "eq", "text": "featured"}
         ]});
         let site = synced_site(&db.pool, "featured", featured).await;
         let newcomer = item_with(&db.pool, "Newcomer", &[]).await;
-        let removed_by_hand =
-            item_with(&db.pool, "Removed", &[("dcterms:subject", "featured")]).await;
-        assert!(site_items(&db.pool, site).await.is_empty());
 
         run(
             &db.pool,
@@ -336,9 +316,13 @@ mod tests {
         .await;
 
         assert_eq!(
-            site_items(&db.pool, site).await,
-            [newcomer],
-            "the item the edit made match joins; {removed_by_hand:?}, which matched before, stays out"
+            texts(&db.pool, newcomer).await,
+            ["featured"],
+            "the edit wrote the value the pool selects"
+        );
+        assert!(
+            site_items(&db.pool, site).await.is_empty(),
+            "a synced site takes an item only when it is created"
         );
     }
 

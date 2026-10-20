@@ -19,6 +19,7 @@
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff and webp and stores the three derivatives.
+//! - [`iiif_image`]: the IIIF Image API at level 1 over a stored image.
 //! - [`image_metadata`]: the EXIF tags and pixel size of an image, for the
 //!   archive import's tag preview.
 //! - [`data`]: the typed `media.data` payloads.
@@ -29,7 +30,8 @@
 //! `Url`, `Youtube`, `IIIF`, `IiifPresentation` and `OEmbed` fetch over HTTP
 //! upstream. The port routes every fetch through [`http::HttpFetch`]. In
 //! production that is [`HttpClient`], the blocking rustls client in
-//! [`http_client`]; in tests it is [`testing::FakeHttp`], so no test touches the
+//! [`http_client`], which admits every hop through the URL guard in
+//! [`http_guard`]; in tests it is [`testing::FakeHttp`], so no test touches the
 //! network (DESIGN.md "Exclusions: live external services").
 //!
 //! # Boundaries
@@ -45,6 +47,8 @@ pub mod data;
 pub mod file_render;
 pub mod http;
 pub mod http_client;
+pub mod http_guard;
+pub mod iiif_image;
 pub mod image_metadata;
 pub mod ingest;
 pub mod media_type;

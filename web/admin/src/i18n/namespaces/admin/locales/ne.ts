@@ -121,6 +121,11 @@ export const ne: AdminMessages = {
   'settings.restoreExtensions': 'डिफल्ट विस्तारहरू पुनर्स्थापना गर्नुहोस्',
   'settings.restoredOnSave': 'सुरक्षित गर्दा डिफल्ट सूची पुनर्स्थापित हुन्छ।',
   'settings.emptyListRefusesAll': 'खाली सूचीले प्रत्येक फाइललाई अस्वीकार गर्दछ।',
+  'settings.allowPrivateUrls': 'निजी नेटवर्कहरूमा URL हरू अनुमति दिनुहोस्',
+  'settings.allowPrivateUrlsInfo':
+    'मिडिया र आयातहरूले यस सर्भर वा यसको निजी नेटवर्क (localhost, स्थानीय नेटवर्क र क्लाउड मेटाडेटा ठेगानाहरू) तर्फ सङ्केत गर्ने URL हरूलाई अस्वीकार गर्छन्। तिनलाई अनुमति दिन यो विकल्प चयन गर्नुहोस्।',
+  'settings.allowPrivateUrlsWarning':
+    'यो अन हुँदा, मिडिया थप्न सक्ने जो कोहीले यस सर्भरलाई यसको आफ्नै नेटवर्कबाट फाइलहरू तान्न लगाउन सक्छ।',
   'settings.locale': 'लोकेल',
   'settings.localeDefault': 'पूर्वनिर्धारित',
   'systemInfo.omeka': 'Omeka S',

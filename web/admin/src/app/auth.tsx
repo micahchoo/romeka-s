@@ -20,6 +20,7 @@ import { currentUser, endSession, setSession, subscribeSession } from '../api/se
 import type { User } from '../api/types';
 import { useTranslator } from '../i18n';
 import { formatError } from './format';
+import { signInReturnPath } from './router';
 import { useSave } from './save';
 
 /** The stored key, tracked so a sign-in or sign-out re-renders the shell. */
@@ -65,6 +66,10 @@ const PasswordSignIn = ({ onSignedIn }: SignInProps): ReactElement => {
       setEmail('');
       setPassword('');
       onSignedIn?.();
+      const back = signInReturnPath(window.location.search);
+      if (back !== null) {
+        window.location.assign(back);
+      }
     });
   };
 
@@ -222,7 +227,8 @@ export const AuthBadge = (): ReactElement => {
   const { t } = translator;
   const key = useApiKey();
   const user = useSession();
-  const [open, setOpen] = useState(false);
+  // A reader sent here by the public site's Log in link came to sign in.
+  const [open, setOpen] = useState(() => signInReturnPath(window.location.search) !== null);
   const { state: saveState, save } = useSave();
 
   if (user !== null || key !== null) {

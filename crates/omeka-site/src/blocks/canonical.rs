@@ -53,7 +53,13 @@ pub fn content_hash(html: &str) -> String {
 /// digest of the asset's bytes.
 #[must_use]
 pub fn byte_hash(html: &str) -> String {
-    hex(fnv1a(html.as_bytes()))
+    bytes_hash(html.as_bytes())
+}
+
+/// [`byte_hash`] over bytes that need not be text, such as a theme's PNG.
+#[must_use]
+pub fn bytes_hash(bytes: &[u8]) -> String {
+    hex(fnv1a(bytes))
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
