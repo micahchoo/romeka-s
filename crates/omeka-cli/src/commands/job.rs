@@ -5,9 +5,11 @@
 
 use std::path::{Path, PathBuf};
 
+use omeka_db::Location;
 use omeka_db::ids::JobId;
 use omeka_db::repos::{JobFilter, JobRepo, Paging};
 use omeka_db::rows::JobRow;
+use omeka_db::with_db;
 
 use omeka_api::import2::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
@@ -26,7 +28,7 @@ use crate::jobs::{JobEnv, JobStatus, Runner, refuse_live_hand_run};
 /// row is marked `error`.
 pub async fn run(options: &RunOptions) -> Result<JobStatus, CliError> {
     let env = options.env()?;
-    let pool = omeka_db::open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     let id = JobId::from(options.id);
     refuse_live_hand_run(&pool, id).await?;
     Ok(Runner::with_env(&pool, env).run(id).await?)
@@ -37,10 +39,10 @@ pub async fn run(options: &RunOptions) -> Result<JobStatus, CliError> {
 /// # Errors
 /// A database error.
 pub async fn list(options: &ListOptions) -> Result<Vec<JobRow>, CliError> {
-    let pool = omeka_db::open_file(&options.database).await?;
-    Ok(JobRepo::new(&pool)
+    let pool = options.database.open().await?;
+    Ok(with_db!(&pool, |db| JobRepo::new(db)
         .list(&JobFilter::default(), &Paging::default())
-        .await?)
+        .await)?)
 }
 
 /// One job row, or `None` when no row has that id.
@@ -48,8 +50,10 @@ pub async fn list(options: &ListOptions) -> Result<Vec<JobRow>, CliError> {
 /// # Errors
 /// A database error.
 pub async fn show(options: &ShowOptions) -> Result<Option<JobRow>, CliError> {
-    let pool = omeka_db::open_file(&options.database).await?;
-    Ok(JobRepo::new(&pool).get(JobId::from(options.id)).await?)
+    let pool = options.database.open().await?;
+    Ok(with_db!(&pool, |db| JobRepo::new(db)
+        .get(JobId::from(options.id))
+        .await)?)
 }
 
 /// Ask a running job to stop. Returns whether the row changed, which is false
@@ -58,15 +62,15 @@ pub async fn show(options: &ShowOptions) -> Result<Option<JobRow>, CliError> {
 /// # Errors
 /// A database error.
 pub async fn stop(options: &StopOptions) -> Result<bool, CliError> {
-    let pool = omeka_db::open_file(&options.database).await?;
-    Ok(JobRepo::new(&pool)
+    let pool = options.database.open().await?;
+    Ok(with_db!(&pool, |db| JobRepo::new(db)
         .request_stop(JobId::from(options.id))
-        .await?)
+        .await)?)
 }
 
 /// Input for `romeka job run`.
 pub struct RunOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub id: u64,
     /// `--store`; `files` beside the database when `None`.
     pub store: Option<PathBuf>,
@@ -96,7 +100,7 @@ impl RunOptions {
 /// An invalid base URL, an unreadable config, or archive roots that do not
 /// make a valid list.
 pub(crate) fn job_env(
-    database: &Path,
+    database: &Location,
     store: Option<&Path>,
     base_url: Option<&str>,
     archive_root: Option<&Path>,
@@ -134,17 +138,17 @@ fn archive_roots(archive_root: Option<&Path>) -> Result<ArchiveRoots, CliError> 
 
 /// Input for `romeka job list`.
 pub struct ListOptions {
-    pub database: PathBuf,
+    pub database: Location,
 }
 
 /// Input for `romeka job show`.
 pub struct ShowOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub id: u64,
 }
 
 /// Input for `romeka job stop`.
 pub struct StopOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub id: u64,
 }

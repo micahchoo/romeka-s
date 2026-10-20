@@ -12,6 +12,7 @@
 mod support;
 
 use omeka_api::read::Api;
+use omeka_db::DbPool;
 use omeka_db::ids::{ItemSetId, SiteId, UserId};
 use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{NewItemSet, NewResource, NewSite, NewUser};
@@ -22,6 +23,7 @@ use support::{admin, base};
 
 struct Seed {
     pool: SqlitePool,
+    db: DbPool,
     admin: UserId,
     editor: UserId,
     item_set: ItemSetId,
@@ -80,6 +82,7 @@ async fn seed() -> Seed {
         .expect("site row")
         .id;
     Seed {
+        db: DbPool::from(pool.clone()),
         pool,
         admin,
         editor,
@@ -89,7 +92,7 @@ async fn seed() -> Seed {
 }
 
 async fn api(seed: &Seed) -> Api<'_> {
-    Api::load(&seed.pool, base(), admin(seed.admin))
+    Api::load(&seed.db, base(), admin(seed.admin))
         .await
         .expect("read surface")
 }

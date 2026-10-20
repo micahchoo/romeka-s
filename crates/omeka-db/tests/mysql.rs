@@ -126,7 +126,7 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
         .await
         .expect("create user");
 
-    omeka_db::migrate_mysql(&db.pool)
+    omeka_db::migrate(&db.pool)
         .await
         .expect("apply migrations a second time");
 
@@ -135,13 +135,15 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
         Some(user),
         "the second migrate kept the row"
     );
-    let applied: i64 = sqlx::query_scalar("SELECT count(*) FROM _sqlx_migrations")
-        .fetch_one(&db.pool)
-        .await
-        .expect("count migrations");
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations ORDER BY version")
+            .fetch_all(&db.pool)
+            .await
+            .expect("list migrations");
     assert_eq!(
-        applied, 5,
-        "five migration files, numbered 1, 2, 3, 5 and 6"
+        applied,
+        [1, 2, 3, 5, 6, 7],
+        "each MySQL migration file applied once; 0004 is SQLite only"
     );
 
     db.cleanup().await;

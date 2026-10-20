@@ -1,9 +1,9 @@
 //! The crate error type.
 
-/// Everything that can go wrong between a caller and SQLite.
+/// Everything that can go wrong between a caller and the database.
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {
-    #[error("sqlite error: {0}")]
+    #[error("database error: {0}")]
     Sqlx(#[from] sqlx::Error),
     #[error("migration error: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),

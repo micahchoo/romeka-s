@@ -12,10 +12,11 @@
 //! module is the boundary: it lists the rows as one map and writes a map back
 //! as rows, never touching the theme's own row.
 
+use omeka_db::DbPool;
 use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteSettingRepo;
+use omeka_db::with_db;
 use serde_json::{Map, Value};
-use sqlx::SqlitePool;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -28,11 +29,8 @@ use crate::theme_settings;
 ///
 /// # Errors
 /// [`ApiError::Internal`] when the rows cannot be read.
-pub async fn load(pool: &SqlitePool, site: SiteId) -> Result<Option<Value>, ApiError> {
-    let rows = SiteSettingRepo::new(pool)
-        .list(site)
-        .await
-        .map_err(db_error)?;
+pub async fn load(pool: &DbPool, site: SiteId) -> Result<Option<Value>, ApiError> {
+    let rows = with_db!(pool, |db| SiteSettingRepo::new(db).list(site).await).map_err(db_error)?;
     let mut map = Map::new();
     for row in rows {
         if theme_settings::owns(&row.id) {
@@ -58,13 +56,17 @@ pub async fn load(pool: &SqlitePool, site: SiteId) -> Result<Option<Value>, ApiE
 /// # Errors
 /// [`ApiError::Validation`] for a non-object member, [`ApiError::Internal`] for
 /// a storage failure.
-pub async fn store(pool: &SqlitePool, site: SiteId, value: Option<&Value>) -> Result<(), ApiError> {
-    let repo = SiteSettingRepo::new(pool);
+pub async fn store(pool: &DbPool, site: SiteId, value: Option<&Value>) -> Result<(), ApiError> {
     match value {
         None => {
-            for row in repo.list(site).await.map_err(db_error)? {
+            for row in
+                with_db!(pool, |db| SiteSettingRepo::new(db).list(site).await).map_err(db_error)?
+            {
                 if !theme_settings::owns(&row.id) {
-                    repo.delete(site, &row.id).await.map_err(db_error)?;
+                    with_db!(pool, |db| SiteSettingRepo::new(db)
+                        .delete(site, &row.id)
+                        .await)
+                    .map_err(db_error)?;
                 }
             }
         }
@@ -76,9 +78,13 @@ pub async fn store(pool: &SqlitePool, site: SiteId, value: Option<&Value>) -> Re
                     continue;
                 }
                 if stored.is_null() {
-                    repo.delete(site, key).await.map_err(db_error)?;
+                    with_db!(pool, |db| SiteSettingRepo::new(db).delete(site, key).await)
+                        .map_err(db_error)?;
                 } else {
-                    repo.set(site, key, stored).await.map_err(db_error)?;
+                    with_db!(pool, |db| SiteSettingRepo::new(db)
+                        .set(site, key, stored)
+                        .await)
+                    .map_err(db_error)?;
                 }
             }
         }

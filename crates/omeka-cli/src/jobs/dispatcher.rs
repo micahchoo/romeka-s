@@ -1,13 +1,15 @@
 //! The job context, and the dispatcher that starts a job in a new process.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 
+use omeka_db::DbPool;
+use omeka_db::Location;
 use omeka_db::ids::{JobId, UserId};
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
+use omeka_db::with_db;
 use serde_json::Value;
-use sqlx::SqlitePool;
 
 use super::status::JobStatus;
 use super::{Job, JobEnv, JobError};
@@ -15,7 +17,7 @@ use super::{Job, JobEnv, JobError};
 /// What a job sees: the pool, its own row id, its `args` JSON, and the
 /// process's [`JobEnv`].
 pub struct JobContext<'a> {
-    pub pool: &'a SqlitePool,
+    pub pool: &'a DbPool,
     pub job_id: JobId,
     pub args: &'a Value,
     pub env: &'a JobEnv,
@@ -43,11 +45,10 @@ impl JobContext<'_> {
     /// # Errors
     /// A database error while reading the job row.
     pub async fn should_stop(&self) -> Result<bool, JobError> {
-        Ok(JobRepo::new(self.pool)
-            .status(self.job_id)
-            .await?
-            .as_deref()
-            == Some("stopping"))
+        Ok(
+            with_db!(self.pool, |db| JobRepo::new(db).status(self.job_id).await)?.as_deref()
+                == Some("stopping"),
+        )
     }
 
     /// Append a line to the job log.
@@ -55,9 +56,9 @@ impl JobContext<'_> {
     /// # Errors
     /// A database error while updating the job row.
     pub async fn log(&self, message: &str) -> Result<(), JobError> {
-        JobRepo::new(self.pool)
+        with_db!(self.pool, |db| JobRepo::new(db)
             .append_log(self.job_id, message)
-            .await?;
+            .await)?;
         Ok(())
     }
 }
@@ -67,12 +68,12 @@ impl JobContext<'_> {
 /// # Errors
 /// A database error writing the row.
 pub async fn compose_job(
-    pool: &SqlitePool,
+    pool: &DbPool,
     class: &str,
     args: &Value,
     owner_id: Option<UserId>,
 ) -> Result<JobId, omeka_db::DbError> {
-    let row = JobRepo::new(pool)
+    let row = with_db!(pool, |db| JobRepo::new(db)
         .create(&NewJob {
             owner_id,
             pid: None,
@@ -82,9 +83,13 @@ pub async fn compose_job(
             log: None,
             started: None,
         })
-        .await?;
+        .await)?;
     Ok(row.id)
 }
+
+/// The variable a `--database-url` reaches a child process through, and the one
+/// `--database-url` falls back to.
+pub const DATABASE_URL_ENV: &str = "ROMEKA_DATABASE_URL";
 
 /// The `romeka job run <id>` command line a new job process runs.
 #[derive(Debug, Clone)]
@@ -92,7 +97,7 @@ pub struct JobCommand {
     /// The program to run `job run <id>` with. `None` means this executable,
     /// which is the port's own `romeka` binary.
     pub program: Option<PathBuf>,
-    pub database: PathBuf,
+    pub database: Location,
     /// `--store`; the child's default (`files` beside the database) when `None`.
     pub store: Option<PathBuf>,
     /// `--base-url`.
@@ -104,7 +109,7 @@ pub struct JobCommand {
 impl JobCommand {
     /// The command for `database` with every other flag left to its default.
     #[must_use]
-    pub fn new(database: impl Into<PathBuf>) -> Self {
+    pub fn new(database: impl Into<Location>) -> Self {
         Self {
             program: None,
             database: database.into(),
@@ -119,6 +124,19 @@ impl JobCommand {
     /// # Errors
     /// [`JobError::Runtime`] when the executable cannot be found or started.
     pub fn spawn(&self, id: JobId) -> Result<Child, JobError> {
+        self.command(id)?
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| JobError::Runtime(format!("cannot start job {}: {error}", id.0)))
+    }
+
+    /// The `job run <id>` command [`Self::spawn`] starts.
+    ///
+    /// # Errors
+    /// [`JobError::Runtime`] when this executable cannot be found.
+    pub fn command(&self, id: JobId) -> Result<Command, JobError> {
         let program = match &self.program {
             Some(program) => program.clone(),
             None => std::env::current_exe().map_err(|error| {
@@ -126,12 +144,16 @@ impl JobCommand {
             })?,
         };
         let mut command = Command::new(program);
-        command
-            .arg("job")
-            .arg("run")
-            .arg(id.0.to_string())
-            .arg("--database")
-            .arg(&self.database);
+        command.arg("job").arg("run").arg(id.0.to_string());
+        match &self.database {
+            Location::File(path) => {
+                command.arg("--database").arg(path);
+            }
+            // The environment, not the command line, so the password stays out of `ps`.
+            Location::Url(url) => {
+                command.env(DATABASE_URL_ENV, url);
+            }
+        }
         if let Some(store) = &self.store {
             command.arg("--store").arg(store);
         }
@@ -141,12 +163,7 @@ impl JobCommand {
         if let Some(root) = &self.archive_root {
             command.arg("--archive-root").arg(root);
         }
-        command
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|error| JobError::Runtime(format!("cannot start job {}: {error}", id.0)))
+        Ok(command)
     }
 }
 
@@ -155,17 +172,17 @@ impl JobCommand {
 /// background. `dispatch` returns as soon as the child is started, so the caller
 /// is free even while the job runs.
 pub struct Dispatcher<'a> {
-    pool: &'a SqlitePool,
+    pool: &'a DbPool,
     command: JobCommand,
 }
 
 impl<'a> Dispatcher<'a> {
     /// A dispatcher that starts `romeka job run <id>` from this executable.
     #[must_use]
-    pub fn new(pool: &'a SqlitePool, database: &'a Path) -> Self {
+    pub fn new(pool: &'a DbPool, database: &Location) -> Self {
         Self {
             pool,
-            command: JobCommand::new(database),
+            command: JobCommand::new(database.clone()),
         }
     }
 
@@ -173,15 +190,15 @@ impl<'a> Dispatcher<'a> {
     /// process tests point this at the built `romeka` binary.
     #[must_use]
     pub fn with_program(
-        pool: &'a SqlitePool,
-        database: &'a Path,
+        pool: &'a DbPool,
+        database: &Location,
         program: impl Into<PathBuf>,
     ) -> Self {
         Self {
             pool,
             command: JobCommand {
                 program: Some(program.into()),
-                ..JobCommand::new(database)
+                ..JobCommand::new(database.clone())
             },
         }
     }
@@ -197,12 +214,12 @@ impl<'a> Dispatcher<'a> {
     pub async fn dispatch(&self, job: &dyn Job, args: Value) -> Result<JobId, JobError> {
         let id = compose_job(self.pool, job.class(), &args, None).await?;
         if let Err(error) = self.command.spawn(id) {
-            let _ = JobRepo::new(self.pool)
+            let _ = with_db!(self.pool, |db| JobRepo::new(db)
                 .append_log(id, &error.to_string())
-                .await;
-            let _ = JobRepo::new(self.pool)
+                .await);
+            let _ = with_db!(self.pool, |db| JobRepo::new(db)
                 .finish(id, JobStatus::Error.as_str())
-                .await;
+                .await);
             return Err(error);
         }
         Ok(id)

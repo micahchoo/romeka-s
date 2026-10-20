@@ -11,6 +11,7 @@ use imports_fixture::{Fixture, JPEG, fixture};
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{EntryRepo, ImportRepo, ItemRepo, PropertyRepo, ValueRepo, VocabularyRepo};
 use omeka_db::rows::{ImportEnding, ImportStatus, NewEntry, NewItem, NewProperty, NewValue};
+use omeka_db::with_db;
 use omeka_media::store::Store;
 use serde_json::{Value, json};
 
@@ -92,10 +93,10 @@ async fn a_scan_past_twenty_thousand_entries_is_a_job() {
             flags: json!({}),
         })
         .collect();
-    EntryRepo::new(&fixture.pool)
+    with_db!(&fixture.pool, |db| EntryRepo::new(db)
         .replace(id, &[], &rows)
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
     let scanned = fixture
         .call("POST", &format!("/api/romeka/imports/{}/scan", id.0), None)
@@ -319,12 +320,12 @@ async fn a_run_the_runner_refuses_ends_its_job_in_error() {
 
 /// An item with `dcterms:identifier` `A1`, for a delete to match.
 async fn existing_a1(fixture: &Fixture) {
-    let dcterms = VocabularyRepo::new(&fixture.pool)
+    let dcterms = with_db!(&fixture.pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
-        .await
-        .unwrap()
-        .unwrap();
-    let identifier = PropertyRepo::new(&fixture.pool)
+        .await)
+    .unwrap()
+    .unwrap();
+    let identifier = with_db!(&fixture.pool, |db| PropertyRepo::new(db)
         .create(&NewProperty {
             owner_id: None,
             vocabulary_id: dcterms.id,
@@ -332,13 +333,13 @@ async fn existing_a1(fixture: &Fixture) {
             label: "Identifier".into(),
             comment: None,
         })
-        .await
-        .unwrap();
-    let item = ItemRepo::new(&fixture.pool)
+        .await)
+    .unwrap();
+    let item = with_db!(&fixture.pool, |db| ItemRepo::new(db)
         .create(&NewItem::default())
-        .await
-        .unwrap();
-    ValueRepo::new(&fixture.pool)
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: item.resource.id,
             property_id: identifier.id,
@@ -350,8 +351,8 @@ async fn existing_a1(fixture: &Fixture) {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 }
 
 #[tokio::test]
@@ -423,25 +424,27 @@ async fn a_done_import_runs_again_only_with_failures_listed() {
     let id = ImportId(draft["id"].as_u64().unwrap());
     let check = checked(&fixture, &draft["id"]).await;
     run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
-    let imports = ImportRepo::new(&fixture.pool);
-    imports
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
         .set_summary(id, &json!({ "failures": [] }))
-        .await
-        .unwrap();
-    imports.finish(id, ImportEnding::Done).await.unwrap();
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .finish(id, ImportEnding::Done)
+        .await)
+    .unwrap();
 
     let refused = run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
     assert_eq!(refused.status, StatusCode::CONFLICT, "{}", refused.body);
     assert_eq!(refused.json()["code"], "cannotRun");
     assert_eq!(refused.json()["status"], "done");
 
-    imports
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
         .set_summary(
             id,
-            &json!({ "failures": [{ "record": "A1", "key": "x", "detail": "d" }] }),
+            &json!({ "failures": [{ "record": "A1", "key": "x", "detail": "d" }] })
         )
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let again = checked(&fixture, &draft["id"]).await;
     let retried = run(&fixture, &draft["id"], json!({ "digest": again["digest"] })).await;
     assert_eq!(retried.status, StatusCode::OK, "{}", retried.body);
@@ -461,9 +464,14 @@ async fn undo_starts_a_job_for_an_ended_import_only() {
     assert_eq!(refused.json()["code"], "cannotUndo");
 
     let id = ImportId(draft["id"].as_u64().unwrap());
-    let imports = ImportRepo::new(&fixture.pool);
-    imports.start_run(id, 0).await.unwrap();
-    imports.finish(id, ImportEnding::Done).await.unwrap();
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .start_run(id, 0)
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .finish(id, ImportEnding::Done)
+        .await)
+    .unwrap();
     let bad = fixture
         .call("POST", &uri, Some(&json!({ "force": "some" })))
         .await;

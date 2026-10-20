@@ -48,11 +48,21 @@ fi
 # the server as absence.
 for name in ROMEKA_LOG ROMEKA_MAX_BODY_BYTES ROMEKA_REQUEST_TIMEOUT_SECS \
     ROMEKA_SMTP_HOST ROMEKA_SMTP_PORT ROMEKA_SMTP_USER ROMEKA_SMTP_PASSWORD \
-    ROMEKA_SMTP_TLS ROMEKA_MAIL_FROM ROMEKA_ARCHIVE_ROOT; do
+    ROMEKA_SMTP_TLS ROMEKA_MAIL_FROM ROMEKA_ARCHIVE_ROOT ROMEKA_DATABASE_URL; do
     if [ -z "${!name:-}" ]; then
         unset "$name"
     fi
 done
+
+# A MySQL or MariaDB URL replaces the SQLite file. `-d` must then be absent,
+# because clap refuses a path and a URL together and the path would win.
+if [ -n "${ROMEKA_DATABASE_URL:-}" ]; then
+    DB_ARGS=()
+    DB_LABEL="the database at ${ROMEKA_DATABASE_URL##*@}"
+else
+    DB_ARGS=(-d "$DB")
+    DB_LABEL="$DB"
+fi
 
 mkdir -p "$(dirname "$DB")" "$STORE"
 # The server reads and writes the store as `files` relative to its working
@@ -71,7 +81,7 @@ install() {
             exit 1
         fi
     done
-    romeka install -d "$DB" \
+    romeka install "${DB_ARGS[@]}" \
         --email "$ROMEKA_ADMIN_EMAIL" \
         --name "$ROMEKA_ADMIN_NAME" \
         --password "$ROMEKA_ADMIN_PASSWORD" \
@@ -82,8 +92,14 @@ install() {
 
 case "${ROMEKA_MODE:-serve}" in
     serve)
-        # An absent or empty database is the first start.
-        if [ ! -s "$DB" ]; then
+        # An absent or empty database is the first start. A server has no file
+        # to test, so an empty schema is the one where no user can be listed.
+        if [ -n "${ROMEKA_DATABASE_URL:-}" ]; then
+            if ! romeka user list "${DB_ARGS[@]}" >/dev/null 2>&1; then
+                echo "romeka: $DB_LABEL has no installation, installing" >&2
+                install
+            fi
+        elif [ ! -s "$DB" ]; then
             echo "romeka: $DB is empty, installing" >&2
             install
         fi
@@ -91,7 +107,7 @@ case "${ROMEKA_MODE:-serve}" in
     install)
         # DEPLOY.md's upgrade runs this against an existing database, in a
         # one-off container, with the service stopped.
-        echo "romeka: installing into $DB" >&2
+        echo "romeka: installing into $DB_LABEL" >&2
         install
         exit 0
         ;;
@@ -105,7 +121,7 @@ echo "romeka: serving $HOST:$PORT with base URL $BASE_URL, the origin on :80 and
 # `--store` names the store the import and undo jobs write too: the server
 # starts each job as `romeka job run` with this store, the database and
 # ROMEKA_ARCHIVE_ROOT, so the job and the server read the same files.
-romeka serve -d "$DB" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" --store "$STORE" &
+romeka serve "${DB_ARGS[@]}" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" --store "$STORE" &
 serve_pid=$!
 
 caddy run --config "$CADDYFILE" --adapter caddyfile &

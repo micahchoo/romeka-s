@@ -20,6 +20,7 @@ use axum::routing::get;
 use omeka_api::auth::Actor;
 use omeka_api::errors::ApiError;
 use omeka_db::repos::{AssetRepo, MediaFileOwner, MediaRepo};
+use omeka_db::with_db;
 use omeka_media::store::StorePrefix;
 
 use crate::{AppState, actor_for, error_response};
@@ -116,10 +117,10 @@ async fn verdict(
         } => {
             // Upstream assets carry no visibility: a site logo or a resource
             // thumbnail is public by construction.
-            let asset = AssetRepo::new(&state.pool)
+            let asset = with_db!(&state.pool, |db| AssetRepo::new(db)
                 .get_by_storage_id(storage_id)
-                .await
-                .map_err(ApiError::internal)?;
+                .await)
+            .map_err(ApiError::internal)?;
             return Ok(match asset {
                 Some(asset) if asset.extension.as_deref() == extension => Verdict::Public,
                 _ => Verdict::Unknown,
@@ -148,10 +149,10 @@ async fn media_owner(
     state: &AppState,
     storage_id: &str,
 ) -> Result<Option<MediaFileOwner>, ApiError> {
-    MediaRepo::new(&state.pool)
+    with_db!(&state.pool, |db| MediaRepo::new(db)
         .file_owner(storage_id)
-        .await
-        .map_err(ApiError::internal)
+        .await)
+    .map_err(ApiError::internal)
 }
 
 /// A media file is visible when the caller sees the media and its item, by the

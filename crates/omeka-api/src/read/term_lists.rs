@@ -8,6 +8,7 @@ use omeka_core::term_list;
 use omeka_db::ids::CustomVocabId;
 use omeka_db::repos::{CustomVocabRepo, compare_text_ci};
 use omeka_db::rows::CustomVocabRow;
+use omeka_db::with_db;
 
 use super::paging::{Limit, Window, sorted_page};
 use super::params::{Params, Sort};
@@ -26,13 +27,12 @@ pub async fn search_custom_vocabs(api: &Api<'_>, params: &Params) -> Result<ApiR
     let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let ids = id_filter(params);
-    let rows: Vec<CustomVocabRow> = CustomVocabRepo::new(api.pool())
-        .list()
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .filter(|row| id_matches(&ids, row.id.0))
-        .collect();
+    let rows: Vec<CustomVocabRow> =
+        with_db!(api.pool(), |db| CustomVocabRepo::new(db).list().await)
+            .map_err(db_error)?
+            .into_iter()
+            .filter(|row| id_matches(&ids, row.id.0))
+            .collect();
     let (total, page) = sorted_page(
         rows,
         &sort,
@@ -49,10 +49,10 @@ pub async fn search_custom_vocabs(api: &Api<'_>, params: &Params) -> Result<ApiR
 
 pub async fn read_custom_vocab(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(CUSTOM_VOCAB_CLASS, raw_id)?;
-    let Some(row) = CustomVocabRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .get(CustomVocabId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(CUSTOM_VOCAB_CLASS, raw_id));
     };
@@ -62,13 +62,13 @@ pub async fn read_custom_vocab(api: &Api<'_>, raw_id: &str) -> Result<ApiRespons
 /// The data types the lists register, `(name, label)` in id order: the order
 /// `Module::addVocabularyServices` appends them to the registered names.
 pub(crate) async fn data_types(api: &Api<'_>) -> Result<Vec<(String, String)>, ApiError> {
-    Ok(CustomVocabRepo::new(api.pool())
-        .list()
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .map(|row| (term_list::data_type_name(row.id.0), row.label))
-        .collect())
+    Ok(
+        with_db!(api.pool(), |db| CustomVocabRepo::new(db).list().await)
+            .map_err(db_error)?
+            .into_iter()
+            .map(|row| (term_list::data_type_name(row.id.0), row.label))
+            .collect(),
+    )
 }
 
 fn document(api: &Api<'_>, row: &CustomVocabRow) -> CustomVocab {

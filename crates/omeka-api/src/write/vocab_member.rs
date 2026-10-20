@@ -13,6 +13,7 @@ use omeka_db::repos::{
     ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, VocabularyRepo,
 };
 use omeka_db::rows::{ClassRow, NewClass, NewProperty, PropertyRow};
+use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -161,9 +162,7 @@ async fn vocabulary(api: &Api<'_>, payload: &Payload) -> Result<Option<Vocabular
         return Err(ref_not_found("Omeka\\Entity\\Vocabulary", raw));
     };
     let id = VocabularyId(id);
-    if VocabularyRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| VocabularyRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -220,16 +219,16 @@ pub(crate) async fn get(
     id: u64,
 ) -> Result<Option<MemberRow>, ApiError> {
     Ok(match member {
-        Member::Class => ClassRepo::new(api.pool())
+        Member::Class => with_db!(api.pool(), |db| ClassRepo::new(db)
             .get(omeka_db::ids::ClassId(id))
-            .await
-            .map_err(db_error)?
-            .map(class_row),
-        Member::Property => PropertyRepo::new(api.pool())
+            .await)
+        .map_err(db_error)?
+        .map(class_row),
+        Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .get(omeka_db::ids::PropertyId(id))
-            .await
-            .map_err(db_error)?
-            .map(property_row),
+            .await)
+        .map_err(db_error)?
+        .map(property_row),
     })
 }
 
@@ -240,32 +239,32 @@ pub(crate) async fn list(
     vocabulary_id: VocabularyId,
 ) -> Result<Vec<MemberRow>, ApiError> {
     Ok(match member {
-        Member::Class => ClassRepo::new(api.pool())
+        Member::Class => with_db!(api.pool(), |db| ClassRepo::new(db)
             .list(
                 &ClassFilter {
                     vocabulary_id: Some(vocabulary_id),
                     ..ClassFilter::default()
                 },
-                &Paging::default(),
+                &Paging::default()
             )
-            .await
-            .map_err(db_error)?
-            .into_iter()
-            .map(class_row)
-            .collect(),
-        Member::Property => PropertyRepo::new(api.pool())
+            .await)
+        .map_err(db_error)?
+        .into_iter()
+        .map(class_row)
+        .collect(),
+        Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .list(
                 &PropertyFilter {
                     vocabulary_id: Some(vocabulary_id),
                     ..PropertyFilter::default()
                 },
-                &Paging::default(),
+                &Paging::default()
             )
-            .await
-            .map_err(db_error)?
-            .into_iter()
-            .map(property_row)
-            .collect(),
+            .await)
+        .map_err(db_error)?
+        .into_iter()
+        .map(property_row)
+        .collect(),
     })
 }
 
@@ -277,16 +276,16 @@ async fn find(
     local_name: &str,
 ) -> Result<Option<u64>, ApiError> {
     Ok(match member {
-        Member::Class => ClassRepo::new(api.pool())
+        Member::Class => with_db!(api.pool(), |db| ClassRepo::new(db)
             .find(vocabulary_id, local_name)
-            .await
-            .map_err(db_error)?
-            .map(|row| row.id.0),
-        Member::Property => PropertyRepo::new(api.pool())
+            .await)
+        .map_err(db_error)?
+        .map(|row| row.id.0),
+        Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .find(vocabulary_id, local_name)
-            .await
-            .map_err(db_error)?
-            .map(|row| row.id.0),
+            .await)
+        .map_err(db_error)?
+        .map(|row| row.id.0),
     })
 }
 
@@ -299,7 +298,7 @@ pub(crate) async fn create(
 ) -> Result<MemberRow, ApiError> {
     Ok(match member {
         Member::Class => class_row(
-            ClassRepo::new(api.pool())
+            with_db!(api.pool(), |db| ClassRepo::new(db)
                 .create(&NewClass {
                     owner_id: input.owner_id,
                     vocabulary_id,
@@ -307,11 +306,11 @@ pub(crate) async fn create(
                     label: input.label.clone(),
                     comment: input.comment.clone(),
                 })
-                .await
-                .map_err(db_error)?,
+                .await)
+            .map_err(db_error)?,
         ),
         Member::Property => property_row(
-            PropertyRepo::new(api.pool())
+            with_db!(api.pool(), |db| PropertyRepo::new(db)
                 .create(&NewProperty {
                     owner_id: input.owner_id,
                     vocabulary_id,
@@ -319,8 +318,8 @@ pub(crate) async fn create(
                     label: input.label.clone(),
                     comment: input.comment.clone(),
                 })
-                .await
-                .map_err(db_error)?,
+                .await)
+            .map_err(db_error)?,
         ),
     })
 }
@@ -328,7 +327,7 @@ pub(crate) async fn create(
 /// Write every writable column of a member row.
 pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Result<(), ApiError> {
     let done = match member {
-        Member::Class => ClassRepo::new(api.pool())
+        Member::Class => with_db!(api.pool(), |db| ClassRepo::new(db)
             .update(&ClassRow {
                 id: omeka_db::ids::ClassId(row.id),
                 owner_id: row.owner_id,
@@ -337,9 +336,9 @@ pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Re
                 label: row.label.clone(),
                 comment: row.comment.clone(),
             })
-            .await
-            .map_err(db_error)?,
-        Member::Property => PropertyRepo::new(api.pool())
+            .await)
+        .map_err(db_error)?,
+        Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .update(&PropertyRow {
                 id: omeka_db::ids::PropertyId(row.id),
                 owner_id: row.owner_id,
@@ -348,8 +347,8 @@ pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Re
                 label: row.label.clone(),
                 comment: row.comment.clone(),
             })
-            .await
-            .map_err(db_error)?,
+            .await)
+        .map_err(db_error)?,
     };
     if done {
         Ok(())
@@ -366,14 +365,14 @@ pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Re
 /// a class delete clears `resource.resource_class_id` (`ON DELETE SET NULL`).
 pub(crate) async fn delete(api: &Api<'_>, member: Member, id: u64) -> Result<(), ApiError> {
     let done = match member {
-        Member::Class => ClassRepo::new(api.pool())
+        Member::Class => with_db!(api.pool(), |db| ClassRepo::new(db)
             .delete(omeka_db::ids::ClassId(id))
-            .await
-            .map_err(db_error)?,
-        Member::Property => PropertyRepo::new(api.pool())
+            .await)
+        .map_err(db_error)?,
+        Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .delete(omeka_db::ids::PropertyId(id))
-            .await
-            .map_err(db_error)?,
+            .await)
+        .map_err(db_error)?,
     };
     if done {
         Ok(())

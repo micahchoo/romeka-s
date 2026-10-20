@@ -28,6 +28,7 @@ use omeka_core::site::{BlockData, ListOfSitesData, SitePage};
 use omeka_db::ids as db;
 use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
 use omeka_db::rows::AssetRow;
+use omeka_db::with_db;
 use omeka_site::blocks::romeka::ItemSelection;
 use omeka_site::blocks::{browse_preview, list_of_pages};
 use omeka_site::settings::SiteSettings;
@@ -186,16 +187,18 @@ impl AttachmentSource<'_> {
         block: BlockId,
     ) -> Result<Vec<Pending>, DbError> {
         match self {
-            Self::Stored => Ok(SiteBlockAttachmentRepo::new(loader.pool())
-                .list_for_block(loader.db_block_id(block))
-                .await?
+            Self::Stored => Ok(
+                with_db!(loader.pool(), |db| SiteBlockAttachmentRepo::new(db)
+                    .list_for_block(loader.db_block_id(block))
+                    .await)?
                 .into_iter()
                 .map(|row| Pending {
                     item: row.item_id,
                     media: row.media_id,
                     caption: row.caption,
                 })
-                .collect()),
+                .collect(),
+            ),
             Self::Preview(blocks) => Ok(blocks
                 .iter()
                 .find(|(id, _)| *id == block)
@@ -316,10 +319,12 @@ async fn load_selection(
 ) -> Result<(), DbError> {
     match selection {
         ItemSelection::Picked(ids) => {
-            let items = ItemRepo::new(loader.pool());
             let access = loader.access();
             for id in ids {
-                let Some(row) = items.get(db::ItemId(id.get())).await? else {
+                let Some(row) = with_db!(loader.pool(), |dbp| ItemRepo::new(dbp)
+                    .get(db::ItemId(id.get()))
+                    .await)?
+                else {
                     continue;
                 };
                 if access.sees_resource(row.resource.is_public, row.resource.owner_id) {
@@ -348,9 +353,9 @@ async fn load_asset(
     if loaded.assets.iter().any(|(stored, _)| *stored == id) {
         return Ok(());
     }
-    let row: Option<AssetRow> = AssetRepo::new(loader.pool())
+    let row: Option<AssetRow> = with_db!(loader.pool(), |dbp| AssetRepo::new(dbp)
         .get(db::AssetId::from(id.get()))
-        .await?;
+        .await)?;
     if let Some(row) = row {
         let thumbnail = thumbnail_for_asset(loader.files(), &row);
         loaded.assets.push((
@@ -378,14 +383,15 @@ async fn load_image(
         return Ok(());
     }
     let access = loader.access();
-    let Some(media) = MediaRepo::new(loader.pool())
+    let Some(media) = with_db!(loader.pool(), |dbp| MediaRepo::new(dbp)
         .get(db::MediaId(id.get()))
-        .await?
-        .filter(|media| access.sees_resource(media.resource.is_public, media.resource.owner_id))
-    else {
+        .await)?
+    .filter(|media| access.sees_resource(media.resource.is_public, media.resource.owner_id)) else {
         return Ok(());
     };
-    let item = ItemRepo::new(loader.pool()).get(media.item_id).await?;
+    let item = with_db!(loader.pool(), |db| ItemRepo::new(db)
+        .get(media.item_id)
+        .await)?;
     let item_seen = item
         .as_ref()
         .is_some_and(|item| access.sees_resource(item.resource.is_public, item.resource.owner_id));
@@ -418,8 +424,6 @@ async fn load_attachments(
     loaded: &mut LoadedResources,
     pendings: Vec<Pending>,
 ) -> Result<(), DbError> {
-    let items = ItemRepo::new(loader.pool());
-    let media = MediaRepo::new(loader.pool());
     let access = loader.access();
     let mut refs = Vec::with_capacity(pendings.len());
     for pending in &pendings {
@@ -428,7 +432,7 @@ async fn load_attachments(
         let item_id = pending.item;
         let media_id = pending.media;
         let item_row = match item_id {
-            Some(id) => match items.get(id).await? {
+            Some(id) => match with_db!(loader.pool(), |db| ItemRepo::new(db).get(id).await)? {
                 Some(item)
                     if access.sees_resource(item.resource.is_public, item.resource.owner_id) =>
                 {
@@ -439,7 +443,7 @@ async fn load_attachments(
             None => None,
         };
         let media_row = match media_id {
-            Some(id) => match media.get(id).await? {
+            Some(id) => match with_db!(loader.pool(), |db| MediaRepo::new(db).get(id).await)? {
                 Some(media)
                     if access.sees_resource(media.resource.is_public, media.resource.owner_id) =>
                 {

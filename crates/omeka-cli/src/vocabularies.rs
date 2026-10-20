@@ -14,12 +14,13 @@
 
 use omeka_api::vocab_import::Term;
 use omeka_api::vocab_import::defaults::DEFAULT_VOCABULARIES;
+use omeka_db::DbPool;
 use omeka_db::ids::VocabularyId;
 use omeka_db::repos::{
     ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, VocabularyRepo,
 };
 use omeka_db::rows::{NewClass, NewProperty, NewVocabulary};
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use crate::error::CliError;
 
@@ -39,16 +40,18 @@ pub struct Converged {
 ///
 /// # Errors
 /// A [`CliError`] for a storage failure or an unparsable bundled file.
-pub async fn converge(pool: &SqlitePool) -> Result<Converged, CliError> {
-    let vocabularies = VocabularyRepo::new(pool);
+pub async fn converge(pool: &DbPool) -> Result<Converged, CliError> {
     let mut converged = Converged::default();
     for vocabulary in &DEFAULT_VOCABULARIES {
-        let row = match vocabularies.get_by_prefix(vocabulary.prefix).await? {
+        let row = match with_db!(pool, |db| VocabularyRepo::new(db)
+            .get_by_prefix(vocabulary.prefix)
+            .await)?
+        {
             Some(row) if row.namespace_uri == vocabulary.namespace_uri => row,
             Some(_) => continue,
             None => {
                 converged.vocabularies_inserted += 1;
-                vocabularies
+                with_db!(pool, |db| VocabularyRepo::new(db)
                     .create(&NewVocabulary {
                         owner_id: None,
                         namespace_uri: vocabulary.namespace_uri.to_string(),
@@ -56,7 +59,7 @@ pub async fn converge(pool: &SqlitePool) -> Result<Converged, CliError> {
                         label: vocabulary.label.to_string(),
                         comment: Some(vocabulary.comment.to_string()),
                     })
-                    .await?
+                    .await)?
             }
         };
         let file = vocabulary.members().map_err(|error| {
@@ -128,7 +131,7 @@ enum Kind {
 impl Kind {
     async fn list(
         self,
-        pool: &SqlitePool,
+        pool: &DbPool,
         vocabulary_id: VocabularyId,
     ) -> Result<Vec<Stored>, CliError> {
         let term = |local_name: String, label: String, comment: Option<String>| Term {
@@ -137,36 +140,36 @@ impl Kind {
             comment,
         };
         Ok(match self {
-            Self::Class => ClassRepo::new(pool)
+            Self::Class => with_db!(pool, |db| ClassRepo::new(db)
                 .list(
                     &ClassFilter {
                         vocabulary_id: Some(vocabulary_id),
                         ..ClassFilter::default()
                     },
-                    &Paging::default(),
+                    &Paging::default()
                 )
-                .await?
-                .into_iter()
-                .map(|row| (row.id.0, term(row.local_name, row.label, row.comment)))
-                .collect(),
-            Self::Property => PropertyRepo::new(pool)
+                .await)?
+            .into_iter()
+            .map(|row| (row.id.0, term(row.local_name, row.label, row.comment)))
+            .collect(),
+            Self::Property => with_db!(pool, |db| PropertyRepo::new(db)
                 .list(
                     &PropertyFilter {
                         vocabulary_id: Some(vocabulary_id),
                         ..PropertyFilter::default()
                     },
-                    &Paging::default(),
+                    &Paging::default()
                 )
-                .await?
-                .into_iter()
-                .map(|row| (row.id.0, term(row.local_name, row.label, row.comment)))
-                .collect(),
+                .await)?
+            .into_iter()
+            .map(|row| (row.id.0, term(row.local_name, row.label, row.comment)))
+            .collect(),
         })
     }
 
     async fn create(
         self,
-        pool: &SqlitePool,
+        pool: &DbPool,
         vocabulary_id: VocabularyId,
         term: &Term,
     ) -> Result<(), CliError> {
@@ -177,7 +180,7 @@ impl Kind {
         );
         match self {
             Self::Class => {
-                ClassRepo::new(pool)
+                with_db!(pool, |db| ClassRepo::new(db)
                     .create(&NewClass {
                         owner_id: None,
                         vocabulary_id,
@@ -185,10 +188,10 @@ impl Kind {
                         label,
                         comment,
                     })
-                    .await?;
+                    .await)?;
             }
             Self::Property => {
-                PropertyRepo::new(pool)
+                with_db!(pool, |db| PropertyRepo::new(db)
                     .create(&NewProperty {
                         owner_id: None,
                         vocabulary_id,
@@ -196,29 +199,30 @@ impl Kind {
                         label,
                         comment,
                     })
-                    .await?;
+                    .await)?;
             }
         }
         Ok(())
     }
 
     /// Rewrite the label and comment of one stored member, keeping its owner.
-    async fn update(self, pool: &SqlitePool, id: u64, term: &Term) -> Result<(), CliError> {
+    async fn update(self, pool: &DbPool, id: u64, term: &Term) -> Result<(), CliError> {
         match self {
             Self::Class => {
-                let repo = ClassRepo::new(pool);
-                if let Some(mut row) = repo.get(id.into()).await? {
+                if let Some(mut row) = with_db!(pool, |db| ClassRepo::new(db).get(id.into()).await)?
+                {
                     row.label.clone_from(&term.label);
                     row.comment.clone_from(&term.comment);
-                    repo.update(&row).await?;
+                    with_db!(pool, |db| ClassRepo::new(db).update(&row).await)?;
                 }
             }
             Self::Property => {
-                let repo = PropertyRepo::new(pool);
-                if let Some(mut row) = repo.get(id.into()).await? {
+                if let Some(mut row) =
+                    with_db!(pool, |db| PropertyRepo::new(db).get(id.into()).await)?
+                {
                     row.label.clone_from(&term.label);
                     row.comment.clone_from(&term.comment);
-                    repo.update(&row).await?;
+                    with_db!(pool, |db| PropertyRepo::new(db).update(&row).await)?;
                 }
             }
         }

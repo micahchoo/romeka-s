@@ -17,6 +17,7 @@ use chrono::NaiveDateTime;
 use omeka_db::ids::{PageId, SiteId, UserId};
 use omeka_db::repos::{SiteBlockAttachmentRepo, SiteRepo};
 use omeka_db::rows::SitePageRow;
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::ApiError;
@@ -83,13 +84,16 @@ pub struct PreviewBlock {
 /// ([`validate_draft`]).
 pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<Preview, ApiError> {
     crate::write::values::collect(api, payload, &preview_control()).await?;
-    let repo = SiteRepo::new(api.pool());
     let existing = match payload.id() {
         Some(raw) => {
             let Some(id) = ref_row(raw) else {
                 return Err(ref_not_found(PAGE_CLASS, raw));
             };
-            let Some(page) = repo.get_page(PageId(id)).await.map_err(db_error)? else {
+            let Some(page) = with_db!(api.pool(), |db| SiteRepo::new(db)
+                .get_page(PageId(id))
+                .await)
+            .map_err(db_error)?
+            else {
                 return Err(ref_not_found(PAGE_CLASS, raw));
             };
             // The route's site renders the preview, so a page of another site
@@ -223,9 +227,7 @@ pub async fn authorize_theme_preview(api: &Api<'_>, site: SiteId) -> Result<(), 
 
 /// The owner the site grants a page write, for the site privilege check.
 async fn site_owner(api: &Api<'_>, site: SiteId) -> Result<Option<UserId>, ApiError> {
-    Ok(SiteRepo::new(api.pool())
-        .get(site)
-        .await
+    Ok(with_db!(api.pool(), |db| SiteRepo::new(db).get(site).await)
         .map_err(db_error)?
         .and_then(|row| row.owner_id))
 }
@@ -233,11 +235,16 @@ async fn site_owner(api: &Api<'_>, site: SiteId) -> Result<Option<UserId>, ApiEr
 /// The stored blocks of a page, in position order, with their stored
 /// attachments.
 async fn stored_blocks(api: &Api<'_>, page: &SitePageRow) -> Result<Vec<PreviewBlock>, ApiError> {
-    let repo = SiteRepo::new(api.pool());
-    let attachments = SiteBlockAttachmentRepo::new(api.pool());
     let mut blocks = Vec::new();
-    for row in repo.list_blocks(page.id).await.map_err(db_error)? {
-        let rows = attachments.list_for_block(row.id).await.map_err(db_error)?;
+    for row in with_db!(api.pool(), |db| SiteRepo::new(db)
+        .list_blocks(page.id)
+        .await)
+    .map_err(db_error)?
+    {
+        let rows = with_db!(api.pool(), |db| SiteBlockAttachmentRepo::new(db)
+            .list_for_block(row.id)
+            .await)
+        .map_err(db_error)?;
         blocks.push(PreviewBlock {
             layout: row.layout,
             data: row.data,

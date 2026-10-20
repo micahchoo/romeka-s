@@ -383,8 +383,9 @@ async fn an_interrupted_undo_converges_on_rerun() {
         .unwrap();
     imports.set_job(ImportId(id), job.id).await.unwrap();
     let base = omeka_api::jsonld::BaseUrl::parse("http://localhost").unwrap();
+    let pool = omeka_db::DbPool::from(site.pool.clone());
     let api = omeka_api::read::Api::load_with_store(
-        &site.pool,
+        &pool,
         base,
         omeka_api::auth::Actor::new(omeka_db::ids::UserId(0), "global_admin"),
         Some(Arc::clone(&site.store) as Arc<dyn omeka_media::store::Store>),

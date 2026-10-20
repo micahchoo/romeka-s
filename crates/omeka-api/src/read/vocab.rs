@@ -14,6 +14,7 @@ use omeka_db::repos::{
     VocabularyRepo, compare_text_ci,
 };
 use omeka_db::rows::{ClassRow, PropertyRow, TemplateRow, VocabularyRow};
+use omeka_db::with_db;
 
 use super::paging::{Limit, Window, sorted_page};
 use super::params::Params;
@@ -38,10 +39,10 @@ pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiRe
         prefix: params.get("prefix").map(str::to_string),
     };
     let ids = id_filter(params);
-    let rows = VocabularyRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .list(&filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let needle = search_needle(params);
     let rows: Vec<VocabularyRow> = rows
         .into_iter()
@@ -67,10 +68,10 @@ pub async fn search_vocabularies(api: &Api<'_>, params: &Params) -> Result<ApiRe
 
 pub async fn read_vocabulary(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(VOCABULARY_CLASS, raw_id)?;
-    let Some(row) = VocabularyRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .get(VocabularyId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(VOCABULARY_CLASS, raw_id));
     };
@@ -109,10 +110,10 @@ pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiRespons
     };
     let vocabularies = vocabulary_members(api, params).await?;
     let ids = id_filter(params);
-    let rows = ClassRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| ClassRepo::new(db)
         .list(&filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let needle = search_needle(params);
     let rows: Vec<ClassRow> = rows
         .into_iter()
@@ -137,10 +138,8 @@ pub async fn search_classes(api: &Api<'_>, params: &Params) -> Result<ApiRespons
 
 pub async fn read_class(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(CLASS_CLASS, raw_id)?;
-    let Some(row) = ClassRepo::new(api.pool())
-        .get(ClassId(id))
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| ClassRepo::new(db).get(ClassId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(CLASS_CLASS, raw_id));
     };
@@ -177,10 +176,10 @@ pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResp
     };
     let vocabularies = vocabulary_members(api, params).await?;
     let ids = id_filter(params);
-    let rows = PropertyRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| PropertyRepo::new(db)
         .list(&filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let needle = search_needle(params);
     let rows: Vec<PropertyRow> = rows
         .into_iter()
@@ -205,10 +204,10 @@ pub async fn search_properties(api: &Api<'_>, params: &Params) -> Result<ApiResp
 
 pub async fn read_property(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(PROPERTY_CLASS, raw_id)?;
-    let Some(row) = PropertyRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| PropertyRepo::new(db)
         .get(PropertyId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(PROPERTY_CLASS, raw_id));
     };
@@ -239,10 +238,7 @@ pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     let limit = Limit::from_params(params);
     let sort = Sort::from_params(params);
     let ids = id_filter(params);
-    let rows = TemplateRepo::new(api.pool())
-        .list()
-        .await
-        .map_err(db_error)?;
+    let rows = with_db!(api.pool(), |db| TemplateRepo::new(db).list().await).map_err(db_error)?;
     let needle = search_needle(params);
     let rows: Vec<TemplateRow> = rows
         .into_iter()
@@ -269,10 +265,10 @@ pub async fn search_templates(api: &Api<'_>, params: &Params) -> Result<ApiRespo
 
 pub async fn read_template(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(TEMPLATE_CLASS, raw_id)?;
-    let Some(row) = TemplateRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| TemplateRepo::new(db)
         .get(TemplateId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(TEMPLATE_CLASS, raw_id));
     };
@@ -288,10 +284,10 @@ async fn template_doc(
     row: &TemplateRow,
 ) -> Result<crate::wire::resource_template::ResourceTemplate, ApiError> {
     let base = api.base();
-    let properties = TemplateRepo::new(api.pool())
+    let properties = with_db!(api.pool(), |db| TemplateRepo::new(db)
         .list_properties(row.id)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let resource_template_property: Vec<ResourceTemplateProperty> = properties
         .iter()
         .map(|property| ResourceTemplateProperty {
@@ -407,10 +403,10 @@ async fn vocabulary_members(
     let Some(filter) = MemberFilter::from_params(params) else {
         return Ok(None);
     };
-    let rows = VocabularyRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .list(&VocabularyFilter::default(), &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(Some(VocabularyMembers {
         filter,
         rows: rows.into_iter().map(|row| (row.id, row)).collect(),

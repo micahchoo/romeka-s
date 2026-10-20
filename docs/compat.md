@@ -23,8 +23,9 @@ Compatible means two concrete things.
 
 An Omeka S installation moves onto it through `omeka-migrate`, which reads the MySQL database and
 writes the same tables into SQLite ([`crates/omeka-migrate/README.md`](../crates/omeka-migrate/README.md)).
-SQLite is the default engine and MySQL is a second backend behind a feature
-([`crates/omeka-db/README.md`](../crates/omeka-db/README.md)).
+SQLite is the default engine. The `romeka` binary also serves a MySQL 8.0 or MariaDB 11 database
+named by `--database-url` ([`crates/omeka-db/README.md`](../crates/omeka-db/README.md),
+[`operator-guide.md`](operator-guide.md#mysql-and-mariadb)).
 
 ## What deliberately differs
 
@@ -33,7 +34,8 @@ a gap that was discovered.
 
 | Difference | Where it is stated |
 | --- | --- |
-| SQLite is the default storage engine; MySQL is behind the `mysql` feature. Parity is behavioural, not SQL-level. | [`crates/omeka-db/README.md`](../crates/omeka-db/README.md) |
+| SQLite is the default storage engine; MySQL and MariaDB are served through `--database-url`. Parity is behavioural, not SQL-level. | [`crates/omeka-db/README.md`](../crates/omeka-db/README.md) |
+| `romeka backup` and `romeka restore` work on a SQLite database only. On MySQL they refuse, and the operator backs up with the server's own tools (`mysqldump --single-transaction`). | [`crates/omeka-cli/src/commands/backup.rs`](../crates/omeka-cli/src/commands/backup.rs) |
 | The admin is a strict-TypeScript SPA over the same `/api`, not server-rendered PHP views. The workflow is the same; the markup is not. | [`web/admin/README.md`](../web/admin/README.md) |
 | Public sites render in Rust through a `Theme` trait. PHP themes are not ported, so a site's `theme` setting names a bundled theme. | [`crates/omeka-site/README.md`](../crates/omeka-site/README.md) |
 | Module extension is a Rust registry, not a PHP module loader. | [`crates/omeka-plugin/README.md`](../crates/omeka-plugin/README.md) |

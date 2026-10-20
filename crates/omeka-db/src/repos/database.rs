@@ -48,16 +48,26 @@ where
     /// `DbError::Unsupported` on an engine with no such statement ([`Backend::snapshot_into`]);
     /// no file is written then.
     pub async fn snapshot_into(&self, target: &Path) -> Result<(), DbError> {
-        let sql = DB::snapshot_into().map_err(|reason| DbError::Unsupported {
-            engine: <DB as Backend>::NAME,
-            operation: "snapshot",
-            reason,
-        })?;
+        let sql = Self::snapshot_statement()?;
         let path = target.to_string_lossy();
         sqlx::query::<DB>(sql)
             .bind(path.as_ref())
             .execute(self.pool)
             .await?;
         Ok(())
+    }
+
+    /// `Ok` when [`Self::snapshot_into`] can run on this engine, else the
+    /// [`DbError::Unsupported`] it would return. A backup asks before it writes anything.
+    pub fn snapshot_supported(&self) -> Result<(), DbError> {
+        Self::snapshot_statement().map(|_| ())
+    }
+
+    fn snapshot_statement() -> Result<&'static str, DbError> {
+        DB::snapshot_into().map_err(|reason| DbError::Unsupported {
+            engine: <DB as Backend>::NAME,
+            operation: "snapshot",
+            reason,
+        })
     }
 }

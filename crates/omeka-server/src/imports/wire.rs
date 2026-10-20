@@ -22,6 +22,7 @@ use omeka_db::DbError;
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{DIED, HEARTBEAT, ImportRepo};
 use omeka_db::rows::ImportRow;
+use omeka_db::with_db;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
@@ -225,9 +226,8 @@ pub(crate) fn parse_id(raw: &str) -> Result<ImportId, ImportError> {
 /// status is the one the wire shows.
 pub(crate) async fn load(state: &AppState, raw: &str) -> Result<ImportRow, ImportError> {
     let id = parse_id(raw)?;
-    let repo = ImportRepo::new(&state.pool);
-    repo.settle_dead().await?;
-    repo.get(id).await?.ok_or_else(|| not_found(id.0))
+    with_db!(&state.pool, |db| ImportRepo::new(db).settle_dead().await)?;
+    with_db!(&state.pool, |db| ImportRepo::new(db).get(id).await)?.ok_or_else(|| not_found(id.0))
 }
 
 /// One import as the routes answer it. `plan` and `ranPlan` are left out of

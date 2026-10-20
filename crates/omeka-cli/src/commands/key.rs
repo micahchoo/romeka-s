@@ -10,15 +10,14 @@
 //! [`add`] is the only function that returns one. [`KeySummary`] cannot represent
 //! a credential at all, so `list` has nothing to leak.
 
-use std::path::PathBuf;
-
 use chrono::NaiveDateTime;
 
 use omeka_api::auth::API_KEY_LENGTH;
 use omeka_api::token;
-use omeka_db::open_file;
+use omeka_db::Location;
 use omeka_db::repos::{ApiKeyRepo, Paging, UserFilter, UserRepo};
 use omeka_db::rows::NewApiKey;
+use omeka_db::with_db;
 
 use crate::error::CliError;
 
@@ -31,7 +30,7 @@ const BCRYPT_COST: u32 = 10;
 /// Input for `romeka key add`.
 #[derive(Debug, Clone)]
 pub struct AddOptions {
-    pub database: PathBuf,
+    pub database: Location,
     /// The owner's email, as `user.email` stores it.
     pub owner: String,
     pub label: String,
@@ -40,13 +39,13 @@ pub struct AddOptions {
 /// Input for `romeka key list`.
 #[derive(Debug, Clone)]
 pub struct ListOptions {
-    pub database: PathBuf,
+    pub database: Location,
 }
 
 /// Input for `romeka key revoke`.
 #[derive(Debug, Clone)]
 pub struct RevokeOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub identity: String,
 }
 
@@ -74,8 +73,11 @@ pub struct KeySummary {
 /// A [`CliError::Message`] when no account has this email, when the account is
 /// inactive, or when the operating system has no randomness.
 pub async fn add(options: &AddOptions) -> Result<MintedKey, CliError> {
-    let pool = open_file(&options.database).await?;
-    let Some(owner) = UserRepo::new(&pool).get_by_email(&options.owner).await? else {
+    let pool = options.database.open().await?;
+    let Some(owner) = with_db!(&pool, |db| UserRepo::new(db)
+        .get_by_email(&options.owner)
+        .await)?
+    else {
         return Err(CliError::message(format!(
             "no user with email \"{}\"",
             options.owner
@@ -91,7 +93,7 @@ pub async fn add(options: &AddOptions) -> Result<MintedKey, CliError> {
     let credential = random_string()?;
     let credential_hash = bcrypt::hash(&credential, BCRYPT_COST)
         .map_err(|error| CliError::message(format!("cannot hash the credential: {error}")))?;
-    ApiKeyRepo::new(&pool)
+    with_db!(&pool, |db| ApiKeyRepo::new(db)
         .create(&NewApiKey {
             id: identity.clone(),
             owner_id: owner.id,
@@ -101,7 +103,7 @@ pub async fn add(options: &AddOptions) -> Result<MintedKey, CliError> {
             last_accessed: None,
             created: None,
         })
-        .await?;
+        .await)?;
     Ok(MintedKey {
         identity,
         credential,
@@ -114,14 +116,16 @@ pub async fn add(options: &AddOptions) -> Result<MintedKey, CliError> {
 /// # Errors
 /// A repository failure.
 pub async fn list(options: &ListOptions) -> Result<Vec<KeySummary>, CliError> {
-    let pool = open_file(&options.database).await?;
-    let users = UserRepo::new(&pool)
+    let pool = options.database.open().await?;
+    let users = with_db!(&pool, |db| UserRepo::new(db)
         .list(&UserFilter::default(), &Paging::default())
-        .await?;
-    let keys = ApiKeyRepo::new(&pool);
+        .await)?;
     let mut summaries = Vec::new();
     for user in users {
-        for key in keys.list_for_owner(user.id).await? {
+        for key in with_db!(&pool, |db| ApiKeyRepo::new(db)
+            .list_for_owner(user.id)
+            .await)?
+        {
             summaries.push(KeySummary {
                 identity: key.id,
                 owner_email: user.email.clone(),
@@ -140,8 +144,10 @@ pub async fn list(options: &ListOptions) -> Result<Vec<KeySummary>, CliError> {
 /// # Errors
 /// A repository failure.
 pub async fn revoke(options: &RevokeOptions) -> Result<bool, CliError> {
-    let pool = open_file(&options.database).await?;
-    Ok(ApiKeyRepo::new(&pool).delete(&options.identity).await?)
+    let pool = options.database.open().await?;
+    Ok(with_db!(&pool, |db| ApiKeyRepo::new(db)
+        .delete(&options.identity)
+        .await)?)
 }
 
 /// A fresh identity or credential: 32 characters drawn from the upstream
@@ -184,7 +190,7 @@ mod tests {
 
     fn add_options(db: &TempDb, owner: &str, label: &str) -> AddOptions {
         AddOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             owner: owner.to_string(),
             label: label.to_string(),
         }
@@ -192,7 +198,7 @@ mod tests {
 
     async fn authenticate_pair(db: &TempDb, identity: &str, credential: &str) -> Actor {
         authenticate(
-            &db.pool,
+            &db.db_pool,
             [
                 (KEY_IDENTITY_PARAM, identity),
                 (KEY_CREDENTIAL_PARAM, credential),
@@ -253,7 +259,7 @@ mod tests {
             .expect("mint");
 
         let removed = revoke(&RevokeOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             identity: minted.identity.clone(),
         })
         .await
@@ -261,7 +267,7 @@ mod tests {
         assert!(removed);
 
         let remaining = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
         })
         .await
         .expect("list");
@@ -271,7 +277,7 @@ mod tests {
         assert_eq!(actor, Actor::anonymous());
 
         let again = revoke(&RevokeOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             identity: minted.identity.clone(),
         })
         .await
@@ -288,7 +294,7 @@ mod tests {
             .expect("mint");
 
         let before = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
         })
         .await
         .expect("list");
@@ -301,7 +307,7 @@ mod tests {
         authenticate_pair(&db, &minted.identity, &minted.credential).await;
 
         let after = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
         })
         .await
         .expect("list");
@@ -330,7 +336,7 @@ mod tests {
         assert!(error.to_string().contains("inactive"), "got {error}");
 
         let keys = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
         })
         .await
         .expect("list");
@@ -361,7 +367,7 @@ mod tests {
         assert_eq!(crossed, Actor::anonymous());
 
         let keys = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
         })
         .await
         .expect("list");

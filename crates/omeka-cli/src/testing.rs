@@ -8,7 +8,7 @@ use tempfile::TempDir;
 use omeka_db::ids::{ItemId, JobId, SiteId};
 use omeka_db::repos::{ItemSiteRepo, SiteRepo};
 use omeka_db::rows::NewSite;
-use omeka_db::{migrate, open_file};
+use omeka_db::{DbPool, migrate, open_file};
 use serde_json::Value;
 
 use crate::jobs::Job;
@@ -19,6 +19,8 @@ pub struct TempDb {
     pub _directory: TempDir,
     pub path: PathBuf,
     pub pool: SqlitePool,
+    /// The same pool as the commands and jobs take it.
+    pub db_pool: DbPool,
 }
 
 /// A fresh migrated database.
@@ -30,6 +32,7 @@ pub async fn temp_db() -> TempDb {
     TempDb {
         _directory: directory,
         path,
+        db_pool: DbPool::from(pool.clone()),
         pool,
     }
 }
@@ -38,7 +41,7 @@ pub async fn temp_db() -> TempDb {
 pub async fn seeded_db() -> TempDb {
     let database = temp_db().await;
     crate::commands::install::run(&crate::commands::install::InstallOptions {
-        database: database.path.clone(),
+        database: database.path.clone().into(),
         email: "admin@example.org".to_string(),
         name: "Admin".to_string(),
         password: "hunter2".to_string(),
@@ -89,7 +92,7 @@ pub async fn site_items(pool: &SqlitePool, site: SiteId) -> Vec<ItemId> {
 
 /// Compose a job row in `starting`, the way `Dispatcher::dispatch` composes one
 /// before it starts a process. The tests run the row with `Runner::run`.
-pub async fn compose(pool: &SqlitePool, job: &dyn Job, args: Value) -> JobId {
+pub async fn compose(pool: &DbPool, job: &dyn Job, args: Value) -> JobId {
     crate::jobs::compose_job(pool, job.class(), &args, None)
         .await
         .expect("compose job row")

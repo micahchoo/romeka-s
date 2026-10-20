@@ -16,8 +16,9 @@
 //! calls `ApiManager::create`, so every vocabulary rule applies to it.
 
 use omeka_db::ids::VocabularyId;
-use omeka_db::repos::{SettingRepo, VocabularyRepo};
+use omeka_db::repos::VocabularyRepo;
 use omeka_db::rows::VocabularyRow;
+use omeka_db::with_db;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -126,7 +127,7 @@ async fn read_members(
         Origin::Url(url) => {
             let target = url.clone();
             let format = source.format;
-            let policy = crate::settings::address_policy(&SettingRepo::new(api.pool()))
+            let policy = crate::settings::address_policy(api.pool())
                 .await
                 .map_err(db_error)?;
             let fetched =
@@ -361,10 +362,10 @@ fn plan(stored: &[MemberRow], changes: &MemberDiff) -> Plan {
 async fn editable(api: &Api<'_>, raw_id: &str) -> Result<VocabularyRow, ApiError> {
     api.allow_write("vocabularies", Operation::Update)?;
     let id = parse_id(VOCABULARY_CLASS, raw_id)?;
-    let Some(row) = VocabularyRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .get(VocabularyId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(VOCABULARY_CLASS, raw_id));
     };

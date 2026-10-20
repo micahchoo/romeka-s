@@ -200,7 +200,7 @@ impl Store for GatedStore {
 /// Runs each job on the test's runtime, as `romeka job run` would in a
 /// child, and keeps the task so a test can kill the worker.
 pub struct InProcess {
-    pool: SqlitePool,
+    pool: omeka_db::DbPool,
     env: JobEnv,
     pub tasks: Mutex<Vec<JoinHandle<()>>>,
 }
@@ -256,7 +256,7 @@ pub async fn site_with(store: impl FnOnce(&Path) -> Arc<dyn Store>) -> Site {
     let dir = tempfile::tempdir().unwrap();
     let database = dir.path().join("romeka.db");
     install(&InstallOptions {
-        database: database.clone(),
+        database: database.clone().into(),
         email: "admin@example.org".to_string(),
         name: "Admin".to_string(),
         password: "a long test password".to_string(),
@@ -289,7 +289,7 @@ pub async fn site_with(store: impl FnOnce(&Path) -> Arc<dyn Store>) -> Site {
         archive_roots: roots,
     };
     let jobs = Arc::new(InProcess {
-        pool: pool.clone(),
+        pool: pool.clone().into(),
         env: env.clone(),
         tasks: Mutex::new(Vec::new()),
     });

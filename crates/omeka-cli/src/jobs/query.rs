@@ -12,6 +12,7 @@ use serde_json::Value;
 
 use omeka_db::ids::{ClassId, ItemSetId, TemplateId, UserId};
 use omeka_db::repos::{ItemFilter, ItemSetFilter, MediaFilter, SettingRepo};
+use omeka_db::with_db;
 
 use super::{JobContext, JobError};
 
@@ -85,9 +86,9 @@ pub fn query_arg(context: &JobContext<'_>, name: &str) -> Result<BatchQuery, Job
 /// A database error while reading the `batch_chunk_size` setting.
 pub async fn chunk_size(context: &JobContext<'_>) -> Result<usize, JobError> {
     // Upstream `Settings::get` returns the stored value, a number or its text.
-    let configured = match SettingRepo::new(context.pool)
+    let configured = match with_db!(context.pool, |db| SettingRepo::new(db)
         .get("batch_chunk_size")
-        .await?
+        .await)?
     {
         Some(Value::Number(number)) => number.as_i64(),
         Some(Value::String(text)) => text.parse().ok(),

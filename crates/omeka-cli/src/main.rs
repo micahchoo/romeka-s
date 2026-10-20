@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use omeka_db::Location;
 
 use omeka_cli::commands::backup::{self as backup, BackupOptions};
 use omeka_cli::commands::export::{self as export, CsvOptions as ExportCsvOptions, JsonldOptions};
@@ -67,14 +68,26 @@ fn build_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(serve_command())
 }
 
-fn database_arg<'a, 'b>() -> Arg<'a, 'b> {
-    Arg::with_name("database")
-        .short("d")
-        .long("database")
-        .value_name("PATH")
-        .takes_value(true)
-        .required(true)
-        .help("SQLite database file")
+/// `--database PATH`, or `--database-url URL` (or `ROMEKA_DATABASE_URL`) for a
+/// MySQL or MariaDB server; one of them is required.
+fn database_args<'a, 'b>() -> [Arg<'a, 'b>; 2] {
+    [
+        Arg::with_name("database")
+            .short("d")
+            .long("database")
+            .value_name("PATH")
+            .takes_value(true)
+            .required_unless("database-url")
+            .conflicts_with("database-url")
+            .help("SQLite database file"),
+        Arg::with_name("database-url")
+            .long("database-url")
+            .value_name("URL")
+            .takes_value(true)
+            .env(omeka_cli::jobs::DATABASE_URL_ENV)
+            .hide_env_values(true)
+            .help("MySQL or MariaDB server, mysql://user:password@host:port/database"),
+    ]
 }
 
 fn optional_store_arg<'a, 'b>() -> Arg<'a, 'b> {
@@ -104,7 +117,7 @@ fn email_arg<'a, 'b>() -> Arg<'a, 'b> {
 fn install_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("install")
         .about("Create a database and seed the default data")
-        .arg(database_arg())
+        .args(&database_args())
         .arg(email_arg())
         .arg(
             Arg::with_name("name")
@@ -147,7 +160,7 @@ fn user_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("add")
                 .about("Add a user")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(email_arg())
                 .arg(
                     Arg::with_name("name")
@@ -178,13 +191,13 @@ fn user_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("list")
                 .about("List users")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(Arg::with_name("role").long("role").takes_value(true)),
         )
         .subcommand(
             SubCommand::with_name("set-password")
                 .about("Replace a user's password")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(email_arg())
                 .arg(
                     Arg::with_name("password")
@@ -196,7 +209,7 @@ fn user_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("grant-admin")
                 .about("Set a user's role to global_admin")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(email_arg()),
         )
 }
@@ -208,7 +221,7 @@ fn key_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("add")
                 .about("Mint an API key and print its credential once")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("owner")
                         .long("owner")
@@ -227,12 +240,12 @@ fn key_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("list")
                 .about("List API keys")
-                .arg(database_arg()),
+                .args(&database_args()),
         )
         .subcommand(
             SubCommand::with_name("revoke")
                 .about("Delete an API key")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("identity")
                         .long("identity")
@@ -250,7 +263,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("template")
                 .about("Import a resource template from JSON")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("file")
                         .long("file")
@@ -262,7 +275,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("run")
                 .about("Check an import plan and run it in this process")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("plan")
                         .long("plan")
@@ -297,7 +310,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("undo")
                 .about("Undo an import, or say what undoing it would do")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("id")
                         .value_name("ID")
@@ -323,7 +336,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("list")
                 .about("List imports, newest first")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("page")
                         .long("page")
@@ -348,7 +361,7 @@ fn export_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("jsonld")
                 .about("Write the documents the read layer serves")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("out")
                         .long("out")
@@ -383,7 +396,7 @@ fn export_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("csv")
                 .about("Write items as CSV, one column per value")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("out")
                         .long("out")
@@ -424,7 +437,7 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("thumbnails")
                 .about("Generate the thumbnails a media row is missing")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("store")
                         .long("store")
@@ -442,7 +455,7 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("sweep")
                 .about("List, or with --delete remove, store files no media or asset row names")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(
                     Arg::with_name("store")
                         .long("store")
@@ -462,7 +475,7 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
 fn backup_cli<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("backup")
         .about("Archive the database and the store into one file")
-        .arg(database_arg())
+        .args(&database_args())
         .arg(store_arg())
         .arg(
             Arg::with_name("out")
@@ -477,7 +490,7 @@ fn backup_cli<'a, 'b>() -> App<'a, 'b> {
 fn restore_cli<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("restore")
         .about("Write an archive back into a database and a store")
-        .arg(database_arg())
+        .args(&database_args())
         .arg(store_arg())
         .arg(
             Arg::with_name("in")
@@ -511,7 +524,7 @@ fn job_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("run")
                 .about("Run one job in this process")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(id_arg())
                 .arg(
                     Arg::with_name("store")
@@ -537,18 +550,18 @@ fn job_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(
             SubCommand::with_name("list")
                 .about("List jobs")
-                .arg(database_arg()),
+                .args(&database_args()),
         )
         .subcommand(
             SubCommand::with_name("show")
                 .about("Show a job and its captured log")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(id_arg()),
         )
         .subcommand(
             SubCommand::with_name("stop")
                 .about("Ask a running job to stop")
-                .arg(database_arg())
+                .args(&database_args())
                 .arg(id_arg()),
         )
 }
@@ -564,7 +577,7 @@ fn id_arg<'a, 'b>() -> Arg<'a, 'b> {
 fn serve_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("serve")
         .about("Start the HTTP server")
-        .arg(database_arg())
+        .args(&database_args())
         .arg(
             Arg::with_name("host")
                 .long("host")
@@ -610,7 +623,7 @@ async fn dispatch(matches: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
 
 async fn run_install(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     let options = InstallOptions {
-        database: PathBuf::from(value(args, "database")?),
+        database: location(args)?,
         email: value(args, "email")?.to_string(),
         name: value(args, "name")?.to_string(),
         password: value(args, "password")?.to_string(),
@@ -619,7 +632,7 @@ async fn run_install(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         locale: value(args, "locale")?.to_string(),
     };
     let report = install::run(&options).await?;
-    println!("installed {}", report.database.display());
+    println!("installed {}", report.database);
     println!(
         "  vocabularies: {}  classes: {}  properties: {}  members corrected: {}",
         report.vocabularies_inserted,
@@ -650,7 +663,7 @@ async fn run_user(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("add", Some(m)) => {
             let added = user::add(&AddOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 email: value(m, "email")?.to_string(),
                 name: value(m, "name")?.to_string(),
                 password: m.value_of("password").map(str::to_string),
@@ -670,7 +683,7 @@ async fn run_user(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         ("list", Some(m)) => {
             let rows = user::list(&ListOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 role: m.value_of("role").map(str::to_string),
             })
             .await?;
@@ -686,7 +699,7 @@ async fn run_user(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         ("set-password", Some(m)) => {
             let row = user::set_password(&SetPasswordOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 email: value(m, "email")?.to_string(),
                 password: value(m, "password")?.to_string(),
             })
@@ -695,7 +708,7 @@ async fn run_user(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         ("grant-admin", Some(m)) => {
             let row = user::grant_admin(&GrantAdminOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 email: value(m, "email")?.to_string(),
             })
             .await?;
@@ -710,7 +723,7 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("add", Some(m)) => {
             let minted = key::add(&KeyAddOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 owner: value(m, "owner")?.to_string(),
                 label: value(m, "label")?.to_string(),
             })
@@ -722,7 +735,7 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         ("list", Some(m)) => {
             let keys = key::list(&KeyListOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
             })
             .await?;
             if keys.is_empty() {
@@ -743,7 +756,7 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         ("revoke", Some(m)) => {
             let identity = value(m, "identity")?;
             let removed = key::revoke(&KeyRevokeOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 identity: identity.to_string(),
             })
             .await?;
@@ -762,7 +775,7 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
 /// The database, store and archive root an import command names.
 fn import_at(args: &ArgMatches<'_>) -> Result<Where, CliError> {
     Ok(Where {
-        database: PathBuf::from(value(args, "database")?),
+        database: location(args)?,
         store: args.value_of("store").map(PathBuf::from),
         archive_root: args.value_of("archive-root").map(PathBuf::from),
     })
@@ -772,7 +785,7 @@ async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("template", Some(m)) => {
             let template = commands::import::import_template(&TemplateOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 file: PathBuf::from(value(m, "file")?),
             })
             .await?;
@@ -834,7 +847,7 @@ async fn run_export(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("jsonld", Some(m)) => {
             let report = export::run_jsonld(&JsonldOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 out: PathBuf::from(value(m, "out")?),
                 resource: value(m, "resource")?.to_string(),
                 item_set: optional_id(m, "item-set")?,
@@ -860,7 +873,7 @@ async fn run_export(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
             }
             let columns = m.value_of("columns").map(parse_columns).unwrap_or_default();
             let report = export::run_csv(&ExportCsvOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 out: PathBuf::from(value(m, "out")?),
                 item_set: optional_id(m, "item-set")?,
                 columns,
@@ -890,7 +903,7 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     if let ("sweep", Some(m)) = args.subcommand() {
         let delete = m.is_present("delete");
         let report = media_sweep::run(&SweepOptions {
-            database: PathBuf::from(value(m, "database")?),
+            database: location(m)?,
             store: m.value_of("store").map(PathBuf::from),
             delete,
             min_age: MIN_AGE,
@@ -922,7 +935,7 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     }
     if let ("thumbnails", Some(m)) = args.subcommand() {
         let report = media_thumbnails::run(&ThumbnailOptions {
-            database: PathBuf::from(value(m, "database")?),
+            database: location(m)?,
             store: m.value_of("store").map(PathBuf::from),
             force: m.is_present("force"),
         })
@@ -961,7 +974,7 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
 
 async fn run_backup(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     let report = backup::run(&BackupOptions {
-        database: PathBuf::from(value(args, "database")?),
+        database: location(args)?,
         store: PathBuf::from(value(args, "store")?),
         out: PathBuf::from(value(args, "out")?),
     })
@@ -979,8 +992,17 @@ async fn run_backup(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
 }
 
 async fn run_restore(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
+    let database = match location(args)? {
+        Location::File(path) => path,
+        server @ Location::Url(_) => {
+            return Err(CliError::message(format!(
+                "restore writes a SQLite file, so it cannot restore into {server}; load a MySQL \
+                 dump with the server's own tools"
+            )));
+        }
+    };
     let report = restore::run(&RestoreOptions {
-        database: PathBuf::from(value(args, "database")?),
+        database,
         store: PathBuf::from(value(args, "store")?),
         input: PathBuf::from(value(args, "in")?),
         force: args.is_present("force"),
@@ -1007,7 +1029,7 @@ async fn run_job(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("run", Some(m)) => {
             let id = required_id(m)?;
-            let database = PathBuf::from(value(m, "database")?);
+            let database = location(m)?;
             let options = job_cmd::RunOptions {
                 database,
                 id,
@@ -1026,7 +1048,7 @@ async fn run_job(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         ("list", Some(m)) => {
             let rows = job_cmd::list(&job_cmd::ListOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
             })
             .await?;
             if rows.is_empty() {
@@ -1048,7 +1070,7 @@ async fn run_job(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         ("show", Some(m)) => {
             let id = required_id(m)?;
             let row = job_cmd::show(&job_cmd::ShowOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 id,
             })
             .await?;
@@ -1076,7 +1098,7 @@ async fn run_job(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         ("stop", Some(m)) => {
             let id = required_id(m)?;
             let changed = job_cmd::stop(&job_cmd::StopOptions {
-                database: PathBuf::from(value(m, "database")?),
+                database: location(m)?,
                 id,
             })
             .await?;
@@ -1097,14 +1119,34 @@ async fn run_serve(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     let port: u16 = value(args, "port")?
         .parse()
         .map_err(|error| CliError::message(format!("invalid --port: {error}")))?;
-    let database = value(args, "database")?;
+    let database = location(args)?;
     let base_url = args
         .value_of("base-url")
         .map_or_else(|| format!("http://{host}:{port}"), str::to_string);
     println!("serving on {host}:{port} with {database}");
     let store = args.value_of("store").map(PathBuf::from);
-    commands::serve::run(host, port, database, &base_url, store.as_deref()).await?;
+    commands::serve::run(host, port, &database, &base_url, store.as_deref()).await?;
     Ok(ExitCode::SUCCESS)
+}
+
+/// The database the `--database` or `--database-url` arguments name. clap
+/// refuses both flags at once, so `--database` here wins only over
+/// `ROMEKA_DATABASE_URL`, as a flag wins over the environment everywhere else.
+fn location(args: &ArgMatches<'_>) -> Result<Location, CliError> {
+    if let Some(path) = args.value_of("database") {
+        return Ok(Location::File(PathBuf::from(path)));
+    }
+    if let Some(url) = args.value_of("database-url") {
+        return match Location::parse(url) {
+            url @ Location::Url(_) => Ok(url),
+            Location::File(_) => Err(CliError::message(
+                "--database-url takes a mysql:// or mariadb:// URL; a SQLite file is --database",
+            )),
+        };
+    }
+    Err(CliError::message(
+        "missing argument --database or --database-url",
+    ))
 }
 
 fn value<'a>(args: &'a ArgMatches<'_>, name: &str) -> Result<&'a str, CliError> {

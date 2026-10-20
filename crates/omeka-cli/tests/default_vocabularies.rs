@@ -41,7 +41,7 @@ fn upstream() -> Vec<Vocabulary> {
 
 fn options(database: PathBuf) -> InstallOptions {
     InstallOptions {
-        database,
+        database: database.into(),
         email: "admin@example.org".to_string(),
         name: "Admin".to_string(),
         password: "hunter2".to_string(),

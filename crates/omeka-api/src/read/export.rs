@@ -11,8 +11,8 @@
 //! representation the API serves, so it belongs beside the read layer rather
 //! than in a new HTTP route.
 
+use omeka_db::DbPool;
 use serde_json::Value;
-use sqlx::SqlitePool;
 
 use crate::adapters::ADAPTERS;
 use crate::auth::Actor;
@@ -78,7 +78,7 @@ impl Selection {
 /// The read layer's errors for the resource, plus an internal error when the
 /// served body is not the JSON array a list endpoint answers.
 pub async fn documents(
-    pool: &SqlitePool,
+    pool: &DbPool,
     base: BaseUrl,
     actor: Actor,
     selection: &Selection,

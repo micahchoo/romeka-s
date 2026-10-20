@@ -36,12 +36,13 @@
 //! client reads as its own default.
 
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{SettingRepo, UserSettingRepo};
+use omeka_db::with_db;
 use omeka_media::http_guard::AddressPolicy;
 use omeka_media::validation::{DEFAULT_EXTENSIONS, DEFAULT_MEDIA_TYPES, FileValidation};
 use serde_json::{Map, Value};
-use sqlx::SqlitePool;
 
 use crate::auth::Actor;
 use crate::errors::{ApiError, ValidationErrors};
@@ -162,15 +163,13 @@ type Change = (&'static str, Option<Value>);
 ///
 /// # Errors
 /// [`ApiError::Internal`] when a row cannot be read.
-pub async fn admin_locale(pool: &SqlitePool, user: UserId) -> Result<Option<String>, ApiError> {
-    let own = UserSettingRepo::new(pool)
-        .get(user, LOCALE)
-        .await
-        .map_err(db_error)?;
+pub async fn admin_locale(pool: &DbPool, user: UserId) -> Result<Option<String>, ApiError> {
+    let own =
+        with_db!(pool, |db| UserSettingRepo::new(db).get(user, LOCALE).await).map_err(db_error)?;
     if let Some(locale) = non_empty(own) {
         return Ok(Some(locale));
     }
-    let global = SettingRepo::new(pool).get(LOCALE).await.map_err(db_error)?;
+    let global = with_db!(pool, |db| SettingRepo::new(db).get(LOCALE).await).map_err(db_error)?;
     Ok(non_empty(global))
 }
 
@@ -178,11 +177,12 @@ pub async fn admin_locale(pool: &SqlitePool, user: UserId) -> Result<Option<Stri
 ///
 /// # Errors
 /// [`ApiError::Internal`] when a row cannot be read.
-pub async fn load_user(pool: &SqlitePool, user: UserId) -> Result<Option<Value>, ApiError> {
-    let repo = UserSettingRepo::new(pool);
+pub async fn load_user(pool: &DbPool, user: UserId) -> Result<Option<Value>, ApiError> {
     let mut map = Map::new();
     for key in USER_SETTINGS {
-        if let Some(value) = repo.get(user, key).await.map_err(db_error)? {
+        if let Some(value) =
+            with_db!(pool, |db| UserSettingRepo::new(db).get(user, key).await).map_err(db_error)?
+        {
             map.insert((*key).to_string(), value);
         }
     }
@@ -204,17 +204,16 @@ pub fn parse_user(value: &Value) -> Result<Vec<Change>, ApiError> {
 ///
 /// # Errors
 /// [`ApiError::Internal`] for a storage failure.
-pub async fn store_user(
-    pool: &SqlitePool,
-    user: UserId,
-    changes: &[Change],
-) -> Result<(), ApiError> {
-    let repo = UserSettingRepo::new(pool);
+pub async fn store_user(pool: &DbPool, user: UserId, changes: &[Change]) -> Result<(), ApiError> {
     for (key, value) in changes {
         match value {
-            Some(value) => repo.set(user, key, value).await.map_err(db_error)?,
+            Some(value) => with_db!(pool, |db| UserSettingRepo::new(db)
+                .set(user, key, value)
+                .await)
+            .map_err(db_error)?,
             None => {
-                repo.delete(user, key).await.map_err(db_error)?;
+                with_db!(pool, |db| UserSettingRepo::new(db).delete(user, key).await)
+                    .map_err(db_error)?;
             }
         }
     }
@@ -233,7 +232,7 @@ struct FileSettings {
 }
 
 impl FileSettings {
-    async fn load(repo: &SettingRepo<'_>) -> Result<Self, DbError> {
+    async fn load(pool: &DbPool) -> Result<Self, DbError> {
         let list = |stored: Option<Value>, default: &[&str]| match stored {
             Some(Value::Array(names)) => names
                 .iter()
@@ -243,10 +242,15 @@ impl FileSettings {
             _ => default.iter().map(|name| (*name).to_string()).collect(),
         };
         Ok(Self {
-            media_types: list(repo.get(MEDIA_TYPE_WHITELIST).await?, DEFAULT_MEDIA_TYPES),
-            extensions: list(repo.get(EXTENSION_WHITELIST).await?, DEFAULT_EXTENSIONS),
-            disabled: repo
-                .get(DISABLE_FILE_VALIDATION)
+            media_types: list(
+                setting(pool, MEDIA_TYPE_WHITELIST).await?,
+                DEFAULT_MEDIA_TYPES,
+            ),
+            extensions: list(
+                setting(pool, EXTENSION_WHITELIST).await?,
+                DEFAULT_EXTENSIONS,
+            ),
+            disabled: setting(pool, DISABLE_FILE_VALIDATION)
                 .await?
                 .is_some_and(|value| php_truthy(&value)),
         })
@@ -257,8 +261,8 @@ impl FileSettings {
 ///
 /// # Errors
 /// [`DbError`] when a setting row cannot be read.
-pub async fn file_validation(repo: &SettingRepo<'_>) -> Result<FileValidation, DbError> {
-    let settings = FileSettings::load(repo).await?;
+pub async fn file_validation(pool: &DbPool) -> Result<FileValidation, DbError> {
+    let settings = FileSettings::load(pool).await?;
     Ok(if settings.disabled {
         FileValidation::Disabled
     } else {
@@ -274,8 +278,8 @@ pub async fn file_validation(repo: &SettingRepo<'_>) -> Result<FileValidation, D
 ///
 /// # Errors
 /// [`DbError`] when the setting row cannot be read.
-pub async fn address_policy(repo: &SettingRepo<'_>) -> Result<AddressPolicy, DbError> {
-    Ok(if allows_private_urls(repo).await? {
+pub async fn address_policy(pool: &DbPool) -> Result<AddressPolicy, DbError> {
+    Ok(if allows_private_urls(pool).await? {
         AddressPolicy::AllowPrivate
     } else {
         AddressPolicy::PublicOnly
@@ -289,24 +293,24 @@ pub async fn address_policy(repo: &SettingRepo<'_>) -> Result<AddressPolicy, DbE
 ///
 /// # Errors
 /// [`DbError`] when a setting row cannot be read.
-pub async fn upload_settings(repo: &SettingRepo<'_>) -> Result<UploadSettings, DbError> {
+pub async fn upload_settings(pool: &DbPool) -> Result<UploadSettings, DbError> {
     let count =
         |stored: Option<Value>, default: u64| stored.as_ref().and_then(count_of).unwrap_or(default);
     Ok(UploadSettings {
         max_file: count(
-            repo.get(IMPORT_UPLOAD_MAX_FILE).await?,
+            setting(pool, IMPORT_UPLOAD_MAX_FILE).await?,
             UPLOAD_DEFAULTS.max_file,
         ),
         max_total: count(
-            repo.get(IMPORT_UPLOAD_MAX_TOTAL).await?,
+            setting(pool, IMPORT_UPLOAD_MAX_TOTAL).await?,
             UPLOAD_DEFAULTS.max_total,
         ),
         staging_keep_days: count(
-            repo.get(IMPORT_STAGING_KEEP_DAYS).await?,
+            setting(pool, IMPORT_STAGING_KEEP_DAYS).await?,
             UPLOAD_DEFAULTS.staging_keep_days,
         ),
         draft_staging_keep_days: count(
-            repo.get(IMPORT_DRAFT_STAGING_KEEP_DAYS).await?,
+            setting(pool, IMPORT_DRAFT_STAGING_KEEP_DAYS).await?,
             UPLOAD_DEFAULTS.draft_staging_keep_days,
         ),
     })
@@ -322,11 +326,14 @@ fn count_of(value: &Value) -> Option<u64> {
     .filter(|count| *count > 0)
 }
 
-async fn allows_private_urls(repo: &SettingRepo<'_>) -> Result<bool, DbError> {
-    Ok(repo
-        .get(IMPORT_ALLOW_PRIVATE_URLS)
+async fn allows_private_urls(pool: &DbPool) -> Result<bool, DbError> {
+    Ok(setting(pool, IMPORT_ALLOW_PRIVATE_URLS)
         .await?
         .is_some_and(|value| php_truthy(&value)))
+}
+
+async fn setting(pool: &DbPool, id: &str) -> Result<Option<Value>, DbError> {
+    with_db!(pool, |db| SettingRepo::new(db).get(id).await)
 }
 
 fn php_truthy(value: &Value) -> bool {
@@ -349,20 +356,20 @@ fn php_truthy(value: &Value) -> bool {
 /// when a row cannot be read.
 pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     authorize_global(api.actor())?;
-    let repo = SettingRepo::new(api.pool());
+    let pool = api.pool();
     let mut map = Map::new();
-    if let Some(value) = repo.get(LOCALE).await.map_err(db_error)? {
+    if let Some(value) = setting(pool, LOCALE).await.map_err(db_error)? {
         map.insert(LOCALE.to_string(), value);
     }
-    let files = FileSettings::load(&repo).await.map_err(db_error)?;
+    let files = FileSettings::load(pool).await.map_err(db_error)?;
     map.insert(MEDIA_TYPE_WHITELIST.to_string(), files.media_types.into());
     map.insert(EXTENSION_WHITELIST.to_string(), files.extensions.into());
     map.insert(DISABLE_FILE_VALIDATION.to_string(), files.disabled.into());
     map.insert(
         IMPORT_ALLOW_PRIVATE_URLS.to_string(),
-        allows_private_urls(&repo).await.map_err(db_error)?.into(),
+        allows_private_urls(pool).await.map_err(db_error)?.into(),
     );
-    let uploads = upload_settings(&repo).await.map_err(db_error)?;
+    let uploads = upload_settings(pool).await.map_err(db_error)?;
     for (key, value) in [
         (IMPORT_UPLOAD_MAX_FILE, uploads.max_file),
         (IMPORT_UPLOAD_MAX_TOTAL, uploads.max_total),
@@ -389,12 +396,13 @@ pub async fn write_global(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, Ap
     authorize_global(api.actor())?;
     let body: Value =
         serde_json::from_slice(bytes).map_err(|_| ApiError::bad_request(messages::JSON_SYNTAX))?;
-    let repo = SettingRepo::new(api.pool());
     for (key, value) in parse_map("settings", GLOBAL_SETTINGS, &body)? {
         match value {
-            Some(value) => repo.set(key, &value).await.map_err(db_error)?,
+            Some(value) => with_db!(api.pool(), |db| SettingRepo::new(db).set(key, &value).await)
+                .map_err(db_error)?,
             None => {
-                repo.delete(key).await.map_err(db_error)?;
+                with_db!(api.pool(), |db| SettingRepo::new(db).delete(key).await)
+                    .map_err(db_error)?;
             }
         }
     }

@@ -13,6 +13,7 @@ use axum::http::{Request, StatusCode};
 use common::{Answer, KEY_CREDENTIAL, KEY_IDENTITY, send};
 use imports_fixture::{EDITOR, JPEG, SECOND_ADMIN, fixture};
 use omeka_db::repos::{JobRepo, SettingRepo};
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 fn base64(bytes: &[u8]) -> String {
@@ -343,14 +344,14 @@ async fn a_patch_over_64_mib_is_refused_with_413_and_keeps_nothing() {
 #[tokio::test]
 async fn the_import_limit_counts_uploads_in_progress() {
     let fixture = fixture().await;
-    SettingRepo::new(&fixture.pool)
+    with_db!(&fixture.pool, |db| SettingRepo::new(db)
         .set("import_upload_max_total", &json!(100))
-        .await
-        .unwrap();
-    SettingRepo::new(&fixture.pool)
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| SettingRepo::new(db)
         .set("import_upload_max_file", &json!(80))
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let draft = staging_draft(&fixture).await;
     let tus = Tus {
         fixture: &fixture,
@@ -442,11 +443,14 @@ async fn only_the_owner_and_global_admins_upload_and_only_into_a_draft() {
     assert_eq!(editor.status, StatusCode::FORBIDDEN);
     let global = tus.create_as(SECOND_ADMIN, "a.jpg", 1).await;
     assert_eq!(global.status, StatusCode::CREATED, "a global admin may");
-    sqlx::query("UPDATE romeka_import SET status = 'done' WHERE id = ?")
-        .bind(draft["id"].as_i64().unwrap())
-        .execute(&fixture.pool)
-        .await
-        .unwrap();
+    with_db!(&fixture.pool, |db| sqlx::query(
+        "UPDATE romeka_import SET status = 'done' WHERE id = ?"
+    )
+    .bind(draft["id"].as_i64().unwrap())
+    .execute(db)
+    .await
+    .map(|_| ()))
+    .unwrap();
     let ran = tus.create_as(ADMIN, "b.jpg", 1).await;
     assert_eq!(ran.status, StatusCode::CONFLICT);
     assert_eq!(ran.json()["code"], "notDraft");
@@ -465,11 +469,11 @@ async fn a_finished_zip_starts_the_unzip_job() {
         .expect("the job id")
         .parse()
         .unwrap();
-    let row = JobRepo::new(&fixture.pool)
+    let row = with_db!(&fixture.pool, |db| JobRepo::new(db)
         .get(omeka_db::ids::JobId::from(job))
-        .await
-        .unwrap()
-        .unwrap();
+        .await)
+    .unwrap()
+    .unwrap();
     assert_eq!(row.class, "Romeka\\Job\\ImportUnzip");
     let args = row.args.unwrap();
     assert_eq!(args["importId"], draft["id"]);

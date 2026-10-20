@@ -28,6 +28,7 @@ use omeka_core::value::{literal_is_valid, uri_is_valid};
 use omeka_db::ids::{AnnotationId, CustomVocabId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{CustomVocabRepo, ResourceRepo, TemplateRepo, ValueRepo};
 use omeka_db::rows::{NewResource, NewValue, resource_type};
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -168,10 +169,8 @@ fn is_control(api: &Api<'_>, key: &str, control: &[&str]) -> bool {
 /// `getValidValueResources` admits an item only; another kind is the
 /// `ValidationException` that method throws.
 async fn ensure_resource(api: &Api<'_>, id: ResourceId, data_type: &str) -> Result<(), ApiError> {
-    let Some(row) = ResourceRepo::new(api.pool())
-        .get(id)
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| ResourceRepo::new(db).get(id).await).map_err(db_error)?
     else {
         return Err(ApiError::not_found(messages::resource_not_found(id.0)));
     };
@@ -203,19 +202,19 @@ impl TermLists {
             return Ok(None);
         };
         if let std::collections::hash_map::Entry::Vacant(entry) = self.read.entry(id) {
-            let list = CustomVocabRepo::new(api.pool())
+            let list = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
                 .get(CustomVocabId(id))
-                .await
-                .map_err(db_error)?
-                .map(|row| {
-                    TermList::from_columns(
-                        row.label,
-                        row.lang,
-                        row.item_set_id.map(|set| set.0),
-                        row.terms.as_ref(),
-                        row.uris.as_ref(),
-                    )
-                });
+                .await)
+            .map_err(db_error)?
+            .map(|row| {
+                TermList::from_columns(
+                    row.label,
+                    row.lang,
+                    row.item_set_id.map(|set| set.0),
+                    row.terms.as_ref(),
+                    row.uris.as_ref(),
+                )
+            });
             entry.insert(list);
         }
         Ok(self.read.get(&id).and_then(Option::as_ref))
@@ -432,14 +431,13 @@ pub async fn store(
     inputs: &[ValueInput],
 ) -> Result<(), ApiError> {
     clear(api, resource).await?;
-    let repo = ValueRepo::new(api.pool());
     for input in inputs {
         let annotation_id = match &input.annotation {
             Some(annotation) => {
-                let row = ResourceRepo::new(api.pool())
+                let row = with_db!(api.pool(), |db| ResourceRepo::new(db)
                     .create_annotation(&annotation.resource)
-                    .await
-                    .map_err(db_error)?;
+                    .await)
+                .map_err(db_error)?;
                 Box::pin(store(api, row.resource.id, &annotation.values)).await?;
                 Some(row.id())
             }
@@ -450,18 +448,19 @@ pub async fn store(
             ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
             ValueKind::Resource(id) => (None, None, Some(*id)),
         };
-        repo.create(&NewValue {
-            resource_id: resource,
-            property_id: input.property,
-            value_resource_id,
-            value_annotation_id: annotation_id,
-            r#type: input.data_type.clone(),
-            lang: input.lang.clone(),
-            value,
-            uri,
-            is_public: input.is_public,
-        })
-        .await
+        with_db!(api.pool(), |db| ValueRepo::new(db)
+            .create(&NewValue {
+                resource_id: resource,
+                property_id: input.property,
+                value_resource_id,
+                value_annotation_id: annotation_id,
+                r#type: input.data_type.clone(),
+                lang: input.lang.clone(),
+                value,
+                uri,
+                is_public: input.is_public,
+            })
+            .await)
         .map_err(db_error)?;
     }
     Ok(())
@@ -469,14 +468,13 @@ pub async fn store(
 
 /// Delete every value on a resource, and each value's annotation resource.
 pub async fn clear(api: &Api<'_>, resource: ResourceId) -> Result<(), ApiError> {
-    let rows = ValueRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(resource)
-        .await
-        .map_err(db_error)?;
-    let repo = ValueRepo::new(api.pool());
+        .await)
+    .map_err(db_error)?;
     for row in rows {
         delete_annotation(api, row.value_annotation_id).await?;
-        repo.delete(row.id).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ValueRepo::new(db).delete(row.id).await).map_err(db_error)?;
     }
     Ok(())
 }
@@ -488,17 +486,17 @@ async fn delete_annotation(api: &Api<'_>, id: Option<AnnotationId>) -> Result<()
         return Ok(());
     };
     let resource = id.as_resource();
-    let rows = ValueRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(resource)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     for row in rows {
         Box::pin(delete_annotation(api, row.value_annotation_id)).await?;
     }
-    ResourceRepo::new(api.pool())
+    with_db!(api.pool(), |db| ResourceRepo::new(db)
         .delete(resource)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(())
 }
 
@@ -510,9 +508,7 @@ pub async fn title_for(
     inputs: &[ValueInput],
 ) -> Result<Option<String>, ApiError> {
     let title_property = match template {
-        Some(id) => TemplateRepo::new(api.pool())
-            .get(id)
-            .await
+        Some(id) => with_db!(api.pool(), |db| TemplateRepo::new(db).get(id).await)
             .map_err(db_error)?
             .and_then(|row| row.title_property_id),
         None => None,

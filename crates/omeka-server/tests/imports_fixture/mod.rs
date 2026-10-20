@@ -10,17 +10,18 @@ use std::sync::{Arc, Mutex};
 use axum::Router;
 use omeka_api::import2::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
+use omeka_db::DbPool;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ApiKeyRepo, ImportRepo, JobRepo, UserRepo};
 use omeka_db::rows::{ImportRow, JobRow, NewApiKey, NewUser};
+use omeka_db::with_db;
 use omeka_media::store::FileStore;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 use serde_json::{Value, json};
-use sqlx::SqlitePool;
 use tempfile::TempDir;
 
 use crate::common::{
-    Answer, KEY_CREDENTIAL, KEY_IDENTITY, json_request, request, seeded_pool, send,
+    Answer, KEY_CREDENTIAL, KEY_IDENTITY, json_request, request, seeded_engine_pool, send,
 };
 
 /// Records each job it is asked to start; refuses when told to.
@@ -46,7 +47,8 @@ pub const EDITOR: (&str, &str) = ("editorkey000000000000000000000ab", "editor-cr
 
 pub struct Fixture {
     pub app: Router,
-    pub pool: SqlitePool,
+    /// SQLite, or MySQL when `ROMEKA_MYSQL_URL` is set (`common/engine.rs`).
+    pub pool: DbPool,
     pub jobs: Arc<Recorder>,
     /// The archive root, named `archive`.
     pub archive: TempDir,
@@ -55,12 +57,12 @@ pub struct Fixture {
 }
 
 pub async fn fixture() -> Fixture {
-    let (pool, _) = seeded_pool().await;
+    let (pool, _) = seeded_engine_pool().await;
     for (email, role, (identity, credential)) in [
         ("second@example.com", "global_admin", SECOND_ADMIN),
         ("editor@example.com", "editor", EDITOR),
     ] {
-        let user = UserRepo::new(&pool)
+        let user = with_db!(&pool, |db| UserRepo::new(db)
             .create(&NewUser {
                 email: email.to_string(),
                 name: email.to_string(),
@@ -69,9 +71,9 @@ pub async fn fixture() -> Fixture {
                 is_active: true,
                 created: None,
             })
-            .await
-            .unwrap();
-        ApiKeyRepo::new(&pool)
+            .await)
+        .unwrap();
+        with_db!(&pool, |db| ApiKeyRepo::new(db)
             .create(&NewApiKey {
                 id: identity.to_string(),
                 owner_id: user.id,
@@ -81,8 +83,8 @@ pub async fn fixture() -> Fixture {
                 last_accessed: None,
                 created: None,
             })
-            .await
-            .unwrap();
+            .await)
+        .unwrap();
     }
     let archive = tempfile::tempdir().unwrap();
     let files = tempfile::tempdir().unwrap();
@@ -212,17 +214,15 @@ impl Fixture {
     }
 
     pub async fn row(&self, id: &Value) -> ImportRow {
-        ImportRepo::new(&self.pool)
+        with_db!(&self.pool, |db| ImportRepo::new(db)
             .get(ImportId(id.as_u64().unwrap()))
-            .await
-            .unwrap()
-            .unwrap()
+            .await)
+        .unwrap()
+        .unwrap()
     }
 
     pub async fn job(&self, id: u64) -> JobRow {
-        JobRepo::new(&self.pool)
-            .get(JobId::from(id))
-            .await
+        with_db!(&self.pool, |db| JobRepo::new(db).get(JobId::from(id)).await)
             .unwrap()
             .unwrap()
     }

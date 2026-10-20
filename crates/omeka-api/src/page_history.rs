@@ -13,6 +13,7 @@ use chrono::{DateTime, NaiveDateTime};
 use omeka_db::ids::{PageId, UserId};
 use omeka_db::repos::{PageVersionRepo, SiteRepo, UserRepo};
 use omeka_db::rows::PageVersionRow;
+use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -59,9 +60,7 @@ pub(crate) async fn stale(
 }
 
 async fn user_ref(api: &Api<'_>, id: UserId) -> Result<Option<SavedBy>, ApiError> {
-    Ok(UserRepo::new(api.pool())
-        .get(id)
-        .await
+    Ok(with_db!(api.pool(), |db| UserRepo::new(db).get(id).await)
         .map_err(db_error)?
         .map(|row| SavedBy {
             id: row.id.0,
@@ -85,10 +84,8 @@ struct VersionEntry {
 /// `GET /api/site_pages/{id}/versions`: every kept version, newest first.
 pub async fn list(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let page = readable_page(api, raw_id).await?;
-    let rows = PageVersionRepo::new(api.pool())
-        .list(page)
-        .await
-        .map_err(db_error)?;
+    let rows =
+        with_db!(api.pool(), |db| PageVersionRepo::new(db).list(page).await).map_err(db_error)?;
     let mut entries = Vec::with_capacity(rows.len());
     for row in rows {
         entries.push(entry(api, row).await?);
@@ -122,11 +119,11 @@ pub async fn version(
     let page = readable_page(api, raw_id).await?;
     let missing = || ApiError::not_found(messages::NOT_FOUND);
     let number: u32 = raw_version.parse().map_err(|_| missing())?;
-    let row = PageVersionRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| PageVersionRepo::new(db)
         .get(page, number)
-        .await
-        .map_err(db_error)?
-        .ok_or_else(missing)?;
+        .await)
+    .map_err(db_error)?
+    .ok_or_else(missing)?;
     Ok(ApiResponse::document(serialize(&row.snapshot)?))
 }
 
@@ -140,10 +137,8 @@ async fn readable_page(api: &Api<'_>, raw_id: &str) -> Result<PageId, ApiError> 
         ));
     }
     let id = PageId(parse_id(PAGE_CLASS, raw_id)?);
-    let Some(row) = SiteRepo::new(api.pool())
-        .get_page(id)
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get_page(id).await).map_err(db_error)?
     else {
         return Err(not_found(PAGE_CLASS, raw_id));
     };

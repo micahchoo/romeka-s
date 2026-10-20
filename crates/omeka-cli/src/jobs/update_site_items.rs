@@ -19,6 +19,7 @@ use serde_json::Value;
 use omeka_api::site_items::{self, Action, Command, Mode, Selector};
 use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteRepo;
+use omeka_db::with_db;
 
 use super::{Job, JobContext, JobError};
 use crate::system_api;
@@ -88,10 +89,10 @@ async fn parse_sites(
             ))
         };
         let site_id: u64 = key.parse().map_err(|_| invalid())?;
-        if SiteRepo::new(context.pool)
+        if with_db!(context.pool, |db| SiteRepo::new(db)
             .get(SiteId::from(site_id))
-            .await?
-            .is_none()
+            .await)?
+        .is_none()
         {
             return Err(invalid());
         }
@@ -141,12 +142,12 @@ mod tests {
 
         let sites = serde_json::json!({ site.id.0.to_string(): null });
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &UpdateSiteItems,
             serde_json::json!({"action": "add", "sites": sites}),
         )
         .await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
         assert_eq!(count(site.id, &db.pool).await, 3);
         assert_eq!(
             omeka_db::repos::JobRepo::new(&db.pool)
@@ -158,22 +159,22 @@ mod tests {
         );
 
         let clear_id = compose(
-            &db.pool,
+            &db.db_pool,
             &UpdateSiteItems,
             serde_json::json!({"action": "remove_all", "sites": sites}),
         )
         .await;
-        Runner::new(&db.pool).run(clear_id).await.expect("run");
+        Runner::new(&db.db_pool).run(clear_id).await.expect("run");
         assert_eq!(count(site.id, &db.pool).await, 0);
 
         let public = serde_json::json!({ site.id.0.to_string(): {"is_public": "1"} });
         let replace_id = compose(
-            &db.pool,
+            &db.db_pool,
             &UpdateSiteItems,
             serde_json::json!({"action": "replace", "sites": public}),
         )
         .await;
-        Runner::new(&db.pool).run(replace_id).await.expect("run");
+        Runner::new(&db.db_pool).run(replace_id).await.expect("run");
         assert_eq!(
             count(site.id, &db.pool).await,
             2,
@@ -185,12 +186,12 @@ mod tests {
     async fn update_site_items_rejects_an_unknown_site() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &UpdateSiteItems,
             serde_json::json!({"action": "add", "sites": {"424242": null}}),
         )
         .await;
-        let error = Runner::new(&db.pool)
+        let error = Runner::new(&db.db_pool)
             .run(job_id)
             .await
             .expect_err("unknown site");

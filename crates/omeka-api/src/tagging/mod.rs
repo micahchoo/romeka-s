@@ -28,6 +28,7 @@ use omeka_core::term_list::{self, TermList, TermListKind, php_trim};
 use omeka_db::ids::{CustomVocabId, MediaId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{CustomVocabRepo, MediaRepo, SettingRepo, TemplateRepo, ValueRewriteRepo};
 use omeka_db::rows::{CustomVocabRow, MergeWrite, TextValueRow, resource_type};
+use omeka_db::with_db;
 use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -152,10 +153,10 @@ pub(crate) async fn rows(api: &Api<'_>, scope: Scope) -> Result<Vec<TextValueRow
         Scope::Tags => Some(tag_property(api).await?),
         Scope::List(_) => None,
     };
-    ValueRewriteRepo::new(api.pool())
+    with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
         .text_values(&scope.of_type(), property)
-        .await
-        .map_err(db_error)
+        .await)
+    .map_err(db_error)
 }
 
 /// The id of `dcterms:subject`. An install without it has no tags; it is a 404 for the property.
@@ -291,7 +292,7 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
         return Ok(ApiResponse::document(serialize(&answer)?));
     }
     let resources: Vec<ResourceId> = plan.changed.iter().copied().collect();
-    ValueRewriteRepo::new(api.pool())
+    with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
         .merge(&MergeWrite {
             rewrite: plan.rewrite,
             to,
@@ -302,8 +303,8 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
             resources: resources.clone(),
             default_title_property: api.catalog().property_id("dcterms:title"),
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     reindex(api, &rows, &resources).await?;
     Ok(ApiResponse::document(serialize(&answer)?))
 }
@@ -366,10 +367,9 @@ async fn reindex(
         };
         fulltext::reindex(api, kind, *id).await?;
         if kind == "media"
-            && let Some(media) = MediaRepo::new(api.pool())
-                .get(MediaId(id.0))
-                .await
-                .map_err(db_error)?
+            && let Some(media) =
+                with_db!(api.pool(), |db| MediaRepo::new(db).get(MediaId(id.0)).await)
+                    .map_err(db_error)?
         {
             fulltext::reindex(api, "items", ResourceId(media.item_id.0)).await?;
         }
@@ -395,8 +395,11 @@ pub async fn distinct(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRe
     }
     let body: DistinctBody = parse(bytes)?;
     let group: BTreeSet<String> = body.values.into_iter().collect();
-    let repo = SettingRepo::new(api.pool());
-    let mut stored = match repo.get(DISTINCT_SETTING).await.map_err(db_error)? {
+    let mut stored = match with_db!(api.pool(), |db| SettingRepo::new(db)
+        .get(DISTINCT_SETTING)
+        .await)
+    .map_err(db_error)?
+    {
         Some(Value::Object(map)) => map,
         _ => serde_json::Map::new(),
     };
@@ -409,18 +412,19 @@ pub async fn distinct(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRe
             key,
             serde_json::to_value(&groups).map_err(ApiError::internal)?,
         );
-        repo.set(DISTINCT_SETTING, &Value::Object(stored))
-            .await
-            .map_err(db_error)?;
+        with_db!(api.pool(), |db| SettingRepo::new(db)
+            .set(DISTINCT_SETTING, &Value::Object(stored))
+            .await)
+        .map_err(db_error)?;
     }
     census(api, scope).await
 }
 
 async fn distinct_groups(api: &Api<'_>, scope: Scope) -> Result<Vec<Vec<String>>, ApiError> {
-    let stored = SettingRepo::new(api.pool())
+    let stored = with_db!(api.pool(), |db| SettingRepo::new(db)
         .get(DISTINCT_SETTING)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let groups = groups_in(stored.as_ref().and_then(|map| map.get(scope.key())));
     Ok(groups
         .into_iter()
@@ -440,9 +444,7 @@ fn groups_in(stored: Option<&Value>) -> Vec<BTreeSet<String>> {
 }
 
 pub(crate) async fn list_row(api: &Api<'_>, id: CustomVocabId) -> Result<CustomVocabRow, ApiError> {
-    CustomVocabRepo::new(api.pool())
-        .get(id)
-        .await
+    with_db!(api.pool(), |db| CustomVocabRepo::new(db).get(id).await)
         .map_err(db_error)?
         .ok_or_else(|| not_found(LIST_CLASS, &id.0.to_string()))
 }
@@ -468,9 +470,9 @@ pub(crate) async fn template_label(
     api: &Api<'_>,
     id: TemplateId,
 ) -> Result<Option<(String, Option<omeka_db::ids::UserId>)>, ApiError> {
-    Ok(TemplateRepo::new(api.pool())
-        .get(id)
-        .await
-        .map_err(db_error)?
-        .map(|row| (row.label, row.owner_id)))
+    Ok(
+        with_db!(api.pool(), |db| TemplateRepo::new(db).get(id).await)
+            .map_err(db_error)?
+            .map(|row| (row.label, row.owner_id)),
+    )
 }

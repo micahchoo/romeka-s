@@ -16,6 +16,7 @@ use omeka_core::term_list::{self, php_trim};
 use omeka_db::ids::{ResourceId, TemplateId, ValueId};
 use omeka_db::repos::{CustomVocabRepo, ValueRewriteRepo};
 use omeka_db::rows::{CustomVocabRow, NewCustomVocab, PromoteList, PromoteWrite};
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -110,7 +111,7 @@ pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiErro
     if body.dry_run {
         return Ok(ApiResponse::document(serialize(&answer)?));
     }
-    let id = ValueRewriteRepo::new(api.pool())
+    let id = with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
         .promote(&PromoteWrite {
             list: target,
             values,
@@ -123,8 +124,8 @@ pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiErro
                 .collect(),
             resources: changed.into_iter().collect(),
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     answer.list = Some(Named { id: id.0, label });
     Ok(ApiResponse::document(serialize(&answer)?))
 }
@@ -133,10 +134,10 @@ pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiErro
 /// a new list of the tags. A stored list of links or items cannot take words, so its label counts
 /// as taken.
 async fn target(api: &Api<'_>, label: &str, tags: &[String]) -> Result<PromoteList, ApiError> {
-    let stored = CustomVocabRepo::new(api.pool())
+    let stored = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .find_by_label(label)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let Some(row) = stored else {
         api.allow_write("custom_vocabs", Operation::Create)?;
         let terms = term_list::sanitize_terms(&Value::from(tags.to_vec())).map(Value::from);

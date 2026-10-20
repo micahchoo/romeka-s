@@ -32,7 +32,8 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 
 | Flag | Default | Notes |
 | --- | --- | --- |
-| `-d PATH` | required | the SQLite database file |
+| `-d PATH` | one of the two is required | the SQLite database file |
+| `--database-url URL` | `ROMEKA_DATABASE_URL` | a MySQL or MariaDB database instead, `mysql://user:password@host:port/database`. See [MySQL and MariaDB](#mysql-and-mariadb) |
 | `--host` | `127.0.0.1` | loopback unless you change it |
 | `--port` | `8080` | |
 | `--base-url` | `http://<host>:<port>` | the prefix of every `@id`, of every `Link`, and the origin a cookie write must match |
@@ -41,6 +42,7 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | Variable | Default | What it sets |
 | --- | --- | --- |
 | `ROMEKA_CONFIG` | none | a config file to read after the defaults, before the environment |
+| `ROMEKA_DATABASE_URL` | none | `--database-url` for every command that takes a database. Environment only, so the password stays out of `ps` |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | `127.0.0.1`, `8123` | the address, unless `--host` / `--port` overrides it |
 | `ROMEKA_BASE_URL` | `http://localhost:8123` | unless `--base-url` overrides it |
 | `ROMEKA_LOG` | `info` | the tracing filter |
@@ -93,6 +95,42 @@ square/<storage_id>.jpg
   import the same `--store`, or media rows will exist while their files 404
   ([`../crates/omeka-cli/src/commands/serve.rs`](../crates/omeka-cli/src/commands/serve.rs),
   [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
+
+## MySQL and MariaDB
+
+The same binary serves a MySQL 8.0 or MariaDB 11 database. Both are tested: the server's route
+tests, the import suites, and an install, serve, upload, search, import and undo run against each.
+Create the database first, with upstream's character set; `romeka install` creates the tables in
+it, not the database itself:
+
+```sql
+CREATE DATABASE omeka CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Then name it in a URL, on every command that takes `-d`. `mariadb://` is accepted as the same
+thing. sqlx reads the connection options from the query string, such as `?ssl-mode=required`.
+
+```
+export ROMEKA_DATABASE_URL='mysql://romeka:secret@db:3306/omeka'
+romeka install --email admin@example.org --name Admin --password '...'
+romeka serve --host 0.0.0.0 --port 8123 --store /var/lib/romeka/files
+```
+
+- Prefer the variable to the flag. A flag is visible to every user of the host in `ps`; the variable
+  is not, and the server hands the URL to each job process the same way.
+- The URL's user needs `CREATE`, `ALTER`, `INDEX`, `DROP` and the row privileges on that database,
+  because `install` applies the migrations. `serve` needs only the row privileges.
+- A database server has no folder to put `files` beside, so with no `--store` every command uses
+  `files` in its working directory. Give every command the same `--store`.
+- The schema is upstream's own `schema.sql`, created `IF NOT EXISTS`, plus the Romeka tables
+  (`crates/omeka-db/migrations-mysql/`). Pointing `install` at an existing Omeka S database leaves
+  upstream's tables as they are and adds the Romeka ones.
+- `romeka backup` refuses a database server and writes nothing: back it up with the server's tools,
+  such as `mysqldump --single-transaction omeka`, and back up the store as files. `romeka restore`
+  refuses too, because its archive holds a SQLite file.
+- Search ranks with InnoDB's full-text score, which orders matches differently from SQLite, and
+  MySQL ignores words shorter than `innodb_ft_min_token_size` (3 by default)
+  ([`../crates/omeka-db/README.md`](../crates/omeka-db/README.md), "Known differences").
 
 ## Object storage
 
@@ -180,10 +218,11 @@ romeka job run <id> --database <db> --store <store> --base-url <base-url> [--arc
 ```
 
 The child gets the server's database and store as absolute paths, so it reads and writes what the
-server serves whatever its working directory. It reads `ROMEKA_ARCHIVE_ROOTS` and `ROMEKA_CONFIG` from
-the environment it inherits, so keep both in the server's environment. `--archive-root` carries only
-the root named `archive`. The child appends progress to the job's log, which the Jobs page and
-`GET /api/romeka/jobs/{id}/log` show, and exits when the job ends.
+server serves whatever its working directory. A MySQL database reaches the child as
+`ROMEKA_DATABASE_URL` in its environment, not as `--database`. It reads `ROMEKA_ARCHIVE_ROOTS` and
+`ROMEKA_CONFIG` from the environment it inherits, so keep both in the server's environment.
+`--archive-root` carries only the root named `archive`. The child appends progress to the job's log,
+which the Jobs page and `GET /api/romeka/jobs/{id}/log` show, and exits when the job ends.
 
 These rules hold for every import job.
 
@@ -337,6 +376,9 @@ romeka import template -d <db> --file template.json
 romeka backup  -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --out backup.tar
 romeka restore -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --in backup.tar
 ```
+
+Both commands are for a SQLite database. On MySQL or MariaDB they refuse; see
+[MySQL and MariaDB](#mysql-and-mariadb).
 
 `backup` writes one uncompressed tar holding a consistent copy of the database, every file under the
 store, and a `manifest.json` with the commit, the row counts and a checksum per file. The database

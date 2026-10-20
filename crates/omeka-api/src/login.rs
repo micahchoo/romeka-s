@@ -34,12 +34,13 @@ use std::time::Instant;
 
 use chrono::{Duration, NaiveDateTime, Utc};
 use http::StatusCode;
-use sqlx::SqlitePool;
 use thiserror::Error;
 
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{PasswordCreationRepo, UserRepo};
 use omeka_db::rows::{NewPasswordCreation, UserRow};
+use omeka_db::with_db;
 
 use crate::auth::Actor;
 use crate::errors::{ApiError, ErrorDocument};
@@ -177,7 +178,7 @@ impl IssuedKey {
 /// [`AuthError`]: 401 for an unknown address or a wrong password, 403 for a
 /// correct password on an inactive account, 429 when the limit trips.
 pub async fn login(
-    pool: &SqlitePool,
+    pool: &DbPool,
     limiter: &Limiter,
     presented: Option<&str>,
     email: &str,
@@ -189,7 +190,7 @@ pub async fn login(
     if let Verdict::Refused { retry_after_secs } = limiter.admit(&subjects, now) {
         return Err(AuthError::RateLimited { retry_after_secs });
     }
-    let Some(user) = UserRepo::new(pool).get_by_email(email).await? else {
+    let Some(user) = with_db!(pool, |db| UserRepo::new(db).get_by_email(email).await)? else {
         return Err(AuthError::InvalidCredentials);
     };
     if !password::verify(password, user.password_hash.as_deref()) {
@@ -211,7 +212,7 @@ pub async fn login(
 ///
 /// # Errors
 /// An [`ApiError`] when the delete fails.
-pub async fn logout(pool: &SqlitePool, token: Option<&str>) -> Result<bool, ApiError> {
+pub async fn logout(pool: &DbPool, token: Option<&str>) -> Result<bool, ApiError> {
     match token {
         Some(token) => SessionStore::new(pool).revoke(token).await,
         None => Ok(false),
@@ -222,10 +223,7 @@ pub async fn logout(pool: &SqlitePool, token: Option<&str>) -> Result<bool, ApiE
 ///
 /// # Errors
 /// An [`ApiError`] when a query fails.
-pub async fn current_user(
-    pool: &SqlitePool,
-    token: Option<&str>,
-) -> Result<Option<UserRow>, ApiError> {
+pub async fn current_user(pool: &DbPool, token: Option<&str>) -> Result<Option<UserRow>, ApiError> {
     match token {
         Some(token) => {
             SessionStore::new(pool)
@@ -311,7 +309,7 @@ impl From<omeka_db::DbError> for SetPasswordError {
 /// A [`SetPasswordError`]: 404 for an unknown or expired key, 422 for a password
 /// the rules reject.
 pub async fn set_password(
-    pool: &SqlitePool,
+    pool: &DbPool,
     rules: &PasswordRules,
     key: &str,
     password: &str,
@@ -325,25 +323,27 @@ pub async fn set_password(
 /// # Errors
 /// A [`SetPasswordError`], as [`set_password`].
 pub async fn set_password_at(
-    pool: &SqlitePool,
+    pool: &DbPool,
     rules: &PasswordRules,
     key: &str,
     password: &str,
     now: NaiveDateTime,
 ) -> Result<UserRow, SetPasswordError> {
-    let keys = PasswordCreationRepo::new(pool);
-    let Some(creation) = keys.get(key).await.map_err(db_error)? else {
+    let Some(creation) =
+        with_db!(pool, |db| PasswordCreationRepo::new(db).get(key).await).map_err(db_error)?
+    else {
         return Err(SetPasswordError::UnknownKey);
     };
-    let users = UserRepo::new(pool);
-    let Some(mut user) = users.get(creation.user_id).await.map_err(db_error)? else {
-        keys.delete(key).await.map_err(db_error)?;
+    let Some(mut user) =
+        with_db!(pool, |db| UserRepo::new(db).get(creation.user_id).await).map_err(db_error)?
+    else {
+        with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
         return Err(SetPasswordError::UnknownKey);
     };
     if now > expires_at(creation.created) {
         user.is_active = false;
-        users.update(&user).await.map_err(db_error)?;
-        keys.delete(key).await.map_err(db_error)?;
+        with_db!(pool, |db| UserRepo::new(db).update(&user).await).map_err(db_error)?;
+        with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
         return Err(SetPasswordError::UnknownKey);
     }
     if !rules.accepts(password) {
@@ -353,8 +353,8 @@ pub async fn set_password_at(
     if creation.activate {
         user.is_active = true;
     }
-    users.update(&user).await.map_err(db_error)?;
-    keys.delete(key).await.map_err(db_error)?;
+    with_db!(pool, |db| UserRepo::new(db).update(&user).await).map_err(db_error)?;
+    with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
     Ok(user)
 }
 
@@ -369,7 +369,7 @@ pub async fn set_password_at(
 /// # Errors
 /// An [`AuthError`]: 429 when the limit trips, 500 when storage fails.
 pub async fn forgot_password(
-    pool: &SqlitePool,
+    pool: &DbPool,
     limiter: &Limiter,
     email: &str,
     address: Option<IpAddr>,
@@ -379,7 +379,7 @@ pub async fn forgot_password(
     if let Verdict::Refused { retry_after_secs } = limiter.admit(&subjects, now) {
         return Err(AuthError::RateLimited { retry_after_secs });
     }
-    let Some(user) = UserRepo::new(pool).get_by_email(email).await? else {
+    let Some(user) = with_db!(pool, |db| UserRepo::new(db).get_by_email(email).await)? else {
         return Ok(None);
     };
     if !user.is_active {
@@ -394,24 +394,24 @@ pub async fn forgot_password(
 /// # Errors
 /// An [`ApiError`] when the token cannot be drawn or a row cannot be written.
 pub async fn issue_key(
-    pool: &SqlitePool,
+    pool: &DbPool,
     user: &UserRow,
     activate: bool,
 ) -> Result<IssuedKey, ApiError> {
-    let keys = PasswordCreationRepo::new(pool);
     let key = token::token()?;
-    keys.delete_for_user(user.id)
-        .await
-        .map_err(ApiError::internal)?;
-    let row = keys
+    with_db!(pool, |db| PasswordCreationRepo::new(db)
+        .delete_for_user(user.id)
+        .await)
+    .map_err(ApiError::internal)?;
+    let row = with_db!(pool, |db| PasswordCreationRepo::new(db)
         .create(&NewPasswordCreation {
             id: key,
             user_id: user.id,
             activate,
             created: None,
         })
-        .await
-        .map_err(ApiError::internal)?;
+        .await)
+    .map_err(ApiError::internal)?;
     Ok(IssuedKey {
         key: row.id,
         user: user.clone(),
@@ -438,16 +438,14 @@ pub fn expires_at(created: NaiveDateTime) -> NaiveDateTime {
 /// An [`ApiError`]: 404 for an id that names no user, 403 for a caller who is
 /// not an administrator or who names their own account.
 pub async fn password_link(
-    pool: &SqlitePool,
+    pool: &DbPool,
     actor: &Actor,
     raw_id: &str,
 ) -> Result<IssuedKey, ApiError> {
     const CLASS: &str = "Omeka\\Entity\\User";
     let id = parse_id(CLASS, raw_id)?;
-    let Some(user) = UserRepo::new(pool)
-        .get(UserId(id))
-        .await
-        .map_err(db_error)?
+    let Some(user) =
+        with_db!(pool, |db| UserRepo::new(db).get(UserId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(CLASS, raw_id));
     };

@@ -19,8 +19,9 @@ use omeka_api::import2::scan::{self, SCAN_IN_REQUEST, SCAN_JOB};
 use omeka_api::import2::start::{self, Go, Refusal, StartError};
 use omeka_api::messages;
 use omeka_db::ids::{ImportId, JobId};
-use omeka_db::repos::{EntryRepo, ImportRepo, JobRepo, SettingRepo};
+use omeka_db::repos::{EntryRepo, ImportRepo, JobRepo};
 use omeka_db::rows::{ImportRow, ImportStatus, NewJob};
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -50,9 +51,9 @@ pub(super) async fn derive(
     import: ImportId,
     plan: ImportPlanV2,
 ) -> Result<Derived, ImportError> {
-    let files = omeka_api::settings::file_validation(&SettingRepo::new(&state.pool)).await?;
-    Ok(derive_import(
-        &state.pool,
+    let files = omeka_api::settings::file_validation(&state.pool).await?;
+    Ok(with_db!(&state.pool, |db| derive_import(
+        db,
         &state.archive_roots,
         &state.store,
         &state.import_caches,
@@ -61,7 +62,7 @@ pub(super) async fn derive(
         owners(actor),
         files,
     )
-    .await?)
+    .await)?)
 }
 
 #[derive(Serialize)]
@@ -87,18 +88,19 @@ pub(super) async fn scan(
                 return Err(ImportError::conflict("busy", messages::IMPORT_SCAN_BUSY));
             }
             let plan = stored_plan(&row)?;
-            if EntryRepo::new(&state.pool).count(row.id).await? > SCAN_IN_REQUEST {
+            if with_db!(&state.pool, |db| EntryRepo::new(db).count(row.id).await)? > SCAN_IN_REQUEST
+            {
                 let job = compose_job(&state, &actor, SCAN_JOB, row.id, None).await?;
                 return start_job(&state, job, StatusCode::ACCEPTED).await;
             }
-            let scanned = scan::scan(
-                &state.pool,
+            let scanned = with_db!(&state.pool, |db| scan::scan(
+                db,
                 &state.archive_roots,
                 &state.store,
                 row.id,
                 &plan.sources,
             )
-            .await?;
+            .await)?;
             Ok(json(StatusCode::OK, &scanned))
         }
         .await,
@@ -174,10 +176,9 @@ pub(super) async fn run(
                 return Err(cannot_run(row.status));
             }
             let plan = stored_plan(&row)?;
-            let files =
-                omeka_api::settings::file_validation(&SettingRepo::new(&state.pool)).await?;
-            let assessed = start::assess(
-                &state.pool,
+            let files = omeka_api::settings::file_validation(&state.pool).await?;
+            let assessed = with_db!(&state.pool, |db| start::assess(
+                db,
                 &state.archive_roots,
                 &state.store,
                 &state.import_caches,
@@ -186,14 +187,19 @@ pub(super) async fn run(
                 row.id,
                 plan,
             )
-            .await?;
+            .await)?;
             let go = Go {
                 digest: Some(&request.digest),
                 confirm: request.confirm,
             };
-            start::begin(&state.pool, &row, &assessed.check, go)
-                .await
-                .map_err(|error| refused(error, row.id))?;
+            with_db!(&state.pool, |db| start::begin(
+                db,
+                &row,
+                &assessed.check,
+                go
+            )
+            .await)
+            .map_err(|error| refused(error, row.id))?;
             let job = compose_job(&state, &actor, RUN_JOB, row.id, None).await?;
             start_job(&state, job, StatusCode::OK).await
         }
@@ -257,7 +263,10 @@ pub(super) async fn stop(
             if !is_busy(row.status) {
                 return Err(not_running(row.status));
             }
-            if !ImportRepo::new(&state.pool).request_stop(row.id).await? {
+            if !with_db!(&state.pool, |db| ImportRepo::new(db)
+                .request_stop(row.id)
+                .await)?
+            {
                 return Err(not_running(row.status));
             }
             Ok(json(StatusCode::ACCEPTED, &json!({})))
@@ -285,7 +294,7 @@ pub(super) async fn compose_job(
     if let Some(force) = force {
         args["force"] = force;
     }
-    let job = JobRepo::new(&state.pool)
+    let job = with_db!(&state.pool, |db| JobRepo::new(db)
         .create(&NewJob {
             owner_id: actor.user(),
             pid: None,
@@ -295,9 +304,11 @@ pub(super) async fn compose_job(
             log: None,
             started: None,
         })
-        .await?;
+        .await)?;
     if class != SCAN_JOB {
-        ImportRepo::new(&state.pool).set_job(import, job.id).await?;
+        with_db!(&state.pool, |db| ImportRepo::new(db)
+            .set_job(import, job.id)
+            .await)?;
     }
     Ok(job.id)
 }
@@ -306,9 +317,12 @@ pub(super) async fn compose_job(
 /// the job `error`, so the next read records the import failed.
 pub(super) async fn start_job(state: &AppState, job: JobId, status: StatusCode) -> Answer {
     if let Err(error) = state.jobs.start(job) {
-        let jobs = JobRepo::new(&state.pool);
-        jobs.append_log(job, &error.to_string()).await?;
-        jobs.finish(job, "error").await?;
+        with_db!(&state.pool, |db| JobRepo::new(db)
+            .append_log(job, &error.to_string())
+            .await)?;
+        with_db!(&state.pool, |db| JobRepo::new(db)
+            .finish(job, "error")
+            .await)?;
         return Err(ImportError::Internal(messages::import_job_not_started(
             error,
         )));

@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use omeka_api::import2::sweep::{Retention, SWEEP_JOB, sweep};
 use omeka_api::messages;
-use omeka_db::repos::SettingRepo;
+use omeka_db::with_db;
 
 use super::{Job, JobContext, JobError};
 
@@ -19,15 +19,14 @@ impl Job for ImportSweep {
     }
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
-        let settings =
-            omeka_api::settings::upload_settings(&SettingRepo::new(context.pool)).await?;
-        let swept = sweep(
-            context.pool,
+        let settings = omeka_api::settings::upload_settings(context.pool).await?;
+        let swept = with_db!(context.pool, |db| sweep(
+            db,
             &context.env.store,
             chrono::Utc::now().naive_utc(),
             Retention::from(settings),
         )
-        .await?;
+        .await)?;
         context
             .log(&messages::import_sweep_done(swept.imports, swept.uploads))
             .await
