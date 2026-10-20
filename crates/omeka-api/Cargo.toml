@@ -42,6 +42,9 @@ thiserror = { workspace = true }
 # `rt` feature is the minimum the blocking pool needs; every other tokio feature
 # this crate tests with is a dev-dependency.
 tokio = { version = "1", features = ["rt"] }
+# Import v2 stores paths and row keys NFC (`import2/plan/path.rs`), so a name
+# typed on macOS and one read from Linux are one entry. Already in the lock.
+unicode-normalization = "0.1"
 # The vocabulary importer reads the RDF serialisations upstream's EasyRdf reads
 # (`Stdlib/RdfImporter`): RDF/XML, Turtle, N-Triples and JSON-LD. oxrdfio is the
 # Oxigraph project's parser set, one crate per syntax behind one interface.
