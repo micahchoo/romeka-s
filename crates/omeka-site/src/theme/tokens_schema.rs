@@ -4,26 +4,25 @@
 //! - `web/admin/src/generated/themeSettings.json` ([`registry`]) is what the
 //!   Theme page renders: one entry per token, every preset with all its
 //!   values, the colour roles and the contrast pairs.
-//! - `web/admin/src/generated/themeSamples.json` ([`samples`]) pins the admin's
-//!   copy of the palette arithmetic to this crate's: brand colours with the
-//!   palettes they derive, colours with their nearest passing suggestion, and
-//!   stored maps with the palettes they resolve to. Only the admin's tests
-//!   import it, so it never reaches the bundle.
+//! - `web/admin/src/generated/themeSamples.json`
+//!   ([`crate::theme::tokens_samples::samples`]) pins the admin's copy of the
+//!   palette arithmetic to this crate's.
 //!
 //! A test in `tokens_tests.rs` keeps both files byte-identical.
 
 use serde::Serialize;
 
 use crate::theme::choices::{
-    ButtonStyle, ColorScheme, ContentWidth, Density, FontStack, HeaderLayout, HeaderStyle,
+    ButtonStyle, CardStyle, ColorScheme, ContentWidth, Density, FontStack, FooterLayout,
+    FooterTone, HeaderLayout, HeaderStyle, HeroStyle, ItemLayout, SearchDisplay,
 };
-use crate::theme::color::{AA, HexColor, nearest_passing};
+use crate::theme::color::AA;
 use crate::theme::custom_css::MAX_BYTES;
-use crate::theme::palette::{PAIRS, Palette, Role, Shade, derive};
-use crate::theme::presets::{NEW_SITE_PRESET, PRESETS, Preset, PresetId};
+use crate::theme::footer::{Licence, MAX_COLUMNS};
+use crate::theme::palette::{PAIRS, Palette, Role};
+use crate::theme::presets::{LEGACY_IDS, NEW_SITE_PRESET, PRESETS, Preset, PresetId};
 use crate::theme::tokens::{
-    Choices, DARK_EDITABLE, MAX_BASE_SIZE, MAX_RADIUS, MAX_TYPE_RATIO, MIN_BASE_SIZE,
-    MIN_TYPE_RATIO, resolve,
+    DARK_EDITABLE, MAX_BASE_SIZE, MAX_RADIUS, MAX_TYPE_RATIO, MIN_BASE_SIZE, MIN_TYPE_RATIO,
 };
 
 /// The kind of value a theme token holds.
@@ -56,6 +55,13 @@ pub enum ThemeSettingKind {
     Html,
     /// The site's own CSS, sanitised when written and when printed.
     Css,
+    /// A list of HTML fragments, each purified when printed.
+    HtmlColumns {
+        /// The most fragments the list holds.
+        max: usize,
+    },
+    /// A list of links in the navigation's stored shape.
+    Links,
 }
 
 /// One token the theme declares, with the control the admin renders.
@@ -74,8 +80,8 @@ const fn spec(key: &'static str, label: &'static str, kind: ThemeSettingKind) ->
 }
 
 /// Every token the bundled theme reads, in the order the Theme page shows
-/// them: the preset and the brand, the palette, the type, the layout, the
-/// header and footer content, and the custom CSS.
+/// them: the preset and the brand, the palette, the type, the layout and the
+/// structure, the header and footer content, and the custom CSS.
 pub static SETTINGS: &[ThemeSettingSpec] = &[
     spec("preset", "Preset", ThemeSettingKind::Preset),
     spec(
@@ -153,10 +159,56 @@ pub static SETTINGS: &[ThemeSettingSpec] = &[
         "Button style",
         ThemeSettingKind::Choice(ButtonStyle::KEYS),
     ),
+    spec(
+        "hero_style",
+        "Hero with a photograph",
+        ThemeSettingKind::Choice(HeroStyle::KEYS),
+    ),
+    spec(
+        "card_style",
+        "Cards",
+        ThemeSettingKind::Choice(CardStyle::KEYS),
+    ),
+    spec(
+        "search_display",
+        "Search",
+        ThemeSettingKind::Choice(SearchDisplay::KEYS),
+    ),
+    spec(
+        "item_layout",
+        "Item page",
+        ThemeSettingKind::Choice(ItemLayout::KEYS),
+    ),
+    spec(
+        "footer_layout",
+        "Footer layout",
+        ThemeSettingKind::Choice(FooterLayout::KEYS),
+    ),
+    spec(
+        "footer_tone",
+        "Footer colour",
+        ThemeSettingKind::Choice(FooterTone::KEYS),
+    ),
     spec("logo", "Logo", ThemeSettingKind::Asset),
     spec("banner", "Banner image", ThemeSettingKind::Asset),
     spec("banner_text", "Banner text", ThemeSettingKind::Text),
-    spec("footer_text", "Footer text", ThemeSettingKind::Html),
+    spec(
+        "footer_columns",
+        "Footer columns",
+        ThemeSettingKind::HtmlColumns { max: MAX_COLUMNS },
+    ),
+    spec("footer_links", "Footer links", ThemeSettingKind::Links),
+    spec("footer_contact", "Contact", ThemeSettingKind::Html),
+    spec(
+        "footer_licence",
+        "Licence",
+        ThemeSettingKind::Choice(Licence::KEYS),
+    ),
+    spec(
+        "show_powered_by",
+        "Show \"Powered by Romeka S\"",
+        ThemeSettingKind::Toggle,
+    ),
     spec("custom_css", "Custom CSS", ThemeSettingKind::Css),
 ];
 
@@ -166,6 +218,11 @@ pub static SETTINGS: &[ThemeSettingSpec] = &[
 pub fn registry() -> ThemeSettingsRegistry {
     ThemeSettingsRegistry {
         new_site_preset: NEW_SITE_PRESET.key(),
+        unset_preset: PresetId::default().key(),
+        legacy_presets: LEGACY_IDS
+            .iter()
+            .map(|&(legacy, preset)| (legacy, preset.key()))
+            .collect(),
         settings: SETTINGS.iter().map(entry).collect(),
         presets: PRESETS.iter().map(preset_entry).collect(),
         colours: Role::EDITABLE
@@ -211,6 +268,8 @@ fn entry(spec: &ThemeSettingSpec) -> ThemeSettingEntry {
             ThemeSettingKind::Css => ThemeSettingSchema::Css {
                 max_bytes: MAX_BYTES,
             },
+            ThemeSettingKind::HtmlColumns { max } => ThemeSettingSchema::HtmlColumns { max },
+            ThemeSettingKind::Links => ThemeSettingSchema::Links,
         },
     }
 }
@@ -240,6 +299,12 @@ fn preset_entry(preset: &Preset) -> PresetEntry {
             header_layout: preset.header_layout.key(),
             header_style: preset.header_style.key(),
             button_style: preset.button_style.key(),
+            hero_style: preset.structure.hero.key(),
+            card_style: preset.structure.cards.key(),
+            search_display: preset.structure.search.key(),
+            item_layout: preset.structure.item.key(),
+            footer_layout: preset.structure.footer.key(),
+            footer_tone: preset.structure.footer_tone.key(),
         },
     }
 }
@@ -263,100 +328,16 @@ pub(crate) fn camel(key: &str) -> String {
     out
 }
 
-/// The brand colours the samples derive from: the theme's own brands, the
-/// extremes (near white, near black, pure yellow) and a spread of hues.
-pub const SAMPLE_BRANDS: [&str; 16] = [
-    "#6aa9d6", "#7a4a14", "#0b57d0", "#fafafa", "#050505", "#ffff00", "#ff0000", "#00ff00",
-    "#0000ff", "#808080", "#f2f2f2", "#111111", "#ff69b4", "#00ced1", "#7c3aed", "#c0c0c0",
-];
-
-/// The stored maps the resolution samples cover: a map from before presets, a
-/// preset with derivation, a hand-set brand and colour, the dark and automatic
-/// schemes, and dark overrides under the automatic scheme and ignored under
-/// the dark one. Each map's keys are in alphabetical order, so the file
-/// is the same whether or not `serde_json` keeps insertion order.
-fn sample_maps() -> Vec<serde_json::Value> {
-    use serde_json::json;
-    vec![
-        json!({}),
-        json!({"brand_color": "#abcdef", "color_scheme": "auto", "text_color": "#111111"}),
-        json!({"preset": "archive"}),
-        json!({"brand_color": "#ffcc00", "link_color": "#003366", "preset": "civic"}),
-        json!({"brand_color": "#ff0000", "derive_palette": false, "preset": "gallery"}),
-        json!({"color_scheme": "dark", "muted_color": "#999999", "preset": "editorial"}),
-        json!({"color_scheme": "auto", "derive_palette": true, "preset": "plain"}),
-        json!({
-            "color_scheme": "auto",
-            "muted_color": "#444444",
-            "muted_color_dark": "#bbbbbb",
-            "preset": "editorial",
-            "text_color_dark": "#f0f0f0"
-        }),
-        json!({"color_scheme": "dark", "preset": "archive", "text_color_dark": "#f0f0f0"}),
-    ]
-}
-
-/// The samples that pin the admin's palette arithmetic to this crate's.
-#[must_use]
-pub fn samples() -> ThemeSamples {
-    let brands = SAMPLE_BRANDS.iter().filter_map(|raw| HexColor::parse(raw));
-    let derive_samples = brands
-        .clone()
-        .flat_map(|brand| {
-            PRESETS.iter().map(move |preset| DeriveSample {
-                brand: brand.hex(),
-                preset: preset.id.key(),
-                light: PaletteEntry::full(&derive(brand, preset.recipe, Shade::Light)),
-                dark: PaletteEntry::full(&derive(brand, preset.recipe, Shade::Dark)),
-            })
-        })
-        .collect();
-    let grounds = [
-        ["#ffffff"].as_slice(),
-        ["#ffffff", "#f5f7f8"].as_slice(),
-        ["#12161a"].as_slice(),
-        ["#808080"].as_slice(),
-    ];
-    let nearest = brands
-        .flat_map(|colour| {
-            grounds.iter().map(move |against| {
-                let against: Vec<HexColor> = against
-                    .iter()
-                    .filter_map(|raw| HexColor::parse(raw))
-                    .collect();
-                NearestSample {
-                    colour: colour.hex(),
-                    against: against.iter().map(|c| c.hex()).collect(),
-                    suggestion: nearest_passing(colour, &against, AA).hex(),
-                }
-            })
-        })
-        .collect();
-    let resolve_samples = sample_maps()
-        .into_iter()
-        .map(|stored| {
-            let tokens = resolve(&Choices::from_value(&stored));
-            ResolveSample {
-                light: PaletteEntry::full(&tokens.light),
-                dark: PaletteEntry::full(&tokens.dark),
-                scheme: tokens.scheme.key(),
-                stored,
-            }
-        })
-        .collect();
-    ThemeSamples {
-        derive: derive_samples,
-        nearest,
-        resolve: resolve_samples,
-    }
-}
-
 /// The whole theme settings registry, as `themeSettings.json` holds it.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThemeSettingsRegistry {
     /// The preset a site created through the API starts from.
     pub new_site_preset: &'static str,
+    /// The preset a map with no preset id reads as.
+    pub unset_preset: &'static str,
+    /// The ids earlier presets stored, each with the preset it reads as.
+    pub legacy_presets: std::collections::BTreeMap<&'static str, &'static str>,
     /// Every token, in schema order.
     pub settings: Vec<ThemeSettingEntry>,
     /// Every preset, in gallery order.
@@ -427,6 +408,13 @@ pub enum ThemeSettingSchema {
         #[serde(rename = "maxBytes")]
         max_bytes: usize,
     },
+    /// A list of HTML editors.
+    HtmlColumns {
+        /// The most fragments the list holds.
+        max: usize,
+    },
+    /// The navigation link editor.
+    Links,
 }
 
 /// A colour role and the key a site stores it under.
@@ -510,7 +498,7 @@ impl PaletteEntry {
         }
     }
 
-    fn full(palette: &Palette) -> Self {
+    pub(crate) fn full(palette: &Palette) -> Self {
         Self {
             on_brand: Some(palette.get(Role::OnBrand).hex()),
             ..Self::new(palette)
@@ -543,52 +531,16 @@ pub struct PresetTokens {
     pub header_style: &'static str,
     /// The button style key.
     pub button_style: &'static str,
-}
-
-/// The samples file.
-#[derive(Debug, Serialize)]
-pub struct ThemeSamples {
-    /// Brand colours with the palettes each preset derives from them.
-    pub derive: Vec<DeriveSample>,
-    /// Colours with the nearest colour that passes against a background set.
-    pub nearest: Vec<NearestSample>,
-    /// Stored maps with the palettes they resolve to.
-    pub resolve: Vec<ResolveSample>,
-}
-
-/// One derivation.
-#[derive(Debug, Serialize)]
-pub struct DeriveSample {
-    /// The brand colour.
-    pub brand: String,
-    /// The preset whose recipe derived it.
-    pub preset: &'static str,
-    /// The light palette.
-    pub light: PaletteEntry,
-    /// The dark palette.
-    pub dark: PaletteEntry,
-}
-
-/// One nearest-passing suggestion.
-#[derive(Debug, Serialize)]
-pub struct NearestSample {
-    /// The colour that may fail.
-    pub colour: String,
-    /// The backgrounds it must pass against.
-    pub against: Vec<String>,
-    /// The nearest colour that passes.
-    pub suggestion: String,
-}
-
-/// One resolution.
-#[derive(Debug, Serialize)]
-pub struct ResolveSample {
-    /// The stored map.
-    pub stored: serde_json::Value,
-    /// The scheme it resolves to.
-    pub scheme: &'static str,
-    /// The light palette it resolves to.
-    pub light: PaletteEntry,
-    /// The dark palette it resolves to.
-    pub dark: PaletteEntry,
+    /// The hero style key.
+    pub hero_style: &'static str,
+    /// The card style key.
+    pub card_style: &'static str,
+    /// The search display key.
+    pub search_display: &'static str,
+    /// The item page layout key.
+    pub item_layout: &'static str,
+    /// The footer layout key.
+    pub footer_layout: &'static str,
+    /// The footer tone key.
+    pub footer_tone: &'static str,
 }

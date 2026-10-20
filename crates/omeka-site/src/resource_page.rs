@@ -195,7 +195,7 @@ pub fn render_blocks(resource: &ResourceView, ctx: &RenderContext<'_>) -> String
 
 fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     match name {
-        "mediaEmbeds" => media_embeds(resource),
+        "mediaEmbeds" => media_embeds(resource, ctx),
         "values" => values(resource, &ctx.settings),
         "itemSets" => item_sets(resource, ctx),
         "sitePages" => site_pages(resource, ctx),
@@ -210,9 +210,17 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
 }
 
 /// `media-embeds.phtml`: each media's renderer markup inside `media-embeds`.
-fn media_embeds(resource: &ResourceView) -> String {
+/// Where upstream prints nothing for an item with no media, the theme shows a
+/// panel that says so, so the page keeps its shape.
+fn media_embeds(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     if resource.media_embeds.is_empty() {
-        return String::new();
+        return format!(
+            "<div class=\"media-embeds media-empty\">{}</div>",
+            crate::theme::cards::empty_thumb(
+                resource.kind,
+                ctx.translator().messages().no_media_attached
+            )
+        );
     }
     let mut out = String::from("<div class=\"media-embeds\">");
     for media in &resource.media_embeds {

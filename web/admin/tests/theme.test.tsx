@@ -53,12 +53,13 @@ import { first, installFetch, jsonResponse, listResponse, requestBody, requestsF
 describe('the theme draft', () => {
   it('the generated registry lists the presets, the pairs and every token', () => {
     expect(THEME_REGISTRY.presets.map((preset) => preset.id)).toEqual([
-      'plain',
-      'archive',
+      'exhibit',
+      'catalogue',
       'gallery',
-      'editorial',
-      'civic',
+      'journal',
+      'community',
     ]);
+    expect(THEME_REGISTRY.newSitePreset).toBe('exhibit');
     expect(THEME_REGISTRY.pairs).toContainEqual(['on-brand', 'brand']);
     expect(THEME_REGISTRY.settings.map((setting) => setting.key)).toContain('custom_css');
   });
@@ -66,7 +67,9 @@ describe('the theme draft', () => {
   it('a registry with an unknown catalogue key fails to parse', () => {
     expect(() =>
       parseThemeRegistry({
-        newSitePreset: 'plain',
+        newSitePreset: 'exhibit',
+        unsetPreset: 'catalogue',
+        legacyPresets: {},
         settings: [{ key: 'x', labelKey: 'themeSetting.nope', helpKey: 'theme.reset', kind: 'text' }],
         presets: [],
         colours: [],
@@ -76,39 +79,74 @@ describe('the theme draft', () => {
     ).toThrow();
   });
 
-  it('a map from before presets opens as plain, derivation off, with only its real changes', () => {
+  it('a map from before presets opens as catalogue, derivation off, with only its real changes', () => {
     const draft = draftFromStored({
-      brand_color: '#6aa9d6',
       text_color: '#111111',
-      heading_font: 'system-serif',
-      base_font_size: 16,
+      heading_font: 'ibm-plex-sans',
+      base_font_size: 15,
       logo: 7,
     });
-    expect(draft.preset).toBe('plain');
+    expect(draft.preset).toBe('catalogue');
     expect(draft.derive).toBe(false);
     expect(draft.overrides).toEqual({ text_color: '#111111' });
     expect(draft.content.logo).toBe('7');
   });
 
   it('a stored preset derives by default and keeps a refused value out', () => {
-    const draft = draftFromStored({ preset: 'civic', base_font_size: 400, link_color: 'red' });
+    const draft = draftFromStored({ preset: 'community', base_font_size: 400, link_color: 'red' });
     expect(draft.derive).toBe(true);
     expect(draft.overrides).toEqual({});
+  });
+
+  it('a preset id from before the current five opens as the preset that replaced it', () => {
+    expect(draftFromStored({ preset: 'plain' }).preset).toBe('catalogue');
+    expect(draftFromStored({ preset: 'archive' }).preset).toBe('exhibit');
+    expect(draftFromStored({ preset: 'editorial' }).preset).toBe('journal');
+    expect(draftFromStored({ preset: 'civic' }).preset).toBe('community');
+    expect(draftFromStored({ preset: 'gallery' }).preset).toBe('gallery');
+    const kept = draftFromStored({ preset: 'archive', card_style: 'row' });
+    expect(kept.overrides).toEqual({ card_style: 'row' });
+    expect(resolve(kept).tokens['hero_style']).toBe('cover');
+  });
+
+  it('an old footer text opens as the first column and saves as columns', () => {
+    const draft = draftFromStored({ preset: 'exhibit', footer_text: '<p>Open daily</p>' });
+    expect(draft.footer.columns).toEqual(['<p>Open daily</p>']);
+    expect(draft.footer.links).toBeNull();
+    const wire = draftWire(draft);
+    expect(wire['footer_columns']).toEqual(['<p>Open daily</p>']);
+    expect(wire).not.toHaveProperty('footer_text');
+    expect(wire).not.toHaveProperty('footer_links');
+  });
+
+  it('the footer links keep the navigation shape', () => {
+    const stored = [{ type: 'url', data: { label: 'Visit', url: 'https://example.org/', target_blank: false }, links: [] }];
+    const draft = draftFromStored({ preset: 'exhibit', footer_links: stored, footer_licence: 'cc-by', show_powered_by: false });
+    expect(draft.footer.links?.map((link) => link.url)).toEqual(['https://example.org/']);
+    expect(draftWire(draft)).toMatchObject({
+      footer_links: stored,
+      footer_licence: 'cc-by',
+      show_powered_by: false,
+    });
+    expect(draftFromStored({ footer_licence: 'copyleft' }).footer.licence).toBe('none');
   });
 
   it('the wire map carries the design, the content and trimmed custom CSS', () => {
     let draft = draftFromStored({ preset: 'archive', banner: 3 });
     draft = setOverride(draft, 'base_font_size', 19);
-    draft = { ...draft, customCss: '  a { color: red }\n', content: { ...draft.content, footer_text: ' ' } };
+    draft = { ...draft, customCss: '  a { color: red }\n', footer: { ...draft.footer, columns: [' ', '<p>A</p>'] } };
     expect(draftWire(draft)).toEqual({
-      preset: 'archive',
+      preset: 'exhibit',
       derive_palette: true,
       base_font_size: 19,
       custom_css: 'a { color: red }',
       logo: null,
       banner: 3,
       banner_text: null,
-      footer_text: null,
+      footer_columns: ['<p>A</p>'],
+      footer_contact: null,
+      footer_licence: 'none',
+      show_powered_by: true,
     });
   });
 
@@ -220,8 +258,8 @@ describe('the site Theme page', () => {
     const fetchMock = installFetch(themeHandler);
     render(<SitesPage param="1" rest={['1', 'theme']} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Civic/ }));
-    expect(screen.getByRole('button', { name: /^Civic/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(await screen.findByRole('button', { name: /^Community/ }));
+    expect(screen.getByRole('button', { name: /^Community/ })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
@@ -233,7 +271,7 @@ describe('the site Theme page', () => {
     const settings = body['o:theme_settings'];
     // The fixture's map predates presets, so derivation starts off, and a
     // preset keeps the switch where the curator left it.
-    expect(settings).toMatchObject({ preset: 'civic', derive_palette: false, logo: 7 });
+    expect(settings).toMatchObject({ preset: 'community', derive_palette: false, logo: 7 });
     expect(settings).not.toHaveProperty('brand_color');
     expect(settings).toMatchObject({
       resource_page_blocks: {
@@ -242,6 +280,32 @@ describe('the site Theme page', () => {
         },
         media: { main: ['mediaRender', 'values'] },
       },
+    });
+  });
+
+  it('the Footer section saves its own links, a licence and the credit switch', async () => {
+    const fetchMock = installFetch(themeHandler);
+    render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+    const footer = await screen.findByRole('group', { name: 'Footer' });
+    fireEvent.click(within(footer).getByRole('checkbox', { name: 'Use the links of the site menu' }));
+    fireEvent.click(within(footer).getByRole('button', { name: 'Add a link' }));
+    fireEvent.change(within(footer).getByLabelText('URL'), { target: { value: 'https://example.org/visit' } });
+    fireEvent.change(within(footer).getByLabelText('Label'), { target: { value: 'Visit us' } });
+    fireEvent.change(within(footer).getByLabelText('Licence'), { target: { value: 'cc-by-sa' } });
+    fireEvent.click(within(footer).getByRole('checkbox', { name: 'Show "Powered by Romeka S"' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    const patch = first(
+      requestsFor(fetchMock, '/api/sites/1').filter((request) => request.init?.method === 'PATCH'),
+    );
+    expect(requestBody(patch)['o:theme_settings']).toMatchObject({
+      footer_links: [
+        { type: 'url', data: { label: 'Visit us', url: 'https://example.org/visit', target_blank: false }, links: [] },
+      ],
+      footer_licence: 'cc-by-sa',
+      show_powered_by: false,
     });
   });
 

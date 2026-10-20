@@ -530,9 +530,11 @@ impl<'a> Loader<'a> {
             }
             None => String::new(),
         };
-        // `mediaRender.phtml`: `$resource->render()` on the media itself.
+        // `mediaRender.phtml`: `$resource->render()` on the media itself, with
+        // the renderer's own defaults (the large thumbnail, linked to the
+        // original).
         view.media_embeds.push(
-            self.media_ref(row, &item_url, &media_options(None, None))
+            self.media_ref(row, &item_url, &RenderOptions::default())
                 .await?,
         );
         Ok(view)
@@ -853,6 +855,7 @@ impl<'a> Loader<'a> {
         );
         view.jsonld = Some(self.jsonld(kind, row));
         view.owner = row.owner_id.map(|id| omeka_core::ids::UserId::new(id.0));
+        view.is_public = row.is_public;
         view.class_label = self.class_label(row.resource_class_id).await?;
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
@@ -1131,8 +1134,11 @@ impl<'a> Loader<'a> {
                 title: title.clone(),
                 thumbnail: square_thumbnail(self.base, &entry, &title),
             });
+            // `media-embeds.phtml`: `$media->render()` with no options, so the
+            // renderer's defaults hold: the large thumbnail, linked to the
+            // original.
             view.media_embeds.push(
-                self.media_ref(&entry, &item_url, &media_options(None, None))
+                self.media_ref(&entry, &item_url, &RenderOptions::default())
                     .await?,
             );
         }

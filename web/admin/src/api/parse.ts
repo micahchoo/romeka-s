@@ -286,7 +286,7 @@ const asRefAsset = (value: unknown, path: Path): ResourceRef<AssetId> =>
   asRef(value, path, brandId<'AssetId'>);
 
 /** Any JSON value kept verbatim, since the wire shape does not type it. */
-const asJsonValue = (value: unknown, path: Path): JsonValue => {
+export const asJsonValue = (value: unknown, path: Path): JsonValue => {
   if (
     value === null ||
     typeof value === 'string' ||

@@ -93,6 +93,19 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// The browse pager's summary, `%s results · page %s of %s` over the
+    /// total, the page and the page count. Upstream's pager has no summary.
+    pub pager_count: &'static str,
+    /// The note under a resource heading whose title is a fallback.
+    pub no_title_recorded: &'static str,
+    /// The panel an item page shows when the item has no media.
+    pub no_media_attached: &'static str,
+    /// The footer's link list, as its `nav` label.
+    pub footer_links: &'static str,
+    /// The footer's licence line when the site keeps every right.
+    pub all_rights_reserved: &'static str,
+    /// The header search field's placeholder.
+    pub search_placeholder: &'static str,
     /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
     /// It opens on the public page.` pattern, over the block's title. A Romeka
     /// string; upstream's preview runs the viewer.
@@ -162,6 +175,12 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    pager_count: "%s results · page %s of %s",
+    no_title_recorded: "No title recorded",
+    no_media_attached: "No media attached",
+    footer_links: "Footer links",
+    all_rights_reserved: "All rights reserved",
+    search_placeholder: "Search the collection",
     iiif_poster: "IIIF viewer: %s. It opens on the public page.",
     iiif_view_in_viewer: "View in the IIIF viewer",
     iiif_manifest: "IIIF manifest",
@@ -223,6 +242,13 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    // The theme's own strings, not in `es.po`.
+    pager_count: "%s resultados · página %s de %s",
+    no_title_recorded: "Sin título registrado",
+    no_media_attached: "Sin medios adjuntos",
+    footer_links: "Enlaces del pie de página",
+    all_rights_reserved: "Todos los derechos reservados",
+    search_placeholder: "Buscar en la colección",
     iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
     iiif_view_in_viewer: "Ver en el visor IIIF",
     iiif_manifest: "Manifiesto IIIF",

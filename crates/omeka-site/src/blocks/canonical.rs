@@ -52,14 +52,8 @@ pub fn content_hash(html: &str) -> String {
 /// A theme asset's URL version (`theme::ThemeAsset::version`) is the same
 /// digest of the asset's bytes.
 #[must_use]
-pub fn byte_hash(html: &str) -> String {
-    bytes_hash(html.as_bytes())
-}
-
-/// [`byte_hash`] over bytes that need not be text, such as a theme's PNG.
-#[must_use]
-pub fn bytes_hash(bytes: &[u8]) -> String {
-    hex(fnv1a(bytes))
+pub fn byte_hash(bytes: impl AsRef<[u8]>) -> String {
+    hex(fnv1a(bytes.as_ref()))
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {

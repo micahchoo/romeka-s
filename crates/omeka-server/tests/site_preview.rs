@@ -682,7 +682,7 @@ async fn preview_renders_the_theme_override_without_storing_it() {
     let page = send(app, common::get("/s/vis-pub/page/vis-pub-public", false)).await;
     assert_eq!(page.status, StatusCode::OK);
     assert!(
-        page.body.contains("--color-brand: #6aa9d6;"),
+        page.body.contains("--color-brand: #1d2a33;"),
         "the public page should keep the default brand"
     );
     assert!(
@@ -717,7 +717,7 @@ async fn preview_theme_override_validates_the_tokens() {
     .await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
     assert!(
-        answer.body.contains("--color-brand: #6aa9d6;"),
+        answer.body.contains("--color-brand: #1d2a33;"),
         "the hostile colour did not fall back"
     );
     assert!(

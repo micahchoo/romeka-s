@@ -6,8 +6,9 @@
 //! page and OpenSeadragon, with its button images, for the IIIF image block and
 //! the IIIF image media renderer; and Leaflet, with its stylesheet, for maps.
 //! They are libraries, so the document frame never links them; the view that
-//! needs one loads it.
+//! needs one loads it. The webfonts come last, from [`super::fonts`].
 
+use super::fonts::FONT_ASSETS;
 use super::style::{PLACEHOLDER_SVG, STYLE_CSS};
 use super::{AssetKind, ThemeAsset};
 
@@ -30,7 +31,22 @@ macro_rules! png {
 }
 
 /// The bundled theme's files, in the order the frame links its head assets.
-pub(super) static FILES: [ThemeAsset; 48] = [
+pub(super) static FILES: [ThemeAsset; OWN.len() + FONT_ASSETS.len()] = {
+    let mut out = [OWN[0]; OWN.len() + FONT_ASSETS.len()];
+    let mut index = 0;
+    while index < OWN.len() {
+        out[index] = OWN[index];
+        index += 1;
+    }
+    while index < out.len() {
+        out[index] = FONT_ASSETS[index - OWN.len()];
+        index += 1;
+    }
+    out
+};
+
+/// The theme's own sheet, placeholder and script, then the vendored files.
+const OWN: [ThemeAsset; 48] = [
     ThemeAsset {
         path: "css/style.css",
         kind: AssetKind::Stylesheet,
