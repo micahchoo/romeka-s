@@ -68,6 +68,10 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 # `tests/relations_batch.rs` counts the statements sqlx executes through this
 # crate's logger; sqlx logs each statement at debug through `log`.
 log = "0.4"
+# The import v2 evidence tests build real folder trees, symlinks included.
+tempfile = "3"
+# The import v2 tag tests write small real JPEG and TIFF files.
+image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }
 
 [lints]
 workspace = true
