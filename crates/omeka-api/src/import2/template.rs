@@ -230,6 +230,7 @@ pub fn list_read(tab: bool) -> ReadOptions {
         quote: Quote::Double,
         header_line: std::num::NonZeroU32::MIN,
         trim: true,
+        sheet_name: None,
     }
 }
 

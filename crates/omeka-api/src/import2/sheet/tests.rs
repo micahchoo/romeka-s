@@ -14,6 +14,7 @@ fn options(delimiter: Delimiter, quote: Quote, header_line: u32) -> ReadOptions 
         quote,
         header_line: NonZeroU32::new(header_line).expect("line"),
         trim: false,
+        sheet_name: None,
     }
 }
 

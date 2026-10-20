@@ -1,17 +1,22 @@
-//! The sheet reader: a CSV or TSV file read as rows with the plan's read
-//! options (`docs/import-v2.md`, "Sheets").
+//! The sheet reader: a CSV or TSV file, or a workbook sheet, read as rows
+//! with the plan's read options (`docs/import-v2.md`, "Sheets").
 //!
 //! [`read`] decodes, finds the delimiter when the plan says `auto`, takes
 //! the header from any line, and gives every row its key. It never fails on
 //! a row: a short, long or broken row is kept with its raw line and flags
 //! `cells-count`. It fails only on the sheet: an encoding it cannot decode
 //! (`encoding-unsupported`) or a header line past the end. [`guess`] is what
-//! the Sources tab offers before the plan chooses.
+//! the Sources tab offers before the plan chooses. A workbook (.xlsx, .xls,
+//! .ods, told by its bytes) gives its rows through [`workbook`] and then
+//! takes the same header, key and count rules as a CSV.
 
 mod decode;
 mod records;
 #[cfg(test)]
 mod tests;
+pub mod workbook;
+#[cfg(test)]
+mod workbook_tests;
 
 use std::collections::HashMap;
 use std::num::NonZeroU32;
@@ -22,9 +27,10 @@ use unicode_normalization::UnicodeNormalization;
 
 pub use decode::EncodingRead;
 use records::{Syntax, line_at, line_start, record_at, split_plain};
+pub use workbook::{Workbook, WorkbookKind};
 
 use super::decisions::RowKey;
-use super::plan::{ColumnRef, Delimiter, EncodingChoice, Quote, ReadOptions, SheetPlan};
+use super::plan::{ColumnRef, Delimiter, Encoding, EncodingChoice, Quote, ReadOptions, SheetPlan};
 
 /// No reader loads a larger file whole (`docs/import-v2.md`, "Bytes").
 pub const MAX_SHEET_BYTES: u64 = 64 * 1024 * 1024;
@@ -47,8 +53,11 @@ const GUESS_RECORDS: usize = 200;
 pub struct Sheet {
     /// SHA-256 of the bytes, lower-case hex: the plan's `hash`.
     pub hash: String,
+    /// `None` for a CSV or TSV.
+    pub workbook: Option<Workbook>,
+    /// UTF-8, not guessed, for a workbook.
     pub encoding: EncodingRead,
-    /// Never [`Delimiter::Auto`].
+    /// Never [`Delimiter::Auto`]; for a workbook, the plan's or a comma.
     pub delimiter: Delimiter,
     pub delimiter_guessed: bool,
     pub columns: Vec<Column>,
@@ -132,6 +141,15 @@ pub enum SheetError {
     TooLarge(u64),
     #[error("the sheet cannot be read: {0}")]
     Io(String),
+    #[error("the workbook cannot be read: {0}")]
+    Workbook(String),
+    #[error("the workbook has no worksheet named \"{0}\"")]
+    NoSheet(String),
+    #[error(
+        "the workbook unpacks to more than {} bytes",
+        workbook::MAX_UNPACKED_BYTES
+    )]
+    Unpacked(u64),
 }
 
 /// The plan's key column: its join column, else its item key column.
@@ -171,6 +189,33 @@ pub fn read(
     options: &ReadOptions,
     key: Option<&ColumnRef>,
 ) -> Result<Sheet, SheetError> {
+    if let Some(kind) = WorkbookKind::sniff(bytes) {
+        let (book, records) = workbook::rows(
+            bytes,
+            kind,
+            options.sheet_name.as_deref(),
+            options.header_line.get(),
+        )?;
+        let mut records = records.into_iter();
+        let decoded = Decoded {
+            workbook: Some(book),
+            encoding: EncodingRead {
+                encoding: Encoding::Utf8,
+                confidence: None,
+            },
+            delimiter: match options.delimiter {
+                Delimiter::Auto => Delimiter::Comma,
+                chosen => chosen,
+            },
+            delimiter_guessed: false,
+        };
+        return Ok(rows_of(bytes, options, key, decoded, |_| records.next()));
+    }
+    if workbook::is_packed(bytes) {
+        return Err(SheetError::Workbook(
+            "it is packed like a workbook but holds no .xlsx, .xls or .ods sheet".to_string(),
+        ));
+    }
     let (text, encoding) =
         decode::decode(bytes, options.encoding).map_err(SheetError::EncodingUnsupported)?;
     let header_line = options.header_line.get();
@@ -187,12 +232,36 @@ pub fn read(
         delimiter: delimiter.as_char().unwrap_or(','),
         quote,
     };
-
     let mut parsed = Records::new(&text, start, header_line, syntax);
-    let head = parsed
-        .next_record(0)
-        .map(|record| record.fields)
-        .unwrap_or_default();
+    let decoded = Decoded {
+        workbook: None,
+        encoding,
+        delimiter,
+        delimiter_guessed,
+    };
+    Ok(rows_of(bytes, options, key, decoded, |width| {
+        parsed.next_record(width)
+    }))
+}
+
+/// How the bytes were read, before any row.
+struct Decoded {
+    workbook: Option<Workbook>,
+    encoding: EncodingRead,
+    delimiter: Delimiter,
+    delimiter_guessed: bool,
+}
+
+/// The sheet whose header is the first record `next` gives and whose rows
+/// are the rest. `next` takes the header's width.
+fn rows_of(
+    bytes: &[u8],
+    options: &ReadOptions,
+    key: Option<&ColumnRef>,
+    decoded: Decoded,
+    mut next: impl FnMut(usize) -> Option<Parsed>,
+) -> Sheet {
+    let head = next(0).map(|record| record.fields).unwrap_or_default();
     let columns: Vec<Column> = (0_u32..)
         .zip(head)
         .map(|(index, header)| {
@@ -209,7 +278,7 @@ pub fn read(
     let mut rows = Vec::new();
     let mut counts = Counts::default();
     let width = columns.len();
-    while let Some(record) = parsed.next_record(width) {
+    while let Some(record) = next(width) {
         let tidy = |cell: String| {
             if options.trim {
                 cell.trim().to_string()
@@ -257,16 +326,17 @@ pub fn read(
     if let Some(column) = key {
         key_rows(&mut rows, column);
     }
-    Ok(Sheet {
+    Sheet {
         hash: omeka_media::store::sha256_hex(bytes),
-        encoding,
-        delimiter,
-        delimiter_guessed,
+        workbook: decoded.workbook,
+        encoding: decoded.encoding,
+        delimiter: decoded.delimiter,
+        delimiter_guessed: decoded.delimiter_guessed,
         columns,
         rows,
         notes,
         counts,
-    })
+    }
 }
 
 /// What the Sources tab offers before the plan chooses.
@@ -281,6 +351,16 @@ pub struct Guess {
 
 #[must_use]
 pub fn guess(bytes: &[u8]) -> Guess {
+    if workbook::is_packed(bytes) {
+        return Guess {
+            encoding: Ok(EncodingRead {
+                encoding: Encoding::Utf8,
+                confidence: None,
+            }),
+            delimiter: Delimiter::Comma,
+            header_line: NonZeroU32::MIN,
+        };
+    }
     let decoded = decode::decode(bytes, EncodingChoice::Auto(super::plan::Auto::Auto));
     let text = match &decoded {
         Ok((text, _)) => text.clone(),

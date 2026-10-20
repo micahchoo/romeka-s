@@ -19,8 +19,8 @@
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff and webp and stores the three derivatives.
-//! - [`image_metadata`]: the EXIF tags and pixel size of an image, for the
-//!   archive import's tag preview.
+//! - [`image_metadata`]: the EXIF, IPTC and XMP tags and pixel size of an
+//!   image, for the archive import's tags.
 //! - [`data`]: the typed `media.data` payloads.
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
 //!

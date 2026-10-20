@@ -70,6 +70,10 @@ pub struct ReadOptions {
     /// The 1-based line that holds the header.
     pub header_line: NonZeroU32,
     pub trim: bool,
+    /// The workbook sheet to read; `None` reads the first. A plan written
+    /// before workbooks were sheets has no member, and reads the first too.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sheet_name: Option<String>,
 }
 
 /// The encodings the sheet reader decodes.
