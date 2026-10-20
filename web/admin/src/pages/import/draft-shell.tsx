@@ -46,7 +46,13 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
     store.close();
   }, [store]);
   const draft = useMemo<Draft>(
-    () => ({ ...snapshot, id: initial.id, place, change: (edit) => { store.change(edit); } }),
+    () => ({
+      ...snapshot,
+      id: initial.id,
+      place,
+      change: (edit) => { store.change(edit); },
+      adopt: (next) => { store.adopt(next); },
+    }),
     [snapshot, initial.id, place, store],
   );
   const { detail } = snapshot;

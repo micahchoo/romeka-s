@@ -18,6 +18,7 @@ mod evidence;
 mod facts;
 mod identical;
 mod names;
+pub mod pairs;
 mod query;
 mod sample;
 mod sheets;
@@ -44,8 +45,8 @@ pub use facts::{Bucket, BucketCount, MediaKind, PAGE, SAMPLES, ShapeFacts, Shape
 pub use identical::{IdenticalFiles, IdenticalView};
 pub use names::{NameWords, NameWordsQuery, WordCount};
 pub use query::{
-    EntriesQuery, EntryView, MAX_PER_PAGE, Page, PageQuery, RecordView, RecordsQuery, SetFilter,
-    TemplateFilter, Unused,
+    EntriesQuery, EntryKind, EntryView, MAX_PER_PAGE, Page, PageQuery, RecordView, RecordsQuery,
+    SetFilter, TemplateFilter, Unused,
 };
 pub use sheets::{MAX_BYTES, MAX_SHEETS, ReadSheet, SheetCache, staging_path};
 pub use unpaired::{Unpaired, UnpairedFile, UnpairedQuery, UnpairedRow};

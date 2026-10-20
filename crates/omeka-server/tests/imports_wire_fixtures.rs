@@ -19,7 +19,8 @@ use axum::http::StatusCode;
 use imports_fixture::{BHC_PATTERN, Fixture, JPEG, TIFF, bhc_006, fixture};
 use imports_wire::recorder::Fixtures;
 use imports_wire::scene::{
-    REGISTER, add_date, at, checked, existing_item, ok, refused, rich_plan, upload_list,
+    REGISTER, add_date, at, checked, existing_item, ok, pairs_answers, refused, rich_plan,
+    upload_list,
 };
 use omeka_db::ids::ImportId;
 use omeka_db::repos::ImportRepo;
@@ -170,6 +171,7 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
 
     conflicts_before_a_run(&fixture, &mut out, &draft, &id).await;
     runs(&fixture, &mut out, &id).await;
+    pairs_answers(&fixture, &mut out, &id).await;
     out.finish();
 }
 

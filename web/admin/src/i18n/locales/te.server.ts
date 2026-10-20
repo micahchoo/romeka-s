@@ -211,6 +211,8 @@ export const teServer: ServerCatalogue = {
   'server.importListUnread': 'జాబితాను చదవడం సాధ్యం కాలేదు: {reason}',
   'server.importListNoIdentifier':
     'జాబితాలో ఐడెంటిఫైయర్ కాలమ్ లేదు, కాబట్టి దాని వరుసలు వాటి ఐటమ్స్‌ను కనుగొనలేవు. మీరు డౌన్‌లోడ్ చేసిన జాబితా యొక్క ఐడెంటిఫైయర్ కాలమ్‌ను ఉంచండి.',
+  'server.importPairsColumns':
+    'జాబితాలో Row కాలమ్, Files కాలమ్ ఉండాలి. మీరు డౌన్‌లోడ్ చేసిన జాబితాలోని రెండు కాలమ్‌లను అలాగే ఉంచండి.',
   'server.importFileUnreadable': '"{path}" ఫైల్‌ను చదవడం సాధ్యం కాలేదు: {reason}',
   'server.importFileRefused': '"{path}" ఫైల్‌ను జోడించలేదు: {reason}',
   'server.importFileNotStored': '"{path}" ఫైల్‌ను నిల్వ చేయలేకపోయాము: {reason}',

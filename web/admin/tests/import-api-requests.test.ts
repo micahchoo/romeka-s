@@ -59,6 +59,9 @@ const REQUESTS: readonly Request[] = [
     options: { entries: { page: 1, perPage: 10, flag: 'not-media', text: 'Misc', used: false, folder: 'Misc' } },
   },
   { include: ['entries'], options: { entries: { paired: true } } },
+  { include: ['entries'], options: { entries: { kind: 'file', folder: 'Misc' } } },
+  { include: ['entries'], options: { entries: { kind: 'row' } } },
+  { include: ['entries'], options: { entries: { sheet: 'register', paired: false, perPage: 50 } } },
   ...UNUSED_REASONS.map(entriesFor),
   { include: ['identical'], options: { identical: { page: 1, perPage: 2, text: 'loose' } } },
   {
@@ -76,7 +79,7 @@ describe('the preview requests', () => {
   });
 
   it('name every unused reason the entries filter takes', () => {
-    expect(UNUSED_REASONS).toEqual(['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'noRecord']);
+    expect(UNUSED_REASONS).toEqual(['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'identical', 'noRow', 'noRecord']);
   });
 
   it('carry a plan to preview without saving it, exactly as the plan was read', async () => {

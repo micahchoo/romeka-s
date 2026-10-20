@@ -209,6 +209,8 @@ export const mrServer: ServerCatalogue = {
   'server.importListUnread': 'सूची वाचता येत नाही: {reason}',
   'server.importListNoIdentifier':
     'सूचीमध्ये ओळखकर्ता (Identifier) स्तंभ नाही, त्यामुळे त्याच्या ओळी त्यांचे आयटम शोधू शकत नाहीत. तुम्ही डाउनलोड केलेल्या सूचीचा Identifier स्तंभ कायम ठेवा.',
+  'server.importPairsColumns':
+    'सूचीमध्ये Row स्तंभ आणि Files स्तंभ असणे आवश्यक आहे. तुम्ही डाउनलोड केलेल्या सूचीतील दोन्ही स्तंभ तसेच ठेवा.',
   'server.importFileUnreadable': '"{path}" ही फाईल वाचता आली नाही: {reason}',
   'server.importFileRefused': '"{path}" ही फाईल जोडली गेली नाही: {reason}',
   'server.importFileNotStored': '"{path}" ही फाईल जतन करता आली नाही: {reason}',

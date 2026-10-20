@@ -274,3 +274,167 @@
 .import-back:hover {
   background: var(--bg);
 }
+
+/* The review lists (`lists/`). */
+.import-draft .muted {
+  color: var(--text-muted);
+}
+
+.import-count {
+  margin: 0 0 var(--space-2);
+}
+
+.import-bulk,
+.import-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.import-bulk p,
+.import-note p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.import-group {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.import-group > p {
+  margin: 0 0 var(--space-2);
+}
+
+.import-pill {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+
+.import-example ul,
+.import-pick {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.import-pick {
+  display: grid;
+  gap: var(--space-1);
+  border: 0;
+}
+
+.import-pick li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.import-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+}
+
+.import-pair-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  margin-bottom: var(--space-4);
+}
+
+.import-chart ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.import-chart a {
+  display: grid;
+  grid-template-columns: 9rem 1fr 4rem;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.import-chart a:hover .import-chart-label {
+  text-decoration: underline;
+}
+
+.import-chart-track {
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.import-chart-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.import-chart-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.import-chip .link-button {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}
+
+.import-drop {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-4);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+/* The file input stays in the label, so the label opens it and keyboard focus lands on it. */
+.import-file {
+  position: relative;
+}
+
+.import-file:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.import-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

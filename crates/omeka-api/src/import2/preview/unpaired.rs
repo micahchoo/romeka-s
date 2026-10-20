@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::query::{Page, PageQuery, page};
 use crate::import2::decisions::{EntryRef, FileRef, RowRef};
-use crate::import2::model::{Model, Parent, RecordId};
+use crate::import2::model::{Model, Parent, Record, RecordId};
 use crate::import2::plan::{RecordKind, SlotName, Term};
 use crate::import2::values::fold_title;
 
@@ -47,32 +47,35 @@ pub struct UnpairedFile {
     pub record: RecordId,
 }
 
+/// The list rows whose item has no file, with that item, in entry order.
+pub(super) fn unpaired_rows(model: &Model) -> impl Iterator<Item = (&RowRef, &Record)> {
+    model.entries.iter().filter_map(|state| {
+        let EntryRef::Row(row) = &state.entry else {
+            return None;
+        };
+        let record = model.record(state.record?);
+        (record.kind == RecordKind::Item && record.files.is_empty()).then_some((row, record))
+    })
+}
+
 pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
     let title = SlotName::Term(Term::parse("dcterms:title").unwrap_or_else(|_| unreachable!()));
     let rows_query = query.rows.clone().unwrap_or_default();
     let rows_text = rows_query.text.as_deref().map(fold_title);
-    let mut rows: Vec<(String, UnpairedRow)> = model
-        .entries
-        .iter()
-        .filter_map(|state| {
-            let EntryRef::Row(row) = &state.entry else {
-                return None;
-            };
-            let record = model.record(state.record?);
-            (record.kind == RecordKind::Item && record.files.is_empty()).then(|| {
-                (
-                    fold_title(row.key.as_str()),
-                    UnpairedRow {
-                        row: row.clone(),
-                        record: record.id,
-                        title: record
-                            .slots
-                            .get(&title)
-                            .and_then(|values| values.first())
-                            .map(|value| value.value.text.clone()),
-                    },
-                )
-            })
+    let mut rows: Vec<(String, UnpairedRow)> = unpaired_rows(model)
+        .map(|(row, record)| {
+            (
+                fold_title(row.key.as_str()),
+                UnpairedRow {
+                    row: row.clone(),
+                    record: record.id,
+                    title: record
+                        .slots
+                        .get(&title)
+                        .and_then(|values| values.first())
+                        .map(|value| value.value.text.clone()),
+                },
+            )
         })
         .filter(|(key, row)| {
             rows_text.as_ref().is_none_or(|text| {

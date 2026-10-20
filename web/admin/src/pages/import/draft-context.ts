@@ -6,6 +6,7 @@
  */
 import { createContext, useContext } from 'react';
 import type { ImportId, ImportPlan } from '../../api/import-plan';
+import type { ImportDetail } from '../../api/import-view';
 import type { PlanSnapshot } from './plan-store';
 import type { Place } from './screens';
 
@@ -14,6 +15,8 @@ export interface Draft extends PlanSnapshot {
   readonly place: Place;
   /** Edits the plan; ignored when `editable` is false. */
   readonly change: (edit: (plan: ImportPlan) => ImportPlan) => void;
+  /** Takes the import another route answered (an added list); ignored while an edit waits to be saved. */
+  readonly adopt: (detail: ImportDetail) => void;
 }
 
 export const DraftContext = createContext<Draft | null>(null);

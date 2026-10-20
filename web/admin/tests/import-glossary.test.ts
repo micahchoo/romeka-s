@@ -1,6 +1,6 @@
 /**
  * Plain words on the import screens: no English string of the `import`
- * namespace uses a contract word a person in Simple mode must never see.
+ * and `import-lists` namespaces uses a contract word a person in Simple mode must never see.
  *
  * The lists are the approved prototype's (round 4, `GLOSSARY.md`, checked by
  * its `glossary-check.js`): the left column of its table is Simple's banned
@@ -9,7 +9,10 @@
  * list less those words. To ban a word, add it here.
  */
 import { describe, expect, it } from 'vitest';
-import { en } from '../src/i18n/namespaces/import';
+import { en as importEn } from '../src/i18n/namespaces/import';
+import { en as listsEn } from '../src/i18n/namespaces/import-lists';
+
+const en: Readonly<Record<string, string>> = { ...importEn, ...listsEn };
 
 const BANNED = [
   'slot', 'source ref', 'source', 'staging', 'evidence', 'evidence index', 'rescan', 'walk', 'entry',
