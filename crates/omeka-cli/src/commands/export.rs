@@ -38,8 +38,8 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::export::{self, Selection};
 use omeka_api::wire::Value;
 use omeka_api::wire::item::Item as ItemDocument;
+use omeka_db::Location;
 use omeka_db::ids::UserId;
-use omeka_db::open_file;
 
 use crate::csv;
 use crate::error::CliError;
@@ -48,7 +48,7 @@ use crate::terms;
 /// Input for `romeka export jsonld`.
 #[derive(Debug, Clone)]
 pub struct JsonldOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub out: PathBuf,
     /// An [`export::resources`] name.
     pub resource: String,
@@ -60,7 +60,7 @@ pub struct JsonldOptions {
 /// Input for `romeka export csv`.
 #[derive(Debug, Clone)]
 pub struct CsvOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub out: PathBuf,
     pub item_set: Option<u64>,
     /// The property terms to export, in order. Empty derives the column set
@@ -123,7 +123,7 @@ pub async fn run_jsonld(options: &JsonldOptions) -> Result<JsonldReport, CliErro
     }
     let base = BaseUrl::parse(&options.base_url)
         .map_err(|error| CliError::message(format!("invalid --base-url: {error}")))?;
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     let selection = Selection {
         resource: options.resource.clone(),
         item_set: options.item_set,
@@ -144,7 +144,7 @@ pub async fn run_jsonld(options: &JsonldOptions) -> Result<JsonldReport, CliErro
 /// A [`CliError::Message`] for an unknown column term, the read layer's error,
 /// or a [`CliError::Io`] when the file cannot be written.
 pub async fn run_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     for term in &options.columns {
         terms::resolve_property(&pool, term)
             .await

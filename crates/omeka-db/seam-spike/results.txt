@@ -1,0 +1,20 @@
+N=0
+dev spike-generic times=.640004649 .682662552 .661857721 size=58175624
+dev spike-enum times=.651608254 .678630828 .682075647 size=58170720
+release spike-generic times=2.054545870 1.882493060 1.974729269 size=4612016
+release spike-enum times=1.855791359 2.023870023 2.088792872 size=4611184
+N=60
+dev spike-generic times=4.222914527 4.112174677 4.197667633 size=79209016
+dev spike-enum times=2.938467201 2.979564548 2.967437318 size=70216088
+release spike-generic times=12.490035135 12.382056679 16.150644212 size=6979072
+release spike-enum times=8.036040680 8.192854157 8.487459234 size=6185216
+N=180
+dev spike-generic times=11.193508740 10.668923654 10.928135834 size=113475784
+dev spike-enum times=7.531558292 7.275736098 6.943113206 size=86376120
+release spike-generic times=27.657346261 27.776080588 27.353149212 size=11214880
+release spike-enum times=17.313999237 16.138404571 16.298690950 size=8503872
+
+The real binary, `cargo build --release -p omeka-cli`, unstripped, 2026-10-20:
+romeka at the base commit (SQLite only)        50003840
+romeka with the enum seam, --no-default-features 49988832
+romeka with the enum seam, default (mysql)       57696688

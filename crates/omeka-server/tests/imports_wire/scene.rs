@@ -11,17 +11,18 @@ use crate::common;
 use crate::imports_fixture::{ADMIN, BHC_PATTERN, Fixture};
 use omeka_db::repos::{ItemRepo, PropertyRepo, ValueRepo, VocabularyRepo};
 use omeka_db::rows::{NewItem, NewProperty, NewValue};
+use omeka_db::with_db;
 
 pub const REGISTER: &str = "Id,Title,Date,Notes,Notes\nBHC_006_AF_001,Brass lamp,1950,a,b\nBHC_006_AF_002,Copper pot,circa 1950s?,,\nBHC_006_PH_101,Portrait,1951-03,,\nBHC_006_ZZ_999,Ghost row,1960,,\nBHC_006_AF_003,Short row\n";
 
 /// the create plan's match scope, and a target for the delete plan.
 pub async fn existing_item(fixture: &Fixture) {
-    let dcterms = VocabularyRepo::new(&fixture.pool)
+    let dcterms = with_db!(&fixture.pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
-        .await
-        .unwrap()
-        .unwrap();
-    let identifier = PropertyRepo::new(&fixture.pool)
+        .await)
+    .unwrap()
+    .unwrap();
+    let identifier = with_db!(&fixture.pool, |db| PropertyRepo::new(db)
         .create(&NewProperty {
             owner_id: None,
             vocabulary_id: dcterms.id,
@@ -29,13 +30,13 @@ pub async fn existing_item(fixture: &Fixture) {
             label: "Identifier".into(),
             comment: None,
         })
-        .await
-        .unwrap();
-    let item = ItemRepo::new(&fixture.pool)
+        .await)
+    .unwrap();
+    let item = with_db!(&fixture.pool, |db| ItemRepo::new(db)
         .create(&NewItem::default())
-        .await
-        .unwrap();
-    ValueRepo::new(&fixture.pool)
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: item.resource.id,
             property_id: identifier.id,
@@ -47,17 +48,17 @@ pub async fn existing_item(fixture: &Fixture) {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 }
 
 pub async fn add_date(fixture: &Fixture) {
-    let dcterms = VocabularyRepo::new(&fixture.pool)
+    let dcterms = with_db!(&fixture.pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
-        .await
-        .unwrap()
-        .unwrap();
-    PropertyRepo::new(&fixture.pool)
+        .await)
+    .unwrap()
+    .unwrap();
+    with_db!(&fixture.pool, |db| PropertyRepo::new(db)
         .create(&NewProperty {
             owner_id: None,
             vocabulary_id: dcterms.id,
@@ -65,8 +66,8 @@ pub async fn add_date(fixture: &Fixture) {
             label: "Date".to_string(),
             comment: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 }
 
 pub fn column(sheet: &str, index: u32, header: &str) -> Value {

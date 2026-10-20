@@ -7,6 +7,7 @@
 use omeka_db::ids::ItemSetId;
 use omeka_db::repos::ItemSetRepo;
 use omeka_db::rows::NewItemSet;
+use omeka_db::with_db;
 
 use crate::errors::ApiError;
 use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
@@ -29,13 +30,13 @@ const CONTROL: &[&str] = &[
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
     let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
-    let row = ItemSetRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| ItemSetRepo::new(db)
         .create(&NewItemSet {
             resource: hydrated.resource,
             is_open: payload.bool_member("o:is_open", false),
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     resource::store_values(
         api,
         row.resource.id,
@@ -55,8 +56,11 @@ pub async fn update(
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_SET_CLASS, raw_id)?;
-    let repo = ItemSetRepo::new(api.pool());
-    let Some(mut row) = repo.get(ItemSetId(id)).await.map_err(db_error)? else {
+    let Some(mut row) = with_db!(api.pool(), |db| ItemSetRepo::new(db)
+        .get(ItemSetId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(ITEM_SET_CLASS, raw_id));
     };
     api.authorize_resource(ITEM_SET_CLASS, row.resource.owner_id)?;
@@ -65,7 +69,7 @@ pub async fn update(
     if !partial || payload.has("o:is_open") {
         row.is_open = payload.bool_member("o:is_open", false);
     }
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| ItemSetRepo::new(db).update(&row).await).map_err(db_error)?;
     resource::store_values(
         api,
         row.resource.id,
@@ -83,14 +87,17 @@ pub async fn update(
 /// `Entity/Resource.php:85` cascades remove to them.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_SET_CLASS, raw_id)?;
-    let repo = ItemSetRepo::new(api.pool());
-    let Some(row) = repo.get(ItemSetId(id)).await.map_err(db_error)? else {
+    let Some(row) = with_db!(api.pool(), |db| ItemSetRepo::new(db)
+        .get(ItemSetId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(ITEM_SET_CLASS, raw_id));
     };
     access::resource_entity(api.actor(), ITEM_SET_CLASS, row.resource.owner_id)?;
     let answer = crate::read::item_set_document(api, &row).await?;
     values::clear(api, row.resource.id).await?;
-    repo.delete(row.id()).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| ItemSetRepo::new(db).delete(row.id()).await).map_err(db_error)?;
     fulltext::remove(api, "item_sets", row.resource.id).await?;
     Ok(answer)
 }

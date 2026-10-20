@@ -27,10 +27,11 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
+use omeka_db::Location;
 use omeka_db::ids::PropertyId;
-use omeka_db::open_file;
 use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, TemplateRow};
+use omeka_db::with_db;
 
 use crate::error::CliError;
 
@@ -44,7 +45,7 @@ pub use session::Where;
 /// Input for `romeka import template`.
 #[derive(Debug, Clone)]
 pub struct TemplateOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub file: PathBuf,
 }
 
@@ -96,9 +97,12 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
         return Err(CliError::message("the template label is empty"));
     }
 
-    let pool = open_file(&options.database).await?;
-    let templates = TemplateRepo::new(&pool);
-    if templates.find_by_label(&payload.label).await?.is_some() {
+    let pool = options.database.open().await?;
+    if with_db!(&pool, |db| TemplateRepo::new(db)
+        .find_by_label(&payload.label)
+        .await)?
+    .is_some()
+    {
         return Err(CliError::message(format!(
             "a template labelled \"{}\" already exists",
             payload.label
@@ -108,7 +112,7 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
     let resource_class_id = match payload.resource_class {
         Some(reference) => {
             let id = omeka_db::ids::ClassId::from(reference.id);
-            if ClassRepo::new(&pool).get(id).await?.is_none() {
+            if with_db!(&pool, |db| ClassRepo::new(db).get(id).await)?.is_none() {
                 return Err(CliError::message(format!(
                     "resource class {} does not exist",
                     reference.id
@@ -119,11 +123,10 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
         None => None,
     };
 
-    let properties = PropertyRepo::new(&pool);
     let mut resolved = Vec::with_capacity(payload.properties.len());
     for field in payload.properties {
         let id = PropertyId::from(field.property.id);
-        if properties.get(id).await?.is_none() {
+        if with_db!(&pool, |db| PropertyRepo::new(db).get(id).await)?.is_none() {
             return Err(CliError::message(format!(
                 "property {} does not exist",
                 field.property.id
@@ -132,7 +135,7 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
         resolved.push((id, field));
     }
 
-    let template = templates
+    let template = with_db!(&pool, |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: None,
             resource_class_id,
@@ -140,10 +143,10 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
             description_property_id: None,
             label: payload.label,
         })
-        .await?;
+        .await)?;
 
     for (position, (property_id, field)) in resolved.into_iter().enumerate() {
-        templates
+        with_db!(&pool, |db| TemplateRepo::new(db)
             .add_property(&NewTemplateProperty {
                 resource_template_id: template.id,
                 property_id,
@@ -155,7 +158,7 @@ pub async fn import_template(options: &TemplateOptions) -> Result<TemplateRow, C
                 is_private: field.is_private,
                 default_lang: field.default_lang,
             })
-            .await?;
+            .await)?;
     }
     Ok(template)
 }

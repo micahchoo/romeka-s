@@ -9,25 +9,28 @@
 //! theme-own keys to keep.
 
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::repos::{Paging, SiteFilter, SiteRepo, SiteSettingRepo};
+use omeka_db::with_db;
 use omeka_site::settings::SITE_SETTINGS;
 use serde_json::{Map, Value};
-use sqlx::SqlitePool;
 
 /// Move every site setting a site hides in its `theme_settings_<theme>` blob
 /// into its own `site_setting` row. Returns how many rows were written.
 ///
 /// # Errors
 /// [`DbError`] for a storage failure.
-pub async fn run(pool: &SqlitePool) -> Result<usize, DbError> {
-    let repo = SiteSettingRepo::new(pool);
+pub async fn run(pool: &DbPool) -> Result<usize, DbError> {
     let mut moved = 0;
-    for site in SiteRepo::new(pool)
+    for site in with_db!(pool, |db| SiteRepo::new(db)
         .list(&SiteFilter::default(), &Paging::default())
-        .await?
+        .await)?
     {
         let blob_key = format!("theme_settings_{}", site.theme);
-        let Some(Value::Object(blob)) = repo.get(site.id, &blob_key).await? else {
+        let Some(Value::Object(blob)) = with_db!(pool, |db| SiteSettingRepo::new(db)
+            .get(site.id, &blob_key)
+            .await)?
+        else {
             continue;
         };
         let mut kept = Map::new();
@@ -38,15 +41,25 @@ pub async fn run(pool: &SqlitePool) -> Result<usize, DbError> {
             }
             // A row already holding the key was written after the blob, so it
             // wins; the blob's copy is dropped without a write.
-            if repo.get(site.id, &name).await?.is_none() {
-                repo.set(site.id, &name, &value).await?;
+            if with_db!(pool, |db| SiteSettingRepo::new(db)
+                .get(site.id, &name)
+                .await)?
+            .is_none()
+            {
+                with_db!(pool, |db| SiteSettingRepo::new(db)
+                    .set(site.id, &name, &value)
+                    .await)?;
                 moved += 1;
             }
         }
         if kept.is_empty() {
-            repo.delete(site.id, &blob_key).await?;
+            with_db!(pool, |db| SiteSettingRepo::new(db)
+                .delete(site.id, &blob_key)
+                .await)?;
         } else {
-            repo.set(site.id, &blob_key, &Value::Object(kept)).await?;
+            with_db!(pool, |db| SiteSettingRepo::new(db)
+                .set(site.id, &blob_key, &Value::Object(kept))
+                .await)?;
         }
     }
     Ok(moved)
@@ -66,13 +79,13 @@ mod tests {
     use omeka_db::{migrate, open_memory};
     use serde_json::json;
 
-    async fn temp_db() -> SqlitePool {
+    async fn temp_db() -> sqlx::SqlitePool {
         let pool = open_memory().await.expect("open memory database");
         migrate(&pool).await.expect("run migrations");
         pool
     }
 
-    async fn site(pool: &SqlitePool) -> omeka_db::ids::SiteId {
+    async fn site(pool: &sqlx::SqlitePool) -> omeka_db::ids::SiteId {
         SiteRepo::new(pool)
             .create(&NewSite {
                 owner_id: None,
@@ -105,7 +118,9 @@ mod tests {
         .await
         .expect("the blob is writable");
 
-        let moved = run(&db).await.expect("the upgrade runs");
+        let moved = run(&DbPool::from(db.clone()))
+            .await
+            .expect("the upgrade runs");
         assert_eq!(moved, 2);
         assert_eq!(
             repo.get(id, "pagination_per_page").await.unwrap(),
@@ -118,7 +133,12 @@ mod tests {
         );
 
         // Idempotent: nothing left to move, and no key is rewritten.
-        assert_eq!(run(&db).await.expect("the upgrade reruns"), 0);
+        assert_eq!(
+            run(&DbPool::from(db.clone()))
+                .await
+                .expect("the upgrade reruns"),
+            0
+        );
     }
 
     /// A blob that is only site settings is removed once they are rows.
@@ -135,7 +155,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(run(&db).await.unwrap(), 2);
+        assert_eq!(run(&DbPool::from(db.clone())).await.unwrap(), 2);
         assert_eq!(repo.get(id, "theme_settings_default").await.unwrap(), None);
         assert_eq!(repo.get(id, "locale").await.unwrap(), Some(json!("es")));
     }

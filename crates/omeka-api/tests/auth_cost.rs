@@ -18,6 +18,7 @@ use omeka_api::auth::{
     Actor, KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, authenticate, authenticate_with,
 };
 use omeka_api::auth_cache::{AuthCache, CredentialVerifier};
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{ApiKeyRepo, UserRepo};
 use omeka_db::rows::{NewApiKey, NewUser};
@@ -59,6 +60,7 @@ impl CredentialVerifier for CountingVerifier {
 
 struct Fixture {
     pool: SqlitePool,
+    db: DbPool,
     owner: UserId,
 }
 
@@ -77,7 +79,8 @@ async fn fixture(role: &str, is_active: bool) -> Fixture {
         .await
         .expect("create user")
         .id;
-    Fixture { pool, owner }
+    let db = DbPool::from(pool.clone());
+    Fixture { pool, db, owner }
 }
 
 impl Fixture {
@@ -111,10 +114,10 @@ async fn a_key_that_verified_once_skips_the_next_credential_check() {
     let counted = CountingVerifier::new(CREDENTIAL);
     let cache = AuthCache::with_verifier(counted.clone(), 8);
 
-    let first = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let first = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
-    let second = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let second = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
 
@@ -136,7 +139,7 @@ async fn a_wrong_credential_is_anonymous_twice_in_a_row() {
     let cache = AuthCache::with_verifier(counted.clone(), 8);
 
     for _ in 0..2 {
-        let actor = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, "wrong"))
+        let actor = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, "wrong"))
             .await
             .expect("authenticate");
         assert_eq!(actor, Actor::anonymous());
@@ -152,7 +155,7 @@ async fn a_deleted_key_stops_working_on_the_next_request() {
     let counted = CountingVerifier::new(CREDENTIAL);
     let cache = AuthCache::with_verifier(counted.clone(), 8);
 
-    let before = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let before = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(before, Actor::new(fixture.owner, "global_admin"));
@@ -162,7 +165,7 @@ async fn a_deleted_key_stops_working_on_the_next_request() {
         .await
         .expect("delete key");
 
-    let after = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let after = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(after, Actor::anonymous());
@@ -175,7 +178,7 @@ async fn a_deactivated_owner_stops_working_on_the_next_request() {
     let counted = CountingVerifier::new(CREDENTIAL);
     let cache = AuthCache::with_verifier(counted.clone(), 8);
 
-    let before = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let before = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(before, Actor::new(fixture.owner, "global_admin"));
@@ -189,7 +192,7 @@ async fn a_deactivated_owner_stops_working_on_the_next_request() {
     owner.is_active = false;
     assert!(users.update(&owner).await.expect("update user"));
 
-    let after = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let after = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(after, Actor::anonymous());
@@ -205,7 +208,7 @@ async fn a_rotated_credential_hash_stops_working_on_the_next_request() {
         .await;
     let cache = AuthCache::new();
 
-    let before = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let before = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(before, Actor::new(fixture.owner, "global_admin"));
@@ -217,7 +220,7 @@ async fn a_rotated_credential_hash_stops_working_on_the_next_request() {
         .await
         .expect("rotate the hash");
 
-    let after = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let after = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(after, Actor::anonymous());
@@ -241,7 +244,7 @@ async fn the_cache_never_holds_more_than_its_capacity() {
     let cache = AuthCache::with_verifier(counted.clone(), 2);
 
     for identity in identities {
-        let actor = authenticate_with(&fixture.pool, &cache, pairs(identity, CREDENTIAL))
+        let actor = authenticate_with(&fixture.db, &cache, pairs(identity, CREDENTIAL))
             .await
             .expect("authenticate");
         assert_eq!(actor, Actor::new(fixture.owner, "global_admin"));
@@ -252,7 +255,7 @@ async fn the_cache_never_holds_more_than_its_capacity() {
     assert_eq!(counted.calls(), 5, "each new identity checks once");
 
     // The first identity was evicted, so its next request checks again.
-    authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
     assert_eq!(counted.calls(), 6);
@@ -266,13 +269,13 @@ async fn a_cached_key_authenticates_like_the_uncached_path() {
         .await;
     let cache = AuthCache::new();
 
-    let uncached = authenticate(&fixture.pool, pairs(IDENTITY, CREDENTIAL))
+    let uncached = authenticate(&fixture.db, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
-    let first = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let first = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
-    let second = authenticate_with(&fixture.pool, &cache, pairs(IDENTITY, CREDENTIAL))
+    let second = authenticate_with(&fixture.db, &cache, pairs(IDENTITY, CREDENTIAL))
         .await
         .expect("authenticate");
 

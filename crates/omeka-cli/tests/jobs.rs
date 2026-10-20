@@ -22,6 +22,7 @@ struct TempDb {
     _directory: TempDir,
     path: PathBuf,
     pool: SqlitePool,
+    db_pool: omeka_db::DbPool,
 }
 
 async fn temp_db() -> TempDb {
@@ -32,6 +33,7 @@ async fn temp_db() -> TempDb {
     TempDb {
         _directory: directory,
         path,
+        db_pool: pool.clone().into(),
         pool,
     }
 }
@@ -64,7 +66,7 @@ async fn wait_for_terminal(pool: &SqlitePool, id: JobId) -> Option<String> {
 async fn the_job_command_runs_a_stored_row() {
     let db = temp_db().await;
     let job_id = omeka_cli::jobs::compose_job(
-        &db.pool,
+        &db.db_pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "items"}),
         None,
@@ -97,7 +99,7 @@ async fn the_job_command_runs_a_stored_row() {
 async fn a_failed_job_records_the_reason_and_show_prints_it() {
     let db = temp_db().await;
     let job_id = omeka_cli::jobs::compose_job(
-        &db.pool,
+        &db.db_pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "widgets"}),
         None,
@@ -158,7 +160,7 @@ async fn a_dispatched_job_finishes_after_the_client_goes_away() {
             .unwrap();
     }
 
-    let id = Dispatcher::with_program(&db.pool, &db.path, romeka())
+    let id = Dispatcher::with_program(&db.db_pool, &db.path.clone().into(), romeka())
         .dispatch(&BatchDelete, serde_json::json!({"resource": "items"}))
         .await
         .expect("dispatch");
@@ -181,7 +183,7 @@ async fn a_dispatched_job_finishes_after_the_client_goes_away() {
 async fn the_stop_command_refuses_a_job_that_is_not_running() {
     let db = temp_db().await;
     let job_id = omeka_cli::jobs::compose_job(
-        &db.pool,
+        &db.db_pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "items"}),
         None,

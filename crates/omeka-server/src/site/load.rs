@@ -21,6 +21,7 @@ use omeka_core::site::{
 use omeka_core::term_list;
 use omeka_core::value_shape::ValueShape;
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
@@ -31,6 +32,7 @@ use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
     TemplatePropertyRow, ValueRow,
 };
+use omeka_db::with_db;
 use omeka_site::blocks::page_card::{self, CardImage};
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::i18n::Messages;
@@ -43,7 +45,6 @@ use omeka_site::view::{
     BrowseQuery, BrowseView, LinkedResource, MediaRef, PageCard, ResourcePage, ResourceRef,
     ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
-use sqlx::SqlitePool;
 
 use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
@@ -173,7 +174,7 @@ const ASSET_BASE: &str = "/assets";
 /// The read side of one site render: the pool, the base URL, the property
 /// catalog, the site being served, and the caller's visibility facts.
 pub(crate) struct Loader<'a> {
-    pool: &'a SqlitePool,
+    pool: &'a DbPool,
     base: &'a BaseUrl,
     files: &'a FileUrls,
     catalog: &'a Catalog,
@@ -230,7 +231,7 @@ impl<'a> Loader<'a> {
     }
 
     pub(crate) fn new(
-        pool: &'a SqlitePool,
+        pool: &'a DbPool,
         base: &'a BaseUrl,
         files: &'a FileUrls,
         catalog: &'a Catalog,
@@ -254,7 +255,7 @@ impl<'a> Loader<'a> {
         self.access
     }
 
-    pub(crate) fn pool(&self) -> &'a SqlitePool {
+    pub(crate) fn pool(&self) -> &'a DbPool {
         self.pool
     }
 
@@ -271,9 +272,7 @@ impl<'a> Loader<'a> {
     /// Whether an item is public, for the file URLs of a media shown without
     /// its item. A missing item counts as private.
     pub(crate) async fn item_is_public(&self, item: db::ItemId) -> Result<bool, DbError> {
-        Ok(ItemRepo::new(self.pool)
-            .get(item)
-            .await?
+        Ok(with_db!(self.pool, |db| ItemRepo::new(db).get(item).await)?
             .is_some_and(|row| row.resource.is_public))
     }
 
@@ -288,19 +287,19 @@ impl<'a> Loader<'a> {
     /// Whether the item is attached to this site (`item_site`), for the
     /// `noindex` meta (`Module.php:807-811`).
     pub(crate) async fn item_in_site(&self, item: db::ItemId) -> Result<bool, DbError> {
-        ItemRepo::new(self.pool)
+        with_db!(self.pool, |db| ItemRepo::new(db)
             .in_site(item, self.db_site_id())
-            .await
+            .await)
     }
 
     /// Whether the item set is attached to this site (`site_item_set`), for the
     /// `noindex` meta (`Module.php:819-826`).
     pub(crate) async fn item_set_in_site(&self, item_set: db::ItemSetId) -> Result<bool, DbError> {
-        Ok(SiteRepo::new(self.pool)
+        Ok(with_db!(self.pool, |db| SiteRepo::new(db)
             .list_item_sets(self.db_site_id())
-            .await?
-            .iter()
-            .any(|row| row.item_set_id == item_set))
+            .await)?
+        .iter()
+        .any(|row| row.item_set_id == item_set))
     }
 
     /// The site's visible pages as navigation resolution needs them. A page
@@ -309,9 +308,9 @@ impl<'a> Loader<'a> {
     /// is dropped so it never reaches the navigation, the table of contents or
     /// the pagination.
     pub(crate) async fn page_refs(&self) -> Result<Vec<PageRef>, DbError> {
-        let rows = SiteRepo::new(self.pool)
+        let rows = with_db!(self.pool, |db| SiteRepo::new(db)
             .list_pages(self.db_site_id())
-            .await?;
+            .await)?;
         Ok(rows
             .iter()
             .filter(|row| self.access.sees_site_page(row.is_public))
@@ -326,9 +325,9 @@ impl<'a> Loader<'a> {
     /// upstream's `utf8mb4_unicode_ci`. Every slug the rule allows is ASCII
     /// (`SiteAdapter.php:260-266`), so an ASCII fold is exact.
     pub(crate) async fn page_row(&self, slug: &str) -> Result<Option<SitePageRow>, DbError> {
-        let rows = SiteRepo::new(self.pool)
+        let rows = with_db!(self.pool, |db| SiteRepo::new(db)
             .list_pages(self.db_site_id())
-            .await?;
+            .await)?;
         Ok(rows
             .into_iter()
             .find(|row| row.slug.eq_ignore_ascii_case(slug)))
@@ -341,7 +340,7 @@ impl<'a> Loader<'a> {
         page.is_public = row.is_public;
         page.layout = PageLayout::from_stored(row.layout.as_deref());
         page.layout_data = PageLayoutData::parse(&row.layout_data.clone().unwrap_or_default());
-        let blocks = SiteRepo::new(self.pool).list_blocks(row.id).await?;
+        let blocks = with_db!(self.pool, |db| SiteRepo::new(db).list_blocks(row.id).await)?;
         page.blocks = blocks.iter().filter_map(block_from_row).collect();
         Ok(page)
     }
@@ -353,9 +352,9 @@ impl<'a> Loader<'a> {
         &self,
         ids: &[PageId],
     ) -> Result<Vec<(PageId, PageCard)>, DbError> {
-        let rows = SiteRepo::new(self.pool)
+        let rows = with_db!(self.pool, |db| SiteRepo::new(db)
             .list_pages(self.db_site_id())
-            .await?;
+            .await)?;
         let mut cards = Vec::new();
         for id in ids {
             let Some(row) = rows
@@ -368,18 +367,16 @@ impl<'a> Loader<'a> {
                 continue;
             };
             let mut page = SitePage::new(*id, self.site.id, slug, row.title.clone());
-            page.blocks = SiteRepo::new(self.pool)
-                .list_blocks(row.id)
-                .await?
+            page.blocks = with_db!(self.pool, |db| SiteRepo::new(db).list_blocks(row.id).await)?
                 .iter()
                 .filter_map(block_from_row)
                 .collect();
             let source = page_card::source(&page);
             let thumbnail = match source.image {
-                Some(CardImage::Asset(asset)) => AssetRepo::new(self.pool)
+                Some(CardImage::Asset(asset)) => with_db!(self.pool, |dbp| AssetRepo::new(dbp)
                     .get(db::AssetId::from(asset.get()))
-                    .await?
-                    .map(|row| thumbnail_for_asset(self.files, &row)),
+                    .await)?
+                .map(|row| thumbnail_for_asset(self.files, &row)),
                 Some(CardImage::MediaBlock(block)) => {
                     self.first_block_media_thumbnail(block).await?
                 }
@@ -402,15 +399,14 @@ impl<'a> Loader<'a> {
         &self,
         block: BlockId,
     ) -> Result<Option<Thumbnail>, DbError> {
-        let media = MediaRepo::new(self.pool);
-        for attachment in SiteBlockAttachmentRepo::new(self.pool)
+        for attachment in with_db!(self.pool, |db| SiteBlockAttachmentRepo::new(db)
             .list_for_block(self.db_block_id(block))
-            .await?
+            .await)?
         {
             let Some(id) = attachment.media_id else {
                 continue;
             };
-            if let Some(row) = media.get(id).await?
+            if let Some(row) = with_db!(self.pool, |db| MediaRepo::new(db).get(id).await)?
                 && self
                     .access
                     .sees_resource(row.resource.is_public, row.resource.owner_id)
@@ -479,7 +475,10 @@ impl<'a> Loader<'a> {
     ) -> Result<Option<String>, DbError> {
         let locale = self.settings.locale().tag();
         let filter_locale = self.settings.filter_locale_values();
-        for value in ValueRepo::new(self.pool).list_for_resource(row.id).await? {
+        for value in with_db!(self.pool, |db| ValueRepo::new(db)
+            .list_for_resource(row.id)
+            .await)?
+        {
             if !value.is_public {
                 continue;
             }
@@ -517,10 +516,12 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Item, &row.resource).await?;
         let media = match row.primary_media_id {
-            Some(id) => MediaRepo::new(self.pool).get(id).await?.filter(|media| {
-                self.access
-                    .sees_resource(media.resource.is_public, media.resource.owner_id)
-            }),
+            Some(id) => {
+                with_db!(self.pool, |db| MediaRepo::new(db).get(id).await)?.filter(|media| {
+                    self.access
+                        .sees_resource(media.resource.is_public, media.resource.owner_id)
+                })
+            }
             None => self.first_media(row.id()).await?,
         };
         if let Some(media_row) = media {
@@ -629,7 +630,7 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let alt = view.title.clone();
-        let item = ItemRepo::new(self.pool).get(row.item_id).await?;
+        let item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
         let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
         if view.thumbnail.is_none() {
             view.thumbnail = media_thumbnail(self.files, row, item_is_public, &alt);
@@ -705,38 +706,38 @@ impl<'a> Loader<'a> {
         let resource = resource_name(kind);
         let ranks = match &search.fulltext {
             Some(needle) => Some(
-                FulltextRepo::new(self.pool)
+                with_db!(self.pool, |db| FulltextRepo::new(db)
                     .search(resource, needle)
-                    .await?
-                    .into_iter()
-                    .map(|hit| (hit.id.0, hit.score))
-                    .collect::<BTreeMap<u64, f64>>(),
+                    .await)?
+                .into_iter()
+                .map(|hit| (hit.id.0, hit.score))
+                .collect::<BTreeMap<u64, f64>>(),
             ),
             None => None,
         };
         let rows: Vec<LoadedRow> = match kind {
-            ResourceKind::Item => ItemRepo::new(self.pool)
+            ResourceKind::Item => with_db!(self.pool, |db| ItemRepo::new(db)
                 .list_filtered(&ItemFilter::default(), &search.filter, &Paging::default())
-                .await?
-                .into_iter()
-                .map(LoadedRow::Item)
-                .collect(),
-            ResourceKind::ItemSet => ItemSetRepo::new(self.pool)
+                .await)?
+            .into_iter()
+            .map(LoadedRow::Item)
+            .collect(),
+            ResourceKind::ItemSet => with_db!(self.pool, |db| ItemSetRepo::new(db)
                 .list_filtered(
                     &ItemSetFilter::default(),
                     &search.filter,
-                    &Paging::default(),
+                    &Paging::default()
                 )
-                .await?
-                .into_iter()
-                .map(LoadedRow::ItemSet)
-                .collect(),
-            ResourceKind::Media => MediaRepo::new(self.pool)
+                .await)?
+            .into_iter()
+            .map(LoadedRow::ItemSet)
+            .collect(),
+            ResourceKind::Media => with_db!(self.pool, |db| MediaRepo::new(db)
                 .list_filtered(&MediaFilter::default(), &search.filter, &Paging::default())
-                .await?
-                .into_iter()
-                .map(|row| LoadedRow::Media(Box::new(row)))
-                .collect(),
+                .await)?
+            .into_iter()
+            .map(|row| LoadedRow::Media(Box::new(row)))
+            .collect(),
         };
         // `ResourceVisibilityFilter` reads with the actor: a public row, the
         // caller's own row, or anything a `view-all` role may read. Reading the
@@ -855,12 +856,12 @@ impl<'a> Loader<'a> {
             "title" => SortKey::Title,
             term => match self.catalog.property_id(term) {
                 Some(property) => SortKey::Property(
-                    ValueRepo::new(self.pool)
+                    with_db!(self.pool, |db| ValueRepo::new(db)
                         .sort_texts(property)
-                        .await?
-                        .into_iter()
-                        .map(|(resource, text)| (resource.0, text))
-                        .collect(),
+                        .await)?
+                    .into_iter()
+                    .map(|(resource, text)| (resource.0, text))
+                    .collect(),
                 ),
                 None => SortKey::Id,
             },
@@ -932,9 +933,9 @@ impl<'a> Loader<'a> {
 
     /// Search public sites, `$view->api()->search('sites', ...)`.
     pub(crate) async fn search_sites(&self, query: &SiteQuery) -> Result<SiteSearch, DbError> {
-        let mut rows = SiteRepo::new(self.pool)
+        let mut rows = with_db!(self.pool, |db| SiteRepo::new(db)
             .list(&SiteFilter::default(), &Paging::default())
-            .await?;
+            .await)?;
         // `SiteFilter` has no `is_public`; upstream's public site search keeps
         // only public sites, so the filter runs here (gap).
         rows.retain(|row| row.is_public && Slug::parse(&row.slug).is_ok());
@@ -979,9 +980,7 @@ impl<'a> Loader<'a> {
     /// asset: the asset's own file URL and alt text
     /// (`AbstractRepresentation::thumbnailDisplayUrl`).
     async fn asset_thumbnail(&self, id: db::AssetId) -> Result<Option<Thumbnail>, DbError> {
-        Ok(AssetRepo::new(self.pool)
-            .get(id)
-            .await?
+        Ok(with_db!(self.pool, |db| AssetRepo::new(db).get(id).await)?
             .as_ref()
             .map(|row| thumbnail_for_asset(self.files, row)))
     }
@@ -1023,7 +1022,9 @@ impl<'a> Loader<'a> {
         &self,
         row: &ResourceRow,
     ) -> Result<(Vec<ValueRef>, Option<String>), DbError> {
-        let all = ValueRepo::new(self.pool).list_for_resource(row.id).await?;
+        let all = with_db!(self.pool, |db| ValueRepo::new(db)
+            .list_for_resource(row.id)
+            .await)?;
         let locale = self.settings.locale().tag();
         let filter_locale = self.settings.filter_locale_values();
         let exclude = self.settings.exclude_resources_not_in_site();
@@ -1174,9 +1175,9 @@ impl<'a> Loader<'a> {
         let Some(template_id) = template_id else {
             return Ok(None);
         };
-        let properties = TemplateRepo::new(self.pool)
+        let properties = with_db!(self.pool, |db| TemplateRepo::new(db)
             .list_properties(template_id)
-            .await?;
+            .await)?;
         Ok(Some(properties))
     }
 
@@ -1203,11 +1204,11 @@ impl<'a> Loader<'a> {
     }
 
     async fn resource_title(&self, id: db::ResourceId) -> Result<String, DbError> {
-        Ok(ResourceRepo::new(self.pool)
-            .get(id)
-            .await?
-            .map(|row| display_title(&row, self.messages()))
-            .unwrap_or_default())
+        Ok(
+            with_db!(self.pool, |db| ResourceRepo::new(db).get(id).await)?
+                .map(|row| display_title(&row, self.messages()))
+                .unwrap_or_default(),
+        )
     }
 
     /// The item's item sets, media and site pages, plus the resources that link
@@ -1219,20 +1220,23 @@ impl<'a> Loader<'a> {
         // `ItemSets.php`: only item sets assigned to the site when
         // `exclude_resources_not_in_site` is on.
         let site_item_sets: Vec<db::ItemSetId> = if exclude {
-            SiteRepo::new(self.pool)
+            with_db!(self.pool, |db| SiteRepo::new(db)
                 .list_item_sets(self.db_site_id())
-                .await?
-                .into_iter()
-                .map(|entry| entry.item_set_id)
-                .collect()
+                .await)?
+            .into_iter()
+            .map(|entry| entry.item_set_id)
+            .collect()
         } else {
             Vec::new()
         };
-        for id in ItemRepo::new(self.pool).list_item_sets(row.id()).await? {
+        for id in with_db!(self.pool, |db| ItemRepo::new(db)
+            .list_item_sets(row.id())
+            .await)?
+        {
             if exclude && !site_item_sets.contains(&id) {
                 continue;
             }
-            if let Some(set) = ItemSetRepo::new(self.pool).get(id).await?
+            if let Some(set) = with_db!(self.pool, |db| ItemSetRepo::new(db).get(id).await)?
                 && self
                     .access
                     .sees_resource(set.resource.is_public, set.resource.owner_id)
@@ -1244,15 +1248,15 @@ impl<'a> Loader<'a> {
                 });
             }
         }
-        let media = MediaRepo::new(self.pool)
+        let media = with_db!(self.pool, |db| MediaRepo::new(db)
             .list(
                 &MediaFilter {
                     item_id: Some(row.id()),
                     ..MediaFilter::default()
                 },
-                &Paging::default(),
+                &Paging::default()
             )
-            .await?;
+            .await)?;
         let item_url = view.url.clone();
         for entry in media {
             if !self
@@ -1294,9 +1298,9 @@ impl<'a> Loader<'a> {
                 .await?,
             );
         }
-        for page in SiteRepo::new(self.pool)
+        for page in with_db!(self.pool, |db| SiteRepo::new(db)
             .list_pages_attaching_item(self.db_site_id(), row.id())
-            .await?
+            .await)?
         {
             if let Ok(slug) = Slug::parse(&page.slug) {
                 view.site_pages.push(ResourceRef {
@@ -1315,9 +1319,9 @@ impl<'a> Loader<'a> {
     async fn linked_resources(&self, id: db::ResourceId) -> Result<Vec<LinkedResource>, DbError> {
         let exclude = self.settings.exclude_resources_not_in_site();
         let mut out = Vec::new();
-        for value in ValueRepo::new(self.pool)
+        for value in with_db!(self.pool, |db| ValueRepo::new(db)
             .list_pointing_at(id, &Paging::default())
-            .await?
+            .await)?
         {
             if !value.is_public {
                 continue;
@@ -1336,10 +1340,10 @@ impl<'a> Loader<'a> {
                 .property(value.property_id)
                 .map(|info| self.property_label(info))
                 .unwrap_or_default();
-            let class = ResourceRepo::new(self.pool)
+            let class = with_db!(self.pool, |db| ResourceRepo::new(db)
                 .get(value.resource_id)
-                .await?
-                .and_then(|row| row.resource_class_id);
+                .await)?
+            .and_then(|row| row.resource_class_id);
             out.push(LinkedResource {
                 property,
                 kind,
@@ -1357,18 +1361,20 @@ impl<'a> Loader<'a> {
         let Some(id) = class else {
             return Ok(None);
         };
-        Ok(ClassRepo::new(self.pool).get(id).await?.map(|row| {
-            let term = format!(
-                "{}:{}",
-                self.catalog.prefix(row.vocabulary_id),
-                row.local_name
-            );
-            self.settings
-                .locale()
-                .translator()
-                .term_label(&term, &row.label)
-                .to_string()
-        }))
+        Ok(
+            with_db!(self.pool, |db| ClassRepo::new(db).get(id).await)?.map(|row| {
+                let term = format!(
+                    "{}:{}",
+                    self.catalog.prefix(row.vocabulary_id),
+                    row.local_name
+                );
+                self.settings
+                    .locale()
+                    .translator()
+                    .term_label(&term, &row.label)
+                    .to_string()
+            }),
+        )
     }
 
     /// A resource a value points at, as its pretty link needs it. `None` when
@@ -1377,7 +1383,10 @@ impl<'a> Loader<'a> {
         &self,
         id: db::ResourceId,
     ) -> Result<Option<(ResourceKind, ResourceRef)>, DbError> {
-        if let Some(row) = ItemRepo::new(self.pool).get(db::ItemId::from(id.0)).await? {
+        if let Some(row) = with_db!(self.pool, |dbp| ItemRepo::new(dbp)
+            .get(db::ItemId::from(id.0))
+            .await)?
+        {
             if !self
                 .access
                 .sees_resource(row.resource.is_public, row.resource.owner_id)
@@ -1395,9 +1404,9 @@ impl<'a> Loader<'a> {
                 },
             )));
         }
-        if let Some(row) = ItemSetRepo::new(self.pool)
+        if let Some(row) = with_db!(self.pool, |dbp| ItemSetRepo::new(dbp)
             .get(db::ItemSetId::from(id.0))
-            .await?
+            .await)?
         {
             if !self
                 .access
@@ -1418,9 +1427,9 @@ impl<'a> Loader<'a> {
                 },
             )));
         }
-        if let Some(row) = MediaRepo::new(self.pool)
+        if let Some(row) = with_db!(self.pool, |dbp| MediaRepo::new(dbp)
             .get(db::MediaId::from(id.0))
-            .await?
+            .await)?
         {
             if !self
                 .access
@@ -1465,18 +1474,18 @@ impl<'a> Loader<'a> {
         kind: ResourceKind,
     ) -> Result<bool, DbError> {
         Ok(match kind {
-            ResourceKind::Item => ItemRepo::new(self.pool)
+            ResourceKind::Item => with_db!(self.pool, |dbp| ItemRepo::new(dbp)
                 .get(db::ItemId::from(id.0))
-                .await?
-                .is_some(),
-            ResourceKind::ItemSet => ItemSetRepo::new(self.pool)
+                .await)?
+            .is_some(),
+            ResourceKind::ItemSet => with_db!(self.pool, |dbp| ItemSetRepo::new(dbp)
                 .get(db::ItemSetId::from(id.0))
-                .await?
-                .is_some(),
-            ResourceKind::Media => MediaRepo::new(self.pool)
+                .await)?
+            .is_some(),
+            ResourceKind::Media => with_db!(self.pool, |dbp| MediaRepo::new(dbp)
                 .get(db::MediaId::from(id.0))
-                .await?
-                .is_some(),
+                .await)?
+            .is_some(),
         })
     }
 
@@ -1490,9 +1499,9 @@ impl<'a> Loader<'a> {
         match kind {
             ResourceKind::Item => self.item_in_site(db::ItemId::from(id.0)).await,
             ResourceKind::ItemSet => self.item_set_in_site(db::ItemSetId::from(id.0)).await,
-            ResourceKind::Media => match MediaRepo::new(self.pool)
+            ResourceKind::Media => match with_db!(self.pool, |dbp| MediaRepo::new(dbp)
                 .get(db::MediaId::from(id.0))
-                .await?
+                .await)?
             {
                 Some(media) => self.item_in_site(media.item_id).await,
                 None => Ok(false),
@@ -1508,10 +1517,12 @@ impl<'a> Loader<'a> {
         alt: &str,
     ) -> Result<Option<Thumbnail>, DbError> {
         let media = match row.primary_media_id {
-            Some(id) => MediaRepo::new(self.pool).get(id).await?.filter(|media| {
-                self.access
-                    .sees_resource(media.resource.is_public, media.resource.owner_id)
-            }),
+            Some(id) => {
+                with_db!(self.pool, |db| MediaRepo::new(db).get(id).await)?.filter(|media| {
+                    self.access
+                        .sees_resource(media.resource.is_public, media.resource.owner_id)
+                })
+            }
             None => self.first_media(row.id()).await?,
         };
         Ok(media
@@ -1521,20 +1532,20 @@ impl<'a> Loader<'a> {
     /// The item's first media row the caller can see, `ItemRepresentation`'s
     /// primary-media fallback under `ResourceVisibilityFilter`.
     async fn first_media(&self, item_id: db::ItemId) -> Result<Option<MediaRow>, DbError> {
-        Ok(MediaRepo::new(self.pool)
+        Ok(with_db!(self.pool, |db| MediaRepo::new(db)
             .list(
                 &MediaFilter {
                     item_id: Some(item_id),
                     ..MediaFilter::default()
                 },
-                &Paging::default(),
+                &Paging::default()
             )
-            .await?
-            .into_iter()
-            .find(|media| {
-                self.access
-                    .sees_resource(media.resource.is_public, media.resource.owner_id)
-            }))
+            .await)?
+        .into_iter()
+        .find(|media| {
+            self.access
+                .sees_resource(media.resource.is_public, media.resource.owner_id)
+        }))
     }
 
     async fn thumbnail_for(
@@ -1543,10 +1554,10 @@ impl<'a> Loader<'a> {
         item_is_public: bool,
         alt: &str,
     ) -> Result<Option<Thumbnail>, DbError> {
-        Ok(MediaRepo::new(self.pool)
-            .get(media_id)
-            .await?
-            .and_then(|media| media_thumbnail(self.files, &media, item_is_public, alt)))
+        Ok(
+            with_db!(self.pool, |db| MediaRepo::new(db).get(media_id).await)?
+                .and_then(|media| media_thumbnail(self.files, &media, item_is_public, alt)),
+        )
     }
 }
 

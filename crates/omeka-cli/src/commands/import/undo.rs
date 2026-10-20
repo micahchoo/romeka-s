@@ -9,6 +9,7 @@ use omeka_api::messages;
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{ImportRepo, StartOutcome};
 use omeka_db::rows::ImportStatus;
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 use super::session::{Session, Where};
@@ -51,8 +52,7 @@ pub async fn undo(options: &UndoOptions, out: &mut dyn Write) -> Result<UndoOutc
         } else {
             Force::Nothing
         };
-        let previewed = preview_undo(&session.pool, row.id, force)
-            .await
+        let previewed = with_db!(&session.pool, |db| preview_undo(db, row.id, force).await)
             .map_err(|error| match error {
                 UndoError::Deleted(_) => CliError::message(messages::IMPORT_DELETE_NOT_UNDONE),
                 other => CliError::message(other.to_string()),
@@ -87,7 +87,7 @@ fn cannot_undo() -> CliError {
 }
 
 async fn start(session: &Session, id: ImportId) -> Result<(), CliError> {
-    match ImportRepo::new(&session.pool).start_undo(id).await? {
+    match with_db!(&session.pool, |db| ImportRepo::new(db).start_undo(id).await)? {
         StartOutcome::Started => Ok(()),
         StartOutcome::Refused(_) => Err(cannot_undo()),
         StartOutcome::Deleted => Err(CliError::message(messages::IMPORT_DELETE_NOT_UNDONE)),

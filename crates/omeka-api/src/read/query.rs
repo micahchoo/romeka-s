@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use omeka_db::ids::{ItemSetId, PropertyId, SiteId};
 use omeka_db::repos::{FulltextRepo, Joiner, MatchKind, MediaVisibility, QueryFilter, ValueQuery};
+use omeka_db::with_db;
 
 use super::catalog::Catalog;
 use super::paging::Limit;
@@ -212,10 +213,10 @@ pub async fn fulltext_matches(
     let Some(needle) = needle else {
         return Ok(None);
     };
-    let matches = FulltextRepo::new(api.pool())
+    let matches = with_db!(api.pool(), |db| FulltextRepo::new(db)
         .search(resource, needle)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(Some(
         matches
             .into_iter()

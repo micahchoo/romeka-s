@@ -39,7 +39,18 @@ romeka serve       -d PATH [--host H] [--port P] [--base-url URL] [--store DIR]
 romeka job run ID  -d PATH [--store DIR] [--base-url URL] [--archive-root DIR]
 ```
 
-`install` creates the SQLite file, runs the embedded migrations, inserts the
+Every `-d PATH` can be `--database-url mysql://user:password@host:port/database` instead, or
+`ROMEKA_DATABASE_URL` in the environment, for a MySQL 8.0 or MariaDB 11 database. `-d` wins over
+the variable; the two flags together are refused. A server has no folder, so a command given a
+URL and no `--store` uses `files` in its working directory. The server hands a URL to each `job
+run` child through the environment, so the password never appears in `ps`
+(`src/jobs/dispatcher.rs`). The binary builds with the MySQL driver by default (feature `mysql`);
+`--no-default-features` builds a SQLite-only one. `tests/database_url.rs` covers the flags, and
+`scripts/mysql-smoke.py` drives a built binary against an empty MySQL or MariaDB database: install,
+serve, sign in, an item with an uploaded file, search, the public site, an import v2 run and its
+undo, and the backup refusal.
+
+`install` creates the SQLite file (a MySQL database must exist already), runs the embedded migrations, inserts the
 four default vocabularies with their classes and properties, creates the
 `Base Resource` template from `InstallDefaultTemplatesTask`, writes the admin
 user (`global_admin`), and writes the small default settings. Every step is
@@ -250,7 +261,10 @@ romeka restore -d PATH --store DIR --in FILE [--force]
 ```
 
 `backup` writes one archive holding a consistent copy of the database and the
-whole store. `restore` reads it back into a target.
+whole store. `restore` reads it back into a target. Both are for a SQLite
+database: on MySQL `backup` refuses with `DbError::Unsupported`'s reason (use
+`mysqldump --single-transaction`) before it writes anything, and `restore`
+refuses before it reads the archive.
 
 The archive is a plain (uncompressed) tar, so `tar tf backup.tar` lists it and
 `tar xf` extracts it without this CLI. Three kinds of entry:

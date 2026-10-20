@@ -202,10 +202,11 @@ async fn only_a_page_with_a_map_loads_leaflet() {
 #[tokio::test]
 async fn the_item_page_map_section_shows_the_items_place() {
     let (pool, seed) = site_pool().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let spatial = location_field(&pool, &seed).await;
     place(&pool, seed.item, spatial, "51.5055, -0.0754").await;
     omeka_api::theme_settings::store(
-        &pool,
+        &db,
         SiteId::from(seed.site),
         "default",
         Some(&json!({ "resource_page_blocks": { "items": { "main": ["values", "map"] } } })),

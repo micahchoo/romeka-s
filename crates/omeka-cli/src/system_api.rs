@@ -6,12 +6,12 @@
 use std::sync::Arc;
 
 use omeka_media::store::Store;
-use sqlx::SqlitePool;
 
 use omeka_api::auth::Actor;
 use omeka_api::errors::ApiError;
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::Api;
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 
 /// The base URL behind every `@id`. These callers write rows and serve no document, so no `@id`
@@ -22,7 +22,7 @@ const BASE_URL: &str = "http://localhost";
 ///
 /// # Errors
 /// The read layer's error when the catalogue of vocabularies cannot load.
-pub async fn load(pool: &SqlitePool) -> Result<Api<'_>, ApiError> {
+pub async fn load(pool: &DbPool) -> Result<Api<'_>, ApiError> {
     let base = BaseUrl::parse(BASE_URL).map_err(ApiError::internal)?;
     Api::load(pool, base, Actor::new(UserId(0), "global_admin")).await
 }
@@ -31,10 +31,7 @@ pub async fn load(pool: &SqlitePool) -> Result<Api<'_>, ApiError> {
 ///
 /// # Errors
 /// As [`load`].
-pub async fn load_with_store(
-    pool: &SqlitePool,
-    store: Arc<dyn Store>,
-) -> Result<Api<'_>, ApiError> {
+pub async fn load_with_store(pool: &DbPool, store: Arc<dyn Store>) -> Result<Api<'_>, ApiError> {
     let base = BaseUrl::parse(BASE_URL).map_err(ApiError::internal)?;
     Api::load_with_store(
         pool,

@@ -18,8 +18,8 @@ use omeka_api::import2::template::{
     ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, template_csv,
 };
 use omeka_api::messages;
-use omeka_db::repos::SettingRepo;
 use omeka_db::rows::ImportStatus;
+use omeka_db::with_db;
 use serde_json::json;
 
 use super::answer;
@@ -121,10 +121,15 @@ pub(super) async fn upload(
             let list = sheet::read(&bytes, &read, None)
                 .map_err(|error| ImportError::BadRequest(messages::import_list_unread(error)))?;
             let mut plan = stored_plan(&row)?;
-            let files =
-                omeka_api::settings::file_validation(&SettingRepo::new(&state.pool)).await?;
-            let catalog =
-                catalog_load::load(&state.pool, row.id, &plan, owners(&actor), files).await?;
+            let files = omeka_api::settings::file_validation(&state.pool).await?;
+            let catalog = with_db!(&state.pool, |db| catalog_load::load(
+                db,
+                row.id,
+                &plan,
+                owners(&actor),
+                files
+            )
+            .await)?;
 
             let store = state.store.clone();
             let import = row.id;
@@ -154,9 +159,14 @@ pub(super) async fn upload(
                 Ok(_) => {
                     let value: serde_json::Value = serde_json::from_str(&plan.to_json())
                         .map_err(|error| ImportError::Internal(error.to_string()))?;
-                    draft::save(&state.pool, row.id, &value, row.revision)
-                        .await
-                        .map_err(|error| draft_error(error, row.id, false))
+                    with_db!(&state.pool, |db| draft::save(
+                        db,
+                        row.id,
+                        &value,
+                        row.revision
+                    )
+                    .await)
+                    .map_err(|error| draft_error(error, row.id, false))
                 }
                 Err(ListError::NoIdentifier) => Err(ImportError::BadRequest(
                     messages::IMPORT_LIST_NO_IDENTIFIER.into(),

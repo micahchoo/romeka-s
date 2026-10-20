@@ -19,6 +19,7 @@ use omeka_db::repos::{
     FulltextRepo, ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo,
 };
 use omeka_db::rows::{FulltextSearchRow, ResourceRow};
+use omeka_db::with_db;
 
 use super::{Job, JobContext, JobError};
 
@@ -55,7 +56,7 @@ impl Job for IndexFulltextSearch {
     }
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
-        FulltextRepo::new(context.pool).clear().await?;
+        with_db!(context.pool, |db| FulltextRepo::new(db).clear().await)?;
         for kind in Searchable::ALL {
             index_kind(context, kind).await?;
         }
@@ -76,7 +77,7 @@ async fn index_kind(context: &JobContext<'_>, kind: Searchable) -> Result<(), Jo
         }
         for resource in resources {
             let row = fulltext_row(context, kind, &resource).await?;
-            FulltextRepo::new(context.pool).save(&row).await?;
+            with_db!(context.pool, |db| FulltextRepo::new(db).save(&row).await)?;
         }
         page += 1;
     }
@@ -88,24 +89,24 @@ async fn fetch_page(
     paging: &Paging,
 ) -> Result<Vec<ResourceRow>, JobError> {
     Ok(match kind {
-        Searchable::Items => ItemRepo::new(context.pool)
+        Searchable::Items => with_db!(context.pool, |db| ItemRepo::new(db)
             .list(&Default::default(), paging)
-            .await?
-            .into_iter()
-            .map(|row| row.resource)
-            .collect(),
-        Searchable::ItemSets => ItemSetRepo::new(context.pool)
+            .await)?
+        .into_iter()
+        .map(|row| row.resource)
+        .collect(),
+        Searchable::ItemSets => with_db!(context.pool, |db| ItemSetRepo::new(db)
             .list(&Default::default(), paging)
-            .await?
-            .into_iter()
-            .map(|row| row.resource)
-            .collect(),
-        Searchable::Media => MediaRepo::new(context.pool)
+            .await)?
+        .into_iter()
+        .map(|row| row.resource)
+        .collect(),
+        Searchable::Media => with_db!(context.pool, |db| MediaRepo::new(db)
             .list(&Default::default(), paging)
-            .await?
-            .into_iter()
-            .map(|row| row.resource)
-            .collect(),
+            .await)?
+        .into_iter()
+        .map(|row| row.resource)
+        .collect(),
     })
 }
 
@@ -128,9 +129,9 @@ async fn fulltext_text(
     context: &JobContext<'_>,
     resource: &ResourceRow,
 ) -> Result<String, JobError> {
-    let values = ValueRepo::new(context.pool)
+    let values = with_db!(context.pool, |db| ValueRepo::new(db)
         .list_for_resource(resource.id)
-        .await?;
+        .await)?;
     let mut texts = Vec::new();
     for value in values {
         if !value.is_public {
@@ -163,11 +164,11 @@ async fn referenced_title(
     let Some(id) = resource else {
         return Ok(String::new());
     };
-    Ok(ResourceRepo::new(context.pool)
-        .get(id)
-        .await?
-        .and_then(|row| row.title)
-        .unwrap_or_default())
+    Ok(
+        with_db!(context.pool, |db| ResourceRepo::new(db).get(id).await)?
+            .and_then(|row| row.title)
+            .unwrap_or_default(),
+    )
 }
 
 #[cfg(test)]
@@ -190,7 +191,7 @@ mod tests {
             })
             .await
             .unwrap();
-        let description = crate::terms::resolve_property(&db.pool, "dcterms:description")
+        let description = crate::terms::resolve_property(&db.db_pool, "dcterms:description")
             .await
             .unwrap();
         ValueRepo::new(&db.pool)
@@ -233,8 +234,8 @@ mod tests {
             .await
             .unwrap();
 
-        let job_id = compose(&db.pool, &IndexFulltextSearch, serde_json::json!({})).await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        let job_id = compose(&db.db_pool, &IndexFulltextSearch, serde_json::json!({})).await;
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
 
         let rows = FulltextRepo::new(&db.pool).list().await.unwrap();
         assert_eq!(rows.len(), 2, "one row per indexed resource");

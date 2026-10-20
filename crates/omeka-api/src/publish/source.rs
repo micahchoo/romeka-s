@@ -6,6 +6,7 @@ use omeka_core::term_list::{TermList, TermListKind};
 use omeka_db::ids::{CustomVocabId, VocabularyId};
 use omeka_db::repos::{CustomVocabRepo, VocabularyRepo};
 use omeka_db::rows::{CustomVocabRow, PublicationTarget, VocabularyRow};
+use omeka_db::with_db;
 
 use crate::errors::ApiError;
 use crate::messages;
@@ -39,21 +40,21 @@ pub(super) async fn load(
     match resource {
         "custom_vocabs" => {
             let id = parse_id(LIST_CLASS, raw_id)?;
-            CustomVocabRepo::new(api.pool())
+            with_db!(api.pool(), |db| CustomVocabRepo::new(db)
                 .get(CustomVocabId(id))
-                .await
-                .map_err(db_error)?
-                .map(Upstream::TermList)
-                .ok_or_else(|| not_found(LIST_CLASS, raw_id))
+                .await)
+            .map_err(db_error)?
+            .map(Upstream::TermList)
+            .ok_or_else(|| not_found(LIST_CLASS, raw_id))
         }
         "vocabularies" => {
             let id = parse_id(VOCABULARY_CLASS, raw_id)?;
-            VocabularyRepo::new(api.pool())
+            with_db!(api.pool(), |db| VocabularyRepo::new(db)
                 .get(VocabularyId(id))
-                .await
-                .map_err(db_error)?
-                .map(Upstream::Vocabulary)
-                .ok_or_else(|| not_found(VOCABULARY_CLASS, raw_id))
+                .await)
+            .map_err(db_error)?
+            .map(Upstream::Vocabulary)
+            .ok_or_else(|| not_found(VOCABULARY_CLASS, raw_id))
         }
         other => Err(ApiError::not_found(messages::unknown_resource(other))),
     }

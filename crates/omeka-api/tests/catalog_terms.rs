@@ -130,7 +130,7 @@ fn base() -> BaseUrl {
     BaseUrl::parse("http://localhost").unwrap()
 }
 
-async fn api<'a>(pool: &'a SqlitePool, seed: &Seed) -> Api<'a> {
+async fn api<'a>(pool: &'a omeka_db::DbPool, seed: &Seed) -> Api<'a> {
     Api::load(pool, base(), Actor::new(seed.user, "global_admin"))
         .await
         .unwrap()
@@ -152,7 +152,8 @@ fn documents(body: &str) -> Vec<Value> {
 #[tokio::test]
 async fn a_read_prints_the_term_of_a_value_and_the_class_of_the_row() {
     let (pool, seed) = open_seeded().await;
-    let api = api(&pool, &seed).await;
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = api(&db, &seed).await;
 
     let response = api
         .read_member("items", &seed.item.0.to_string())
@@ -176,7 +177,8 @@ async fn a_read_prints_the_term_of_a_value_and_the_class_of_the_row() {
 #[tokio::test]
 async fn a_property_row_resolves_a_term_the_page_does_not_name() {
     let (pool, seed) = open_seeded().await;
-    let api = api(&pool, &seed).await;
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = api(&db, &seed).await;
 
     let params = Params::parse(
         "property[0][property]=dcterms:note&property[0][type]=in&property[0][text]=hello",
@@ -199,7 +201,8 @@ async fn a_property_row_resolves_a_term_the_page_does_not_name() {
 #[tokio::test]
 async fn a_write_prints_a_property_it_names_before_any_value_exists() {
     let (pool, seed) = open_seeded().await;
-    let api = api(&pool, &seed).await;
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = api(&db, &seed).await;
 
     let body =
         br#"{"dcterms:memo":[{"property_id":"auto","type":"literal","@value":"first memo"}]}"#;

@@ -28,7 +28,7 @@ mod update_site_items;
 
 pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
-pub use dispatcher::{Dispatcher, JobCommand, JobContext, compose_job};
+pub use dispatcher::{DATABASE_URL_ENV, Dispatcher, JobCommand, JobContext, compose_job};
 pub use env::JobEnv;
 pub use import_run::{ImportRun, ImportScan, ImportUndo, refuse_live_hand_run};
 pub use index_fulltext_search::IndexFulltextSearch;

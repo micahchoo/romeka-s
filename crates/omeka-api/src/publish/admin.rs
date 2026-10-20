@@ -17,6 +17,7 @@ use omeka_core::publication::{
     is_persistent_namespace, is_slug, suggest_slug,
 };
 use omeka_db::repos::{NewPublicationVersion, PublicationRepo};
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 
 use super::rdf::{self, Syntax, VersionMeta};
@@ -278,10 +279,10 @@ async fn chosen_address(
             messages::PUBLICATION_SLUG_INVALID.to_string(),
         ));
     }
-    let holder = PublicationRepo::new(api.pool())
+    let holder = with_db!(api.pool(), |db| PublicationRepo::new(db)
         .by_slug(&address.slug)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     if holder.is_some_and(|row| Some(row.id) != record.row.as_ref().map(|own| own.id)) {
         return Err(refused(
             "slug",
@@ -310,7 +311,7 @@ async fn publish(
     }
     let terms = serde_json::to_value(&states).map_err(ApiError::internal)?;
     let snapshot = serde_json::to_value(&next).map_err(ApiError::internal)?;
-    PublicationRepo::new(api.pool())
+    with_db!(api.pool(), |db| PublicationRepo::new(db)
         .publish(
             upstream.target(),
             &NewPublicationVersion {
@@ -319,10 +320,10 @@ async fn publish(
                 terms: &terms,
                 snapshot: &snapshot,
             },
-            now(),
+            now()
         )
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(())
 }
 
@@ -424,10 +425,10 @@ fn match_uri(key: &str, raw: Option<String>) -> Result<Option<String>, ApiError>
 
 async fn save(api: &Api<'_>, upstream: &Upstream, states: &TermStates) -> Result<(), ApiError> {
     let terms = serde_json::to_value(states).map_err(ApiError::internal)?;
-    PublicationRepo::new(api.pool())
+    with_db!(api.pool(), |db| PublicationRepo::new(db)
         .save_terms(upstream.target(), &terms)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(())
 }
 
@@ -461,19 +462,19 @@ async fn build_view(api: &Api<'_>, upstream: &Upstream, record: &Record) -> Resu
     let (next, _) = draft(&source, &address.namespace, &record.states);
     let latest = record.latest.as_ref();
     let versions = match &record.row {
-        Some(row) => PublicationRepo::new(api.pool())
+        Some(row) => with_db!(api.pool(), |db| PublicationRepo::new(db)
             .versions(row.id)
-            .await
-            .map_err(db_error)?
-            .iter()
-            .map(|version| {
-                Ok(VersionView {
-                    version: version.version,
-                    created: version.created.format("%Y-%m-%dT%H:%M:%S").to_string(),
-                    terms: super::published(version)?.snapshot.terms.len(),
-                })
+            .await)
+        .map_err(db_error)?
+        .iter()
+        .map(|version| {
+            Ok(VersionView {
+                version: version.version,
+                created: version.created.format("%Y-%m-%dT%H:%M:%S").to_string(),
+                terms: super::published(version)?.snapshot.terms.len(),
             })
-            .collect::<Result<Vec<_>, ApiError>>()?,
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?,
         None => Vec::new(),
     };
     let changed = latest.is_none_or(|latest| latest.snapshot != next);

@@ -29,6 +29,7 @@ use omeka_db::repos::{
 use omeka_db::rows::{
     ItemRow, ItemSetRow, MediaRow, ResourceRow, ValueAnnotationRow, resource_type,
 };
+use omeka_db::with_db;
 
 use super::paging::{Limit, Window, ordered_page};
 use super::params::Params;
@@ -148,10 +149,10 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
 /// it is on `/api/value_annotations`.
 pub async fn read_resource(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(RESOURCE_CLASS, raw_id)?;
-    let Some(row) = ResourceRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| ResourceRepo::new(db)
         .get(ResourceId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(RESOURCE_CLASS, raw_id));
     };
@@ -170,24 +171,24 @@ pub async fn read_resource(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, A
 /// Every resource row, with the kind row that carries its extra columns.
 async fn all_rows(api: &Api<'_>) -> Result<Vec<KindRow>, ApiError> {
     let mut rows: Vec<KindRow> = Vec::new();
-    for row in ItemRepo::new(api.pool())
+    for row in with_db!(api.pool(), |db| ItemRepo::new(db)
         .list(&ItemFilter::default(), &Paging::default())
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     {
         rows.push(KindRow::Item(Box::new(row)));
     }
-    for row in ItemSetRepo::new(api.pool())
+    for row in with_db!(api.pool(), |db| ItemSetRepo::new(db)
         .list(&ItemSetFilter::default(), &Paging::default())
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     {
         rows.push(KindRow::ItemSet(Box::new(row)));
     }
-    for row in MediaRepo::new(api.pool())
+    for row in with_db!(api.pool(), |db| MediaRepo::new(db)
         .list(&MediaFilter::default(), &Paging::default())
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     {
         rows.push(KindRow::Media(Box::new(row)));
     }
@@ -201,30 +202,30 @@ async fn all_rows(api: &Api<'_>) -> Result<Vec<KindRow>, ApiError> {
 async fn typed_row(api: &Api<'_>, row: ResourceRow) -> Result<KindRow, ApiError> {
     Ok(match row.resource_type.as_str() {
         resource_type::ITEM => {
-            let Some(typed) = ItemRepo::new(api.pool())
+            let Some(typed) = with_db!(api.pool(), |db| ItemRepo::new(db)
                 .get(omeka_db::ids::ItemId(row.id.0))
-                .await
-                .map_err(db_error)?
+                .await)
+            .map_err(db_error)?
             else {
                 return Err(not_found(RESOURCE_CLASS, &row.id.0.to_string()));
             };
             KindRow::Item(Box::new(typed))
         }
         resource_type::ITEM_SET => {
-            let Some(typed) = ItemSetRepo::new(api.pool())
+            let Some(typed) = with_db!(api.pool(), |db| ItemSetRepo::new(db)
                 .get(omeka_db::ids::ItemSetId(row.id.0))
-                .await
-                .map_err(db_error)?
+                .await)
+            .map_err(db_error)?
             else {
                 return Err(not_found(RESOURCE_CLASS, &row.id.0.to_string()));
             };
             KindRow::ItemSet(Box::new(typed))
         }
         resource_type::MEDIA => {
-            let Some(typed) = MediaRepo::new(api.pool())
+            let Some(typed) = with_db!(api.pool(), |db| MediaRepo::new(db)
                 .get(omeka_db::ids::MediaId(row.id.0))
-                .await
-                .map_err(db_error)?
+                .await)
+            .map_err(db_error)?
             else {
                 return Err(not_found(RESOURCE_CLASS, &row.id.0.to_string()));
             };

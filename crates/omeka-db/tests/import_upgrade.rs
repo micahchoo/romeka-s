@@ -265,7 +265,7 @@ mod mysql {
             .collect();
         let before_rows = kept_rows(&pool).await;
 
-        omeka_db::migrate_mysql(&pool).await.unwrap();
+        omeka_db::migrate(&pool).await.unwrap();
 
         let after = tables(&pool).await;
         let (imports, others): (Vec<String>, Vec<String>) = after

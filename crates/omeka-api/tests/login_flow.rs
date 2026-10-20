@@ -102,12 +102,13 @@ fn short_window(limit: u32) -> Policy {
 #[tokio::test]
 async fn login_action_starts_a_session_for_a_correct_password() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user =
         test_user_with_password(&pool, "person@example.org", "editor", true, "hunter2").await;
     let limiter = Limiter::new(RateLimits::default());
 
     let session = login(
-        &pool,
+        &db,
         &limiter,
         None,
         "person@example.org",
@@ -119,7 +120,7 @@ async fn login_action_starts_a_session_for_a_correct_password() {
     .expect("login");
     assert_eq!(session.user.id, user.id);
 
-    let resolved = current_user(&pool, Some(&session.token))
+    let resolved = current_user(&db, Some(&session.token))
         .await
         .unwrap()
         .unwrap();
@@ -130,13 +131,14 @@ async fn login_action_starts_a_session_for_a_correct_password() {
 #[tokio::test]
 async fn login_action_refuses_a_wrong_password_and_an_unknown_email() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     test_user_with_password(&pool, "person@example.org", "editor", true, "hunter2").await;
     let limiter = Limiter::new(RateLimits::default());
     let now = Instant::now();
 
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "person@example.org",
@@ -149,7 +151,7 @@ async fn login_action_refuses_a_wrong_password_and_an_unknown_email() {
     );
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "ghost@example.org",
@@ -165,7 +167,7 @@ async fn login_action_refuses_a_wrong_password_and_an_unknown_email() {
     let invited = test_user(&pool, "invited@example.org", "researcher", true).await;
     assert_eq!(invited.password_hash, None);
     assert_eq!(
-        login(&pool, &limiter, None, "invited@example.org", "", None, now).await,
+        login(&db, &limiter, None, "invited@example.org", "", None, now).await,
         Err(AuthError::InvalidCredentials)
     );
 }
@@ -173,12 +175,13 @@ async fn login_action_refuses_a_wrong_password_and_an_unknown_email() {
 #[tokio::test]
 async fn login_action_answers_403_for_an_inactive_account_with_the_right_password() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     test_user_with_password(&pool, "gone@example.org", "editor", false, "hunter2").await;
     let limiter = Limiter::new(RateLimits::default());
 
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "gone@example.org",
@@ -193,7 +196,7 @@ async fn login_action_answers_403_for_an_inactive_account_with_the_right_passwor
     // addresses to a guesser.
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "gone@example.org",
@@ -210,13 +213,14 @@ async fn login_action_answers_403_for_an_inactive_account_with_the_right_passwor
 #[tokio::test]
 async fn login_rotates_the_session_the_request_presented() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user =
         test_user_with_password(&pool, "person@example.org", "editor", true, "hunter2").await;
     let limiter = Limiter::new(RateLimits::default());
-    let first = SessionStore::new(&pool).create(user.id).await.unwrap();
+    let first = SessionStore::new(&db).create(user.id).await.unwrap();
 
     let session = login(
-        &pool,
+        &db,
         &limiter,
         Some(&first),
         "person@example.org",
@@ -228,7 +232,7 @@ async fn login_rotates_the_session_the_request_presented() {
     .expect("login");
     assert_ne!(session.token, first);
     assert_eq!(
-        current_user(&pool, Some(&first)).await.unwrap(),
+        current_user(&db, Some(&first)).await.unwrap(),
         None,
         "the id the request presented is dead"
     );
@@ -237,6 +241,7 @@ async fn login_rotates_the_session_the_request_presented() {
 #[tokio::test]
 async fn the_login_limit_trips_and_then_releases() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     test_user_with_password(&pool, "person@example.org", "editor", true, "hunter2").await;
     let limiter = Limiter::new(RateLimits {
         login_email: short_window(2),
@@ -247,7 +252,7 @@ async fn the_login_limit_trips_and_then_releases() {
     for _ in 0..2 {
         assert_eq!(
             login(
-                &pool,
+                &db,
                 &limiter,
                 None,
                 "person@example.org",
@@ -262,7 +267,7 @@ async fn the_login_limit_trips_and_then_releases() {
     }
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "person@example.org",
@@ -279,7 +284,7 @@ async fn the_login_limit_trips_and_then_releases() {
     let released = start + std::time::Duration::from_millis(50);
     assert_eq!(
         login(
-            &pool,
+            &db,
             &limiter,
             None,
             "person@example.org",
@@ -298,23 +303,25 @@ async fn the_login_limit_trips_and_then_releases() {
 #[tokio::test]
 async fn logout_action_revokes_the_session() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "person@example.org", "editor", true).await;
-    let token = SessionStore::new(&pool).create(user.id).await.unwrap();
+    let token = SessionStore::new(&db).create(user.id).await.unwrap();
 
-    assert!(current_user(&pool, Some(&token)).await.unwrap().is_some());
-    assert!(logout(&pool, Some(&token)).await.unwrap());
-    assert!(current_user(&pool, Some(&token)).await.unwrap().is_none());
-    assert!(!logout(&pool, None).await.unwrap());
+    assert!(current_user(&db, Some(&token)).await.unwrap().is_some());
+    assert!(logout(&db, Some(&token)).await.unwrap());
+    assert!(current_user(&db, Some(&token)).await.unwrap().is_none());
+    assert!(!logout(&db, None).await.unwrap());
 }
 
 #[tokio::test]
 async fn create_password_action_sets_the_password_once() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "invited@example.org", "editor", false).await;
-    let issued = issue_key(&pool, &user, true).await.unwrap();
+    let issued = issue_key(&db, &user, true).await.unwrap();
     let rules = PasswordRules::default();
 
-    let updated = set_password_at(&pool, &rules, &issued.key, "hunter2", clock())
+    let updated = set_password_at(&db, &rules, &issued.key, "hunter2", clock())
         .await
         .expect("set the password");
     assert!(updated.is_active, "activate true promotes the user");
@@ -324,7 +331,7 @@ async fn create_password_action_sets_the_password_once() {
     ));
 
     assert_eq!(
-        set_password_at(&pool, &rules, &issued.key, "hunter3", clock()).await,
+        set_password_at(&db, &rules, &issued.key, "hunter3", clock()).await,
         Err(SetPasswordError::UnknownKey),
         "the key is spent on use"
     );
@@ -340,12 +347,13 @@ async fn create_password_action_sets_the_password_once() {
 #[tokio::test]
 async fn create_password_action_leaves_the_key_when_the_password_is_rejected() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "invited@example.org", "editor", true).await;
-    let issued = issue_key(&pool, &user, false).await.unwrap();
+    let issued = issue_key(&db, &user, false).await.unwrap();
 
     assert_eq!(
         set_password_at(
-            &pool,
+            &db,
             &PasswordRules::default(),
             &issued.key,
             "short",
@@ -376,12 +384,13 @@ async fn create_password_action_leaves_the_key_when_the_password_is_rejected() {
 #[tokio::test]
 async fn create_password_action_refuses_an_expired_key_and_deactivates_like_upstream() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "person@example.org", "editor", true).await;
     let created = clock() - Duration::days(KEY_LIFETIME_DAYS + 1);
     let key = stored_key(&pool, &user, created).await;
 
     assert_eq!(
-        set_password_at(&pool, &PasswordRules::default(), &key, "hunter2", clock()).await,
+        set_password_at(&db, &PasswordRules::default(), &key, "hunter2", clock()).await,
         Err(SetPasswordError::UnknownKey)
     );
     assert!(
@@ -403,12 +412,13 @@ async fn create_password_action_refuses_an_expired_key_and_deactivates_like_upst
 #[tokio::test]
 async fn create_password_action_accepts_a_key_on_its_last_day() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "person@example.org", "editor", true).await;
     let created = clock() - Duration::days(KEY_LIFETIME_DAYS) + Duration::hours(1);
     let key = stored_key(&pool, &user, created).await;
 
     assert!(
-        set_password_at(&pool, &PasswordRules::default(), &key, "hunter2", clock())
+        set_password_at(&db, &PasswordRules::default(), &key, "hunter2", clock())
             .await
             .is_ok(),
         "just inside the two weeks"
@@ -418,9 +428,10 @@ async fn create_password_action_accepts_a_key_on_its_last_day() {
 #[tokio::test]
 async fn create_password_action_answers_404_for_an_unknown_key() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     assert_eq!(
         set_password_at(
-            &pool,
+            &db,
             &PasswordRules::default(),
             "no-such-key",
             "hunter2",
@@ -435,12 +446,13 @@ async fn create_password_action_answers_404_for_an_unknown_key() {
 #[tokio::test]
 async fn forgot_password_action_mints_a_reset_key_for_an_active_account_only() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "person@example.org", "editor", true).await;
     test_user(&pool, "gone@example.org", "editor", false).await;
     let limiter = Limiter::new(RateLimits::default());
     let now = Instant::now();
 
-    let issued = forgot_password(&pool, &limiter, "person@example.org", None, now)
+    let issued = forgot_password(&db, &limiter, "person@example.org", None, now)
         .await
         .unwrap()
         .expect("an active account gets a key");
@@ -459,13 +471,13 @@ async fn forgot_password_action_mints_a_reset_key_for_an_active_account_only() {
     );
 
     assert!(
-        forgot_password(&pool, &limiter, "ghost@example.org", None, now)
+        forgot_password(&db, &limiter, "ghost@example.org", None, now)
             .await
             .unwrap()
             .is_none()
     );
     assert!(
-        forgot_password(&pool, &limiter, "gone@example.org", None, now)
+        forgot_password(&db, &limiter, "gone@example.org", None, now)
             .await
             .unwrap()
             .is_none()
@@ -475,11 +487,12 @@ async fn forgot_password_action_mints_a_reset_key_for_an_active_account_only() {
 #[tokio::test]
 async fn forgot_password_action_replaces_the_key_the_user_already_held() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let user = test_user(&pool, "person@example.org", "editor", true).await;
-    let first = issue_key(&pool, &user, true).await.unwrap();
+    let first = issue_key(&db, &user, true).await.unwrap();
     let limiter = Limiter::new(RateLimits::default());
 
-    let second = forgot_password(&pool, &limiter, "person@example.org", None, Instant::now())
+    let second = forgot_password(&db, &limiter, "person@example.org", None, Instant::now())
         .await
         .unwrap()
         .unwrap();
@@ -497,6 +510,7 @@ async fn forgot_password_action_replaces_the_key_the_user_already_held() {
 #[tokio::test]
 async fn forgot_password_action_is_limited_per_email() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     test_user(&pool, "person@example.org", "editor", true).await;
     let limiter = Limiter::new(RateLimits {
         forgot_email: short_window(1),
@@ -507,20 +521,20 @@ async fn forgot_password_action_is_limited_per_email() {
     // A known address and an unknown one are counted on separate subjects
     // and answer the same way: 0 for both, then refused for both.
     assert!(
-        forgot_password(&pool, &limiter, "person@example.org", None, start)
+        forgot_password(&db, &limiter, "person@example.org", None, start)
             .await
             .unwrap()
             .is_some()
     );
     assert!(
-        forgot_password(&pool, &limiter, "ghost@example.org", None, start)
+        forgot_password(&db, &limiter, "ghost@example.org", None, start)
             .await
             .unwrap()
             .is_none()
     );
     for address in ["person@example.org", "ghost@example.org"] {
         assert_eq!(
-            forgot_password(&pool, &limiter, address, None, start).await,
+            forgot_password(&db, &limiter, address, None, start).await,
             Err(AuthError::RateLimited {
                 retry_after_secs: 1
             }),
@@ -532,11 +546,12 @@ async fn forgot_password_action_is_limited_per_email() {
 #[tokio::test]
 async fn mint_password_link_is_for_an_admin_and_another_account() {
     let pool = temp_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let admin = test_user(&pool, "admin@example.org", "global_admin", true).await;
     let editor = test_user(&pool, "editor@example.org", "editor", true).await;
     let actor = Actor::new(admin.id, "global_admin");
 
-    let issued = password_link(&pool, &actor, &editor.id.0.to_string())
+    let issued = password_link(&db, &actor, &editor.id.0.to_string())
         .await
         .expect("an admin mints a link for another user");
     assert!(issued.activate);
@@ -544,7 +559,7 @@ async fn mint_password_link_is_for_an_admin_and_another_account() {
 
     assert_eq!(
         password_link(
-            &pool,
+            &db,
             &Actor::new(editor.id, "editor"),
             &admin.id.0.to_string()
         )
@@ -555,7 +570,7 @@ async fn mint_password_link_is_for_an_admin_and_another_account() {
         "a non-admin is refused"
     );
     assert_eq!(
-        password_link(&pool, &actor, &admin.id.0.to_string())
+        password_link(&db, &actor, &admin.id.0.to_string())
             .await
             .err()
             .map(|error| error.status()),
@@ -563,14 +578,14 @@ async fn mint_password_link_is_for_an_admin_and_another_account() {
         "an admin does not mint a link for their own account"
     );
     assert_eq!(
-        password_link(&pool, &actor, "9999")
+        password_link(&db, &actor, "9999")
             .await
             .err()
             .map(|error| error.status()),
         Some(StatusCode::NOT_FOUND)
     );
     assert_eq!(
-        password_link(&pool, &actor, "not-an-id")
+        password_link(&db, &actor, "not-an-id")
             .await
             .err()
             .map(|error| error.status()),

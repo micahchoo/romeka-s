@@ -105,7 +105,7 @@ async fn source() -> Option<Source> {
             return None;
         }
     };
-    if let Err(error) = omeka_db::migrate_mysql(&pool).await {
+    if let Err(error) = omeka_db::migrate(&pool).await {
         eprintln!("SKIP: cannot migrate {name}: {error}");
         return None;
     }

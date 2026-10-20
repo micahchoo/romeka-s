@@ -7,29 +7,30 @@
 //! process so a long job does not hold the caller.
 
 use serde_json::Value;
-use sqlx::SqlitePool;
 
+use omeka_db::DbPool;
 use omeka_db::ids::JobId;
 use omeka_db::repos::JobRepo;
+use omeka_db::with_db;
 
 use super::status::JobStatus;
 use super::{JobContext, JobEnv, JobError, job_for};
 
 /// Runs one stored job.
 pub struct Runner<'a> {
-    pool: &'a SqlitePool,
+    pool: &'a DbPool,
     env: JobEnv,
 }
 
 impl<'a> Runner<'a> {
     /// A runner with the default [`JobEnv`].
     #[must_use]
-    pub fn new(pool: &'a SqlitePool) -> Self {
+    pub fn new(pool: &'a DbPool) -> Self {
         Self::with_env(pool, JobEnv::default())
     }
 
     #[must_use]
-    pub fn with_env(pool: &'a SqlitePool, env: JobEnv) -> Self {
+    pub fn with_env(pool: &'a DbPool, env: JobEnv) -> Self {
         Self { pool, env }
     }
 
@@ -45,10 +46,7 @@ impl<'a> Runner<'a> {
     /// [`JobError::InvalidArgument`] for a missing row or an unknown
     /// `job.class`; the job's own error after the row is marked `error`.
     pub async fn run(&self, id: JobId) -> Result<JobStatus, JobError> {
-        let jobs = JobRepo::new(self.pool);
-        let row = jobs
-            .get(id)
-            .await?
+        let row = with_db!(self.pool, |db| JobRepo::new(db).get(id).await)?
             .ok_or_else(|| JobError::InvalidArgument(format!("no job with id {}", id.0)))?;
         let stored = row.status.as_deref().and_then(JobStatus::parse);
         if let Some(status) = stored
@@ -60,14 +58,20 @@ impl<'a> Runner<'a> {
             Some(job) => job,
             None => {
                 let message = format!("unknown job class \"{}\"", row.class);
-                let _ = jobs.append_log(id, &message).await;
-                let _ = jobs.finish(id, JobStatus::Error.as_str()).await;
+                let _ = with_db!(self.pool, |db| JobRepo::new(db)
+                    .append_log(id, &message)
+                    .await);
+                let _ = with_db!(self.pool, |db| JobRepo::new(db)
+                    .finish(id, JobStatus::Error.as_str())
+                    .await);
                 return Err(JobError::InvalidArgument(message));
             }
         };
         let args = row.args.clone().unwrap_or(Value::Null);
 
-        jobs.start(id, &std::process::id().to_string()).await?;
+        with_db!(self.pool, |db| JobRepo::new(db)
+            .start(id, &std::process::id().to_string())
+            .await)?;
         let context = JobContext {
             pool: self.pool,
             job_id: id,
@@ -76,16 +80,24 @@ impl<'a> Runner<'a> {
         };
         match job.perform(&context).await {
             Ok(()) => {
-                let stored = jobs.status(id).await?.as_deref().and_then(JobStatus::parse);
+                let stored = with_db!(self.pool, |db| JobRepo::new(db).status(id).await)?
+                    .as_deref()
+                    .and_then(JobStatus::parse);
                 let status = stored.unwrap_or(JobStatus::Starting).ending();
-                jobs.finish(id, status.as_str()).await?;
-                jobs.clear_pid(id).await?;
+                with_db!(self.pool, |db| JobRepo::new(db)
+                    .finish(id, status.as_str())
+                    .await)?;
+                with_db!(self.pool, |db| JobRepo::new(db).clear_pid(id).await)?;
                 Ok(status)
             }
             Err(error) => {
-                let _ = jobs.append_log(id, &error.to_string()).await;
-                let _ = jobs.finish(id, JobStatus::Error.as_str()).await;
-                let _ = jobs.clear_pid(id).await;
+                let _ = with_db!(self.pool, |db| JobRepo::new(db)
+                    .append_log(id, &error.to_string())
+                    .await);
+                let _ = with_db!(self.pool, |db| JobRepo::new(db)
+                    .finish(id, JobStatus::Error.as_str())
+                    .await);
+                let _ = with_db!(self.pool, |db| JobRepo::new(db).clear_pid(id).await);
                 Err(error)
             }
         }
@@ -100,7 +112,7 @@ mod tests {
     use omeka_db::repos::ItemRepo;
     use omeka_db::rows::{NewItem, NewResource};
 
-    async fn new_item(pool: &SqlitePool, title: &str) {
+    async fn new_item(pool: &sqlx::SqlitePool, title: &str) {
         ItemRepo::new(pool)
             .create(&NewItem {
                 resource: NewResource {
@@ -117,13 +129,13 @@ mod tests {
     async fn a_run_records_completion_and_clears_the_pid() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "items"}),
         )
         .await;
 
-        let status = Runner::new(&db.pool).run(job_id).await.expect("run");
+        let status = Runner::new(&db.db_pool).run(job_id).await.expect("run");
 
         assert_eq!(status, JobStatus::Completed);
         let row = JobRepo::new(&db.pool)
@@ -140,12 +152,12 @@ mod tests {
     async fn a_finished_job_is_not_run_again() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "items"}),
         )
         .await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
         let ended = JobRepo::new(&db.pool)
             .get(job_id)
             .await
@@ -153,7 +165,7 @@ mod tests {
             .expect("row")
             .ended;
 
-        let status = Runner::new(&db.pool).run(job_id).await.expect("re-run");
+        let status = Runner::new(&db.db_pool).run(job_id).await.expect("re-run");
 
         assert_eq!(status, JobStatus::Completed);
         assert_eq!(
@@ -172,7 +184,7 @@ mod tests {
     async fn an_unknown_class_marks_the_row_error_without_starting_it() {
         let db = seeded_db().await;
         let job_id = crate::jobs::compose_job(
-            &db.pool,
+            &db.db_pool,
             "Omeka\\Job\\Missing",
             &serde_json::json!({}),
             None,
@@ -180,7 +192,7 @@ mod tests {
         .await
         .unwrap();
 
-        let error = Runner::new(&db.pool)
+        let error = Runner::new(&db.db_pool)
             .run(job_id)
             .await
             .expect_err("unknown class");
@@ -206,13 +218,13 @@ mod tests {
     async fn a_failing_job_marks_the_row_error_and_logs_the_reason() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "widgets"}),
         )
         .await;
 
-        let error = Runner::new(&db.pool)
+        let error = Runner::new(&db.db_pool)
             .run(job_id)
             .await
             .expect_err("failure");
@@ -233,7 +245,7 @@ mod tests {
     async fn job_log_lines_are_appended_with_a_trailing_newline() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "items"}),
         )
@@ -241,7 +253,7 @@ mod tests {
         let args = serde_json::Value::Null;
         let env = JobEnv::default();
         let context = JobContext {
-            pool: &db.pool,
+            pool: &db.db_pool,
             job_id,
             args: &args,
             env: &env,
@@ -269,13 +281,13 @@ mod tests {
             .await
             .unwrap();
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "items"}),
         )
         .await;
 
-        let pool = db.pool.clone();
+        let pool = db.db_pool.clone();
         let running = tokio::spawn(async move { Runner::new(&pool).run(job_id).await });
 
         while JobRepo::new(&db.pool)

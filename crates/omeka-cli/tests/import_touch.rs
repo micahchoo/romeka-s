@@ -327,7 +327,7 @@ async fn a_batch_update_keeps_what_it_edits() {
         })
         .await
         .unwrap();
-    omeka_cli::jobs::Runner::new(&at.site.pool)
+    omeka_cli::jobs::Runner::new(&omeka_db::DbPool::from(at.site.pool.clone()))
         .run(job.id)
         .await
         .unwrap();

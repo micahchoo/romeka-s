@@ -57,6 +57,25 @@ from the command line in practice. It loads the config itself, overrides those
 three, and calls `serve_with_services` with its file store (`--store`, default
 `files` in the working directory) and a job runner.
 
+## The database
+
+The router holds one `omeka_db::DbPool`, a SQLite or a MySQL pool, and every handler crosses to a
+repository through `omeka_db::with_db!` (`crates/omeka-db/README.md`, "Where the engine is chosen").
+`build_router` and `serve` take anything that converts into a `DbPool`, so a test passes the
+SQLite pool it seeded. The library has no `sqlx` dependency of its own; only the tests do.
+
+The route tests of `api_read`, `files_allow` and every `imports_*` file seed through
+`tests/common/engine.rs`. With `ROMEKA_MYSQL_URL` naming a server and no database, each test runs
+on a fresh MySQL or MariaDB database instead of SQLite:
+
+```sh
+ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
+  cargo test -p omeka-server --test api_read --test files_allow --test 'imports*'
+```
+
+A test's database is named `romeka_srv_<pid>_<n>` and is dropped by a later run once its process
+has gone, so point the variable at a throwaway server.
+
 ## Server operations
 
 Readiness. `GET /ready` runs `SELECT 1` and answers `{"status":"ready"}` with 200,

@@ -17,6 +17,7 @@
 use omeka_db::ids::VocabularyId;
 use omeka_db::repos::{VocabularyFilter, VocabularyRepo};
 use omeka_db::rows::{NewVocabulary, VocabularyRow};
+use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -76,7 +77,7 @@ pub async fn create_vocabulary(api: &Api<'_>, payload: &Payload) -> Result<ApiRe
     )
     .await?;
     validate_vocabulary(api, &input, None, classes.as_ref(), properties.as_ref()).await?;
-    let row = VocabularyRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .create(&NewVocabulary {
             owner_id: input.owner_id,
             namespace_uri: input.namespace_uri,
@@ -84,8 +85,8 @@ pub async fn create_vocabulary(api: &Api<'_>, payload: &Payload) -> Result<ApiRe
             label: input.label,
             comment: input.comment,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     apply_members(api, Member::Class, row.id, classes.as_ref()).await?;
     apply_members(api, Member::Property, row.id, properties.as_ref()).await?;
     api.read_member("vocabularies", &row.id.0.to_string()).await
@@ -99,10 +100,10 @@ pub async fn update_vocabulary(
 ) -> Result<ApiResponse, ApiError> {
     validate_request(payload)?;
     let id = parse_id(VOCABULARY_CLASS, raw_id)?;
-    let Some(row) = VocabularyRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .get(VocabularyId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(VOCABULARY_CLASS, raw_id));
     };
@@ -141,7 +142,7 @@ pub async fn update_vocabulary(
         },
     )
     .await?;
-    VocabularyRepo::new(api.pool())
+    with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .update(&VocabularyRow {
             id: row.id,
             owner_id: input.owner_id,
@@ -150,8 +151,8 @@ pub async fn update_vocabulary(
             label: input.label,
             comment: input.comment,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     apply_members(api, Member::Class, row.id, classes.as_ref()).await?;
     apply_members(api, Member::Property, row.id, properties.as_ref()).await?;
     api.read_member("vocabularies", raw_id).await
@@ -170,14 +171,20 @@ pub async fn update_vocabulary(
 /// they do not own.
 pub async fn delete_vocabulary(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(VOCABULARY_CLASS, raw_id)?;
-    let repo = VocabularyRepo::new(api.pool());
-    let Some(row) = repo.get(VocabularyId(id)).await.map_err(db_error)? else {
+    let Some(row) = with_db!(api.pool(), |db| VocabularyRepo::new(db)
+        .get(VocabularyId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(VOCABULARY_CLASS, raw_id));
     };
     access::vocabulary_entity(api.actor(), VOCABULARY_CLASS, row.owner_id)?;
     guard::vocabulary(api, row.id, VocabularyChange::Delete).await?;
     let answer = api.read_member("vocabularies", raw_id).await?;
-    repo.delete(row.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| VocabularyRepo::new(db)
+        .delete(row.id)
+        .await)
+    .map_err(db_error)?;
     Ok(answer)
 }
 
@@ -315,25 +322,25 @@ async fn namespace_taken(
     namespace_uri: &str,
     self_id: Option<u64>,
 ) -> Result<bool, ApiError> {
-    let rows = VocabularyRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .list(
             &VocabularyFilter {
                 namespace_uri: Some(namespace_uri.to_string()),
                 ..VocabularyFilter::default()
             },
-            &omeka_db::repos::Paging::default(),
+            &omeka_db::repos::Paging::default()
         )
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(rows.iter().any(|row| Some(row.id.0) != self_id))
 }
 
 /// `AbstractEntityAdapter::isUnique` for `vocabulary.prefix`.
 async fn prefix_taken(api: &Api<'_>, prefix: &str, self_id: Option<u64>) -> Result<bool, ApiError> {
-    let Some(row) = VocabularyRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .get_by_prefix(prefix)
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Ok(false);
     };

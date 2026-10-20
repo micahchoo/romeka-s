@@ -12,6 +12,7 @@ use imports_fixture::{EDITOR, JPEG, SECOND_ADMIN, fixture};
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{ImportRepo, TemplateRepo};
 use omeka_db::rows::{NewImport, NewTemplate};
+use omeka_db::with_db;
 use serde_json::json;
 
 /// Every import route, with a method and a body the route would accept.
@@ -193,7 +194,7 @@ async fn a_save_refuses_a_v1_plan_a_bad_plan_and_a_type_that_exists() {
         "two map keys read as one"
     );
 
-    TemplateRepo::new(&fixture.pool)
+    with_db!(&fixture.pool, |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: None,
             resource_class_id: None,
@@ -201,8 +202,8 @@ async fn a_save_refuses_a_v1_plan_a_bad_plan_and_a_type_that_exists() {
             description_property_id: None,
             label: "Letter".into(),
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let exists = fixture
         .save(&draft, |plan| {
             plan["newTypes"] =
@@ -219,10 +220,10 @@ async fn a_started_import_keeps_its_plan_and_cannot_be_deleted() {
     let fixture = fixture().await;
     let draft = fixture.draft().await;
     let id = ImportId(draft["id"].as_u64().unwrap());
-    ImportRepo::new(&fixture.pool)
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
         .start_run(id, 0)
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
     let saved = fixture.save(&draft, |_| {}).await;
     assert_eq!(saved.status, StatusCode::CONFLICT);
@@ -285,15 +286,15 @@ async fn a_copy_keeps_the_plan_with_its_decisions() {
     assert_eq!(copy["copiedFrom"], draft["id"]);
     assert_eq!(copy["revision"], 0);
 
-    let v1 = ImportRepo::new(&fixture.pool)
+    let v1 = with_db!(&fixture.pool, |db| ImportRepo::new(db)
         .create_draft(&NewImport {
             owner_id: None,
             sources: json!([]),
             plan: json!({ "setLevel": 1, "folder": "x" }),
             copied_from: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let refused = fixture
         .call(
             "POST",

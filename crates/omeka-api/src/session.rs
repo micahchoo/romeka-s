@@ -32,11 +32,12 @@
 //! mints a new one.
 
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
 
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{SessionRepo, UserRepo};
 use omeka_db::rows::UserRow;
+use omeka_db::with_db;
 
 use crate::errors::ApiError;
 use crate::token;
@@ -100,11 +101,11 @@ struct SessionPayload {
 
 /// Session rows for one database.
 pub struct SessionStore<'a> {
-    pool: &'a SqlitePool,
+    pool: &'a DbPool,
 }
 
 impl<'a> SessionStore<'a> {
-    pub fn new(pool: &'a SqlitePool) -> Self {
+    pub fn new(pool: &'a DbPool) -> Self {
         Self { pool }
     }
 
@@ -116,10 +117,10 @@ impl<'a> SessionStore<'a> {
         let token = token::token()?;
         let payload = serde_json::to_vec(&SessionPayload { user_id: user_id.0 })
             .map_err(ApiError::internal)?;
-        SessionRepo::new(self.pool)
+        with_db!(self.pool, |db| SessionRepo::new(db)
             .save(&token, &payload, None)
-            .await
-            .map_err(ApiError::internal)?;
+            .await)
+        .map_err(ApiError::internal)?;
         Ok(token)
     }
 
@@ -134,9 +135,7 @@ impl<'a> SessionStore<'a> {
         user_id: UserId,
     ) -> Result<String, ApiError> {
         if let Some(previous) = presented {
-            SessionRepo::new(self.pool)
-                .delete(previous)
-                .await
+            with_db!(self.pool, |db| SessionRepo::new(db).delete(previous).await)
                 .map_err(ApiError::internal)?;
         }
         self.create(user_id).await
@@ -157,32 +156,37 @@ impl<'a> SessionStore<'a> {
     /// # Errors
     /// An [`ApiError`] when a query fails.
     pub async fn resolve(&self, token: &str, now: i64) -> Result<Option<UserRow>, ApiError> {
-        let repo = SessionRepo::new(self.pool);
-        let Some(row) = repo.get(token).await.map_err(ApiError::internal)? else {
+        let Some(row) = with_db!(self.pool, |db| SessionRepo::new(db).get(token).await)
+            .map_err(ApiError::internal)?
+        else {
             return Ok(None);
         };
         if now.saturating_sub(row.modified) > SESSION_LIFETIME_SECS {
-            repo.delete(token).await.map_err(ApiError::internal)?;
+            with_db!(self.pool, |db| SessionRepo::new(db).delete(token).await)
+                .map_err(ApiError::internal)?;
             return Ok(None);
         }
         let Some(payload) = serde_json::from_slice::<SessionPayload>(&row.data).ok() else {
-            repo.delete(token).await.map_err(ApiError::internal)?;
+            with_db!(self.pool, |db| SessionRepo::new(db).delete(token).await)
+                .map_err(ApiError::internal)?;
             return Ok(None);
         };
-        let Some(user) = UserRepo::new(self.pool)
+        let Some(user) = with_db!(self.pool, |db| UserRepo::new(db)
             .get(UserId(payload.user_id))
-            .await
-            .map_err(ApiError::internal)?
+            .await)
+        .map_err(ApiError::internal)?
         else {
-            repo.delete(token).await.map_err(ApiError::internal)?;
+            with_db!(self.pool, |db| SessionRepo::new(db).delete(token).await)
+                .map_err(ApiError::internal)?;
             return Ok(None);
         };
         if !user.is_active {
             return Ok(None);
         }
-        repo.save(token, &row.data, Some(now))
-            .await
-            .map_err(ApiError::internal)?;
+        with_db!(self.pool, |db| SessionRepo::new(db)
+            .save(token, &row.data, Some(now))
+            .await)
+        .map_err(ApiError::internal)?;
         Ok(Some(user))
     }
 
@@ -191,9 +195,7 @@ impl<'a> SessionStore<'a> {
     /// # Errors
     /// An [`ApiError`] when the delete fails.
     pub async fn revoke(&self, token: &str) -> Result<bool, ApiError> {
-        SessionRepo::new(self.pool)
-            .delete(token)
-            .await
+        with_db!(self.pool, |db| SessionRepo::new(db).delete(token).await)
             .map_err(ApiError::internal)
     }
 
@@ -202,10 +204,10 @@ impl<'a> SessionStore<'a> {
     /// # Errors
     /// An [`ApiError`] when the delete fails.
     pub async fn gc_expired(&self, now: i64) -> Result<u64, ApiError> {
-        SessionRepo::new(self.pool)
+        with_db!(self.pool, |db| SessionRepo::new(db)
             .gc(now.saturating_sub(SESSION_LIFETIME_SECS))
-            .await
-            .map_err(ApiError::internal)
+            .await)
+        .map_err(ApiError::internal)
     }
 }
 
@@ -223,8 +225,9 @@ mod tests {
     #[tokio::test]
     async fn a_session_resolves_to_its_user() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "researcher", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let token = store.create(user.id).await.unwrap();
 
         let at = now();
@@ -237,8 +240,9 @@ mod tests {
     #[tokio::test]
     async fn a_session_past_its_lifetime_is_refused_and_removed() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let token = store.create(user.id).await.unwrap();
 
         let later = now() + SESSION_LIFETIME_SECS + 1;
@@ -252,8 +256,9 @@ mod tests {
     #[tokio::test]
     async fn a_resolve_slides_the_window() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let token = store.create(user.id).await.unwrap();
 
         let almost = now() + SESSION_LIFETIME_SECS - 1;
@@ -266,8 +271,9 @@ mod tests {
     #[tokio::test]
     async fn logout_revokes_the_row() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let token = store.create(user.id).await.unwrap();
 
         assert!(store.revoke(&token).await.unwrap());
@@ -281,8 +287,9 @@ mod tests {
     #[tokio::test]
     async fn a_deactivated_user_has_no_session() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let token = store.create(user.id).await.unwrap();
         let at = now();
 
@@ -296,8 +303,9 @@ mod tests {
     #[tokio::test]
     async fn rotating_replaces_the_presented_token() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let first = store.create(user.id).await.unwrap();
 
         let second = store.rotate(Some(&first), user.id).await.unwrap();
@@ -313,7 +321,8 @@ mod tests {
     #[tokio::test]
     async fn a_payload_that_is_not_a_session_is_refused_and_removed() {
         let pool = temp_db().await;
-        let store = SessionStore::new(&pool);
+        let db = omeka_db::DbPool::from(pool.clone());
+        let store = SessionStore::new(&db);
         SessionRepo::new(&pool)
             .save("junk", b"not json", None)
             .await
@@ -326,8 +335,9 @@ mod tests {
     #[tokio::test]
     async fn garbage_collection_drops_only_the_closed_windows() {
         let pool = temp_db().await;
+        let db = omeka_db::DbPool::from(pool.clone());
         let user = test_user(&pool, "person@example.org", "author", true).await;
-        let store = SessionStore::new(&pool);
+        let store = SessionStore::new(&db);
         let fresh = "fresh-session";
         SessionRepo::new(&pool)
             .save(fresh, &payload(user.id), Some(1 + SESSION_LIFETIME_SECS))

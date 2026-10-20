@@ -24,6 +24,7 @@ use imports_wire::scene::{
 use omeka_db::ids::ImportId;
 use omeka_db::repos::ImportRepo;
 use omeka_db::rows::ImportEnding;
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 #[tokio::test]
@@ -439,13 +440,13 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
         &refused(notdraft, StatusCode::CONFLICT, Some("notDraft")).await,
     );
 
-    let repo = ImportRepo::new(&fixture.pool);
     let import = ImportId(id.as_u64().unwrap());
-    repo.set_summary(
-        import,
-        &json!({ "progress": { "done": 3, "total": 9 }, "failures": [], "stopped": false }),
-    )
-    .await
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .set_summary(
+            import,
+            &json!({ "progress": { "done": 3, "total": 9 }, "failures": [], "stopped": false })
+        )
+        .await)
     .unwrap();
     out.json(
         "import-running.json",
@@ -461,13 +462,17 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
     );
 
     let failures = json!([{ "record": "group:BHC_006_AF_001", "key": "importFileUnreadable", "detail": "The file could not be read." }]);
-    repo.set_summary(
-        import,
-        &json!({ "progress": { "done": 8, "total": 9 }, "failures": failures, "stopped": true }),
-    )
-    .await
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .set_summary(
+            import,
+            &json!({ "progress": { "done": 8, "total": 9 }, "failures": failures, "stopped": true })
+        )
+        .await)
     .unwrap();
-    repo.finish(import, ImportEnding::RunFailed).await.unwrap();
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .finish(import, ImportEnding::RunFailed)
+        .await)
+    .unwrap();
     out.json(
         "import-run-failed.json",
         &ok(fixture.call("GET", &at(id, ""), None).await).await,
@@ -492,13 +497,17 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
         .await)
     .await;
     let done_id = ImportId(done["id"].as_u64().unwrap());
-    repo.set_summary(
-        done_id,
-        &json!({ "progress": { "done": 9, "total": 9 }, "failures": [], "stopped": false }),
-    )
-    .await
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .set_summary(
+            done_id,
+            &json!({ "progress": { "done": 9, "total": 9 }, "failures": [], "stopped": false })
+        )
+        .await)
     .unwrap();
-    repo.finish(done_id, ImportEnding::Done).await.unwrap();
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .finish(done_id, ImportEnding::Done)
+        .await)
+    .unwrap();
     out.json(
         "import-done.json",
         &ok(fixture.call("GET", &at(&done["id"], ""), None).await).await,

@@ -11,6 +11,7 @@ use omeka_db::repos::{
     Paging, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci,
 };
 use omeka_db::rows::{PageImage, PageImageBlock, SitePageRow, SiteRow, UserRow};
+use omeka_db::with_db;
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
 use super::params::{Sort, SortField};
@@ -39,10 +40,10 @@ pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         site_id: params.id("site_id"),
     };
     let ids = id_filter(params);
-    let rows = UserRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| UserRepo::new(db)
         .list(&filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let needle = search_needle(params);
     let rows: Vec<UserRow> = rows
         .into_iter()
@@ -68,10 +69,8 @@ pub async fn search_users(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
 
 pub async fn read_user(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(USER_CLASS, raw_id)?;
-    let Some(row) = UserRepo::new(api.pool())
-        .get(UserId(id))
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| UserRepo::new(db).get(UserId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(USER_CLASS, raw_id));
     };
@@ -119,7 +118,7 @@ fn user_doc(base: &BaseUrl, row: &UserRow) -> crate::wire::user::User {
 /// [`ApiError::Internal`] when a setting cannot be read.
 pub async fn session_user_response(
     base: &BaseUrl,
-    pool: &sqlx::SqlitePool,
+    pool: &omeka_db::DbPool,
     row: &UserRow,
 ) -> Result<ApiResponse, ApiError> {
     let mut document = user_doc(base, row);
@@ -141,10 +140,10 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         assign_new_items: params.bool("assign_new_items"),
     };
     let ids = id_filter(params);
-    let rows = SiteRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list(&filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let needle = search_needle(params);
     let candidates: Vec<SiteRow> = rows
         .into_iter()
@@ -179,10 +178,8 @@ pub async fn search_sites(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
 
 pub async fn read_site(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(SITE_CLASS, raw_id)?;
-    let Some(row) = SiteRepo::new(api.pool())
-        .get(SiteId(id))
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(SiteId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
@@ -219,10 +216,10 @@ async fn has_site_permission(api: &Api<'_>, site: SiteId) -> Result<bool, ApiErr
     let Some(user) = api.actor().user() else {
         return Ok(false);
     };
-    SiteRepo::new(api.pool())
+    with_db!(api.pool(), |db| SiteRepo::new(db)
         .has_permission(site, user)
-        .await
-        .map_err(db_error)
+        .await)
+    .map_err(db_error)
 }
 
 /// The site facts a page-visibility test reads, loaded once per site so a page
@@ -236,10 +233,8 @@ struct SiteAccess {
 
 /// The site's visibility facts, `None` when no such site exists.
 async fn site_access(api: &Api<'_>, site: SiteId) -> Result<Option<SiteAccess>, ApiError> {
-    let Some(row) = SiteRepo::new(api.pool())
-        .get(site)
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(site).await).map_err(db_error)?
     else {
         return Ok(None);
     };
@@ -271,10 +266,7 @@ async fn site_doc(
     permission: bool,
 ) -> Result<crate::wire::site::Site, ApiError> {
     let base = api.base();
-    let repo = SiteRepo::new(api.pool());
-    let pages: Vec<_> = repo
-        .list_pages(row.id)
-        .await
+    let pages: Vec<_> = with_db!(api.pool(), |db| SiteRepo::new(db).list_pages(row.id).await)
         .map_err(db_error)?
         .into_iter()
         .filter(|page| {
@@ -283,25 +275,25 @@ async fn site_doc(
         })
         .map(|page| resource_ref(base, "site_pages", page.id.0))
         .collect();
-    let permissions: Vec<SitePermission> = repo
+    let permissions: Vec<SitePermission> = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list_permissions(row.id)
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .map(|permission| SitePermission {
-            user: resource_ref(base, "users", permission.user_id.0),
-            role: permission.role,
-        })
-        .collect();
-    let item_sets: Vec<SiteItemSet> = repo
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .map(|permission| SitePermission {
+        user: resource_ref(base, "users", permission.user_id.0),
+        role: permission.role,
+    })
+    .collect();
+    let item_sets: Vec<SiteItemSet> = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list_item_sets(row.id)
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .map(|row| SiteItemSet {
-            item_set: resource_ref(base, "item_sets", row.item_set_id.0),
-        })
-        .collect();
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .map(|row| SiteItemSet {
+        item_set: resource_ref(base, "item_sets", row.item_set_id.0),
+    })
+    .collect();
     let navigation: Vec<NavLink> =
         serde_json::from_value(row.navigation.clone()).unwrap_or_default();
     Ok(crate::wire::site::Site {
@@ -336,10 +328,10 @@ async fn site_doc(
 
 pub async fn read_site_page(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(PAGE_CLASS, raw_id)?;
-    let Some(row) = SiteRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| SiteRepo::new(db)
         .get_page(PageId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(PAGE_CLASS, raw_id));
     };
@@ -373,21 +365,18 @@ async fn site_page_doc(
     api: &Api<'_>,
     row: &SitePageRow,
 ) -> Result<crate::wire::site_page::SitePage, ApiError> {
-    let blocks = SiteRepo::new(api.pool())
-        .list_blocks(row.id)
-        .await
-        .map_err(db_error)?;
-    let attachments = SiteBlockAttachmentRepo::new(api.pool());
+    let blocks =
+        with_db!(api.pool(), |db| SiteRepo::new(db).list_blocks(row.id).await).map_err(db_error)?;
     let mut image = PageImage {
         page: row.clone(),
         blocks: Vec::with_capacity(blocks.len()),
     };
     for block in blocks {
         image.blocks.push(PageImageBlock {
-            attachments: attachments
+            attachments: with_db!(api.pool(), |db| SiteBlockAttachmentRepo::new(db)
                 .list_for_block(block.id)
-                .await
-                .map_err(db_error)?,
+                .await)
+            .map_err(db_error)?,
             block,
         });
     }
@@ -599,9 +588,7 @@ pub async fn search_site_pages(api: &Api<'_>, params: &Params) -> Result<ApiResp
     let ids = id_filter(params);
     let site_id = match (params.id::<SiteId>("site_id"), params.get("site_slug")) {
         (Some(id), _) => Some(id),
-        (None, Some(slug)) => SiteRepo::new(api.pool())
-            .get_by_slug(slug)
-            .await
+        (None, Some(slug)) => with_db!(api.pool(), |db| SiteRepo::new(db).get_by_slug(slug).await)
             .map_err(db_error)?
             .map(|site| site.id),
         (None, None) => None,
@@ -699,10 +686,10 @@ fn cmp_site_page(field: &str) -> impl Fn(&SitePageRow, &SitePageRow) -> std::cmp
 
 /// `GET /api-context`: the term definitions from every vocabulary.
 pub async fn context(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
-    let rows = omeka_db::repos::VocabularyRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| omeka_db::repos::VocabularyRepo::new(db)
         .list(&Default::default(), &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let document =
         ContextDocument::new(rows.into_iter().map(|row| (row.prefix, row.namespace_uri)));
     Ok(ApiResponse::document(serialize(&document)?))

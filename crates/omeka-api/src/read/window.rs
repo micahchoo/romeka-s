@@ -18,6 +18,7 @@
 
 use omeka_db::repos::{ItemFilter, ItemRepo, ItemWindow};
 use omeka_db::rows::ItemRow;
+use omeka_db::with_db;
 
 use super::paging::Limit;
 use super::params::{Sort, SortField};
@@ -67,10 +68,10 @@ pub(crate) async fn read(
         item_set_ids: search.filter.item_set_ids.clone(),
         visibility: media_visibility(api.actor()),
     };
-    let page = ItemRepo::new(api.pool())
+    let page = with_db!(api.pool(), |db| ItemRepo::new(db)
         .window(&window, limit.max.unwrap_or(0), limit.offset)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(ListPage {
         total: page.total,
         rows: page.rows,

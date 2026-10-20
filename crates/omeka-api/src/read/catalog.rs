@@ -29,9 +29,10 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use omeka_db::DbPool;
 use omeka_db::ids::{ClassId, PropertyId, VocabularyId};
 use omeka_db::repos::{TermRepo, TermScope};
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use super::db_error;
 use crate::errors::ApiError;
@@ -69,7 +70,7 @@ struct FullCatalog {
 
 impl Catalog {
     /// The whole term table, for a caller that resolves terms itself.
-    pub async fn load(pool: &SqlitePool) -> Result<Self, ApiError> {
+    pub async fn load(pool: &DbPool) -> Result<Self, ApiError> {
         let prefixes = prefixes(pool).await?;
         let properties = load_properties(pool, TermScope::All, &prefixes).await?;
         let classes = load_classes(pool, TermScope::All, &prefixes).await?;
@@ -85,7 +86,7 @@ impl Catalog {
 
     /// The rows a request's documents can print, which is all the API read
     /// surface needs before it builds a page.
-    pub async fn load_for_read(pool: &SqlitePool) -> Result<Self, ApiError> {
+    pub async fn load_for_read(pool: &DbPool) -> Result<Self, ApiError> {
         let prefixes = prefixes(pool).await?;
         let properties = load_properties(pool, TermScope::Referenced, &prefixes).await?;
         let classes = load_classes(pool, TermScope::Referenced, &prefixes).await?;
@@ -101,7 +102,7 @@ impl Catalog {
     /// Load the whole `property` and `resource_class` table, once. A write and
     /// a request that parses `property[i][property]` need it; a plain read does
     /// not, and that is the point of this type.
-    pub async fn fill_all(&self, pool: &SqlitePool) -> Result<(), ApiError> {
+    pub async fn fill_all(&self, pool: &DbPool) -> Result<(), ApiError> {
         if self.all.get().is_some() {
             return Ok(());
         }
@@ -160,8 +161,8 @@ impl Catalog {
 }
 
 /// The vocabulary prefixes by id.
-async fn prefixes(pool: &SqlitePool) -> Result<HashMap<u64, String>, ApiError> {
-    let rows = TermRepo::new(pool).prefixes().await.map_err(db_error)?;
+async fn prefixes(pool: &DbPool) -> Result<HashMap<u64, String>, ApiError> {
+    let rows = with_db!(pool, |db| TermRepo::new(db).prefixes().await).map_err(db_error)?;
     Ok(rows
         .into_iter()
         .map(|(id, prefix)| (id.0, prefix))
@@ -172,14 +173,11 @@ async fn prefixes(pool: &SqlitePool) -> Result<HashMap<u64, String>, ApiError> {
 /// holds every property a document can print, so an id outside it is never
 /// passed to [`Catalog::property`].
 async fn load_properties(
-    pool: &SqlitePool,
+    pool: &DbPool,
     scope: TermScope,
     prefixes: &HashMap<u64, String>,
 ) -> Result<HashMap<u64, PropertyInfo>, ApiError> {
-    let rows = TermRepo::new(pool)
-        .properties(scope)
-        .await
-        .map_err(db_error)?;
+    let rows = with_db!(pool, |db| TermRepo::new(db).properties(scope).await).map_err(db_error)?;
     Ok(rows
         .into_iter()
         .map(|row| {
@@ -195,11 +193,11 @@ async fn load_properties(
 
 /// The resource classes in `scope`, as `id -> term`.
 async fn load_classes(
-    pool: &SqlitePool,
+    pool: &DbPool,
     scope: TermScope,
     prefixes: &HashMap<u64, String>,
 ) -> Result<HashMap<u64, String>, ApiError> {
-    let rows = TermRepo::new(pool).classes(scope).await.map_err(db_error)?;
+    let rows = with_db!(pool, |db| TermRepo::new(db).classes(scope).await).map_err(db_error)?;
     Ok(rows
         .into_iter()
         .map(|row| {

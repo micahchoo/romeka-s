@@ -551,7 +551,11 @@ async fn a_hand_run_is_refused_while_the_heartbeat_is_young() {
     .await
     .unwrap();
 
-    let refused = omeka_cli::jobs::refuse_live_hand_run(&site.pool, JobId::from(job)).await;
+    let refused = omeka_cli::jobs::refuse_live_hand_run(
+        &omeka_db::DbPool::from(site.pool.clone()),
+        JobId::from(job),
+    )
+    .await;
 
     assert!(refused.is_err(), "a live worker holds the import");
     drop(gate.release);
@@ -568,9 +572,12 @@ async fn a_hand_run_is_refused_while_the_heartbeat_is_young() {
         .unwrap()
         .unwrap();
     assert!(ended.status != ImportStatus::Running);
-    omeka_cli::jobs::refuse_live_hand_run(&site.pool, JobId::from(job))
-        .await
-        .expect("an ended import refuses nothing");
+    omeka_cli::jobs::refuse_live_hand_run(
+        &omeka_db::DbPool::from(site.pool.clone()),
+        JobId::from(job),
+    )
+    .await
+    .expect("an ended import refuses nothing");
 }
 
 #[tokio::test(flavor = "multi_thread")]

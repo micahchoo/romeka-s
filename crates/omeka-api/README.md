@@ -3,7 +3,11 @@
 Romeka S is a fork of Omeka S. This crate holds the `/api` REST layer: wire
 types, the JSON-LD serializer, the route table, error documents, adapter
 registry, API key parsing, and the read and write endpoints over `omeka-db`.
-`omeka-server` turns these into axum responses.
+`omeka-server` turns these into axum responses. `read::Api` holds the
+deployment's `omeka_db::DbPool`; every repository call goes through
+`omeka_db::with_db!`, and the import v2 pipeline (`src/import2`) stays generic
+over `omeka_db::Backend` because a run holds one transaction across many
+repositories.
 
 The wire keeps upstream's member names, member order and error documents, so a
 client written against Omeka S reads the same answers here.

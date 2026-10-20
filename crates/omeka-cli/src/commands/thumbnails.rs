@@ -19,11 +19,11 @@
 
 use std::path::PathBuf;
 
-use sqlx::SqlitePool;
-
-use omeka_db::open_file;
+use omeka_db::DbPool;
+use omeka_db::Location;
 use omeka_db::repos::{MediaFilter, MediaRepo, Paging};
 use omeka_db::rows::MediaRow;
+use omeka_db::with_db;
 use omeka_media::file_render::ThumbnailType;
 use omeka_media::store::{Store, StorePrefix, storage_path};
 use omeka_media::thumbnailer::{ThumbnailOutcome, generate_thumbnails, thumbnail_path};
@@ -33,8 +33,8 @@ use crate::error::CliError;
 /// Input for `romeka media thumbnails`.
 #[derive(Debug, Clone)]
 pub struct ThumbnailOptions {
-    /// SQLite database file.
-    pub database: PathBuf,
+    /// The database.
+    pub database: Location,
     /// Store root (`file_store.local.base_path`). Defaults to `files` beside the database.
     pub store: Option<PathBuf>,
     /// Rebuild thumbnails that already exist instead of leaving them.
@@ -85,12 +85,12 @@ pub struct ThumbnailReport {
 /// be listed. A row that cannot be backfilled is reported in the
 /// [`ThumbnailReport`], not here.
 pub async fn run(options: &ThumbnailOptions) -> Result<ThumbnailReport, CliError> {
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     let store =
         crate::commands::file_store::open_store(&options.database, options.store.as_deref())?;
-    let rows = MediaRepo::new(&pool)
+    let rows = with_db!(&pool, |db| MediaRepo::new(db)
         .list(&MediaFilter::default(), &Paging::default())
-        .await?;
+        .await)?;
 
     let mut report = ThumbnailReport::default();
     for row in rows {
@@ -108,7 +108,7 @@ pub async fn run(options: &ThumbnailOptions) -> Result<ThumbnailReport, CliError
 /// Backfill one row. Failures come back in the result, so one bad row does not
 /// stop the run.
 async fn backfill_row(
-    pool: &SqlitePool,
+    pool: &DbPool,
     store: &dyn Store,
     row: &MediaRow,
     force: bool,
@@ -180,13 +180,13 @@ async fn backfill_row(
 ///
 /// A no-op for a row that already carries the flag, so a repeated run writes
 /// nothing.
-async fn mark_has_thumbnails(pool: &SqlitePool, row: &MediaRow) -> Result<(), CliError> {
+async fn mark_has_thumbnails(pool: &DbPool, row: &MediaRow) -> Result<(), CliError> {
     if row.has_thumbnails {
         return Ok(());
     }
     let mut updated = row.clone();
     updated.has_thumbnails = true;
-    if MediaRepo::new(pool).update(&updated).await? {
+    if with_db!(pool, |db| MediaRepo::new(db).update(&updated).await)? {
         Ok(())
     } else {
         Err(CliError::message(
@@ -248,7 +248,7 @@ mod tests {
 
     fn options(db: &TempDb, store: &std::path::Path, force: bool) -> ThumbnailOptions {
         ThumbnailOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             store: Some(store.to_path_buf()),
             force,
         }
