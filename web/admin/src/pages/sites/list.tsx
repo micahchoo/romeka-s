@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { formatDateTime } from '../../app/format';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { themeLabel } from './SiteFrame';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 
@@ -28,7 +29,7 @@ export const SiteList = (): ReactElement => {
             cell: (site) => <a href={`#/sites/${String(site.id)}`}>{site.title}</a>,
           },
           { header: t('column.slug'), cell: (site) => site.slug },
-          { header: t('column.theme'), cell: (site) => site.theme },
+          { header: t('column.theme'), cell: (site) => themeLabel(site.theme, t) },
           { header: t('column.public'), cell: (site) => (site.isPublic ? t('common.yes') : t('common.no')) },
           { header: t('column.created'), cell: (site) => formatDateTime(site.created, locale) },
         ]}

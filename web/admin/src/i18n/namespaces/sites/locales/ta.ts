@@ -58,7 +58,6 @@ export const ta: SitesMessages = {
   'navigation.moveUpShort': 'மேலே',
   'navigation.moveDownShort': 'கீழே',
   'navigation.remove': '{label} ஐ நீக்கவும்',
-  'navigation.errorMissingTarget': 'ஒரு பக்கம் அல்லது URL இணைப்பிற்கு அதன் இலக்கு தேவை.',
   'siteSettingGroup.browsing': 'உலாவல்',
   'siteSettingGroup.browsingIntro':
     'பார்வையாளர்கள் உலாவும்போது, பொருட்களின் பட்டியல்கள் எவ்வாறு தோன்றும்.',
@@ -299,15 +298,12 @@ export const ta: SitesMessages = {
   'siteHub.unknownLinkType':
     'ஒரு தொகுதி இந்த இணைப்பு வகையைச் சேர்த்தது. அதன் அமைப்புகள் சேமிக்கப்பட்டபடி வைக்கப்படுகின்றன.',
   'siteHub.moveLink': '{label} ஐ நகர்த்தவும்',
-  'siteHub.needsTarget': 'இலக்கு தேவை',
   'siteHub.editLink': '{label} ஐத் திருத்தவும்',
   'siteHub.addChildTo': '{label} உடன் ஒரு குழந்தை இணைப்பைச் சேர்க்கவும்',
   'siteHub.menuPreview': 'மெனு முன்னோட்டம்',
   'siteHub.homeLink': 'முகப்பு',
   'siteHub.emptyMenuNote':
     'இணைப்புகள் இல்லாதபோது, பொதுத் தளம் அதன் முகப்புப் பக்கத்திற்கான ஒரு இணைப்பைக் காட்டுகிறது.',
-  'siteHub.unsavedConfirm':
-    'வழிசெலுத்தலில் சேமிக்கப்படாத மாற்றங்கள் உள்ளன. வெளியேறி அவற்றை இழக்கவா?',
   'siteHub.unsaved': 'சேமிக்கப்படாத மாற்றங்கள்',
   'siteHub.picked':
     '{label} தேர்ந்தெடுக்கப்பட்டது. அதை நகர்த்த அம்பு விசைகளைப் பயன்படுத்தவும், கீழே போட Space ஐயும், ரத்து செய்ய Escape ஐயும் பயன்படுத்தவும்.',
@@ -424,5 +420,28 @@ export const ta: SitesMessages = {
   'itemPicker.setChip': 'கணம்: {title}',
   'itemPicker.removeSet': '{title} என்ற கணத்தை நீக்கவும்',
   'itemPicker.clear': 'தேர்வுகளை நீக்கவும்',
+  'navigation.issueNoPage': 'ஒரு பக்கம் தேவை',
+  'navigation.issueNoUrl': 'ஒரு URL தேவை',
+  'navigation.issueNoLabel': 'ஒரு லேபிள் தேவை',
+  'navigation.issueSamePage': 'பக்கம் ஏற்கனவே மெனுவில் உள்ளது',
+  'navigation.errorLinkIssues':
+    'சில இணைப்புகள் முழுமையடையவில்லை. குறிக்கப்பட்ட இணைப்புகளைச் சரிசெய்து, பின்னர் சேமிக்கவும்.',
+  'sites.userFallback': 'பயனர் {id}',
+  'sites.errorRowNoUser':
+    'ஒவ்வொரு வரிசையிலும் ஒரு பயனரைத் தேர்ந்தெடுக்கவும், அல்லது அந்த வரிசையை நீக்கவும்.',
+  'siteHub.unsavedTabConfirm':
+    'இந்த தாவலில் சேமிக்கப்படாத மாற்றங்கள் உள்ளன. வெளியேறி அவற்றை இழக்கவா?',
+  'siteAccess.viewer':
+    'இந்தத் தளத்தைப் பார்க்க முடியும். இதன் படைப்பாளர்கள் மற்றும் மேலாளர்கள் மட்டுமே இதை மாற்ற முடியும்.',
+  'siteAccess.hub': 'முகப்புப் பக்கம் மற்றும் மெனுவை மாற்ற தள மேலாளர்கள் மட்டுமே முடியும்.',
+  'siteAccess.notInNavigation': 'வழிசெலுத்தலில் இல்லை',
+  'siteAccess.navigation': 'தள மேலாளர்கள் மட்டுமே மெனுவை மாற்ற முடியும்.',
+  'siteAccess.items': 'தள மேலாளர்கள் மட்டுமே பொருட்களைச் சேர்க்க அல்லது நீக்க முடியும்.',
+  'siteAccess.users':
+    'இந்தத் தளத்தில் யார் பணியாற்றுகிறார்கள் என்பதை மாற்ற தள மேலாளர்கள் மட்டுமே முடியும்.',
+  'siteAccess.theme': 'தள மேலாளர்கள் மட்டுமே கருப்பொருளை மாற்ற முடியும்.',
+  'siteAccess.settings': 'தள மேலாளர்கள் மட்டுமே தள அமைப்புகளை மாற்ற முடியும்.',
+  'siteAccess.delete':
+    'தளத்தின் உரிமையாளர் அல்லது ஒரு நிர்வாகி மட்டுமே இந்தத் தளத்தை நீக்க முடியும்.',
   'itemPicker.itemFallback': 'உருப்படி {id}',
 };

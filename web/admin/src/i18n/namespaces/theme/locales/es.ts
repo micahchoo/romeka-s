@@ -137,4 +137,7 @@ export const es: ThemeMessages = {
   'themeChoice.transitionalSerif': 'Serifa de transición',
   'themeChoice.didone': 'Serifa de alto contraste',
   'themeChoice.mono': 'Monoespaciada',
+  // A colour's light and dark values under the automatic scheme.
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp': 'El esquema automático sigue el sistema del lector, así que cada color tiene un valor claro y un valor oscuro.',
 };
