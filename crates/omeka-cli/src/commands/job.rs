@@ -8,10 +8,15 @@ use std::path::PathBuf;
 use omeka_db::ids::JobId;
 use omeka_db::rows::JobRow;
 
+use omeka_api::import2::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
+use omeka_server::Config;
+
+/// The name `--archive-root` and the v1 `ROMEKA_ARCHIVE_ROOT` give their root.
+const ARCHIVE: &str = "archive";
 
 use crate::CliError;
-use crate::jobs::{JobEnv, JobStatus, Runner};
+use crate::jobs::{JobEnv, JobStatus, Runner, refuse_live_hand_run};
 use crate::store;
 
 /// Run one stored job in this process (`romeka job run <id>`).
@@ -22,9 +27,9 @@ use crate::store;
 pub async fn run(options: &RunOptions) -> Result<JobStatus, CliError> {
     let env = options.env()?;
     let pool = omeka_db::open_file(&options.database).await?;
-    Ok(Runner::with_env(&pool, env)
-        .run(JobId::from(options.id))
-        .await?)
+    let id = JobId::from(options.id);
+    refuse_live_hand_run(&pool, id).await?;
+    Ok(Runner::with_env(&pool, env).run(id).await?)
 }
 
 /// Every job row, oldest first.
@@ -63,7 +68,9 @@ pub struct RunOptions {
     pub store: Option<PathBuf>,
     /// `--base-url`; `http://localhost` when `None`.
     pub base_url: Option<String>,
-    /// `--archive-root`; the archive import is off when `None`.
+    /// `--archive-root`, the root named `archive`. The named roots come from
+    /// `ROMEKA_ARCHIVE_ROOTS` and the config file, as `romeka serve` reads
+    /// them, so a job the server starts sees the server's roots.
     pub archive_root: Option<PathBuf>,
 }
 
@@ -78,8 +85,26 @@ impl RunOptions {
         Ok(JobEnv {
             store: crate::commands::media::open_store(&self.database, self.store.as_deref()),
             base_url,
-            archive_root: self.archive_root.clone(),
+            archive_roots: self.archive_roots()?,
         })
+    }
+
+    fn archive_roots(&self) -> Result<ArchiveRoots, CliError> {
+        let config = Config::load().map_err(|error| CliError::message(error.to_string()))?;
+        let Some(root) = &self.archive_root else {
+            return Ok(config.archive_roots);
+        };
+        let root = std::path::absolute(root).map_err(|error| {
+            CliError::message(format!("cannot resolve {}: {error}", root.display()))
+        })?;
+        let named = config
+            .archive_roots
+            .iter()
+            .filter(|(name, _)| *name != ARCHIVE)
+            .map(|(name, path)| (name.to_string(), path.to_path_buf()))
+            .chain(std::iter::once((ARCHIVE.to_string(), root)))
+            .collect::<Vec<_>>();
+        ArchiveRoots::new(named).map_err(|error| CliError::message(error.to_string()))
     }
 }
 

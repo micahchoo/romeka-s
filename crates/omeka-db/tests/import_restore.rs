@@ -41,8 +41,10 @@ fn media(item: ItemId, w: &World, name: &str, position: i64) -> NewImportMedia {
     NewImportMedia {
         item,
         fields: w.fields(vec![literal(w.title, name, None)]),
-        file: stored(name),
+        file: Some(stored(name)),
         ingester: "upload".to_string(),
+        renderer: "file".to_string(),
+        data: None,
         source: Some(format!("{name}.tif")),
         position,
     }
@@ -399,6 +401,7 @@ on_both!(a_media_and_an_item_set_restore_too, |pool| {
     let set = ImportWrites::<Db>::new(&mut tx)
         .create_item_set(&omeka_db::rows::NewImportItemSet {
             fields: w.fields(vec![literal(w.title, "Letters", Some("en"))]),
+            is_open: false,
             sites: w.sites.to_vec(),
         })
         .await

@@ -149,6 +149,16 @@
     "server.importNotAFolder": "\"{path}\" is a file, not a folder.",
     "server.importScanBusy": "This import is running or being undone. Look at the files again once that has ended.",
     "server.importNoLeftFile": "This import has no list of left-out files yet. It is written when a run ends.",
-    "server.importJobNotStarted": "The import could not start: {reason}"
+    "server.importJobNotStarted": "The import could not start: {reason}",
+    "server.importFileUnreadable": "The file \"{path}\" could not be read: {reason}",
+    "server.importFileRefused": "The file \"{path}\" was not added: {reason}",
+    "server.importFileNotStored": "The file \"{path}\" could not be stored: {reason}",
+    "server.importSourceRefused": "\"{source}\" was not added: {reason}",
+    "server.importMediaNoSource": "This media names no file and no address to add.",
+    "server.importMediaNoItem": "This media's item was not added, so the media was not added either.",
+    "server.importResourceGone": "The item, media or item set this record changes is no longer in Omeka.",
+    "server.importRecordNotSaved": "This record could not be saved: {reason}",
+    "server.importLinksNotSaved": "The links of this record could not be saved: {reason}",
+    "server.importSitesNotJoined": "This item was added, but it did not join its sites: {reason}"
   }
 }

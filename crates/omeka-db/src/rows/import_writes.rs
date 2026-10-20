@@ -79,25 +79,32 @@ pub struct StoredFile {
     pub has_thumbnails: bool,
 }
 
-/// A media record: a stored file under an item. Its renderer is `file`, the one upstream gives
-/// every ingester that stores bytes.
+/// A media record under an item: a stored file, or what a URL ingester made (`youtube` and
+/// `oembed` store no original, `html` stores none at all).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewImportMedia {
     pub item: ItemId,
     pub fields: NewImportFields,
-    pub file: StoredFile,
-    /// Upstream's ingester name (`upload`, `sideload`).
+    /// `None` when the ingester stored no original.
+    pub file: Option<StoredFile>,
+    /// Upstream's ingester name (`upload`, `sideload`, `url`, `youtube`).
     pub ingester: String,
+    /// The ingester's renderer: `file` for every ingester that stores bytes.
+    pub renderer: String,
+    /// `media.data`, the ingester's payload.
+    pub data: Option<Value>,
     /// The original file name or URL, as upstream keeps it in `media.source`.
     pub source: Option<String>,
     /// 1-based, as the api write path numbers inline media.
     pub position: i64,
 }
 
-/// An item-set record under `create`. The set is closed, the `ItemSet` entity's default.
+/// An item set under `create`. An item-set record is closed, the `ItemSet` entity's default; a set
+/// a record names by a title no set has is open (`docs/import-v2.md`, "Sets").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewImportItemSet {
     pub fields: NewImportFields,
+    pub is_open: bool,
     pub sites: Vec<SiteId>,
 }
 

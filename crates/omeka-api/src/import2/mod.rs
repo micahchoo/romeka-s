@@ -12,6 +12,7 @@
 //! - [`derive`]: the evidence, the plan and a [`catalog::Catalog`] in, the
 //!   [`model::Model`] out, through [`grouping`], [`join`], [`slots`],
 //!   `matching` and `flags`.
+//! - [`run`]: the model written, with [`ledger`], [`media_in`] and [`left`].
 //!
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
@@ -27,10 +28,14 @@ pub mod evidence;
 mod flags;
 pub mod grouping;
 pub mod join;
+pub mod ledger;
+pub mod left;
 mod matching;
+pub mod media_in;
 pub mod model;
 pub mod plan;
 pub mod preview;
+pub mod run;
 pub mod scan;
 pub mod sheet;
 pub mod slots;
