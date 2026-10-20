@@ -8,6 +8,10 @@
  * A mark is the words the person ticked at one place of the name, or the
  * place's text with each run of digits read as any number. `sep` is the
  * character before the place.
+ *
+ * Both modes read and write this one example. Simple keeps its answers
+ * beside it in the same object (`simple/example-state.ts`), so every change
+ * here sets `path` and `marks` and keeps the other keys.
  */
 import type { ImportPlan } from '../../api/import-plan';
 import { isRecord, isUnknownArray } from '../../api/parse';
@@ -89,10 +93,20 @@ export const patternOf = (marks: readonly Mark[]): string => {
 export const patternIsMarked = (plan: ImportPlan, example: MarkedExample): boolean =>
   plan.grouping.pattern === patternOf(example.marks);
 
-const exampleJson = (example: MarkedExample, marks: readonly Mark[]): Readonly<Record<string, JsonValue>> => ({
-  ...(example.path === null ? {} : { path: example.path }),
-  marks: marks.map((mark) => (mark.kind === 'number' ? { kind: mark.kind, text: mark.text, sep: mark.sep } : { kind: mark.kind, words: [...mark.words], sep: mark.sep })),
-});
+const marksJson = (marks: readonly Mark[]): JsonValue =>
+  marks.map((mark) => (mark.kind === 'number' ? { kind: mark.kind, text: mark.text, sep: mark.sep } : { kind: mark.kind, words: [...mark.words], sep: mark.sep }));
+
+/**
+ * The plan's example with these marks, the other keys kept. With no mark the
+ * path and the marks go, and an example left with nothing in it is `null`.
+ */
+export const exampleWith = (plan: ImportPlan, path: string | null, marks: readonly Mark[]): ImportPlan['example'] => {
+  const kept = Object.fromEntries(Object.entries(plan.example ?? {}).filter(([key]) => key !== 'path' && key !== 'marks'));
+  if (marks.length === 0) {
+    return Object.keys(kept).length === 0 ? null : kept;
+  }
+  return { ...kept, ...(path === null ? {} : { path }), marks: marksJson(marks) };
+};
 
 /**
  * The plan without mark `index`. The pattern follows the marks when it was
@@ -106,16 +120,12 @@ export const removeMark = (plan: ImportPlan, index: number): ImportPlan => {
   }
   const marks = example.marks.filter((_, at) => at !== index);
   const pattern = patternIsMarked(plan, example) ? patternOf(marks) : plan.grouping.pattern;
-  return {
-    ...plan,
-    example: marks.length === 0 ? null : exampleJson(example, marks),
-    grouping: { ...plan.grouping, pattern },
-  };
+  return { ...plan, example: exampleWith(plan, example.path, marks), grouping: { ...plan.grouping, pattern } };
 };
 
 /** The plan without its example; a pattern the example wrote goes back to grouping by the name alone. */
 export const removeExample = (plan: ImportPlan): ImportPlan => {
   const example = exampleOf(plan);
   const marked = example !== null && patternIsMarked(plan, example);
-  return { ...plan, example: null, grouping: { ...plan.grouping, pattern: marked ? patternOf([]) : plan.grouping.pattern } };
+  return { ...plan, example: exampleWith(plan, null, []), grouping: { ...plan.grouping, pattern: marked ? patternOf([]) : plan.grouping.pattern } };
 };

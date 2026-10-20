@@ -6,8 +6,7 @@
  * a hand-edited plan never breaks a screen.
  */
 import type { ImportPlan } from '../../../api/import-plan';
-import type { JsonValue } from '../../../api/types';
-import { exampleOf, patternOf } from '../example';
+import { exampleOf, exampleWith, patternOf } from '../example';
 import type { Mark } from '../example';
 
 export interface SimpleState {
@@ -34,9 +33,6 @@ export const readState = (plan: ImportPlan): SimpleState => {
   };
 };
 
-const marksJson = (marks: readonly Mark[]): JsonValue =>
-  marks.map((mark) => (mark.kind === 'number' ? { kind: mark.kind, text: mark.text, sep: mark.sep } : { kind: mark.kind, words: [...mark.words], sep: mark.sep }));
-
 export const withState = (plan: ImportPlan, change: Partial<Omit<SimpleState, 'marks'>>): ImportPlan => {
   const next = { ...readState(plan), ...change };
   return {
@@ -46,15 +42,11 @@ export const withState = (plan: ImportPlan, change: Partial<Omit<SimpleState, 'm
 };
 
 /** The plan read by the marks: their pattern, and the example both modes read. */
-export const withMarks = (plan: ImportPlan, marks: readonly Mark[], path: string | null): ImportPlan => {
-  const kept = Object.fromEntries(Object.entries(plan.example ?? {}).filter(([key]) => key !== 'path' && key !== 'marks'));
-  const place = path ?? exampleOf(plan)?.path ?? null;
-  return {
-    ...plan,
-    grouping: { ...plan.grouping, pattern: patternOf(marks) },
-    example: { ...kept, ...(place === null || marks.length === 0 ? {} : { path: place }), marks: marksJson(marks) },
-  };
-};
+export const withMarks = (plan: ImportPlan, marks: readonly Mark[], path: string | null): ImportPlan => ({
+  ...plan,
+  grouping: { ...plan.grouping, pattern: patternOf(marks) },
+  example: exampleWith(plan, path ?? exampleOf(plan)?.path ?? null, marks),
+});
 
 /** Whether the plan's pattern is the one the marks make, or one typed in Advanced. */
 export const typedElsewhere = (plan: ImportPlan): boolean =>

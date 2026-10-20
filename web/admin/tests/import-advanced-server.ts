@@ -11,7 +11,7 @@
  * the screens run through the real client and its parsers.
  */
 import { asRecord, isRecord } from '../src/api/parse';
-import { patternOf } from '../src/pages/import/advanced/example';
+import { patternOf } from '../src/pages/import/example';
 import { loadFixture } from './loadFixture';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';

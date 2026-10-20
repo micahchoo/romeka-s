@@ -10,7 +10,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asRecord } from '../src/api/parse';
-import { patternOf } from '../src/pages/import/advanced/example';
+import { patternOf } from '../src/pages/import/example';
 import { ImportPage } from '../src/pages/import/page';
 import { advancedServer, PATH } from './import-advanced-server';
 import { installFetch, requestBody, requestsFor } from './stub';

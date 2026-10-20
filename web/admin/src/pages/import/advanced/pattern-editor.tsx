@@ -14,7 +14,7 @@ import { importApi } from '../../../api/import-routes';
 import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { listHref } from '../lists/address';
-import { exampleOf, patternOf } from './example';
+import { exampleOf, patternOf } from '../example';
 import { useAdvancedText } from './messages';
 import type { AdvancedTranslator } from './messages';
 import { partsOf } from './pattern-parts';
