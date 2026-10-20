@@ -1,7 +1,6 @@
 /**
  * How a label or a pattern group reads on screen: its name, its help line and
- * its colour class. A group the example compiler numbered (`identifier2`)
- * reads as its label.
+ * its colour class. A numbered group (`part2`) reads as its label.
  */
 import type { Label } from '../../api/imports';
 import type { ImportMessageKey } from './messages';
