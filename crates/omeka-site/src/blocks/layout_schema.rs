@@ -175,7 +175,7 @@ pub const BLOCK_LAYOUT_DATA: LayoutSchema = LayoutSchema {
     ],
 };
 
-/// A `blockGroup`'s section, under `o:layout_data.romeka.section`: how the
+/// A `blockGroup`'s section, under `o:layout_data.romeka.settings.section`: how the
 /// group lays out its blocks ([`super::style::Section`]). The editor shows it
 /// as the group's own panel, with the layout as small diagrams.
 pub const SECTION_LAYOUT_DATA: LayoutSchema = LayoutSchema {
@@ -270,7 +270,9 @@ mod tests {
     use serde_json::{Value as JsonValue, json};
 
     use super::*;
-    use crate::blocks::schema::{Field, FieldDefault, FieldKind};
+    use omeka_core::site::BlockLayoutData;
+
+    use crate::blocks::schema::{Field, FieldDefault, FieldKind, romeka_setting};
     use crate::blocks::style::{RomekaStyle, Section};
 
     /// The values a field can store, one JSON value each.
@@ -321,11 +323,13 @@ mod tests {
                 };
                 std::iter::once((field.key, field)).chain(token)
             })
-            .filter(|(key, _)| key.starts_with("romeka."));
-        let base = json!({"settings": {"section": {"layout": "stack"}}});
+            .filter(|(key, _)| romeka_setting(key).is_some());
+        let base =
+            json!({"block": "blockGroup", "v": 2, "settings": {"section": {"layout": "stack"}}});
         let rendered = |romeka: &JsonValue| {
-            let style = RomekaStyle::parse(romeka);
-            let section = Section::parse(romeka).map(|section| section.classes());
+            let data = BlockLayoutData::parse(&json!({ "romeka": romeka }));
+            let style = RomekaStyle::parse(&data);
+            let section = Section::parse(&data).map(|section| section.classes());
             (
                 style.bleed,
                 style.background,

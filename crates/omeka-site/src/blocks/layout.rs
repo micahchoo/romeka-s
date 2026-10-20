@@ -71,7 +71,7 @@ pub(crate) fn block_classes(
         ));
     }
     let data = &block.layout_data;
-    let romeka = RomekaStyle::parse(&data.romeka_raw);
+    let romeka = RomekaStyle::parse(data);
     if let Some(class) = data.class.as_deref()
         && !class.trim().is_empty()
     {
@@ -164,7 +164,7 @@ pub(crate) fn block_inline_styles(block: &SiteBlock, ctx: &RenderContext<'_>) ->
         data.padding_bottom.as_deref(),
     );
     push_length(&mut styles, "padding-left", data.padding_left.as_deref());
-    styles.extend(RomekaStyle::parse(&data.romeka_raw).styles());
+    styles.extend(RomekaStyle::parse(data).styles());
     styles
 }
 
@@ -215,7 +215,7 @@ pub(crate) fn group_open(
         classes.push("grid-position-1".to_string());
         classes.push(format!("grid-span-{columns}"));
     }
-    if let Some(section) = Section::parse(&block.layout_data.romeka_raw) {
+    if let Some(section) = Section::parse(&block.layout_data) {
         classes.extend(section.classes());
     }
     let styles = block_inline_styles(block, ctx);

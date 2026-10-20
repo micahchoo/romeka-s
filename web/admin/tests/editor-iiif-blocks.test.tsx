@@ -71,6 +71,17 @@ describe('the IIIF viewer height', () => {
       romeka: { block: 'iiifImage', v: 2, settings: { height: 'large' } },
     });
   });
+
+  it('leaves no carrier once the height is back to standard', () => {
+    const block = renderBlock(
+      'iiifImage',
+      { image_url: 'https://example.org/info.json' },
+      { 'o:layout_data': { class: 'wide', romeka: { block: 'iiifImage', v: 2, settings: { height: 'small' } } } },
+    );
+    fireEvent.change(screen.getByLabelText('Viewer height'), { target: { value: '' } });
+    expect(block().layoutData).toEqual({ class: 'wide' });
+    expect(block().data).toEqual({ image_url: 'https://example.org/info.json' });
+  });
 });
 
 describe('the manifest source', () => {

@@ -430,7 +430,7 @@
           "default": false
         },
         {
-          "key": "height",
+          "key": "romeka.height",
           "label": "blockField.iiif.height",
           "help": "fieldHelp.iiifPresentation.height",
           "type": "choice",
@@ -456,8 +456,7 @@
               "label": "blockChoice.height_full"
             }
           ],
-          "default": "",
-          "romeka": true
+          "default": ""
         }
       ]
     },
@@ -487,7 +486,7 @@
           "default": false
         },
         {
-          "key": "height",
+          "key": "romeka.height",
           "label": "blockField.iiif.height",
           "help": "fieldHelp.iiifImage.height",
           "type": "choice",
@@ -513,8 +512,7 @@
               "label": "blockChoice.height_full"
             }
           ],
-          "default": "",
-          "romeka": true
+          "default": ""
         }
       ]
     },

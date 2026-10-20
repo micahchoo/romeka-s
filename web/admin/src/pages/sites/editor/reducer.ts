@@ -8,7 +8,6 @@ import {
   setAttachments,
   setBlockData,
   setField,
-  setRomkaSetting,
   writeLayoutData,
 } from './blockContent';
 import { addBlock, insertBlocks, moveBlock, removeBlock, setLayout } from './blockList';
@@ -76,8 +75,6 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
       return writeLayoutData(state, action.blockKey, { [action.key]: action.value });
     case 'setLayoutDataValues':
       return writeLayoutData(state, action.blockKey, action.values);
-    case 'setRomkaSetting':
-      return setRomkaSetting(state, action);
     case 'useRomkaVersion':
       return adoptRomkaVersion(state, action);
     case 'setAttachments':

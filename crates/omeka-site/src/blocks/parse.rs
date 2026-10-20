@@ -196,7 +196,7 @@ fn fields(layout: &BlockLayout) -> &'static [Field] {
     ];
     const BLOCK_GROUP: &[Field] = &[Field {
         key: "span",
-        kind: Kind::Text,
+        kind: Kind::Int,
     }];
     const IIIF_PRESENTATION: &[Field] = &[
         Field {

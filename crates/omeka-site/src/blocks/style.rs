@@ -10,14 +10,16 @@
 //! Upstream's admin keeps the `romeka` member and its renderer ignores it, so a
 //! page styled here renders upstream as the same blocks in upstream's wrappers
 //! (`docs/compat.md`, "Site pages: the one-way rule"). The members are read
-//! here, at the render boundary, the way a carrier's settings are: a value of
-//! the wrong kind or outside its list reads as absent and renders nothing.
+//! here, at the render boundary, through [`BlockLayoutData::romeka_setting`]:
+//! a value of the wrong kind or outside its list reads as absent and renders
+//! nothing.
 //!
 //! Every value is one of a short list, so each list is an enum whose `css` or
 //! `class` names what the wrapper carries. The stylesheet styles the classes
 //! (`theme/style.css`, "Sections"), and the inline styles read only the theme's
 //! custom properties or a validated hex colour.
 
+use omeka_core::site::BlockLayoutData;
 use serde_json::Value as JsonValue;
 
 use crate::theme::palette::Role;
@@ -107,11 +109,6 @@ impl Colour {
     }
 }
 
-/// The `settings` object of a stored `romeka` member, `Null` when it has none.
-fn settings_of(romeka: &JsonValue) -> &JsonValue {
-    romeka.get("settings").unwrap_or(&JsonValue::Null)
-}
-
 /// The theme role a stored token names.
 #[must_use]
 pub fn token(value: &str) -> Option<Role> {
@@ -159,18 +156,17 @@ pub struct RomekaStyle {
 }
 
 impl RomekaStyle {
-    /// Read the styling out of the stored `romeka` object's `settings`.
+    /// Read the styling out of the block's Romeka settings.
     #[must_use]
-    pub fn parse(romeka: &JsonValue) -> Self {
-        let settings = settings_of(romeka);
-        let text = |key: &str| settings.get(key).and_then(JsonValue::as_str);
+    pub fn parse(data: &BlockLayoutData) -> Self {
+        let text = |key: &str| data.romeka_setting(key).and_then(JsonValue::as_str);
         Self {
             anchor: text("anchor")
                 .filter(|id| is_anchor(id))
                 .map(str::to_string),
             space_top: text("space_top").and_then(Space::parse),
             space_bottom: text("space_bottom").and_then(Space::parse),
-            bleed: settings.get("bleed").and_then(JsonValue::as_bool) == Some(true),
+            bleed: data.romeka_setting("bleed").and_then(JsonValue::as_bool) == Some(true),
             text_color: text("text_color").and_then(Colour::parse),
             background: text("background_role").and_then(token),
         }
@@ -327,8 +323,8 @@ impl Section {
     /// Read `romeka.settings.section`. A group with no layout there is no
     /// section: it renders the way upstream does, its blocks following the page.
     #[must_use]
-    pub fn parse(romeka: &JsonValue) -> Option<Self> {
-        let section = settings_of(romeka).get("section")?;
+    pub fn parse(data: &BlockLayoutData) -> Option<Self> {
+        let section = data.romeka_setting("section")?;
         let text = |key: &str| section.get(key).and_then(JsonValue::as_str);
         Some(Self {
             layout: text("layout").and_then(SectionLayout::parse)?,
@@ -365,18 +361,23 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    /// The layout data of a block whose `o:layout_data.romeka` is `romeka`.
+    fn stored(romeka: JsonValue) -> BlockLayoutData {
+        BlockLayoutData::parse(&json!({ "romeka": romeka }))
+    }
+
     /// Each stored value reads as its own variant, and anything else reads as
     /// absent rather than as a default the curator never chose.
     #[test]
     fn stored_values_parse_or_read_as_absent() {
-        let style = RomekaStyle::parse(&json!({"block": "html", "v": 2, "settings": {
+        let style = RomekaStyle::parse(&stored(json!({"block": "html", "v": 2, "settings": {
             "anchor": "our-story",
             "space_top": "large",
             "space_bottom": "none",
             "bleed": true,
             "text_color": "brand",
             "background_role": "surface",
-        }}));
+        }})));
         assert_eq!(style.anchor.as_deref(), Some("our-story"));
         assert_eq!(style.space_top, Some(Space::Large));
         assert_eq!(style.space_bottom, Some(Space::None));
@@ -384,18 +385,21 @@ mod tests {
         assert_eq!(style.text_color, Some(Colour::Token(Role::Brand)));
         assert_eq!(style.background, Some(Role::Surface));
 
-        let odd = RomekaStyle::parse(&json!({"settings": {
+        let odd = RomekaStyle::parse(&stored(json!({"block": "html", "v": 2, "settings": {
             "anchor": "Our Story",
             "space_top": "huge",
             "bleed": "yes",
             "text_color": "red",
             "background_role": "#ffffff",
-        }}));
+        }})));
         assert_eq!(odd, RomekaStyle::default());
         // Styling outside `settings` is not where any writer puts it.
-        let odd = RomekaStyle::parse(&json!({"anchor": "intro"}));
+        let odd = RomekaStyle::parse(&stored(json!({"block": "html", "v": 2, "anchor": "intro"})));
         assert_eq!(odd, RomekaStyle::default());
-        assert_eq!(RomekaStyle::parse(&JsonValue::Null), RomekaStyle::default());
+        assert_eq!(
+            RomekaStyle::parse(&BlockLayoutData::default()),
+            RomekaStyle::default()
+        );
     }
 
     #[test]
@@ -421,9 +425,10 @@ mod tests {
     /// is a role only, because a hex background is upstream's own member.
     #[test]
     fn colours_render_as_theme_properties_or_hex() {
-        let style = RomekaStyle::parse(
-            &json!({"settings": {"text_color": "#336699", "background_role": "brand"}}),
-        );
+        let style = RomekaStyle::parse(&stored(json!({"block": "html", "v": 2, "settings": {
+            "text_color": "#336699",
+            "background_role": "brand",
+        }})));
         assert_eq!(
             style.styles(),
             ["color: #336699", "background-color: var(--color-brand)"]
@@ -432,13 +437,20 @@ mod tests {
 
     #[test]
     fn a_group_without_a_stored_layout_is_no_section() {
-        assert_eq!(Section::parse(&json!({})), None);
         assert_eq!(
-            Section::parse(&json!({"settings": {"section": {"layout": "grid"}}})),
+            Section::parse(&stored(json!({"block": "blockGroup", "v": 2}))),
             None
         );
         assert_eq!(
-            Section::parse(&json!({"settings": {"section": {"layout": "cards-3", "gap": "wide"}}})),
+            Section::parse(&stored(
+                json!({"block": "blockGroup", "v": 2, "settings": {"section": {"layout": "grid"}}})
+            )),
+            None
+        );
+        assert_eq!(
+            Section::parse(&stored(json!({"block": "blockGroup", "v": 2, "settings": {
+                "section": {"layout": "cards-3", "gap": "wide"},
+            }}))),
             Some(Section {
                 layout: SectionLayout::Cards3,
                 align: None,

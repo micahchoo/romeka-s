@@ -53,7 +53,8 @@ export interface SideKeys {
 }
 
 interface FieldBase {
-  /** The `o:data` key, or a group's own name. */
+  /** The stored key, or a group's own name. A key under `romeka.` names a
+   * Romeka setting in `o:layout_data.romeka.settings` (`editor/layoutPaths.ts`). */
   readonly key: string;
   readonly label: EditorMessageKey;
   /** The one line under the control that says what the visitor sees. */
@@ -67,9 +68,6 @@ interface FieldBase {
   readonly group: FieldGroup | null;
   /** Whether the form tucks the field under "Advanced". */
   readonly advanced: boolean;
-  /** Whether the value is a Romeka setting of an upstream block, kept in
-   * `o:layout_data.romeka.settings` rather than in `o:data`. */
-  readonly romeka: boolean;
 }
 
 /** One field of a layout's form, by the control it renders. */
@@ -169,7 +167,7 @@ export interface BlockRegistry {
   readonly romekaHash: RomkaHash;
   readonly blockLayoutData: LayoutSchema;
   readonly pageLayoutData: LayoutSchema;
-  /** A block group's section, under `o:layout_data.romeka.section`. */
+  /** A block group's section, under `o:layout_data.romeka.settings.section`. */
   readonly sectionLayoutData: LayoutSchema;
   readonly colorTokens: readonly ColorToken[];
 }
@@ -318,7 +316,6 @@ const parseField = (value: unknown, path: Path): BlockField => {
     when: parseCondition(value.when, [...path, 'when']),
     group: parseGroup(value.group, [...path, 'group']),
     advanced: parseFlag(value.advanced, [...path, 'advanced']),
-    romeka: parseFlag(value.romeka, [...path, 'romeka']),
   };
   switch (parseString(value.type, [...path, 'type'])) {
     case 'text':

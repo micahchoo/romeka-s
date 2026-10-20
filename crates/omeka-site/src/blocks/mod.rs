@@ -172,7 +172,7 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
     let mut counted = 0_i64;
     let mut anchors = BTreeSet::new();
     for block in ordered {
-        let anchor = style::RomekaStyle::parse(&block.layout_data.romeka_raw)
+        let anchor = style::RomekaStyle::parse(&block.layout_data)
             .anchor
             .filter(|anchor| anchors.insert(anchor.clone()));
         if block.layout == LayoutId::BlockGroup {

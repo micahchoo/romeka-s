@@ -7,6 +7,7 @@ import type { JsonValue } from '../../../api/types';
 import type { BlockField, BlockLayoutSchema, BlockRegistry, RomkaBlockSchema } from '../blockSchema';
 import type { BlockKey, ValidationIssue } from './draft';
 import { isJsonArray, isJsonObject } from './values';
+import { settingPath } from './layoutPaths';
 
 export const schemaFor = (
   registry: BlockRegistry,
@@ -35,7 +36,10 @@ export const defaultsFor = (
   layout: string,
 ): Readonly<Record<string, JsonValue>> => {
   const schema = schemaFor(registry, layout);
-  return schema === undefined ? {} : defaultsFrom(schema.fields);
+  // A Romeka setting lives in the layout data, never in `o:data`.
+  return schema === undefined
+    ? {}
+    : defaultsFrom(schema.fields.filter((field) => settingPath(field.key) === null));
 };
 
 /** The settings a new Romeka block starts from. */

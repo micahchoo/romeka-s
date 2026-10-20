@@ -1,5 +1,5 @@
 /**
- * A block group's section: the layout under `o:layout_data.romeka.section`
+ * A block group's section: the layout under `o:layout_data.romeka.settings.section`
  * and the slots it gives the group's blocks.
  *
  * A section's blocks are its slots, in order: a 40/60 split's first block is

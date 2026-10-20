@@ -31,9 +31,13 @@ const HEIGHT_OPTIONS: &[ChoiceOption] = &[
 /// The height control both blocks declare; `help` says what "Standard" is for
 /// that block.
 pub(crate) const fn height_field(help: &'static str) -> Field {
-    choice("height", "blockField.iiif.height", help, HEIGHT_OPTIONS)
-        .default_text("")
-        .romeka()
+    choice(
+        "romeka.height",
+        "blockField.iiif.height",
+        help,
+        HEIGHT_OPTIONS,
+    )
+    .default_text("")
 }
 
 /// The viewer height a block renders at: the curator's choice, or the
@@ -41,9 +45,7 @@ pub(crate) const fn height_field(help: &'static str) -> Field {
 pub(crate) fn height(block: &SiteBlock, upstream: &'static str) -> &'static str {
     let chosen = block
         .layout_data
-        .romeka
-        .as_ref()
-        .and_then(|carrier| carrier.settings.get("height"))
+        .romeka_setting("height")
         .and_then(serde_json::Value::as_str);
     HEIGHTS
         .iter()

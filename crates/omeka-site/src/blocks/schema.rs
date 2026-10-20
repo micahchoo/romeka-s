@@ -16,12 +16,14 @@
 //! only the admin knows a locale. The `const fn`s below keep each layout's
 //! table to one line per field.
 //!
-//! A layout-data key that starts with `romeka.` names a Romeka setting of the
-//! block, stored in `o:layout_data.romeka.settings`, which [`super::style`]
-//! reads: `romeka.anchor` is stored at `romeka.settings.anchor`, and
-//! `romeka.section.layout` at `romeka.settings.section.layout`. A block that
-//! carries no Romeka block names its own layout in `romeka.block`. Upstream's
-//! admin keeps that object and ignores it.
+//! A key that starts with `romeka.`, in a layout's data schema or a layout-data
+//! schema, names a Romeka setting of an upstream block ([`romeka_setting`]),
+//! stored in `o:layout_data.romeka.settings` rather than in `o:data`, which an
+//! upstream save rebuilds: `romeka.height` is stored at
+//! `romeka.settings.height`, and `romeka.section.layout` at
+//! `romeka.settings.section.layout`. Such a carrier names the block's own
+//! layout in `romeka.block`. Upstream's admin keeps that object and ignores it
+//! (`docs/compat.md`, the one-way rule).
 
 use serde::Serialize;
 
@@ -71,11 +73,16 @@ pub struct Field {
     /// Whether the form tucks the field under its "Advanced" disclosure.
     #[serde(skip_serializing_if = "is_false")]
     pub advanced: bool,
-    /// Whether the value is a Romeka setting of an upstream block, stored under
-    /// `o:layout_data.romeka.settings` rather than in `o:data`, which an
-    /// upstream save rebuilds (`docs/compat.md`, the one-way rule).
-    #[serde(skip_serializing_if = "is_false")]
-    pub romeka: bool,
+}
+
+/// The prefix of a key that names a Romeka setting.
+const ROMEKA_KEY: &str = "romeka.";
+
+/// The path under `o:layout_data.romeka.settings` that a schema key names, or
+/// `None` for one of upstream's own members.
+#[must_use]
+pub fn romeka_setting(key: &str) -> Option<&str> {
+    key.strip_prefix(ROMEKA_KEY)
 }
 
 /// A condition on one sibling field's value, which decides whether a control
@@ -284,7 +291,6 @@ const fn field(
         when: None,
         group: None,
         advanced: false,
-        romeka: false,
     }
 }
 
@@ -511,15 +517,6 @@ impl Field {
     pub const fn group(self, group: Group) -> Self {
         Self {
             group: Some(group),
-            ..self
-        }
-    }
-
-    /// Stores the value under `o:layout_data.romeka.settings`, as a Romeka
-    /// setting of an upstream block.
-    pub const fn romeka(self) -> Self {
-        Self {
-            romeka: true,
             ..self
         }
     }

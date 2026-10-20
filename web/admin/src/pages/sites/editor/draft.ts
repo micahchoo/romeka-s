@@ -119,12 +119,6 @@ export type DraftAction =
       readonly blockKey: BlockKey;
       readonly values: Readonly<Record<string, JsonValue>>;
     }
-  | {
-      readonly type: 'setRomkaSetting';
-      readonly blockKey: BlockKey;
-      readonly field: string;
-      readonly value: JsonValue;
-    }
   | { readonly type: 'useRomkaVersion'; readonly blockKey: BlockKey }
   | {
       readonly type: 'setAttachments';

@@ -152,11 +152,16 @@ mod tests {
             assert_eq!(blocks.layout, "blockGroup", "{id}");
             assert_eq!(blocks.data, json!({ "span": count.to_string() }), "{id}");
             let parsed = BlockLayoutData::parse(&blocks.layout_data);
-            assert!(Section::parse(&parsed.romeka_raw).is_some(), "{id}");
-            let settings = parsed.romeka_raw["settings"].as_object().expect("settings");
+            assert!(Section::parse(&parsed).is_some(), "{id}");
+            let carrier = parsed.romeka.as_ref().expect("the carrier");
+            let settings = carrier.settings.as_object().expect("settings");
             for key in settings.keys().filter(|key| *key != "section") {
+                let alone = BlockLayoutData::parse(&json!({ "romeka": {
+                    "block": carrier.block, "v": carrier.v,
+                    "settings": { key.as_str(): settings[key] },
+                }}));
                 assert_ne!(
-                    RomekaStyle::parse(&json!({ "settings": { key.as_str(): settings[key] } })),
+                    RomekaStyle::parse(&alone),
                     RomekaStyle::default(),
                     "{id}: `{key}` is not styling the renderer reads"
                 );
