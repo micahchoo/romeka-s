@@ -39,6 +39,8 @@ export interface InspectorProps {
   readonly issues: readonly ValidationIssue[];
   readonly siteId: SiteId;
   readonly options: EditorOptions;
+  /** Clears the selection, so the inspector shows the page settings again. */
+  readonly onDeselect: () => void;
 }
 
 /** A block's data as editable JSON, for a layout the registry does not name. */
@@ -98,22 +100,25 @@ export const Inspector = ({
   issues,
   siteId,
   options,
+  onDeselect,
 }: InspectorProps): ReactElement => {
   const { t } = useTranslator(sites, editor);
   const schema = schemaFor(draft.registry, block.layout);
   const romka = romkaFor(draft.registry, block);
   const layoutData = draft.registry.blockLayoutData;
   const position = draft.blocks.findIndex((entry) => entry.key === block.key) + 1;
+  const label = layoutLabel(draft.registry, block, t);
 
   return (
     <div className="block-inspector">
-      <h2>
-        {t('editor.blockHeading', {
-          label: layoutLabel(draft.registry, block, t),
-          position,
-          count: draft.blocks.length,
-        })}
-      </h2>
+      <nav className="inspector-crumbs" aria-label={t('editor.crumbs')}>
+        <button type="button" title={t('editor.crumbPageHint')} onClick={onDeselect}>
+          {t('editor.crumbPage')}
+        </button>
+        <span aria-hidden="true">›</span>
+        <span aria-current="location">{label}</span>
+      </nav>
+      <h2>{t('editor.blockHeading', { label, position, count: draft.blocks.length })}</h2>
       {romka === undefined ? (
         <Labelled id={`block-layout-${block.key}`} label={t('editor.blockLayout')}>
           <select

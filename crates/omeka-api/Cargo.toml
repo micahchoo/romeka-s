@@ -48,10 +48,6 @@ unicode-normalization = "0.1"
 oxrdfio = "0.2"
 # The term types oxrdfio's parsers yield.
 oxrdf = "0.3"
-# The importer fetches a vocabulary URL through a resolver that refuses private
-# and local addresses (`vocab_import/fetch.rs`), which needs ureq's own
-# resolver seam. The same version omeka-media already builds.
-ureq = { version = "3", default-features = false, features = ["rustls"] }
 # The import v2 sheet reader (`import2/sheet/decode.rs`) guesses an unmarked
 # sheet's encoding with Mozilla's detector, so a Shift-JIS or Cyrillic sheet is
 # named and refused instead of read as Windows-1252. encoding_rs decodes UTF-16

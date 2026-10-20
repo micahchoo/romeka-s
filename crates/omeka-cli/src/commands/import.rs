@@ -237,7 +237,7 @@ pub async fn import_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
         }
         match import_row(&items, item_set_id, &columns, &record.fields).await {
             Ok(item) => {
-                site_items::attach_new_matches(&api, item, &[])
+                site_items::attach_on_create(&api, item)
                     .await
                     .map_err(|error| {
                         CliError::message(format!(

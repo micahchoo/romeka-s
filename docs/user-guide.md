@@ -79,7 +79,7 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Import | import a folder of files from the server as items, item sets and media, and undo the last import. Shown only when the server has an archive folder; see the next section |
 | Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
 | Users | list, invite, edit role and active flag, mint a password link, delete |
-| Sites and pages | list sites, create one, edit its theme settings, navigation, page blocks and user permissions; edit a page's blocks |
+| Sites and pages | list sites, create one, edit its theme settings, navigation, page blocks and user permissions; edit a page's blocks. A new site holds no items. Its Items tab picks items and whole item sets, adds them or replaces the site's items with them, and keeps the site in sync: when sync is on, an item created in one of the site's item sets joins the site. Editing an item never adds it, so an item you remove stays removed |
 | Vocabularies, properties, resource classes, resource templates | one browse list each, a detail view per row, and the create, edit and delete forms the API supports |
 | Assets, jobs, modules | one browse list each; assets and jobs have a detail view with the update and delete controls |
 | Query | the advanced search form; `Preview` runs a real search and lists the matches |

@@ -34,13 +34,16 @@ interface HubPage {
 interface Loaded {
   readonly site: Site;
   readonly pages: readonly HubPage[];
+  /** How many items the site holds. */
+  readonly items: number;
 }
 
 /** The pages in the site's own order (`o:page`), with what the page list says of each. */
 const load = async (siteId: SiteId): Promise<Loaded> => {
-  const [site, list] = await Promise.all([
+  const [site, list, items] = await Promise.all([
     api.getSite(siteId),
     api.listSitePages({ siteId, perPage: 200 }),
+    api.listItems({ siteId, perPage: 1 }),
   ]);
   const pages = site.pages.map((ref): HubPage => {
     const page = list.items.find((entry) => entry.id === ref.id);
@@ -48,7 +51,7 @@ const load = async (siteId: SiteId): Promise<Loaded> => {
       ? { id: ref.id, title: null, slug: null, isPublic: null }
       : { id: page.id, title: page.title, slug: page.slug, isPublic: page.isPublic };
   });
-  return { site, pages };
+  return { site, pages, items: items.total };
 };
 
 /** The page `/s/<slug>` opens: the homepage, else the first page in the menu. */
@@ -197,8 +200,14 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
   );
 };
 
-const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
-  const { t } = useTranslator(common, sites);
+const AboutSection = ({
+  site,
+  items,
+}: {
+  readonly site: Site;
+  readonly items: number;
+}): ReactElement => {
+  const { t, number } = useTranslator(common, sites);
   return (
     <section className="hub-section" aria-labelledby="hub-about">
       <div className="hub-section-head">
@@ -210,6 +219,12 @@ const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
         <dd>
           <a href={publicUrl(site.slug)} target="_blank" rel="noreferrer">
             /s/{site.slug}
+          </a>
+        </dd>
+        <dt>{t('siteHub.items')}</dt>
+        <dd>
+          <a href={siteHref(site.id, 'resources')}>
+            {items === 0 ? t('siteHub.noItems') : t('itemPicker.setCount', { count: number(items) })}
           </a>
         </dd>
         <dt>{t('siteHub.visibility')}</dt>
@@ -239,7 +254,7 @@ export const SiteDetail = ({ siteId }: { readonly siteId: SiteId }): ReactElemen
   return (
     <div className="site-hub">
       <PagesSection loaded={state.data} />
-      <AboutSection site={state.data.site} />
+      <AboutSection site={state.data.site} items={state.data.items} />
     </div>
   );
 };

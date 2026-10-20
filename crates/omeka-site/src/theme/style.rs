@@ -127,6 +127,7 @@ mod tests {
             url: "/s/main/media/9".to_string(),
             original_url: Some("/files/original/9.jpg".to_string()),
             title: "A file".to_string(),
+            media_type: None,
             thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
             embed: Some("<iframe src=\"/embed/9\"></iframe>".to_string()),
         }

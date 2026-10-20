@@ -9,12 +9,12 @@
 //! A selector resolves through the items list endpoint's own query ([`matching_item_ids`]), so a
 //! stored `o:item_pool` selects the items `/api/items?<pool>` lists for the same caller.
 //!
-//! **Keep in sync.** A site whose `assign_new_items` is true keeps its membership in step with its
-//! `o:item_pool`: a create that names no `o:site`, and every update, attaches the item to each
-//! such site whose pool newly selects it ([`synced_sites_matching`], [`attach_new_matches`]).
-//! Upstream's flag attaches every such new item; here the pool narrows it, and an update that
-//! makes an item match attaches it too. With the empty pool both select every new item, so a site
-//! upstream made behaves the same on create.
+//! **Keep in sync.** A site whose `assign_new_items` is true takes each new item its `o:item_pool`
+//! selects: an item create that names no `o:site` attaches the item to each such site
+//! ([`attach_on_create`]). An edit never attaches, so an item someone removed stays removed, as
+//! upstream's flag behaves. Upstream attaches every new item to such a site; here the pool narrows
+//! it. The admin writes the pool from the item sets a curator picked (`item_set_id`), and the empty
+//! pool selects every new item, so a site upstream made behaves the same.
 //!
 //! The route is Romeka's own. Upstream runs the same change as a job after its server-rendered
 //! resources form, and has no API for it. It writes only `item_site`, the table upstream's job
@@ -54,10 +54,11 @@ pub enum Selector {
     /// Anything that is not an object or array selects every item, as `UpdateSiteItems` reads a
     /// query that is not an array.
     Query(Value),
-    /// These items.
-    Items(Vec<ItemId>),
-    /// The items in any of these item sets.
-    ItemSets(Vec<u64>),
+    /// These items, together with the items in any of these item sets. Both empty names nothing.
+    Picked {
+        items: Vec<ItemId>,
+        item_sets: Vec<u64>,
+    },
 }
 
 /// One membership change.
@@ -146,15 +147,23 @@ pub async fn apply(
 
 /// The items a selector names that this caller can see.
 async fn select(api: &Api<'_>, selector: &Selector) -> Result<Vec<ItemId>, ApiError> {
-    let pairs = match selector {
-        Selector::Query(query) => query_pairs(query),
-        // An empty list names nothing; as a query it would add no filter and name everything.
-        Selector::Items(ids) if ids.is_empty() => return Ok(Vec::new()),
-        Selector::ItemSets(ids) if ids.is_empty() => return Ok(Vec::new()),
-        Selector::Items(ids) => list_pairs("id", ids.iter().map(|id| id.0)),
-        Selector::ItemSets(ids) => list_pairs("item_set_id", ids.iter().copied()),
+    let (items, item_sets) = match selector {
+        Selector::Query(query) => {
+            return matching_item_ids(api, &Params::from_decoded(query_pairs(query)), None).await;
+        }
+        Selector::Picked { items, item_sets } => (items, item_sets),
     };
-    matching_item_ids(api, &Params::from_decoded(pairs), None).await
+    let mut selected = BTreeSet::new();
+    // An empty list names nothing; as a query it would add no filter and name everything.
+    if !items.is_empty() {
+        let pairs = list_pairs("id", items.iter().map(|id| id.0));
+        selected.extend(matching_item_ids(api, &Params::from_decoded(pairs), None).await?);
+    }
+    if !item_sets.is_empty() {
+        let pairs = list_pairs("item_set_id", item_sets.iter().copied());
+        selected.extend(matching_item_ids(api, &Params::from_decoded(pairs), None).await?);
+    }
+    Ok(selected.into_iter().collect())
 }
 
 fn list_pairs(name: &str, ids: impl Iterator<Item = u64>) -> Vec<(String, String)> {
@@ -199,10 +208,7 @@ fn query_pairs(query: &Value) -> Vec<(String, String)> {
 }
 
 /// The sites that keep in sync with their item pool and whose pool selects this item.
-///
-/// # Errors
-/// A database error, or the read layer's error for a site's pool.
-pub async fn synced_sites_matching(api: &Api<'_>, item: ItemId) -> Result<Vec<SiteId>, ApiError> {
+async fn synced_sites_matching(api: &Api<'_>, item: ItemId) -> Result<Vec<SiteId>, ApiError> {
     let sites = SiteRepo::new(api.pool())
         .list(
             &SiteFilter {
@@ -226,24 +232,17 @@ pub async fn synced_sites_matching(api: &Api<'_>, item: ItemId) -> Result<Vec<Si
     Ok(matching)
 }
 
-/// Attach an item to every synced site whose pool selects it now and did not before the write.
+/// Attach a newly created item to every synced site whose pool selects it.
 ///
-/// `before` is [`synced_sites_matching`] read before the write; a create passes none. A site the
-/// item already matched is left alone, so an item someone removed by hand stays removed until an
-/// edit makes it match again.
+/// Every path that creates an item calls this once the item, its values and its item sets are
+/// written: the API create, `romeka import csv` and the archive import. No update path calls it.
 ///
 /// # Errors
 /// A database error, or the read layer's error for a site's pool.
-pub async fn attach_new_matches(
-    api: &Api<'_>,
-    item: ItemId,
-    before: &[SiteId],
-) -> Result<(), ApiError> {
+pub async fn attach_on_create(api: &Api<'_>, item: ItemId) -> Result<(), ApiError> {
     let repo = ItemSiteRepo::new(api.pool());
     for site in synced_sites_matching(api, item).await? {
-        if !before.contains(&site) {
-            repo.attach(site, &[item]).await.map_err(db_error)?;
-        }
+        repo.attach(site, &[item]).await.map_err(db_error)?;
     }
     Ok(())
 }
@@ -260,7 +259,8 @@ struct Body {
     item_sets: Option<Vec<u64>>,
 }
 
-/// Parse a request body into a command and its mode. Exactly one selector must be present.
+/// Parse a request body into a command and its mode. The body names a query, or items, item sets
+/// or both, which select their union.
 ///
 /// # Errors
 /// A 400 naming what is wrong with the body.
@@ -269,11 +269,13 @@ pub fn parse_body(bytes: &[u8]) -> Result<(Command, Mode), ApiError> {
         serde_json::from_slice(bytes).map_err(|error| ApiError::bad_request(error.to_string()))?;
     let selector = match (body.query, body.items, body.item_sets) {
         (Some(query), None, None) => Selector::Query(query),
-        (None, Some(items), None) => Selector::Items(items.into_iter().map(ItemId).collect()),
-        (None, None, Some(sets)) => Selector::ItemSets(sets),
-        _ => {
+        (None, None, None) | (Some(_), _, _) => {
             return Err(ApiError::bad_request(messages::SITE_ITEMS_ONE_SELECTOR));
         }
+        (None, items, item_sets) => Selector::Picked {
+            items: items.unwrap_or_default().into_iter().map(ItemId).collect(),
+            item_sets: item_sets.unwrap_or_default(),
+        },
     };
     let mode = if body.dry_run {
         Mode::DryRun
@@ -347,13 +349,27 @@ mod tests {
     }
 
     #[test]
-    fn a_body_names_exactly_one_selector() {
+    fn a_body_names_a_query_or_items_and_item_sets() {
         let (command, mode) =
             parse_body(br#"{"action":"add","item_sets":[4],"dry_run":true}"#).expect("parses");
-        assert_eq!(command.selector, Selector::ItemSets(vec![4]));
+        assert_eq!(
+            command.selector,
+            Selector::Picked {
+                items: Vec::new(),
+                item_sets: vec![4]
+            }
+        );
         assert_eq!(mode, Mode::DryRun);
+        let (both, _) = parse_body(br#"{"action":"add","items":[1],"item_sets":[2]}"#).unwrap();
+        assert_eq!(
+            both.selector,
+            Selector::Picked {
+                items: vec![ItemId(1)],
+                item_sets: vec![2]
+            }
+        );
         assert!(parse_body(br#"{"action":"add"}"#).is_err());
-        assert!(parse_body(br#"{"action":"add","items":[1],"item_sets":[2]}"#).is_err());
+        assert!(parse_body(br#"{"action":"add","query":{},"items":[1]}"#).is_err());
         assert!(parse_body(br#"{"action":"swap","items":[1]}"#).is_err());
     }
 }

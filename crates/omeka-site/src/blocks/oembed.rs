@@ -13,7 +13,7 @@
 use omeka_core::site::{BlockData, OembedData, SiteBlock};
 
 use crate::blocks::BlockLayout;
-use crate::blocks::schema::{LayoutSchema, boolean, text};
+use crate::blocks::schema::{LayoutSchema, text};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
@@ -21,21 +21,15 @@ use crate::view::RenderContext;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Oembed;
 
-/// `BlockLayout/Oembed.php::form`: the required `url` and the `refresh`
-/// checkbox. `url_old` and `oembed` are hidden members the class writes from
-/// the fetch, not fields the admin edits, so the schema leaves them out.
+/// `BlockLayout/Oembed.php::form`: the required `url`. Upstream's form also
+/// has a `refresh` checkbox that fetches the embed again on save; the port has
+/// no fetch, so the form leaves the box out. A stored `refresh` still parses
+/// (`blocks/parse.rs`). `url_old` and `oembed` are hidden members the class
+/// writes from the fetch, not fields the admin edits.
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[
-        text("url", "blockField.oembed.url", "fieldHelp.oembed.url")
-            .placeholder("fieldExample.url")
-            .required(),
-        boolean(
-            "refresh",
-            "blockField.oembed.refresh",
-            "fieldHelp.oembed.refresh",
-        )
-        .default_bool(false),
-    ],
+    fields: &[text("url", "blockField.oembed.url", "fieldHelp.oembed.url")
+        .placeholder("fieldExample.url")
+        .required()],
 };
 
 impl BlockLayout for Oembed {

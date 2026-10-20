@@ -191,60 +191,142 @@ async fn an_item_set_adds_its_items_and_remove_detaches_named_items() {
     assert_eq!(site_items(&pool, site).await, vec![second]);
 }
 
-#[tokio::test]
-async fn a_synced_site_takes_new_and_newly_matching_items() {
-    let (pool, seed) = seeded_pool().await;
-    let app = common::router(pool.clone());
-    let site = add_site(&pool, "synced", seed.user).await;
-    let mut row = SiteRepo::new(&pool).get(site).await.unwrap().unwrap();
-    row.assign_new_items = true;
-    row.item_pool = json!({ "is_public": "1" });
-    SiteRepo::new(&pool).update(&row).await.unwrap();
-
-    let public = add_item(&app, "Public print", true, json!({})).await;
-    let private = add_item(&app, "Private draft", false, json!({})).await;
-    assert_eq!(
-        site_items(&pool, site).await,
-        vec![public],
-        "a new item joins only when the site's search selects it"
-    );
-
-    let published = send(
+/// Create an item set with one title through the API and return its id.
+async fn add_item_set(app: &Router, text: &str) -> u64 {
+    let set = send(
         app.clone(),
         json_request(
-            "PATCH",
-            &append_key(&format!("/api/items/{private}")),
-            &json!({ "o:is_public": true }).to_string(),
+            "POST",
+            &append_key("/api/item_sets"),
+            &json!({ "dcterms:title": title(text) }).to_string(),
         ),
     )
     .await;
-    assert_eq!(published.status, StatusCode::OK, "{}", published.body);
+    assert_eq!(set.status, StatusCode::OK, "{}", set.body);
+    set.json()["o:id"].as_u64().unwrap()
+}
+
+async fn patch_item(app: &Router, item: u64, body: Value) {
+    let patched = send(
+        app.clone(),
+        json_request(
+            "PATCH",
+            &append_key(&format!("/api/items/{item}")),
+            &body.to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(patched.status, StatusCode::OK, "{}", patched.body);
+}
+
+#[tokio::test]
+async fn a_synced_site_takes_an_item_only_when_it_is_created() {
+    let (pool, seed) = seeded_pool().await;
+    let app = common::router(pool.clone());
+    let maps = add_item_set(&app, "Maps").await;
+    let site = add_site(&pool, "synced", seed.user).await;
+    let mut row = SiteRepo::new(&pool).get(site).await.unwrap().unwrap();
+    row.assign_new_items = true;
+    // The pool the admin writes from the picked sets: `item_set_id[]=<maps>`.
+    row.item_pool = json!({ "item_set_id": [maps.to_string()] });
+    SiteRepo::new(&pool).update(&row).await.unwrap();
+
+    let in_set = add_item(
+        &app,
+        "A map",
+        true,
+        json!({ "o:item_set": [{ "o:id": maps }] }),
+    )
+    .await;
+    let outside = add_item(&app, "A letter", true, json!({})).await;
     assert_eq!(
         site_items(&pool, site).await,
-        vec![public, private],
-        "an edit that makes an item match joins it"
+        vec![in_set],
+        "a new item joins when the site's pool selects it"
+    );
+
+    patch_item(&app, outside, json!({ "o:item_set": [{ "o:id": maps }] })).await;
+    assert_eq!(
+        site_items(&pool, site).await,
+        vec![in_set],
+        "an edit that makes an item match does not join it"
     );
 
     change(
         &app,
         &site_uri(site),
-        json!({ "action": "remove", "items": [public] }),
+        json!({ "action": "remove", "items": [in_set] }),
     )
     .await;
-    let retitled = send(
+    patch_item(
+        &app,
+        in_set,
+        json!({ "dcterms:title": title("A map, retitled") }),
+    )
+    .await;
+    assert!(
+        site_items(&pool, site).await.is_empty(),
+        "an item removed by hand stays removed after an edit"
+    );
+}
+
+#[tokio::test]
+async fn items_and_item_sets_together_select_their_union() {
+    let (pool, seed) = seeded_pool().await;
+    let app = common::router(pool.clone());
+    let site = add_site(&pool, "union", seed.user).await;
+    let maps = add_item_set(&app, "Maps").await;
+    let in_set = json!({ "o:item_set": [{ "o:id": maps }] });
+    let first = add_item(&app, "First map", true, in_set.clone()).await;
+    let second = add_item(&app, "Second map", true, in_set).await;
+    let letter = add_item(&app, "A letter", true, json!({})).await;
+    add_item(&app, "Another letter", true, json!({})).await;
+
+    let body = json!({ "action": "add", "items": [letter, first], "item_sets": [maps] });
+    let mut dry = body.clone();
+    dry["dry_run"] = json!(true);
+    let preview = change(&app, &site_uri(site), dry).await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    assert_eq!(
+        preview.json(),
+        json!({ "matched": 3, "added": 3, "removed": 0, "total": 3 }),
+        "an item that is also in a picked set counts once"
+    );
+    assert!(
+        site_items(&pool, site).await.is_empty(),
+        "a dry run writes nothing"
+    );
+
+    let added = change(&app, &site_uri(site), body).await;
+    assert_eq!(added.status, StatusCode::OK, "{}", added.body);
+    assert_eq!(site_items(&pool, site).await, vec![first, second, letter]);
+}
+
+#[tokio::test]
+async fn a_new_site_holds_no_items_and_does_not_sync() {
+    let (pool, _seed) = seeded_pool().await;
+    let app = common::router(pool.clone());
+    add_item(&app, "A public print", true, json!({})).await;
+    let created = send(
         app.clone(),
         json_request(
-            "PATCH",
-            &append_key(&format!("/api/items/{public}")),
-            &json!({ "dcterms:title": title("Public print, retitled") }).to_string(),
+            "POST",
+            &append_key("/api/sites"),
+            &json!({ "o:title": "Fresh", "o:slug": "fresh", "o:theme": "default" }).to_string(),
         ),
     )
     .await;
-    assert_eq!(retitled.status, StatusCode::OK, "{}", retitled.body);
-    assert_eq!(
-        site_items(&pool, site).await,
-        vec![private],
-        "an item removed by hand stays removed while it keeps matching"
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let doc = created.json();
+    assert_eq!(doc["o:assign_new_items"], json!(false));
+    assert_eq!(doc["o:item_pool"], json!([]));
+    let site = SiteId(doc["o:id"].as_u64().unwrap());
+    assert!(site_items(&pool, site).await.is_empty());
+
+    add_item(&app, "Made after the site", true, json!({})).await;
+    assert!(
+        site_items(&pool, site).await.is_empty(),
+        "a site that does not sync takes no new item"
     );
 }
 

@@ -1634,7 +1634,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "unicode-normalization",
- "ureq",
 ]
 
 [[package]]
