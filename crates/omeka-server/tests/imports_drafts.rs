@@ -65,6 +65,10 @@ async fn a_draft_starts_with_the_default_plan_on_its_sources() {
     assert_eq!(draft["plan"]["version"], 2);
     assert_eq!(draft["plan"]["sources"][0]["path"], "Box 1");
     assert_eq!(draft["plan"]["defaults"]["visibility"], "private");
+    assert_eq!(
+        draft["plan"]["grouping"]["pattern"], r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$",
+        "a new draft makes one item per name, whatever the ending"
+    );
     assert_eq!(draft["sources"], draft["plan"]["sources"]);
 
     let shown = fixture

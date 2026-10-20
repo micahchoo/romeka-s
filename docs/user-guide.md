@@ -76,7 +76,7 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Dashboard | resource counts and the site list |
 | Items | list, create, open one item, edit its values, title, visibility, class, template, owner and item-set membership, delete it |
 | Item sets | list, create, edit, delete |
-| Import | import a folder of files from the server as items, item sets and media, and undo the last import. Shown only when the server has an archive folder; see the next section |
+| Import | turn files into items, item sets and media, from a folder on the server or from this computer, and undo an import. See [Import files as items](#import-files-as-items) |
 | Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
 | Users | list, invite, edit role and active flag, mint a password link, delete |
 | Sites and pages | list sites and create one; each site opens on its hub, with tabs for its navigation, items, users, theme and settings, and a page editor with a live preview. The next section describes them |
@@ -87,9 +87,9 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Settings | the global settings form. The API serves no settings resource, so this page does not persist |
 | System information | the version from the response header, and the registered API resource names |
 
-Media create is not offered in the application and there is no web upload: `POST /api/media` sets a
-row's fields but stores no file. A file arrives through `romeka import media` or the Import page,
-which both write the three thumbnail sizes. Values are not editable in the media form either.
+Media create is not offered in the application: `POST /api/media` sets a row's fields but stores no
+file. A file arrives through the Import page or `romeka import run`, which both write the three
+thumbnail sizes. Values are not editable in the media form either.
 [`../web/admin/README.md`](../web/admin/README.md) has the full route list.
 
 ## Build a site
@@ -130,89 +130,229 @@ administrator change everything; only the owner or an administrator deletes the 
 and edits pages, and sees the menu and the items without the controls that change them. A Viewer
 reads the pages. A control your role cannot use is not shown, and one line says why.
 
-## Import a folder from the server
+## Import files as items
 
-The Import page, under Content, turns a folder of scans or photographs into items. Each file becomes
-one media with its thumbnails, and files with the same identifier become one item. The page shows
-only when the operator sets `ROMEKA_ARCHIVE_ROOT` on the server
-([`operator-guide.md`](operator-guide.md), Jobs and the archive import). The files stay on the
-server: you choose a folder there, you do not upload anything.
+The Import page, under Content, turns files into items. Each file becomes one media with its
+thumbnails, and files that belong together become one item. You can also describe the items in a
+spreadsheet. Nothing goes into Omeka until the last step, and you can undo an import later. The
+page is for global and site administrators.
 
-Choose the folder, then **Import <folder>**. This makes a draft. A draft writes nothing until you
-start it, and it saves each change as you make it. The draft has seven steps, as tabs:
+### Start
 
-| Step | What you do there |
+The start page asks "Where are your files?". It has two cards.
+
+- **In a folder on the server.** The person who runs your Omeka sets up the folders with
+  `ROMEKA_ARCHIVE_ROOTS` ([`operator-guide.md`](operator-guide.md), Jobs and the archive import). Open a
+  folder and choose **Use the folder X**, or **Use everything in** a root. The files stay on the
+  server. If no folder is set up, the card says how to set one up.
+- **On this computer.** Choose **Start with files from this computer**. You send the files on the
+  next page.
+
+Under the cards, **Past imports** lists every import with its files, status, start, finish and how
+many it added. Each row has **Make a copy**, and **Try again** when the import stopped before the
+end.
+
+### Simple and Advanced
+
+An import has two modes over the same settings. You can switch at any time and lose nothing.
+
+- **Simple** asks one question at a time and suggests an answer to each.
+- **Advanced** shows every setting at once.
+
+The import saves each change as you make it. The line over the screen says Saving, Saved or Not
+saved. If someone saved the import somewhere else after you opened it, the page says so and offers
+to load their answers. An import that has started cannot change: **Make a copy** to change it.
+
+### The six steps of Simple
+
+1. **Your files.** The page counts the files and says where they are. **Look at the files again**
+   reads them again after you add or change files. To add files from this computer, drag files, a
+   folder or a zip file onto the page, or use **Choose files** and **Choose a folder**. A zip file
+   is unpacked after it arrives. Files and folders whose names start with a dot are left out. Each
+   sending shows its progress. You can pause one file or all of them. If you leave the page, sending
+   stops. Add the same files again and they continue from where they stopped. One file can be up to
+   2.1 GB and one import up to 53.7 GB (2 GiB and 50 GiB), unless the operator changed the limits.
+2. **What we found.** Omeka counts the items your files make. Right now, files are one item only when
+   their names are the same except for the ending, such as "Scan 3.pdf" and "Scan 3.jpg". To group
+   more, choose **Show us one example**. Pick a file of an item that has more than one file. Click
+   the part of its name that changes between the files of that item, such as "front" and "back" or
+   "page 001" and "page 002". Tick the words that mean another file of one item, or choose
+   any number. Omeka reads every name the same way and shows how many items that makes. Files that
+   are not a picture, a sound, a film or a PDF are left out. Omeka reads the first bytes of each
+   file to know.
+3. **Your list.** A list is a spreadsheet with one row for each item: its title, its date and
+   anything else you know. If the folder holds one, Omeka asks whether it is about these items. Say
+   which column pairs each row with an item: a column of file names, or a column of codes. A code is
+   the part of the file names that is the same for all files of one item. Omeka counts how many
+   cells fit, how many rows name no file and how many items have no row. Then say where each
+   column goes: into the field with the same name, into another field, or nowhere.
+4. **Where they go.** Choose the item sets and the item types. Item sets: one for each folder, one
+   for each top folder, one new set for everything, or one that is already in Omeka. Item types:
+   from your list, from the top folder, or none. A table shows each different value and how many
+   items have it, and you choose an item type for each. Values written differently, such as
+   "Letter" and "Letters", are different values: choose the same type for both. A value can become
+   a new item type.
+5. **Check.** Omeka asks one question for each kind of problem, not one for each item, and suggests
+   an answer. **Use the N suggested answers** takes them all. A question you skip gets its suggested
+   answer. A problem that would write broken data must be fixed before you can add.
+6. **Add.** The page sums up what goes in: the items, the files, the new item sets, item types and
+   fields, and the items left out. Choose who can see the items: only signed-in staff (private, the
+   default) or everyone (public). Then add them.
+
+### Fill in a list yourself
+
+If you have no list, make one. In the **Your list** step, choose the columns you want, download the
+list, fill it in and upload it.
+
+- The list has one row for each item. The first two columns are **Identifier** and **Files**. Keep
+  them as they are: Omeka uses them to find each item.
+- Each other column name ends with a field in square brackets, such as `Title [dcterms:title]`.
+  Keep the brackets. They tell Omeka which field the column fills. You can add columns for any
+  field, the item sets, the item type and who can see the item.
+- Put two values in one cell with a `|` between them.
+- The file is UTF-8 with a byte order mark, so Excel shows Devanagari and other scripts correctly.
+  From Excel, save it as CSV.
+- Upload a `.csv` or `.tsv` file of at most 50 MB. Omeka says how many rows belong to items of this
+  import and shows the rows that do not. The values in your list come first, before other lists and
+  the file names.
+
+A cell that starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` in the download, so a
+spreadsheet never runs it as a formula. Omeka takes the `'` off when you upload the list.
+
+### Pair rows and files by hand
+
+A row goes with a file only when the row gives the file's exact name or code. To pair the others
+yourself, use **Pair them by hand**: choose a row that names no file, then choose its file. Omeka
+shows ten of each, with a search. Each pair you make is listed and has **Undo**.
+
+With more than 30 rows that name no file, Omeka offers a list instead. Download the rows (.csv),
+write the name of its file in the **Files** column of each row, and send the list back. A row is
+paired only when its cell is exactly the name of one file. When two folders hold a file of one name,
+write the folder and the name, as in `letters/page-1.jpg`. Omeka does not guess. It lists each cell
+that made no pair and why: the row is not in this import, no file has that name, more than one file
+has that name, or the file is in no item. One row takes one file.
+
+### The Check step and the review lists
+
+Omeka works on groups of items that share facts, not on one item at a time, so 40,000 items stay
+easy to review.
+
+- **Your items in groups** describes each group by exact facts: how many files, which kinds, and
+  whether your list has a row. Groups that are rare, or that have 7 or more files, are marked "worth
+  a look".
+- **Files in each item** is a chart. A wrong grouping shows here first.
+- **Files that are the same** lists files that are byte for byte the same as another file.
+- **Every item** and **Every file** list everything, 50 rows at a time. Choose a filter, then
+  change all the rows the filter selects with one action: leave them out, put them in an item set,
+  give them an item type, or make each file an item of its own. The page names the rows a change
+  hits before you apply it.
+
+Your changes stay when you add more files or change an answer. A change that names a file or a row
+that is no longer there is kept and listed, not dropped.
+
+### Advanced
+
+The Advanced steps are Files, Lists, Fields, Problems, Existing items, Changes, Items and Run.
+
+- **Files.** The sources, the pattern that makes items from names (a regex with a group named
+  `identifier`), and the files. Omeka counts how many files a typed pattern fits before you use it.
+- **Lists.** For each list: its text encoding, delimiter, quote and header line, the join column,
+  and for each column its field, a separator, a language and whether its values are private.
+- **Fields.** The defaults for who sees a new record and who owns it, and a rule for each field:
+  an ordered list of sources, with "first" (the first source with a value wins) or "all" (the values
+  of every source add up), and a value map that changes a value before it is used.
+- **Problems.** One policy for each kind of problem: keep writes the value as it is, repair fixes it,
+  leave leaves it out. Also the answers to the groups of problems, such as identical files.
+- **Existing items.** The action, and how a record finds the item already in Omeka.
+- **Changes.** Every change you made, in words, each with a remove button.
+- **Items** and **Run.** The same lists and the same run as in Simple.
+
+The action says what the import does to items already in Omeka.
+
+| Action | What it does |
 | --- | --- |
-| 1. Folder | say how a file name becomes an item: mark an example, or write a regex |
-| 2. Item sets | choose which folders become item sets, and their names |
-| 3. Item types | choose an item type for each item set, or make a new one from a starter |
-| 4. Sources | choose a spreadsheet (CSV), check how it is read, and say which column holds the identifier; map tags inside the files (EXIF) to fields |
-| 5. Grid | one row per item: map spreadsheet columns to fields, fix problems, edit cells, skip rows |
-| 6. Check | a dry run with the counts, then **Import items: N** |
-| 7. Run | the progress, the result, and the undo |
+| Create | adds every record as new |
+| Append | adds the list's values to items already in Omeka |
+| Revise | changes the values the list gives, and keeps the rest |
+| Update | replaces the values of each mapped field; an empty cell clears the field |
+| Replace | removes all values of the item, then writes the list's; the item's files stay |
+| Delete | deletes the items the list names, with their files |
 
-**Mark an example.** The Folder step shows one file name cut into parts: `Letters/LT_001_back.jpg`
-shows as `Letters`, `LT`, `001` and `back`. Select a part and say what it is: the identifier, a part (front, back), a page
-number, or the item set (top folder only). Parts you mark as identifier, side by side, make one
-identifier, so `LT` and `001` give the identifier `LT_001`. Romeka S then finds the same shape in
-every other file and counts the matches. If some files have no part, as `PH_101.tif` has none, the
-step says so and offers **Make it optional**. **Edit as regex** shows the regex the marks make, for
-a shape the marks cannot express.
+Delete is not undoable. Omeka asks you to type the number of things it deletes (items, files and
+item sets, counted together) before it starts. Every other action can be undone.
 
-**Problems.** The Grid names each problem in words: a required field that is empty, a date not in
-the form YYYY, YYYY-MM or YYYY-MM-DD, spaces at the ends, text read with the wrong encoding, a
-spreadsheet line with the wrong number of cells, a spreadsheet row that matches no file. Each kind
-has bulk fixes, for example **Fill them** or **Read as Windows-1252**. At the Check step you can
-leave the rows that still have problems out of the import.
+### Add, stop and try again
 
-**The run.** The import runs as a job, so you can leave the page. The Jobs page shows the job and its
-log while it runs. When it ends, the Run step shows the counts. If rows were left out, **Download the
-left-out rows (CSV)** gives them with a `#reason` column.
+Add starts a job. The page shows how many are done, the time left at this speed, and a link to the
+log on the Jobs page. You can leave the page: the import goes on. **Stop after the one in hand**
+stops it cleanly, and what is in Omeka stays there.
 
-**Undo, until the next import.** The last import can be undone until any next import starts. The
-Import page shows a banner while that is possible. Undo asks first, then deletes the imported items
-with their files and thumbnails, and the new item sets, item types and fields that nothing else uses.
-A field or set that something else uses stays, and the report names it. When a new import starts,
-the previous one becomes permanent: its Run step says so, and it has no undo button. This applies to
-all imports, not only yours.
+If your files or answers changed after the counts were made, Omeka counts again and asks you to
+look first. Only one import or undo works at a time. If another is working, the page links to it.
 
-**The left-out rows.** The downloaded CSV holds `dcterms:identifier`, the Grid's fields and the
-`#reason` for each row: `exists`, `skipped`, `problems: ...` or `failed: ...`. To import rows you left
-out, fix them in the folder or the spreadsheet, start a new import of the same folder, and run it. A
-new import skips every row whose identifier an item in the archive already has: the Grid marks such
-a row **Already exists** with a link to the item, and the Check step counts it in **Items that already
-exist and are skipped**. An import never changes an existing item, because undo cannot bring back the
-values it would overwrite; to change an existing item, edit it. `romeka import csv` also accepts the
-file as it is, because it ignores a column whose header starts with `#`. It makes the items without
-their files.
+A record that fails does not stop the others. When the run ends, the page lists each failure with
+its reason. **Try again: the N not done yet** runs it again, and what is done already is skipped.
+**Download the list of what was left out or failed (.csv)** gives every left-out file and row with
+a `#reason` column.
 
-## Import and export
+### Undo, and what it keeps
+
+You can undo any import, not only the last one. **Undo this import...** first reads what the undo
+would do. It removes what the import added, puts back the items the import changed, and skips what
+is not in Omeka any more.
+
+Some things are kept: an item someone edited since the import, an item that another item links to,
+an item with files added later, an item set that others added items to, and an item type or field that
+something else uses. Each row says
+why it is kept. An import that kept something ends **Partly undone: some items were kept**. Then you
+can choose **Undo it anyway** for one row, or **Undo all N anyway**. That also undoes what was done
+to those items after the import, and an item type undone this way takes its values from items
+outside the import. **Undo the rest** finishes a partly undone import. **Stop the undo after the
+one in hand** stops an undo.
+
+### Copy an import
+
+**Make a copy** makes a new draft with the same answers and the same changes. A change that no
+longer fits the files is kept and listed. A copy does not hold the files you sent from this
+computer: add them again, and the changes reattach to the files with the same paths.
+
+### How long uploaded files stay
+
+Files sent from this computer are not served on the web. Omeka removes them after a set time:
+
+- 30 days after an import is added or undone;
+- 30 days after the last try of an import that stopped;
+- 7 days after a draft was last saved;
+- one day after a sending that never finished.
+
+The draft shows the date. The operator can change these times
+([`operator-guide.md`](operator-guide.md)).
+
+### Files of private items
+
+Everything the import adds is private unless you choose public. A file of a private item is
+served only to a signed-in user who may see the item.
+
+## Command line
 
 ```
 romeka import template -d DB --file TEMPLATE.json
-romeka import csv      -d DB --file ITEMS.csv --item-set ID
-romeka import media    -d DB --source DIR [--item-set ID] [--store DIR]
+romeka import run      -d DB --plan PLAN.json --as EMAIL [--dry-run]
+romeka import undo ID  -d DB [--preview] [--force all]
+romeka import list     -d DB
 
 romeka export jsonld   -d DB --out DIR --resource items
 romeka export csv      -d DB --out items.csv --columns dcterms:title,dcterms:identifier
 ```
 
-The CSV header names properties as `prefix:local_name` (`dcterms:title`). Each later row is one item:
-a non-empty cell becomes a literal value, and two columns with the same term become two values. A
-column whose header starts with `#` is a note for people, and the command ignores it. The
-first non-empty `dcterms:title` cell becomes the item's title. A row whose column count differs from
-the header is reported and skipped, and the exit code is 1 when any row failed.
-
-For media, the join key is `dcterms:identifier`: a file is linked to the item whose identifier
-literal equals the manifest's `identifier`, restricted to `--item-set` when you give one. With
-`--source DIR` and no manifest, the command walks that directory. A second run skips a file whose
-`(item, source)` pair already exists, so it is safe to repeat. Images get the three thumbnail sizes;
-anything else is stored without thumbnails, and `romeka media thumbnails` backfills the rows that are
-missing them. The full rules are in [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md).
+`import template` reads a resource template from JSON. `import run`, `undo` and `list` do what the
+Import page does, without a server: the plan is the JSON the page saves. Read the
+[operator guide](operator-guide.md) for the flags and the rules. The old `import csv` and `import
+media` commands no longer exist. Put the items in a list and use the Import page, or `import run`.
 
 `export jsonld` writes the same documents `/api/<resource>` serves, so it is the wire format rather
-than a second one. `export csv` writes one row per item, and its column set is this product's: it
-reads back through `romeka import csv`.
+than a second one. `export csv` writes one row per item, and its column set is this product's. A property with
+several values gets one column for each value, and the header repeats the term.
 
 ## The public site
 
@@ -257,8 +397,8 @@ FTS5's, which differs from MySQL's ([`compat.md`](compat.md)).
 ## What is limited, and why
 
 - The settings page does not persist, because the API serves no settings resource.
-- Media files and their thumbnails come from the command line or from a server folder through the
-  Import page. There is no web upload: the API stores no uploaded file
+- Media files and their thumbnails come from the Import page, from a folder on the server or from
+  this computer, or from `romeka import run`. The media form does not upload a file
   ([`../crates/omeka-api/README.md`](../crates/omeka-api/README.md)).
 - Modules and themes from the wider PHP ecosystem are out: extension here is a Rust registry
   ([`compat.md`](compat.md)).

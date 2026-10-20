@@ -91,8 +91,8 @@ services:
   #     depends_on: { mysql: { condition: service_healthy } }
   #
   # with ROMEKA_MYSQL_PASSWORD and ROMEKA_MYSQL_ROOT_PASSWORD in .env. The
-  # entrypoint must then pass the URL instead of `-d "$ROMEKA_DB"`, which wins
-  # over it (docs/operator-guide.md, "MySQL and MariaDB"). `romeka backup`
+  # entrypoint then installs and serves with the URL and ignores ROMEKA_DB
+  # (docs/operator-guide.md, "MySQL and MariaDB"). `romeka backup`
   # refuses a MySQL database; back it up with
   # `docker compose exec mysql mysqldump --single-transaction omeka`.
   #

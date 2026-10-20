@@ -10,7 +10,6 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import { runCli } from './cli';
 import { isArray, numberField, parseJson, record, stringField } from './json';
 
 export const ITEM_SET_TITLE = 'E2E item set';
@@ -43,8 +42,6 @@ export const JOB_SPARE_CLASS = 'Omeka\\Job\\BatchUpdate';
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGM4ISf3Hx9mGBkKAFNGgMHUn6b2AAAAAElFTkSuQmCC';
 
-/** The media directory `romeka import media` reads. */
-export const mediaDir = (workDir: string): string => join(workDir, 'media');
 /** The file store root, which the harness origin serves under `/files`. */
 export const storeRoot = (workDir: string): string => join(workDir, 'files');
 
@@ -198,12 +195,7 @@ export const seedSystem = (
  * Create the item set, the items, one imported media file and one site, then
  * report the ids the run produced.
  */
-export const seedData = async (
-  baseUrl: string,
-  cli: string,
-  workDir: string,
-  dbPath: string,
-): Promise<Seeded> => {
+export const seedData = async (baseUrl: string): Promise<Seeded> => {
   const title = await propertyId(baseUrl, TITLE_TERM);
 
   const itemSet = await apiPost(baseUrl, '/api/item_sets', {
@@ -226,23 +218,15 @@ export const seedData = async (
   if (firstItem === undefined) {
     throw new Error('no item was seeded, so no media could be imported');
   }
-  writeFileSync(join(mediaDir(workDir), MEDIA_FILE), Buffer.from(PNG_BASE64, 'base64'));
-  runCli(
-    cli,
-    [
-      'import',
-      'media',
-      '-d',
-      dbPath,
-      '--source',
-      mediaDir(workDir),
-      '--store',
-      storeRoot(workDir),
-      '--item',
-      String(firstItem),
-    ],
-    workDir,
-  );
+  // `romeka import media` is gone (the one importer replaced it), so the media
+  // goes in the way an Omeka S client uploads one: a multipart `data` and `file`.
+  const form = new FormData();
+  form.append('data', JSON.stringify({ 'o:ingester': 'upload', file_index: 0, 'o:item': { 'o:id': firstItem } }));
+  form.append('file', new Blob([Buffer.from(PNG_BASE64, 'base64')], { type: 'image/png' }), MEDIA_FILE);
+  const uploaded = await fetch(`${baseUrl}/api/media`, { method: 'POST', headers: { accept: 'application/json' }, body: form });
+  if (!uploaded.ok) {
+    throw new Error(`POST /api/media: ${String(uploaded.status)} ${await uploaded.text()}`);
+  }
   const mediaDoc = await apiGet(baseUrl, `/api/media?item_id=${String(firstItem)}`);
   if (!isArray(mediaDoc)) {
     throw new Error('/api/media: expected an array');
@@ -266,7 +250,3 @@ export const seedData = async (
   };
 };
 
-/** Create the media directory before `seedData` writes into it. */
-export const prepareWorkDir = (workDir: string): void => {
-  mkdirSync(mediaDir(workDir), { recursive: true });
-};

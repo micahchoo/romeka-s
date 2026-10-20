@@ -11,14 +11,14 @@ use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use omeka_api::import2::catalog_load;
 use omeka_api::import2::draft;
-use omeka_api::import2::plan::RelPath;
+use omeka_api::import2::plan::{ReadOptions, RelPath};
 use omeka_api::import2::preview::staging_path;
 use omeka_api::import2::sheet;
 use omeka_api::import2::template::{
     ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, template_csv,
 };
 use omeka_api::messages;
-use omeka_db::rows::ImportStatus;
+use omeka_db::rows::{ImportRow, ImportStatus};
 use omeka_db::with_db;
 use serde_json::json;
 
@@ -85,41 +85,10 @@ pub(super) async fn upload(
         async {
             let actor = admin(&state, &uri, &headers).await?;
             let row = load(&state, &id).await?;
-            if row.status != ImportStatus::Draft {
-                return Err(
-                    ImportError::conflict("notDraft", messages::IMPORT_PLAN_FROZEN)
-                        .with("status", json!(row.status.as_str())),
-                );
-            }
-            let (name, bytes) = {
-                let (name, part) = one_file(&headers, &payload.0)?;
-                (name, payload.0.slice_ref(part))
-            };
-            if bytes.len() > MAX_LIST_BYTES {
-                return Err(ImportError::TooLarge(
-                    messages::IMPORT_LIST_TOO_LARGE.into(),
-                ));
-            }
-            let extension = name
-                .rsplit_once('.')
-                .map(|(_, extension)| extension.to_ascii_lowercase());
-            let (extension, tab) = match extension.as_deref() {
-                Some("csv") => ("csv", false),
-                Some("tsv") => ("tsv", true),
-                Some("xlsx") => ("xlsx", false),
-                Some("xls") => ("xls", false),
-                Some("ods") => ("ods", false),
-                _ => return Err(ImportError::BadRequest(messages::import_list_type(&name))),
-            };
-            // A workbook named so is read as one, never as text by accident.
-            if !matches!(extension, "csv" | "tsv") && sheet::WorkbookKind::sniff(&bytes).is_none() {
-                return Err(ImportError::BadRequest(messages::import_list_unread(
-                    format!("\"{name}\" is not a {extension} workbook"),
-                )));
-            }
-            let read = list_read(tab);
-            let list = sheet::read(&bytes, &read, None)
-                .map_err(|error| ImportError::BadRequest(messages::import_list_unread(error)))?;
+            require_draft(&row)?;
+            let upload = read_upload(&headers, &payload)?;
+            let (extension, read, bytes, list) =
+                (upload.extension, upload.read, upload.bytes, upload.list);
             let mut plan = stored_plan(&row)?;
             let files = omeka_api::settings::file_validation(&state.pool).await?;
             let catalog = with_db!(&state.pool, |db| catalog_load::load(
@@ -188,6 +157,69 @@ pub(super) async fn upload(
     )
 }
 
-fn internal(error: impl std::fmt::Display) -> ImportError {
+/// A list a person sent, read and ready to use.
+pub(super) struct Upload {
+    pub(super) bytes: axum::body::Bytes,
+    /// `csv`, `tsv`, `xlsx`, `xls` or `ods`.
+    pub(super) extension: &'static str,
+    pub(super) read: ReadOptions,
+    pub(super) list: sheet::Sheet,
+}
+
+/// Only a draft's plan may change; a started import's plan is its record.
+pub(super) fn require_draft(row: &ImportRow) -> Result<(), ImportError> {
+    if row.status == ImportStatus::Draft {
+        return Ok(());
+    }
+    Err(
+        ImportError::conflict("notDraft", messages::IMPORT_PLAN_FROZEN)
+            .with("status", json!(row.status.as_str())),
+    )
+}
+
+/// The one file of a list upload: its kind from the name, the size limit,
+/// and the read. A workbook named so is read as one, never as text by
+/// accident.
+pub(super) fn read_upload(
+    headers: &HeaderMap,
+    payload: &crate::limits::Payload,
+) -> Result<Upload, ImportError> {
+    let (name, bytes) = {
+        let (name, part) = one_file(headers, &payload.0)?;
+        (name, payload.0.slice_ref(part))
+    };
+    if bytes.len() > MAX_LIST_BYTES {
+        return Err(ImportError::TooLarge(
+            messages::IMPORT_LIST_TOO_LARGE.into(),
+        ));
+    }
+    let extension = name
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase());
+    let (extension, tab) = match extension.as_deref() {
+        Some("csv") => ("csv", false),
+        Some("tsv") => ("tsv", true),
+        Some("xlsx") => ("xlsx", false),
+        Some("xls") => ("xls", false),
+        Some("ods") => ("ods", false),
+        _ => return Err(ImportError::BadRequest(messages::import_list_type(&name))),
+    };
+    if !matches!(extension, "csv" | "tsv") && sheet::WorkbookKind::sniff(&bytes).is_none() {
+        return Err(ImportError::BadRequest(messages::import_list_unread(
+            format!("\"{name}\" is not a {extension} workbook"),
+        )));
+    }
+    let read = list_read(tab);
+    let list = sheet::read(&bytes, &read, None)
+        .map_err(|error| ImportError::BadRequest(messages::import_list_unread(error)))?;
+    Ok(Upload {
+        bytes,
+        extension,
+        read,
+        list,
+    })
+}
+
+pub(super) fn internal(error: impl std::fmt::Display) -> ImportError {
     ImportError::Internal(error.to_string())
 }

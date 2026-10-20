@@ -187,6 +187,11 @@ impl Fixture {
 
     /// `POST /api/romeka/imports/{id}/sheets` with one file, as the admin.
     pub async fn upload(&self, id: &Value, name: &str, bytes: &[u8]) -> Answer {
+        self.upload_to(id, "sheets", name, bytes).await
+    }
+
+    /// `POST /api/romeka/imports/{id}/{route}` with one file, as the admin.
+    pub async fn upload_to(&self, id: &Value, route: &str, name: &str, bytes: &[u8]) -> Answer {
         const BOUNDARY: &str = "romeka-list-boundary";
         let mut body = format!(
             "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: text/csv\r\n\r\n"
@@ -197,7 +202,7 @@ impl Fixture {
         let request = axum::http::Request::builder()
             .method("POST")
             .uri(format!(
-                "/api/romeka/imports/{id}/sheets?key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}"
+                "/api/romeka/imports/{id}/{route}?key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}"
             ))
             .header(
                 "content-type",

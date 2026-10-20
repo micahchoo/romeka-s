@@ -12,9 +12,10 @@ import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import { ApiError, defaultBaseUrl } from './client';
 import { ImportConflictError, parseConflict } from './import-conflict';
 import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
-import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parseScanResult } from './import-view';
-import type { ArchiveListing, History, ImportDetail, JobStart, ScanResult } from './import-view';
-import type { ResourceKind } from './import-undo';
+import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parsePairsAdded, parseScanResult } from './import-view';
+import type { ArchiveListing, History, ImportDetail, JobStart, PairsAdded, ScanResult } from './import-view';
+import { parseUndoPreview } from './import-undo';
+import type { ResourceKind, UndoPreview } from './import-undo';
 import { hasSections, parsePreview } from './import-sections';
 import type { PreviewOptions } from './import-queries';
 import type { PreviewWith, Section } from './import-sections';
@@ -144,6 +145,11 @@ export class ImportApi {
     await this.json('POST', `${one(id)}/stop`);
   }
 
+  /** What an undo with nothing forced would do now, and what it would keep and why; it writes nothing. 409 `cannotUndo`. */
+  async undoPreview(id: ImportId): Promise<UndoPreview> {
+    return parseUndoPreview(await this.json('GET', `${one(id)}/undo/preview`));
+  }
+
   async undo(id: ImportId, force?: Force): Promise<JobStart> {
     const body = force === undefined ? {} : { force };
     return parseJobStart(await this.json('POST', `${one(id)}/undo`, { body }));
@@ -169,6 +175,18 @@ export class ImportApi {
     const form = new FormData();
     form.append('file', file, file.name);
     return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form }));
+  }
+
+  /** The address of the pairs list, for a link: one line for each list row that names no file, with an empty Files column to fill. */
+  pairsUrl(id: ImportId): string {
+    return this.url(`${one(id)}/pairs.csv`);
+  }
+
+  /** A filled pairs list (`.csv`, `.tsv` or a workbook, at most 50 MB): one `pair` decision for each Files cell that names exactly one file. */
+  async addPairs(id: ImportId, file: File): Promise<PairsAdded> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return parsePairsAdded(await this.json('POST', `${one(id)}/pairs`, { form }));
   }
 
   async jobLog(jobId: number): Promise<string> {

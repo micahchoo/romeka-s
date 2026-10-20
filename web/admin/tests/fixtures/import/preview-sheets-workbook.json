@@ -1,5 +1,9 @@
 {
-  "pattern": "missing",
+  "pattern": {
+    "groups": [
+      "identifier"
+    ]
+  },
   "sheets": [
     {
       "error": null,

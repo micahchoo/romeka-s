@@ -119,6 +119,28 @@ const parseStopped: Parser<UndoStopped> = (raw, path = []) => {
   return { key: member(object, 'key', path, asString), detail: member(object, 'detail', path, asString) };
 };
 
+/** What an undo would do now, read without writing (`GET …/undo/preview`, `UndoPreview` in `undo/preview.rs`). */
+export interface UndoPreview {
+  /** What the import made that the undo would delete. */
+  readonly remove: KindCounts;
+  /** What the import changed that the undo would put back. */
+  readonly restore: KindCounts;
+  readonly kept: readonly KeptResource[];
+  readonly skipped: readonly NamedResource[];
+  readonly forced: readonly NamedResource[];
+}
+
+export const parseUndoPreview: Parser<UndoPreview> = (raw, path = []) => {
+  const object = strict(raw, path, ['remove', 'restore', 'kept', 'skipped', 'forced']);
+  return {
+    remove: member(object, 'remove', path, parseCounts),
+    restore: member(object, 'restore', path, parseCounts),
+    kept: member(object, 'kept', path, list(parseKept)),
+    skipped: member(object, 'skipped', path, list(parseResource)),
+    forced: member(object, 'forced', path, list(parseResource)),
+  };
+};
+
 export const parseUndoReport: Parser<UndoReport> = (raw, path = []) => {
   const object = strict(raw, path, ['progress', 'removed', 'restored', 'kept', 'skipped', 'forced', 'stopped', 'error']);
   const progress = (value: unknown, at: Path): UndoReport['progress'] => {

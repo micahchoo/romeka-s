@@ -9,6 +9,8 @@ target/
 node_modules/
 **/node_modules/
 web/admin/dist/
+# What `tsc` keeps between builds; it changes on every typecheck.
+web/admin/tsconfig.tsbuildinfo
 
 # A database and a file store written by a server started from this directory.
 *.db

@@ -16,8 +16,8 @@ export interface PageQuery {
 
 export type SetFilter = { readonly existing: number } | { readonly record: number } | { readonly new: number };
 export type TemplateFilter = { readonly existing: number } | { readonly new: number } | 'none';
-export type Unused = 'unmatched' | 'decision' | 'flag' | 'parent' | 'noFiles' | 'noRecord';
-export const UNUSED_REASONS: readonly Unused[] = ['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'noRecord'];
+export type Unused = 'unmatched' | 'decision' | 'flag' | 'parent' | 'noFiles' | 'identical' | 'noRow' | 'noRecord';
+export const UNUSED_REASONS: readonly Unused[] = ['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'identical', 'noRow', 'noRecord'];
 
 export interface RecordsQuery {
   readonly kind?: RecordKind;
@@ -46,6 +46,10 @@ export interface EntriesQuery {
   readonly folder?: string;
   /** Sheet rows whose record has files (`true`) or none (`false`); files are then never in the answer. */
   readonly paired?: boolean;
+  /** Only files, or only list rows. */
+  readonly kind?: 'file' | 'row';
+  /** Only the rows of this sheet; files are then never in the answer. */
+  readonly sheet?: string;
 }
 
 export interface UnpairedQuery {

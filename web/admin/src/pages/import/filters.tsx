@@ -96,7 +96,7 @@ export const Filters = <K extends string>({ label, fields, value, onChange }: Fi
           </label>
         );
       })}
-      {fields.some((field) => field.kind === 'text') ? <button type="submit">{t('lists.search')}</button> : null}
+      {fields.some((field) => field.kind === 'text') ? <button type="submit">{t('paged.search')}</button> : null}
       {narrowed ? (
         <button
           type="button"
@@ -106,7 +106,7 @@ export const Filters = <K extends string>({ label, fields, value, onChange }: Fi
             onChange({});
           }}
         >
-          {t('lists.showAll')}
+          {t('paged.showAll')}
         </button>
       ) : null}
     </form>

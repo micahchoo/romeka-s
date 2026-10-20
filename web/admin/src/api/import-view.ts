@@ -161,6 +161,49 @@ export const parseImportDetail: Parser<ImportDetail> = (raw, path = []) => {
     : { ...detail, ranPlan: member(object, 'ranPlan', path, parseImportPlan) };
 };
 
+/** Why a filled `Files` cell made no pair (`preview/pairs.rs`, `Why`). */
+export type PairsWhy = 'noRow' | 'noFile' | 'manyFiles' | 'noItem';
+export const PAIRS_WHY: readonly PairsWhy[] = ['noRow', 'noFile', 'manyFiles', 'noItem'];
+
+/** A filled cell that made no pair: the row cell and the Files cell as the list gave them. */
+export interface UnmatchedCell {
+  readonly row: string;
+  readonly text: string;
+  readonly why: PairsWhy;
+}
+
+/** What `POST …/pairs` did, with the import after it. */
+export interface PairsAdded {
+  /** Pair decisions the list added. */
+  readonly added: number;
+  /** Cells whose pair the plan already held. */
+  readonly already: number;
+  /** The first cells that made no pair; `unmatchedTotal` counts them all. */
+  readonly unmatched: readonly UnmatchedCell[];
+  readonly unmatchedTotal: number;
+  readonly import: ImportDetail;
+}
+
+const parseUnmatched: Parser<UnmatchedCell> = (raw, path = []) => {
+  const object = strict(raw, path, ['row', 'text', 'why']);
+  return {
+    row: member(object, 'row', path, asString),
+    text: member(object, 'text', path, asString),
+    why: member(object, 'why', path, oneOf(PAIRS_WHY)),
+  };
+};
+
+export const parsePairsAdded: Parser<PairsAdded> = (raw, path = []) => {
+  const object = strict(raw, path, ['added', 'already', 'unmatched', 'unmatchedTotal', 'import']);
+  return {
+    added: member(object, 'added', path, asCount),
+    already: member(object, 'already', path, asCount),
+    unmatched: member(object, 'unmatched', path, list(parseUnmatched)),
+    unmatchedTotal: member(object, 'unmatchedTotal', path, asCount),
+    import: member(object, 'import', path, parseImportDetail),
+  };
+};
+
 export interface ArchiveEntry {
   readonly kind: 'folder' | 'file';
   readonly name: string;

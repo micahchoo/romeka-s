@@ -10,8 +10,9 @@
 //! (`ImportRepo::start_run`, `start_undo`, `settle_dead`): every read first
 //! records the dead, and a start is one serialized transaction.
 //!
-//! `template.csv` and `sheets` are the list round trip (`lists`), and
-//! `uploads` the tus routes into the staging area (`uploads`).
+//! `template.csv` and `sheets` are the list round trip (`lists`); `pairs.csv`
+//! and `pairs` are the pairs list round trip (`pairs`); `uploads` are the tus
+//! routes into the staging area (`uploads`).
 //!
 //! `GET /api/romeka/starters` serves the starter table the Item types page
 //! reads too, and `GET /api/romeka/jobs/{id}/log` the log the Jobs page polls.
@@ -19,6 +20,7 @@
 mod archive;
 mod lists;
 mod multipart;
+mod pairs;
 mod progress;
 mod run;
 mod undo;
@@ -81,6 +83,8 @@ pub(crate) fn router() -> Router<AppState> {
                 .delete(uploads::delete)
                 .options(uploads::options_one),
         )
+        .route("/api/romeka/imports/{id}/pairs.csv", get(pairs::list))
+        .route("/api/romeka/imports/{id}/pairs", post(pairs::upload))
         .route("/api/romeka/jobs/{id}/log", get(job_log))
 }
 

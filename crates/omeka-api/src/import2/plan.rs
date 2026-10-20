@@ -298,9 +298,15 @@ impl ImportPlanV2 {
     }
 }
 
-/// The plan a new draft starts with: private, owned by the runner, the
-/// `create` action, every kind matched on `dcterms:identifier` within this
-/// import's sets, nothing mapped and nothing decided.
+/// The pattern that groups by the name alone: it skips the folders and the
+/// ending, so files whose names are equal but for the ending are one item.
+/// The admin's `patternOf([])` writes the same text.
+pub const NAME_ALONE: &str = r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$";
+
+/// The plan a new draft starts with: one item per name ([`NAME_ALONE`]),
+/// private, owned by the runner, the `create` action, every kind matched on
+/// `dcterms:identifier` within this import's sets, nothing mapped and nothing
+/// decided.
 ///
 /// # Errors
 /// What [`ImportPlanV2::from_json`] refuses about the sources: two with one id.
@@ -313,7 +319,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError>
         version: Version2,
         sources,
         grouping: Grouping {
-            pattern: None,
+            pattern: Some(NAME_ALONE.to_owned()),
             case_fold: false,
         },
         example: None,

@@ -158,11 +158,21 @@ fn runs_as_formula(c: char) -> bool {
 /// running the cell as a formula. A cell that already starts with `'` and
 /// then a formula character gets one more, so [`unescape_list`] gives back
 /// exactly the value that went out.
-fn guard(cell: &str) -> String {
+pub(crate) fn guard(cell: &str) -> String {
     if hides_formula(cell) {
         format!("'{cell}")
     } else {
         cell.to_string()
+    }
+}
+
+/// The cell as the person meant it: the one `'` [`guard`] put in front of a
+/// formula character, taken off.
+pub(crate) fn unguard(cell: &str) -> &str {
+    if cell.starts_with('\'') && hides_formula(cell) {
+        &cell[1..]
+    } else {
+        cell
     }
 }
 
@@ -190,7 +200,7 @@ pub fn unescape_list(sheet: &mut Sheet, key: Option<&ColumnRef>) {
             let Some(cell) = row.cells.get_mut(at) else {
                 continue;
             };
-            if cell.starts_with('\'') && hides_formula(cell) {
+            if unguard(cell).len() < cell.len() {
                 cell.remove(0);
             }
         }
@@ -200,7 +210,7 @@ pub fn unescape_list(sheet: &mut Sheet, key: Option<&ColumnRef>) {
     }
 }
 
-fn push_line(out: &mut String, cells: &[String]) {
+pub(crate) fn push_line(out: &mut String, cells: &[String]) {
     for (at, cell) in cells.iter().enumerate() {
         if at > 0 {
             out.push(',');

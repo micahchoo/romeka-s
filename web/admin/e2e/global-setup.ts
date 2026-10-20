@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { archiveRoot, writeArchive } from './harness/archive';
 import { ensureCli, mintKey, runCli } from './harness/cli';
 import { freePort, startProxy } from './harness/proxy';
-import { prepareWorkDir, seedData, seedSystem, storeRoot } from './harness/seed';
+import { seedData, seedSystem, storeRoot } from './harness/seed';
 import { APP_ROOT, DIST_ROOT, stateFile, writeHarness } from './harness/state';
 
 const ADMIN_EMAIL = 'e2e-admin@example.com';
@@ -60,7 +60,6 @@ const waitForHealth = async (serverUrl: string): Promise<void> => {
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
   const workDir = mkdtempSync(join(tmpdir(), 'romeka-e2e-work-'));
-  prepareWorkDir(workDir);
   writeArchive(workDir);
   const dbPath = join(workDir, 'db.sqlite');
 
@@ -162,7 +161,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   try {
     await waitForHealth(serverUrl);
-    const seeded = await seedData(proxy.url, cli, workDir, dbPath);
+    const seeded = await seedData(proxy.url);
     writeHarness({
       baseUrl: proxy.url,
       serverUrl,

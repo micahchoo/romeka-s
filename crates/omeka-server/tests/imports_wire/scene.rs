@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 
 use crate::common;
 use crate::imports_fixture::{ADMIN, BHC_PATTERN, Fixture};
+use crate::imports_wire::recorder::Fixtures;
 use omeka_db::repos::{ItemRepo, PropertyRepo, ValueRepo, VocabularyRepo};
 use omeka_db::rows::{NewItem, NewProperty, NewValue};
 use omeka_db::with_db;
@@ -191,4 +192,52 @@ pub fn at(id: &Value, tail: &str) -> String {
 pub async fn checked(fixture: &Fixture, id: &Value) -> Value {
     let answer = fixture.preview(id, &json!({ "include": ["check"] })).await;
     ok(answer).await["check"].clone()
+}
+
+/// The pairs list down and a filled one up, on a copy made last so no import
+/// id or revision the other fixtures show moves.
+pub async fn pairs_answers(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
+    let copy = ok(fixture
+        .call(
+            "POST",
+            "/api/romeka/imports",
+            Some(&json!({ "copyFrom": id })),
+        )
+        .await)
+    .await;
+    ok(fixture.call("POST", &at(&copy["id"], "/scan"), None).await).await;
+    let down = fixture
+        .call("GET", &at(&copy["id"], "/pairs.csv"), None)
+        .await;
+    assert_eq!(down.status, StatusCode::OK, "{}", down.body);
+    out.text("pairs.csv", &down.body);
+    let filled: Vec<String> = down
+        .body
+        .split("\r\n")
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            if line.starts_with("register:BHC_006_ZZ_999") {
+                format!("{line}Artifacts/BHC_006_AF_003_back.jpg")
+            } else {
+                line.to_string()
+            }
+        })
+        .chain([
+            "register:BHC_006_ZZ_999#1,,,,,Misc/loose.jpg".to_string(),
+            "register:NOWHERE#1,,,,,nothing.jpg".to_string(),
+        ])
+        .collect();
+    let up = fixture
+        .upload_to(
+            &copy["id"],
+            "pairs",
+            "pairs.csv",
+            filled.join("\r\n").as_bytes(),
+        )
+        .await;
+    assert_eq!(up.status, StatusCode::OK, "{}", up.body);
+    assert_eq!(up.json()["added"], 1, "{}", up.body);
+    out.json("pairs-added.json", &up.json());
+    let removed = fixture.call("DELETE", &at(&copy["id"], ""), None).await;
+    assert_eq!(removed.status, StatusCode::NO_CONTENT);
 }
