@@ -1,7 +1,7 @@
 /**
  * Plain words on the import screens: no English string of the `import`,
- * `import-lists`, `import-simple` and `import-advanced` namespaces uses a
- * contract word its mode must not show.
+ * `import-lists`, `import-run`, `import-simple` and `import-advanced`
+ * namespaces uses a contract word its mode must not show.
  *
  * The lists are the approved prototype's (round 4, `GLOSSARY.md`, checked by
  * its `glossary-check.js`): the left column of its table is Simple's banned
@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { en as importEn } from '../src/i18n/namespaces/import';
 import { en as advancedEn } from '../src/i18n/namespaces/import-advanced';
 import { en as listsEn } from '../src/i18n/namespaces/import-lists';
+import { en as runEn } from '../src/i18n/namespaces/import-run';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
 
 const en: Readonly<Record<string, string>> = { ...importEn, ...listsEn };
@@ -64,10 +65,13 @@ describe('import strings use plain words', () => {
     expect(bannedIn('advanced.x', 'A slot rule')).toHaveLength(1);
   });
 
-  it('every English string passes its mode’s word list', () => {
-    const found = Object.entries(en).flatMap(([key, text]) => bannedIn(key, text));
+  it.each([
+    ['import', en],
+    ['import-run', runEn],
+  ])('every English string of %s passes its mode’s word list', (_name, table: Readonly<Record<string, string>>) => {
+    const found = Object.entries(table).flatMap(([key, text]) => bannedIn(key, text));
     expect(found).toEqual([]);
-    expect(Object.keys(en).length).toBeGreaterThan(0);
+    expect(Object.keys(table).length).toBeGreaterThan(0);
   });
 
   it('every Simple screen string passes Simple’s word list', () => {

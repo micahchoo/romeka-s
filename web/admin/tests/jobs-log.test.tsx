@@ -64,7 +64,7 @@ describe('Job detail log', () => {
 
     expect(await screen.findByText('row 1 imported')).toBeInTheDocument();
     expect(screen.getByText('Archive import')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the import' })).toHaveAttribute('href', '#/import/7/run');
+    expect(screen.getByRole('link', { name: 'Open the import' })).toHaveAttribute('href', '#/import/7');
     expect(screen.getByText('This page refreshes every 2 seconds while the job runs.')).toBeInTheDocument();
 
     await tick(JOB_POLL_MS - 100);
@@ -78,6 +78,21 @@ describe('Job detail log', () => {
     await tick(JOB_POLL_MS * 3);
     expect(requestsFor(fetchMock, LOG)).toHaveLength(3);
     expect(requestsFor(fetchMock, '/api/jobs/5')).toHaveLength(3);
+  });
+
+  it.each([
+    ['Romeka\\Job\\ImportRun', 'Archive import'],
+    ['Romeka\\Job\\ImportUndo', 'Undo of an archive import'],
+  ])('names the import v2 job %s and links to its import', async (jobClass, name) => {
+    installFetch(
+      route({
+        '/api/jobs/5': () => jsonResponse({ ...job('completed'), 'o:job_class': jobClass }),
+        [LOG]: () => new Response('', { headers: { 'Content-Type': 'text/plain' } }),
+      }),
+    );
+    render(<JobsPage param="5" />);
+    expect(await screen.findByText(name)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the import' })).toHaveAttribute('href', '#/import/7');
   });
 
   it('stops reading when the page closes', async () => {
