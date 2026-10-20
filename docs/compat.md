@@ -168,5 +168,9 @@ crates/omeka-cli/scripts/verify-backup.sh       # backup and restore, byte for b
 | [`crates/omeka-cli/scripts/verify-backup.sh`](../crates/omeka-cli/scripts/verify-backup.sh) | the backup archive, the manifest and a restore, end to end |
 | [`web/admin/PERF.md`](../web/admin/PERF.md) | the frontend measurements, with the method and the decision behind each |
 | [`docs/gen/check_routes.py`](gen/check_routes.py) | every exact claim in the route table, against a running server |
+| `GET /iiif-viewer` is upstream's Mirador page and allow-list (`window.sideBarOpen`, `selectedTheme`); an allowed key applies only with a value of its kind. The page sends a CSP with no inline script. | [`crates/omeka-site/src/iiif_viewer.rs`](../crates/omeka-site/src/iiif_viewer.rs) |
+| The IIIF presentation block opens Mirador's sidebar when `iiif_viewer_sidebar` is set; upstream's block always sends false. Both IIIF blocks take a height kept in `o:layout_data.romeka.settings.height`; unset, upstream's height. | [`crates/omeka-site/src/blocks/iiif.rs`](../crates/omeka-site/src/blocks/iiif.rs) |
+| `/iiif/3/item/<id>/manifest`, `/iiif/3/item-set/<id>/collection` and `/iiif/image/3/<media>/...` (Image API 3, level 1) are Romeka's own; upstream needs the IIIF Server module. They read as a public page's caller and keep image answers in the store under `iiif/`. | [`crates/omeka-server/README.md`](../crates/omeka-server/README.md) |
+| An item page with a paintable media links the IIIF viewer and its manifest. | [`crates/omeka-site/src/theme/default.rs`](../crates/omeka-site/src/theme/default.rs) |
 
 A claim in a crate README is a claim; the command beside it is the proof. Run the command.

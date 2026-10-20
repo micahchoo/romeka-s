@@ -102,7 +102,11 @@ export const ne: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'वस्तु पृष्ठहरूले प्रत्येक क्षेत्रको नामको छेउमा शब्दावली वा प्राविधिक शब्द देखाउँछन्।',
   'siteSetting.iiifViewerTheme': 'IIIF भ्युअर थिम',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF भ्युअर ब्लकका लागि हल्का वा गाढा पृष्ठभूमि।',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF भ्युअरका लागि हल्का वा गाढा पृष्ठभूमि, ब्लकहरूमा र वस्तु पृष्ठहरूमा।',
+  'siteSetting.iiifViewerSidebar': 'IIIF भ्युअर साइडबार',
+  'siteSetting.iiifViewerSidebarHelp':
+    'यसले सामग्री र विवरणहरू देखाउने साइडबारको साथ भ्युअर खोल्छ।',
   'siteSetting.locale': 'स्थान',
   'siteSetting.localeHelp': 'साइटका आफ्नै शब्दहरूको भाषा, जस्तै बटन, मेनु र मितिहरू।',
   'siteSetting.filterLocaleValues': 'लोकपाल मानहरू फिल्टर गर्नुहोस्',

@@ -103,7 +103,11 @@ export const te: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'ఐటమ్ పేజీలు ప్రతి ఫీల్డ్ పేరు పక్కన పదజాలం లేదా సాంకేతిక పదాన్ని చూపుతాయి.',
   'siteSetting.iiifViewerTheme': 'IIIF వ్యూయర్ థీమ్',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF వ్యూయర్ బ్లాక్ కోసం లైట్ లేదా డార్క్ బ్యాక్‌గ్రౌండ్.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF వ్యూయర్ కోసం, బ్లాక్‌లలో మరియు ఐటమ్ పేజీలలో లేత లేదా ముదురు నేపథ్యం.',
+  'siteSetting.iiifViewerSidebar': 'IIIF వ్యూయర్ సైడ్‌బార్',
+  'siteSetting.iiifViewerSidebarHelp':
+    'కంటెంట్‌లు మరియు వివరాలతో కూడిన సైడ్‌బార్‌తో వ్యూయర్‌ను తెరుస్తుంది.',
   'siteSetting.locale': 'ప్రాంతం',
   'siteSetting.localeHelp': 'సైట్ స్వంత పదాల భాష, ఉదాహరణకు బటన్లు, మెనూలు మరియు తేదీలు.',
   'siteSetting.filterLocaleValues': 'ప్రాంతం విలువలను ఫిల్టర్ చేయండి',

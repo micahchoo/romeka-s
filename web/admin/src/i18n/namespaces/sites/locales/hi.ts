@@ -101,7 +101,11 @@ export const hi: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'आइटम पेज प्रत्येक फ़ील्ड नाम के बगल में शब्दावली या तकनीकी शब्द दिखाते हैं।',
   'siteSetting.iiifViewerTheme': 'IIIF व्यूअर थीम',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF व्यूअर ब्लॉक के लिए एक हल्का या गहरा बैकग्राउंड।',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF व्यूअर के लिए, ब्लॉक में और आइटम पेजों पर लाइट या डार्क बैकग्राउंड।',
+  'siteSetting.iiifViewerSidebar': 'IIIF व्यूअर साइडबार',
+  'siteSetting.iiifViewerSidebarHelp':
+    'व्यूअर को उसके साइडबार के साथ खोलता है जिसमें सामग्री और विवरण दिखाई देते हैं।',
   'siteSetting.locale': 'लोकेल',
   'siteSetting.localeHelp': 'साइट के अपने शब्दों, जैसे बटन, मेनू और तिथियों की भाषा।',
   'siteSetting.filterLocaleValues': 'लोकेल मानों को फ़िल्टर करें',

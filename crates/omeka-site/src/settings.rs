@@ -481,6 +481,13 @@ pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
         group: Some(SettingGroup::ItemPages),
     },
     SiteSettingSpec {
+        key: "iiif_viewer_sidebar",
+        label: "IIIF viewer sidebar",
+        kind: SettingKind::Boolean,
+        default: SettingDefault::Boolean(false),
+        group: Some(SettingGroup::ItemPages),
+    },
+    SiteSettingSpec {
         key: "subnav_display",
         label: "Sub-menu on pages",
         kind: SettingKind::Choice(&["show", "hide"]),
@@ -595,13 +602,6 @@ pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
     SiteSettingSpec {
         key: "search_restrict_templates",
         label: "Search restrict templates",
-        kind: SettingKind::Boolean,
-        default: SettingDefault::Boolean(false),
-        group: None,
-    },
-    SiteSettingSpec {
-        key: "iiif_viewer_sidebar",
-        label: "IIIF viewer sidebar",
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
         group: None,

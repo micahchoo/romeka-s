@@ -42,6 +42,7 @@ mod assets;
 mod config;
 mod files_allow;
 mod http;
+mod iiif;
 mod imports;
 pub mod jobs;
 mod limits;
@@ -105,6 +106,8 @@ pub struct AppState {
     pub(crate) jobs: Arc<dyn JobDispatch>,
     /// Each archive file's tags, remembered for the life of the process.
     pub(crate) tag_reader: omeka_api::import::tags::SharedTagReader,
+    /// The pixel size of each stored image a IIIF document has named.
+    pub(crate) iiif_dimensions: Arc<iiif::Dimensions>,
 }
 
 /// What the process supplies beyond the pool and the [`Config`]: the file
@@ -182,6 +185,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         archive_root: config.archive_root.clone(),
         jobs: services.jobs,
         tag_reader: omeka_api::import::tags::SharedTagReader::default(),
+        iiif_dimensions: Arc::default(),
     };
     let routes = Router::new()
         .route("/health", get(health))
@@ -200,6 +204,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())
+        .merge(iiif::router())
         .merge(publish::router())
         .merge(files_allow::router())
         .fallback(not_found)

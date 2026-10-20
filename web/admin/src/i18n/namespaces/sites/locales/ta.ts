@@ -106,7 +106,11 @@ export const ta: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'உருப்படி பக்கங்கள், ஒவ்வொரு புலப் பெயருக்கு அருகிலும் கலைச்சொல் அல்லது தொழில்நுட்பச் சொல்லைக் காட்டும்.',
   'siteSetting.iiifViewerTheme': 'IIIF பார்வையாளர் தீம்',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF பார்வையாளர் தொகுதிக்கு ஒளி அல்லது இருண்ட பின்னணி.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF பார்வையாளருக்கு, தொகுதிகளாகவும் உருப்படிப் பக்கங்களிலும், வெளிர் அல்லது அடர் பின்னணி.',
+  'siteSetting.iiifViewerSidebar': 'IIIF பார்வையாளர் பக்கவாட்டுப் பட்டை',
+  'siteSetting.iiifViewerSidebarHelp':
+    'அதன் உள்ளடக்கங்கள் மற்றும் விவரங்களைக் காட்டும் பக்கவாட்டுப் பட்டையுடன் பார்வையாளரைத் திறக்கிறது.',
   'siteSetting.locale': 'இருப்பிடம்',
   'siteSetting.localeHelp':
     'தளத்தின் சொந்த வார்த்தைகளின் மொழி, உதாரணமாக பொத்தான்கள், மெனுக்கள் மற்றும் தேதிகள்.',

@@ -102,7 +102,10 @@ export const mr: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'आयटम पेजवर प्रत्येक फील्ड नावाच्या शेजारी शब्दसंग्रह किंवा तांत्रिक संज्ञा दर्शविली जाते.',
   'siteSetting.iiifViewerTheme': 'IIIF व्ह्यूअर थीम',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF व्ह्यूअर ब्लॉकसाठी हलका किंवा गडद पार्श्वभूमी.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF व्ह्यूअरसाठी, आयटम पेजेसवर ब्लॉक्समध्ये आणि आयटम पेजेसवर हलके किंवा गडद पार्श्वभूमी.',
+  'siteSetting.iiifViewerSidebar': 'IIIF व्ह्यूअर साइडबार',
+  'siteSetting.iiifViewerSidebarHelp': 'साइडबारसह, मजकूर आणि तपशील दर्शवणारा व्ह्यूअर उघडतो.',
   'siteSetting.locale': 'लोकभाषा',
   'siteSetting.localeHelp': 'साइटच्या स्वतःच्या शब्दांची भाषा, जसे की बटणे, मेनू आणि तारखा.',
   'siteSetting.filterLocaleValues': 'लोकभाषा मूल्ये फिल्टर करा',
