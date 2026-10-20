@@ -125,6 +125,9 @@ never through SQL collation, so SQLite and MySQL answer the same.
 ### Slot rules a worker must not guess
 
 - **Empty.** A value that is empty after trim is no value. It never creates a set, type or field.
+- **Value map.** A slot rule's `map` replaces a value whose text (compared as titles) is a key with
+  the mapped text, before the value is used: `AF` → `Artifact` names a template, `Photographs` →
+  `Photograph`. A key mapped to `""` drops the value, which is how an item set is turned off.
 - **`dcterms:identifier`** of an item record defaults to the group key (or the join cell for an item
   with no files) unless the plan gives the term its own slot rule. Its first value is the item's
   `itemKey` unless `itemKey` has a rule.
@@ -209,7 +212,8 @@ type Encoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'iso-8859-1
 type ValueType = 'literal' | 'uri' | { resource: 'identifier' | 'internalId' } | { dataType: string };
 type SlotName = 'sets' | 'template' | 'class' | 'owner' | 'visibility' | 'sites' | 'mediaOrder'
   | 'ingester' | 'mediaSource' | 'itemKey' | Term;
-type SlotRules = Partial<Record<SlotName, { sources: SourceRef[]; combine: 'first' | 'all' }>>;
+type SlotRules = Partial<Record<SlotName, { sources: SourceRef[]; combine: 'first' | 'all';
+                                            map: Record<string, string> }>>;   // value map, below
 type SourceRef =
   | { from: 'group'; name: string }
   | { from: 'folder'; level: number | 'path' }       // 1 = the top folder under the source
@@ -336,7 +340,9 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   transaction. Bytes reach the store before the commit and are removed if it fails. A record that
   fails is listed in `summary.failures` as `{ record, key, detail }` with a translatable key; the
   import ends `done` when any record committed, `run_failed` when none did.
-- **Retry.** A `run_failed` import runs again from `ran_plan` against a rescan. Records whose key
+- **Stop.** `POST /imports/{id}/stop` asks a running job to stop after the record in hand; the
+  import ends `run_failed`, so it can be retried or undone.
+- **Retry.** A `run_failed` import, or a `done` import with failures, runs again from `ran_plan` against a rescan. Records whose key
   is in the ledger are skipped, so retry converges. Records with no stable key cannot be told
   apart: media rows and item-set rows get a key from their row key, files from their entry.
 - **Copy.** `POST /imports { copyFrom }` makes a draft with the plan (decisions kept; those that no
@@ -432,6 +438,7 @@ All need a signed-in global admin or site admin.
 | `POST /api/romeka/imports/{id}/scan` | rescans; `{ jobId }` past 20,000 entries |
 | `POST /api/romeka/imports/{id}/preview` `{ include, plan?, records?, entries? }` | sections below |
 | `POST /api/romeka/imports/{id}/run` `{ digest, confirm? }` | `{ jobId }`; also a retry |
+| `POST /api/romeka/imports/{id}/stop` | 202; the job stops after the record in hand |
 | `POST /api/romeka/imports/{id}/undo` `{ force?: Array<{ kind, id }> \| 'all' }` | `{ jobId }` |
 | `GET /api/romeka/imports/{id}/left.csv` | the stored file |
 | `/api/romeka/imports/{id}/uploads[/{upload}]` | tus 1.0 core |
@@ -572,6 +579,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | 2026-10-20 | No `fix` policy: `keep`, `repair`, `leave`; four blocking plan kinds | the user's "flags, never gates"; blocking only where data would break |
 | 2026-10-20 | One destructive migration, no v1 conversion; v1 import code deleted on the branch | no install holds imports (measured); user: no users to migrate |
 | 2026-10-20 | Keep upstream's default file-validation lists (they refuse `.nef`, `.heic`, `.flac`, `.svg`, `.json`, `.mkv`, `.gz`); `not-media` on Check names the refused type and links to Settings > Security | parity; the operator widens the list, the import says how |
+| 2026-10-20 | Slot value maps (also turn a set off); stop route; retry of a `done` import with failures | gaps found by the P4 prototype |
 | 2026-10-20 | Contract review: Sonnet adversarial pass found the identity cycle, line anchors, shared `failed`, undefined actions and security gaps; all folded in | second opinion |
 
 ## Run log
