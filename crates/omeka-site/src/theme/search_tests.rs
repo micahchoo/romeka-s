@@ -202,7 +202,7 @@ fn search_list_view_matches_page_browse_phtml() {
     let document = render(&View::SearchList(&list), &ctx);
     assert!(
         document.contains(
-            "<h2>Pages</h2><ul class=\"resource-list\"><li class=\"page resource\"><h3><a href=\"/s/main/page/welcome\">Welcome</a></h3></li></ul>"
+            "<h2>Pages</h2><ul class=\"resource-list resource-cards-row\"><li class=\"page resource\"><h3><a href=\"/s/main/page/welcome\">Welcome</a></h3></li></ul>"
         ),
         "{document}"
     );

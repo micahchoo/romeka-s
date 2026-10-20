@@ -4,11 +4,9 @@
  * asks for it.
  */
 import type { ReactElement } from 'react';
-import { api } from '../../../../api/client';
-import { ALL_PAGES_PER_PAGE, allPages } from '../../../../app/all-pages';
-import { useAsync } from '../../../../app/useAsync';
 import { useEditorText } from '../messages';
 import { Labelled, helpId } from '../Labelled';
+import { propertyName, useProperties } from './useProperties';
 
 export interface PropertySelectProps {
   readonly id: string;
@@ -26,13 +24,7 @@ export const PropertySelect = ({
   onChange,
 }: PropertySelectProps): ReactElement => {
   const t = useEditorText();
-  const state = useAsync(
-    () =>
-      allPages((page) =>
-        api.listProperties({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'label' }),
-      ),
-    [],
-  );
+  const state = useProperties();
   const properties = state.status === 'ready' ? state.data : [];
   const listed = value === '' || properties.some((property) => property.term === value);
   return (
@@ -50,7 +42,7 @@ export const PropertySelect = ({
         {listed ? null : <option value={value}>{value}</option>}
         {properties.map((property) => (
           <option key={String(property.id)} value={property.term}>
-            {`${property.label ?? property.term} (${property.term})`}
+            {propertyName(property)}
           </option>
         ))}
       </select>

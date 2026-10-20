@@ -131,6 +131,11 @@ pub struct Messages {
     pub map_poster: &'static str,
     /// The editor preview's poster for a map block with no places.
     pub map_no_places_preview: &'static str,
+    /// A browse preview whose search matches nothing on a site that holds
+    /// items. A Romeka addition: upstream prints an empty list.
+    pub no_matches: &'static str,
+    /// The same empty browse preview in the admin preview, with the fix.
+    pub no_matches_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -192,6 +197,9 @@ pub static EN: Messages = Messages {
     map_poster: "A map of %s places. The map itself shows on the public page.",
     map_no_places_preview: "This map has no places yet. Its items need a \"lat, lng\" value in the \
                             location field the site settings name.",
+    no_matches: "Nothing here matches yet.",
+    no_matches_preview: "Nothing matches this block's search. Change the search in the block's \
+                         settings.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -261,6 +269,9 @@ pub static ES: Messages = Messages {
     map_poster: "Un mapa de %s lugares. El mapa se muestra en la página pública.",
     map_no_places_preview: "Este mapa aún no tiene lugares. Sus fichas necesitan un valor \
                             \"lat, lng\" en el campo de ubicación que indican los ajustes del sitio.",
+    no_matches: "Todavía no hay nada que coincida.",
+    no_matches_preview: "Nada coincide con la búsqueda de este bloque. Cambia la búsqueda en los \
+                         ajustes del bloque.",
 };
 
 #[cfg(test)]

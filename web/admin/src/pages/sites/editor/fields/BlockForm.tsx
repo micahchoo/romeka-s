@@ -5,13 +5,14 @@
  * action, so the component holds no block state of its own.
  */
 import type { ReactElement } from 'react';
-import type { SiteId } from '../../../../api/types';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
-import type { BlockLayoutSchema } from '../../blockSchema';
+import type { BlockField, BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
-import { readPath, settingPath } from '../layoutPaths';
+import { readPath, romekaKey, settingPath } from '../layoutPaths';
+import { mergeSlots, splitSlots, storedSlots } from '../slotSettings';
 import { dataObject, layoutDataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
@@ -57,6 +58,33 @@ export const BlockForm = ({
     ),
   };
   const idPrefix = `block-${block.key}`;
+  const valueOf = (field: BlockField): JsonValue | undefined => {
+    if (settingPath(field.key) !== null) {
+      return readPath(layoutData, field.key);
+    }
+    return field.type === 'repeat'
+      ? mergeSlots(storedSlots(block.data, field.key), readPath(layoutData, romekaKey(field.key)))
+      : data[field.key];
+  };
+  const write = (field: BlockField, value: JsonValue): void => {
+    if (settingPath(field.key) !== null) {
+      dispatch({ type: 'setLayoutDataValues', blockKey: block.key, values: { [field.key]: value } });
+      return;
+    }
+    if (field.type === 'repeat' && Array.isArray(value)) {
+      const { data: slots, settings } = splitSlots(value);
+      dispatch({ type: 'setBlockData', blockKey: block.key, data: slots });
+      if (settings !== null || readPath(layoutData, romekaKey(field.key)) !== undefined) {
+        dispatch({
+          type: 'setLayoutDataValues',
+          blockKey: block.key,
+          values: { [romekaKey(field.key)]: settings },
+        });
+      }
+      return;
+    }
+    dispatch({ type: 'setField', blockKey: block.key, field: field.key, value });
+  };
   return (
     <div className="block-form">
       {schema.fields.map((field) =>
@@ -76,15 +104,9 @@ export const BlockForm = ({
           <FieldControl
             key={field.key}
             field={field}
-            value={
-              settingPath(field.key) === null ? data[field.key] : readPath(layoutData, field.key)
-            }
+            value={valueOf(field)}
             onChange={(value) => {
-              dispatch(
-                settingPath(field.key) === null
-                  ? { type: 'setField', blockKey: block.key, field: field.key, value }
-                  : { type: 'setLayoutDataValues', blockKey: block.key, values: { [field.key]: value } },
-              );
+              write(field, value);
             }}
             record={record}
             siblings={schema.fields}

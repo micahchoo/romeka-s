@@ -271,6 +271,8 @@ pub enum FieldKind {
     },
     /// A property, stored as its term (`dcterms:date`).
     Property,
+    /// Properties in a curator's order, stored as a list of terms.
+    PropertyList,
 }
 
 /// The stored keys of a [`FieldKind::Sides`] control.
@@ -505,6 +507,11 @@ pub const fn map_view(
 /// A property term.
 pub const fn property(key: &'static str, label: &'static str, help: &'static str) -> Field {
     field(key, label, help, FieldKind::Property)
+}
+
+/// Properties in a chosen order.
+pub const fn property_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::PropertyList)
 }
 
 /// Four CSS lengths, one per side, edited as one control named `key`.

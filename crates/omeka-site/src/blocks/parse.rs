@@ -319,6 +319,13 @@ pub fn parse_block_data(
 /// slot order itself.
 fn parse_asset_slots(data: &JsonValue) -> Result<BlockData, BlockDataError> {
     let slots: Vec<&JsonValue> = match data {
+        // The admin once saved its slots under the repeat's own key; such a
+        // block renders its slots, and the next save stores the list.
+        JsonValue::Object(map) if map.get("attachments").is_some_and(JsonValue::is_array) => map
+            .get("attachments")
+            .and_then(JsonValue::as_array)
+            .map(|items| items.iter().collect())
+            .unwrap_or_default(),
         JsonValue::Object(map) => {
             let mut keys: Vec<(&String, &JsonValue)> = map.iter().collect();
             keys.sort_by_key(|(key, _)| key.parse::<u64>().unwrap_or(u64::MAX));
@@ -530,6 +537,17 @@ mod tests {
             .map(|slot| slot.caption.as_deref().unwrap_or_default())
             .collect();
         assert_eq!(captions, ["a", "b", "c"]);
+
+        // The slots the admin once saved under the repeat's own key.
+        let BlockData::Asset(legacy) = parse_block_data(
+            &layout("asset"),
+            &json!({"attachments": [{"caption": "x"}, {"caption": "y"}]}),
+        )
+        .unwrap() else {
+            panic!("expected asset data");
+        };
+        assert_eq!(legacy.len(), 2);
+        assert_eq!(legacy[1].caption.as_deref(), Some("y"));
 
         let error = parse_block_data(&layout("asset"), &json!({"0": {"caption": 3}})).unwrap_err();
         assert_eq!(

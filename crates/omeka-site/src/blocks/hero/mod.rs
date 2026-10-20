@@ -23,6 +23,7 @@ use super::schema::{
 };
 use crate::html::{Attr, escape_html, hyperlink, open_tag};
 use crate::view::{RenderContext, Thumbnail};
+pub(crate) use settings::safe_url;
 use settings::{Background, HeroSettings};
 
 /// The `hero` block.

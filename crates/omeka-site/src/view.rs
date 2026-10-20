@@ -9,7 +9,7 @@
 //! resource's display title and description, its thumbnail, its item sets and
 //! its media, and a site entry for the list-of-sites block.
 
-use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId, UserId};
+use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, PageId, ResourceId, SiteId, UserId};
 use omeka_core::permissions::RoleSet;
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage};
@@ -331,6 +331,23 @@ pub trait ResourceProvider {
 
     /// Search sites, `$view->api()->search('sites', ...)`.
     fn search_sites(&self, query: &SiteQuery) -> SiteSearch;
+
+    /// A page's card, as a list-of-pages block in card mode shows it; `None`
+    /// when the page is not one the caller can see or the provider did not
+    /// load it.
+    fn page_card(&self, _page: PageId) -> Option<PageCard> {
+        None
+    }
+}
+
+/// A page as a card: the image and summary its own blocks give
+/// ([`crate::blocks::page_card::source`]), the image resolved to a URL.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PageCard {
+    /// The card's image.
+    pub thumbnail: Option<Thumbnail>,
+    /// The page's summary, as plain text.
+    pub summary: Option<String>,
 }
 
 /// A provider with no data: every search is empty, every read is missing.

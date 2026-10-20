@@ -13,16 +13,20 @@
 //! properties, so the port leaves them to the provider, which resolves
 //! `ResourceView::title` and `ResourceView::description` with them in force.
 
+use omeka_core::ids::SiteId;
 use omeka_core::resource::ResourceKind;
 use omeka_core::site::{BlockData, BrowsePreviewData, SiteBlock};
+use serde_json::Value as JsonValue;
 
-use crate::blocks::BlockLayout;
 use crate::blocks::schema::{
-    LayoutSchema, choice, integer, item_query, multi_choice, option, text,
+    LayoutSchema, choice, integer, item_query, multi_choice, option, property, text,
 };
+use crate::blocks::{BlockLayout, columns};
 use crate::html::{escape_html, hyperlink, query_string};
+use crate::settings::SiteSettings;
 use crate::slug::{controller_for, resource_browse_url};
-use crate::theme::cards::{CardParts, resource_card};
+use crate::theme::cards::{CardParts, Detail, list_class, resource_card};
+use crate::theme::choices::CardStyle;
 use crate::view::{BrowseQuery, RenderContext};
 
 /// The default `components` (`BlockLayout/BrowsePreview.php::form`).
@@ -35,7 +39,9 @@ const DEFAULT_LIMIT: usize = 12;
 pub struct BrowsePreview;
 
 /// `BlockLayout/BrowsePreview.php::form` and its `$defaults`. `link-text`
-/// starts empty rather than at the class's translated "Browse all".
+/// starts empty rather than at the class's translated "Browse all". The
+/// `romeka.` fields are Romeka settings: the card style, the columns and the
+/// details under each card's name.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
         choice(
@@ -73,6 +79,43 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             ],
         )
         .default_list(&["resource-heading", "resource-body", "thumbnail"]),
+        choice(
+            "romeka.cards",
+            "blockField.browsePreview.cards",
+            "fieldHelp.browsePreview.cards",
+            &[
+                option("", "blockChoice.cards_theme"),
+                option("caption", "blockChoice.cards_caption"),
+                option("overlay", "blockChoice.cards_overlay"),
+                option("row", "blockChoice.cards_row"),
+                option("carousel", "blockChoice.cards_carousel"),
+            ],
+        )
+        .default_text(""),
+        choice(
+            "romeka.columns",
+            "blockField.browsePreview.columns",
+            "fieldHelp.browsePreview.columns",
+            columns::OPTIONS,
+        )
+        .default_text(""),
+        multi_choice(
+            "romeka.details",
+            "blockField.browsePreview.details",
+            "fieldHelp.browsePreview.details",
+            &[
+                option("type", "blockChoice.detail_type"),
+                option("creator", "blockChoice.detail_creator"),
+                option("date", "blockChoice.detail_date"),
+                option("item_set", "blockChoice.detail_item_set"),
+            ],
+        )
+        .default_list(&["type", "creator", "date"]),
+        property(
+            "romeka.detail_property",
+            "blockField.browsePreview.detail_property",
+            "fieldHelp.browsePreview.detail_property",
+        ),
         text(
             "heading",
             "blockField.browsePreview.heading",
@@ -102,7 +145,7 @@ impl BlockLayout for BrowsePreview {
         let BlockData::BrowsePreview(data) = &block.data else {
             return String::new();
         };
-        render_block(data, ctx)
+        render_block(data, &Look::of(block), block, ctx)
     }
 
     fn schema(&self) -> &'static LayoutSchema {
@@ -110,19 +153,105 @@ impl BlockLayout for BrowsePreview {
     }
 }
 
-fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
-    let resource_type = data.resource_type.as_deref().unwrap_or("items");
-    let kind = match resource_type {
-        "item_sets" => ResourceKind::ItemSet,
-        "media" => ResourceKind::Media,
+/// How the block draws its cards: in the theme's card style, in a style of
+/// its own, or in the theme's style along a carousel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Arrangement {
+    Theme,
+    Style(CardStyle),
+    Carousel,
+}
+
+impl Arrangement {
+    /// The card style the list draws, given the theme's token. A carousel of
+    /// rows is not a carousel, so a carousel on a row theme draws captions.
+    fn style(self, theme: CardStyle) -> CardStyle {
+        match self {
+            Self::Theme => theme,
+            Self::Style(style) => style,
+            Self::Carousel if theme == CardStyle::Row => CardStyle::Caption,
+            Self::Carousel => theme,
+        }
+    }
+}
+
+/// The block's Romeka settings, read once from `o:layout_data.romeka`.
+/// Unset, each one keeps the upstream rendering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Look {
+    arrangement: Arrangement,
+    /// 2 to 6, or `None` to fit as many cards as the width holds.
+    columns: Option<u8>,
+    /// The chosen details, `None` for the theme's.
+    details: Option<Vec<Detail<'static>>>,
+    /// A property whose first value shows after the details.
+    property: Option<String>,
+}
+
+impl Look {
+    fn of(block: &SiteBlock) -> Self {
+        let setting = |key| block.layout_data.romeka_setting(key);
+        let text = |key| setting(key).and_then(JsonValue::as_str).unwrap_or_default();
+        let arrangement = match text("cards") {
+            "carousel" => Arrangement::Carousel,
+            key => CardStyle::parse(key).map_or(Arrangement::Theme, Arrangement::Style),
+        };
+        let columns = columns::of(block);
+        let details = setting("details")
+            .and_then(JsonValue::as_array)
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(JsonValue::as_str)
+                    .filter_map(Detail::parse)
+                    .collect()
+            });
+        let property = Some(text("detail_property").trim())
+            .filter(|term| !term.is_empty())
+            .map(str::to_string);
+        Self {
+            arrangement,
+            columns,
+            details,
+            property,
+        }
+    }
+
+    /// The details each card in `style` shows: the chosen ones or the
+    /// style's own, then the property's value.
+    fn details(&self, style: CardStyle) -> Vec<Detail<'_>> {
+        let mut details: Vec<Detail<'_>> = self
+            .details
+            .as_deref()
+            .unwrap_or(Detail::theme(style))
+            .to_vec();
+        if let Some(term) = &self.property {
+            details.push(Detail::Value(term));
+        }
+        details
+    }
+}
+
+/// The resource kind and the search a block runs:
+/// `BlockLayout/BrowsePreview.php::render` adds the site, the limit and the
+/// default sort to the stored query, and the stored sort decides the order. The page snapshot builds its search with
+/// this same function, so the two cannot drift.
+#[must_use]
+pub fn search(
+    data: &BrowsePreviewData,
+    site: SiteId,
+    settings: &SiteSettings,
+) -> (ResourceKind, BrowseQuery) {
+    let kind = match data.resource_type.as_deref() {
+        Some("item_sets") => ResourceKind::ItemSet,
+        Some("media") => ResourceKind::Media,
         _ => ResourceKind::Item,
     };
-    let original_query = parse_query(data.query.as_deref().unwrap_or_default());
-    let mut query = original_query.clone();
-    if ctx.settings.browse_attached_items() {
+    let mut query = parse_query(data.query.as_deref().unwrap_or_default());
+    if settings.browse_attached_items() {
         query.push(("site_attachments_only".to_string(), "true".to_string()));
     }
-    query.push(("site_id".to_string(), ctx.site.id.get().to_string()));
+    query.push(("site_id".to_string(), site.get().to_string()));
     query.push((
         "limit".to_string(),
         data.limit.unwrap_or(DEFAULT_LIMIT as i64).to_string(),
@@ -135,6 +264,33 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
         query.push(("sort_order_default".to_string(), String::new()));
         query.push(("sort_order".to_string(), "desc".to_string()));
     }
+    // The API reads the last of a repeated key, so the sort does too.
+    let last = |name: &str| {
+        query
+            .iter()
+            .rev()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.clone())
+            .unwrap_or_default()
+    };
+    let sort = (last("sort_by"), last("sort_order"));
+    let search = BrowseQuery {
+        limit: data.limit.map(|limit| usize::try_from(limit).unwrap_or(0)),
+        query,
+        site,
+        sort: Some(sort),
+    };
+    (kind, search)
+}
+
+fn render_block(
+    data: &BrowsePreviewData,
+    look: &Look,
+    block: &SiteBlock,
+    ctx: &RenderContext<'_>,
+) -> String {
+    let (kind, search) = search(data, ctx.site.id, &ctx.settings);
+    let original_query = parse_query(data.query.as_deref().unwrap_or_default());
     let components: Vec<String> = if data.components.is_empty() {
         DEFAULT_COMPONENTS
             .iter()
@@ -143,46 +299,51 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     } else {
         data.components.clone()
     };
-
-    let search = BrowseQuery {
-        query: query.clone(),
-        site: ctx.site.id,
-        limit: data.limit.map(|limit| usize::try_from(limit).unwrap_or(0)),
-        sort: Some(("created".to_string(), "desc".to_string())),
-    };
     let page = ctx.resources.search(kind, &search);
 
-    let mut out = String::from("<div class=\"preview-block\">");
-    if let Some(heading) = data
+    let heading = data
         .heading
         .as_deref()
-        .filter(|heading| !heading.is_empty())
-    {
+        .filter(|heading| !heading.is_empty());
+    let mut out = String::from("<div class=\"preview-block\">");
+    if let Some(heading) = heading {
         out.push_str(&format!("<h2>{}</h2>", escape_html(heading)));
     }
-    if kind == ResourceKind::Item && page.resources.is_empty() && !site_has_items(ctx) {
+    if page.resources.is_empty() {
         let messages = ctx.translator().messages();
-        let text = if ctx.is_preview() {
-            messages.no_site_items_preview
-        } else {
-            messages.no_site_items
+        let site_is_empty = kind == ResourceKind::Item && !site_has_items(ctx);
+        let text = match (site_is_empty, ctx.is_preview()) {
+            (true, true) => messages.no_site_items_preview,
+            (true, false) => messages.no_site_items,
+            (false, true) => messages.no_matches_preview,
+            (false, false) => messages.no_matches,
         };
         out.push_str(&format!(
-            "<p class=\"preview-empty\">{}</p></div>",
+            "<p class=\"preview-empty\">{}</p>",
             escape_html(text)
         ));
-        return out;
+        if site_is_empty {
+            out.push_str("</div>");
+            return out;
+        }
+    } else {
+        let style = look
+            .arrangement
+            .style(ctx.theme_settings.tokens.structure.cards);
+        let details = look.details(style);
+        let parts = CardParts {
+            thumbnail: components.iter().any(|c| c == "thumbnail"),
+            heading: components.iter().any(|c| c == "resource-heading"),
+            body: components.iter().any(|c| c == "resource-body"),
+            details: &details,
+        };
+        let cards: Vec<String> = page
+            .resources
+            .iter()
+            .map(|resource| resource_card(kind, resource, ctx, parts))
+            .collect();
+        out.push_str(&card_list(look, style, &cards, heading, block, ctx));
     }
-    out.push_str("<ul class=\"resource-list preview\">");
-    let parts = CardParts {
-        thumbnail: components.iter().any(|c| c == "thumbnail"),
-        heading: components.iter().any(|c| c == "resource-heading"),
-        body: components.iter().any(|c| c == "resource-body"),
-    };
-    for resource in &page.resources {
-        out.push_str(&resource_card(kind, resource, ctx, parts));
-    }
-    out.push_str("</ul>");
     if let Some(link_text) = data.link_text.as_deref().filter(|text| !text.is_empty()) {
         let url = resource_browse_url(
             &ctx.site.slug,
@@ -195,16 +356,60 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     out
 }
 
-/// Whether the site holds any item, so an empty preview can say why it is empty.
-fn site_has_items(ctx: &RenderContext<'_>) -> bool {
-    let search = BrowseQuery {
-        query: vec![("site_id".to_string(), ctx.site.id.get().to_string())],
-        site: ctx.site.id,
+/// The list of cards in the block's look. A block with no Romeka settings
+/// prints upstream's `resource-list preview` in the theme's card style; a
+/// carousel is the same list, scrolled sideways, with links to step it.
+fn card_list(
+    look: &Look,
+    style: CardStyle,
+    cards: &[String],
+    heading: Option<&str>,
+    block: &SiteBlock,
+    ctx: &RenderContext<'_>,
+) -> String {
+    let mut classes = vec!["resource-list", "preview", list_class(style)];
+    let columns = look
+        .columns
+        .filter(|_| style != CardStyle::Row)
+        .map(|count| columns::class("resource", count));
+    if let Some(class) = &columns {
+        classes.push(class);
+    }
+    if look.arrangement != Arrangement::Carousel {
+        return format!(
+            "<ul class=\"{}\">{}</ul>",
+            classes.join(" "),
+            cards.concat()
+        );
+    }
+    classes.push("resource-carousel");
+    let messages = ctx.translator().messages();
+    crate::blocks::carousel::render(&crate::blocks::carousel::Carousel {
+        id: &format!("carousel-{}", block.id.get()),
+        classes: &classes.join(" "),
+        cards,
+        step: usize::from(look.columns.unwrap_or(4)),
+        label: heading.unwrap_or(messages.items),
+        prev: messages.prev,
+        next: messages.next,
+    })
+}
+
+/// The one-item search that tells whether the site holds any item, so an
+/// empty preview can say why it is empty. The page snapshot runs it too.
+#[must_use]
+pub fn site_items_probe(site: SiteId) -> BrowseQuery {
+    BrowseQuery {
+        query: vec![("site_id".to_string(), site.get().to_string())],
+        site,
         limit: Some(1),
         sort: None,
-    };
+    }
+}
+
+fn site_has_items(ctx: &RenderContext<'_>) -> bool {
     !ctx.resources
-        .search(ResourceKind::Item, &search)
+        .search(ResourceKind::Item, &site_items_probe(ctx.site.id))
         .resources
         .is_empty()
 }
@@ -261,172 +466,5 @@ fn urldecode(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::blocks::test_support::{TestResources, block, context, item, site};
-    use crate::view::Thumbnail;
-    use serde_json::json;
-
-    /// `block-layout/browse-preview.phtml`: heading, resource list with a
-    /// thumbnail and a name, body, and the browse link with the stored query.
-    #[test]
-    fn browse_preview_matches_upstream_block_layout() {
-        let site = site();
-        let mut resources = TestResources::default();
-        let mut resource = item(4, "An item", "/s/main/item/4");
-        resource.description = Some("A description".to_string());
-        resource.thumbnail = Some(Thumbnail::new("/files/medium/4.jpg", "An item"));
-        resources.browse.push(resource);
-        let ctx = context(&site, &resources);
-        let stored = block(
-            "browsePreview",
-            json!({
-                "resource_type": "items",
-                "query": "year=2000",
-                "heading": "Latest",
-                "limit": 12,
-                "components": ["resource-heading", "resource-body", "thumbnail"],
-                "link-text": "Browse all"
-            }),
-        );
-        assert_eq!(
-            BrowsePreview.render(&stored, &ctx),
-            "<div class=\"preview-block\"><h2>Latest</h2><ul class=\"resource-list preview\"><li class=\"item resource has-thumb\"><a href=\"/s/main/item/4\" class=\"resource-link\"><span class=\"resource-thumb\"><img src=\"/files/medium/4.jpg\" alt=\"An item\" loading=\"lazy\"></span><span class=\"resource-text\"><span class=\"resource-name\">An item</span></span></a><div class=\"description\">A description</div></li></ul><a href=\"/s/main/item?year=2000\">Browse all</a></div>"
-        );
-    }
-
-    /// The class adds the site id, the limit and the default sort to the search,
-    /// and `browse_attached_items` adds `site_attachments_only`.
-    #[test]
-    fn browse_preview_search_query_matches_upstream() {
-        let site = site();
-        let mut resources = TestResources::default();
-        resources.browse.push(item(4, "An item", "/s/main/item/4"));
-        let mut ctx = context(&site, &resources);
-        ctx.settings.browse_attached_items = Some(true);
-        let stored = block(
-            "browsePreview",
-            json!({"resource_type": "items", "query": "year=2000", "limit": 5}),
-        );
-        // The provider sees the query the class builds; the first resource is
-        // rendered without components set to the defaults.
-        let out = BrowsePreview.render(&stored, &ctx);
-        assert!(
-            out.contains("<span class=\"resource-name\">An item</span>"),
-            "{out}"
-        );
-        assert!(!out.contains("<div class=\"description\">"), "{out}");
-    }
-
-    /// A resource type other than items picks the item-set controller; the link
-    /// and class names follow `BlockLayout/BrowsePreview.php::render`.
-    #[test]
-    fn browse_preview_item_sets_use_the_item_set_controller() {
-        let site = site();
-        let mut resources = TestResources::default();
-        resources
-            .browse
-            .push(item(2, "A set", "/s/main/item-set/2"));
-        let ctx = context(&site, &resources);
-        let stored = block(
-            "browsePreview",
-            json!({"resource_type": "item_sets", "link-text": "All sets", "components": ["resource-heading"]}),
-        );
-        let out = BrowsePreview.render(&stored, &ctx);
-        assert!(
-            out.contains("<li class=\"item-set resource no-thumb\"><a href=\"/s/main/item-set/2\" class=\"resource-link\"><span class=\"resource-text\">"),
-            "{out}"
-        );
-        assert!(
-            out.contains("<a href=\"/s/main/item-set\">All sets</a>"),
-            "{out}"
-        );
-    }
-
-    /// `parse_str`: pairs keep their order, `+` and `%XX` decode, a part with no
-    /// `=` has an empty value.
-    #[test]
-    fn parse_query_matches_php_parse_str() {
-        assert_eq!(
-            parse_query("year=2000&search=a+b&flag"),
-            vec![
-                ("year".to_string(), "2000".to_string()),
-                ("search".to_string(), "a b".to_string()),
-                ("flag".to_string(), String::new()),
-            ]
-        );
-        assert_eq!(
-            parse_query("q=caf%C3%A9"),
-            vec![("q".to_string(), "café".to_string())]
-        );
-    }
-
-    /// A site that holds items, whose block query matches none of them.
-    struct NoMatch(TestResources);
-
-    impl crate::view::ResourceProvider for NoMatch {
-        fn search(&self, kind: ResourceKind, query: &BrowseQuery) -> crate::view::ResourcePage {
-            let membership_only = query.query.len() == 1;
-            if membership_only {
-                self.0.search(kind, query)
-            } else {
-                crate::view::ResourcePage {
-                    resources: Vec::new(),
-                    total: 0,
-                }
-            }
-        }
-        fn read(&self, kind: ResourceKind, id: u64) -> Option<crate::view::ResourceView> {
-            self.0.read(kind, id)
-        }
-        fn read_media(&self, id: omeka_core::ids::MediaId) -> Option<crate::view::MediaRef> {
-            self.0.read_media(id)
-        }
-        fn read_asset(&self, id: omeka_core::ids::AssetId) -> Option<crate::view::AssetView> {
-            self.0.read_asset(id)
-        }
-        fn attachments(&self, block: omeka_core::ids::BlockId) -> Vec<crate::view::AttachmentRef> {
-            self.0.attachments(block)
-        }
-        fn search_sites(&self, query: &crate::view::SiteQuery) -> crate::view::SiteSearch {
-            self.0.search_sites(query)
-        }
-    }
-
-    /// A block with no results on a site that holds items renders upstream's
-    /// wrapper and its link.
-    #[test]
-    fn browse_preview_without_results_renders_the_wrapper() {
-        let site = site();
-        let resources = NoMatch(TestResources {
-            browse: vec![item(3, "Kept", "/s/main/item/3")],
-            ..TestResources::default()
-        });
-        let ctx = context(&site, &resources);
-        let stored = block("browsePreview", json!({"link-text": "Browse all"}));
-        assert_eq!(
-            BrowsePreview.render(&stored, &ctx),
-            "<div class=\"preview-block\"><ul class=\"resource-list preview\"></ul><a href=\"/s/main/item\">Browse all</a></div>"
-        );
-    }
-
-    /// On a site with no items the public block says so, with no admin hint,
-    /// and the admin preview points the curator at the Items tab.
-    #[test]
-    fn browse_preview_on_a_site_with_no_items_says_so() {
-        let site = site();
-        let resources = TestResources::default();
-        let stored = block("browsePreview", json!({"link-text": "Browse all"}));
-        assert_eq!(
-            BrowsePreview.render(&stored, &context(&site, &resources)),
-            "<div class=\"preview-block\"><p class=\"preview-empty\">There are no items to show yet.</p></div>"
-        );
-        let mut preview = context(&site, &resources);
-        preview.block_markers = crate::view::BlockMarkers::Preview;
-        assert!(
-            BrowsePreview
-                .render(&stored, &preview)
-                .contains("No items on this site yet. Add items on the Items tab."),
-        );
-    }
-}
+#[path = "browse_preview_tests.rs"]
+mod tests;

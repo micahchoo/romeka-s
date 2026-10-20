@@ -281,7 +281,7 @@ fn list_body(
         list.total,
         ctx.translator().messages(),
     );
-    out.push_str("<ul class=\"resource-list\">");
+    out.push_str(&crate::theme::cards::theme_list_open(ctx));
     for hit in &list.hits {
         out.push_str(&hit_item(hit));
     }

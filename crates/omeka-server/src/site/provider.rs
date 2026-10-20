@@ -3,8 +3,9 @@
 //! [`crate::site::load::Loader`] is async and `ResourceProvider` is synchronous,
 //! so the blocks' searches run before rendering and land in [`LoadedResources`].
 //! A block's `ctx.resources.search(kind, query)` looks its own entry up by
-//! equality, so [`load_blocks`] must build exactly the query the block builds;
-//! the two mirrors below cite the block each one copies.
+//! equality, so [`load_blocks`] must build exactly the query the block builds:
+//! the browse preview's comes from the block's own `search`, and the
+//! list-of-sites mirror below cites the block it copies.
 //!
 //! The snapshot reads the site id, the settings and the request query directly
 //! rather than through a `RenderContext`, because a `RenderContext` borrows a
@@ -21,19 +22,19 @@
 //! image's source); the snapshot carries the image of each one the visitor may
 //! see, for [`ResourceProvider::read_image`].
 
-use omeka_core::ids::{AssetId, BlockId, MediaId, SiteId};
+use omeka_core::ids::{AssetId, BlockId, MediaId, PageId, SiteId};
 use omeka_core::resource::ResourceKind;
-use omeka_core::site::{BlockData, BrowsePreviewData, ListOfSitesData, SitePage};
+use omeka_core::site::{BlockData, ListOfSitesData, SitePage};
 use omeka_db::ids as db;
 use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
 use omeka_db::rows::AssetRow;
-use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::blocks::romeka::ItemSelection;
+use omeka_site::blocks::{browse_preview, list_of_pages};
 use omeka_site::settings::SiteSettings;
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::view::{
-    AssetView, AttachmentRef, BrowseQuery, MediaRef, ResourcePage, ResourceProvider, ResourceView,
-    SiteQuery, SiteSearch, SiteSort, Thumbnail,
+    AssetView, AttachmentRef, BrowseQuery, MediaRef, PageCard, ResourcePage, ResourceProvider,
+    ResourceView, SiteQuery, SiteSearch, SiteSort, Thumbnail,
 };
 
 use omeka_api::write::block_carrier::media_image_path;
@@ -41,9 +42,6 @@ use omeka_api::write::site_pages::ResolvedAttachment;
 
 use super::load::{Loader, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
-
-/// `BlockLayout/BrowsePreview.php::form`: the default `limit`.
-pub(crate) const BROWSE_PREVIEW_DEFAULT_LIMIT: i64 = 12;
 
 /// The searches a page's blocks will run, keyed for the synchronous lookup, and
 /// the resources the attachment blocks will read.
@@ -55,6 +53,7 @@ pub(crate) struct LoadedResources {
     resources: Vec<(ResourceKind, u64, ResourceView)>,
     media: Vec<(MediaId, MediaRef)>,
     assets: Vec<(AssetId, AssetView)>,
+    page_cards: Vec<(PageId, PageCard)>,
     images: Vec<(MediaId, Thumbnail)>,
 }
 
@@ -109,6 +108,13 @@ impl ResourceProvider for LoadedResources {
             .find(|(stored, _)| *stored == block)
             .map(|(_, rows)| rows.clone())
             .unwrap_or_default()
+    }
+
+    fn page_card(&self, page: PageId) -> Option<PageCard> {
+        self.page_cards
+            .iter()
+            .find(|(stored, _)| *stored == page)
+            .map(|(_, card)| card.clone())
     }
 }
 
@@ -228,8 +234,14 @@ async fn load_blocks_from(
     for block in &page.blocks {
         match &block.data {
             BlockData::BrowsePreview(data) => {
-                let (kind, search) = browse_preview_search(data, site, settings);
+                let (kind, search) = browse_preview::search(data, site, settings);
                 let result = loader.search(kind, &search).await?;
+                // An empty preview asks whether the site holds any item at all.
+                if kind == ResourceKind::Item && result.resources.is_empty() {
+                    let probe = browse_preview::site_items_probe(site);
+                    let held = loader.search(ResourceKind::Item, &probe).await?;
+                    loaded.searches.push((ResourceKind::Item, probe, held));
+                }
                 loaded.searches.push((kind, search, result));
             }
             BlockData::ListOfSites(data) => {
@@ -256,6 +268,16 @@ async fn load_blocks_from(
                         load_asset(loader, id, &mut loaded).await?;
                     }
                 }
+            }
+            BlockData::ListOfPages {
+                pagelist: Some(pagelist),
+            } if list_of_pages::shows_cards(block) => {
+                let ids: Vec<PageId> = list_of_pages::page_ids(pagelist)
+                    .into_iter()
+                    .filter(|id| !loaded.page_cards.iter().any(|(stored, _)| stored == id))
+                    .collect();
+                let cards = loader.page_cards(&ids).await?;
+                loaded.page_cards.extend(cards);
             }
             _ => {}
         }
@@ -457,46 +479,6 @@ fn push_resource(loaded: &mut LoadedResources, kind: ResourceKind, id: u64, view
     {
         loaded.resources.push((kind, id, view.clone()));
     }
-}
-
-/// The `BrowseQuery` `crates/omeka-site/src/blocks/browse_preview.rs::render_block`
-/// builds. Mirror it key for key: the snapshot lookup is by equality.
-fn browse_preview_search(
-    data: &BrowsePreviewData,
-    site: SiteId,
-    settings: &SiteSettings,
-) -> (ResourceKind, BrowseQuery) {
-    let kind = match data.resource_type.as_deref() {
-        Some("item_sets") => ResourceKind::ItemSet,
-        Some("media") => ResourceKind::Media,
-        _ => ResourceKind::Item,
-    };
-    let mut query = parse_query(data.query.as_deref().unwrap_or_default());
-    if settings.browse_attached_items() {
-        query.push(("site_attachments_only".to_string(), "true".to_string()));
-    }
-    query.push(("site_id".to_string(), site.get().to_string()));
-    query.push((
-        "limit".to_string(),
-        data.limit
-            .unwrap_or(BROWSE_PREVIEW_DEFAULT_LIMIT)
-            .to_string(),
-    ));
-    if !query.iter().any(|(key, _)| key == "sort_by") {
-        query.push(("sort_by_default".to_string(), String::new()));
-        query.push(("sort_by".to_string(), "created".to_string()));
-    }
-    if !query.iter().any(|(key, _)| key == "sort_order") {
-        query.push(("sort_order_default".to_string(), String::new()));
-        query.push(("sort_order".to_string(), "desc".to_string()));
-    }
-    let search = BrowseQuery {
-        query,
-        site,
-        limit: data.limit.map(|limit| usize::try_from(limit).unwrap_or(0)),
-        sort: Some(("created".to_string(), "desc".to_string())),
-    };
-    (kind, search)
 }
 
 /// The `SiteQuery` `crates/omeka-site/src/blocks/list_of_sites.rs::render_block`
