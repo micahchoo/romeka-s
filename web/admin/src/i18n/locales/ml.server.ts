@@ -49,6 +49,7 @@ export const mlServer: ServerCatalogue = {
   'server.mediaItemRequired': 'മീഡിയ ഒരു ഐറ്റത്തിന്റേതായിരിക്കണം.',
   'server.jobHeldByImport':
     'ഈ ജോലി നടക്കുന്നതോ റദ്ദാക്കപ്പെടുന്നതോ ആയ ഒരു ആർക്കൈവ് ഇംപോർട്ടിന്റേതാണ്. ഇംപോർട്ട് അവസാനിച്ച ശേഷം ഇത് ഇല്ലാതാക്കുക.',
+  'server.pageSavedSinceOpened': 'നിങ്ങൾ ഈ പേജ് തുറന്നതിന് ശേഷം മറ്റൊരാൾ അത് സേവ് ചെയ്തു.',
   'server.noFileUploaded': 'ഫയൽ അപ്‌ലോഡ് ചെയ്തിട്ടില്ല',
   'server.assetMediaType':
     '"{file}" സാധൂകരിക്കുന്നതിൽ പിശക്. "{media}" മീഡിയ ടൈപ്പിലുള്ള ഫയലുകൾ സംഭരിക്കാൻ കഴിയില്ല.',

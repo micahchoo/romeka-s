@@ -49,6 +49,7 @@ mod limits;
 mod logging;
 pub mod mail;
 mod mail_config;
+mod page_versions;
 mod publish;
 mod serve;
 mod settings;
@@ -198,6 +199,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(site_items::router())
+        .merge(page_versions::router())
         .merge(imports::router())
         .merge(tags::router())
         .merge(vocab_import::router())

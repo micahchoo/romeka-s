@@ -47,6 +47,7 @@ export const hiServer: ServerCatalogue = {
   'server.mediaItemRequired': 'मीडिया को एक आइटम से संबंधित होना चाहिए।',
   'server.jobHeldByImport':
     'यह कार्य एक संग्रह आयात से संबंधित है जो चल रहा है या पूर्ववत हो रहा है। आयात समाप्त होने के बाद इसे हटा दें।',
+  'server.pageSavedSinceOpened': 'आपके इसे खोलने के बाद किसी और ने इस पृष्ठ को सहेजा।',
   'server.noFileUploaded': 'कोई फ़ाइल अपलोड नहीं की गई',
   'server.assetMediaType':
     '"{file}" को सत्यापित करने में त्रुटि। मीडिया प्रकार "{media}" वाली फ़ाइलें संग्रहीत नहीं की जा सकतीं।',

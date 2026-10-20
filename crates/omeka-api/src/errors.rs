@@ -15,6 +15,7 @@ use thiserror::Error;
 
 use crate::messages;
 use crate::routes::{Method, Operation, Resolution};
+use crate::wire::common::JsonLdDate;
 
 /// `ApiJsonRenderer` non-validation payload: `{"error": "<message>"}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,13 +76,37 @@ impl ErrorDocument {
     }
 }
 
-/// The three error shapes the renderer emits, kept distinguishable in Rust.
+/// The error shapes the renderer emits, kept distinguishable in Rust.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ErrorPayload {
+    /// First, because an untagged read tries the variants in order and a stale-page document
+    /// also has the `error` member a general one has.
+    StalePage(StalePageError),
     General(GeneralError),
     Validation(ValidationErrors),
     Merged(MergedErrors),
+}
+
+/// The 409 body for a site page save whose `o:modified` is older than the stored page's (a Romeka
+/// addition): the message, when the stored page was saved, and who saved it when that is known.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StalePageError {
+    pub error: String,
+    /// Required on a read, so a general error never parses as this one.
+    #[serde(rename = "o:modified", deserialize_with = "Option::deserialize")]
+    pub modified: Option<JsonLdDate>,
+    #[serde(rename = "o:user")]
+    pub user: Option<SavedBy>,
+}
+
+/// The user a [`StalePageError`] names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SavedBy {
+    #[serde(rename = "o:id")]
+    pub id: u64,
+    #[serde(rename = "o:name")]
+    pub name: String,
 }
 
 /// The typed 501 body for a handler wave 1 does not build.
@@ -133,6 +158,8 @@ pub enum ApiError {
     NotFound { message: String },
     #[error("conflict: {message}")]
     Conflict { message: String },
+    #[error("conflict: {}", .0.error)]
+    StalePage(Box<StalePageError>),
     #[error("method not allowed")]
     MethodNotAllowed { allow: Vec<Method> },
     #[error("unsupported media type: {message}")]
@@ -177,6 +204,7 @@ impl ApiError {
             Self::PermissionDenied { .. } => StatusCode::FORBIDDEN,
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
             Self::Conflict { .. } => StatusCode::CONFLICT,
+            Self::StalePage(_) => StatusCode::CONFLICT,
             Self::MethodNotAllowed { .. } => StatusCode::METHOD_NOT_ALLOWED,
             Self::UnsupportedMediaType { .. } => StatusCode::UNSUPPORTED_MEDIA_TYPE,
             Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
@@ -195,6 +223,9 @@ impl ApiError {
             | Self::Conflict { message }
             | Self::UnsupportedMediaType { message }
             | Self::Internal { message } => ErrorDocument::general(message.clone()),
+            Self::StalePage(stale) => ErrorDocument {
+                errors: ErrorPayload::StalePage(stale.as_ref().clone()),
+            },
             Self::MethodNotAllowed { .. } => ErrorDocument::general(messages::METHOD_NOT_ALLOWED),
             Self::Validation(errors) => ErrorDocument::validation(errors.clone()),
             Self::MergedValidation { key, errors } => {

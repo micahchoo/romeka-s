@@ -46,6 +46,7 @@ export const neServer: ServerCatalogue = {
   'server.mediaItemRequired': 'मिडिया कुनै वस्तुको हुनुपर्छ।',
   'server.jobHeldByImport':
     'यो कार्य चलिरहेको वा पूर्ववत हुँदै गरेको आर्काइभ आयातको हो। आयात समाप्त भएपछि यसलाई हटाउनुहोस्।',
+  'server.pageSavedSinceOpened': 'कसैले यो पृष्ठ तपाईँले खोल्नुभएको समयपछि सुरक्षित गरेको छ।',
   'server.noFileUploaded': 'कुनै फाइल अपलोड गरिएको छैन',
   'server.assetMediaType':
     '"{file}" को प्रमाणीकरण गर्दा त्रुटि। मिडिया प्रकार "{media}" भएका फाइलहरू भण्डारण गर्न सकिँदैन।',

@@ -32,31 +32,34 @@ export const fromTemplateBlock = (index: number, block: TemplateBlock): BlockDra
 });
 
 /**
- * Reads a stored page. Unknown data and layout-data keys are kept verbatim, an
- * unknown layout keeps its payload, and a group span is clamped to the blocks
- * it can own.
+ * Reads a stored page's content, keying its blocks from `firstKey`. Unknown
+ * data and layout-data keys are kept verbatim, an unknown layout keeps its
+ * payload, and a group span is clamped to the blocks it can own.
  */
-export const fromApi = (page: SitePage, registry: BlockRegistry): PageDraft => {
-  const content: PageContent = {
-    title: page.title,
-    slug: page.slug,
-    isPublic: page.isPublic,
-    layout: page.layout === 'grid' ? 'grid' : 'normal',
-    layoutData: readData(page.layoutData),
-    blocks: canonicalBlocks(
-      page.blocks.map((block, index) => ({
-        key: blockKey(index),
-        layout: block.layout,
-        data: readData(block.data),
-        layoutData: readLayoutData(block.layoutData),
-        attachments: block.attachments.map((entry) => ({
-          item: entry.item === null ? null : entry.item.id,
-          media: entry.media === null ? null : entry.media.id,
-          caption: entry.caption,
-        })),
+export const contentFromApi = (page: SitePage, firstKey = 0): PageContent => ({
+  title: page.title,
+  slug: page.slug,
+  isPublic: page.isPublic,
+  layout: page.layout === 'grid' ? 'grid' : 'normal',
+  layoutData: readData(page.layoutData),
+  blocks: canonicalBlocks(
+    page.blocks.map((block, index) => ({
+      key: blockKey(firstKey + index),
+      layout: block.layout,
+      data: readData(block.data),
+      layoutData: readLayoutData(block.layoutData),
+      attachments: block.attachments.map((entry) => ({
+        item: entry.item === null ? null : entry.item.id,
+        media: entry.media === null ? null : entry.media.id,
+        caption: entry.caption,
       })),
-    ),
-  };
+    })),
+  ),
+});
+
+/** Reads a stored page as a fresh draft: saved as it is, nothing to undo. */
+export const fromApi = (page: SitePage, registry: BlockRegistry): PageDraft => {
+  const content = contentFromApi(page);
   return {
     ...content,
     saved: content,

@@ -55,9 +55,12 @@ pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
 
 use catalog::Catalog;
 
+pub(crate) use meta::{
+    page_snapshot, site_document, site_page_document, site_page_visible, user_document,
+};
 pub use meta::{session_user_response, user_response};
-pub(crate) use meta::{site_document, site_page_document, user_document};
 pub(crate) use resources::{item_document, item_set_document, matching_item_ids, media_document};
+pub(crate) use response::serialize;
 
 /// One request's read surface.
 pub struct Api<'a> {

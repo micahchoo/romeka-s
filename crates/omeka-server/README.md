@@ -262,6 +262,28 @@ writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
 
+## Page history
+
+Every `PUT` or `PATCH` of a site page is one transaction that also stores the page document it
+makes as a version (`omeka_db::repos::PageVersionRepo::save`). A page's first save also keeps the
+state it replaced, with no user. A page keeps its newest 100 versions, and deleting the page
+deletes them. These routes are a Romeka addition (`src/page_versions.rs`, logic in
+`omeka_api::page_history`):
+
+| Route | Response |
+| --- | --- |
+| `GET /api/site_pages/:id/versions` | 200, newest first: `[{o:version, o:created, o:user: {o:id, o:name} \| null, o:block_count}]`; 403, 404 |
+| `GET /api/site_pages/:id/versions/:version` | 200, the page document that version stored; 403, 404 |
+
+The caller must be signed in and able to read the page; anonymous is 403 even for a public page,
+because a version can hold content the page no longer shows.
+
+A page write that sends `o:modified` (the `{"@value": ...}` a read answers, or the bare ISO 8601
+text) is checked against the stored page. When they differ the save writes nothing and answers 409
+with `{"errors": {"error", "o:modified", "o:user"}}`, the stored time and who saved it. A write
+without `o:modified` is never refused. The check has one-second precision, the precision of the
+`modified` column, so two saves inside one second do not see each other.
+
 ## Archive import
 
 The `/api/romeka/archive`, `/api/romeka/imports` and `/api/romeka/jobs/{id}/log`
