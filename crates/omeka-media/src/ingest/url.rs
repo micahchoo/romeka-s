@@ -82,6 +82,7 @@ impl Ingester for Url {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::store::Store;
     use crate::testing::{Harness, media_row};
 
     /// `Ingester/Url.php:55`: `ingest_url` is required.
@@ -159,7 +160,12 @@ mod tests {
         assert_eq!(draft.row.extension.as_deref(), Some("jpg"));
         assert!(draft.row.has_original);
         let storage_id = draft.row.storage_id.clone().expect("storage id");
-        assert!(harness.store.exists(&format!("original/{storage_id}.jpg")));
+        assert!(
+            harness
+                .store
+                .exists(&format!("original/{storage_id}.jpg"))
+                .unwrap()
+        );
         assert_eq!(
             harness.http.calls(),
             ["https://example.org/images/photo.jpg"]
@@ -186,7 +192,12 @@ mod tests {
         assert_eq!(draft.row.extension.as_deref(), Some("jpg"));
         assert!(draft.row.sha256.is_some());
         let storage_id = draft.row.storage_id.clone().expect("storage id");
-        assert!(!harness.store.exists(&format!("original/{storage_id}.jpg")));
+        assert!(
+            !harness
+                .store
+                .exists(&format!("original/{storage_id}.jpg"))
+                .unwrap()
+        );
     }
 
     /// `Ingester/Url.php` hands the download to `mediaIngestFile`, which

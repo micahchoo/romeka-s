@@ -277,7 +277,7 @@ async fn left_csv_of_a_real_import(db: &crate::testing::TempDb) -> String {
         .await
         .expect("draft")
         .id;
-    let store = omeka_media::store::FileStore::new(dir.join("files"), "/files");
+    let store = omeka_server::file_store(dir.join("files"));
     let input = run::RunInput {
         import_id: import,
         owner: None,

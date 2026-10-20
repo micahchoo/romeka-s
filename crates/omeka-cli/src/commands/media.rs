@@ -41,6 +41,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use chrono::NaiveDateTime;
 use serde::Deserialize;
@@ -60,7 +61,7 @@ use omeka_media::ingest::{
     HtmlPurifier, IngestEnv, IngestFile, IngestFlags, MediaDraft, ingest_file,
 };
 use omeka_media::oembed::{Oembed, OembedAllowList};
-use omeka_media::store::FileStore;
+use omeka_media::store::Store;
 use omeka_media::thumbnailer::ImageThumbnailer;
 
 use crate::error::CliError;
@@ -181,10 +182,7 @@ pub async fn run(options: &MediaOptions) -> Result<MediaReport, CliError> {
     let items = ItemIndex::build(&pool, options.item_set.map(ItemSetId::from), property).await?;
     let mut existing = imported_media(&pool).await?;
 
-    let store = FileStore::new(
-        store_root(&options.database, options.store.as_deref()),
-        "/files",
-    );
+    let store = open_store(&options.database, options.store.as_deref());
     let renderer = omeka_media::IngesterRegistry::with_defaults()
         .get(INGESTER)
         .renderer();
@@ -194,7 +192,7 @@ pub async fn run(options: &MediaOptions) -> Result<MediaReport, CliError> {
     let oembed = Oembed::new(OembedAllowList::shipped());
     let validation = omeka_api::settings::file_validation(&SettingRepo::new(&pool)).await?;
     let env = IngestEnv {
-        store: &store,
+        store: store.as_ref(),
         http: &network,
         purifier: &purifier,
         thumbnailer: &thumbnailer,
@@ -313,6 +311,11 @@ fn extension_of(name: &str) -> Option<String> {
     name.rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
         .filter(|extension| !extension.is_empty())
+}
+
+/// The store a command reads and writes, rooted at [`store_root`].
+pub(crate) fn open_store(database: &Path, store: Option<&Path>) -> Arc<dyn Store> {
+    omeka_server::file_store(store_root(database, store))
 }
 
 /// The store root: the explicit `--store`, else `files` beside the database.
@@ -545,7 +548,7 @@ mod tests {
     use omeka_db::repos::ItemSetRepo;
     use omeka_db::rows::{NewItem, NewItemSet, NewValue};
     use omeka_media::file_render::ThumbnailType;
-    use omeka_media::store::{StorePrefix, sha256_hex};
+    use omeka_media::store::{StorePrefix, sha256_hex, storage_path};
     use omeka_media::thumbnailer::thumbnail_path;
 
     use crate::testing::{TempDb, png_rgb, seeded_db};
@@ -710,7 +713,7 @@ mod tests {
             row.extension.as_deref().expect("extension")
         );
         let storage_path =
-            FileStore::storage_path(StorePrefix::Original, &storage_id, row.extension.as_deref());
+            storage_path(StorePrefix::Original, &storage_id, row.extension.as_deref());
         assert_eq!(storage_path, format!("original/{filename}"));
         assert_eq!(
             std::fs::read(store.path().join(&storage_path)).expect("stored bytes"),

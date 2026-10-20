@@ -25,7 +25,7 @@ use omeka_db::open_file;
 use omeka_db::repos::{MediaFilter, MediaRepo, Paging};
 use omeka_db::rows::MediaRow;
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{Store, StorePrefix, storage_path};
 use omeka_media::thumbnailer::{ThumbnailOutcome, generate_thumbnails, thumbnail_path};
 
 use crate::error::CliError;
@@ -86,17 +86,14 @@ pub struct ThumbnailReport {
 /// [`ThumbnailReport`], not here.
 pub async fn run(options: &ThumbnailOptions) -> Result<ThumbnailReport, CliError> {
     let pool = open_file(&options.database).await?;
-    let store = FileStore::new(
-        crate::commands::media::store_root(&options.database, options.store.as_deref()),
-        "/files",
-    );
+    let store = crate::commands::media::open_store(&options.database, options.store.as_deref());
     let rows = MediaRepo::new(&pool)
         .list(&MediaFilter::default(), &Paging::default())
         .await?;
 
     let mut report = ThumbnailReport::default();
     for row in rows {
-        let result = backfill_row(&pool, &store, &row, options.force).await;
+        let result = backfill_row(&pool, store.as_ref(), &row, options.force).await;
         match result.status {
             ThumbnailStatus::Generated => report.generated += 1,
             ThumbnailStatus::Skipped => report.skipped += 1,
@@ -111,7 +108,7 @@ pub async fn run(options: &ThumbnailOptions) -> Result<ThumbnailReport, CliError
 /// stop the run.
 async fn backfill_row(
     pool: &SqlitePool,
-    store: &FileStore,
+    store: &dyn Store,
     row: &MediaRow,
     force: bool,
 ) -> ThumbnailResult {
@@ -127,8 +124,7 @@ async fn backfill_row(
     let Some(storage_id) = row.storage_id.clone() else {
         return failed("the row has no storage id, so it has no original to read".to_string());
     };
-    let original_path =
-        FileStore::storage_path(StorePrefix::Original, &storage_id, row.extension.as_deref());
+    let original_path = storage_path(StorePrefix::Original, &storage_id, row.extension.as_deref());
     let original = match store.read(&original_path) {
         Ok(bytes) => bytes,
         Err(error) => return failed(format!("cannot read {original_path}: {error}")),
@@ -203,6 +199,7 @@ mod tests {
     use super::*;
     use omeka_db::repos::ItemRepo;
     use omeka_db::rows::{NewItem, NewMedia, NewResource};
+    use omeka_media::store::FileStore;
 
     use crate::testing::{TempDb, png_rgb, seeded_db};
 
@@ -222,7 +219,7 @@ mod tests {
             .await
             .expect("item")
             .id();
-        let original = FileStore::storage_path(StorePrefix::Original, storage_id, Some(extension));
+        let original = storage_path(StorePrefix::Original, storage_id, Some(extension));
         store.put(bytes, &original).expect("store original");
         let row = MediaRepo::new(&db.pool)
             .create(&NewMedia {
@@ -259,7 +256,7 @@ mod tests {
     fn thumbnail_files(store: &FileStore, storage_id: &str) -> Vec<bool> {
         ThumbnailType::ALL
             .iter()
-            .map(|kind| store.exists(&thumbnail_path(storage_id, *kind)))
+            .map(|kind| store.exists(&thumbnail_path(storage_id, *kind)).unwrap())
             .collect()
     }
 
@@ -396,7 +393,7 @@ mod tests {
         )
         .await;
         store
-            .delete(&FileStore::storage_path(
+            .delete(&storage_path(
                 StorePrefix::Original,
                 "eeee5555",
                 Some("png"),

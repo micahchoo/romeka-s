@@ -3,7 +3,7 @@
 use crate::ingest::{ErrorStore, IngestEnv, MediaDraft};
 use crate::media_type::{detected_media_type, extension_for_media_type};
 use crate::store::{
-    FileStore, StoreError, StorePrefix, extension_from_source_name, new_storage_id, sha256_hex,
+    StoreError, StorePrefix, extension_from_source_name, new_storage_id, sha256_hex, storage_path,
 };
 use crate::validation::FileRefusal;
 
@@ -156,8 +156,7 @@ pub fn ingest_file(
     }
 
     if flags.store_original {
-        let path =
-            FileStore::storage_path(StorePrefix::Original, &storage_id, extension.as_deref());
+        let path = storage_path(StorePrefix::Original, &storage_id, extension.as_deref());
         env.store.put(&file.bytes, &path)?;
         draft.row.has_original = true;
     }
@@ -166,8 +165,7 @@ pub fn ingest_file(
         let thumbnails = env.thumbnailer.thumbnails(&file.bytes, Some(&media_type));
         let mut made = false;
         for (kind, bytes) in thumbnails {
-            let path =
-                FileStore::storage_path(StorePrefix::Thumbnail(kind), &storage_id, Some("jpg"));
+            let path = storage_path(StorePrefix::Thumbnail(kind), &storage_id, Some("jpg"));
             env.store.put(&bytes, &path)?;
             made = true;
         }

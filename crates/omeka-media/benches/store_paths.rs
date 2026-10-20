@@ -1,7 +1,7 @@
 //! Micro-benches for the file store path rules and the small store operations.
 //!
-//! Covers `crates/omeka-media/src/store.rs`: the storage path rule from
-//! `TempFile::store`, the URI and local path resolution, the extension rule,
+//! Covers `crates/omeka-media/src/store/`: the storage path rule from
+//! `TempFile::store`, the URL and local path resolution, the extension rule,
 //! the storage id, the checksum, and the four filesystem calls against a
 //! temporary root.
 //!
@@ -19,7 +19,8 @@ use std::time::Duration;
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use omeka_media::file_render::ThumbnailType;
 use omeka_media::store::{
-    FileStore, StorePrefix, extension_from_source_name, new_storage_id, sha256_hex,
+    Access, FileStore, Store, StorePrefix, extension_from_source_name, new_storage_id, sha256_hex,
+    storage_path,
 };
 
 /// How many paths the write benches overwrite in turn.
@@ -48,14 +49,17 @@ fn store_paths(c: &mut Criterion) {
     // Run once, outside the timed region: a case that started failing would
     // otherwise be timed as an error path.
     assert_eq!(
-        FileStore::storage_path(StorePrefix::Original, "abc", Some("jpg")),
+        storage_path(StorePrefix::Original, "abc", Some("jpg")),
         "original/abc.jpg"
     );
     assert_eq!(
-        FileStore::storage_path(StorePrefix::Thumbnail(ThumbnailType::Square), "abc", None),
+        storage_path(StorePrefix::Thumbnail(ThumbnailType::Square), "abc", None),
         "square/abc"
     );
-    assert_eq!(store.uri("original/abc.jpg"), "/files/original/abc.jpg");
+    assert_eq!(
+        store.url("original/abc.jpg", Access::Public),
+        "/files/original/abc.jpg"
+    );
     assert!(store.local_path("original/../etc/passwd").is_err());
     assert_eq!(
         extension_from_source_name("Photo.JPG").as_deref(),
@@ -66,8 +70,8 @@ fn store_paths(c: &mut Criterion) {
     assert_eq!(sha256_hex(b"abc").len(), 64);
     assert!(store.put(&payload, "original/guard.jpg").is_ok());
     assert_eq!(store.read("original/guard.jpg").unwrap(), payload);
-    assert!(store.exists("original/guard.jpg"));
-    assert!(!store.exists("original/absent.jpg"));
+    assert!(store.exists("original/guard.jpg").unwrap());
+    assert!(!store.exists("original/absent.jpg").unwrap());
     assert!(store.delete("original/guard.jpg").unwrap());
 
     let mut group = c.benchmark_group("media/store_paths");
@@ -78,7 +82,7 @@ fn store_paths(c: &mut Criterion) {
 
     group.bench_function("storage_path/original_with_extension", |b| {
         b.iter(|| {
-            FileStore::storage_path(
+            storage_path(
                 black_box(StorePrefix::Original),
                 black_box("a1b2c3"),
                 black_box(Some("jpg")),
@@ -87,15 +91,15 @@ fn store_paths(c: &mut Criterion) {
     });
     group.bench_function("storage_path/thumbnail_without_extension", |b| {
         b.iter(|| {
-            FileStore::storage_path(
+            storage_path(
                 black_box(StorePrefix::Thumbnail(ThumbnailType::Square)),
                 black_box("a1b2c3"),
                 black_box(None),
             )
         })
     });
-    group.bench_function("uri", |b| {
-        b.iter(|| store.uri(black_box("original/a1b2c3.jpg")))
+    group.bench_function("url", |b| {
+        b.iter(|| store.url(black_box("original/a1b2c3.jpg"), Access::Public))
     });
     group.bench_function("local_path/ok", |b| {
         b.iter(|| store.local_path(black_box("original/a1b2c3.jpg")))
@@ -134,21 +138,6 @@ fn store_paths(c: &mut Criterion) {
             },
             |path| {
                 let result = store.put(black_box(&payload), &path);
-                black_box(result)
-            },
-            BatchSize::SmallInput,
-        )
-    });
-    group.bench_function("put_atomic/1KiB", |b| {
-        b.iter_batched(
-            || {
-                format!(
-                    "original/w{}.jpg",
-                    serial.fetch_add(1, Ordering::Relaxed) % PATH_WINDOW
-                )
-            },
-            |path| {
-                let result = store.put_atomic(black_box(&payload), &path);
                 black_box(result)
             },
             BatchSize::SmallInput,

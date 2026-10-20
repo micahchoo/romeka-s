@@ -9,7 +9,6 @@ use omeka_db::ids::JobId;
 use omeka_db::rows::JobRow;
 
 use omeka_api::jsonld::BaseUrl;
-use omeka_media::store::FileStore;
 
 use crate::CliError;
 use crate::jobs::{JobEnv, JobStatus, Runner};
@@ -77,10 +76,7 @@ impl RunOptions {
             None => defaults.base_url,
         };
         Ok(JobEnv {
-            store: FileStore::new(
-                crate::commands::media::store_root(&self.database, self.store.as_deref()),
-                omeka_server::FILES_URI,
-            ),
+            store: crate::commands::media::open_store(&self.database, self.store.as_deref()),
             base_url,
             archive_root: self.archive_root.clone(),
         })

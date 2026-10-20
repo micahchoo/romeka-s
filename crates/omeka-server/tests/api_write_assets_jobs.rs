@@ -10,7 +10,7 @@ use common::{
     append_key, get, json_request, multipart_asset_request, multipart_data_request,
     multipart_file_request, request, router_with_store, seed_system, seeded_pool, send,
 };
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{FileStore, Store, StorePrefix, storage_path};
 
 /// The storage id `common::seed_system` gives the asset.
 const ASSET_STORAGE_ID: &str = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
@@ -85,7 +85,7 @@ async fn deleting_an_asset_removes_the_stored_file() {
     let system = seed_system(&pool, &seed).await;
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
-    let path = FileStore::storage_path(StorePrefix::Asset, ASSET_STORAGE_ID, Some("png"));
+    let path = storage_path(StorePrefix::Asset, ASSET_STORAGE_ID, Some("png"));
     store.put(b"png bytes", &path).expect("put asset");
 
     let app = router_with_store(pool, store.clone());
@@ -108,7 +108,10 @@ async fn deleting_an_asset_removes_the_stored_file() {
     );
     assert_eq!(asset["@id"], "http://localhost/api/assets");
     assert_eq!(asset["o:name"], before.json()["o:name"]);
-    assert!(!store.exists(&path), "the asset file survived at {path}");
+    assert!(
+        !store.exists(&path).unwrap(),
+        "the asset file survived at {path}"
+    );
 }
 
 /// `JobAdapter::hydrate` is empty, so an update writes nothing and answers the

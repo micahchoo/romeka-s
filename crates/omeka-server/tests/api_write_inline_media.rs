@@ -21,7 +21,7 @@ use common::{
     append_key, get, json_request, multipart_asset_request, router_with_store, seeded_pool,
     seeded_router, send,
 };
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use serde_json::{Value, json};
 
 fn keyed(uri: &str) -> String {

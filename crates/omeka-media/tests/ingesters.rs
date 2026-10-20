@@ -10,6 +10,7 @@ use omeka_media::data::MediaData;
 use omeka_media::file_render::FileRendererRegistry;
 use omeka_media::ingest::{ErrorStore, IngestRequest, IngesterRegistry, MediaDraft, UploadedFile};
 use omeka_media::render::{MediaView, RenderOptions, RendererRegistry, View};
+use omeka_media::store::Store;
 use omeka_media::testing::{Harness, media_row};
 use serde_json::Value;
 
@@ -42,7 +43,12 @@ fn upload_ingester_registry_path() {
     assert_eq!(draft.row.extension.as_deref(), Some("jpg"));
     assert!(draft.row.has_original);
     let storage_id = draft.row.storage_id.clone().expect("storage id");
-    assert!(harness.store.exists(&format!("original/{storage_id}.jpg")));
+    assert!(
+        harness
+            .store
+            .exists(&format!("original/{storage_id}.jpg"))
+            .unwrap()
+    );
 }
 
 /// `Ingester/Url.php` over the fixture request: the download becomes the

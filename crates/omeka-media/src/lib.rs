@@ -2,8 +2,8 @@
 //!
 //! The crate ports the upstream media subsystem:
 //!
-//! - [`store`]: the file store and the storage path rule
-//!   (`File/Store/Local.php`, `File/TempFile.php`).
+//! - [`store`]: the [`store::Store`] trait, its local implementation and the
+//!   storage path rule (`File/Store/Local.php`, `File/TempFile.php`).
 //! - [`media_type`]: the content-based media type read
 //!   (`File/TempFile::getMediaType`), a stand-in for PHP's `finfo` built on
 //!   the `infer` crate and checked against libmagic.

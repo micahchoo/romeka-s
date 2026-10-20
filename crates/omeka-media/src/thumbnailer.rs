@@ -9,7 +9,7 @@
 //! The port decodes and resizes with the `image` crate and keeps GD's two
 //! strategies. [`ImageThumbnailer::derivative_bytes`] is the pure transform
 //! from source bytes to the three derivative byte strings;
-//! [`generate_thumbnails`] writes them through [`crate::store::FileStore`] and
+//! [`generate_thumbnails`] writes them through [`crate::store::Store`] and
 //! is idempotent.
 //!
 //! The formats that reach the decoder are the four GD decodes (gif, jpeg, png,
@@ -23,7 +23,7 @@ use image::imageops::FilterType;
 use thiserror::Error;
 
 use crate::file_render::ThumbnailType;
-use crate::store::{FileStore, StoreError, StorePrefix, Thumbnailer};
+use crate::store::{Store, StoreError, StorePrefix, Thumbnailer, storage_path};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
 /// (`Gd::setSource`) plus `image/tiff`, which GD cannot read (see the module
@@ -135,15 +135,12 @@ impl Thumbnailer for ImageThumbnailer {
 /// A [`StoreError`] when a thumbnail cannot be written. A source that is not an
 /// image is not an error: it answers [`ThumbnailOutcome::Skipped`].
 pub fn generate_thumbnails(
-    store: &FileStore,
+    store: &dyn Store,
     storage_id: &str,
     original: &[u8],
     media_type: Option<&str>,
 ) -> Result<ThumbnailOutcome, StoreError> {
-    if ThumbnailType::ALL
-        .iter()
-        .all(|kind| store.exists(&thumbnail_path(storage_id, *kind)))
-    {
+    if thumbnails_stored(store, storage_id)? {
         return Ok(ThumbnailOutcome::Existing);
     }
     let derivatives = match ImageThumbnailer.derivative_bytes(original, media_type) {
@@ -151,16 +148,29 @@ pub fn generate_thumbnails(
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
     for (kind, bytes) in derivatives {
-        store.put_atomic(&bytes, &thumbnail_path(storage_id, kind))?;
+        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
     }
     Ok(ThumbnailOutcome::Generated)
+}
+
+/// Whether all three thumbnails of `storage_id` are in the store.
+///
+/// # Errors
+/// A [`StoreError`] when the store cannot answer.
+pub fn thumbnails_stored(store: &dyn Store, storage_id: &str) -> Result<bool, StoreError> {
+    for kind in ThumbnailType::ALL {
+        if !store.exists(&thumbnail_path(storage_id, kind))? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// The store path for one thumbnail: `<type>/<storage_id>.jpg`
 /// (`File/TempFile.php:280`).
 #[must_use]
 pub fn thumbnail_path(storage_id: &str, kind: ThumbnailType) -> String {
-    FileStore::storage_path(StorePrefix::Thumbnail(kind), storage_id, Some("jpg"))
+    storage_path(StorePrefix::Thumbnail(kind), storage_id, Some("jpg"))
 }
 
 /// `Gd::createDefault`: fit the longer side to the constraint, and leave an

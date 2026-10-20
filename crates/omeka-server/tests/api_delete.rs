@@ -14,7 +14,7 @@ mod common;
 use axum::http::StatusCode;
 use common::{append_key, get, request, seeded_pool, seeded_router, send, site_pool};
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{FileStore, Store, StorePrefix, storage_path};
 use omeka_server::FILES_URI;
 use sqlx::SqlitePool;
 
@@ -187,16 +187,14 @@ async fn deleting_an_item_removes_its_values_and_its_media() {
 async fn deleting_a_media_removes_the_stored_file() {
     let (pool, seed) = seeded_pool().await;
     let (_dir, store) = temp_store();
-    let original = FileStore::storage_path(
+    let original = storage_path(
         StorePrefix::Original,
         &format!("{MEDIA_STORAGE_ID}.jpg"),
         None,
     );
     let thumbnails: Vec<String> = ThumbnailType::ALL
         .iter()
-        .map(|kind| {
-            FileStore::storage_path(StorePrefix::Thumbnail(*kind), MEDIA_STORAGE_ID, Some("jpg"))
-        })
+        .map(|kind| storage_path(StorePrefix::Thumbnail(*kind), MEDIA_STORAGE_ID, Some("jpg")))
         .collect();
     store.put(b"original", &original).expect("put original");
     for path in &thumbnails {
@@ -215,11 +213,14 @@ async fn deleting_a_media_removes_the_stored_file() {
         format!("{MEDIA_STORAGE_ID}.jpg")
     );
     assert!(
-        !store.exists(&original),
+        !store.exists(&original).unwrap(),
         "the original survived at {original}"
     );
     for path in &thumbnails {
-        assert!(!store.exists(path), "the thumbnail survived at {path}");
+        assert!(
+            !store.exists(path).unwrap(),
+            "the thumbnail survived at {path}"
+        );
     }
 }
 

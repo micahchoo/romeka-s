@@ -11,6 +11,7 @@
 //! item is indexed and joins its synced sites, as an API create does.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use omeka_db::DbError;
 use omeka_db::ids::{ImportId, ItemSetId, PropertyId, ResourceId, TemplateId, UserId};
@@ -19,7 +20,7 @@ use omeka_db::rows::{
     NewItem, NewItemSet, NewProperty, NewResource, NewTemplate, NewTemplateProperty, NewWholeItem,
     ValueContent,
 };
-use omeka_media::store::FileStore;
+use omeka_media::store::Store;
 use omeka_media::validation::FileValidation;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -134,7 +135,7 @@ pub enum RunError {
 /// [`RunError::Api`] when the database fails outside one item's transaction.
 pub async fn run<F>(
     pool: &SqlitePool,
-    store: &FileStore,
+    store: &Arc<dyn Store>,
     input: RunInput,
     progress: F,
 ) -> Result<ImportSummary, RunError>
@@ -214,7 +215,7 @@ struct Made {
 
 struct Runner<'a, F> {
     pool: &'a SqlitePool,
-    store: &'a FileStore,
+    store: &'a Arc<dyn Store>,
     validation: FileValidation,
     writer: ImportWriteRepo<'a>,
     import_id: ImportId,
@@ -365,7 +366,8 @@ where
         let files = item.files.clone();
         let validation = self.validation.clone();
         let stored =
-            blocking(move || media_files::store_all(&store, &validation, &files, owner)).await?;
+            blocking(move || media_files::store_all(store.as_ref(), &validation, &files, owner))
+                .await?;
         let line = match stored {
             Ok(media) => self.commit(api, made, &item, media).await?,
             Err(message) => self.fail(&item.identifier, message),
@@ -454,7 +456,7 @@ where
         let imported = match self.writer.create_item(&new, &entries).await {
             Ok(imported) => imported,
             Err(error) => {
-                media_files::discard(self.store, &media);
+                media_files::discard(self.store.as_ref(), &media);
                 return Ok(self.fail(&item.identifier, error.to_string()));
             }
         };
