@@ -237,6 +237,21 @@ a leading `/`, before or after percent-decoding.
 `importSets` means: for items, the sets this import's records name; for item sets, this import's
 item-set records; for media, the media of the matched item.
 
+
+### Boundary details (settled from P3-plan, 2026-10-20)
+
+- `headerLine` is 1-based; `ColumnRef.index` is 0-based (position in the row).
+- `delimiter` is one of `auto`, `,`, `;`, tab, `|`, `:`, space.
+- A path member is refused when it has an empty segment (`a//b`), a `.` segment or a trailing `/`,
+  so each file has one identity.
+- Row keys are cell values: stored NFC and trimmed, never checked as paths.
+- A policy given for a blocking kind is ignored.
+- A `newTypes` label that an existing template has is refused on save (`refuse_existing_labels`,
+  fed by the caller) and flagged `type-exists` on Check when the template appeared after the save.
+- Case fold is lower-casing after trim and NFC (no full Unicode case fold; `ß` stays `ß`).
+- Decisions that name missing sources or sheets are orphans, not refusals, so a plan that drops a
+  source can still be saved.
+
 ## Values
 
 A written value is `{ type, text, lang, label, isPublic }`:
@@ -563,4 +578,5 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | Unit | Verdict | Evidence |
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
+| P3-plan | unit-test-verified | 38 import2 tests, 378 omeka-api tests, clippy clean |
 | P0-compiler | unit-test-verified | 24/24 example tests, 711 admin tests, rg check of compiled patterns, perf 85,387 B |
