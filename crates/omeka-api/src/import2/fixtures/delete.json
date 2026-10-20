@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }],
+  "grouping": { "pattern": "^(?<identifier>[^/]+)\\.jpg$", "caseFold": false },
+  "example": null,
+  "sheets": [],
+  "slots": { "item": {}, "media": {}, "itemSet": {} },
+  "action": {
+    "action": "delete",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "all" },
+      "media": { "key": "dcterms:identifier", "scope": "importSets" },
+      "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+  "flags": {},
+  "decisions": [{ "kind": "leave", "entry": { "file": { "source": "s1", "path": "keep-me.jpg" } } }],
+  "newTypes": [],
+  "newTerms": []
+}

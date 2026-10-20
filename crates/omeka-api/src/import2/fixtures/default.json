@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "BHC_006" }, { "kind": "staging", "id": "staging" }],
+  "grouping": { "pattern": null, "caseFold": false },
+  "example": null,
+  "sheets": [],
+  "slots": { "item": {}, "media": {}, "itemSet": {} },
+  "action": {
+    "action": "create",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "importSets" },
+      "media": { "key": "dcterms:identifier", "scope": "importSets" },
+      "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+  "flags": {},
+  "decisions": [],
+  "newTypes": [],
+  "newTerms": []
+}
