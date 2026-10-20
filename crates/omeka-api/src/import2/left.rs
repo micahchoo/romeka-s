@@ -86,6 +86,8 @@ fn left_reason(left: LeftBy) -> String {
         }
         LeftBy::Parent => "Its item is left out.".to_string(),
         LeftBy::NoFiles => "Every file of this item is left out.".to_string(),
+        LeftBy::Identical => "It has the same bytes as a file the import keeps.".to_string(),
+        LeftBy::NoRow => "No row of the list joined this item.".to_string(),
     }
 }
 

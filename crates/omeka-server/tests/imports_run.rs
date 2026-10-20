@@ -19,7 +19,7 @@ const PATTERN: &str = r"^(?:.*/)?(?<identifier>[A-Z]\d+)(?:_(?<part>[a-z0-9]+))?
 /// A draft over `A1.jpg`, `A1_back.jpg` and `B2.jpg`, scanned, with a
 /// pattern saved.
 async fn grouped(fixture: &Fixture) -> Value {
-    fixture.write(&[("A1.jpg", JPEG), ("A1_back.jpg", JPEG), ("B2.jpg", JPEG)]);
+    fixture.write_objects(&[("A1.jpg", JPEG), ("A1_back.jpg", JPEG), ("B2.jpg", JPEG)]);
     let draft = fixture.draft().await;
     let saved = fixture
         .save(&draft, |plan| plan["grouping"]["pattern"] = json!(PATTERN))
@@ -209,7 +209,7 @@ async fn a_run_whose_evidence_changed_since_the_check_answers_changed() {
     let fixture = fixture().await;
     let draft = grouped(&fixture).await;
     let check = checked(&fixture, &draft["id"]).await;
-    fixture.write(&[("C3.jpg", JPEG)]);
+    fixture.write_objects(&[("C3.jpg", JPEG)]);
 
     let refused = run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
 

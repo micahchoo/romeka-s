@@ -386,6 +386,13 @@ impl Site {
         write(&self.archive, relative, bytes);
     }
 
+    /// Write the file with its path after its bytes. Files of distinct
+    /// objects never share their bytes, and the derive keeps only one of
+    /// identical files (`anomalies.identical: keepOne`).
+    pub fn write_object(&self, relative: &str, bytes: &[u8]) {
+        self.write(relative, &[bytes, relative.as_bytes()].concat());
+    }
+
     /// A draft on the whole archive root with `edit` applied to its plan,
     /// saved and scanned. Answers the import id.
     pub async fn draft(&self, edit: impl FnOnce(&mut Value)) -> u64 {

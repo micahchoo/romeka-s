@@ -144,6 +144,10 @@ pub enum Unused {
     Parent,
     /// An item whose every file is left out and that no row joined.
     NoFiles,
+    /// A file with the same bytes as a file the import keeps.
+    Identical,
+    /// An item no list row joined.
+    NoRow,
     /// In no record for another reason, such as a row the join skipped.
     NoRecord,
 }
@@ -344,6 +348,8 @@ pub(super) fn unused(model: &Model, state: &EntryState) -> Option<Unused> {
         LeftBy::Flag(_) => Unused::Flag,
         LeftBy::Parent => Unused::Parent,
         LeftBy::NoFiles => Unused::NoFiles,
+        LeftBy::Identical => Unused::Identical,
+        LeftBy::NoRow => Unused::NoRow,
     };
     if let Some(left) = state.left {
         return Some(by(left));

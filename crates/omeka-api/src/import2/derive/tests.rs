@@ -5,6 +5,7 @@
 #![allow(clippy::expect_used, clippy::too_many_lines)]
 
 mod anomalies;
+mod answers;
 mod decide;
 mod matching;
 mod perf;

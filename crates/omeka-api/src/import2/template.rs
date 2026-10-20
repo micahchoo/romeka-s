@@ -142,7 +142,7 @@ pub fn template_csv(model: &Model, catalog: &Catalog, columns: &[ListColumn]) ->
                 path.rsplit_once('/').map_or(path, |(_, name)| name)
             })
             .collect();
-        let mut line = vec![key.text().to_string(), guard(&names.join(SPLIT))];
+        let mut line = vec![guard(key.text()), guard(&names.join(SPLIT))];
         line.extend(columns.iter().map(|column| guard(&column.cell(record))));
         push_line(&mut out, &line);
     }
@@ -172,13 +172,17 @@ fn hides_formula(cell: &str) -> bool {
 }
 
 /// Take the `'` that [`guard`] put in front of a formula character off the
-/// cells of every bracketed column of an uploaded list. The `Identifier`
-/// column is not guarded, so it is left as it came.
-pub fn unescape_list(sheet: &mut Sheet) {
+/// cells of the `Identifier` column and every bracketed column of an
+/// uploaded list, then key the rows by `key` again, so a row keyed by its
+/// identifier is keyed by the value that went out. `Files` is never read
+/// back, so it is left as it came.
+pub fn unescape_list(sheet: &mut Sheet, key: Option<&ColumnRef>) {
     let columns: Vec<usize> = sheet
         .columns
         .iter()
-        .filter(|column| bracketed(&column.header).is_some())
+        .filter(|column| {
+            column.header.eq_ignore_ascii_case(IDENTIFIER) || bracketed(&column.header).is_some()
+        })
         .map(|column| column.index as usize)
         .collect();
     for row in &mut sheet.rows {
@@ -190,6 +194,9 @@ pub fn unescape_list(sheet: &mut Sheet) {
                 cell.remove(0);
             }
         }
+    }
+    if let Some(key) = key {
+        super::sheet::key_rows(&mut sheet.rows, key);
     }
 }
 

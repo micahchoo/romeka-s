@@ -187,6 +187,11 @@ pub enum LeftBy {
     Parent,
     /// An item whose every file is left out and that no row joined.
     NoFiles,
+    /// A file with the same bytes as a file the import keeps
+    /// (`anomalies.identical: keepOne`).
+    Identical,
+    /// An item no list row joined (`anomalies.itemsWithoutRow: leave`).
+    NoRow,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

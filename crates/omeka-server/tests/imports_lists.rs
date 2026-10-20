@@ -7,34 +7,9 @@
 mod common;
 mod imports_fixture;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use imports_fixture::{ADMIN, BHC_PATTERN, Fixture, JPEG, bhc_006, fixture};
+use axum::http::StatusCode;
+use imports_fixture::{BHC_PATTERN, Fixture, JPEG, bhc_006, fixture};
 use serde_json::{Value, json};
-
-const BOUNDARY: &str = "romeka-list-boundary";
-
-async fn upload(fixture: &Fixture, id: &Value, name: &str, bytes: &[u8]) -> common::Answer {
-    let mut body = format!(
-        "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: text/csv\r\n\r\n"
-    )
-    .into_bytes();
-    body.extend_from_slice(bytes);
-    body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
-    let (identity, credential) = ADMIN;
-    let request = Request::builder()
-        .method("POST")
-        .uri(format!(
-            "/api/romeka/imports/{id}/sheets?key_identity={identity}&key_credential={credential}"
-        ))
-        .header(
-            "content-type",
-            format!("multipart/form-data; boundary={BOUNDARY}"),
-        )
-        .body(Body::from(body))
-        .unwrap();
-    common::send(fixture.app.clone(), request).await
-}
 
 /// The seeded install knows only `dcterms:title`.
 async fn add_date(fixture: &Fixture) {
@@ -210,7 +185,7 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
     filled[2] = format!("{},Brass bowl,c. 1900", lines[2].trim_end_matches(','));
     filled[2] = filled[2].replacen(",,", ",", 1);
     let filled = filled.join("\r\n");
-    let uploaded = upload(&fixture, &id, "list.csv", filled.as_bytes()).await;
+    let uploaded = fixture.upload(&id, "list.csv", filled.as_bytes()).await;
     assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
     let view = uploaded.json();
     assert_eq!(view["revision"], 2);
@@ -258,13 +233,13 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
     assert_eq!(value("BHC_006_AF_002", "dcterms:date"), ["c. 1900"]);
     assert_eq!(items.len(), 2, "only the two filled rows give a title");
 
-    let second = upload(
-        &fixture,
-        &id,
-        "list.tsv",
-        "Identifier\tFiles\nBHC_006_PH_101\t\n".as_bytes(),
-    )
-    .await;
+    let second = fixture
+        .upload(
+            &id,
+            "list.tsv",
+            "Identifier\tFiles\nBHC_006_PH_101\t\n".as_bytes(),
+        )
+        .await;
     assert_eq!(second.status, StatusCode::CREATED, "{}", second.body);
     assert_eq!(second.json()["plan"]["sheets"][1]["file"], "lists/2.tsv");
 }
@@ -273,20 +248,16 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
 async fn a_list_upload_is_refused_when_it_cannot_be_read_as_a_list() {
     let fixture = fixture().await;
     let id = s1(&fixture).await;
-    let wrong_type = upload(&fixture, &id, "list.xlsx", b"PK\x03\x04").await;
+    let wrong_type = fixture.upload(&id, "list.xlsx", b"PK\x03\x04").await;
     assert_eq!(
         wrong_type.status,
         StatusCode::BAD_REQUEST,
         "{}",
         wrong_type.body
     );
-    let no_identifier = upload(
-        &fixture,
-        &id,
-        "list.csv",
-        b"Name,Title [dcterms:title]\nA,B\n",
-    )
-    .await;
+    let no_identifier = fixture
+        .upload(&id, "list.csv", b"Name,Title [dcterms:title]\nA,B\n")
+        .await;
     assert_eq!(
         no_identifier.status,
         StatusCode::BAD_REQUEST,
@@ -301,7 +272,9 @@ async fn a_list_upload_is_refused_when_it_cannot_be_read_as_a_list() {
             .exists(),
         "a refused list is not kept"
     );
-    let too_large = upload(&fixture, &id, "list.csv", &vec![b'a'; 50 * 1024 * 1024 + 1]).await;
+    let too_large = fixture
+        .upload(&id, "list.csv", &vec![b'a'; 50 * 1024 * 1024 + 1])
+        .await;
     assert_eq!(too_large.status, StatusCode::PAYLOAD_TOO_LARGE);
     let unknown = fixture
         .call(
@@ -449,20 +422,35 @@ async fn a_preview_of_40000_entries_with_every_fact_section_fits_the_budget() {
         measure(json!({ "include": ["check", "records", "flags"], "records": { "perPage": 50 } }))
             .await;
     println!("{entries} entries, check+records+flags: median {base:?} of {base_runs:?}");
-    for section in ["shapes", "histogram", "identical", "unpaired", "values"] {
+    let example = json!({ "path": "Box 0/OBJ_000000_front.jpg" });
+    for section in [
+        "shapes",
+        "histogram",
+        "identical",
+        "unpaired",
+        "values",
+        "nameWords",
+        "columnMatches",
+    ] {
         let (median, _, _) = measure(json!({ "include": ["check", "records", "flags", section],
-                                             "records": { "perPage": 50 } }))
+                                             "records": { "perPage": 50 }, "nameWords": example }))
         .await;
         println!("{entries} entries, base + {section}: median {median:?}");
     }
     let (all, all_runs, answer) = measure(json!({
-        "include": ["check", "records", "flags", "shapes", "histogram", "identical", "unpaired", "values"],
-        "records": { "perPage": 50 }, "seed": 1
+        "include": ["check", "records", "flags", "shapes", "histogram", "identical", "unpaired",
+                    "values", "nameWords", "columnMatches"],
+        "records": { "perPage": 50 }, "nameWords": example, "seed": 1
     }))
     .await;
     println!("{entries} entries, every section: median {all:?} of {all_runs:?} (budget 600 ms)");
     assert!(answer["shapes"]["records"].as_u64().unwrap() > 10_000);
     assert_eq!(answer["identical"]["sets"]["total"], 200);
+    assert_eq!(answer["nameWords"]["names"], entries);
+    assert_eq!(
+        answer["columnMatches"][0]["columns"][0]["groupKeys"], 16_000,
+        "the rows of even objects; an odd object's files are in its even neighbour's group"
+    );
     assert!(all < Duration::from_millis(600), "{all:?}");
 }
 
@@ -487,7 +475,7 @@ async fn a_quote_the_template_put_before_a_formula_character_comes_off_on_upload
          BHC_006_AF_004,,'-दीपक\r\n\
          BHC_006_PH_101,,'plain\r\n"
     );
-    let uploaded = upload(&fixture, &id, "list.csv", filled.as_bytes()).await;
+    let uploaded = fixture.upload(&id, "list.csv", filled.as_bytes()).await;
     assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
     let stored = std::fs::read_to_string(
         fixture

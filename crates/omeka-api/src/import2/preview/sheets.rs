@@ -155,7 +155,7 @@ impl SheetCache {
                 // Only the staging area holds lists the template wrote.
                 let mut read = read_bytes(&bytes, plan);
                 if let Ok(sheet) = &mut read.sheet {
-                    template::unescape_list(sheet);
+                    template::unescape_list(sheet, sheet::key_column(plan));
                 }
                 (read, bytes.len() as u64)
             }
