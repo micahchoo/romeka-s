@@ -19,6 +19,7 @@
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff and webp and stores the three derivatives.
+//! - [`iiif_image`]: the IIIF Image API at level 1 over a stored image.
 //! - [`image_metadata`]: the EXIF tags and pixel size of an image, for the
 //!   archive import's tag preview.
 //! - [`data`]: the typed `media.data` payloads.
@@ -45,6 +46,7 @@ pub mod data;
 pub mod file_render;
 pub mod http;
 pub mod http_client;
+pub mod iiif_image;
 pub mod image_metadata;
 pub mod ingest;
 pub mod media_type;

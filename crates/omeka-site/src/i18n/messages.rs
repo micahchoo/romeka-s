@@ -82,6 +82,15 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
+    /// It opens on the public page.` pattern, over the block's title. A Romeka
+    /// string; upstream's preview runs the viewer.
+    pub iiif_poster: &'static str,
+    /// The item page's link that opens the item in the IIIF viewer. A Romeka
+    /// string.
+    pub iiif_view_in_viewer: &'static str,
+    /// The item page's link to the item's IIIF manifest. A Romeka string.
+    pub iiif_manifest: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -121,6 +130,9 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    iiif_poster: "IIIF viewer: %s. It opens on the public page.",
+    iiif_view_in_viewer: "View in the IIIF viewer",
+    iiif_manifest: "IIIF manifest",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -165,6 +177,9 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
+    iiif_view_in_viewer: "Ver en el visor IIIF",
+    iiif_manifest: "Manifiesto IIIF",
 };
 
 #[cfg(test)]

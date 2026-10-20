@@ -96,6 +96,23 @@ emits, its page-grid rules are `application/asset/css/page-grid.css`, and it add
 block wrapper class no upstream rule names. A stored block `class` is arbitrary, so only a
 registered layout's wrapper has a rule.
 
+### The IIIF viewers
+
+`iiif_viewer` is the viewer page upstream renders bare (`view/omeka/iiif-viewer/index.phtml`):
+`mirador_config` builds `IiifViewerController`'s configuration with its allow-list, `viewer_page`
+renders the document, and `viewer_src` is the link a block or the item page opens it with, under the
+site's `iiif_viewer_sidebar` and `iiif_viewer_theme`. Mirador 4 and OpenSeadragon 5 are vendored
+under `vendor/` by `vendor/update.sh` and listed in `theme/files.rs` as library assets, which the
+frame never links: the viewer page loads Mirador, and the IIIF image block and the IIIF image media
+embed load OpenSeadragon where they call it.
+
+Both IIIF blocks take a height (`blocks/iiif.rs`), a Romeka setting of an upstream block kept in
+`o:layout_data.romeka.settings`; a schema field marked `romeka` is stored there. In the editor's
+script-free preview both render a poster card in place of the viewer. The presentation block's
+manifest field is the `manifestSource` kind: a URL, or an item of this site stored as its manifest
+URL, so upstream opens the same manifest. The item view links an item with a paintable media to the
+viewer and to its manifest (`ResourceView::iiif_manifest`).
+
 ### Page blocks
 
 `blocks::render_page_blocks` reproduces `View/Helper/PageLayout::render`: the page's blocks in
@@ -215,7 +232,6 @@ upstream ignores; the admin writes it through `o:site_settings`.
 | `CrossSiteSearch` | `view/omeka/site/cross-site-search/*.phtml` + `view/common/cross-site-search/*.phtml` |
 | `SearchList` | `view/omeka/site/page/browse.phtml` |
 | `AdvancedSearch` | `view/omeka/site/item/search.phtml`, `item-set/search.phtml`, `view/common/advanced-search.phtml` |
-| `IiifViewer` | `view/omeka/iiif-viewer/index.phtml` |
 | `Error` | `view/error/404.phtml`, `view/error/403.phtml` |
 
 The port's frame prints the site title as the document's `<h1>`. Upstream's bare

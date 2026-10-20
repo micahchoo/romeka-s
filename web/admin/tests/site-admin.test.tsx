@@ -488,7 +488,6 @@ const UNREAD_KEYS = {
   vocabulary_scope: 'cross-site',
   search_apply_templates: [3, 4],
   search_restrict_templates: true,
-  iiif_viewer_sidebar: true,
 } as const;
 
 describe('site settings', () => {

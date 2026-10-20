@@ -861,6 +861,45 @@ footer {
   min-width: 0;
 }
 
+/* The IIIF blocks in the editor's preview, which runs no script: a card at the
+   viewer's height that says what opens on the public page. */
+
+.iiif-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.iiif-poster p {
+  margin: 0;
+  max-width: 40ch;
+}
+
+/* The item page's links into the IIIF viewer and to the item's manifest. */
+
+.iiif-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.iiif-manifest {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iiif-logo {
+  flex: none;
+}
+
 /* Resource lists: a responsive card grid. Every browse view and every preview
    block renders through these rules. The thumbnail runs to the card's edges and
    the whole card answers the pointer, though only its link takes a click. */

@@ -104,7 +104,11 @@ export const kn: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'ಐಟಂ ಪುಟಗಳು ಪ್ರತಿ ಕ್ಷೇತ್ರದ ಹೆಸರಿನ ಪಕ್ಕದಲ್ಲಿ ಶಬ್ದಕೋಶ ಅಥವಾ ತಾಂತ್ರಿಕ ಪದವನ್ನು ತೋರಿಸುತ್ತವೆ.',
   'siteSetting.iiifViewerTheme': 'IIIF ವ್ಯೂಯರ್ ಥೀಮ್',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF ವ್ಯೂವರ್ ಬ್ಲಾಕ್‌ಗಾಗಿ ಹಗುರವಾದ ಅಥವಾ ಗಾಢವಾದ ಹಿನ್ನೆಲೆ.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF ವೀಕ್ಷಕಕ್ಕಾಗಿ, ಬ್ಲಾಕ್‌ಗಳಲ್ಲಿ ಮತ್ತು ಐಟಂ ಪುಟಗಳಲ್ಲಿ ತಿಳಿ ಅಥವಾ ಗಾಢ ಹಿನ್ನೆಲೆ.',
+  'siteSetting.iiifViewerSidebar': 'IIIF ವೀಕ್ಷಕ ಸೈಡ್‌ಬಾರ್',
+  'siteSetting.iiifViewerSidebarHelp':
+    'ಇದು ವಿಷಯಗಳ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳನ್ನು ತೋರಿಸುವ ಸೈಡ್‌ಬಾರ್‌ನೊಂದಿಗೆ ವೀಕ್ಷಕವನ್ನು ತೆರೆಯುತ್ತದೆ.',
   'siteSetting.locale': 'ಸ್ಥಳ (Locale)',
   'siteSetting.localeHelp': 'ಸೈಟ್‌ನ ಸ್ವಂತ ಪದಗಳ ಭಾಷೆ, ಉದಾಹರಣೆಗೆ ಬಟನ್‌ಗಳು, ಮೆನುಗಳು ಮತ್ತು ದಿನಾಂಕಗಳು.',
   'siteSetting.filterLocaleValues': 'ಫಿಲ್ಟರ್ ಲೋಕಲ್ ವ್ಯಾಲ್ಯೂಗಳು',

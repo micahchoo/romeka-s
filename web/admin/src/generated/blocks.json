@@ -414,8 +414,7 @@
           "key": "manifest_url",
           "label": "blockField.iiifPresentation.manifest_url",
           "help": "fieldHelp.iiifPresentation.manifest_url",
-          "type": "text",
-          "placeholder": "fieldExample.url"
+          "type": "manifestSource"
         },
         {
           "key": "title",
@@ -429,6 +428,36 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifPresentation.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": "",
+          "romeka": true
         }
       ]
     },
@@ -456,6 +485,36 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifImage.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": "",
+          "romeka": true
         }
       ]
     },

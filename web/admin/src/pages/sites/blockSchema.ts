@@ -67,6 +67,9 @@ interface FieldBase {
   readonly group: FieldGroup | null;
   /** Whether the form tucks the field under "Advanced". */
   readonly advanced: boolean;
+  /** Whether the value is a Romeka setting of an upstream block, kept in
+   * `o:layout_data.romeka.settings` rather than in `o:data`. */
+  readonly romeka: boolean;
 }
 
 /** One field of a layout's form, by the control it renders. */
@@ -102,6 +105,8 @@ export type BlockField =
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
   | (FieldBase & { readonly type: 'pageList' })
   | (FieldBase & { readonly type: 'color' })
+  /** A IIIF manifest URL, chosen as a URL or as an item of this site. */
+  | (FieldBase & { readonly type: 'manifestSource' })
   | (FieldBase & { readonly type: 'sides'; readonly keys: SideKeys })
   | (FieldBase & {
       /** A page under `key`, or a URL under `urlKey`; one is set at a time. */
@@ -297,6 +302,7 @@ const parseField = (value: unknown, path: Path): BlockField => {
     when: parseCondition(value.when, [...path, 'when']),
     group: parseGroup(value.group, [...path, 'group']),
     advanced: parseFlag(value.advanced, [...path, 'advanced']),
+    romeka: parseFlag(value.romeka, [...path, 'romeka']),
   };
   switch (parseString(value.type, [...path, 'type'])) {
     case 'text':
@@ -307,6 +313,8 @@ const parseField = (value: unknown, path: Path): BlockField => {
       };
     case 'color':
       return { ...base, type: 'color' };
+    case 'manifestSource':
+      return { ...base, type: 'manifestSource' };
     case 'sides':
       return { ...base, type: 'sides', keys: parseSideKeys(value.keys, [...path, 'keys']) };
     case 'link':
