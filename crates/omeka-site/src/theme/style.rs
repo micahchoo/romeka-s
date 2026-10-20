@@ -184,6 +184,33 @@ mod tests {
             block("html", json!({"html": "<p>Grouped copy</p>"})),
             block("myModuleLayout", json!({"x": 1})),
             romeka_hero(),
+            romeka_block(
+                "gallery",
+                json!({"media": [{"item": 7, "caption": "<p>A caption</p>"}]}),
+            ),
+            romeka_block(
+                "gallery",
+                json!({"media": [{"item": 7}], "layout": "carousel", "columns": 4}),
+            ),
+            romeka_block(
+                "button",
+                json!({"button_label": "Go", "button_url": "/go", "button2_label": "Back",
+                       "button2_url": "/back", "size": "small"}),
+            ),
+            romeka_block(
+                "quote",
+                json!({"text": "Words", "attribution": "Someone", "item": 7, "style": "band"}),
+            ),
+            romeka_block(
+                "accordion",
+                json!({"entries": [{"heading": "A question", "answer": "<p>An answer</p>"}]}),
+            ),
+            romeka_block("timeline", json!({"items": [7, 4]})),
+            romeka_block("searchBox", json!({"resource": "items"})),
+            romeka_block(
+                "featuredItem",
+                json!({"item": 7, "fields": [{"property": "dcterms:title"}]}),
+            ),
         ];
         for (index, block) in blocks.iter_mut().enumerate() {
             block.position = index as i64 + 1;
@@ -214,6 +241,22 @@ mod tests {
                     "cta2_url": "/s/main/page/about",
                     "height": "tall"
                 },
+                "plain_hash": crate::blocks::romeka::plain_hash(plain)
+            }}),
+        )
+    }
+
+    /// A Romeka carrier of `name` whose plain hash matches, so its rich render
+    /// and every class it emits is part of the coverage check.
+    fn romeka_block(name: &str, settings: serde_json::Value) -> omeka_core::site::SiteBlock {
+        let plain = "<p>Plain</p>";
+        block_with_layout(
+            "html",
+            json!({"html": plain}),
+            json!({"romeka": {
+                "block": name,
+                "v": 2,
+                "settings": settings,
                 "plain_hash": crate::blocks::romeka::plain_hash(plain)
             }}),
         )
@@ -682,6 +725,58 @@ mod tests {
             "romeka-hero-cta-outline",
             "romeka-hero-actions",
             "romeka-hero-height-tall",
+            "romeka-gallery",
+            "romeka-gallery-grid",
+            "romeka-gallery-masonry",
+            "romeka-gallery-carousel",
+            "romeka-gallery-columns-2",
+            "romeka-gallery-columns-6",
+            "romeka-gallery-empty",
+            "romeka-lightbox",
+            "romeka-lightbox-image",
+            "romeka-lightbox-close",
+            "romeka-lightbox-previous",
+            "romeka-lightbox-next",
+            "romeka-featured",
+            "romeka-featured-card",
+            "romeka-featured-image-left",
+            "romeka-featured-image-right",
+            "romeka-featured-image-top",
+            "romeka-featured-no-image",
+            "romeka-featured-empty",
+            "romeka-buttons",
+            "romeka-buttons-align-left",
+            "romeka-buttons-align-center",
+            "romeka-buttons-align-right",
+            "romeka-button-solid",
+            "romeka-button-outline",
+            "romeka-button-small",
+            "romeka-button-medium",
+            "romeka-button-large",
+            "romeka-buttons-empty",
+            "romeka-quote",
+            "romeka-quote-plain",
+            "romeka-quote-large",
+            "romeka-quote-band",
+            "romeka-quote-text",
+            "romeka-quote-attribution",
+            "romeka-quote-empty",
+            "romeka-accordion",
+            "romeka-accordion-item",
+            "romeka-accordion-heading",
+            "romeka-accordion-answer",
+            "romeka-accordion-empty",
+            "romeka-timeline",
+            "romeka-timeline-list",
+            "romeka-timeline-entry",
+            "romeka-timeline-date",
+            "romeka-timeline-thumbnail",
+            "romeka-timeline-undated",
+            "romeka-timeline-empty",
+            "romeka-search",
+            "romeka-search-field",
+            "romeka-search-input",
+            "romeka-search-submit",
             "romeka-map",
             "romeka-map-canvas",
             "romeka-map-poster",

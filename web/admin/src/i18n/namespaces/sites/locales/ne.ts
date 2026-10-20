@@ -474,4 +474,21 @@ export const ne: SitesMessages = {
   'siteSetting.romekaMapAttribution': 'म्याप क्रेडिट',
   'siteSetting.romekaMapAttributionHelp':
     'टाइल प्रदायकले आवश्यक ठानेको क्रेडिट लाइन, जुन प्रत्येक म्यापको कुनाको भागमा देखाइन्छ।',
+  'romeka.gallery': 'छवि ग्यालरी',
+  'romekaHelp.gallery': 'वस्तु वा एसेटबाट छविहरू, ग्रिड, स्तम्भ वा क्यारोसेलमा, लाइटबक्स सहित।',
+  'romeka.featuredItem': 'मुख्य वस्तु',
+  'romekaHelp.featuredItem':
+    'एउटा कार्डको रूपमा एउटा वस्तु: यसको छवि, छानिएका क्षेत्रहरू र यसको लिङ्क।',
+  'romeka.button': 'बटन',
+  'romekaHelp.button': 'एउटा वा दुईवटा लिङ्कहरू बटनको रूपमा कोरिएका, कुनै पृष्ठ वा URL मा।',
+  'romeka.quote': 'उद्धरण',
+  'romekaHelp.quote': '"कसले भन्यो" भन्ने व्यक्तिको नाम र, तपाईँलाई मन परेमा, त्यसबाट आएको वस्तु।',
+  'romeka.accordion': 'एकोरियन',
+  'romekaHelp.accordion':
+    'प्रश्न वा शीर्षकहरू जसले प्रत्येकले आफ्ना उत्तरहरू खोल्छन्, FAQ र लामो नोटहरूका लागि।',
+  'romeka.timeline': 'समयरेखा',
+  'romekaHelp.timeline':
+    'समयको रेखामा, प्रत्येकको थम्बनेल र शीर्षक सहित, मिति अनुसार क्रमबद्ध गरिएका वस्तुहरू।',
+  'romeka.searchBox': 'खोज बाकस',
+  'romekaHelp.searchBox': 'साइट, यसका वस्तुहरू वा यसका वस्तु सेटहरूका लागि एउटा खोज क्षेत्र।',
 };

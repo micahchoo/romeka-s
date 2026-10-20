@@ -46,7 +46,7 @@ pub(super) static FILES: [ThemeAsset; OWN.len() + FONT_ASSETS.len()] = {
 };
 
 /// The theme's own sheet, placeholder and script, then the vendored files.
-const OWN: [ThemeAsset; 49] = [
+const OWN: [ThemeAsset; 50] = [
     ThemeAsset {
         path: "css/style.css",
         kind: AssetKind::Stylesheet,
@@ -66,6 +66,11 @@ const OWN: [ThemeAsset; 49] = [
         path: "js/map.js",
         kind: AssetKind::Library,
         content: crate::map::MAP_SCRIPT.as_bytes(),
+    },
+    ThemeAsset {
+        path: "js/lightbox.js",
+        kind: AssetKind::Library,
+        content: crate::blocks::gallery::LIGHTBOX_SCRIPT.as_bytes(),
     },
     ThemeAsset {
         path: "js/carousel.js",

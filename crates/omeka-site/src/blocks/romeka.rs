@@ -22,6 +22,7 @@ use serde_json::Value as JsonValue;
 
 use super::canonical;
 use super::schema::LayoutSchema;
+use crate::i18n::{Locale, Messages};
 use crate::view::{BrowseQuery, RenderContext};
 
 /// The smallest block a Romeka extension declares: a name, a form, a rich
@@ -86,6 +87,10 @@ pub enum ItemSelection {
 }
 
 impl ItemSelection {
+    /// The most items one selection reads, so a broad query cannot make a
+    /// page heavy.
+    pub const LIMIT: usize = 500;
+
     /// The search a [`Self::Query`] selection runs on `site`, at most `limit`
     /// items. The render and the page snapshot both build it here, because the
     /// snapshot answers a search by equality.
@@ -122,17 +127,58 @@ pub struct PlainRefs {
     media: BTreeMap<MediaId, PlainImage>,
     pages: BTreeMap<PageId, String>,
     items: Vec<PlainItem>,
+    locale: Locale,
 }
 
 /// A resolved item, as a plain rendering lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlainItem {
+    /// The item's id, so a block can find the item a record names.
+    pub id: ItemId,
     /// The item's display title.
     pub title: String,
     /// The item's page, relative to the origin.
     pub url: String,
+    /// The image of the item's main media, when it has a public one.
+    pub image: Option<PlainImage>,
+    /// The item's public values, in property order.
+    pub values: Vec<PlainValue>,
     /// The item's location values, as stored.
     pub places: Vec<String>,
+}
+
+/// One public value of a resolved item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainValue {
+    /// The property's term, e.g. `dcterms:date`.
+    pub term: String,
+    /// The property's label, e.g. `Date`.
+    pub label: String,
+    /// The value as text: the literal, or a URI's label or address.
+    pub text: String,
+}
+
+impl PlainItem {
+    /// An item with a title and a page and nothing else resolved.
+    #[must_use]
+    pub fn new(id: ItemId, title: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            id,
+            title: title.into(),
+            url: url.into(),
+            image: None,
+            values: Vec::new(),
+            places: Vec::new(),
+        }
+    }
+
+    /// The texts of the values of the property `term`, in order.
+    pub fn texts<'a>(&'a self, term: &'a str) -> impl Iterator<Item = &'a str> + 'a {
+        self.values
+            .iter()
+            .filter(move |value| value.term == term)
+            .map(|value| value.text.as_str())
+    }
 }
 
 impl PlainRefs {
@@ -208,10 +254,41 @@ impl PlainRefs {
     pub fn items(&self) -> &[PlainItem] {
         &self.items
     }
+
+    /// The same map for a site whose words are in `locale`.
+    #[must_use]
+    pub fn locale(mut self, locale: Locale) -> Self {
+        self.locale = locale;
+        self
+    }
+
+    /// The catalogue of the site's locale, for the words a plain rendering
+    /// prints itself, such as a link's text.
+    #[must_use]
+    pub fn messages(&self) -> &'static Messages {
+        self.locale.translator().messages()
+    }
+
+    /// The selected item `id`, `None` when the caller could not resolve it or
+    /// may not show it.
+    #[must_use]
+    pub fn item_of(&self, id: ItemId) -> Option<&PlainItem> {
+        self.items.iter().find(|item| item.id == id)
+    }
 }
 
 /// The registered Romeka blocks, in registry order.
-pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 2] = [&super::hero::Hero, &super::map::Map];
+pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 9] = [
+    &super::hero::Hero,
+    &super::map::Map,
+    &super::gallery::Gallery,
+    &super::featured_item::FeaturedItem,
+    &super::button::ButtonBlock,
+    &super::quote::Quote,
+    &super::accordion::Accordion,
+    &super::timeline::Timeline,
+    &super::search_box::SearchBox,
+];
 
 /// Every registered Romeka block.
 #[must_use]

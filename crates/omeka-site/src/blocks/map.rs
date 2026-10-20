@@ -7,8 +7,6 @@
 //! places as text. The editor preview runs no script, so it shows a poster
 //! with the same list.
 
-use omeka_core::ids::ItemId;
-use omeka_core::resource::ResourceKind;
 use serde_json::Value as JsonValue;
 
 use super::romeka::{ItemSelection, PlainRefs, RomkaBlock};
@@ -169,17 +167,7 @@ struct MapSettings {
 impl MapSettings {
     fn parse(settings: &JsonValue) -> Self {
         let text_of = |key: &str| settings.get(key).and_then(JsonValue::as_str).unwrap_or("");
-        let selection = match text_of("source") {
-            "query" => Some(ItemSelection::Query(text_of("query").to_string())),
-            _ => {
-                let picked: Vec<ItemId> = settings
-                    .get("items")
-                    .and_then(JsonValue::as_array)
-                    .map(|ids| ids.iter().filter_map(item_id_of).collect())
-                    .unwrap_or_default();
-                (!picked.is_empty()).then_some(ItemSelection::Picked(picked))
-            }
-        };
+        let selection = super::setting::selection(settings);
         let start = match Place::parse(text_of("center")) {
             Some(centre) => StartView::At {
                 centre,
@@ -223,17 +211,7 @@ impl MapSettings {
         let Some(term) = ctx.settings.location_property() else {
             return Vec::new();
         };
-        let resources: Vec<ResourceView> = match &self.selection {
-            None => Vec::new(),
-            Some(ItemSelection::Picked(ids)) => ids
-                .iter()
-                .filter_map(|id| ctx.resources.read(ResourceKind::Item, id.get()))
-                .collect(),
-            Some(ItemSelection::Query(query)) => {
-                let search = ItemSelection::browse_query(query, ctx.site.id, MAX_PLACES);
-                ctx.resources.search(ResourceKind::Item, &search).resources
-            }
-        };
+        let resources = super::setting::selected(self.selection.as_ref(), ctx);
         resources
             .iter()
             .flat_map(|resource| {
@@ -266,15 +244,6 @@ impl MapSettings {
     }
 }
 
-/// An item id from a JSON number or a numeric string.
-fn item_id_of(value: &JsonValue) -> Option<ItemId> {
-    match value {
-        JsonValue::Number(number) => number.as_u64().map(ItemId::new),
-        JsonValue::String(text) => text.trim().parse::<u64>().ok().map(ItemId::new),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,6 +253,7 @@ mod tests {
     };
     use crate::settings::SiteSettings;
     use crate::view::{RenderContext, Thumbnail, ValueRef};
+    use omeka_core::ids::ItemId;
     use omeka_core::site::SiteBlock;
     use serde_json::json;
 
@@ -327,19 +297,19 @@ mod tests {
     }
 
     /// The plain rendering lists every resolved place as a link to its item,
-    /// in upstream's vocabulary, and skips a value that is not a place.
+    /// in upstream's vocabulary, and skips an item with no place and a value
+    /// that is not a place.
     #[test]
     fn plain_lists_each_place_with_a_link() {
         let refs = PlainRefs::new()
             .item(PlainItem {
-                title: "Tower Bridge".to_string(),
-                url: "/s/main/item/4".to_string(),
                 places: vec!["51.5055, -0.0754".to_string()],
+                ..PlainItem::new(ItemId::new(4), "Tower Bridge", "/s/main/item/4")
             })
+            .item(PlainItem::new(ItemId::new(5), "No place", "/s/main/item/5"))
             .item(PlainItem {
-                title: "A <letter>".to_string(),
-                url: "/s/main/item/6".to_string(),
                 places: vec!["somewhere".to_string(), "51.28,1.08".to_string()],
+                ..PlainItem::new(ItemId::new(6), "A <letter>", "/s/main/item/6")
             });
         assert_eq!(
             Map.plain(&picked(), &refs),

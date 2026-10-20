@@ -28,7 +28,7 @@ import { selectedKey } from '../shell/selection';
 import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel, sectionLabel } from './summary';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import { sites } from '../../../../i18n/namespaces/sites';
 import './canvas.css';
 
@@ -65,7 +65,7 @@ const InsertPoint = ({
   onChooseTemplate,
   onDropIndex,
 }: InsertPointProps): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   return (
     <li
       className="canvas-insert"
@@ -107,7 +107,7 @@ export const PageCanvas = ({
   onSelect,
   dispatch,
 }: PageCanvasProps): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   const selected = selectedKey(selection);
   const list = useRef<HTMLUListElement | null>(null);
   useEffect(() => {

@@ -24,6 +24,7 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'account', what: 'account page messages', type: 'AccountMessages' },
   { id: 'standards', what: 'Standards and Fields page messages', type: 'StandardsMessages' },
   { id: 'editor', what: 'page editor messages', type: 'EditorMessages' },
+  { id: 'content-blocks', what: 'content block messages', type: 'ContentBlockMessages' },
   { id: 'theme', what: 'Theme page messages', type: 'ThemeMessages' },
   { id: 'term-lists', what: 'Term lists messages', type: 'TermListMessages' },
   { id: 'item-types', what: 'item type pages messages', type: 'ItemTypesMessages' },

@@ -73,7 +73,10 @@ impl Theme for DefaultTheme {
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
                 &crate::blocks::carousel::with_assets(
-                    crate::map::with_assets(page_view(ctx), ctx),
+                    crate::map::with_assets(
+                        crate::blocks::gallery::with_assets(page_view(ctx), ctx),
+                        ctx,
+                    ),
                     ctx,
                 ),
             ),

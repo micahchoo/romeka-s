@@ -581,4 +581,7 @@ export const es: EditorMessages = {
   'region.leaveConfirm': 'La cabecera o el pie del sitio tienen cambios sin guardar. ¿Salir y perderlos?',
   'region.pageGroup': 'En todas las páginas',
   'region.pageHelp': 'La cabecera y el pie pertenecen a todo el sitio. Haga clic en uno en la vista previa o elíjalo aquí.',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'Tres elementos destacados',
+  'sectionTemplate.featuredItems.description': 'Tres tarjetas de elementos en fila, cada una con su imagen, título y un enlace.',
 };

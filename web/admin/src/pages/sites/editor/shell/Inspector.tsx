@@ -20,7 +20,7 @@ import { InspectorCrumbs } from './InspectorCrumbs';
 import { romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { isJsonArray, isJsonObject, layoutDataObject } from '../values';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import { sites } from '../../../../i18n/namespaces/sites';
 
 const BlockForm = lazy(() =>
@@ -60,7 +60,7 @@ const UnknownData = ({
   readonly block: BlockDraft;
   readonly dispatch: (action: DraftAction) => void;
 }): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   const [text, setText] = useState(() => JSON.stringify(block.data, null, 2));
   const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +112,7 @@ export const Inspector = ({
   onDeselect,
   onSelect,
 }: InspectorProps): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   const schema = schemaFor(draft.registry, block.layout);
   const romka = romkaFor(draft.registry, block);
   const layoutData = draft.registry.blockLayoutData;

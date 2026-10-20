@@ -604,4 +604,8 @@ export const ne: EditorMessages = {
   'region.pageGroup': 'हरेक पृष्ठमा',
   'region.pageHelp':
     'हेडर र फुटर सम्पूर्ण साइटका हुन्। प्रिव्युमा एउटामा क्लिक गर्नुहोस्, वा यहाँबाट छान्नुहोस्।',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'तिनवटा विशेषता प्राप्त वस्तुहरू',
+  'sectionTemplate.featuredItems.description':
+    'एउटा पङ्क्तिमा तिनवटा वस्तु कार्डहरू, जसमा प्रत्येकको छवि, शीर्षक र लिङ्क हुन्छ।',
 };

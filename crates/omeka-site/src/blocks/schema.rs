@@ -262,6 +262,14 @@ pub enum FieldKind {
     },
     /// Items picked one by one, stored as a list of item ids in pick order.
     ItemList,
+    /// One item, stored as its id.
+    ItemRef,
+    /// Items picked one by one, each with an optional media and an HTML
+    /// caption, stored as a list of `{item, media, caption}` records in pick
+    /// order. A record with no media shows the item's main media. It is the
+    /// attachments list kept in the settings instead of in
+    /// `site_page_block.attachment`, which an `html` carrier cannot hold.
+    ItemMedia,
     /// A map's starting view: a `"lat, lng"` centre under the field's `key`
     /// and a zoom under `zoom_key`. An empty centre fits every place.
     MapView {
@@ -341,6 +349,25 @@ pub const fn integer(key: &'static str, label: &'static str, help: &'static str)
         FieldKind::Integer {
             min: None,
             max: None,
+        },
+    )
+}
+
+/// A number input that accepts `min` to `max`.
+pub const fn integer_range(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    min: i64,
+    max: i64,
+) -> Field {
+    field(
+        key,
+        label,
+        help,
+        FieldKind::Integer {
+            min: Some(min),
+            max: Some(max),
         },
     )
 }
@@ -452,6 +479,17 @@ pub const fn repeat(label: &'static str, help: &'static str, fields: &'static [F
     field("attachments", label, help, FieldKind::Repeat { fields })
 }
 
+/// A repeat group stored under `key`, for a Romeka block whose settings name
+/// their own lists.
+pub const fn records(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    fields: &'static [Field],
+) -> Field {
+    field(key, label, help, FieldKind::Repeat { fields })
+}
+
 /// The `listOfPages` page tree.
 pub const fn page_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
     field(key, label, help, FieldKind::PageList)
@@ -492,6 +530,16 @@ pub const fn anchor(key: &'static str, label: &'static str, help: &'static str) 
 /// Items picked one by one.
 pub const fn item_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
     field(key, label, help, FieldKind::ItemList)
+}
+
+/// One item.
+pub const fn item_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::ItemRef)
+}
+
+/// Items with an optional media and a caption each.
+pub const fn item_media(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::ItemMedia)
 }
 
 /// A map's starting centre under `centre_key` and zoom under `zoom_key`.
