@@ -116,7 +116,10 @@ on_both!(
 on_both!(only_a_draft_saves_its_plan_or_is_deleted, |pool| {
     let imports = ImportRepo::<Db>::new(pool);
     let id = draft!(pool, "a");
-    assert_eq!(imports.start_run(id).await.unwrap(), StartOutcome::Started);
+    assert_eq!(
+        imports.start_run(id, 0).await.unwrap(),
+        StartOutcome::Started
+    );
     assert_eq!(
         imports.save_plan(id, &json!({}), 0).await.unwrap(),
         PlanSave::NotDraft(ImportStatus::Running)
@@ -132,7 +135,10 @@ on_both!(
         let imports = ImportRepo::<Db>::new(pool);
         let id = draft!(pool, "a");
         let plan = imports.get(id).await.unwrap().unwrap().plan;
-        assert_eq!(imports.start_run(id).await.unwrap(), StartOutcome::Started);
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
         let running = imports.get(id).await.unwrap().unwrap();
         assert_eq!(running.status, ImportStatus::Running);
         assert_eq!(running.ran_plan.as_ref(), Some(&plan));
@@ -144,7 +150,10 @@ on_both!(
             id.0
         );
         assert!(imports.finish(id, ImportEnding::RunFailed).await.unwrap());
-        assert_eq!(imports.start_run(id).await.unwrap(), StartOutcome::Started);
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
         let retried = imports.get(id).await.unwrap().unwrap();
         assert_eq!(
             retried.ran_plan,
@@ -155,11 +164,11 @@ on_both!(
 
         assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
         assert_eq!(
-            imports.start_run(id).await.unwrap(),
+            imports.start_run(id, 0).await.unwrap(),
             StartOutcome::Refused(ImportStatus::Done)
         );
         assert_eq!(
-            imports.start_run(ImportId(999)).await.unwrap(),
+            imports.start_run(ImportId(999), 0).await.unwrap(),
             StartOutcome::Missing
         );
     }
@@ -174,7 +183,7 @@ on_both!(
             imports.start_undo(id).await.unwrap(),
             StartOutcome::Refused(ImportStatus::Draft)
         );
-        imports.start_run(id).await.unwrap();
+        imports.start_run(id, 0).await.unwrap();
         assert_eq!(
             imports.start_undo(id).await.unwrap(),
             StartOutcome::Refused(ImportStatus::Running)
@@ -206,7 +215,7 @@ on_both!(an_ending_needs_the_state_it_ends, |pool| {
     let imports = ImportRepo::<Db>::new(pool);
     let id = draft!(pool, "a");
     assert!(!imports.finish(id, ImportEnding::Done).await.unwrap());
-    imports.start_run(id).await.unwrap();
+    imports.start_run(id, 0).await.unwrap();
     assert!(!imports.finish(id, ImportEnding::Undone).await.unwrap());
     assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
     let done = imports.get(id).await.unwrap().unwrap();
@@ -219,20 +228,20 @@ on_both!(one_import_runs_or_undoes_at_a_time, |pool| {
     let imports = ImportRepo::<Db>::new(pool);
     let first = draft!(pool, "a");
     let second = draft!(pool, "b");
-    imports.start_run(first).await.unwrap();
+    imports.start_run(first, 0).await.unwrap();
     assert_eq!(
-        imports.start_run(second).await.unwrap(),
+        imports.start_run(second, 0).await.unwrap(),
         StartOutcome::Busy(first)
     );
     imports.finish(first, ImportEnding::Done).await.unwrap();
     imports.start_undo(first).await.unwrap();
     assert_eq!(
-        imports.start_run(second).await.unwrap(),
+        imports.start_run(second, 0).await.unwrap(),
         StartOutcome::Busy(first)
     );
     imports.finish(first, ImportEnding::Undone).await.unwrap();
     assert_eq!(
-        imports.start_run(second).await.unwrap(),
+        imports.start_run(second, 0).await.unwrap(),
         StartOutcome::Started
     );
 });
@@ -243,7 +252,9 @@ on_both!(two_concurrent_starts_never_both_win, |pool| {
         let second = draft!(pool, &format!("b{round}"));
         let start = |id: ImportId| {
             let pool = pool.clone();
-            tokio::spawn(async move { ImportRepo::<Db>::new(&pool).start_run(id).await.unwrap() })
+            tokio::spawn(
+                async move { ImportRepo::<Db>::new(&pool).start_run(id, 0).await.unwrap() },
+            )
         };
         let (left, right) = tokio::join!(start(first), start(second));
         let mut outcomes = [left.unwrap(), right.unwrap()];
@@ -269,7 +280,7 @@ on_both!(two_concurrent_starts_never_both_win, |pool| {
 on_both!(a_summary_write_is_also_a_heartbeat, |pool| {
     let imports = ImportRepo::<Db>::new(pool);
     let id = draft!(pool, "a");
-    imports.start_run(id).await.unwrap();
+    imports.start_run(id, 0).await.unwrap();
     assert!(
         imports
             .set_summary(id, &json!({ "items": 2 }))
@@ -293,7 +304,7 @@ on_both!(
         let imports = ImportRepo::<Db>::new(pool);
         let jobs = JobRepo::<Db>::new(pool);
         let id = draft!(pool, "a");
-        imports.start_run(id).await.unwrap();
+        imports.start_run(id, 0).await.unwrap();
         let worker = jobs.create(&job("in_progress")).await.unwrap().id;
         let other = jobs.create(&job("in_progress")).await.unwrap().id;
         assert!(imports.set_job(id, worker).await.unwrap());
@@ -375,10 +386,10 @@ on_both!(a_start_settles_the_dead_import_that_blocked_it, |pool| {
     let imports = ImportRepo::<Db>::new(pool);
     let dead = draft!(pool, "dead");
     let next = draft!(pool, "next");
-    imports.start_run(dead).await.unwrap();
+    imports.start_run(dead, 0).await.unwrap();
     exec_id!(pool, AGE_HEARTBEAT, dead.0);
     assert_eq!(
-        imports.start_run(next).await.unwrap(),
+        imports.start_run(next, 0).await.unwrap(),
         StartOutcome::Started
     );
     assert_eq!(
@@ -387,7 +398,7 @@ on_both!(a_start_settles_the_dead_import_that_blocked_it, |pool| {
     );
     imports.finish(next, ImportEnding::Done).await.unwrap();
     assert_eq!(
-        imports.start_run(dead).await.unwrap(),
+        imports.start_run(dead, 0).await.unwrap(),
         StartOutcome::Started
     );
     let retried = imports.get(dead).await.unwrap().unwrap().summary.unwrap();
@@ -405,3 +416,123 @@ on_both!(the_table_refuses_a_status_outside_the_v2_list, |pool| {
         assert!(outcome.is_err(), "{status} was stored");
     }
 });
+
+on_both!(a_run_start_names_the_revision_the_caller_checked, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let id = draft!(pool, "a");
+    assert_eq!(
+        imports
+            .save_plan(id, &json!({ "version": 2 }), 0)
+            .await
+            .unwrap(),
+        PlanSave::Saved(1)
+    );
+    assert_eq!(
+        imports.start_run(id, 0).await.unwrap(),
+        StartOutcome::Changed { revision: 1 },
+        "a save between Check and Run"
+    );
+    assert_eq!(
+        imports.get(id).await.unwrap().unwrap().status,
+        ImportStatus::Draft,
+        "a refused start changes nothing"
+    );
+    assert_eq!(
+        imports.start_run(id, 1).await.unwrap(),
+        StartOutcome::Started
+    );
+});
+
+on_both!(
+    a_done_import_runs_again_only_when_its_summary_lists_failures,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        imports.start_run(id, 0).await.unwrap();
+        imports
+            .set_summary(id, &json!({ "items": 2, "failures": [] }))
+            .await
+            .unwrap();
+        assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Done),
+            "done with an empty failure list"
+        );
+
+        imports
+            .set_summary(
+                id,
+                &json!({ "failures": [{ "record": "A", "key": "k", "detail": "d" }] }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        let retried = imports.get(id).await.unwrap().unwrap();
+        assert_eq!(retried.status, ImportStatus::Running);
+        assert_eq!(retried.finished, None);
+
+        let bare = draft!(pool, "bare");
+        imports.finish(id, ImportEnding::Done).await.unwrap();
+        imports.start_run(bare, 0).await.unwrap();
+        imports.finish(bare, ImportEnding::Done).await.unwrap();
+        assert_eq!(
+            imports.start_run(bare, 0).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Done),
+            "done with no failures member"
+        );
+    }
+);
+
+on_both!(
+    a_stop_request_keeps_the_heartbeat_and_survives_summary_writes,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        assert!(
+            !imports.request_stop(id).await.unwrap(),
+            "a draft does not run"
+        );
+        imports.start_run(id, 0).await.unwrap();
+        assert!(!imports.stop_requested(id).await.unwrap());
+        exec_id!(pool, AGE_HEARTBEAT, id.0);
+
+        assert!(imports.request_stop(id).await.unwrap());
+        assert!(imports.stop_requested(id).await.unwrap());
+        let row = imports.get(id).await.unwrap().unwrap();
+        assert!(row.stop_requested);
+        assert_eq!(
+            row.summary.unwrap()[HEARTBEAT],
+            json!("2000-01-01 00:00:00"),
+            "a stop request is not evidence of life"
+        );
+
+        imports
+            .set_summary(id, &json!({ "items": 3 }))
+            .await
+            .unwrap();
+        assert!(
+            imports.stop_requested(id).await.unwrap(),
+            "the worker's whole-summary write keeps the request"
+        );
+        assert!(!imports.stop_requested(ImportId(999)).await.unwrap());
+        assert!(!imports.request_stop(ImportId(999)).await.unwrap());
+
+        imports.finish(id, ImportEnding::RunFailed).await.unwrap();
+        assert!(
+            !imports.request_stop(id).await.unwrap(),
+            "it no longer runs"
+        );
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        assert!(
+            !imports.stop_requested(id).await.unwrap(),
+            "a new attempt starts without the old request"
+        );
+    }
+);

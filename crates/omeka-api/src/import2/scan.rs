@@ -3,12 +3,10 @@
 //! (`docs/import-v2.md`, "Evidence").
 //!
 //! One `romeka_import_entry` row holds one file or one sheet. Each scanned
-//! source also gets one row at the empty path, the *walk row*: no file has
-//! that path, and it carries what the walk skipped (the anomalies), the
-//! error when the source could not be read, and the scan's token. The walk
-//! row lives in the same table as the entries so that [`EntryRepo::replace`]
-//! swaps both in one transaction: a reader never sees the files of one scan
-//! with the anomalies of another.
+//! source also gets one `romeka_import_scan` row: what the walk skipped (the
+//! anomalies), the error when the source could not be read, and the scan's
+//! token. [`EntryRepo::replace`] swaps both tables in one transaction: a
+//! reader never sees the files of one scan with the anomalies of another.
 //!
 //! [`IndexCache`] keeps the decoded index of recent imports in memory, keyed
 //! by the scan tokens, so a preview on a warm index decodes no rows.
@@ -25,8 +23,8 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use omeka_db::Backend;
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
-use omeka_db::repos::{EntryRepo, ImportRepo, Paging};
-use omeka_db::rows::{EntryRow, NewEntry};
+use omeka_db::repos::{EntryRepo, ImportRepo};
+use omeka_db::rows::{EntryRow, NewEntry, NewScan, ScanRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
@@ -41,9 +39,6 @@ pub const SCAN_IN_REQUEST: u64 = 20_000;
 
 /// The job class of a rescan, `job.class`; its args are `{"importId": n}`.
 pub const SCAN_JOB: &str = "Romeka\\Job\\ImportScan";
-
-/// The path of a source's walk row: no file has it.
-const WALK_ROW: &str = "";
 
 /// One source as the last scan left it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -78,13 +73,10 @@ impl StoredIndex {
     }
 }
 
-/// The walk row's member: what the walk skipped, or why it failed.
+/// The `anomalies` member of a scan row: what the walk skipped.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct WalkRecord {
-    token: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
+struct StoredAnomalies {
     symlinks: u64,
     dot: u64,
     special: u64,
@@ -101,8 +93,6 @@ struct Stored {
     sheet: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     decoded: Option<StoredName>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    walk: Option<WalkRecord>,
 }
 
 /// A name that is not UTF-8 on disk: its encoding, and its bytes in hex, so
@@ -156,31 +146,26 @@ fn new_token() -> String {
     )
 }
 
-/// The rows a scan stores.
+/// The rows a scan stores: one scan record per source, and the files and sheets of the sources
+/// that could be read.
 #[must_use]
-pub fn rows(walked: &[Walked], now: NaiveDateTime) -> Vec<NewEntry> {
+pub fn rows(walked: &[Walked], now: NaiveDateTime) -> (Vec<NewScan>, Vec<NewEntry>) {
     let token = new_token();
+    let mut scans = Vec::new();
     let mut rows = Vec::new();
     for source in walked {
-        let (record, walk) = match &source.walk {
-            Ok(walk) => (walk_record(&token, None, &walk.anomalies), Some(walk)),
-            Err(error) => (
-                walk_record(&token, Some(error.clone()), &Anomalies::default()),
-                None,
-            ),
+        let (error, anomalies) = match &source.walk {
+            Ok(walk) => (None, stored_anomalies(&walk.anomalies)),
+            Err(error) => (Some(error.clone()), StoredAnomalies::default()),
         };
-        rows.push(NewEntry {
+        scans.push(NewScan {
             source: source.source.0.clone(),
-            path: WALK_ROW.to_string(),
-            size: 0,
-            modified: now,
-            media_type: None,
-            flags: to_flags(&Stored {
-                walk: Some(record),
-                ..Stored::default()
-            }),
+            anomalies: serde_json::to_value(&anomalies).unwrap_or(Value::Null),
+            error,
+            token: token.clone(),
+            scanned: now,
         });
-        let Some(walk) = walk else { continue };
+        let Ok(walk) = &source.walk else { continue };
         let files = walk.entries.iter().map(|entry| (entry, false));
         let sheets = walk.sheets.iter().map(|entry| (entry, true));
         for (entry, sheet) in files.chain(sheets) {
@@ -196,18 +181,15 @@ pub fn rows(walked: &[Walked], now: NaiveDateTime) -> Vec<NewEntry> {
                         encoding: decoded.encoding,
                         raw: hex(&decoded.raw),
                     }),
-                    walk: None,
                 }),
             });
         }
     }
-    rows
+    (scans, rows)
 }
 
-fn walk_record(token: &str, error: Option<String>, anomalies: &Anomalies) -> WalkRecord {
-    WalkRecord {
-        token: token.to_string(),
-        error,
+fn stored_anomalies(anomalies: &Anomalies) -> StoredAnomalies {
+    StoredAnomalies {
         symlinks: anomalies.symlinks,
         dot: anomalies.dot,
         special: anomalies.special,
@@ -226,16 +208,15 @@ fn to_flags(stored: &Stored) -> Value {
 ///
 /// # Errors
 /// [`DbError::Column`] for a row whose flags or path do not decode.
-pub fn index_of(rows: Vec<EntryRow>, sources: &[SourcePlan]) -> Result<StoredIndex, DbError> {
-    let mut by_source: BTreeMap<String, (Option<(NaiveDateTime, WalkRecord)>, Walk)> =
-        BTreeMap::new();
+pub fn index_of(
+    scans: Vec<ScanRow>,
+    rows: Vec<EntryRow>,
+    sources: &[SourcePlan],
+) -> Result<StoredIndex, DbError> {
+    let mut by_source: BTreeMap<String, Walk> = BTreeMap::new();
     for row in rows {
         let stored: Stored = serde_json::from_value(row.flags).map_err(|error| bad(&error))?;
-        let (record, walk) = by_source.entry(row.source).or_default();
-        if let Some(found) = stored.walk {
-            *record = Some((row.modified, found));
-            continue;
-        }
+        let walk = by_source.entry(row.source).or_default();
         let entry = FileEntry {
             path: RelPath::parse(&row.path).map_err(|error| bad(&error))?,
             size: row.size,
@@ -257,11 +238,15 @@ pub fn index_of(rows: Vec<EntryRow>, sources: &[SourcePlan]) -> Result<StoredInd
             walk.entries.push(entry);
         }
     }
+    let mut scans: BTreeMap<String, ScanRow> = scans
+        .into_iter()
+        .map(|scan| (scan.source.clone(), scan))
+        .collect();
     let mut index = Index::default();
     let mut states = Vec::new();
     for plan in sources {
         let id = plan.id();
-        let Some((record, mut walk)) = by_source.remove(&id.0) else {
+        let Some(scan) = scans.remove(&id.0) else {
             states.push(SourceState {
                 source: id.clone(),
                 scanned: None,
@@ -271,24 +256,25 @@ pub fn index_of(rows: Vec<EntryRow>, sources: &[SourcePlan]) -> Result<StoredInd
             });
             continue;
         };
+        let mut walk = by_source.remove(&id.0).unwrap_or_default();
         walk.entries.sort_by(|a, b| a.path.cmp(&b.path));
         walk.sheets.sort_by(|a, b| a.path.cmp(&b.path));
-        let (scanned, record) = record.unzip();
-        let record = record.unwrap_or_default();
+        let found: StoredAnomalies =
+            serde_json::from_value(scan.anomalies).map_err(|error| bad(&error))?;
         walk.anomalies = Anomalies {
-            symlinks: record.symlinks,
-            dot: record.dot,
-            special: record.special,
-            unreadable: record.unreadable,
-            unusable_names: record.unusable_names,
-            collisions: record.collisions,
+            symlinks: found.symlinks,
+            dot: found.dot,
+            special: found.special,
+            unreadable: found.unreadable,
+            unusable_names: found.unusable_names,
+            collisions: found.collisions,
         };
         states.push(SourceState {
             source: id.clone(),
-            scanned: scanned.map(|time| time.format("%Y-%m-%dT%H:%M:%S+00:00").to_string()),
+            scanned: Some(scan.scanned.format("%Y-%m-%dT%H:%M:%S+00:00").to_string()),
             files: walk.entries.len(),
             sheet_files: walk.sheets.iter().map(|s| s.path.to_string()).collect(),
-            error: record.error,
+            error: scan.error,
         });
         index.sources.push(IndexedSource {
             id: id.clone(),
@@ -380,14 +366,14 @@ where
     let walk_roots = roots.clone();
     let walk_sources_of = sources.to_vec();
     let now = Utc::now().naive_utc();
-    let rows = tokio::task::spawn_blocking(move || {
+    let (scans, rows) = tokio::task::spawn_blocking(move || {
         rows(&walk_sources(&walk_roots, &walk_sources_of), now)
     })
     .await
     .map_err(|error| ScanError::Panicked(error.to_string()))?;
     let repo = EntryRepo::new(pool);
-    repo.replace(import, &rows).await?;
-    let stored = index_of(repo.page(import, &Paging::default()).await?, sources)?;
+    repo.replace(import, &scans, &rows).await?;
+    let stored = index_of(repo.scans(import).await?, repo.all(import).await?, sources)?;
     Ok(Scanned {
         sources: stored.sources,
     })
@@ -446,25 +432,22 @@ where
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
     let repo = EntryRepo::new(pool);
+    let scans = repo.scans(import).await?;
     let mut tokens = String::new();
     for source in sources {
-        let token = match repo.get(import, &source.id().0, WALK_ROW).await? {
-            Some(row) => serde_json::from_value::<Stored>(row.flags)
-                .map_err(|error| bad(&error))?
-                .walk
-                .map(|walk| walk.token)
-                .unwrap_or_default(),
-            None => String::new(),
-        };
+        let token = scans
+            .iter()
+            .find(|scan| scan.source == source.id().0)
+            .map_or("", |scan| scan.token.as_str());
         tokens.push_str(&source.id().0);
         tokens.push('=');
-        tokens.push_str(&token);
+        tokens.push_str(token);
         tokens.push(';');
     }
     if let Some(found) = cache.get(import, &tokens) {
         return Ok(found);
     }
-    let stored = index_of(repo.page(import, &Paging::default()).await?, sources)?;
+    let stored = index_of(scans, repo.all(import).await?, sources)?;
     cache.put(import, tokens, stored.clone());
     Ok(stored)
 }

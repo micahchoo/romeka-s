@@ -9,6 +9,7 @@
 -- `path_hash`, computed in Rust: a path in the key would pass InnoDB's 3,072-byte limit, and
 -- MariaDB may refuse a generated column in a key.
 
+DROP TABLE IF EXISTS romeka_import_scan;
 DROP TABLE IF EXISTS romeka_import_resource;
 DROP TABLE IF EXISTS romeka_import;
 
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS romeka_import (
   status VARCHAR(16) NOT NULL,
   job_id INT DEFAULT NULL,
   summary LONGTEXT DEFAULT NULL,
+  stop_requested TINYINT(1) NOT NULL DEFAULT 0,
   copied_from INT DEFAULT NULL,
   created DATETIME NOT NULL,
   finished DATETIME DEFAULT NULL,
@@ -30,6 +32,7 @@ CREATE TABLE IF NOT EXISTS romeka_import (
   INDEX IDX_ROMEKA_IMPORT_COPIED_FROM (copied_from),
   PRIMARY KEY(id),
   CONSTRAINT CHK_ROMEKA_IMPORT_REVISION CHECK (revision >= 0),
+  CONSTRAINT CHK_ROMEKA_IMPORT_STOP CHECK (stop_requested IN (0, 1)),
   CONSTRAINT CHK_ROMEKA_IMPORT_STATUS CHECK (status IN ('draft', 'running', 'done', 'run_failed', 'undoing', 'undone', 'undo_failed')),
   CONSTRAINT FK_ROMEKA_IMPORT_OWNER FOREIGN KEY (owner_id) REFERENCES `user` (id) ON DELETE SET NULL,
   CONSTRAINT FK_ROMEKA_IMPORT_JOB FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE SET NULL,
@@ -84,4 +87,15 @@ CREATE TABLE IF NOT EXISTS romeka_import_entry (
   PRIMARY KEY(import_id, source, path_hash),
   CONSTRAINT CHK_ROMEKA_IMPORT_ENTRY_SIZE CHECK (size >= 0),
   CONSTRAINT FK_ROMEKA_IMPORT_ENTRY_IMPORT FOREIGN KEY (import_id) REFERENCES romeka_import (id) ON DELETE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS romeka_import_scan (
+  import_id INT NOT NULL,
+  source VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  anomalies LONGTEXT NOT NULL,
+  error LONGTEXT DEFAULT NULL,
+  token VARCHAR(255) NOT NULL,
+  scanned DATETIME NOT NULL,
+  PRIMARY KEY(import_id, source),
+  CONSTRAINT FK_ROMEKA_IMPORT_SCAN_IMPORT FOREIGN KEY (import_id) REFERENCES romeka_import (id) ON DELETE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB;

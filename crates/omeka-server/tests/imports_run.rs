@@ -93,7 +93,7 @@ async fn a_scan_past_twenty_thousand_entries_is_a_job() {
         })
         .collect();
     EntryRepo::new(&fixture.pool)
-        .replace(id, &rows)
+        .replace(id, &[], &rows)
         .await
         .unwrap();
 
@@ -403,13 +403,52 @@ async fn stop_asks_a_running_import_and_refuses_any_other() {
     let asked = fixture.call("POST", &uri, None).await;
     assert_eq!(asked.status, StatusCode::ACCEPTED, "{}", asked.body);
     let row = fixture.row(&draft["id"]).await;
-    assert_eq!(row.summary.unwrap()["stop"], true);
+    assert!(row.stop_requested);
+    assert!(
+        row.summary.unwrap().get("stop").is_none(),
+        "the request is not a summary member"
+    );
     let shown = fixture
         .call("GET", &format!("/api/romeka/imports/{}", draft["id"]), None)
         .await
         .json();
     assert_eq!(shown["stopRequested"], true);
     assert_eq!(shown["status"], "running");
+}
+
+#[tokio::test]
+async fn a_done_import_runs_again_only_with_failures_listed() {
+    let fixture = fixture().await;
+    let draft = grouped(&fixture).await;
+    let id = ImportId(draft["id"].as_u64().unwrap());
+    let check = checked(&fixture, &draft["id"]).await;
+    run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
+    let imports = ImportRepo::new(&fixture.pool);
+    imports
+        .set_summary(id, &json!({ "failures": [] }))
+        .await
+        .unwrap();
+    imports.finish(id, ImportEnding::Done).await.unwrap();
+
+    let refused = run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
+    assert_eq!(refused.status, StatusCode::CONFLICT, "{}", refused.body);
+    assert_eq!(refused.json()["code"], "cannotRun");
+    assert_eq!(refused.json()["status"], "done");
+
+    imports
+        .set_summary(
+            id,
+            &json!({ "failures": [{ "record": "A1", "key": "x", "detail": "d" }] }),
+        )
+        .await
+        .unwrap();
+    let again = checked(&fixture, &draft["id"]).await;
+    let retried = run(&fixture, &draft["id"], json!({ "digest": again["digest"] })).await;
+    assert_eq!(retried.status, StatusCode::OK, "{}", retried.body);
+    assert_eq!(
+        fixture.row(&draft["id"]).await.status,
+        ImportStatus::Running
+    );
 }
 
 #[tokio::test]
@@ -423,7 +462,7 @@ async fn undo_starts_a_job_for_an_ended_import_only() {
 
     let id = ImportId(draft["id"].as_u64().unwrap());
     let imports = ImportRepo::new(&fixture.pool);
-    imports.start_run(id).await.unwrap();
+    imports.start_run(id, 0).await.unwrap();
     imports.finish(id, ImportEnding::Done).await.unwrap();
     let bad = fixture
         .call("POST", &uri, Some(&json!({ "force": "some" })))

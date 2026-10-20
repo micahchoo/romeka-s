@@ -2,7 +2,8 @@
 //!
 //! An upload advances only from the offset stored, in one statement, so two `PATCH` requests from
 //! the same offset cannot both land (`docs/import-v2.md`, "Arrival"). A rescan replaces the whole
-//! index in one transaction, so a reader sees the old index or the new one, never a mix.
+//! index, and each source's scan record, in one transaction, so a reader sees the old index or
+//! the new one, never a mix.
 
 use chrono::NaiveDateTime;
 use sha2::{Digest, Sha256};
@@ -12,7 +13,7 @@ use super::{Paging, Statement, bind_id, fetch_rows, json_text, push_paging};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::ImportId;
-use crate::rows::{EntryRow, NewEntry, NewUpload, UploadRow};
+use crate::rows::{EntryRow, NewEntry, NewScan, NewUpload, ScanRow, UploadRow};
 use crate::time;
 
 /// What an advance did.
@@ -180,14 +181,37 @@ where
         Self { pool }
     }
 
-    /// Replace an import's whole index with `entries`, in one transaction. A failure, such as one
-    /// path listed twice in a source, leaves the old index.
-    pub async fn replace(&self, import: ImportId, entries: &[NewEntry]) -> Result<(), DbError> {
+    /// Replace an import's whole index with `entries`, and its scan records with `scans`, in one
+    /// transaction. A failure, such as one path listed twice in a source, leaves the old index.
+    pub async fn replace(
+        &self,
+        import: ImportId,
+        scans: &[NewScan],
+        entries: &[NewEntry],
+    ) -> Result<(), DbError> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM romeka_import_entry WHERE import_id = ?")
             .bind(bind_id(import))
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM romeka_import_scan WHERE import_id = ?")
+            .bind(bind_id(import))
+            .execute(&mut *tx)
+            .await?;
+        for scan in scans {
+            sqlx::query(
+                "INSERT INTO romeka_import_scan (import_id, source, anomalies, error, token, scanned)
+                 VALUES (?, ?, ?, ?, ?, ?)",
+            )
+            .bind(bind_id(import))
+            .bind(scan.source.as_str())
+            .bind(json_text(&scan.anomalies)?)
+            .bind(scan.error.clone())
+            .bind(scan.token.as_str())
+            .bind(time::format(scan.scanned))
+            .execute(&mut *tx)
+            .await?;
+        }
         for chunk in entries.chunks(ENTRIES_PER_INSERT) {
             let mut statement = Statement::<DB>::new(
                 "INSERT INTO romeka_import_entry
@@ -227,6 +251,27 @@ where
         rows.iter().map(EntryRow::from_db_row::<DB>).collect()
     }
 
+    /// Every row of an import's index, in no order: for a reader that sorts the rows itself, so
+    /// the database does not sort them twice.
+    pub async fn all(&self, import: ImportId) -> Result<Vec<EntryRow>, DbError> {
+        let rows = sqlx::query("SELECT * FROM romeka_import_entry WHERE import_id = ?")
+            .bind(bind_id(import))
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter().map(EntryRow::from_db_row::<DB>).collect()
+    }
+
+    /// What the last scan left of each source, by source.
+    pub async fn scans(&self, import: ImportId) -> Result<Vec<ScanRow>, DbError> {
+        let rows =
+            sqlx::query("SELECT * FROM romeka_import_scan WHERE import_id = ? ORDER BY source")
+                .bind(bind_id(import))
+                .fetch_all(self.pool)
+                .await?;
+        rows.iter().map(ScanRow::from_db_row::<DB>).collect()
+    }
+
+    /// How many files and sheets the index holds.
     pub async fn count(&self, import: ImportId) -> Result<u64, DbError> {
         let row = sqlx::query("SELECT COUNT(*) AS n FROM romeka_import_entry WHERE import_id = ?")
             .bind(bind_id(import))

@@ -27,10 +27,6 @@ use serde_json::{Map, Value, json};
 
 use crate::AppState;
 
-/// The summary member a stop request sets; the run job reads it after each
-/// record.
-pub(crate) const STOP: &str = "stop";
-
 /// A failure of an import route, with the status it answers.
 #[derive(Debug)]
 pub(crate) enum ImportError {
@@ -228,10 +224,10 @@ pub(crate) async fn load(state: &AppState, raw: &str) -> Result<ImportRow, Impor
 }
 
 /// One import as the routes answer it. `plan` and `ranPlan` are left out of
-/// the history list. Four stored summary members are not the run's report:
+/// the history list. Three stored summary members are not the run's report:
 /// the undo job's report `undo`, shown as `undoReport`; the time a reader
-/// found the job dead, shown as `died`; a stop request, shown as
-/// `stopRequested`; and the worker's heartbeat, not shown.
+/// found the job dead, shown as `died`; and the worker's heartbeat, not shown.
+/// A stop request is the row's own `stopRequested`.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ImportView {
@@ -268,7 +264,7 @@ impl ImportView {
             summary: split.report,
             undo_report: split.undo,
             died: split.died,
-            stop_requested: split.stop,
+            stop_requested: row.stop_requested,
             job_id: row.job_id.map(|job| job.0),
             copied_from: row.copied_from.map(|from| from.0),
             plan: with_plan.then_some(row.plan),
@@ -281,7 +277,6 @@ struct Split {
     report: Option<Value>,
     undo: Value,
     died: Option<String>,
-    stop: bool,
 }
 
 fn split_summary(summary: Option<Value>) -> Split {
@@ -289,9 +284,6 @@ fn split_summary(summary: Option<Value>) -> Split {
         Some(Value::Object(mut members)) => {
             members.remove(HEARTBEAT);
             let undo = members.remove("undo").unwrap_or(Value::Null);
-            let stop = members
-                .remove(STOP)
-                .is_some_and(|stop| stop == Value::Bool(true));
             let died = members.remove(DIED).and_then(|died| match died {
                 Value::String(stored) => Some(format!("{}+00:00", stored.replacen(' ', "T", 1))),
                 _ => None,
@@ -300,14 +292,12 @@ fn split_summary(summary: Option<Value>) -> Split {
                 report: (!members.is_empty()).then_some(Value::Object(members)),
                 undo,
                 died,
-                stop,
             }
         }
         report => Split {
             report,
             undo: Value::Null,
             died: None,
-            stop: false,
         },
     }
 }
@@ -347,13 +337,11 @@ mod tests {
     fn the_report_keeps_its_members_without_the_internal_ones() {
         let split = split_summary(Some(json!({
             "heartbeat": "2026-10-19 12:00:00",
-            "stop": true,
             "items": 2,
             "undo": { "items": 2 }
         })));
         assert_eq!(split.report, Some(json!({ "items": 2 })));
         assert_eq!(split.undo, json!({ "items": 2 }));
-        assert!(split.stop);
         let only_heartbeat = split_summary(Some(json!({ "heartbeat": "2026-10-19 12:00:00" })));
         assert_eq!(
             only_heartbeat.report, None,

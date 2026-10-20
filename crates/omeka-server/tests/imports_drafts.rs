@@ -175,7 +175,7 @@ async fn a_save_refuses_a_v1_plan_a_bad_plan_and_a_type_that_exists() {
         bad.json()["errors"]["error"]
             .as_str()
             .unwrap()
-            .starts_with("The plan cannot be saved: ")
+            .starts_with("The import's settings cannot be saved: ")
     );
 
     let keys = fixture
@@ -219,7 +219,10 @@ async fn a_started_import_keeps_its_plan_and_cannot_be_deleted() {
     let fixture = fixture().await;
     let draft = fixture.draft().await;
     let id = ImportId(draft["id"].as_u64().unwrap());
-    ImportRepo::new(&fixture.pool).start_run(id).await.unwrap();
+    ImportRepo::new(&fixture.pool)
+        .start_run(id, 0)
+        .await
+        .unwrap();
 
     let saved = fixture.save(&draft, |_| {}).await;
     assert_eq!(saved.status, StatusCode::CONFLICT);
@@ -232,7 +235,7 @@ async fn a_started_import_keeps_its_plan_and_cannot_be_deleted() {
     assert_eq!(deleted.status, StatusCode::CONFLICT);
     assert_eq!(
         deleted.json()["errors"]["error"],
-        "Only a draft can be deleted. An import that has run stays in the history."
+        "Only an import that is not added yet can be deleted. An import that has run stays in Past imports."
     );
 }
 

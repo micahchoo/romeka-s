@@ -72,6 +72,7 @@ where
             status: ImportStatus::Draft,
             job_id: None,
             summary: None,
+            stop_requested: false,
             copied_from: new.copied_from,
             created,
             finished: None,
@@ -148,6 +149,29 @@ where
             .execute(self.pool)
             .await?;
         Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Ask the running job to stop after the record in hand. One member, no heartbeat: only the
+    /// worker proves it is alive, so a request cannot extend the life of a dead import. False
+    /// unless the import is `running`.
+    pub async fn request_stop(&self, id: ImportId) -> Result<bool, DbError> {
+        let done = sqlx::query(
+            "UPDATE romeka_import SET stop_requested = 1 WHERE id = ? AND status = 'running'",
+        )
+        .bind(bind_id(id))
+        .execute(self.pool)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Whether a stop was asked for since the run started: what the worker reads after each
+    /// record. False for a missing import.
+    pub async fn stop_requested(&self, id: ImportId) -> Result<bool, DbError> {
+        let row = sqlx::query("SELECT stop_requested FROM romeka_import WHERE id = ?")
+            .bind(bind_id(id))
+            .fetch_optional(self.pool)
+            .await?;
+        row.map_or(Ok(false), |row| DB::boolean(&row, "stop_requested"))
     }
 
     /// Replace the summary. Only a working job writes it, so the write is also its heartbeat

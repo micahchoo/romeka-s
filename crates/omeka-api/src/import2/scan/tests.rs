@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use omeka_db::ids::ImportId;
 use omeka_db::repos::ImportRepo;
-use omeka_db::rows::{EntryRow, NewImport};
+use omeka_db::rows::{EntryRow, NewImport, NewScan, ScanRow};
 
 use super::*;
 use crate::import2::plan::RelPath;
@@ -26,6 +26,21 @@ fn entry(path: &str) -> FileEntry {
         sniffed: "image/jpeg".into(),
         decoded: None,
     }
+}
+
+/// What `EntryRepo::scans` would read back from `scans`.
+fn scans_back(scans: Vec<NewScan>) -> Vec<ScanRow> {
+    scans
+        .into_iter()
+        .map(|scan| ScanRow {
+            import_id: ImportId(1),
+            source: scan.source,
+            anomalies: scan.anomalies,
+            error: scan.error,
+            token: scan.token,
+            scanned: scan.scanned,
+        })
+        .collect()
 }
 
 /// What `EntryRepo::page` would read back from `rows`.
@@ -72,10 +87,10 @@ fn a_walk_survives_the_rows_with_its_sheets_decoded_names_and_anomalies() {
             walk: Err("no archive root is named \"gone\"".into()),
         },
     ];
-    let rows = rows(&walked, epoch());
+    let (scans, rows) = rows(&walked, epoch());
     let plan = [folder("s1", "a"), folder("s2", "gone"), folder("s3", "a")];
 
-    let stored = index_of(read_back(rows), &plan).expect("decodes");
+    let stored = index_of(scans_back(scans), read_back(rows), &plan).expect("decodes");
 
     let s1 = &stored.index.sources[0];
     assert_eq!(s1.id, SourceId("s1".into()));
@@ -124,6 +139,11 @@ async fn a_scan_is_stored_and_a_warm_load_reuses_it_until_the_next_scan() {
 
     let scanned = scan(&pool, &roots, import, &sources).await.unwrap();
     assert_eq!(scanned.sources[0].files, 1);
+    assert_eq!(
+        EntryRepo::new(&pool).count(import).await.unwrap(),
+        1,
+        "the anomalies are not an entry row"
+    );
 
     let first = load(&pool, &cache, import, &sources).await.unwrap();
     assert_eq!(
