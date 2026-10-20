@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use import_site::{Site, col, jpeg, rule, sheet_plan, site, tiff};
-use omeka_api::import2::undo::{
+use omeka_api::import::undo::{
     ApiRemoval, Force, Removal, Removed, UNDO_JOB, UndoEnd, undo_import,
 };
 use omeka_db::ids::ImportId;

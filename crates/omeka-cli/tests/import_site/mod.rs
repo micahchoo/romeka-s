@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
-use omeka_api::import2::archive::ArchiveRoots;
+use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_cli::commands::install::{InstallOptions, run as install};
 use omeka_cli::jobs::{JobEnv, Runner};

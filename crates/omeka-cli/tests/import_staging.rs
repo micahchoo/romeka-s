@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use import_site::{Site, jpeg, site};
-use omeka_api::import2::staging::{self, Limits};
+use omeka_api::import::staging::{self, Limits};
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{JobRepo, UploadRepo};
 use omeka_db::rows::{ImportStatus, JobRow, NewJob};
@@ -119,7 +119,7 @@ async fn upload_zip(site: &Site, import: u64, path: &str, bytes: &[u8]) -> JobRo
             owner_id: None,
             pid: None,
             status: Some("starting".to_string()),
-            class: omeka_api::import2::unzip::UNZIP_JOB.to_string(),
+            class: omeka_api::import::unzip::UNZIP_JOB.to_string(),
             args: Some(json!({ "importId": import, "upload": row.id })),
             log: None,
             started: None,

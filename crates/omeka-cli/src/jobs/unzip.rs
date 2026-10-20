@@ -1,5 +1,5 @@
 //! `Romeka\Job\ImportUnzip`: a finished `.zip` upload unpacked into its
-//! import's staging area (`omeka_api::import2::unzip`). Its args are
+//! import's staging area (`omeka_api::import::unzip`). Its args are
 //! `{"importId": n, "upload": id}`.
 //!
 //! The log gets one line per entry left out or renamed, then the outcome. A
@@ -7,8 +7,8 @@
 //! which the admin shows.
 
 use async_trait::async_trait;
-use omeka_api::import2::staging::Limits;
-use omeka_api::import2::unzip::{UNZIP_JOB, UnzipError, unzip_upload};
+use omeka_api::import::staging::Limits;
+use omeka_api::import::unzip::{UNZIP_JOB, UnzipError, unzip_upload};
 use omeka_api::messages;
 use omeka_db::ids::ImportId;
 use omeka_db::with_db;

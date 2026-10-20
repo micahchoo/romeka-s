@@ -1,15 +1,15 @@
 //! The pairs list round trip (`docs/import-v2.md`, "Pairs list round trip"):
 //! `GET …/pairs.csv` answers the unpaired rows as a list to fill in, and
 //! `POST …/pairs` reads the filled list back as `pair` decisions. The rules
-//! live in `omeka_api::import2::preview::pairs`; these handlers read the
+//! live in `omeka_api::import::preview::pairs`; these handlers read the
 //! request, derive the import, and save the plan.
 
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
-use omeka_api::import2::draft;
-use omeka_api::import2::preview::pairs::{PairsError, Unmatched, pairs_csv, read_pairs};
+use omeka_api::import::draft;
+use omeka_api::import::preview::pairs::{PairsError, Unmatched, pairs_csv, read_pairs};
 use omeka_api::messages;
 use omeka_db::with_db;
 use serde::Serialize;

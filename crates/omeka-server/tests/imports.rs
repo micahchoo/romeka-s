@@ -11,7 +11,7 @@ use std::path::Path;
 use axum::Router;
 use axum::http::StatusCode;
 use common::{Answer, append_key, get, json_request, request, seeded_pool, send};
-use omeka_api::import2::starters::STARTERS;
+use omeka_api::import::starters::STARTERS;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ApiKeyRepo, ImportRepo, JobRepo, StartOutcome, UserRepo};

@@ -1,7 +1,7 @@
 /**
  * The derived model as a preview shows it (`docs/import-v2.md`, "The
  * derive"): records, the entries of the evidence and where they landed, and
- * every finding. The shapes are `crates/omeka-api/src/import2/model.rs`.
+ * every finding. The shapes are `crates/omeka-api/src/import/model.rs`.
  *
  * Rust enums with a payload are `{ "variant": payload }` and unit variants
  * are bare strings. Two things differ from what the contract's prose

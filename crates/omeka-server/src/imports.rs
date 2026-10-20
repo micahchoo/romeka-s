@@ -1,7 +1,7 @@
 //! The import routes (`docs/import-v2.md`, "Wire"). Upstream has no such
 //! routes.
 //!
-//! The rules live in `omeka_api::import2`: the plan boundary and the draft
+//! The rules live in `omeka_api::import`: the plan boundary and the draft
 //! life (`draft`), the evidence index (`scan`), the derive and its preview,
 //! and Check. These handlers authenticate, read the request, call one of
 //! those, and start the scan, run and undo jobs through the
@@ -34,9 +34,9 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{get, head, post};
-use omeka_api::import2::draft::{self, Start};
-use omeka_api::import2::plan::SourcePlan;
-use omeka_api::import2::starters::STARTERS;
+use omeka_api::import::draft::{self, Start};
+use omeka_api::import::plan::SourcePlan;
+use omeka_api::import::starters::STARTERS;
 use omeka_api::messages;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ImportRepo, JobRepo, Paging};
@@ -286,7 +286,7 @@ async fn delete(
             // The rows go with the draft, so its bytes go first.
             if load(&state, &id.0.to_string()).await?.status == omeka_db::rows::ImportStatus::Draft
             {
-                with_db!(&state.pool, |db| omeka_api::import2::staging::remove_all(
+                with_db!(&state.pool, |db| omeka_api::import::staging::remove_all(
                     db,
                     &state.store,
                     id

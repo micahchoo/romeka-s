@@ -9,8 +9,8 @@ use std::fs;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::Response;
-use omeka_api::import2::archive::ArchiveRoots;
-use omeka_api::import2::plan::RelPath;
+use omeka_api::import::archive::ArchiveRoots;
+use omeka_api::import::plan::RelPath;
 use omeka_api::messages;
 use serde::Serialize;
 

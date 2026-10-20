@@ -1,6 +1,6 @@
 /**
  * What an undo reports: `UndoReport` in
- * `crates/omeka-api/src/import2/undo/report.rs`, which the server keeps in the
+ * `crates/omeka-api/src/import/undo/report.rs`, which the server keeps in the
  * import's summary and shows as `undoReport`. The fixtures
  * `tests/fixtures/import/undo-report-*.json` come from the undo job itself
  * (`crates/omeka-cli/tests/import_undo_wire.rs`).

@@ -14,7 +14,7 @@ pub mod adapters;
 pub mod auth;
 pub mod auth_cache;
 pub mod errors;
-pub mod import2;
+pub mod import;
 pub mod jsonld;
 pub mod limits;
 pub mod login;

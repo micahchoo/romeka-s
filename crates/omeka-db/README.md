@@ -55,7 +55,7 @@ let row = with_db!(api.pool(), |db| ItemRepo::new(db).get(id).await)?;
 
 The macro matches the engine and runs the same call in each arm, so the repository call is
 compiled once per engine and the code around it once. `Location` parses `--database` and
-`--database-url` and opens the pool. The import v2 pipeline in `omeka-api/src/import2` was
+`--database-url` and opens the pool. The import v2 pipeline in `omeka-api/src/import` was
 already generic over `Backend`, because one run holds a transaction across many repositories; its
 entry points are dispatched the same way, one `with_db!` per route or job.
 

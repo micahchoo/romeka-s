@@ -121,7 +121,7 @@ error.
 ## Import v2
 
 `romeka import run`, `undo` and `list` are the importer's second front end
-(`docs/import-v2.md`, "Command line"). They call the same `omeka_api::import2`
+(`docs/import-v2.md`, "Command line"). They call the same `omeka_api::import`
 functions as the routes and run the job bodies in this process, so a run needs
 no server.
 

@@ -1,6 +1,6 @@
 /**
  * The `sheets` and `tags` sections of a preview: how each plan sheet read, and
- * the tags the first files offer (`crates/omeka-api/src/import2/preview/evidence.rs`).
+ * the tags the first files offer (`crates/omeka-api/src/import/preview/evidence.rs`).
  */
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { DELIMITERS, ENCODINGS, TAG_IDS } from './import-plan';

@@ -11,7 +11,7 @@ use omeka_db::repos::{JobFilter, JobRepo, Paging};
 use omeka_db::rows::JobRow;
 use omeka_db::with_db;
 
-use omeka_api::import2::archive::ArchiveRoots;
+use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_server::Config;
 

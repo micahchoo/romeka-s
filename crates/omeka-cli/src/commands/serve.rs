@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use omeka_api::import2::sweep::SWEEP_JOB;
+use omeka_api::import::sweep::SWEEP_JOB;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::Location;

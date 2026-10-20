@@ -1,7 +1,7 @@
 /**
  * The import plan types: the rule and the decisions the admin edits and the server
  * stores (`docs/import-v2.md`, "The plan"). Every shape here is the serde
- * shape of `crates/omeka-api/src/import2/plan` and `decisions.rs`, which
+ * shape of `crates/omeka-api/src/import/plan` and `decisions.rs`, which
  * refuses members it does not know, so the parsers here refuse them too and
  * a parsed plan serialises back to the JSON it came from. The parsers are
  * in `import-plan-read.ts`.

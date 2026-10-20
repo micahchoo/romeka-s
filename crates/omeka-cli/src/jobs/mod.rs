@@ -92,11 +92,11 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         "Omeka\\Job\\BatchUpdate" => Some(&BATCH_UPDATE),
         "Omeka\\Job\\IndexFulltextSearch" => Some(&INDEX_FULLTEXT_SEARCH),
         "Omeka\\Job\\UpdateSiteItems" => Some(&UPDATE_SITE_ITEMS),
-        omeka_api::import2::run::RUN_JOB => Some(&IMPORT_RUN),
-        omeka_api::import2::scan::SCAN_JOB => Some(&IMPORT_SCAN),
-        omeka_api::import2::undo::UNDO_JOB => Some(&IMPORT_UNDO),
-        omeka_api::import2::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
-        omeka_api::import2::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
+        omeka_api::import::run::RUN_JOB => Some(&IMPORT_RUN),
+        omeka_api::import::scan::SCAN_JOB => Some(&IMPORT_SCAN),
+        omeka_api::import::undo::UNDO_JOB => Some(&IMPORT_UNDO),
+        omeka_api::import::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
+        omeka_api::import::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
         _ => None,
     }
 }

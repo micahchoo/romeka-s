@@ -5,7 +5,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::Response;
-use omeka_api::import2::undo::{self, UNDO_JOB, UndoError, may_undo};
+use omeka_api::import::undo::{self, UNDO_JOB, UndoError, may_undo};
 use omeka_api::messages;
 use omeka_db::repos::{ImportRepo, StartOutcome};
 use omeka_db::rows::ImportStatus;

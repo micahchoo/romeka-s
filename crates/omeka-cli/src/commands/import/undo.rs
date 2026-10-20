@@ -10,7 +10,7 @@
 use std::future::Future;
 use std::io::Write;
 
-use omeka_api::import2::undo::{Force, UNDO_JOB, UndoError, may_undo, preview_undo};
+use omeka_api::import::undo::{Force, UNDO_JOB, UndoError, may_undo, preview_undo};
 use omeka_api::messages;
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{ImportRepo, StartOutcome};

@@ -307,7 +307,7 @@ without `o:modified` is never refused. The check has one-second precision, the p
 ## Archive import
 
 Import v2 (`docs/import-v2.md`, "Wire") lives in `src/imports.rs` and
-`src/imports/`; the rules are in `omeka_api::import2`. Only a global or site
+`src/imports/`; the rules are in `omeka_api::import`. Only a global or site
 administrator may call these routes: anonymous is 401, any other role 403.
 
 | Route | Body | Response |

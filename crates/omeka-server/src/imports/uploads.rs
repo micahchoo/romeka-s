@@ -10,7 +10,7 @@
 //! kept until, so the admin resumes after a reload.
 //!
 //! Only the import's owner and global admins may upload, and only into a
-//! draft. The rules live in `omeka_api::import2::staging`; this module reads
+//! draft. The rules live in `omeka_api::import::staging`; this module reads
 //! the headers, holds one lock per upload so two `PATCH` requests for one
 //! upload never interleave, streams the body into the store, and starts the
 //! unzip job when a `.zip` arrives whole. A refusal answers the import routes'
@@ -29,9 +29,9 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
 use axum::response::Response;
 use omeka_api::auth::Actor;
-use omeka_api::import2::staging::{self, Limits, StagingError};
-use omeka_api::import2::sweep::{self, SWEEP_JOB};
-use omeka_api::import2::unzip::{UNZIP_JOB, is_zip};
+use omeka_api::import::staging::{self, Limits, StagingError};
+use omeka_api::import::sweep::{self, SWEEP_JOB};
+use omeka_api::import::unzip::{UNZIP_JOB, is_zip};
 use omeka_api::messages;
 use omeka_db::ids::JobId;
 use omeka_db::repos::{JobRepo, UploadRepo};
