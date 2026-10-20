@@ -119,7 +119,7 @@ romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root
 romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root /srv/archive --dry-run
 romeka import undo 7 -d PATH --preview
 romeka import undo 7 -d PATH [--force all]
-romeka import list -d PATH
+romeka import list -d PATH [--page N] [--per-page N]
 ```
 
 `run` makes a draft owned by `--as` (a global or site administrator) from the
@@ -338,18 +338,31 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   query selects what `GET /api/items` lists for a global administrator, because
   the job runs `omeka_api::site_items`, the change `POST /api/sites/{id}/items`
   runs.
-- `Romeka\Job\ImportArchive` and `Romeka\Job\UndoImport` (Romeka's own):
-  `importId`. The server's import routes compose them; each runs only for an
-  import the server moved to `running` or `undoing` and linked to that job. The
-  run appends each progress line to `job.log` and ends the import `done` or
-  `failed`, its undo window open either way; a run that already wrote is never
-  repeated. The undo ends it `undone` and closes the window; an undo that fails
-  leaves `undoing`, and a later undo converges.
+- `Romeka\Job\ImportRun` and `Romeka\Job\ImportUndo` (Romeka's own): `importId`,
+  and for an undo an optional `force`. The server's import routes compose them;
+  each runs only for an import the server moved to `running` or `undoing` and
+  linked to that job. The run commits one record at a time, appends each progress
+  line to `job.log`, writes a heartbeat every 10 seconds and ends the import
+  `done`, or `run_failed` when no record was written or a stop was asked. A
+  second run of a `run_failed` import skips the records the first one wrote.
+  The undo ends it `undone`, `partly_undone` when it kept a touched resource, or
+  `undo_failed` on an error; a later undo converges.
+- `Romeka\Job\ImportScan`: `importId`. A rescan of the sources of a draft, for
+  a source of more than 20,000 entries. The route does a smaller one in the
+  request.
+- `Romeka\Job\ImportUnzip`: `importId` and `upload`, the id of the finished
+  `.zip`. It writes each entry into the import's staging area and names what it
+  left out in the job log. A refused ZIP ends the job `error` with the reason as
+  the last log line.
+- `Romeka\Job\ImportSweep`: no arguments. It removes the staging files no import
+  needs. `romeka serve` starts it at boot and then every hour.
 
 `romeka job run <id>` takes `--store` (default `files` beside the database),
-`--base-url` (default `http://localhost`) and `--archive-root` (the import is off
-without it). `romeka serve` passes all three, with the store `--store` gave it,
-when it starts a job.
+`--base-url` (default `http://localhost`) and `--archive-root` (the root named
+`archive`; the named roots come from `ROMEKA_ARCHIVE_ROOTS` in the environment).
+It refuses a job whose import has a heartbeat younger than two minutes.
+`romeka serve` passes all three, with the store `--store` gave it, when it
+starts a job.
 
 ## Where this deviates from upstream
 
