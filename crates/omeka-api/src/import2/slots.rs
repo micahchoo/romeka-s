@@ -29,6 +29,23 @@ use super::plan::{
 };
 use super::values::{Value, ValueType, fold_title};
 
+/// A value before the checks, and whether its source read the text as
+/// Windows-1252 (an IPTC or XMP tag that was not UTF-8). That read is
+/// `encoding-suspect` even when the text looks fine.
+pub(crate) struct Raw {
+    value: Value,
+    suspect: bool,
+}
+
+impl From<Value> for Raw {
+    fn from(value: Value) -> Self {
+        Self {
+            value,
+            suspect: false,
+        }
+    }
+}
+
 /// What every record's resolution reads.
 pub(crate) struct Ctx<'a, 'i> {
     pub plan: &'a ImportPlanV2,
@@ -114,17 +131,23 @@ pub(crate) fn resolve(
         .filter(|slot| **slot == identifier)
         .chain(names.iter().filter(|slot| **slot != identifier));
     for slot in ordered {
-        let raw = if let Some(decisions) = decided.and_then(|decided| decided.get(slot)) {
+        let raw: Vec<Raw> = if let Some(decisions) = decided.and_then(|decided| decided.get(slot)) {
             decisions
                 .last()
                 .map(|at| decision_values(&ctx.plan.decisions[*at]))
                 .unwrap_or_default()
+                .into_iter()
+                .map(Raw::from)
+                .collect()
         } else if let Some(rule) = rules.get(slot) {
             from_rule(ctx, draft, slot, rule)
-        } else if *slot == identifier {
-            draft.identifier.iter().map(|text| literal(text)).collect()
         } else {
-            default_item_key(ctx, draft, &slots, &identifier)
+            let plain = if *slot == identifier {
+                draft.identifier.iter().map(|text| literal(text)).collect()
+            } else {
+                default_item_key(ctx, draft, &slots, &identifier)
+            };
+            plain.into_iter().map(Raw::from).collect()
         };
         let values = check(raw, slot, id, entries, book);
         if !values.is_empty() {
@@ -186,7 +209,7 @@ fn decision_values(decision: &Decision) -> Vec<Value> {
         .collect()
 }
 
-fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule) -> Vec<Value> {
+fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule) -> Vec<Raw> {
     let mut values = Vec::new();
     for source in &rule.sources {
         let found = sources::values(ctx, draft, source);
@@ -202,9 +225,9 @@ fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule)
         return values;
     };
     // A value mapped to "" is then empty, and the checks drop it.
-    for value in &mut values {
-        if let Some(to) = map.get(&fold_title(&value.text)) {
-            value.text.clone_from(to);
+    for raw in &mut values {
+        if let Some(to) = map.get(&fold_title(&raw.value.text)) {
+            raw.value.text.clone_from(to);
         }
     }
     values
@@ -212,14 +235,14 @@ fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule)
 
 /// The checks every slot's values pass, whatever gave them.
 fn check(
-    raw: Vec<Value>,
+    raw: Vec<Raw>,
     slot: &SlotName,
     id: RecordId,
     entries: &[EntryRef],
     book: &mut FlagBook<'_>,
 ) -> Vec<SlotValue> {
     let mut values: Vec<Value> = Vec::with_capacity(raw.len());
-    for mut value in raw {
+    for Raw { mut value, suspect } in raw {
         if value.text.trim().is_empty() {
             continue;
         }
@@ -239,7 +262,7 @@ fn check(
                 _ => {}
             }
         }
-        if looks_misdecoded(&value.text)
+        if (suspect || looks_misdecoded(&value.text))
             && raise(book, FlagKind::EncodingSuspect, &value.text) == Some(FlagPolicy::Leave)
         {
             continue;

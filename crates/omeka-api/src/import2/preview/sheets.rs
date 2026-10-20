@@ -218,11 +218,39 @@ fn read_bytes(bytes: &[u8], plan: &SheetPlan) -> ReadSheet {
         Ok(sheet) => Some(sheet.encoding.encoding),
         Err(_) => None,
     };
+    // A workbook is zip or compound bytes: no line of them reads as text,
+    // so its lines are the rows the reader found.
+    let lines = match &sheet {
+        Ok(read) if read.workbook.is_some() => row_lines(read),
+        _ if sheet::workbook::is_packed(head) => Vec::new(),
+        _ => head_lines(head, encoding),
+    };
     ReadSheet {
         guess: sheet::guess(head),
-        lines: head_lines(head, encoding),
+        lines,
         sheet,
     }
+}
+
+/// A workbook's header and first rows, one line each, cells joined by tabs.
+fn row_lines(sheet: &Sheet) -> Vec<String> {
+    let tabbed = |cells: &mut dyn Iterator<Item = &str>| {
+        cells
+            .map(|cell| cell.replace(['\t', '\r', '\n'], " "))
+            .collect::<Vec<_>>()
+            .join("\t")
+    };
+    std::iter::once(tabbed(
+        &mut sheet.columns.iter().map(|column| column.header.as_str()),
+    ))
+    .chain(
+        sheet
+            .rows
+            .iter()
+            .map(|row| tabbed(&mut row.cells.iter().map(String::as_str))),
+    )
+    .take(HEAD_LINES)
+    .collect()
 }
 
 /// The first lines of `head`, decoded with `encoding` (lossy UTF-8 when the
@@ -278,6 +306,38 @@ mod tests {
 
         assert!(cache.read(&plan("missing.csv"), &source).is_none());
         assert!(RelPath::parse("r.csv").is_ok());
+    }
+
+    #[test]
+    fn a_workbook_shows_its_first_rows_tab_joined_and_names_its_sheets() {
+        let mut book = rust_xlsxwriter::Workbook::new();
+        let first = book.add_worksheet().set_name("Register").unwrap();
+        for (col, text) in ["Id", "Title"].into_iter().enumerate() {
+            first.write(0, col as u16, text).unwrap();
+        }
+        first.write(1, 0, "A1").unwrap();
+        first.write(1, 1, "Lamp").unwrap();
+        book.add_worksheet().set_name("Notes").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("r.xlsx"), book.save_to_buffer().unwrap()).unwrap();
+        let source = SourceDir::standalone(dir.path()).unwrap();
+        let read = SheetCache::default()
+            .read(&plan("r.xlsx"), &source)
+            .expect("read");
+        assert_eq!(read.lines, ["Id\tTitle", "A1\tLamp"]);
+        let workbook = read.sheet.as_ref().unwrap().workbook.as_ref().unwrap();
+        assert_eq!(workbook.sheets, ["Register", "Notes"]);
+
+        std::fs::write(dir.path().join("bad.xlsx"), b"PK\x03\x04 not a book").unwrap();
+        let bad = SheetCache::default()
+            .read(&plan("bad.xlsx"), &source)
+            .expect("read");
+        assert!(bad.sheet.is_err());
+        assert!(
+            bad.lines.is_empty(),
+            "zip bytes are no lines: {:?}",
+            bad.lines
+        );
     }
 
     #[test]

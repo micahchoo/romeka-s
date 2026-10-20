@@ -6,7 +6,7 @@ use super::support::*;
 use crate::import2::catalog::{ExistingSet, Field, Template, User};
 use crate::import2::derive::{Sheets, derive};
 use crate::import2::model::{Fate, LeftBy, OwnerRef, SetRef, TemplateRef};
-use crate::import2::plan::{FlagKind, FlagPolicy, Owner, RecordKind};
+use crate::import2::plan::{FlagKind, FlagPolicy, Owner, RecordKind, TagId};
 use crate::import2::values::{ValueType, Visibility};
 
 /// One item per row of a register keyed by `Id`, the plan edited by `edit`.
@@ -575,17 +575,8 @@ fn a57_a69_tags_read_the_first_every_or_one_part_file_and_folders_read_by_level(
         ("Letters/1950s/L1_front.jpg", "Rao", "2019:05:14 11:02:10"),
         ("Letters/1950s/L1_back.jpg", "Iyer", "2019:05:15 09:00:00"),
     ] {
-        tags.0.insert(
-            (path.to_string(), crate::import2::plan::TagId::Artist),
-            artist.to_string(),
-        );
-        tags.0.insert(
-            (
-                path.to_string(),
-                crate::import2::plan::TagId::DateTimeOriginal,
-            ),
-            date.to_string(),
-        );
+        tags.put(path, TagId::Artist, &[artist], false);
+        tags.put(path, TagId::DateTimeOriginal, &[date], false);
     }
     let plan = plan(|plan| {
         plan["grouping"]["pattern"] = json!(PATTERN);
@@ -676,4 +667,37 @@ fn a_new_type_from_a_starter_requires_the_starter_fields_the_catalog_passes() {
         empty[0].slot.as_ref().map(ToString::to_string).as_deref(),
         Some("dcterms:title")
     );
+}
+
+#[test]
+fn a_repeating_tag_gives_one_value_each_and_a_1252_read_raises_encoding_suspect() {
+    let path = "Letters/L1_front.jpg";
+    let mut tags = Tags::default();
+    tags.put(path, TagId::IptcKeywords, &["harbour", "Caf\u{e9}"], false);
+    tags.put(path, TagId::XmpCreator, &["Andr\u{e9}"], true);
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["slots"]["item"]["dcterms:subject"] = rule(
+            json!([{ "from": "tag", "tag": "IPTC Keywords", "files": "first" }]),
+            "all",
+        );
+        plan["slots"]["item"]["dcterms:creator"] = rule(
+            json!([{ "from": "tag", "tag": "XMP dc:creator", "files": "first" }]),
+            "all",
+        );
+    });
+    let model = derive(
+        &index(&[(path, JPEG)]),
+        &Sheets::new(),
+        &plan,
+        &catalog(),
+        &tags,
+    );
+    let letter = item(&model, "L1");
+    assert_eq!(texts(letter, "dcterms:subject"), ["harbour", "Caf\u{e9}"]);
+    assert_eq!(texts(letter, "dcterms:creator"), ["Andr\u{e9}"]);
+    let suspect = flags(&model, FlagKind::EncodingSuspect);
+    assert_eq!(suspect.len(), 1, "{suspect:?}");
+    assert_eq!(suspect[0].detail.as_deref(), Some("Andr\u{e9}"));
+    assert_eq!(suspect[0].policy, Some(FlagPolicy::Keep));
 }
