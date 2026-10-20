@@ -23,37 +23,18 @@
 //! loads the whole table on demand. [`Catalog::load`] is the eager full load,
 //! for a caller that resolves terms itself (the site loader).
 //!
-//! The SQL sits here rather than in `omeka-db` because the projections are
-//! narrower than the row structs those repositories return, and this wave does
-//! not own that crate.
+//! The reads are `omeka_db::repos::TermRepo`'s, whose projections are narrower
+//! than the row structs.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use omeka_db::ids::{ClassId, PropertyId, VocabularyId};
-use sqlx::sqlite::SqliteRow;
-use sqlx::{Row, SqlitePool};
+use omeka_db::repos::{TermRepo, TermScope};
+use sqlx::SqlitePool;
 
+use super::db_error;
 use crate::errors::ApiError;
-
-/// The properties a document can print: the ones a value or a resource template
-/// names. An id outside this set is never passed to [`Catalog::property`].
-const REFERENCED_PROPERTIES: &str = "SELECT p.id, p.vocabulary_id, p.local_name, p.label, v.label FROM property p \
-     JOIN vocabulary v ON v.id = p.vocabulary_id \
-     WHERE p.id IN (SELECT property_id FROM value \
-                  UNION SELECT property_id FROM resource_template_property)";
-
-/// The classes a document can print: the ones a resource names.
-const REFERENCED_CLASSES: &str = "SELECT id, vocabulary_id, local_name FROM resource_class \
-     WHERE id IN (SELECT resource_class_id FROM resource \
-                  WHERE resource_class_id IS NOT NULL)";
-
-const ALL_PROPERTIES: &str = "SELECT p.id, p.vocabulary_id, p.local_name, p.label, v.label FROM property p \
-     JOIN vocabulary v ON v.id = p.vocabulary_id";
-
-const ALL_CLASSES: &str = "SELECT id, vocabulary_id, local_name FROM resource_class";
-
-const PREFIXES: &str = "SELECT id, prefix FROM vocabulary";
 
 /// One property's JSON-LD term and label.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,8 +71,8 @@ impl Catalog {
     /// The whole term table, for a caller that resolves terms itself.
     pub async fn load(pool: &SqlitePool) -> Result<Self, ApiError> {
         let prefixes = prefixes(pool).await?;
-        let properties = load_properties(pool, ALL_PROPERTIES, &prefixes).await?;
-        let classes = load_classes(pool, ALL_CLASSES, &prefixes).await?;
+        let properties = load_properties(pool, TermScope::All, &prefixes).await?;
+        let classes = load_classes(pool, TermScope::All, &prefixes).await?;
         let terms = terms_of(&properties);
         Ok(Self {
             prefixes,
@@ -106,8 +87,8 @@ impl Catalog {
     /// surface needs before it builds a page.
     pub async fn load_for_read(pool: &SqlitePool) -> Result<Self, ApiError> {
         let prefixes = prefixes(pool).await?;
-        let properties = load_properties(pool, REFERENCED_PROPERTIES, &prefixes).await?;
-        let classes = load_classes(pool, REFERENCED_CLASSES, &prefixes).await?;
+        let properties = load_properties(pool, TermScope::Referenced, &prefixes).await?;
+        let classes = load_classes(pool, TermScope::Referenced, &prefixes).await?;
         Ok(Self {
             prefixes,
             properties,
@@ -124,8 +105,8 @@ impl Catalog {
         if self.all.get().is_some() {
             return Ok(());
         }
-        let properties = load_properties(pool, ALL_PROPERTIES, &self.prefixes).await?;
-        let classes = load_classes(pool, ALL_CLASSES, &self.prefixes).await?;
+        let properties = load_properties(pool, TermScope::All, &self.prefixes).await?;
+        let classes = load_classes(pool, TermScope::All, &self.prefixes).await?;
         let terms = terms_of(&properties);
         // A second call races only if two threads share one `Api`, which they do
         // not; a lost set would still leave a complete catalog in place.
@@ -178,72 +159,56 @@ impl Catalog {
     }
 }
 
-async fn rows(pool: &SqlitePool, sql: &str) -> Result<Vec<SqliteRow>, ApiError> {
-    sqlx::query(sql)
-        .fetch_all(pool)
-        .await
-        .map_err(ApiError::internal)
-}
-
-fn int_at(row: &SqliteRow, index: usize) -> Result<i64, ApiError> {
-    row.try_get(index).map_err(ApiError::internal)
-}
-
-fn text_at(row: &SqliteRow, index: usize) -> Result<String, ApiError> {
-    row.try_get(index).map_err(ApiError::internal)
-}
-
 /// The vocabulary prefixes by id.
 async fn prefixes(pool: &SqlitePool) -> Result<HashMap<u64, String>, ApiError> {
-    let mut map = HashMap::new();
-    for row in rows(pool, PREFIXES).await? {
-        map.insert(
-            u64::try_from(int_at(&row, 0)?).unwrap_or(0),
-            text_at(&row, 1)?,
-        );
-    }
-    Ok(map)
+    let rows = TermRepo::new(pool).prefixes().await.map_err(db_error)?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, prefix)| (id.0, prefix))
+        .collect())
 }
 
-/// The property rows a query selects, as `id -> term and label`.
+/// The properties in `scope`, as `id -> term and label`. The referenced scope
+/// holds every property a document can print, so an id outside it is never
+/// passed to [`Catalog::property`].
 async fn load_properties(
     pool: &SqlitePool,
-    sql: &str,
+    scope: TermScope,
     prefixes: &HashMap<u64, String>,
 ) -> Result<HashMap<u64, PropertyInfo>, ApiError> {
-    let mut map = HashMap::new();
-    for row in rows(pool, sql).await? {
-        let id = u64::try_from(int_at(&row, 0)?).unwrap_or(0);
-        let vocabulary = u64::try_from(int_at(&row, 1)?).unwrap_or(0);
-        let local_name = text_at(&row, 2)?;
-        let label = text_at(&row, 3)?;
-        let vocabulary_label = text_at(&row, 4)?;
-        map.insert(
-            id,
-            PropertyInfo {
-                term: term_of(prefixes, vocabulary, &local_name),
-                label,
-                vocabulary_label,
-            },
-        );
-    }
-    Ok(map)
+    let rows = TermRepo::new(pool)
+        .properties(scope)
+        .await
+        .map_err(db_error)?;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let info = PropertyInfo {
+                term: term_of(prefixes, row.vocabulary_id.0, &row.local_name),
+                label: row.label,
+                vocabulary_label: row.vocabulary_label,
+            };
+            (row.id.0, info)
+        })
+        .collect())
 }
 
-/// The resource class rows a query selects, as `id -> term`.
+/// The resource classes in `scope`, as `id -> term`.
 async fn load_classes(
     pool: &SqlitePool,
-    sql: &str,
+    scope: TermScope,
     prefixes: &HashMap<u64, String>,
 ) -> Result<HashMap<u64, String>, ApiError> {
-    let mut map = HashMap::new();
-    for row in rows(pool, sql).await? {
-        let id = u64::try_from(int_at(&row, 0)?).unwrap_or(0);
-        let vocabulary = u64::try_from(int_at(&row, 1)?).unwrap_or(0);
-        let local_name = text_at(&row, 2)?;
-        map.insert(id, term_of(prefixes, vocabulary, &local_name));
-    }
-    Ok(map)
+    let rows = TermRepo::new(pool).classes(scope).await.map_err(db_error)?;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.id.0,
+                term_of(prefixes, row.vocabulary_id.0, &row.local_name),
+            )
+        })
+        .collect())
 }
 
 fn term_of(prefixes: &HashMap<u64, String>, vocabulary: u64, local_name: &str) -> String {

@@ -12,14 +12,13 @@
 
 use std::path::PathBuf;
 
-use omeka_db::repos::{PropertyRepo, TemplateRepo, UserRepo, VocabularyRepo};
+use omeka_db::repos::{PropertyRepo, SettingRepo, TemplateRepo, UserRepo, VocabularyRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, NewUser};
 use omeka_db::{migrate, open_file};
 
 use omeka_core::permissions::Role;
 
 use crate::error::CliError;
-use crate::store;
 use crate::vocabularies;
 
 /// `Module::VERSION` at the frozen SHA, the value the `version` setting holds.
@@ -218,7 +217,7 @@ async fn install_default_settings(
         ("use_htmlpurifier", serde_json::Value::from("1")),
     ];
     for (id, value) in &settings {
-        store::write_setting(pool, id, value).await?;
+        SettingRepo::new(pool).set(id, value).await?;
     }
     Ok(())
 }
@@ -322,7 +321,8 @@ mod tests {
             Some(user.password_hash.as_deref().expect("a stored hash"))
         ));
 
-        let version = store::read_setting(&db.pool, "version")
+        let version = SettingRepo::new(&db.pool)
+            .get("version")
             .await
             .unwrap()
             .expect("version setting");

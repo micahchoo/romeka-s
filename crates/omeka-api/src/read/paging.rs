@@ -102,10 +102,8 @@ impl Limit {
 ///
 /// This is the list endpoints' in-memory fallback. The handlers load every row
 /// the SQL filter matches, drop the rows the actor may not see, order the rest
-/// and slice the page. Moving the window into SQL needs a repository call that
-/// renders the same `WHERE` (the advanced-search rows plus the ACL visibility
-/// filter) with an `ORDER BY`, a `LIMIT`/`OFFSET` and a `COUNT` for the total;
-/// `omeka-db` has no such call and this wave does not own that crate. The cost
+/// and slice the page. `ItemRepo::window` reads the page in SQL for the item
+/// filters it renders (`read/window.rs`); every other shape lands here. The cost
 /// grows with the item set rather than the page: the perf harness measured
 /// about 2.2 us per item in the set at 1000 items, against a page of 25.
 pub fn sorted_page<T>(

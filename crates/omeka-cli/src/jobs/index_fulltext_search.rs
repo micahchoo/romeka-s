@@ -15,11 +15,12 @@
 use async_trait::async_trait;
 
 use omeka_db::ids::ResourceId;
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo};
-use omeka_db::rows::ResourceRow;
+use omeka_db::repos::{
+    FulltextRepo, ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo,
+};
+use omeka_db::rows::{FulltextSearchRow, ResourceRow};
 
 use super::{Job, JobContext, JobError};
-use crate::store::{self, FulltextRow};
 
 /// Upstream pages at `per_page => 100`.
 const PAGE_SIZE: i64 = 100;
@@ -54,7 +55,7 @@ impl Job for IndexFulltextSearch {
     }
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
-        store::fulltext_clear(context.pool).await?;
+        FulltextRepo::new(context.pool).clear().await?;
         for kind in Searchable::ALL {
             index_kind(context, kind).await?;
         }
@@ -75,7 +76,7 @@ async fn index_kind(context: &JobContext<'_>, kind: Searchable) -> Result<(), Jo
         }
         for resource in resources {
             let row = fulltext_row(context, kind, &resource).await?;
-            store::fulltext_save(context.pool, &row).await?;
+            FulltextRepo::new(context.pool).save(&row).await?;
         }
         page += 1;
     }
@@ -112,11 +113,11 @@ async fn fulltext_row(
     context: &JobContext<'_>,
     kind: Searchable,
     resource: &ResourceRow,
-) -> Result<FulltextRow, JobError> {
-    Ok(FulltextRow {
-        id: resource.id.0,
+) -> Result<FulltextSearchRow, JobError> {
+    Ok(FulltextSearchRow {
+        id: resource.id,
         resource: kind.name().to_string(),
-        owner_id: resource.owner_id.map(|id| id.0),
+        owner_id: resource.owner_id,
         is_public: resource.is_public,
         title: resource.title.clone(),
         text: Some(fulltext_text(context, resource).await?),
@@ -235,21 +236,17 @@ mod tests {
         let job_id = compose(&db.pool, &IndexFulltextSearch, serde_json::json!({})).await;
         Runner::new(&db.pool).run(job_id).await.expect("run");
 
-        let rows: Vec<(i64, String, Option<String>, Option<String>)> = sqlx::query_as(
-            "SELECT id, resource, title, text FROM fulltext_search ORDER BY resource, id",
-        )
-        .fetch_all(&db.pool)
-        .await
-        .unwrap();
+        let rows = FulltextRepo::new(&db.pool).list().await.unwrap();
         assert_eq!(rows.len(), 2, "one row per indexed resource");
-        assert_eq!(rows[0].1, "item_sets");
-        assert_eq!(rows[1].1, "items");
-        assert_eq!(rows[1].2.as_deref(), Some("A painting"));
-        let text = rows[1].3.as_deref().unwrap();
+        assert_eq!(rows[0].resource, "item_sets");
+        assert_eq!(rows[1].resource, "items");
+        assert_eq!(rows[1].title.as_deref(), Some("A painting"));
+        let text = rows[1].text.as_deref().unwrap();
         assert!(text.contains("Oil on canvas"), "text was {text:?}");
         assert!(!text.contains("secret"), "private value leaked: {text:?}");
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),

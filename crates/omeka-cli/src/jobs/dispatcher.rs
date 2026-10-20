@@ -3,13 +3,14 @@
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-use omeka_db::ids::JobId;
+use omeka_db::ids::{JobId, UserId};
+use omeka_db::repos::JobRepo;
+use omeka_db::rows::NewJob;
 use serde_json::Value;
 use sqlx::SqlitePool;
 
 use super::status::JobStatus;
 use super::{Job, JobEnv, JobError};
-use crate::store;
 
 /// What a job sees: the pool, its own row id, its `args` JSON, and the
 /// process's [`JobEnv`].
@@ -42,7 +43,11 @@ impl JobContext<'_> {
     /// # Errors
     /// A database error while reading the job row.
     pub async fn should_stop(&self) -> Result<bool, JobError> {
-        Ok(store::job_status(self.pool, self.job_id).await?.as_deref() == Some("stopping"))
+        Ok(JobRepo::new(self.pool)
+            .status(self.job_id)
+            .await?
+            .as_deref()
+            == Some("stopping"))
     }
 
     /// Append a line to the job log.
@@ -50,9 +55,35 @@ impl JobContext<'_> {
     /// # Errors
     /// A database error while updating the job row.
     pub async fn log(&self, message: &str) -> Result<(), JobError> {
-        store::job_append_log(self.pool, self.job_id, message).await?;
+        JobRepo::new(self.pool)
+            .append_log(self.job_id, message)
+            .await?;
         Ok(())
     }
+}
+
+/// Compose a `job` row in `starting` status, as `Dispatcher::dispatch` does.
+///
+/// # Errors
+/// A database error writing the row.
+pub async fn compose_job(
+    pool: &SqlitePool,
+    class: &str,
+    args: &Value,
+    owner_id: Option<UserId>,
+) -> Result<JobId, omeka_db::DbError> {
+    let row = JobRepo::new(pool)
+        .create(&NewJob {
+            owner_id,
+            pid: None,
+            status: Some("starting".to_string()),
+            class: class.to_string(),
+            args: Some(args.clone()),
+            log: None,
+            started: None,
+        })
+        .await?;
+    Ok(row.id)
 }
 
 /// The `romeka job run <id>` command line a new job process runs.
@@ -164,10 +195,14 @@ impl<'a> Dispatcher<'a> {
     /// A database error composing the row, or [`JobError::Runtime`] when the
     /// process cannot be started. A start failure leaves the row `error`.
     pub async fn dispatch(&self, job: &dyn Job, args: Value) -> Result<JobId, JobError> {
-        let id = store::job_create(self.pool, job.class(), &args, None).await?;
+        let id = compose_job(self.pool, job.class(), &args, None).await?;
         if let Err(error) = self.command.spawn(id) {
-            let _ = store::job_append_log(self.pool, id, &error.to_string()).await;
-            let _ = store::job_finish(self.pool, id, JobStatus::Error.as_str()).await;
+            let _ = JobRepo::new(self.pool)
+                .append_log(id, &error.to_string())
+                .await;
+            let _ = JobRepo::new(self.pool)
+                .finish(id, JobStatus::Error.as_str())
+                .await;
             return Err(error);
         }
         Ok(id)

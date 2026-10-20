@@ -33,10 +33,23 @@ and never asks which engine it is running on. Those pieces are:
 | replace on a duplicate key | `ON CONFLICT (...) DO UPDATE SET x = excluded.x` | `ON DUPLICATE KEY UPDATE x = VALUES(x)` |
 | quote a reserved name | bare name | backticked (`value`, which MariaDB reserves) |
 | full-text search | `MATCH` on the FTS5 mirror, `bm25` negated | `MATCH ... AGAINST`, score as the server reports it |
+| append to a text column | `log \|\| ? \|\| char(10)` | `CONCAT(log, ?, char(10))`, because MySQL reads `\|\|` as OR |
+| consistent database snapshot | `VACUUM INTO ?` | refused with `DbError::Unsupported` |
 
 Everything else is shared: table names, column names, `?` placeholders, the join and filter shapes,
-and the row structs. `src/rows/**` parses one struct per upstream table through `Backend`, which
+the readiness ping (`SELECT 1`), window functions (`COUNT(*) OVER ()`) and the row structs. `src/rows/**` parses one struct per upstream table through `Backend`, which
 owns the per-engine decoding.
+
+No other crate holds SQL. `omeka-api`, `omeka-server` and `omeka-cli` reach every table through a
+repository, so a caller that is generic over `Backend` runs on either engine with no SQL of its
+own. The integration tests of those crates still arrange fixtures with raw SQLite statements; that
+is test setup, not a path a client reaches.
+
+A MySQL backup is the operator's. MySQL has no statement that writes a database to a file, and a
+consistent copy is `mysqldump --single-transaction` or a physical backup tool, which an operator who
+runs MySQL already has. The `romeka backup` archive carries a SQLite file that `romeka restore` opens
+as SQLite, so a second dump format would also need a second restore. `DatabaseRepo::snapshot_into`
+therefore refuses on MySQL rather than writing a partial copy.
 
 Two seams were rejected. A second repository set per backend duplicates the 3,096 lines of
 `src/repos` and drifts. `sqlx::Any` would bind one implementation at runtime, but `open_memory` and `open_file` must
@@ -64,8 +77,13 @@ offer upstream's `get`, `set`, `delete` and a list, and the two target tables ke
 `request_stop`, `append_log`, `clear_pid` and `finish`. `module` carries install, activate,
 upgrade and uninstall. `item_site` is `ItemSiteRepo`: `create` attaches an item to a site and
 `list` reads every membership, which is the shape the migrator needs. `asset`, `session`,
-`password_creation` and `site_block_attachment` carry the reads and writes their callers make. The
-rest of the evidence is in `tests/`, one file per repository group.
+`password_creation` and `site_block_attachment` carry the reads and writes their callers make.
+`RelationRepo` reads one relation (media, memberships, values, reverse references, thumbnails,
+template properties) for a whole page of resources in one statement. `TermRepo` reads the
+vocabulary prefixes and the property and class terms a request can print. `ItemRepo::window` reads
+one page of items and the total its filter matches in one statement. `DatabaseRepo` holds the
+whole-database operations: the readiness ping, a table's row count and the backup snapshot. The rest
+of the evidence is in `tests/`, one file per repository group.
 
 A value annotation is a `resource` row of the `value_annotation` kind plus the `value_annotation`
 identity row, and `value.value_annotation_id` points at it (`migrations/0001_init.sql`, `Entity/Value.php`

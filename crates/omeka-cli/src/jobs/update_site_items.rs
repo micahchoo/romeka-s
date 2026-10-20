@@ -105,15 +105,12 @@ mod tests {
     use super::*;
     use crate::jobs::Runner;
     use crate::testing::{compose, seeded_db};
-    use omeka_db::repos::ItemRepo;
+    use omeka_db::repos::{ItemRepo, ItemSiteRepo};
     use omeka_db::rows::{NewItem, NewResource, NewSite};
 
     async fn count(site: SiteId, pool: &sqlx::SqlitePool) -> i64 {
-        sqlx::query_scalar("SELECT COUNT(*) FROM item_site WHERE site_id = ?")
-            .bind(site.0 as i64)
-            .fetch_one(pool)
-            .await
-            .unwrap()
+        let items = ItemSiteRepo::new(pool).site_items(site).await.unwrap();
+        i64::try_from(items.len()).unwrap()
     }
 
     #[tokio::test]
@@ -152,7 +149,8 @@ mod tests {
         Runner::new(&db.pool).run(job_id).await.expect("run");
         assert_eq!(count(site.id, &db.pool).await, 3);
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),
@@ -201,7 +199,8 @@ mod tests {
             "got {error:?}"
         );
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),

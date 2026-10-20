@@ -29,7 +29,7 @@ use omeka_media::HttpClient;
 use sqlx::SqlitePool;
 
 use super::{Job, JobContext, JobError};
-use crate::{store, system_api};
+use crate::system_api;
 
 fn import_id(context: &JobContext<'_>) -> Result<ImportId, JobError> {
     context
@@ -183,7 +183,8 @@ async fn undo(
 /// The job's owner pressed Run: they are the plan's `runner`, and a site
 /// admin may name only themself as an owner, as the route derived.
 async fn runner(pool: &SqlitePool, job: JobId) -> Result<Runner, JobError> {
-    let owner = store::job_get(pool, job)
+    let owner = omeka_db::repos::JobRepo::new(pool)
+        .get(job)
         .await?
         .and_then(|row| row.owner_id);
     let Some(user) = owner else {
@@ -251,7 +252,7 @@ impl Job for ImportScan {
 /// # Errors
 /// [`JobError::Runtime`] naming the live import; a database error.
 pub async fn refuse_live_hand_run(pool: &SqlitePool, job: JobId) -> Result<(), JobError> {
-    let Some(row) = store::job_get(pool, job).await? else {
+    let Some(row) = omeka_db::repos::JobRepo::new(pool).get(job).await? else {
         return Ok(());
     };
     if row.class != RUN_JOB && row.class != UNDO_JOB {

@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 
 use omeka_db::ids::JobId;
+use omeka_db::repos::{JobFilter, JobRepo, Paging};
 use omeka_db::rows::JobRow;
 
 use omeka_api::import2::archive::ArchiveRoots;
@@ -17,7 +18,6 @@ const ARCHIVE: &str = "archive";
 
 use crate::CliError;
 use crate::jobs::{JobEnv, JobStatus, Runner, refuse_live_hand_run};
-use crate::store;
 
 /// Run one stored job in this process (`romeka job run <id>`).
 ///
@@ -38,7 +38,9 @@ pub async fn run(options: &RunOptions) -> Result<JobStatus, CliError> {
 /// A database error.
 pub async fn list(options: &ListOptions) -> Result<Vec<JobRow>, CliError> {
     let pool = omeka_db::open_file(&options.database).await?;
-    Ok(store::job_list(&pool).await?)
+    Ok(JobRepo::new(&pool)
+        .list(&JobFilter::default(), &Paging::default())
+        .await?)
 }
 
 /// One job row, or `None` when no row has that id.
@@ -47,7 +49,7 @@ pub async fn list(options: &ListOptions) -> Result<Vec<JobRow>, CliError> {
 /// A database error.
 pub async fn show(options: &ShowOptions) -> Result<Option<JobRow>, CliError> {
     let pool = omeka_db::open_file(&options.database).await?;
-    Ok(store::job_get(&pool, JobId::from(options.id)).await?)
+    Ok(JobRepo::new(&pool).get(JobId::from(options.id)).await?)
 }
 
 /// Ask a running job to stop. Returns whether the row changed, which is false
@@ -57,7 +59,9 @@ pub async fn show(options: &ShowOptions) -> Result<Option<JobRow>, CliError> {
 /// A database error.
 pub async fn stop(options: &StopOptions) -> Result<bool, CliError> {
     let pool = omeka_db::open_file(&options.database).await?;
-    Ok(store::job_request_stop(&pool, JobId::from(options.id)).await?)
+    Ok(JobRepo::new(&pool)
+        .request_stop(JobId::from(options.id))
+        .await?)
 }
 
 /// Input for `romeka job run`.

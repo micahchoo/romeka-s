@@ -51,7 +51,7 @@ pub struct ItemSetFilter {
 
 /// `resource` rows: read, update and delete by the shared id.
 pub struct ResourceRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ResourceRepo<'a, DB>
@@ -222,12 +222,13 @@ where
     Ok(DB::rows_affected(&done) > 0)
 }
 
-const ITEM_COLUMNS: &str = "SELECT resource.*, item.primary_media_id FROM item
-     JOIN resource ON resource.id = item.id";
+/// The `item` row's columns: every `resource` column plus `item.primary_media_id`.
+pub(super) const ITEM_PROJECTION: &str = "SELECT resource.*, item.primary_media_id";
+pub(super) const ITEM_FROM: &str = " FROM item JOIN resource ON resource.id = item.id";
 
 /// `item` rows.
 pub struct ItemRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ItemRepo<'a, DB>
@@ -298,7 +299,7 @@ where
     }
 
     pub async fn get(&self, id: ItemId) -> Result<Option<ItemRow>, DbError> {
-        let sql = format!("{ITEM_COLUMNS} WHERE item.id = ?");
+        let sql = format!("{ITEM_PROJECTION}{ITEM_FROM} WHERE item.id = ?");
         let row = sqlx::query(&sql)
             .bind(bind_id(id))
             .fetch_optional(self.pool)
@@ -352,7 +353,7 @@ where
         query: &QueryFilter,
         paging: &Paging,
     ) -> Result<Vec<ItemRow>, DbError> {
-        let mut statement = Statement::<DB>::new(ITEM_COLUMNS);
+        let mut statement = Statement::<DB>::new(&format!("{ITEM_PROJECTION}{ITEM_FROM}"));
         statement.push(" WHERE 1 = 1");
         if let Some(owner_id) = filter.owner_id {
             statement.push(" AND resource.owner_id = ");

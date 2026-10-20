@@ -14,6 +14,7 @@
 //!   IGNORE` against `INSERT IGNORE`),
 //! - the full-text query (`MATCH` on the FTS5 mirror against MySQL's `MATCH ... AGAINST`).
 //! - how a transaction serializes against other writers (`BEGIN IMMEDIATE` against `FOR UPDATE`).
+//! - the consistent database snapshot a backup archives (`VACUUM INTO`, which MySQL lacks).
 //!
 //! Everything else is shared: table and column names, `?` placeholders, the join and filter shapes
 //! of the repositories, and the row structs. `DESIGN.md` fixes the port on one storage engine per
@@ -197,6 +198,16 @@ pub trait Backend: Database {
 
     /// The score as the port reports it, where higher is a better match.
     fn fulltext_score(raw: f64) -> f64;
+
+    /// The statement that writes a consistent copy of the whole database to the file path it
+    /// binds, or why this engine has none.
+    ///
+    /// SQLite's `VACUUM INTO` copies from one read transaction, so the copy is one point in time
+    /// even while the server writes. MySQL has no statement that writes a database to a file. A
+    /// consistent MySQL copy is `mysqldump --single-transaction` or a physical backup tool, which
+    /// the operator already runs, and the archive format carries a SQLite file that `romeka
+    /// restore` opens as SQLite. So MySQL refuses rather than writing a second dump format.
+    fn snapshot_into() -> Result<&'static str, &'static str>;
 }
 
 /// Decode one column, naming it in the error rather than reporting a bare column index.
@@ -380,6 +391,10 @@ impl Backend for sqlx::Sqlite {
     fn fulltext_score(raw: f64) -> f64 {
         -raw
     }
+
+    fn snapshot_into() -> Result<&'static str, &'static str> {
+        Ok("VACUUM INTO ?")
+    }
 }
 
 #[cfg(feature = "mysql")]
@@ -544,5 +559,12 @@ impl Backend for sqlx::MySql {
 
     fn fulltext_score(raw: f64) -> f64 {
         raw
+    }
+
+    fn snapshot_into() -> Result<&'static str, &'static str> {
+        Err(
+            "back up a MySQL database with the server's own tools, such as mysqldump \
+             --single-transaction",
+        )
     }
 }

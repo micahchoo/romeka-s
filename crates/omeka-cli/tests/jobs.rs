@@ -12,7 +12,6 @@ use sqlx::SqlitePool;
 use tempfile::TempDir;
 
 use omeka_cli::jobs::{BatchDelete, Dispatcher, Job};
-use omeka_cli::store;
 use omeka_db::ids::JobId;
 use omeka_db::repos::{ItemRepo, Paging};
 use omeka_db::rows::{NewItem, NewResource};
@@ -45,7 +44,8 @@ fn romeka() -> &'static str {
 async fn wait_for_terminal(pool: &SqlitePool, id: JobId) -> Option<String> {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        let status = store::job_get(pool, id)
+        let status = omeka_db::repos::JobRepo::new(pool)
+            .get(id)
             .await
             .unwrap()
             .and_then(|row| row.status);
@@ -63,7 +63,7 @@ async fn wait_for_terminal(pool: &SqlitePool, id: JobId) -> Option<String> {
 #[tokio::test]
 async fn the_job_command_runs_a_stored_row() {
     let db = temp_db().await;
-    let job_id = store::job_create(
+    let job_id = omeka_cli::jobs::compose_job(
         &db.pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "items"}),
@@ -83,7 +83,8 @@ async fn the_job_command_runs_a_stored_row() {
         "stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let row = store::job_get(&db.pool, job_id)
+    let row = omeka_db::repos::JobRepo::new(&db.pool)
+        .get(job_id)
         .await
         .unwrap()
         .expect("row");
@@ -95,7 +96,7 @@ async fn the_job_command_runs_a_stored_row() {
 #[tokio::test]
 async fn a_failed_job_records_the_reason_and_show_prints_it() {
     let db = temp_db().await;
-    let job_id = store::job_create(
+    let job_id = omeka_cli::jobs::compose_job(
         &db.pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "widgets"}),
@@ -111,7 +112,8 @@ async fn a_failed_job_records_the_reason_and_show_prints_it() {
         .expect("start romeka job run");
     assert!(!run.status.success(), "a failed job exits nonzero");
 
-    let row = store::job_get(&db.pool, job_id)
+    let row = omeka_db::repos::JobRepo::new(&db.pool)
+        .get(job_id)
         .await
         .unwrap()
         .expect("row");
@@ -178,7 +180,7 @@ async fn a_dispatched_job_finishes_after_the_client_goes_away() {
 #[tokio::test]
 async fn the_stop_command_refuses_a_job_that_is_not_running() {
     let db = temp_db().await;
-    let job_id = store::job_create(
+    let job_id = omeka_cli::jobs::compose_job(
         &db.pool,
         BatchDelete.class(),
         &serde_json::json!({"resource": "items"}),
@@ -202,7 +204,8 @@ async fn the_stop_command_refuses_a_job_that_is_not_running() {
         "stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let row = store::job_get(&db.pool, job_id)
+    let row = omeka_db::repos::JobRepo::new(&db.pool)
+        .get(job_id)
         .await
         .unwrap()
         .expect("row");
