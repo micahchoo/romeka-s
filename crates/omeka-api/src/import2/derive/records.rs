@@ -2,7 +2,7 @@
 //! flags that can leave a file out (`name-encoding`, `not-media`,
 //! `format-mismatch`).
 
-use super::super::catalog::{Catalog, extension};
+use super::super::catalog::{self, Catalog, extension};
 use super::super::decisions::EntryRef;
 use super::super::flags::{FlagBook, expected_types};
 use super::super::grouping::Grouping;
@@ -80,7 +80,7 @@ fn file_flags(
             found.push((FlagKind::NameEncoding, format!("{:?}", decoded.encoding)));
         }
         let name = file.entry.name();
-        if let Some(refused) = catalog.files.refusal(name, &file.entry.sniffed) {
+        if let Some(refused) = catalog::refusal(&catalog.files, name, &file.entry.sniffed) {
             found.push((FlagKind::NotMedia, refused));
         }
         let mismatch = extension(name).and_then(|extension| {

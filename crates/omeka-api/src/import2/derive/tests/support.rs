@@ -177,6 +177,7 @@ pub fn catalog() -> Catalog {
             fields: Vec::new(),
         }],
         base_template: Some(1),
+        files: omeka_media::validation::FileValidation::Disabled,
         ..Catalog::default()
     }
 }

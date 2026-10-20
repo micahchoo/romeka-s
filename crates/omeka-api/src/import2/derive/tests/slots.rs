@@ -646,3 +646,34 @@ fn a57_a69_tags_read_the_first_every_or_one_part_file_and_folders_read_by_level(
         [JPEG]
     );
 }
+
+#[test]
+fn a_new_type_from_a_starter_requires_the_starter_fields_the_catalog_passes() {
+    let mut catalog = catalog();
+    catalog.starters.insert(
+        crate::import2::plan::StarterId::Letter,
+        vec![Field {
+            term: term("dcterms:title"),
+            required: true,
+            data_types: Vec::new(),
+        }],
+    );
+    let model = register_in(
+        &["Id", "Title"],
+        "Id,Title\n1,Dear\n2,\n",
+        &catalog,
+        |plan| {
+            plan["slots"]["item"]["template"] =
+                rule(json!([{ "from": "constant", "value": "Letter" }]), "first");
+            plan["slots"]["item"]["dcterms:title"] = rule(json!([col("r", 1, "Title")]), "first");
+            plan["newTypes"] =
+                json!([{ "label": "Letter", "from": { "starter": "letter" }, "class": null }]);
+        },
+    );
+    let empty = flags(&model, FlagKind::EmptyRequired);
+    assert_eq!(empty.len(), 1, "row 2 has no title: {empty:?}");
+    assert_eq!(
+        empty[0].slot.as_ref().map(ToString::to_string).as_deref(),
+        Some("dcterms:title")
+    );
+}

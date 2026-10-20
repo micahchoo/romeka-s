@@ -431,3 +431,16 @@ fn a_value_map_holds_only_text() {
     });
     assert!(shape_error(&error).contains("string"), "{error:?}");
 }
+
+#[test]
+fn two_value_map_keys_that_fold_to_one_title_are_refused() {
+    let error = refused(FULL, |plan| {
+        plan["slots"]["item"]["template"]["map"] =
+            json!({ "AF": "Artifact", " af ": "Photograph" });
+    });
+    assert!(
+        matches!(&error, PlanError::MapKeysCollide { first, second, .. }
+            if first == "AF" && second == " af "),
+        "{error:?}"
+    );
+}

@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 126); the other
- * 78 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 150); the other
+ * 102 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -153,4 +153,41 @@ export const esServer: ServerCatalogue = {
   'server.publicationMatchTermLists':
     'Solo los términos de una lista de términos se enlazan a una autoridad.',
   'server.publicationTermIriInvalid': 'El URI de término {uri} no es un IRI válido.',
+  'server.importAdminsOnly': 'Solo un administrador global o de sitio puede importar un archivo.',
+  'server.importNotFound': 'Ninguna importación tiene el id {id}.',
+  'server.importRequestUnreadable': 'No se puede leer la solicitud: {reason}',
+  'server.importPlanRefused': 'No se puede guardar el plan: {reason}',
+  'server.importStale':
+    'Otra persona guardó esta importación después de que la abrieras. Vuelve a cargarla para ver sus cambios.',
+  'server.importPlanFrozen':
+    'Esta importación ya empezó, así que su plan no puede cambiar. Haz una copia para cambiarlo.',
+  'server.importV1Plan':
+    'Esta importación se hizo con el importador antiguo, así que no se puede abrir ni copiar aquí.',
+  'server.importTypeExists':
+    'Ya existe un tipo de ficha llamado "{label}". Elige otro nombre para el tipo nuevo.',
+  'server.importDeleteNotDraft':
+    'Solo se puede eliminar un borrador. Una importación que se ha ejecutado queda en el historial.',
+  'server.importChanged':
+    'Los archivos o el plan cambiaron después de la última comprobación. Vuelve a comprobar la importación antes de ejecutarla.',
+  'server.importBlocked':
+    'Esta importación no puede ejecutarse hasta que se corrijan los problemas que indica la comprobación.',
+  'server.importNothingToRun': 'Esta importación no tiene nada que escribir.',
+  'server.importConfirmDelete':
+    'Esta importación elimina {count} recursos y no se puede deshacer. Confirma con ese número para ejecutarla.',
+  'server.importBusy':
+    'Otra importación se está ejecutando o deshaciendo. Vuelve a intentarlo cuando haya terminado.',
+  'server.importCannotRun':
+    'Solo puede ejecutarse un borrador o una importación cuya ejecución falló.',
+  'server.importCannotUndo':
+    'Solo se puede deshacer una importación que terminó, o cuya ejecución o deshacer falló.',
+  'server.importNotRunning': 'Esta importación no se está ejecutando.',
+  'server.importNoRoot': 'No hay ninguna carpeta de archivo llamada "{root}".',
+  'server.importOutsideRoot': 'La carpeta "{path}" está fuera de la carpeta de archivo.',
+  'server.importFolderMissing': 'No hay ninguna carpeta "{path}" en el archivo.',
+  'server.importNotAFolder': '"{path}" es un archivo, no una carpeta.',
+  'server.importScanBusy':
+    'Esta importación se está ejecutando o deshaciendo. Vuelve a escanearla cuando haya terminado.',
+  'server.importNoLeftFile':
+    'Esta importación aún no tiene una lista de archivos que quedaron fuera. Se escribe cuando termina una ejecución.',
+  'server.importJobNotStarted': 'No se pudo iniciar la importación: {reason}',
 };

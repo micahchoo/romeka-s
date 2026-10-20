@@ -4,11 +4,12 @@
 use serde_json::json;
 
 use super::support::*;
-use crate::import2::catalog::{Catalog, FileRules, Template};
+use crate::import2::catalog::{Catalog, Template};
 use crate::import2::derive::{Index, NoTags, Sheets, derive};
 use crate::import2::model::{Fate, Link, Model, OrphanReason, Parent, SetRef, TemplateRef};
 use crate::import2::plan::{FlagKind, ImportPlanV2, RecordKind};
 use crate::import2::values::Visibility;
+use omeka_media::validation::FileValidation;
 
 const BHC: &str = r"^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z]{2}_\d{3})(?:_(?<part>[a-z0-9]+))?\.(?:jpg|tif)$";
 
@@ -33,7 +34,7 @@ fn bhc_index() -> Index {
 
 fn bhc_catalog() -> Catalog {
     let mut catalog = catalog();
-    catalog.files = FileRules::Allow {
+    catalog.files = FileValidation::Allow {
         media_types: [JPEG, TIFF, TEXT].iter().map(ToString::to_string).collect(),
         extensions: ["jpg", "tif", "txt"]
             .iter()

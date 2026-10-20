@@ -5,12 +5,13 @@ use std::collections::BTreeMap;
 use serde_json::json;
 
 use super::support::*;
-use crate::import2::catalog::{ExistingItem, FileRules, Keys};
+use crate::import2::catalog::{ExistingItem, Keys};
 use crate::import2::derive::{NoTags, Sheets, derive};
 use crate::import2::evidence::Anomalies;
 use crate::import2::model::{Anomaly, Model, OrphanReason};
 use crate::import2::plan::{FlagKind, FlagPolicy, PolicyDefault, RecordKind};
 use crate::import2::sheet::SheetError;
+use omeka_media::validation::FileValidation;
 
 fn anomaly(model: &Model, pick: impl Fn(&Anomaly) -> bool) -> Vec<&Anomaly> {
     model
@@ -239,7 +240,7 @@ fn every_kind() -> Vec<Model> {
         keys: Keys::from([(term("dcterms:identifier"), vec!["E1".to_string()])]),
         sets: vec![],
     }];
-    catalog.files = FileRules::Allow {
+    catalog.files = FileValidation::Allow {
         media_types: [JPEG.to_string(), "image/png".to_string()].into(),
         extensions: ["jpg".to_string(), "png".to_string()].into(),
     };

@@ -66,7 +66,17 @@ fn slots(plan: &ImportPlanV2) -> Result<(), PlanError> {
             }
         }
     }
-    for (_, rule) in plan.slots.rules() {
+    for (slot, rule) in plan.slots.rules() {
+        let mut keys: BTreeMap<String, &str> = BTreeMap::new();
+        for key in rule.map.keys() {
+            if let Some(first) = keys.insert(fold_title(key), key) {
+                return Err(PlanError::MapKeysCollide {
+                    slot: slot.to_string(),
+                    first: first.to_string(),
+                    second: key.clone(),
+                });
+            }
+        }
         for source in &rule.sources {
             let SourceRef::Column { sheet, column } = source else {
                 continue;

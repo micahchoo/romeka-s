@@ -3,11 +3,11 @@
 use serde_json::json;
 
 use super::support::*;
-use crate::import2::catalog::FileRules;
 use crate::import2::decisions::EntryRef;
 use crate::import2::derive::{NoTags, Sheets, derive};
 use crate::import2::model::{Fate, GroupKey, LeftBy, Origin, OrphanReason};
 use crate::import2::plan::{FlagKind, FlagPolicy, RecordKind};
+use omeka_media::validation::FileValidation;
 
 fn file_ref(path: &str) -> serde_json::Value {
     json!({ "file": { "source": "s1", "path": path } })
@@ -353,7 +353,7 @@ fn a82_files_the_install_refuses_are_not_media_and_left_out() {
     ];
     let plan = plan(|plan| plan["grouping"]["pattern"] = json!(PATTERN));
     let mut catalog = catalog();
-    catalog.files = FileRules::Allow {
+    catalog.files = FileValidation::Allow {
         media_types: [JPEG.to_string()].into(),
         extensions: ["jpg".to_string()].into(),
     };

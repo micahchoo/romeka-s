@@ -29,6 +29,8 @@ use tower::ServiceBuilder;
 use omeka_api::auth;
 use omeka_api::auth_cache::AuthCache;
 use omeka_api::errors::{ApiError, ErrorDocument};
+use omeka_api::import2::archive::ArchiveRoots;
+use omeka_api::import2::preview::Caches;
 use omeka_api::jsonld::{self, BaseUrl};
 use omeka_api::limits::Limiter;
 use omeka_api::read::{Api, ApiResponse, Params};
@@ -97,6 +99,12 @@ pub struct AppState {
     /// True when the configured base URL is https, so a session cookie is
     /// marked `Secure`.
     pub(crate) secure_cookies: bool,
+    /// The runner the import routes start their jobs through.
+    pub(crate) jobs: Arc<dyn JobDispatch>,
+    /// The named archive folders an import's folder sources read.
+    pub(crate) archive_roots: Arc<ArchiveRoots>,
+    /// The tag, sheet and evidence index caches every preview shares.
+    pub(crate) import_caches: Arc<Caches>,
 }
 
 /// What the process supplies beyond the pool and the [`Config`]: the file
@@ -171,6 +179,9 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         limiter: Limiter::new(omeka_api::limits::RateLimits::default()),
         mailer: Mailer::from_config(&config.mail, base.clone()),
         secure_cookies,
+        jobs: services.jobs,
+        archive_roots: Arc::new(config.archive_roots.clone()),
+        import_caches: Arc::new(Caches::default()),
     };
     let routes = Router::new()
         .route("/health", get(health))
