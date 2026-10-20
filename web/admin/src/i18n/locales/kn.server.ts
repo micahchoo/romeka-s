@@ -200,4 +200,37 @@ export const knServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'ಈ ಇಂಪೋರ್ಟ್ ಇನ್ನೂ ಬಿಟ್ಟುಬಿಟ್ಟ ಫೈಲ್‌ಗಳ ಪಟ್ಟಿಯನ್ನು ಹೊಂದಿಲ್ಲ. ರನ್ ಮುಗಿದಾಗ ಇದನ್ನು ಬರೆಯಲಾಗುತ್ತದೆ.',
   'server.importJobNotStarted': 'ಇಂಪೋರ್ಟ್ ಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importListColumnUnknown':
+    'ಪಟ್ಟಿಯಲ್ಲಿ "{column}" ಕಾಲಮ್ ಇರಲು ಸಾಧ್ಯವಿಲ್ಲ. ಒಂದು ಪ್ರಾಪರ್ಟಿ, ಐಟಂ ಸೆಟ್‌ಗಳು, ಐಟಂ ಪ್ರಕಾರ ಅಥವಾ ವಿಸಿಬಿಲಿಟಿಯನ್ನು ಆರಿಸಿ.',
+  'server.importListOneFile': 'ಫಾರ್ಮ್‌ನಲ್ಲಿ ಒಂದು ಪಟ್ಟಿ ಫೈಲ್ ಅನ್ನು ಕಳುಹಿಸಿ.',
+  'server.importListType':
+    '"{name}" CSV ಅಥವಾ TSV ಫೈಲ್ ಅಲ್ಲ. ಪಟ್ಟಿಯನ್ನು CSV ಅಥವಾ TSV ಆಗಿ ಉಳಿಸಿ, ನಂತರ ಅದನ್ನು ಮತ್ತೆ ಕಳುಹಿಸಿ.',
+  'server.importListTooLarge': 'ಪಟ್ಟಿಯು 50 MB ಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ.',
+  'server.importListUnread': 'ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ: {reason}',
+  'server.importListNoIdentifier':
+    'ಪಟ್ಟಿಯಲ್ಲಿ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಅದರ ಸಾಲುಗಳು ತಮ್ಮ ಐಟಂಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಿಲ್ಲ. ನೀವು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಪಟ್ಟಿಯ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಅನ್ನು ಇರಿಸಿ.',
+  'server.importFileUnreadable': '"{path}" ಫೈಲ್ ಅನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importFileRefused': '"{path}" ಫೈಲ್ ಅನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ: {reason}',
+  'server.importFileNotStored': '"{path}" ಫೈಲ್ ಅನ್ನು ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importSourceRefused': '"{source}" ಅನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ: {reason}',
+  'server.importMediaNoSource': 'ಈ ಮೀಡಿಯಾಕ್ಕೆ ಸೇರಿಸಲು ಯಾವುದೇ ಫೈಲ್ ಅಥವಾ ವಿಳಾಸವನ್ನು ಹೆಸರಿಸಿಲ್ಲ.',
+  'server.importMediaNoItem':
+    'ಈ ಮೀಡಿಯಾದ ಐಟಂ ಅನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಮೀಡಿಯಾವನ್ನು ಸಹ ಸೇರಿಸಲಾಗಿಲ್ಲ.',
+  'server.importResourceGone': 'ಈ ದಾಖಲೆ ಬದಲಾಯಿಸುವ ಐಟಂ, ಮೀಡಿಯಾ ಅಥವಾ ಐಟಂ ಸೆಟ್ ಈಗ Omeka ನಲ್ಲಿ ಇಲ್ಲ.',
+  'server.importRecordNotSaved': 'ಈ ದಾಖಲೆಯನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importLinksNotSaved': 'ಈ ದಾಖಲೆಯ ಲಿಂಕ್‌ಗಳನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importSitesNotJoined':
+    'ಈ ಐಟಂ ಅನ್ನು ಸೇರಿಸಲಾಗಿದೆ, ಆದರೆ ಅದನ್ನು ಅದರ ಸೈಟ್‌ಗಳಿಗೆ ಸೇರಿಸಲಾಗಿಲ್ಲ: {reason}',
+  'server.importUndoEdited': 'ಆಮದು ಇದನ್ನು ಬರೆದ ನಂತರ ಇದನ್ನು ಸಂಪಾದಿಸಲಾಗಿದೆ.',
+  'server.importUndoLinked': 'ಈ ಆಮದಿನ ಹೊರಗಿನ ಒಂದು ಐಟಂ, ಮೀಡಿಯಾ ಅಥವಾ ಐಟಂ ಸೆಟ್ ಇದಕ್ಕೆ ಲಿಂಕ್ ಆಗಿದೆ.',
+  'server.importUndoMediaAdded': 'ಈ ಆಮದಿನ ಹೊರಗಿನಿಂದ ಈ ಐಟಂಗೆ ಮೀಡಿಯಾವನ್ನು ಸೇರಿಸಲಾಗಿದೆ.',
+  'server.importUndoMembersAdded': 'ಈ ಆಮದಿನ ಹೊರಗಿನ ಐಟಂಗಳನ್ನು ಈ ಐಟಂ ಸೆಟ್‌ಗೆ ಸೇರಿಸಲಾಗಿದೆ.',
+  'server.importUndoLaterImport': 'ಈ ಆಮದಿನ ನಂತರ ಆಮದು {import} ಇದನ್ನು ಬದಲಾಯಿಸಿದೆ.',
+  'server.importUndoInUse':
+    'ಈ ಆಮದಿನ ಹೊರಗಿನ ಐಟಂಗಳು, ಮೀಡಿಯಾ, ಐಟಂ ಸೆಟ್‌ಗಳು ಅಥವಾ ಐಟಂ ಪ್ರಕಾರಗಳು ಇದನ್ನು ಬಳಸುತ್ತವೆ.',
+  'server.importUndoItemKept':
+    'ಈ ಮೀಡಿಯಾದ ಐಟಂ ಅನ್ನು ಉಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ಮೀಡಿಯಾವನ್ನು ಸಹ ಉಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತದೆ.',
+  'server.importUndoMemberKept':
+    'ಈ ಐಟಂ ಸೆಟ್‌ನಲ್ಲಿರುವ ಐಟಂ ಅನ್ನು ಉಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ಐಟಂ ಸೆಟ್ ಅನ್ನು ಸಹ ಉಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತದೆ.',
+  'server.importUndoStopped': 'ರದ್ದುಗೊಳಿಸುವಿಕೆ ಮುಗಿಯುವ ಮೊದಲೇ ನಿಂತಿತು: {reason}',
 };

@@ -1,5 +1,5 @@
 {
   "errors": {
-    "error": "The import's settings cannot be saved: the plan is not an import v2 plan: unknown field `surprise`, expected one of `version`, `sources`, `grouping`, `example`, `sheets`, `slots`, `action`, `defaults`, `flags`, `decisions`, `newTypes`, `newTerms` at line 1 column 4291"
+    "error": "The import's settings cannot be saved: the plan is not an import v2 plan: unknown field `surprise`, expected one of `version`, `sources`, `grouping`, `example`, `sheets`, `slots`, `action`, `defaults`, `flags`, `decisions`, `newTypes`, `newTerms`, `anomalies` at line 1 column 4291"
   }
 }

@@ -11,6 +11,9 @@ use serde_json::{Map, Value, json};
 /// The times and the countdown change from run to run.
 pub const VOLATILE_TIMES: [&str; 4] = ["created", "finished", "scanned", "died"];
 
+/// The undo reports come from `omeka-cli`'s `import_undo_wire` test, which can run an undo job.
+const CLI_OWNED: &str = "undo-report-";
+
 pub struct Fixtures {
     dir: PathBuf,
     update: bool,
@@ -60,6 +63,7 @@ impl Fixtures {
                 listing
                     .flatten()
                     .map(|file| file.file_name().to_string_lossy().into_owned())
+                    .filter(|name| !name.starts_with(CLI_OWNED))
                     .collect()
             })
             .unwrap_or_default();

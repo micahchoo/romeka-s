@@ -50,6 +50,7 @@ describe('the plan round trip', () => {
     ['import-running.json', 'ranPlan'],
     ['import-done.json', 'ranPlan'],
     ['import-copied.json', 'plan'],
+    ['import-saved-anomalies.json', 'plan'],
     ['import-sheet-added.json', 'plan'],
   ])('the plan in %s (%s) serialises back to itself', (fixture, member) => {
     const raw = planOf(fixture, member);
@@ -101,7 +102,10 @@ describe('what the plan boundary refuses', () => {
     expect(plan.slots.item['template']).not.toHaveProperty('map');
   });
 
-  it('reads the anomaly answers once the server sends them, and only then', () => {
+  it('reads the anomaly answers the server saved, and only when it has them', () => {
+    const saved = parseImportPlan(planOf('import-saved-anomalies.json'));
+    expect(saved.anomalies).toEqual({ identical: 'keepAll', unmatchedFiles: 'own', itemsWithoutRow: 'leave' });
+    expect(parseImportPlan(planOf('import-saved.json')).anomalies).toBeUndefined();
     const answers = { identical: 'keepOne', unmatchedFiles: 'leave', itemsWithoutRow: 'keep' };
     const withAnswers = parseImportPlan({ ...base(), anomalies: answers });
     expect(withAnswers.anomalies).toEqual(answers);

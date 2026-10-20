@@ -59,11 +59,14 @@ export interface ValuesQuery {
   readonly perPage?: number;
 }
 
-/** PENDING p3-extras: the request members of `nameWords` are a guess. */
+/** The words at each place of the name of `path`; without a path the answer is empty. */
 export interface NameWordsQuery {
+  /** The example's path in its source: only its name is split. */
   readonly path?: string;
   readonly page?: number;
   readonly perPage?: number;
+  /** Words holding this text, compared as titles. */
+  readonly text?: string;
 }
 
 export interface PreviewOptions {

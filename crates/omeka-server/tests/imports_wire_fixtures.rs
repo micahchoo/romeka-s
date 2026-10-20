@@ -38,8 +38,12 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
         ("register.csv", REGISTER.as_bytes()),
         (".hidden", b"x"),
     ]);
-    let bulk: Vec<(String, &[u8])> = (1..=7)
-        .map(|n| (format!("Bulk/BHC_006_BK_001_p{n}.tif"), TIFF))
+    // Pages of different bytes: identical bytes are copies, and a copy is left out of the group.
+    let pages: Vec<Vec<u8>> = (1..=7u8).map(|n| [TIFF, &[n][..]].concat()).collect();
+    let bulk: Vec<(String, &[u8])> = pages
+        .iter()
+        .zip(1..)
+        .map(|(bytes, n)| (format!("Bulk/BHC_006_BK_001_p{n}.tif"), bytes.as_slice()))
         .collect();
     let bulk: Vec<(&str, &[u8])> = bulk
         .iter()
@@ -123,13 +127,21 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
         )
         .await;
     out.json("preview-records-media.json", &ok(media).await);
-    // p3-extras adds these two sections; until then the server refuses the name.
-    for section in ["nameWords", "columnMatches"] {
-        let answer = fixture.preview(&id, &json!({ "include": [section] })).await;
-        if answer.status == StatusCode::OK {
-            out.json(&format!("preview-{}.json", kebab(section)), &answer.json());
-        }
-    }
+    let words = fixture
+        .preview(
+            &id,
+            &json!({
+                "include": ["nameWords"],
+                "nameWords": { "path": "Artifacts/BHC_006_AF_001_front.jpg", "perPage": 3 }
+            }),
+        )
+        .await;
+    out.json("preview-name-words.json", &ok(words).await);
+    let matches = fixture
+        .preview(&id, &json!({ "include": ["columnMatches"] }))
+        .await;
+    out.json("preview-column-matches.json", &ok(matches).await);
+    anomaly_answers(&fixture, &mut out, &id).await;
 
     let template = fixture
         .call(
@@ -161,16 +173,41 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
     out.finish();
 }
 
-fn kebab(name: &str) -> String {
-    name.chars()
-        .flat_map(|c| {
-            if c.is_uppercase() {
-                vec!['-', c.to_ascii_lowercase()]
-            } else {
-                vec![c]
-            }
-        })
-        .collect()
+/// A copy of the import with its anomalies answered away from the defaults,
+/// so the original's revision stays what the other fixtures show. The records
+/// preview leaves out the items no row joined (`noRow`).
+async fn anomaly_answers(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
+    let copy = ok(fixture
+        .call(
+            "POST",
+            "/api/romeka/imports",
+            Some(&json!({ "copyFrom": id })),
+        )
+        .await)
+    .await;
+    ok(fixture.call("POST", &at(&copy["id"], "/scan"), None).await).await;
+    let answers =
+        json!({ "identical": "keepAll", "unmatchedFiles": "own", "itemsWithoutRow": "leave" });
+    let saved = ok(fixture
+        .save(&copy, |plan| plan["anomalies"] = answers.clone())
+        .await)
+    .await;
+    assert_eq!(saved["plan"]["anomalies"], answers);
+    out.json("import-saved-anomalies.json", &saved);
+    let left = ok(fixture
+        .preview(
+            &copy["id"],
+            &json!({ "include": ["records"], "records": { "kind": "item", "perPage": 50 } }),
+        )
+        .await)
+    .await;
+    assert!(
+        left.to_string().contains("\"noRow\""),
+        "an item without a row is left out: {left}"
+    );
+    out.json("preview-records-no-row.json", &left);
+    let removed = fixture.call("DELETE", &at(&copy["id"], ""), None).await;
+    assert_eq!(removed.status, StatusCode::NO_CONTENT);
 }
 
 async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &Value, id: &Value) {

@@ -220,7 +220,7 @@
             }
           }
         ],
-        "left": null,
+        "left": "identical",
         "record": null,
         "unmatched": true
       },

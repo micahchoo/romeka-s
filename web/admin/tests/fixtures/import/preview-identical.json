@@ -1,18 +1,10 @@
 {
   "identical": {
-    "files": 24,
+    "files": 2,
     "sets": {
       "items": [
         {
           "paths": [
-            "Artifacts/BHC_006_AF_001_back.jpg",
-            "Artifacts/BHC_006_AF_001_front.jpg",
-            "Artifacts/BHC_006_AF_002_back.jpg",
-            "Artifacts/BHC_006_AF_002_front.jpg",
-            "Artifacts/BHC_006_AF_003_back.jpg",
-            "Artifacts/BHC_006_AF_003_front.jpg",
-            "Artifacts/BHC_006_AF_004_back.jpg",
-            "Artifacts/BHC_006_AF_004_front.jpg",
             "Misc/café.jpg",
             "Misc/loose.jpg"
           ],
@@ -23,7 +15,7 @@
       ],
       "page": 1,
       "perPage": 1,
-      "total": 2
+      "total": 1
     }
   },
   "pattern": {

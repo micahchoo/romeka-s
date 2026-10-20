@@ -316,11 +316,7 @@ export interface ImportPlan {
   readonly decisions: readonly Decision[];
   readonly newTypes: readonly NewType[];
   readonly newTerms: readonly NewTerm[];
-  /**
-   * PENDING p3-extras: the server does not send this yet (`missing = defaults`
-   * once it does). Typed from the contract; the plan test fails on a shape
-   * other than the one below.
-   */
+  /** Absent until the person answers one; the server then reads the defaults. */
   readonly anomalies?: AnomalyAnswers;
 }
 

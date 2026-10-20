@@ -205,4 +205,38 @@ export const mlServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'ഈ ഇംപോർട്ടിൽ ഇതുവരെ ഒഴിവാക്കിയ ഫയലുകളുടെ പട്ടികയില്ല. ഒരു റൺ കഴിയുമ്പോൾ അത് എഴുതപ്പെടുന്നു.',
   'server.importJobNotStarted': 'ഇംപോർട്ട് തുടങ്ങാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importListColumnUnknown':
+    'പട്ടികയിൽ "{column}" എന്ന കോളം ഉണ്ടാകാൻ പാടില്ല. ഒരു പ്രോപ്പർട്ടി, ഐറ്റം സെറ്റുകൾ, ഐറ്റം ടൈപ്പ് അല്ലെങ്കിൽ വിസിബിലിറ്റി തിരഞ്ഞെടുക്കുക.',
+  'server.importListOneFile': 'ഫോമിൽ ഒരു ലിസ്റ്റ് ഫയൽ അയയ്ക്കുക.',
+  'server.importListType':
+    '"{name}" ഒരു CSV അല്ലെങ്കിൽ TSV ഫയൽ അല്ല. ലിസ്റ്റ് CSV അല്ലെങ്കിൽ TSV ആയി സേവ് ചെയ്ത് വീണ്ടും അയക്കുക.',
+  'server.importListTooLarge': 'ലിസ്റ്റ് 50 MB-യിൽ വലുതാണ്.',
+  'server.importListUnread': 'ലിസ്റ്റ് വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importListNoIdentifier':
+    'ലിസ്റ്റിൽ ഐഡന്റിഫയർ കോളം ഇല്ല, അതിനാൽ അതിലെ വരികൾക്ക് അവയുടെ ഐറ്റങ്ങൾ കണ്ടെത്താൻ കഴിയില്ല. നിങ്ങൾ ഡൗൺലോഡ് ചെയ്ത ലിസ്റ്റിന്റെ ഐഡന്റിഫയർ കോളം നിലനിർത്തുക.',
+  'server.importFileUnreadable': '"{path}" എന്ന ഫയൽ വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importFileRefused': '"{path}" എന്ന ഫയൽ ചേർക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importFileNotStored': '"{path}" എന്ന ഫയൽ സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importSourceRefused': '"{source}" ചേർക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importMediaNoSource': 'ഈ മീഡിയയിൽ ചേർക്കാൻ ഫയലോ വിലാസമോ നൽകിയിട്ടില്ല.',
+  'server.importMediaNoItem': 'ഈ മീഡിയയുടെ ഐറ്റം ചേർക്കാത്തതിനാൽ, മീഡിയയും ചേർത്തില്ല.',
+  'server.importResourceGone':
+    'ഈ റെക്കോർഡ് മാറ്റുന്ന ഐറ്റം, മീഡിയ അല്ലെങ്കിൽ ഐറ്റം സെറ്റ് ഇപ്പോൾ Omeka-യിൽ ഇല്ല.',
+  'server.importRecordNotSaved': 'ഈ റെക്കോർഡ് സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importLinksNotSaved': 'ഈ റെക്കോർഡിന്റെ ലിങ്കുകൾ സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importSitesNotJoined':
+    'ഈ ഐറ്റം ചേർത്തു, പക്ഷേ അതിനെ അതിന്റെ സൈറ്റുകളിൽ ചേർത്തില്ല: {reason}',
+  'server.importUndoEdited': 'ഇംപോർട്ട് ഇത് എഴുതിയതിന് ശേഷം ഇത് എഡിറ്റ് ചെയ്തിട്ടുണ്ട്.',
+  'server.importUndoLinked':
+    'ഈ ഇംപോർട്ടിന് പുറത്തുള്ള ഒരു ഐറ്റം, മീഡിയ അല്ലെങ്കിൽ ഐറ്റം സെറ്റ് ഇതിലേക്ക് ലിങ്ക് ചെയ്യുന്നു.',
+  'server.importUndoMediaAdded': 'ഈ ഐറ്റത്തിൽ ഇംപോർട്ടിന് പുറത്തുനിന്ന് മീഡിയ ചേർത്തു.',
+  'server.importUndoMembersAdded':
+    'ഈ ഇംപോർട്ടിന് പുറത്തുള്ള ഐറ്റങ്ങൾ ഈ ഐറ്റം സെറ്റിൽ ഉൾപ്പെടുത്തി.',
+  'server.importUndoLaterImport': 'ഈ ഇംപോർട്ടിന് ശേഷം ഇംപോർട്ട് {import} ഇത് മാറ്റി.',
+  'server.importUndoInUse':
+    'ഈ ഇംപോർട്ടിന് പുറത്തുള്ള ഐറ്റങ്ങൾ, മീഡിയ, ഐറ്റം സെറ്റുകൾ അല്ലെങ്കിൽ ഐറ്റം ടൈപ്പുകൾ ഇത് ഉപയോഗിക്കുന്നു.',
+  'server.importUndoItemKept': 'ഈ മീഡിയയുടെ ഐറ്റം നിലനിർത്തുന്നു, അതിനാൽ മീഡിയയും നിലനിർത്തുന്നു.',
+  'server.importUndoMemberKept':
+    'ഈ ഐറ്റം സെറ്റിലെ ഒരു ഐറ്റം നിലനിർത്തുന്നു, അതിനാൽ ഐറ്റം സെറ്റും നിലനിർത്തുന്നു.',
+  'server.importUndoStopped': 'അൺഡൂ അവസാനിക്കുന്നതിന് മുമ്പ് നിന്നു: {reason}',
 };

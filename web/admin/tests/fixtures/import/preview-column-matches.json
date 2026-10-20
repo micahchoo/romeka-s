@@ -1,0 +1,63 @@
+{
+  "columnMatches": [
+    {
+      "columns": [
+        {
+          "empty": 0,
+          "fileNames": 0,
+          "groupKeys": 4,
+          "header": "Id",
+          "index": 0
+        },
+        {
+          "empty": 0,
+          "fileNames": 0,
+          "groupKeys": 0,
+          "header": "Title",
+          "index": 1
+        },
+        {
+          "empty": 1,
+          "fileNames": 0,
+          "groupKeys": 0,
+          "header": "Date",
+          "index": 2
+        },
+        {
+          "empty": 4,
+          "fileNames": 0,
+          "groupKeys": 0,
+          "header": "Notes",
+          "index": 3
+        },
+        {
+          "empty": 4,
+          "fileNames": 0,
+          "groupKeys": 0,
+          "header": "Notes",
+          "index": 4
+        }
+      ],
+      "rows": 5,
+      "sheet": "register"
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

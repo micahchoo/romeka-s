@@ -200,4 +200,36 @@ export const teServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'ఈ ఇంపోర్ట్‌కు ఇంకా వదిలివేయబడిన ఫైళ్ల జాబితా లేదు. ఒక రన్ ముగిసినప్పుడు ఇది వ్రాయబడుతుంది.',
   'server.importJobNotStarted': 'ఇంపోర్ట్ ప్రారంభం కాలేదు: {reason}',
+  'server.importListColumnUnknown':
+    'జాబితాలో "{column}" కాలమ్ ఉండకూడదు. ఒక ప్రాపర్టీ, ఐటమ్ సెట్స్, ఐటమ్ రకం లేదా విజిబిలిటీని ఎంచుకోండి.',
+  'server.importListOneFile': 'ఫారమ్‌లో ఒక జాబితా ఫైల్‌ను పంపండి.',
+  'server.importListType':
+    '"{name}" అనేది CSV లేదా TSV ఫైల్ కాదు. జాబితాను CSV లేదా TSVగా సేవ్ చేసి, మళ్ళీ పంపండి.',
+  'server.importListTooLarge': 'జాబితా 50 MB కంటే పెద్దది.',
+  'server.importListUnread': 'జాబితాను చదవడం సాధ్యం కాలేదు: {reason}',
+  'server.importListNoIdentifier':
+    'జాబితాలో ఐడెంటిఫైయర్ కాలమ్ లేదు, కాబట్టి దాని వరుసలు వాటి ఐటమ్స్‌ను కనుగొనలేవు. మీరు డౌన్‌లోడ్ చేసిన జాబితా యొక్క ఐడెంటిఫైయర్ కాలమ్‌ను ఉంచండి.',
+  'server.importFileUnreadable': '"{path}" ఫైల్‌ను చదవడం సాధ్యం కాలేదు: {reason}',
+  'server.importFileRefused': '"{path}" ఫైల్‌ను జోడించలేదు: {reason}',
+  'server.importFileNotStored': '"{path}" ఫైల్‌ను నిల్వ చేయలేకపోయాము: {reason}',
+  'server.importSourceRefused': '"{source}" జోడించలేదు: {reason}',
+  'server.importMediaNoSource': 'ఈ మీడియాకు జోడించడానికి ఫైల్ గానీ చిరునామా గానీ పేర్కొనలేదు.',
+  'server.importMediaNoItem': 'ఈ మీడియా యొక్క ఐటమ్ జోడించబడలేదు, కాబట్టి మీడియా కూడా జోడించబడలేదు.',
+  'server.importResourceGone': 'ఈ రికార్డును మారుస్తున్న మీడియా, ఐటమ్ లేదా ఐటమ్ సెట్ Omekaలో లేదు.',
+  'server.importRecordNotSaved': 'ఈ రికార్డును సేవ్ చేయలేకపోయాము: {reason}',
+  'server.importLinksNotSaved': 'ఈ రికార్డు యొక్క లింక్‌లను భద్రపరచలేకపోయాము: {reason}',
+  'server.importSitesNotJoined': 'ఈ ఐటమ్ జోడించబడింది, కానీ దాని సైట్‌లకు జోడించబడలేదు: {reason}',
+  'server.importUndoEdited': 'దిగుమతి దీన్ని రాసిన తర్వాత ఇది సవరించబడింది.',
+  'server.importUndoLinked':
+    'ఈ దిగుమతికి వెలుపల ఉన్న ఒక ఐటమ్, మీడియా లేదా ఐటమ్ సెట్ దీనికి లింక్ అయి ఉంది.',
+  'server.importUndoMediaAdded': 'ఈ దిగుమతికి వెలుపల ఈ ఐటమ్‌కు మీడియా జోడించబడింది.',
+  'server.importUndoMembersAdded': 'ఈ ఇంపోర్ట్ వెలుపల ఉన్న ఐటమ్‌లు ఈ ఐటమ్ సెట్‌లో చేర్చబడ్డాయి.',
+  'server.importUndoLaterImport': 'ఈ దిగుమతి తర్వాత దిగుమతి {import} దీన్ని మార్చింది.',
+  'server.importUndoInUse':
+    'ఈ దిగుమతికి వెలుపల ఉన్న ఐటమ్‌లు, మీడియా, ఐటమ్ సెట్‌లు లేదా ఐటమ్ రకాలు దీన్ని ఉపయోగిస్తున్నాయి.',
+  'server.importUndoItemKept':
+    'ఈ మీడియా యొక్క ఐటమ్ భద్రపరచబడుతుంది, కాబట్టి ఈ మీడియా కూడా భద్రపరచబడుతుంది.',
+  'server.importUndoMemberKept':
+    'ఈ ఐటమ్ సెట్ లోని ఒక ఐటమ్ భద్రపరచబడుతుంది, కాబట్టి ఈ ఐటమ్ సెట్ కూడా భద్రపరచబడుతుంది.',
+  'server.importUndoStopped': 'రద్దు చేయడం ముగిసేలోపే ఆగిపోయింది: {reason}',
 };

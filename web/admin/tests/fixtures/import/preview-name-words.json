@@ -1,0 +1,127 @@
+{
+  "nameWords": {
+    "names": 18,
+    "parts": [
+      "BHC",
+      "006",
+      "AF",
+      "001",
+      "front",
+      "jpg"
+    ],
+    "places": [
+      {
+        "items": [
+          {
+            "count": 18,
+            "text": "BHC"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 1
+      },
+      {
+        "items": [
+          {
+            "count": 18,
+            "text": "006"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 1
+      },
+      {
+        "items": [
+          {
+            "count": 8,
+            "text": "AF"
+          },
+          {
+            "count": 7,
+            "text": "BK"
+          },
+          {
+            "count": 3,
+            "text": "SC"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 3
+      },
+      {
+        "items": [
+          {
+            "count": 12,
+            "text": "001"
+          },
+          {
+            "count": 2,
+            "text": "002"
+          },
+          {
+            "count": 2,
+            "text": "003"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 4
+      },
+      {
+        "items": [
+          {
+            "count": 4,
+            "text": "back"
+          },
+          {
+            "count": 4,
+            "text": "front"
+          },
+          {
+            "count": 2,
+            "text": "p1"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 10
+      },
+      {
+        "items": [
+          {
+            "count": 10,
+            "text": "tif"
+          },
+          {
+            "count": 8,
+            "text": "jpg"
+          }
+        ],
+        "page": 1,
+        "perPage": 3,
+        "total": 2
+      }
+    ]
+  },
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

@@ -83,7 +83,11 @@ export type LeftBy =
   | { readonly decision: number }
   | { readonly flag: FlagKind }
   | 'parent'
-  | 'noFiles';
+  | 'noFiles'
+  /** A copy of a file the import keeps (`anomalies.identical: keepOne`). */
+  | 'identical'
+  /** An item no row of the list joined (`anomalies.itemsWithoutRow: leave`). */
+  | 'noRow';
 
 export type Fate = 'create' | { readonly act: number } | { readonly left: LeftBy };
 
@@ -274,8 +278,8 @@ const parseResolved: Parser<Resolved> = (raw, path = []) => {
 
 const asFlagKind = oneOf(FLAG_KINDS);
 
-const parseLeftBy = wordOr<'parent' | 'noFiles', LeftBy>(
-  ['parent', 'noFiles'],
+const parseLeftBy = wordOr<'parent' | 'noFiles' | 'identical' | 'noRow', LeftBy>(
+  ['parent', 'noFiles', 'identical', 'noRow'],
   variants<LeftBy>({
     decision: (value, path) => ({ decision: asCount(value, path) }),
     flag: (value, path) => ({ flag: asFlagKind(value, path) }),

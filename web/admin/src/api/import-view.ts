@@ -2,19 +2,16 @@
  * One import as the routes answer it, the history, the archive listing and the
  * small answers of the job routes. The shapes are `ImportView` in
  * `crates/omeka-server/src/imports/wire.rs` and its sibling modules.
- *
- * `undoReport` is PENDING p5-undo: the server keeps the undo job's report as
- * free JSON today and the report's shape is not on this branch, so it is read
- * as JSON and never null-checked beyond that. P4-check-run types it from the
- * fixture the server writes once the undo lands.
  */
 import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
 import { parseImportPlan, parseSourcesOf } from './import-plan-read';
-import { asCount, asJson, asFlag, list, member, nullable, oneOf, strict } from './import-read';
+import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { parseSourceState } from './import-sections';
+import { parseUndoReport } from './import-undo';
+import type { UndoReport } from './import-undo';
 import type { SourceState } from './import-sections';
 import { ParseError, asString, brandId } from './parse';
-import type { JsonValue, Parser, Path } from './types';
+import type { Parser, Path } from './types';
 
 export type ImportStatus = 'draft' | 'running' | 'done' | 'run_failed' | 'undoing' | 'undone' | 'undo_failed';
 export const IMPORT_STATUSES: readonly ImportStatus[] = [
@@ -58,8 +55,8 @@ export interface ImportRow {
   readonly created: string;
   readonly finished: string | null;
   readonly summary: RunSummary | null;
-  /** PENDING p5-undo: the undo job's report, as the server stores it. */
-  readonly undoReport: JsonValue;
+  /** The undo job's report; `null` until an undo has run. */
+  readonly undoReport: UndoReport | null;
   /** When a reader found the job dead (it stopped beating), or `null`. */
   readonly died: string | null;
   readonly stopRequested: boolean;
@@ -134,7 +131,7 @@ const rowFields = (object: Record<string, unknown>, path: Path): ImportRow => {
     created: member(object, 'created', path, asString),
     finished: member(object, 'finished', path, nullable(asString)),
     summary: member(object, 'summary', path, nullable(parseSummary)),
-    undoReport: member(object, 'undoReport', path, asJson),
+    undoReport: member(object, 'undoReport', path, nullable(parseUndoReport)),
     died: member(object, 'died', path, nullable(asString)),
     stopRequested: member(object, 'stopRequested', path, asFlag),
     jobId: member(object, 'jobId', path, nullable(asCount)),

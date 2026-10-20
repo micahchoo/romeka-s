@@ -9,12 +9,6 @@
  * named. `parsePreview(include)` refuses an answer without one of them and
  * an answer with one that was not asked for. `hasSections` narrows a parsed
  * preview to the sections that were asked, with no cast.
- *
- * `nameWords` and `columnMatches` are PENDING p3-extras (the server answers
- * 400 for them today). Their shapes below are typed from the contract and
- * the p3-extras brief; the fixture test parses `preview-name-words.json` and
- * `preview-column-matches.json` as soon as the server writes them, and fails
- * if the server's shape is not this one.
  */
 import {
   asCount,
@@ -386,30 +380,27 @@ export interface NameWord {
   readonly count: number;
 }
 
-export interface NamePosition {
-  readonly position: number;
-  readonly words: Paged<NameWord>;
-}
-
-/** PENDING p3-extras: the words found at each place of the example's name. */
+/**
+ * The words at each place of the name of the request's `path`: its `parts`,
+ * how many file `names` have as many parts, and for each part a page of the
+ * words found there. Empty when the request names no path.
+ */
 export interface NameWords {
-  readonly path: string | null;
-  readonly positions: readonly NamePosition[];
+  readonly parts: readonly string[];
+  readonly names: number;
+  readonly places: readonly Paged<NameWord>[];
 }
 
 const parseNameWords: Parser<NameWords> = (raw, path = []) => {
-  const object = strict(raw, path, ['path', 'positions']);
+  const object = strict(raw, path, ['parts', 'names', 'places']);
   const word = (value: unknown, at: Path): NameWord => {
     const each = strict(value, at, ['text', 'count']);
     return { text: text(each, 'text', at), count: count(each, 'count', at) };
   };
-  const position = (value: unknown, at: Path): NamePosition => {
-    const each = strict(value, at, ['position', 'words']);
-    return { position: count(each, 'position', at), words: member(each, 'words', at, parsePaged(word)) };
-  };
   return {
-    path: member(object, 'path', path, maybeText),
-    positions: member(object, 'positions', path, list(position)),
+    parts: member(object, 'parts', path, list(asString)),
+    names: member(object, 'names', path, asCount),
+    places: member(object, 'places', path, list(parsePaged(word))),
   };
 };
 
@@ -421,30 +412,33 @@ export interface ColumnMatch {
   /** Cells that exactly equal a file name. */
   readonly fileNames: number;
   readonly empty: number;
-  readonly rows: number;
 }
 
 export interface SheetColumnMatches {
   readonly sheet: string;
+  /** Rows of the sheet: the whole of each column's counts. */
+  readonly rows: number;
   readonly columns: readonly ColumnMatch[];
 }
 
-/** PENDING p3-extras: for each list column, how many cells equal a group key or a file name. */
 const parseColumnMatches: Parser<readonly SheetColumnMatches[]> = (raw, path = []) => {
   const column = (value: unknown, at: Path): ColumnMatch => {
-    const each = strict(value, at, ['index', 'header', 'groupKeys', 'fileNames', 'empty', 'rows']);
+    const each = strict(value, at, ['index', 'header', 'groupKeys', 'fileNames', 'empty']);
     return {
       index: count(each, 'index', at),
       header: text(each, 'header', at),
       groupKeys: count(each, 'groupKeys', at),
       fileNames: count(each, 'fileNames', at),
       empty: count(each, 'empty', at),
-      rows: count(each, 'rows', at),
     };
   };
   const sheet = (value: unknown, at: Path): SheetColumnMatches => {
-    const each = strict(value, at, ['sheet', 'columns']);
-    return { sheet: text(each, 'sheet', at), columns: member(each, 'columns', at, list(column)) };
+    const each = strict(value, at, ['sheet', 'rows', 'columns']);
+    return {
+      sheet: text(each, 'sheet', at),
+      rows: count(each, 'rows', at),
+      columns: member(each, 'columns', at, list(column)),
+    };
   };
   return list(sheet)(raw, path);
 };

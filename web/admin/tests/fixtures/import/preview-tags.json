@@ -116,27 +116,27 @@
         {
           "path": "Artifacts/BHC_006_AF_001_back.jpg",
           "source": "s1",
-          "value": "20 B"
+          "value": "53 B"
         },
         {
           "path": "Artifacts/BHC_006_AF_001_front.jpg",
           "source": "s1",
-          "value": "20 B"
+          "value": "54 B"
         },
         {
           "path": "Artifacts/BHC_006_AF_002_back.jpg",
           "source": "s1",
-          "value": "20 B"
+          "value": "53 B"
         },
         {
           "path": "Artifacts/BHC_006_AF_002_front.jpg",
           "source": "s1",
-          "value": "20 B"
+          "value": "54 B"
         },
         {
           "path": "Artifacts/BHC_006_AF_003_back.jpg",
           "source": "s1",
-          "value": "20 B"
+          "value": "53 B"
         }
       ],
       "tag": "Size"

@@ -14,6 +14,7 @@ import { ImportConflictError, parseConflict } from './import-conflict';
 import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
 import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parseScanResult } from './import-view';
 import type { ArchiveListing, History, ImportDetail, JobStart, ScanResult } from './import-view';
+import type { ResourceKind } from './import-undo';
 import { hasSections, parsePreview } from './import-sections';
 import type { PreviewOptions } from './import-queries';
 import type { PreviewWith, Section } from './import-sections';
@@ -26,7 +27,7 @@ import type { ApiErrors } from './types';
 export type CreateImport = { readonly sources: readonly SourcePlan[] } | { readonly copyFrom: ImportId };
 
 /** The resources an undo restores or deletes although something else touched them. */
-export type ForcedKind = 'item' | 'media' | 'itemSet' | 'resourceTemplate' | 'property';
+export type ForcedKind = ResourceKind;
 export type Force = 'all' | readonly { readonly kind: ForcedKind; readonly id: number }[];
 
 export interface RunRequest {

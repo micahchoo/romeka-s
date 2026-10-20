@@ -195,4 +195,37 @@ export const neServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'यो आयातमा अहिलेसम्म बाहिर राखिएका फाइलहरूको सूची छैन। यो तब लेखिन्छ जब एउटा रन समाप्त हुन्छ।',
   'server.importJobNotStarted': 'आयात सुरु हुन सकेन: {reason}',
+  'server.importListColumnUnknown':
+    'सूचीमा "{column}" कोलम हुन सक्दैन। कुनै प्रोपर्टी, आइटम सेट, आइटम टाइप वा भिजुअलिटी छान्नुहोस्।',
+  'server.importListOneFile': 'फारममा एउटा सूची फाइल पठाउनुहोस्।',
+  'server.importListType':
+    '"{name}" CSV वा TSV फाइल होइन। सूचीलाई CSV वा TSV को रूपमा सुरक्षित गर्नुहोस्, त्यसपछि यसलाई फेरि पठाउनुहोस्।',
+  'server.importListTooLarge': 'सूची 50 MB भन्दा ठुलो छ।',
+  'server.importListUnread': 'सूची पढ्न सकिएन: {reason}',
+  'server.importListNoIdentifier':
+    'सूचीमा कुनै आइडेन्टिफायर कोलम छैन, त्यसैले यसका पङ्क्तिहरूले आफ्ना वस्तुहरू फेला पार्न सक्दैनन्। तपाईँले डाउनलोड गर्नुभएको सूचीको आइडेन्टिफायर कोलम सुरक्षित राख्नुहोस्।',
+  'server.importFileUnreadable': 'फाइल "{path}" पढ्न सकिएन: {reason}',
+  'server.importFileRefused': 'फाइल "{path}" थपिएन: {reason}',
+  'server.importFileNotStored': 'फाइल "{path}" भण्डारण गर्न सकिएन: {reason}',
+  'server.importSourceRefused': '"{source}" थपिएन: {reason}',
+  'server.importMediaNoSource': 'यस मिडियामा थप्न कुनै फाइल वा ठेगाना तोकिएको छैन।',
+  'server.importMediaNoItem': 'यस मिडियाको वस्तु थपिएन, त्यसैले मिडिया पनि थपिएन।',
+  'server.importResourceGone':
+    'यो रेकर्ड परिवर्तन गर्ने मिडिया, वस्तु वा वस्तु सेट अब Omeka मा छैन।',
+  'server.importRecordNotSaved': 'यो रेकर्ड सुरक्षित गर्न सकिएन: {reason}',
+  'server.importLinksNotSaved': 'यस रेकर्डका लिङ्कहरू सुरक्षित गर्न सकिएन: {reason}',
+  'server.importSitesNotJoined':
+    'यो वस्तु थपियो, तर यसलाई यसका साइटहरूमा समावेश गर्न सकिएन: {reason}',
+  'server.importUndoEdited': 'आयातले यो लेखेपछि यसलाई सम्पादन गरिएको हो।',
+  'server.importUndoLinked':
+    'यस आयात बाहिरको कुनै वस्तु, मिडिया वा वस्तु सेटले यसलाई लिङ्क गरेको छ।',
+  'server.importUndoMediaAdded': 'यस आयात बाहिरबाट यस वस्तुमा मिडिया थपिएको छ।',
+  'server.importUndoMembersAdded': 'यस आयात बाहिरका वस्तुहरू यस वस्तु सेटमा राखिएका छन्।',
+  'server.importUndoLaterImport': 'यस आयातपछि आयात {import} ले यसलाई परिवर्तन गर्‍यो।',
+  'server.importUndoInUse':
+    'यस आयात बाहिरका वस्तु, मिडिया, वस्तु सेट वा वस्तु प्रकारहरूले यसको प्रयोग गर्छन्।',
+  'server.importUndoItemKept': 'यस मिडियाको वस्तु सुरक्षित छ, त्यसैले मिडिया पनि सुरक्षित छ।',
+  'server.importUndoMemberKept':
+    'यस वस्तु सेटको एउटा वस्तु सुरक्षित छ, त्यसैले वस्तु सेट पनि सुरक्षित छ।',
+  'server.importUndoStopped': 'पूर्ववत गर्ने काम अन्त्य हुनुअघि नै रोकियो: {reason}',
 };

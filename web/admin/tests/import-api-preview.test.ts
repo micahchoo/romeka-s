@@ -5,16 +5,10 @@
  * answer serialises back to the JSON it came from, so a member the server
  * sends and the client does not know fails here.
  */
-import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { SECTIONS, hasSections, parsePreview } from '../src/api/import-sections';
-import type { Section } from '../src/api/import-sections';
 import { ParseError, asRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
-
-const FIXTURES = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/import');
 
 const kebab = (name: string): string => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
@@ -27,11 +21,8 @@ const roundTrip = (value: unknown): unknown => {
   return back;
 };
 
-/** The sections whose server answer does not exist yet (p3-extras). */
-const PENDING: readonly Section[] = ['nameWords', 'columnMatches'];
-
 describe('the sections', () => {
-  it('are the ones the contract names, and the two p3-extras adds', () => {
+  it('are the ones the contract names', () => {
     expect([...SECTIONS].sort()).toEqual(
       [
         'anomalies', 'check', 'columnMatches', 'entries', 'flags', 'histogram', 'identical',
@@ -40,7 +31,7 @@ describe('the sections', () => {
     );
   });
 
-  it.each(SECTIONS.filter((section) => !PENDING.includes(section)))(
+  it.each(SECTIONS)(
     '%s parses the server answer and serialises back to it',
     (section) => {
       const raw = loadFixture(`import/preview-${kebab(section)}.json`);
@@ -50,21 +41,12 @@ describe('the sections', () => {
     },
   );
 
-  it.each(PENDING)('%s is parsed from the server answer once the server writes one', (section) => {
-    const name = `preview-${kebab(section)}.json`;
-    if (!existsSync(resolve(FIXTURES, name))) {
-      // Typed from the contract, not yet from the server: see the module comment.
-      return;
-    }
-    const raw = loadFixture(`import/${name}`);
-    expect(roundTrip(parsePreview([section])(raw))).toEqual(raw);
-  });
-
   it('parse the records of a media listing and a blocked check', () => {
     for (const [name, section] of [
       ['preview-records-media.json', 'records'],
       ['preview-check-blocked.json', 'check'],
       ['preview-check-delete.json', 'check'],
+      ['preview-records-no-row.json', 'records'],
     ] as const) {
       const raw = loadFixture(`import/${name}`);
       expect(roundTrip(parsePreview([section])(raw))).toEqual(raw);
@@ -73,6 +55,31 @@ describe('the sections', () => {
 });
 
 describe('what the sections say', () => {
+  it('nameWords splits the requested name and counts the words at each place', () => {
+    const { nameWords } = parsePreview(['nameWords'])(loadFixture('import/preview-name-words.json'));
+    expect(nameWords.parts).toEqual(['BHC', '006', 'AF', '001', 'front', 'jpg']);
+    expect(nameWords.places).toHaveLength(nameWords.parts.length);
+    expect(nameWords.names).toBe(18);
+    expect(nameWords.places[0]?.items).toEqual([{ text: 'BHC', count: 18 }]);
+    expect(nameWords.places[2]?.items.map((word) => word.text)).toEqual(['AF', 'BK', 'SC']);
+  });
+
+  it('columnMatches count the cells that equal a group key or a file name', () => {
+    const { columnMatches } = parsePreview(['columnMatches'])(loadFixture('import/preview-column-matches.json'));
+    const register = columnMatches.find((sheet) => sheet.sheet === 'register');
+    expect(register?.rows).toBeGreaterThan(0);
+    const keyed = register?.columns.filter((column) => column.groupKeys > 0) ?? [];
+    expect(keyed.map((column) => column.header)).toEqual(['Id']);
+  });
+
+  it('entries and records say why a file or an item is left out, copies and rowless items included', () => {
+    const entries = parsePreview(['entries'])(loadFixture('import/preview-entries.json')).entries;
+    expect(entries.items.map((entry) => entry.left)).toContain('identical');
+    const records = parsePreview(['records'])(loadFixture('import/preview-records-no-row.json')).records;
+    const fates = JSON.stringify(records.items.map((record) => record.fate));
+    expect(fates).toContain('noRow');
+  });
+
   it('check states the digest, the new sets and types, and why a run is blocked', () => {
     const ok = parsePreview(['check'])(loadFixture('import/preview-check.json')).check;
     expect(ok.canRun).toBe(true);
