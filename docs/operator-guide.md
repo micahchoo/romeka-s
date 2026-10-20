@@ -97,19 +97,26 @@ An import and its undo each run as a job: a `job` row with class `Romeka\Job\Imp
 romeka job run <id> --database <db> --store <store> --base-url <base-url> --archive-root <root>
 ```
 
-The child gets the server's own database, store, base URL and archive root, all as absolute paths,
-so it reads and writes what the server serves whatever its working directory. It appends progress to
+The child gets the server's database and store as absolute paths, so it reads and writes what the
+server serves whatever its working directory. It gets the base URL and the archive root as the
+server holds them, so set `ROMEKA_ARCHIVE_ROOT` to an absolute path. The child appends progress to
 the job's log, which the Jobs page and `GET /api/romeka/jobs/{id}/log` show, and exits when the job
-ends. To run a stuck job by hand, use the same command with the same four values.
+ends.
 
-- One import or undo works at a time. The server checks this in its own process, so run one server
-  per database.
+Do not run a stuck job by hand. Wait for the rule below to settle it, then read the import again.
+
+- One import or undo works at a time. The database checks this in one locked transaction, so two
+  server processes on one database cannot start two imports.
 - A job that ends in an error shows its import as failed. A failed import can still be undone, and
   the undo converges: it deletes what the run recorded, one item at a time.
-- A killed job process leaves its job `in_progress`, and its import stays busy, so no other import
-  or undo starts. This is a known gap; the job row has to be marked by hand.
+- A job process that stops working (killed, crashed, or its container restarted) leaves its import
+  on `running` or `undoing`. The job writes a heartbeat every 10 seconds. Two minutes after the last
+  heartbeat, the next read of the import (the Import page or the API) records the import as `failed`
+  and its job as `error`. The job log gets a line that says the process stopped, and the import JSON
+  carries `died`. Another import or undo can start after that. No operator step marks a row by hand.
 - The last import can be undone until the next import starts. Undo deletes the imported items with
-  their files, and the new item sets, item types and fields that nothing else uses.
+  their files, and the new item sets, item types and fields that nothing else uses. A failed import
+  cannot run again. To remove what its run wrote, undo it before you start the next import.
 
 ## Backup and restore
 
@@ -190,7 +197,7 @@ says what that means for a compatibility claim.
 | API links point at the wrong host or port | set `--base-url` to the address clients use |
 | Media pages load but their images 404 | `serve --store` and the import's `--store` differ, or the server runs without `--store` from another directory |
 | The admin has no Import page | `ROMEKA_ARCHIVE_ROOT` is unset or empty in the server's environment |
-| An import stays on "Importing" | the job process could not start or died: read the job's log on the Jobs page, then run `romeka job run` by hand as above |
+| An import stays on "Importing" | the job process is still working, or it stopped less than two minutes ago. Reload the page. Two minutes after the last heartbeat the import shows `failed`. Read the job's log on the Jobs page for the cause |
 | The store holds files no row names (after an import that crashed, or an undo) | run `romeka media sweep -d PATH --store DIR` to list them, then add `--delete` to remove them. Files younger than 10 minutes are skipped. See the `romeka-cli` README |
 | The admin application answers 404 for everything | the static origin is not forwarding `/api` to the process |
 | The public site renders without styling | the origin is serving the SPA's `assets` files instead of forwarding `/assets/` to the process |
