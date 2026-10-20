@@ -56,6 +56,9 @@ chardetng = "1"
 encoding_rs = "0.8"
 # The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
 regex = "1"
+# The import v2 run hashes a file over 64 MB as it streams into the store
+# (`import2/media_in.rs`), so it never holds the file. Already in the lock.
+sha2 = "0.10"
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen

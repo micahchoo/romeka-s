@@ -66,25 +66,26 @@ where
         Ok(id)
     }
 
-    /// A media row for a file already in the store, with its values.
+    /// A media row for a file already in the store, or for what a URL ingester made, with its
+    /// values.
     pub async fn create_media(&mut self, new: &NewImportMedia) -> Result<MediaId, DbError> {
-        let file = &new.file;
+        let file = new.file.as_ref();
         let row = MediaRepo::<DB>::insert(
             self.conn,
             &NewMedia {
                 resource: new_resource(&new.fields),
                 item_id: new.item,
                 ingester: new.ingester.clone(),
-                renderer: "file".to_string(),
-                data: None,
+                renderer: new.renderer.clone(),
+                data: new.data.clone(),
                 source: new.source.clone(),
-                media_type: file.media_type.clone(),
-                storage_id: Some(file.storage_id.clone()),
-                extension: file.extension.clone(),
-                sha256: file.sha256.clone(),
-                size: file.size,
-                has_original: true,
-                has_thumbnails: file.has_thumbnails,
+                media_type: file.and_then(|file| file.media_type.clone()),
+                storage_id: file.map(|file| file.storage_id.clone()),
+                extension: file.and_then(|file| file.extension.clone()),
+                sha256: file.and_then(|file| file.sha256.clone()),
+                size: file.and_then(|file| file.size),
+                has_original: file.is_some(),
+                has_thumbnails: file.is_some_and(|file| file.has_thumbnails),
                 position: Some(new.position),
                 lang: None,
                 alt_text: None,
@@ -103,7 +104,7 @@ where
             self.conn,
             &NewItemSet {
                 resource: new_resource(&new.fields),
-                is_open: false,
+                is_open: new.is_open,
             },
         )
         .await?;

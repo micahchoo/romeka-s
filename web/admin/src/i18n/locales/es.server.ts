@@ -190,4 +190,17 @@ export const esServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'Esta importación aún no tiene una lista de archivos que quedaron fuera. Se escribe cuando termina una ejecución.',
   'server.importJobNotStarted': 'No se pudo iniciar la importación: {reason}',
+  'server.importFileUnreadable': 'No se pudo leer el archivo "{path}": {reason}',
+  'server.importFileRefused': 'El archivo "{path}" no se añadió: {reason}',
+  'server.importFileNotStored': 'No se pudo guardar el archivo "{path}": {reason}',
+  'server.importSourceRefused': '"{source}" no se añadió: {reason}',
+  'server.importMediaNoSource': 'Este medio no indica ningún archivo ni ninguna dirección que añadir.',
+  'server.importMediaNoItem':
+    'El elemento de este medio no se añadió, así que el medio tampoco se añadió.',
+  'server.importResourceGone':
+    'El elemento, el medio o el conjunto de elementos que cambia este registro ya no está en Omeka.',
+  'server.importRecordNotSaved': 'No se pudo guardar este registro: {reason}',
+  'server.importLinksNotSaved': 'No se pudieron guardar los enlaces de este registro: {reason}',
+  'server.importSitesNotJoined':
+    'Este elemento se añadió, pero no se unió a sus sitios: {reason}',
 };

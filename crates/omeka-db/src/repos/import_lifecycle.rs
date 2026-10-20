@@ -110,6 +110,14 @@ fn heartbeat_of(summary: Option<&Value>) -> Option<NaiveDateTime> {
         .and_then(|stored| time::parse(stored).ok())
 }
 
+impl crate::rows::ImportRow {
+    /// Whether the summary's [`HEARTBEAT`] is younger than [`DEAD_AFTER`]: a worker proved it
+    /// was alive that recently. `romeka job run` refuses a second worker then.
+    pub fn heartbeat_is_live(&self) -> bool {
+        heartbeat_of(self.summary.as_ref()).is_some_and(|beat| time::now() - beat < DEAD_AFTER)
+    }
+}
+
 /// `summary` as an object with `key` set to `value`. A missing or non-object summary starts empty.
 pub(crate) fn with_member(summary: Option<Value>, key: &str, value: Value) -> Value {
     let mut members = match summary {

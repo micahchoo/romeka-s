@@ -17,6 +17,7 @@ mod batch_delete;
 mod batch_update;
 mod dispatcher;
 mod env;
+mod import_run;
 mod index_fulltext_search;
 mod query;
 mod runner;
@@ -27,6 +28,7 @@ pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
 pub use dispatcher::{Dispatcher, JobCommand, JobContext};
 pub use env::JobEnv;
+pub use import_run::{ImportRun, ImportScan, refuse_live_hand_run};
 pub use index_fulltext_search::IndexFulltextSearch;
 pub use query::BatchQuery;
 pub use runner::Runner;
@@ -69,10 +71,12 @@ pub trait Job: Send + Sync {
 static BATCH_DELETE: BatchDelete = BatchDelete;
 static BATCH_UPDATE: BatchUpdate = BatchUpdate;
 static INDEX_FULLTEXT_SEARCH: IndexFulltextSearch = IndexFulltextSearch;
+static IMPORT_RUN: ImportRun = ImportRun;
+static IMPORT_SCAN: ImportScan = ImportScan;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
 
 /// The job for a `job.class` value, the port's registry of the four upstream
-/// jobs. `Dispatcher::dispatch` resolves the class the same way through the
+/// jobs and Romeka's import jobs. `Dispatcher::dispatch` resolves the class the same way through the
 /// service manager. `None` for a class this build does not register.
 #[must_use]
 pub fn job_for(class: &str) -> Option<&'static dyn Job> {
@@ -81,6 +85,8 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         "Omeka\\Job\\BatchUpdate" => Some(&BATCH_UPDATE),
         "Omeka\\Job\\IndexFulltextSearch" => Some(&INDEX_FULLTEXT_SEARCH),
         "Omeka\\Job\\UpdateSiteItems" => Some(&UPDATE_SITE_ITEMS),
+        omeka_api::import2::run::RUN_JOB => Some(&IMPORT_RUN),
+        omeka_api::import2::scan::SCAN_JOB => Some(&IMPORT_SCAN),
         _ => None,
     }
 }

@@ -101,8 +101,10 @@ on_both!(a_rolled_back_record_leaves_nothing, |pool| {
         .create_media(&NewImportMedia {
             item,
             fields: w.fields(Vec::new()),
-            file: stored("ghost"),
+            file: Some(stored("ghost")),
             ingester: "sideload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
             source: None,
             position: 1,
         })
@@ -145,8 +147,10 @@ on_both!(a_created_media_names_its_stored_file, |pool| {
         .create_media(&NewImportMedia {
             item,
             fields: media_fields,
-            file: stored("page-1"),
+            file: Some(stored("page-1")),
             ingester: "sideload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
             source: Some("album/page-1.jpg".to_string()),
             position: 1,
         })
@@ -193,6 +197,7 @@ on_both!(a_created_item_set_joins_its_sites, |pool| {
     let id = ImportWrites::<Db>::new(&mut tx)
         .create_item_set(&NewImportItemSet {
             fields: w.fields(vec![literal(w.title, "Correspondence", None)]),
+            is_open: false,
             sites: vec![w.sites[1]],
         })
         .await
