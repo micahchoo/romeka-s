@@ -92,8 +92,9 @@ impl Imported {
 async fn imported() -> Imported {
     let site = site().await;
     let jpeg = jpeg();
-    site.write("Letters/L_001.jpg", &jpeg);
-    site.write("Letters/L_002.jpg", &jpeg);
+    // Two distinct objects: identical bytes would be left out as a copy (`keepOne`).
+    site.write_object("Letters/L_001.jpg", &jpeg);
+    site.write_object("Letters/L_002.jpg", &jpeg);
     let id = site
         .draft(|plan| {
             plan["grouping"]["pattern"] = json!(PATTERN);
