@@ -420,8 +420,10 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   import and in the API, goes through one guard: `http` and `https` only; no credentials in the
   URL; the host resolved once, every address checked, and the connection made to the checked
   address; refused ranges are loopback, link-local (incl. `169.254.169.254`), private, CGNAT, IPv6
-  ULA and IPv4-mapped forms of these; each redirect (at most 5) checked the same way; size capped at
-  `import_upload_max_file`, time at 60 s. The operator may allow private ranges
+  ULA and IPv4-mapped forms of these; each redirect (at most 5) checked the same way; also refused: NAT64 and 6to4 forms of refused
+  addresses, `fec0::/10`, `0.0.0.0/8`, `192.0.0.0/24`, `198.18.0.0/15`, `240.0.0.0/4`; size capped at
+  `import_upload_max_file`; 60 s to connect and between bytes, 1 hour per fetch; the body streams
+  into the store (P6-urls). The operator may allow private ranges
   (`import_allow_private_urls`). Check never fetches.
 
 ## Storage and file access
