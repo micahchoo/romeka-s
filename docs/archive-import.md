@@ -1,5 +1,8 @@
 # Archive import: contract and run log
 
+This is the v1 contract. Import v2 replaced it: read [`import-v2.md`](import-v2.md) for the code that
+runs today. This file stays as the record of what v1 promised and how it was built.
+
 Branch `admin/archive-import`, worktree `../romeka-s-wt/archive-import`. Uncommitted until the user
 decides. Merges to main go through `flock ../.romeka-main.lock`. Migration 0005 is claimed with
 session romeka-s-d5 (2026-10-19).

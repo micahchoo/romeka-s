@@ -15,13 +15,33 @@ decisions: corrections that survive the next derive. The goal is upstream CSV Im
 
 1. Every unit in the Units table is merged into main with a verdict in the run log:
    `unit-test-verified` or better, `live-ui-verified` for admin units.
+   *Status 2026-10-20: not met.* Every unit but P10 (the MySQL runtime) and I-close has a row in
+   the run log, and `units.tsv` lists each as verified or landed. Only the P0 units, P2-store,
+   P2-files, P2-urlguard and P9-s3 are on main. The rest is on `import2/base`, 114 commits ahead
+   of main. The run log holds `unit-test-verified` rows up to P5-actions. The later rows say
+   `verified` without a test count, because the commit messages carry none.
 2. The scenario suite passes as e2e specs on SQLite; the server-side scenarios also pass on MySQL 8
    and MariaDB 11.
+   *Status 2026-10-20: not met.* S1, S2 to S8, S15 and S16 pass at model level
+   (`crates/omeka-api/src/import2/derive/tests/scenarios.rs`), and S1, S4, S6, S8, S9, S10, S13
+   and S17 run through the CLI and the routes
+   (`crates/omeka-cli/tests/import_run.rs`, `import_actions.rs`, `import_undo.rs`). The browser spec
+   `web/admin/e2e/specs/archive-import.spec.ts` drives five flows (Simple pass with an undo that
+   keeps an edited item, Simple and Advanced agreeing, the pairs list, a ZIP upload, a delete
+   that needs its count). The ZIP flow uses a plain ZIP; the cp437 name, the escaping entry and the bomb of S11 are unit and CLI tests (`unzip/tests.rs`, `import_staging.rs`). S12, S14, S18, S19 and S20 have unit or route tests and no e2e spec.
+   The import tables are tested on MySQL 8 and MariaDB 11 (`crates/omeka-db/tests/import_db/`),
+   but `romeka serve` and the CLI open SQLite only, so no server-side scenario runs on MySQL yet
+   (P10, assumption A86).
 3. Every row A01–A88 has its "Closed by" cell filled: a test name, or a `docs/compat.md` row that
    records an accepted limit and its reason.
+   *Status 2026-10-20: not met for two rows.* 82 rows name a test, four (A04, A73, A76, A81) name
+   a compat row, and two (A07, A86) say `open` and why.
 4. Gates pass: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, admin `typecheck`, `lint`, `test`, `build`, `e2e`, `perf:check`. New
    admin strings exist in every locale, and changed English strings are translated again.
+   *Status 2026-10-20: not shown.* Each unit ran its own gates. No workspace-wide run is recorded
+   on the merged branch. The seven Indic locales hold the import screens (commit `f91816b`) and
+   the server messages (commit `ce7a175`).
 
 ## Words
 
@@ -349,7 +369,8 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   ("Letter" and "letter"); anything else ("Letters", "पत्र") is a separate value the person can map
   with `SlotRule.map`.
 - **Filters** on `records`: group, folder, item set, item type, file-count bucket, flag kind and
-  slot, left out or not, text in any slot. On `entries`: used or not, reason not used, folder,
+  slot, left out or not, text in any slot. On `entries`: `kind` (`file` or `row`), `sheet` (the
+  rows of one sheet; files are then never in the answer), used or not, reason not used, folder,
   text. On sheet rows: paired or not.
 - **Changes to many records** name the records they hit: `{ kind: 'many', entries: EntryRef[],
   change: Decision-without-entry }`, applied in list order. After a rescan, records that match the
@@ -371,9 +392,18 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
 - Downloaded-list headers for the three slots are `Item sets [sets]`, `Item type [template]`,
   `Visibility [visibility]`.
 - **Pairs list round trip** (more than 30 unpaired rows): `GET …/pairs.csv` answers the unpaired
-  rows (`Row [sheet:key]`, the row's own cells, and an empty `Files` column, formula-guarded);
-  `POST …/pairs` reads it back and adds one `pair` decision per filled `Files` cell whose text
-  exactly equals a file of this import (others are reported, not guessed).
+  rows (`Row [sheet:key]`, the row's own cells, and an empty `Files` column, formula-guarded).
+  The row address is `<sheet>:<row key>`. `POST …/pairs` (multipart, one file) reads the list back
+  and adds one `pair` decision per filled `Files` cell whose text exactly equals the name or path of
+  one file of this import that sits in an item. It answers `{ added, already, unmatched, unmatchedTotal,
+  import }`. `added` counts the new decisions, `already` the cells whose pair the plan holds,
+  `unmatched` the first 200 cells that made no pair as `{ row, text, why }`, `unmatchedTotal` all
+  of them, and `import` the import with its new plan and revision. `why` is one of `noRow` (the row
+  address names no row of this import), `noFile` (the text is no file name or path), `manyFiles`
+  (several files have that name; write the folder too) or `noItem` (the file is in no item, so a
+  pair would join nothing). Others are reported, not guessed. A list without the `Row` or `Files`
+  column answers 400, and an import that has started answers 409 `notDraft`. One row takes one file;
+  naming several files in one cell needs a separator and is not built.
 - **Run progress** carries records done, records total and seconds left from the rate so far. No
   email: the page says the run goes on if the person leaves.
 
@@ -627,7 +657,12 @@ All need a signed-in global admin or site admin.
 | `POST /api/romeka/imports/{id}/undo` `{ force?: Array<{ kind, id }> \| 'all' }` | `{ jobId }` |
 | `GET /api/romeka/imports/{id}/left.csv` | the stored file |
 | `/api/romeka/imports/{id}/uploads[/{upload}]` | tus 1.0 core |
+| `GET /api/romeka/imports/{id}/template.csv?columns=` | the list to fill in, one row per item |
+| `POST /api/romeka/imports/{id}/sheets` | multipart, one list at most 50 MB; adds a sheet joined on `Identifier` |
+| `GET /api/romeka/imports/{id}/pairs.csv` | the unpaired rows as a list to fill in |
+| `POST /api/romeka/imports/{id}/pairs` | multipart, one filled list; `{ added, already, unmatched, unmatchedTotal, import }` |
 | `GET /api/romeka/starters` | the server's starter list |
+| `GET /api/romeka/jobs/{id}/log` | the job's log as text |
 | `GET /api/romeka/files/allow` | 204 or 403 |
 
 Preview sections (`include`): `entries` (paged; each with its record and flags), `sheets` (per sheet, `read.workbook =
@@ -635,13 +670,17 @@ Preview sections (`include`): `entries` (paged; each with its record and flags),
 encoding guess and confidence, delimiter, header line, raw lines, counts, column list), `tags`,
 `records` (paged by kind; filter by flag kind, slot, or text in any slot), `flags` (counts per kind
 and slot), `anomalies`, `orphans`, `check` (counts per action and kind, new sets, types, fields,
-flags by policy, blocking reasons, `canRun`, `digest`).
+flags by policy, blocking reasons, `canRun`, `digest`). The review-at-scale sections are `shapes`,
+`histogram`, `identical`, `unpaired`, `values`, `nameWords` and `columnMatches` (see "What the
+admin screens need at scale"). A request may carry `seed` (it draws the sample records) and a
+`plan` to preview without saving it.
 
 ## Command line
 
-`romeka import run --plan plan.json --as <email> [--dry-run]`, `romeka import undo <id> [--force
-all]`, `romeka import list`. They call the same omeka-api functions as the routes. `romeka import
-csv` and `romeka import media` are removed in P7.
+`romeka import run --plan plan.json --as <email> [--dry-run] [--confirm <count>]`, `romeka import
+undo <id> [--preview] [--force all]`, `romeka import list [--page N] [--per-page N]`. They call the
+same omeka-api functions as the routes. `romeka import csv` and `romeka import media` were removed
+in P7; `romeka import template` (a resource template from JSON) stays.
 
 ## Database (migration 0006, SQLite and MySQL; claimed 2026-10-20, romeka-s-d5 agreed)
 
@@ -782,6 +821,20 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P4-integrate | verified (units.tsv); no test count recorded | `a0c9f5a` merges the four P4 branches into one: the v2 admin as one piece, with the e2e import spec driving v2 against the real port (`2e887dd`, `3f3cd6f`). A new draft groups by the name alone (`5a3d7c4`); files from this computer on both files screens (`f14ac43`); one marked example for both modes (`5cef27c`); one Add screen (`873322a`); the undo preview takes its key in the query string (`8de7087`) |
+| I-locales | merged on import2/base (`bc62e99`); not in `units.tsv` | `ce7a175` the server messages and `f91816b` the import screens in the seven Indic locales, machine-translated and read; the order of "X of Y", the placeholders and the mode names corrected by hand |
+| P10a-sql | verified (units.tsv); no test count recorded | `ae488b8`: omeka-db is again the only crate that holds SQL; MySQL answers for health, concatenation and fulltext; a snapshot is refused on MySQL. `serve` and the CLI still open SQLite only; the generic instantiation is P10b |
+| P4-run | verified (units.tsv); no test count recorded | `bfa61ad`: the run and undo screens: start with the checked counts, progress, stop, the end with failures and retry, undo with the kept list |
+| P4-advanced | verified (units.tsv); no test count recorded | `031f8c3`: Advanced mode: files and the pattern editor, lists, fields, problems, existing items, changes |
+| P4-simple | verified (units.tsv); no test count recorded | `a49fd3f`: Simple mode: your files, what we found, one example, your list, where they go, check, add |
+| P4-lists | verified (units.tsv); no test count recorded | `4981f00`, `ffffe36`: the review lists (every item, every file, pair by hand, groups by facts, the files chart, identical files, the list round trip, change many), the pairs list round trip, the entries filters `kind` and `sheet`, the reasons `identical` and `noRow`, Indic locales filled and read |
+| P9-s3 | landed on main | `0920077`, `baa22db`: an S3-compatible object store behind the Store trait, signed URLs for originals and private files, compose passes the store settings. Open items are in `followups.md` (private thumbnails share public prefixes, backup is local only) |
+| P8-finish | verified (units.tsv); no test count recorded | `9e794c4`: IPTC and XMP tags reach slots value by value with the 1252 flag; large thumbnails in a run; workbook previews and sheet names; tag labels |
+| P6-upload | verified (units.tsv); no test count recorded | `b5083e7`, `ec917e1`: resumable uploads into staging (tus 1.0 core), safe ZIP unpacking, limits, the sweep with an hourly tick, URL bodies streamed, the upload component |
+| P4-shell | verified (units.tsv); no test count recorded | `c750e8c`, `b259807`: the import frame (home, past imports, Simple and Advanced shell, a plan store that saves as you go); v1 import pages removed; the `partly_undone` status |
+| P7-cli | verified (units.tsv); no test count recorded | `105fa70`: `romeka import run`, `undo` and `list` drive the one importer; `import csv` and `import media` are removed |
+| P8-readers | verified (units.tsv); no test count recorded | `15f0056`: workbook registers (xlsx, xls, ods), IPTC and XMP tags, 1252 text, GPS to six places, bounded thumbnails for large TIFF and JPEG, JP2 |
+| P4-api | landed on import2/base (merges `069de08`, `ab754b7`); `units.tsv` still says running | `64cc933`, `c445cad`: the typed client for the v2 wire, with fixtures written by the real routes |
 | P5-actions | unit-test-verified | 2,206 workspace tests x3; 403 MySQL tests each engine; S13, S9 update/replace + exact undo, undo B then A, undo preview equals undo; 11 mutations |
 | P3-extras | unit-test-verified | 2,155 workspace tests; 9 mutations; 40k preview with every section 545-595 ms quiet, over 600 ms under load 14-17 |
 | P5-undo | unit-test-verified | 2,110 workspace tests; 393 MySQL tests each on 8.0 and MariaDB 11; S9b, S10, later import, stopped run, interrupted undo; 5 write paths fixed to move modified |

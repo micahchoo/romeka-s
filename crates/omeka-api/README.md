@@ -31,12 +31,29 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 ## Archive import
 
-`src/import/` is the logic of the archive import, a Romeka addition: the stored plan and its parse
-boundary, the archive root and its safe relative paths, the file-name pattern, the CSV reader with
-its Windows-1252 repair, the EXIF tags, the pure derive from folder and plan to rows and problems,
-the preview and the dry run, and the write side (`run`, `undo`, `left`). The server's routes in
-`omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is the one validator:
-the admin only renders the pages of rows it answers.
+`src/import2/` is the logic of import v2, a Romeka addition (`docs/import-v2.md`). It keeps the name
+`import2` until the last unit renames it. The module is generic over `omeka_db::Backend` and holds no
+SQL. Its parts:
+
+- Rules and evidence. `plan` is the stored plan and its one parse boundary. `archive` holds the named
+  roots and the safe relative paths. `evidence` walks a source into file entries, with `scan` to store
+  the walk. `sheet` reads CSV, TSV, `.xlsx`, `.xls` and `.ods` lists, with the encodings, delimiters
+  and quotes of the contract. `tags` reads EXIF, IPTC and XMP tags and file facts.
+- The pure derive. `derive` takes the evidence, the plan, the decisions and a catalog of the install,
+  and gives a model of records, flags, anomalies and a digest. It uses `grouping` (the file-name
+  pattern), `join`, `slots`, `matching` and `flags`. It never touches a disk or a database.
+- What the admin reads. `preview` answers the sections of `POST …/preview`, `check` the counts and
+  the digest, `draft` the stored drafts, `template` the list a person fills in, and `starters` the
+  starter item types.
+- The write side. `run` writes the model one record at a time, with `ledger`, `media_in` and `left`.
+  `undo` takes an import back, with `touched` to find what changed since.
+- Uploads. `staging` keeps the files a person sent, `unzip` unpacks a ZIP among them, and `sweep`
+  removes them when no import needs them.
+
+The server's routes in `omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is
+the one validator: the admin only renders what it answers. The routes are in
+[`../omeka-server/README.md`](../omeka-server/README.md), and the commands in
+[`../omeka-cli/README.md`](../omeka-cli/README.md).
 
 ## Route table
 
