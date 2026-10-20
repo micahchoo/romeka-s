@@ -84,14 +84,23 @@ and settings in one transaction, the way upstream's one flush stores them, so a 
 no partial site. The first page's id exists only inside that transaction, so a navigation that
 links the page is passed as a function of its id.
 
-`ImportRepo` and `ImportResourceRepo` carry the archive importer's state (`0005_archive_import.sql`).
-`ImportResourceRepo::record` takes the caller's executor, so a run records a created target inside
-the transaction that created it. `ImportRepo::start_run` and `start_undo` are each one serialized
-transaction (`BEGIN IMMEDIATE` on SQLite, `FOR UPDATE` on every import row on MySQL): they record
-dead imports first, refuse while another import is live, and `start_run` moves the one open undo
-window. An import is dead when it claims to run but its job row has ended or its heartbeat (summary
-member `heartbeat`, else the job's start) is older than two minutes; `settle_dead` records it
-failed and its job `error` (`src/repos/import_lifecycle.rs`).
+Import v2's state (`docs/import-v2.md`, "Database") is in migration `0006_import_v2.sql`, which
+replaced the v1 importer's tables. `ImportRepo` holds the draft, saves its plan only at the
+revision the caller edited (`PlanSave::Stale` otherwise), and ends a run or an undo through an
+`ImportEnding`, which names the one state it ends. `ImportRepo::start_run` and `start_undo` are
+each one serialized transaction (`BEGIN IMMEDIATE` on SQLite, `FOR UPDATE` on every import row on
+MySQL): they record dead imports first, refuse while another import is live, and a run start
+freezes the plan into `ran_plan`. An import is dead when it claims to run but its job row has
+ended or its heartbeat (summary member `heartbeat`, else the job's start) is older than two
+minutes; `settle_dead` records it `run_failed` or `undo_failed` and its job `error`
+(`src/repos/import_lifecycle.rs`).
+
+`ImportResourceRepo::record` and `BeforeImageRepo::put` take the caller's executor, so a run
+writes a record, its ledger row and its before-image in one transaction. `UploadRepo::advance`
+moves an upload forward only from the stored offset (`UploadAdvance::Conflict` otherwise).
+`EntryRepo::replace` swaps an import's whole evidence index in one transaction and keys each entry
+by the SHA-256 of its path. `IdentifierRepo::items` maps trimmed `dcterms:identifier` literals to
+the lowest item id, optionally within item sets.
 
 ### Ordering text
 
@@ -145,7 +154,9 @@ ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
 ```
 
 The same suite passes against MariaDB 11. MariaDB reserves `VALUE`, so that run is what exercises
-the backend's quoted `value` insert.
+the backend's quoted `value` insert. The import suites (`tests/imports.rs`, `tests/import_*.rs`)
+write each test once with `on_both!` (`tests/import_db/mod.rs`), which makes a SQLite test and a
+MySQL test from the same body.
 
 ```sh
 docker run -d --name omeka-mariadb-test \

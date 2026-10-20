@@ -247,7 +247,7 @@ const TABLES: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Romeka's own tables (`0003_publication.sql`, `0005_archive_import.sql`). Upstream never reads them, so they sit apart from
+/// Romeka's own tables (`0003_publication.sql`, `0006_import_v2.sql`). Upstream never reads them, so they sit apart from
 /// [`TABLES`] and the upstream tables stay exactly upstream's.
 const ROMEKA_TABLES: &[(&str, &[&str])] = &[
     (
@@ -268,13 +268,51 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
     (
         "romeka_import",
         &[
-            "id", "owner_id", "folder", "plan", "status", "undoable", "job_id", "summary",
-            "created", "finished",
+            "id",
+            "owner_id",
+            "sources",
+            "plan",
+            "ran_plan",
+            "revision",
+            "status",
+            "job_id",
+            "summary",
+            "copied_from",
+            "created",
+            "finished",
         ],
     ),
     (
         "romeka_import_resource",
-        &["import_id", "kind", "target_id"],
+        &[
+            "import_id",
+            "kind",
+            "target_id",
+            "record",
+            "change_kind",
+            "written",
+        ],
+    ),
+    (
+        "romeka_import_before",
+        &["import_id", "kind", "target_id", "image"],
+    ),
+    (
+        "romeka_import_upload",
+        &["import_id", "id", "path", "length", "received", "created"],
+    ),
+    (
+        "romeka_import_entry",
+        &[
+            "import_id",
+            "source",
+            "path",
+            "path_hash",
+            "size",
+            "modified",
+            "media_type",
+            "flags",
+        ],
     ),
 ];
 

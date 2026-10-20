@@ -263,19 +263,15 @@ upstream's job writes.
 
 ## Archive import
 
-The `/api/romeka/archive`, `/api/romeka/imports` and `/api/romeka/jobs/{id}/log`
-routes are Romeka additions (`src/imports.rs`); `docs/archive-import.md` holds their
-contract. The rules live in `omeka_api::import`. Only a global or site
+Import v2 (`docs/import-v2.md`) replaces the v1 archive importer. Until P3-wire
+adds the v2 routes, `src/imports.rs` serves two Romeka additions:
+`GET /api/romeka/starters`, the starter item types, and
+`GET /api/romeka/jobs/{id}/log`, a job's log as text. Only a global or site
 administrator may call them: anonymous is 401, any other role 403.
 
-The server starts the run and undo jobs through the `JobDispatch` trait object
-in `Services`. `romeka serve` supplies one that starts `romeka job run <id>
---database <path> --store <dir> --base-url <url> [--archive-root <dir>]` with the
-server's own values and reaps the child; a router built without one fails every
-start. A run or an undo starts through `ImportRepo::start_run`/`start_undo`, one locked
-transaction that refuses while another import is live. Every read first records
-dead imports (`ImportRepo::settle_dead`): a dead import shows `failed` with
-`died`, blocks nothing, and may be undone while it holds the window.
+Deleting the job of an import that is running or undoing answers 409
+(`JobRepo::delete_unless_held`), after the dead imports are recorded
+(`ImportRepo::settle_dead`).
 
 ## Tags
 

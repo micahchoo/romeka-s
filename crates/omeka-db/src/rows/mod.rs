@@ -12,6 +12,7 @@
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
 mod custom_vocabs;
+mod import_evidence;
 mod imports;
 mod publications;
 mod resources;
@@ -24,8 +25,10 @@ mod values;
 mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
+pub use import_evidence::{EntryRow, NewEntry, NewUpload, UploadRow};
 pub use imports::{
-    ImportKind, ImportResourceRow, ImportRow, ImportStatus, ImportTarget, NewImport,
+    BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
+    ImportStatus, ImportTarget, NewImport, NewImportResource,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{

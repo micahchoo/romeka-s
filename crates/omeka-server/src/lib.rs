@@ -13,7 +13,6 @@
 //! Nothing binds a socket except [`serve`]; tests drive the app through
 //! `tower::ServiceExt::oneshot` or [`serve_with_config`] on an ephemeral port.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::Router;
@@ -57,7 +56,6 @@ mod tags;
 mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
-pub use imports::{IMPORT_JOB, UNDO_JOB};
 pub use jobs::{DispatchError, JobDispatch, NoDispatch};
 pub use logging::init_logging;
 pub use serve::{serve, serve_with_config, serve_with_services, shutdown_signal};
@@ -91,12 +89,6 @@ pub struct AppState {
     /// True when the configured base URL is https, so a session cookie is
     /// marked `Secure`.
     pub(crate) secure_cookies: bool,
-    /// The archive import's root folder; `None` turns the import off.
-    pub(crate) archive_root: Option<PathBuf>,
-    /// What starts a composed job row.
-    pub(crate) jobs: Arc<dyn JobDispatch>,
-    /// Each archive file's tags, remembered for the life of the process.
-    pub(crate) tag_reader: omeka_api::import::tags::SharedTagReader,
 }
 
 /// What the process supplies beyond the pool and the [`Config`]: the file
@@ -175,9 +167,6 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         limiter: Limiter::new(omeka_api::limits::RateLimits::default()),
         mailer: Mailer::from_config(&config.mail, base.clone()),
         secure_cookies,
-        archive_root: config.archive_root.clone(),
-        jobs: services.jobs,
-        tag_reader: omeka_api::import::tags::SharedTagReader::default(),
     };
     let routes = Router::new()
         .route("/health", get(health))

@@ -1,5 +1,5 @@
-//! Import v2 (`docs/import-v2.md`), built beside v1 until the cutover renames
-//! this module to `import`.
+//! Import v2 (`docs/import-v2.md`). P3-wire renames this module to `import`
+//! once its routes exist.
 //!
 //! - [`plan`]: the stored plan and its one parse boundary, [`plan::ImportPlanV2::from_json`].
 //! - [`decisions`]: corrections keyed by an entry.
@@ -8,6 +8,7 @@
 //! - [`evidence`]: the walk of a source into file entries and sheets.
 //! - [`tags`]: file tags and file facts.
 //! - [`sheet`]: the sheet reader.
+//! - [`starters`]: the starter item types `GET /api/romeka/starters` lists.
 //!
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
@@ -18,6 +19,7 @@ pub mod evidence;
 pub mod plan;
 pub mod sheet;
 pub mod tags;
+pub mod starters;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};

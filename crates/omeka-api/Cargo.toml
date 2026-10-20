@@ -27,9 +27,6 @@ omeka-media = { path = "../omeka-media" }
 # The extension seam: the adapter spec and operation vocabulary, and the
 # registry that carries a plugin adapter into routing and the read dispatch.
 omeka-plugin = { path = "../omeka-plugin" }
-# The archive import's file-name pattern (`import/pattern.rs`). The admin
-# writes the pattern in the subset JavaScript and this crate both accept.
-regex = "1"
 serde = { workspace = true }
 # preserve_order keeps the PHP insertion order of `serde_json::Value` members
 # (`o:ini`, `o:args`, `o:item_pool`, `o:layout_data`, media `data`). Without it
@@ -71,10 +68,6 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 # `tests/relations_batch.rs` counts the statements sqlx executes through this
 # crate's logger; sqlx logs each statement at debug through `log`.
 log = "0.4"
-# The archive import tests build a real folder tree, symlinks included.
-tempfile = "3"
-# The archive import run tests write small real JPEG and TIFF files.
-image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }
 
 [lints]
 workspace = true

@@ -3,6 +3,10 @@
 -- The SQLite file says what each column holds. This is the same schema in the conventions of
 -- `0002_custom_vocab.sql`: `IF NOT EXISTS`, InnoDB, utf8mb4, JSON as LONGTEXT. No upstream table
 -- changes, so an Omeka S install that shares the database reads its own tables as before.
+--
+-- The SQLite file's CHECK that at most one target is set is not here: MySQL 8 refuses a CHECK
+-- on a column whose foreign key sets it to NULL (error 3823). `PublicationTarget` names exactly
+-- one target, so no write sets both.
 
 CREATE TABLE IF NOT EXISTS romeka_publication (
   id INT AUTO_INCREMENT NOT NULL,
@@ -15,7 +19,6 @@ CREATE TABLE IF NOT EXISTS romeka_publication (
   UNIQUE INDEX UNIQ_ROMEKA_PUBLICATION_VOCABULARY (vocabulary_id),
   UNIQUE INDEX UNIQ_ROMEKA_PUBLICATION_SLUG (slug),
   PRIMARY KEY(id),
-  CONSTRAINT CHK_ROMEKA_PUBLICATION_ONE_TARGET CHECK (custom_vocab_id IS NULL OR vocabulary_id IS NULL),
   CONSTRAINT FK_ROMEKA_PUBLICATION_CUSTOM_VOCAB FOREIGN KEY (custom_vocab_id) REFERENCES custom_vocab (id) ON DELETE SET NULL,
   CONSTRAINT FK_ROMEKA_PUBLICATION_VOCABULARY FOREIGN KEY (vocabulary_id) REFERENCES vocabulary (id) ON DELETE SET NULL
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB;

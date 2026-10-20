@@ -1,19 +1,18 @@
 //! The CSV reader and writer for `romeka import csv` and `romeka export csv`.
 //!
-//! The reader lives in `omeka_api::import::csv`, shared with the archive
-//! import. This module maps its error to [`CliError::Parse`], which names the
-//! record the input broke on.
+//! The reader lives in `omeka_api::csv`. This module maps its error to
+//! [`CliError::Parse`], which names the record the input broke on.
 
 use crate::error::CliError;
 
-pub use omeka_api::import::csv::{Record, render};
+pub use omeka_api::csv::{Record, render};
 
 /// Parse comma-separated input. Blank records are dropped.
 ///
 /// # Errors
 /// A [`CliError::Parse`] for an unterminated quoted field.
 pub fn parse(input: &str) -> Result<Vec<Record>, CliError> {
-    omeka_api::import::csv::parse(input).map_err(|error| CliError::Parse {
+    omeka_api::csv::parse(input).map_err(|error| CliError::Parse {
         line: error.line(),
         message: "unterminated quoted field".to_string(),
     })
