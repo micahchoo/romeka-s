@@ -93,11 +93,82 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// The browse pager's summary, `%s results · page %s of %s` over the
+    /// total, the page and the page count. Upstream's pager has no summary.
+    pub pager_count: &'static str,
+    /// The note under a resource heading whose title is a fallback.
+    pub no_title_recorded: &'static str,
+    /// The panel an item page shows when the item has no media.
+    pub no_media_attached: &'static str,
+    /// The footer's link list, as its `nav` label.
+    pub footer_links: &'static str,
+    /// The footer's licence line when the site keeps every right.
+    pub all_rights_reserved: &'static str,
+    /// The header search field's placeholder.
+    pub search_placeholder: &'static str,
+    /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
+    /// It opens on the public page.` pattern, over the block's title. A Romeka
+    /// string; upstream's preview runs the viewer.
+    pub iiif_poster: &'static str,
+    /// The item page's link that opens the item in the IIIF viewer. A Romeka
+    /// string.
+    pub iiif_view_in_viewer: &'static str,
+    /// The item page's link to the item's IIIF manifest. A Romeka string.
+    pub iiif_manifest: &'static str,
     /// A browse preview of items on a site that holds no items, in the admin
     /// preview. A port addition: upstream prints an empty list.
     pub no_site_items_preview: &'static str,
     /// The same empty browse preview on the public site, with no admin hint.
     pub no_site_items: &'static str,
+    /// A map's accessible name, and the item page's map section label. A
+    /// Romeka addition, as every `map_` message is.
+    pub map: &'static str,
+    /// The disclosure under a map block that lists its places as links.
+    pub map_places: &'static str,
+    /// A marker that stands for several close places, `%s` the count.
+    pub map_place_count: &'static str,
+    /// The editor preview's poster for a map block, `%s` the place count.
+    pub map_poster: &'static str,
+    /// The editor preview's poster for a map block with no places.
+    pub map_no_places_preview: &'static str,
+    /// A gallery's accessible name. A Romeka addition, as every `gallery_`
+    /// message is.
+    pub gallery: &'static str,
+    /// The lightbox's close button.
+    pub gallery_close: &'static str,
+    /// The lightbox's button to the image before.
+    pub gallery_previous: &'static str,
+    /// The lightbox's button to the image after.
+    pub gallery_next: &'static str,
+    /// The lightbox's position line, `{index}` the image's number and `{count}`
+    /// the gallery's image count, named so a locale can put them in its own
+    /// order.
+    pub gallery_position: &'static str,
+    /// The editor preview of a gallery with no images.
+    pub gallery_empty_preview: &'static str,
+    /// A featured item card's link to the item. A Romeka addition, as every
+    /// `featured_` message is.
+    pub featured_view_item: &'static str,
+    /// The editor preview of a featured item card with no item to show.
+    pub featured_empty_preview: &'static str,
+    /// The editor preview of a button block with no complete button. A Romeka
+    /// addition.
+    pub button_empty_preview: &'static str,
+    /// The editor preview of a quote block with no quotation. A Romeka
+    /// addition.
+    pub quote_empty_preview: &'static str,
+    /// The editor preview of an accordion with no entry. A Romeka addition.
+    pub accordion_empty_preview: &'static str,
+    /// The heading of a timeline's items with no date. A Romeka addition, as
+    /// every `timeline_` message is.
+    pub timeline_undated: &'static str,
+    /// The editor preview of a timeline with no item.
+    pub timeline_empty_preview: &'static str,
+    /// A browse preview whose search matches nothing on a site that holds
+    /// items. A Romeka addition: upstream prints an empty list.
+    pub no_matches: &'static str,
+    /// The same empty browse preview in the admin preview, with the fix.
+    pub no_matches_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -142,8 +213,40 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    pager_count: "%s results · page %s of %s",
+    no_title_recorded: "No title recorded",
+    no_media_attached: "No media attached",
+    footer_links: "Footer links",
+    all_rights_reserved: "All rights reserved",
+    search_placeholder: "Search the collection",
+    iiif_poster: "IIIF viewer: %s. It opens on the public page.",
+    iiif_view_in_viewer: "View in the IIIF viewer",
+    iiif_manifest: "IIIF manifest",
     no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
     no_site_items: "There are no items to show yet.",
+    map: "Map",
+    map_places: "Places on this map",
+    map_place_count: "%s places",
+    map_poster: "A map of %s places. The map itself shows on the public page.",
+    map_no_places_preview: "This map has no places yet. Its items need a \"lat, lng\" value in the \
+                            location field the site settings name.",
+    gallery: "Gallery",
+    gallery_close: "Close",
+    gallery_previous: "Previous image",
+    gallery_next: "Next image",
+    gallery_position: "Image {index} of {count}",
+    gallery_empty_preview: "This gallery has no images yet. Pick items or assets in the block's \
+                            settings.",
+    featured_view_item: "View item",
+    featured_empty_preview: "Pick an item for this card in the block's settings.",
+    button_empty_preview: "Give the button a label and a page or a URL in the block's settings.",
+    quote_empty_preview: "Write the quotation in the block's settings.",
+    accordion_empty_preview: "Add a heading and its answer in the block's settings.",
+    timeline_undated: "Undated",
+    timeline_empty_preview: "Pick items or a search for this timeline in the block's settings.",
+    no_matches: "Nothing here matches yet.",
+    no_matches_preview: "Nothing matches this block's search. Change the search in the block's \
+                         settings.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -194,9 +297,42 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    // The theme's own strings, not in `es.po`.
+    pager_count: "%s resultados · página %s de %s",
+    no_title_recorded: "Sin título registrado",
+    no_media_attached: "Sin medios adjuntos",
+    footer_links: "Enlaces del pie de página",
+    all_rights_reserved: "Todos los derechos reservados",
+    search_placeholder: "Buscar en la colección",
+    iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
+    iiif_view_in_viewer: "Ver en el visor IIIF",
+    iiif_manifest: "Manifiesto IIIF",
     // The admin's words, because only the admin preview shows it.
     no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
     no_site_items: "Todavía no hay fichas que mostrar.",
+    map: "Mapa",
+    map_places: "Lugares de este mapa",
+    map_place_count: "%s lugares",
+    map_poster: "Un mapa de %s lugares. El mapa se muestra en la página pública.",
+    map_no_places_preview: "Este mapa aún no tiene lugares. Sus fichas necesitan un valor \
+                            \"lat, lng\" en el campo de ubicación que indican los ajustes del sitio.",
+    gallery: "Galería",
+    gallery_close: "Cerrar",
+    gallery_previous: "Imagen anterior",
+    gallery_next: "Imagen siguiente",
+    gallery_position: "Imagen {index} de {count}",
+    gallery_empty_preview: "Esta galería aún no tiene imágenes. Elige fichas o recursos en los \
+                            ajustes del bloque.",
+    featured_view_item: "Ver ficha",
+    featured_empty_preview: "Elige una ficha para esta tarjeta en los ajustes del bloque.",
+    button_empty_preview: "Da al botón un texto y una página o una URL en los ajustes del bloque.",
+    quote_empty_preview: "Escribe la cita en los ajustes del bloque.",
+    accordion_empty_preview: "Añade un encabezado y su respuesta en los ajustes del bloque.",
+    timeline_undated: "Sin fecha",
+    timeline_empty_preview: "Elige fichas o una búsqueda para esta cronología en los ajustes del bloque.",
+    no_matches: "Todavía no hay nada que coincida.",
+    no_matches_preview: "Nada coincide con la búsqueda de este bloque. Cambia la búsqueda en los \
+                         ajustes del bloque.",
 };
 
 #[cfg(test)]

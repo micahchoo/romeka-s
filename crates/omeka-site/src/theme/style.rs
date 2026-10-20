@@ -184,6 +184,33 @@ mod tests {
             block("html", json!({"html": "<p>Grouped copy</p>"})),
             block("myModuleLayout", json!({"x": 1})),
             romeka_hero(),
+            romeka_block(
+                "gallery",
+                json!({"media": [{"item": 7, "caption": "<p>A caption</p>"}]}),
+            ),
+            romeka_block(
+                "gallery",
+                json!({"media": [{"item": 7}], "layout": "carousel", "columns": 4}),
+            ),
+            romeka_block(
+                "button",
+                json!({"button_label": "Go", "button_url": "/go", "button2_label": "Back",
+                       "button2_url": "/back", "size": "small"}),
+            ),
+            romeka_block(
+                "quote",
+                json!({"text": "Words", "attribution": "Someone", "item": 7, "style": "band"}),
+            ),
+            romeka_block(
+                "accordion",
+                json!({"entries": [{"heading": "A question", "answer": "<p>An answer</p>"}]}),
+            ),
+            romeka_block("timeline", json!({"items": [7, 4]})),
+            romeka_block("searchBox", json!({"resource": "items"})),
+            romeka_block(
+                "featuredItem",
+                json!({"item": 7, "fields": [{"property": "dcterms:title"}]}),
+            ),
         ];
         for (index, block) in blocks.iter_mut().enumerate() {
             block.position = index as i64 + 1;
@@ -209,8 +236,27 @@ mod tests {
                     "overlay": "medium",
                     "alignment": "center",
                     "cta_label": "Browse",
-                    "cta_page": 3
+                    "cta_page": 3,
+                    "cta2_label": "About",
+                    "cta2_url": "/s/main/page/about",
+                    "height": "tall"
                 },
+                "plain_hash": crate::blocks::romeka::plain_hash(plain)
+            }}),
+        )
+    }
+
+    /// A Romeka carrier of `name` whose plain hash matches, so its rich render
+    /// and every class it emits is part of the coverage check.
+    fn romeka_block(name: &str, settings: serde_json::Value) -> omeka_core::site::SiteBlock {
+        let plain = "<p>Plain</p>";
+        block_with_layout(
+            "html",
+            json!({"html": plain}),
+            json!({"romeka": {
+                "block": name,
+                "v": 2,
+                "settings": settings,
                 "plain_hash": crate::blocks::romeka::plain_hash(plain)
             }}),
         )
@@ -295,6 +341,50 @@ mod tests {
         page
     }
 
+    /// A page with one section per layout, each with an alignment, a gap and
+    /// an overlay, and a block with every shared styling member.
+    fn sections_page() -> SitePage {
+        let mut page = SitePage::new(
+            PageId::new(6),
+            SiteId::new(1),
+            Slug::parse("sections").unwrap(),
+            "Sections",
+        );
+        let aligns = ["top", "center", "bottom"];
+        let gaps = ["none", "small", "medium", "large"];
+        let overlays = ["none", "light", "dark"];
+        for (index, (layout, _)) in crate::blocks::style::SectionLayout::ALL.iter().enumerate() {
+            page.blocks.push(block_with_layout(
+                "blockGroup",
+                json!({"span": "1"}),
+                json!({"romeka": {"block": "blockGroup", "v": 2, "settings": {"section": {
+                    "layout": layout,
+                    "align": aligns[index % aligns.len()],
+                    "gap": gaps[index % gaps.len()],
+                    "overlay": overlays[index % overlays.len()],
+                }}}}),
+            ));
+            page.blocks
+                .push(block("html", json!({"html": "<p>Slot</p>"})));
+        }
+        page.blocks.push(block_with_layout(
+            "html",
+            json!({"html": "<p>Styled</p>"}),
+            json!({"romeka": {"block": "html", "v": 2, "settings": {
+                "anchor": "styled",
+                "space_top": "small",
+                "space_bottom": "large",
+                "bleed": true,
+                "text_color": "muted",
+                "background_role": "surface",
+            }}}),
+        ));
+        for (index, block) in page.blocks.iter_mut().enumerate() {
+            block.position = index as i64 + 1;
+        }
+        page
+    }
+
     /// The documents whose fragments the stylesheet must style: a page with
     /// every layout, a grid page, a browse per resource kind, and the remaining
     /// views.
@@ -349,6 +439,12 @@ mod tests {
             &grid,
             &mut ctx,
         ));
+        let sections = sections_page();
+        documents.push(crate::render::render_page(
+            &crate::theme::DefaultTheme,
+            &sections,
+            &mut ctx,
+        ));
 
         let mut browse = BrowseView {
             kind: ResourceKind::Item,
@@ -378,6 +474,10 @@ mod tests {
             )
         });
         documents.push(DefaultTheme.render(&View::Item(&attached), &ctx));
+        let mut with_manifest = attached.clone();
+        with_manifest.iiif_manifest =
+            Some("https://example.org/iiif/3/item/7/manifest".to_string());
+        documents.push(DefaultTheme.render(&View::Item(&with_manifest), &ctx));
         documents.push(DefaultTheme.render(&View::ItemSet(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Media(&attached), &ctx));
         documents.push(DefaultTheme.render(&View::Index, &ctx));
@@ -460,6 +560,32 @@ mod tests {
             }
         }
         assert!(missing.is_empty(), "classes with no rule: {missing:?}");
+    }
+
+    /// A structural class sits on the root element, so no view may print the
+    /// same class on an element of its own: the sheet's rule for the one
+    /// would land on the other. A magnifier once shared `search-icon` with
+    /// the search token and shrank the whole page to its 20px.
+    #[test]
+    fn root_classes_never_name_an_element_class() {
+        use crate::theme::choices::{
+            CardStyle, FooterLayout, HeroStyle, ItemLayout, SearchDisplay,
+        };
+        let mut roots: Vec<&str> = Vec::new();
+        roots.extend(HeroStyle::ALL.iter().map(|v| v.class()));
+        roots.extend(CardStyle::ALL.iter().map(|v| v.class()));
+        roots.extend(SearchDisplay::ALL.iter().map(|v| v.class()));
+        roots.extend(FooterLayout::ALL.iter().map(|v| v.class()));
+        roots.extend(ItemLayout::ALL.iter().map(|v| v.class()));
+        for document in documents() {
+            let body = document.split_once("<body").map_or("", |(_, rest)| rest);
+            for attribute in body.split("class=\"").skip(1) {
+                let value = attribute.split('"').next().unwrap_or_default();
+                for class in value.split_whitespace() {
+                    assert!(!roots.contains(&class), "{class} is a root class");
+                }
+            }
+        }
     }
 
     /// The sheet names no colour of its own. Colours arrive only as the custom
@@ -596,6 +722,72 @@ mod tests {
             "list-of-pages-link",
             "romeka-hero",
             "romeka-hero-cta",
+            "romeka-hero-cta-outline",
+            "romeka-hero-actions",
+            "romeka-hero-height-tall",
+            "romeka-gallery",
+            "romeka-gallery-grid",
+            "romeka-gallery-masonry",
+            "romeka-gallery-carousel",
+            "romeka-gallery-columns-2",
+            "romeka-gallery-columns-6",
+            "romeka-gallery-empty",
+            "romeka-lightbox",
+            "romeka-lightbox-image",
+            "romeka-lightbox-close",
+            "romeka-lightbox-previous",
+            "romeka-lightbox-next",
+            "romeka-featured",
+            "romeka-featured-card",
+            "romeka-featured-image-left",
+            "romeka-featured-image-right",
+            "romeka-featured-image-top",
+            "romeka-featured-no-image",
+            "romeka-featured-empty",
+            "romeka-buttons",
+            "romeka-buttons-align-left",
+            "romeka-buttons-align-center",
+            "romeka-buttons-align-right",
+            "romeka-button-solid",
+            "romeka-button-outline",
+            "romeka-button-small",
+            "romeka-button-medium",
+            "romeka-button-large",
+            "romeka-buttons-empty",
+            "romeka-quote",
+            "romeka-quote-plain",
+            "romeka-quote-large",
+            "romeka-quote-band",
+            "romeka-quote-text",
+            "romeka-quote-attribution",
+            "romeka-quote-empty",
+            "romeka-accordion",
+            "romeka-accordion-item",
+            "romeka-accordion-heading",
+            "romeka-accordion-answer",
+            "romeka-accordion-empty",
+            "romeka-timeline",
+            "romeka-timeline-list",
+            "romeka-timeline-entry",
+            "romeka-timeline-date",
+            "romeka-timeline-thumbnail",
+            "romeka-timeline-undated",
+            "romeka-timeline-empty",
+            "romeka-search",
+            "romeka-search-field",
+            "romeka-search-input",
+            "romeka-search-submit",
+            "romeka-map",
+            "romeka-map-canvas",
+            "romeka-map-poster",
+            "romeka-map-section",
+            "romeka-section",
+            "romeka-section-split-40-60",
+            "romeka-section-cards-3",
+            "romeka-section-band",
+            "romeka-bleed",
+            "iiif-poster",
+            "iiif-links",
             "page-layout-grid",
             "grid-template-columns-12",
             "grid-position-auto",

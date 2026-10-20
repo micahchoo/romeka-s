@@ -66,4 +66,14 @@ export const kn: ResourcesMessages = {
   'items.bulkConfirmAdd': '{site} ಗೆ {count} ಅನ್ನು ಸೇರಿಸಿ',
   'items.bulkDone': '{site} ಈಗ {total} ಅಂಶಗಳನ್ನು ಹೊಂದಿದೆ.',
   'items.bulkConfirmRemove': '{site} ನಿಂದ {count} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
+  'place.legend': '{field} ಅನ್ನು ನಕ್ಷೆಯಲ್ಲಿ ಇರಿಸಿ:',
+  'place.help':
+    'ನಕ್ಷೆಯನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ, ಅಥವಾ "lat, lng" ಎಂದು ಟೈಪ್ ಮಾಡಿ. ಪ್ರತಿ ಸ್ಥಳವನ್ನು {term} ಮೌಲ್ಯವಾಗಿ ಉಳಿಸಲಾಗುತ್ತದೆ, ಇದನ್ನು ಸೈಟ್‌ನ ನಕ್ಷೆಗಳು ತೋರಿಸುತ್ತವೆ.',
+  'place.mapLabel': 'ನಕ್ಷೆ: ಆಯ್ದ ಸ್ಥಳವನ್ನು ಹೊಂದಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ',
+  'place.value': '{number} ಅನ್ನು ಇರಿಸಿ',
+  'place.remove': '{number} ಸ್ಥಳವನ್ನು ತೆಗೆದುಹಾಕಿ',
+  'place.add': 'ಒಂದು ಸ್ಥಳವನ್ನು ಸೇರಿಸಿ',
+  'place.invalid':
+    '-90 ರಿಂದ 90 ರ ನಡುವಿನ ಅಕ್ಷಾಂಶ, ಒಂದು ಅಲ್ಪವಿರಾಮ ಮತ್ತು -180 ರಿಂದ 180 ರ ನಡುವಿನ ರೇಖಾಂಶವನ್ನು ಟೈಪ್ ಮಾಡಿ.',
+  'place.unavailable': 'ನಕ್ಷೆಯನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಸ್ಥಳವನ್ನು "lat, lng" ಎಂದು ಟೈಪ್ ಮಾಡಿ.',
 };

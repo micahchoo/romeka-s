@@ -24,13 +24,14 @@ use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo,
-    TemplateRepo, ValueRepo, compare_text_ci,
+    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteBlockAttachmentRepo,
+    SiteFilter, SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
     TemplatePropertyRow, ValueRow,
 };
+use omeka_site::blocks::page_card::{self, CardImage};
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::i18n::Messages;
 use omeka_site::nav::PageRef;
@@ -39,8 +40,8 @@ use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaRef, ResourcePage, ResourceRef, ResourceView,
-    SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, LinkedResource, MediaRef, PageCard, ResourcePage, ResourceRef,
+    ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 use sqlx::SqlitePool;
 
@@ -49,6 +50,7 @@ use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
 use omeka_media::render::{
     MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
 };
+use omeka_media::store::{FileKind, FileUrls};
 
 use super::SiteError;
 
@@ -108,19 +110,37 @@ fn resource_name(kind: ResourceKind) -> &'static str {
     }
 }
 
+/// What a resource list is ordered by: a column of the resource, or a
+/// property's value text, as `AbstractResourceEntityAdapter::sortQuery` reads
+/// `sort_by`. Any other name orders by id.
+enum SortKey {
+    Id,
+    Created,
+    Modified,
+    Title,
+    /// Each resource's sort text on the property, by resource id.
+    Property(BTreeMap<u64, String>),
+}
+
+/// A requested order: its key and whether it descends.
+struct Order {
+    key: SortKey,
+    descending: bool,
+}
+
 /// Order a filtered row list: relevance first when a fulltext query ran under
-/// the default sort, otherwise the requested sort.
+/// the default sort, otherwise the requested order.
 fn order_rows(
     rows: &mut [LoadedRow],
-    sort: Option<&(String, String)>,
+    order: Option<&Order>,
     ranks: Option<&BTreeMap<u64, f64>>,
     sort_by_default: bool,
 ) {
     let (Some(ranks), true) = (ranks, sort_by_default) else {
-        rows.sort_by(|a, b| compare_resources(a.resource(), b.resource(), sort));
+        rows.sort_by(|a, b| compare_resources(a.resource(), b.resource(), order));
         return;
     };
-    let descending = sort.is_some_and(|(_, order)| order == "desc");
+    let descending = order.is_some_and(|order| order.descending);
     rows.sort_by(|a, b| {
         let (left, right) = (score(ranks, a), score(ranks, b));
         right.total_cmp(&left).then_with(|| {
@@ -147,11 +167,15 @@ impl LoadedRow {
     }
 }
 
+/// Where the bundled theme's files are served (`crate::assets`).
+const ASSET_BASE: &str = "/assets";
+
 /// The read side of one site render: the pool, the base URL, the property
 /// catalog, the site being served, and the caller's visibility facts.
 pub(crate) struct Loader<'a> {
     pool: &'a SqlitePool,
     base: &'a BaseUrl,
+    files: &'a FileUrls,
     catalog: &'a Catalog,
     site: &'a Site,
     access: &'a Access<'a>,
@@ -208,6 +232,7 @@ impl<'a> Loader<'a> {
     pub(crate) fn new(
         pool: &'a SqlitePool,
         base: &'a BaseUrl,
+        files: &'a FileUrls,
         catalog: &'a Catalog,
         site: &'a Site,
         access: &'a Access<'a>,
@@ -216,6 +241,7 @@ impl<'a> Loader<'a> {
         Self {
             pool,
             base,
+            files,
             catalog,
             site,
             access,
@@ -237,9 +263,18 @@ impl<'a> Loader<'a> {
         self.catalog
     }
 
-    /// The request base URL, for building a stored file's URL.
-    pub(crate) fn base(&self) -> &'a BaseUrl {
-        self.base
+    /// The stored files' URLs.
+    pub(crate) fn files(&self) -> &'a FileUrls {
+        self.files
+    }
+
+    /// Whether an item is public, for the file URLs of a media shown without
+    /// its item. A missing item counts as private.
+    pub(crate) async fn item_is_public(&self, item: db::ItemId) -> Result<bool, DbError> {
+        Ok(ItemRepo::new(self.pool)
+            .get(item)
+            .await?
+            .is_some_and(|row| row.resource.is_public))
     }
 
     fn db_site_id(&self) -> db::SiteId {
@@ -309,6 +344,82 @@ impl<'a> Loader<'a> {
         let blocks = SiteRepo::new(self.pool).list_blocks(row.id).await?;
         page.blocks = blocks.iter().filter_map(block_from_row).collect();
         Ok(page)
+    }
+
+    /// The cards of the listed pages a list-of-pages block shows: each page
+    /// of this site the caller can see, with the image and summary its own
+    /// blocks give ([`page_card::source`]).
+    pub(crate) async fn page_cards(
+        &self,
+        ids: &[PageId],
+    ) -> Result<Vec<(PageId, PageCard)>, DbError> {
+        let rows = SiteRepo::new(self.pool)
+            .list_pages(self.db_site_id())
+            .await?;
+        let mut cards = Vec::new();
+        for id in ids {
+            let Some(row) = rows
+                .iter()
+                .find(|row| row.id.0 == id.get() && self.access.sees_site_page(row.is_public))
+            else {
+                continue;
+            };
+            let Ok(slug) = Slug::parse(&row.slug) else {
+                continue;
+            };
+            let mut page = SitePage::new(*id, self.site.id, slug, row.title.clone());
+            page.blocks = SiteRepo::new(self.pool)
+                .list_blocks(row.id)
+                .await?
+                .iter()
+                .filter_map(block_from_row)
+                .collect();
+            let source = page_card::source(&page);
+            let thumbnail = match source.image {
+                Some(CardImage::Asset(asset)) => AssetRepo::new(self.pool)
+                    .get(db::AssetId::from(asset.get()))
+                    .await?
+                    .map(|row| thumbnail_for_asset(self.files, &row)),
+                Some(CardImage::MediaBlock(block)) => {
+                    self.first_block_media_thumbnail(block).await?
+                }
+                None => None,
+            };
+            cards.push((
+                *id,
+                PageCard {
+                    thumbnail,
+                    summary: source.summary,
+                },
+            ));
+        }
+        Ok(cards)
+    }
+
+    /// The medium thumbnail of the first media attached to a block that the
+    /// caller can see.
+    async fn first_block_media_thumbnail(
+        &self,
+        block: BlockId,
+    ) -> Result<Option<Thumbnail>, DbError> {
+        let media = MediaRepo::new(self.pool);
+        for attachment in SiteBlockAttachmentRepo::new(self.pool)
+            .list_for_block(self.db_block_id(block))
+            .await?
+        {
+            let Some(id) = attachment.media_id else {
+                continue;
+            };
+            if let Some(row) = media.get(id).await?
+                && self
+                    .access
+                    .sees_resource(row.resource.is_public, row.resource.owner_id)
+            {
+                let item_is_public = self.item_is_public(row.item_id).await?;
+                return Ok(media_thumbnail(self.files, &row, item_is_public, ""));
+            }
+        }
+        Ok(None)
     }
 
     /// The `application/ld+json` document a show or browse view embeds
@@ -415,11 +526,15 @@ impl<'a> Loader<'a> {
         if let Some(media_row) = media {
             let alt = view.title.clone();
             let media_id = media_row.id();
+            let item_is_public = row.resource.is_public;
             if view.thumbnail.is_none() {
-                view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
+                view.thumbnail = self.thumbnail_for(media_id, item_is_public, &alt).await?;
             }
             let item_url = view.url.clone();
-            view.primary_media = Some(self.media_ref(&media_row, &item_url, options).await?);
+            view.primary_media = Some(
+                self.media_ref(&media_row, &item_url, item_is_public, options)
+                    .await?,
+            );
         }
         self.add_item_lists(row, &mut view).await?;
         Ok(view)
@@ -433,6 +548,7 @@ impl<'a> Loader<'a> {
         &self,
         row: &MediaRow,
         item_url: &str,
+        item_is_public: bool,
         options: &RenderOptions,
     ) -> Result<MediaRef, DbError> {
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
@@ -442,7 +558,8 @@ impl<'a> Loader<'a> {
             self.render_env(),
             item_url.to_string(),
             media_url.clone(),
-        );
+        )
+        .in_item(item_is_public);
         let thumbnail = view
             .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
             .map(|url| Thumbnail::new(url.to_string(), row.alt_text.clone().unwrap_or_default()));
@@ -459,6 +576,16 @@ impl<'a> Loader<'a> {
             &view,
             options,
         );
+        // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
+        // owns the head here, so the embed loads the library it calls.
+        let library = if row.renderer == "iiif" {
+            omeka_site::theme::library_script(
+                ASSET_BASE,
+                "vendor/openseadragon/openseadragon.min.js",
+            )
+        } else {
+            String::new()
+        };
         Ok(MediaRef {
             url: media_url,
             original_url: view.original_url.clone(),
@@ -466,21 +593,24 @@ impl<'a> Loader<'a> {
             media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
-                "<div class=\"media-render {}\">{}</div>",
-                row.renderer, rendered
+                "<div class=\"media-render {}\">{library}{rendered}</div>",
+                row.renderer
             )),
         })
     }
 
-    /// The environment the media renderers read, from the request base URL. The
-    /// IIIF and oEmbed settings are not ported to the site settings yet, so the
-    /// renderer defaults stand.
+    /// The environment the media renderers read: the request base URL, the
+    /// bundled theme's assets, where OpenSeadragon's images are served, and the
+    /// site's two IIIF viewer settings (`Renderer/IiifPresentation.php`).
     fn render_env(&self) -> RenderEnv {
+        let base = self.base.as_str();
         RenderEnv {
-            server_url: self.base.as_str().to_string(),
-            file_base_uri: format!("{}/files", self.base.as_str()),
-            asset_base_path: "/application/asset".to_string(),
-            ..RenderEnv::default()
+            server_url: base.to_string(),
+            files: self.files.clone(),
+            asset_base_path: ASSET_BASE.to_string(),
+            viewer_url: format!("{base}/iiif-viewer"),
+            iiif_viewer_sidebar: self.settings.iiif_viewer_sidebar(),
+            iiif_viewer_theme: self.settings.iiif_viewer_theme().to_string(),
         }
     }
 
@@ -499,10 +629,12 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let alt = view.title.clone();
+        let item = ItemRepo::new(self.pool).get(row.item_id).await?;
+        let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
         if view.thumbnail.is_none() {
-            view.thumbnail = media_thumbnail(self.base, row, &alt);
+            view.thumbnail = media_thumbnail(self.files, row, item_is_public, &alt);
         }
-        let item_url = match ItemRepo::new(self.pool).get(row.item_id).await? {
+        let item_url = match item {
             Some(item) => {
                 let url = resource_show_url(&self.site.slug, "item", item.id().0);
                 view.parent_item = Some(ResourceRef {
@@ -514,9 +646,11 @@ impl<'a> Loader<'a> {
             }
             None => String::new(),
         };
-        // `mediaRender.phtml`: `$resource->render()` on the media itself.
+        // `mediaRender.phtml`: `$resource->render()` on the media itself, with
+        // the renderer's own defaults (the large thumbnail, linked to the
+        // original).
         view.media_embeds.push(
-            self.media_ref(row, &item_url, &media_options(None, None))
+            self.media_ref(row, &item_url, item_is_public, &RenderOptions::default())
                 .await?,
         );
         Ok(view)
@@ -532,9 +666,13 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourcePage, DbError> {
         let filtered = self.filtered(kind, &query.query).await?;
         let mut rows = filtered.rows;
+        let order = match &query.sort {
+            Some(sort) => Some(self.order(sort).await?),
+            None => None,
+        };
         order_rows(
             &mut rows,
-            query.sort.as_ref(),
+            order.as_ref(),
             filtered.ranks.as_ref(),
             filtered.sort_by_default,
         );
@@ -701,9 +839,36 @@ impl<'a> Loader<'a> {
             order_rows(&mut rows, None, filtered.ranks.as_ref(), true);
         } else {
             let sort = self.effective_sort(kind, &effective);
-            order_rows(&mut rows, Some(&sort), None, false);
+            let order = self.order(&sort).await?;
+            order_rows(&mut rows, Some(&order), None, false);
         }
         Ok(rows)
+    }
+
+    /// The order a `sort_by`/`sort_order` pair names. A property term loads
+    /// each resource's sort text on that property; a term the catalog does
+    /// not know orders by id.
+    async fn order(&self, (sort_by, sort_order): &(String, String)) -> Result<Order, DbError> {
+        let key = match sort_by.as_str() {
+            "created" => SortKey::Created,
+            "modified" => SortKey::Modified,
+            "title" => SortKey::Title,
+            term => match self.catalog.property_id(term) {
+                Some(property) => SortKey::Property(
+                    ValueRepo::new(self.pool)
+                        .sort_texts(property)
+                        .await?
+                        .into_iter()
+                        .map(|(resource, text)| (resource.0, text))
+                        .collect(),
+                ),
+                None => SortKey::Id,
+            },
+        };
+        Ok(Order {
+            key,
+            descending: sort_order.eq_ignore_ascii_case("desc"),
+        })
     }
 
     /// The sort a browse starts with: the query's `sort_by`/`sort_order` when it
@@ -818,7 +983,7 @@ impl<'a> Loader<'a> {
             .get(id)
             .await?
             .as_ref()
-            .map(|row| thumbnail_for_asset(self.base, row)))
+            .map(|row| thumbnail_for_asset(self.files, row)))
     }
 
     /// The shared fields of every resource view: id, kind, URL, title, values
@@ -837,6 +1002,7 @@ impl<'a> Loader<'a> {
         );
         view.jsonld = Some(self.jsonld(kind, row));
         view.owner = row.owner_id.map(|id| omeka_core::ids::UserId::new(id.0));
+        view.is_public = row.is_public;
         view.class_label = self.class_label(row.resource_class_id).await?;
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
@@ -1095,15 +1261,37 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
+            if view.iiif_manifest.is_none()
+                && crate::iiif::paints_canvas(
+                    &entry.renderer,
+                    &entry.ingester,
+                    entry.media_type.as_deref(),
+                    entry.has_thumbnails,
+                )
+            {
+                view.iiif_manifest = Some(format!(
+                    "{}/iiif/3/item/{}/manifest",
+                    self.base.as_str(),
+                    row.id().0
+                ));
+            }
             let title = display_title(&entry.resource, self.messages());
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
-                thumbnail: square_thumbnail(self.base, &entry, &title),
+                thumbnail: square_thumbnail(self.files, &entry, row.resource.is_public, &title),
             });
+            // `media-embeds.phtml`: `$media->render()` with no options, so the
+            // renderer's defaults hold: the large thumbnail, linked to the
+            // original.
             view.media_embeds.push(
-                self.media_ref(&entry, &item_url, &media_options(None, None))
-                    .await?,
+                self.media_ref(
+                    &entry,
+                    &item_url,
+                    row.resource.is_public,
+                    &RenderOptions::default(),
+                )
+                .await?,
             );
         }
         for page in SiteRepo::new(self.pool)
@@ -1241,7 +1429,8 @@ impl<'a> Loader<'a> {
                 return Ok(None);
             }
             let title = display_title(&row.resource, self.messages());
-            let thumbnail = square_thumbnail(self.base, &row, &title);
+            let item_is_public = self.item_is_public(row.item_id).await?;
+            let thumbnail = square_thumbnail(self.files, &row, item_is_public, &title);
             return Ok(Some((
                 ResourceKind::Media,
                 ResourceRef {
@@ -1325,7 +1514,8 @@ impl<'a> Loader<'a> {
             }),
             None => self.first_media(row.id()).await?,
         };
-        Ok(media.and_then(|media| square_thumbnail(self.base, &media, alt)))
+        Ok(media
+            .and_then(|media| square_thumbnail(self.files, &media, row.resource.is_public, alt)))
     }
 
     /// The item's first media row the caller can see, `ItemRepresentation`'s
@@ -1350,12 +1540,13 @@ impl<'a> Loader<'a> {
     async fn thumbnail_for(
         &self,
         media_id: db::MediaId,
+        item_is_public: bool,
         alt: &str,
     ) -> Result<Option<Thumbnail>, DbError> {
         Ok(MediaRepo::new(self.pool)
             .get(media_id)
             .await?
-            .and_then(|media| media_thumbnail(self.base, &media, alt)))
+            .and_then(|media| media_thumbnail(self.files, &media, item_is_public, alt)))
     }
 }
 
@@ -1440,23 +1631,43 @@ pub(crate) fn media_options(thumbnail_type: Option<&str>, link: Option<&str>) ->
 
 /// The medium thumbnail of a media file, `None` without thumbnails or a stored
 /// path (`FileRenderer/*` exposes `medium/{storage_id}.jpg`).
-fn media_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
-    thumbnail_at(base, media, "medium", alt)
+fn media_thumbnail(
+    files: &FileUrls,
+    media: &MediaRow,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
+    thumbnail_at(files, media, "medium", item_is_public, alt)
 }
 
 /// The square thumbnail of a media file, the size `linkPretty('square')` asks
 /// for (`FileRenderer/*` exposes `square/{storage_id}.jpg`).
-fn square_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
-    thumbnail_at(base, media, "square", alt)
+fn square_thumbnail(
+    files: &FileUrls,
+    media: &MediaRow,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
+    thumbnail_at(files, media, "square", item_is_public, alt)
 }
 
-fn thumbnail_at(base: &BaseUrl, media: &MediaRow, size: &str, alt: &str) -> Option<Thumbnail> {
+/// A thumbnail URL is plain only when the media and its item are public.
+fn thumbnail_at(
+    files: &FileUrls,
+    media: &MediaRow,
+    size: &str,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
     if !media.has_thumbnails {
         return None;
     }
     let storage_id = media.storage_id.as_deref()?;
+    let kind = FileKind::Thumbnail {
+        public: media.resource.is_public && item_is_public,
+    };
     Some(Thumbnail::new(
-        base.file_url(&format!("{size}/{storage_id}.jpg")),
+        files.url(&format!("{size}/{storage_id}.jpg"), kind),
         alt,
     ))
 }
@@ -1546,41 +1757,48 @@ fn property_id_for_term(rows: &[&ValueRow], catalog: &Catalog, term: &str) -> Op
         .map(|row| row.property_id.0)
 }
 
-/// The order a browse-preview block asks for. `created` orders by the resource's
-/// creation time, `id` by its primary key; a missing sort keeps insertion order.
-fn compare_resources(
-    a: &ResourceRow,
-    b: &ResourceRow,
-    sort: Option<&(String, String)>,
-) -> Ordering {
-    let order = match sort.map(|(key, _)| key.as_str()) {
-        Some("created") => a.created.cmp(&b.created).then(a.id.cmp(&b.id)),
-        _ => a.id.cmp(&b.id),
+/// Two resources in a requested order. A tie, and a resource with no value
+/// on a property sort, fall back to the id; a missing value sorts first, as
+/// MySQL orders `NULL` ascending.
+fn compare_resources(a: &ResourceRow, b: &ResourceRow, order: Option<&Order>) -> Ordering {
+    let Some(order) = order else {
+        return a.id.cmp(&b.id);
     };
-    if sort.is_some_and(|(_, order)| order == "desc") {
-        order.reverse()
+    let by_key = match &order.key {
+        SortKey::Id => Ordering::Equal,
+        SortKey::Created => a.created.cmp(&b.created),
+        SortKey::Modified => a.modified.cmp(&b.modified),
+        SortKey::Title => compare_opt_text_ci(a.title.as_deref(), b.title.as_deref()),
+        SortKey::Property(texts) => compare_opt_text_ci(
+            texts.get(&a.id.0).map(String::as_str),
+            texts.get(&b.id.0).map(String::as_str),
+        ),
+    };
+    let ordering = by_key.then(a.id.cmp(&b.id));
+    if order.descending {
+        ordering.reverse()
     } else {
-        order
+        ordering
     }
 }
 
 /// The thumbnail an asset shows: `AssetRepresentation::thumbnail` returns the
 /// asset itself, so the image is the asset's file URL and the alt is its
 /// alt text (`AbstractRepresentation::thumbnailAltText`).
-pub(crate) fn thumbnail_for_asset(base: &BaseUrl, row: &AssetRow) -> Thumbnail {
+pub(crate) fn thumbnail_for_asset(files: &FileUrls, row: &AssetRow) -> Thumbnail {
     Thumbnail::new(
-        asset_url(base, row),
+        asset_url(files, row),
         row.alt_text.clone().unwrap_or_default(),
     )
 }
 
 /// `AssetRepresentation::assetUrl`: the stored file under `asset/<filename>`.
-fn asset_url(base: &BaseUrl, row: &AssetRow) -> String {
+fn asset_url(files: &FileUrls, row: &AssetRow) -> String {
     let filename = match row.extension.as_deref() {
         Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
         _ => row.storage_id.clone(),
     };
-    base.file_url(&format!("asset/{filename}"))
+    files.url(&format!("asset/{filename}"), FileKind::Asset)
 }
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {

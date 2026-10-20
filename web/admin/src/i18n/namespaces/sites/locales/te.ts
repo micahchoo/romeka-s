@@ -55,10 +55,7 @@ export const te: SitesMessages = {
   'navigation.label': 'లేబుల్',
   'navigation.addLink': 'లింక్ జోడించండి',
   'navigation.addChild': 'చైల్డ్ లింక్ జోడించండి',
-  'navigation.moveUpShort': 'పైకి',
-  'navigation.moveDownShort': 'కిందకు',
   'navigation.remove': '{label} తొలగించండి',
-  'navigation.errorMissingTarget': 'ఒక పేజీ లేదా URL లింక్ తన లక్ష్యాన్ని కలిగి ఉండాలి.',
   'siteSettingGroup.browsing': 'బ్రౌజింగ్',
   'siteSettingGroup.browsingIntro': 'సందర్శకులు బ్రౌజ్ చేసినప్పుడు అంశాల జాబితాలు ఎలా కనిపిస్తాయి.',
   'siteSettingGroup.search': 'శోధన',
@@ -104,7 +101,11 @@ export const te: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'ఐటమ్ పేజీలు ప్రతి ఫీల్డ్ పేరు పక్కన పదజాలం లేదా సాంకేతిక పదాన్ని చూపుతాయి.',
   'siteSetting.iiifViewerTheme': 'IIIF వ్యూయర్ థీమ్',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF వ్యూయర్ బ్లాక్ కోసం లైట్ లేదా డార్క్ బ్యాక్‌గ్రౌండ్.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF వ్యూయర్ కోసం, బ్లాక్‌లలో మరియు ఐటమ్ పేజీలలో లేత లేదా ముదురు నేపథ్యం.',
+  'siteSetting.iiifViewerSidebar': 'IIIF వ్యూయర్ సైడ్‌బార్',
+  'siteSetting.iiifViewerSidebarHelp':
+    'కంటెంట్‌లు మరియు వివరాలతో కూడిన సైడ్‌బార్‌తో వ్యూయర్‌ను తెరుస్తుంది.',
   'siteSetting.locale': 'ప్రాంతం',
   'siteSetting.localeHelp': 'సైట్ స్వంత పదాల భాష, ఉదాహరణకు బటన్లు, మెనూలు మరియు తేదీలు.',
   'siteSetting.filterLocaleValues': 'ప్రాంతం విలువలను ఫిల్టర్ చేయండి',
@@ -172,28 +173,59 @@ export const te: SitesMessages = {
   'siteSettingChoice.property_label_information.vocab': 'పదజాలం పేరు',
   'siteSettingChoice.property_label_information.term': 'సాంకేతిక పదం, ఉదాహరణకు dcterms:title',
   'resourcePage.title': 'రిసోర్స్ పేజీలు',
-  'resourcePage.hint': 'ఒక ఐటమ్, ఐటమ్ సెట్ లేదా మీడియా పేజీ చూపే బ్లాక్‌లు, వరుస క్రమంలో.',
+  'resourcePage.hint':
+    'అంశం, అంశం సెట్ లేదా మీడియా పేజీ చూపే విభాగాలు, క్రమంలో. ఒక విభాగాన్ని దాని హ్యాండిల్ ద్వారా డ్రాగ్ చేయండి, లేదా బాణాలను ఉపయోగించండి.',
   'resourcePage.items': 'ఐటమ్స్',
   'resourcePage.itemSets': 'ఐటమ్ సెట్లు',
   'resourcePage.media': 'మీడియా',
-  'resourcePage.blockList': '{resource} కోసం బ్లాక్‌లు',
-  'resourcePage.empty': 'బ్లాక్‌లు లేవు. ఈ పేజీ కేవలం దాని శీర్షికను మాత్రమే చూపుతుంది.',
-  'resourcePage.add': 'జోడించండి',
-  'resourcePage.addLabel': '{resource} కు ఒక బ్లాక్‌ను జోడించండి',
-  'resourcePage.addPlaceholder': '[ఒక బ్లాక్‌ను ఎంచుకోండి]',
-  'resourcePage.remove': '{label} ను తొలగించండి',
-  'resourcePage.moveUp': '{label} ను పైకి జరపండి',
-  'resourcePage.moveDown': '{label} ను కిందకు జరపండి',
-  'resourcePage.unknown': 'తెలియని బ్లాక్ లేఅవుట్ [{name}]',
+  'resourcePage.blockList': '{resource} పేజీలలో కనిపిస్తున్న విభాగాలు',
+  'resourcePage.empty':
+    'ఎటువంటి విభాగాలు కనిపించవు. ఈ పేజీ కేవలం దాని శీర్షికను మాత్రమే చూపుతుంది.',
+  'resourcePage.hide': 'దాచండి',
+  'resourcePage.hideLabel': '{label} ను దాచండి',
+  'resourcePage.hidden': 'దాచిన విభాగాలు',
+  'resourcePage.hiddenList': '{resource} పేజీలలోని దాచిన విభాగాలు',
+  'resourcePage.show': 'చూపండి',
+  'resourcePage.showLabel': '{label} ను చూపండి',
+  'resourcePage.unknown': 'తెలియని విభాగం [{name}]',
+  'resourcePage.unknownHelp': 'ఈ సైట్ ఇకపై ఈ విభాగాన్ని కలిగి లేదు, కాబట్టి ఇది ఏమీ చూపదు.',
   'resourcePageBlock.itemSets': 'ఐటమ్ సెట్లు',
+  'resourcePageBlock.itemSetsHelp': 'ఈ వస్తువు ఏ సెట్లకు చెందుతుందో వాటికి లింకులు.',
   'resourcePageBlock.lightboxGallery': 'లైట్‌బాక్స్ గ్యాలరీ',
+  'resourcePageBlock.lightboxGalleryHelp':
+    'ప్రతి చిత్రం ఒక థంబ్‌నెయిల్‌గా ఉండి, పూర్తి చిత్రాన్ని తెరుస్తుంది.',
   'resourcePageBlock.linkedResources': 'అనుసంధానించబడిన వనరులు',
+  'resourcePageBlock.linkedResourcesHelp':
+    'ఈ ఒకదానికి లింక్ చేసే ఇతర రికార్డులు, వాటిని కలిపే ఫీల్డ్ ద్వారా సమూహపరచబడతాయి.',
   'resourcePageBlock.mediaEmbeds': 'మీడియా ఎంబెడ్‌లు',
+  'resourcePageBlock.mediaEmbedsHelp':
+    'ప్రతి ఫైల్ పూర్తి స్థాయిలో, ఒకదాని తర్వాత ఒకటి చూపబడుతుంది.',
   'resourcePageBlock.mediaList': 'మీడియా జాబితా',
+  'resourcePageBlock.mediaListHelp':
+    'ఈ వస్తువు యొక్క ఫైళ్ల జాబితా, ప్రతిదీ దాని శీర్షికతో కూడిన చిన్న థంబ్‌నెయిల్.',
   'resourcePageBlock.mediaRender': 'మీడియా రెండరింగ్',
+  'resourcePageBlock.mediaRenderHelp': 'ఫైల్ స్వయంగా: చిత్రం, ప్లేయర్ లేదా పత్రం.',
   'resourcePageBlock.resourceClass': 'రిసోర్స్ క్లాస్',
+  'resourcePageBlock.resourceClassHelp': 'ఇది ఏ రకమైన వస్తువు, ఉదాహరణకు పాఠ్యం లేదా చిత్రం.',
   'resourcePageBlock.sitePages': 'సైట్ పేజీలు',
+  'resourcePageBlock.sitePagesHelp': 'ఈ వస్తువును ప్రదర్శించే సైట్ పేజీలకు లింకులు.',
   'resourcePageBlock.values': 'విలువలు',
+  'resourcePageBlock.valuesHelp': 'మెటాడేటా, ఫీల్డ్ వారీగా.',
+  'themePreview.label': 'ప్రివ్యూ',
+  'themePreview.page': 'ఒక పేజీ',
+  'themePreview.items': 'ఒక వస్తువు',
+  'themePreview.item_sets': 'ఒక వస్తువుల సమూహం',
+  'themePreview.media': 'ఒక మీడియా',
+  'themePreview.noneItems':
+    'ఈ సైట్‌లో ఇంకా వస్తువులు లేవు, కాబట్టి చూపించడానికి వస్తువుల పేజీ లేదు.',
+  'themePreview.noneItem_sets':
+    'ఈ సైట్‌లో ఇంకా వస్తువుల సమూహాలు లేవు, కాబట్టి చూపించడానికి వస్తువుల సమూహాల పేజీ లేదు.',
+  'themePreview.noneMedia': 'ఈ సైట్‌లో ఇంకా మీడియా లేదు, కాబట్టి చూపించడానికి మీడియా పేజీ లేదు.',
+  'siteItems.syncOffSets':
+    'ఆఫ్ చేయండి. దీనిని ఆన్ చేయండి మరియు ఈ సైట్ యొక్క వస్తువుల సమూహాలలో ఒకదానిలో సృష్టించబడిన వస్తువు సైట్‌లో చేరుతుంది.',
+  'siteItems.syncOffSearch':
+    'ఆఫ్ చేయండి. దీనిని ఆన్ చేయండి మరియు ఇప్పుడు నుండి సృష్టించబడిన వస్తువు, సైట్ యొక్క సేవ్డ్ సెర్చ్‌తో సరిపోలినప్పుడు ఈ సైట్‌లో చేరుతుంది.',
+  'siteItems.syncNeedsSets': 'ఈ సైట్ సింక్ (sync)లో ఉండటానికి ఒక వస్తువుల సమూహాన్ని ఎంచుకోండి.',
   'sites.sortBy': 'క్రమబద్ధీకరించండి',
   'sites.sortOrder': 'క్రమబద్ధీకరణ క్రమం',
   'layout.pageTitle': 'పేజీ శీర్షిక',
@@ -293,13 +325,11 @@ export const te: SitesMessages = {
   'siteHub.unknownLinkType':
     'ఒక మాడ్యూల్ ఈ లింక్ రకాన్ని జోడించింది. దీని సెట్టింగ్‌లు నిల్వ చేయబడినట్లుగా ఉంచబడతాయి.',
   'siteHub.moveLink': '{label}ని తరలించండి',
-  'siteHub.needsTarget': 'లక్ష్య అవసరం',
   'siteHub.editLink': '{label}ని సవరించండి',
   'siteHub.addChildTo': '{label}కి చైల్డ్ లింక్‌ను జోడించండి',
   'siteHub.menuPreview': 'మెనూ ప్రివ్యూ',
   'siteHub.homeLink': 'హోమ్',
   'siteHub.emptyMenuNote': 'లింక్‌లు లేనప్పుడు, పబ్లిక్ సైట్ తన హోమ్‌పేజీకి ఒక లింక్‌ను చూపుతుంది.',
-  'siteHub.unsavedConfirm': 'నావిగేషన్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. వదిలి, వాటిని కోల్పోవాలా?',
   'siteHub.unsaved': 'చేయని మార్పులు',
   'siteHub.picked':
     '{label}ని ఎంచుకోబడింది. దానిని కదపడానికి యారో కీలను, వదలడానికి స్పేస్‌ను, రద్దు చేయడానికి ఎస్కేప్‌ను ఉపయోగించండి.',
@@ -409,5 +439,61 @@ export const te: SitesMessages = {
   'itemPicker.setChip': '{title} ను సెట్ చేయండి',
   'itemPicker.removeSet': '{title} సెట్‌ను తొలగించండి',
   'itemPicker.clear': 'ఎంపికలను క్లియర్ చేయండి',
+  'navigation.issueNoPage': 'పేజీ అవసరం',
+  'navigation.issueNoUrl': 'URL అవసరం',
+  'navigation.issueNoLabel': 'లేబుల్ అవసరం',
+  'navigation.issueSamePage': 'పేజీ ఇప్పటికే మెనూలో ఉంది',
+  'navigation.errorLinkIssues':
+    'కొన్ని లింకులు పూర్తి కాలేదు. గుర్తించిన లింకులను సరిచేసి, సేవ్ చేయండి.',
+  'sites.userFallback': 'వినియోగదారు {id}',
+  'sites.errorRowNoUser': 'ప్రతి వరుసలో ఒక వినియోగదారుని ఎంచుకోండి, లేదా ఆ వరుసను తొలగించండి.',
+  'siteHub.unsavedTabConfirm':
+    'ఈ ట్యాబ్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. వదిలివేసి, వాటిని కోల్పోవాలా?',
+  'siteAccess.viewer':
+    'మీరు ఈ సైట్‌ను చూడవచ్చు. దీని సృష్టికర్తలు మరియు నిర్వాహకులు మాత్రమే దీనిని మార్చగలరు.',
+  'siteAccess.hub': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే హోమ్‌పేజీ మరియు మెనూను మార్చగలరు.',
+  'siteAccess.notInNavigation': 'నావిగేషన్‌లో లేదు',
+  'siteAccess.navigation': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే మెనూను మార్చగలరు.',
+  'siteAccess.items': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే వస్తువులను జోడించగలరు లేదా తొలగించగలరు.',
+  'siteAccess.users': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే ఈ సైట్‌లో ఎవరు పని చేస్తారో మార్చగలరు.',
+  'siteAccess.theme': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే థీమ్‌ను మార్చగలరు.',
+  'siteAccess.settings': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే సైట్ సెట్టింగ్‌లను మార్చగలరు.',
+  'siteAccess.delete': 'కేవలం సైట్ యజమాని లేదా అడ్మినిస్ట్రేటర్ మాత్రమే ఈ సైట్‌ను తొలగించగలరు.',
   'itemPicker.itemFallback': 'అంశం {id}',
+  'romeka.map': 'మ్యాప్',
+  'romekaHelp.map': 'ఎంచుకున్న అంశాల స్థానాలు మ్యాప్‌పై, వాటి జాబితా కింద.',
+  'resourcePageBlock.map': 'అంశం యొక్క స్థానం యొక్క మ్యాప్',
+  'resourcePageBlock.mapHelp':
+    'సైట్ యొక్క స్థాన క్షేత్రం నుండి ఒక అంశాన్ని మ్యాప్‌లో ఉంచే ప్రదేశం.',
+  'siteSettingGroup.maps': 'మ్యాప్‌లు',
+  'siteSettingGroup.mapsIntro':
+    'ఒక అంశం యొక్క స్థానం ఎక్కడ నిల్వ చేయబడుతుంది, మరియు ప్రతి మ్యాప్ గీసే నేపథ్యం.',
+  'siteSetting.romekaLocationProperty': 'స్థాన క్షేత్రం',
+  'siteSetting.romekaLocationPropertyHelp':
+    'ఒక అంశం యొక్క "lat, lng" విలువలు ఒక అంశాన్ని మ్యాప్‌లో ఉంచే ప్రాపర్టీ, ఉదాహరణకు స్పేషియల్ కవరేజ్. అంశం ఫారమ్ దీనికి ఒక చిన్న మ్యాప్‌ను అందిస్తుంది.',
+  'siteSetting.romekaMapTiles': 'మ్యాప్ టైల్స్',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} మరియు {y} తో కూడిన టైల్‌ అడ్రస్. డిఫాల్ట్ OpenStreetMap; దీని వినియోగ విధానం క్రెడిట్ లైన్‌ను తప్పనిసరి చేస్తుంది, భారీ వినియోగాన్ని నిషేధిస్తుంది.',
+  'siteSetting.romekaMapAttribution': 'మ్యాప్ క్రెడిట్',
+  'siteSetting.romekaMapAttributionHelp':
+    'టైల్‌ను అందించే సంస్థ కోరే క్రెడిట్ లైన్, ప్రతి మ్యాప్ మూలలో కనిపిస్తుంది.',
+  'romeka.gallery': 'చిత్ర గ్యాలరీ',
+  'romekaHelp.gallery':
+    'అంశాలు లేదా ఆస్తుల నుండి చిత్రాలు, గ్రిడ్, నిలువు వరుసలు లేదా కారోసెల్ రూపంలో, లైట్‌బాక్స్‌తో.',
+  'romeka.featuredItem': 'ప్రధాన అంశం',
+  'romekaHelp.featuredItem':
+    'ఒక కార్డుగా ఒక అంశం: దాని చిత్రం, ఎంచుకున్న ఫీల్డ్‌లు మరియు దానికి సంబంధించిన లింక్.',
+  'romeka.button': 'బటన్',
+  'romekaHelp.button': 'ఒక లేదా రెండు లింక్‌లు బటన్‌ల వలె గీయబడతాయి, ఒక పేజీకి లేదా URL కి.',
+  'romeka.quote': 'కోట్',
+  'romekaHelp.quote':
+    'ఎవరు చెప్పారు, మరియు మీకు నచ్చితే, అది ఏ అంశం నుండి వచ్చిందో తెలిపే ఒక కోట్.',
+  'romeka.accordion': 'అకార్డియన్',
+  'romekaHelp.accordion':
+    'ప్రశ్నలు లేదా శీర్షికలు, ఇవి ప్రతి ఒక్కటి తమ సమాధానాన్ని తెరుస్తాయి, FAQలు మరియు సుదీర్ఘ గమనికల కోసం.',
+  'romeka.timeline': 'కాలక్రమం',
+  'romekaHelp.timeline':
+    'ఒక రేఖ వెంట తేదీ క్రమంలో అంశాలు, ప్రతి దానితో పాటు థంబ్‌నెయిల్ మరియు శీర్షిక.',
+  'romeka.searchBox': 'సెర్చ్ బాక్స్',
+  'romekaHelp.searchBox': 'సైట్, దాని అంశాలు లేదా దాని అంశాల కోసం ఒక సెర్చ్ ఫీల్డ్.',
 };

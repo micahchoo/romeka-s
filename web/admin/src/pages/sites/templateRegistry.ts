@@ -13,7 +13,7 @@ import type { JsonValue, Path } from '../../api/types';
 import raw from '../../generated/templates.json';
 import type { KeyOf } from '../../i18n';
 import { editor } from '../../i18n/namespaces/editor';
-import type { BuiltinTemplate, TemplateBlock, TemplateLayout } from './templates';
+import type { BuiltinSection, BuiltinTemplate, TemplateBlock, TemplateLayout } from './templates';
 
 
 /** A message id of the `editor` namespace, the table these keys are read from. */
@@ -105,13 +105,39 @@ const parseBuiltinTemplate = (value: unknown, path: Path): BuiltinTemplate => {
   };
 };
 
-/** Narrows the generated `templates.json` into the built-in templates. */
-export const parseTemplateRegistry = (raw: unknown): readonly BuiltinTemplate[] => {
+const parseBuiltinSection = (value: unknown, path: Path): BuiltinSection => {
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return {
+    id: parseString(value.id, [...path, 'id']),
+    label: parseMessageKey(value.label, [...path, 'label']),
+    description: parseMessageKey(value.description, [...path, 'description']),
+    blocks: parseListOf(parseTemplateBlock)(value.blocks, [...path, 'blocks']),
+  };
+};
+
+/** The built-in page templates and section templates `templates.json` carries. */
+export interface TemplateRegistry {
+  readonly templates: readonly BuiltinTemplate[];
+  readonly sections: readonly BuiltinSection[];
+}
+
+/** Narrows the generated `templates.json` into the built-in templates and sections. */
+export const parseTemplateRegistry = (raw: unknown): TemplateRegistry => {
   if (!isRecord(raw)) {
     throw new ParseError([], 'an object');
   }
-  return parseListOf(parseBuiltinTemplate)(raw.templates, ['templates']);
+  return {
+    templates: parseListOf(parseBuiltinTemplate)(raw.templates, ['templates']),
+    sections: parseListOf(parseBuiltinSection)(raw.sections, ['sections']),
+  };
 };
 
+const REGISTRY = parseTemplateRegistry(raw);
+
 /** The built-in templates, parsed at this boundary. */
-export const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = parseTemplateRegistry(raw);
+export const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = REGISTRY.templates;
+
+/** The built-in section templates the block picker offers. */
+export const BUILTIN_SECTIONS: readonly BuiltinSection[] = REGISTRY.sections;

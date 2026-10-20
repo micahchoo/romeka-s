@@ -5,7 +5,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import { brandId } from '../src/api/parse';
-import { itemPoolFromQuery, itemPoolQuery, itemSetPool, poolKind } from '../src/pages/sites/itemPool';
+import {
+  itemPoolFromQuery,
+  itemPoolQuery,
+  itemSetPool,
+  poolKind,
+  syncSwitch,
+} from '../src/pages/sites/itemPool';
 
 describe('item pool codec', () => {
   it('an_empty_pool_is_an_empty_query_and_back', () => {
@@ -69,5 +75,20 @@ describe('the pool the Items tab writes from item sets', () => {
     expect(poolKind({ item_set_id: ['2'] })).toBe('sets');
     expect(poolKind({ item_set_id: ['2'], is_public: '1' })).toBe('search');
     expect(poolKind({ fulltext_search: 'fish' })).toBe('search');
+  });
+
+  it('the sync switch says what turning it on does, and stays off with no set', () => {
+    expect(syncSwitch(false, [])).toEqual({ disabled: true, help: 'siteItems.syncNeedsSets' });
+    expect(syncSwitch(false, { item_set_id: ['2'] })).toEqual({
+      disabled: false,
+      help: 'siteItems.syncOffSets',
+    });
+    expect(syncSwitch(false, { fulltext_search: 'fish' })).toEqual({
+      disabled: false,
+      help: 'siteItems.syncOffSearch',
+    });
+    expect(syncSwitch(true, { item_set_id: ['2'] })).toEqual({ disabled: false, help: 'siteItems.syncSets' });
+    // A site already syncing everything can still turn it off.
+    expect(syncSwitch(true, [])).toEqual({ disabled: false, help: 'siteItems.syncEvery' });
   });
 });

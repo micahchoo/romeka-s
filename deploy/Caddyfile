@@ -54,7 +54,8 @@
 	# /vocab/* is the published term lists and vocabularies, served in whatever
 	# syntax the Accept header asks for, so the proxy must not answer it itself.
 	# /logout is the public site's Logout form, a POST the server answers.
-	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/
+	# /iiif-viewer is the Mirador page and /iiif/* the IIIF manifests and images.
+	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/ /iiif-viewer /iiif/*
 	handle @app {
 		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
 	}

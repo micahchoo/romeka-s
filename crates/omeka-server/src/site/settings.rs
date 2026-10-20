@@ -68,6 +68,9 @@ fn apply(settings: &mut SiteSettings, key: &str, value: &Value) {
         "search_apply_templates" => settings.search_apply_templates = number_list(value),
         "search_restrict_templates" => settings.search_restrict_templates = boolean(value),
         "iiif_viewer_sidebar" => settings.iiif_viewer_sidebar = boolean(value),
+        "romeka_location_property" => settings.romeka_location_property = text(value),
+        "romeka_map_tiles" => settings.romeka_map_tiles = text(value),
+        "romeka_map_attribution" => settings.romeka_map_attribution = text(value),
         _ => {}
     }
 }

@@ -194,5 +194,284 @@
       "layoutData": {},
       "blocks": []
     }
+  ],
+  "sections": [
+    {
+      "id": "media-text",
+      "label": "sectionTemplate.mediaText.label",
+      "description": "sectionTemplate.mediaText.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "2"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "align": "center",
+                  "layout": "split-40-60"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "no_title",
+            "thumbnail_type": "large"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. Every word here is yours to change.</p>"
+          },
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "text-media",
+      "label": "sectionTemplate.textMedia.label",
+      "description": "sectionTemplate.textMedia.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "2"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "align": "center",
+                  "layout": "split-60-40"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. Every word here is yours to change.</p>"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "media",
+          "data": {
+            "layout": "",
+            "media_display": "",
+            "show_title_option": "no_title",
+            "thumbnail_type": "large"
+          },
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "three-cards",
+      "label": "sectionTemplate.threeCards.label",
+      "description": "sectionTemplate.threeCards.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "3"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "layout": "cards-3"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<h3>First card</h3><p>One line about it.</p>"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<h3>Second card</h3><p>One line about it.</p>"
+          },
+          "layoutData": null
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": "<h3>Third card</h3><p>One line about it.</p>"
+          },
+          "layoutData": null
+        }
+      ]
+    },
+    {
+      "id": "featured-items",
+      "label": "sectionTemplate.featuredItems.label",
+      "description": "sectionTemplate.featuredItems.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "3"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "layout": "cards-3"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "quote-band",
+      "label": "sectionTemplate.quoteBand.label",
+      "description": "sectionTemplate.quoteBand.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "1"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "background_role": "surface",
+                "section": {
+                  "layout": "band"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "quote",
+              "settings": {
+                "attribution": "Who said it",
+                "style": "large",
+                "text": "<p>A line worth remembering.</p>"
+              },
+              "v": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "image-band",
+      "label": "sectionTemplate.imageBand.label",
+      "description": "sectionTemplate.imageBand.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "1"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "gap": "none",
+                  "layout": "band"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "asset",
+          "data": {
+            "0": {
+              "alt_link_title": "",
+              "caption": "",
+              "id": "",
+              "page": ""
+            }
+          },
+          "layoutData": null
+        }
+      ]
+    }
   ]
 }

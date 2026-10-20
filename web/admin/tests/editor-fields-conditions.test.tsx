@@ -4,7 +4,7 @@
  * follows the resource type, and the hero's one link control writes a page or a
  * web address, never both.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -99,7 +99,7 @@ const HeroHarness = ({ settings }: { readonly settings: object }): ReactElement 
     const key = blockAt(added.blocks, 0).key;
     return Object.entries(settings).reduce(
       (draft, [field, value]: [string, string]) =>
-        draftReducer(draft, { type: 'setRomkaSetting', blockKey: key, field, value }),
+        draftReducer(draft, { type: 'setLayoutDataValues', blockKey: key, values: { [`romeka.${field}`]: value } }),
       added,
     );
   });
@@ -134,14 +134,15 @@ describe('the hero button link', () => {
   it('starts on a page, and choosing a web address clears the page', async () => {
     installFetch(handler);
     render(<HeroHarness settings={{ cta_page: '1' }} />);
+    const first = within(screen.getByRole('group', { name: 'Button links to' }));
 
-    expect(screen.getByRole('radio', { name: 'A page' })).toBeChecked();
+    expect(first.getByRole('radio', { name: 'A page' })).toBeChecked();
     await waitFor(() => {
-      expect(screen.getByRole('combobox', { name: 'A page' })).toHaveValue('1');
+      expect(first.getByRole('combobox', { name: 'A page' })).toHaveValue('1');
     });
 
-    fireEvent.click(screen.getByRole('radio', { name: 'A web address' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'A web address' }), {
+    fireEvent.click(first.getByRole('radio', { name: 'A web address' }));
+    fireEvent.change(first.getByRole('textbox', { name: 'A web address' }), {
       target: { value: 'https://example.org/visit' },
     });
 
@@ -151,8 +152,9 @@ describe('the hero button link', () => {
   it('opens on the web address a block stores', () => {
     installFetch(handler);
     render(<HeroHarness settings={{ cta_url: 'https://example.org' }} />);
+    const first = within(screen.getByRole('group', { name: 'Button links to' }));
 
-    expect(screen.getByRole('radio', { name: 'A web address' })).toBeChecked();
-    expect(screen.getByRole('textbox', { name: 'A web address' })).toHaveValue('https://example.org');
+    expect(first.getByRole('radio', { name: 'A web address' })).toBeChecked();
+    expect(first.getByRole('textbox', { name: 'A web address' })).toHaveValue('https://example.org');
   });
 });

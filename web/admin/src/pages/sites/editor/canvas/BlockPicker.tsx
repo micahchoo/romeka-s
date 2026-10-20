@@ -16,7 +16,7 @@ import { useTranslator } from '../../../../i18n';
 import type { BlockRegistry } from '../../blockSchema';
 import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
-import { BUILTIN_TEMPLATES } from '../../templateRegistry';
+import { BUILTIN_SECTIONS, BUILTIN_TEMPLATES } from '../../templateRegistry';
 import { editor } from '../../../../i18n/namespaces/editor';
 import { sites } from '../../../../i18n/namespaces/sites';
 import './picker.css';
@@ -87,6 +87,14 @@ export const BlockPicker = ({
   const options = [...registry.layouts, ...registry.romeka].filter((layout) =>
     matches(query, t(layout.label), layout.name, t(layout.description)),
   );
+  const sectionOptions: readonly TemplateChoice[] = BUILTIN_SECTIONS.map((section) => ({
+    id: section.id,
+    name: t(section.label),
+    description: t(section.description),
+    layout: 'normal' as const,
+    layoutData: {},
+    blocks: section.blocks,
+  })).filter((section) => matches(query, section.name, section.id, section.description));
   const templateOptions = templates.filter(
     (template) =>
       template.blocks.length > 0 &&
@@ -140,9 +148,26 @@ export const BlockPicker = ({
           />
         </div>
         <div className="canvas-picker-body">
-          {options.length === 0 && templateOptions.length === 0 ? (
+          {options.length === 0 && templateOptions.length === 0 && sectionOptions.length === 0 ? (
             <p className="canvas-picker-empty">{t('canvas.noMatches')}</p>
           ) : null}
+          {sectionOptions.length === 0 ? null : (
+            <>
+              <h4 className="canvas-picker-heading">{t('canvas.pickerSections')}</h4>
+              <ul className="canvas-picker-list">
+                {sectionOptions.map((section) => (
+                  <PickerOption
+                    key={section.id}
+                    name={section.name}
+                    description={section.description}
+                    onClick={() => {
+                      onChooseTemplate(section, index);
+                    }}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
           {options.length === 0 ? null : (
             <>
               <h4 className="canvas-picker-heading">{t('canvas.pickerBlocks')}</h4>

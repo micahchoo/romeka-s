@@ -1,7 +1,9 @@
 //! The theme tokens that take one of a fixed set of values: the font stacks,
-//! the density, the header and button styles, the content width and the
-//! colour scheme. Each is an enum whose stored key is its only spelling, and
-//! each knows the CSS it stands for.
+//! the density, the header and button styles, the content width, the colour
+//! scheme, and the structural tokens (hero, cards, search, footer, item page).
+//! Each is an enum whose stored key is its only spelling, and each knows the
+//! CSS it stands for: a custom property, or a class on the root element that
+//! the stylesheet keys its structure on.
 
 /// Declare a choice token: an enum, its stored keys in schema order, and the
 /// parser from a stored key.
@@ -44,8 +46,10 @@ macro_rules! choice {
 pub(crate) use choice;
 
 choice! {
-    /// A curated font stack. Every stack is a list of faces a platform ships,
-    /// so the page requests no font file from another origin.
+    /// A curated font stack. A system stack names faces a platform ships; a
+    /// webfont stack names a face the theme serves from its own assets, then
+    /// the Noto faces for the Indic scripts, so the page requests no font file
+    /// from another origin.
     FontStack {
         /// The platform's sans-serif face.
         SystemSans = "system-sans",
@@ -61,8 +65,48 @@ choice! {
         Didone = "didone",
         /// A monospace stack.
         Mono = "mono",
+        /// Fraunces, a display serif with an optical size axis.
+        Fraunces = "fraunces",
+        /// Source Sans 3, a humanist text sans.
+        SourceSans3 = "source-sans-3",
+        /// IBM Plex Sans, a grotesque for dense catalogues.
+        IbmPlexSans = "ibm-plex-sans",
+        /// Inter, a neo-grotesque with an optical size axis.
+        Inter = "inter",
+        /// IBM Plex Mono, for identifiers and code.
+        IbmPlexMono = "ibm-plex-mono",
     }
 }
+
+/// The Noto faces a serif webfont stack falls back to for the Indic scripts.
+macro_rules! noto_serif {
+    () => {
+        "\"Noto Serif Devanagari\", \"Noto Serif Tamil\", \"Noto Serif Telugu\", \"Noto Serif Kannada\", \"Noto Serif Malayalam\""
+    };
+}
+
+/// The Noto faces a sans webfont stack falls back to for the Indic scripts.
+macro_rules! noto_sans {
+    () => {
+        "\"Noto Sans Devanagari\", \"Noto Sans Tamil\", \"Noto Sans Telugu\", \"Noto Sans Kannada\", \"Noto Sans Malayalam\""
+    };
+}
+
+const NOTO_SERIF: &[&str] = &[
+    "Noto Serif Devanagari",
+    "Noto Serif Tamil",
+    "Noto Serif Telugu",
+    "Noto Serif Kannada",
+    "Noto Serif Malayalam",
+];
+
+const NOTO_SANS: &[&str] = &[
+    "Noto Sans Devanagari",
+    "Noto Sans Tamil",
+    "Noto Sans Telugu",
+    "Noto Sans Kannada",
+    "Noto Sans Malayalam",
+];
 
 impl FontStack {
     /// The CSS `font-family` value.
@@ -76,6 +120,44 @@ impl FontStack {
             Self::TransitionalSerif => "Charter, \"Bitstream Charter\", Cambria, serif",
             Self::Didone => "Didot, \"Bodoni 72\", \"Bodoni MT\", \"Libre Bodoni\", Georgia, serif",
             Self::Mono => "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            Self::Fraunces => concat!("\"Fraunces\", ", noto_serif!(), ", Georgia, serif"),
+            Self::SourceSans3 => {
+                concat!(
+                    "\"Source Sans 3\", ",
+                    noto_sans!(),
+                    ", system-ui, sans-serif"
+                )
+            }
+            Self::IbmPlexSans => {
+                concat!(
+                    "\"IBM Plex Sans\", ",
+                    noto_sans!(),
+                    ", system-ui, sans-serif"
+                )
+            }
+            Self::Inter => concat!("\"Inter\", ", noto_sans!(), ", system-ui, sans-serif"),
+            Self::IbmPlexMono => "\"IBM Plex Mono\", ui-monospace, Menlo, Consolas, monospace",
+        }
+    }
+
+    /// The faces the theme serves for this stack, its own first: every family
+    /// [`crate::theme::fonts`] must declare for the stack to render as drawn.
+    /// A system stack serves none.
+    #[must_use]
+    pub const fn served(self) -> (Option<&'static str>, &'static [&'static str]) {
+        match self {
+            Self::SystemSans
+            | Self::SystemSerif
+            | Self::Humanist
+            | Self::Geometric
+            | Self::TransitionalSerif
+            | Self::Didone
+            | Self::Mono => (None, &[]),
+            Self::Fraunces => (Some("Fraunces"), NOTO_SERIF),
+            Self::SourceSans3 => (Some("Source Sans 3"), NOTO_SANS),
+            Self::IbmPlexSans => (Some("IBM Plex Sans"), NOTO_SANS),
+            Self::Inter => (Some("Inter"), NOTO_SANS),
+            Self::IbmPlexMono => (Some("IBM Plex Mono"), &[]),
         }
     }
 }
@@ -239,6 +321,8 @@ choice! {
         Standard = "standard",
         /// Room for wide image grids.
         Wide = "wide",
+        /// Nearly the whole screen, for an image wall.
+        Full = "full",
     }
 }
 
@@ -250,6 +334,7 @@ impl ContentWidth {
             Self::Narrow => "44rem",
             Self::Standard => "60rem",
             Self::Wide => "76rem",
+            Self::Full => "90rem",
         }
     }
 }
@@ -276,5 +361,137 @@ impl ColorScheme {
             Self::Dark => "dark",
             Self::Auto => "light dark",
         }
+    }
+}
+
+/// A structural token: one of a fixed set of layouts, drawn by the stylesheet
+/// under a class the frame puts on the root element.
+macro_rules! structure {
+    (
+        $(#[$meta:meta])*
+        $name:ident, $prefix:literal {
+            $($(#[$variant_meta:meta])* $variant:ident = $key:literal),+ $(,)?
+        }
+    ) => {
+        choice! {
+            $(#[$meta])*
+            $name {
+                $($(#[$variant_meta])* $variant = $key),+
+            }
+        }
+
+        impl $name {
+            /// The class the frame puts on the root element.
+            #[must_use]
+            pub const fn class(self) -> &'static str {
+                match self {
+                    $(Self::$variant => concat!($prefix, $key)),+
+                }
+            }
+        }
+    };
+}
+
+structure! {
+    /// How a hero block with a photograph lays the photograph out. A hero with
+    /// no photograph is type only in every style.
+    HeroStyle, "hero-" {
+        /// The photograph fills the screen's width, the text on a scrim at its foot.
+        Cover = "cover",
+        /// The text in a panel beside the photograph.
+        Split = "split",
+        /// The whole photograph, never cropped, on a band, the text below.
+        Framed = "framed",
+    }
+}
+
+structure! {
+    /// How a resource list draws each resource.
+    CardStyle, "cards-" {
+        /// A 4:3 thumbnail with the name and details below it.
+        Caption = "caption",
+        /// Square tiles edge to edge, the name over the foot of the image.
+        Overlay = "overlay",
+        /// One row per resource: a small thumbnail, the name and its details.
+        Row = "row",
+    }
+}
+
+structure! {
+    /// How the header shows the search form on a wide screen. A phone always
+    /// keeps it behind the icon.
+    SearchDisplay, "search-" {
+        /// The form is always open in the header.
+        Open = "open",
+        /// The form opens under a search icon.
+        Icon = "icon",
+    }
+}
+
+structure! {
+    /// How the footer arranges the site name, the columns, the links and the
+    /// credit.
+    FooterLayout, "footer-" {
+        /// The site and its columns beside the links, the credit below.
+        Columns = "columns",
+        /// A large site name on the left, the links stacked on the right.
+        Split = "split",
+        /// One wrapping line.
+        Inline = "inline",
+    }
+}
+
+choice! {
+    /// The footer's ground.
+    FooterTone {
+        /// The page background.
+        Page = "page",
+        /// The surface colour.
+        Surface = "surface",
+        /// Text-coloured ink with page-coloured text.
+        Inverse = "inverse",
+    }
+}
+
+impl FooterTone {
+    /// The footer's `(background, text, muted text, link)`. The inverse
+    /// ground is the text colour with the page colour on it, the text and
+    /// background pair the palette gate holds to AA; its muted text is the
+    /// page colour softened toward the ink.
+    #[must_use]
+    pub const fn properties(self) -> [(&'static str, &'static str); 4] {
+        match self {
+            Self::Page => [
+                ("footer-background", "var(--color-background)"),
+                ("footer-text", "var(--color-text)"),
+                ("footer-muted", "var(--color-muted)"),
+                ("footer-link", "var(--color-link)"),
+            ],
+            Self::Surface => [
+                ("footer-background", "var(--color-surface)"),
+                ("footer-text", "var(--color-text)"),
+                ("footer-muted", "var(--color-muted)"),
+                ("footer-link", "var(--color-link)"),
+            ],
+            Self::Inverse => [
+                ("footer-background", "var(--color-text)"),
+                ("footer-text", "var(--color-background)"),
+                (
+                    "footer-muted",
+                    "color-mix(in srgb, var(--color-background) 80%, var(--color-text))",
+                ),
+                ("footer-link", "var(--color-background)"),
+            ],
+        }
+    }
+}
+
+structure! {
+    /// Where an item page puts its media.
+    ItemLayout, "item-" {
+        /// The media first and wide, the record below.
+        Stacked = "stacked",
+        /// The media in a column beside the record on a wide screen.
+        Side = "side",
     }
 }

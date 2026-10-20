@@ -53,7 +53,8 @@ export interface SideKeys {
 }
 
 interface FieldBase {
-  /** The `o:data` key, or a group's own name. */
+  /** The stored key, or a group's own name. A key under `romeka.` names a
+   * Romeka setting in `o:layout_data.romeka.settings` (`editor/layoutPaths.ts`). */
   readonly key: string;
   readonly label: EditorMessageKey;
   /** The one line under the control that says what the visitor sees. */
@@ -93,6 +94,15 @@ export type BlockField =
     })
   | (FieldBase & { readonly type: 'pageRef' })
   | (FieldBase & { readonly type: 'assetRef' })
+  /** One media of the site, by id, stored as a Romeka setting. */
+  | (FieldBase & { readonly type: 'mediaRef' })
+  | (FieldBase & {
+      /** A point on a sibling image: x percent under `key`, y under `yKey`. */
+      readonly type: 'focalPoint';
+      readonly yKey: string;
+      /** The sibling image fields, tried in order for the first shown and set. */
+      readonly images: readonly string[];
+    })
   | (FieldBase & {
       readonly type: 'itemQuery';
       /** The sibling choice naming the resource type searched; `null` for items. */
@@ -101,13 +111,37 @@ export type BlockField =
   | (FieldBase & { readonly type: 'attachments'; readonly media: boolean })
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
   | (FieldBase & { readonly type: 'pageList' })
-  | (FieldBase & { readonly type: 'color' })
+  | (FieldBase & {
+      /** A hex colour under `key`, or a theme colour role under `tokenKey`. */
+      readonly type: 'color';
+      /** Where a theme role is stored, or `null` for a field that takes hex only. */
+      readonly tokenKey: string | null;
+    })
+  | (FieldBase & { readonly type: 'anchor' })
+  /** A IIIF manifest URL, chosen as a URL or as an item of this site. */
+  | (FieldBase & { readonly type: 'manifestSource' })
   | (FieldBase & { readonly type: 'sides'; readonly keys: SideKeys })
   | (FieldBase & {
       /** A page under `key`, or a URL under `urlKey`; one is set at a time. */
       readonly type: 'link';
       readonly urlKey: string;
-    });
+    })
+  /** Items picked one by one, stored as their ids in pick order. */
+  | (FieldBase & { readonly type: 'itemList' })
+  /** One item, stored as its id. */
+  | (FieldBase & { readonly type: 'itemRef' })
+  /** Items picked one by one, each with an optional media and a caption,
+   * stored as `{item, media, caption}` records in pick order. */
+  | (FieldBase & { readonly type: 'itemMedia' })
+  | (FieldBase & {
+      /** A `"lat, lng"` centre under `key` and a zoom under `zoomKey`; no centre fits every place. */
+      readonly type: 'mapView';
+      readonly zoomKey: string;
+    })
+  /** A property, stored as its term. */
+  | (FieldBase & { readonly type: 'property' })
+  /** Properties in a chosen order, stored as a list of terms. */
+  | (FieldBase & { readonly type: 'propertyList' });
 
 /** A layout's editable `data` members, in form order. */
 export interface LayoutSchema {
@@ -142,6 +176,13 @@ export interface RomkaHash {
   readonly legacyHash: string;
 }
 
+/** One theme colour role a colour field may store. */
+export interface ColorToken {
+  /** The stored value, the role's `--color-<value>` suffix. */
+  readonly value: string;
+  readonly label: EditorMessageKey;
+}
+
 /** The whole block registry. */
 export interface BlockRegistry {
   readonly layouts: readonly BlockLayoutSchema[];
@@ -151,6 +192,9 @@ export interface BlockRegistry {
   readonly romekaHash: RomkaHash;
   readonly blockLayoutData: LayoutSchema;
   readonly pageLayoutData: LayoutSchema;
+  /** A block group's section, under `o:layout_data.romeka.settings.section`. */
+  readonly sectionLayoutData: LayoutSchema;
+  readonly colorTokens: readonly ColorToken[];
 }
 
 const parseString = (value: unknown, path: Path): string => {
@@ -306,11 +350,31 @@ const parseField = (value: unknown, path: Path): BlockField => {
         placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
       };
     case 'color':
-      return { ...base, type: 'color' };
+      return {
+        ...base,
+        type: 'color',
+        tokenKey: parseOptionalString(value.tokenKey, [...path, 'tokenKey']),
+      };
+    case 'anchor':
+      return { ...base, type: 'anchor' };
+    case 'manifestSource':
+      return { ...base, type: 'manifestSource' };
     case 'sides':
       return { ...base, type: 'sides', keys: parseSideKeys(value.keys, [...path, 'keys']) };
     case 'link':
       return { ...base, type: 'link', urlKey: parseString(value.urlKey, [...path, 'urlKey']) };
+    case 'itemList':
+      return { ...base, type: 'itemList' };
+    case 'itemRef':
+      return { ...base, type: 'itemRef' };
+    case 'itemMedia':
+      return { ...base, type: 'itemMedia' };
+    case 'mapView':
+      return { ...base, type: 'mapView', zoomKey: parseString(value.zoomKey, [...path, 'zoomKey']) };
+    case 'property':
+      return { ...base, type: 'property' };
+    case 'propertyList':
+      return { ...base, type: 'propertyList' };
     case 'html':
       return { ...base, type: 'html' };
     case 'boolean':
@@ -319,6 +383,15 @@ const parseField = (value: unknown, path: Path): BlockField => {
       return { ...base, type: 'pageRef' };
     case 'assetRef':
       return { ...base, type: 'assetRef' };
+    case 'mediaRef':
+      return { ...base, type: 'mediaRef' };
+    case 'focalPoint':
+      return {
+        ...base,
+        type: 'focalPoint',
+        yKey: parseString(value.yKey, [...path, 'yKey']),
+        images: parseListOf(parseString)(value.images, [...path, 'images']),
+      };
     case 'itemQuery':
       return {
         ...base,
@@ -415,5 +488,7 @@ export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
     romekaHash: parseRomkaHash(raw.romekaHash, ['romekaHash']),
     blockLayoutData: parseSchema(raw.blockLayoutData, ['blockLayoutData']),
     pageLayoutData: parseSchema(raw.pageLayoutData, ['pageLayoutData']),
+    sectionLayoutData: parseSchema(raw.sectionLayoutData, ['sectionLayoutData']),
+    colorTokens: parseListOf(parseOption)(raw.colorTokens, ['colorTokens']),
   };
 };

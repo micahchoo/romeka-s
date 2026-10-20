@@ -17,10 +17,11 @@ use omeka_core::site::{BlockData, SiteBlock};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
-use crate::blocks::BlockLayout;
-use crate::blocks::schema::{LayoutSchema, page_list};
+use crate::blocks::schema::{LayoutSchema, When, choice, option, page_list};
+use crate::blocks::{BlockLayout, columns};
+use crate::html::escape_html;
 use crate::slug::page_url;
-use crate::view::RenderContext;
+use crate::view::{PageCard, RenderContext, Thumbnail};
 
 /// One stored page-tree node.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -58,13 +59,34 @@ impl PageNodeData {
 pub struct ListOfPages;
 
 /// `BlockLayout/ListOfPages.php::form`: the `pagelist` tree, which the admin's
-/// jsTree writes as a JSON string into one hidden member.
+/// jsTree writes as a JSON string into one hidden member. The `romeka.`
+/// fields are Romeka settings: links or cards, and the cards' columns.
 const SCHEMA: LayoutSchema = LayoutSchema {
-    fields: &[page_list(
-        "pagelist",
-        "blockField.listOfPages.pagelist",
-        "fieldHelp.listOfPages.pagelist",
-    )],
+    fields: &[
+        page_list(
+            "pagelist",
+            "blockField.listOfPages.pagelist",
+            "fieldHelp.listOfPages.pagelist",
+        ),
+        choice(
+            "romeka.display",
+            "blockField.listOfPages.display",
+            "fieldHelp.listOfPages.display",
+            &[
+                option("", "blockChoice.pages_links"),
+                option("cards", "blockChoice.pages_cards"),
+            ],
+        )
+        .default_text(""),
+        choice(
+            "romeka.columns",
+            "blockField.listOfPages.columns",
+            "fieldHelp.listOfPages.columns",
+            columns::OPTIONS,
+        )
+        .default_text("")
+        .when(When::equals("romeka.display", "cards")),
+    ],
 };
 
 impl BlockLayout for ListOfPages {
@@ -80,7 +102,16 @@ impl BlockLayout for ListOfPages {
         let BlockData::ListOfPages { pagelist } = &block.data else {
             return String::new();
         };
-        render_block(pagelist.as_deref().unwrap_or_default(), ctx)
+        let Ok(nodes) =
+            serde_json::from_str::<Vec<PageNode>>(pagelist.as_deref().unwrap_or_default())
+        else {
+            return String::new();
+        };
+        if shows_cards(block) {
+            render_cards(&nodes, columns::of(block), ctx)
+        } else {
+            format!("<div>{}</div>", render_nodes(&nodes, ctx))
+        }
     }
 
     fn schema(&self) -> &'static LayoutSchema {
@@ -88,11 +119,31 @@ impl BlockLayout for ListOfPages {
     }
 }
 
-fn render_block(pagelist: &str, ctx: &RenderContext<'_>) -> String {
-    let Ok(nodes) = serde_json::from_str::<Vec<PageNode>>(pagelist) else {
-        return String::new();
-    };
-    format!("<div>{}</div>", render_nodes(&nodes, ctx))
+/// Whether the block draws its pages as cards (`romeka.settings.display`).
+#[must_use]
+pub fn shows_cards(block: &SiteBlock) -> bool {
+    block
+        .layout_data
+        .romeka_setting("display")
+        .and_then(JsonValue::as_str)
+        == Some("cards")
+}
+
+/// The page ids a stored `pagelist` names, depth first, so the snapshot can
+/// load their cards.
+#[must_use]
+pub fn page_ids(pagelist: &str) -> Vec<PageId> {
+    fn walk(nodes: &[PageNode], out: &mut Vec<PageId>) {
+        for node in nodes {
+            out.extend(node.data.page_id());
+            walk(&node.children, out);
+        }
+    }
+    let mut out = Vec::new();
+    if let Ok(nodes) = serde_json::from_str::<Vec<PageNode>>(pagelist) {
+        walk(&nodes, &mut out);
+    }
+    out
 }
 
 fn render_nodes(nodes: &[PageNode], ctx: &RenderContext<'_>) -> String {
@@ -117,6 +168,77 @@ fn render_nodes(nodes: &[PageNode], ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("</ul>");
     out
+}
+
+/// The tree as one grid of cards, depth first: a card grid has no nesting,
+/// so a child page follows its parent. A node with no URL has no card.
+fn render_cards(nodes: &[PageNode], columns: Option<u8>, ctx: &RenderContext<'_>) -> String {
+    fn walk<'n>(nodes: &'n [PageNode], out: &mut Vec<&'n PageNode>) {
+        for node in nodes {
+            out.push(node);
+            walk(&node.children, out);
+        }
+    }
+    let mut flat = Vec::new();
+    walk(nodes, &mut flat);
+    let mut out = String::from("<div class=\"page-cards");
+    if let Some(count) = columns {
+        out.push(' ');
+        out.push_str(&columns::class("page-cards", count));
+    }
+    out.push_str("\"><ul>");
+    for node in flat {
+        let Some(url) = node_url(node, ctx) else {
+            continue;
+        };
+        let card = node
+            .data
+            .page_id()
+            .and_then(|id| ctx.resources.page_card(id))
+            .unwrap_or_default();
+        out.push_str(&page_card(&node_title(node, ctx), &url, &card));
+    }
+    out.push_str("</ul></div>");
+    out
+}
+
+/// One card: the image or an empty tinted slot, the title and the summary,
+/// all one link.
+fn page_card(title: &str, url: &str, card: &PageCard) -> String {
+    let thumb = match &card.thumbnail {
+        Some(Thumbnail { url, .. }) => format!(
+            "<span class=\"page-card-thumb\"><img src=\"{}\" alt=\"\" loading=\"lazy\"></span>",
+            escape_html(url)
+        ),
+        None => "<span class=\"page-card-thumb page-card-thumb-empty\"></span>".to_string(),
+    };
+    let summary = card.summary.as_deref().map_or_else(String::new, |summary| {
+        format!(
+            "<span class=\"page-card-summary\">{}</span>",
+            escape_html(summary)
+        )
+    });
+    format!(
+        "<li class=\"page-card\"><a href=\"{}\" class=\"page-card-link\">{thumb}\
+         <span class=\"page-card-title\">{}</span>{summary}</a></li>",
+        escape_html(url),
+        escape_html(title)
+    )
+}
+
+/// A node's label: its own text, else the page's title.
+fn node_title(node: &PageNode, ctx: &RenderContext<'_>) -> String {
+    node.text
+        .clone()
+        .filter(|text| !text.trim().is_empty())
+        .or_else(|| {
+            let id = node.data.page_id()?;
+            ctx.pages
+                .iter()
+                .find(|page| page.id == id)
+                .map(|page| page.title.clone())
+        })
+        .unwrap_or_default()
 }
 
 fn node_url(node: &PageNode, ctx: &RenderContext<'_>) -> Option<String> {
@@ -196,6 +318,95 @@ mod tests {
         assert_eq!(
             ListOfPages.render(&block("listOfPages", json!({})), &ctx),
             ""
+        );
+    }
+
+    /// Cards for two pages: one with an image and a summary, one with none.
+    struct Cards;
+
+    impl crate::view::ResourceProvider for Cards {
+        fn search(
+            &self,
+            _kind: omeka_core::resource::ResourceKind,
+            _query: &crate::view::BrowseQuery,
+        ) -> crate::view::ResourcePage {
+            crate::view::ResourcePage::default()
+        }
+        fn read(
+            &self,
+            _kind: omeka_core::resource::ResourceKind,
+            _id: u64,
+        ) -> Option<crate::view::ResourceView> {
+            None
+        }
+        fn read_media(&self, _id: omeka_core::ids::MediaId) -> Option<crate::view::MediaRef> {
+            None
+        }
+        fn read_asset(&self, _id: omeka_core::ids::AssetId) -> Option<crate::view::AssetView> {
+            None
+        }
+        fn attachments(&self, _block: omeka_core::ids::BlockId) -> Vec<crate::view::AttachmentRef> {
+            Vec::new()
+        }
+        fn search_sites(&self, _query: &crate::view::SiteQuery) -> crate::view::SiteSearch {
+            crate::view::SiteSearch::default()
+        }
+        fn page_card(&self, page: PageId) -> Option<PageCard> {
+            (page == PageId::new(7)).then(|| PageCard {
+                thumbnail: Some(Thumbnail::new("/files/asset/9.jpg", "")),
+                summary: Some("Who we are & why.".to_string()),
+            })
+        }
+    }
+
+    /// In card mode the tree becomes one grid of cards, a child after its
+    /// parent: each card is one link with the page's image or an empty slot,
+    /// its title and its summary. A node with no page has no card.
+    #[test]
+    fn list_of_pages_cards_show_each_page_image_and_summary() {
+        let site = site();
+        let mut ctx = context(&site, &Cards);
+        ctx.pages = vec![
+            PageRef {
+                id: PageId::new(7),
+                slug: Slug::parse("about").unwrap(),
+                title: "About".to_string(),
+                is_public: true,
+            },
+            PageRef {
+                id: PageId::new(8),
+                slug: Slug::parse("team").unwrap(),
+                title: "Team".to_string(),
+                is_public: true,
+            },
+        ];
+        let pagelist = json!([
+            {"text": "About us", "data": {"id": 7}, "children": [
+                {"text": "", "data": {"id": 8}},
+                {"text": "Gone", "data": {"id": 99}}
+            ]}
+        ]);
+        let stored = crate::blocks::test_support::block_with_layout(
+            "listOfPages",
+            json!({"pagelist": pagelist.to_string()}),
+            json!({"romeka": {"block": "listOfPages", "v": 2,
+                "settings": {"display": "cards", "columns": "3"}}}),
+        );
+        assert_eq!(
+            ListOfPages.render(&stored, &ctx),
+            "<div class=\"page-cards page-cards-columns-3\"><ul>\
+             <li class=\"page-card\"><a href=\"/s/main/page/about\" class=\"page-card-link\">\
+             <span class=\"page-card-thumb\"><img src=\"/files/asset/9.jpg\" alt=\"\" loading=\"lazy\"></span>\
+             <span class=\"page-card-title\">About us</span>\
+             <span class=\"page-card-summary\">Who we are &amp; why.</span></a></li>\
+             <li class=\"page-card\"><a href=\"/s/main/page/team\" class=\"page-card-link\">\
+             <span class=\"page-card-thumb page-card-thumb-empty\"></span>\
+             <span class=\"page-card-title\">Team</span></a></li>\
+             </ul></div>"
+        );
+        assert_eq!(
+            page_ids(&pagelist.to_string()),
+            vec![PageId::new(7), PageId::new(8), PageId::new(99)]
         );
     }
 }

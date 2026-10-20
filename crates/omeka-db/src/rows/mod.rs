@@ -15,6 +15,7 @@ mod custom_vocabs;
 mod import_evidence;
 mod import_writes;
 mod imports;
+mod page_versions;
 mod publications;
 mod resources;
 mod rewrites;
@@ -34,6 +35,10 @@ pub use import_writes::{
 pub use imports::{
     BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
     ImportStatus, ImportTarget, NewImport, NewImportResource, may_run,
+};
+pub use page_versions::{
+    BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,
+    PageSaveOutcome, PageVersionRow,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{

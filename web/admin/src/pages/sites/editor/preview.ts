@@ -11,7 +11,7 @@ import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from '../../../a
 import { defaultBaseUrl } from '../../../api/client';
 import { parseApiErrors } from '../../../api/parse';
 import { localizeServerErrors } from '../../../i18n/serverText';
-import type { ApiErrors, PageId, SiteId } from '../../../api/types';
+import type { ApiErrors, JsonValue, PageId, SiteId } from '../../../api/types';
 import { encodeSitePage } from '../../../api/write';
 import type { WireBody } from '../../../api/write';
 import type { BlockKey, PageContent } from './draft';
@@ -33,19 +33,22 @@ export interface PreviewRender {
 
 /**
  * The body is the write a `PUT /api/site_pages/<id>` takes, plus the id when
- * editing. The body and the order come from one canonical block list, so they
- * cannot disagree.
+ * editing, plus an unsaved site-wide theme map, which the route renders in
+ * place of the stored one. The body and the order come from one canonical
+ * block list, so they cannot disagree.
  */
 export const previewRequest = (
   draft: PageContent,
   siteId: SiteId,
   pageId: PageId | null,
+  themeSettings: Readonly<Record<string, JsonValue>> | null = null,
 ): PreviewRequest => {
   const blocks = canonicalBlocks(draft.blocks);
   return {
     body: {
       ...encodeSitePage(toPageWrite({ ...draft, blocks }, siteId)),
       ...(pageId === null ? {} : { 'o:id': pageId }),
+      ...(themeSettings === null ? {} : { 'o:theme_settings': themeSettings }),
     },
     order: blocks.map((block) => block.key),
   };

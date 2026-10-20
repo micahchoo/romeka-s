@@ -425,14 +425,44 @@ header {
   justify-content: center;
 }
 
-.header-centred #search {
+/* The search sits behind a magnifier, a details element that opens with no
+   script. On a wide screen the search token decides: `search-open` shows the
+   form in the header row and hides the toggle, `search-icon` opens it as a
+   panel under the icon. A phone always keeps it behind the icon, and the open
+   form takes its own row under the header row. */
+.search-menu {
   margin-left: auto;
-  margin-right: auto;
+  position: relative;
 }
 
-#search {
-  flex: 0 1 18rem;
-  margin-left: auto;
+.search-menu > summary,
+.nav-menu > summary {
+  list-style: none;
+}
+
+.search-menu > summary::-webkit-details-marker,
+.nav-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.search-toggle {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--header-link);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.search-menu[open] > .search-toggle {
+  box-shadow: inset 0 -3px 0 var(--header-mark);
+}
+
+.search-glyph {
+  height: 1.25rem;
+  width: 1.25rem;
 }
 
 /* The header's search draws only in the header's own link colour, so it reads
@@ -445,11 +475,19 @@ header {
   width: 100%;
 }
 
-#search-form input[type="text"] {
+/* A zero width lets the field shrink with the row: its default size would
+   otherwise set the form's smallest width and push the button off a phone. */
+#search-form input[type="search"] {
   border: 0;
   border-radius: 0;
   flex: 1 1 auto;
   min-width: 0;
+  width: 0;
+}
+
+#search-form input[type="search"]::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
 }
 
 #search-form button {
@@ -470,15 +508,57 @@ header {
   box-shadow: inset 0 -3px 0 var(--header-mark);
 }
 
-/* Below the breakpoint the search takes the whole row, and a centred
-   masthead keeps its menu button on the centre line. */
+@media (max-width: 47.99rem) {
+  .search-menu {
+    display: contents;
+  }
+
+  .search-menu::details-content {
+    flex-basis: 100%;
+    order: 10;
+  }
+
+  .search-toggle {
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 48rem) {
+  .search-open .search-toggle {
+    display: none;
+  }
+
+  .search-open .search-menu::details-content {
+    content-visibility: visible;
+  }
+
+  .search-open #search {
+    width: 18rem;
+  }
+
+  /* The panel sits on the page background, so the form takes the page's
+     link colour rather than the header's. */
+  .search-icon .search-menu[open] #search {
+    --header-link: var(--color-link);
+    --header-mark: var(--color-brand);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 24px -12px color-mix(in srgb, var(--color-text) 40%, transparent);
+    padding: var(--space-2);
+    position: absolute;
+    right: 0;
+    top: 100%;
+    width: 22rem;
+    z-index: 6;
+  }
+}
+
+/* Below the breakpoint a centred masthead keeps its menu button on the centre
+   line. */
 @media (max-width: 29.99rem) {
   header {
     padding: var(--space-2) var(--space-3);
-  }
-
-  #search {
-    flex-basis: 100%;
   }
 
   .header-centred .nav-menu-toggle {
@@ -613,53 +693,229 @@ header {
   width: 3rem;
 }
 
-/* A resource view prints its title, then the kind of resource ("Item"). The
-   kind reads first, as a small label over the title. */
-.resource #content:has(> h2:first-child + h3) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+/* A resource view prints a header: the kind (and the type) as a small label
+   in the accent colour, then the display name. A name that falls back to the
+   identifier carries a note that no title was recorded. */
+.resource-header {
+  margin: 0 0 var(--space-4);
 }
 
-.resource #content > h2:first-child + h3 {
+.resource-kind-label {
   color: var(--color-accent);
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  grid-row: 1;
   letter-spacing: 0.1em;
   margin: 0 0 var(--space-2);
   text-transform: uppercase;
 }
 
-.resource #content:has(> h2:first-child + h3) > h2:first-child {
-  grid-row: 2;
+.resource-title {
+  font-size: var(--font-size-h1);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-footer {
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
+.resource-untitled-note {
   color: var(--color-muted);
-  font-size: var(--font-size-sm);
-  padding: var(--space-4) var(--space-3);
-  text-align: center;
+  font-style: italic;
+  margin: var(--space-2) 0 0;
 }
 
-.footer-text > *:first-child {
+/* The footer. The footer tone token sets its ground through the `--footer-*`
+   properties, and the footer layout token its structure (`footer-columns`,
+   `footer-split`, `footer-inline`). */
+.site-footer {
+  background: var(--footer-background);
+  border-top: 1px solid var(--color-border);
+  color: var(--footer-text);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-5);
+}
+
+.footer-inner {
+  margin: 0 auto;
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-5) var(--space-3) var(--space-4);
+}
+
+.footer-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0 0 var(--space-2);
+}
+
+.footer-texts {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.footer-text,
+.footer-contact,
+.footer-licence,
+.powered-by {
+  color: var(--footer-muted);
+}
+
+.footer-text > :first-child,
+.footer-contact > :first-child {
   margin-top: 0;
 }
 
-.footer-text > *:last-child {
-  margin-bottom: var(--space-2);
+.footer-text > :last-child,
+.footer-contact > :last-child {
+  margin-bottom: 0;
 }
 
-.footer-text p {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 68ch;
+.footer-contact {
+  font-style: normal;
 }
 
+.site-footer a {
+  color: var(--footer-link);
+}
+
+.footer-links ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-links a {
+  display: inline-block;
+  padding: var(--space-1) 0;
+}
+
+.footer-licence,
 .powered-by {
-  color: var(--color-muted);
+  margin: 0;
+}
+
+.licence-badge {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  display: inline-flex;
+  font-weight: 600;
+  gap: var(--space-1);
+  padding: 0.1em 0.6em 0.1em 0.2em;
+  text-decoration: none;
+}
+
+.licence-mark {
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  display: inline-grid;
+  font-size: 0.75em;
+  font-weight: 700;
+  height: 1.6em;
+  letter-spacing: -0.05em;
+  place-items: center;
+  width: 1.6em;
+}
+
+.footer-columns .footer-inner,
+.footer-split .footer-inner {
+  column-gap: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  row-gap: var(--space-3);
+}
+
+.footer-columns .footer-site,
+.footer-split .footer-site {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.footer-columns .footer-links,
+.footer-columns .footer-contact,
+.footer-split .footer-links,
+.footer-split .footer-contact {
+  grid-column: 2;
+}
+
+.footer-columns .footer-licence,
+.footer-columns .powered-by,
+.footer-split .footer-licence,
+.footer-split .powered-by {
+  grid-column: 1 / -1;
+}
+
+.footer-columns .powered-by {
+  border-top: 1px solid color-mix(in srgb, var(--footer-text) 20%, var(--footer-background));
+  padding-top: var(--space-3);
+}
+
+.footer-split .footer-inner {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.footer-split .footer-title {
+  font-size: clamp(2rem, 5vw, calc(var(--font-size-h1) * 1.25));
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: var(--space-3);
+}
+
+.footer-split .footer-links ul {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.footer-inline .footer-inner {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-3);
+}
+
+.footer-inline .footer-site {
+  align-items: baseline;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.footer-inline .footer-title {
+  font-size: var(--font-size-base);
+  margin: 0;
+}
+
+.footer-inline .footer-texts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.footer-inline .footer-text > * {
+  margin: 0;
+}
+
+.footer-inline .footer-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+@media (max-width: 47.99rem) {
+  .footer-columns .footer-inner,
+  .footer-split .footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-columns .footer-inner > *,
+  .footer-split .footer-inner > * {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }
 
 /* A comfortable reading measure for prose; grids and cards use the full
@@ -882,53 +1138,63 @@ footer {
   min-width: 0;
 }
 
-/* Resource lists: a responsive card grid. Every browse view and every preview
-   block renders through these rules. The thumbnail runs to the card's edges and
-   the whole card answers the pointer, though only its link takes a click. */
+/* The IIIF blocks in the editor's preview, which runs no script: a card at the
+   viewer's height that says what opens on the public page. */
+
+.iiif-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.iiif-poster p {
+  margin: 0;
+  max-width: 40ch;
+}
+
+/* The item page's links into the IIIF viewer and to the item's manifest. */
+
+.iiif-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.iiif-manifest {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iiif-logo {
+  flex: none;
+}
+
+/* Resource lists. Every browse view and every preview block renders through
+   these rules. A card is a thumbnail slot (the image, or a tinted surface with
+   the kind's icon and type), the name, and its details: by default type and
+   date, with the creator in a row. The list carries its card style, the theme's token or a
+   preview block's own choice: `resource-cards-caption` puts the text under a
+   4:3 thumbnail, `resource-cards-overlay` lays it over square tiles,
+   `resource-cards-row` gives each resource one row. On a phone the two grid
+   styles keep two cards per row. */
 
 .resource-list {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   list-style: none;
   margin: var(--space-4) 0;
   padding: 0;
   width: 100%;
 }
 
-.resource-list .item.resource,
-.resource-list .item-set.resource,
-.resource-list .media.resource,
-.resource-list .page.resource {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  /* The card stretches to its grid track. A `width` here would resolve against
-     the track and then add the padding and border on top, so the card would
-     overhang the track and the last column would pass the content edge. */
-  padding: 0 0 var(--space-3);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-}
-
-.resource-list .resource:hover,
-.resource-list .resource:focus-within {
-  border-color: var(--color-brand);
-  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color-text) 45%, transparent);
-  transform: translateY(-2px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .resource-list .resource:hover,
-  .resource-list .resource:focus-within {
-    transform: none;
-  }
-}
-
-.resource-list .page.resource {
-  padding: var(--space-3);
+.resource-list .resource {
+  min-width: 0;
 }
 
 .resource-list .page.resource h4 {
@@ -941,29 +1207,93 @@ footer {
 }
 
 .resource-list .resource-link {
+  color: var(--color-text);
   display: block;
 }
 
-.resource-list .resource-link img {
-  aspect-ratio: 4 / 3;
-  background: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
+.resource-thumb {
+  background: var(--color-surface);
   display: block;
+  overflow: hidden;
+  position: relative;
+}
+
+.resource-thumb img {
+  display: block;
+  height: 100%;
   object-fit: cover;
   width: 100%;
 }
 
-.resource-list .resource-name {
+/* A wall of imageless resources cycles through four tints, so it reads as a
+   catalogue rather than one placeholder repeated. */
+.resource-thumb-empty {
+  align-items: center;
+  background-color: var(--color-surface);
+  background-image: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--color-background) 45%, transparent), transparent 60%);
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  justify-content: center;
+  text-align: center;
+}
+
+.resource-list .resource:nth-child(4n + 2) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-accent));
+}
+
+.resource-list .resource:nth-child(4n + 3) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-link));
+}
+
+.resource-list .resource:nth-child(4n + 4) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 94%, var(--color-text));
+}
+
+.kind-icon {
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+.resource-kind {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  padding-inline: var(--space-2);
+  text-transform: uppercase;
+}
+
+.resource-text,
+.resource-list .resource-name,
+.resource-meta {
   display: block;
+}
+
+.resource-list .resource-name {
   font-family: var(--font-heading);
-  font-size: var(--font-size-lg);
   font-weight: 600;
   line-height: 1.25;
-  margin: var(--space-3) var(--space-3) 0;
+}
+
+.resource-list .resource-name-fallback {
+  font-family: var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.resource-meta {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+}
+
+.resource-meta > span + span::before {
+  content: " · ";
 }
 
 .resource-list .resource-link:hover .resource-name,
-.resource-list .resource-link:focus .resource-name {
+.resource-list .resource-link:focus-visible .resource-name {
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
@@ -986,20 +1316,256 @@ footer {
   -webkit-line-clamp: 3;
   display: -webkit-box;
   font-size: var(--font-size-sm);
-  margin: var(--space-1) var(--space-3) 0;
   overflow: hidden;
-}
-
-.resource-placeholder {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  height: auto;
-  width: 100%;
 }
 
 .resource-list .media {
   display: block;
+}
+
+.resource-list.resource-cards-caption {
+  display: grid;
+  gap: var(--space-4) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+}
+
+.resource-list.resource-cards-caption .resource-thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+}
+
+.resource-list.resource-cards-caption .resource-thumb img {
+  transition: transform 0.4s ease;
+}
+
+.resource-list.resource-cards-caption .resource-link:hover .resource-thumb img {
+  transform: scale(1.03);
+}
+
+/* An item set reads as a stack of cards. */
+.resource-list.resource-cards-caption .item-set .resource-thumb {
+  box-shadow: 5px -5px 0 -1px var(--color-background), 5px -5px 0 0 var(--color-border);
+  overflow: visible;
+}
+
+.resource-list.resource-cards-caption .resource-text {
+  padding-top: var(--space-2);
+}
+
+.resource-list.resource-cards-caption .resource-name {
+  font-size: var(--font-size-lg);
+}
+
+/* An identifier standing in for a title is one long word; at the body's
+   small size it fits a card's width instead of breaking mid-code. */
+.resource-list.resource-cards-caption .resource-name-fallback {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.01em;
+}
+
+.resource-list.resource-cards-overlay {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+}
+
+.resource-list.resource-cards-overlay .resource-link {
+  aspect-ratio: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.resource-list.resource-cards-overlay .resource-thumb {
+  inset: 0;
+  position: absolute;
+}
+
+.resource-list.resource-cards-overlay .resource-thumb-empty {
+  padding-bottom: 3.5rem;
+}
+
+.resource-list.resource-cards-overlay .resource-thumb img {
+  transition: transform 0.5s ease;
+}
+
+.resource-list.resource-cards-overlay .resource-link:hover .resource-thumb img {
+  transform: scale(1.04);
+}
+
+.resource-list.resource-cards-overlay .resource-text {
+  bottom: 0;
+  left: 0;
+  padding: 2.5rem var(--space-3) var(--space-2);
+  position: absolute;
+  right: 0;
+}
+
+/* Over a photograph the caption sits on a dark scrim in every scheme, so its
+   colours are fixed keywords: no token describes a photograph. */
+.resource-list.resource-cards-overlay .has-thumb .resource-text {
+  background: linear-gradient(to top, color-mix(in srgb, black 85%, transparent), color-mix(in srgb, black 55%, transparent) 55%, transparent);
+  color: white;
+}
+
+.resource-list.resource-cards-overlay .has-thumb .resource-meta {
+  color: white;
+}
+
+.resource-list.resource-cards-overlay .resource-name,
+.resource-list.resource-cards-overlay .resource-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-list.resource-cards-overlay .description {
+  display: none;
+}
+
+.resource-list.resource-cards-overlay .resource-link:focus-visible {
+  outline-offset: -3px;
+}
+
+.resource-list.resource-cards-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.resource-list.resource-cards-row .resource {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.resource-list.resource-cards-row .resource-link {
+  align-items: center;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+}
+
+.resource-list.resource-cards-row .resource-link:hover {
+  background: var(--color-surface);
+}
+
+.resource-list.resource-cards-row .resource-thumb {
+  border-radius: var(--radius-sm);
+  height: 3.5rem;
+  width: 3.5rem;
+}
+
+.resource-list.resource-cards-row .resource-thumb-empty .kind-icon {
+  height: 1.5rem;
+  width: 1.5rem;
+}
+
+.resource-list.resource-cards-row .resource-kind {
+  display: none;
+}
+
+.resource-list.resource-cards-row .resource-text {
+  align-items: baseline;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2.6fr);
+}
+
+.resource-list.resource-cards-row .resource-name {
+  color: var(--color-link);
+  font-family: var(--font-body);
+}
+
+.resource-list.resource-cards-row .resource-name-fallback {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-sm);
+}
+
+.resource-list.resource-cards-row .resource-meta {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 5rem;
+  margin: 0;
+}
+
+.resource-list.resource-cards-row .resource-meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-list.resource-cards-row .resource-meta > span + span::before {
+  content: none;
+}
+
+.resource-list.resource-cards-row .resource-meta-date {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.resource-list.resource-cards-row .description {
+  -webkit-line-clamp: 1;
+  margin: 0 0 var(--space-2) calc(3.5rem + var(--space-3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resource-list.resource-cards-caption .resource-link:hover .resource-thumb img,
+  .resource-list.resource-cards-overlay .resource-link:hover .resource-thumb img {
+    transform: none;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .resource-list.resource-cards-caption,
+  .resource-list.resource-cards-overlay {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-cards-caption {
+    gap: var(--space-4) var(--space-2);
+  }
+
+  .resource-list.resource-cards-caption .resource-name {
+    font-size: var(--font-size-base);
+  }
+
+  .kind-icon {
+    height: 1.75rem;
+    width: 1.75rem;
+  }
+
+  .resource-kind {
+    font-size: 0.6875rem;
+  }
+
+  .resource-list.resource-cards-overlay .resource-text {
+    padding: 2rem var(--space-2) var(--space-2);
+  }
+
+  .resource-list.resource-cards-overlay .resource-meta-type {
+    display: none;
+  }
+
+  .resource-list.resource-cards-row .resource-text {
+    gap: 0.125rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resource-list.resource-cards-row .resource-meta {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .resource-list.resource-cards-row .resource-meta > span {
+    display: inline;
+  }
+
+  .resource-list.resource-cards-row .resource-meta > span + span::before {
+    content: " · ";
+  }
+
+  .resource-list.resource-cards-row .resource-meta-creator {
+    display: none;
+  }
 }
 
 .browse-controls {
@@ -1013,8 +1579,10 @@ footer {
   padding-bottom: var(--space-3);
 }
 
-.browse-controls .pagination > ul {
-  margin: 0;
+/* Upstream prints the pager above the list and below it; one pager is
+   enough, so the top copy stays hidden. */
+.browse-controls .pagination {
+  display: none;
 }
 
 .advanced-search {
@@ -1023,52 +1591,84 @@ footer {
   white-space: nowrap;
 }
 
+/* The pager: Previous, a window of page numbers, Next, and a count. */
+.pagination {
+  margin: var(--space-5) 0 0;
+}
+
 .pagination > ul {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
   list-style: none;
-  margin: var(--space-3) 0;
+  margin: 0;
   padding: 0;
 }
 
-.pagination a,
-.pagination .active {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.pagination li > a,
+.pagination li > span,
+.pagination .active,
+.pager-gap {
+  align-items: center;
   border-radius: var(--radius-sm);
-  display: inline-block;
-  min-width: 2.25rem;
-  padding: var(--space-1) var(--space-2);
-  text-align: center;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0 var(--space-2);
+}
+
+.pagination li > a {
+  border: 1px solid var(--color-border);
   text-decoration: none;
 }
 
-.pagination a:hover,
-.pagination a:focus {
+.pagination li > a:hover,
+.pagination li > a:focus {
   border-color: var(--color-brand);
 }
 
 .pagination .active {
-  border-color: var(--color-brand);
-  box-shadow: inset 0 -3px 0 var(--color-brand);
-  color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-background);
   font-weight: 600;
+}
+
+.pagination [aria-disabled] > span,
+.pager-gap {
+  color: var(--color-muted);
+}
+
+.pager-prev,
+.pager-next {
+  font-weight: 600;
+}
+
+.pager-count {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: var(--space-2) 0 0;
 }
 
 /* Values, as the item and media views print them: a definition list that
    stacks on narrow screens and runs in two columns above the breakpoint. The
-   term is a small muted label, so the values carry the weight. */
+   term is a small muted label, so the values carry the weight. The item sets,
+   media list, resource class and site pages blocks print the same list. */
 
 .values,
 .item-sets,
-.media-list {
+.media-list,
+.resource-class,
+.site-pages {
   margin: 0 0 var(--space-4);
 }
 
 .values .property,
 .item-sets .property,
-.media-list .property {
+.media-list .property,
+.resource-class .property,
+.site-pages .property {
   border-top: 1px solid var(--color-border);
   display: grid;
   gap: var(--space-1) var(--space-3);
@@ -1078,13 +1678,17 @@ footer {
 
 .values .property:last-child,
 .item-sets .property:last-child,
-.media-list .property:last-child {
+.media-list .property:last-child,
+.resource-class .property:last-child,
+.site-pages .property:last-child {
   border-bottom: 1px solid var(--color-border);
 }
 
 .values .property dt,
 .item-sets .property dt,
-.media-list .property dt {
+.media-list .property dt,
+.resource-class .property dt,
+.site-pages .property dt {
   color: var(--color-muted);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -1096,7 +1700,9 @@ footer {
 
 .values .property .value,
 .item-sets .property .value,
-.media-list .property .value {
+.media-list .property .value,
+.resource-class .property .value,
+.site-pages .property .value {
   grid-column: 2;
   margin: 0;
 }
@@ -1127,56 +1733,72 @@ footer {
 @media (max-width: 39.99rem) {
   .values .property,
   .item-sets .property,
-  .media-list .property {
+  .media-list .property,
+  .resource-class .property,
+  .site-pages .property {
     display: block;
   }
 
   .values .property dt,
   .item-sets .property dt,
-  .media-list .property dt {
+  .media-list .property dt,
+  .resource-class .property dt,
+  .site-pages .property dt {
     margin-bottom: var(--space-1);
   }
 }
 
-/* An item with media lays its files beside its values on a wide screen: the
-   gallery holds the left column while the values and everything after them
-   run down the right. */
+/* The item page's layout token. `item-side` lays the media beside the values
+   on a wide screen: the media holds the left column while the values and
+   everything after them run down the right. `item-stacked` shows the media
+   first, wide, on a stage of the surface colour, with the record below. */
 @media (min-width: 60rem) {
-  .item.resource #content:has(> .media-embeds) {
+  .item-side .item.resource #content:has(> .media-embeds) {
     align-items: start;
     column-gap: var(--space-5);
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+    grid-template-columns: minmax(0, 5fr) minmax(18rem, 7fr);
   }
 
-  .item.resource #content:has(> .media-embeds) > * {
+  .item-side .item.resource #content:has(> .media-embeds) > * {
     grid-column: 1 / -1;
   }
 
-  .item.resource #content > .media-embeds {
+  .item-side .item.resource #content > .media-embeds {
     grid-column: 1;
     grid-row: 3 / span 12;
     position: sticky;
     top: var(--space-4);
   }
 
-  .item.resource #content > .media-embeds ~ * {
+  .item-side .item.resource #content > .media-embeds ~ * {
     grid-column: 2;
   }
 
   /* The side column is narrow under every content width, so each label sits
      over its value. */
-  .item.resource #content > .media-embeds ~ dl .property {
+  .item-side .item.resource #content > .media-embeds ~ dl .property {
     display: block;
   }
 
-  .item.resource #content > .media-embeds ~ dl .property dt {
+  .item-side .item.resource #content > .media-embeds ~ dl .property dt {
     margin-bottom: var(--space-1);
   }
 }
 
-/* The media a resource shows: a gallery of the item's media, one feature when
-   there is a single file. */
+.item-stacked .item.resource .media-embeds {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: clamp(var(--space-3), 4vw, var(--space-5));
+}
+
+.item-stacked .item.resource .media-embeds.media-empty {
+  padding: 0;
+}
+
+/* The media a resource shows: a gallery of the item's media. A single file
+   shows whole, never cropped. An item with no media shows a panel that says
+   so. */
 
 .media-embeds {
   display: grid;
@@ -1198,12 +1820,47 @@ footer {
 }
 
 .media-embeds > :only-child img {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: auto;
+  margin: 0 auto;
+  max-height: 70vh;
+  object-fit: contain;
+  width: auto;
 }
 
 .media-embeds video,
 .media-embeds iframe {
   border-radius: var(--radius);
+  width: 100%;
+}
+
+.media-empty {
+  display: block;
+}
+
+.media-empty .resource-thumb-empty {
+  aspect-ratio: 21 / 9;
+  border-radius: var(--radius);
+  width: 100%;
+}
+
+.item-side .media-empty .resource-thumb-empty {
+  aspect-ratio: 4 / 3;
+}
+
+/* The lightbox gallery block: the item's images as a wrapping grid of square
+   thumbnails, each linked to its full file. */
+.lightbox-gallery {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  margin: 0 0 var(--space-4);
+}
+
+.lightbox-gallery img {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  display: block;
+  object-fit: cover;
   width: 100%;
 }
 
@@ -1247,10 +1904,6 @@ footer {
   .media-page > .values {
     grid-column: 2;
   }
-}
-
-.site-pages {
-  margin: 0 0 var(--space-4);
 }
 
 #linked-resources table {
@@ -1430,7 +2083,131 @@ footer {
 }
 
 .resource-list.preview {
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  margin-bottom: var(--space-3);
+}
+
+.preview-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-muted);
+  margin: var(--space-3) 0;
+  padding: var(--space-4) var(--space-3);
+  text-align: center;
+}
+
+/* A preview block's own column count, on a screen wide enough for it. */
+@media (min-width: 48rem) {
+  .resource-list.resource-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* A carousel: the cards in one row that scrolls sideways and snaps to each
+   card. A phone shows most of one card, so the next one peeks in. */
+.resource-list.resource-carousel {
+  grid-auto-columns: min(16rem, 80%);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: var(--space-2);
+  scroll-snap-type: x mandatory;
+}
+
+.resource-list.resource-carousel > .resource {
+  scroll-margin-top: var(--space-5);
+  scroll-snap-align: start;
+}
+
+.resource-list.resource-carousel:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 4px;
+}
+
+@media (min-width: 48rem) {
+  .resource-list.resource-carousel.resource-columns-2 {
+    grid-auto-columns: calc((100% - var(--space-3)) / 2);
+  }
+
+  .resource-list.resource-carousel.resource-columns-3 {
+    grid-auto-columns: calc((100% - 2 * var(--space-3)) / 3);
+  }
+
+  .resource-list.resource-carousel.resource-columns-4 {
+    grid-auto-columns: calc((100% - 3 * var(--space-3)) / 4);
+  }
+
+  .resource-list.resource-carousel.resource-columns-5 {
+    grid-auto-columns: calc((100% - 4 * var(--space-3)) / 5);
+  }
+
+  .resource-list.resource-carousel.resource-columns-6 {
+    grid-auto-columns: calc((100% - 5 * var(--space-3)) / 6);
+  }
+}
+
+.resource-list.resource-carousel.resource-cards-caption {
+  column-gap: var(--space-3);
+}
+
+.preview-carousel-nav {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin: 0 0 var(--space-3);
+}
+
+.preview-carousel-prev,
+.preview-carousel-next {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-link);
+  display: inline-flex;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  text-decoration: none;
+}
+
+.preview-carousel-prev::before {
+  content: "← " / "";
+}
+
+.preview-carousel-next::after {
+  content: " →" / "";
+}
+
+.preview-carousel-prev:hover,
+.preview-carousel-next:hover {
+  background: var(--color-surface);
+}
+
+.preview-carousel-prev[aria-disabled="true"],
+.preview-carousel-next[aria-disabled="true"] {
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.resource-meta-item-set,
+.resource-meta-value {
+  overflow-wrap: anywhere;
 }
 
 /* Table of contents */
@@ -1470,6 +2247,59 @@ footer {
   margin: 0;
 }
 
+/* Item with metadata as cards: the image beside the name, the chosen
+   values and the citation; stacked on a phone. */
+.item-cards {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.item-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  padding: var(--space-3);
+}
+
+.item-card-thumb {
+  display: block;
+  text-decoration: none;
+}
+
+.item-card-thumb .resource-thumb {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+}
+
+.item-card-title {
+  font-size: var(--font-size-lg);
+  margin: 0 0 var(--space-2);
+}
+
+.item-card .values {
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-2);
+}
+
+.item-card-citation {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+@media (max-width: 47.99rem) {
+  .item-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .item-card-thumb .resource-thumb {
+    aspect-ratio: 4 / 3;
+  }
+}
+
 /* Assets */
 
 .assets .asset {
@@ -1481,12 +2311,91 @@ footer {
   padding: var(--space-2);
 }
 
+/* An image keeps its own shape unless the block asks for a 3:2 frame that
+   the image fills (cover) or fits inside (contain). */
 .assets .asset img {
-  aspect-ratio: 3 / 2;
   border-radius: var(--radius-sm);
   display: block;
-  object-fit: cover;
+  height: auto;
   width: 100%;
+}
+
+.assets-fit-cover .asset img,
+.assets-fit-contain .asset img {
+  aspect-ratio: 3 / 2;
+}
+
+.assets-fit-cover .asset img {
+  object-fit: cover;
+}
+
+.assets-fit-contain .asset img {
+  background: var(--color-background);
+  object-fit: contain;
+}
+
+.assets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.assets-row .asset {
+  flex: 1 1 12rem;
+}
+
+.assets-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+}
+
+.assets-row .asset,
+.assets-grid .asset {
+  margin-bottom: 0;
+  max-width: none;
+}
+
+@media (max-width: 47.99rem) {
+  .assets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 48rem) {
+  .assets-grid.assets-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.assets .caption {
+  margin-top: var(--space-2);
+}
+
+.assets-caption-center .caption,
+.assets-caption-center .link-title {
+  text-align: center;
+}
+
+.assets-caption-end .caption,
+.assets-caption-end .link-title {
+  text-align: end;
 }
 
 .assets .link-title {
@@ -1563,6 +2472,101 @@ footer {
 .list-of-pages-link-missing {
   color: var(--color-muted);
   font-style: italic;
+}
+
+/* A list of pages as cards: the page's first image, or a tinted slot, then
+   its title and the first lines of its text. */
+.page-cards > ul {
+  display: grid;
+  gap: var(--space-4) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  list-style: none;
+  margin: var(--space-3) 0;
+  padding: 0;
+}
+
+@media (min-width: 48rem) {
+  .page-cards-columns-2 > ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-3 > ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-4 > ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-5 > ul {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-6 > ul {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.page-card {
+  min-width: 0;
+}
+
+.page-card-link {
+  color: var(--color-text);
+  display: block;
+  text-decoration: none;
+}
+
+.page-card-thumb {
+  aspect-ratio: 4 / 3;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  display: block;
+  overflow: hidden;
+}
+
+.page-card-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.page-card-thumb-empty {
+  background-image: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--color-background) 45%, transparent), transparent 60%);
+}
+
+.page-card:nth-child(3n + 2) .page-card-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-accent));
+}
+
+.page-card:nth-child(3n + 3) .page-card-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-link));
+}
+
+.page-card-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: var(--space-2);
+}
+
+.page-card-link:hover .page-card-title,
+.page-card-link:focus-visible .page-card-title {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.page-card-summary {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--color-muted);
+  display: -webkit-box;
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+  overflow: hidden;
 }
 
 /* Search: the sitewide form, the result sections, the result lists and the
@@ -1702,34 +2706,56 @@ footer {
 .romeka-hero {
   position: relative;
   display: flex;
-  min-height: calc(var(--space-5) * 7);
   overflow: hidden;
   background: var(--color-surface);
   border-radius: var(--radius);
   color: var(--color-text);
 }
 
-/* With no photograph the banner is a field of the brand colour, the strongest
-   statement of the site's identity, and the overlay has nothing to dim. */
+/* With no photograph the hero is type only in every style: a kicker rule in
+   the accent, a display line and the subheading, on the page itself, so a
+   site with no images still opens with a voice of its own. */
 .romeka-hero-no-image {
-  background: var(--color-brand);
-  color: var(--color-on-brand);
+  background: transparent;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  color: var(--color-text);
+  min-height: 0;
 }
 
 .romeka-hero-no-image .romeka-hero-overlay {
   display: none;
 }
 
-.romeka-hero-no-image .romeka-hero-cta,
-.romeka-hero-no-image .romeka-hero-cta:hover,
-.romeka-hero-no-image .romeka-hero-cta:focus {
-  background: var(--color-on-brand);
-  color: var(--color-brand);
+.romeka-hero-no-image .romeka-hero-content {
+  max-width: none;
+  padding: clamp(var(--space-4), 6vw, var(--space-5)) 0 var(--space-4);
 }
 
-.romeka-hero-no-image .romeka-hero-cta:hover,
-.romeka-hero-no-image .romeka-hero-cta:focus {
-  box-shadow: 0 0 0 2px var(--color-brand), 0 0 0 4px var(--color-on-brand);
+.romeka-hero-no-image .romeka-hero-content::before {
+  background: var(--color-accent);
+  content: "";
+  display: block;
+  height: 3px;
+  width: 3rem;
+}
+
+.romeka-hero-no-image .romeka-hero-heading {
+  font-size: clamp(2.5rem, 7vw, calc(var(--font-size-h1) * 1.9));
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  max-width: 16ch;
+}
+
+.romeka-hero-no-image .romeka-hero-subheading {
+  color: var(--color-muted);
+  max-width: 34rem;
+}
+
+.romeka-hero-no-image .romeka-hero-cta {
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
 }
 
 /* Over a photograph the copy sits on a dark scrim in every colour scheme, so
@@ -1746,6 +2772,25 @@ footer {
   object-fit: cover;
 }
 
+.romeka-hero-height-short {
+  min-height: calc(var(--space-5) * 4);
+}
+
+.romeka-hero-height-medium {
+  min-height: calc(var(--space-5) * 7);
+}
+
+.romeka-hero-height-tall {
+  min-height: calc(var(--space-5) * 11);
+}
+
+.romeka-hero-height-full {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* A curator's overlay colour is an inline background on this element
+   (`blocks/hero`); without one the scrim is black. */
 .romeka-hero-overlay {
   position: absolute;
   inset: 0;
@@ -1832,4 +2877,1223 @@ footer {
 .romeka-hero-cta:focus {
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.romeka-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The second button is an outline in the text's own colour, so it reads as
+   the lesser choice on a photograph and on the brand colour alike. The extra
+   class outranks the no-image rule above. */
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px currentColor;
+  color: inherit;
+}
+
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline:hover,
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline:focus {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* The hero style token, for a hero with a photograph. `hero-cover` runs the
+   photograph across the screen with the text on a scrim at its foot;
+   `hero-split` sets the text in a panel beside it; `hero-framed` shows the
+   whole photograph, never cropped, on a lit band, with the text below. */
+body {
+  overflow-x: clip;
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background),
+.hero-framed .romeka-hero:has(.romeka-hero-background) {
+  border-radius: 0;
+  margin-inline: calc(50% - 50vw);
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) {
+  align-items: flex-end;
+}
+
+/* The cover style's own height stands in for the default (medium) height; a
+   curator's other height choice keeps its own rule above. */
+.hero-cover .romeka-hero-height-medium:has(.romeka-hero-background) {
+  min-height: min(72vh, 44rem);
+}
+
+.hero-cover .romeka-hero-overlay {
+  background: linear-gradient(to top, black 0%, color-mix(in srgb, black 60%, transparent) 40%, transparent 75%);
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-5) var(--space-3);
+  width: 100%;
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+  font-size: clamp(2.5rem, 6vw, calc(var(--font-size-h1) * 1.7));
+  line-height: 1.02;
+  max-width: 14ch;
+}
+
+.hero-split .romeka-hero:has(.romeka-hero-background) {
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.hero-split .romeka-hero-background,
+.hero-framed .romeka-hero-background {
+  position: static;
+}
+
+.hero-split .romeka-hero-background {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 18rem;
+}
+
+.hero-split .romeka-hero-overlay,
+.hero-framed .romeka-hero-overlay {
+  display: none;
+}
+
+.hero-split .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  align-self: center;
+  grid-column: 1;
+  grid-row: 1;
+  padding: var(--space-4);
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) {
+  background: transparent;
+  color: var(--color-text);
+  display: grid;
+}
+
+.hero-framed .romeka-hero-background {
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--color-surface) 75%, var(--color-text)) 0%, var(--color-surface) 70%);
+  height: min(70vh, 40rem);
+  object-fit: contain;
+  padding: clamp(1rem, 4vw, 3rem);
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  margin: 0 auto;
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-4) var(--space-3) 0;
+  text-align: left;
+  width: 100%;
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+  font-size: clamp(2.5rem, 6vw, calc(var(--font-size-h1) * 1.7));
+  letter-spacing: -0.035em;
+}
+
+/* Above the phone breakpoint the framed hero's title takes the left column
+   and the rest of its text the right. */
+@media (min-width: 48rem) {
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+    align-items: end;
+    column-gap: var(--space-4);
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content > :not(.romeka-hero-heading) {
+    grid-column: 2;
+  }
+
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .hero-split .romeka-hero:has(.romeka-hero-background) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-split .romeka-hero-background {
+    aspect-ratio: 3 / 2;
+    grid-column: 1;
+    min-height: 0;
+  }
+
+  .hero-split .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .hero-framed .romeka-hero-background {
+    aspect-ratio: 4 / 3;
+    height: auto;
+  }
+}
+
+/* The Romeka map: Leaflet draws into the canvas, and the places stay listed
+   under it for a reader who cannot use the map. The canvas keeps its height
+   before the script runs, so the page does not jump when the map appears. */
+.romeka-map,
+.romeka-map-section {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.romeka-map-canvas {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  z-index: 0;
+}
+
+.romeka-map-short {
+  height: 18rem;
+}
+
+.romeka-map-medium {
+  height: 28rem;
+}
+
+.romeka-map-tall {
+  height: 38rem;
+}
+
+.romeka-map-places > summary {
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.romeka-map-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}
+
+.romeka-map-place {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The editor preview runs no script, so a map shows as this card. */
+.romeka-map-poster {
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.romeka-map-poster > p {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* A marker: a brand-coloured dot with a ring, so it reads on any tile. */
+.romeka-map-pin {
+  border: 3px solid var(--color-background);
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-text);
+}
+
+/* Several close places as one numbered marker. Leaflet's own sheet loads
+   after this one and sets the marker's display, so the count is centred with
+   line-height: the marker is 36px, less two 3px borders. */
+.romeka-map-cluster {
+  border: 3px solid var(--color-background);
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-text);
+  color: var(--color-on-brand);
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+}
+
+.romeka-map-pin:focus-visible,
+.romeka-map-cluster:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.romeka-map-popup {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 14rem;
+}
+
+.romeka-map-popup img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.romeka-map-popup-title {
+  font-weight: 600;
+}
+
+/* Leaflet's sheet gives every popup paragraph a wide margin; this one sits
+   tight under the title. */
+.leaflet-popup-content .romeka-map-popup-value {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.romeka-map-popup-list {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+/* Sections: a block group with a section layout (`blocks/style.rs`). The
+   group's blocks are its slots, laid out by the section's own columns on a
+   normal page and on a grid page alike, so a member's grid placement is set
+   aside here. On a tablet four and three cards become two; on a phone every
+   section is one column. Upstream renders the same wrapper with none of these
+   classes, so there the blocks stack. */
+
+.romeka-section {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.romeka-section.romeka-section-split-50-50,
+.romeka-section.romeka-section-cards-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-split-40-60 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.romeka-section.romeka-section-split-60-40 {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.romeka-section.romeka-section-cards-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-cards-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-stack,
+.romeka-section.romeka-section-band {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.romeka-section > .block,
+.page-layout-normal .romeka-section > .block {
+  grid-column: auto;
+  margin: 0;
+  min-width: 0;
+}
+
+.romeka-section.romeka-section-align-top {
+  align-items: start;
+}
+
+.romeka-section.romeka-section-align-center {
+  align-items: center;
+}
+
+.romeka-section.romeka-section-align-bottom {
+  align-items: end;
+}
+
+.romeka-section.romeka-section-gap-none {
+  gap: 0;
+}
+
+.romeka-section.romeka-section-gap-small {
+  gap: var(--space-2);
+}
+
+.romeka-section.romeka-section-gap-medium {
+  gap: var(--space-3);
+}
+
+.romeka-section.romeka-section-gap-large {
+  gap: var(--space-5);
+}
+
+/* Cards are the surface colour with the theme's corners, so a row of them
+   reads as a set. */
+.romeka-section-cards-2 > .block,
+.romeka-section-cards-3 > .block,
+.romeka-section-cards-4 > .block {
+  align-self: stretch;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.romeka-section-cards-2 > .block > :first-child,
+.romeka-section-cards-3 > .block > :first-child,
+.romeka-section-cards-4 > .block > :first-child {
+  margin-top: 0;
+}
+
+.romeka-section-cards-2 > .block > :last-child,
+.romeka-section-cards-3 > .block > :last-child,
+.romeka-section-cards-4 > .block > :last-child {
+  margin-bottom: 0;
+}
+
+/* A section with a background gets room around its slots. */
+.romeka-section.has-background {
+  padding: var(--space-4) var(--space-3);
+}
+
+/* A band, and any block set to full bleed, spans the whole window. The page
+   column is centred, so a negative margin of half the gap reaches each edge;
+   the body clips the scrollbar's width. A band's text stays in the column. */
+.romeka-bleed,
+.romeka-section.romeka-section-band {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  max-width: none;
+  width: 100vw;
+}
+
+.romeka-section.romeka-section-band {
+  padding: var(--space-5) max(var(--space-3), (100vw - var(--content-width)) / 2);
+}
+
+.romeka-section-band > .block-html > * {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* The overlay is a wash over the section's background and under its slots.
+   The light wash is the page background, under the theme's text; the dark
+   wash is the photograph scrim the hero uses, under white text. */
+.romeka-section.romeka-section-overlay-light,
+.romeka-section.romeka-section-overlay-dark {
+  isolation: isolate;
+  position: relative;
+}
+
+.romeka-section-overlay-light::before,
+.romeka-section-overlay-dark::before {
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+
+.romeka-section-overlay-light::before {
+  background: var(--color-background);
+  opacity: 0.75;
+}
+
+.romeka-section-overlay-light {
+  color: var(--color-text);
+}
+
+.romeka-section-overlay-dark::before {
+  background: black;
+  opacity: 0.55;
+}
+
+.romeka-section-overlay-dark {
+  color: white;
+}
+
+@media screen and (max-width: 896px) {
+  .romeka-section.romeka-section-cards-3,
+  .romeka-section.romeka-section-cards-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .romeka-section.romeka-section-split-50-50,
+  .romeka-section.romeka-section-split-40-60,
+  .romeka-section.romeka-section-split-60-40,
+  .romeka-section.romeka-section-cards-2,
+  .romeka-section.romeka-section-cards-3,
+  .romeka-section.romeka-section-cards-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The Romeka gallery: a list of figures as a grid of square crops, a masonry
+   of whole images in columns, or a carousel that scrolls sideways. The column
+   count is a class, so each count names its own track sizes. */
+.romeka-gallery-list {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.romeka-gallery-figure {
+  margin: 0;
+}
+
+.romeka-gallery-link {
+  border-radius: var(--radius-sm);
+  display: block;
+  overflow: hidden;
+}
+
+.romeka-gallery-image {
+  display: block;
+  height: auto;
+  transition: transform 160ms ease-out;
+  width: 100%;
+}
+
+.romeka-gallery-link:hover .romeka-gallery-image,
+.romeka-gallery-link:focus-visible .romeka-gallery-image {
+  transform: scale(1.03);
+}
+
+.romeka-gallery-caption {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+}
+
+.romeka-gallery-caption > :first-child {
+  margin-top: 0;
+}
+
+.romeka-gallery-caption > :last-child {
+  margin-bottom: 0;
+}
+
+.romeka-gallery-grid .romeka-gallery-image {
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.romeka-gallery-columns-2 .romeka-gallery-list {
+  columns: 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.romeka-gallery-columns-3 .romeka-gallery-list {
+  columns: 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.romeka-gallery-columns-4 .romeka-gallery-list {
+  columns: 4;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.romeka-gallery-columns-5 .romeka-gallery-list {
+  columns: 5;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.romeka-gallery-columns-6 .romeka-gallery-list {
+  columns: 6;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.romeka-gallery-masonry .romeka-gallery-list {
+  column-gap: var(--space-3);
+  display: block;
+}
+
+.romeka-gallery-masonry .romeka-gallery-item {
+  break-inside: avoid;
+  margin-bottom: var(--space-3);
+}
+
+/* The carousel shows the column count of whole images and a third of the next,
+   so the row reads as one that scrolls on. */
+.romeka-gallery-carousel .romeka-gallery-list {
+  grid-auto-flow: column;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: var(--space-2);
+  scroll-snap-type: x mandatory;
+  scrollbar-color: var(--color-border) transparent;
+  scrollbar-width: thin;
+}
+
+.romeka-gallery-carousel.romeka-gallery-columns-2 .romeka-gallery-list {
+  grid-auto-columns: calc((100% - 2 * var(--space-3)) / 2.3);
+}
+
+.romeka-gallery-carousel.romeka-gallery-columns-3 .romeka-gallery-list {
+  grid-auto-columns: calc((100% - 3 * var(--space-3)) / 3.3);
+}
+
+.romeka-gallery-carousel.romeka-gallery-columns-4 .romeka-gallery-list {
+  grid-auto-columns: calc((100% - 4 * var(--space-3)) / 4.3);
+}
+
+.romeka-gallery-carousel.romeka-gallery-columns-5 .romeka-gallery-list {
+  grid-auto-columns: calc((100% - 5 * var(--space-3)) / 5.3);
+}
+
+.romeka-gallery-carousel.romeka-gallery-columns-6 .romeka-gallery-list {
+  grid-auto-columns: calc((100% - 6 * var(--space-3)) / 6.3);
+}
+
+.romeka-gallery-carousel .romeka-gallery-list {
+  grid-template-columns: none;
+}
+
+.romeka-gallery-carousel .romeka-gallery-item {
+  scroll-snap-align: start;
+}
+
+.romeka-gallery-carousel .romeka-gallery-image {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.romeka-gallery-list:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.romeka-gallery-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+@media (max-width: 39.99rem) {
+  .romeka-gallery:not(.romeka-gallery-carousel) .romeka-gallery-list {
+    columns: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .romeka-gallery-carousel .romeka-gallery-list {
+    grid-auto-columns: 80%;
+  }
+}
+
+/* The lightbox `lightbox.js` opens over a gallery: the image at the largest
+   size the screen holds, on a dark backdrop in every colour scheme. */
+.romeka-lightbox {
+  background: transparent;
+  border: 0;
+  color: white;
+  height: 100%;
+  max-height: none;
+  max-width: none;
+  padding: var(--space-4);
+  width: 100%;
+}
+
+.romeka-lightbox::backdrop {
+  background: black;
+  opacity: 0.9;
+}
+
+.romeka-lightbox-figure {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  justify-content: center;
+  margin: 0;
+}
+
+.romeka-lightbox-image {
+  max-height: calc(100% - 5rem);
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.romeka-lightbox-caption {
+  max-width: 48rem;
+  text-align: center;
+}
+
+.romeka-lightbox-caption a {
+  color: inherit;
+}
+
+.romeka-lightbox-position {
+  font-size: var(--font-size-sm);
+  left: 0;
+  margin: 0;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  top: var(--space-3);
+}
+
+.romeka-lightbox-button {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.75rem;
+  height: 3rem;
+  line-height: 1;
+  position: absolute;
+  width: 3rem;
+}
+
+.romeka-lightbox-button:hover,
+.romeka-lightbox-button:focus-visible {
+  background: white;
+  color: black;
+}
+
+.romeka-lightbox-close {
+  right: var(--space-3);
+  top: var(--space-3);
+}
+
+.romeka-lightbox-previous,
+.romeka-lightbox-next {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.romeka-lightbox-previous {
+  left: var(--space-3);
+}
+
+.romeka-lightbox-next {
+  right: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .romeka-gallery-image {
+    transition: none;
+  }
+}
+
+/* The Romeka featured item: one item as a card, its image beside or above the
+   text. The card measures its own width, so in a narrow section slot the
+   image always sits above the text. */
+.romeka-featured {
+  container-type: inline-size;
+}
+
+.romeka-featured-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  height: 100%;
+  overflow: hidden;
+}
+
+.romeka-featured-image-right .romeka-featured-card {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.romeka-featured-image-right .romeka-featured-media {
+  order: 2;
+}
+
+.romeka-featured-image-top .romeka-featured-card,
+.romeka-featured-no-image .romeka-featured-card {
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.romeka-featured-media {
+  min-height: 100%;
+}
+
+.romeka-featured-image {
+  aspect-ratio: 4 / 3;
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.romeka-featured-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.romeka-featured-image-left .romeka-featured-body {
+  padding-left: 0;
+}
+
+.romeka-featured-image-right .romeka-featured-body {
+  padding-right: 0;
+}
+
+.romeka-featured-title {
+  font-size: var(--font-size-h3);
+  margin: 0;
+}
+
+.romeka-featured-title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.romeka-featured-title a:hover,
+.romeka-featured-title a:focus-visible {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.romeka-featured-description {
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.romeka-featured-values {
+  display: grid;
+  font-size: var(--font-size-sm);
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.romeka-featured-value {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.romeka-featured-value dt {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.romeka-featured-value dd {
+  grid-column: 2;
+  margin: 0;
+}
+
+.romeka-featured-actions {
+  margin: auto 0 0;
+  padding-top: var(--space-2);
+}
+
+.romeka-featured-link {
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+  color: var(--button-text);
+  display: inline-block;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-3);
+  text-decoration: none;
+}
+
+.romeka-featured-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+/* In a section's card slot the slot is already the card, so the featured
+   item fills it edge to edge instead of drawing a second frame. */
+.romeka-section-cards-2 > .block:has(> .romeka-featured),
+.romeka-section-cards-3 > .block:has(> .romeka-featured),
+.romeka-section-cards-4 > .block:has(> .romeka-featured) {
+  overflow: hidden;
+  padding: 0;
+}
+
+.romeka-section > .block > .romeka-featured .romeka-featured-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+@container (max-width: 34rem) {
+  .romeka-featured .romeka-featured-card {
+    gap: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .romeka-featured-media {
+    order: 0;
+  }
+
+  .romeka-featured-body,
+  .romeka-featured-image-left .romeka-featured-body,
+  .romeka-featured-image-right .romeka-featured-body {
+    padding: var(--space-4);
+  }
+}
+
+/* The Romeka button block: one or two links drawn as the theme's buttons. */
+.romeka-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.romeka-buttons-align-left {
+  justify-content: flex-start;
+}
+
+.romeka-buttons-align-center {
+  justify-content: center;
+}
+
+.romeka-buttons-align-right {
+  justify-content: flex-end;
+}
+
+.romeka-button {
+  border: 2px solid var(--button-border);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.romeka-button-solid {
+  background: var(--button-background);
+  color: var(--button-text);
+}
+
+.romeka-button-outline {
+  background: transparent;
+  border-color: var(--button-background);
+  color: var(--button-background);
+}
+
+.romeka-button:hover,
+.romeka-button:focus-visible {
+  text-decoration: underline;
+}
+
+/* The theme's link hover colour outranks a one-class rule, so the filled
+   button names its text colour again for hover and focus. */
+.romeka-button-solid:hover,
+.romeka-button-solid:focus-visible {
+  color: var(--button-text);
+}
+
+.romeka-button-outline:hover,
+.romeka-button-outline:focus-visible {
+  background: var(--button-background);
+  color: var(--button-text);
+}
+
+.romeka-button-small {
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-3);
+}
+
+.romeka-button-medium {
+  font-size: var(--font-size-base);
+  padding: var(--space-2) var(--space-4);
+}
+
+.romeka-button-large {
+  font-size: var(--font-size-lg);
+  padding: var(--space-3) var(--space-5);
+}
+
+.romeka-buttons-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+/* The Romeka quote: a quotation and its attribution, plain in the text
+   column, large with an accent rule, or on a band of the surface colour. */
+.romeka-quote {
+  margin: 0;
+}
+
+.romeka-quote-text {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.romeka-quote-text > :first-child {
+  margin-top: 0;
+}
+
+.romeka-quote-text > :last-child {
+  margin-bottom: 0;
+}
+
+.romeka-quote-attribution {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2);
+}
+
+.romeka-quote-attribution::before {
+  content: "\2014\00a0";
+}
+
+.romeka-quote-plain .romeka-quote-text {
+  border-left: 3px solid var(--color-border);
+  padding-left: var(--space-3);
+}
+
+.romeka-quote-plain .romeka-quote-attribution {
+  padding-left: calc(var(--space-3) + 3px);
+}
+
+.romeka-quote-large,
+.romeka-quote-band {
+  text-align: center;
+}
+
+.romeka-quote-large .romeka-quote-text,
+.romeka-quote-band .romeka-quote-text {
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: clamp(var(--font-size-lg), 3vw, var(--font-size-h2));
+  line-height: 1.3;
+  margin: 0 auto;
+  max-width: 40rem;
+}
+
+.romeka-quote-large .romeka-quote-text::before {
+  background: var(--color-accent);
+  content: "";
+  display: block;
+  height: 3px;
+  margin: 0 auto var(--space-3);
+  width: 3rem;
+}
+
+.romeka-quote-band {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-5) var(--space-4);
+}
+
+.romeka-quote-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+/* The Romeka accordion: each heading opens its answer below it. */
+.romeka-accordion {
+  border-top: 1px solid var(--color-border);
+}
+
+.romeka-accordion-item {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.romeka-accordion-heading {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  gap: var(--space-3);
+  justify-content: space-between;
+  list-style: none;
+  padding: var(--space-3) 0;
+}
+
+.romeka-accordion-heading::-webkit-details-marker {
+  display: none;
+}
+
+/* A plus that turns into a minus as the answer opens. */
+.romeka-accordion-heading::after {
+  color: var(--color-accent);
+  content: "+";
+  flex: none;
+  font-family: var(--font-body);
+  font-size: 1.5em;
+  line-height: 1;
+}
+
+.romeka-accordion-item[open] > .romeka-accordion-heading::after {
+  content: "\2212";
+}
+
+.romeka-accordion-heading:hover,
+.romeka-accordion-heading:focus-visible {
+  color: var(--color-link);
+}
+
+.romeka-accordion-answer {
+  padding: 0 0 var(--space-3);
+}
+
+.romeka-accordion-answer > :first-child {
+  margin-top: 0;
+}
+
+.romeka-accordion-answer > :last-child {
+  margin-bottom: 0;
+}
+
+.romeka-accordion-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+/* The Romeka timeline: a vertical rule with each item's date, thumbnail and
+   title hung on it, earliest first, and the undated items listed after. */
+.romeka-timeline > :last-child {
+  margin-bottom: 0;
+}
+
+.romeka-timeline-list {
+  border-left: 2px solid var(--color-border);
+  list-style: none;
+  margin: 0 0 0 var(--space-2);
+  padding: 0;
+}
+
+.romeka-timeline-entry {
+  padding: 0 0 var(--space-4) var(--space-4);
+  position: relative;
+}
+
+.romeka-timeline-entry::before {
+  background: var(--color-accent);
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+  content: "";
+  height: 0.75rem;
+  left: calc(-0.375rem - 1px);
+  position: absolute;
+  top: 0.3rem;
+  width: 0.75rem;
+}
+
+.romeka-timeline-date {
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 var(--space-1);
+}
+
+.romeka-timeline-link {
+  align-items: center;
+  color: var(--color-text);
+  display: inline-flex;
+  gap: var(--space-3);
+  text-decoration: none;
+}
+
+.romeka-timeline-link:hover .romeka-timeline-title,
+.romeka-timeline-link:focus-visible .romeka-timeline-title {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.romeka-timeline-thumbnail {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  flex: none;
+  height: auto;
+  object-fit: cover;
+  width: 4.5rem;
+}
+
+.romeka-timeline-title {
+  font-weight: 600;
+}
+
+.romeka-timeline-undated-heading {
+  font-size: var(--font-size-base);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.romeka-timeline-undated {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.romeka-timeline-value {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.romeka-timeline-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+/* The Romeka search box: one wide field and its button, joined. */
+.romeka-search {
+  display: flex;
+  max-width: 40rem;
+}
+
+.romeka-search-field {
+  display: flex;
+  flex: 1;
+}
+
+.romeka-search-input {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  border-right: 0;
+  color: var(--color-text);
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.romeka-search-input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.romeka-search-submit {
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--button-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+}
+
+.romeka-search-submit:hover,
+.romeka-search-submit:focus-visible {
+  text-decoration: underline;
 }

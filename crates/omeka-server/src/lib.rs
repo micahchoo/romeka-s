@@ -22,7 +22,7 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{any, get};
-use omeka_media::store::{FileStore, Store};
+use omeka_media::store::{FileUrls, Store};
 use sqlx::SqlitePool;
 use tower::ServiceBuilder;
 
@@ -42,14 +42,17 @@ use mail::Mailer;
 mod accounts;
 mod assets;
 mod config;
+mod config_store;
 mod files_allow;
 mod http;
+mod iiif;
 mod imports;
 pub mod jobs;
 mod limits;
 mod logging;
 pub mod mail;
 mod mail_config;
+mod page_versions;
 mod publish;
 mod serve;
 mod settings;
@@ -60,6 +63,7 @@ mod tags;
 mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
+pub use config_store::{StoreConfig, file_store, local_store, store_for};
 pub use jobs::{DispatchError, JobDispatch, NoDispatch};
 pub use logging::init_logging;
 pub use serve::{serve, serve_with_config, serve_with_services, shutdown_signal};
@@ -74,13 +78,6 @@ pub const FILES_ROOT: &str = "files";
 /// Storage base URI: upstream's `file_store.local.base_uri`.
 pub const FILES_URI: &str = "/files";
 
-/// The process's store: the one place a backend is chosen. Every caller holds
-/// the trait object, so an object store needs a change here and nowhere else.
-#[must_use]
-pub fn file_store(root: impl Into<PathBuf>) -> Arc<dyn Store> {
-    Arc::new(FileStore::new(root, FILES_URI))
-}
-
 /// State every handler needs: the storage pool, the canonical base URL, the
 /// file store a media delete reaches, the API key credential cache that lives
 /// for the process, the attempt counters, the mailer, and whether cookies are
@@ -90,6 +87,8 @@ pub struct AppState {
     pub(crate) pool: SqlitePool,
     pub(crate) base: BaseUrl,
     pub(crate) store: Arc<dyn Store>,
+    /// The URLs the site renders for stored files, from `store`.
+    pub(crate) files: FileUrls,
     /// One [`AuthCache`] per router build, so per process in `serve`.
     /// A key that verified once skips the bcrypt check on its later requests.
     pub(crate) auth_cache: AuthCache,
@@ -106,6 +105,8 @@ pub struct AppState {
     pub(crate) archive_roots: Arc<ArchiveRoots>,
     /// The tag, sheet and evidence index caches every preview shares.
     pub(crate) import_caches: Arc<Caches>,
+    /// The pixel size of each stored image a IIIF document has named.
+    pub(crate) iiif_dimensions: Arc<iiif::Dimensions>,
 }
 
 /// What the process supplies beyond the pool and the [`Config`]: the file
@@ -140,7 +141,7 @@ impl Services {
 /// The default [`Config`] supplies the limits; [`build_router_with_config`]
 /// takes the deployment's.
 pub fn build_router(pool: SqlitePool, base: BaseUrl) -> Router {
-    build_router_with_store(pool, base, file_store(FILES_ROOT))
+    build_router_with_store(pool, base, local_store(FILES_ROOT))
 }
 
 /// Build the application around one file store. A test roots the store in a
@@ -155,7 +156,7 @@ pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: Arc<dyn S
 
 /// Build the application with the configured base URL and limits.
 pub fn build_router_with_config(pool: SqlitePool, config: &Config) -> Router {
-    build_router_with_services(pool, config, Services::new(file_store(FILES_ROOT)))
+    build_router_with_services(pool, config, Services::new(local_store(FILES_ROOT)))
 }
 
 /// Build the application with the configured base URL, limits and archive
@@ -175,6 +176,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
     let state = AppState {
         pool,
         base: base.clone(),
+        files: FileUrls::new(services.store.clone(), base.as_str()),
         store: services.store,
         auth_cache: AuthCache::new(),
         limiter: Limiter::new(omeka_api::limits::RateLimits::default()),
@@ -183,6 +185,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         jobs: services.jobs,
         archive_roots: Arc::new(config.archive_roots.clone()),
         import_caches: Arc::new(Caches::default()),
+        iiif_dimensions: Arc::default(),
     };
     let routes = Router::new()
         .route("/health", get(health))
@@ -195,12 +198,14 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(site_items::router())
+        .merge(page_versions::router())
         .merge(imports::router())
         .merge(tags::router())
         .merge(vocab_import::router())
         .merge(settings::router())
         .merge(site::router())
         .merge(assets::router())
+        .merge(iiif::router())
         .merge(publish::router())
         .merge(files_allow::router())
         .fallback(not_found)

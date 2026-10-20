@@ -133,6 +133,7 @@ fn render_block(data: &ListOfSitesData, ctx: &RenderContext<'_>) -> String {
             page,
             per_page,
             result.total,
+            ctx.translator().messages(),
         ));
     }
     out.push_str("</div>");

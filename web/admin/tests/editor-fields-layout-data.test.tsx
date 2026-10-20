@@ -140,9 +140,14 @@ describe('the layout data form', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Use # and 3 or 6 hex digits.');
     fireEvent.change(screen.getByLabelText('Background color'), { target: { value: '#1a2b3c' } });
-    expect(onChange).toHaveBeenCalledWith({ background_color: '#1a2b3c' });
-    fireEvent.click(screen.getByRole('button', { name: 'No color' }));
-    expect(onChange).toHaveBeenLastCalledWith({ background_color: '' });
+    // A hex colour replaces a theme colour, so the write clears the role.
+    expect(onChange).toHaveBeenCalledWith({ background_color: '#1a2b3c', 'romeka.background_role': '' });
+    const field = screen.getByLabelText('Background color').closest('.block-field');
+    if (!(field instanceof HTMLElement)) {
+      throw new Error('the background colour field');
+    }
+    fireEvent.click(within(field).getByRole('button', { name: 'No color' }));
+    expect(onChange).toHaveBeenLastCalledWith({ background_color: '', 'romeka.background_role': '' });
   });
 
   it('hides the image fit and anchors while no background image is set', () => {

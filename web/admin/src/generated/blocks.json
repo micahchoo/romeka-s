@@ -169,6 +169,104 @@
           ]
         },
         {
+          "key": "romeka.cards",
+          "label": "blockField.browsePreview.cards",
+          "help": "fieldHelp.browsePreview.cards",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.cards_theme"
+            },
+            {
+              "value": "caption",
+              "label": "blockChoice.cards_caption"
+            },
+            {
+              "value": "overlay",
+              "label": "blockChoice.cards_overlay"
+            },
+            {
+              "value": "row",
+              "label": "blockChoice.cards_row"
+            },
+            {
+              "value": "carousel",
+              "label": "blockChoice.cards_carousel"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.browsePreview.columns",
+          "help": "fieldHelp.browsePreview.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.details",
+          "label": "blockField.browsePreview.details",
+          "help": "fieldHelp.browsePreview.details",
+          "type": "choice",
+          "options": [
+            {
+              "value": "type",
+              "label": "blockChoice.detail_type"
+            },
+            {
+              "value": "creator",
+              "label": "blockChoice.detail_creator"
+            },
+            {
+              "value": "date",
+              "label": "blockChoice.detail_date"
+            },
+            {
+              "value": "item_set",
+              "label": "blockChoice.detail_item_set"
+            }
+          ],
+          "multiple": true,
+          "default": [
+            "type",
+            "creator",
+            "date"
+          ]
+        },
+        {
+          "key": "romeka.detail_property",
+          "label": "blockField.browsePreview.detail_property",
+          "help": "fieldHelp.browsePreview.detail_property",
+          "type": "property"
+        },
+        {
           "key": "heading",
           "label": "blockField.browsePreview.heading",
           "help": "fieldHelp.browsePreview.heading",
@@ -301,6 +399,29 @@
           "label": "blockField.itemWithMetadata.attachments",
           "help": "fieldHelp.itemWithMetadata.attachments",
           "type": "attachments"
+        },
+        {
+          "key": "romeka.fields",
+          "label": "blockField.itemWithMetadata.fields",
+          "help": "fieldHelp.itemWithMetadata.fields",
+          "type": "propertyList"
+        },
+        {
+          "key": "romeka.display",
+          "label": "blockField.itemWithMetadata.display",
+          "help": "fieldHelp.itemWithMetadata.display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.metadata_full"
+            },
+            {
+              "value": "card",
+              "label": "blockChoice.metadata_card"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -414,8 +535,7 @@
           "key": "manifest_url",
           "label": "blockField.iiifPresentation.manifest_url",
           "help": "fieldHelp.iiifPresentation.manifest_url",
-          "type": "text",
-          "placeholder": "fieldExample.url"
+          "type": "manifestSource"
         },
         {
           "key": "title",
@@ -429,6 +549,35 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "romeka.height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifPresentation.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -438,11 +587,44 @@
       "description": "layoutHelp.iiifImage",
       "fields": [
         {
+          "key": "romeka.source",
+          "label": "blockField.iiifImage.source",
+          "help": "fieldHelp.iiifImage.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.imageUrl"
+            },
+            {
+              "value": "media",
+              "label": "blockChoice.siteMedia"
+            }
+          ],
+          "default": ""
+        },
+        {
           "key": "image_url",
           "label": "blockField.iiifImage.image_url",
           "help": "fieldHelp.iiifImage.image_url",
           "type": "text",
-          "placeholder": "fieldExample.url"
+          "placeholder": "fieldExample.url",
+          "when": {
+            "field": "romeka.source",
+            "test": "equals",
+            "value": ""
+          }
+        },
+        {
+          "key": "romeka.media",
+          "label": "blockField.iiifImage.media",
+          "help": "fieldHelp.iiifImage.media",
+          "type": "mediaRef",
+          "when": {
+            "field": "romeka.source",
+            "test": "equals",
+            "value": "media"
+          }
         },
         {
           "key": "title",
@@ -456,6 +638,35 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "romeka.height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifImage.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -478,9 +689,10 @@
             },
             {
               "key": "page",
-              "label": "blockField.asset.page",
-              "help": "fieldHelp.asset.page",
-              "type": "pageRef"
+              "label": "blockField.asset.link",
+              "help": "fieldHelp.asset.link",
+              "type": "link",
+              "urlKey": "romeka.url"
             },
             {
               "key": "alt_link_title",
@@ -495,6 +707,107 @@
               "type": "text"
             }
           ]
+        },
+        {
+          "key": "romeka.fit",
+          "label": "blockField.asset.fit",
+          "help": "fieldHelp.asset.fit",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.fit_natural"
+            },
+            {
+              "value": "cover",
+              "label": "blockChoice.fit_cover"
+            },
+            {
+              "value": "contain",
+              "label": "blockChoice.fit_contain"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.arrangement",
+          "label": "blockField.asset.arrangement",
+          "help": "fieldHelp.asset.arrangement",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.arrangement_stack"
+            },
+            {
+              "value": "row",
+              "label": "blockChoice.arrangement_row"
+            },
+            {
+              "value": "grid",
+              "label": "blockChoice.arrangement_grid"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.asset.columns",
+          "help": "fieldHelp.asset.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": "",
+          "when": {
+            "field": "romeka.arrangement",
+            "test": "equals",
+            "value": "grid"
+          }
+        },
+        {
+          "key": "romeka.caption_align",
+          "label": "blockField.asset.caption_align",
+          "help": "fieldHelp.asset.caption_align",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.align_start"
+            },
+            {
+              "value": "center",
+              "label": "blockChoice.align_center"
+            },
+            {
+              "value": "end",
+              "label": "blockChoice.align_end"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -521,6 +834,61 @@
           "label": "blockField.listOfPages.pagelist",
           "help": "fieldHelp.listOfPages.pagelist",
           "type": "pageList"
+        },
+        {
+          "key": "romeka.display",
+          "label": "blockField.listOfPages.display",
+          "help": "fieldHelp.listOfPages.display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.pages_links"
+            },
+            {
+              "value": "cards",
+              "label": "blockChoice.pages_cards"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.listOfPages.columns",
+          "help": "fieldHelp.listOfPages.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": "",
+          "when": {
+            "field": "romeka.display",
+            "test": "equals",
+            "value": "cards"
+          }
         }
       ]
     },
@@ -556,6 +924,23 @@
           "required": true
         },
         {
+          "key": "heading_level",
+          "label": "romekaField.hero.heading_level",
+          "help": "fieldHelp.hero.heading_level",
+          "type": "choice",
+          "options": [
+            {
+              "value": "h2",
+              "label": "romekaChoice.h2"
+            },
+            {
+              "value": "h1",
+              "label": "romekaChoice.h1"
+            }
+          ],
+          "default": "h2"
+        },
+        {
           "key": "subheading",
           "label": "romekaField.hero.subheading",
           "help": "fieldHelp.hero.subheading",
@@ -568,10 +953,86 @@
           "type": "html"
         },
         {
+          "key": "background_source",
+          "label": "romekaField.hero.background_source",
+          "help": "fieldHelp.hero.background_source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "asset",
+              "label": "romekaChoice.backgroundAsset"
+            },
+            {
+              "value": "media",
+              "label": "romekaChoice.backgroundMedia"
+            }
+          ],
+          "default": "asset"
+        },
+        {
           "key": "background",
           "label": "romekaField.hero.background",
           "help": "fieldHelp.hero.background",
-          "type": "assetRef"
+          "type": "assetRef",
+          "when": {
+            "field": "background_source",
+            "test": "equals",
+            "value": "asset"
+          }
+        },
+        {
+          "key": "background_media",
+          "label": "romekaField.hero.background_media",
+          "help": "fieldHelp.hero.background_media",
+          "type": "mediaRef",
+          "when": {
+            "field": "background_source",
+            "test": "equals",
+            "value": "media"
+          }
+        },
+        {
+          "key": "focal_x",
+          "label": "romekaField.hero.focal",
+          "help": "fieldHelp.hero.focal",
+          "type": "focalPoint",
+          "yKey": "focal_y",
+          "images": [
+            "background",
+            "background_media"
+          ]
+        },
+        {
+          "key": "height",
+          "label": "romekaField.hero.height",
+          "help": "fieldHelp.hero.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "short",
+              "label": "romekaChoice.short"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.medium"
+            },
+            {
+              "value": "tall",
+              "label": "romekaChoice.tall"
+            },
+            {
+              "value": "full",
+              "label": "romekaChoice.fullScreen"
+            }
+          ],
+          "default": "medium"
+        },
+        {
+          "key": "overlay_color",
+          "label": "romekaField.hero.overlay_color",
+          "help": "fieldHelp.hero.overlay_color",
+          "type": "color",
+          "tokenKey": "overlay_color"
         },
         {
           "key": "overlay",
@@ -632,6 +1093,552 @@
           "help": "fieldHelp.hero.cta_page",
           "type": "link",
           "urlKey": "cta_url"
+        },
+        {
+          "key": "cta2_label",
+          "label": "romekaField.hero.cta2_label",
+          "help": "fieldHelp.hero.cta2_label",
+          "type": "text",
+          "placeholder": "fieldExample.hero.cta2_label"
+        },
+        {
+          "key": "cta2_page",
+          "label": "romekaField.hero.cta2_page",
+          "help": "fieldHelp.hero.cta2_page",
+          "type": "link",
+          "urlKey": "cta2_url"
+        }
+      ]
+    },
+    {
+      "name": "map",
+      "label": "romeka.map",
+      "description": "romekaHelp.map",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.map.source",
+          "help": "fieldHelp.map.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "items",
+              "label": "romekaChoice.map.items"
+            },
+            {
+              "value": "query",
+              "label": "romekaChoice.map.query"
+            }
+          ],
+          "default": "items"
+        },
+        {
+          "key": "items",
+          "label": "romekaField.map.items",
+          "help": "fieldHelp.map.items",
+          "type": "itemList",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "items"
+          }
+        },
+        {
+          "key": "query",
+          "label": "romekaField.map.query",
+          "help": "fieldHelp.map.query",
+          "type": "itemQuery",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "query"
+          }
+        },
+        {
+          "key": "center",
+          "label": "romekaField.map.center",
+          "help": "fieldHelp.map.center",
+          "type": "mapView",
+          "zoomKey": "zoom"
+        },
+        {
+          "key": "height",
+          "label": "romekaField.map.height",
+          "help": "fieldHelp.map.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "short",
+              "label": "romekaChoice.map.short"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.map.medium"
+            },
+            {
+              "value": "tall",
+              "label": "romekaChoice.map.tall"
+            }
+          ],
+          "default": "medium"
+        },
+        {
+          "key": "popup",
+          "label": "romekaField.map.popup",
+          "help": "fieldHelp.map.popup",
+          "type": "choice",
+          "options": [
+            {
+              "value": "title",
+              "label": "romekaChoice.map.title"
+            },
+            {
+              "value": "thumbnail",
+              "label": "romekaChoice.map.thumbnail"
+            }
+          ],
+          "multiple": true,
+          "default": [
+            "title",
+            "thumbnail"
+          ]
+        },
+        {
+          "key": "popup_property",
+          "label": "romekaField.map.popup_property",
+          "help": "fieldHelp.map.popup_property",
+          "type": "property"
+        },
+        {
+          "key": "cluster",
+          "label": "romekaField.map.cluster",
+          "help": "fieldHelp.map.cluster",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "gallery",
+      "label": "romeka.gallery",
+      "description": "romekaHelp.gallery",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.gallery.source",
+          "help": "fieldHelp.gallery.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "media",
+              "label": "romekaChoice.gallery.media"
+            },
+            {
+              "value": "assets",
+              "label": "romekaChoice.gallery.assets"
+            }
+          ],
+          "default": "media"
+        },
+        {
+          "key": "media",
+          "label": "romekaField.gallery.media",
+          "help": "fieldHelp.gallery.media",
+          "type": "itemMedia",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "media"
+          }
+        },
+        {
+          "key": "assets",
+          "label": "romekaField.gallery.assets",
+          "help": "fieldHelp.gallery.assets",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "asset",
+              "label": "romekaField.gallery.asset",
+              "help": "fieldHelp.gallery.asset",
+              "type": "assetRef"
+            },
+            {
+              "key": "caption",
+              "label": "romekaField.gallery.caption",
+              "help": "fieldHelp.gallery.caption",
+              "type": "html"
+            }
+          ],
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "assets"
+          }
+        },
+        {
+          "key": "layout",
+          "label": "romekaField.gallery.layout",
+          "help": "fieldHelp.gallery.layout",
+          "type": "choice",
+          "options": [
+            {
+              "value": "grid",
+              "label": "romekaChoice.gallery.grid"
+            },
+            {
+              "value": "masonry",
+              "label": "romekaChoice.gallery.masonry"
+            },
+            {
+              "value": "carousel",
+              "label": "romekaChoice.gallery.carousel"
+            }
+          ],
+          "default": "grid"
+        },
+        {
+          "key": "columns",
+          "label": "romekaField.gallery.columns",
+          "help": "fieldHelp.gallery.columns",
+          "type": "integer",
+          "min": 2,
+          "max": 6,
+          "default": 3
+        },
+        {
+          "key": "captions",
+          "label": "romekaField.gallery.captions",
+          "help": "fieldHelp.gallery.captions",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "lightbox",
+          "label": "romekaField.gallery.lightbox",
+          "help": "fieldHelp.gallery.lightbox",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "featuredItem",
+      "label": "romeka.featuredItem",
+      "description": "romekaHelp.featuredItem",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "item",
+          "label": "romekaField.featuredItem.item",
+          "help": "fieldHelp.featuredItem.item",
+          "type": "itemRef",
+          "required": true
+        },
+        {
+          "key": "image",
+          "label": "romekaField.featuredItem.image",
+          "help": "fieldHelp.featuredItem.image",
+          "type": "choice",
+          "options": [
+            {
+              "value": "left",
+              "label": "blockChoice.left"
+            },
+            {
+              "value": "right",
+              "label": "blockChoice.right"
+            },
+            {
+              "value": "top",
+              "label": "romekaChoice.featuredItem.top"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "key": "fields",
+          "label": "romekaField.featuredItem.fields",
+          "help": "fieldHelp.featuredItem.fields",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "property",
+              "label": "romekaField.featuredItem.property",
+              "help": "fieldHelp.featuredItem.property",
+              "type": "property"
+            }
+          ]
+        },
+        {
+          "key": "link_label",
+          "label": "romekaField.featuredItem.link_label",
+          "help": "fieldHelp.featuredItem.link_label",
+          "type": "text",
+          "placeholder": "fieldExample.featuredItem.link_label"
+        }
+      ]
+    },
+    {
+      "name": "button",
+      "label": "romeka.button",
+      "description": "romekaHelp.button",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "button_label",
+          "label": "romekaField.button.button_label",
+          "help": "fieldHelp.button.button_label",
+          "type": "text",
+          "placeholder": "fieldExample.button.button_label",
+          "required": true
+        },
+        {
+          "key": "button_page",
+          "label": "romekaField.button.button_page",
+          "help": "fieldHelp.button.button_page",
+          "type": "link",
+          "urlKey": "button_url"
+        },
+        {
+          "key": "button2_label",
+          "label": "romekaField.button.button2_label",
+          "help": "fieldHelp.button.button2_label",
+          "type": "text"
+        },
+        {
+          "key": "button2_page",
+          "label": "romekaField.button.button2_page",
+          "help": "fieldHelp.button.button2_page",
+          "type": "link",
+          "urlKey": "button2_url"
+        },
+        {
+          "key": "style",
+          "label": "romekaField.button.style",
+          "help": "fieldHelp.button.style",
+          "type": "choice",
+          "options": [
+            {
+              "value": "solid",
+              "label": "romekaChoice.button.solid"
+            },
+            {
+              "value": "outline",
+              "label": "romekaChoice.button.outline"
+            }
+          ],
+          "default": "solid"
+        },
+        {
+          "key": "alignment",
+          "label": "romekaField.button.alignment",
+          "help": "fieldHelp.button.alignment",
+          "type": "choice",
+          "options": [
+            {
+              "value": "left",
+              "label": "blockChoice.left"
+            },
+            {
+              "value": "center",
+              "label": "blockChoice.center"
+            },
+            {
+              "value": "right",
+              "label": "blockChoice.right"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "key": "size",
+          "label": "romekaField.button.size",
+          "help": "fieldHelp.button.size",
+          "type": "choice",
+          "options": [
+            {
+              "value": "small",
+              "label": "romekaChoice.button.small"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.medium"
+            },
+            {
+              "value": "large",
+              "label": "romekaChoice.button.large"
+            }
+          ],
+          "default": "medium"
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "label": "romeka.quote",
+      "description": "romekaHelp.quote",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "text",
+          "label": "romekaField.quote.text",
+          "help": "fieldHelp.quote.text",
+          "type": "html",
+          "required": true
+        },
+        {
+          "key": "attribution",
+          "label": "romekaField.quote.attribution",
+          "help": "fieldHelp.quote.attribution",
+          "type": "text",
+          "placeholder": "fieldExample.quote.attribution"
+        },
+        {
+          "key": "item",
+          "label": "romekaField.quote.item",
+          "help": "fieldHelp.quote.item",
+          "type": "itemRef"
+        },
+        {
+          "key": "style",
+          "label": "romekaField.quote.style",
+          "help": "fieldHelp.quote.style",
+          "type": "choice",
+          "options": [
+            {
+              "value": "plain",
+              "label": "romekaChoice.quote.plain"
+            },
+            {
+              "value": "large",
+              "label": "romekaChoice.quote.large"
+            },
+            {
+              "value": "band",
+              "label": "romekaChoice.quote.band"
+            }
+          ],
+          "default": "large"
+        }
+      ]
+    },
+    {
+      "name": "accordion",
+      "label": "romeka.accordion",
+      "description": "romekaHelp.accordion",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "entries",
+          "label": "romekaField.accordion.entries",
+          "help": "fieldHelp.accordion.entries",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "heading",
+              "label": "romekaField.accordion.heading",
+              "help": "fieldHelp.accordion.heading",
+              "type": "text"
+            },
+            {
+              "key": "answer",
+              "label": "romekaField.accordion.answer",
+              "help": "fieldHelp.accordion.answer",
+              "type": "html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "timeline",
+      "label": "romeka.timeline",
+      "description": "romekaHelp.timeline",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.timeline.source",
+          "help": "fieldHelp.timeline.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "items",
+              "label": "romekaChoice.map.items"
+            },
+            {
+              "value": "query",
+              "label": "romekaChoice.map.query"
+            }
+          ],
+          "default": "items"
+        },
+        {
+          "key": "items",
+          "label": "romekaField.timeline.items",
+          "help": "fieldHelp.timeline.items",
+          "type": "itemList",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "items"
+          }
+        },
+        {
+          "key": "query",
+          "label": "romekaField.timeline.query",
+          "help": "fieldHelp.timeline.query",
+          "type": "itemQuery",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "query"
+          }
+        },
+        {
+          "key": "property",
+          "label": "romekaField.timeline.property",
+          "help": "fieldHelp.timeline.property",
+          "type": "property",
+          "default": "dcterms:date"
+        }
+      ]
+    },
+    {
+      "name": "searchBox",
+      "label": "romeka.searchBox",
+      "description": "romekaHelp.searchBox",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "placeholder",
+          "label": "romekaField.searchBox.placeholder",
+          "help": "fieldHelp.searchBox.placeholder",
+          "type": "text",
+          "placeholder": "fieldExample.searchBox.placeholder"
+        },
+        {
+          "key": "resource",
+          "label": "romekaField.searchBox.resource",
+          "help": "fieldHelp.searchBox.resource",
+          "type": "choice",
+          "options": [
+            {
+              "value": "all",
+              "label": "romekaChoice.searchBox.all"
+            },
+            {
+              "value": "items",
+              "label": "romekaChoice.searchBox.items"
+            },
+            {
+              "value": "item_sets",
+              "label": "romekaChoice.searchBox.item_sets"
+            }
+          ],
+          "default": "all"
         }
       ]
     }
@@ -660,6 +1667,63 @@
         "group": "spacing"
       },
       {
+        "key": "romeka.space_top",
+        "label": "blockLayoutData.space_top",
+        "help": "fieldHelp.layout.space_top",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "group": "spacing"
+      },
+      {
+        "key": "romeka.space_bottom",
+        "label": "blockLayoutData.space_bottom",
+        "help": "fieldHelp.layout.space_bottom",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "group": "spacing"
+      },
+      {
+        "key": "romeka.bleed",
+        "label": "blockLayoutData.bleed",
+        "help": "fieldHelp.layout.bleed",
+        "type": "boolean",
+        "group": "size"
+      },
+      {
         "key": "max_width",
         "label": "blockLayoutData.max_width",
         "help": "fieldHelp.layout.length",
@@ -676,10 +1740,19 @@
         "group": "size"
       },
       {
+        "key": "romeka.text_color",
+        "label": "blockLayoutData.text_color",
+        "help": "fieldHelp.layout.text_color",
+        "type": "color",
+        "tokenKey": "romeka.text_color",
+        "group": "background"
+      },
+      {
         "key": "background_color",
         "label": "blockLayoutData.background_color",
         "help": "fieldHelp.layout.background_color",
         "type": "color",
+        "tokenKey": "romeka.background_role",
         "group": "background"
       },
       {
@@ -834,6 +1907,13 @@
         "help": "fieldHelp.layout.class",
         "type": "text",
         "advanced": true
+      },
+      {
+        "key": "romeka.anchor",
+        "label": "blockLayoutData.anchor",
+        "help": "fieldHelp.layout.anchor",
+        "type": "anchor",
+        "advanced": true
       }
     ]
   },
@@ -880,5 +1960,150 @@
         "group": "grid"
       }
     ]
-  }
+  },
+  "sectionLayoutData": {
+    "fields": [
+      {
+        "key": "romeka.section.layout",
+        "label": "section.layout",
+        "help": "fieldHelp.section.layout",
+        "type": "choice",
+        "options": [
+          {
+            "value": "stack",
+            "label": "sectionLayout.stack"
+          },
+          {
+            "value": "split-50-50",
+            "label": "sectionLayout.split5050"
+          },
+          {
+            "value": "split-40-60",
+            "label": "sectionLayout.split4060"
+          },
+          {
+            "value": "split-60-40",
+            "label": "sectionLayout.split6040"
+          },
+          {
+            "value": "cards-2",
+            "label": "sectionLayout.cards2"
+          },
+          {
+            "value": "cards-3",
+            "label": "sectionLayout.cards3"
+          },
+          {
+            "value": "cards-4",
+            "label": "sectionLayout.cards4"
+          },
+          {
+            "value": "band",
+            "label": "sectionLayout.band"
+          }
+        ]
+      },
+      {
+        "key": "romeka.section.align",
+        "label": "section.align",
+        "help": "fieldHelp.section.align",
+        "type": "choice",
+        "options": [
+          {
+            "value": "top",
+            "label": "blockChoice.top"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "bottom",
+            "label": "blockChoice.bottom"
+          }
+        ],
+        "default": "top"
+      },
+      {
+        "key": "romeka.section.gap",
+        "label": "section.gap",
+        "help": "fieldHelp.section.gap",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "default": "medium"
+      },
+      {
+        "key": "romeka.section.overlay",
+        "label": "section.overlay",
+        "help": "fieldHelp.section.overlay",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "overlayChoice.none"
+          },
+          {
+            "value": "light",
+            "label": "overlayChoice.light"
+          },
+          {
+            "value": "dark",
+            "label": "overlayChoice.dark"
+          }
+        ],
+        "default": "none"
+      }
+    ]
+  },
+  "colorTokens": [
+    {
+      "value": "brand",
+      "label": "colorToken.brand"
+    },
+    {
+      "value": "on-brand",
+      "label": "colorToken.on-brand"
+    },
+    {
+      "value": "accent",
+      "label": "colorToken.accent"
+    },
+    {
+      "value": "background",
+      "label": "colorToken.background"
+    },
+    {
+      "value": "surface",
+      "label": "colorToken.surface"
+    },
+    {
+      "value": "text",
+      "label": "colorToken.text"
+    },
+    {
+      "value": "muted",
+      "label": "colorToken.muted"
+    },
+    {
+      "value": "link",
+      "label": "colorToken.link"
+    }
+  ]
 }

@@ -96,4 +96,15 @@ export const kn: CommonMessages = {
   'tags.hint':
     'ನಂತರ ವಿಷಯಗಳಿಂದ ಹುಡುಕಲು ಮುಕ್ತ ಪದಗಳು. ಹುಡುಕಲು ಎಂಟರ್ ಒತ್ತಿರಿ ಅಥವಾ ಒಂದನ್ನು ಸೇರಿಸಲು ಅಲ್ಪವಿರಾಮವನ್ನು ಟೈಪ್ ಮಾಡಿ.',
   'tags.remove': '“{tag}” ಟ್ಯಾಗ್ ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
+  'reorder.handle': '{label} ಸರಿಸಿ, {position}/{count}',
+  'reorder.grip': 'ಸರಿಸಲು, ಅಥವಾ ಎತ್ತಲು ಸ್ಪೇಸ್ ಒತ್ತಿರಿ',
+  'reorder.up': '{label} ಅನ್ನು ಮೇಲೆ ಸರಿಸಿ',
+  'reorder.down': '{label} ಅನ್ನು ಕೆಳಗೆ ಸರಿಸಿ',
+  'reorder.upTip': 'ಮೇಲೆ ಸರಿಸಿ',
+  'reorder.downTip': 'ಕೆಳಗೆ ಸರಿಸಿ',
+  'reorder.picked':
+    '{label} ಅನ್ನು ಎತ್ತಲಾಗಿದೆ. ಅದನ್ನು ಸರಿಸಲು ಬಾಣದ ಕೀಲಿಗಳನ್ನು ಬಳಸಿ, ಬಿಡಲು ಸ್ಪೇಸ್ ಒತ್ತಿ, ರದ್ದುಗೊಳಿಸಲು ಎಸ್ಕೇಪ್ ಒತ್ತಿ.',
+  'reorder.moved': '{label}: ಸ್ಥಾನ {position}/{count}.',
+  'reorder.dropped': '{label} ಅನ್ನು ಸ್ಥಾನ {position}/{count} ರಲ್ಲಿ ಬಿಡಲಾಗಿದೆ.',
+  'reorder.cancelled': '{label} ನ ಚಲನೆಯನ್ನು ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ.',
 };

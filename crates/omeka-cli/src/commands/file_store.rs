@@ -6,9 +6,16 @@ use std::sync::Arc;
 
 use omeka_media::store::Store;
 
-/// The store a command reads and writes, rooted at [`store_root`].
-pub(crate) fn open_store(database: &Path, store: Option<&Path>) -> Arc<dyn Store> {
+use crate::CliError;
+
+/// The store a command reads and writes: `ROMEKA_STORE_BACKEND`'s choice, with the
+/// local folder at [`store_root`].
+pub(crate) fn open_store(
+    database: &Path,
+    store: Option<&Path>,
+) -> Result<Arc<dyn Store>, CliError> {
     omeka_server::file_store(store_root(database, store))
+        .map_err(|error| CliError::message(error.to_string()))
 }
 
 /// The store root: the explicit `--store`, else `files` beside the database.

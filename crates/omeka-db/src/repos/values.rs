@@ -144,6 +144,27 @@ where
         rows.iter().map(ValueRow::from_db_row::<DB>).collect()
     }
 
+    /// The text each resource sorts by on one property, its smallest public
+    /// value text, as `AbstractResourceEntityAdapter::sortQuery` orders a
+    /// search by a property term. A resource with no such value is absent.
+    pub async fn sort_texts(
+        &self,
+        property_id: PropertyId,
+    ) -> Result<Vec<(ResourceId, String)>, DbError> {
+        let rows = sqlx::query(
+            "SELECT resource_id, MIN(value) AS sort_text FROM value \
+             WHERE property_id = ? AND is_public = ? AND value IS NOT NULL \
+             GROUP BY resource_id",
+        )
+        .bind(bind_id(property_id))
+        .bind(true)
+        .fetch_all(self.pool)
+        .await?;
+        rows.iter()
+            .map(|row| Ok((DB::id(row, "resource_id")?, DB::text(row, "sort_text")?)))
+            .collect()
+    }
+
     /// Values whose `value_resource_id` points at this resource.
     pub async fn list_pointing_at(
         &self,

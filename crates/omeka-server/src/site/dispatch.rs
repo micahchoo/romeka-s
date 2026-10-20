@@ -68,6 +68,7 @@ pub(crate) async fn dispatch(
     let loader = Loader::new(
         &state.pool,
         &state.base,
+        &state.files,
         &data.catalog,
         &data.site,
         &access,
@@ -167,7 +168,7 @@ impl SiteData {
         let catalog = load_catalog(&state.pool).await?;
         let settings = settings::load(&state.pool, row.id).await?;
         let global_per_page = global_per_page(&state.pool).await?;
-        let favicon_url = favicon_url(&state.pool, &state.base, settings.favicon()).await?;
+        let favicon_url = favicon_url(&state.pool, &state.files, settings.favicon()).await?;
         // `Manager::getResourcePageBlocks`: the site administrator's stored
         // `resource_page_blocks` (the theme's own settings row) wins over the
         // theme's default. The same row carries the design tokens.
@@ -213,6 +214,8 @@ struct Common<'a> {
     query: Vec<(String, String)>,
     loader: &'a Loader<'a>,
     current_path: String,
+    /// Whether this render is an admin preview, which hides the admin bar.
+    preview: bool,
 }
 
 impl<'a> Common<'a> {
@@ -251,6 +254,7 @@ impl<'a> Common<'a> {
             query: parse_query(uri.query().unwrap_or_default()),
             loader,
             current_path: uri.path().to_string(),
+            preview: false,
         })
     }
 
@@ -280,6 +284,9 @@ impl<'a> Common<'a> {
         ctx.current_path = self.current_path.clone();
         ctx.favicon_url = self.favicon_url.clone();
         ctx.viewer = self.viewer.clone();
+        if self.preview {
+            ctx.settings.show_user_bar = Some(-1);
+        }
         ctx
     }
 }
@@ -372,6 +379,7 @@ pub(crate) async fn render_preview(
     let loader = Loader::new(
         &state.pool,
         &state.base,
+        &state.files,
         &data.catalog,
         &data.site,
         &access,
@@ -430,6 +438,53 @@ pub(crate) async fn render_preview(
     Ok(Outcome::Html(render_page(common.theme, page, &mut ctx)))
 }
 
+/// Render one resource page under a draft theme map: [`show`]'s page, with the
+/// body's tokens and, when the map carries one, its `resource_page_blocks`
+/// order. The site frame and the caller's visibility are the public page's;
+/// nothing is written.
+pub(crate) async fn render_resource_preview(
+    state: &AppState,
+    uri: &Uri,
+    actor: &Actor,
+    kind: ResourceKind,
+    id: u64,
+    theme: Option<&Value>,
+) -> Result<Outcome, SiteError> {
+    let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
+    let slug = route_slug(&route);
+    let Some(mut data) = SiteData::load(state, &slug).await? else {
+        return Err(SiteError::NotFound);
+    };
+    if let Some(theme) = theme {
+        data.theme_settings = ThemeSettings::from_value(theme);
+        if theme.get("resource_page_blocks").is_some() {
+            data.resource_page_blocks = Some(ResourcePageBlocks::parse(theme));
+        }
+    }
+    let site_permission = site_permission(&state.pool, data.row.id, actor).await?;
+    let access = Access {
+        actor,
+        site_is_public: data.row.is_public,
+        site_owner: data.row.owner_id,
+        site_permission,
+    };
+    let loader = Loader::new(
+        &state.pool,
+        &state.base,
+        &state.files,
+        &data.catalog,
+        &data.site,
+        &access,
+        &data.settings,
+    );
+    let mut common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
+    // The request's query carries the caller's credentials, not a page query,
+    // and the frame shows the page as a visitor sees it, without the admin bar.
+    common.query = Vec::new();
+    common.preview = true;
+    show_kind(&common, kind, id).await
+}
+
 /// `Site\ItemController::browseAction` and `Site\ItemSetController::browseAction`.
 async fn browse(common: &Common<'_>, controller: &str) -> Result<Outcome, SiteError> {
     browse_scoped(common, controller, BrowseScope::Site).await
@@ -466,6 +521,10 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
     let Some(kind) = kind_for_controller(controller) else {
         return Err(SiteError::NotFound);
     };
+    show_kind(common, kind, id).await
+}
+
+async fn show_kind(common: &Common<'_>, kind: ResourceKind, id: u64) -> Result<Outcome, SiteError> {
     let (resource, noindex) = match kind {
         ResourceKind::Item => {
             let row = ItemRepo::new(common.loader.pool())
@@ -631,7 +690,7 @@ async fn global_per_page(pool: &SqlitePool) -> Result<usize, SiteError> {
 /// (`Module.php:195-201`), `None` when the setting is unset or names no asset.
 async fn favicon_url(
     pool: &SqlitePool,
-    base: &omeka_api::jsonld::BaseUrl,
+    files: &omeka_media::store::FileUrls,
     value: Option<&str>,
 ) -> Result<Option<String>, SiteError> {
     let Some(id) = value.and_then(|raw| raw.trim().parse::<u64>().ok()) else {
@@ -640,5 +699,5 @@ async fn favicon_url(
     let Some(row) = AssetRepo::new(pool).get(db::AssetId::from(id)).await? else {
         return Ok(None);
     };
-    Ok(Some(thumbnail_for_asset(base, &row).url))
+    Ok(Some(thumbnail_for_asset(files, &row).url))
 }

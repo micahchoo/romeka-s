@@ -1,8 +1,10 @@
 use super::*;
+use crate::theme::choices::{CardStyle, HeroStyle};
 use crate::theme::color::{AA, contrast};
 use crate::theme::palette::{self, PAIRS, is_accessible};
 use crate::theme::presets::PRESETS;
-use crate::theme::tokens_schema::{SAMPLE_BRANDS, camel, samples};
+use crate::theme::tokens_samples::{SAMPLE_BRANDS, samples};
+use crate::theme::tokens_schema::camel;
 use serde_json::{Value, json};
 
 /// Where the admin reads the generated token schema.
@@ -55,53 +57,100 @@ fn tokens(value: &Value) -> Tokens {
 }
 
 /// A site with no stored map, or a map stored before presets, renders the
-/// plain preset's fixed palette: the tokens those sites rendered before.
+/// fixed palette of the preset that replaced plain.
 #[test]
-fn a_map_from_before_presets_renders_the_plain_look() {
+fn a_map_from_before_presets_renders_the_catalogue_look() {
     let empty = tokens(&Value::Null);
-    assert_eq!(empty.preset, PresetId::Plain);
-    assert_eq!(empty.light, PresetId::Plain.preset().light);
+    assert_eq!(empty.preset, PresetId::Catalogue);
+    assert_eq!(empty.light, PresetId::Catalogue.preset().light);
     let css = empty.css();
     for needle in [
         "color-scheme: light;",
-        "--color-brand: #6aa9d6;",
-        "--color-background: #ffffff;",
-        "--color-text: #222222;",
-        "--color-link: #1a5d8f;",
-        "--color-on-brand: #222222;",
-        "--content-width: 60rem;",
-        "--font-size-h1: 2.4414em;",
+        "--color-brand: #1d2a33;",
+        "--color-background: #fafaf9;",
+        "--color-text: #1b2227;",
+        "--color-link: #0b5a63;",
+        "--color-on-brand: #fafaf9;",
+        "--content-width: 76rem;",
+        "--font-size-h1: 2.0736em;",
     ] {
         assert!(css.contains(needle), "{needle} missing from {css}");
     }
     let legacy = tokens(&json!({"brand_color": "#abcdef", "color_scheme": "dark"}));
-    assert_eq!(legacy.dark.background, hex("#12161a"));
+    assert_eq!(legacy.dark.background, hex("#12171a"));
     assert_eq!(legacy.dark.brand, hex("#abcdef"));
+}
+
+/// The ids the first five presets stored read as the presets that replaced
+/// them, and what a site set by hand still beats the new preset.
+#[test]
+fn legacy_preset_ids_read_as_their_replacements() {
+    for (stored, preset) in [
+        ("plain", PresetId::Catalogue),
+        ("archive", PresetId::Exhibit),
+        ("gallery", PresetId::Gallery),
+        ("editorial", PresetId::Journal),
+        ("civic", PresetId::Community),
+    ] {
+        assert_eq!(
+            tokens(&json!({"preset": stored})).preset,
+            preset,
+            "{stored}"
+        );
+    }
+    let kept = tokens(&json!({
+        "preset": "archive",
+        "card_style": "row",
+        "base_font_size": 19,
+    }));
+    assert_eq!(kept.preset, PresetId::Exhibit);
+    assert_eq!(kept.structure.cards, CardStyle::Row);
+    assert_eq!(kept.structure.hero, HeroStyle::Cover);
+    assert_eq!(kept.base_size, 19);
+}
+
+/// Each structural token is a class on the root element; a hand-set value
+/// replaces the preset's.
+#[test]
+fn structural_tokens_become_root_classes() {
+    assert_eq!(
+        tokens(&json!({"preset": "exhibit"})).classes(),
+        "hero-cover cards-caption search-icon footer-columns item-stacked"
+    );
+    assert_eq!(
+        tokens(&json!({"preset": "gallery", "item_layout": "side"})).classes(),
+        "hero-framed cards-overlay search-icon footer-split item-side"
+    );
+    let inverse = tokens(&json!({"preset": "catalogue", "footer_tone": "inverse"})).css();
+    assert!(
+        inverse.contains("--footer-background: var(--color-text);"),
+        "{inverse}"
+    );
 }
 
 /// A stored preset derives its palette from the brand unless derivation is
 /// switched off.
 #[test]
 fn a_preset_derives_its_palette_by_default() {
-    let archive = PresetId::Archive.preset();
-    let derived = tokens(&json!({"preset": "archive"}));
+    let exhibit = PresetId::Exhibit.preset();
+    let derived = tokens(&json!({"preset": "exhibit"}));
     assert_eq!(
         derived.light,
-        palette::derive(archive.light.brand, archive.recipe, Shade::Light)
+        palette::derive(exhibit.light.brand, exhibit.recipe, Shade::Light)
     );
-    assert_eq!(derived.heading_font, archive.heading_font);
-    let fixed = tokens(&json!({"preset": "archive", "derive_palette": false}));
-    assert_eq!(fixed.light, archive.light);
-    assert_eq!(fixed.dark, archive.dark);
+    assert_eq!(derived.heading_font, exhibit.heading_font);
+    let fixed = tokens(&json!({"preset": "exhibit", "derive_palette": false}));
+    assert_eq!(fixed.light, exhibit.light);
+    assert_eq!(fixed.dark, exhibit.dark);
 }
 
 /// Preset, then derived palette, then overrides: a hand-set brand drives the
 /// derivation and a hand-set colour beats the derived one.
 #[test]
 fn overrides_beat_the_derived_palette_and_the_brand_drives_it() {
-    let civic = PresetId::Civic.preset();
+    let civic = PresetId::Community.preset();
     let resolved = tokens(&json!({
-        "preset": "civic",
+        "preset": "community",
         "brand_color": "#ffcc00",
         "link_color": "#003366",
         "base_font_size": 20,
@@ -114,7 +163,7 @@ fn overrides_beat_the_derived_palette_and_the_brand_drives_it() {
     assert_eq!(resolved.header_style, civic.header_style);
     // Derivation off: the preset's own palette, with the brand swapped in.
     let fixed = tokens(&json!({
-        "preset": "civic",
+        "preset": "community",
         "derive_palette": false,
         "brand_color": "#ffcc00",
     }));
@@ -127,20 +176,63 @@ fn overrides_beat_the_derived_palette_and_the_brand_drives_it() {
 #[test]
 fn colour_overrides_follow_the_scheme() {
     let dark = tokens(&json!({
-        "preset": "editorial",
+        "preset": "journal",
         "color_scheme": "dark",
         "muted_color": "#999999",
     }));
     assert_eq!(dark.dark.muted, hex("#999999"));
     assert_ne!(dark.light.muted, hex("#999999"));
     let auto = tokens(&json!({
-        "preset": "editorial",
+        "preset": "journal",
         "color_scheme": "auto",
         "muted_color": "#444444",
     }));
     assert_eq!(auto.light.muted, hex("#444444"));
     assert_ne!(auto.dark.muted, hex("#444444"));
     assert_eq!(auto.shown().len(), 2);
+}
+
+/// Under the automatic scheme a colour has two values: the plain key is the
+/// light one, `<key>_dark` the dark one. Under a fixed scheme the page shows
+/// one palette, so the plain key is the only one read.
+#[test]
+fn a_dark_override_reaches_the_dark_palette_under_auto_only() {
+    let auto = tokens(&json!({
+        "preset": "editorial",
+        "color_scheme": "auto",
+        "muted_color": "#444444",
+        "muted_color_dark": "#bbbbbb",
+        "link_color_dark": "#99ccff",
+    }));
+    assert_eq!(auto.light.muted, hex("#444444"));
+    assert_eq!(auto.dark.muted, hex("#bbbbbb"));
+    assert_eq!(auto.dark.link, hex("#99ccff"));
+    assert_ne!(auto.light.link, hex("#99ccff"));
+    let media = auto
+        .css()
+        .split("@media (prefers-color-scheme: dark)")
+        .nth(1)
+        .map(str::to_string)
+        .expect("a dark media query");
+    assert!(media.contains("--color-muted: #bbbbbb;"), "{media}");
+
+    let preset = tokens(&json!({"preset": "editorial", "color_scheme": "auto"}));
+    for scheme in ["light", "dark"] {
+        let fixed = tokens(&json!({
+            "preset": "editorial",
+            "color_scheme": scheme,
+            "muted_color_dark": "#bbbbbb",
+        }));
+        assert_eq!(fixed.dark.muted, preset.dark.muted, "{scheme}");
+        assert_eq!(fixed.light.muted, preset.light.muted, "{scheme}");
+    }
+    let refused = tokens(&json!({
+        "preset": "editorial",
+        "color_scheme": "auto",
+        "muted_color_dark": "grey",
+        "brand_color_dark": "#000000",
+    }));
+    assert_eq!(refused.dark, preset.dark);
 }
 
 /// The brief's spread: the theme's brands, near white, near black, pure
@@ -183,7 +275,7 @@ fn every_preset_palette_passes_aa() {
 /// neither the text nor the background colour would.
 #[test]
 fn text_on_brand_always_passes() {
-    let mut palette = PresetId::Plain.preset().light;
+    let mut palette = PresetId::Catalogue.preset().light;
     for raw in [
         "#777777", "#ffff00", "#0000ff", "#6aa9d6", "#000000", "#ffffff",
     ] {
@@ -197,7 +289,7 @@ fn text_on_brand_always_passes() {
 #[test]
 fn css_emits_the_layout_header_and_button_tokens() {
     let css = tokens(&json!({
-        "preset": "civic",
+        "preset": "community",
         "content_width": "narrow",
         "button_style": "outline",
         "heading_font": "didone",
@@ -265,7 +357,7 @@ fn auto_scheme_emits_the_dark_media_query() {
             "{media}"
         );
     }
-    assert!(media.contains("--color-background: #12161a;"), "{media}");
+    assert!(media.contains("--color-background: #12171a;"), "{media}");
     for scheme in ["light", "dark"] {
         assert!(
             !tokens(&json!({"color_scheme": scheme}))
@@ -290,16 +382,12 @@ fn stored_custom_css_is_sanitised_on_read() {
     assert_eq!(dropped.custom_css, None);
 }
 
-/// A new site starts from the new-site preset with its palette derived.
+/// A new site starts from Exhibit with the palette it was drawn with.
 #[test]
 fn a_new_site_starts_from_the_new_site_preset() {
     let resolved = tokens(&new_site_settings());
-    assert_eq!(resolved.preset, NEW_SITE_PRESET);
-    let preset = NEW_SITE_PRESET.preset();
-    assert_eq!(
-        resolved.light,
-        palette::derive(preset.light.brand, preset.recipe, Shade::Light)
-    );
+    assert_eq!(resolved.preset, PresetId::Exhibit);
+    assert_eq!(resolved.light, PresetId::Exhibit.preset().light);
 }
 
 /// Every schema key changes what the theme renders, so the schema names no
@@ -307,7 +395,7 @@ fn a_new_site_starts_from_the_new_site_preset() {
 /// camel-case catalogue keys.
 #[test]
 fn every_schema_key_reaches_the_render() {
-    let samples: [(&str, Value); 25] = [
+    let samples: [(&str, Value); 35] = [
         ("preset", json!("gallery")),
         ("derive_palette", json!(true)),
         ("brand_color", json!("#123456")),
@@ -322,21 +410,34 @@ fn every_schema_key_reaches_the_render() {
         ("body_font", json!("mono")),
         ("base_font_size", json!(20)),
         ("type_ratio", json!(150)),
-        ("density", json!("compact")),
+        ("density", json!("spacious")),
         ("corner_radius", json!(12)),
-        ("content_width", json!("wide")),
+        ("content_width", json!("full")),
         ("header_layout", json!("centred")),
-        ("header_style", json!("band")),
-        ("button_style", json!("solid")),
+        ("header_style", json!("rule")),
+        ("button_style", json!("outline")),
+        ("hero_style", json!("framed")),
+        ("card_style", json!("caption")),
+        ("search_display", json!("icon")),
+        ("item_layout", json!("stacked")),
+        ("footer_layout", json!("split")),
+        ("footer_tone", json!("inverse")),
         ("logo", json!(1)),
         ("banner", json!(2)),
         ("banner_text", json!("x")),
-        ("footer_text", json!("y")),
+        ("footer_columns", json!(["<p>y</p>"])),
+        (
+            "footer_links",
+            json!([{"type": "url", "data": {"label": "A", "url": "/a"}}]),
+        ),
+        ("footer_contact", json!("z")),
+        ("footer_licence", json!("cc-by")),
+        ("show_powered_by", json!(false)),
         ("custom_css", json!("a { color: red }")),
     ];
-    // Plain with derivation off is the baseline, so switching derivation on
-    // is a visible change too.
-    let base = json!({"preset": "plain", "derive_palette": false});
+    // Catalogue with derivation off is the baseline, so switching derivation
+    // on is a visible change too.
+    let base = json!({"preset": "catalogue", "derive_palette": false});
     let baseline = ThemeSettings::from_value(&base);
     for (key, value) in &samples {
         let mut stored = base.clone();

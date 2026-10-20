@@ -1,18 +1,19 @@
 /**
  * The block form: one control per field of a block's layout schema, over the
- * block's `o:data` and its `o:attachment` rows. Every edit goes out as an
+ * block's `o:data`, its `o:attachment` rows, and the Romeka settings an
+ * upstream block keeps in `o:layout_data.romeka`. Every edit goes out as an
  * action, so the component holds no block state of its own.
  */
 import type { ReactElement } from 'react';
-import type { SiteId } from '../../../../api/types';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
-import type { BlockLayoutSchema } from '../../blockSchema';
+import type { BlockField, BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
-import { isGroup, spanOf } from '../groups';
-import { Help, helpId } from '../Labelled';
-import { dataObject } from '../values';
+import { readPath, romekaKey, settingPath } from '../layoutPaths';
+import { mergeSlots, splitSlots, storedSlots } from '../slotSettings';
+import { dataObject, layoutDataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
 import { editor } from '../../../../i18n/namespaces/editor';
@@ -29,37 +30,6 @@ export interface BlockFormProps {
   readonly options?: EditorOptions;
 }
 
-/**
- * A group's size, shown and not edited: the group owns the blocks after it, so
- * the size changes only when a block moves into or out of the group.
- */
-const GroupSize = ({
-  id,
-  label,
-  count,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly count: number;
-}): ReactElement => {
-  const { t } = useTranslator(editor);
-  return (
-    <div className="block-field">
-      <label htmlFor={id}>{label}</label>
-      <output id={id} aria-describedby={helpId(id)}>
-        {count}
-      </output>
-      <Help
-        id={id}
-        text={t('fieldHelp.blockGroup.spanFixed', {
-          into: t('canvas.intoGroup'),
-          out: t('canvas.outOfGroup'),
-        })}
-      />
-    </div>
-  );
-};
-
 export const BlockForm = ({
   block,
   schema,
@@ -74,19 +44,51 @@ export const BlockForm = ({
     return <p className="field-note">{t('field.unknownLayout')}</p>;
   }
   const data = dataObject(block);
+  const layoutData = layoutDataObject(block);
   const mine = issues.filter((issue) => issue.blockKey === block.key);
+  // A `when` test may name a Romeka setting (the IIIF image's source), so the
+  // record the controls read holds those beside `o:data`.
+  const record = {
+    ...data,
+    ...Object.fromEntries(
+      schema.fields.flatMap((field) => {
+        const stored = settingPath(field.key) === null ? undefined : readPath(layoutData, field.key);
+        return stored === undefined ? [] : [[field.key, stored] as const];
+      }),
+    ),
+  };
   const idPrefix = `block-${block.key}`;
+  const valueOf = (field: BlockField): JsonValue | undefined => {
+    if (settingPath(field.key) !== null) {
+      return readPath(layoutData, field.key);
+    }
+    return field.type === 'repeat'
+      ? mergeSlots(storedSlots(block.data, field.key), readPath(layoutData, romekaKey(field.key)))
+      : data[field.key];
+  };
+  const write = (field: BlockField, value: JsonValue): void => {
+    if (settingPath(field.key) !== null) {
+      dispatch({ type: 'setLayoutDataValues', blockKey: block.key, values: { [field.key]: value } });
+      return;
+    }
+    if (field.type === 'repeat' && Array.isArray(value)) {
+      const { data: slots, settings } = splitSlots(value);
+      dispatch({ type: 'setBlockData', blockKey: block.key, data: slots });
+      if (settings !== null || readPath(layoutData, romekaKey(field.key)) !== undefined) {
+        dispatch({
+          type: 'setLayoutDataValues',
+          blockKey: block.key,
+          values: { [romekaKey(field.key)]: settings },
+        });
+      }
+      return;
+    }
+    dispatch({ type: 'setField', blockKey: block.key, field: field.key, value });
+  };
   return (
     <div className="block-form">
       {schema.fields.map((field) =>
-        isGroup(block) && field.key === 'span' ? (
-          <GroupSize
-            key={field.key}
-            id={`${idPrefix}-${field.key}`}
-            label={e(field.label)}
-            count={spanOf(block)}
-          />
-        ) : field.type === 'attachments' ? (
+        field.type === 'attachments' ? (
           <AttachmentsField
             key={field.key}
             id={`${idPrefix}-${field.key}`}
@@ -102,11 +104,11 @@ export const BlockForm = ({
           <FieldControl
             key={field.key}
             field={field}
-            value={data[field.key]}
+            value={valueOf(field)}
             onChange={(value) => {
-              dispatch({ type: 'setField', blockKey: block.key, field: field.key, value });
+              write(field, value);
             }}
-            record={data}
+            record={record}
             siblings={schema.fields}
             onPatch={(values) => {
               for (const [key, value] of Object.entries(values)) {

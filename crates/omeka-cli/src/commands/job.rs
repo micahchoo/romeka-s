@@ -104,7 +104,7 @@ pub(crate) fn job_env(
         None => defaults.base_url,
     };
     Ok(JobEnv {
-        store: crate::commands::file_store::open_store(database, store),
+        store: crate::commands::file_store::open_store(database, store)?,
         base_url,
         archive_roots: archive_roots(archive_root)?,
     })

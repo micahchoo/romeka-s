@@ -23,7 +23,10 @@ import type { DeviceWidth } from '../frameFit';
 import { isGroup, parseNodes } from '../groups';
 import { counted } from '../messages';
 import type { PreviewRender } from '../preview';
-import type { Selection } from '../shell/selection';
+import { REGION_LABEL } from '../regions';
+import type { SiteRegion } from '../regions';
+import { sameSubject, selectedKey } from '../shell/selection';
+import type { Selection, Subject } from '../shell/selection';
 import { restoreAnchor, takeAnchor } from './anchor';
 import { boxOf, insertSlots } from './geometry';
 import type { Box, InsertSlot, InsertTarget } from './geometry';
@@ -31,7 +34,7 @@ import { guardFrame } from './guard';
 import { readFrame } from './markers';
 import type { FrameMap } from './markers';
 import { sites } from '../../../../i18n/namespaces/sites';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import './frame.css';
 
 export type PickerChoice =
@@ -44,17 +47,18 @@ export interface LiveFrameProps {
   readonly draft: PageDraft;
   readonly selection: Selection | null;
   readonly templates: readonly TemplateChoice[];
-  /** `null` for a click on the page outside every block. */
-  readonly onSelect: (key: BlockKey | null) => void;
+  /** `null` for a click on the page outside every block and region. */
+  readonly onSelect: (target: Subject | null) => void;
   readonly onInsert: (target: InsertTarget, choice: PickerChoice) => void;
 }
 
 type Buffer = 0 | 1;
 
 interface Outline {
-  readonly key: BlockKey;
   readonly box: Box;
   readonly label: string;
+  /** A site region, drawn so it reads as site-wide rather than as a block. */
+  readonly region: boolean;
 }
 
 interface Overlay {
@@ -79,8 +83,25 @@ const px = (box: Box): CSSProperties => ({
  * top of the frame for it to show there. */
 const LABEL_HEIGHT = 20;
 
-const outlineClass = (kind: 'hover' | 'selected', box: Box): string =>
-  `live-outline live-outline--${kind}${box.top < LABEL_HEIGHT ? ' live-outline--top' : ''}`;
+const outlineClass = (kind: 'hover' | 'selected', outline: Outline): string =>
+  [
+    'live-outline',
+    `live-outline--${kind}`,
+    outline.box.top < LABEL_HEIGHT ? 'live-outline--top' : '',
+    outline.region ? 'live-outline--region' : '',
+  ].join(' ');
+
+/** The box around every element of a region: the banner and the header together. */
+const unionBox = (boxes: readonly Box[]): Box | null => {
+  if (boxes.length === 0) {
+    return null;
+  }
+  const top = Math.min(...boxes.map((box) => box.top));
+  const left = Math.min(...boxes.map((box) => box.left));
+  const bottom = Math.max(...boxes.map((box) => box.top + box.height));
+  const right = Math.max(...boxes.map((box) => box.left + box.width));
+  return { top, left, width: right - left, height: bottom - top };
+};
 
 const slotKey = (target: InsertTarget): string =>
   target.kind === 'top' ? `top-${String(target.index)}` : `group-${target.group}`;
@@ -94,14 +115,14 @@ export const LiveFrame = ({
   onSelect,
   onInsert,
 }: LiveFrameProps): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   const [buffers, setBuffers] = useState<readonly [PreviewRender | null, PreviewRender | null]>([
     null,
     null,
   ]);
   const [front, setFront] = useState<Buffer | null>(null);
   const [map, setMap] = useState<FrameMap | null>(null);
-  const [hovered, setHovered] = useState<BlockKey | null>(null);
+  const [hovered, setHovered] = useState<Subject | null>(null);
   const [picker, setPicker] = useState<InsertTarget | null>(null);
   const [tick, setTick] = useState(0);
   const [overlay, setOverlay] = useState<Overlay>(EMPTY);
@@ -155,15 +176,15 @@ export const LiveFrame = ({
     const next = readFrame(doc, incoming.order, groupKeys(shown.draft));
     const shownWin = shown.front === null ? null : frames.current[shown.front]?.contentWindow;
     if (shownWin && shown.map !== null) {
-      restoreAnchor(win, next, takeAnchor(shownWin, shown.map, shown.selection?.key ?? null));
+      restoreAnchor(win, next, takeAnchor(shownWin, shown.map, selectedKey(shown.selection)));
     }
     detach.current?.();
     const unguard = guardFrame(doc, {
       onPoint: (node) => {
-        setHovered(node === null ? null : next.blockAt(node));
+        setHovered(node === null ? null : next.targetAt(node));
       },
       onPick: (node) => {
-        latest.current.onSelect(next.blockAt(node));
+        latest.current.onSelect(next.targetAt(node));
       },
     });
     win.addEventListener('scroll', remeasure, { passive: true });
@@ -177,7 +198,7 @@ export const LiveFrame = ({
 
   // A selection made in the Outline or by an issue scrolls its block into view.
   useEffect(() => {
-    if (selection === null || selection.from === 'preview') {
+    if (selection?.kind !== 'block' || selection.from === 'preview') {
       return;
     }
     const shown = latest.current;
@@ -206,25 +227,34 @@ export const LiveFrame = ({
       setOverlay(EMPTY);
       return;
     }
-    const outline = (key: BlockKey | null): Outline | null => {
-      const element = key === null ? undefined : map.elements.get(key);
+    const regionOutline = (region: SiteRegion): Outline | null => {
+      const box = unionBox((map.regions.get(region) ?? []).map((element) => boxOf(element, shownFrame)));
+      return box === null ? null : { box, label: t(REGION_LABEL[region]), region: true };
+    };
+    const blockOutline = (key: BlockKey): Outline | null => {
+      const element = map.elements.get(key);
       const node = parseNodes(draft.blocks).find(
         (candidate) => (candidate.kind === 'block' ? candidate.block.key : candidate.marker.key) === key,
       );
       const block = draft.blocks.find((candidate) => candidate.key === key);
-      if (key === null || element === undefined || block === undefined) {
+      if (element === undefined || block === undefined) {
         return null;
       }
       const label =
         node?.kind === 'group'
           ? counted(t, 'groupBlocks', node.members.length)
           : layoutLabel(draft.registry, block, t);
-      return { key, box: boxOf(element, shownFrame), label };
+      return { box: boxOf(element, shownFrame), label, region: false };
     };
-    const selectedKey = selection?.key ?? null;
+    const outline = (subject: Subject | null): Outline | null => {
+      if (subject === null) {
+        return null;
+      }
+      return subject.kind === 'block' ? blockOutline(subject.key) : regionOutline(subject.region);
+    };
     setOverlay({
-      hover: hovered === selectedKey ? null : outline(hovered),
-      selected: outline(selectedKey),
+      hover: sameSubject(hovered, selection) ? null : outline(hovered),
+      selected: outline(selection),
       slots: insertSlots(draft, map, shownFrame),
     });
   }, [front, map, hovered, selection, draft, tick, box, device, t]);
@@ -264,12 +294,12 @@ export const LiveFrame = ({
         aria-hidden="true"
       >
         {overlay.selected === null ? null : (
-          <div className={outlineClass('selected', overlay.selected.box)} style={px(overlay.selected.box)}>
+          <div className={outlineClass('selected', overlay.selected)} style={px(overlay.selected.box)}>
             <span className="live-label">{overlay.selected.label}</span>
           </div>
         )}
         {overlay.hover === null ? null : (
-          <div className={outlineClass('hover', overlay.hover.box)} style={px(overlay.hover.box)}>
+          <div className={outlineClass('hover', overlay.hover)} style={px(overlay.hover.box)}>
             <span className="live-label">{overlay.hover.label}</span>
           </div>
         )}

@@ -35,9 +35,10 @@ pub async fn serve(addr: SocketAddr, pool: SqlitePool, base: BaseUrl) -> std::io
 /// Bind the configured address and serve until a signal arrives.
 ///
 /// # Errors
-/// An [`std::io::Error`] when the address cannot be bound or the server fails.
+/// An [`std::io::Error`] when the store settings are invalid, the address
+/// cannot be bound or the server fails.
 pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Result<()> {
-    let services = Services::new(file_store(FILES_ROOT));
+    let services = Services::new(file_store(FILES_ROOT).map_err(std::io::Error::other)?);
     serve_with_services(config, pool, services).await
 }
 
@@ -124,7 +125,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let (stop, stopped) = oneshot::channel();
         let server = tokio::spawn(async move {
-            let services = Services::new(file_store(FILES_ROOT));
+            let services = Services::new(crate::local_store(FILES_ROOT));
             serve_listener(listener, pool, &config, services, async move {
                 let _ = stopped.await;
             })

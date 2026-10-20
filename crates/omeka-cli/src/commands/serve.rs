@@ -60,7 +60,9 @@ pub async fn run(
     });
     let jobs: Arc<dyn JobDispatch> = Arc::new(jobs);
     tokio::spawn(sweep_every(pool.clone(), Arc::clone(&jobs), SWEEP_EVERY));
-    let services = Services::new(omeka_server::file_store(store_root)).with_jobs(jobs);
+    let store = omeka_server::file_store(store_root)
+        .map_err(|error| CliError::message(error.to_string()))?;
+    let services = Services::new(store).with_jobs(jobs);
     Ok(omeka_server::serve_with_services(config, pool, services).await?)
 }
 

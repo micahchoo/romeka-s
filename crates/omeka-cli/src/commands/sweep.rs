@@ -66,7 +66,7 @@ pub struct SweepReport {
 pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
     let pool = open_file(&options.database).await?;
     let store =
-        crate::commands::file_store::open_store(&options.database, options.store.as_deref());
+        crate::commands::file_store::open_store(&options.database, options.store.as_deref())?;
 
     let mut named = BTreeSet::new();
     for (storage_id, extension) in MediaRepo::new(&pool).stored_names().await? {

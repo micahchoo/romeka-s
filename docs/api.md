@@ -974,6 +974,7 @@ Request body members (`POST` and `PUT`).
 | `o:layout_data` | control member | `crates/omeka-api/src/write/site_pages.rs` |
 | `o:block` | control member | `crates/omeka-api/src/write/site_pages.rs` |
 | `o:site` | control member | `crates/omeka-api/src/write/site_pages.rs` |
+| `o:modified` | control member | `crates/omeka-api/src/write/site_pages.rs` |
 | any property term (`prefix:local_name`) | list of value objects | `crates/omeka-api/src/write/values.rs` |
 | value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
 
@@ -1432,7 +1433,8 @@ An error body is `{"errors": {"<field>": "<message>"}}`, or a list of messages f
 | `ApiError::BadRequest` | 400 | the body is not a JSON object, or a member the resource rejects |
 | `ApiError::PermissionDenied` | 403 | the caller's role does not hold the operation |
 | `ApiError::NotFound` | 404 | an unknown resource name, or a row the caller may not see |
-| `ApiError::Conflict` | CONFLICT |  |
+| `ApiError::Conflict` | 409 | the request clashes with stored state, such as deleting a job a running import holds |
+| `ApiError::StalePage` | 409 | Romeka: a site page `PUT` or `PATCH` whose `o:modified` is not the stored page's; the error object adds the stored `o:modified` and `o:user` (`o:id`, `o:name`) of who saved it. A body without `o:modified` is never refused |
 | `ApiError::MethodNotAllowed` | 405 | the method is not routed on that path shape |
 | `ApiError::UnsupportedMediaType` | 415 | a write body whose Content-Type is neither JSON nor multipart |
 | `ApiError::Validation` | 422 | a body member failed validation, keyed by member |
