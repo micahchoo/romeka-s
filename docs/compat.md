@@ -168,5 +168,6 @@ crates/omeka-cli/scripts/verify-backup.sh       # backup and restore, byte for b
 | [`crates/omeka-cli/scripts/verify-backup.sh`](../crates/omeka-cli/scripts/verify-backup.sh) | the backup archive, the manifest and a restore, end to end |
 | [`web/admin/PERF.md`](../web/admin/PERF.md) | the frontend measurements, with the method and the decision behind each |
 | [`docs/gen/check_routes.py`](gen/check_routes.py) | every exact claim in the route table, against a running server |
+| A site can name a location field (`romeka_location_property`), a tile template (`romeka_map_tiles`) and a credit line (`romeka_map_attribution`): three Romeka-only `site_setting` rows that upstream never reads. A place is a plain `"lat, lng"` literal in that property. The Map block is a Romeka `html` carrier whose plain rendering lists each public place as a link to its item, and the item page can add a `map` resource-page block, which upstream's manager renders as nothing. Leaflet 1.9.4 (BSD-2) is served from `/assets/vendor/leaflet/`, only on pages that hold a map. | [`crates/omeka-site/src/map.rs`](../crates/omeka-site/src/map.rs), [`crates/omeka-site/src/blocks/map.rs`](../crates/omeka-site/src/blocks/map.rs) |
 
 A claim in a crate README is a claim; the command beside it is the proof. Run the command.

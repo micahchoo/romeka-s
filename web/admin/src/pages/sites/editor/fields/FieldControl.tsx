@@ -14,7 +14,8 @@
  */
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { JsonValue, SiteId } from '../../../../api/types';
+import { brandId } from '../../../../api/parse';
+import type { ItemId, JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
 import type { BlockField } from '../../blockSchema';
@@ -26,9 +27,12 @@ import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
+import { LazyItemPicker } from './LazyItemPicker';
 import { LinkField } from './LinkField';
+import { MapViewField } from './MapViewField';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
+import { PropertySelect } from './PropertySelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
 import { SidesField } from './SidesField';
@@ -453,6 +457,80 @@ const LinkControl = ({
   );
 };
 
+/** The stored ids of an item list, in order, skipping anything that is not one. */
+const asItemIds = (value: JsonValue | undefined): readonly ItemId[] =>
+  Array.isArray(value)
+    ? value.flatMap((entry) =>
+        typeof entry === 'number' && Number.isInteger(entry) && entry > 0
+          ? [brandId<'ItemId'>(entry)]
+          : [],
+      )
+    : [];
+
+const ItemListControl = ({
+  field,
+  id,
+  value,
+  onChange,
+  error,
+}: ControlProps & { readonly field: FieldOf<'itemList'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <WithHelp id={id} help={e(field.help)}>
+      <LazyItemPicker
+        id={id}
+        label={e(field.label)}
+        mode="many"
+        picked={asItemIds(value)}
+        onChange={(picked) => {
+          onChange([...picked]);
+        }}
+      />
+      {error}
+    </WithHelp>
+  );
+};
+
+const MapViewControl = ({
+  field,
+  id,
+  record,
+  onPatch,
+  siteId,
+}: ControlProps & { readonly field: FieldOf<'mapView'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <MapViewField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      centreKey={field.key}
+      zoomKey={field.zoomKey}
+      record={record}
+      onPatch={onPatch}
+      siteId={siteId}
+    />
+  );
+};
+
+const PropertyControl = ({
+  field,
+  id,
+  value,
+  onChange,
+}: ControlProps & { readonly field: FieldOf<'property'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <PropertySelect
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      value={asText(value)}
+      onChange={onChange}
+    />
+  );
+};
+
 export interface FieldControlProps {
   readonly field: BlockField;
   readonly value: JsonValue | undefined;
@@ -503,6 +581,12 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <SidesControl {...common} field={common.field} />;
     case 'link':
       return <LinkControl {...common} field={common.field} />;
+    case 'itemList':
+      return <ItemListControl {...common} field={common.field} />;
+    case 'mapView':
+      return <MapViewControl {...common} field={common.field} />;
+    case 'property':
+      return <PropertyControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }

@@ -35,6 +35,7 @@ pub mod layout;
 pub mod line_break;
 pub mod list_of_pages;
 pub mod list_of_sites;
+pub mod map;
 pub mod media;
 pub mod oembed;
 pub mod page_date_time;

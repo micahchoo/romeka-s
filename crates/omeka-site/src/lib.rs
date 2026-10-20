@@ -32,6 +32,7 @@
 pub mod blocks;
 pub mod html;
 pub mod i18n;
+pub mod map;
 pub mod nav;
 pub mod render;
 pub mod resource_page;

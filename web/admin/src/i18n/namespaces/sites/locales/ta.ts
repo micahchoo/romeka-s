@@ -425,4 +425,20 @@ export const ta: SitesMessages = {
   'itemPicker.removeSet': '{title} என்ற கணத்தை நீக்கவும்',
   'itemPicker.clear': 'தேர்வுகளை நீக்கவும்',
   'itemPicker.itemFallback': 'உருப்படி {id}',
+  'romeka.map': 'வரைபடம்',
+  'romekaHelp.map':
+    'தேர்ந்தெடுக்கப்பட்ட உருப்படிகளின் இடங்கள், கீழே பட்டியலிடப்பட்டுள்ள இடங்களுடன்.',
+  'resourcePageBlock.map': 'உருப்படியின் இடத்தின் வரைபடம்',
+  'siteSettingGroup.maps': 'வரைபடங்கள்',
+  'siteSettingGroup.mapsIntro':
+    'ஒரு உருப்படியின் இடம் சேமிக்கப்படும் இடம், மற்றும் ஒவ்வொரு வரைபடமும் எடுக்கும் பின்னணி.',
+  'siteSetting.romekaLocationProperty': 'இருப்பிடப் புலம்',
+  'siteSetting.romekaLocationPropertyHelp':
+    'ஒரு உருப்படியை வரைபடத்தில் குறிக்கும் "lat, lng" மதிப்புகளைக் கொண்ட பண்பு, உதாரணமாக இடஞ்சார்ந்த பரப்பளவு. உருப்படி படிவம் இதற்கு ஒரு சிறிய வரைபடத்தை வழங்குகிறது.',
+  'siteSetting.romekaMapTiles': 'வரைபடத் தாள்கள்',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} மற்றும் {y} ஆகியவற்றைக் கொண்ட ஒரு டைல் முகவரி. இயல்பானது OpenStreetMap ஆகும்; அதன் பயன்பாட்டுக் கொள்கை கிரெடிட் வரியைக் கட்டாயமாக்குகிறது, கனமான பயன்பாட்டைத் தடை செய்கிறது.',
+  'siteSetting.romekaMapAttribution': 'வரைபடக் கடன்',
+  'siteSetting.romekaMapAttributionHelp':
+    'டைல் வழங்குநரால் தேவைப்படும் கடன் வரி, ஒவ்வொரு வரைபடத்தின் மூலைப்பகுதியிலும் காட்டப்படும்.',
 };

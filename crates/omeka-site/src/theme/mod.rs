@@ -79,6 +79,12 @@ pub enum AssetKind {
     /// An image a view references by URL, served as `image/svg+xml`. The frame
     /// does not link it; a view does.
     Image,
+    /// A script library a view loads only when it needs it (Leaflet), served
+    /// as `application/javascript`. The frame does not link it.
+    Library,
+    /// The stylesheet of such a library, served as `text/css`. The frame does
+    /// not link it either.
+    LibraryStylesheet,
 }
 
 impl AssetKind {
@@ -86,8 +92,8 @@ impl AssetKind {
     #[must_use]
     pub const fn media_type(self) -> &'static str {
         match self {
-            Self::Stylesheet => "text/css",
-            Self::Script => "application/javascript",
+            Self::Stylesheet | Self::LibraryStylesheet => "text/css",
+            Self::Script | Self::Library => "application/javascript",
             Self::Image => "image/svg+xml",
         }
     }
@@ -102,8 +108,11 @@ impl AssetKind {
     #[must_use]
     pub fn element(self, href: &str) -> String {
         match self {
-            Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
+            Self::Stylesheet | Self::LibraryStylesheet => {
+                format!("<link rel=\"stylesheet\" href=\"{href}\">")
+            }
             Self::Script => format!("<script src=\"{href}\"></script>"),
+            Self::Library => format!("<script defer src=\"{href}\"></script>"),
             Self::Image => String::new(),
         }
     }
@@ -203,7 +212,7 @@ mod tests {
         assert_eq!(info.label, "Default");
         // The bundled theme declares its design tokens as its own settings.
         assert_eq!(info.settings, tokens::SETTINGS);
-        assert_eq!(info.assets.len(), 2);
+        assert_eq!(info.assets.len(), 5);
     }
 
     /// The bundled theme ships its own stylesheet and the placeholder image a
@@ -239,5 +248,12 @@ mod tests {
         assert_eq!(AssetKind::Image.element("/assets/img/placeholder.svg"), "");
         assert!(!AssetKind::Image.is_head());
         assert!(AssetKind::Stylesheet.is_head());
+        assert_eq!(
+            AssetKind::Library.element("/assets/vendor/leaflet/leaflet.js"),
+            "<script defer src=\"/assets/vendor/leaflet/leaflet.js\"></script>"
+        );
+        assert!(!AssetKind::Library.is_head());
+        assert!(!AssetKind::LibraryStylesheet.is_head());
+        assert_eq!(AssetKind::LibraryStylesheet.media_type(), "text/css");
     }
 }

@@ -26,3 +26,12 @@ fork point, from the RDF files of the four vocabularies upstream installs:
 
 Each vocabulary keeps the license of its own project. The extracted file holds the terms, their
 labels and their comments, and nothing else.
+
+The public site's maps use Leaflet, vendored under `crates/omeka-site/vendor/leaflet/` by
+`crates/omeka-site/vendor/leaflet/update.sh` beside its license file, unmodified but for the removed
+source-map comment, and served from `/assets/vendor/leaflet/`:
+
+  Leaflet 1.9.4        https://github.com/Leaflet/Leaflet           BSD 2-Clause License
+                       Copyright (c) 2010-2023, Volodymyr Agafonkin,
+                       Copyright (c) 2010-2011, CloudMade
+                       (`dist/leaflet.js` and `dist/leaflet.css`)

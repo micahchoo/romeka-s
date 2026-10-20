@@ -107,7 +107,16 @@ export type BlockField =
       /** A page under `key`, or a URL under `urlKey`; one is set at a time. */
       readonly type: 'link';
       readonly urlKey: string;
-    });
+    })
+  /** Items picked one by one, stored as their ids in pick order. */
+  | (FieldBase & { readonly type: 'itemList' })
+  | (FieldBase & {
+      /** A `"lat, lng"` centre under `key` and a zoom under `zoomKey`; no centre fits every place. */
+      readonly type: 'mapView';
+      readonly zoomKey: string;
+    })
+  /** A property, stored as its term. */
+  | (FieldBase & { readonly type: 'property' });
 
 /** A layout's editable `data` members, in form order. */
 export interface LayoutSchema {
@@ -311,6 +320,12 @@ const parseField = (value: unknown, path: Path): BlockField => {
       return { ...base, type: 'sides', keys: parseSideKeys(value.keys, [...path, 'keys']) };
     case 'link':
       return { ...base, type: 'link', urlKey: parseString(value.urlKey, [...path, 'urlKey']) };
+    case 'itemList':
+      return { ...base, type: 'itemList' };
+    case 'mapView':
+      return { ...base, type: 'mapView', zoomKey: parseString(value.zoomKey, [...path, 'zoomKey']) };
+    case 'property':
+      return { ...base, type: 'property' };
     case 'html':
       return { ...base, type: 'html' };
     case 'boolean':

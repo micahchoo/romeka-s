@@ -118,6 +118,14 @@ async fn item_search(api: &Api<'_>, params: &Params) -> Result<SearchQuery, ApiE
     ))
 }
 
+/// Every item row an items query selects for the caller, in id order, with no
+/// page window: the list endpoint's matching, for a caller that needs the set.
+pub(crate) async fn query_rows(api: &Api<'_>, params: &Params) -> Result<Vec<ItemRow>, ApiError> {
+    let search = item_search(api, params).await?;
+    let matches = fulltext_matches(api, "items", search.fulltext.as_deref()).await?;
+    matching_rows(api, &item_filter(params), &search, matches.as_ref()).await
+}
+
 /// Every item row the query and the caller's visibility keep, in id order.
 async fn matching_rows(
     api: &Api<'_>,

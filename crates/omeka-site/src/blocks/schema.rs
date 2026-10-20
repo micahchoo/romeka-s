@@ -210,6 +210,17 @@ pub enum FieldKind {
         #[serde(rename = "urlKey")]
         url_key: &'static str,
     },
+    /// Items picked one by one, stored as a list of item ids in pick order.
+    ItemList,
+    /// A map's starting view: a `"lat, lng"` centre under the field's `key`
+    /// and a zoom under `zoom_key`. An empty centre fits every place.
+    MapView {
+        /// The key that holds the zoom.
+        #[serde(rename = "zoomKey")]
+        zoom_key: &'static str,
+    },
+    /// A property, stored as its term (`dcterms:date`).
+    Property,
 }
 
 /// The stored keys of a [`FieldKind::Sides`] control.
@@ -382,6 +393,26 @@ pub const fn color(key: &'static str, label: &'static str, help: &'static str) -
     field(key, label, help, FieldKind::Color)
 }
 
+/// Items picked one by one.
+pub const fn item_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::ItemList)
+}
+
+/// A map's starting centre under `centre_key` and zoom under `zoom_key`.
+pub const fn map_view(
+    centre_key: &'static str,
+    zoom_key: &'static str,
+    label: &'static str,
+    help: &'static str,
+) -> Field {
+    field(centre_key, label, help, FieldKind::MapView { zoom_key })
+}
+
+/// A property term.
+pub const fn property(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Property)
+}
+
 /// Four CSS lengths, one per side, edited as one control named `key`.
 pub const fn sides(
     key: &'static str,
@@ -503,6 +534,7 @@ impl Field {
                 [keys.top, keys.right, keys.bottom, keys.left].contains(&key)
             }
             FieldKind::Link { url_key } => self.key == key || url_key == key,
+            FieldKind::MapView { zoom_key } => self.key == key || zoom_key == key,
             _ => self.key == key,
         }
     }

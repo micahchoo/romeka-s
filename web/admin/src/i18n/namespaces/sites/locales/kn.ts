@@ -415,4 +415,19 @@ export const kn: SitesMessages = {
   'itemPicker.removeSet': 'ಸೆಟ್ {title} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
   'itemPicker.clear': 'ಆಯ್ಕೆಗಳನ್ನು ಅಳಿಸಿ',
   'itemPicker.itemFallback': 'ಅಂಶ {id}',
+  'romeka.map': 'ನಕ್ಷೆ',
+  'romekaHelp.map': 'ಆಯ್ಕೆ ಮಾಡಿದ ಅಂಶಗಳ ಸ್ಥಳಗಳು, ಅದರ ಕೆಳಗೆ ಪಟ್ಟಿ ಮಾಡಲಾದ ಸ್ಥಳಗಳೊಂದಿಗೆ.',
+  'resourcePageBlock.map': 'ಅಂಶದ ಸ್ಥಳದ ನಕ್ಷೆ',
+  'siteSettingGroup.maps': 'ನಕ್ಷೆಗಳು',
+  'siteSettingGroup.mapsIntro':
+    'ಅಂಶದ ಸ್ಥಳವನ್ನು ಎಲ್ಲಿ ಸಂಗ್ರಹಿಸಲಾಗುತ್ತದೆ, ಮತ್ತು ಪ್ರತಿ ನಕ್ಷೆಯು ಎಳೆಯುವ ಹಿನ್ನೆಲೆ.',
+  'siteSetting.romekaLocationProperty': 'ಸ್ಥಳದ ಕ್ಷೇತ್ರ',
+  'siteSetting.romekaLocationPropertyHelp':
+    '"lat, lng" ಮೌಲ್ಯಗಳು ಒಂದು ಅಂಶವನ್ನು ನಕ್ಷೆಯ ಮೇಲೆ ಇರಿಸುವ ಗುಣಲಕ್ಷಣ, ಉದಾಹರಣೆಗೆ ಪ್ರಾದೇಶಿಕ ವ್ಯಾಪ್ತಿ. ಅಂಶದ ರೂಪವು ಇದಕ್ಕೆ ಒಂದು ಸಣ್ಣ ನಕ್ಷೆಯನ್ನು ನೀಡುತ್ತದೆ.',
+  'siteSetting.romekaMapTiles': 'ನಕ್ಷೆಯ ಟೈಲ್ಸ್‌ಗಳು',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} ಮತ್ತು {y} ಹೊಂದಿರುವ ಟೈಲ್ ವಿಳಾಸ. ಇದರ ಡೀಫಾಲ್ಟ್ ಓಪನ್ ಸ್ಟ್ರೀಟ್ ಮ್ಯಾಪ್ ಆಗಿದೆ, ಇದರ ಬಳಕೆಯ ನೀತಿಯು ಕ್ರೆಡಿಟ್ ಲೈನ್ ಅನ್ನು ಬಯಸುತ್ತದೆ ಮತ್ತು ಭಾರೀ ಬಳಕೆಯನ್ನು ನಿಷೇಧಿಸುತ್ತದೆ.',
+  'siteSetting.romekaMapAttribution': 'ನಕ್ಷೆಯ ಕ್ರೆಡಿಟ್',
+  'siteSetting.romekaMapAttributionHelp':
+    'ಟೈಲ್ ಒದಗಿಸುವವರು ಅಗತ್ಯವಿರುವ ಕ್ರೆಡಿಟ್ ಸಾಲು, ಪ್ರತಿ ನಕ್ಷೆಯ ಮೂಲೆಯಲ್ಲಿ ತೋರಿಸಲಾಗುತ್ತದೆ.',
 };

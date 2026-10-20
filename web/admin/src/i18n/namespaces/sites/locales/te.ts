@@ -410,4 +410,19 @@ export const te: SitesMessages = {
   'itemPicker.removeSet': '{title} సెట్‌ను తొలగించండి',
   'itemPicker.clear': 'ఎంపికలను క్లియర్ చేయండి',
   'itemPicker.itemFallback': 'అంశం {id}',
+  'romeka.map': 'మ్యాప్',
+  'romekaHelp.map': 'ఎంచుకున్న అంశాల స్థానాలు మ్యాప్‌పై, వాటి జాబితా కింద.',
+  'resourcePageBlock.map': 'అంశం యొక్క స్థానం యొక్క మ్యాప్',
+  'siteSettingGroup.maps': 'మ్యాప్‌లు',
+  'siteSettingGroup.mapsIntro':
+    'ఒక అంశం యొక్క స్థానం ఎక్కడ నిల్వ చేయబడుతుంది, మరియు ప్రతి మ్యాప్ గీసే నేపథ్యం.',
+  'siteSetting.romekaLocationProperty': 'స్థాన క్షేత్రం',
+  'siteSetting.romekaLocationPropertyHelp':
+    'ఒక అంశం యొక్క "lat, lng" విలువలు ఒక అంశాన్ని మ్యాప్‌లో ఉంచే ప్రాపర్టీ, ఉదాహరణకు స్పేషియల్ కవరేజ్. అంశం ఫారమ్ దీనికి ఒక చిన్న మ్యాప్‌ను అందిస్తుంది.',
+  'siteSetting.romekaMapTiles': 'మ్యాప్ టైల్స్',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} మరియు {y} తో కూడిన టైల్‌ అడ్రస్. డిఫాల్ట్ OpenStreetMap; దీని వినియోగ విధానం క్రెడిట్ లైన్‌ను తప్పనిసరి చేస్తుంది, భారీ వినియోగాన్ని నిషేధిస్తుంది.',
+  'siteSetting.romekaMapAttribution': 'మ్యాప్ క్రెడిట్',
+  'siteSetting.romekaMapAttributionHelp':
+    'టైల్‌ను అందించే సంస్థ కోరే క్రెడిట్ లైన్, ప్రతి మ్యాప్ మూలలో కనిపిస్తుంది.',
 };

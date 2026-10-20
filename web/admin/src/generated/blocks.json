@@ -634,6 +634,114 @@
           "urlKey": "cta_url"
         }
       ]
+    },
+    {
+      "name": "map",
+      "label": "romeka.map",
+      "description": "romekaHelp.map",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.map.source",
+          "help": "fieldHelp.map.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "items",
+              "label": "romekaChoice.map.items"
+            },
+            {
+              "value": "query",
+              "label": "romekaChoice.map.query"
+            }
+          ],
+          "default": "items"
+        },
+        {
+          "key": "items",
+          "label": "romekaField.map.items",
+          "help": "fieldHelp.map.items",
+          "type": "itemList",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "items"
+          }
+        },
+        {
+          "key": "query",
+          "label": "romekaField.map.query",
+          "help": "fieldHelp.map.query",
+          "type": "itemQuery",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "query"
+          }
+        },
+        {
+          "key": "center",
+          "label": "romekaField.map.center",
+          "help": "fieldHelp.map.center",
+          "type": "mapView",
+          "zoomKey": "zoom"
+        },
+        {
+          "key": "height",
+          "label": "romekaField.map.height",
+          "help": "fieldHelp.map.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "short",
+              "label": "romekaChoice.map.short"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.map.medium"
+            },
+            {
+              "value": "tall",
+              "label": "romekaChoice.map.tall"
+            }
+          ],
+          "default": "medium"
+        },
+        {
+          "key": "popup",
+          "label": "romekaField.map.popup",
+          "help": "fieldHelp.map.popup",
+          "type": "choice",
+          "options": [
+            {
+              "value": "title",
+              "label": "romekaChoice.map.title"
+            },
+            {
+              "value": "thumbnail",
+              "label": "romekaChoice.map.thumbnail"
+            }
+          ],
+          "multiple": true,
+          "default": [
+            "title",
+            "thumbnail"
+          ]
+        },
+        {
+          "key": "popup_property",
+          "label": "romekaField.map.popup_property",
+          "help": "fieldHelp.map.popup_property",
+          "type": "property"
+        },
+        {
+          "key": "cluster",
+          "label": "romekaField.map.cluster",
+          "help": "fieldHelp.map.cluster",
+          "type": "boolean"
+        }
+      ]
     }
   ],
   "romekaVersion": 2,

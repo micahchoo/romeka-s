@@ -25,6 +25,10 @@
           "labelKey": "resourcePageBlock.linkedResources"
         },
         {
+          "name": "map",
+          "labelKey": "resourcePageBlock.map"
+        },
+        {
           "name": "mediaEmbeds",
           "labelKey": "resourcePageBlock.mediaEmbeds"
         },
