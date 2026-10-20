@@ -355,6 +355,9 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   counts (exact text), so the person ticks the part that changes.
 - **Column matches**: for each list column, how many cells exactly equal a group key or a file
   name, so the join column is chosen by a count shown on screen.
+- Cells of the downloaded list that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`
+  (one more when one is already there); the read of a stored list drops one `'` in bracketed
+  columns, so the round trip is exact and a spreadsheet never runs a formula.
 - Downloaded-list headers for the three slots are `Item sets [sets]`, `Item type [template]`,
   `Visibility [visibility]`.
 - **Run progress** carries records done, records total and seconds left from the rate so far. No
@@ -744,6 +747,8 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-facts | unit-test-verified | 2,135 workspace tests; S1 with groups; list round trip with a Devanagari title through the routes and a run; 40k preview with every section 534-548 ms; formula guard round-trips exactly |
+| P3-decide | unit-test-verified | 2,084 workspace tests; 9 mutations; streamed digest saves ~20 ms at 40k |
 | P3-run | unit-test-verified | 2,086 workspace tests; S1, S4, S6, S8, S9a, S17, 66 MB streamed (+3.6 MB RSS), loopback URL refused; 7 mutations caught |
 | P3-fixes | unit-test-verified | 2,007 workspace tests; 391 MySQL tests each on 8.0 and MariaDB 11; 9 messages rewritten, 0 glossary hits |
 | P3-wire | unit-test-verified | 1,953 workspace tests; S1 and S20 through the routes; digest and label mutations caught; preview 10k ~100 ms, 40k ~575 ms on a loaded machine |
