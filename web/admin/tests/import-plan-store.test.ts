@@ -185,3 +185,27 @@ describe('refusals', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('leaving the page', () => {
+  it('sends the waiting save with keepalive when the page hides', async () => {
+    const fetchMock = installFetch(counting());
+    const store = new PlanStore(api, draft());
+    store.change(caseFold(true));
+    window.dispatchEvent(new Event('pagehide'));
+    const puts = requestsFor(fetchMock, PATH).filter((request) => request.init?.method === 'PUT');
+    expect(puts).toHaveLength(1);
+    expect(puts[0]?.init?.keepalive).toBe(true);
+    expect(requestBody(puts[0] ?? { url: new URL('http://x'), init: undefined })['revision']).toBe(0);
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
+    expect(sentRevisions(fetchMock)).toEqual([0]);
+    store.close();
+  });
+
+  it('sends nothing on pagehide when no save waits', () => {
+    const fetchMock = installFetch(counting());
+    const store = new PlanStore(api, draft());
+    window.dispatchEvent(new Event('pagehide'));
+    expect(requestsFor(fetchMock, PATH)).toEqual([]);
+    store.close();
+  });
+});

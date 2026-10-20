@@ -55,6 +55,7 @@ export class PlanStore {
   ) {
     const save = opened(detail);
     this.state = { detail, plan: detail.plan, save, editable: takesEdits(save) };
+    window.addEventListener('pagehide', this.leave);
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -92,11 +93,24 @@ export class PlanStore {
 
   /** Stops the timer and sends an edit still waiting, as the page that edits it goes away. */
   close(): void {
+    window.removeEventListener('pagehide', this.leave);
     if (this.timer !== null) {
       this.cancelTimer();
       this.send();
     }
   }
+
+  /**
+   * A closing tab drops a timer and an ordinary request, so the waiting edit
+   * goes out as a `keepalive` fetch, which the browser finishes after the page
+   * is gone. (`sendBeacon` only POSTs; the save route is a PUT.)
+   */
+  private readonly leave = (): void => {
+    if (this.timer !== null) {
+      this.cancelTimer();
+      this.send(true);
+    }
+  };
 
   private schedule(): void {
     this.cancelTimer();
@@ -113,13 +127,13 @@ export class PlanStore {
     }
   }
 
-  private send(): void {
+  private send(keepalive = false): void {
     if (this.out || !this.state.editable || this.state.plan === this.state.detail.plan) {
       return;
     }
     const sent = this.state.plan;
     this.out = true;
-    this.api.save(this.state.detail.id, sent, this.state.detail.revision).then(
+    this.api.save(this.state.detail.id, sent, this.state.detail.revision, { keepalive }).then(
       (detail) => {
         this.out = false;
         // The answer holds the plan the server parsed; the edits since stay ahead of it.

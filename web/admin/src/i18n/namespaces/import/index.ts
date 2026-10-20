@@ -60,6 +60,7 @@ export const en = {
   'status.run_failed': 'Stopped before the end',
   'status.undoing': 'Undoing',
   'status.undone': 'Undone',
+  'status.partly_undone': 'Partly undone: some items were kept',
   'status.undo_failed': 'Undo stopped before the end',
   // The frame around one import: mode, steps, saving.
   'shell.loading': 'Loading the import...',

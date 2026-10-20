@@ -229,6 +229,9 @@ export const taServer: ServerCatalogue = {
     'இந்த பதிவு மாற்றும் உருப்படி, ஊடகம் அல்லது உருப்படித் தொகுப்பு இனி Omeka-வில் இல்லை.',
   'server.importRecordNotSaved': 'இந்த பதிவைச் சேமிக்க முடியவில்லை: {reason}',
   'server.importLinksNotSaved': 'இந்த பதிவின் இணைப்புகளைச் சேமிக்க முடியவில்லை: {reason}',
+  'server.importRecordNotDeleted': 'இது நீக்கப்படவில்லை: {reason}',
+  'server.importDeleteNotUndone':
+    'உருப்படிகள், ஊடகங்கள் அல்லது உருப்படித் தொகுப்புகளை நீக்கிய ஒரு இறக்குமதியை ரத்து செய்ய முடியாது.',
   'server.importSitesNotJoined':
     'இந்த உருப்படி சேர்க்கப்பட்டது, ஆனால் அதன் தளங்களில் இணைக்கப்படவில்லை: {reason}',
   'server.importUndoEdited': 'இறக்குமதி இதை எழுதிய பிறகு இது திருத்தப்பட்டது.',

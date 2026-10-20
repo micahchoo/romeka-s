@@ -52,6 +52,7 @@ export const es: ImportMessages = {
   'status.run_failed': 'Se detuvo antes del final',
   'status.undoing': 'Deshaciendo',
   'status.undone': 'Deshecha',
+  'status.partly_undone': 'Deshecha en parte: se conservaron algunos elementos',
   'status.undo_failed': 'El deshacer se detuvo antes del final',
   'shell.loading': 'Cargando la importación...',
   'shell.badId': '"{param}" no es el número de una importación.',

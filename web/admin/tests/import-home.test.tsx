@@ -116,6 +116,20 @@ describe('Past imports', () => {
     expect(within(first(rows)).getByRole('link', { name: 'All of archive' })).toHaveAttribute('href', '#/import/6');
   });
 
+  it('says in plain words that an undo kept some items', async () => {
+    const kept = fixture('undo-report-kept.json');
+    installFetch(
+      route({
+        '/api/romeka/archive': archive,
+        '/api/romeka/imports': () => jsonResponse({ total: 1, page: 1, perPage: 25, items: [kept] }),
+      }),
+    );
+    render(<ImportPage param={null} />);
+    await screen.findByRole('region', { name: 'Past imports' });
+    const row = within(pastTable()).getAllByRole('row')[1] ?? document.body;
+    expect(within(row).getAllByRole('cell')[1]?.textContent).toBe('Partly undone: some items were kept');
+  });
+
   it('copies an import into a new draft and opens it', async () => {
     const fetchMock = installFetch(
       route({
