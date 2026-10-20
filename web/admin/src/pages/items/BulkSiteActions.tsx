@@ -42,7 +42,7 @@ export const BulkSiteActions = ({
     setBusy(true);
     setFailure(null);
     api
-      .changeSiteItems(chosen.id, { action, selector: { kind: 'items', items: picked } })
+      .changeSiteItems(chosen.id, { action, selector: { kind: 'picked', items: picked, itemSets: [] } })
       .then(
         (done) => {
           setMessage(t('items.bulkDone', { site: chosen.title, total: done.total }));

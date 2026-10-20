@@ -13,6 +13,7 @@ import { currentUser, setSession } from '../src/api/session';
 import type { User } from '../src/api/types';
 import { isUnknownArray, parseUser } from '../src/api/parse';
 import { AuthBadge } from '../src/app/auth';
+import { signInReturnPath } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { loadFixture } from './loadFixture';
 import {
@@ -182,5 +183,36 @@ describe('sign-out', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Server error (HTTP 500)');
     expect(currentUser()?.email).toBe(EMAIL);
     expect(screen.getByText(`Signed in as ${NAME}`)).toBeInTheDocument();
+  });
+});
+
+describe('the way back after a sign-in', () => {
+  it('the_public_sites_log_in_link_returns_the_reader_to_its_page', () => {
+    expect(signInReturnPath('?redirect=%2Fs%2Fmuseum%2Fpage%2Fwelcome')).toBe('/s/museum/page/welcome');
+    expect(signInReturnPath('?redirect=%2Fs%2Fmuseum%2Fitem%2F7%3Fpage%3D2')).toBe('/s/museum/item/7?page=2');
+  });
+
+  it('arriving_from_the_public_log_in_link_opens_the_sign_in_form', () => {
+    window.history.replaceState(null, '', '/login?redirect=%2Fs%2Fmuseum');
+    try {
+      render(<AuthBadge />);
+      expect(screen.getByRole('form', { name: 'Sign in' })).toBeInTheDocument();
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it('a_redirect_off_this_origin_is_ignored', () => {
+    for (const search of [
+      '',
+      '?redirect=',
+      '?redirect=https%3A%2F%2Fevil.example%2F',
+      '?redirect=%2F%2Fevil.example',
+      '?redirect=%2F%5Cevil.example',
+      '?redirect=evil.example',
+      '?redirect=%2Fs%2Fa%20b',
+    ]) {
+      expect(signInReturnPath(search), search).toBeNull();
+    }
   });
 });

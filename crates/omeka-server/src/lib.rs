@@ -40,6 +40,7 @@ use mail::Mailer;
 mod accounts;
 mod assets;
 mod config;
+mod files_allow;
 mod http;
 mod iiif;
 mod imports;
@@ -205,6 +206,7 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         .merge(assets::router())
         .merge(iiif::router())
         .merge(publish::router())
+        .merge(files_allow::router())
         .fallback(not_found)
         .with_state(state);
     routes.layer(

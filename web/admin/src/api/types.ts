@@ -664,6 +664,11 @@ export interface GlobalSettings {
   readonly extensionWhitelist: readonly string[];
   /** `disable_file_validation`: every file passes when `true`. */
   readonly disableFileValidation: boolean;
+  /**
+   * `import_allow_private_urls`, a port setting: every fetch an ingester makes
+   * may reach loopback, link-local and private addresses when `true`.
+   */
+  readonly importAllowPrivateUrls: boolean;
 }
 
 /**
@@ -675,6 +680,7 @@ export interface GlobalSettingsWrite {
   readonly mediaTypeWhitelist: readonly string[] | null;
   readonly extensionWhitelist: readonly string[] | null;
   readonly disableFileValidation: boolean;
+  readonly importAllowPrivateUrls: boolean;
 }
 
 /**
@@ -690,11 +696,15 @@ export interface GlobalSettingsWrite {
  */
 export type SiteItemsAction = 'add' | 'remove' | 'replace';
 
-/** The items a site change acts on: a stored-shape item query, items, or item sets. */
+/** The items a site change acts on: a stored-shape item query, or picked items and item sets. */
 export type SiteItemsSelector =
   | { readonly kind: 'query'; readonly query: JsonValue }
-  | { readonly kind: 'items'; readonly items: readonly ItemId[] }
-  | { readonly kind: 'itemSets'; readonly itemSets: readonly ItemSetId[] };
+  /** These items with the items of these item sets; both empty names nothing. */
+  | {
+      readonly kind: 'picked';
+      readonly items: readonly ItemId[];
+      readonly itemSets: readonly ItemSetId[];
+    };
 
 export interface SiteItemsCommand {
   readonly action: SiteItemsAction;

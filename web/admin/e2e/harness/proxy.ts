@@ -50,15 +50,16 @@ export interface RunningProxy {
 }
 
 /**
- * Paths the port answers: the API, its context, health, the public site, the
- * published term lists and vocabularies, and the IIIF viewer, manifests and
- * images.
+ * Paths the port answers: the API, its context, health, the public site, its
+ * Logout form, the published term lists and vocabularies, and the IIIF viewer,
+ * manifests and images.
  */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
   pathname.startsWith('/api/') ||
   pathname === '/api-context' ||
   pathname === '/health' ||
+  pathname === '/logout' ||
   pathname === '/s' ||
   pathname.startsWith('/s/') ||
   pathname === '/vocab' ||

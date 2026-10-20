@@ -129,6 +129,12 @@ export const en = {
   'settings.restoreExtensions': 'Restore default extensions',
   'settings.restoredOnSave': 'The default list is restored when you save.',
   'settings.emptyListRefusesAll': 'An empty list refuses every file.',
+  // A port setting: the URL guard's operator switch (docs/import-v2.md "URL sources").
+  'settings.allowPrivateUrls': 'Allow URLs on private networks',
+  'settings.allowPrivateUrlsInfo':
+    'Media and imports refuse URLs that point at this server or its private network: localhost, the local network and cloud metadata addresses. Check this to allow them.',
+  'settings.allowPrivateUrlsWarning':
+    'While this is on, anyone who can add media can make this server fetch from its own network.',
   // `SettingForm` and `UserForm`; "Default" is `LocaleSelectFactory`'s empty option.
   'settings.locale': 'Locale',
   'settings.localeDefault': 'Default',

@@ -363,7 +363,7 @@ export class ApiClient {
 
   /**
    * `PATCH /api/settings`: store the global `locale` (`''` removes it) and
-   * the file validation settings.
+   * the file validation settings and the private URL switch.
    */
   async updateSettings(write: GlobalSettingsWrite): Promise<GlobalSettings> {
     return parseGlobalSettings(
@@ -372,6 +372,7 @@ export class ApiClient {
         media_type_whitelist: write.mediaTypeWhitelist,
         extension_whitelist: write.extensionWhitelist,
         disable_file_validation: write.disableFileValidation,
+        import_allow_private_urls: write.importAllowPrivateUrls,
       }),
     );
   }

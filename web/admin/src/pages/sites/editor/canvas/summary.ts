@@ -8,6 +8,7 @@ import type { sites } from '../../../../i18n/namespaces/sites';
 import type { BlockRegistry } from '../../blockSchema';
 import type { TemplateBlock } from '../../templates';
 import type { BlockDraft, LayoutData } from '../draft';
+import { counted } from '../messages';
 import { carrierOf, romkaFor } from '../romeka';
 import { dataObject, readLayoutData } from '../values';
 
@@ -56,7 +57,7 @@ export const blockSummary = (
     }
   }
   if (block.attachments.length > 0) {
-    return t('canvas.attachments', { count: block.attachments.length });
+    return counted(t, 'attachments', block.attachments.length);
   }
   return '';
 };

@@ -23,9 +23,9 @@ use omeka_core::value_shape::ValueShape;
 use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
-    AssetRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter,
-    MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo, TemplateRepo,
-    ValueRepo, compare_text_ci,
+    AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
+    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo,
+    TemplateRepo, ValueRepo, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
@@ -476,6 +476,7 @@ impl<'a> Loader<'a> {
             url: media_url,
             original_url: view.original_url.clone(),
             title: view.display_title.clone(),
+            media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
                 "<div class=\"media-render {}\">{library}{rendered}</div>",
@@ -851,6 +852,8 @@ impl<'a> Loader<'a> {
             display_title(row, self.messages()),
         );
         view.jsonld = Some(self.jsonld(kind, row));
+        view.owner = row.owner_id.map(|id| omeka_core::ids::UserId::new(id.0));
+        view.class_label = self.class_label(row.resource_class_id).await?;
         let (values, description) = self.values_and_description(row).await?;
         view.values = values;
         view.description = description;
@@ -1175,13 +1178,39 @@ impl<'a> Loader<'a> {
                 .property(value.property_id)
                 .map(|info| self.property_label(info))
                 .unwrap_or_default();
+            let class = ResourceRepo::new(self.pool)
+                .get(value.resource_id)
+                .await?
+                .and_then(|row| row.resource_class_id);
             out.push(LinkedResource {
                 property,
                 kind,
                 resource,
+                class_label: self.class_label(class).await?,
             });
         }
         Ok(out)
+    }
+
+    /// A resource class's label, translated by term the way a property label
+    /// is (`resourceClass()->label()` through `translate`). `None` when the
+    /// resource has no class or the row is gone.
+    async fn class_label(&self, class: Option<db::ClassId>) -> Result<Option<String>, DbError> {
+        let Some(id) = class else {
+            return Ok(None);
+        };
+        Ok(ClassRepo::new(self.pool).get(id).await?.map(|row| {
+            let term = format!(
+                "{}:{}",
+                self.catalog.prefix(row.vocabulary_id),
+                row.local_name
+            );
+            self.settings
+                .locale()
+                .translator()
+                .term_label(&term, &row.label)
+                .to_string()
+        }))
     }
 
     /// A resource a value points at, as its pretty link needs it. `None` when

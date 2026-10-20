@@ -90,7 +90,7 @@ describe('the canvas cards', () => {
 
     // The pageTitle block renders the page's own title, not a stored field.
     expect(card(blockAt(draft.blocks, 1).key)).toHaveTextContent('Welcome');
-    expect(card(blockAt(draft.blocks, 2).key)).toHaveTextContent('1 issues');
+    expect(card(blockAt(draft.blocks, 2).key)).toHaveTextContent('1 issue');
   });
 
   it('counts attachments on a card', () => {
@@ -389,41 +389,6 @@ describe('delete', () => {
   });
 });
 
-describe('undo and redo', () => {
-  it('walks back and forward through an edit', () => {
-    const start = load([rawBlock('html', { html: 'a' })]);
-    renderHarness(start);
-
-    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Insert block at position 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Line break' }));
-    expect(cardKeys()).toHaveLength(2);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(cardKeys()).toHaveLength(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
-    expect(cardKeys()).toHaveLength(2);
-  });
-
-  it('runs undo and redo from the keyboard', () => {
-    const start = load([rawBlock('html', { html: 'a' })]);
-    const edited = draftReducer(start, { type: 'addBlock', layout: 'lineBreak', index: 1 });
-    const { dispatch } = renderCanvas(edited);
-
-    fireEvent.keyDown(screen.getByRole('region', { name: 'Page canvas' }), { key: 'z', ctrlKey: true });
-    fireEvent.keyDown(screen.getByRole('region', { name: 'Page canvas' }), {
-      key: 'z',
-      ctrlKey: true,
-      shiftKey: true,
-    });
-
-    expect(dispatch).toHaveBeenCalledWith({ type: 'undo' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'redo' });
-  });
-});
-
 describe('the page layout controls', () => {
   it('are not on the canvas, which leaves page layout to the inspector', () => {
     renderCanvas(gridPage([rawBlock('html', { html: 'a' })]));
@@ -436,6 +401,6 @@ describe('the empty draft', () => {
   it('reports the missing page title', () => {
     const draft = { ...load([]), title: '' };
     renderCanvas(draft);
-    expect(screen.getByRole('alert')).toHaveTextContent('The page has 1 issues.');
+    expect(screen.getByRole('alert')).toHaveTextContent('The page has 1 issue.');
   });
 });

@@ -9,7 +9,8 @@
 //! resource's display title and description, its thumbnail, its item sets and
 //! its media, and a site entry for the list-of-sites block.
 
-use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId};
+use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId, UserId};
+use omeka_core::permissions::RoleSet;
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage};
 
@@ -51,6 +52,11 @@ pub struct ResourceView {
     pub url: String,
     /// `displayTitle`: the title, or the caller's placeholder.
     pub title: String,
+    /// `resource.owner_id`, which decides whether the caller may edit it.
+    pub owner: Option<UserId>,
+    /// The resource class label (`resourceClass()->label()`), translated by
+    /// term, `None` when the resource has no class.
+    pub class_label: Option<String>,
     /// `displayDescription`, `None` when the resource has none.
     pub description: Option<String>,
     /// The values `displayValues` prints, in property order.
@@ -100,6 +106,8 @@ impl ResourceView {
             kind,
             url: url.into(),
             title: title.into(),
+            owner: None,
+            class_label: None,
             description: None,
             values: Vec::new(),
             thumbnail: None,
@@ -165,6 +173,8 @@ pub struct LinkedResource {
     pub kind: ResourceKind,
     /// The linking resource.
     pub resource: ResourceRef,
+    /// The linking resource's class label, `None` when it has no class.
+    pub class_label: Option<String>,
 }
 
 /// A media file, as the media block shows it.
@@ -177,6 +187,8 @@ pub struct MediaRef {
     pub original_url: Option<String>,
     /// The display title (`MediaRepresentation::displayTitle`).
     pub title: String,
+    /// `media.media_type`, e.g. `image/jpeg`, `None` when the media has no file.
+    pub media_type: Option<String>,
     /// The thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
     /// The rendered embed HTML from the media renderer, `None` when the media
@@ -450,6 +462,16 @@ pub enum BlockMarkers {
     Preview,
 }
 
+/// The signed-in caller of a public render: who the user bar names, and the
+/// roles that decide which edit links it offers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Viewer {
+    /// `user.name`.
+    pub name: String,
+    /// The caller's id, global role and permission on the rendered site.
+    pub roles: RoleSet,
+}
+
 /// Everything the site layer reads besides the site and page rows.
 pub struct RenderContext<'a> {
     /// The site being rendered (`site` row).
@@ -485,11 +507,9 @@ pub struct RenderContext<'a> {
     /// `favicon` setting (`Module.php:188-203`). `None` when the setting is
     /// unset or names an asset the caller cannot resolve.
     pub favicon_url: Option<String>,
-    /// Whether the caller is signed in, for the user bar
+    /// The signed-in caller, `None` when nobody is signed in
     /// (`View/Helper/UserBar.php:35-43`).
-    pub signed_in: bool,
-    /// The signed-in caller's display name, for the user bar.
-    pub user_name: Option<String>,
+    pub viewer: Option<Viewer>,
     /// Whether the shown resource is not in this site, so the document carries
     /// `<meta name="robots" content="noindex">` (`Module.php:925-931`).
     pub noindex: bool,
@@ -520,8 +540,7 @@ impl<'a> RenderContext<'a> {
             iiif_viewer_url: "/iiif-viewer".to_string(),
             current_path: String::new(),
             favicon_url: None,
-            signed_in: false,
-            user_name: None,
+            viewer: None,
             noindex: false,
             resources,
             block_markers: BlockMarkers::Off,
@@ -536,8 +555,9 @@ impl<'a> RenderContext<'a> {
         self
     }
 
-    /// Whether this is the editor's script-free preview, where a block that
-    /// needs a script shows what it will be instead.
+    /// Whether this render is the admin preview: a block that needs a script
+    /// shows what it will be instead, and the page may point the curator at
+    /// the admin.
     #[must_use]
     pub(crate) fn is_preview(&self) -> bool {
         self.block_markers == BlockMarkers::Preview

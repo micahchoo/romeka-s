@@ -280,6 +280,13 @@ pub fn parse_block_data(
     if matches!(layout, BlockLayout::Asset) {
         return parse_asset_slots(data);
     }
+    // An empty map is stored as `[]`, PHP's `json_encode` of an empty array.
+    let empty = JsonValue::Object(serde_json::Map::new());
+    let data = if data.as_array().is_some_and(Vec::is_empty) {
+        &empty
+    } else {
+        data
+    };
     if !data.is_object() {
         return Err(BlockDataError::NotAnObject {
             found: kind_name(data),
@@ -415,6 +422,20 @@ mod tests {
 
     fn layout(name: &str) -> BlockLayout {
         BlockLayout::from_wire_name(name)
+    }
+
+    /// The write stores an empty map the way PHP's `json_encode` does, as `[]`
+    /// (`php_json`), so a stored `pageTitle` or `itemWithMetadata` block reads
+    /// back as an empty list and must still render.
+    #[test]
+    fn parse_block_data_reads_an_empty_list_as_empty_data() {
+        for name in ["pageTitle", "itemWithMetadata", "html"] {
+            assert!(
+                parse_block_data(&layout(name), &json!([])).is_ok(),
+                "{name} refused []"
+            );
+        }
+        assert!(parse_block_data(&layout("pageTitle"), &json!([1])).is_err());
     }
 
     /// Every layout's upstream `data` parses, including the asset object shape.

@@ -116,8 +116,11 @@ test('a IIIF block of a local item previews as a poster and opens Mirador on the
 
   const form = page.getByRole('region', { name: 'Block inspector' });
   await form.getByRole('radio', { name: 'An item from this site' }).check();
-  await form.getByLabel('Find an item').fill(ITEM_TITLE);
-  await form.getByRole('button', { name: new RegExp(`^${ITEM_TITLE}`), pressed: false }).click();
+  await form.getByLabel('Search titles and values').fill(ITEM_TITLE);
+  await form
+    .getByRole('listbox', { name: 'Find an item' })
+    .getByRole('option', { name: ITEM_TITLE, exact: true, selected: false })
+    .click();
   await expect(form.getByText(ITEM_TITLE, { exact: true }).first()).toBeVisible();
   await form.getByRole('textbox', { name: 'Title', exact: true }).fill(BLOCK_TITLE);
   const rendered = page.waitForResponse(

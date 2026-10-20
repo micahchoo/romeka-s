@@ -4,7 +4,7 @@
  * manifest source, which stores an item of this site as the manifest URL this
  * server publishes for it.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { BlockDraft } from '../src/pages/sites/editor/draft';
 import { BLOCK_REGISTRY } from '../src/pages/sites/blockRegistry';
@@ -78,11 +78,9 @@ describe('the manifest source', () => {
     installFetch(handler);
     const block = renderBlock('iiifPresentation', {});
     fireEvent.click(screen.getByRole('radio', { name: 'An item from this site' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Fixture Item One/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
     expect(block().data).toEqual({ manifest_url: manifestOf(1) });
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Fixture Item One/ })).toHaveAttribute('aria-pressed', 'true');
-    });
+    expect(await screen.findByRole('option', { name: 'Fixture Item One', selected: true })).toBeInTheDocument();
   });
 
   it('reads a stored item manifest back as the item, and a web address as a URL', async () => {

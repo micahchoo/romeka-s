@@ -4,9 +4,9 @@
  * (`site_page_block.attachment`), so a change goes through `setAttachments`
  * rather than `setField`.
  *
- * Items are picked with the shared `ItemPicker` (search as you type,
- * thumbnails, keyboard): picking an item appends its row and unpicking removes
- * it. Each row shows the item's thumbnail and title. The media choice is a row
+ * Items are picked with the shared item picker (`LazyItemPicker`): picking an
+ * item appends its row, unpicking removes it, and the tray's order is the rows'
+ * order. Each row shows the item's thumbnail and title. The media choice is a row
  * of thumbnails limited to the item's media through `api.listMediaForItem`,
  * which the server reads as `item_id` (`MediaAdapter::buildQuery`).
  */
@@ -20,7 +20,7 @@ import type { BlockAttachment } from '../draft';
 import { Help, helpId } from '../Labelled';
 import { useEditorText } from '../messages';
 import { HtmlEditor } from './HtmlEditor';
-import { ItemPicker } from './ItemPicker';
+import { LazyItemPicker } from './LazyItemPicker';
 import { common } from '../../../../i18n/namespaces/common';
 import { editor } from '../../../../i18n/namespaces/editor';
 import './controls.css';
@@ -42,17 +42,21 @@ const moveAt = <T,>(values: readonly T[], index: number, delta: number): readonl
   return next;
 };
 
-/** The rows after the picker's set changed: unpicked items leave, new ones append. */
+/**
+ * The rows after the picker's picks changed. The rows follow the picks' order,
+ * which is the tray's: unpicked items leave, a new pick gets an empty row, and
+ * a row with no item stays at the end.
+ */
 export const syncAttachments = (
   attachments: readonly BlockAttachment[],
   picked: readonly ItemId[],
-): readonly BlockAttachment[] => {
-  const kept = attachments.filter((row) => row.item === null || picked.includes(row.item));
-  const added = picked
-    .filter((item) => !kept.some((row) => row.item === item))
-    .map((item): BlockAttachment => ({ item, media: null, caption: '' }));
-  return [...kept, ...added];
-};
+): readonly BlockAttachment[] => [
+  ...picked.flatMap((item): readonly BlockAttachment[] => {
+    const rows = attachments.filter((row) => row.item === item);
+    return rows.length > 0 ? rows : [{ item, media: null, caption: '' }];
+  }),
+  ...attachments.filter((row) => row.item === null),
+];
 
 /** The picked item's thumbnail and title at the top of its row. */
 const AttachedItem = ({ itemId }: { readonly itemId: ItemId | null }): ReactElement => {
@@ -236,9 +240,10 @@ export const AttachmentsField = ({
           ))}
         </ul>
       )}
-      <ItemPicker
+      <LazyItemPicker
         id={`${id}-picker`}
         label={e('attachments.pick')}
+        mode="many"
         picked={picked}
         onChange={(next) => {
           onChange(syncAttachments(attachments, next));

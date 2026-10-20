@@ -15,7 +15,7 @@ import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
 import { editor } from '../../../../i18n/namespaces/editor';
 import { Help, helpId } from '../Labelled';
-import { ItemPicker } from './ItemPicker';
+import { LazyItemPicker } from './LazyItemPicker';
 import './controls.css';
 
 type Source = 'url' | 'item';
@@ -117,13 +117,13 @@ export const ManifestSourceField = ({
       ) : (
         <>
           {item === null ? null : <ChosenItem item={item} />}
-          <ItemPicker
+          <LazyItemPicker
             id={`${id}-picker`}
             label={t('manifest.pickItem')}
-            picked={item === null ? [] : [item]}
+            mode="one"
+            picked={item}
             onChange={(picked) => {
-              const chosen = picked.find((entry) => entry !== item);
-              onChange(chosen === undefined ? '' : itemManifestUrl(origin, chosen));
+              onChange(picked === null ? '' : itemManifestUrl(origin, picked));
             }}
           />
         </>

@@ -5,9 +5,11 @@
  * A site's membership is its `item_site` rows. Upstream edits it through the
  * resources form plus the `UpdateSiteItems` job; this page sends each change to
  * `POST /api/sites/{id}/items`, which runs the same change at once and answers
- * the counts, so every add shows what it will do before it writes. The saved
- * search is `o:item_pool`, the listed item sets are `o:site_item_set`, and the
- * sync switch is `o:assign_new_items`, all as upstream stores them.
+ * the counts, so every add shows what it will do before it writes. The listed
+ * item sets are `o:site_item_set`, the pool written from them is `o:item_pool`,
+ * and the sync switch is `o:assign_new_items`, all as upstream stores them.
+ * Sync adds an item only when it is created, so an item removed here stays
+ * removed.
  */
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useRef, useState } from 'react';
@@ -18,7 +20,9 @@ import { ErrorNotice } from '../../app/errors';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
-import { ItemSetPanel, PickPanel, SearchPanel } from './siteItemsAdd';
+import { poolKind } from './itemPool';
+import type { PoolKind } from './itemPool';
+import { PickerPanel, SearchPanel } from './siteItemsAdd';
 import type { AddPanelProps } from './siteItemsAdd';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
@@ -34,12 +38,18 @@ const TABS: readonly {
   readonly label: MessageId;
   readonly Panel: (props: AddPanelProps) => ReactElement;
 }[] = [
-  { id: 'set', label: 'siteItems.bySet', Panel: ItemSetPanel },
+  { id: 'pick', label: 'siteItems.byPicker', Panel: PickerPanel },
   { id: 'search', label: 'siteItems.bySearch', Panel: SearchPanel },
-  { id: 'pick', label: 'siteItems.byPick', Panel: PickPanel },
 ];
 
-/** The switch that stores `o:assign_new_items`. */
+/** What the sync switch says joins the site, by what the pool selects. */
+const SYNC_HELP: Readonly<Record<PoolKind, MessageId>> = {
+  every: 'siteItems.syncEvery',
+  sets: 'siteItems.syncSets',
+  search: 'siteItems.syncSearch',
+};
+
+/** The switch that stores `o:assign_new_items`, with what it adds for this site's pool. */
 const SyncSwitch = ({
   site,
   busy,
@@ -67,7 +77,7 @@ const SyncSwitch = ({
         {t('siteItems.sync')}
       </label>
       <p id="site-items-sync-help" className="field-note">
-        {t('siteItems.syncHelp')}
+        {t(SYNC_HELP[poolKind(site.itemPool)])}
       </p>
     </div>
   );
@@ -248,7 +258,7 @@ const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement =>
     run(async () => {
       await api.changeSiteItems(site.id, {
         action: 'remove',
-        selector: { kind: 'items', items: [item.id] },
+        selector: { kind: 'picked', items: [item.id], itemSets: [] },
       });
       return t('siteItems.removed', { title: item.title ?? t('common.untitled') });
     });

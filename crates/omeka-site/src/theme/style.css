@@ -248,6 +248,27 @@ textarea {
   text-decoration: none;
 }
 
+/* The dashboard and the edit link sit side by side; Logout is a form's
+   button that reads as the outlined link beside it. */
+#user-bar .site-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+#user-bar form {
+  display: contents;
+}
+
+#user-bar button.logout {
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  min-height: 1.75rem;
+}
+
 @media print {
   #user-bar {
     display: none;

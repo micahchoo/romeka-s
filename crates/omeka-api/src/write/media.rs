@@ -136,10 +136,16 @@ pub(crate) async fn prepare(
     // `MediaAdapter::hydrate` sets `source` from `o:source` before the ingester
     // runs, and an ingester overwrites it only when the body named none.
     let source = payload.str_member("o:source").map(str::to_string);
-    let validation = crate::settings::file_validation(&SettingRepo::new(api.pool()))
+    let settings = SettingRepo::new(api.pool());
+    let validation = crate::settings::file_validation(&settings)
         .await
         .map_err(db_error)?;
-    let (draft, errors) = ingest(store, ingester.clone(), request, source, validation).await?;
+    let policy = crate::settings::address_policy(&settings)
+        .await
+        .map_err(db_error)?;
+    let http = HttpClient::new().with_address_policy(policy);
+    let (draft, errors) =
+        ingest(store, ingester.clone(), request, source, validation, http).await?;
     if !errors.is_empty() {
         return Err(ingest_errors(&errors));
     }
@@ -177,9 +183,17 @@ async fn ingest(
     request: IngestRequest,
     source: Option<String>,
     validation: FileValidation,
+    http: HttpClient,
 ) -> Result<(MediaDraft, ErrorStore), ApiError> {
     tokio::task::spawn_blocking(move || {
-        run_ingester(store.as_ref(), &ingester, request, source, &validation)
+        run_ingester(
+            store.as_ref(),
+            &ingester,
+            request,
+            source,
+            &validation,
+            &http,
+        )
     })
     .await
     .map_err(|error| ApiError::internal(format!("the media ingester did not finish: {error}")))
@@ -272,6 +286,7 @@ fn run_ingester(
     request: IngestRequest,
     source: Option<String>,
     validation: &FileValidation,
+    http: &HttpClient,
 ) -> (MediaDraft, ErrorStore) {
     let registry = IngesterRegistry::with_defaults();
     let implementation = registry.get(ingester);
@@ -286,10 +301,9 @@ fn run_ingester(
     let purifier = HtmlPurifier;
     let thumbnailer = ImageThumbnailer;
     let oembed = Oembed::new(OembedAllowList::shipped());
-    let http = HttpClient::new();
     let env = IngestEnv {
         store,
-        http: &http,
+        http,
         purifier: &purifier,
         thumbnailer: &thumbnailer,
         oembed: &oembed,
