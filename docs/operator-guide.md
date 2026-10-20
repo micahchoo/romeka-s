@@ -16,7 +16,8 @@ files under `/assets/`, and two probes: `/health` for liveness and `/ready`, whi
 answers 503 while storage is unreachable ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs)).
 
 It serves no admin bundle and no stored media bytes. A static origin in front serves the built admin
-application at `/` and the media files under `/files/`. That is the arrangement the packaged
+application at `/` and the media files under `/files/`, asking `GET /api/romeka/files/allow` first
+whether each file may be served. That is the arrangement the packaged
 deployment uses, and [`packaging/nginx.conf.template`](../packaging/nginx.conf.template) is the
 working example. `web/admin/e2e/harness/proxy.ts` is another one, in Node.
 
@@ -140,7 +141,7 @@ system `tar`, including that a second restore without `--force` is refused.
 ## The static origin
 
 The origin does four things. It serves the built admin application at `/`, from
-`web/admin/dist`. It serves the media store under `/files/`. It forwards `/api` (which covers
+`web/admin/dist`. It serves the media store under `/files/`, after the access check below. It forwards `/api` (which covers
 `/api-context`), `/health`, `/ready`, `/s/` and `/assets/` to the process. And it falls back to
 `index.html` for an unknown path, because the admin is a hash-routed single page.
 
@@ -153,6 +154,17 @@ Two things to know before you write one.
   ([`packaging/nginx.conf.template`](../packaging/nginx.conf.template)) serves the SPA's files, which
   is the first of those two, and it forwards neither `/assets/` nor `/ready`. Until one of the two
   paths moves, an origin that has to be correct for both needs a rule that separates them.
+- **`/files/` needs the access check.** A file of a private item or media is served only to a user
+  who may see it. Before it serves a file, the origin sends a `GET /api/romeka/files/allow` to the
+  process with the request's `Cookie` header and the original request URI, query string included,
+  in `X-Forwarded-Uri`. Caddy's `forward_auth` does this ([`../deploy/Caddyfile`](../deploy/Caddyfile));
+  nginx's `auth_request` does it with `proxy_set_header X-Forwarded-Uri $request_uri`. The answer
+  is 204 to serve the file, 403 to refuse it and 404 when no media or asset names it; the origin
+  passes a 403 or 404 to the client. A 204 with `X-Romeka-Private: 1` is a private file: answer it
+  with `Cache-Control: private` and `Vary: Cookie`, and remove any `X-Romeka-Private` the client
+  sent before the check. Send `X-Content-Type-Options: nosniff` on every `/files/` answer, and
+  `Content-Security-Policy: sandbox` on `.html`, `.htm`, `.svg` and `.xml` files. An origin that
+  serves `/files/` straight from disk serves private files to anyone.
 - **The process may be reached over loopback.** Forward the client's `Host` and `X-Forwarded-For`:
   login limits count by address, and the address comes from `X-Real-IP`, then the last
   `X-Forwarded-For` entry, then the socket peer.

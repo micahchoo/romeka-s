@@ -54,7 +54,7 @@ pub use import_lifecycle::{DEAD_AFTER, DIED, HEARTBEAT, HEARTBEAT_EVERY, StartOu
 pub use imports::{ImportRepo, PlanSave};
 pub use item_sites::ItemSiteRepo;
 pub use jobs::{JobFilter, JobRepo};
-pub use media::{MediaFilter, MediaRepo};
+pub use media::{MediaFileOwner, MediaFilter, MediaRepo};
 pub use modules::ModuleRepo;
 pub use passwords::PasswordCreationRepo;
 pub use publications::{NewPublicationVersion, PublicationRepo};

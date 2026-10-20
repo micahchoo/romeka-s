@@ -35,6 +35,18 @@ const MEDIA_COLUMNS: &str = "SELECT resource.*, media.item_id, media.ingester, m
      media.alt_text
      FROM media JOIN resource ON resource.id = media.id";
 
+/// What decides who may fetch a media's stored files: the media's visibility and its item's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaFileOwner {
+    pub media_id: MediaId,
+    /// `media.extension`, the suffix of the original's storage path.
+    pub extension: Option<String>,
+    pub media_is_public: bool,
+    pub media_owner_id: Option<UserId>,
+    pub item_is_public: bool,
+    pub item_owner_id: Option<UserId>,
+}
+
 /// `media` rows.
 pub struct MediaRepo<'a, DB: Backend = Sqlite> {
     pool: &'a Pool<DB>,
@@ -202,6 +214,37 @@ where
                 ))
             })
             .collect()
+    }
+
+    /// The media that stores its files under `storage_id`, with its own visibility and its item's,
+    /// so a file request can be answered without loading the whole row. The comparison follows the
+    /// column's collation, as the unique key does.
+    pub async fn file_owner(&self, storage_id: &str) -> Result<Option<MediaFileOwner>, DbError> {
+        let row = sqlx::query(
+            "SELECT media.id, media.extension,
+                 media_resource.is_public AS media_is_public,
+                 media_resource.owner_id AS media_owner_id,
+                 item_resource.is_public AS item_is_public,
+                 item_resource.owner_id AS item_owner_id
+             FROM media
+             JOIN resource media_resource ON media_resource.id = media.id
+             JOIN resource item_resource ON item_resource.id = media.item_id
+             WHERE media.storage_id = ?",
+        )
+        .bind(storage_id)
+        .fetch_optional(self.pool)
+        .await?;
+        row.map(|row| {
+            Ok(MediaFileOwner {
+                media_id: DB::id(&row, "id")?,
+                extension: DB::opt_text(&row, "extension")?,
+                media_is_public: DB::boolean(&row, "media_is_public")?,
+                media_owner_id: DB::opt_id(&row, "media_owner_id")?,
+                item_is_public: DB::boolean(&row, "item_is_public")?,
+                item_owner_id: DB::opt_id(&row, "item_owner_id")?,
+            })
+        })
+        .transpose()
     }
 
     pub async fn list(
