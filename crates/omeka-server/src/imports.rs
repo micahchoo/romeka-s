@@ -1,82 +1,62 @@
-//! The import routes that outlive the v1 importer (`docs/import-v2.md`,
-//! "Wire"). Upstream has no such routes. P3-wire adds the v2 import routes
-//! here.
+//! The import routes (`docs/import-v2.md`, "Wire"). Upstream has no such
+//! routes.
+//!
+//! The rules live in `omeka_api::import2`: the plan boundary and the draft
+//! life (`draft`), the evidence index (`scan`), the derive and its preview,
+//! and Check. These handlers authenticate, read the request, call one of
+//! those, and start the scan, run and undo jobs through the
+//! [`crate::JobDispatch`] the process supplied. The states, when a job
+//! counts as dead, and the one-import-at-a-time rule live in omeka-db
+//! (`ImportRepo::start_run`, `start_undo`, `settle_dead`): every read first
+//! records the dead, and a start is one serialized transaction.
 //!
 //! `GET /api/romeka/starters` serves the starter table the Item types page
-//! reads, and `GET /api/romeka/jobs/{id}/log` the log the Jobs page polls.
+//! reads too, and `GET /api/romeka/jobs/{id}/log` the log the Jobs page polls.
+
+mod archive;
+mod run;
+mod wire;
 
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
-use axum::routing::get;
-use omeka_api::errors::{ApiError, ErrorDocument};
+use axum::routing::{get, post};
+use omeka_api::import2::draft::{self, Start};
+use omeka_api::import2::plan::SourcePlan;
 use omeka_api::import2::starters::STARTERS;
-use omeka_db::DbError;
-use omeka_db::ids::JobId;
-use omeka_db::repos::JobRepo;
+use omeka_api::messages;
+use omeka_db::ids::{ImportId, JobId};
+use omeka_db::repos::{ImportRepo, JobRepo, Paging};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::AppState;
+use wire::{ImportError, ImportView, admin, blocking, body, draft_error, json, load, parse_id};
+
+type Answer = Result<Response, ImportError>;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
+        .route("/api/romeka/archive", get(archive::archive))
         .route("/api/romeka/starters", get(starters))
+        .route("/api/romeka/imports", get(list).post(create))
+        .route(
+            "/api/romeka/imports/{id}",
+            get(show).put(save).delete(delete),
+        )
+        .route("/api/romeka/imports/{id}/scan", post(run::scan))
+        .route("/api/romeka/imports/{id}/preview", post(run::preview))
+        .route("/api/romeka/imports/{id}/run", post(run::run))
+        .route("/api/romeka/imports/{id}/stop", post(run::stop))
+        .route("/api/romeka/imports/{id}/undo", post(run::undo))
+        .route("/api/romeka/imports/{id}/left.csv", get(left_csv))
         .route("/api/romeka/jobs/{id}/log", get(job_log))
 }
 
-/// A failure of an import route, with the status it answers.
-#[derive(Debug)]
-enum ImportError {
-    Unauthenticated,
-    Forbidden,
-    NotFound(String),
-    Internal(String),
-    Api(ApiError),
-}
-
-impl ImportError {
-    fn into_response(self) -> Response {
-        let (status, message) = match self {
-            Self::Api(error) => return crate::error_response(error),
-            Self::Unauthenticated => (
-                StatusCode::UNAUTHORIZED,
-                omeka_api::messages::AUTHENTICATION_REQUIRED.to_string(),
-            ),
-            Self::Forbidden => (
-                StatusCode::FORBIDDEN,
-                "Only a global or site administrator may import an archive.".to_string(),
-            ),
-            Self::NotFound(message) => (StatusCode::NOT_FOUND, message),
-            Self::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, message),
-        };
-        crate::document_response(status, &ErrorDocument::general(message))
-    }
-}
-
-impl From<DbError> for ImportError {
-    fn from(error: DbError) -> Self {
-        Self::Internal(error.to_string())
-    }
-}
-
-fn answer(result: Result<Response, ImportError>) -> Response {
+fn answer(result: Answer) -> Response {
     result.unwrap_or_else(ImportError::into_response)
-}
-
-/// Refused unless signed in with a role that may write items, item sets,
-/// templates and vocabularies: the two administrator roles.
-async fn admin(state: &AppState, uri: &Uri, headers: &HeaderMap) -> Result<(), ImportError> {
-    let actor = crate::actor_for(state, uri, headers)
-        .await
-        .map_err(ImportError::Api)?;
-    if actor.user().is_none() {
-        return Err(ImportError::Unauthenticated);
-    }
-    if !actor.is_admin() {
-        return Err(ImportError::Forbidden);
-    }
-    Ok(())
 }
 
 /// `GET /api/romeka/starters`: the item type starters, the one table the run
@@ -85,12 +65,224 @@ async fn starters(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -
     answer(
         async {
             admin(&state, &uri, &headers).await?;
-            let body = serde_json::to_vec(&STARTERS)
-                .map_err(|error| ImportError::Internal(error.to_string()))?;
+            Ok(json(StatusCode::OK, &STARTERS))
+        }
+        .await,
+    )
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct History {
+    total: u64,
+    page: u64,
+    per_page: u64,
+    items: Vec<ImportView>,
+}
+
+/// `GET /api/romeka/imports?page=&perPage=`: the history, newest first.
+async fn list(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            let params = omeka_api::read::Params::parse(uri.query().unwrap_or(""));
+            let number = |name: &str, default: u64| {
+                params
+                    .get(name)
+                    .and_then(|raw| raw.parse::<u64>().ok())
+                    .filter(|n| *n > 0)
+                    .unwrap_or(default)
+            };
+            let per_page = number("perPage", 25).min(500);
+            let page = number("page", 1);
+            let repo = ImportRepo::new(&state.pool);
+            repo.settle_dead().await?;
+            let paging = Paging::new(
+                i64::try_from(per_page).unwrap_or(500),
+                i64::try_from((page - 1).saturating_mul(per_page)).unwrap_or(i64::MAX),
+            );
+            let items = repo
+                .page(&paging)
+                .await?
+                .into_iter()
+                .map(|row| ImportView::of(row, false))
+                .collect();
+            Ok(json(
+                StatusCode::OK,
+                &History {
+                    total: repo.count().await?,
+                    page,
+                    per_page,
+                    items,
+                },
+            ))
+        }
+        .await,
+    )
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum CreateBody {
+    Sources(SourcesBody),
+    Copy(CopyBody),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourcesBody {
+    sources: Vec<SourcePlan>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CopyBody {
+    copy_from: u64,
+}
+
+/// `POST /api/romeka/imports {sources} | {copyFrom}`: a new draft.
+async fn create(
+    State(state): State<AppState>,
+    uri: Uri,
+    headers: HeaderMap,
+    payload: crate::limits::Payload,
+) -> Response {
+    answer(
+        async {
+            let actor = admin(&state, &uri, &headers).await?;
+            let start = match body::<CreateBody>(&headers, &payload.0)? {
+                CreateBody::Sources(SourcesBody { sources }) => {
+                    let roots = state.archive_roots.clone();
+                    let checked = sources.clone();
+                    blocking(move || {
+                        for source in &checked {
+                            if let SourcePlan::Folder { root, path, .. } = source {
+                                roots.source(root, path)?;
+                            }
+                        }
+                        Ok(())
+                    })
+                    .await?;
+                    Start::Sources(sources)
+                }
+                CreateBody::Copy(CopyBody { copy_from }) => Start::CopyFrom(ImportId(copy_from)),
+            };
+            let copied = match &start {
+                Start::CopyFrom(from) => *from,
+                Start::Sources(_) => ImportId(0),
+            };
+            let row = draft::create(&state.pool, actor.user(), start)
+                .await
+                .map_err(|error| draft_error(error, copied, false))?;
+            Ok(json(StatusCode::CREATED, &ImportView::of(row, true)))
+        }
+        .await,
+    )
+}
+
+/// `GET /api/romeka/imports/{id}`: the import with its plan and revision.
+async fn show(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            let row = load(&state, &id).await?;
+            Ok(json(StatusCode::OK, &ImportView::of(row, true)))
+        }
+        .await,
+    )
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SaveBody {
+    plan: Value,
+    revision: u64,
+}
+
+/// `PUT /api/romeka/imports/{id} {plan, revision}`: save a draft's plan.
+async fn save(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+    payload: crate::limits::Payload,
+) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            let id = parse_id(&id)?;
+            let saved: SaveBody = body(&headers, &payload.0)?;
+            draft::save(&state.pool, id, &saved.plan, saved.revision)
+                .await
+                .map_err(|error| draft_error(error, id, false))?;
+            let row = load(&state, &id.0.to_string()).await?;
+            Ok(json(StatusCode::OK, &ImportView::of(row, true)))
+        }
+        .await,
+    )
+}
+
+/// `DELETE /api/romeka/imports/{id}`: delete a draft.
+async fn delete(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            let id = parse_id(&id)?;
+            draft::delete(&state.pool, id)
+                .await
+                .map_err(|error| draft_error(error, id, true))?;
+            Ok(Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(Body::empty())
+                .unwrap_or_else(|_| crate::empty_internal_error()))
+        }
+        .await,
+    )
+}
+
+/// `GET /api/romeka/imports/{id}/left.csv`: the file the run wrote to the
+/// store when it ended.
+async fn left_csv(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            let row = load(&state, &id).await?;
+            let store = state.store.clone();
+            let path = format!("imports/{}/left.csv", row.id.0);
+            let bytes = blocking(move || {
+                let missing = || ImportError::NotFound(messages::IMPORT_NO_LEFT_FILE.to_string());
+                match store.exists(&path) {
+                    Ok(true) => store
+                        .read(&path)
+                        .map_err(|error| ImportError::Internal(error.to_string())),
+                    Ok(false) => Err(missing()),
+                    Err(error) => Err(ImportError::Internal(error.to_string())),
+                }
+            })
+            .await?;
             Ok(Response::builder()
                 .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body))
+                .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
+                .header(
+                    header::CONTENT_DISPOSITION,
+                    format!("attachment; filename=\"import-{}-left.csv\"", row.id.0),
+                )
+                .body(Body::from(bytes))
                 .unwrap_or_else(|_| crate::empty_internal_error()))
         }
         .await,

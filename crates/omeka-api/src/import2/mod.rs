@@ -18,8 +18,11 @@
 
 pub mod archive;
 pub mod catalog;
+pub mod catalog_load;
+pub mod check;
 pub mod decisions;
 pub mod derive;
+pub mod draft;
 pub mod evidence;
 mod flags;
 pub mod grouping;
@@ -27,6 +30,8 @@ pub mod join;
 mod matching;
 pub mod model;
 pub mod plan;
+pub mod preview;
+pub mod scan;
 pub mod sheet;
 pub mod slots;
 pub mod starters;

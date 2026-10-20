@@ -220,6 +220,12 @@ pub enum PlanError {
     TypeExists(String),
     #[error("the new field {0:?} has no letters or digits")]
     EmptyTermLabel(String),
+    #[error("the {slot} value map has the keys {first:?} and {second:?}, which read as one")]
+    MapKeysCollide {
+        slot: String,
+        first: String,
+        second: String,
+    },
     #[error("the new fields {first:?} and {second:?} both make {term}")]
     TermsCollide {
         first: String,

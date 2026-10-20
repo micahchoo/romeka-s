@@ -263,11 +263,33 @@ upstream's job writes.
 
 ## Archive import
 
-Import v2 (`docs/import-v2.md`) replaces the v1 archive importer. Until P3-wire
-adds the v2 routes, `src/imports.rs` serves two Romeka additions:
-`GET /api/romeka/starters`, the starter item types, and
-`GET /api/romeka/jobs/{id}/log`, a job's log as text. Only a global or site
-administrator may call them: anonymous is 401, any other role 403.
+Import v2 (`docs/import-v2.md`, "Wire") lives in `src/imports.rs` and
+`src/imports/`; the rules are in `omeka_api::import2`. Only a global or site
+administrator may call these routes: anonymous is 401, any other role 403.
+
+| Route | Body | Response |
+| --- | --- | --- |
+| `GET /api/romeka/archive?root=&path=` | none | 200 `{roots, root, path, entries}`; 400, 404 |
+| `GET /api/romeka/imports?page=&perPage=` | none | 200 `{total, page, perPage, items}`, newest first |
+| `POST /api/romeka/imports` | `{sources}` or `{copyFrom}` | 201 the draft with its default or copied plan; 400, 404, 409 `v1Plan` |
+| `GET /api/romeka/imports/{id}` | none | 200 the import, its plan and revision; 404 |
+| `PUT /api/romeka/imports/{id}` | `{plan, revision}` | 200; 400, 409 `stale`, `notDraft`, `v1Plan`, `typeExists` |
+| `DELETE /api/romeka/imports/{id}` | none | 204; 404, 409 `notDraft` |
+| `POST /api/romeka/imports/{id}/scan` | none | 200 `{sources}`; 202 `{jobId}` past 20,000 entries; 409 `busy` |
+| `POST /api/romeka/imports/{id}/preview` | `{include, plan?, records?, entries?}` | 200 the sections asked for; 400 |
+| `POST /api/romeka/imports/{id}/run` | `{digest, confirm?}` | 200 `{jobId}`; 409 `changed`, `blocked`, `nothing`, `confirm`, `busy`, `cannotRun` |
+| `POST /api/romeka/imports/{id}/stop` | none | 202; 409 `notRunning` |
+| `POST /api/romeka/imports/{id}/undo` | `{force?}` | 200 `{jobId}`; 409 `cannotUndo`, `busy` |
+| `GET /api/romeka/imports/{id}/left.csv` | none | 200 `text/csv`; 404 before a run ends |
+| `GET /api/romeka/starters` | none | 200 the starter item types |
+| `GET /api/romeka/jobs/{id}/log` | none | 200 the job's log as text; 404 |
+
+A preview reads the evidence index, never the folder walk: `scan` writes the
+index, and `run` scans again before it compares the digest. The sheets a plan
+names are read from disk on each preview through a cache of at most 16 reads
+and 128 MB of sheet bytes. Run, undo and scan jobs start through the
+`JobDispatch` the process supplies; the run start itself is
+`ImportRepo::start_run`, one locked transaction that freezes the plan.
 
 Deleting the job of an import that is running or undoing answers 409
 (`JobRepo::delete_unless_held`), after the dead imports are recorded

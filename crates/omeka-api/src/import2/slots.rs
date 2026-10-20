@@ -24,7 +24,8 @@ use super::grouping::Grouping;
 use super::join::{SheetIn, cell};
 use super::model::{LeftBy, RecordId, SlotValue, Subject, TemplateRef};
 use super::plan::{
-    Combine, FlagKind, FlagPolicy, ImportPlanV2, RecordKind, SlotName, SlotRule, Term,
+    Combine, FlagKind, FlagPolicy, ImportPlanV2, NewType, NewTypeFrom, RecordKind, SlotName,
+    SlotRule, Term,
 };
 use super::values::{Value, ValueType, fold_title};
 
@@ -289,7 +290,19 @@ pub(crate) fn check_fields(
             .template(template)
             .map(|template| template.fields.clone())
             .unwrap_or_default(),
-        _ => Vec::new(),
+        Some(TemplateRef::New(new_type)) => match ctx.plan.new_types.get(new_type) {
+            Some(NewType {
+                from: NewTypeFrom::Starter(from),
+                ..
+            }) => ctx
+                .catalog
+                .starters
+                .get(&from.starter)
+                .cloned()
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        },
+        None => Vec::new(),
     };
     for (slot, values) in slots.iter_mut() {
         let SlotName::Term(term) = slot else {
