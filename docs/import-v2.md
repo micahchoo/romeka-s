@@ -282,6 +282,19 @@ item-set records; for media, the media of the matched item.
   catalog).
 - `map` may be missing in a stored plan and then means empty.
 
+
+### Write details (settled from P3-writes, 2026-10-20)
+
+- Slots have three states: unmapped, mapped and empty, mapped with values. `append` writes no
+  single-valued slot (it adds sets and sites); `revise` writes slots with values; `update` writes
+  every mapped slot (empty clears); `replace` also clears unmapped template, class, owner, sets and
+  sites, and keeps visibility (the run always maps owner and visibility from the plan defaults).
+- Append compares values by term, type, text and language (a URI by its URI, a link by its id).
+- Removing a value removes its annotation; a restore makes the annotation again.
+- The title is recomputed on every write, as upstream's title hydrator does.
+- Pass-two link writes update the ledger row's `written` time, so the import's own link writes
+  never count as touching its own records.
+
 ## Values
 
 A written value is `{ type, text, lang, label, isPublic }`:
@@ -503,8 +516,8 @@ migration so a fresh MySQL install builds the v2 schema.
   VARCHAR(16) NOT NULL DEFAULT 'created', written DATETIME NOT NULL, PRIMARY KEY (import_id, kind,
   target_id))`, `ON DELETE CASCADE` from the import, an index on `(import_id, record)`.
 - `romeka_import_before (import_id, kind VARCHAR(32), target_id, image, PRIMARY KEY (import_id,
-  kind, target_id))`, `image` = JSON of values, template, class, owner, visibility, item sets,
-  sites and media order.
+  kind, target_id))`, `image` = JSON of values (with annotation values), template, class, owner, visibility, item sets,
+  sites (with positions for item sets), media order and primary media, tagged with its kind.
 - `romeka_import_upload (import_id, id VARCHAR(64), path, length BIGINT, received BIGINT, created)`
   (no `offset`: reserved in MySQL).
 - `romeka_import_entry` (the evidence index): `(import_id, source VARCHAR(64), path, size,
@@ -620,6 +633,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-writes | unit-test-verified | 319 SQLite, 379 each on MySQL 8.0.46 and MariaDB 11.8.9; 24-case apply/restore property test; 5 mutations caught |
 | P3-derive | unit-test-verified | 149 import2 tests, 16 mutations (2 survivors fixed), 10k 95-116 ms, 40k 444-528 ms on a loaded machine |
 | P3-db | unit-test-verified | 1,782 workspace tests; 346 MySQL tests each on mysql 8.0 and MariaDB 11; start race 20/20; guards removed fail their tests |
 | P3-evidence | unit-test-verified | 79 import2 tests, 917 api+server tests, 5 mutations caught, 100k walk median 387 ms warm |
