@@ -200,7 +200,7 @@ export const hiServer: ServerCatalogue = {
     'सूची में "{column}" कॉलम नहीं हो सकता। कोई प्रॉपर्टी, आइटम सेट, आइटम टाइप या विजिबिलिटी चुनें।',
   'server.importListOneFile': 'एक सूची फ़ाइल फॉर्म में भेजें।',
   'server.importListType':
-    '"{name}" CSV या TSV फ़ाइल नहीं है। सूची को CSV या TSV के रूप में सहेजें, फिर इसे फिर से भेजें।',
+    '"{name}" एक .csv, .tsv, .xlsx, .xls या .ods फ़ाइल नहीं है। सूची को इनमें से किसी एक के रूप में सहेजें, फिर इसे फिर से भेजें।',
   'server.importListTooLarge': 'सूची 50 MB से बड़ी है।',
   'server.importListUnread': 'सूची नहीं पढ़ी जा सकती: {reason}',
   'server.importListNoIdentifier':

@@ -11,13 +11,21 @@ use super::support::*;
 use crate::import2::derive::{FileTags, derive};
 use crate::import2::evidence::FileEntry;
 use crate::import2::plan::{RecordKind, SourceId, TagId};
+use crate::import2::tags::Embedded;
 
 /// A warm tag cache: one hash lookup per tag asked.
-struct Warm(HashMap<(String, TagId), String>);
+struct Warm(HashMap<(String, TagId), Embedded>);
 
 impl FileTags for Warm {
-    fn tag(&self, _: &SourceId, entry: &FileEntry, tag: TagId) -> Option<String> {
+    fn tag(&self, _: &SourceId, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
         self.0.get(&(entry.path.as_str().to_string(), tag)).cloned()
+    }
+}
+
+fn one(text: &str) -> Embedded {
+    Embedded {
+        values: vec![text.to_string()],
+        windows_1252: false,
     }
 }
 
@@ -60,10 +68,10 @@ fn load(items: usize) -> Load {
             .iter()
             .flat_map(|path| {
                 [
-                    ((path.clone(), TagId::Artist), "R. Mehta".to_string()),
+                    ((path.clone(), TagId::Artist), one("R. Mehta")),
                     (
                         (path.clone(), TagId::DateTimeOriginal),
-                        "2019:05:14 11:02:10".to_string(),
+                        one("2019:05:14 11:02:10"),
                     ),
                 ]
             })

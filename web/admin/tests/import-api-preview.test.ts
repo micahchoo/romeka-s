@@ -6,6 +6,8 @@
  * sends and the client does not know fails here.
  */
 import { describe, expect, it } from 'vitest';
+import { TAG_IDS } from '../src/api/import-plan';
+import { en as importMessages } from '../src/i18n/namespaces/import';
 import { SECTIONS, hasSections, parsePreview } from '../src/api/import-sections';
 import { ParseError, asRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
@@ -40,6 +42,27 @@ describe('the sections', () => {
       expect(roundTrip(preview)).toEqual(raw);
     },
   );
+
+  it('parse a workbook list with its sheet names, and the 25 tags with their kinds', () => {
+    const raw = loadFixture('import/preview-sheets-workbook.json');
+    const { sheets } = parsePreview(['sheets'])(raw);
+    expect(roundTrip(parsePreview(['sheets'])(raw))).toEqual(raw);
+    expect(sheets.map((view) => view.read?.workbook ?? null)).toEqual([
+      null,
+      { sheet: 'Register', sheets: ['Register', 'Notes'] },
+    ]);
+    const { tags } = parsePreview(['tags'])(loadFixture('import/preview-tags.json'));
+    expect(tags).toHaveLength(25);
+    expect([...new Set(tags.map((tag) => tag.kind))]).toEqual(['exif', 'iptc', 'xmp', 'file']);
+    expect(tags.map((tag) => tag.tag)).toEqual(TAG_IDS);
+  });
+
+  it('every tag and every tag kind has a label in the import namespace', () => {
+    const keys = new Set(Object.keys(importMessages));
+    const missing = [...TAG_IDS.map((id) => `tag.${id}`), ...['exif', 'iptc', 'xmp', 'file'].map((kind) => `tag.kind.${kind}`)]
+      .filter((key) => !keys.has(key));
+    expect(missing).toEqual([]);
+  });
 
   it('parse the records of a media listing and a blocked check', () => {
     for (const [name, section] of [

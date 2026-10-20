@@ -8,7 +8,7 @@ use crate::import2::derive::FileTags;
 use crate::import2::evidence::FileEntry;
 use crate::import2::plan::{Delimiter, SheetId, SourceId, TagId};
 use crate::import2::sheet::{Column, EncodingRead, HeaderNote};
-use crate::import2::tags::{TAGS, TagKind};
+use crate::import2::tags::TAGS;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +40,17 @@ pub struct SheetRead {
     pub cells_suspect: usize,
     pub columns: Vec<ColumnView>,
     pub notes: Vec<String>,
+    /// Set for a workbook: the sheet read and every sheet it holds.
+    pub workbook: Option<WorkbookView>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkbookView {
+    /// The worksheet the rows came from.
+    pub sheet: String,
+    /// Every worksheet, in workbook order: the choices of a sheet picker.
+    pub sheets: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -64,7 +75,7 @@ pub struct SheetGuess {
 #[serde(rename_all = "camelCase")]
 pub struct TagView {
     pub tag: TagId,
-    /// `exif` reads inside the file; `file` is a fact about it.
+    /// `exif`, `iptc` and `xmp` read inside the file; `file` is a fact about it.
     pub kind: &'static str,
     pub samples: Vec<TagSample>,
 }
@@ -102,6 +113,10 @@ pub(super) fn sheet_views(derived: &Derived) -> Vec<SheetView> {
                         cells_suspect: sheet.counts.cells_suspect,
                         columns: sheet.columns.iter().map(column_view).collect(),
                         notes: sheet.notes.iter().map(note_text).collect(),
+                        workbook: sheet.workbook.as_ref().map(|book| WorkbookView {
+                            sheet: book.sheet.clone(),
+                            sheets: book.sheets.clone(),
+                        }),
                     }),
                 ),
             };
@@ -166,17 +181,14 @@ pub(super) fn tag_views(derived: &Derived) -> Vec<TagView> {
     TAGS.iter()
         .map(|(tag, kind)| TagView {
             tag: *tag,
-            kind: match kind {
-                TagKind::Exif => "exif",
-                TagKind::File => "file",
-            },
+            kind: kind.wire(),
             samples: samples
                 .iter()
                 .filter_map(|(source, entry)| {
                     Some(TagSample {
                         source: (*source).clone(),
                         path: entry.path.to_string(),
-                        value: derived.tags.tag(source, entry, *tag)?,
+                        value: derived.tags.tag(source, entry, *tag)?.values.join("; "),
                     })
                 })
                 .collect(),
