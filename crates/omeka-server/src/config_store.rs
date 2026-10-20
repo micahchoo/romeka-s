@@ -130,7 +130,8 @@ fn s3_config(env: &impl Fn(&str) -> Option<String>) -> Result<S3Config, ConfigEr
                 "required when ROMEKA_STORE_BACKEND=s3",
             )
         })?;
-    let url_ttl = match env(S3_URL_TTL_ENV) {
+    // compose.yaml passes every variable, empty when unset.
+    let url_ttl = match env(S3_URL_TTL_ENV).filter(|value| !value.trim().is_empty()) {
         None => DEFAULT_URL_TTL,
         Some(value) => {
             let seconds: u64 = value
@@ -229,6 +230,21 @@ mod tests {
             Some("https://cdn.example.org")
         );
         assert_eq!(config.url_ttl, Duration::from_secs(300));
+    }
+
+    #[test]
+    fn an_empty_optional_setting_is_the_default_as_compose_passes_it() {
+        let StoreConfig::S3(config) = StoreConfig::from_env(s3_env(&[
+            (S3_REGION_ENV, ""),
+            (S3_PUBLIC_BASE_ENV, ""),
+            (S3_URL_TTL_ENV, ""),
+        ]))
+        .unwrap() else {
+            panic!("s3");
+        };
+        assert_eq!(config.region, "us-east-1");
+        assert_eq!(config.public_base, None);
+        assert_eq!(config.url_ttl, Duration::from_secs(900));
     }
 
     #[test]
