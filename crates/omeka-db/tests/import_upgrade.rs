@@ -20,6 +20,9 @@ const V2_TABLES: [&str; 6] = [
     "romeka_import_upload",
 ];
 
+/// The tables migrations after 0006 add, empty on an upgrade.
+const LATER_TABLES: [&str; 1] = ["romeka_site_page_version"];
+
 /// A folder holding the migrations of `dir` numbered below 0006, for a [`Migrator`] that stops at
 /// 0005.
 fn migrations_before_0006(dir: &str, name: &str) -> PathBuf {
@@ -123,7 +126,15 @@ async fn sqlite_0006_replaces_the_v1_tables_and_keeps_every_other_row() {
 
     omeka_db::migrate(&pool).await.unwrap();
 
-    assert_eq!(sqlite_contents(&pool).await, before);
+    let (later, after): (Vec<_>, Vec<_>) = sqlite_contents(&pool)
+        .await
+        .into_iter()
+        .partition(|(table, _)| LATER_TABLES.contains(&table.as_str()));
+    assert_eq!(after, before);
+    assert_eq!(
+        later,
+        LATER_TABLES.map(|table| (table.to_string(), Vec::new()))
+    );
     assert_eq!(sqlite_import_tables(&pool).await, V2_TABLES);
     let imports: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM romeka_import")
         .fetch_one(&pool)
@@ -261,6 +272,10 @@ mod mysql {
             .into_iter()
             .partition(|table| table.starts_with("romeka_import"));
         assert_eq!(imports, V2_TABLES);
+        let others: Vec<String> = others
+            .into_iter()
+            .filter(|table| !LATER_TABLES.contains(&table.as_str()))
+            .collect();
         assert_eq!(others, before_tables);
         assert_eq!(kept_rows(&pool).await, before_rows);
         assert_eq!(before_rows, ["1:1:Kept"]);

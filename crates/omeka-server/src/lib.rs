@@ -13,7 +13,6 @@
 //! Nothing binds a socket except [`serve`]; tests drive the app through
 //! `tower::ServiceExt::oneshot` or [`serve_with_config`] on an ephemeral port.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::Router;
