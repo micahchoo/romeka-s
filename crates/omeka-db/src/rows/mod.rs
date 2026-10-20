@@ -12,6 +12,7 @@
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
 mod custom_vocabs;
+mod imports;
 mod publications;
 mod resources;
 mod rewrites;
@@ -23,6 +24,9 @@ mod values;
 mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
+pub use imports::{
+    ImportKind, ImportResourceRow, ImportRow, ImportStatus, ImportTarget, NewImport,
+};
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{
     ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, NewWholeItem,
@@ -77,6 +81,8 @@ sqlite_row_parser!(
     CustomVocabRow,
     PublicationRow,
     PublicationVersionRow,
+    ImportRow,
+    ImportResourceRow,
     FulltextSearchRow,
     ItemItemSetRow,
     ItemRow,

@@ -171,6 +171,22 @@ an install that shares the database sees its own tables unchanged. Both names st
 
 The MySQL file is the same schema with `IF NOT EXISTS`, InnoDB and utf8mb4, as `0002` writes.
 
+`0005_archive_import.sql` adds the two tables the archive importer needs, also with the `romeka_`
+prefix and read by no upstream code.
+
+- `romeka_import`: one row per import, `draft` to `undone`. `plan` and `summary` are JSON. `owner_id`
+  and `job_id` go to `NULL` when the user or job is deleted. `undoable` marks the one import with an
+  open undo window: SQLite enforces that with the partial unique index `romeka_import_one_undoable`;
+  MySQL has no partial index, so `ImportRepo::start_run` clears the others in its locked transaction.
+  The summary JSON also holds the worker's `heartbeat` and, once a reader finds the worker dead,
+  `died` (`src/repos/import_lifecycle.rs`).
+  SQLite and MySQL both carry a `CHECK` on `status`.
+- `romeka_import_resource`: one row per created item, media, item set, template or property, keyed
+  `(import_id, kind, target_id)` and cascading from its import. `target_id` has no foreign key,
+  because it points at one of five tables and undo deletes the target before the row.
+
+The MySQL directory has no `0004`: that migration only makes SQLite's term columns case-sensitive.
+
 ## Not translated
 
 - The `resource_type` prefix index and the FULLTEXT behaviour are the only MySQL-specific index

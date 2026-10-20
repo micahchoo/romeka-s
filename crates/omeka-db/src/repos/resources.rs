@@ -249,18 +249,27 @@ where
     /// value leaves no item, no link and no value behind.
     pub async fn create_whole(&self, new: &NewWholeItem) -> Result<ItemRow, DbError> {
         let mut tx = self.pool.begin().await?;
-        let row = Self::insert_item(&mut tx, &new.item).await?;
+        let row = Self::insert_whole(&mut tx, new).await?;
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    /// [`Self::create_whole`] on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert_whole(
+        conn: &mut DB::Connection,
+        new: &NewWholeItem,
+    ) -> Result<ItemRow, DbError> {
+        let row = Self::insert_item(conn, &new.item).await?;
         for item_set_id in &new.item_sets {
             sqlx::query(DB::insert_item_item_set())
                 .bind(bind_id(row.id()))
                 .bind(bind_id(*item_set_id))
-                .execute(&mut *tx)
+                .execute(&mut *conn)
                 .await?;
         }
         for content in &new.values {
-            insert_value(&mut tx, &content.on(row.resource.id)).await?;
+            insert_value(conn, &content.on(row.resource.id)).await?;
         }
-        tx.commit().await?;
         Ok(row)
     }
 
@@ -488,13 +497,22 @@ where
 
     pub async fn create(&self, new: &NewItemSet) -> Result<ItemSetRow, DbError> {
         let mut tx = self.pool.begin().await?;
-        let resource = insert_resource(&mut tx, &new.resource, resource_type::ITEM_SET).await?;
+        let row = Self::insert(&mut tx, new).await?;
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    /// Insert an item set on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert(
+        conn: &mut DB::Connection,
+        new: &NewItemSet,
+    ) -> Result<ItemSetRow, DbError> {
+        let resource = insert_resource(conn, &new.resource, resource_type::ITEM_SET).await?;
         sqlx::query("INSERT INTO item_set (id, is_open) VALUES (?, ?)")
             .bind(bind_id(resource.id))
             .bind(new.is_open)
-            .execute(&mut *tx)
+            .execute(&mut *conn)
             .await?;
-        tx.commit().await?;
         Ok(ItemSetRow {
             resource,
             is_open: new.is_open,

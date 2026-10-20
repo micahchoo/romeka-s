@@ -39,6 +39,15 @@ where
     }
 
     pub async fn create(&self, new: &NewTemplate) -> Result<TemplateRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert(&mut conn, new).await
+    }
+
+    /// Insert a template on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert(
+        conn: &mut DB::Connection,
+        new: &NewTemplate,
+    ) -> Result<TemplateRow, DbError> {
         let query = sqlx::query(
             "INSERT INTO resource_template
                  (owner_id, resource_class_id, title_property_id, description_property_id, label)
@@ -49,7 +58,7 @@ where
         .bind(bind_opt_id(new.title_property_id))
         .bind(bind_opt_id(new.description_property_id))
         .bind(&new.label);
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, &mut *conn).await?;
         Ok(TemplateRow {
             id: TemplateId::from(id),
             owner_id: new.owner_id,
@@ -122,6 +131,15 @@ where
         &self,
         new: &NewTemplateProperty,
     ) -> Result<TemplatePropertyRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert_property(&mut conn, new).await
+    }
+
+    /// [`Self::add_property`] on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert_property(
+        conn: &mut DB::Connection,
+        new: &NewTemplateProperty,
+    ) -> Result<TemplatePropertyRow, DbError> {
         let query = sqlx::query(
             "INSERT INTO resource_template_property
                  (resource_template_id, property_id, alternate_label, alternate_comment, position,
@@ -137,7 +155,7 @@ where
         .bind(new.is_required)
         .bind(new.is_private)
         .bind(&new.default_lang);
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, &mut *conn).await?;
         Ok(TemplatePropertyRow {
             id: TemplatePropertyId::from(id),
             resource_template_id: new.resource_template_id,

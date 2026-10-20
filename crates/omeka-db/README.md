@@ -84,6 +84,15 @@ and settings in one transaction, the way upstream's one flush stores them, so a 
 no partial site. The first page's id exists only inside that transaction, so a navigation that
 links the page is passed as a function of its id.
 
+`ImportRepo` and `ImportResourceRepo` carry the archive importer's state (`0005_archive_import.sql`).
+`ImportResourceRepo::record` takes the caller's executor, so a run records a created target inside
+the transaction that created it. `ImportRepo::start_run` and `start_undo` are each one serialized
+transaction (`BEGIN IMMEDIATE` on SQLite, `FOR UPDATE` on every import row on MySQL): they record
+dead imports first, refuse while another import is live, and `start_run` moves the one open undo
+window. An import is dead when it claims to run but its job row has ended or its heartbeat (summary
+member `heartbeat`, else the job's start) is older than two minutes; `settle_dead` records it
+failed and its job `error` (`src/repos/import_lifecycle.rs`).
+
 ### Ordering text
 
 `repos::compare_text_ci` and `repos::compare_opt_text_ci` are the one rule a caller applies to order

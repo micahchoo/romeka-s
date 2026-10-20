@@ -247,7 +247,7 @@ const TABLES: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Romeka's own tables (`0003_publication.sql`). Upstream never reads them, so they sit apart from
+/// Romeka's own tables (`0003_publication.sql`, `0005_archive_import.sql`). Upstream never reads them, so they sit apart from
 /// [`TABLES`] and the upstream tables stay exactly upstream's.
 const ROMEKA_TABLES: &[(&str, &[&str])] = &[
     (
@@ -264,6 +264,17 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
     (
         "romeka_publication_version",
         &["id", "publication_id", "version", "created", "snapshot"],
+    ),
+    (
+        "romeka_import",
+        &[
+            "id", "owner_id", "folder", "plan", "status", "undoable", "job_id", "summary",
+            "created", "finished",
+        ],
+    ),
+    (
+        "romeka_import_resource",
+        &["import_id", "kind", "target_id"],
     ),
 ];
 
