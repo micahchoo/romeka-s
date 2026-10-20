@@ -132,6 +132,53 @@ fn broadcast_is_refused() {
     assert_refused("255.255.255.255", RefusedRange::Broadcast);
 }
 
+#[test]
+fn nat64_is_refused_when_the_embedded_ipv4_is() {
+    // RFC 6052 well-known prefix: the IPv4 address sits in the last 32 bits.
+    assert_refused("64:ff9b::7f00:1", RefusedRange::Loopback);
+    assert_refused("64:ff9b::a9fe:a9fe", RefusedRange::LinkLocal);
+    assert_refused("64:ff9b::a00:1", RefusedRange::Private);
+    // RFC 8215 local-use prefix: an operator picks the layout, so either
+    // reading of the address (last 32 bits, or the RFC 6052 /48 layout that
+    // skips bits 64..72) that lands in a refused range refuses the whole.
+    assert_refused("64:ff9b:1:808:8:800:a00:1", RefusedRange::Private);
+    assert_refused("64:ff9b:1:a00:0:100:808:808", RefusedRange::Private);
+    assert_refused("64:ff9b:1:7f00:0:100:808:808", RefusedRange::Loopback);
+}
+
+#[test]
+fn six_to_four_is_refused_when_the_embedded_ipv4_is() {
+    assert_refused("2002:7f00:1::1", RefusedRange::Loopback);
+    assert_refused("2002:a9fe:a9fe::", RefusedRange::LinkLocal);
+    assert_refused("2002:c0a8:101::5", RefusedRange::Private);
+    assert_refused("2002:6440:1::", RefusedRange::SharedAddressSpace);
+}
+
+#[test]
+fn ipv6_site_local_is_refused() {
+    assert_refused("fec0::1", RefusedRange::SiteLocal);
+    assert_refused("feff::1", RefusedRange::SiteLocal);
+}
+
+#[test]
+fn ietf_protocol_assignments_are_refused() {
+    assert_refused("192.0.0.1", RefusedRange::ProtocolAssignment);
+    assert_refused("192.0.0.255", RefusedRange::ProtocolAssignment);
+}
+
+#[test]
+fn benchmarking_range_is_refused() {
+    assert_refused("198.18.0.1", RefusedRange::Benchmarking);
+    assert_refused("198.19.255.255", RefusedRange::Benchmarking);
+}
+
+#[test]
+fn reserved_class_e_is_refused() {
+    assert_refused("240.0.0.1", RefusedRange::Reserved);
+    assert_refused("254.1.2.3", RefusedRange::Reserved);
+    assert_refused("255.255.255.254", RefusedRange::Reserved);
+}
+
 /// The neighbours of each refused range stay fetchable.
 #[test]
 fn public_addresses_fall_in_no_refused_range() {
@@ -145,6 +192,17 @@ fn public_addresses_fall_in_no_refused_range() {
         "192.169.0.1",
         "::ffff:8.8.8.8",
         "2606:4700:4700::1111",
+        "1.0.0.0",
+        "192.0.1.1",
+        "198.17.255.255",
+        "198.20.0.1",
+        "223.255.255.255",
+        "fe7f::1",
+        "2002:808:808::1",
+        "2003::1",
+        "64:ff9b::808:808",
+        "64:ff9b:1:808:8:800:808:808",
+        "64:ff9b:2::a00:1",
     ] {
         assert_eq!(refused_range(address.parse().unwrap()), None, "{address}");
     }
@@ -298,4 +356,97 @@ fn the_connection_goes_to_the_resolved_address() {
         "one lookup, and ureq made none of its own"
     );
     assert_eq!(hits.load(Ordering::SeqCst), 1);
+}
+
+/// A loopback server that runs `script` on the first connection it accepts,
+/// after reading the request.
+fn scripted_server(script: fn(std::net::TcpStream)) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut request = [0u8; 2048];
+            let _ = stream.read(&mut request);
+            script(stream);
+        }
+    });
+    format!("http://localhost.test:{port}/")
+}
+
+fn loopback_client() -> HttpClient {
+    HttpClient::new()
+        .with_resolver(Stub::answering("localhost.test", &["127.0.0.1"]))
+        .with_address_policy(AddressPolicy::AllowPrivate)
+}
+
+/// The deadline is idle time, not total time: a body that keeps arriving
+/// outlasts the idle timeout.
+#[test]
+fn a_slow_body_that_keeps_arriving_is_not_timed_out() {
+    let url = scripted_server(|mut stream| {
+        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\n");
+        for byte in b"slowbody" {
+            let _ = stream.write_all(&[*byte]);
+            let _ = stream.flush();
+            thread::sleep(std::time::Duration::from_millis(150));
+        }
+    });
+    let response = loopback_client()
+        .with_idle_timeout(std::time::Duration::from_millis(500))
+        .fetch(&url)
+        .expect("progress keeps the fetch alive");
+    assert_eq!(response.body, b"slowbody");
+}
+
+/// A body that stalls halfway ends the fetch at the idle timeout, long before
+/// the overall cap.
+#[test]
+fn a_body_that_stalls_times_out_at_the_idle_timeout() {
+    let url = scripted_server(|mut stream| {
+        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nhalf");
+        let _ = stream.flush();
+        thread::sleep(std::time::Duration::from_secs(10));
+    });
+    let started = std::time::Instant::now();
+    let error = loopback_client()
+        .with_idle_timeout(std::time::Duration::from_millis(300))
+        .fetch(&url)
+        .expect_err("stalled");
+    assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(3));
+}
+
+/// A server that accepts and never answers is the same stall, before the
+/// first header byte.
+#[test]
+fn a_server_that_never_answers_times_out_at_the_idle_timeout() {
+    let url = scripted_server(|_stream| thread::sleep(std::time::Duration::from_secs(10)));
+    let started = std::time::Instant::now();
+    let error = loopback_client()
+        .with_idle_timeout(std::time::Duration::from_millis(300))
+        .fetch(&url)
+        .expect_err("stalled");
+    assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(3));
+}
+
+/// The overall cap ends a fetch that keeps making progress.
+#[test]
+fn the_overall_cap_ends_a_fetch_that_keeps_arriving() {
+    let url = scripted_server(|mut stream| {
+        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 40\r\n\r\n");
+        for _ in 0..40 {
+            if stream.write_all(b"x").is_err() {
+                return;
+            }
+            let _ = stream.flush();
+            thread::sleep(std::time::Duration::from_millis(100));
+        }
+    });
+    let error = loopback_client()
+        .with_idle_timeout(std::time::Duration::from_millis(500))
+        .with_timeout(std::time::Duration::from_millis(600))
+        .fetch(&url)
+        .expect_err("over the cap");
+    assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
 }

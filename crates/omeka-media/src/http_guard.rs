@@ -25,6 +25,9 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use ureq::unversioned::resolver::{ResolvedSocketAddrs, Resolver};
+use ureq::unversioned::transport::NextTimeout;
+
 use crate::http::{FetchError, FetchErrorKind};
 
 /// Turns a host name into the addresses a fetch may connect to.
@@ -87,6 +90,15 @@ pub enum RefusedRange {
     Multicast,
     /// `255.255.255.255`.
     Broadcast,
+    /// The deprecated IPv6 site-local range `fec0::/10` (RFC 3879), which
+    /// some networks still route internally.
+    SiteLocal,
+    /// The IETF protocol assignments `192.0.0.0/24` (RFC 6890).
+    ProtocolAssignment,
+    /// The benchmarking range `198.18.0.0/15` (RFC 2544).
+    Benchmarking,
+    /// The reserved class E range `240.0.0.0/4`, `255.255.255.255` apart.
+    Reserved,
 }
 
 impl fmt::Display for RefusedRange {
@@ -100,13 +112,19 @@ impl fmt::Display for RefusedRange {
             Self::Unspecified => "unspecified",
             Self::Multicast => "multicast",
             Self::Broadcast => "broadcast",
+            Self::SiteLocal => "site-local",
+            Self::ProtocolAssignment => "protocol assignment",
+            Self::Benchmarking => "benchmarking",
+            Self::Reserved => "reserved",
         })
     }
 }
 
 /// The refused range `ip` falls in, or `None` for an address a fetch may
 /// reach. An IPv4-mapped (`::ffff:a.b.c.d`) or IPv4-compatible (`::a.b.c.d`)
-/// address is judged as the IPv4 address it carries.
+/// address is judged as the IPv4 address it carries, and so is a NAT64 or
+/// 6to4 address: a translator or relay would connect to the embedded IPv4
+/// host, so the embedded address decides.
 #[must_use]
 pub fn refused_range(ip: IpAddr) -> Option<RefusedRange> {
     match ip {
@@ -116,7 +134,7 @@ pub fn refused_range(ip: IpAddr) -> Option<RefusedRange> {
 }
 
 fn refused_v4(ip: Ipv4Addr) -> Option<RefusedRange> {
-    let [a, b, ..] = ip.octets();
+    let [a, b, c, _] = ip.octets();
     if ip.is_loopback() {
         Some(RefusedRange::Loopback)
     } else if ip.is_link_local() {
@@ -131,6 +149,12 @@ fn refused_v4(ip: Ipv4Addr) -> Option<RefusedRange> {
         Some(RefusedRange::Multicast)
     } else if ip.is_broadcast() {
         Some(RefusedRange::Broadcast)
+    } else if [a, b, c] == [192, 0, 0] {
+        Some(RefusedRange::ProtocolAssignment)
+    } else if a == 198 && (b & 0b1111_1110) == 18 {
+        Some(RefusedRange::Benchmarking)
+    } else if a >= 240 {
+        Some(RefusedRange::Reserved)
     } else {
         None
     }
@@ -146,14 +170,40 @@ fn refused_v6(ip: Ipv6Addr) -> Option<RefusedRange> {
         // `to_ipv4` reads both the mapped and the compatible form; `::1` and
         // `::` are judged above, before it would read them as `0.0.0.x`.
         refused_v4(v4)
+    } else if let Some(range) = embedded_v4(ip) {
+        Some(range)
     } else if (first & 0xffc0) == 0xfe80 {
         Some(RefusedRange::LinkLocal)
+    } else if (first & 0xffc0) == 0xfec0 {
+        Some(RefusedRange::SiteLocal)
     } else if (first & 0xfe00) == 0xfc00 {
         Some(RefusedRange::UniqueLocal)
     } else if ip.is_multicast() {
         Some(RefusedRange::Multicast)
     } else {
         None
+    }
+}
+
+/// The refused range of the IPv4 address a NAT64 (`64:ff9b::/96`,
+/// `64:ff9b:1::/48`) or 6to4 (`2002::/16`) address carries, or `None` for an
+/// address of neither kind or one whose embedded address is public.
+fn embedded_v4(ip: Ipv6Addr) -> Option<RefusedRange> {
+    let segments = ip.segments();
+    let octets = ip.octets();
+    match segments[..2] {
+        [0x2002, _] => refused_v4(Ipv4Addr::new(octets[2], octets[3], octets[4], octets[5])),
+        [0x0064, 0xff9b] if segments[2..6] == [0, 0, 0, 0] => refused_v4(Ipv4Addr::new(
+            octets[12], octets[13], octets[14], octets[15],
+        )),
+        // RFC 8215 leaves the layout under the local-use prefix to the
+        // operator. A fetch is refused when either layout, the last 32 bits or
+        // the RFC 6052 /48 layout (which skips bits 64..72), reads as refused.
+        [0x0064, 0xff9b] if segments[2] == 1 => refused_v4(Ipv4Addr::new(
+            octets[12], octets[13], octets[14], octets[15],
+        ))
+        .or_else(|| refused_v4(Ipv4Addr::new(octets[6], octets[7], octets[9], octets[10]))),
+        _ => None,
     }
 }
 
@@ -306,4 +356,30 @@ fn redacted(url: &url::Url) -> url::Url {
     let _ = shown.set_username("");
     let _ = shown.set_password(None);
     shown
+}
+
+/// A ureq resolver that answers the addresses the guard admitted, whatever
+/// the URI, so ureq never looks a name up on its own.
+#[derive(Debug)]
+pub(crate) struct Pinned(pub(crate) Vec<SocketAddr>);
+
+impl Resolver for Pinned {
+    fn resolve(
+        &self,
+        _uri: &ureq::http::Uri,
+        _config: &ureq::config::Config,
+        _timeout: NextTimeout,
+    ) -> Result<ResolvedSocketAddrs, ureq::Error> {
+        let mut addresses = self.empty();
+        // ureq keeps at most 16 addresses; the rest were checked and are dropped.
+        for address in &self.0 {
+            if addresses.try_push(*address).is_err() {
+                break;
+            }
+        }
+        if addresses.is_empty() {
+            return Err(ureq::Error::HostNotFound);
+        }
+        Ok(addresses)
+    }
 }

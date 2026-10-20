@@ -17,6 +17,8 @@ pub struct HttpResponse {
     pub reason: String,
     /// The response body.
     pub body: Vec<u8>,
+    /// The `Content-Type` header, when the response carried one.
+    pub content_type: Option<String>,
 }
 
 impl HttpResponse {
@@ -27,6 +29,7 @@ impl HttpResponse {
             status: 200,
             reason: "OK".to_string(),
             body: body.into(),
+            content_type: None,
         }
     }
 
@@ -37,6 +40,7 @@ impl HttpResponse {
             status,
             reason: reason.into(),
             body: body.into(),
+            content_type: None,
         }
     }
 

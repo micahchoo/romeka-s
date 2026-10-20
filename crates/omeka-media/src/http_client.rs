@@ -16,9 +16,13 @@
 //! - **Blocking, because the trait is.** [`HttpFetch`] is a synchronous method
 //!   and every ingester is synchronous, so the client is blocking too. A caller
 //!   inside a Tokio worker should run an ingest on `spawn_blocking`.
-//! - **One deadline for the whole fetch.** Lookups, connections, redirects and
-//!   the body share [`DEFAULT_TIMEOUT`], the contract's 60 seconds. Upstream
-//!   sets no explicit timeout, so Laminas' Socket adapter default applies.
+//! - **An idle timeout and an overall cap.** A fetch gives up after
+//!   [`DEFAULT_IDLE_TIMEOUT`] (60 seconds) to connect, to answer, and between
+//!   two chunks of the body, so a slow but live download of a large file
+//!   finishes. [`DEFAULT_TIMEOUT`] (one hour) caps the whole fetch, redirects
+//!   included. Upstream sets no explicit timeout, so Laminas' Socket adapter
+//!   default applies. ureq's own timeouts are all totals, so the body is read
+//!   on a thread and the idle clock runs on the caller's side of a channel.
 //! - **A response size cap.** Upstream has none: `File/Downloader.php` streams
 //!   into a temporary file. The port hands the body back as one `Vec<u8>`, so it
 //!   caps the body at [`DEFAULT_MAX_BYTES`], the contract's
@@ -32,19 +36,28 @@
 //!   (`File/Downloader.php:61`). The trait puts retries on the caller, and no
 //!   caller retries yet.
 
+use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::thread;
 use std::time::{Duration, Instant};
 
-use ureq::unversioned::resolver::{ResolvedSocketAddrs, Resolver};
-use ureq::unversioned::transport::{DefaultConnector, NextTimeout};
+use ureq::unversioned::transport::DefaultConnector;
 
 use crate::http::{FetchError, FetchErrorKind, HttpFetch, HttpResponse};
-use crate::http_guard::{AddressPolicy, Resolve, UrlGuard};
+use crate::http_guard::{AddressPolicy, Pinned, Resolve, UrlGuard};
 
-/// The deadline for one fetch, every redirect and the whole body included:
-/// docs/import-v2.md "URL sources", "time at 60 s".
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
+/// How long a fetch waits for a connection, for the response, and between two
+/// chunks of the body before it gives up.
+pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// The cap on one fetch, every redirect and the whole body included. A fetch
+/// that keeps making progress still ends here.
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
+/// The size of one read from the response body.
+const CHUNK_BYTES: usize = 64 * 1024;
 
 /// The default cap on a response body: 2 GiB, the default of
 /// `import_upload_max_file` (docs/import-v2.md "Staging"). The setting does
@@ -68,7 +81,9 @@ const USER_AGENT: &str = concat!("romeka-s/", env!("CARGO_PKG_VERSION"));
 #[derive(Debug, Clone)]
 pub struct HttpClient {
     timeout: Duration,
+    idle_timeout: Duration,
     max_bytes: usize,
+    accept: Option<String>,
     guard: UrlGuard,
 }
 
@@ -79,13 +94,16 @@ impl Default for HttpClient {
 }
 
 impl HttpClient {
-    /// A client with [`DEFAULT_TIMEOUT`], [`DEFAULT_MAX_BYTES`], the system
-    /// resolver and [`AddressPolicy::PublicOnly`].
+    /// A client with [`DEFAULT_IDLE_TIMEOUT`], [`DEFAULT_TIMEOUT`],
+    /// [`DEFAULT_MAX_BYTES`], the system resolver and
+    /// [`AddressPolicy::PublicOnly`].
     #[must_use]
     pub fn new() -> Self {
         Self {
             timeout: DEFAULT_TIMEOUT,
+            idle_timeout: DEFAULT_IDLE_TIMEOUT,
             max_bytes: DEFAULT_MAX_BYTES,
+            accept: None,
             guard: UrlGuard::default(),
         }
     }
@@ -105,10 +123,24 @@ impl HttpClient {
         self
     }
 
-    /// Replace the deadline for one fetch.
+    /// Replace the cap on one fetch, redirects and body included.
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
+        self
+    }
+
+    /// Replace the time a fetch waits without progress.
+    #[must_use]
+    pub fn with_idle_timeout(mut self, idle_timeout: Duration) -> Self {
+        self.idle_timeout = idle_timeout;
+        self
+    }
+
+    /// Send `Accept: accept` on every request.
+    #[must_use]
+    pub fn with_accept(mut self, accept: impl Into<String>) -> Self {
+        self.accept = Some(accept.into());
         self
     }
 
@@ -119,10 +151,16 @@ impl HttpClient {
         self
     }
 
-    /// The deadline for one fetch.
+    /// The cap on one fetch.
     #[must_use]
     pub fn timeout(&self) -> Duration {
         self.timeout
+    }
+
+    /// The time a fetch waits without progress.
+    #[must_use]
+    pub fn idle_timeout(&self) -> Duration {
+        self.idle_timeout
     }
 
     /// The response body cap.
@@ -131,13 +169,14 @@ impl HttpClient {
         self.max_bytes
     }
 
-    /// Build an agent for one hop: it connects only to `addresses` and gives
-    /// up at `remaining`.
+    /// Build an agent for one hop: it connects only to `addresses`, waits at
+    /// most `idle` to connect and for the response head, and gives up at
+    /// `remaining`.
     ///
     /// One agent per hop costs a connection pool per call, which is nothing
     /// next to one ingest's one or two requests, and pins each agent to the
     /// addresses its own hop was admitted with.
-    fn agent(addresses: Vec<SocketAddr>, remaining: Duration) -> ureq::Agent {
+    fn agent(addresses: Vec<SocketAddr>, remaining: Duration, idle: Duration) -> ureq::Agent {
         let config = ureq::config::Config::builder()
             // A 3xx must reach the caller as a response, not an error, so the
             // ingesters' `is_ok` check reports it the way the fake does.
@@ -152,6 +191,8 @@ impl HttpClient {
             // streaming download (`File/Downloader.php:57`).
             .accept_encoding("identity")
             .timeout_global(Some(remaining))
+            .timeout_connect(Some(idle))
+            .timeout_recv_response(Some(idle))
             .build();
         ureq::Agent::with_parts(config, DefaultConnector::new(), Pinned(addresses))
     }
@@ -163,9 +204,15 @@ impl HttpClient {
         url: &url::Url,
         deadline: Instant,
     ) -> Result<(HttpResponse, Option<String>), FetchError> {
-        let addresses = self.guard.admit(url, remaining(deadline)?)?;
-        let response = Self::agent(addresses, remaining(deadline)?)
-            .get(url.as_str())
+        let addresses = self
+            .guard
+            .admit(url, remaining(deadline)?.min(self.idle_timeout))?;
+        let agent = Self::agent(addresses, remaining(deadline)?, self.idle_timeout);
+        let mut request = agent.get(url.as_str());
+        if let Some(accept) = &self.accept {
+            request = request.header("Accept", accept);
+        }
+        let response = request
             .call()
             .map_err(|error| map_error(error, self.max_bytes))?;
         let status = response.status().as_u16();
@@ -179,25 +226,76 @@ impl HttpClient {
             .get("location")
             .and_then(|value| value.to_str().ok())
             .map(ToOwned::to_owned);
-        // Read one byte past the cap, so a body of exactly the cap passes and a
-        // body one byte over fails as `TooLarge`.
-        let body = response
-            .into_body()
-            .into_with_config()
-            .limit(self.max_bytes as u64 + 1)
-            .read_to_vec()
-            .map_err(|error| map_error(error, self.max_bytes))?;
-        if body.len() > self.max_bytes {
-            return Err(too_large(self.max_bytes));
-        }
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok())
+            .map(ToOwned::to_owned);
+        let body = self.read_body(response.into_body())?;
         Ok((
             HttpResponse {
                 status,
                 reason,
                 body,
+                content_type,
             },
             location,
         ))
+    }
+}
+
+impl HttpClient {
+    /// Read a body, giving up when no chunk arrives for the idle timeout.
+    ///
+    /// The read runs on a thread because ureq's timeouts are totals. If the
+    /// idle clock fires, the thread is left to end when the agent's overall
+    /// deadline closes its socket; it holds nothing the caller needs.
+    fn read_body(&self, body: ureq::Body) -> Result<Vec<u8>, FetchError> {
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let mut reader = body.into_reader();
+            loop {
+                let mut chunk = vec![0u8; CHUNK_BYTES];
+                match reader.read(&mut chunk) {
+                    Ok(0) => return,
+                    Ok(read) => {
+                        chunk.truncate(read);
+                        if sender.send(Ok(chunk)).is_err() {
+                            return;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = sender.send(Err(error));
+                        return;
+                    }
+                }
+            }
+        });
+        let mut body = Vec::new();
+        loop {
+            match receiver.recv_timeout(self.idle_timeout) {
+                Ok(Ok(chunk)) => {
+                    // A body of exactly the cap passes; one byte over fails.
+                    if body.len() + chunk.len() > self.max_bytes {
+                        return Err(too_large(self.max_bytes));
+                    }
+                    body.extend_from_slice(&chunk);
+                }
+                Ok(Err(error)) => {
+                    return Err(map_error(ureq::Error::from(error), self.max_bytes));
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    return Err(FetchError::with_kind(
+                        FetchErrorKind::Timeout,
+                        format!(
+                            "fetch failed: no data for {} seconds",
+                            self.idle_timeout.as_secs_f64()
+                        ),
+                    ));
+                }
+                Err(RecvTimeoutError::Disconnected) => return Ok(body),
+            }
+        }
     }
 }
 
@@ -211,32 +309,6 @@ fn remaining(deadline: Instant) -> Result<Duration, FetchError> {
         ));
     }
     Ok(left)
-}
-
-/// A ureq resolver that answers the addresses the guard admitted, whatever
-/// the URI, so ureq never looks a name up on its own.
-#[derive(Debug)]
-struct Pinned(Vec<SocketAddr>);
-
-impl Resolver for Pinned {
-    fn resolve(
-        &self,
-        _uri: &ureq::http::Uri,
-        _config: &ureq::config::Config,
-        _timeout: NextTimeout,
-    ) -> Result<ResolvedSocketAddrs, ureq::Error> {
-        let mut addresses = self.empty();
-        // ureq keeps at most 16 addresses; the rest were checked and are dropped.
-        for address in &self.0 {
-            if addresses.try_push(*address).is_err() {
-                break;
-            }
-        }
-        if addresses.is_empty() {
-            return Err(ureq::Error::HostNotFound);
-        }
-        Ok(addresses)
-    }
 }
 
 impl HttpFetch for HttpClient {
