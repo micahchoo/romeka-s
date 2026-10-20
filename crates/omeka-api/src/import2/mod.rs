@@ -41,6 +41,7 @@ pub mod sheet;
 pub mod slots;
 pub mod starters;
 pub mod tags;
+pub mod template;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};

@@ -166,6 +166,7 @@ where
     let derived = derive_import(
         pool,
         env.roots,
+        &env.store,
         env.caches,
         import,
         Arc::new(plan),

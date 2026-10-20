@@ -325,17 +325,42 @@ pub async fn site() -> Site {
 impl Site {
     pub async fn send(&self, method: &str, path: &str, body: Option<Value>) -> Reply {
         let body = body.map(|body| body.to_string()).unwrap_or_default();
+        self.send_raw(method, path, "application/json", body.as_bytes())
+            .await
+    }
+
+    /// Uploads `bytes` as the one file of a multipart form to the import's
+    /// `POST …/sheets`.
+    pub async fn upload_list(&self, id: u64, name: &str, bytes: &[u8]) -> Reply {
+        const BOUNDARY: &str = "romeka-list-boundary";
+        let mut body = format!(
+            "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: text/csv\r\n\r\n"
+        )
+        .into_bytes();
+        body.extend_from_slice(bytes);
+        body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
+        self.send_raw(
+            "POST",
+            &format!("/api/romeka/imports/{id}/sheets"),
+            &format!("multipart/form-data; boundary={BOUNDARY}"),
+            &body,
+        )
+        .await
+    }
+
+    async fn send_raw(&self, method: &str, path: &str, content_type: &str, body: &[u8]) -> Reply {
         let mut request = format!(
-            "{method} {path} HTTP/1.1\r\nHost: localhost\r\nOrigin: {ORIGIN}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",
+            "{method} {path} HTTP/1.1\r\nHost: localhost\r\nOrigin: {ORIGIN}\r\nConnection: close\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\n",
             body.len()
         );
         if !self.cookie.is_empty() {
             request.push_str(&format!("Cookie: {}\r\n", self.cookie));
         }
         request.push_str("\r\n");
-        request.push_str(&body);
+        let mut request = request.into_bytes();
+        request.extend_from_slice(body);
         let mut stream = tokio::net::TcpStream::connect(self.addr).await.unwrap();
-        stream.write_all(request.as_bytes()).await.unwrap();
+        stream.write_all(&request).await.unwrap();
         let mut raw = Vec::new();
         stream.read_to_end(&mut raw).await.unwrap();
         let raw = String::from_utf8_lossy(&raw).into_owned();

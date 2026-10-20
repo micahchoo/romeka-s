@@ -50,7 +50,18 @@ fn files_are_listed_by_path_with_size_time_and_sniffed_type() {
     );
     assert_eq!(walk.entries[2].sniffed, "application/octet-stream");
     assert_eq!(walk.entries[3].sniffed, "text/plain");
-    assert_eq!(walk.anomalies, Anomalies::default());
+    assert_eq!(
+        walk.anomalies.identical[0].paths,
+        ["Artifacts/a.jpg", "Photographs/1950s/b.png"],
+        "both hold the same bytes"
+    );
+    assert_eq!(
+        Anomalies {
+            identical: Vec::new(),
+            ..walk.anomalies.clone()
+        },
+        Anomalies::default()
+    );
 }
 
 #[test]

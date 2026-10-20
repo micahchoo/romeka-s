@@ -450,6 +450,18 @@ messages! {
     const IMPORT_NO_LEFT_FILE = "This import has no list of left-out files yet. It is written when a run ends.";
     /// The job runner refused to start the job.
     fn import_job_not_started(reason) = "The import could not start: {reason}";
+    /// `template.csv?columns=` names a column that is no property, item set, item type or visibility.
+    fn import_list_column_unknown(column) = "The list cannot have the column \"{column}\". Choose a property, the item sets, the item type or the visibility.";
+    /// `POST …/sheets` without exactly one file in the form.
+    const IMPORT_LIST_ONE_FILE = "Send one list file in the form.";
+    /// `POST …/sheets` with a file that is not CSV or TSV.
+    fn import_list_type(name) = "\"{name}\" is not a CSV or TSV file. Save the list as CSV or TSV, then send it again.";
+    /// `POST …/sheets` with a file over 50 MB.
+    const IMPORT_LIST_TOO_LARGE = "The list is larger than 50 MB.";
+    /// `POST …/sheets` with a list the sheet reader refuses.
+    fn import_list_unread(reason) = "The list cannot be read: {reason}";
+    /// `POST …/sheets` with a list whose header has no Identifier column.
+    const IMPORT_LIST_NO_IDENTIFIER = "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.";
     /// A run failure: a file the record names could not be opened or read.
     fn import_file_unreadable(path, reason) = "The file \"{path}\" could not be read: {reason}";
     /// A run failure: the install's file settings refused a file.

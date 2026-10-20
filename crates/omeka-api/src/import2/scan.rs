@@ -31,7 +31,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 use super::archive::ArchiveRoots;
 use super::derive::{Index, IndexedSource};
-use super::evidence::{self, Anomalies, DecodedName, FileEntry, NameEncoding, Walk};
+use super::evidence::{self, Anomalies, DecodedName, FileEntry, Identical, NameEncoding, Walk};
 use super::plan::{ImportPlanV2, PlanError, RelPath, SourceId, SourcePlan};
 
 /// A rescan of an index larger than this runs as a job, not in the request.
@@ -73,9 +73,11 @@ impl StoredIndex {
     }
 }
 
-/// The `anomalies` member of a scan row: what the walk skipped.
+/// The `anomalies` member of a scan row: what the walk skipped. A member a
+/// row stored before it existed reads as empty, so no migration rewrites
+/// old rows.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 struct StoredAnomalies {
     symlinks: u64,
     dot: u64,
@@ -83,6 +85,7 @@ struct StoredAnomalies {
     unreadable: Vec<String>,
     unusable_names: Vec<String>,
     collisions: Vec<String>,
+    identical: Vec<Identical>,
 }
 
 /// The `flags` member of a stored row.
@@ -196,6 +199,7 @@ fn stored_anomalies(anomalies: &Anomalies) -> StoredAnomalies {
         unreadable: anomalies.unreadable.clone(),
         unusable_names: anomalies.unusable_names.clone(),
         collisions: anomalies.collisions.clone(),
+        identical: anomalies.identical.clone(),
     }
 }
 
@@ -268,6 +272,7 @@ pub fn index_of(
             unreadable: found.unreadable,
             unusable_names: found.unusable_names,
             collisions: found.collisions,
+            identical: found.identical,
         };
         states.push(SourceState {
             source: id.clone(),

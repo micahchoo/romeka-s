@@ -56,8 +56,9 @@ chardetng = "1"
 encoding_rs = "0.8"
 # The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
 regex = "1"
-# SHA-256 as a stream: the import model's digest (`import2::model::Model::seal`)
-# and files over 64 MB as they go into the store (`import2/media_in.rs`).
+# SHA-256 as a stream, three uses: the import model's digest
+# (`import2::model::Model::seal`), files over 64 MB as they go into the store
+# (`import2/media_in.rs`), and identical-file hashing (`import2/scan/identical.rs`).
 sha2 = "0.10"
 
 [dev-dependencies]

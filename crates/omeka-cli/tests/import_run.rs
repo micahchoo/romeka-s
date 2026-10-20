@@ -572,3 +572,40 @@ async fn a_hand_run_is_refused_while_the_heartbeat_is_young() {
         .await
         .expect("an ended import refuses nothing");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_writes_the_values_of_an_uploaded_list_from_the_staging_area() {
+    let site = site().await;
+    for name in ["A1.jpg", "A2.jpg", "A3.jpg"] {
+        site.write(name, &jpeg());
+    }
+    let id = site
+        .draft(|plan| {
+            plan["grouping"]["pattern"] = json!(r"^(?<identifier>A\d+)\.jpg$");
+        })
+        .await;
+    let template = site
+        .send(
+            "GET",
+            &format!("/api/romeka/imports/{id}/template.csv?columns=dcterms:title"),
+            None,
+        )
+        .await;
+    assert_eq!(template.status, 200, "{}", template.body);
+    let header = template.body.split("\r\n").next().unwrap().to_string();
+    let list = format!("{header}\r\nA1,,दीपक\r\nA2,,'-5\r\nA3,,Cup\r\n");
+    let uploaded = site.upload_list(id, "list.csv", list.as_bytes()).await;
+    assert_eq!(uploaded.status, 201, "{}", uploaded.body);
+
+    let row = site.run(id).await;
+
+    assert_eq!(row.status, ImportStatus::Done, "{}", summary(&row));
+    let mut titles: Vec<String> = site
+        .items()
+        .await
+        .iter()
+        .map(|item| item.resource.title.clone().unwrap_or_default())
+        .collect();
+    titles.sort();
+    assert_eq!(titles, ["-5", "Cup", "दीपक"]);
+}

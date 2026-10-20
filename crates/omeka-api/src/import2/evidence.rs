@@ -7,6 +7,7 @@
 //! file entries, because a sheet is read as rows, never imported as a file.
 //! The walk holds no database; the evidence index stores what it returns.
 
+mod identical;
 mod names;
 #[cfg(test)]
 mod tests;
@@ -17,6 +18,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+pub use identical::{Identical, PREFIX as IDENTICAL_PREFIX};
 pub use names::NameEncoding;
 
 use super::archive::SourceDir;
@@ -90,6 +92,8 @@ pub struct Anomalies {
     pub unusable_names: Vec<String>,
     /// Files whose path equals an earlier entry's after decoding and NFC.
     pub collisions: Vec<String>,
+    /// Files with the same size and the same SHA-256.
+    pub identical: Vec<Identical>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -225,6 +229,7 @@ pub fn walk(source: &SourceDir) -> std::io::Result<Walk> {
             walk.entries.push(entry);
         }
     }
+    anomalies.identical = identical::identical(source.dir(), &walk.entries);
     walk.anomalies = anomalies;
     Ok(walk)
 }
