@@ -17,6 +17,10 @@ import {
 
 const FRONT = 'Artifacts/BHC_006_AF_001_front.jpg';
 
+const LETTERS = String.raw`[\p{L}\p{M}]+`;
+const DIGITS = String.raw`\p{Nd}+`;
+const EXT = String.raw`[\p{L}\p{M}\p{N}]+`;
+
 /** The prototype's marks: top folder the set, `BHC_006_AF_001` the identifier, `front` the part. */
 const marked: ImportExample = {
   path: FRONT,
@@ -25,9 +29,12 @@ const marked: ImportExample = {
 };
 
 const groupsOf = (example: ImportExample, path: string): Record<string, string> | null => {
-  const match = new RegExp(compileExample(example).pattern).exec(path);
+  const match = new RegExp(compileExample(example).pattern, 'u').exec(path);
   return match === null ? null : { ...match.groups };
 };
+
+const identifierOf = (example: ImportExample, path: string): string | undefined =>
+  groupsOf(example, path)?.identifier;
 
 describe('splitExample', () => {
   it('cuts folders, name parts with their delimiters, and the extension', () => {
@@ -43,7 +50,7 @@ describe('compileExample', () => {
   it('writes one identifier group across delimiters, with the part required', () => {
     const { pattern, shape } = compileExample(marked);
     expect(pattern).toBe(
-      '^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>[A-Z]+_[0-9]{3}_[A-Z]+_[0-9]{3})_(?<part>[a-z]+)\\.(?<ext>[A-Za-z0-9]+)$',
+      String.raw`^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>${LETTERS}_${DIGITS}_${LETTERS}_${DIGITS})_(?<part>${LETTERS})\.(?<ext>${EXT})$`,
     );
     expect(shape).toBe('{set}/…/{identifier}_{part}.{ext}');
     expect(groupsOf(marked, 'Artifacts/BHC_006_AF_002_back.jpg')).toEqual({
@@ -80,7 +87,9 @@ describe('compileExample', () => {
     );
     const { pattern, shape } = compileExample(example);
     expect(shape).toBe('{set}/{identifier}/…/{page}.{ext}');
-    expect(pattern).toBe('^(?<set>[^/]+)/(?<identifier>[^/]+)/(?:[^/]+/)*(?<page>[0-9]{3})\\.(?<ext>[A-Za-z0-9]+)$');
+    expect(pattern).toBe(
+      String.raw`^(?<set>[^/]+)/(?<identifier>[^/]+)/(?:[^/]+/)*(?<page>${DIGITS})\.(?<ext>${EXT})$`,
+    );
     expect(groupsOf(example, 'Letters/BHC_002/017.tif')).toEqual({
       set: 'Letters',
       identifier: 'BHC_002',
@@ -96,14 +105,85 @@ describe('compileExample', () => {
     expect(groupsOf(example, 'Box 4/BHC_009/001.jpg')).toMatchObject({ identifier: 'BHC_009' });
   });
 
-  it('names a second identifier group identifier2, so the pattern compiles', () => {
-    const example = withLabel(
-      withLabel({ path: 'Letters/BHC_001/BHC_001_p1.tif', labels: {}, optional: [] }, 'd1', 'identifier'),
-      'n0',
-      'identifier',
+  it('joins two marked folders into one identifier, so two objects stay two items', () => {
+    const example: ImportExample = {
+      path: 'Box 4/Folder 12/0001.tif',
+      labels: { d0: 'identifier', d1: 'identifier', n0: 'page' },
+      optional: [],
+    };
+    const { pattern, shape } = compileExample(example);
+    expect(pattern.match(/\(\?<identifier>/g)).toHaveLength(1);
+    expect(pattern).not.toContain('identifier2');
+    expect(shape).toBe('{identifier}/…/{page}.{ext}');
+    expect(identifierOf(example, 'Box 4/Folder 12/0001.tif')).toBe('Box 4/Folder 12');
+    expect(identifierOf(example, 'Box 4/Folder 13/0001.tif')).toBe('Box 4/Folder 13');
+    expect(identifierOf(example, 'Box 4/Folder 12/0001.tif')).not.toBe(
+      identifierOf(example, 'Box 4/Folder 13/0001.tif'),
     );
-    expect(compileExample(example).pattern).toContain('(?<identifier2>[A-Z]+)');
-    expect(() => new RegExp(compileExample(example).pattern)).not.toThrow();
+  });
+
+  it('joins a marked folder to a marked name part into one identifier', () => {
+    const example: ImportExample = {
+      path: 'Letters/BHC_001/BHC_001_p1.tif',
+      labels: { d1: 'identifier', n0: 'identifier', n2: 'identifier', n4: 'part' },
+      optional: [],
+    };
+    const { pattern } = compileExample(example);
+    expect(pattern.match(/\(\?<identifier>/g)).toHaveLength(1);
+    expect(pattern).not.toContain('identifier2');
+    expect(identifierOf(example, 'Letters/BHC_001/BHC_001_p1.tif')).toBe('BHC_001/BHC_001');
+    expect(identifierOf(example, 'Letters/BHC_002/BHC_002_p1.tif')).toBe('BHC_002/BHC_002');
+  });
+});
+
+describe('every example matches its own path', () => {
+  const paths = [
+    'पत्र_001_आगे.jpg',
+    'José_001.jpg',
+    'Kraków_001.jpg',
+    'LT_௧௨.jpg',
+    'L_7.jpg',
+    'LT_999.tif',
+    '_front.jpg',
+    'BHC_006_AF_001_front.jpg',
+    'IMG_0042.JPG',
+    'Box 3/Folder 12/0001.tif',
+  ] as const;
+
+  it.each(paths)('%s', (path) => {
+    const example = defaultExample(path);
+    const { pattern } = compileExample(example);
+    const match = new RegExp(pattern, 'u').exec(path);
+    expect(match, pattern).not.toBeNull();
+    expect(match?.groups?.identifier).toBeTruthy();
+  });
+});
+
+describe('the regex reads any script and any case', () => {
+  it('takes one or more digits, not the example count', () => {
+    const narrow = defaultExample('L_7.jpg');
+    expect(identifierOf(narrow, 'L_12.jpg')).toBe('L_12');
+    const wide = defaultExample('LT_999.tif');
+    expect(identifierOf(wide, 'LT_1000.tif')).toBe('LT_1000');
+  });
+
+  it('takes digits from any script', () => {
+    const tamil = defaultExample('LT_௧௨.jpg');
+    expect(identifierOf(tamil, 'LT_௧௨.jpg')).toBe('LT_௧௨');
+    expect(identifierOf(tamil, 'LT_123.jpg')).toBe('LT_123');
+  });
+
+  it('matches a letter part whatever its case', () => {
+    const markedLower = { ...marked, path: 'Artifacts/BHC_006_AF_002_back.jpg' };
+    expect(identifierOf(markedLower, 'Artifacts/bhc_006_af_003_BACK.JPG')).toBe('bhc_006_af_003');
+    expect(identifierOf(defaultExample('_front.jpg'), '_Front.jpg')).toBe('Front');
+    expect(identifierOf(defaultExample('José_001.jpg'), 'JOSÉ_001.jpg')).toBe('JOSÉ_001');
+  });
+
+  it('keeps combining marks inside a letter part', () => {
+    const devanagari = defaultExample('पत्र_001_आगे.jpg');
+    expect(identifierOf(devanagari, 'पत्र_002_आगे.jpg')).toBe('पत्र_002_आगे');
+    expect(identifierOf(devanagari, 'पत्र.jpg')).toBeUndefined();
   });
 });
 

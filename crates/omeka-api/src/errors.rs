@@ -131,6 +131,8 @@ pub enum ApiError {
     PermissionDenied { message: String },
     #[error("not found: {message}")]
     NotFound { message: String },
+    #[error("conflict: {message}")]
+    Conflict { message: String },
     #[error("method not allowed")]
     MethodNotAllowed { allow: Vec<Method> },
     #[error("unsupported media type: {message}")]
@@ -174,6 +176,7 @@ impl ApiError {
             Self::BadRequest { .. } => StatusCode::BAD_REQUEST,
             Self::PermissionDenied { .. } => StatusCode::FORBIDDEN,
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
+            Self::Conflict { .. } => StatusCode::CONFLICT,
             Self::MethodNotAllowed { .. } => StatusCode::METHOD_NOT_ALLOWED,
             Self::UnsupportedMediaType { .. } => StatusCode::UNSUPPORTED_MEDIA_TYPE,
             Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
@@ -189,6 +192,7 @@ impl ApiError {
             Self::BadRequest { message }
             | Self::PermissionDenied { message }
             | Self::NotFound { message }
+            | Self::Conflict { message }
             | Self::UnsupportedMediaType { message }
             | Self::Internal { message } => ErrorDocument::general(message.clone()),
             Self::MethodNotAllowed { .. } => ErrorDocument::general(messages::METHOD_NOT_ALLOWED),

@@ -97,6 +97,7 @@ and vocabularies). Errors use the existing error document. Routes live in
 | Route | Answer |
 | --- | --- |
 | `GET /api/romeka/archive?path=` | `{ enabled, path, entries: [{ name, kind: 'dir'\|'file', files? }] }`. `enabled: false` and no entries when `ROMEKA_ARCHIVE_ROOT` is unset. A path that escapes the root is 400. |
+| `GET /api/romeka/starters` | the item type starters, `[{ id: StarterId, nameKey, name, words, classTerm, fields: [{ term, required, label, dataTypes }] }]`, in display order. The one definition: a run creates the template from it (class, title property, each field's `label` as its alternate label and `dataTypes`), and the Item types and Import pages list the same rows. `name` is English and `nameKey` is what a locale translates it by. Answers with the import off. |
 | `GET /api/romeka/imports` | history, newest first: `[{ id, folder, status, undoable, created, finished, summary }]` |
 | `POST /api/romeka/imports` `{ folder }` | a new draft `{ id, folder, status, plan, ... }` with a default plan |
 | `GET /api/romeka/imports/{id}` | the import with its plan |

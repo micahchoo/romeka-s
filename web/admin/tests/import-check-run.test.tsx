@@ -73,6 +73,8 @@ const summary = (server: Server): Record<string, unknown> => ({
   itemSetIds: server.itemSetIds,
   existingSets: ['Photographs'],
   progress: { done: server.done, total: TOTAL },
+  // The undo counts its own targets (items, files, sets...), not the run's items.
+  ...(server.status === 'undoing' ? { undoProgress: { done: 4, total: 11 } } : {}),
 });
 
 const detailOf = (server: Server): Record<string, unknown> => ({
@@ -255,7 +257,7 @@ describe('Run step', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Delete the imported items (3)' }));
 
     await waitFor(() => { expect(requestsFor(fetchMock, `${PATH}/undo`)).toHaveLength(1); });
-    expect(await screen.findByText('Undoing the import. Done: 3 of 3.')).toBeInTheDocument();
+    expect(await screen.findByText('Undoing the import. Done: 4 of 11.')).toBeInTheDocument();
     await tick(POLL_MS);
     expect(
       await screen.findByText(

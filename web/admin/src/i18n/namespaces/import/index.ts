@@ -84,7 +84,7 @@ export const en = {
   'example.pageOptional': 'The page is optional.',
   'example.makeRequired': 'Make it required',
   'example.shape': 'Shape:',
-  'example.shapeNote': 'Digits match the same number of digits, capitals match capitals.',
+  'example.shapeNote': 'Digits match any number of digits, and letters match either case.',
   'example.editRegex': 'Edit as regex',
   'example.use': 'Use as the example',
   'example.noFiles': 'This folder has no files to use as an example.',

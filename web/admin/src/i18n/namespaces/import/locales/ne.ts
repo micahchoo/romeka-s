@@ -84,7 +84,8 @@ export const ne: ImportMessages = {
   'example.pageOptional': 'यो पृष्ठ ऐच्छिक हो।',
   'example.makeRequired': 'यसलाई अनिवार्य बनाउनुहोस्',
   'example.shape': 'आकार:',
-  'example.shapeNote': 'अङ्कहरूले एउटै सङ्ख्याका अङ्कहरू, अक्षरहरूले अक्षरहरू मेल खान्छन्।',
+  'example.shapeNote':
+    'अङ्कहरूले कुनै पनि सङ्ख्यासँग मेल खान्छन्, र अक्षरहरूले जुनसुकै केससँग मेल खान्छन्।',
   'example.editRegex': 'regex को रूपमा सम्पादन गर्नुहोस्',
   'example.use': 'उदाहरणको रूपमा प्रयोग गर्नुहोस्',
   'example.noFiles': 'यस फोल्डरमा उदाहरणको रूपमा प्रयोग गर्नका लागि कुनै फाइलहरू छैनन्।',
