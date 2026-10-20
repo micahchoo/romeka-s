@@ -24,7 +24,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use action::{
     Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
 };
-pub use flags::{FlagKind, FlagPolicy, PolicyDefault};
+pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};
 pub use slots::{

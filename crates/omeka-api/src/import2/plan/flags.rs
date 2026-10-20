@@ -22,6 +22,20 @@ pub enum PolicyDefault {
     ActionUnmatched,
 }
 
+/// What a flag is about: the table's "On" column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FlagOn {
+    Value,
+    Entry,
+    Row,
+    ItemRecord,
+    File,
+    Record,
+    Plan,
+    Sheet,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FlagKind {
@@ -79,6 +93,28 @@ impl FlagKind {
     #[must_use]
     pub fn is_blocking(self) -> bool {
         self.default_policy().is_none()
+    }
+
+    /// What a flag of this kind is about.
+    #[must_use]
+    pub fn on(self) -> FlagOn {
+        match self {
+            Self::EmptyRequired
+            | Self::DateForm
+            | Self::SpaceAtEnds
+            | Self::EncodingSuspect
+            | Self::ManyValues
+            | Self::LinkMissing => FlagOn::Value,
+            Self::NameEncoding => FlagOn::Entry,
+            Self::CellsCount | Self::UnknownKind | Self::DuplicateRow => FlagOn::Row,
+            Self::NoFile => FlagOn::ItemRecord,
+            Self::NotMedia | Self::FormatMismatch => FlagOn::File,
+            Self::Exists | Self::Unmatched | Self::ManyMatches | Self::UnknownType => {
+                FlagOn::Record
+            }
+            Self::UnknownTerm | Self::TemplateMissing | Self::TypeExists => FlagOn::Plan,
+            Self::EncodingUnsupported => FlagOn::Sheet,
+        }
     }
 
     /// The policy a kind has when the plan names none. A blocking kind has
@@ -142,6 +178,19 @@ mod tests {
         ("type-exists", None),
         ("encoding-unsupported", None),
     ];
+
+    /// The table's "On" column, row by row.
+    #[test]
+    fn every_kind_is_on_what_the_table_says() {
+        use FlagOn::{Entry, File, ItemRecord, Plan, Record, Row, Sheet, Value};
+        let on = [
+            Value, Value, Value, Value, Entry, Row, ItemRecord, File, File, Record, Record, Record,
+            Value, Value, Record, Row, Row, Plan, Plan, Plan, Sheet,
+        ];
+        for (kind, on) in FlagKind::ALL.into_iter().zip(on) {
+            assert_eq!(kind.on(), on, "{kind:?}");
+        }
+    }
 
     #[test]
     fn every_kind_has_the_contract_default_and_blocking() {

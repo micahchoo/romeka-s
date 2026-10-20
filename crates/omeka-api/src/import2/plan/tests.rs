@@ -404,3 +404,30 @@ fn edited(edit: impl FnOnce(&mut Value)) -> ImportPlanV2 {
     edit(&mut value);
     parse(&value.to_string())
 }
+
+#[test]
+fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
+    let plan = edited(|plan| {
+        plan["slots"]["item"]["template"]["map"] = json!({ "AF": "Artifact", "PH": "" });
+    });
+    let map = &plan.slots.item[&SlotName::Template].map;
+    assert_eq!(map.get("AF").map(String::as_str), Some("Artifact"));
+    assert_eq!(map.get("PH").map(String::as_str), Some(""));
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(
+        written["slots"]["item"]["template"]["map"],
+        json!({ "AF": "Artifact", "PH": "" }),
+        "the map keeps its order"
+    );
+    assert_eq!(parse(&plan.to_json()), plan);
+    let without = parse(FULL);
+    assert!(without.slots.item[&SlotName::Template].map.is_empty());
+}
+
+#[test]
+fn a_value_map_holds_only_text() {
+    let error = refused(FULL, |plan| {
+        plan["slots"]["item"]["template"]["map"] = json!({ "AF": 3 });
+    });
+    assert!(shape_error(&error).contains("string"), "{error:?}");
+}

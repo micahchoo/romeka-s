@@ -9,15 +9,26 @@
 //! - [`tags`]: file tags and file facts.
 //! - [`sheet`]: the sheet reader.
 //! - [`starters`]: the starter item types `GET /api/romeka/starters` lists.
+//! - [`derive`]: the evidence, the plan and a [`catalog::Catalog`] in, the
+//!   [`model::Model`] out, through [`grouping`], [`join`], [`slots`],
+//!   `matching` and `flags`.
 //!
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
 
 pub mod archive;
+pub mod catalog;
 pub mod decisions;
+pub mod derive;
 pub mod evidence;
+mod flags;
+pub mod grouping;
+pub mod join;
+mod matching;
+pub mod model;
 pub mod plan;
 pub mod sheet;
+pub mod slots;
 pub mod starters;
 pub mod tags;
 pub mod values;
