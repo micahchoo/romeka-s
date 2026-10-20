@@ -318,7 +318,12 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
         "the plan is back to the checked one"
     );
 
-    let empty = fixture.draft().await;
+    // A new draft makes one item per name; with no pattern it makes nothing.
+    let made = fixture.draft().await;
+    let empty = ok(fixture
+        .save(&made, |plan| plan["grouping"]["pattern"] = json!(null))
+        .await)
+    .await;
     ok(fixture.call("POST", &at(&empty["id"], "/scan"), None).await).await;
     let nothing = fixture
         .call(

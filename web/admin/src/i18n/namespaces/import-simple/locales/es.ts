@@ -30,6 +30,8 @@ export const es: ImportSimpleMessages = {
   'guided.found.forget': 'Olvidar lo que marqué',
   'guided.found.typed': 'Cambiaste en el modo avanzado cómo se leen los nombres.',
   'guided.found.seeAdvanced': 'Verlo en el modo avanzado',
+  'guided.found.ungrouped': 'Los archivos aún no se agrupan en elementos, así que no forman ningún elemento. Esto se eligió en el modo avanzado.',
+  'guided.found.byName': 'Hacer un elemento por cada nombre',
   'guided.found.right': '¿Están bien los {count} grupos?',
   'guided.found.rightOne': '¿Está bien el grupo?',
   'guided.found.useSuggested': 'Sí, usar las respuestas sugeridas',

@@ -11,6 +11,13 @@ import type { CapturedRequest, Handler } from './stub';
 
 export const fixture = (name: string): Record<string, unknown> => asRecord(loadFixture(`import/${name}`), []);
 
+/**
+ * A fixture written by hand for a state the wire scene does not reach (a run
+ * with failures, an undo that keeps items). It lives outside `import/`, which
+ * the scene rewrites whole.
+ */
+export const handFixture = (name: string): Record<string, unknown> => asRecord(loadFixture(`import-run/${name}`), []);
+
 export const conflict = (name: string, members: Record<string, unknown> = {}): Response =>
   jsonResponse({ ...fixture(name), ...members }, { status: 409 });
 
@@ -74,7 +81,7 @@ export const runRoutes = (id: number, routes: RunRoutes): Handler => {
     },
     [`${path}/stop`]: routes.stop ?? (() => jsonResponse(fixture('stop.json'), { status: 202 })),
     [`${path}/undo`]: routes.undo ?? (() => jsonResponse(fixture('undo.json'))),
-    [`${path}/undo/preview`]: routes.undoPreview ?? (() => jsonResponse(fixture('undo-preview-kept.json'))),
+    [`${path}/undo/preview`]: routes.undoPreview ?? (() => jsonResponse(handFixture('undo-preview-kept.json'))),
     [`${path}/left.csv`]:
       routes.left ??
       (() => new Response('kind,source,path,record,#reason\nfile,s1,_scratch/notes.txt,,not-media\n', { headers: { 'Content-Type': 'text/csv' } })),

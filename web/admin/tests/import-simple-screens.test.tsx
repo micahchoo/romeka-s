@@ -10,8 +10,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { scenario } from './import-simple-scenarios';
-import { simpleServer } from './import-simple-server';
-import { installFetch } from './stub';
+import { PATH, simpleServer } from './import-simple-server';
+import { loadFixture } from './loadFixture';
+import { installFetch, jsonResponse } from './stub';
 
 const subscribe = (listener: () => void): (() => void) => {
   window.addEventListener('hashchange', listener);
@@ -49,6 +50,34 @@ const opened = async (): Promise<ReturnType<typeof simpleServer>> => {
 
 afterEach(() => {
   window.location.hash = '';
+});
+
+describe('What we found', () => {
+  it('writes nothing on the first visit: the draft already groups by the name alone', async () => {
+    const server = simpleServer(scenario('meera', 9));
+    installFetch(server.handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    expect(await screen.findByText(/^We looked at your/, {}, { timeout: 5000 })).toBeInTheDocument();
+    const patterns = server.saved.map((plan) => asRecord(plan['grouping'], [])['pattern']);
+    expect(patterns.every((pattern) => pattern === asRecord(asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], [])['grouping'], [])['pattern'])).toBe(true);
+  });
+
+  it('says a pattern cleared in Advanced makes no items, and offers one item per name', async () => {
+    const server = simpleServer(scenario('meera', 9));
+    const draft = asRecord(loadFixture('import/import-draft.json'), []);
+    const plan = asRecord(draft['plan'], []);
+    const cleared = { ...draft, plan: { ...plan, grouping: { ...asRecord(plan['grouping'], []), pattern: null } } };
+    installFetch((url, init) =>
+      url.pathname === PATH && init?.method !== 'PUT' && server.saved.length === 0 ? jsonResponse(cleared) : server.handler(url, init),
+    );
+    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    expect(await screen.findByText(/^The files are not put into items yet/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(server.saved).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Make one item per name' }));
+    await waitFor(() => {
+      expect(String(asRecord(last(server.saved)['grouping'], [])['pattern'])).toContain('(?<identifier>');
+    }, { timeout: 3000 });
+  });
 });
 
 describe('Your list', () => {

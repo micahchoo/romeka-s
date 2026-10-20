@@ -615,7 +615,7 @@ All need a signed-in global admin or site admin.
 | --- | --- |
 | `GET /api/romeka/archive?root=&path=` | `{ roots, root, path, entries }` |
 | `GET /api/romeka/imports?page=&perPage=` | history, newest first |
-| `POST /api/romeka/imports` `{ sources } \| { copyFrom }` | a draft with a default plan |
+| `POST /api/romeka/imports` `{ sources } \| { copyFrom }` | a draft with a default plan, which groups by the name alone: `grouping.pattern` is `^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$`, so names equal but for the ending are one item |
 | `GET /api/romeka/imports/{id}` | the import, its plan and revision |
 | `PUT /api/romeka/imports/{id}` `{ plan, revision }` | 409 `stale`, 409 unless draft |
 | `DELETE /api/romeka/imports/{id}` | drafts only, 204 |

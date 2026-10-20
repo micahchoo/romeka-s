@@ -7,7 +7,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ImportPage } from '../src/pages/import/page';
-import { checks, conflict, fixture, pathOf, reported, runRoutes } from './import-run-server';
+import { checks, conflict, fixture, handFixture, pathOf, reported, runRoutes } from './import-run-server';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
 const at = (id: number) => <ImportPage param={String(id)} rest={[String(id), 'simple', 'add']} />;
@@ -31,7 +31,7 @@ describe('a run that ended', () => {
 
   it('done with failures: each failure with its reason, and a retry that sends a fresh digest', async () => {
     const fetchMock = installFetch(
-      runRoutes(6, { reads: [fixture('import-done-failures.json'), fixture('import-running.json')] }),
+      runRoutes(6, { reads: [handFixture('import-done-failures.json'), fixture('import-running.json')] }),
     );
     render(at(6));
     expect(await screen.findByText('1 failed:')).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('undo', () => {
   });
 
   it('says that undoing an item type anyway also takes its values from items outside the import', async () => {
-    const preview = fixture('undo-preview-kept.json');
+    const preview = handFixture('undo-preview-kept.json');
     const type = { kind: 'resourceTemplate', id: 3, reasons: [{ reason: 'inUse', key: 'server.importUndoInUse', detail: 'Items, media, item sets or item types outside this import use this.' }] };
     installFetch(
       runRoutes(6, {

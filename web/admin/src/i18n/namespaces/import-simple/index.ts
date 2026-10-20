@@ -41,6 +41,8 @@ export const en = {
   'guided.found.forget': 'Forget what I marked',
   'guided.found.typed': 'You changed how names are read in Advanced mode.',
   'guided.found.seeAdvanced': 'See it in Advanced',
+  'guided.found.ungrouped': 'The files are not put into items yet, so they make no items. This was chosen in Advanced mode.',
+  'guided.found.byName': 'Make one item per name',
   'guided.found.right': 'Are all {count} groups right?',
   'guided.found.rightOne': 'Is the group right?',
   'guided.found.useSuggested': 'Yes, use the suggested answers',

@@ -5,8 +5,9 @@
  * person shows one example to say more. Then the files chart, the groups of
  * items that share facts, and one answer for every group.
  *
- * A draft starts with no pattern, which makes no item at all, so the first
- * visit sets the pattern the screen states.
+ * A draft starts with the pattern the screen states (the server's default
+ * plan). A pattern cleared in Advanced makes no item at all; the screen says
+ * so and offers that pattern back, and never writes it unasked.
  */
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -107,11 +108,6 @@ export const WhatWeFound = (): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const unset = draft.plan.grouping.pattern === null;
-  useEffect(() => {
-    if (unset && draft.editable) {
-      draft.change((plan) => (plan.grouping.pattern === null ? { ...plan, grouping: { ...plan.grouping, pattern: patternOf([]) } } : plan));
-    }
-  }, [unset, draft]);
   const read = usePreview(['shapes', 'flags'], { shapes: { page: 1, perPage: 1 } });
   const listing = useRef(false);
   const [listError, setListError] = useState<Error | null>(null);
@@ -132,7 +128,26 @@ export const WhatWeFound = (): ReactElement => {
       },
     );
   }, [offer, draft]);
-  if (read.status === 'loading' || unset) {
+  if (unset) {
+    return (
+      <div className="import-note">
+        <p>{t('guided.found.ungrouped')}</p>
+        <p>
+          <button
+            type="button"
+            className="import-primary"
+            disabled={!draft.editable}
+            onClick={() => {
+              draft.change((plan) => ({ ...plan, grouping: { ...plan.grouping, pattern: patternOf([]) } }));
+            }}
+          >
+            {t('guided.found.byName')}
+          </button>
+        </p>
+      </div>
+    );
+  }
+  if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
   if (read.status === 'error') {

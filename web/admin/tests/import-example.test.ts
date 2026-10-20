@@ -24,6 +24,10 @@ const simpleAnswered = (): ImportPlan => {
 };
 
 describe('one example, read by both modes', () => {
+  it('with no mark writes the pattern a new draft starts with on the server', () => {
+    expect(patternOf([])).toBe(draft().grouping.pattern);
+  });
+
   it('Advanced reads the marks Simple wrote', () => {
     const plan = simpleAnswered();
     expect(exampleOf(plan)).toEqual({ path: 'scans/a_front.tif', marks: [PAGE, NUMBER] });
