@@ -114,7 +114,8 @@ pub(super) async fn upload(
             let mut plan = stored_plan(&row)?;
             let files =
                 omeka_api::settings::file_validation(&SettingRepo::new(&state.pool)).await?;
-            let catalog = catalog_load::load(&state.pool, &plan, owners(&actor), files).await?;
+            let catalog =
+                catalog_load::load(&state.pool, row.id, &plan, owners(&actor), files).await?;
 
             let store = state.store.clone();
             let import = row.id;

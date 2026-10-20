@@ -42,12 +42,9 @@ pub mod sheet;
 pub mod slots;
 pub mod starters;
 pub mod tags;
-<<<<<<< HEAD
 pub mod template;
-=======
 pub mod touched;
 pub mod undo;
->>>>>>> import2/p5-undo
 pub mod values;
 
 use serde::{Deserialize, Deserializer};
