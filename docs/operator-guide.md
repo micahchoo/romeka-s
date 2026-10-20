@@ -22,8 +22,9 @@ working example. `web/admin/e2e/harness/proxy.ts` is another one, in Node.
 
 ## Flags, environment and the config file
 
-`romeka serve` takes the address, the base URL and the database. Everything else comes from the
-environment or from a file: the log level, the body cap, the request timeout and the mail settings.
+`romeka serve` takes the address, the base URL, the database and the store. Everything else comes
+from the environment or from a file: the log level, the body cap, the request timeout, the mail
+settings and the archive root.
 Precedence is defaults, then the file, then the environment, then the two flags the command sets
 itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/config.rs)).
 
@@ -33,6 +34,7 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | `--host` | `127.0.0.1` | loopback unless you change it |
 | `--port` | `8080` | |
 | `--base-url` | `http://<host>:<port>` | the prefix of every `@id`, of every `Link`, and the origin a cookie write must match |
+| `--store DIR` | `files` in the working directory | the file store root. The server passes it to every job process it starts |
 
 | Variable | Default | What it sets |
 | --- | --- | --- |
@@ -45,6 +47,7 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT` | none | an SMTP relay. With no host, mail goes to the log |
 | `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS` | none, none, `starttls` | relay credentials and transport security |
 | `ROMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | the envelope sender |
+| `ROMEKA_ARCHIVE_ROOT` | none | the server folder the archive import reads (config file key `archive_root`). Unset or empty, the Import page is off |
 
 Two traps. `--base-url` is not cosmetic: every resource link, every `@id` and the `Link` pagination
 header are built from it, and the write path checks that a state-changing request carrying the
@@ -75,12 +78,38 @@ square/<storage_id>.jpg
   does not migrate it, so serving a path with no schema fails on the first query. Running `install`
   again against an existing database applies anything new and inserts nothing else, which makes it
   the upgrade step too.
-- The server's store root is the constant `files`, resolved against the process working directory,
-  and it is not configurable: `serve` has no store flag. The import commands default their store to
-  `files` beside the database file. Start the server from the directory that holds the database, or
-  pass `--store` to every import, or media rows will exist while their files 404
-  ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs),
+- The server's store root is `--store`, or `files` in the process working directory without it. The
+  import commands default their store to `files` beside the database file. Give `serve` and every
+  import the same `--store`, or media rows will exist while their files 404
+  ([`../crates/omeka-cli/src/commands/serve.rs`](../crates/omeka-cli/src/commands/serve.rs),
   [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
+
+## Jobs and the archive import
+
+With `ROMEKA_ARCHIVE_ROOT` set, the admin's Import page reads folders under that root and imports
+them. The server never writes the archive folder, so it may be mounted read-only. The originals and
+thumbnails go to the store.
+
+An import and its undo each run as a job: a `job` row with class `Romeka\Job\ImportArchive` or
+`Romeka\Job\UndoImport`, run by a child process the server starts and does not wait for:
+
+```
+romeka job run <id> --database <db> --store <store> --base-url <base-url> --archive-root <root>
+```
+
+The child gets the server's own database, store, base URL and archive root, all as absolute paths,
+so it reads and writes what the server serves whatever its working directory. It appends progress to
+the job's log, which the Jobs page and `GET /api/romeka/jobs/{id}/log` show, and exits when the job
+ends. To run a stuck job by hand, use the same command with the same four values.
+
+- One import or undo works at a time. The server checks this in its own process, so run one server
+  per database.
+- A job that ends in an error shows its import as failed. A failed import can still be undone, and
+  the undo converges: it deletes what the run recorded, one item at a time.
+- A killed job process leaves its job `in_progress`, and its import stays busy, so no other import
+  or undo starts. This is a known gap; the job row has to be marked by hand.
+- The last import can be undone until the next import starts. Undo deletes the imported items with
+  their files, and the new item sets, item types and fields that nothing else uses.
 
 ## Backup and restore
 
@@ -159,7 +188,10 @@ says what that means for a compatibility claim.
 | Every authenticated page answers 403 | the key is missing, malformed, unknown, or its owner is inactive. No route answers 401 ([`api.md`](api.md), Errors) |
 | Sign-in appears to succeed and the next write is refused | `--base-url` names a different origin than the browser used, so the write fails the same-origin check |
 | API links point at the wrong host or port | set `--base-url` to the address clients use |
-| Media pages load but their images 404 | the store root is `<working directory>/files`; start the server from the database's directory or import with the same `--store` |
+| Media pages load but their images 404 | `serve --store` and the import's `--store` differ, or the server runs without `--store` from another directory |
+| The admin has no Import page | `ROMEKA_ARCHIVE_ROOT` is unset or empty in the server's environment |
+| An import stays on "Importing" | the job process could not start or died: read the job's log on the Jobs page, then run `romeka job run` by hand as above |
+| The store holds files no row names (after an import that crashed, or an undo) | run `romeka media sweep -d PATH --store DIR` to list them, then add `--delete` to remove them. Files younger than 10 minutes are skipped. See the `romeka-cli` README |
 | The admin application answers 404 for everything | the static origin is not forwarding `/api` to the process |
 | The public site renders without styling | the origin is serving the SPA's `assets` files instead of forwarding `/assets/` to the process |
 | `/ready` answers 503 | the database is unreachable. `/health` still answers 200, because it touches no shared state |

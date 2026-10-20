@@ -76,6 +76,7 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Dashboard | resource counts and the site list |
 | Items | list, create, open one item, edit its values, title, visibility, class, template, owner and item-set membership, delete it |
 | Item sets | list, create, edit, delete |
+| Import | import a folder of files from the server as items, item sets and media, and undo the last import. Shown only when the server has an archive folder; see the next section |
 | Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
 | Users | list, invite, edit role and active flag, mint a password link, delete |
 | Sites and pages | list sites, create one, edit its theme settings, navigation, page blocks and user permissions; edit a page's blocks |
@@ -87,9 +88,65 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | System information | the version from the response header, and the registered API resource names |
 
 Media create is not offered in the application and there is no web upload: `POST /api/media` sets a
-row's fields but stores no file. A file arrives through `romeka import media`, which also writes the
-three thumbnail sizes. Values are not editable in the media form either.
+row's fields but stores no file. A file arrives through `romeka import media` or the Import page,
+which both write the three thumbnail sizes. Values are not editable in the media form either.
 [`../web/admin/README.md`](../web/admin/README.md) has the full route list.
+
+## Import a folder from the server
+
+The Import page, under Content, turns a folder of scans or photographs into items. Each file becomes
+one media with its thumbnails, and files with the same identifier become one item. The page shows
+only when the operator sets `ROMEKA_ARCHIVE_ROOT` on the server
+([`operator-guide.md`](operator-guide.md), Jobs and the archive import). The files stay on the
+server: you choose a folder there, you do not upload anything.
+
+Choose the folder, then **Import <folder>**. This makes a draft. A draft writes nothing until you
+start it, and it saves each change as you make it. The draft has seven steps, as tabs:
+
+| Step | What you do there |
+| --- | --- |
+| 1. Folder | say how a file name becomes an item: mark an example, or write a regex |
+| 2. Item sets | choose which folders become item sets, and their names |
+| 3. Item types | choose an item type for each item set, or make a new one from a starter |
+| 4. Sources | choose a spreadsheet (CSV), check how it is read, and say which column holds the identifier; map tags inside the files (EXIF) to fields |
+| 5. Grid | one row per item: map spreadsheet columns to fields, fix problems, edit cells, skip rows |
+| 6. Check | a dry run with the counts, then **Import items: N** |
+| 7. Run | the progress, the result, and the undo |
+
+**Mark an example.** The Folder step shows one file name cut into parts: `Letters/LT_001_back.jpg`
+shows as `Letters`, `LT`, `001` and `back`. Select a part and say what it is: the identifier, a part (front, back), a page
+number, or the item set (top folder only). Parts you mark as identifier, side by side, make one
+identifier, so `LT` and `001` give the identifier `LT_001`. Romeka S then finds the same shape in
+every other file and counts the matches. If some files have no part, as `PH_101.tif` has none, the
+step says so and offers **Make it optional**. **Edit as regex** shows the regex the marks make, for
+a shape the marks cannot express.
+
+**Problems.** The Grid names each problem in words: a required field that is empty, a date not in
+the form YYYY, YYYY-MM or YYYY-MM-DD, spaces at the ends, text read with the wrong encoding, a
+spreadsheet line with the wrong number of cells, a spreadsheet row that matches no file. Each kind
+has bulk fixes, for example **Fill them** or **Read as Windows-1252**. At the Check step you can
+leave the rows that still have problems out of the import.
+
+**The run.** The import runs as a job, so you can leave the page. The Jobs page shows the job and its
+log while it runs. When it ends, the Run step shows the counts. If rows were left out, **Download the
+left-out rows (CSV)** gives them with a `#reason` column.
+
+**Undo, until the next import.** The last import can be undone until any next import starts. The
+Import page shows a banner while that is possible. Undo asks first, then deletes the imported items
+with their files and thumbnails, and the new item sets, item types and fields that nothing else uses.
+A field or set that something else uses stays, and the report names it. When a new import starts,
+the previous one becomes permanent: its Run step says so, and it has no undo button. This applies to
+all imports, not only yours.
+
+**The left-out rows.** The downloaded CSV holds `dcterms:identifier`, the Grid's fields and the
+`#reason` for each row: `exists`, `skipped`, `problems: ...` or `failed: ...`. To import rows you left
+out, fix them in the folder or the spreadsheet, start a new import of the same folder, and run it. A
+new import skips every row whose identifier an item in the archive already has: the Grid marks such
+a row **Already exists** with a link to the item, and the Check step counts it in **Items that already
+exist and are skipped**. An import never changes an existing item, because undo cannot bring back the
+values it would overwrite; to change an existing item, edit it. `romeka import csv` also accepts the
+file as it is, because it ignores a column whose header starts with `#`. It makes the items without
+their files.
 
 ## Import and export
 
@@ -103,7 +160,8 @@ romeka export csv      -d DB --out items.csv --columns dcterms:title,dcterms:ide
 ```
 
 The CSV header names properties as `prefix:local_name` (`dcterms:title`). Each later row is one item:
-a non-empty cell becomes a literal value, and two columns with the same term become two values. The
+a non-empty cell becomes a literal value, and two columns with the same term become two values. A
+column whose header starts with `#` is a note for people, and the command ignores it. The
 first non-empty `dcterms:title` cell becomes the item's title. A row whose column count differs from
 the header is reported and skipped, and the exit code is 1 when any row failed.
 
@@ -161,9 +219,10 @@ FTS5's, which differs from MySQL's ([`compat.md`](compat.md)).
 ## What is limited, and why
 
 - The settings page does not persist, because the API serves no settings resource.
-- Media files and their thumbnails come from the command line. The API stores no uploaded file
+- Media files and their thumbnails come from the command line or from a server folder through the
+  Import page. There is no web upload: the API stores no uploaded file
   ([`../crates/omeka-api/README.md`](../crates/omeka-api/README.md)).
 - Modules and themes from the wider PHP ecosystem are out: extension here is a Rust registry
   ([`compat.md`](compat.md)).
 - Live external services (oEmbed, YouTube, remote IIIF) are not called.
-- Full translation catalogues are not ported; two locales ship.
+- Full upstream translation catalogues are not ported. The admin ships English, Spanish (hand-written), and seven machine-translated Indic locales: Hindi, Kannada, Malayalam, Marathi, Nepali, Tamil and Telugu.
