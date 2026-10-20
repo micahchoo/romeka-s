@@ -77,7 +77,11 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
   await expect(page).toHaveURL(new RegExp(`#${siteHash}/resources$`));
   const total = page.locator('.site-items-total');
   await expect(total).toHaveText('Items on this site: 0');
-  await expect(page.getByRole('switch', { name: 'Keep this site in sync' })).not.toBeChecked();
+  const sync = page.getByRole('switch', { name: 'Keep this site in sync' });
+  await expect(sync).not.toBeChecked();
+  // With no item set, sync would let every new item join, so it waits for a set.
+  await expect(sync).toBeDisabled();
+  await expect(sync).toHaveAccessibleDescription('Pick an item set to keep this site in sync with it.');
   await expectClean(diagnostics, 'a new site holds no items');
 
   // One item by searching its title.
@@ -106,8 +110,7 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
 
   // Sync: a new item in the set joins; an item made outside it does not, and
   // an edit that puts it in the set does not either.
-  const sync = page.getByRole('switch', { name: 'Keep this site in sync' });
-  await expect(sync).toHaveAccessibleDescription(/item created in one of this site.s item sets joins/);
+  await expect(sync).toHaveAccessibleDescription(/^Off\. Turn it on and an item created in one of this site.s item sets joins/);
   await sync.click();
   await expect(sync).toBeChecked();
   const itemSet = numberField(
@@ -135,6 +138,9 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
   await expect(page.getByText('Replaced. Items on this site: 1.')).toBeVisible();
   await expect(total).toHaveText('Items on this site: 1');
   await expect(page.getByText('This site has no item sets. Pick a whole set above to add one.')).toBeVisible();
+  // The replace left no set, so the same write turned sync off.
+  await expect(sync).not.toBeChecked();
+  await expect(sync).toBeDisabled();
   await expectClean(diagnostics, 'the Items page changes');
 
   // Bulk add from the Items list to a site that holds nothing.

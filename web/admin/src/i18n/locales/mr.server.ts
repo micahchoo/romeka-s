@@ -27,7 +27,7 @@ export const mrServer: ServerCatalogue = {
   'server.invalidContentType':
     'अवैध Content-Type हेडर. "application/json" अपेक्षित आहे, {received} मिळाले.',
   'server.bodyNotObject': 'विनंतीचा मुख्य भाग (body) JSON ऑब्जेक्ट असणे आवश्यक आहे.',
-  'server.siteItemsOneSelector': '"query", "items" किंवा "item_sets" पैकी नेमके एक नाव',
+  'server.siteItemsOneSelector': 'नाव एकतर "query", किंवा "items", "item_sets" किंवा दोन्ही',
   'server.invalidCredentials': 'ईमेल किंवा पासवर्ड अवैध आहे',
   'server.inactiveAccount': 'वापरकर्ता सक्रिय नाही.',
   'server.unknownKey': 'अवैध पासवर्ड निर्मिती की.',

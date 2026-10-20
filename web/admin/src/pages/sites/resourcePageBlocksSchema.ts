@@ -18,7 +18,6 @@ import type { JsonValue, Path } from '../../api/types';
 import type { KeyOf } from '../../i18n';
 import { sites } from '../../i18n/namespaces/sites';
 
-
 /** A message id of the `sites` namespace, the table these keys are read from. */
 type MessageKey = KeyOf<typeof sites>;
 
@@ -52,6 +51,8 @@ export interface ResourcePageBlockSpec {
   readonly name: string;
   /** The catalogue key the editor labels the layout with. */
   readonly labelKey: MessageKey;
+  /** The catalogue key of the one line that says what a reader sees. */
+  readonly helpKey: MessageKey;
 }
 
 /** One resource page: its stored name, its default set and its layouts. */
@@ -78,6 +79,7 @@ const parseBlock = (value: unknown, path: Path): ResourcePageBlockSpec => {
   return {
     name: parseString(value.name, [...path, 'name']),
     labelKey: parseMessageKey(value.labelKey, [...path, 'labelKey']),
+    helpKey: parseMessageKey(value.helpKey, [...path, 'helpKey']),
   };
 };
 

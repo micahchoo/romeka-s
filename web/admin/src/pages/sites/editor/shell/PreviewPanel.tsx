@@ -6,7 +6,7 @@
  * never shifts, and the previous render stays visible until the new one
  * arrives.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { useTranslator } from '../../../../i18n';
 import { DeviceBar } from '../DeviceBar';
@@ -20,9 +20,19 @@ export interface PreviewPanelProps {
   readonly html: string | null;
   readonly status: PreviewStatus;
   readonly message: string | null;
+  /** Extra controls beside the device switch, such as the Theme page's choice of page. */
+  readonly controls?: ReactNode;
+  /** What the empty frame says instead of its label, when there is nothing to render. */
+  readonly empty?: string;
 }
 
-export const PreviewPanel = ({ html, status, message }: PreviewPanelProps): ReactElement => {
+export const PreviewPanel = ({
+  html,
+  status,
+  message,
+  controls,
+  empty,
+}: PreviewPanelProps): ReactElement => {
   const { t } = useTranslator(sites);
   const [device, setDevice] = useState<DeviceWidth>('fit');
   const frameBox = useRef<HTMLDivElement | null>(null);
@@ -32,13 +42,14 @@ export const PreviewPanel = ({ html, status, message }: PreviewPanelProps): Reac
     <section className="editor-preview" role="region" aria-label={t('editor.previewLabel')}>
       <div className="editor-preview-bar">
         <DeviceBar device={device} onChange={setDevice} />
+        {controls}
         <span className="editor-preview-status" role="status">
           {status === 'loading' ? t('editor.previewLoading') : ''}
         </span>
       </div>
       <div className="editor-preview-frame" ref={frameBox}>
         {html === null ? (
-          <p className="editor-preview-empty">{t('editor.previewLabel')}</p>
+          <p className="editor-preview-empty">{empty ?? t('editor.previewLabel')}</p>
         ) : (
           <iframe
             sandbox="allow-same-origin"
