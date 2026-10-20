@@ -99,6 +99,7 @@ flat_catalogue! {
         page_not_found_message, forbidden, pager_count, no_title_recorded, no_media_attached,
         footer_links, all_rights_reserved, search_placeholder, iiif_poster, iiif_view_in_viewer,
         iiif_manifest, no_site_items_preview, no_site_items,
+        map, map_places, map_place_count, map_poster, map_no_places_preview,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

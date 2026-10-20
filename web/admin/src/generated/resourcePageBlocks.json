@@ -28,6 +28,11 @@
           "helpKey": "resourcePageBlock.linkedResourcesHelp"
         },
         {
+          "name": "map",
+          "labelKey": "resourcePageBlock.map",
+          "helpKey": "resourcePageBlock.mapHelp"
+        },
+        {
           "name": "mediaEmbeds",
           "labelKey": "resourcePageBlock.mediaEmbeds",
           "helpKey": "resourcePageBlock.mediaEmbedsHelp"

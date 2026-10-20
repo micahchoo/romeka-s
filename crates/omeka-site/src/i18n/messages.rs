@@ -120,6 +120,17 @@ pub struct Messages {
     pub no_site_items_preview: &'static str,
     /// The same empty browse preview on the public site, with no admin hint.
     pub no_site_items: &'static str,
+    /// A map's accessible name, and the item page's map section label. A
+    /// Romeka addition, as every `map_` message is.
+    pub map: &'static str,
+    /// The disclosure under a map block that lists its places as links.
+    pub map_places: &'static str,
+    /// A marker that stands for several close places, `%s` the count.
+    pub map_place_count: &'static str,
+    /// The editor preview's poster for a map block, `%s` the place count.
+    pub map_poster: &'static str,
+    /// The editor preview's poster for a map block with no places.
+    pub map_no_places_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -175,6 +186,12 @@ pub static EN: Messages = Messages {
     iiif_manifest: "IIIF manifest",
     no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
     no_site_items: "There are no items to show yet.",
+    map: "Map",
+    map_places: "Places on this map",
+    map_place_count: "%s places",
+    map_poster: "A map of %s places. The map itself shows on the public page.",
+    map_no_places_preview: "This map has no places yet. Its items need a \"lat, lng\" value in the \
+                            location field the site settings name.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -238,6 +255,12 @@ pub static ES: Messages = Messages {
     // The admin's words, because only the admin preview shows it.
     no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
     no_site_items: "Todavía no hay fichas que mostrar.",
+    map: "Mapa",
+    map_places: "Lugares de este mapa",
+    map_place_count: "%s lugares",
+    map_poster: "Un mapa de %s lugares. El mapa se muestra en la página pública.",
+    map_no_places_preview: "Este mapa aún no tiene lugares. Sus fichas necesitan un valor \
+                            \"lat, lng\" en el campo de ubicación que indican los ajustes del sitio.",
 };
 
 #[cfg(test)]

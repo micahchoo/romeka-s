@@ -59,6 +59,7 @@ export const SITE_SETTING_GROUPS = [
   'itemPages',
   'language',
   'navigation',
+  'maps',
   'advanced',
 ] as const;
 

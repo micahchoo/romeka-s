@@ -66,4 +66,14 @@ export const te: ResourcesMessages = {
   'items.bulkConfirmAdd': '{site}కు {count}ను జోడించండి',
   'items.bulkDone': '{site}కు ఇప్పుడు {total} అంశాలు ఉన్నాయి.',
   'items.bulkConfirmRemove': '{site} నుండి {count}ను తొలగించండి',
+  'place.legend': 'మ్యాప్‌లో ఉంచండి: {field}',
+  'place.help':
+    'మ్యాప్‌పై క్లిక్ చేయండి, లేదా "lat, lng" అని టైప్ చేయండి. ప్రతి ప్రదేశం {term} విలువగా సేవ్ చేయబడుతుంది, దీనిని సైట్ మ్యాప్‌లు చూపుతాయి.',
+  'place.mapLabel': 'మ్యాప్: ఎంచుకున్న ప్రదేశాన్ని సెట్ చేయడానికి క్లిక్ చేయండి',
+  'place.value': '{number}ను ఉంచండి',
+  'place.remove': '{number}ను తొలగించండి',
+  'place.add': 'ఒక ప్రదేశాన్ని జోడించండి',
+  'place.invalid':
+    '-90 నుండి 90 మధ్య అక్షాంశం, ఒక కామా, మరియు -180 నుండి 180 మధ్య రేఖాంశాన్ని టైప్ చేయండి.',
+  'place.unavailable': 'మ్యాప్ లోడ్ కాలేదు. ప్రదేశాన్ని "lat, lng" రూపంలో టైప్ చేయండి.',
 };

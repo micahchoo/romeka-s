@@ -179,7 +179,8 @@ export const te: SitesMessages = {
   'resourcePage.itemSets': 'ఐటమ్ సెట్లు',
   'resourcePage.media': 'మీడియా',
   'resourcePage.blockList': '{resource} పేజీలలో కనిపిస్తున్న విభాగాలు',
-  'resourcePage.empty': 'ఎటువంటి విభాగాలు కనిపించవు. ఈ పేజీ కేవలం దాని శీర్షికను మాత్రమే చూపుతుంది.',
+  'resourcePage.empty':
+    'ఎటువంటి విభాగాలు కనిపించవు. ఈ పేజీ కేవలం దాని శీర్షికను మాత్రమే చూపుతుంది.',
   'resourcePage.hide': 'దాచండి',
   'resourcePage.hideLabel': '{label} ను దాచండి',
   'resourcePage.hidden': 'దాచిన విభాగాలు',
@@ -459,4 +460,21 @@ export const te: SitesMessages = {
   'siteAccess.settings': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే సైట్ సెట్టింగ్‌లను మార్చగలరు.',
   'siteAccess.delete': 'కేవలం సైట్ యజమాని లేదా అడ్మినిస్ట్రేటర్ మాత్రమే ఈ సైట్‌ను తొలగించగలరు.',
   'itemPicker.itemFallback': 'అంశం {id}',
+  'romeka.map': 'మ్యాప్',
+  'romekaHelp.map': 'ఎంచుకున్న అంశాల స్థానాలు మ్యాప్‌పై, వాటి జాబితా కింద.',
+  'resourcePageBlock.map': 'అంశం యొక్క స్థానం యొక్క మ్యాప్',
+  'resourcePageBlock.mapHelp':
+    'సైట్ యొక్క స్థాన క్షేత్రం నుండి ఒక అంశాన్ని మ్యాప్‌లో ఉంచే ప్రదేశం.',
+  'siteSettingGroup.maps': 'మ్యాప్‌లు',
+  'siteSettingGroup.mapsIntro':
+    'ఒక అంశం యొక్క స్థానం ఎక్కడ నిల్వ చేయబడుతుంది, మరియు ప్రతి మ్యాప్ గీసే నేపథ్యం.',
+  'siteSetting.romekaLocationProperty': 'స్థాన క్షేత్రం',
+  'siteSetting.romekaLocationPropertyHelp':
+    'ఒక అంశం యొక్క "lat, lng" విలువలు ఒక అంశాన్ని మ్యాప్‌లో ఉంచే ప్రాపర్టీ, ఉదాహరణకు స్పేషియల్ కవరేజ్. అంశం ఫారమ్ దీనికి ఒక చిన్న మ్యాప్‌ను అందిస్తుంది.',
+  'siteSetting.romekaMapTiles': 'మ్యాప్ టైల్స్',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} మరియు {y} తో కూడిన టైల్‌ అడ్రస్. డిఫాల్ట్ OpenStreetMap; దీని వినియోగ విధానం క్రెడిట్ లైన్‌ను తప్పనిసరి చేస్తుంది, భారీ వినియోగాన్ని నిషేధిస్తుంది.',
+  'siteSetting.romekaMapAttribution': 'మ్యాప్ క్రెడిట్',
+  'siteSetting.romekaMapAttributionHelp':
+    'టైల్‌ను అందించే సంస్థ కోరే క్రెడిట్ లైన్, ప్రతి మ్యాప్ మూలలో కనిపిస్తుంది.',
 };

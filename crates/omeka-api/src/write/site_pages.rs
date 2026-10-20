@@ -10,16 +10,17 @@
 use omeka_db::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
 use omeka_db::repos::{
     AssetRepo, ItemRepo, MediaRepo, PageVersionRepo, SiteBlockAttachmentRepo, SiteRepo,
+    SiteSettingRepo, ValueRepo,
 };
 use omeka_db::rows::{
-    AssetRow, BlockChange, NewPageAttachment, NewPageBlock, NewSiteBlock, NewSiteBlockAttachment,
-    NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
+    AssetRow, BlockChange, ItemRow, NewPageAttachment, NewPageBlock, NewSiteBlock,
+    NewSiteBlockAttachment, NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
 };
 use serde_json::Value;
 
 use omeka_core::site::{RomkaCarrier, Slug};
-use omeka_site::blocks::romeka::{self, PlainRefs};
-use omeka_site::slug::page_url;
+use omeka_site::blocks::romeka::{self, ItemSelection, PlainItem, PlainRefs};
+use omeka_site::slug::{page_url, resource_show_url};
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -384,8 +385,8 @@ pub async fn carry_block(
     Ok((data, Some(Value::Object(layout_object))))
 }
 
-/// The references a carrier's plain rendering reads: its background asset and
-/// its call-to-action page.
+/// The references a carrier's plain rendering reads: its background asset, its
+/// call-to-action page and the items it selects.
 ///
 /// The asset URL is relative to the origin (`/files/...`) so the stored plain
 /// html keeps working when the page is copied to an upstream installation at
@@ -435,7 +436,87 @@ async fn plain_refs(
             refs = refs.page(id, page_url(&site_slug, &slug));
         }
     }
+    if let Some(selection) = romeka::items(carrier) {
+        for item in plain_items(api, site, &site_slug, selection).await? {
+            refs = refs.item(item);
+        }
+    }
     Ok(refs)
+}
+
+/// The selected items a plain rendering lists, each with its values in the
+/// site's location field.
+///
+/// The plain html is public, so only public items and public values are
+/// listed, whoever saves the page. A site with no location field lists none.
+async fn plain_items(
+    api: &Api<'_>,
+    site: SiteId,
+    site_slug: &Slug,
+    selection: ItemSelection,
+) -> Result<Vec<PlainItem>, ApiError> {
+    let term = SiteSettingRepo::new(api.pool())
+        .get(site, "romeka_location_property")
+        .await
+        .map_err(db_error)?;
+    api.fill_catalog().await?;
+    let Some(property) = term
+        .as_ref()
+        .and_then(Value::as_str)
+        .and_then(|term| api.catalog().property_id(term))
+    else {
+        return Ok(Vec::new());
+    };
+    let rows: Vec<ItemRow> = match selection {
+        ItemSelection::Picked(ids) => {
+            let repo = ItemRepo::new(api.pool());
+            let mut rows = Vec::with_capacity(ids.len());
+            for id in ids {
+                if let Some(row) = repo.get(ItemId(id.get())).await.map_err(db_error)? {
+                    rows.push(row);
+                }
+            }
+            rows
+        }
+        ItemSelection::Query(query) => {
+            let search = ItemSelection::browse_query(
+                &query,
+                omeka_core::ids::SiteId::new(site.0),
+                omeka_site::map::MAX_PLACES,
+            );
+            let params = crate::read::params::Params::from_decoded(search.query);
+            crate::read::query_rows(api, &params).await?
+        }
+    };
+    let values = ValueRepo::new(api.pool());
+    let mut items = Vec::new();
+    for row in rows
+        .iter()
+        .filter(|row| row.resource.is_public)
+        .take(omeka_site::map::MAX_PLACES)
+    {
+        let places: Vec<String> = values
+            .list_for_resource(row.resource.id)
+            .await
+            .map_err(db_error)?
+            .into_iter()
+            .filter(|value| value.is_public && value.property_id == property)
+            .filter_map(|value| value.value)
+            .collect();
+        if places.is_empty() {
+            continue;
+        }
+        items.push(PlainItem {
+            title: row
+                .resource
+                .title
+                .clone()
+                .unwrap_or_else(|| omeka_site::i18n::EN.untitled.to_string()),
+            url: resource_show_url(site_slug, "item", row.id().0),
+            places,
+        });
+    }
+    Ok(items)
 }
 
 /// `File\Store\Local::getUri`'s storage path for an asset: `asset/<name>` with

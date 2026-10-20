@@ -464,4 +464,20 @@ export const ml: SitesMessages = {
   'siteAccess.delete':
     'സൈറ്റ് ഉടമയ്ക്കോ അഡ്മിനിസ്ട്രേറ്റർക്കോ മാത്രമേ ഈ സൈറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയൂ.',
   'itemPicker.itemFallback': 'ഇനം {id}',
+  'romeka.map': 'മാപ്പ്',
+  'romekaHelp.map': 'തിരഞ്ഞെടുത്ത ഇനങ്ങളുടെ മാപ്പ്, അതിന് താഴെ നൽകിയിരിക്കുന്ന സ്ഥലങ്ങൾ.',
+  'resourcePageBlock.map': 'ഇനത്തിന്റെ സ്ഥലത്തിന്റെ മാപ്പ്',
+  'resourcePageBlock.mapHelp': 'സൈറ്റിന്റെ ലൊക്കേഷൻ ഫീൽഡിൽ നിന്നുള്ള ഒരു ഇനത്തിന്റെ സ്ഥലം.',
+  'siteSettingGroup.maps': 'മാപ്പുകൾ',
+  'siteSettingGroup.mapsIntro':
+    'ഒരു ഇനത്തിന്റെ സ്ഥലം എവിടെയാണ് സൂക്ഷിച്ചിരിക്കുന്നത്, ഓരോ മാപ്പും വരയ്ക്കുന്ന പശ്ചാത്തലം.',
+  'siteSetting.romekaLocationProperty': 'ലൊക്കേഷൻ ഫീൽഡ്',
+  'siteSetting.romekaLocationPropertyHelp':
+    '"lat, lng" മൂല്യങ്ങളുള്ള പ്രോപ്പർട്ടി, ഒരു മാപ്പിൽ ഒരു ഇനത്തെ സ്ഥാപിക്കുന്നു, ഉദാഹരണത്തിന് സ്പേഷ്യൽ കവറേജ്. ഇനം ഫോം ഇതിനായി ഒരു ചെറിയ മാപ്പ് നൽകുന്നു.',
+  'siteSetting.romekaMapTiles': 'മാപ്പ് ടൈലുകൾ',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x}, {y} എന്നിവയുള്ള ഒരു ടൈൽ വിലാസം. ഡിഫോൾട്ട് OpenStreetMap ആണ്, ഇതിന്റെ ഉപയോഗ നയം ക്രെഡിറ്റ് ലൈൻ ആവശ്യപ്പെടുകയും കനത്ത ഉപയോഗം നിരോധിക്കുകയും ചെയ്യുന്നു.',
+  'siteSetting.romekaMapAttribution': 'മാപ്പ് ക്രെഡിറ്റ്',
+  'siteSetting.romekaMapAttributionHelp':
+    'ടൈൽ പ്രൊവൈഡർ ആവശ്യപ്പെടുന്ന ക്രെഡിറ്റ് ലൈൻ, ഓരോ മാപ്പിന്റെയും കോണിൽ കാണിക്കുന്നു.',
 };

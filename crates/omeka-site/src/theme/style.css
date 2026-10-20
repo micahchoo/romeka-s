@@ -2647,6 +2647,123 @@ body {
   }
 }
 
+/* The Romeka map: Leaflet draws into the canvas, and the places stay listed
+   under it for a reader who cannot use the map. The canvas keeps its height
+   before the script runs, so the page does not jump when the map appears. */
+.romeka-map,
+.romeka-map-section {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.romeka-map-canvas {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  z-index: 0;
+}
+
+.romeka-map-short {
+  height: 18rem;
+}
+
+.romeka-map-medium {
+  height: 28rem;
+}
+
+.romeka-map-tall {
+  height: 38rem;
+}
+
+.romeka-map-places > summary {
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.romeka-map-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}
+
+.romeka-map-place {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The editor preview runs no script, so a map shows as this card. */
+.romeka-map-poster {
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.romeka-map-poster > p {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* A marker: a brand-coloured dot with a ring, so it reads on any tile. */
+.romeka-map-pin {
+  border: 3px solid var(--color-background);
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-text);
+}
+
+/* Several close places as one numbered marker. Leaflet's own sheet loads
+   after this one and sets the marker's display, so the count is centred with
+   line-height: the marker is 36px, less two 3px borders. */
+.romeka-map-cluster {
+  border: 3px solid var(--color-background);
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-text);
+  color: var(--color-on-brand);
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+}
+
+.romeka-map-pin:focus-visible,
+.romeka-map-cluster:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.romeka-map-popup {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 14rem;
+}
+
+.romeka-map-popup img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.romeka-map-popup-title {
+  font-weight: 600;
+}
+
+/* Leaflet's sheet gives every popup paragraph a wide margin; this one sits
+   tight under the title. */
+.leaflet-popup-content .romeka-map-popup-value {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.romeka-map-popup-list {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
 /* Sections: a block group with a section layout (`blocks/style.rs`). The
    group's blocks are its slots, laid out by the section's own columns on a
    normal page and on a grid page alike, so a member's grid placement is set
