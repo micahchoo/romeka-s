@@ -192,6 +192,49 @@ fn colour_overrides_follow_the_scheme() {
     assert_eq!(auto.shown().len(), 2);
 }
 
+/// Under the automatic scheme a colour has two values: the plain key is the
+/// light one, `<key>_dark` the dark one. Under a fixed scheme the page shows
+/// one palette, so the plain key is the only one read.
+#[test]
+fn a_dark_override_reaches_the_dark_palette_under_auto_only() {
+    let auto = tokens(&json!({
+        "preset": "editorial",
+        "color_scheme": "auto",
+        "muted_color": "#444444",
+        "muted_color_dark": "#bbbbbb",
+        "link_color_dark": "#99ccff",
+    }));
+    assert_eq!(auto.light.muted, hex("#444444"));
+    assert_eq!(auto.dark.muted, hex("#bbbbbb"));
+    assert_eq!(auto.dark.link, hex("#99ccff"));
+    assert_ne!(auto.light.link, hex("#99ccff"));
+    let media = auto
+        .css()
+        .split("@media (prefers-color-scheme: dark)")
+        .nth(1)
+        .map(str::to_string)
+        .expect("a dark media query");
+    assert!(media.contains("--color-muted: #bbbbbb;"), "{media}");
+
+    let preset = tokens(&json!({"preset": "editorial", "color_scheme": "auto"}));
+    for scheme in ["light", "dark"] {
+        let fixed = tokens(&json!({
+            "preset": "editorial",
+            "color_scheme": scheme,
+            "muted_color_dark": "#bbbbbb",
+        }));
+        assert_eq!(fixed.dark.muted, preset.dark.muted, "{scheme}");
+        assert_eq!(fixed.light.muted, preset.light.muted, "{scheme}");
+    }
+    let refused = tokens(&json!({
+        "preset": "editorial",
+        "color_scheme": "auto",
+        "muted_color_dark": "grey",
+        "brand_color_dark": "#000000",
+    }));
+    assert_eq!(refused.dark, preset.dark);
+}
+
 /// The brief's spread: the theme's brands, near white, near black, pure
 /// yellow and a ring of hues. Every preset's recipe derives a palette that
 /// passes every pair in both shades.

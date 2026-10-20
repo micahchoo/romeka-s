@@ -1,12 +1,18 @@
 /**
- * The three ways the site's Items page adds items: by item set, by search, and
- * by picking. Each one builds a membership command and shows what it would do,
- * from a dry run of `POST /api/sites/{id}/items`, before the button writes it.
+ * The two ways the site's Items page adds items: the item picker, where a
+ * curator picks items and whole item sets, and a search. Each one builds a
+ * membership command and shows what it would do, from a dry run of
+ * `POST /api/sites/{id}/items`, before the button writes it.
+ *
+ * The picked item sets are the site's item sets (`o:site_item_set`), and the
+ * site's pool (`o:item_pool`) is written from them as an `item_set_id` query,
+ * so "Keep this site in sync" adds the items later created in those sets. A
+ * search adds its matches once and leaves the pool alone.
  */
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
 import { api } from '../../api/client';
-import { encodeSiteItemPool, encodeSiteItemSets } from '../../api/write';
+import { encodeSiteItemPool, encodeSiteItemSets, encodeSiteSync } from '../../api/write';
 import type {
   ItemId,
   ItemSet,
@@ -18,15 +24,14 @@ import type {
 import { useAsync } from '../../app/useAsync';
 import { useSettled } from '../../app/useSettled';
 import { useTranslator } from '../../i18n';
-import { ItemPicker } from './editor/fields/ItemPicker';
 import { ItemQueryField } from './editor/fields/ItemQueryField';
+import { LazyItemPicker } from './editor/fields/LazyItemPicker';
 import { formatQuery, parseQuery, queryValue, withQueryValue } from './editor/fields/query';
-import { itemPoolFromQuery, itemPoolQuery } from './itemPool';
+import { itemPoolFromQuery, itemSetPool } from './itemPool';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 
 const PREVIEW_DELAY_MS = 300;
-const SET_RESULTS = 20;
 const PUBLIC_KEY = 'is_public';
 
 /** What a panel hands the page: a write that resolves to the message to announce. */
@@ -91,165 +96,215 @@ const PreviewLine = ({
   );
 };
 
-/** By item set: find a set, see what it would add, attach it with its items. */
-export const ItemSetPanel = ({ site, version, busy, run, onSite }: AddPanelProps): ReactElement => {
+/**
+ * The site's item sets and the pool written from them, in one write. With no
+ * set left the pool is empty, which would let every new item join, so the same
+ * write turns sync off.
+ */
+const saveSets = async (site: Site, sets: readonly ItemSetId[]): Promise<Site> =>
+  api.patchSite(site.id, {
+    ...encodeSiteItemSets(sets),
+    ...encodeSiteItemPool(itemSetPool(sets)),
+    ...(sets.length === 0 ? encodeSiteSync(false) : {}),
+  });
+
+const attachedSetIds = (site: Site): readonly ItemSetId[] =>
+  site.siteItemSets.map((entry) => entry.itemSet.id);
+
+/** The item sets on the site, each with a Detach button. */
+const AttachedSets = ({
+  site,
+  busy,
+  run,
+  onSite,
+}: AddPanelProps): ReactElement => {
   const { t } = useTranslator(common, sites);
-  const [term, setTerm] = useState('');
-  const [chosen, setChosen] = useState<ItemSet | null>(null);
-  const [withItems, setWithItems] = useState(true);
-  const settledTerm = useSettled(term.trim(), PREVIEW_DELAY_MS);
-  const attached = site.siteItemSets.map((entry) => entry.itemSet.id);
-  const attachedKey = attached.join(',');
-  const results = useAsync(
-    async () =>
-      (
-        await api.listItemSets({
-          perPage: SET_RESULTS,
-          sortBy: 'title',
-          ...(settledTerm === '' ? {} : { search: settledTerm }),
-        })
-      ).items,
-    [settledTerm],
-  );
-  const attachedSets = useAsync(
+  const attached = attachedSetIds(site);
+  const key = attached.join(',');
+  const listed = useAsync(
     async (): Promise<readonly ItemSet[]> =>
       attached.length === 0
         ? []
-        : (await api.listItemSets({ id: attachedKey, perPage: attached.length })).items,
-    [attachedKey],
+        : (await api.listItemSets({ id: key, perPage: attached.length })).items,
+    [key],
   );
+  const label = (set: ItemSet): string => set.title ?? t('common.untitled');
+  const detach = (set: ItemSet): void => {
+    run(async () => {
+      onSite(await saveSets(site, attached.filter((id) => id !== set.id)));
+      return t('field.saved');
+    });
+  };
+  return (
+    <section className="site-items-attached-sets" aria-labelledby="site-items-sets-heading">
+      <h4 id="site-items-sets-heading">{t('siteItems.attachedSets')}</h4>
+      {attached.length === 0 ? (
+        <p className="field-note">{t('siteItems.noSetsYet')}</p>
+      ) : (
+        <>
+          <p className="field-note">{t('siteItems.detachHelp')}</p>
+          <ul className="site-items-attached">
+            {(listed.status === 'ready' ? listed.data : []).map((set) => (
+              <li key={String(set.id)}>
+                <span>{label(set)}</span>
+                <button
+                  type="button"
+                  className="link-button"
+                  disabled={busy}
+                  aria-label={t('siteItems.detachLabel', { title: label(set) })}
+                  onClick={() => {
+                    detach(set);
+                  }}
+                >
+                  {t('siteItems.detach')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+};
+
+/**
+ * Items and sets: pick items and whole item sets, then add them or make them
+ * the site's whole membership. A picked set becomes one of the site's sets.
+ */
+export const PickerPanel = (props: AddPanelProps): ReactElement => {
+  const { site, version, busy, run, onSite } = props;
+  const { t } = useTranslator(common, sites);
+  const [items, setItems] = useState<readonly ItemId[]>([]);
+  const [sets, setSets] = useState<readonly ItemSetId[]>([]);
+  const [confirming, setConfirming] = useState(false);
+  const nothing = items.length === 0 && sets.length === 0;
   const command = useMemo<SiteItemsCommand | null>(
+    () => (nothing ? null : { action: 'add', selector: { kind: 'picked', items, itemSets: sets } }),
+    [nothing, items, sets],
+  );
+  const replaceCommand = useMemo<SiteItemsCommand | null>(
     () =>
-      chosen === null ? null : { action: 'add', selector: { kind: 'itemSets', itemSets: [chosen.id] } },
-    [chosen],
+      command === null || !confirming ? null : { action: 'replace', selector: command.selector },
+    [command, confirming],
   );
   const { change, error } = usePreview(site, command, version);
-  const isAttached = chosen !== null && attached.includes(chosen.id);
-  const adds = withItems && change !== null && change.added > 0;
-  const label = (title: string | null): string => title ?? t('common.untitled');
+  const replacing = usePreview(site, replaceCommand, version);
+  const attached = attachedSetIds(site);
+  const newSets = sets.filter((set) => !attached.includes(set));
 
-  const saveSets = async (ids: readonly ItemSetId[]): Promise<void> => {
-    onSite(await api.patchSite(site.id, encodeSiteItemSets(ids)));
+  const clear = (): void => {
+    setItems([]);
+    setSets([]);
+    setConfirming(false);
   };
-  const attach = (set: ItemSet): void => {
+  const add = (): void => {
+    if (command === null) {
+      return;
+    }
     run(async () => {
-      if (!attached.includes(set.id)) {
-        await saveSets([...attached, set.id]);
+      if (newSets.length > 0) {
+        onSite(await saveSets(site, [...attached, ...newSets]));
       }
-      if (!withItems) {
-        return t('field.saved');
-      }
-      const done = await api.changeSiteItems(site.id, {
-        action: 'add',
-        selector: { kind: 'itemSets', itemSets: [set.id] },
-      });
+      const done = await api.changeSiteItems(site.id, command);
+      clear();
       return t('siteItems.added', { count: done.added });
     });
   };
-  const detach = (set: ItemSet): void => {
+  const replace = (): void => {
+    if (replaceCommand === null) {
+      return;
+    }
     run(async () => {
-      await saveSets(attached.filter((id) => id !== set.id));
-      return t('field.saved');
+      onSite(await saveSets(site, sets));
+      const done = await api.changeSiteItems(site.id, replaceCommand);
+      clear();
+      return t('siteItems.replaced', { total: done.total });
     });
   };
 
   return (
     <div className="site-items-panel">
-      <label htmlFor="site-set-search">{t('siteItems.setSearch')}</label>
-      <input
-        id="site-set-search"
-        type="search"
-        value={term}
-        onChange={(event) => {
-          setTerm(event.target.value);
+      <LazyItemPicker
+        id="site-item-picker"
+        label={t('siteItems.pickLabel')}
+        mode="many"
+        picked={items}
+        onChange={(next) => {
+          setItems(next);
+          setConfirming(false);
+        }}
+        sets={{
+          picked: sets,
+          onChange: (next) => {
+            setSets(next);
+            setConfirming(false);
+          },
         }}
       />
-      {results.status === 'ready' && results.data.length === 0 ? (
-        <p className="field-note">{t('siteItems.noSets')}</p>
-      ) : null}
-      <ul className="site-items-sets" aria-label={t('page.itemSets')}>
-        {(results.status === 'ready' ? results.data : []).map((set) => (
-          <li key={String(set.id)}>
-            <button
-              type="button"
-              aria-pressed={chosen?.id === set.id}
-              onClick={() => {
-                setChosen(set);
-              }}
-            >
-              {label(set.title)}
-              {attached.includes(set.id) ? (
-                <span className="site-items-badge">{t('siteItems.attached')}</span>
-              ) : null}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <label className="site-items-check" htmlFor="site-set-with-items">
-        <input
-          id="site-set-with-items"
-          type="checkbox"
-          checked={withItems}
-          aria-describedby="site-set-with-items-help"
-          onChange={(event) => {
-            setWithItems(event.target.checked);
-          }}
-        />
-        {t('siteItems.setWithItems')}
-      </label>
-      <p id="site-set-with-items-help" className="field-note">
-        {t('siteItems.setWithItemsHelp')}
-      </p>
       <PreviewLine
         change={change}
         error={error}
-        idle={chosen === null}
+        idle={nothing}
         describe={(counted) =>
-          t('siteItems.setPreview', {
-            title: label(chosen?.title ?? null),
-            matched: counted.matched,
-            added: counted.added,
-          })
+          t('siteItems.pickPreview', { count: counted.matched, added: counted.added })
         }
       />
-      {chosen === null ? null : (
-        <p className="form-actions">
-          <button
-            type="button"
-            className="site-items-apply"
-            disabled={busy || change === null || (isAttached && !adds)}
-            onClick={() => {
-              attach(chosen);
-            }}
-          >
-            {isAttached
-              ? t('siteItems.addCount', { count: change?.added ?? 0 })
-              : adds
-                ? t('siteItems.attachWithItems', { count: change.added })
-                : t('siteItems.attachSet')}
-          </button>
-        </p>
-      )}
-      <h4>{t('siteItems.attachedSets')}</h4>
-      <p className="field-note">{t('siteItems.detachHelp')}</p>
-      <ul className="site-items-attached">
-        {(attachedSets.status === 'ready' ? attachedSets.data : []).map((set) => (
-          <li key={String(set.id)}>
-            <span>{label(set.title)}</span>
+      <p className="form-actions">
+        <button
+          type="button"
+          className="site-items-apply"
+          disabled={busy || change === null || (change.added === 0 && newSets.length === 0)}
+          onClick={add}
+        >
+          {t('siteItems.addCount', { count: change?.added ?? 0 })}
+        </button>
+        <button
+          type="button"
+          disabled={busy || change === null}
+          aria-expanded={confirming}
+          onClick={() => {
+            setConfirming(true);
+          }}
+        >
+          {t('siteItems.replace')}
+        </button>
+      </p>
+      {!confirming ? null : (
+        <div className="site-items-confirm" role="group" aria-label={t('siteItems.replace')}>
+          <PreviewLine
+            change={replacing.change}
+            error={replacing.error}
+            idle={false}
+            describe={(counted) =>
+              t('siteItems.replaceConfirm', {
+                matched: counted.matched,
+                removed: counted.removed,
+                added: counted.added,
+              })
+            }
+          />
+          <p className="form-actions">
+            <button
+              type="button"
+              className="site-items-apply"
+              disabled={busy || replacing.change === null}
+              onClick={replace}
+            >
+              {t('siteItems.replaceYes')}
+            </button>
             <button
               type="button"
               className="link-button"
-              disabled={busy}
-              aria-label={t('siteItems.detachLabel', { title: label(set.title) })}
               onClick={() => {
-                detach(set);
+                setConfirming(false);
               }}
             >
-              {t('siteItems.detach')}
+              {t('action.cancel')}
             </button>
-          </li>
-        ))}
-      </ul>
+          </p>
+        </div>
+      )}
+      <AttachedSets {...props} />
     </div>
   );
 };
@@ -262,10 +317,10 @@ const withPublicOnly = (query: string, on: boolean): string => {
   );
 };
 
-/** By search: the saved search, what it matches, and a button that adds the rest. */
-export const SearchPanel = ({ site, version, busy, run, onSite }: AddPanelProps): ReactElement => {
+/** By search: what a search matches, and a button that adds the items the site lacks. */
+export const SearchPanel = ({ site, version, busy, run }: AddPanelProps): ReactElement => {
   const { t } = useTranslator(common, sites);
-  const [query, setQuery] = useState(() => itemPoolQuery(site.itemPool));
+  const [query, setQuery] = useState('');
   const pool = useMemo(() => itemPoolFromQuery(query), [query]);
   const command = useMemo<SiteItemsCommand>(
     () => ({ action: 'add', selector: { kind: 'query', query: pool } }),
@@ -274,13 +329,10 @@ export const SearchPanel = ({ site, version, busy, run, onSite }: AddPanelProps)
   const { change, error } = usePreview(site, command, version);
   const publicOnly = queryValue(parseQuery(query), PUBLIC_KEY) === '1';
 
-  const save = (): void => {
+  const add = (): void => {
     run(async () => {
-      onSite(await api.patchSite(site.id, encodeSiteItemPool(pool)));
       const done = await api.changeSiteItems(site.id, command);
-      return done.added === 0
-        ? t('field.saved')
-        : t('siteItems.added', { count: done.added });
+      return t('siteItems.added', { count: done.added });
     });
   };
 
@@ -317,55 +369,7 @@ export const SearchPanel = ({ site, version, busy, run, onSite }: AddPanelProps)
           t('siteItems.searchPreview', { matched: counted.matched, added: counted.added })
         }
       />
-      <p className="field-note">{t('siteItems.searchHelp')}</p>
-      <p className="form-actions">
-        <button
-          type="button"
-          className="site-items-apply"
-          disabled={busy || change === null}
-          onClick={save}
-        >
-          {change !== null && change.added > 0
-            ? t('siteItems.addCount', { count: change.added })
-            : t('siteItems.saveSearch')}
-        </button>
-      </p>
-    </div>
-  );
-};
-
-/** Pick items: choose them one by one and add the ones the site lacks. */
-export const PickPanel = ({ site, version, busy, run }: AddPanelProps): ReactElement => {
-  const { t } = useTranslator(common, sites);
-  const [picked, setPicked] = useState<readonly ItemId[]>([]);
-  const command = useMemo<SiteItemsCommand | null>(
-    () => (picked.length === 0 ? null : { action: 'add', selector: { kind: 'items', items: picked } }),
-    [picked],
-  );
-  const { change, error } = usePreview(site, command, version);
-
-  const add = (): void => {
-    if (command === null) {
-      return;
-    }
-    run(async () => {
-      const done = await api.changeSiteItems(site.id, command);
-      setPicked([]);
-      return t('siteItems.added', { count: done.added });
-    });
-  };
-
-  return (
-    <div className="site-items-panel">
-      <ItemPicker id="site-item-picker" label={t('siteItems.pickLabel')} picked={picked} onChange={setPicked} />
-      <PreviewLine
-        change={change}
-        error={error}
-        idle={picked.length === 0}
-        describe={(counted) =>
-          t('siteItems.pickPreview', { count: counted.matched, added: counted.added })
-        }
-      />
+      <p className="field-note">{t('siteItems.searchOnce')}</p>
       <p className="form-actions">
         <button
           type="button"

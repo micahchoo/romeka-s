@@ -20,8 +20,9 @@ pub const SAMPLE_BRANDS: [&str; 16] = [
 ];
 
 /// The stored maps the resolution samples cover: a map from before presets, a
-/// preset with derivation, a hand-set brand and colour, and the dark and
-/// automatic schemes. Each map's keys are in alphabetical order, so the file
+/// preset with derivation, a hand-set brand and colour, the dark and automatic
+/// schemes, and dark overrides under the automatic scheme and ignored under
+/// the dark one. Each map's keys are in alphabetical order, so the file
 /// is the same whether or not `serde_json` keeps insertion order.
 fn sample_maps() -> Vec<serde_json::Value> {
     use serde_json::json;
@@ -33,6 +34,14 @@ fn sample_maps() -> Vec<serde_json::Value> {
         json!({"brand_color": "#ff0000", "derive_palette": false, "preset": "gallery"}),
         json!({"color_scheme": "dark", "muted_color": "#999999", "preset": "editorial"}),
         json!({"color_scheme": "auto", "derive_palette": true, "preset": "plain"}),
+        json!({
+            "color_scheme": "auto",
+            "muted_color": "#444444",
+            "muted_color_dark": "#bbbbbb",
+            "preset": "editorial",
+            "text_color_dark": "#f0f0f0"
+        }),
+        json!({"color_scheme": "dark", "preset": "archive", "text_color_dark": "#f0f0f0"}),
     ]
 }
 

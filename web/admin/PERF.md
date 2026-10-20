@@ -694,6 +694,31 @@ as the other tabs.
 
 A single build on one machine. Opening Settings or Users now costs one more request after the route.
 
+## Decision 22: page history loads on demand, its API calls ride the initial payload (accepted)
+
+**Change.** The page editor gains a History panel, a version view and a refused-save dialog. The
+panel and the version view are one lazy chunk (`editor/shell/HistoryPanel.tsx`), fetched on the
+first press of History; the dialog is another (`editor/shell/ConflictDialog.tsx`), fetched only when
+a save is refused. The client methods and their parsers (`listPageVersions`, `getPageVersion`,
+`parsePageVersionSummary`, `parseStalePage`) live in `src/api/`, where every boundary parse lives, so
+they ride the initial payload.
+
+**Measured.** `npm run build`, then gzip bytes from `zlib.gzipSync` per emitted asset, against main
+`d0775a7` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before (`d0775a7`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 85708 | 85976 | the save result union, the two reads and their parsers |
+| editor shell (`shell-*`) | 7274 | 7924 | the History toggle, the lazy imports, `usePageSave` |
+| history panel and version view | none | 1189 js, 446 css | |
+| refused-save dialog | none | 617 | |
+| version time format | none | 265 | shared by the two chunks above |
+| shared editor chunks (`draft`, `blockSchema`, `groups`, `romeka`, `preview`) | 7616 in five | 6672 in one | the history chunk imports `preview` and `wire`, so Rollup merged them |
+| English editor messages | 5129 | 5483 | 22 `history.*` keys |
+
+A single build on one machine. The largest lazy chunk is the editor shell at 7924 B of the 10240 B
+ceiling, and the initial payload has 1064 B left under 87040.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

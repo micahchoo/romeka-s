@@ -211,4 +211,7 @@ export const ml: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'സിസി0 1.0 (പൊതു ഡൊമെയ്ൻ)',
   'themeChoice.allRightsReserved': 'എല്ലാ അവകാശങ്ങളും സംരക്ഷിതം',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ഓട്ടോമാറ്റിക് സ്കീം റീഡറുടെ സിസ്റ്റത്തെ പിന്തുടരുന്നു, അതിനാൽ ഓരോ നിറത്തിനും ഒരു ലൈറ്റ് വാല്യൂവും ഒരു ഡാർക്ക് വാല്യൂവും ഉണ്ടായിരിക്കും.',
 };

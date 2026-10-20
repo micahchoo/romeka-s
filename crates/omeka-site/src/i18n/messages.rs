@@ -106,6 +106,20 @@ pub struct Messages {
     pub all_rights_reserved: &'static str,
     /// The header search field's placeholder.
     pub search_placeholder: &'static str,
+    /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
+    /// It opens on the public page.` pattern, over the block's title. A Romeka
+    /// string; upstream's preview runs the viewer.
+    pub iiif_poster: &'static str,
+    /// The item page's link that opens the item in the IIIF viewer. A Romeka
+    /// string.
+    pub iiif_view_in_viewer: &'static str,
+    /// The item page's link to the item's IIIF manifest. A Romeka string.
+    pub iiif_manifest: &'static str,
+    /// A browse preview of items on a site that holds no items, in the admin
+    /// preview. A port addition: upstream prints an empty list.
+    pub no_site_items_preview: &'static str,
+    /// The same empty browse preview on the public site, with no admin hint.
+    pub no_site_items: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -156,6 +170,11 @@ pub static EN: Messages = Messages {
     footer_links: "Footer links",
     all_rights_reserved: "All rights reserved",
     search_placeholder: "Search the collection",
+    iiif_poster: "IIIF viewer: %s. It opens on the public page.",
+    iiif_view_in_viewer: "View in the IIIF viewer",
+    iiif_manifest: "IIIF manifest",
+    no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
+    no_site_items: "There are no items to show yet.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -213,6 +232,12 @@ pub static ES: Messages = Messages {
     footer_links: "Enlaces del pie de página",
     all_rights_reserved: "Todos los derechos reservados",
     search_placeholder: "Buscar en la colección",
+    iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
+    iiif_view_in_viewer: "Ver en el visor IIIF",
+    iiif_manifest: "Manifiesto IIIF",
+    // The admin's words, because only the admin preview shows it.
+    no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
+    no_site_items: "Todavía no hay fichas que mostrar.",
 };
 
 #[cfg(test)]

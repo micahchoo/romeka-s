@@ -4,15 +4,21 @@
  * (`site_page_block.attachment`), so a change goes through `setAttachments`
  * rather than `setField`.
  *
- * Items are picked with the shared `ItemPicker` (search as you type,
- * thumbnails, keyboard): picking an item appends its row and unpicking removes
- * it. Each row shows the item's thumbnail and title. The media choice is a row
+ * Items are picked with the shared item picker (`LazyItemPicker`): picking an
+ * item appends its row, unpicking removes it, and the tray's order is the rows'
+ * order. Each row shows the item's thumbnail and title. The media choice is a row
  * of thumbnails limited to the item's media through `api.listMediaForItem`,
  * which the server reads as `item_id` (`MediaAdapter::buildQuery`).
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
 import type { Item, ItemId, Media, MediaId } from '../../../../api/types';
+import {
+  ReorderButtons,
+  ReorderHandle,
+  ReorderStatus,
+  useReorderable,
+} from '../../../../app/reorder/useReorderable';
 import { useAsync } from '../../../../app/useAsync';
 import { mediaName, previewImageUrl } from '../../../../app/media';
 import { useTranslator } from '../../../../i18n';
@@ -20,7 +26,7 @@ import type { BlockAttachment } from '../draft';
 import { Help, helpId } from '../Labelled';
 import { useEditorText } from '../messages';
 import { HtmlEditor } from './HtmlEditor';
-import { ItemPicker } from './ItemPicker';
+import { LazyItemPicker } from './LazyItemPicker';
 import { common } from '../../../../i18n/namespaces/common';
 import { editor } from '../../../../i18n/namespaces/editor';
 import './controls.css';
@@ -29,30 +35,21 @@ import './controls.css';
 const replaceAt = <T,>(values: readonly T[], index: number, next: T): readonly T[] =>
   values.map((value, at) => (at === index ? next : value));
 
-/** Moves one entry by `delta` places, or returns the list unchanged at an edge. */
-const moveAt = <T,>(values: readonly T[], index: number, delta: number): readonly T[] => {
-  const target = index + delta;
-  const moved = values[index];
-  if (moved === undefined || target < 0 || target >= values.length) {
-    return values;
-  }
-  const next = [...values];
-  next.splice(index, 1);
-  next.splice(target, 0, moved);
-  return next;
-};
-
-/** The rows after the picker's set changed: unpicked items leave, new ones append. */
+/**
+ * The rows after the picker's picks changed. The rows follow the picks' order,
+ * which is the tray's: unpicked items leave, a new pick gets an empty row, and
+ * a row with no item stays at the end.
+ */
 export const syncAttachments = (
   attachments: readonly BlockAttachment[],
   picked: readonly ItemId[],
-): readonly BlockAttachment[] => {
-  const kept = attachments.filter((row) => row.item === null || picked.includes(row.item));
-  const added = picked
-    .filter((item) => !kept.some((row) => row.item === item))
-    .map((item): BlockAttachment => ({ item, media: null, caption: '' }));
-  return [...kept, ...added];
-};
+): readonly BlockAttachment[] => [
+  ...picked.flatMap((item): readonly BlockAttachment[] => {
+    const rows = attachments.filter((row) => row.item === item);
+    return rows.length > 0 ? rows : [{ item, media: null, caption: '' }];
+  }),
+  ...attachments.filter((row) => row.item === null),
+];
 
 /** The picked item's thumbnail and title at the top of its row. */
 const AttachedItem = ({ itemId }: { readonly itemId: ItemId | null }): ReactElement => {
@@ -171,6 +168,11 @@ export const AttachmentsField = ({
 }: AttachmentsFieldProps): ReactElement => {
   const { t } = useTranslator(common, editor);
   const e = useEditorText();
+  const reorder = useReorderable({
+    items: attachments,
+    onReorder: onChange,
+    labelOf: (_, index) => t('attachments.row', { position: index + 1 }),
+  });
   const picked = [
     ...new Set(attachments.flatMap((row) => (row.item === null ? [] : [row.item]))),
   ];
@@ -181,7 +183,7 @@ export const AttachmentsField = ({
       {attachments.length === 0 ? null : (
         <ul className="attachment-rows" aria-label={label}>
           {attachments.map((attachment, index) => (
-            <li className="attachment-row" key={String(index)}>
+            <li className="attachment-row" key={String(index)} {...reorder.row(index)}>
               <AttachedItem itemId={attachment.item} />
               {media ? (
                 <MediaChoice
@@ -202,26 +204,8 @@ export const AttachmentsField = ({
                 }}
               />
               <p className="attachment-actions">
-                <button
-                  type="button"
-                  disabled={index === 0}
-                  aria-label={t('attachments.moveUp', { position: index + 1 })}
-                  onClick={() => {
-                    onChange(moveAt(attachments, index, -1));
-                  }}
-                >
-                  {t('blocks.moveUpText')}
-                </button>
-                <button
-                  type="button"
-                  disabled={index === attachments.length - 1}
-                  aria-label={t('attachments.moveDown', { position: index + 1 })}
-                  onClick={() => {
-                    onChange(moveAt(attachments, index, 1));
-                  }}
-                >
-                  {t('blocks.moveDownText')}
-                </button>
+                <ReorderHandle reorder={reorder} index={index} />
+                <ReorderButtons reorder={reorder} index={index} />
                 <button
                   type="button"
                   aria-label={t('attachments.remove', { position: index + 1 })}
@@ -236,9 +220,11 @@ export const AttachmentsField = ({
           ))}
         </ul>
       )}
-      <ItemPicker
+      <ReorderStatus reorder={reorder} />
+      <LazyItemPicker
         id={`${id}-picker`}
         label={e('attachments.pick')}
+        mode="many"
         picked={picked}
         onChange={(next) => {
           onChange(syncAttachments(attachments, next));

@@ -81,6 +81,16 @@ export const parseNodes = (blocks: readonly BlockDraft[]): readonly DraftNode[] 
   return nodes;
 };
 
+/** The group node whose marker is `key`, `null` for any other block. */
+export const groupNodeOf = (blocks: readonly BlockDraft[], key: BlockKey): GroupNode | null => {
+  for (const node of parseNodes(blocks)) {
+    if (node.kind === 'group' && node.marker.key === key) {
+      return node;
+    }
+  }
+  return null;
+};
+
 /** The flat list again, with every group's span equal to the members it owns. */
 export const renderNodes = (nodes: readonly DraftNode[]): readonly BlockDraft[] =>
   nodes.flatMap((node) =>
@@ -172,11 +182,16 @@ export const insertAsNodes = (
   return renderNodes(spliceNodes(nodes, findInsertion(nodes, clamped), incoming));
 };
 
-/** Appends a plain block to a named group, or `null` when it may not join. */
+/**
+ * Puts a plain block into a named group: before the member `before`, which is
+ * the slot a section shows that member in, or at the end. `null` when the
+ * block may not join.
+ */
 export const appendToGroup = (
   nodes: readonly DraftNode[],
   groupKey: BlockKey,
   block: BlockDraft,
+  before: BlockKey | null = null,
 ): readonly DraftNode[] | null => {
   if (isGroup(block)) {
     return null;
@@ -188,10 +203,13 @@ export const appendToGroup = (
   if (group === undefined || group.kind !== 'group') {
     return null;
   }
+  const at = group.members.findIndex((member) => member.key === before);
+  const members =
+    at < 0
+      ? [...group.members, block]
+      : [...group.members.slice(0, at), block, ...group.members.slice(at)];
   return nodes.map((node, index) =>
-    index === groupIndex
-      ? { kind: 'group' as const, marker: group.marker, members: [...group.members, block] }
-      : node,
+    index === groupIndex ? { kind: 'group' as const, marker: group.marker, members } : node,
   );
 };
 

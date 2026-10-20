@@ -1,7 +1,7 @@
 /**
  * The `attachments` field control, through a live `BlockForm` over the `media`
  * layout: picking or unpicking an item in the shared picker adds or removes its
- * row, and the row edits (media, caption, order, remove) each dispatch the
+ * row, the tray's order is the rows' order, and the row edits (media, caption, order, remove) each dispatch the
  * whole attachment list. The media choice is limited to the row's item.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -85,7 +85,7 @@ describe('the attachments field control', () => {
     installFetch(handler);
     const { dispatch, key } = renderAttachments([rawAttachment(5, null, 'kept')]);
 
-    const pick = await screen.findByRole('button', { name: 'Fixture Item One', pressed: false });
+    const pick = await screen.findByRole('option', { name: 'Fixture Item One', selected: false });
     fireEvent.click(pick);
 
     expect(attachmentAction(dispatch)).toEqual({
@@ -105,13 +105,36 @@ describe('the attachments field control', () => {
       rawAttachment(5, null, 'kept'),
     ]);
 
-    const picked = await screen.findByRole('button', { name: 'Fixture Item One', pressed: true });
+    const picked = await screen.findByRole('option', { name: 'Fixture Item One', selected: true });
     fireEvent.click(picked);
 
     expect(attachmentAction(dispatch)).toEqual({
       type: 'setAttachments',
       blockKey: key,
       attachments: [{ item: 5, media: null, caption: 'kept' }],
+    });
+  });
+
+  it('moving a pick in the tray moves its row with its caption', async () => {
+    installFetch(handler);
+    const { dispatch, key } = renderAttachments([
+      rawAttachment(5, null, 'first'),
+      rawAttachment(12, 7, 'second'),
+    ]);
+
+    const tray = await screen.findByRole('region', { name: 'Picked' });
+    fireEvent.keyDown(await within(tray).findByText('Fixture Item One'), {
+      key: 'ArrowLeft',
+      altKey: true,
+    });
+
+    expect(attachmentAction(dispatch)).toEqual({
+      type: 'setAttachments',
+      blockKey: key,
+      attachments: [
+        { item: 12, media: 7, caption: 'second' },
+        { item: 5, media: null, caption: 'first' },
+      ],
     });
   });
 
@@ -162,6 +185,27 @@ describe('the attachments field control', () => {
     });
   });
 
+  it('a row picked up by its handle moves with the arrow keys', () => {
+    installFetch(handler);
+    const { dispatch, key } = renderAttachments([
+      rawAttachment(5, null, 'first'),
+      rawAttachment(12, null, 'second'),
+    ]);
+
+    const handle = screen.getByRole('button', { name: 'Move attachment 1, 1 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+
+    expect(attachmentAction(dispatch)).toEqual({
+      type: 'setAttachments',
+      blockKey: key,
+      attachments: [
+        { item: 12, media: null, caption: 'second' },
+        { item: 5, media: null, caption: 'first' },
+      ],
+    });
+  });
+
   it('removing a row drops it from the list', () => {
     installFetch(handler);
     const { dispatch, key } = renderAttachments([
@@ -187,6 +231,7 @@ describe('the attachments field control', () => {
     });
     renderAttachments([]);
 
-    expect(await screen.findByText(/Search failed: .*search down/)).toBeInTheDocument();
+    expect(await screen.findByText('The items could not be read.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

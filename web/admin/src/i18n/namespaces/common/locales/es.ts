@@ -93,4 +93,15 @@ export const es: CommonMessages = {
   "tags.add": "Añadir una etiqueta",
   "tags.hint": "Palabras libres para encontrar las cosas más tarde. Pulse Intro o escriba una coma para añadir una.",
   "tags.remove": "Quitar la etiqueta «{tag}»",
+  // Reorderable lists (app/reorder).
+  'reorder.handle': 'Mover {label}, {position} de {count}',
+  'reorder.grip': 'Arrastre para mover, o pulse Espacio para tomarlo',
+  'reorder.up': 'Subir {label}',
+  'reorder.down': 'Bajar {label}',
+  'reorder.upTip': 'Subir',
+  'reorder.downTip': 'Bajar',
+  'reorder.picked': 'Ha tomado {label}. Use las flechas para moverlo, Espacio para soltarlo y Escape para cancelar.',
+  'reorder.moved': '{label}: posición {position} de {count}.',
+  'reorder.dropped': 'Ha soltado {label} en la posición {position} de {count}.',
+  'reorder.cancelled': 'Se canceló el movimiento de {label}.',
 };

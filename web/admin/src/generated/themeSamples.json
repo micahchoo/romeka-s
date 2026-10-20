@@ -2577,6 +2577,64 @@
         "muted": "#a5acb0",
         "link": "#87bfe5"
       }
+    },
+    {
+      "stored": {
+        "color_scheme": "auto",
+        "muted_color": "#444444",
+        "muted_color_dark": "#bbbbbb",
+        "preset": "editorial",
+        "text_color_dark": "#f0f0f0"
+      },
+      "scheme": "auto",
+      "light": {
+        "brand": "#7a2318",
+        "on-brand": "#fffbfa",
+        "accent": "#007888",
+        "background": "#fffbfa",
+        "surface": "#fbecea",
+        "text": "#291f1d",
+        "muted": "#444444",
+        "link": "#7a2318"
+      },
+      "dark": {
+        "brand": "#7a2318",
+        "on-brand": "#f0f0f0",
+        "accent": "#48d2e9",
+        "background": "#181211",
+        "surface": "#261d1b",
+        "text": "#f0f0f0",
+        "muted": "#bbbbbb",
+        "link": "#fc9887"
+      }
+    },
+    {
+      "stored": {
+        "color_scheme": "dark",
+        "preset": "archive",
+        "text_color_dark": "#f0f0f0"
+      },
+      "scheme": "dark",
+      "light": {
+        "brand": "#8c2f1b",
+        "on-brand": "#fff0ec",
+        "accent": "#007183",
+        "background": "#fff0ec",
+        "surface": "#fce1da",
+        "text": "#2f1c17",
+        "muted": "#825f57",
+        "link": "#8c2f1b"
+      },
+      "dark": {
+        "brand": "#8c2f1b",
+        "on-brand": "#f6e8e4",
+        "accent": "#4ad1ec",
+        "background": "#1e1310",
+        "surface": "#2e1d18",
+        "text": "#f6e8e4",
+        "muted": "#c3a29b",
+        "link": "#ff977f"
+      }
     }
   ]
 }

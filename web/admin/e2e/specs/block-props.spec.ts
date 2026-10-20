@@ -69,14 +69,15 @@ test('a media block reveals its thumbnail size and picks an item through the pic
   await expect(form.getByLabel('Thumbnail size')).toHaveValue('square');
 
   const item = ITEM_TITLES[0] ?? 'E2E item 1';
-  await form.getByLabel('Add or remove items').fill(item);
-  await form.getByRole('button', { name: item, exact: true, pressed: false }).click();
+  const results = form.getByRole('listbox', { name: 'Add or remove items' });
+  await form.getByLabel('Search titles and values').fill(item);
+  await results.getByRole('option', { name: item, exact: true, selected: false }).click();
   const rows = form.getByRole('list', { name: 'Items to show' });
   await expect(rows.getByText(item, { exact: true })).toBeVisible();
   await expect(rows.locator('img.attachment-thumb').first()).toBeVisible();
   await expect(rows.getByRole('radio', { name: 'Main media' })).toBeChecked();
-  // A picked result's name carries the picker's check mark after the title.
-  await expect(form.getByRole('button', { name: new RegExp(`^${item}`), pressed: true })).toBeVisible();
+  await expect(results.getByRole('option', { name: item, exact: true, selected: true })).toBeVisible();
+  await expect(form.getByRole('region', { name: 'Picked' })).toContainText(item);
 });
 
 test('a padding preset reaches the block on the live preview', async ({ page }) => {

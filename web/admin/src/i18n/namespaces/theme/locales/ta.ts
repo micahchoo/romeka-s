@@ -222,4 +222,7 @@ export const ta: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (பொது டொமைன்)',
   'themeChoice.allRightsReserved': 'அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'தானியங்கித் திட்டம் வாசகரின் கணினி அமைப்பைப் பின்பற்றுகிறது, எனவே ஒவ்வொரு நிறமும் ஒரு லேசான மதிப்பையும் ஒரு இருண்ட மதிப்பையும் கொண்டுள்ளது.',
 };

@@ -147,6 +147,9 @@ impl LoadedRow {
     }
 }
 
+/// Where the bundled theme's files are served (`crate::assets`).
+const ASSET_BASE: &str = "/assets";
+
 /// The read side of one site render: the pool, the base URL, the property
 /// catalog, the site being served, and the caller's visibility facts.
 pub(crate) struct Loader<'a> {
@@ -459,6 +462,16 @@ impl<'a> Loader<'a> {
             &view,
             options,
         );
+        // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
+        // owns the head here, so the embed loads the library it calls.
+        let library = if row.renderer == "iiif" {
+            omeka_site::theme::library_script(
+                ASSET_BASE,
+                "vendor/openseadragon/openseadragon.min.js",
+            )
+        } else {
+            String::new()
+        };
         Ok(MediaRef {
             url: media_url,
             original_url: view.original_url.clone(),
@@ -466,21 +479,24 @@ impl<'a> Loader<'a> {
             media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
-                "<div class=\"media-render {}\">{}</div>",
-                row.renderer, rendered
+                "<div class=\"media-render {}\">{library}{rendered}</div>",
+                row.renderer
             )),
         })
     }
 
-    /// The environment the media renderers read, from the request base URL. The
-    /// IIIF and oEmbed settings are not ported to the site settings yet, so the
-    /// renderer defaults stand.
+    /// The environment the media renderers read: the request base URL, the
+    /// bundled theme's assets, where OpenSeadragon's images are served, and the
+    /// site's two IIIF viewer settings (`Renderer/IiifPresentation.php`).
     fn render_env(&self) -> RenderEnv {
+        let base = self.base.as_str();
         RenderEnv {
-            server_url: self.base.as_str().to_string(),
-            file_base_uri: format!("{}/files", self.base.as_str()),
-            asset_base_path: "/application/asset".to_string(),
-            ..RenderEnv::default()
+            server_url: base.to_string(),
+            file_base_uri: format!("{base}/files"),
+            asset_base_path: ASSET_BASE.to_string(),
+            viewer_url: format!("{base}/iiif-viewer"),
+            iiif_viewer_sidebar: self.settings.iiif_viewer_sidebar(),
+            iiif_viewer_theme: self.settings.iiif_viewer_theme().to_string(),
         }
     }
 
@@ -1097,6 +1113,20 @@ impl<'a> Loader<'a> {
                 .sees_resource(entry.resource.is_public, entry.resource.owner_id)
             {
                 continue;
+            }
+            if view.iiif_manifest.is_none()
+                && crate::iiif::paints_canvas(
+                    &entry.renderer,
+                    &entry.ingester,
+                    entry.media_type.as_deref(),
+                    entry.has_thumbnails,
+                )
+            {
+                view.iiif_manifest = Some(format!(
+                    "{}/iiif/3/item/{}/manifest",
+                    self.base.as_str(),
+                    row.id().0
+                ));
             }
             let title = display_title(&entry.resource, self.messages());
             view.media.push(ResourceRef {

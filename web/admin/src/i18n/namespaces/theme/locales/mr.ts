@@ -210,4 +210,7 @@ export const mr: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (सार्वजनिक क्षेत्र)',
   'themeChoice.allRightsReserved': 'सर्व हक्क राखीव',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वयंचलित योजना वाचकाच्या प्रणालीचे अनुसरण करते, त्यामुळे प्रत्येक रंगाचे मूल्य हलके आणि गडद असते.',
 };

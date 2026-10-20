@@ -96,4 +96,15 @@ export const te: CommonMessages = {
   'tags.hint':
     'తర్వాత విషయాలను కనుగొనడానికి ఉచిత పదాలు. ఒకదాన్ని జోడించడానికి Enter నొక్కండి లేదా కామా టైప్ చేయండి.',
   'tags.remove': 'ట్యాగ్ “{tag}” ను తొలగించండి',
+  'reorder.handle': '{label} ను తరలించండి, {position}/{count}',
+  'reorder.grip': 'తరలించడానికి లాగండి, లేదా ఎంచుకోవడానికి Space నొక్కండి',
+  'reorder.up': '{label} ను పైకి తరలించండి',
+  'reorder.down': '{label} ను కిందకు తరలించండి',
+  'reorder.upTip': 'పైకి తరలించండి',
+  'reorder.downTip': 'కిందకు తరలించండి',
+  'reorder.picked':
+    '{label} తీసుకోబడింది. తరలించడానికి బాణం గుర్తులను, వదిలడానికి Space, రద్దు చేయడానికి Escape ఉపయోగించండి.',
+  'reorder.moved': '{label}: స్థానం {position}/{count}.',
+  'reorder.dropped': '{label} ను స్థానం {position}/{count} వద్ద వదిలారు.',
+  'reorder.cancelled': '{label} కదలిక రద్దు చేయబడింది.',
 };

@@ -99,7 +99,7 @@ const HeroHarness = ({ settings }: { readonly settings: object }): ReactElement 
     const key = blockAt(added.blocks, 0).key;
     return Object.entries(settings).reduce(
       (draft, [field, value]: [string, string]) =>
-        draftReducer(draft, { type: 'setRomkaSetting', blockKey: key, field, value }),
+        draftReducer(draft, { type: 'setLayoutDataValues', blockKey: key, values: { [`romeka.${field}`]: value } }),
       added,
     );
   });

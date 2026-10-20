@@ -160,6 +160,19 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     {
         out.push_str(&format!("<h2>{}</h2>", escape_html(heading)));
     }
+    if kind == ResourceKind::Item && page.resources.is_empty() && !site_has_items(ctx) {
+        let messages = ctx.translator().messages();
+        let text = if ctx.is_preview() {
+            messages.no_site_items_preview
+        } else {
+            messages.no_site_items
+        };
+        out.push_str(&format!(
+            "<p class=\"preview-empty\">{}</p></div>",
+            escape_html(text)
+        ));
+        return out;
+    }
     out.push_str("<ul class=\"resource-list preview\">");
     let parts = CardParts {
         thumbnail: components.iter().any(|c| c == "thumbnail"),
@@ -180,6 +193,20 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("</div>");
     out
+}
+
+/// Whether the site holds any item, so an empty preview can say why it is empty.
+fn site_has_items(ctx: &RenderContext<'_>) -> bool {
+    let search = BrowseQuery {
+        query: vec![("site_id".to_string(), ctx.site.id.get().to_string())],
+        site: ctx.site.id,
+        limit: Some(1),
+        sort: None,
+    };
+    !ctx.resources
+        .search(ResourceKind::Item, &search)
+        .resources
+        .is_empty()
 }
 
 /// PHP's `parse_str` for a query string without array keys: pairs in order,
@@ -334,16 +361,72 @@ mod tests {
         );
     }
 
-    /// A block with no results still renders the wrapper and its link.
+    /// A site that holds items, whose block query matches none of them.
+    struct NoMatch(TestResources);
+
+    impl crate::view::ResourceProvider for NoMatch {
+        fn search(&self, kind: ResourceKind, query: &BrowseQuery) -> crate::view::ResourcePage {
+            let membership_only = query.query.len() == 1;
+            if membership_only {
+                self.0.search(kind, query)
+            } else {
+                crate::view::ResourcePage {
+                    resources: Vec::new(),
+                    total: 0,
+                }
+            }
+        }
+        fn read(&self, kind: ResourceKind, id: u64) -> Option<crate::view::ResourceView> {
+            self.0.read(kind, id)
+        }
+        fn read_media(&self, id: omeka_core::ids::MediaId) -> Option<crate::view::MediaRef> {
+            self.0.read_media(id)
+        }
+        fn read_asset(&self, id: omeka_core::ids::AssetId) -> Option<crate::view::AssetView> {
+            self.0.read_asset(id)
+        }
+        fn attachments(&self, block: omeka_core::ids::BlockId) -> Vec<crate::view::AttachmentRef> {
+            self.0.attachments(block)
+        }
+        fn search_sites(&self, query: &crate::view::SiteQuery) -> crate::view::SiteSearch {
+            self.0.search_sites(query)
+        }
+    }
+
+    /// A block with no results on a site that holds items renders upstream's
+    /// wrapper and its link.
     #[test]
     fn browse_preview_without_results_renders_the_wrapper() {
         let site = site();
-        let resources = TestResources::default();
+        let resources = NoMatch(TestResources {
+            browse: vec![item(3, "Kept", "/s/main/item/3")],
+            ..TestResources::default()
+        });
         let ctx = context(&site, &resources);
         let stored = block("browsePreview", json!({"link-text": "Browse all"}));
         assert_eq!(
             BrowsePreview.render(&stored, &ctx),
             "<div class=\"preview-block\"><ul class=\"resource-list preview\"></ul><a href=\"/s/main/item\">Browse all</a></div>"
+        );
+    }
+
+    /// On a site with no items the public block says so, with no admin hint,
+    /// and the admin preview points the curator at the Items tab.
+    #[test]
+    fn browse_preview_on_a_site_with_no_items_says_so() {
+        let site = site();
+        let resources = TestResources::default();
+        let stored = block("browsePreview", json!({"link-text": "Browse all"}));
+        assert_eq!(
+            BrowsePreview.render(&stored, &context(&site, &resources)),
+            "<div class=\"preview-block\"><p class=\"preview-empty\">There are no items to show yet.</p></div>"
+        );
+        let mut preview = context(&site, &resources);
+        preview.block_markers = crate::view::BlockMarkers::Preview;
+        assert!(
+            BrowsePreview
+                .render(&stored, &preview)
+                .contains("No items on this site yet. Add items on the Items tab."),
         );
     }
 }

@@ -213,6 +213,8 @@ struct Common<'a> {
     query: Vec<(String, String)>,
     loader: &'a Loader<'a>,
     current_path: String,
+    /// Whether this render is an admin preview, which hides the admin bar.
+    preview: bool,
 }
 
 impl<'a> Common<'a> {
@@ -251,6 +253,7 @@ impl<'a> Common<'a> {
             query: parse_query(uri.query().unwrap_or_default()),
             loader,
             current_path: uri.path().to_string(),
+            preview: false,
         })
     }
 
@@ -280,6 +283,9 @@ impl<'a> Common<'a> {
         ctx.current_path = self.current_path.clone();
         ctx.favicon_url = self.favicon_url.clone();
         ctx.viewer = self.viewer.clone();
+        if self.preview {
+            ctx.settings.show_user_bar = Some(-1);
+        }
         ctx
     }
 }
@@ -380,10 +386,28 @@ pub(crate) async fn render_preview(
     // The body's tokens win over the stored ones for this render only; nothing
     // is written.
     let theme_settings = preview.theme_settings.unwrap_or(&data.theme_settings);
+    // A draft not yet titled renders under the site locale's word for a
+    // resource without a title, the one upstream shows for an untitled item.
+    let titled;
+    let page = if preview.page.title.is_empty() {
+        titled = SitePage {
+            title: data
+                .settings
+                .locale()
+                .translator()
+                .messages()
+                .untitled
+                .to_string(),
+            ..preview.page.clone()
+        };
+        &titled
+    } else {
+        preview.page
+    };
     let common = Common::load(state, uri, &data, &loader, actor, theme_settings).await?;
     let loaded = provider::load_preview_blocks(
         common.loader,
-        preview.page,
+        page,
         common.site.id,
         common.settings,
         // The saved page is fetched with no query, so the preview resolves the
@@ -396,14 +420,12 @@ pub(crate) async fn render_preview(
     // The editor maps each block wrapper back to its draft block through these
     // markers. This is the only render that turns them on.
     #[allow(clippy::disallowed_methods)]
-    let mut ctx = common
-        .context(Some(preview.page), &loaded)
-        .with_preview_markers();
+    let mut ctx = common.context(Some(page), &loaded).with_preview_markers();
     // The document is the one the saved page will serve, so the path is the
     // page's own and the request's query is dropped: a preview request carries
     // credentials there, not a page query, and a block that builds a link from
     // it must not copy them.
-    ctx.current_path = page_url(&common.site.slug, &preview.page.slug);
+    ctx.current_path = page_url(&common.site.slug, &page.slug);
     ctx.query = Vec::new();
     ctx.page_created = preview.created;
     ctx.page_modified = preview.modified;
@@ -411,11 +433,53 @@ pub(crate) async fn render_preview(
     // a signed-in editor, so `show_user_bar` would otherwise put the admin bar
     // in every preview.
     ctx.settings.show_user_bar = Some(-1);
-    Ok(Outcome::Html(render_page(
-        common.theme,
-        preview.page,
-        &mut ctx,
-    )))
+    Ok(Outcome::Html(render_page(common.theme, page, &mut ctx)))
+}
+
+/// Render one resource page under a draft theme map: [`show`]'s page, with the
+/// body's tokens and, when the map carries one, its `resource_page_blocks`
+/// order. The site frame and the caller's visibility are the public page's;
+/// nothing is written.
+pub(crate) async fn render_resource_preview(
+    state: &AppState,
+    uri: &Uri,
+    actor: &Actor,
+    kind: ResourceKind,
+    id: u64,
+    theme: Option<&Value>,
+) -> Result<Outcome, SiteError> {
+    let route = parse_public_path(uri.path()).map_err(|_| SiteError::NotFound)?;
+    let slug = route_slug(&route);
+    let Some(mut data) = SiteData::load(state, &slug).await? else {
+        return Err(SiteError::NotFound);
+    };
+    if let Some(theme) = theme {
+        data.theme_settings = ThemeSettings::from_value(theme);
+        if theme.get("resource_page_blocks").is_some() {
+            data.resource_page_blocks = Some(ResourcePageBlocks::parse(theme));
+        }
+    }
+    let site_permission = site_permission(&state.pool, data.row.id, actor).await?;
+    let access = Access {
+        actor,
+        site_is_public: data.row.is_public,
+        site_owner: data.row.owner_id,
+        site_permission,
+    };
+    let loader = Loader::new(
+        &state.pool,
+        &state.base,
+        &data.catalog,
+        &data.site,
+        &access,
+        &data.settings,
+    );
+    let mut common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
+    // The request's query carries the caller's credentials, not a page query,
+    // and the frame shows the page as a visitor sees it, without the admin bar.
+    common.query = Vec::new();
+    common.preview = true;
+    show_kind(&common, kind, id).await
 }
 
 /// `Site\ItemController::browseAction` and `Site\ItemSetController::browseAction`.
@@ -454,6 +518,10 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
     let Some(kind) = kind_for_controller(controller) else {
         return Err(SiteError::NotFound);
     };
+    show_kind(common, kind, id).await
+}
+
+async fn show_kind(common: &Common<'_>, kind: ResourceKind, id: u64) -> Result<Outcome, SiteError> {
     let (resource, noindex) = match kind {
         ResourceKind::Item => {
             let row = ItemRepo::new(common.loader.pool())

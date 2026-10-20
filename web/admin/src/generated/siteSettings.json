@@ -91,6 +91,14 @@
       "default": "light"
     },
     {
+      "key": "iiif_viewer_sidebar",
+      "labelKey": "siteSetting.iiifViewerSidebar",
+      "helpKey": "siteSetting.iiifViewerSidebarHelp",
+      "group": "itemPages",
+      "kind": "boolean",
+      "default": false
+    },
+    {
       "key": "subnav_display",
       "labelKey": "siteSetting.subnavDisplay",
       "helpKey": "siteSetting.subnavDisplayHelp",

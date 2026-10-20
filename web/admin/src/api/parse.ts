@@ -39,6 +39,9 @@ import type {
   SiteBlockAttachment,
   SiteId,
   SiteItemSet,
+  PageAuthor,
+  PageSaveResult,
+  PageVersionSummary,
   SitePage,
   SitePageBlock,
   SitePermission,
@@ -920,6 +923,42 @@ export const parseSitePage: Parser<SitePage> = (raw, path = []) => {
     site: asRef(field(object, 'o:site', path), [...path, 'o:site'], brandId<'SiteId'>),
     created: asDateTime(field(object, 'o:created', path), [...path, 'o:created']),
     modified: nullableField(object, 'o:modified', path, asDateTime),
+  };
+};
+
+const parsePageAuthor = (value: unknown, path: Path): PageAuthor => {
+  const object = asRecord(value, path);
+  return {
+    id: brandId<'UserId'>(asIdNumber(field(object, 'o:id', path), [...path, 'o:id'])),
+    name: asString(field(object, 'o:name', path), [...path, 'o:name']),
+  };
+};
+
+export const parsePageVersionSummary: Parser<PageVersionSummary> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  return {
+    version: asIdNumber(field(object, 'o:version', path), [...path, 'o:version']),
+    created: asDateTime(field(object, 'o:created', path), [...path, 'o:created']),
+    author: nullableField(object, 'o:user', path, parsePageAuthor),
+    blockCount: asNumber(field(object, 'o:block_count', path), [...path, 'o:block_count']),
+  };
+};
+
+/**
+ * The 409 a page update answers when the page was saved after the editor read
+ * it: `errors` carries the stored `o:modified` and who saved. `null` for any
+ * other body, so a different conflict stays an ordinary error.
+ */
+export const parseStalePage = (raw: unknown): PageSaveResult | null => {
+  if (!isRecord(raw) || !isRecord(raw['errors']) || !('o:modified' in raw['errors'])) {
+    return null;
+  }
+  const errors = raw['errors'];
+  const path = ['errors'];
+  return {
+    kind: 'stale',
+    modified: nullableField(errors, 'o:modified', path, asDateTime),
+    author: nullableField(errors, 'o:user', path, parsePageAuthor),
   };
 };
 

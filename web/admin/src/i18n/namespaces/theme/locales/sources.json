@@ -190,5 +190,7 @@
  "themeChoice.ccByNcSa": "CC BY-NC-SA 4.0",
  "themeChoice.ccByNcNd": "CC BY-NC-ND 4.0",
  "themeChoice.cc0": "CC0 1.0 (public domain)",
- "themeChoice.allRightsReserved": "All rights reserved"
+ "themeChoice.allRightsReserved": "All rights reserved",
+ "theme.shadeValue": "{label} ({shade})",
+ "theme.shadesHelp": "The automatic scheme follows the reader's system, so each colour has a light value and a dark value."
 }

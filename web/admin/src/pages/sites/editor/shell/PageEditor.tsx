@@ -6,10 +6,9 @@
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useEffect, useReducer, useRef, useState } from 'react';
-import { api, defaultBaseUrl } from '../../../../api/client';
+import { defaultBaseUrl } from '../../../../api/client';
 import type { JsonValue, PageId, Site, SiteId, SitePage } from '../../../../api/types';
 import { SaveStatus } from '../../../../app/fields';
-import { useSave } from '../../../../app/save';
 import { useTranslator } from '../../../../i18n';
 import { BLOCK_REGISTRY } from '../../blockRegistry';
 import type { TemplateChoice } from '../../templates';
@@ -17,17 +16,25 @@ import type { EditorOptions } from '../options';
 import { emptyDraft, nextBlockKey, validate } from '../draft';
 import { isDirty } from '../history';
 import { draftReducer } from '../reducer';
-import { fromApi, toPageWrite } from '../wire';
+import { fromApi } from '../wire';
 import type { DraftAction, PageDraft } from '../draft';
+import type { ViewedVersion } from './HistoryPanel';
+import { layoutLabel } from '../canvas/summary';
 import { Inspector } from './Inspector';
+import { KeysPopover } from './KeysPopover';
 import { PageSettings } from './PageSettings';
 import { blockOf } from './selection';
 import type { Selection, SelectionSource } from './selection';
+import { commandFor } from './shortcuts';
+import type { EditorCommand } from './shortcuts';
 import { usePreview } from './usePreview';
+import { usePageSave } from './usePageSave';
 import { useUnsavedGuard } from './useUnsavedGuard';
+import { counted } from '../messages';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
 import { editor } from '../../../../i18n/namespaces/editor';
+import './shell.css';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
@@ -48,6 +55,26 @@ const TemplateChooser = lazy(() =>
 const SaveTemplateDialog = lazy(() =>
   import('./SaveTemplateDialog').then((module) => ({ default: module.SaveTemplateDialog })),
 );
+
+/** The history list and the version view share one chunk, loaded on the first
+ * press of History. */
+const HistoryPanel = lazy(() =>
+  import('./HistoryPanel').then((module) => ({ default: module.HistoryPanel })),
+);
+const VersionView = lazy(() =>
+  import('./HistoryPanel').then((module) => ({ default: module.VersionView })),
+);
+
+/** The refused-save dialog is its own chunk, loaded only when a save is refused. */
+const ConflictDialog = lazy(() =>
+  import('./ConflictDialog').then((module) => ({ default: module.ConflictDialog })),
+);
+
+/** The history panel is closed, open on its list, or open on one version. */
+type HistoryView =
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'open'; readonly viewing: ViewedVersion | null };
+
 
 /** The box the lazy dialogs load into. It is the dialog's own box, so showing it
  * while the chunk loads moves nothing on the page. */
@@ -102,8 +129,10 @@ export const PageEditor = ({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [outlineOpen, setOutlineOpen] = useState(storedOutlineOpen);
+  /** The label of the block the last edit removed, while Undo would restore it. */
+  const [removed, setRemoved] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryView>({ kind: 'closed' });
   const preview = usePreview(draft, site.slug, siteId, pageId);
-  const { state: saveState, save } = useSave();
   const inspector = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLDivElement | null>(null);
   const focusAfter = useRef<'inspector' | 'canvas' | null>(null);
@@ -112,6 +141,18 @@ export const PageEditor = ({
   const valid = issues.length === 0;
   const dirty = isDirty(draft);
   const guard = useUnsavedGuard(dirty, t('editor.leaveConfirm'));
+  const saving = usePageSave({
+    page,
+    siteId,
+    draft,
+    valid,
+    dispatch,
+    onCreated: (created) => {
+      guard.allowLeave();
+      window.location.hash = `#/sites/${String(siteId)}/pages/${String(created.id)}`;
+    },
+    notSaved: t('history.notSaved'),
+  });
   const selectedBlock = blockOf(draft, selection);
   // Without a working preview the Outline is the only surface, so it stays open.
   const outlineForced = preview.status === 'unavailable' || preview.status === 'error';
@@ -132,8 +173,12 @@ export const PageEditor = ({
   });
 
   /** Every edit enters here; `from` names the surface it came from, so a block
-   * it adds is revealed in the other one. */
+   * it adds is revealed in the other one. A removal offers its own Undo until
+   * the next edit, after which Undo would reverse that edit instead. */
   const action = (next: DraftAction, from: SelectionSource = 'outline'): void => {
+    const gone =
+      next.type === 'removeBlock' ? draft.blocks.find((block) => block.key === next.blockKey) : undefined;
+    setRemoved(gone === undefined ? null : layoutLabel(draft.registry, gone, t));
     if (next.type === 'addBlock') {
       setSelection({ key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
@@ -154,30 +199,33 @@ export const PageEditor = ({
     setChoosing(false);
   };
 
-  const runSave = (): void => {
-    if (!valid || saveState.status === 'saving') {
-      return;
-    }
-    const write = toPageWrite(draft, siteId);
-    save(async () => {
-      if (page === null) {
-        const created = await api.createSitePage(write);
-        guard.allowLeave();
-        window.location.hash = `#/sites/${String(siteId)}/pages/${String(created.id)}`;
-        return;
-      }
-      await api.updateSitePage(page.id, write);
-      dispatch({ type: 'markSaved' });
-    });
+  const restoreVersion = (version: ViewedVersion): void => {
+    setHistory({ kind: 'open', viewing: null });
+    dispatch({ type: 'loadPage', page: version.page, saved: false });
   };
 
-  const saveRef = useRef(runSave);
-  saveRef.current = runSave;
+  const deselect = (): void => {
+    setSelection(null);
+  };
+
+  const commands: Readonly<Record<EditorCommand, () => void>> = {
+    save: saving.save,
+    undo: () => {
+      action({ type: 'undo' });
+    },
+    redo: () => {
+      action({ type: 'redo' });
+    },
+    deselect,
+  };
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      const command = commandFor(event);
+      if (command !== null) {
         event.preventDefault();
-        saveRef.current();
+        commandsRef.current[command]();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -239,10 +287,16 @@ export const PageEditor = ({
         <button
           type="button"
           className="editor-save"
-          onClick={runSave}
-          disabled={!valid || saveState.status === 'saving'}
+          onClick={saving.save}
+          disabled={!valid || saving.state.status === 'saving'}
         >
           {page === null ? t('page.add') : t('action.save')}
+        </button>
+        <button type="button" onClick={commands.undo} disabled={draft.past.length === 0}>
+          {t('canvas.undo')}
+        </button>
+        <button type="button" onClick={commands.redo} disabled={draft.future.length === 0}>
+          {t('canvas.redo')}
         </button>
         {dirty ? (
           <span className="editor-dirty" role="status">
@@ -252,9 +306,7 @@ export const PageEditor = ({
         ) : null}
         {issues.length === 0 ? null : (
           <button type="button" className="editor-issues" onClick={jumpToIssue}>
-            {issues.length === 1
-              ? t('editor.issueOne')
-              : t('editor.issueCount', { count: issues.length })}
+            {counted(t, 'toolbarIssues', issues.length)}
           </button>
         )}
         {pageId === null ? null : (
@@ -275,10 +327,24 @@ export const PageEditor = ({
         >
           {t('editor.outline')}
         </button>
+        {pageId === null ? null : (
+          <button
+            type="button"
+            className="editor-history-toggle"
+            aria-pressed={history.kind === 'open'}
+            onClick={() => {
+              setSelection(null);
+              setHistory(history.kind === 'open' ? { kind: 'closed' } : { kind: 'open', viewing: null });
+            }}
+          >
+            {t('history.button')}
+          </button>
+        )}
+        <KeysPopover />
         {preview.status === 'unavailable' ? (
           <span className="field-note">{t('editor.previewUnavailable')}</span>
         ) : null}
-        <SaveStatus state={saveState} />
+        <SaveStatus state={saving.state} />
       </div>
       <div className="editor-main">
         {outlineShown ? (
@@ -288,6 +354,15 @@ export const PageEditor = ({
             aria-label={t('editor.outline')}
             tabIndex={-1}
             ref={canvas}
+            onClick={(event) => {
+              // A click that lands on no card and no control is a click on the page itself.
+              if (
+                event.target instanceof Element &&
+                event.target.closest('.canvas-card, button, a, input, select, textarea, [role="dialog"]') === null
+              ) {
+                deselect();
+              }
+            }}
           >
             <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
               {draft.blocks.length === 0 ? (
@@ -314,7 +389,24 @@ export const PageEditor = ({
             </Suspense>
           </div>
         ) : null}
-        {preview.status === 'unavailable' ? null : (
+        {history.kind === 'open' && history.viewing !== null && pageId !== null ? (
+          <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
+            <VersionView
+              version={history.viewing}
+              siteSlug={site.slug}
+              siteId={siteId}
+              pageId={pageId}
+              onRestore={() => {
+                if (history.viewing !== null) {
+                  restoreVersion(history.viewing);
+                }
+              }}
+              onBack={() => {
+                setHistory({ kind: 'open', viewing: null });
+              }}
+            />
+          </Suspense>
+        ) : preview.status === 'unavailable' ? null : (
           <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
             <LivePanel
               preview={preview}
@@ -322,7 +414,7 @@ export const PageEditor = ({
               selection={selection}
               siteSettings={siteSettings}
               onSelect={(key) => {
-                setSelection({ key, from: 'preview' });
+                setSelection(key === null ? null : { key, from: 'preview' });
               }}
               dispatch={(next) => {
                 action(next, 'preview');
@@ -338,7 +430,37 @@ export const PageEditor = ({
           ref={inspector}
         >
           <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
-            {selectedBlock === null ? (
+            {selectedBlock !== null ? (
+              <Inspector
+                key={selectedBlock.key}
+                draft={draft}
+                block={selectedBlock}
+                dispatch={action}
+                onDeselect={() => {
+                  deselect();
+                  focusAfter.current = 'inspector';
+                }}
+                onSelect={(key) => {
+                  setSelection({ key, from: 'inspector' });
+                  focusAfter.current = 'inspector';
+                }}
+                issues={issues}
+                siteId={siteId}
+                options={options}
+              />
+            ) : history.kind === 'open' && pageId !== null ? (
+              <HistoryPanel
+                pageId={pageId}
+                savedAt={saving.loadedModified}
+                viewing={history.viewing?.summary.version ?? null}
+                onView={(version) => {
+                  setHistory({ kind: 'open', viewing: version });
+                }}
+                onClose={() => {
+                  setHistory({ kind: 'closed' });
+                }}
+              />
+            ) : (
               <PageSettings
                 draft={draft}
                 dispatch={action}
@@ -354,21 +476,31 @@ export const PageEditor = ({
                   setSavingTemplate(true);
                 }}
               />
-            ) : (
-              <Inspector
-                key={selectedBlock.key}
-                draft={draft}
-                block={selectedBlock}
-                dispatch={action}
-                issues={issues}
-                siteId={siteId}
-                options={options}
-              />
             )}
           </Suspense>
         </div>
       </div>
+      <div className="editor-toast" role="status">
+        {removed === null ? null : (
+          <>
+            <span>{t('canvas.deleted', { label: removed })}</span>
+            <button type="button" onClick={commands.undo}>
+              {t('canvas.undo')}
+            </button>
+          </>
+        )}
+      </div>
       <Suspense fallback={<DialogFallback label={t('loading.page')} />}>
+        {saving.conflict === null ? null : (
+          <ConflictDialog
+            modified={saving.conflict.modified}
+            author={saving.conflict.author}
+            busy={saving.resolving}
+            onShowTheirs={saving.showTheirs}
+            onKeepMine={saving.keepMine}
+            onClose={saving.dismiss}
+          />
+        )}
         {savingTemplate ? (
           <SaveTemplateDialog
             siteId={siteId}

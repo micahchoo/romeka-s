@@ -215,4 +215,7 @@ export const kn: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (ಸಾರ್ವಜನಿಕ ಡೊಮೇನ್)',
   'themeChoice.allRightsReserved': 'ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ಸ್ವಯಂಚಾಲಿತ ಯೋಜನೆಯು ಓದುಗರ ವ್ಯವಸ್ಥೆಯನ್ನು ಅನುಸರಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ಪ್ರತಿ ಬಣ್ಣವು ಹಗುರವಾದ ಮೌಲ್ಯ ಮತ್ತು ಗಾಢವಾದ ಮೌಲ್ಯವನ್ನು ಹೊಂದಿರುತ್ತದೆ.',
 };

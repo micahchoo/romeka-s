@@ -68,11 +68,19 @@ const isToken = (setting: ThemeSetting): boolean =>
 
 export const TOKEN_SETTINGS: readonly ThemeSetting[] = THEME_REGISTRY.settings.filter(isToken);
 
+/** Each colour's dark value under the automatic scheme, by role. */
+export const DARK_COLOURS: readonly { readonly role: ColourRole; readonly key: string }[] =
+  THEME_REGISTRY.colours.flatMap(({ role, darkKey }) => (darkKey === null ? [] : [{ role, key: darkKey }]));
+
+/** A stored colour as `HexColor::parse` reads it, `null` when refused. */
+const hexOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? normaliseHex(value) : null;
+
 /** A stored value read the way `Choices::from_value` reads it, `null` when refused. */
 export const tokenValue = (setting: ThemeSetting, stored: unknown): TokenValue | null => {
   switch (setting.kind) {
     case 'colour':
-      return typeof stored === 'string' ? normaliseHex(stored) : null;
+      return hexOrNull(stored);
     case 'font':
     case 'choice':
       return typeof stored === 'string' && setting.choices.includes(stored) ? stored : null;
@@ -157,6 +165,12 @@ export const draftFromStored = (stored: Readonly<Record<string, unknown>>): Them
       overrides[setting.key] = value;
     }
   }
+  for (const { key } of DARK_COLOURS) {
+    const colour = hexOrNull(stored[key]);
+    if (colour !== null) {
+      overrides[key] = colour;
+    }
+  }
   const content = {
     logo: contentValue(stored['logo']),
     banner: contentValue(stored['banner']),
@@ -203,7 +217,8 @@ const override = (draft: ThemeDraft, key: string): TokenValue | undefined => dra
 /**
  * The preset, then a palette derived from the brand when derivation is on,
  * then the overrides, the way `tokens::resolve` does it. A colour override
- * lands on the palette the page shows first.
+ * lands on the palette the page shows first; under the automatic scheme the
+ * dark palette takes the dark values instead.
  */
 export const resolve = (draft: ThemeDraft): Resolved => {
   const preset = presetFor(draft.preset);
@@ -228,10 +243,17 @@ export const resolve = (draft: ThemeDraft): Resolved => {
   }
   const shown = scheme === 'dark' ? dark : light;
   for (const { role, key } of THEME_REGISTRY.colours) {
-    const value = override(draft, key);
-    const colour = typeof value === 'string' ? normaliseHex(value) : null;
+    const colour = hexOrNull(override(draft, key));
     if (colour !== null) {
       shown[role] = colour;
+    }
+  }
+  if (scheme === 'auto') {
+    for (const { role, key } of DARK_COLOURS) {
+      const colour = hexOrNull(override(draft, key));
+      if (colour !== null) {
+        dark[role] = colour;
+      }
     }
   }
   const tokens: Record<string, TokenValue> = {};
@@ -279,7 +301,7 @@ export const contrastChecks = (resolved: Resolved): readonly PairCheck[] =>
 
 /** Whether a draft may be saved: every hand-set colour is a hex and every pair passes. */
 export const draftProblems = (draft: ThemeDraft): { readonly badHex: boolean; readonly failing: number } => ({
-  badHex: THEME_REGISTRY.colours.some(({ key }) => {
+  badHex: [...THEME_REGISTRY.colours, ...DARK_COLOURS].some(({ key }) => {
     const value = draft.overrides[key];
     return value !== undefined && !isHexColour(value);
   }),
@@ -306,6 +328,12 @@ const designWire = (draft: ThemeDraft): Record<string, JsonValue> => {
     const value = tokenValue(setting, draft.overrides[setting.key]);
     if (value !== null) {
       map[setting.key] = value;
+    }
+  }
+  for (const { key } of DARK_COLOURS) {
+    const colour = hexOrNull(draft.overrides[key]);
+    if (colour !== null) {
+      map[key] = colour;
     }
   }
   const css = draft.customCss.trim();

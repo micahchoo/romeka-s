@@ -63,9 +63,80 @@ describe('the repeat field control', () => {
       value: [{ ...entry, alt_link_title: 'Read more' }],
     });
   });
+
+  it('moves a record up with its arrow button', () => {
+    const first = { id: '1', page: '', alt_link_title: 'one', caption: '' };
+    const second = { id: '2', page: '', alt_link_title: 'two', caption: '' };
+    const { dispatch, key } = renderHarness('asset', { attachments: [first, second] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move item 2 up' }));
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'attachments',
+      value: [second, first],
+    });
+  });
+
+  it('moves a record picked up by its handle with the arrow keys', () => {
+    const first = { id: '1', page: '', alt_link_title: 'one', caption: '' };
+    const second = { id: '2', page: '', alt_link_title: 'two', caption: '' };
+    const { dispatch, key } = renderHarness('asset', { attachments: [first, second] });
+
+    const handle = screen.getByRole('button', { name: 'Move item 1, 1 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'attachments',
+      value: [second, first],
+    });
+  });
 });
 
 describe('the page list field control', () => {
+  it('moves a subpage among its siblings and leaves the level above alone', () => {
+    const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
+    const stored = JSON.stringify([
+      { text: 'Welcome', data: { id: 1 }, children: [child('Alpha', 2), child('Beta', 3)] },
+      child('Last', 4),
+    ]);
+    const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
+
+    expect(screen.getByRole('button', { name: 'Move Beta, 2 of 2' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Beta up' }));
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'pagelist',
+      value: JSON.stringify([
+        { text: 'Welcome', data: { id: 1 }, children: [child('Beta', 3), child('Alpha', 2)] },
+        child('Last', 4),
+      ]),
+    });
+  });
+
+  it('moves a top-level page picked up by its handle', () => {
+    const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
+    const stored = JSON.stringify([child('Welcome', 1), child('Last', 4)]);
+    const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
+
+    const handle = screen.getByRole('button', { name: 'Move Last, 2 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'pagelist',
+      value: JSON.stringify([child('Last', 4), child('Welcome', 1)]),
+    });
+  });
+
   it('adds an empty page node as the stored JSON string', () => {
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: '' });
 

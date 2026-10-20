@@ -2,8 +2,10 @@
 //! `view/common/block-layout/iiif-image.phtml`.
 //!
 //! An OpenSeadragon viewer. The template appends the library to `headScript`
-//! and writes the initialiser inline; the port writes the initialiser only,
-//! because the theme owns the document head and loads the library once.
+//! and writes the initialiser inline. The theme owns the document head, so the
+//! port loads the library from the block itself, just before the initialiser.
+//! A curator may pick the viewer height ([`super::iiif`]); unset, it is
+//! upstream's `400px`. The editor's preview shows a poster instead.
 //!
 //! Upstream builds the options with `json_encode`, which escapes `/` as `\/`.
 //! The port emits `serde_json`'s output, which does not; the two strings are the
@@ -12,8 +14,10 @@
 use omeka_core::site::{BlockData, IiifData, SiteBlock};
 
 use crate::blocks::BlockLayout;
+use crate::blocks::iiif::{height, height_field, preview_poster};
 use crate::blocks::schema::{LayoutSchema, boolean, text};
 use crate::html::escape_html;
+use crate::theme::library_script;
 use crate::view::RenderContext;
 
 /// The `iiifImage` block.
@@ -21,7 +25,7 @@ use crate::view::RenderContext;
 pub struct IiifImage;
 
 /// `BlockLayout/IiifImage.php::form`: `image_url`, `title` and the `show_title`
-/// checkbox.
+/// checkbox, plus Romeka's height.
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
         text(
@@ -41,6 +45,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "fieldHelp.iiif.show_title",
         )
         .default_bool(false),
+        height_field("fieldHelp.iiifImage.height"),
     ],
 };
 
@@ -83,14 +88,24 @@ fn render_viewer(block: &SiteBlock, data: &IiifData, ctx: &RenderContext<'_>) ->
         json_string(image_url)
     );
 
+    let height = height(block, "400px");
     let mut out = String::new();
     if show_title && !title.is_empty() {
         out.push_str(&format!("<h3>{}</h3>", escape_html(&title)));
     }
+    let name = if title.is_empty() { image_url } else { &title };
+    if let Some(poster) = preview_poster(name, height, ctx) {
+        out.push_str(&poster);
+        return out;
+    }
     out.push_str(&format!(
-        "<div id=\"{}\" style=\"height: 400px;\" role=\"group\" aria-label=\"{}\"></div>",
+        "<div id=\"{}\" style=\"height: {height};\" role=\"group\" aria-label=\"{}\"></div>",
         escape_html(&id),
         escape_html(&title)
+    ));
+    out.push_str(&library_script(
+        &ctx.asset_base,
+        "vendor/openseadragon/openseadragon.min.js",
     ));
     out.push_str(&format!(
         "<script type=\"text/javascript\">OpenSeadragon({options});</script>"
@@ -109,7 +124,8 @@ mod tests {
     use crate::blocks::test_support::{block, context, site};
     use serde_json::json;
 
-    /// `block-layout/iiif-image.phtml`: a container with the block id, the    /// OpenSeadragon assets under the theme's asset base, and an inline
+    /// `block-layout/iiif-image.phtml`: a container with the block id, the
+    /// OpenSeadragon assets under the theme's asset base, and an inline
     /// initialiser carrying the image URL.
     #[test]
     fn iiif_image_matches_upstream_block_layout() {
@@ -130,6 +146,10 @@ mod tests {
         assert!(
             out.contains("\"tileSources\":\"https://example.org/iiif/info.json\""),
             "{out}"
+        );
+        assert!(
+            out.contains("<script src=\"/assets/vendor/openseadragon/openseadragon.min.js?v="),
+            "the block loads the library it calls: {out}"
         );
         assert!(out.ends_with("</script>"), "{out}");
     }
@@ -152,5 +172,24 @@ mod tests {
             json!({"image_url": "https://example.org/i", "title": "Map"}),
         );
         assert!(!IiifImage.render(&stored, &ctx).contains("<h3>"));
+    }
+
+    /// The preview shows the poster and loads no library; a chosen height
+    /// sizes both.
+    #[test]
+    fn iiif_image_previews_as_a_poster_at_its_height() {
+        let site = site();
+        let mut ctx = context(&site, &crate::view::NoResources);
+        ctx.block_markers = crate::view::BlockMarkers::Preview;
+        let stored = crate::blocks::test_support::block_with_layout(
+            "iiifImage",
+            json!({"image_url": "https://example.org/info.json", "title": "Map"}),
+            json!({"romeka": {"block": "iiifImage", "v": 1, "settings": {"height": "medium"}}}),
+        );
+        let out = IiifImage.render(&stored, &ctx);
+        assert_eq!(
+            out,
+            "<div class=\"iiif-poster\" style=\"height: 600px;\"><p>IIIF viewer: Map. It opens on the public page.</p></div>"
+        );
     }
 }

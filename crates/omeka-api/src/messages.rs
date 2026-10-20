@@ -120,7 +120,7 @@ messages! {
     /// An account route whose body is not a JSON object.
     const BODY_NOT_OBJECT = "The request body must be a JSON object.";
     /// The site items route for a body without exactly one selector.
-    const SITE_ITEMS_ONE_SELECTOR = "name exactly one of \"query\", \"items\" or \"item_sets\"";
+    const SITE_ITEMS_ONE_SELECTOR = "name either \"query\", or \"items\", \"item_sets\" or both";
 
     // Sign-in, sessions and passwords.
 
@@ -166,6 +166,8 @@ messages! {
 
     /// The 409 for deleting the job of an archive import that is running or undoing.
     const JOB_HELD_BY_IMPORT = "This job belongs to an archive import that is running or undoing. Delete it once the import has ended.";
+    /// The 409 for a site page save whose `o:modified` is older than the stored page's.
+    const PAGE_SAVED_SINCE_OPENED = "Someone saved this page after you opened it.";
 
     // Assets.
 

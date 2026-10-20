@@ -13,8 +13,9 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::{
-    Answer, OWNER_KEY_CREDENTIAL, OWNER_KEY_IDENTITY, VIEWER_KEY_CREDENTIAL, VIEWER_KEY_IDENTITY,
-    VISIBILITY_PASSWORD, header, json_request, login_cookie, router, send, visibility_pool,
+    Answer, KEY_CREDENTIAL, KEY_IDENTITY, OWNER_KEY_CREDENTIAL, OWNER_KEY_IDENTITY,
+    VIEWER_KEY_CREDENTIAL, VIEWER_KEY_IDENTITY, VISIBILITY_PASSWORD, get, header, json_request,
+    login_cookie, router, send, site_pool, visibility_pool,
 };
 use omeka_db::ids::PageId;
 use omeka_db::repos::SiteRepo;
@@ -830,4 +831,206 @@ async fn preview_applies_draft_custom_css_and_refuses_unsafe_css() {
         message.starts_with("Custom CSS: Line 2, column 15: url("),
         "{message}"
     );
+}
+
+/// A new page before the curator types anything, as the editor sends it: no
+/// title, no slug, no blocks.
+fn blank_new_page() -> Value {
+    page_body(None, "", "", json!([]))
+}
+
+async fn preview_as_owner(app: axum::Router, body: &Value) -> Answer {
+    send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            body,
+        ),
+    )
+    .await
+}
+
+/// A draft with no title or slug yet previews under the site's own word for a
+/// resource without a title, and nothing is written. Only the save needs them.
+#[tokio::test]
+async fn preview_of_a_blank_new_page_renders_a_placeholder_title() {
+    let (pool, _seed) = visibility_pool().await;
+    let before = counts(&pool).await;
+
+    let answer = preview_as_owner(router(pool.clone()), &blank_new_page()).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    // The new page's page-title block shows it, as the saved page would.
+    assert!(
+        answer.body.contains("<h2>[Untitled]</h2>"),
+        "the placeholder title is missing: {}",
+        answer.body
+    );
+    assert_eq!(counts(&pool).await, before, "the preview wrote rows");
+}
+
+/// The placeholder is the site locale's, as every other word of the render is.
+#[tokio::test]
+async fn preview_placeholder_title_follows_the_site_locale() {
+    let (pool, seed) = visibility_pool().await;
+    omeka_db::repos::SiteSettingRepo::new(&pool)
+        .set(
+            omeka_db::ids::SiteId::from(seed.public_site),
+            "locale",
+            &json!("es"),
+        )
+        .await
+        .unwrap();
+
+    let answer = preview_as_owner(router(pool), &blank_new_page()).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer.body.contains("<h2>[Sin título]</h2>"),
+        "the Spanish placeholder is missing: {}",
+        answer.body
+    );
+}
+
+/// Clearing the title and slug of a saved page still previews.
+#[tokio::test]
+async fn preview_of_an_edit_with_a_cleared_title_and_slug_renders() {
+    let (pool, seed) = visibility_pool().await;
+    let body = page_body(
+        Some(seed.public_page),
+        "",
+        "",
+        json!([{"o:layout": "html", "o:data": {"html": "<p>Still here</p>"}}]),
+    );
+
+    let answer = preview_as_owner(router(pool), &body).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(answer.body.contains("<p>Still here</p>"), "{}", answer.body);
+    assert!(answer.body.contains("[Untitled]"), "{}", answer.body);
+}
+
+/// The save of the same blank body is refused as before: the preview's
+/// placeholder never reaches a write.
+#[tokio::test]
+async fn saving_a_blank_new_page_still_needs_a_title_and_slug() {
+    let (pool, seed) = visibility_pool().await;
+    let mut body = blank_new_page();
+    body["o:site"] = json!({"o:id": seed.public_site});
+
+    let answer = send(
+        router(pool),
+        keyed_preview(
+            "/api/site_pages",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+
+    assert_eq!(
+        answer.status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "{}",
+        answer.body
+    );
+    let errors = errors(&answer);
+    assert_eq!(errors["o:title"], json!(["A page must have a title."]));
+    assert!(errors.get("o:slug").is_some(), "{errors}");
+}
+
+/// The body that previews one resource page under a draft section order.
+fn resource_body(kind: &str, id: u64, sections: &[&str]) -> Value {
+    json!({
+        "resource_page": {"kind": kind, "id": id},
+        "o:theme_settings": {"resource_page_blocks": {
+            "items": {"main": sections},
+            "item_sets": {"main": ["values"]},
+            "media": {"main": ["mediaRender", "values"]}
+        }}
+    })
+}
+
+/// A resource page preview renders the item page in the draft section order,
+/// leaves out the sections the draft hides, and stores nothing: the public
+/// page keeps the theme's default sections.
+#[tokio::test]
+async fn resource_page_preview_renders_the_item_in_the_draft_order() {
+    let (pool, seed) = site_pool().await;
+    let app = router(pool);
+    let item = seed.item.0;
+    let preview = |sections: &'static [&'static str]| {
+        keyed_preview(
+            "/s/museum/preview",
+            KEY_IDENTITY,
+            KEY_CREDENTIAL,
+            &resource_body("items", item, sections),
+        )
+    };
+
+    let values_first = send(app.clone(), preview(&["values", "itemSets"])).await;
+    assert_eq!(values_first.status, StatusCode::OK, "{}", values_first.body);
+    assert_eq!(header(&values_first, "cache-control"), Some("no-store"));
+    let body = &values_first.body;
+    let values = body
+        .find("<dl class=\"values\">")
+        .unwrap_or_else(|| panic!("{body}"));
+    let sets = body
+        .find("<dl class=\"item-sets\">")
+        .unwrap_or_else(|| panic!("{body}"));
+    assert!(values < sets, "values should come first: {body}");
+    assert!(!body.contains("media-embeds"), "a hidden section rendered");
+    assert!(!body.contains("media-list"), "a hidden section rendered");
+    assert!(
+        !body.contains(KEY_CREDENTIAL),
+        "the credentials leaked into the page"
+    );
+
+    let sets_first = send(app.clone(), preview(&["itemSets", "values"])).await;
+    let body = &sets_first.body;
+    assert!(
+        body.find("<dl class=\"item-sets\">") < body.find("<dl class=\"values\">"),
+        "the item sets should come first: {body}"
+    );
+
+    let public = send(app, get(&format!("/s/museum/item/{item}"), false)).await;
+    assert!(
+        public.body.contains("<div class=\"media-embeds\">"),
+        "the stored theme changed: {}",
+        public.body
+    );
+}
+
+/// A site viewer may not see a draft theme, and a body naming no known kind is
+/// a 400.
+#[tokio::test]
+async fn resource_page_preview_needs_the_site_update_right_and_a_known_kind() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+    let viewer = send(
+        app.clone(),
+        keyed_preview(
+            "/s/vis-pub/preview",
+            VIEWER_KEY_IDENTITY,
+            VIEWER_KEY_CREDENTIAL,
+            &resource_body("items", seed.item.0, &["values"]),
+        ),
+    )
+    .await;
+    assert_eq!(viewer.status, StatusCode::FORBIDDEN, "{}", viewer.body);
+
+    let unknown = send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &resource_body("pages", seed.item.0, &["values"]),
+        ),
+    )
+    .await;
+    assert_eq!(unknown.status, StatusCode::BAD_REQUEST, "{}", unknown.body);
 }

@@ -210,4 +210,7 @@ export const hi: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (सार्वजनिक डोमेन)',
   'themeChoice.allRightsReserved': 'सभी अधिकार सुरक्षित',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वचालित योजना पाठक की प्रणाली का अनुसरण करती है, इसलिए प्रत्येक रंग का एक हल्का मान और एक गहरा मान होता है।',
 };

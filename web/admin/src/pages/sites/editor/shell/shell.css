@@ -1,0 +1,106 @@
+/* The inspector's crumb: "Page › Hero banner". The Page button is the way back
+ * to the page settings, so it reads as a link-weight control. */
+.inspector-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.inspector-crumbs button {
+  padding: 0 var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.inspector-crumbs [aria-current] {
+  color: var(--text);
+}
+
+.editor-keys {
+  position: relative;
+}
+
+.editor-keys > button {
+  padding: var(--space-1) var(--space-2);
+}
+
+.editor-keys-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  width: max-content;
+  max-width: min(28rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+}
+
+.editor-keys-title {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+.editor-keys-panel dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.editor-keys-panel dt {
+  white-space: nowrap;
+}
+
+.editor-keys-panel dd {
+  margin: 0;
+}
+
+.editor-keys-panel kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg);
+  font: 12px/1.6 var(--font);
+  text-align: center;
+}
+
+/* The removal toast. An empty live region draws nothing (`styles.css`). */
+.editor-toast {
+  position: fixed;
+  z-index: 30;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.editor-toast:not(:empty) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 14%);
+}
+
+.editor-toast button {
+  padding: var(--space-1) var(--space-2);
+}
+
+.editor-history-toggle[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}

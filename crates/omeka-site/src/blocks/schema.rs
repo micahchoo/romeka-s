@@ -15,10 +15,21 @@
 //! the `listOfPages` tree. `label` is a catalogue key, not a string, because
 //! only the admin knows a locale. The `const fn`s below keep each layout's
 //! table to one line per field.
+//!
+//! A key that starts with `romeka.`, in a layout's data schema or a layout-data
+//! schema, names a Romeka setting of an upstream block ([`romeka_setting`]),
+//! stored in `o:layout_data.romeka.settings` rather than in `o:data`, which an
+//! upstream save rebuilds: `romeka.height` is stored at
+//! `romeka.settings.height`, and `romeka.section.layout` at
+//! `romeka.settings.section.layout`. Such a carrier names the block's own
+//! layout in `romeka.block`. Upstream's admin keeps that object and ignores it
+//! (`docs/compat.md`, the one-way rule).
 
 use serde::Serialize;
 
+pub use super::layout_schema::{BLOCK_LAYOUT_DATA, PAGE_LAYOUT_DATA, SECTION_LAYOUT_DATA};
 use super::{layout_id, layouts, romeka};
+use crate::theme::palette::Role;
 
 /// A layout's editable `data` members, in the order its form shows them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -62,6 +73,16 @@ pub struct Field {
     /// Whether the form tucks the field under its "Advanced" disclosure.
     #[serde(skip_serializing_if = "is_false")]
     pub advanced: bool,
+}
+
+/// The prefix of a key that names a Romeka setting.
+const ROMEKA_KEY: &str = "romeka.";
+
+/// The path under `o:layout_data.romeka.settings` that a schema key names, or
+/// `None` for one of upstream's own members.
+#[must_use]
+pub fn romeka_setting(key: &str) -> Option<&str> {
+    key.strip_prefix(ROMEKA_KEY)
 }
 
 /// A condition on one sibling field's value, which decides whether a control
@@ -194,14 +215,28 @@ pub enum FieldKind {
     },
     /// The `listOfPages` page tree, stored as a JSON string.
     PageList,
-    /// A `<hex-color>` (`#rgb` or `#rrggbb`), the only colour the renderer
-    /// accepts.
-    Color,
+    /// A `<hex-color>` (`#rgb` or `#rrggbb`) under the field's `key`, or,
+    /// when `token_key` is set, one of the theme's colour roles under that key
+    /// ([`Registry::color_tokens`]). The control writes one and clears the
+    /// other; the two keys may be the same key.
+    Color {
+        /// The key a theme colour role is stored under, if the field offers
+        /// the roles.
+        #[serde(rename = "tokenKey", skip_serializing_if = "Option::is_none")]
+        token_key: Option<&'static str>,
+    },
+    /// An anchor id: the editor turns what a curator types into a lowercase
+    /// slug, and the renderer writes it as the wrapper's `id`.
+    Anchor,
     /// One CSS length per side, each stored under its own key.
     Sides {
         /// The four stored keys.
         keys: SideKeys,
     },
+    /// A IIIF manifest URL, chosen as a URL or as an item of this site, whose
+    /// manifest this server publishes (`/iiif/3/item/<id>/manifest`). Either
+    /// way the stored value is the URL, so upstream opens the same manifest.
+    ManifestSource,
     /// A link target: a page of the site under the field's `key`, or a URL
     /// under `url_key`. The control writes one and clears the other, because
     /// the renderer prefers the page.
@@ -377,9 +412,36 @@ pub const fn page_list(key: &'static str, label: &'static str, help: &'static st
     field(key, label, help, FieldKind::PageList)
 }
 
+/// A IIIF manifest, as a URL or as an item of this site.
+pub const fn manifest_source(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::ManifestSource)
+}
+
 /// A hex colour.
 pub const fn color(key: &'static str, label: &'static str, help: &'static str) -> Field {
-    field(key, label, help, FieldKind::Color)
+    field(key, label, help, FieldKind::Color { token_key: None })
+}
+
+/// A hex colour under `key`, or a theme colour role under `token_key`.
+pub const fn theme_color(
+    key: &'static str,
+    token_key: &'static str,
+    label: &'static str,
+    help: &'static str,
+) -> Field {
+    field(
+        key,
+        label,
+        help,
+        FieldKind::Color {
+            token_key: Some(token_key),
+        },
+    )
+}
+
+/// An anchor id.
+pub const fn anchor(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::Anchor)
 }
 
 /// Four CSS lengths, one per side, edited as one control named `key`.
@@ -503,174 +565,13 @@ impl Field {
                 [keys.top, keys.right, keys.bottom, keys.left].contains(&key)
             }
             FieldKind::Link { url_key } => self.key == key || url_key == key,
+            FieldKind::Color {
+                token_key: Some(token_key),
+            } => self.key == key || token_key == key,
             _ => self.key == key,
         }
     }
 }
-
-/// `Form/BlockLayoutDataForm.php`: the styling every block's `layout_data`
-/// carries, in the sections the styling form shows. `grid_column_position` and
-/// `grid_column_span` come from the page editor's grid rather than that form,
-/// and are declared here because `AbstractLayout` reads them. The four padding
-/// keys are one [`sides`] control.
-pub const BLOCK_LAYOUT_DATA: LayoutSchema = LayoutSchema {
-    fields: &[
-        sides(
-            "padding",
-            "blockLayoutData.padding",
-            "fieldHelp.layout.padding",
-            SideKeys {
-                top: "padding_top",
-                right: "padding_right",
-                bottom: "padding_bottom",
-                left: "padding_left",
-            },
-        )
-        .group(Group::Spacing),
-        text(
-            "max_width",
-            "blockLayoutData.max_width",
-            "fieldHelp.layout.length",
-        )
-        .placeholder("fieldExample.layout.max_width")
-        .group(Group::Size),
-        text(
-            "min_height",
-            "blockLayoutData.min_height",
-            "fieldHelp.layout.length",
-        )
-        .placeholder("fieldExample.layout.min_height")
-        .group(Group::Size),
-        color(
-            "background_color",
-            "blockLayoutData.background_color",
-            "fieldHelp.layout.background_color",
-        )
-        .group(Group::Background),
-        asset_ref(
-            "background_image_asset",
-            "blockLayoutData.background_image_asset",
-            "fieldHelp.layout.background_image_asset",
-        )
-        .group(Group::Background),
-        choice(
-            "background_image_size",
-            "blockLayoutData.background_image_size",
-            "fieldHelp.layout.background_image_size",
-            &[
-                option("cover", "blockChoice.cover"),
-                option("contain", "blockChoice.contain"),
-            ],
-        )
-        .group(Group::Background)
-        .when(When::set("background_image_asset")),
-        choice(
-            "background_image_position_y",
-            "blockLayoutData.background_image_position_y",
-            "fieldHelp.layout.background_image_position",
-            &[
-                option("top", "blockChoice.top"),
-                option("center", "blockChoice.center"),
-                option("bottom", "blockChoice.bottom"),
-            ],
-        )
-        .group(Group::Background)
-        .when(When::set("background_image_asset")),
-        choice(
-            "background_image_position_x",
-            "blockLayoutData.background_image_position_x",
-            "fieldHelp.layout.background_image_position",
-            &[
-                option("left", "blockChoice.left"),
-                option("center", "blockChoice.center"),
-                option("right", "blockChoice.right"),
-            ],
-        )
-        .group(Group::Background)
-        .when(When::set("background_image_asset")),
-        choice(
-            "alignment_block",
-            "blockLayoutData.alignment_block",
-            "fieldHelp.layout.alignment_block",
-            &[
-                option("left", "blockChoice.left"),
-                option("center", "blockChoice.center"),
-                option("right", "blockChoice.right"),
-            ],
-        )
-        .group(Group::Alignment),
-        choice(
-            "alignment_text",
-            "blockLayoutData.alignment_text",
-            "fieldHelp.layout.alignment_text",
-            &[
-                option("left", "blockChoice.left"),
-                option("center", "blockChoice.center"),
-                option("right", "blockChoice.right"),
-                option("justify", "blockChoice.justify"),
-            ],
-        )
-        .group(Group::Alignment),
-        text(
-            "grid_column_position",
-            "blockLayoutData.grid_column_position",
-            "fieldHelp.layout.grid_column_position",
-        )
-        .placeholder("fieldExample.layout.grid_column_position")
-        .group(Group::Grid),
-        text(
-            "grid_column_span",
-            "blockLayoutData.grid_column_span",
-            "fieldHelp.layout.grid_column_span",
-        )
-        .group(Group::Grid),
-        text(
-            "template_name",
-            "blockLayoutData.template_name",
-            "fieldHelp.layout.template_name",
-        )
-        .advanced(),
-        text("class", "blockLayoutData.class", "fieldHelp.layout.class").advanced(),
-    ],
-};
-
-/// `Form/PageLayoutDataForm.php`: the page's own `layout_data`. `grid_columns`
-/// comes from the page editor's grid rather than that form, and is declared
-/// here because `View/Helper/PageLayout::render` reads it.
-pub const PAGE_LAYOUT_DATA: LayoutSchema = LayoutSchema {
-    fields: &[
-        text(
-            "template_name",
-            "pageLayoutData.template_name",
-            "fieldHelp.layout.template_name",
-        )
-        .advanced(),
-        text("class", "pageLayoutData.class", "fieldHelp.layout.class").advanced(),
-        integer_min(
-            "grid_columns",
-            "pageLayoutData.grid_columns",
-            "fieldHelp.page.grid_columns",
-            0,
-        )
-        .group(Group::Grid),
-        integer_min(
-            "grid_column_gap",
-            "pageLayoutData.grid_column_gap",
-            "fieldHelp.page.grid_gap",
-            0,
-        )
-        .default_int(10)
-        .group(Group::Grid),
-        integer_min(
-            "grid_row_gap",
-            "pageLayoutData.grid_row_gap",
-            "fieldHelp.page.grid_gap",
-            0,
-        )
-        .default_int(10)
-        .group(Group::Grid),
-    ],
-};
 
 /// One registered layout as the admin reads it.
 #[derive(Debug, Serialize)]
@@ -752,6 +653,21 @@ pub struct Registry {
     /// The schema of a page's `o:layout_data`.
     #[serde(rename = "pageLayoutData")]
     pub page_layout_data: LayoutSchema,
+    /// The schema of a group's section.
+    #[serde(rename = "sectionLayoutData")]
+    pub section_layout_data: LayoutSchema,
+    /// The theme colour roles a colour field may store, with their label keys.
+    #[serde(rename = "colorTokens")]
+    pub color_tokens: Vec<ColorToken>,
+}
+
+/// One theme colour role as the admin offers it.
+#[derive(Debug, Serialize)]
+pub struct ColorToken {
+    /// The stored value, the role's `--color-<value>` suffix.
+    pub value: &'static str,
+    /// The catalogue key for the role's name.
+    pub label: String,
 }
 
 /// The registry the admin reads, built from the layouts' own schemas.
@@ -790,6 +706,14 @@ pub fn registry() -> Registry {
         },
         block_layout_data: BLOCK_LAYOUT_DATA,
         page_layout_data: PAGE_LAYOUT_DATA,
+        section_layout_data: SECTION_LAYOUT_DATA,
+        color_tokens: Role::ALL
+            .iter()
+            .map(|role| ColorToken {
+                value: role.key(),
+                label: format!("colorToken.{}", role.key()),
+            })
+            .collect(),
     }
 }
 

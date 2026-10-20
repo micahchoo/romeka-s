@@ -8,12 +8,16 @@
  * theme's `/assets/css/style.css` to the port the way `deploy/Caddyfile` does,
  * so both are styled by the real sheet, and the spec asserts that with a
  * computed style only the sheet sets.
+ *
+ * The resource page sections reorder by keyboard, hide and show, and the
+ * preview renders an item page of the site under the draft order.
  */
-import type { FrameLocator, Page } from '@playwright/test';
+import type { FrameLocator, Locator, Page } from '@playwright/test';
 
 import { expect, test } from '../fixtures';
 import { readHarness } from '../harness/state';
-import { SITE_SLUG, SITE_TITLE, WELCOME_SLUG } from '../harness/seed';
+import { isArray, numberField, parseJson, record } from '../harness/json';
+import { ITEM_TITLES, SITE_SLUG, SITE_TITLE, WELCOME_SLUG } from '../harness/seed';
 
 /** A brand the curator picks after the preset. */
 const NEW_BRAND = '#7c3aed';
@@ -155,23 +159,113 @@ test('custom CSS the sanitiser refuses shows its error and is not saved', async 
   expect(style).not.toContain('blue');
 });
 
-test('the resource page block editor saves a reordered list', async ({ page }) => {
-  await openThemePage(page);
+/** An API call with the harness key, failing the test on any status but 200. */
+const api = async (page: Page, method: 'GET' | 'POST', path: string, body?: unknown): Promise<unknown> => {
+  const { baseUrl, keyIdentity, keyCredential } = readHarness();
+  const separator = path.includes('?') ? '&' : '?';
+  const response = await page.request.fetch(
+    `${baseUrl}${path}${separator}key_identity=${keyIdentity}&key_credential=${keyCredential}`,
+    { method, ...(body === undefined ? {} : { data: body }) },
+  );
+  expect(response.status(), `${method} ${path}`).toBe(200);
+  return parseJson(await response.text());
+};
 
-  // The Items resource starts from the theme's set: media embeds, values, item
-  // sets, site pages, media list and linked resources.
+/** A site of its own holding the seeded first item, so the item preview has a record. */
+const siteWithItem = async (page: Page): Promise<number> => {
+  const site = numberField(
+    record(
+      await api(page, 'POST', '/api/sites', {
+        'o:title': 'E2E sections site',
+        'o:slug': 'e2e-sections-site',
+        'o:theme': 'default',
+        'o:is_public': true,
+      }),
+      'site',
+    ),
+    'o:id',
+    'site',
+  );
+  const [title] = ITEM_TITLES;
+  const found = await api(page, 'GET', `/api/items?search=${encodeURIComponent(title ?? '')}`);
+  const item = numberField(record(isArray(found) ? found[0] : null, 'item'), 'o:id', 'item');
+  await api(page, 'POST', `/api/sites/${String(site)}/items`, { action: 'add', items: [item] });
+  return site;
+};
+
+/** The names of the shown sections of a resource, in order. */
+const shownSections = (page: Page, resource: string): Locator =>
+  page.getByRole('list', { name: `Sections shown on ${resource} pages` }).locator('.resource-page-block-label');
+
+/** Where each selector first appears in the preview document, -1 when absent. */
+const order = (frame: FrameLocator, selectors: readonly string[]): Promise<number[]> =>
+  frame.locator('html').evaluate((root, wanted) => {
+    const all = [...root.querySelectorAll('*')];
+    return wanted.map((selector) => {
+      const found = root.querySelector(selector);
+      return found === null ? -1 : all.indexOf(found);
+    });
+  }, selectors);
+
+test('the resource page sections reorder by keyboard, hide, show and preview on an item', async ({ page }) => {
+  await holdKey(page);
+  const site = await siteWithItem(page);
+  await page.goto(`/#/sites/${String(site)}/theme`);
+
+  // The Items resource starts from the theme's set, each section with its line.
   const items = page.getByRole('group', { name: 'Items' });
-  await expect(items.getByRole('button', { name: 'Remove Media list' })).toBeVisible();
-  await items.getByRole('button', { name: 'Remove Media list' }).click();
-  await items.getByRole('button', { name: 'Move Values up' }).click();
+  await expect(items.getByText('The metadata, field by field.')).toBeVisible();
+  await expect(shownSections(page, 'Items')).toHaveText([
+    'Media embeds',
+    'Values',
+    'Item sets',
+    'Site pages',
+    'Media list',
+    'Linked resources',
+  ]);
+
+  // Hide puts a section in the hidden list; Show brings it back at the end.
+  await items.getByRole('button', { name: 'Hide Media list' }).click();
+  const hidden = items.getByRole('list', { name: 'Hidden sections of Items pages' });
+  await expect(hidden.getByText('Media list')).toBeVisible();
+  await hidden.getByRole('button', { name: 'Show Media list' }).click();
+  await expect(shownSections(page, 'Items').last()).toHaveText('Media list');
+  await items.getByRole('button', { name: 'Hide Media list' }).click();
+  await items.getByRole('button', { name: 'Hide Media embeds' }).click();
+
+  // Space picks Item sets up, the arrow moves it, Space drops it.
+  const handle = items.getByRole('button', { name: 'Move Item sets, 2 of 4' });
+  await handle.focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
+  await expect(items.getByRole('status')).toHaveText('Item sets: position 1 of 4.');
+  await page.keyboard.press('Space');
+  await expect(items.getByRole('button', { name: 'Move Item sets, 1 of 4' })).toBeFocused();
+  await expect(shownSections(page, 'Items')).toHaveText(['Item sets', 'Values', 'Site pages', 'Linked resources']);
+
+  // The preview renders the site's item under the draft order.
+  await page.getByRole('combobox', { name: 'Preview' }).selectOption('items');
+  const frame = previewFrame(page);
+  await expect(frame.locator('dl.item-sets')).toBeVisible({ timeout: 10_000 });
+  const [sets, values, embeds, list] = await order(frame, [
+    'dl.item-sets',
+    'dl.values',
+    '.media-embeds',
+    'dl.media-list',
+  ]);
+  expect(sets, 'item sets render').toBeGreaterThan(-1);
+  expect(values, 'values follow the item sets').toBeGreaterThan(sets ?? 0);
+  expect(embeds, 'the hidden media embeds stay out').toBe(-1);
+  expect(list, 'the hidden media list stays out').toBe(-1);
 
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
 
   // Reloading reads the stored map back through `GET /api/sites/<id>`, so the
   // list the editor shows is what storage holds.
-  await openThemePage(page);
-  const reloaded = page.getByRole('group', { name: 'Items' });
-  await expect(reloaded.getByRole('button', { name: 'Remove Values' })).toBeVisible();
-  await expect(reloaded.getByRole('button', { name: 'Remove Media list' })).toHaveCount(0);
+  await page.reload();
+  await expect(shownSections(page, 'Items')).toHaveText(['Item sets', 'Values', 'Site pages', 'Linked resources']);
+  await expect(
+    page.getByRole('group', { name: 'Items' }).getByRole('list', { name: 'Hidden sections of Items pages' }),
+  ).toContainText('Media list');
 });

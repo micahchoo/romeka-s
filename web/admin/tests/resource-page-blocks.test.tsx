@@ -1,6 +1,6 @@
 /**
  * The resource page block editor: the ordered list per resource and the
- * add, remove and reorder gestures, each leaving the whole draft through
+ * show, hide and reorder gestures, each leaving the whole draft through
  * `onChange`.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -35,10 +35,17 @@ describe('the resource page block editor', () => {
 
     expect(within(items()).getAllByText(/^(Values|Item sets)$/)).toHaveLength(2);
     // An empty resource says so rather than showing an empty list.
-    expect(within(screen.getByRole('group', { name: 'Item sets' })).getByText(/No blocks/)).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Item sets' })).getByText(/No sections shown/)).toBeInTheDocument();
   });
 
-  it('moves a block down within its resource', () => {
+  it('says under each section what a reader sees', () => {
+    renderField({ items: ['values'], item_sets: [], media: [] });
+
+    const shown = within(items()).getByRole('list', { name: 'Sections shown on Items pages' });
+    expect(within(shown).getByText('The metadata, field by field.')).toBeInTheDocument();
+  });
+
+  it('moves a section down with its arrow button', () => {
     const onChange = renderField({ items: ['values', 'itemSets'], item_sets: [], media: [] });
 
     fireEvent.click(within(items()).getByRole('button', { name: 'Move Values down' }));
@@ -50,10 +57,12 @@ describe('the resource page block editor', () => {
     });
   });
 
-  it('moves a block up within its resource', () => {
+  it('moves a section up by its handle and the arrow keys', () => {
     const onChange = renderField({ items: ['values', 'itemSets'], item_sets: [], media: [] });
 
-    fireEvent.click(within(items()).getByRole('button', { name: 'Move Item sets up' }));
+    const handle = within(items()).getByRole('button', { name: 'Move Item sets, 2 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
 
     expect(onChange).toHaveBeenCalledWith({
       items: ['itemSets', 'values'],
@@ -62,21 +71,22 @@ describe('the resource page block editor', () => {
     });
   });
 
-  it('removes a block from its resource', () => {
+  it('hides a section, which then sits in the hidden list', () => {
     const onChange = renderField({ items: ['values', 'itemSets'], item_sets: [], media: [] });
 
-    fireEvent.click(within(items()).getByRole('button', { name: 'Remove Values' }));
+    fireEvent.click(within(items()).getByRole('button', { name: 'Hide Values' }));
 
     expect(onChange).toHaveBeenCalledWith({ items: ['itemSets'], item_sets: [], media: [] });
   });
 
-  it('adds a compatible layout that is not already in the list', () => {
+  it('lists every compatible section that is not shown, and Show puts it at the end', () => {
     const onChange = renderField({ items: ['values'], item_sets: [], media: [] });
 
-    const add = within(items()).getByRole('combobox', { name: 'Add a block to Items' });
-    expect(within(add).queryByRole('option', { name: 'Values' })).toBeNull();
-    fireEvent.change(add, { target: { value: 'mediaList' } });
-    fireEvent.click(within(items()).getByRole('button', { name: 'Add' }));
+    const hidden = within(items()).getByRole('list', { name: 'Hidden sections of Items pages' });
+    expect(within(hidden).queryByText('Values')).toBeNull();
+    expect(within(hidden).getByText('Media list')).toBeInTheDocument();
+    expect(within(items()).queryByRole('combobox')).toBeNull();
+    fireEvent.click(within(hidden).getByRole('button', { name: 'Show Media list' }));
 
     expect(onChange).toHaveBeenCalledWith({
       items: ['values', 'mediaList'],
@@ -88,6 +98,6 @@ describe('the resource page block editor', () => {
   it('labels a stored layout the registry does not know', () => {
     renderField({ items: ['someRemovedLayout'], item_sets: [], media: [] });
 
-    expect(within(items()).getByText('Unknown block layout [someRemovedLayout]')).toBeInTheDocument();
+    expect(within(items()).getByText('Unknown section [someRemovedLayout]')).toBeInTheDocument();
   });
 });

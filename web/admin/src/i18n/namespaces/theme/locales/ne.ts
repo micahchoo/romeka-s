@@ -213,4 +213,7 @@ export const ne: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (सार्वजनिक क्षेत्र)',
   'themeChoice.allRightsReserved': 'सबै अधिकार सुरक्षित',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वचालित योजनाले पाठकको प्रणालीलाई पछ्याउँछ, त्यसैले प्रत्येक रङको हल्का मान र गाढा मान हुन्छ।',
 };

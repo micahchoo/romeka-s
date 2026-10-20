@@ -22,7 +22,7 @@ use crate::theme::footer::{Licence, MAX_COLUMNS};
 use crate::theme::palette::{PAIRS, Palette, Role};
 use crate::theme::presets::{LEGACY_IDS, NEW_SITE_PRESET, PRESETS, Preset, PresetId};
 use crate::theme::tokens::{
-    MAX_BASE_SIZE, MAX_RADIUS, MAX_TYPE_RATIO, MIN_BASE_SIZE, MIN_TYPE_RATIO,
+    DARK_EDITABLE, MAX_BASE_SIZE, MAX_RADIUS, MAX_TYPE_RATIO, MIN_BASE_SIZE, MIN_TYPE_RATIO,
 };
 
 /// The kind of value a theme token holds.
@@ -230,6 +230,10 @@ pub fn registry() -> ThemeSettingsRegistry {
             .map(|&(role, key)| ColourEntry {
                 role: role.key(),
                 key,
+                dark_key: DARK_EDITABLE
+                    .iter()
+                    .find(|(dark, _)| *dark == role)
+                    .map(|&(_, dark_key)| dark_key),
             })
             .collect(),
         pairs: PAIRS.iter().map(|&(fg, bg)| [fg.key(), bg.key()]).collect(),
@@ -420,6 +424,10 @@ pub struct ColourEntry {
     pub role: &'static str,
     /// The stored key.
     pub key: &'static str,
+    /// The stored key of its dark value under the automatic scheme, `None`
+    /// for a role that has none.
+    #[serde(rename = "darkKey")]
+    pub dark_key: Option<&'static str>,
 }
 
 /// One preset as the admin reads it.

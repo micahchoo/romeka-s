@@ -38,6 +38,7 @@ pub mod choices;
 pub mod color;
 pub mod custom_css;
 pub mod default;
+mod files;
 pub mod fonts;
 pub mod footer;
 pub mod palette;
@@ -80,12 +81,19 @@ pub enum AssetKind {
     Stylesheet,
     /// A script, loaded from the head and served as `application/javascript`.
     Script,
+    /// A script a view loads where it needs it, served as
+    /// `application/javascript`. The frame does not link it, so a library such
+    /// as Mirador costs nothing on a page that does not use it.
+    Library,
     /// An image a view references by URL, served as `image/svg+xml`. The frame
     /// does not link it; a view does.
     Image,
     /// A WOFF2 webfont, served as `font/woff2`. The token sheet names it in an
     /// `@font-face`, and the frame preloads the ones the site's fonts use.
     Font,
+    /// A PNG image a library references by URL, such as OpenSeadragon's
+    /// navigation buttons.
+    Png,
 }
 
 impl AssetKind {
@@ -94,9 +102,10 @@ impl AssetKind {
     pub const fn media_type(self) -> &'static str {
         match self {
             Self::Stylesheet => "text/css",
-            Self::Script => "application/javascript",
+            Self::Script | Self::Library => "application/javascript",
             Self::Image => "image/svg+xml",
             Self::Font => "font/woff2",
+            Self::Png => "image/png",
         }
     }
 
@@ -112,7 +121,7 @@ impl AssetKind {
         match self {
             Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
-            Self::Image | Self::Font => String::new(),
+            Self::Library | Self::Image | Self::Font | Self::Png => String::new(),
         }
     }
 }
@@ -176,6 +185,22 @@ pub fn theme_for(name: &str) -> Option<&'static dyn Theme> {
         .find(|theme| theme.info().name == name)
 }
 
+/// The `<script>` element that loads one of the bundled theme's libraries
+/// (an [`AssetKind::Library`]) from `asset_base`. The URL carries the bytes'
+/// version, so the asset route lets a client keep them.
+#[must_use]
+pub fn library_script(asset_base: &str, path: &str) -> String {
+    let base = asset_base.trim_end_matches('/');
+    let src = match theme_asset(DEFAULT_INFO.name, path) {
+        Some(asset) => format!("{base}/{path}?v={}", asset.version()),
+        None => format!("{base}/{path}"),
+    };
+    format!(
+        "<script src=\"{}\"></script>",
+        crate::html::escape_html(&src)
+    )
+}
+
 /// A theme's asset by path, `None` when the theme is not bundled or does not
 /// ship that path. The caller serves the bytes with
 /// [`ThemeAsset::kind`]'s media type.
@@ -209,7 +234,14 @@ mod tests {
         assert_eq!(info.label, "Default");
         // The bundled theme declares its design tokens as its own settings.
         assert_eq!(info.settings, tokens::SETTINGS);
-        assert_eq!(info.assets.len(), 2 + fonts::FONT_FILES.len());
+        assert_eq!(
+            info.assets
+                .iter()
+                .filter(|asset| asset.kind == AssetKind::Font)
+                .count(),
+            fonts::FONT_FILES.len()
+        );
+        assert!(theme_asset("default", "vendor/mirador/mirador.min.js").is_some());
     }
 
     /// The bundled theme ships its own stylesheet and the placeholder image a
@@ -244,6 +276,12 @@ mod tests {
         assert_eq!(AssetKind::Script.media_type(), "application/javascript");
         assert_eq!(AssetKind::Image.element("/assets/img/placeholder.svg"), "");
         assert!(!AssetKind::Image.is_head());
+        assert_eq!(
+            AssetKind::Library.element("/assets/vendor/mirador/mirador.min.js"),
+            ""
+        );
+        assert!(!AssetKind::Library.is_head());
+        assert!(!AssetKind::Png.is_head());
         assert!(AssetKind::Stylesheet.is_head());
     }
 }

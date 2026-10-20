@@ -59,8 +59,15 @@ export interface ThemeRegistry {
   readonly legacyPresets: Readonly<Record<string, string>>;
   readonly settings: readonly ThemeSetting[];
   readonly presets: readonly Preset[];
-  /** Each colour role with the key a site stores it under. */
-  readonly colours: readonly { readonly role: ColourRole; readonly key: string }[];
+  /**
+   * Each colour role with the key a site stores it under, and the key of its
+   * dark value under the automatic scheme (`null` for the brand).
+   */
+  readonly colours: readonly {
+    readonly role: ColourRole;
+    readonly key: string;
+    readonly darkKey: string | null;
+  }[];
   readonly pairs: readonly (readonly [Role, Role])[];
   readonly aa: number;
 }
@@ -208,6 +215,7 @@ export const parseThemeRegistry = (value: unknown): ThemeRegistry => {
       return {
         role: colourRole(colour.role, [...path, 'role']),
         key: str(colour.key, [...path, 'key']),
+        darkKey: colour.darkKey === null ? null : str(colour.darkKey, [...path, 'darkKey']),
       };
     })(object.colours, ['colours']),
     pairs: parseListOf((entry: unknown, path: Path): readonly [Role, Role] => {

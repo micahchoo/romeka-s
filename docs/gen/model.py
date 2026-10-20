@@ -389,6 +389,7 @@ STATUS_CODES = {
     "UNAUTHORIZED": 401,
     "FORBIDDEN": 403,
     "NOT_FOUND": 404,
+    "CONFLICT": 409,
     "METHOD_NOT_ALLOWED": 405,
     "UNSUPPORTED_MEDIA_TYPE": 415,
     "UNPROCESSABLE_ENTITY": 422,
@@ -400,6 +401,12 @@ ERROR_PHRASES = {
     "BadRequest": "the body is not a JSON object, or a member the resource rejects",
     "PermissionDenied": "the caller's role does not hold the operation",
     "NotFound": "an unknown resource name, or a row the caller may not see",
+    "Conflict": "the request clashes with stored state, such as deleting a job a running import holds",
+    "StalePage": (
+        "Romeka: a site page `PUT` or `PATCH` whose `o:modified` is not the stored page's; the error"
+        " object adds the stored `o:modified` and `o:user` (`o:id`, `o:name`) of who saved it."
+        " A body without `o:modified` is never refused"
+    ),
     "MethodNotAllowed": "the method is not routed on that path shape",
     "UnsupportedMediaType": "a write body whose Content-Type is neither JSON nor multipart",
     "Validation": "a body member failed validation, keyed by member",

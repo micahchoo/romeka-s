@@ -200,4 +200,7 @@ export const es: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (dominio público)',
   'themeChoice.allRightsReserved': 'Todos los derechos reservados',
+  // A colour's light and dark values under the automatic scheme.
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp': 'El esquema automático sigue el sistema del lector, así que cada color tiene un valor claro y un valor oscuro.',
 };

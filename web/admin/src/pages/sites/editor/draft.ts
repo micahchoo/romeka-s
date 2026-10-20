@@ -11,10 +11,11 @@
 import { BLOCK_REGISTRY } from '../blockRegistry';
 import type { BlockRegistry } from '../blockSchema';
 import type { TemplateBlock, TemplateContent } from '../templates';
-import type { ItemId, JsonValue, MediaId } from '../../../api/types';
+import type { ItemId, JsonValue, MediaId, SitePage } from '../../../api/types';
 import { romkaFor, settingsOf } from './romeka';
 import { schemaFor, validateFields } from './schema';
-import { dataObject } from './values';
+import { readPath } from './layoutPaths';
+import { dataObject, layoutDataObject } from './values';
 
 /** A stable client key. Keys survive moves and never name two blocks. */
 export type BlockKey = string & { readonly __brand: 'BlockKey' };
@@ -95,6 +96,8 @@ export type DraftAction =
       readonly toIndex: number;
       /** Join this group, or `null` to force a top-level block. Omit for position only. */
       readonly into?: BlockKey | null;
+      /** With `into`: take the slot of this member, which moves one slot on. Omit to append. */
+      readonly before?: BlockKey;
     }
   | { readonly type: 'setLayout'; readonly blockKey: BlockKey; readonly layout: string }
   | {
@@ -116,12 +119,6 @@ export type DraftAction =
       readonly blockKey: BlockKey;
       readonly values: Readonly<Record<string, JsonValue>>;
     }
-  | {
-      readonly type: 'setRomkaSetting';
-      readonly blockKey: BlockKey;
-      readonly field: string;
-      readonly value: JsonValue;
-    }
   | { readonly type: 'useRomkaVersion'; readonly blockKey: BlockKey }
   | {
       readonly type: 'setAttachments';
@@ -134,6 +131,16 @@ export type DraftAction =
   | { readonly type: 'setPageLayoutData'; readonly key: string; readonly value: JsonValue }
   | { readonly type: 'applyTemplate'; readonly template: TemplateContent }
   | { readonly type: 'insertBlocks'; readonly index: number; readonly blocks: readonly TemplateBlock[] }
+  | {
+      /**
+       * Replace the content with a stored page (a version, or the copy someone
+       * else saved) as one undoable edit. `saved` also makes it the saved
+       * baseline, because it is what the server now holds.
+       */
+      readonly type: 'loadPage';
+      readonly page: SitePage;
+      readonly saved: boolean;
+    }
   | { readonly type: 'undo' }
   | { readonly type: 'redo' }
   | { readonly type: 'markSaved' };
@@ -143,7 +150,9 @@ export type ValidationIssue =
   | { readonly kind: 'required'; readonly blockKey: BlockKey | null; readonly field: string }
   | { readonly kind: 'min'; readonly blockKey: BlockKey; readonly field: string; readonly min: number }
   | { readonly kind: 'max'; readonly blockKey: BlockKey; readonly field: string; readonly max: number }
-  | { readonly kind: 'type'; readonly blockKey: BlockKey; readonly field: string };
+  | { readonly kind: 'type'; readonly blockKey: BlockKey; readonly field: string }
+  /** An anchor an earlier block of the page already uses. */
+  | { readonly kind: 'taken'; readonly blockKey: BlockKey; readonly field: string };
 
 /** One action of the given type, which an edit function takes. */
 export type ActionOf<Type extends DraftAction['type']> = Extract<DraftAction, { readonly type: Type }>;
@@ -164,6 +173,29 @@ export const emptyDraft = (registry: BlockRegistry = BLOCK_REGISTRY): PageDraft 
 /** The key `addBlock` gives the block it appends, so a caller can select it. */
 export const nextBlockKey = (state: PageDraft): BlockKey => blockKey(state.nextKey);
 
+/** The layout-data path of a block's anchor (`blocks/style.rs`). */
+export const ANCHOR_PATH = 'romeka.anchor';
+
+/**
+ * A block whose anchor an earlier block already uses. The renderer gives the
+ * id to the first block only, so a second one would link nowhere.
+ */
+const anchorIssues = (blocks: readonly BlockDraft[]): readonly ValidationIssue[] => {
+  const seen = new Set<string>();
+  const issues: ValidationIssue[] = [];
+  for (const block of blocks) {
+    const anchor = readPath(layoutDataObject(block), ANCHOR_PATH);
+    if (typeof anchor !== 'string' || anchor === '') {
+      continue;
+    }
+    if (seen.has(anchor)) {
+      issues.push({ kind: 'taken', blockKey: block.key, field: ANCHOR_PATH });
+    }
+    seen.add(anchor);
+  }
+  return issues;
+};
+
 /** Every schema violation in the draft, page title included. */
 export const validate = (state: PageDraft): readonly ValidationIssue[] => {
   const issues: ValidationIssue[] =
@@ -180,5 +212,6 @@ export const validate = (state: PageDraft): readonly ValidationIssue[] => {
     }
     issues.push(...validateFields(block.key, schema.fields, dataObject(block), ''));
   }
+  issues.push(...anchorIssues(state.blocks));
   return issues;
 };

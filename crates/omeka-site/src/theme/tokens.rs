@@ -47,6 +47,18 @@ pub const MAX_TYPE_RATIO: u32 = 160;
 /// The largest corner radius, in pixels.
 pub const MAX_RADIUS: u32 = 24;
 
+/// The colours a site may set apart for the dark palette under the automatic
+/// scheme, each under its own stored key. The brand has none: the dark
+/// palette already follows the brand, derived or set by hand.
+pub const DARK_EDITABLE: [(Role, &str); 6] = [
+    (Role::Accent, "accent_color_dark"),
+    (Role::Background, "background_color_dark"),
+    (Role::Surface, "surface_color_dark"),
+    (Role::Text, "text_color_dark"),
+    (Role::Muted, "muted_color_dark"),
+    (Role::Link, "link_color_dark"),
+];
+
 /// What a site chose: a preset, whether to derive the palette from the brand
 /// colour, and the tokens it set by hand. `None` means "the preset's".
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -57,6 +69,9 @@ pub struct Choices {
     pub derive: bool,
     /// The colours set by hand, the brand among them.
     pub colours: Vec<(Role, HexColor)>,
+    /// The dark palette's colours set by hand, read under the automatic
+    /// scheme only.
+    pub dark_colours: Vec<(Role, HexColor)>,
     /// The scheme, when set by hand.
     pub scheme: Option<ColorScheme>,
     /// The heading font, when set by hand.
@@ -119,6 +134,10 @@ impl Choices {
             preset: preset.unwrap_or_default(),
             derive,
             colours: Role::EDITABLE
+                .iter()
+                .filter_map(|&(role, key)| Some((role, HexColor::parse(choice(key)?)?)))
+                .collect(),
+            dark_colours: DARK_EDITABLE
                 .iter()
                 .filter_map(|&(role, key)| Some((role, HexColor::parse(choice(key)?)?)))
                 .collect(),
@@ -199,7 +218,8 @@ pub struct Tokens {
 ///
 /// A colour override applies to the palette the page shows first: the dark one
 /// under the dark scheme, the light one otherwise. Under the automatic scheme
-/// the dark palette stays the preset's or the derived one.
+/// the dark palette takes the dark overrides ([`DARK_EDITABLE`]) instead, and
+/// keeps the preset's or the derived colour where there is none.
 #[must_use]
 pub fn resolve(choices: &Choices) -> Tokens {
     let preset = choices.preset.preset();
@@ -226,6 +246,11 @@ pub fn resolve(choices: &Choices) -> Tokens {
     };
     for &(role, colour) in &choices.colours {
         shown.set(role, colour);
+    }
+    if scheme == ColorScheme::Auto {
+        for &(role, colour) in &choices.dark_colours {
+            dark.set(role, colour);
+        }
     }
     Tokens {
         preset: choices.preset,

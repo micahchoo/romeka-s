@@ -203,6 +203,9 @@ export const en = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (public domain)',
   'themeChoice.allRightsReserved': 'All rights reserved',
+  // A colour's light and dark values under the automatic scheme.
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp': 'The automatic scheme follows the reader\'s system, so each colour has a light value and a dark value.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

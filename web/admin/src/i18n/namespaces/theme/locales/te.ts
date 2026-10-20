@@ -213,4 +213,7 @@ export const te: ThemeMessages = {
   'themeChoice.ccByNcNd': 'CC BY-NC-ND 4.0',
   'themeChoice.cc0': 'CC0 1.0 (ప్రజా డొమైన్)',
   'themeChoice.allRightsReserved': 'అన్ని హక్కులు రిజర్వ్ చేయబడ్డాయి',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ఆటోమేటిక్ స్కీమ్ రీడర్ యొక్క సిస్టమ్‌ను అనుసరిస్తుంది, కాబట్టి ప్రతి రంగుకు లైట్ వాల్యూ మరియు డార్క్ వాల్యూ ఉంటాయి.',
 };
