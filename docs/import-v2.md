@@ -566,7 +566,7 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   with more than 10 MB out, or the entry count passes 100,000.
 - **Retention.** A sweep deletes staging 30 days after an import reaches `done` or `undone`, 30 days
   after the last run attempt of a failed import, and 7 days after a draft was last saved (`romeka_import.saved`); incomplete
-  uploads and orphaned parts go after 24 hours. `romeka serve` runs the sweep hourly. The draft shows the date. Settings: `import_staging_keep_days`,
+  uploads go after 24 hours and parts no upload row names after 1 hour. `romeka serve` runs the sweep hourly. The draft shows the date. Settings: `import_staging_keep_days`,
   `import_draft_staging_keep_days`.
 - **URL sources.** The `ingester` and `mediaSource` slots drive the existing ingesters (`url`,
   `html`, `youtube`, `iiif`, `iiif_presentation`, `oembed`). Every fetch any ingester makes, in the
@@ -650,7 +650,7 @@ measured 2026-10-20), so 0006 replaces the v1 import tables instead of convertin
 `romeka_import_resource` and `romeka_import` and creates the v2 tables. MySQL gets the same
 migration so a fresh MySQL install builds the v2 schema.
 
-- `romeka_import (id, owner_id, sources TEXT, plan TEXT, ran_plan TEXT NULL, revision INTEGER NOT
+- `romeka_import (id, owner_id, sources TEXT, plan TEXT, ran_plan TEXT NULL, saved DATETIME NOT NULL, revision INTEGER NOT
   NULL DEFAULT 0, status, job_id, summary TEXT NULL, copied_from NULL, created, finished NULL)`,
   status CHECK over the v2 statuses, FKs as v1 (`ON DELETE SET NULL` for owner, job, copied_from).
   JSON members are LONGTEXT on MySQL.
