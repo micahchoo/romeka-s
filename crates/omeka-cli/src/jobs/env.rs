@@ -1,9 +1,9 @@
 //! What a job reads besides the database: the file store, the installation's
-//! base URL, and the archive root.
+//! base URL, and the named archive roots.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
+use omeka_api::import2::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_media::store::Store;
 
@@ -13,8 +13,8 @@ use omeka_media::store::Store;
 pub struct JobEnv {
     pub store: Arc<dyn Store>,
     pub base_url: BaseUrl,
-    /// `None` when the archive import is off.
-    pub archive_root: Option<PathBuf>,
+    /// The roots import sources name; empty when the archive import is off.
+    pub archive_roots: ArchiveRoots,
 }
 
 /// The base URL when none is given, as `romeka serve` defaults its own.
@@ -26,7 +26,7 @@ impl Default for JobEnv {
             store: omeka_server::file_store(omeka_server::FILES_ROOT),
             base_url: BaseUrl::parse(DEFAULT_BASE_URL)
                 .unwrap_or_else(|_| unreachable!("the default base URL literal parses")),
-            archive_root: None,
+            archive_roots: ArchiveRoots::default(),
         }
     }
 }

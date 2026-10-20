@@ -48,7 +48,7 @@ use super::archive::{ArchiveRoots, SourceDir};
 use super::catalog::Catalog;
 use super::catalog_load::{self, Owners};
 use super::check::{Check, check};
-use super::decisions::Decision;
+use super::decisions::EntryRef;
 use super::derive::{FileTags, Sheets, derive};
 use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
@@ -118,7 +118,9 @@ pub struct PreviewRequest {
 pub struct OrphanView {
     pub decision: usize,
     pub reason: OrphanReason,
-    pub detail: Option<Decision>,
+    /// The entry the reason is about, not the whole decision: a `many`
+    /// decision holds thousands of entries.
+    pub entry: EntryRef,
 }
 
 /// The answer: every source's scan state and the pattern's state, then
@@ -296,7 +298,7 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
                 .map(|orphan| OrphanView {
                     decision: orphan.decision,
                     reason: orphan.reason,
-                    detail: derived.plan.decisions.get(orphan.decision).cloned(),
+                    entry: orphan.entry.clone(),
                 })
                 .collect()
         }),

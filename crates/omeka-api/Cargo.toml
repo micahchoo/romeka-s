@@ -56,8 +56,9 @@ chardetng = "1"
 encoding_rs = "0.8"
 # The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
 regex = "1"
-# Import v2 finds identical files by streaming each candidate through SHA-256
-# (`import2/scan/identical.rs`). Already in the lock through omeka-media.
+# SHA-256 as a stream, three uses: the import model's digest
+# (`import2::model::Model::seal`), files over 64 MB as they go into the store
+# (`import2/media_in.rs`), and identical-file hashing (`import2/scan/identical.rs`).
 sha2 = "0.10"
 
 [dev-dependencies]

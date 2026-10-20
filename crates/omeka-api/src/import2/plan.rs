@@ -226,6 +226,10 @@ pub enum PlanError {
         first: String,
         second: String,
     },
+    #[error("decision {0} changes many records but names no entry")]
+    EmptyMany(usize),
+    #[error("decision {0} moves many entries, and a row is not a file")]
+    ManyMovesRow(usize),
     #[error("the new fields {first:?} and {second:?} both make {term}")]
     TermsCollide {
         first: String,

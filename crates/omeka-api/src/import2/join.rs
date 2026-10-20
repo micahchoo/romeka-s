@@ -5,17 +5,22 @@
 //! a `fileName` join, the group holding the file its cell names. Both sides
 //! pass through [`normalize`] first. A media row with a `fileName` join
 //! finds its file; every other media row attaches by item key later, once
-//! item keys are resolved. An item-set row is a record of its own.
+//! item keys are resolved. An item-set row is a record of its own. A `pair`
+//! decision joins its row to its file's group (or, for a media row, to the
+//! file) before the rule, so a rule row that would join that target is a
+//! duplicate.
+
+mod pair;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use unicode_normalization::UnicodeNormalization;
 
-use super::decisions::{EntryRef, RowRef};
+use super::decisions::{Decision, EntryRef, RowRef};
 use super::grouping::Grouping;
-use super::model::{GroupKey, Subject};
+use super::model::{GroupKey, Orphan, Subject};
 use super::plan::{FlagKind, FlagPolicy, JoinNormalize, JoinOn, RecordKind, RowKind, SheetPlan};
-use super::sheet::{Row, Sheet};
+use super::sheet::{Row, Sheet, key_column};
 use super::values::row_kind_from_cell;
 use crate::import2::flags::FlagBook;
 
@@ -63,6 +68,39 @@ pub(crate) struct Joined {
     pub set_rows: Vec<RowAt>,
     /// Rows a flag's `leave` policy took out.
     pub skipped: BTreeMap<RowAt, FlagKind>,
+    /// `pair` decisions whose row or file is gone or cannot join.
+    pub orphans: Vec<Orphan>,
+}
+
+/// A sheet keyed by line whose bytes changed since the plan stored a hash:
+/// its line keys now name other rows.
+pub(crate) fn line_keys_changed(sheet: &SheetIn<'_>) -> bool {
+    key_column(sheet.plan).is_none()
+        && match (&sheet.plan.hash, sheet.sheet) {
+            (Some(stored), Some(read)) => *stored != read.hash,
+            _ => false,
+        }
+}
+
+/// The kind a row's kind cell names, or the cell's text when it names none.
+fn kind_of<'r>(plan: &SheetPlan, row: &'r Row) -> Result<RecordKind, &'r str> {
+    match &plan.row_kind {
+        RowKind::All(kind) => Ok(*kind),
+        RowKind::Column(column) => {
+            let text = cell(row, column.column.index);
+            row_kind_from_cell(text).ok_or(text)
+        }
+    }
+}
+
+/// What a row of `kind` joins when its join finds `found`.
+fn target_of(found: Option<&Found>, kind: RecordKind) -> Option<Target> {
+    match (found?, kind) {
+        (Found::Group(group), RecordKind::Item) => Some(Target::Group(group.clone())),
+        (Found::File(file, _), RecordKind::Media) => Some(Target::File(*file)),
+        (Found::File(_, group), RecordKind::Item) => group.clone().map(Target::Group),
+        _ => None,
+    }
 }
 
 /// NFC and trimmed always; then the optional case fold, separator fold
@@ -123,9 +161,11 @@ const EXACT: JoinNormalize = JoinNormalize {
 pub(crate) fn join(
     sheets: &[SheetIn<'_>],
     grouping: &Grouping<'_>,
+    decisions: &[Decision],
     book: &mut FlagBook<'_>,
 ) -> Joined {
     let mut joined = Joined::default();
+    let paired = pair::paired(decisions, sheets, grouping, book, &mut joined.orphans);
     for (at_sheet, sheet_in) in sheets.iter().enumerate() {
         let Some(sheet) = sheet_in.sheet else {
             continue;
@@ -159,21 +199,16 @@ pub(crate) fn join(
                 joined.skipped.insert(at, FlagKind::CellsCount);
                 continue;
             }
-            let kind = match &plan.row_kind {
-                RowKind::All(kind) => *kind,
-                RowKind::Column(column) => {
-                    let text = cell(row, column.column.index);
-                    match row_kind_from_cell(text) {
-                        Some(kind) => kind,
-                        None if raise(book, FlagKind::UnknownKind, text.to_string())
-                            == Some(FlagPolicy::Leave) =>
-                        {
-                            joined.skipped.insert(at, FlagKind::UnknownKind);
-                            continue;
-                        }
-                        None => RecordKind::Item,
-                    }
+            let kind = match kind_of(plan, row) {
+                Ok(kind) => kind,
+                Err(text)
+                    if raise(book, FlagKind::UnknownKind, text.to_string())
+                        == Some(FlagPolicy::Leave) =>
+                {
+                    joined.skipped.insert(at, FlagKind::UnknownKind);
+                    continue;
                 }
+                Err(_) => RecordKind::Item,
             };
             if kind == RecordKind::ItemSet {
                 joined.set_rows.push(at);
@@ -184,20 +219,23 @@ pub(crate) fn join(
                 .as_ref()
                 .map(|join| normalize(cell(row, join.column.index), how))
                 .filter(|key| !key.is_empty());
-            let found = key
-                .as_ref()
-                .and_then(|key| by_key.as_ref()?.get(key))
-                .cloned();
-            let target = match (&found, kind) {
-                (Some(Found::Group(group)), RecordKind::Item) => Some(Target::Group(group.clone())),
-                (Some(Found::File(file, _)), RecordKind::Media) => Some(Target::File(*file)),
-                (Some(Found::File(_, group)), RecordKind::Item) => group.clone().map(Target::Group),
-                _ => None,
+            let pair = paired[at_sheet].found.get(&at_row);
+            let found = match pair {
+                Some(found) => Some(found),
+                None => key.as_ref().and_then(|key| by_key.as_ref()?.get(key)),
             };
-            let duplicate = key
+            let target = target_of(found, kind);
+            let claimed_by_another = target
                 .as_ref()
-                .is_some_and(|key| !seen_keys.insert(key.clone()))
-                || target.as_ref().is_some_and(|target| taken.contains(target));
+                .and_then(|target| paired[at_sheet].claims.get(target))
+                .is_some_and(|row| *row != at_row);
+            // A paired row did not join by its cell, so its key is not seen.
+            let duplicate = (pair.is_none()
+                && key
+                    .as_ref()
+                    .is_some_and(|key| !seen_keys.insert(key.clone())))
+                || target.as_ref().is_some_and(|target| taken.contains(target))
+                || claimed_by_another;
             if duplicate {
                 let detail = key.clone().unwrap_or_default();
                 if raise(book, FlagKind::DuplicateRow, detail) == Some(FlagPolicy::Leave) {
@@ -232,13 +270,13 @@ pub(crate) fn join(
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-enum Target {
+pub(super) enum Target {
     Group(GroupKey),
     File(usize),
 }
 
 #[derive(Clone)]
-enum Found {
+pub(super) enum Found {
     Group(GroupKey),
     /// A file, and the group it is in.
     File(usize, Option<GroupKey>),

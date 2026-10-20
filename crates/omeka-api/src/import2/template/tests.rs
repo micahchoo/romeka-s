@@ -220,3 +220,111 @@ fn a_list_without_an_identifier_column_is_refused() {
     assert_eq!(bracketed("Title [dcterms:title] "), Some("dcterms:title"));
     assert_eq!(bracketed("Title"), None);
 }
+
+fn plan_titled(title: &str) -> ImportPlanV2 {
+    let mut value = serde_json::to_value(plan()).unwrap();
+    value["slots"]["item"]["dcterms:title"]["sources"][0]["value"] = json!(title);
+    ImportPlanV2::from_json(&value.to_string()).unwrap()
+}
+
+fn title_cell(title: &str) -> (String, String) {
+    let index = index(&["AF_001.jpg"]);
+    let plan = plan_titled(title);
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let csv = template_csv(&model, &catalog(), &columns(&["dcterms:title"]));
+    let text = String::from_utf8(csv).unwrap();
+    let text = text.trim_start_matches('\u{feff}');
+    let read = list_read(false);
+    let mut sheet = sheet::read(text.as_bytes(), &read, None).unwrap();
+    let raw = sheet.rows[0].cells[2].clone();
+    unescape_list(&mut sheet);
+    (raw, sheet.rows[0].cells[2].clone())
+}
+
+#[test]
+fn a_cell_a_spreadsheet_would_run_as_a_formula_leaves_the_template_with_a_leading_quote() {
+    for (value, written) in [
+        ("=1+1", "'=1+1"),
+        ("+1", "'+1"),
+        ("-5", "'-5"),
+        ("@SUM(A1)", "'@SUM(A1)"),
+    ] {
+        let index = index(&["AF_001.jpg"]);
+        let plan = plan_titled(value);
+        let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+        let text = String::from_utf8(template_csv(
+            &model,
+            &catalog(),
+            &columns(&["dcterms:title"]),
+        ))
+        .unwrap();
+        let line = text.split("\r\n").nth(1).unwrap();
+        let cell = line.strip_prefix("AF_001,AF_001.jpg,").unwrap();
+        let cell = cell.trim_matches('"');
+        assert_eq!(cell, written, "{value:?}");
+    }
+}
+
+#[test]
+fn a_leading_tab_or_carriage_return_is_guarded_too() {
+    assert_eq!(guard("\tx"), "'\tx");
+    assert_eq!(guard("\rx"), "'\rx");
+    assert_eq!(guard("x\t"), "x\t");
+}
+
+#[test]
+fn the_template_leaves_safe_text_alone() {
+    let index = index(&["AF_001.jpg"]);
+    let plan = plan_titled("दीपक");
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let text = String::from_utf8(template_csv(
+        &model,
+        &catalog(),
+        &columns(&["dcterms:title"]),
+    ))
+    .unwrap();
+    assert!(text.contains("AF_001,AF_001.jpg,दीपक\r\n"), "{text}");
+}
+
+#[test]
+fn a_file_name_that_starts_like_a_formula_is_quoted_in_the_files_column() {
+    let index = index(&["=cmd.jpg"]);
+    let mut value = serde_json::to_value(plan()).unwrap();
+    value["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
+    let plan = ImportPlanV2::from_json(&value.to_string()).unwrap();
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let text = String::from_utf8(template_csv(&model, &catalog(), &[])).unwrap();
+    let line = text.split("\r\n").nth(1).unwrap();
+    assert!(line.ends_with(",'=cmd.jpg"), "{line}");
+}
+
+#[test]
+fn the_quote_comes_off_on_upload_so_every_value_round_trips() {
+    for value in [
+        "=1+1",
+        "+1",
+        "-5",
+        "@x",
+        "-दीपक",
+        "=दीपक",
+        "'-5",
+        "'=x",
+        "'plain",
+        "'",
+        "-",
+        "दीपक",
+    ] {
+        let (raw, back) = title_cell(value);
+        assert_eq!(back, value, "{value:?} written as {raw:?}");
+    }
+}
+
+#[test]
+fn only_a_quote_before_a_formula_character_comes_off_and_only_in_bracketed_columns() {
+    let read = list_read(false);
+    let text = "Identifier,Files,Title [dcterms:title],Notes\r\n'-5,,'-5,'-5\r\nB,,'x,'=y\r\n";
+    let mut sheet = sheet::read(text.as_bytes(), &read, None).unwrap();
+    unescape_list(&mut sheet);
+    assert_eq!(sheet.rows[0].cells, ["'-5", "", "-5", "'-5"]);
+    assert_eq!(sheet.rows[1].cells, ["B", "", "'x", "'=y"]);
+}

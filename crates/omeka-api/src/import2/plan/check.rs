@@ -7,13 +7,35 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{Action, Combine, ImportPlanV2, PlanError, RecordKind, SourceRef, Term};
+use crate::import2::decisions::{Change, Decision, EntryRef};
 use crate::import2::values::fold_title;
 
 pub(super) fn plan(plan: &ImportPlanV2) -> Result<(), PlanError> {
     ids(plan)?;
     slots(plan)?;
     new_types(plan)?;
-    new_terms(plan)
+    new_terms(plan)?;
+    decisions(plan)
+}
+
+/// Only what no rescan can mend: a missing entry is an orphan, not this.
+fn decisions(plan: &ImportPlanV2) -> Result<(), PlanError> {
+    for (at, decision) in plan.decisions.iter().enumerate() {
+        let Decision::Many { entries, change } = decision else {
+            continue;
+        };
+        if entries.is_empty() {
+            return Err(PlanError::EmptyMany(at));
+        }
+        if matches!(change, Change::Move { .. })
+            && entries
+                .iter()
+                .any(|entry| matches!(entry, EntryRef::Row(_)))
+        {
+            return Err(PlanError::ManyMovesRow(at));
+        }
+    }
+    Ok(())
 }
 
 fn ids(plan: &ImportPlanV2) -> Result<(), PlanError> {

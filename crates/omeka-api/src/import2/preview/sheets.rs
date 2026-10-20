@@ -20,6 +20,7 @@ use omeka_media::store::Store;
 use crate::import2::archive::{ArchiveError, SourceDir};
 use crate::import2::plan::{Encoding, RelPath, SheetPlan};
 use crate::import2::sheet::{self, Guess, MAX_SHEET_BYTES, Sheet, SheetError};
+use crate::import2::template;
 
 /// The most reads the cache keeps.
 pub const MAX_SHEETS: usize = 16;
@@ -150,7 +151,14 @@ impl SheetCache {
                 unread(SheetError::TooLarge(bytes.len() as u64)),
                 bytes.len() as u64,
             ),
-            Ok(bytes) => (read_bytes(&bytes, plan), bytes.len() as u64),
+            Ok(bytes) => {
+                // Only the staging area holds lists the template wrote.
+                let mut read = read_bytes(&bytes, plan);
+                if let Ok(sheet) = &mut read.sheet {
+                    template::unescape_list(sheet);
+                }
+                (read, bytes.len() as u64)
+            }
             Err(error) => (unread(SheetError::Io(error.to_string())), 0),
         };
         let read = Arc::new(read);

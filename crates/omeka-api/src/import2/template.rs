@@ -142,11 +142,55 @@ pub fn template_csv(model: &Model, catalog: &Catalog, columns: &[ListColumn]) ->
                 path.rsplit_once('/').map_or(path, |(_, name)| name)
             })
             .collect();
-        let mut line = vec![key.text().to_string(), names.join(SPLIT)];
-        line.extend(columns.iter().map(|column| column.cell(record)));
+        let mut line = vec![key.text().to_string(), guard(&names.join(SPLIT))];
+        line.extend(columns.iter().map(|column| guard(&column.cell(record))));
         push_line(&mut out, &line);
     }
     out.into_bytes()
+}
+
+/// Whether a spreadsheet reads a cell starting with `c` as a formula.
+fn runs_as_formula(c: char) -> bool {
+    matches!(c, '=' | '+' | '-' | '@' | '\t' | '\r')
+}
+
+/// The cell as the list writes it: a leading `'` keeps a spreadsheet from
+/// running the cell as a formula. A cell that already starts with `'` and
+/// then a formula character gets one more, so [`unescape_list`] gives back
+/// exactly the value that went out.
+fn guard(cell: &str) -> String {
+    if hides_formula(cell) {
+        format!("'{cell}")
+    } else {
+        cell.to_string()
+    }
+}
+
+/// Whether the cell is a formula character behind zero or more quotes.
+fn hides_formula(cell: &str) -> bool {
+    cell.trim_start_matches('\'').starts_with(runs_as_formula)
+}
+
+/// Take the `'` that [`guard`] put in front of a formula character off the
+/// cells of every bracketed column of an uploaded list. The `Identifier`
+/// column is not guarded, so it is left as it came.
+pub fn unescape_list(sheet: &mut Sheet) {
+    let columns: Vec<usize> = sheet
+        .columns
+        .iter()
+        .filter(|column| bracketed(&column.header).is_some())
+        .map(|column| column.index as usize)
+        .collect();
+    for row in &mut sheet.rows {
+        for &at in &columns {
+            let Some(cell) = row.cells.get_mut(at) else {
+                continue;
+            };
+            if cell.starts_with('\'') && hides_formula(cell) {
+                cell.remove(0);
+            }
+        }
+    }
 }
 
 fn push_line(out: &mut String, cells: &[String]) {

@@ -16,7 +16,7 @@ mod sources;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use super::catalog::Catalog;
-use super::decisions::{Decision, EntryRef};
+use super::decisions::{Act, Decision, EntryRef};
 use super::derive::FileTags;
 use super::derive::records::Draft;
 use super::flags::{FlagBook, looks_misdecoded};
@@ -171,7 +171,7 @@ fn default_item_key(
 }
 
 fn decision_values(decision: &Decision) -> Vec<Value> {
-    let Decision::Set { values, .. } = decision else {
+    let Some(Act::Set { values, .. }) = decision.act() else {
         return Vec::new();
     };
     values

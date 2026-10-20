@@ -155,6 +155,16 @@
     "server.importListType": "\"{name}\" is not a CSV or TSV file. Save the list as CSV or TSV, then send it again.",
     "server.importListTooLarge": "The list is larger than 50 MB.",
     "server.importListUnread": "The list cannot be read: {reason}",
-    "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded."
+    "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.",
+    "server.importFileUnreadable": "The file \"{path}\" could not be read: {reason}",
+    "server.importFileRefused": "The file \"{path}\" was not added: {reason}",
+    "server.importFileNotStored": "The file \"{path}\" could not be stored: {reason}",
+    "server.importSourceRefused": "\"{source}\" was not added: {reason}",
+    "server.importMediaNoSource": "This media names no file and no address to add.",
+    "server.importMediaNoItem": "This media's item was not added, so the media was not added either.",
+    "server.importResourceGone": "The item, media or item set this record changes is no longer in Omeka.",
+    "server.importRecordNotSaved": "This record could not be saved: {reason}",
+    "server.importLinksNotSaved": "The links of this record could not be saved: {reason}",
+    "server.importSitesNotJoined": "This item was added, but it did not join its sites: {reason}"
   }
 }

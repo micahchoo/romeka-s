@@ -127,3 +127,29 @@ fn a_page_past_the_end_is_empty_and_per_page_is_capped() {
     assert!(page.items.is_empty());
     assert_eq!(page.per_page, MAX_PER_PAGE);
 }
+
+#[test]
+fn an_orphan_names_its_entry_and_not_the_whole_decision() {
+    let file = |path: &str| json!({ "file": { "source": "s1", "path": path } });
+    let derived = derived(&["A1.jpg"], |plan| {
+        plan["decisions"] = json!([{
+            "kind": "many",
+            "entries": [file("A1.jpg"), file("gone-1.jpg"), file("gone-2.jpg")],
+            "change": { "kind": "leave" }
+        }]);
+    });
+    let answer = serde_json::to_value(preview(
+        &derived,
+        &request(json!({ "include": ["orphans"] })),
+    ))
+    .unwrap();
+    let orphans = answer["orphans"].as_array().unwrap();
+    assert_eq!(orphans.len(), 2);
+    assert_eq!(orphans[0]["decision"], 0);
+    assert_eq!(orphans[0]["entry"], file("gone-1.jpg"));
+    assert_eq!(orphans[1]["entry"], file("gone-2.jpg"));
+    assert!(
+        orphans[0].get("detail").is_none(),
+        "the decision is not cloned"
+    );
+}

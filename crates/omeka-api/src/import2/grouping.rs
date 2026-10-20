@@ -1,5 +1,6 @@
 //! Steps 1 and 2 of the derive: files grouped by group key, then the `move`
-//! decisions (`docs/import-v2.md`, "The derive").
+//! decisions, a `many` move as one move per file (`docs/import-v2.md`, "The
+//! derive").
 //!
 //! The group key is the text of the pattern's `identifier` group, NFC, and
 //! case-folded when `grouping.caseFold` is on. It is not the record's
@@ -12,7 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use unicode_normalization::UnicodeNormalization;
 
-use super::decisions::{Decision, FileRef, MoveAlone, MoveTo};
+use super::decisions::{EntryRef, FileRef, MoveAlone, MoveTo, Moved, moves};
 use super::derive::Index;
 use super::evidence::FileEntry;
 use super::model::{GroupKey, Orphan, OrphanReason, PatternState};
@@ -97,23 +98,25 @@ pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
 
     let mut moved_out = BTreeMap::new();
     let mut orphans = Vec::new();
-    for (decision, choice) in plan.decisions.iter().enumerate() {
-        let Decision::Move { file, to } = choice else {
-            continue;
+    for Moved { decision, file, to } in moves(&plan.decisions) {
+        let orphan = |file: &FileRef, reason| Orphan {
+            decision,
+            entry: EntryRef::File(file.clone()),
+            reason,
         };
-        let orphan = |reason| Orphan { decision, reason };
-        let Some(&moved) = by_ref.get(file.file()) else {
-            orphans.push(orphan(OrphanReason::MissingEntry));
+        let Some(&moved) = by_ref.get(file) else {
+            orphans.push(orphan(file, OrphanReason::MissingEntry));
             continue;
         };
         match to {
             MoveTo::With(with) => {
-                let Some(&other) = by_ref.get(with.with.file()) else {
-                    orphans.push(orphan(OrphanReason::MissingEntry));
+                let with = with.with.file();
+                let Some(&other) = by_ref.get(with) else {
+                    orphans.push(orphan(with, OrphanReason::MissingEntry));
                     continue;
                 };
                 let Some(key) = group_of[other].clone() else {
-                    orphans.push(orphan(OrphanReason::NoGroup));
+                    orphans.push(orphan(with, OrphanReason::NoGroup));
                     continue;
                 };
                 group_of[moved] = Some(key);

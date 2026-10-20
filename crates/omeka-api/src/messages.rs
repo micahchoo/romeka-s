@@ -462,6 +462,26 @@ messages! {
     fn import_list_unread(reason) = "The list cannot be read: {reason}";
     /// `POST …/sheets` with a list whose header has no Identifier column.
     const IMPORT_LIST_NO_IDENTIFIER = "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.";
+    /// A run failure: a file the record names could not be opened or read.
+    fn import_file_unreadable(path, reason) = "The file \"{path}\" could not be read: {reason}";
+    /// A run failure: the install's file settings refused a file.
+    fn import_file_refused(path, reason) = "The file \"{path}\" was not added: {reason}";
+    /// A run failure: the file store did not take a file's bytes.
+    fn import_file_not_stored(path, reason) = "The file \"{path}\" could not be stored: {reason}";
+    /// A run failure: an address the media ingester refused or could not fetch.
+    fn import_source_refused(source, reason) = "\"{source}\" was not added: {reason}";
+    /// A run failure: a media record with neither a file nor an address.
+    const IMPORT_MEDIA_NO_SOURCE = "This media names no file and no address to add.";
+    /// A run failure: a media record whose item was not added.
+    const IMPORT_MEDIA_NO_ITEM = "This media's item was not added, so the media was not added either.";
+    /// A run failure: the resource a record changes was deleted since the check.
+    const IMPORT_RESOURCE_GONE = "The item, media or item set this record changes is no longer in Omeka.";
+    /// A run failure: the database refused the record's rows.
+    fn import_record_not_saved(reason) = "This record could not be saved: {reason}";
+    /// A run failure: the second pass could not write a record's links.
+    fn import_links_not_saved(reason) = "The links of this record could not be saved: {reason}";
+    /// A run failure: an added item did not join the sites that take new items.
+    fn import_sites_not_joined(reason) = "This item was added, but it did not join its sites: {reason}";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

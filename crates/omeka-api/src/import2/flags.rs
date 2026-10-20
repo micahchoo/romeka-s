@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use encoding_rs::WINDOWS_1252;
 
-use super::decisions::{Decision, EntryRef};
+use super::decisions::{Act, EntryRef, singles};
 use super::model::{Flag, Subject};
 use super::plan::{FlagKind, FlagPolicy, ImportPlanV2, SlotName};
 
@@ -24,26 +24,20 @@ struct Choice {
 
 pub(crate) struct FlagBook<'p> {
     plan: &'p ImportPlanV2,
-    by_entry: HashMap<EntryRef, Vec<Choice>>,
+    by_entry: HashMap<&'p EntryRef, Vec<Choice>>,
     flags: Vec<Flag>,
 }
 
 impl<'p> FlagBook<'p> {
     pub(crate) fn new(plan: &'p ImportPlanV2) -> Self {
-        let mut by_entry: HashMap<EntryRef, Vec<Choice>> = HashMap::new();
-        for (decision, choice) in plan.decisions.iter().enumerate() {
-            if let Decision::Flag {
-                entry,
-                flag,
-                slot,
-                policy,
-            } = choice
-            {
-                by_entry.entry(entry.clone()).or_default().push(Choice {
-                    decision,
-                    kind: *flag,
-                    slot: slot.clone(),
-                    policy: *policy,
+        let mut by_entry: HashMap<&EntryRef, Vec<Choice>> = HashMap::new();
+        for single in singles(&plan.decisions) {
+            if let Act::Flag { flag, slot, policy } = single.act {
+                by_entry.entry(single.entry).or_default().push(Choice {
+                    decision: single.decision,
+                    kind: flag,
+                    slot: slot.cloned(),
+                    policy,
                 });
             }
         }

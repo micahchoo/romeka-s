@@ -420,3 +420,31 @@ fn the_digest_is_stable_across_runs_and_input_order_and_moves_with_any_change() 
         "a flag's policy counts"
     );
 }
+
+/// The digest the admin saw on Check must still match at Run, so a change
+/// to how the model is hashed must not change the hex of an unchanged model.
+#[test]
+fn the_digest_of_a_fixed_model_is_a_fixed_hex() {
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["slots"]["item"]["dcterms:title"] =
+            rule(json!([{ "from": "group", "name": "identifier" }]), "first");
+    });
+    let model = run(
+        &index(&[
+            ("A1_p1.jpg", JPEG),
+            ("A1_p2.jpg", JPEG),
+            ("B2.jpg", "image/png"),
+        ]),
+        &Sheets::new(),
+        &plan,
+    );
+    assert!(
+        model.orphans.is_empty(),
+        "no member this unit adds is in it"
+    );
+    assert_eq!(
+        model.digest,
+        "1f278c9892c94165ea8c9bb28dffdf3c890a70396411e00f452ed4bb7a1bd246"
+    );
+}

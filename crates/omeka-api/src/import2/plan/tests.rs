@@ -56,8 +56,8 @@ fn the_full_fixture_reaches_every_member_typed() {
     assert_eq!(plan.defaults.owner, Owner::User(4));
     assert_eq!(plan.decisions.len(), 10);
     assert!(matches!(
-        plan.decisions[3].entry(),
-        EntryRef::Row(row) if row.key.as_str() == "BHC_006_AF_003 #2"
+        &plan.decisions[3],
+        Decision::Leave { entry: EntryRef::Row(row) } if row.key.as_str() == "BHC_006_AF_003 #2"
     ));
     assert!(matches!(&plan.decisions[1], Decision::Move { .. }));
 }
@@ -230,6 +230,76 @@ fn only_a_file_entry_moves() {
     assert!(matches!(error, PlanError::Shape(_)));
 }
 
+fn with_decisions(decisions: Value) -> Result<ImportPlanV2, PlanError> {
+    let mut value: Value = serde_json::from_str(FULL).expect("fixture json");
+    value["decisions"] = decisions;
+    ImportPlanV2::from_json(&value.to_string())
+}
+
+fn file(path: &str) -> Value {
+    json!({ "file": { "source": "s1", "path": path } })
+}
+
+#[test]
+fn a_many_change_and_a_pair_round_trip() {
+    let decisions = json!([
+        { "kind": "many", "entries": [file("a.jpg"), { "row": { "sheet": "register", "key": "A#1" } }],
+          "change": { "kind": "set", "target": "item", "slot": "dcterms:title",
+                      "values": [{ "type": "literal", "text": "T", "lang": null, "label": null }] } },
+        { "kind": "many", "entries": [file("a.jpg")], "change": { "kind": "leave" } },
+        { "kind": "many", "entries": [file("a.jpg")], "change": { "kind": "move", "to": { "with": file("b.jpg") } } },
+        { "kind": "many", "entries": [file("a.jpg")], "change": { "kind": "match", "target": "item", "resource": null } },
+        { "kind": "many", "entries": [file("a.jpg")],
+          "change": { "kind": "flag", "flag": "date-form", "slot": null, "policy": "keep" } },
+        { "kind": "pair", "row": { "sheet": "register", "key": "A#1" }, "file": { "source": "s1", "path": "a.jpg" } }
+    ]);
+    let plan = with_decisions(decisions.clone()).expect("a valid plan");
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(written["decisions"], decisions);
+}
+
+#[test]
+fn a_many_change_names_at_least_one_entry() {
+    let error =
+        with_decisions(json!([{ "kind": "many", "entries": [], "change": { "kind": "leave" } }]))
+            .expect_err("refused");
+    assert!(matches!(error, PlanError::EmptyMany(0)), "{error:?}");
+}
+
+#[test]
+fn a_many_change_is_one_change_never_another_many() {
+    let error = with_decisions(json!([{ "kind": "many", "entries": [file("a.jpg")],
+        "change": { "kind": "many", "entries": [file("a.jpg")], "change": { "kind": "leave" } } }]))
+    .expect_err("refused");
+    assert!(shape_error(&error).contains("many"), "{error:?}");
+    let error = with_decisions(json!([{ "kind": "many", "entries": [file("a.jpg")],
+        "change": { "kind": "leave", "entry": file("a.jpg") } }]))
+    .expect_err("refused");
+    assert!(
+        shape_error(&error).contains("entry"),
+        "the change names no entry: {error:?}"
+    );
+}
+
+#[test]
+fn only_file_entries_move_in_a_many_change() {
+    let error = with_decisions(json!([{ "kind": "many",
+        "entries": [file("a.jpg"), { "row": { "sheet": "register", "key": "1" } }],
+        "change": { "kind": "move", "to": "own" } }]))
+    .expect_err("refused");
+    assert!(matches!(error, PlanError::ManyMovesRow(0)), "{error:?}");
+}
+
+#[test]
+fn a_pair_on_a_sheet_the_plan_lacks_is_kept_for_the_derive_to_orphan() {
+    let plan = with_decisions(
+        json!([{ "kind": "pair", "row": { "sheet": "gone", "key": "1" },
+        "file": { "source": "gone", "path": "a.jpg" } }]),
+    )
+    .expect("not a refusal");
+    assert_eq!(plan.decisions.len(), 1);
+}
+
 #[test]
 fn duplicate_source_ids_are_refused() {
     let error = refused(FULL, |plan| plan["sources"][1]["id"] = json!("s1"));
@@ -394,8 +464,8 @@ fn paths_and_row_keys_are_stored_nfc() {
     };
     assert_eq!(path.as_str(), "Caf\u{e9}");
     assert!(matches!(
-        decomposed.decisions[3].entry(),
-        EntryRef::Row(row) if row.key.as_str() == "Caf\u{e9}"
+        &decomposed.decisions[3],
+        Decision::Leave { entry: EntryRef::Row(row) } if row.key.as_str() == "Caf\u{e9}"
     ));
 }
 

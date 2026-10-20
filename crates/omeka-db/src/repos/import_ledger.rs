@@ -66,6 +66,30 @@ where
         })
     }
 
+    /// Move a ledger row's written time to now, on the caller's executor: a run's second pass
+    /// writes links into resources the first pass wrote, and those writes are the import's own,
+    /// so undo must not count them as touching. False when no such row exists.
+    pub async fn touch<'e, E>(
+        executor: E,
+        import: ImportId,
+        target: ImportTarget,
+    ) -> Result<bool, DbError>
+    where
+        E: Executor<'e, Database = DB>,
+    {
+        let done = sqlx::query(
+            "UPDATE romeka_import_resource SET written = ?
+             WHERE import_id = ? AND kind = ? AND target_id = ?",
+        )
+        .bind(time::format(time::now()))
+        .bind(bind_id(import))
+        .bind(target.kind().as_str())
+        .bind(target.raw_id())
+        .execute(executor)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
     /// What an import wrote, by kind and id, optionally of one kind.
     pub async fn list(
         &self,

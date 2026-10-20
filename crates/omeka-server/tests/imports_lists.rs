@@ -465,3 +465,63 @@ async fn a_preview_of_40000_entries_with_every_fact_section_fits_the_budget() {
     assert_eq!(answer["identical"]["sets"]["total"], 200);
     assert!(all < Duration::from_millis(600), "{all:?}");
 }
+
+#[tokio::test]
+async fn a_quote_the_template_put_before_a_formula_character_comes_off_on_upload() {
+    let fixture = fixture().await;
+    let id = s1(&fixture).await;
+    let template = fixture
+        .call(
+            "GET",
+            &format!("/api/romeka/imports/{id}/template.csv?columns=dcterms:title"),
+            None,
+        )
+        .await;
+    assert_eq!(template.status, StatusCode::OK, "{}", template.body);
+    let header = template.body.split("\r\n").next().unwrap().to_string();
+    let filled = format!(
+        "{header}\r\n\
+         BHC_006_AF_001,,'-5\r\n\
+         BHC_006_AF_002,,'=1+1\r\n\
+         BHC_006_AF_003,,दीपक\r\n\
+         BHC_006_AF_004,,'-दीपक\r\n\
+         BHC_006_PH_101,,'plain\r\n"
+    );
+    let uploaded = upload(&fixture, &id, "list.csv", filled.as_bytes()).await;
+    assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
+    let stored = std::fs::read_to_string(
+        fixture
+            .files
+            .path()
+            .join(format!("staging/{id}/lists/1.csv")),
+    )
+    .unwrap();
+    assert!(stored.contains("'-5"), "the file is kept as uploaded");
+
+    let preview = fixture
+        .preview(
+            &id,
+            &json!({ "include": ["records"], "records": { "slot": "dcterms:title", "perPage": 50 } }),
+        )
+        .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    let json = preview.json();
+    let items = json["records"]["items"].as_array().unwrap();
+    let title = |key: &str| -> String {
+        items
+            .iter()
+            .find(|item| item["resolved"]["itemKey"] == key)
+            .and_then(|item| item["slots"]["dcterms:title"][0]["text"].as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
+    assert_eq!(title("BHC_006_AF_001"), "-5");
+    assert_eq!(title("BHC_006_AF_002"), "=1+1");
+    assert_eq!(title("BHC_006_AF_003"), "दीपक");
+    assert_eq!(title("BHC_006_AF_004"), "-दीपक");
+    assert_eq!(
+        title("BHC_006_PH_101"),
+        "'plain",
+        "a quote before a letter stays"
+    );
+}
