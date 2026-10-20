@@ -11,11 +11,12 @@ use std::path::{Path, PathBuf};
 use sqlx::migrate::Migrator;
 use sqlx::{Row, SqlitePool};
 
-const V2_TABLES: [&str; 5] = [
+const V2_TABLES: [&str; 6] = [
     "romeka_import",
     "romeka_import_before",
     "romeka_import_entry",
     "romeka_import_resource",
+    "romeka_import_scan",
     "romeka_import_upload",
 ];
 
@@ -156,6 +157,7 @@ async fn sqlite_a_fresh_database_gets_the_v2_tables_and_keys() {
             "romeka_import_entry",
             &["import_id", "source", "path_hash"][..],
         ),
+        ("romeka_import_scan", &["import_id", "source"][..]),
     ] {
         common::assert_primary_key(&pool, table, key).await;
         common::assert_foreign_key(&pool, table, "import_id", "romeka_import", "id", "CASCADE")

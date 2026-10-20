@@ -13,7 +13,7 @@ use axum::http::StatusCode;
 use imports_fixture::{BHC_PATTERN, bhc_006, fixture};
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{EntryRepo, Paging};
-use omeka_db::rows::NewEntry;
+use omeka_db::rows::{NewEntry, NewScan};
 use serde_json::{Value, json};
 
 #[tokio::test]
@@ -121,19 +121,17 @@ async fn a_preview_of_10000_and_40000_entries_fits_the_budget() {
                     flags: json!({}),
                 }
             })
-            .chain([NewEntry {
-                source: "s1".into(),
-                path: String::new(),
-                size: 0,
-                modified: Default::default(),
-                media_type: None,
-                flags: json!({ "walk": { "token": "t", "symlinks": 0, "dot": 0, "special": 0,
-                    "unreadable": [], "unusableNames": [], "collisions": [] } }),
-            }])
             .collect();
         std::fs::write(fixture.archive.path().join("register.csv"), register).unwrap();
         let repo = EntryRepo::new(&fixture.pool);
-        repo.replace(id, &rows).await.unwrap();
+        let scan = NewScan {
+            source: "s1".into(),
+            anomalies: json!({}),
+            error: None,
+            token: "t".into(),
+            scanned: Default::default(),
+        };
+        repo.replace(id, &[scan], &rows).await.unwrap();
         let started = Instant::now();
         let page = repo.page(id, &Paging::default()).await.unwrap();
         println!(

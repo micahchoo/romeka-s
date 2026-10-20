@@ -219,7 +219,7 @@ mod tests {
             Err(DraftError::V1Plan)
         ));
         let repo = ImportRepo::new(&pool);
-        repo.start_run(draft.id).await.unwrap();
+        repo.start_run(draft.id, 1).await.unwrap();
         assert!(matches!(
             save(&pool, draft.id, &plan, 1).await,
             Err(DraftError::NotDraft(ImportStatus::Running))

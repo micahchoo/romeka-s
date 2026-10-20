@@ -1,4 +1,4 @@
-//! `romeka_import_upload` and `romeka_import_entry`: what an import holds before it writes
+//! `romeka_import_upload`, `romeka_import_entry` and `romeka_import_scan`: what an import holds before it writes
 //! (migration 0006). Upstream has neither.
 
 use chrono::NaiveDateTime;
@@ -88,4 +88,41 @@ pub struct NewEntry {
     pub modified: NaiveDateTime,
     pub media_type: Option<String>,
     pub flags: Value,
+}
+
+/// What a scan left of one source besides its files (`romeka_import_scan`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScanRow {
+    pub import_id: ImportId,
+    pub source: String,
+    /// What the walk skipped; the shape belongs to `omeka-api`.
+    pub anomalies: Value,
+    /// Why the source could not be read.
+    pub error: Option<String>,
+    /// Differs between two scans, so a reader can tell a rescan from the scan it holds.
+    pub token: String,
+    pub scanned: NaiveDateTime,
+}
+
+impl ScanRow {
+    pub fn from_db_row<DB: Backend>(row: &DB::Row) -> Result<Self, DbError> {
+        Ok(Self {
+            import_id: DB::id(row, "import_id")?,
+            source: DB::text(row, "source")?,
+            anomalies: DB::json(row, "anomalies")?,
+            error: DB::opt_text(row, "error")?,
+            token: DB::text(row, "token")?,
+            scanned: DB::datetime(row, "scanned")?,
+        })
+    }
+}
+
+/// One source's scan record, for [`EntryRepo::replace`](crate::repos::EntryRepo::replace).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewScan {
+    pub source: String,
+    pub anomalies: Value,
+    pub error: Option<String>,
+    pub token: String,
+    pub scanned: NaiveDateTime,
 }

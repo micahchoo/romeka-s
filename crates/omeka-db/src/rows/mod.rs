@@ -26,14 +26,14 @@ mod values;
 mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
-pub use import_evidence::{EntryRow, NewEntry, NewUpload, UploadRow};
+pub use import_evidence::{EntryRow, NewEntry, NewScan, NewUpload, ScanRow, UploadRow};
 pub use import_writes::{
     BeforeImage, ImageMemberships, ImageValue, ImportAction, ImportFields, ImportResource,
     ItemSlots, NewImportFields, NewImportItem, NewImportItemSet, NewImportMedia, Slot, StoredFile,
 };
 pub use imports::{
     BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
-    ImportStatus, ImportTarget, NewImport, NewImportResource,
+    ImportStatus, ImportTarget, NewImport, NewImportResource, may_run,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{

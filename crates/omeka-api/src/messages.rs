@@ -409,31 +409,31 @@ messages! {
     /// A request body the import routes cannot read.
     fn import_request_unreadable(reason) = "The request cannot be read: {reason}";
     /// A plan the boundary refuses; the reason is the parser's English.
-    fn import_plan_refused(reason) = "The plan cannot be saved: {reason}";
+    fn import_plan_refused(reason) = "The import's settings cannot be saved: {reason}";
     /// 409 `stale`: another save landed after the caller read the plan.
     const IMPORT_STALE = "Someone else saved this import after you opened it. Reload it to see their changes.";
     /// 409 on a plan save once the import has started.
-    const IMPORT_PLAN_FROZEN = "This import has already started, so its plan cannot change. Make a copy to change it.";
+    const IMPORT_PLAN_FROZEN = "This import has already started, so its settings cannot change. Make a copy to change it.";
     /// 409 `v1Plan`: the plan was made by the first importer.
     const IMPORT_V1_PLAN = "This import was made by the old importer, so it cannot be opened or copied here.";
     /// 409 `typeExists` on a plan save.
-    fn import_type_exists(label) = "An item type named \"{label}\" already exists. Choose another name for the new type.";
+    fn import_type_exists(label) = "An item type named \"{label}\" is already in Omeka. Choose another name for the new type.";
     /// 409 on deleting an import that is not a draft.
-    const IMPORT_DELETE_NOT_DRAFT = "Only a draft can be deleted. An import that has run stays in the history.";
+    const IMPORT_DELETE_NOT_DRAFT = "Only an import that is not added yet can be deleted. An import that has run stays in Past imports.";
     /// 409 `changed`: the run derived another model than the one checked.
-    const IMPORT_CHANGED = "The files or the plan changed after the last check. Check the import again before you run it.";
+    const IMPORT_CHANGED = "The files or the import's settings changed after the last check. Check the import again before you run it.";
     /// 409 `blocked`: the check lists problems that stop the run.
     const IMPORT_BLOCKED = "This import cannot run until the problems the check lists are fixed.";
     /// 409 `nothing`: no record would be written.
     const IMPORT_NOTHING_TO_RUN = "This import has nothing to write.";
     /// 409 `confirm`: a delete run needs the number it deletes.
-    fn import_confirm_delete(count) = "This import deletes {count} resources and cannot be undone. Confirm with that number to run it.";
+    fn import_confirm_delete(count) = "This import deletes {count} items, media and item sets and cannot be undone. Confirm with that number to run it.";
     /// 409 `busy`: one import at a time, install-wide.
     const IMPORT_BUSY = "Another import is running or being undone. Try again when it has ended.";
     /// 409 on run for a status that cannot run.
-    const IMPORT_CANNOT_RUN = "Only a draft, or an import whose run failed, can run.";
+    const IMPORT_CANNOT_RUN = "Only an import that is not added yet, that stopped before the end, or that finished with failures can run.";
     /// 409 on undo for a status that cannot be undone.
-    const IMPORT_CANNOT_UNDO = "Only an import that has finished, or whose run or undo failed, can be undone.";
+    const IMPORT_CANNOT_UNDO = "Only an import that has finished, or that stopped before the end, can be undone.";
     /// 409 on stop for an import that is not running.
     const IMPORT_NOT_RUNNING = "This import is not running.";
     /// A source names an archive folder the server does not have.
@@ -445,7 +445,7 @@ messages! {
     /// A folder path that names a file.
     fn import_not_a_folder(path) = "\"{path}\" is a file, not a folder.";
     /// 409 on a rescan while the import's job works on it.
-    const IMPORT_SCAN_BUSY = "This import is running or being undone. Scan it again once that has ended.";
+    const IMPORT_SCAN_BUSY = "This import is running or being undone. Look at the files again once that has ended.";
     /// 404 for `left.csv` before a run has ended.
     const IMPORT_NO_LEFT_FILE = "This import has no list of left-out files yet. It is written when a run ends.";
     /// The job runner refused to start the job.

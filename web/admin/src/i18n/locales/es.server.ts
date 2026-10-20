@@ -156,37 +156,37 @@ export const esServer: ServerCatalogue = {
   'server.importAdminsOnly': 'Solo un administrador global o de sitio puede importar un archivo.',
   'server.importNotFound': 'Ninguna importación tiene el id {id}.',
   'server.importRequestUnreadable': 'No se puede leer la solicitud: {reason}',
-  'server.importPlanRefused': 'No se puede guardar el plan: {reason}',
+  'server.importPlanRefused': 'No se pueden guardar los ajustes de la importación: {reason}',
   'server.importStale':
     'Otra persona guardó esta importación después de que la abrieras. Vuelve a cargarla para ver sus cambios.',
   'server.importPlanFrozen':
-    'Esta importación ya empezó, así que su plan no puede cambiar. Haz una copia para cambiarlo.',
+    'Esta importación ya empezó, así que sus ajustes no pueden cambiar. Haz una copia para cambiarlo.',
   'server.importV1Plan':
     'Esta importación se hizo con el importador antiguo, así que no se puede abrir ni copiar aquí.',
   'server.importTypeExists':
-    'Ya existe un tipo de ficha llamado "{label}". Elige otro nombre para el tipo nuevo.',
+    'Ya hay un tipo de ficha llamado "{label}" en Omeka. Elige otro nombre para el tipo nuevo.',
   'server.importDeleteNotDraft':
-    'Solo se puede eliminar un borrador. Una importación que se ha ejecutado queda en el historial.',
+    'Solo se puede eliminar una importación que aún no se ha añadido. Una importación que se ha ejecutado queda en Importaciones anteriores.',
   'server.importChanged':
-    'Los archivos o el plan cambiaron después de la última comprobación. Vuelve a comprobar la importación antes de ejecutarla.',
+    'Los archivos o los ajustes de la importación cambiaron después de la última comprobación. Vuelve a comprobar la importación antes de ejecutarla.',
   'server.importBlocked':
     'Esta importación no puede ejecutarse hasta que se corrijan los problemas que indica la comprobación.',
   'server.importNothingToRun': 'Esta importación no tiene nada que escribir.',
   'server.importConfirmDelete':
-    'Esta importación elimina {count} recursos y no se puede deshacer. Confirma con ese número para ejecutarla.',
+    'Esta importación elimina {count} elementos, medios y conjuntos de elementos y no se puede deshacer. Confirma con ese número para ejecutarla.',
   'server.importBusy':
     'Otra importación se está ejecutando o deshaciendo. Vuelve a intentarlo cuando haya terminado.',
   'server.importCannotRun':
-    'Solo puede ejecutarse un borrador o una importación cuya ejecución falló.',
+    'Solo puede ejecutarse una importación que aún no se ha añadido, que se detuvo antes del final o que terminó con fallos.',
   'server.importCannotUndo':
-    'Solo se puede deshacer una importación que terminó, o cuya ejecución o deshacer falló.',
+    'Solo se puede deshacer una importación que terminó o que se detuvo antes del final.',
   'server.importNotRunning': 'Esta importación no se está ejecutando.',
   'server.importNoRoot': 'No hay ninguna carpeta de archivo llamada "{root}".',
   'server.importOutsideRoot': 'La carpeta "{path}" está fuera de la carpeta de archivo.',
   'server.importFolderMissing': 'No hay ninguna carpeta "{path}" en el archivo.',
   'server.importNotAFolder': '"{path}" es un archivo, no una carpeta.',
   'server.importScanBusy':
-    'Esta importación se está ejecutando o deshaciendo. Vuelve a escanearla cuando haya terminado.',
+    'Esta importación se está ejecutando o deshaciendo. Vuelve a mirar los archivos cuando haya terminado.',
   'server.importNoLeftFile':
     'Esta importación aún no tiene una lista de archivos que quedaron fuera. Se escribe cuando termina una ejecución.',
   'server.importJobNotStarted': 'No se pudo iniciar la importación: {reason}',

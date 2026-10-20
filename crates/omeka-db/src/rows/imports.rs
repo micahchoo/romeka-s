@@ -200,13 +200,36 @@ pub struct ImportRow {
     pub status: ImportStatus,
     pub job_id: Option<JobId>,
     pub summary: Option<Value>,
+    /// A stop was asked for and the run has not started again since. Its own column, so asking
+    /// neither moves the heartbeat nor depends on what the worker last wrote to `summary`.
+    pub stop_requested: bool,
     /// The import this draft was copied from, `None` once that import is deleted.
     pub copied_from: Option<ImportId>,
     pub created: NaiveDateTime,
     pub finished: Option<NaiveDateTime>,
 }
 
+/// Whether a run may start from `status`: a draft, a failed run, or a `done` import whose summary
+/// lists records that failed (the retry of `docs/import-v2.md`, "Lifecycle and the ledger").
+#[must_use]
+pub fn may_run(status: ImportStatus, summary: Option<&Value>) -> bool {
+    match status {
+        ImportStatus::Draft | ImportStatus::RunFailed => true,
+        ImportStatus::Done => summary
+            .and_then(|summary| summary.get("failures"))
+            .and_then(Value::as_array)
+            .is_some_and(|failures| !failures.is_empty()),
+        _ => false,
+    }
+}
+
 impl ImportRow {
+    /// [`may_run`] for this row.
+    #[must_use]
+    pub fn may_run(&self) -> bool {
+        may_run(self.status, self.summary.as_ref())
+    }
+
     pub fn from_db_row<DB: Backend>(row: &DB::Row) -> Result<Self, DbError> {
         Ok(Self {
             id: DB::id(row, "id")?,
@@ -218,6 +241,7 @@ impl ImportRow {
             status: ImportStatus::parse(&DB::text(row, "status")?)?,
             job_id: DB::opt_id(row, "job_id")?,
             summary: DB::opt_json(row, "summary")?,
+            stop_requested: DB::boolean(row, "stop_requested")?,
             copied_from: DB::opt_id(row, "copied_from")?,
             created: DB::datetime(row, "created")?,
             finished: DB::opt_datetime(row, "finished")?,

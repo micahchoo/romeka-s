@@ -11,7 +11,9 @@
 //! [`ImportRepo::start_run`] and [`ImportRepo::start_undo`] are one serialized transaction each
 //! ([`Backend::begin_write`], [`Backend::for_update`]): settle the dead, check this import's state,
 //! refuse while another import runs or undoes, then move it. Two concurrent starts cannot both win.
-//! A run start freezes the plan into `ran_plan`; a retry of a failed run keeps the frozen one.
+//! A run start names the plan revision the caller checked, and a changed revision refuses it. It
+//! freezes the plan into `ran_plan`; a retry of a failed run, or of a `done` import that lists
+//! failures, keeps the frozen one.
 
 use std::time::Duration;
 
@@ -23,7 +25,7 @@ use super::{ImportRepo, bind_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ImportId, JobId};
-use crate::rows::ImportStatus;
+use crate::rows::{ImportStatus, may_run};
 use crate::time;
 
 /// How long a running or undoing import may go without a heartbeat before it counts as dead.
@@ -53,18 +55,21 @@ pub enum StartOutcome {
     Refused(ImportStatus),
     /// Another import is running or undoing with a live worker; nothing changed.
     Busy(ImportId),
+    /// A run start named another plan revision than the stored one; nothing changed.
+    Changed { revision: u64 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Start {
-    Run,
+    /// The revision the caller checked.
+    Run(u64),
     Undo,
 }
 
 impl Start {
-    fn allows(self, status: ImportStatus) -> bool {
+    fn allows(self, status: ImportStatus, summary: Option<&Value>) -> bool {
         match self {
-            Self::Run => matches!(status, ImportStatus::Draft | ImportStatus::RunFailed),
+            Self::Run(_) => may_run(status, summary),
             Self::Undo => matches!(
                 status,
                 ImportStatus::Done | ImportStatus::RunFailed | ImportStatus::UndoFailed
@@ -76,14 +81,15 @@ impl Start {
     /// plan its first run froze.
     fn update(self) -> &'static str {
         match self {
-            Self::Run => {
+            Self::Run(_) => {
                 "UPDATE romeka_import
                  SET status = 'running', ran_plan = COALESCE(ran_plan, plan), finished = NULL,
-                     summary = ?
+                     stop_requested = 0, summary = ?
                  WHERE id = ?"
             }
             Self::Undo => {
-                "UPDATE romeka_import SET status = 'undoing', finished = NULL, summary = ?
+                "UPDATE romeka_import
+                 SET status = 'undoing', finished = NULL, stop_requested = 0, summary = ?
                  WHERE id = ?"
             }
         }
@@ -150,10 +156,11 @@ where
     for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
-    /// Move a draft, or a failed run to retry, to `running`. Refused for any other state, or
-    /// while another import is live.
-    pub async fn start_run(&self, id: ImportId) -> Result<StartOutcome, DbError> {
-        self.start(id, Start::Run).await
+    /// Move a draft, a failed run, or a `done` import whose summary lists failures to `running`,
+    /// if `revision` is the plan revision the caller checked ([`StartOutcome::Changed`]
+    /// otherwise). Refused for any other state, or while another import is live.
+    pub async fn start_run(&self, id: ImportId, revision: u64) -> Result<StartOutcome, DbError> {
+        self.start(id, Start::Run(revision)).await
     }
 
     /// Move an import that is `done`, `run_failed` or `undo_failed` to `undoing`. Refused
@@ -315,7 +322,7 @@ where
 {
     let lock = DB::for_update();
     let Some(row) = sqlx::query(&format!(
-        "SELECT status, summary FROM romeka_import WHERE id = ?{lock}"
+        "SELECT status, revision, summary FROM romeka_import WHERE id = ?{lock}"
     ))
     .bind(bind_id(id))
     .fetch_optional(&mut **tx)
@@ -324,8 +331,15 @@ where
         return Ok(StartOutcome::Missing);
     };
     let status = ImportStatus::parse(&DB::text(&row, "status")?)?;
-    if !start.allows(status) {
+    let mut summary = DB::opt_json(&row, "summary")?;
+    if !start.allows(status, summary.as_ref()) {
         return Ok(StartOutcome::Refused(status));
+    }
+    if let Start::Run(checked) = start {
+        let stored: u64 = DB::id(&row, "revision")?;
+        if stored != checked {
+            return Ok(StartOutcome::Changed { revision: stored });
+        }
     }
     let busy = sqlx::query(&format!(
         "SELECT id FROM romeka_import WHERE status IN ('running', 'undoing') AND id <> ?{lock}"
@@ -336,7 +350,6 @@ where
     if let Some(busy) = busy {
         return Ok(StartOutcome::Busy(DB::id(&busy, "id")?));
     }
-    let mut summary = DB::opt_json(&row, "summary")?;
     if let Some(Value::Object(members)) = &mut summary {
         members.remove(DIED);
     }

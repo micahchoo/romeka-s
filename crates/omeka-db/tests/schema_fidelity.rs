@@ -277,6 +277,7 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
             "status",
             "job_id",
             "summary",
+            "stop_requested",
             "copied_from",
             "created",
             "finished",
@@ -312,6 +313,17 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
             "modified",
             "media_type",
             "flags",
+        ],
+    ),
+    (
+        "romeka_import_scan",
+        &[
+            "import_id",
+            "source",
+            "anomalies",
+            "error",
+            "token",
+            "scanned",
         ],
     ),
 ];

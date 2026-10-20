@@ -70,7 +70,10 @@ impl Fixture {
             .await
             .unwrap()
             .id;
-        assert_eq!(imports.start_run(id).await.unwrap(), StartOutcome::Started);
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
         let job = self.job("in_progress").await;
         assert!(imports.set_job(id, job).await.unwrap());
         (id, job)

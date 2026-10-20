@@ -23,7 +23,7 @@ use omeka_db::rows::{ImportRow, ImportStatus, NewJob};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::wire::{ImportError, STOP, admin, blocking, body, json, load, owners};
+use super::wire::{ImportError, admin, blocking, body, json, load, owners};
 use super::{Answer, answer};
 use crate::AppState;
 
@@ -149,7 +149,9 @@ struct RunBody {
 }
 
 /// `POST /api/romeka/imports/{id}/run {digest, confirm?}`: start a draft, or
-/// retry a failed run, once the model is the one the admin checked.
+/// retry a failed run or a done one with failures, once the model is the one
+/// the admin checked. The start names the revision this request derived from,
+/// so a plan saved since answers `changed`.
 pub(super) async fn run(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -162,7 +164,7 @@ pub(super) async fn run(
             let actor = admin(&state, &uri, &headers).await?;
             let request: RunBody = body(&headers, &payload.0)?;
             let row = load(&state, &id).await?;
-            if !matches!(row.status, ImportStatus::Draft | ImportStatus::RunFailed) {
+            if !row.may_run() {
                 return Err(cannot_run(row.status));
             }
             let plan = stored_plan(&row)?;
@@ -190,11 +192,18 @@ pub(super) async fn run(
                 )
                 .with("deletes", json!(found.deletes)));
             }
-            match ImportRepo::new(&state.pool).start_run(row.id).await? {
+            match ImportRepo::new(&state.pool)
+                .start_run(row.id, row.revision)
+                .await?
+            {
                 StartOutcome::Started => {}
                 StartOutcome::Missing => return Err(super::wire::not_found(row.id.0)),
                 StartOutcome::Refused(status) => return Err(cannot_run(status)),
                 StartOutcome::Busy(other) => return Err(busy(other)),
+                StartOutcome::Changed { revision } => {
+                    return Err(ImportError::conflict("changed", messages::IMPORT_CHANGED)
+                        .with("revision", json!(revision)));
+                }
             }
             let job = compose_job(&state, &actor, RUN_JOB, row.id, None).await?;
             start_job(&state, job, StatusCode::OK).await
@@ -213,7 +222,8 @@ fn busy(other: ImportId) -> ImportError {
 }
 
 /// `POST /api/romeka/imports/{id}/stop`: ask the running job to stop after
-/// the record in hand. The job reads `summary.stop`.
+/// the record in hand. The request is `ImportRepo::request_stop`, which the
+/// job reads between records; it does not count as a heartbeat.
 pub(super) async fn stop(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -225,23 +235,20 @@ pub(super) async fn stop(
             admin(&state, &uri, &headers).await?;
             let row = load(&state, &id).await?;
             if row.status != ImportStatus::Running {
-                return Err(
-                    ImportError::conflict("notRunning", messages::IMPORT_NOT_RUNNING)
-                        .with("status", json!(row.status.as_str())),
-                );
+                return Err(not_running(row.status));
             }
-            let mut summary = match row.summary {
-                Some(Value::Object(members)) => members,
-                _ => serde_json::Map::new(),
-            };
-            summary.insert(STOP.to_string(), Value::Bool(true));
-            ImportRepo::new(&state.pool)
-                .set_summary(row.id, &Value::Object(summary))
-                .await?;
+            if !ImportRepo::new(&state.pool).request_stop(row.id).await? {
+                return Err(not_running(row.status));
+            }
             Ok(json(StatusCode::ACCEPTED, &json!({})))
         }
         .await,
     )
+}
+
+fn not_running(status: ImportStatus) -> ImportError {
+    ImportError::conflict("notRunning", messages::IMPORT_NOT_RUNNING)
+        .with("status", json!(status.as_str()))
 }
 
 #[derive(Deserialize, Default)]
@@ -310,6 +317,11 @@ pub(super) async fn undo(
                     );
                 }
                 StartOutcome::Busy(other) => return Err(busy(other)),
+                StartOutcome::Changed { .. } => {
+                    return Err(ImportError::Internal(
+                        "an undo start answered a revision change".to_string(),
+                    ));
+                }
             }
             let force = request
                 .force
