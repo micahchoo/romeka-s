@@ -132,6 +132,7 @@ describe('settings page', () => {
     media_type_whitelist: ['application/pdf', 'image/jpeg'],
     extension_whitelist: ['pdf', 'jpg'],
     disable_file_validation: false,
+    import_allow_private_urls: false,
   };
 
   it('settings_saves_the_global_locale_and_keeps_the_other_fields_in_the_page', async () => {
@@ -170,6 +171,7 @@ describe('settings page', () => {
                   media_type_whitelist: restoredTypes,
                   extension_whitelist: ['pdf', 'tif'],
                   disable_file_validation: true,
+                  import_allow_private_urls: false,
                 }
               : fileSettings,
           ),
@@ -203,9 +205,44 @@ describe('settings page', () => {
       media_type_whitelist: null,
       extension_whitelist: ['pdf', 'tif'],
       disable_file_validation: true,
+      import_allow_private_urls: false,
     });
     expect(types).toHaveValue(restoredTypes.join(','));
     expect(screen.getByLabelText('Disable file validation')).toBeChecked();
+  });
+
+  it('settings_allows_private_urls_and_warns_while_the_switch_is_on', async () => {
+    const fetchMock = installFetch(
+      route({
+        '/api/settings': (_url, init) =>
+          jsonResponse({
+            ...fileSettings,
+            locale: null,
+            import_allow_private_urls: init?.method === 'PATCH',
+          }),
+      }),
+    );
+    render(<SettingsPage />);
+
+    const allow = await screen.findByLabelText('Allow URLs on private networks');
+    expect(allow).not.toBeChecked();
+    expect(allow).toHaveAccessibleDescription(
+      'Media and imports refuse URLs that point at this server or its private network: localhost, the local network and cloud metadata addresses. Check this to allow them.',
+    );
+    fireEvent.click(allow);
+    expect(allow).toHaveAccessibleDescription(
+      expect.stringContaining(
+        'While this is on, anyone who can add media can make this server fetch from its own network.',
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Settings updated.');
+    const patch = first(
+      requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
+    );
+    expect(requestBody(patch)).toMatchObject({ import_allow_private_urls: true });
+    expect(screen.getByLabelText('Allow URLs on private networks')).toBeChecked();
   });
 
   it('settings_shows_the_refusal_a_caller_other_than_a_global_admin_gets', async () => {

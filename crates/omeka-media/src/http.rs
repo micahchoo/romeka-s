@@ -72,6 +72,9 @@ pub enum FetchErrorKind {
     Transport,
     /// The URL is not an absolute http(s) URL.
     InvalidUrl,
+    /// The URL guard refused the target: credentials in the URL, or an
+    /// address in a private range (`crate::http_guard`).
+    Refused,
     /// The host did not resolve or the connection was refused.
     Connect,
     /// The request or the response timed out.

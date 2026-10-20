@@ -21,6 +21,8 @@ use common::{
     append_key, get, json_request, multipart_asset_request, router_with_store, seeded_pool,
     seeded_router, send,
 };
+use omeka_api::settings::IMPORT_ALLOW_PRIVATE_URLS;
+use omeka_db::repos::SettingRepo;
 use omeka_media::store::{FileStore, Store};
 use serde_json::{Value, json};
 
@@ -138,9 +140,15 @@ fn serve_once(body: &'static [u8], content_type: &'static str) -> String {
 }
 
 /// The seeded pool with a store rooted in `dir`, so an ingester's bytes land
-/// somewhere the test can read and the checkout is untouched.
+/// somewhere the test can read and the checkout is untouched. The operator's
+/// `import_allow_private_urls` is on, because every fetch here goes to a
+/// loopback server the URL guard refuses by default.
 async fn router_in(dir: &std::path::Path) -> (axum::Router, common::Seed) {
     let (pool, seed) = seeded_pool().await;
+    SettingRepo::new(&pool)
+        .set(IMPORT_ALLOW_PRIVATE_URLS, &json!(true))
+        .await
+        .expect("allow private URLs");
     let store = FileStore::new(dir, "/files");
     (router_with_store(pool, store), seed)
 }
