@@ -122,8 +122,6 @@ export const ta: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'வரிசைப்படுத்தப்பட்ட பட்டியலாகக் காட்டப்படும் பக்கங்கள்.',
   'blockField.oembed.url': 'ஊடக முகவரி',
   'fieldHelp.oembed.url': 'யூடியூப், விமியோ அல்லது பிற oEmbed வழங்குநர்களிடமிருந்து வரும் இணைப்பு.',
-  'blockField.oembed.refresh': 'உட்பொதிவை மீண்டும் பெறு',
-  'fieldHelp.oembed.refresh': 'சேமிக்கும்போது வழங்குநரிடமிருந்து உட்பொதிவை மீண்டும் ஏற்றுகிறது.',
   'romekaField.hero.heading': 'தலைப்பு',
   'fieldHelp.hero.heading': 'பதாகையில் உள்ள பெரிய உரை.',
   'fieldExample.hero.heading': 'எ.கா. சேகரிப்பிற்கு வரவேற்கிறோம்',

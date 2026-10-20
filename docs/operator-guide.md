@@ -11,7 +11,8 @@ production deployment, with the image, the compose file, a TLS proxy and the rol
 One binary.
 
 `romeka serve` answers the `/api` routes, the account routes (`/api/login`, `/api/logout`,
-`/api/me`, `/api/password`, `/api/password/forgot`), the public site under `/s/`, the bundled theme's
+`/api/me`, `/api/password`, `/api/password/forgot`), the public site under `/s/` with its Logout
+form at `/logout`, the bundled theme's
 files under `/assets/`, and two probes: `/health` for liveness and `/ready`, which runs a query and
 answers 503 while storage is unreachable ([`../crates/omeka-server/src/lib.rs`](../crates/omeka-server/src/lib.rs)).
 

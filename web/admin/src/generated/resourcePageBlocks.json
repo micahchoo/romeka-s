@@ -54,10 +54,6 @@
       ],
       "blocks": [
         {
-          "name": "lightboxGallery",
-          "labelKey": "resourcePageBlock.lightboxGallery"
-        },
-        {
           "name": "linkedResources",
           "labelKey": "resourcePageBlock.linkedResources"
         },

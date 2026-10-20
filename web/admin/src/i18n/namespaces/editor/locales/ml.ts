@@ -119,8 +119,6 @@ export const ml: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'ക്രമത്തിൽ പട്ടികപ്പെടുത്തിയ പേജുകൾ.',
   'blockField.oembed.url': 'മീഡിയ URL',
   'fieldHelp.oembed.url': 'യൂട്യൂബ്, വിമിയോ അല്ലെങ്കിൽ മറ്റൊരു oEmbed ദാതാവിൽ നിന്നുള്ള ലിങ്ക്.',
-  'blockField.oembed.refresh': 'എംബഡ് വീണ്ടും ശേഖരിക്കുക',
-  'fieldHelp.oembed.refresh': 'സേവ് ചെയ്യുമ്പോൾ പ്രൊവൈഡറിൽ നിന്ന് എംബഡ് വീണ്ടും ലോഡ് ചെയ്യുന്നു.',
   'romekaField.hero.heading': 'തലക്കെട്ട്',
   'fieldHelp.hero.heading': 'ബാനറിലെ വലിയ ടെക്സ്റ്റ്.',
   'fieldExample.hero.heading': 'ഉദാഹരണത്തിന്, ശേഖരത്തിലേക്ക് സ്വാഗതം',

@@ -11,7 +11,8 @@ use axum::http::Uri;
 use omeka_api::auth::Actor;
 use omeka_api::read::catalog::Catalog;
 use omeka_api::write::site_pages::ResolvedAttachment;
-use omeka_core::ids::{BlockId, PageId};
+use omeka_core::ids::{BlockId, PageId, SiteId, UserId};
+use omeka_core::permissions::{Role, RoleSet, SitePermissionRole};
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage, Slug};
 use omeka_db::DbError;
@@ -29,7 +30,7 @@ use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{PublicRoute, kind_for_controller, page_url, parse_public_path};
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::theme::{DefaultTheme, Theme, theme_for};
-use omeka_site::view::{ErrorView, NoResources, RenderContext, ResourceProvider, View};
+use omeka_site::view::{ErrorView, NoResources, RenderContext, ResourceProvider, View, Viewer};
 use serde_json::Value;
 use sqlx::SqlitePool;
 
@@ -208,8 +209,7 @@ struct Common<'a> {
     /// The theme's design tokens, validated.
     theme_settings: ThemeSettings,
     favicon_url: Option<String>,
-    signed_in: bool,
-    user_name: Option<String>,
+    viewer: Option<Viewer>,
     query: Vec<(String, String)>,
     loader: &'a Loader<'a>,
     current_path: String,
@@ -236,13 +236,7 @@ impl<'a> Common<'a> {
             data.settings.locale().translator().messages(),
         );
         let theme = theme_for(&data.site.theme).unwrap_or(&DefaultTheme);
-        let user_name = match actor.user() {
-            Some(user) => UserRepo::new(&state.pool)
-                .get(user)
-                .await?
-                .map(|row| row.name),
-            None => None,
-        };
+        let viewer = viewer(&state.pool, actor, data.row.id).await?;
         Ok(Self {
             site: &data.site,
             pages,
@@ -253,8 +247,7 @@ impl<'a> Common<'a> {
             theme,
             theme_settings: theme_settings.clone(),
             favicon_url: data.favicon_url.clone(),
-            signed_in: actor.user().is_some(),
-            user_name,
+            viewer,
             query: parse_query(uri.query().unwrap_or_default()),
             loader,
             current_path: uri.path().to_string(),
@@ -286,8 +279,7 @@ impl<'a> Common<'a> {
         ctx.query = self.query.clone();
         ctx.current_path = self.current_path.clone();
         ctx.favicon_url = self.favicon_url.clone();
-        ctx.signed_in = self.signed_in;
-        ctx.user_name = self.user_name.clone();
+        ctx.viewer = self.viewer.clone();
         ctx
     }
 }
@@ -560,6 +552,39 @@ async fn theme_settings_value(
                 reason: error.to_string(),
             })
         })
+}
+
+/// The signed-in caller with the roles the user bar's edit links read: the
+/// global role and the caller's own `site_permission` row on this site.
+async fn viewer(
+    pool: &SqlitePool,
+    actor: &Actor,
+    site: db::SiteId,
+) -> Result<Option<Viewer>, SiteError> {
+    let Some(user) = actor.user() else {
+        return Ok(None);
+    };
+    let Some(row) = UserRepo::new(pool).get(user).await? else {
+        return Ok(None);
+    };
+    let mut roles = RoleSet {
+        user: Some(UserId::new(user.0)),
+        global: Role::from_wire_name(&row.role),
+        ..RoleSet::default()
+    };
+    let permission = SiteRepo::new(pool)
+        .list_permissions(site)
+        .await?
+        .into_iter()
+        .find(|permission| permission.user_id == user)
+        .and_then(|permission| SitePermissionRole::from_wire_name(&permission.role));
+    if let Some(role) = permission {
+        roles = roles.with_site(SiteId::new(site.0), role);
+    }
+    Ok(Some(Viewer {
+        name: row.name,
+        roles,
+    }))
 }
 
 /// Whether the actor holds a permission on the site
