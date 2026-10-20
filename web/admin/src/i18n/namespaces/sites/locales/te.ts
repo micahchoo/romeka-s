@@ -56,7 +56,6 @@ export const te: SitesMessages = {
   'navigation.addLink': 'లింక్ జోడించండి',
   'navigation.addChild': 'చైల్డ్ లింక్ జోడించండి',
   'navigation.remove': '{label} తొలగించండి',
-  'navigation.errorMissingTarget': 'ఒక పేజీ లేదా URL లింక్ తన లక్ష్యాన్ని కలిగి ఉండాలి.',
   'siteSettingGroup.browsing': 'బ్రౌజింగ్',
   'siteSettingGroup.browsingIntro': 'సందర్శకులు బ్రౌజ్ చేసినప్పుడు అంశాల జాబితాలు ఎలా కనిపిస్తాయి.',
   'siteSettingGroup.search': 'శోధన',
@@ -102,7 +101,11 @@ export const te: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'ఐటమ్ పేజీలు ప్రతి ఫీల్డ్ పేరు పక్కన పదజాలం లేదా సాంకేతిక పదాన్ని చూపుతాయి.',
   'siteSetting.iiifViewerTheme': 'IIIF వ్యూయర్ థీమ్',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF వ్యూయర్ బ్లాక్ కోసం లైట్ లేదా డార్క్ బ్యాక్‌గ్రౌండ్.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF వ్యూయర్ కోసం, బ్లాక్‌లలో మరియు ఐటమ్ పేజీలలో లేత లేదా ముదురు నేపథ్యం.',
+  'siteSetting.iiifViewerSidebar': 'IIIF వ్యూయర్ సైడ్‌బార్',
+  'siteSetting.iiifViewerSidebarHelp':
+    'కంటెంట్‌లు మరియు వివరాలతో కూడిన సైడ్‌బార్‌తో వ్యూయర్‌ను తెరుస్తుంది.',
   'siteSetting.locale': 'ప్రాంతం',
   'siteSetting.localeHelp': 'సైట్ స్వంత పదాల భాష, ఉదాహరణకు బటన్లు, మెనూలు మరియు తేదీలు.',
   'siteSetting.filterLocaleValues': 'ప్రాంతం విలువలను ఫిల్టర్ చేయండి',
@@ -321,13 +324,11 @@ export const te: SitesMessages = {
   'siteHub.unknownLinkType':
     'ఒక మాడ్యూల్ ఈ లింక్ రకాన్ని జోడించింది. దీని సెట్టింగ్‌లు నిల్వ చేయబడినట్లుగా ఉంచబడతాయి.',
   'siteHub.moveLink': '{label}ని తరలించండి',
-  'siteHub.needsTarget': 'లక్ష్య అవసరం',
   'siteHub.editLink': '{label}ని సవరించండి',
   'siteHub.addChildTo': '{label}కి చైల్డ్ లింక్‌ను జోడించండి',
   'siteHub.menuPreview': 'మెనూ ప్రివ్యూ',
   'siteHub.homeLink': 'హోమ్',
   'siteHub.emptyMenuNote': 'లింక్‌లు లేనప్పుడు, పబ్లిక్ సైట్ తన హోమ్‌పేజీకి ఒక లింక్‌ను చూపుతుంది.',
-  'siteHub.unsavedConfirm': 'నావిగేషన్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. వదిలి, వాటిని కోల్పోవాలా?',
   'siteHub.unsaved': 'చేయని మార్పులు',
   'siteHub.picked':
     '{label}ని ఎంచుకోబడింది. దానిని కదపడానికి యారో కీలను, వదలడానికి స్పేస్‌ను, రద్దు చేయడానికి ఎస్కేప్‌ను ఉపయోగించండి.',
@@ -437,5 +438,25 @@ export const te: SitesMessages = {
   'itemPicker.setChip': '{title} ను సెట్ చేయండి',
   'itemPicker.removeSet': '{title} సెట్‌ను తొలగించండి',
   'itemPicker.clear': 'ఎంపికలను క్లియర్ చేయండి',
+  'navigation.issueNoPage': 'పేజీ అవసరం',
+  'navigation.issueNoUrl': 'URL అవసరం',
+  'navigation.issueNoLabel': 'లేబుల్ అవసరం',
+  'navigation.issueSamePage': 'పేజీ ఇప్పటికే మెనూలో ఉంది',
+  'navigation.errorLinkIssues':
+    'కొన్ని లింకులు పూర్తి కాలేదు. గుర్తించిన లింకులను సరిచేసి, సేవ్ చేయండి.',
+  'sites.userFallback': 'వినియోగదారు {id}',
+  'sites.errorRowNoUser': 'ప్రతి వరుసలో ఒక వినియోగదారుని ఎంచుకోండి, లేదా ఆ వరుసను తొలగించండి.',
+  'siteHub.unsavedTabConfirm':
+    'ఈ ట్యాబ్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. వదిలివేసి, వాటిని కోల్పోవాలా?',
+  'siteAccess.viewer':
+    'మీరు ఈ సైట్‌ను చూడవచ్చు. దీని సృష్టికర్తలు మరియు నిర్వాహకులు మాత్రమే దీనిని మార్చగలరు.',
+  'siteAccess.hub': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే హోమ్‌పేజీ మరియు మెనూను మార్చగలరు.',
+  'siteAccess.notInNavigation': 'నావిగేషన్‌లో లేదు',
+  'siteAccess.navigation': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే మెనూను మార్చగలరు.',
+  'siteAccess.items': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే వస్తువులను జోడించగలరు లేదా తొలగించగలరు.',
+  'siteAccess.users': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే ఈ సైట్‌లో ఎవరు పని చేస్తారో మార్చగలరు.',
+  'siteAccess.theme': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే థీమ్‌ను మార్చగలరు.',
+  'siteAccess.settings': 'కేవలం సైట్ నిర్వాహకులు మాత్రమే సైట్ సెట్టింగ్‌లను మార్చగలరు.',
+  'siteAccess.delete': 'కేవలం సైట్ యజమాని లేదా అడ్మినిస్ట్రేటర్ మాత్రమే ఈ సైట్‌ను తొలగించగలరు.',
   'itemPicker.itemFallback': 'అంశం {id}',
 };

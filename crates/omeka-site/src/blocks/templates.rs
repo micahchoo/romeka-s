@@ -580,6 +580,7 @@ mod tests {
             | FieldKind::Html
             | FieldKind::PageList
             | FieldKind::Color
+            | FieldKind::ManifestSource
             | FieldKind::Sides { .. } => value.is_string(),
             FieldKind::Link { url_key } if key == url_key => value.is_string(),
             FieldKind::Link { .. } => value.is_number() || numeric_string(value),

@@ -56,7 +56,6 @@ export const ml: SitesMessages = {
   'navigation.addLink': 'ലിങ്ക് ചേർക്കുക',
   'navigation.addChild': 'ചൈൽഡ് ലിങ്ക് ചേർക്കുക',
   'navigation.remove': '{label} നീക്കം ചെയ്യുക',
-  'navigation.errorMissingTarget': 'ഒരു പേജ് അല്ലെങ്കിൽ URL ലിങ്കിന് അതിന്റെ ലക്ഷ്യം ആവശ്യമാണ്.',
   'siteSettingGroup.browsing': 'ബ്രൗസിംഗ്',
   'siteSettingGroup.browsingIntro': 'സന്ദർശകർ ബ്രൗസ് ചെയ്യുമ്പോൾ ഇനങ്ങൾ എങ്ങനെ കാണപ്പെടുന്നു.',
   'siteSettingGroup.search': 'തിരയുക',
@@ -103,7 +102,10 @@ export const ml: SitesMessages = {
     'ഐറ്റം പേജുകൾ ഓരോ ഫീൽഡ് നാമത്തിന് അടുത്തും വൊക്കാബുലറി അല്ലെങ്കിൽ ടെക്നിക്കൽ ടേം കാണിക്കുന്നു.',
   'siteSetting.iiifViewerTheme': 'IIIF വ്യൂവർ തീം',
   'siteSetting.iiifViewerThemeHelp':
-    'IIIF വ്യൂവർ ബ്ലോക്കിന് ലൈറ്റ് അല്ലെങ്കിൽ ഡാർക്ക് ബാക്ക്ഗ്രൗണ്ട്.',
+    'IIIF വ്യൂവറിനായി ഒരു ലൈറ്റ് അല്ലെങ്കിൽ ഡാർക്ക് ബാക്ക്ഗ്രൗണ്ട്, ബ്ലോക്കുകളിലും ഐറ്റം പേജുകളിലും.',
+  'siteSetting.iiifViewerSidebar': 'IIIF വ്യൂവർ സൈഡ്‌ബാർ',
+  'siteSetting.iiifViewerSidebarHelp':
+    'ഉള്ളടക്കങ്ങളുടെയും വിശദാംശങ്ങളുടെയും സൈഡ്‌ബാർ കാണിച്ചുകൊണ്ട് വ്യൂവർ തുറക്കുന്നു.',
   'siteSetting.locale': 'ലൊക്കേൽ',
   'siteSetting.localeHelp':
     'സൈറ്റിന്റെ സ്വന്തം വാക്കുകളുടെ ഭാഷ, ഉദാഹരണത്തിന് ബട്ടണുകൾ, മെനുകൾ, തീയതികൾ.',
@@ -323,14 +325,12 @@ export const ml: SitesMessages = {
   'siteHub.unknownLinkType':
     'ഒരു മോഡ്യൂൾ ഈ ലിങ്ക് ടൈപ്പ് ചേർത്തു. ഇതിന്റെ ക്രമീകരണങ്ങൾ ശേഖരിച്ചതുപോലെ തന്നെ തുടരുന്നു.',
   'siteHub.moveLink': '{label} മാറ്റുക',
-  'siteHub.needsTarget': 'ഒരു ലക്ഷ്യസ്ഥാനം ആവശ്യമാണ്',
   'siteHub.editLink': '{label} എഡിറ്റ് ചെയ്യുക',
   'siteHub.addChildTo': '{label}-ലേക്ക് ഒരു ചൈൽഡ് ലിങ്ക് ചേർക്കുക',
   'siteHub.menuPreview': 'മെനു പ്രിവ്യൂ',
   'siteHub.homeLink': 'ഹോം',
   'siteHub.emptyMenuNote':
     'ലിങ്കുകൾ ഒന്നുമില്ലെങ്കിൽ, പൊതുസൈറ്റ് അതിന്റെ ഹോംപേജിലേക്ക് ഒരു ലിങ്ക് കാണിക്കുന്നു.',
-  'siteHub.unsavedConfirm': 'നാവിഗേഷനിൽ മാറ്റങ്ങൾ സേവ് ചെയ്തിട്ടില്ല. പോയി അവ നഷ്ടപ്പെടുത്തണോ?',
   'siteHub.unsaved': 'സേവ് ചെയ്യാത്ത മാറ്റങ്ങൾ',
   'siteHub.picked':
     '{label} തിരഞ്ഞെടുക്കപ്പെട്ടു. അത് നീക്കാൻ ആരോ കീകൾ ഉപയോഗിക്കുക, ഇടാൻ സ്പേസ്, റദ്ദാക്കാൻ എസ്‌കേപ്പ്.',
@@ -442,5 +442,26 @@ export const ml: SitesMessages = {
   'itemPicker.setChip': '{title} സെറ്റ് ചെയ്യുക',
   'itemPicker.removeSet': '{title} എന്ന സെറ്റ് നീക്കം ചെയ്യുക',
   'itemPicker.clear': 'തിരഞ്ഞെടുപ്പുകൾ നീക്കം ചെയ്യുക',
+  'navigation.issueNoPage': 'ഒരു പേജ് ആവശ്യമാണ്',
+  'navigation.issueNoUrl': 'ഒരു URL ആവശ്യമാണ്',
+  'navigation.issueNoLabel': 'ഒരു ലേബൽ ആവശ്യമാണ്',
+  'navigation.issueSamePage': 'പേജ് ഇതിനകം മെനുവിൽ ഉണ്ട്',
+  'navigation.errorLinkIssues':
+    'ചില ലിങ്കുകൾ പൂർണ്ണമല്ല. അടയാളപ്പെടുത്തിയ ലിങ്കുകൾ ശരിയാക്കുക, തുടർന്ന് സേവ് ചെയ്യുക.',
+  'sites.userFallback': 'ഉപയോക്താവ് {id}',
+  'sites.errorRowNoUser':
+    'ഓരോ വരിയിലും ഒരു ഉപയോക്താവിനെ തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ വരി നീക്കം ചെയ്യുക.',
+  'siteHub.unsavedTabConfirm': 'ഈ ടാബിൽ സേവ് ചെയ്യാത്ത മാറ്റങ്ങൾ ഉണ്ട്. പോകുക, അവ നഷ്ടപ്പെടുമോ?',
+  'siteAccess.viewer':
+    'നിങ്ങൾക്ക് ഈ സൈറ്റ് കാണാം. ഇതിന്റെ സ്രഷ്ടാക്കളും മാനേജർമാരും മാത്രമേ ഇത് മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.hub': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഹോംപേജും മെനുവും മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.notInNavigation': 'നാവിഗേഷനിൽ ഇല്ല',
+  'siteAccess.navigation': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ മെനു മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.items': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഇനങ്ങൾ ചേർക്കാനോ നീക്കം ചെയ്യാനോ കഴിയൂ.',
+  'siteAccess.users': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഈ സൈറ്റിൽ ആര് ജോലി ചെയ്യണമെന്ന് മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.theme': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ തീം മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.settings': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ സൈറ്റ് ക്രമീകരണങ്ങൾ മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.delete':
+    'സൈറ്റ് ഉടമയ്ക്കോ അഡ്മിനിസ്ട്രേറ്റർക്കോ മാത്രമേ ഈ സൈറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയൂ.',
   'itemPicker.itemFallback': 'ഇനം {id}',
 };

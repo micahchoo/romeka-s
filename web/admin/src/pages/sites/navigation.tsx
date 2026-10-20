@@ -19,8 +19,10 @@ import { SaveStatus, SubmitRow } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { useUnsavedGuard } from './editor/shell/useUnsavedGuard';
+import type { KeyOf } from '../../i18n';
 import { NavigationLinkFields, linkLabel, typeLabel } from './NavigationLinkFields';
+import { SaveBar, useUnsavedTab } from './unsaved';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 import type { PageOption } from './NavigationLinkFields';
 import {
   keyboardMove,
@@ -29,7 +31,7 @@ import {
   navigationLinks,
   navigationReducer,
 } from './navigationTree';
-import type { MoveDirection, NavLink, NavigationAction, Place } from './navigationTree';
+import type { LinkIssue, MoveDirection, NavLink, NavigationAction, Place } from './navigationTree';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 
@@ -66,10 +68,17 @@ const whereIs = (
   return null;
 };
 
+const ISSUE_TEXT: Readonly<Record<LinkIssue, KeyOf<typeof sites>>> = {
+  noPage: 'navigation.issueNoPage',
+  noUrl: 'navigation.issueNoUrl',
+  noLabel: 'navigation.issueNoLabel',
+  samePage: 'navigation.issueSamePage',
+};
+
 /** What every row reads and calls; the editor owns all of it. */
 interface TreeContext {
   readonly pages: readonly PageOption[];
-  readonly issues: ReadonlySet<number>;
+  readonly issues: ReadonlyMap<number, LinkIssue>;
   readonly openKey: number | null;
   readonly pickedKey: number | null;
   readonly drop: { readonly key: number; readonly place: Place } | null;
@@ -97,6 +106,7 @@ const LinkRow = ({
   const open = tree.openKey === link.key;
   const picked = tree.pickedKey === link.key;
   const drop = tree.drop?.key === link.key ? tree.drop.place : undefined;
+  const issue = tree.issues.get(link.key);
   return (
     <li className="nav-tree-item">
       <div
@@ -137,9 +147,9 @@ const LinkRow = ({
         </button>
         <span className="nav-tree-label">{label}</span>
         <span className="badge">{typeLabel(link.type, t)}</span>
-        {tree.issues.has(link.key) ? (
-          <span className="badge badge-danger">{t('siteHub.needsTarget')}</span>
-        ) : null}
+        {issue === undefined ? null : (
+          <span className="badge badge-danger">{t(ISSUE_TEXT[issue])}</span>
+        )}
         <span className="nav-tree-actions">
           <button
             type="button"
@@ -249,7 +259,6 @@ export const SiteNavigationEditor = ({
 }: NavigationEditorProps): ReactElement => {
   const { t } = useTranslator(common, sites);
   const [links, setLinks] = useState<readonly NavLink[]>(() => navigationLinks(navigation));
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(navigationJson(links)));
   const [openKey, setOpenKey] = useState<number | null>(null);
   const [picked, setPicked] = useState<{
     readonly key: number;
@@ -263,8 +272,7 @@ export const SiteNavigationEditor = ({
   const { state: saveState, save } = useSave();
 
   const json = navigationJson(links);
-  const dirty = JSON.stringify(json) !== savedJson;
-  useUnsavedGuard(dirty, t('siteHub.unsavedConfirm'));
+  const unsaved = useUnsavedTab(json);
   const issues = linkIssues(links);
 
   const pickedKey = picked?.key ?? null;
@@ -362,13 +370,13 @@ export const SiteNavigationEditor = ({
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
     if (issues.size > 0) {
-      setFormError(t('navigation.errorMissingTarget'));
+      setFormError(t('navigation.errorLinkIssues'));
       return;
     }
     setFormError(null);
     save(async () => {
       await api.patchSite(siteId, encodeSiteNavigation(json));
-      setSavedJson(JSON.stringify(json));
+      unsaved.saved();
     });
   };
 
@@ -397,15 +405,9 @@ export const SiteNavigationEditor = ({
         </p>
         {formError === null ? null : <p role="alert">{formError}</p>}
         <SaveStatus state={saveState} />
-        <div className="nav-editor-save">
+        <SaveBar dirty={unsaved.dirty}>
           <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
-          {dirty ? (
-            <span className="editor-dirty" role="status">
-              <span className="editor-dirty-dot" aria-hidden="true" />
-              {t('siteHub.unsaved')}
-            </span>
-          ) : null}
-        </div>
+        </SaveBar>
       </div>
       <MenuPreview links={links} pages={pages} />
     </form>
@@ -432,11 +434,20 @@ const loadNavigation = async (siteId: SiteId): Promise<NavigationLoaded> => {
 export const SiteNavigationPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => loadNavigation(siteId), [siteId]);
-  if (state.status === 'loading') {
+  const access = useSiteAccess();
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
+  }
+  if (!access.has('changeSite')) {
+    return (
+      <div className="nav-editor">
+        <AccessNote>{t('siteAccess.navigation')}</AccessNote>
+        <MenuPreview links={navigationLinks(state.data.navigation)} pages={state.data.pages} />
+      </div>
+    );
   }
   return (
     <SiteNavigationEditor

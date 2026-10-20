@@ -144,4 +144,7 @@ export const mr: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ट्रान्झिशनल सेरिफ',
   'themeChoice.didone': 'हाय-कॉन्ट्रास्ट सेरिफ',
   'themeChoice.mono': 'मोनोस्पेस',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वयंचलित योजना वाचकाच्या प्रणालीचे अनुसरण करते, त्यामुळे प्रत्येक रंगाचे मूल्य हलके आणि गडद असते.',
 };

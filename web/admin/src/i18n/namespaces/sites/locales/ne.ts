@@ -56,7 +56,6 @@ export const ne: SitesMessages = {
   'navigation.addLink': 'लिङ्क थप्नुहोस्',
   'navigation.addChild': 'सन्तान लिङ्क थप्नुहोस्',
   'navigation.remove': '{label} हटाउनुहोस्',
-  'navigation.errorMissingTarget': 'एउटा पृष्ठ वा URL लिङ्कलाई आफ्नो लक्ष्य आवश्यक पर्छ।',
   'siteSettingGroup.browsing': 'ब्राउजिङ',
   'siteSettingGroup.browsingIntro': 'आगन्तुकहरूले वस्तुहरू ब्राउज गर्दा सूचीहरू कस्तो देखिन्छन्।',
   'siteSettingGroup.search': 'खोज',
@@ -101,7 +100,11 @@ export const ne: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'वस्तु पृष्ठहरूले प्रत्येक क्षेत्रको नामको छेउमा शब्दावली वा प्राविधिक शब्द देखाउँछन्।',
   'siteSetting.iiifViewerTheme': 'IIIF भ्युअर थिम',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF भ्युअर ब्लकका लागि हल्का वा गाढा पृष्ठभूमि।',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF भ्युअरका लागि हल्का वा गाढा पृष्ठभूमि, ब्लकहरूमा र वस्तु पृष्ठहरूमा।',
+  'siteSetting.iiifViewerSidebar': 'IIIF भ्युअर साइडबार',
+  'siteSetting.iiifViewerSidebarHelp':
+    'यसले सामग्री र विवरणहरू देखाउने साइडबारको साथ भ्युअर खोल्छ।',
   'siteSetting.locale': 'स्थान',
   'siteSetting.localeHelp': 'साइटका आफ्नै शब्दहरूको भाषा, जस्तै बटन, मेनु र मितिहरू।',
   'siteSetting.filterLocaleValues': 'लोकपाल मानहरू फिल्टर गर्नुहोस्',
@@ -320,13 +323,11 @@ export const ne: SitesMessages = {
   'siteHub.unknownLinkType':
     'एउटा मोड्युलले यो लिङ्क प्रकार थप्यो। यसको सेटिङहरू भण्डारण गरिए अनुसार नै रहन्छन्।',
   'siteHub.moveLink': '{label} सार्नुहोस्',
-  'siteHub.needsTarget': 'लक्षित लक्ष्य आवश्यक छ',
   'siteHub.editLink': '{label} सम्पादन गर्नुहोस्',
   'siteHub.addChildTo': '{label} मा चाइल्ड लिङ्क थप्नुहोस्',
   'siteHub.menuPreview': 'मेनु पूर्वावलोकन',
   'siteHub.homeLink': 'घर',
   'siteHub.emptyMenuNote': 'लिङ्कहरू बिना, सार्वजनिक साइटले आफ्नो होमपेजको एउटा लिङ्क देखाउँछ।',
-  'siteHub.unsavedConfirm': 'नेभिगेसनमा बचत नगरिएका परिवर्तनहरू छन्। के तपाईँले यसलाई छोड्नुपर्छ?',
   'siteHub.unsaved': 'बचत नगरिएका परिवर्तनहरू',
   'siteHub.picked':
     '{label} चयन गरियो। यसलाई सार्न एरो किहरू प्रयोग गर्नुहोस्, ड्रप गर्न स्पेस, रद्द गर्न एस्केप।',
@@ -436,5 +437,25 @@ export const ne: SitesMessages = {
   'itemPicker.setChip': 'सेट: {title}',
   'itemPicker.removeSet': 'सेट {title} हटाउनुहोस्',
   'itemPicker.clear': 'छनोटहरू खाली गर्नुहोस्',
+  'navigation.issueNoPage': 'पृष्ठ आवश्यक छ',
+  'navigation.issueNoUrl': 'URL आवश्यक छ',
+  'navigation.issueNoLabel': 'लेबल आवश्यक छ',
+  'navigation.issueSamePage': 'पृष्ठ पहिले नै मेनुमा छ',
+  'navigation.errorLinkIssues':
+    'केही लिङ्कहरू पूर्ण छैनन्। चिन्हित लिङ्कहरू सच्याउनुहोस्, त्यसपछि सुरक्षित गर्नुहोस्।',
+  'sites.userFallback': 'प्रयोगकर्ता {id}',
+  'sites.errorRowNoUser': 'प्रत्येक पङ्क्तिमा प्रयोगकर्ता छान्नुहोस्, वा पङ्क्ति हटाउनुहोस्।',
+  'siteHub.unsavedTabConfirm': 'यो ट्याबमा नबचत परिवर्तनहरू छन्। छोड्नुहोस् र तिनलाई गुमाउनुहोस्?',
+  'siteAccess.viewer':
+    'तपाईँ यो साइट हेर्न सक्नुहुन्छ। यसका निर्माता र प्रबन्धकहरू मात्र यसलाई परिवर्तन गर्न सक्छन्।',
+  'siteAccess.hub': 'केवल साइट प्रबन्धकहरूले मात्र होमपेज र मेनु परिवर्तन गर्न सक्छन्।',
+  'siteAccess.notInNavigation': 'नेभिगेसनमा छैन',
+  'siteAccess.navigation': 'केवल साइट प्रबन्धकहरूले मात्र मेनु परिवर्तन गर्न सक्छन्।',
+  'siteAccess.items': 'केवल साइट प्रबन्धकहरूले मात्र वस्तुहरू थप्न वा हटाउन सक्छन्।',
+  'siteAccess.users':
+    'केवल साइट प्रबन्धकहरूले मात्र यस साइटमा को काम गर्छन् भन्ने कुरा परिवर्तन गर्न सक्छन्।',
+  'siteAccess.theme': 'केवल साइट प्रबन्धकहरूले मात्र थिम परिवर्तन गर्न सक्छन्।',
+  'siteAccess.settings': 'केवल साइट प्रबन्धकहरूले मात्र साइट सेटिङहरू परिवर्तन गर्न सक्छन्।',
+  'siteAccess.delete': 'केवल साइट मालिक वा प्रशासकले मात्र यो साइट मेटाउन सक्छन्।',
   'itemPicker.itemFallback': 'वस्तु {id}',
 };

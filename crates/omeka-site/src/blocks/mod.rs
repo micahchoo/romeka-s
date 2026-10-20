@@ -28,6 +28,7 @@ pub mod canonical;
 pub mod fallback;
 pub mod hero;
 pub mod html;
+mod iiif;
 pub mod iiif_image;
 pub mod iiif_presentation;
 pub mod item_with_metadata;

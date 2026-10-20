@@ -427,31 +427,38 @@
   "colours": [
     {
       "role": "brand",
-      "key": "brand_color"
+      "key": "brand_color",
+      "darkKey": null
     },
     {
       "role": "accent",
-      "key": "accent_color"
+      "key": "accent_color",
+      "darkKey": "accent_color_dark"
     },
     {
       "role": "background",
-      "key": "background_color"
+      "key": "background_color",
+      "darkKey": "background_color_dark"
     },
     {
       "role": "surface",
-      "key": "surface_color"
+      "key": "surface_color",
+      "darkKey": "surface_color_dark"
     },
     {
       "role": "text",
-      "key": "text_color"
+      "key": "text_color",
+      "darkKey": "text_color_dark"
     },
     {
       "role": "muted",
-      "key": "muted_color"
+      "key": "muted_color",
+      "darkKey": "muted_color_dark"
     },
     {
       "role": "link",
-      "key": "link_color"
+      "key": "link_color",
+      "darkKey": "link_color_dark"
     }
   ],
   "pairs": [

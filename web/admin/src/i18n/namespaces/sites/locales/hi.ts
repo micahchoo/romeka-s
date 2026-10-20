@@ -56,7 +56,6 @@ export const hi: SitesMessages = {
   'navigation.addLink': 'लिंक जोड़ें',
   'navigation.addChild': 'चाइल्ड लिंक जोड़ें',
   'navigation.remove': '{label} को हटाएँ',
-  'navigation.errorMissingTarget': 'पेज या URL लिंक को अपने लक्ष्य की आवश्यकता है।',
   'siteSettingGroup.browsing': 'ब्राउज़िंग',
   'siteSettingGroup.browsingIntro': 'आगंतुक ब्राउज़ करते समय आइटमों की सूचियाँ कैसी दिखती हैं।',
   'siteSettingGroup.search': 'खोज',
@@ -100,7 +99,11 @@ export const hi: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'आइटम पेज प्रत्येक फ़ील्ड नाम के बगल में शब्दावली या तकनीकी शब्द दिखाते हैं।',
   'siteSetting.iiifViewerTheme': 'IIIF व्यूअर थीम',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF व्यूअर ब्लॉक के लिए एक हल्का या गहरा बैकग्राउंड।',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF व्यूअर के लिए, ब्लॉक में और आइटम पेजों पर लाइट या डार्क बैकग्राउंड।',
+  'siteSetting.iiifViewerSidebar': 'IIIF व्यूअर साइडबार',
+  'siteSetting.iiifViewerSidebarHelp':
+    'व्यूअर को उसके साइडबार के साथ खोलता है जिसमें सामग्री और विवरण दिखाई देते हैं।',
   'siteSetting.locale': 'लोकेल',
   'siteSetting.localeHelp': 'साइट के अपने शब्दों, जैसे बटन, मेनू और तिथियों की भाषा।',
   'siteSetting.filterLocaleValues': 'लोकेल मानों को फ़िल्टर करें',
@@ -319,13 +322,11 @@ export const hi: SitesMessages = {
   'siteHub.unknownLinkType':
     'एक मॉड्यूल ने इस लिंक प्रकार को जोड़ा है। इसकी सेटिंग्स संग्रहीत रूप में रखी गई हैं।',
   'siteHub.moveLink': '{label} को स्थानांतरित करें',
-  'siteHub.needsTarget': 'लक्ष्य की आवश्यकता है',
   'siteHub.editLink': '{label} को संपादित करें',
   'siteHub.addChildTo': '{label} में चाइल्ड लिंक जोड़ें',
   'siteHub.menuPreview': 'मेनू पूर्वावलोकन',
   'siteHub.homeLink': 'होम',
   'siteHub.emptyMenuNote': 'बिना किसी लिंक के, सार्वजनिक साइट अपने होमपेज का एक लिंक दिखाती है।',
-  'siteHub.unsavedConfirm': 'नेविगेशन में बिना सहेजे गए बदलाव हैं। छोड़ें और उन्हें खो दें?',
   'siteHub.unsaved': 'बिना सहेजे गए बदलाव',
   'siteHub.picked':
     '{label} को चुना गया। इसे ले जाने के लिए एरो कीज़ का उपयोग करें, छोड़ने के लिए स्पेस, रद्द करने के लिए एस्केप।',
@@ -435,5 +436,23 @@ export const hi: SitesMessages = {
   'itemPicker.setChip': 'सेट: {title}',
   'itemPicker.removeSet': 'सेट {title} को हटाएँ',
   'itemPicker.clear': 'पिक्स साफ़ करें',
+  'navigation.issueNoPage': 'एक पेज की आवश्यकता है',
+  'navigation.issueNoUrl': 'एक URL की आवश्यकता है',
+  'navigation.issueNoLabel': 'एक लेबल की आवश्यकता है',
+  'navigation.issueSamePage': 'पेज पहले से ही मेनू में है',
+  'navigation.errorLinkIssues': 'कुछ लिंक पूर्ण नहीं हैं। चिह्नित लिंक ठीक करें, फिर सहेजें।',
+  'sites.userFallback': 'उपयोगकर्ता {id}',
+  'sites.errorRowNoUser': 'प्रत्येक पंक्ति में एक उपयोगकर्ता चुनें, या पंक्ति हटा दें।',
+  'siteHub.unsavedTabConfirm': 'इस टैब में बिना सहेजे गए बदलाव हैं। छोड़ें और उन्हें खो दें?',
+  'siteAccess.viewer':
+    'आप इस साइट को देख सकते हैं। केवल इसके निर्माता और प्रबंधक ही इसे बदल सकते हैं।',
+  'siteAccess.hub': 'केवल साइट प्रबंधक ही होमपेज और मेनू बदल सकते हैं।',
+  'siteAccess.notInNavigation': 'नेविगेशन में नहीं',
+  'siteAccess.navigation': 'केवल साइट प्रबंधक ही मेनू बदल सकते हैं।',
+  'siteAccess.items': 'केवल साइट प्रबंधक ही आइटम जोड़ या हटा सकते हैं।',
+  'siteAccess.users': 'केवल साइट प्रबंधक ही इस साइट पर काम करने वाले लोगों को बदल सकते हैं।',
+  'siteAccess.theme': 'केवल साइट प्रबंधक ही थीम बदल सकते हैं।',
+  'siteAccess.settings': 'केवल साइट प्रबंधक ही साइट सेटिंग्स बदल सकते हैं।',
+  'siteAccess.delete': 'केवल साइट स्वामी या प्रशासक ही इस साइट को हटा सकते हैं।',
   'itemPicker.itemFallback': 'आइटम {id}',
 };

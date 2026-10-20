@@ -1730,14 +1730,23 @@ td > .badge:first-child {
   color: var(--text-muted);
 }
 
-.nav-editor-save {
+/* Says why a control a site role cannot use is missing. */
+.site-access-note {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.save-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
 
-.nav-editor-save .editor-dirty[role="status"] {
+.save-bar .editor-dirty[role="status"] {
   margin: 0;
   padding: 0;
   border: 0;
