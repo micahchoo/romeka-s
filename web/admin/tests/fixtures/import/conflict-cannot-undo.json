@@ -1,0 +1,7 @@
+{
+  "code": "cannotUndo",
+  "errors": {
+    "error": "Only an import that has finished, or that stopped before the end, can be undone."
+  },
+  "status": "draft"
+}

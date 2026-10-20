@@ -196,4 +196,36 @@ export const hiServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'इस आयात में अभी तक छोड़ी गई फ़ाइलों की सूची नहीं है। यह किसी आयात के समाप्त होने पर लिखी जाती है।',
   'server.importJobNotStarted': 'आयात शुरू नहीं हो सका: {reason}',
+  'server.importListColumnUnknown':
+    'सूची में "{column}" कॉलम नहीं हो सकता। कोई प्रॉपर्टी, आइटम सेट, आइटम टाइप या विजिबिलिटी चुनें।',
+  'server.importListOneFile': 'एक सूची फ़ाइल फॉर्म में भेजें।',
+  'server.importListType':
+    '"{name}" CSV या TSV फ़ाइल नहीं है। सूची को CSV या TSV के रूप में सहेजें, फिर इसे फिर से भेजें।',
+  'server.importListTooLarge': 'सूची 50 MB से बड़ी है।',
+  'server.importListUnread': 'सूची नहीं पढ़ी जा सकती: {reason}',
+  'server.importListNoIdentifier':
+    'सूची में आइडेंटिफ़ायर कॉलम नहीं है, इसलिए इसकी पंक्तियाँ अपने आइटम नहीं ढूंढ सकतीं। आपने जो सूची डाउनलोड की थी, उसका आइडेंटिफ़ायर कॉलम बनाए रखें।',
+  'server.importFileUnreadable': 'फ़ाइल "{path}" नहीं पढ़ी जा सकी: {reason}',
+  'server.importFileRefused': 'फ़ाइल "{path}" नहीं जोड़ी गई: {reason}',
+  'server.importFileNotStored': 'फ़ाइल "{path}" संग्रहीत नहीं की जा सकी: {reason}',
+  'server.importSourceRefused': '"{source}" नहीं जोड़ा गया: {reason}',
+  'server.importMediaNoSource': 'इस मीडिया में जोड़ने के लिए न कोई फ़ाइल बताई गई है, न कोई पता।',
+  'server.importMediaNoItem': 'इस मीडिया का आइटम नहीं जोड़ा गया, इसलिए मीडिया भी नहीं जोड़ा गया।',
+  'server.importResourceGone':
+    'यह रिकॉर्ड जिस आइटम, मीडिया या आइटम सेट को बदलता है, वह अब Omeka में नहीं है।',
+  'server.importRecordNotSaved': 'इस रिकॉर्ड को सहेजा नहीं जा सका: {reason}',
+  'server.importLinksNotSaved': 'इस रिकॉर्ड के लिंक सहेजे नहीं जा सके: {reason}',
+  'server.importSitesNotJoined':
+    'यह आइटम जोड़ा गया, लेकिन यह अपनी साइटों में शामिल नहीं हो सका: {reason}',
+  'server.importUndoEdited': 'आयात द्वारा इसे लिखे जाने के बाद इसे संपादित किया गया।',
+  'server.importUndoLinked': 'इस आयात के बाहर का कोई आइटम, मीडिया या आइटम सेट इससे जुड़ा है।',
+  'server.importUndoMediaAdded': 'इस आयात के बाहर से इस आइटम में मीडिया जोड़ा गया।',
+  'server.importUndoMembersAdded': 'इस आयात के बाहर के आइटम इस आइटम सेट में रखे गए।',
+  'server.importUndoLaterImport': 'इस आयात के बाद आयात {import} ने इसे बदल दिया।',
+  'server.importUndoInUse':
+    'इस आयात के बाहर के आइटम, मीडिया, आइटम सेट या आइटम प्रकार इसका उपयोग करते हैं।',
+  'server.importUndoItemKept': 'इस मीडिया का आइटम रखा जाता है, इसलिए मीडिया भी रखा जाता है।',
+  'server.importUndoMemberKept':
+    'इस आइटम सेट का एक आइटम रखा जाता है, इसलिए आइटम सेट भी रखा जाता है।',
+  'server.importUndoStopped': 'पूर्ववत करना अंत से पहले ही रुक गया: {reason}',
 };

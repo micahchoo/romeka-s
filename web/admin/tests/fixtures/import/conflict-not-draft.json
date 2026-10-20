@@ -1,0 +1,7 @@
+{
+  "code": "notDraft",
+  "errors": {
+    "error": "This import has already started, so its settings cannot change. Make a copy to change it."
+  },
+  "status": "running"
+}

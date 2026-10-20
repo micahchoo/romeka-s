@@ -1,0 +1,7 @@
+{
+  "code": "typeExists",
+  "errors": {
+    "error": "An item type named \"Picture\" is already in Omeka. Choose another name for the new type."
+  },
+  "label": "Picture"
+}

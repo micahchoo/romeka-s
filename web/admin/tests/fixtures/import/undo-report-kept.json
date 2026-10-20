@@ -1,0 +1,103 @@
+{
+  "copiedFrom": null,
+  "created": "2026-10-21T09:00:00+00:00",
+  "died": null,
+  "finished": "2026-10-21T09:00:00+00:00",
+  "id": 1,
+  "jobId": 2,
+  "ownerId": 1,
+  "progress": {
+    "done": 24,
+    "secondsLeft": null,
+    "total": 24
+  },
+  "revision": 1,
+  "sources": [
+    {
+      "id": "s1",
+      "kind": "folder",
+      "path": "",
+      "root": "archive"
+    }
+  ],
+  "status": "undo_failed",
+  "stopRequested": false,
+  "summary": {
+    "failures": [],
+    "progress": {
+      "done": 24,
+      "total": 24
+    },
+    "stopped": false
+  },
+  "undoReport": {
+    "error": null,
+    "forced": [],
+    "kept": [
+      {
+        "id": 5,
+        "kind": "media",
+        "reasons": [
+          {
+            "detail": "The item of this media is kept, so the media is kept too.",
+            "key": "server.importUndoItemKept",
+            "reason": "itemKept"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "kind": "media",
+        "reasons": [
+          {
+            "detail": "The item of this media is kept, so the media is kept too.",
+            "key": "server.importUndoItemKept",
+            "reason": "itemKept"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "kind": "item",
+        "reasons": [
+          {
+            "detail": "This was edited after the import wrote it.",
+            "key": "server.importUndoEdited",
+            "reason": "edited"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "kind": "itemSet",
+        "reasons": [
+          {
+            "detail": "An item in this item set is kept, so the item set is kept too.",
+            "key": "server.importUndoMemberKept",
+            "reason": "memberKept"
+          }
+        ]
+      }
+    ],
+    "progress": {
+      "done": 27,
+      "total": 27
+    },
+    "removed": {
+      "itemSets": 2,
+      "items": 8,
+      "media": 13,
+      "properties": 0,
+      "templates": 0
+    },
+    "restored": {
+      "itemSets": 0,
+      "items": 0,
+      "media": 0,
+      "properties": 0,
+      "templates": 0
+    },
+    "skipped": [],
+    "stopped": false
+  }
+}

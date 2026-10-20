@@ -1,0 +1,39 @@
+{
+  "identical": {
+    "files": 2,
+    "sets": {
+      "items": [
+        {
+          "paths": [
+            "Misc/café.jpg",
+            "Misc/loose.jpg"
+          ],
+          "sha256": "a30f31a6a61325012e8c25deb3bd9b59dc9a2b4350b2b18e3c02dca9a87fea0b",
+          "size": 20,
+          "source": "s1"
+        }
+      ],
+      "page": 1,
+      "perPage": 1,
+      "total": 1
+    }
+  },
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

@@ -198,4 +198,40 @@ export const mrServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'या आयातीमध्ये अद्याप वगळलेल्या फाईल्सची सूची नाही. जेव्हा एखादी प्रक्रिया पूर्ण होते, तेव्हा ती लिहिली जाते.',
   'server.importJobNotStarted': 'आयात सुरू होऊ शकली नाही: {reason}',
+  'server.importListColumnUnknown':
+    'सूचीमध्ये "{column}" हा स्तंभ असू शकत नाही. एखादा गुणधर्म, आयटम सेट्स, आयटम प्रकार किंवा दृश्यमानता निवडा.',
+  'server.importListOneFile': 'फॉर्ममध्ये एक सूची फाईल पाठवा.',
+  'server.importListType':
+    '"{name}" ही CSV किंवा TSV फाईल नाही. सूची CSV किंवा TSV म्हणून जतन करा, नंतर ती पुन्हा पाठवा.',
+  'server.importListTooLarge': 'सूची 50 MB पेक्षा मोठी आहे.',
+  'server.importListUnread': 'सूची वाचता येत नाही: {reason}',
+  'server.importListNoIdentifier':
+    'सूचीमध्ये ओळखकर्ता (Identifier) स्तंभ नाही, त्यामुळे त्याच्या ओळी त्यांचे आयटम शोधू शकत नाहीत. तुम्ही डाउनलोड केलेल्या सूचीचा Identifier स्तंभ कायम ठेवा.',
+  'server.importFileUnreadable': '"{path}" ही फाईल वाचता आली नाही: {reason}',
+  'server.importFileRefused': '"{path}" ही फाईल जोडली गेली नाही: {reason}',
+  'server.importFileNotStored': '"{path}" ही फाईल जतन करता आली नाही: {reason}',
+  'server.importSourceRefused': '"{source}" जोडले गेले नाही: {reason}',
+  'server.importMediaNoSource':
+    'या मीडियामध्ये जोडण्यासाठी कोणतीही फाईल किंवा कोणताही पत्ता दिलेला नाही.',
+  'server.importMediaNoItem':
+    'या मीडियाचा आयटम जोडला गेला नाही, त्यामुळे मीडिया देखील जोडला गेला नाही.',
+  'server.importResourceGone':
+    'या नोंदीत बदल करणारा आयटम, मीडिया किंवा आयटम सेट आता Omeka मध्ये नाही.',
+  'server.importRecordNotSaved': 'ही नोंद जतन करता आली नाही: {reason}',
+  'server.importLinksNotSaved': 'या नोंदीचे दुवे जतन करता आले नाहीत: {reason}',
+  'server.importSitesNotJoined':
+    'हा आयटम जोडला गेला, परंतु तो त्याच्या साइट्समध्ये समाविष्ट होऊ शकला नाही: {reason}',
+  'server.importUndoEdited': 'आयातीने हे लिहिल्यानंतर यात संपादन केले गेले.',
+  'server.importUndoLinked':
+    'या आयातीबाहेरील एखादा आयटम, मीडिया किंवा आयटम सेट याच्याशी जोडलेला आहे.',
+  'server.importUndoMediaAdded': 'या आयातीच्या बाहेरून या आयटममध्ये मीडिया जोडला गेला.',
+  'server.importUndoMembersAdded': 'या आयातीबाहेरील आयटम या आयटम सेटमध्ये ठेवले गेले.',
+  'server.importUndoLaterImport': 'या आयातीनंतर आयात {import} ने यात बदल केला.',
+  'server.importUndoInUse':
+    'या आयातीबाहेरील आयटम, मीडिया, आयटम सेट किंवा आयटम प्रकार याचा वापर करतात.',
+  'server.importUndoItemKept':
+    'या मीडियाचा आयटम जतन केला जातो, त्यामुळे मीडिया देखील जतन केला जातो.',
+  'server.importUndoMemberKept':
+    'या आयटम सेटमधील एक आयटम जतन केला जातो, त्यामुळे आयटम सेट देखील जतन केला जातो.',
+  'server.importUndoStopped': 'पूर्ववत करणे शेवटापूर्वीच थांबले: {reason}',
 };

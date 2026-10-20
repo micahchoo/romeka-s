@@ -1,0 +1,58 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ],
+  "unpaired": {
+    "files": {
+      "items": [
+        {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_back.jpg",
+            "source": "s1"
+          },
+          "record": 30
+        },
+        {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_front.jpg",
+            "source": "s1"
+          },
+          "record": 6
+        }
+      ],
+      "page": 1,
+      "perPage": 2,
+      "total": 17
+    },
+    "rows": {
+      "items": [
+        {
+          "record": 32,
+          "row": {
+            "key": "BHC_006_ZZ_999#1",
+            "sheet": "register"
+          },
+          "title": "Ghost row"
+        }
+      ],
+      "page": 1,
+      "perPage": 2,
+      "total": 1
+    }
+  }
+}

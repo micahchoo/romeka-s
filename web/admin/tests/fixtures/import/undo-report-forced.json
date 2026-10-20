@@ -1,0 +1,63 @@
+{
+  "copiedFrom": null,
+  "created": "2026-10-21T09:00:00+00:00",
+  "died": null,
+  "finished": "2026-10-21T09:00:00+00:00",
+  "id": 1,
+  "jobId": 3,
+  "ownerId": 1,
+  "progress": {
+    "done": 24,
+    "secondsLeft": null,
+    "total": 24
+  },
+  "revision": 1,
+  "sources": [
+    {
+      "id": "s1",
+      "kind": "folder",
+      "path": "",
+      "root": "archive"
+    }
+  ],
+  "status": "undone",
+  "stopRequested": false,
+  "summary": {
+    "failures": [],
+    "progress": {
+      "done": 24,
+      "total": 24
+    },
+    "stopped": false
+  },
+  "undoReport": {
+    "error": null,
+    "forced": [
+      {
+        "id": 4,
+        "kind": "item"
+      }
+    ],
+    "kept": [],
+    "progress": {
+      "done": 4,
+      "total": 4
+    },
+    "removed": {
+      "itemSets": 1,
+      "items": 1,
+      "media": 2,
+      "properties": 0,
+      "templates": 0
+    },
+    "restored": {
+      "itemSets": 0,
+      "items": 0,
+      "media": 0,
+      "properties": 0,
+      "templates": 0
+    },
+    "skipped": [],
+    "stopped": false
+  }
+}
