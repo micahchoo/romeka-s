@@ -194,6 +194,6 @@ async fn left_csv_gives_existing_rows_the_reason_exists_but_not_the_rows_this_im
         .expect("catalog");
     assert!(own.existing.is_empty(), "the first import made all three");
     let csv = left_out_csv(&folder(&fixture), &skipping, &own, &[], &FsTagReader).expect("csv");
-    assert!(csv.ends_with("\nP_001,Harbour,,,,B-1,skipped\n"), "{csv}");
+    assert!(csv.ends_with("\nP_001,Harbour,,,,,,B-1,skipped\n"), "{csv}");
     assert_eq!(csv.lines().count(), 2, "{csv}");
 }
