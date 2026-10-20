@@ -159,4 +159,41 @@ export const hiServer: ServerCatalogue = {
   'server.publicationMatchInvalid': 'मिलान एक पूर्ण http या https URI होना चाहिए।',
   'server.publicationMatchTermLists': 'केवल एक शब्द सूची के शब्द ही किसी प्राधिकरण से जुड़ते हैं।',
   'server.publicationTermIriInvalid': 'शब्द URI {uri} एक वैध IRI नहीं है।',
+  'server.importAdminsOnly': 'केवल वैश्विक या साइट प्रशासक ही आर्काइव आयात कर सकता है।',
+  'server.importNotFound': '{id} आईडी वाला कोई आयात नहीं है।',
+  'server.importRequestUnreadable': 'अनुरोध को पढ़ा नहीं जा सकता: {reason}',
+  'server.importPlanRefused': 'आयात की सेटिंग्स सहेजी नहीं जा सकतीं: {reason}',
+  'server.importStale':
+    'किसी और ने इस आयात को आपके द्वारा खोलने के बाद सहेजा है। उनके परिवर्तनों को देखने के लिए इसे पुनः लोड करें।',
+  'server.importPlanFrozen':
+    'यह आयात पहले ही शुरू हो चुका है, इसलिए इसकी सेटिंग्स नहीं बदल सकतीं। इसे बदलने के लिए एक प्रति बनाएँ।',
+  'server.importV1Plan':
+    'यह आयात पुराने आयातकर्ता द्वारा बनाया गया था, इसलिए इसे यहाँ खोला या कॉपी नहीं किया जा सकता।',
+  'server.importTypeExists':
+    'Omeka में "{label}" नाम का एक आइटम प्रकार पहले से मौजूद है। नए प्रकार के लिए दूसरा नाम चुनें।',
+  'server.importDeleteNotDraft':
+    'केवल वही आयात हटाया जा सकता है जिसे अभी तक जोड़ा नहीं गया है। जो आयात चल चुका है, वह पहले के आयातों में रहता है।',
+  'server.importChanged':
+    'अंतिम जाँच के बाद से फ़ाइलें या आयात की सेटिंग्स बदल गई हैं। इसे फिर से चलाने से पहले आयात की दोबारा जाँच करें।',
+  'server.importBlocked':
+    'यह आयात तब तक नहीं चल सकता जब तक जाँच में सूचीबद्ध समस्याएँ ठीक नहीं हो जातीं।',
+  'server.importNothingToRun': 'इस आयात में लिखने के लिए कुछ भी नहीं है।',
+  'server.importConfirmDelete':
+    'यह आयात {count} आइटम, मीडिया और आइटम सेट हटा देता है और इसे पूर्ववत नहीं किया जा सकता। इसे चलाने के लिए उस संख्या की पुष्टि करें।',
+  'server.importBusy':
+    'एक अन्य आयात चल रहा है या पूर्ववत किया जा रहा है। जब यह समाप्त हो जाए, तब पुनः प्रयास करें।',
+  'server.importCannotRun':
+    'केवल एक आयात जिसे अभी तक जोड़ा नहीं गया है, जो अंत से पहले रुक गया था, या जो विफलताओं के साथ समाप्त हुआ, वह चल सकता है।',
+  'server.importCannotUndo':
+    'केवल वही आयात पूर्ववत किया जा सकता है जो पूरा हो चुका है या अंत से पहले रुक गया था।',
+  'server.importNotRunning': 'यह आयात नहीं चल रहा है।',
+  'server.importNoRoot': '"{root}" नाम का कोई आर्काइव फ़ोल्डर नहीं है।',
+  'server.importOutsideRoot': '"{path}" फ़ोल्डर आर्काइव फ़ोल्डर के बाहर है।',
+  'server.importFolderMissing': 'आर्काइव में "{path}" फ़ोल्डर नहीं है।',
+  'server.importNotAFolder': '"{path}" एक फ़ाइल है, फ़ोल्डर नहीं।',
+  'server.importScanBusy':
+    'यह आयात चल रहा है या पूर्ववत किया जा रहा है। यह समाप्त होने के बाद फ़ाइलों को फिर से देखें।',
+  'server.importNoLeftFile':
+    'इस आयात में अभी तक छोड़ी गई फ़ाइलों की सूची नहीं है। यह किसी आयात के समाप्त होने पर लिखी जाती है।',
+  'server.importJobNotStarted': 'आयात शुरू नहीं हो सका: {reason}',
 };
