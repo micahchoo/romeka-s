@@ -13,7 +13,6 @@
 pub mod adapters;
 pub mod auth;
 pub mod auth_cache;
-pub mod csv;
 pub mod errors;
 pub mod import2;
 pub mod jsonld;

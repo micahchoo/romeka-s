@@ -120,6 +120,28 @@ Do not run a stuck job by hand. Wait for the rule below to settle it, then read 
   their files, and the new item sets, item types and fields that nothing else uses. A failed import
   cannot run again. To remove what its run wrote, undo it before you start the next import.
 
+## Import from the command line
+
+`romeka import run`, `undo` and `list` do what the Import page does, without a server. Stop other
+imports first: one import or undo works at a time, here as on the page.
+
+```
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org --dry-run
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org
+romeka import undo <id> -d <db> --store <store> --preview
+romeka import undo <id> -d <db> --store <store> [--force all]
+romeka import list -d <db>
+```
+
+- `--dry-run` prints the Check summary and writes nothing. Run it first.
+- `--as` is the email of a global or site administrator. That user owns the import. A site
+  administrator may name only themself as an owner in the plan.
+- A delete plan needs `--confirm <count>`, the count the Check summary shows.
+- A run that is refused, or a dry run, leaves no import behind. The run's files go to `--store`, so
+  point it at the store the server serves.
+- `romeka import csv` and `romeka import media` no longer exist. Put the items in a list and use
+  `import run`, or use the Import page.
+
 ## Backup and restore
 
 ```

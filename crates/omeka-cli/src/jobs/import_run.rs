@@ -190,11 +190,7 @@ async fn runner(pool: &SqlitePool, job: JobId) -> Result<Runner, JobError> {
     let role = UserRepo::new(pool).get(user).await?.map(|row| row.role);
     Ok(Runner {
         user: Some(user),
-        owners: if role.as_deref() == Some("global_admin") {
-            Owners::Anyone
-        } else {
-            Owners::Only(user)
-        },
+        owners: Owners::of(role.as_deref(), Some(user)),
     })
 }
 

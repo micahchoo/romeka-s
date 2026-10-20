@@ -13,13 +13,13 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::Response;
 use omeka_api::auth::Actor;
-use omeka_api::import2::check::check;
-use omeka_api::import2::plan::{Action, ImportPlanV2, PlanError};
+use omeka_api::import2::plan::{ImportPlanV2, PlanError};
 use omeka_api::import2::preview::{self, Derived, PreviewRequest, derive_import};
 use omeka_api::import2::scan::{self, SCAN_IN_REQUEST, SCAN_JOB};
+use omeka_api::import2::start::{self, Go, Refusal, StartError};
 use omeka_api::messages;
 use omeka_db::ids::{ImportId, JobId};
-use omeka_db::repos::{EntryRepo, ImportRepo, JobRepo, SettingRepo, StartOutcome};
+use omeka_db::repos::{EntryRepo, ImportRepo, JobRepo, SettingRepo};
 use omeka_db::rows::{ImportRow, ImportStatus, NewJob};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -168,53 +168,61 @@ pub(super) async fn run(
                 return Err(cannot_run(row.status));
             }
             let plan = stored_plan(&row)?;
-            scan::scan(&state.pool, &state.archive_roots, row.id, &plan.sources).await?;
-            let derived = derive(&state, &actor, row.id, plan).await?;
-            let found = check(&derived.plan, &derived.model);
-            if found.digest != request.digest {
-                return Err(ImportError::conflict("changed", messages::IMPORT_CHANGED)
-                    .with("digest", json!(found.digest)));
-            }
-            if !found.blocking.is_empty() {
-                return Err(ImportError::conflict("blocked", messages::IMPORT_BLOCKED)
-                    .with("blocking", json!(found.blocking)));
-            }
-            if !found.can_run {
-                return Err(ImportError::conflict(
-                    "nothing",
-                    messages::IMPORT_NOTHING_TO_RUN,
-                ));
-            }
-            if found.action == Action::Delete && request.confirm != Some(found.deletes as u64) {
-                return Err(ImportError::conflict(
-                    "confirm",
-                    messages::import_confirm_delete(found.deletes),
-                )
-                .with("deletes", json!(found.deletes)));
-            }
-            match ImportRepo::new(&state.pool)
-                .start_run(row.id, row.revision)
-                .await?
-            {
-                StartOutcome::Started => {}
-                StartOutcome::Missing => return Err(super::wire::not_found(row.id.0)),
-                StartOutcome::Refused(status) => return Err(cannot_run(status)),
-                StartOutcome::Busy(other) => return Err(busy(other)),
-                StartOutcome::Changed { revision } => {
-                    return Err(ImportError::conflict("changed", messages::IMPORT_CHANGED)
-                        .with("revision", json!(revision)));
-                }
-                StartOutcome::Deleted => {
-                    return Err(ImportError::Internal(
-                        "a run start answered that the import deleted".to_string(),
-                    ));
-                }
-            }
+            let files =
+                omeka_api::settings::file_validation(&SettingRepo::new(&state.pool)).await?;
+            let assessed = start::assess(
+                &state.pool,
+                &state.archive_roots,
+                &state.store,
+                &state.import_caches,
+                files,
+                owners(&actor),
+                row.id,
+                plan,
+            )
+            .await?;
+            let go = Go {
+                digest: Some(&request.digest),
+                confirm: request.confirm,
+            };
+            start::begin(&state.pool, &row, &assessed.check, go)
+                .await
+                .map_err(|error| refused(error, row.id))?;
             let job = compose_job(&state, &actor, RUN_JOB, row.id, None).await?;
             start_job(&state, job, StatusCode::OK).await
         }
         .await,
     )
+}
+
+/// A refused start as the route answers it.
+fn refused(error: StartError, id: ImportId) -> ImportError {
+    let refusal = match error {
+        StartError::Db(error) => return error.into(),
+        StartError::Refused(refusal) => refusal,
+    };
+    match refusal {
+        Refusal::DigestChanged { digest } => {
+            ImportError::conflict("changed", messages::IMPORT_CHANGED).with("digest", json!(digest))
+        }
+        Refusal::Blocked(flags) => ImportError::conflict("blocked", messages::IMPORT_BLOCKED)
+            .with("blocking", json!(flags)),
+        Refusal::Nothing => ImportError::conflict("nothing", messages::IMPORT_NOTHING_TO_RUN),
+        Refusal::Confirm { deletes } => {
+            ImportError::conflict("confirm", messages::import_confirm_delete(deletes))
+                .with("deletes", json!(deletes))
+        }
+        Refusal::Missing => super::wire::not_found(id.0),
+        Refusal::CannotRun(status) => cannot_run(status),
+        Refusal::Busy(other) => busy(other),
+        Refusal::RevisionChanged { revision } => {
+            ImportError::conflict("changed", messages::IMPORT_CHANGED)
+                .with("revision", json!(revision))
+        }
+        Refusal::Deleted => {
+            ImportError::Internal("a run start answered that the import deleted".to_string())
+        }
+    }
 }
 
 fn cannot_run(status: ImportStatus) -> ImportError {

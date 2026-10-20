@@ -7,14 +7,18 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use omeka_cli::commands::backup::{self as backup, BackupOptions};
 use omeka_cli::commands::export::{self as export, CsvOptions as ExportCsvOptions, JsonldOptions};
-use omeka_cli::commands::import::{CsvOptions, TemplateOptions};
+use omeka_cli::commands::import::list::{self as import_list, ListOptions as ImportListOptions};
+use omeka_cli::commands::import::run::{
+    self as import_run, RunOptions as ImportRunOptions, RunOutcome,
+};
+use omeka_cli::commands::import::undo::{self as import_undo, UndoOptions, UndoOutcome};
+use omeka_cli::commands::import::{TemplateOptions, Where};
 use omeka_cli::commands::install::{self, InstallOptions};
 use omeka_cli::commands::job::{self as job_cmd};
 use omeka_cli::commands::key::{
     self, AddOptions as KeyAddOptions, ListOptions as KeyListOptions,
     RevokeOptions as KeyRevokeOptions,
 };
-use omeka_cli::commands::media::{self, MediaOptions, MediaStatus};
 use omeka_cli::commands::restore::{self as restore, RestoreOptions};
 use omeka_cli::commands::sweep::{self as media_sweep, MIN_AGE, SweepOptions};
 use omeka_cli::commands::thumbnails::{
@@ -71,6 +75,22 @@ fn database_arg<'a, 'b>() -> Arg<'a, 'b> {
         .takes_value(true)
         .required(true)
         .help("SQLite database file")
+}
+
+fn optional_store_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("store")
+        .long("store")
+        .value_name("DIR")
+        .takes_value(true)
+        .help("File store root; defaults to `files` beside the database")
+}
+
+fn archive_root_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("archive-root")
+        .long("archive-root")
+        .value_name("DIR")
+        .takes_value(true)
+        .help("Folder a plan's sources read, named `archive`; the configured roots otherwise")
 }
 
 fn email_arg<'a, 'b>() -> Arg<'a, 'b> {
@@ -240,62 +260,83 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("csv")
-                .about("Import items from a CSV into an item set")
+            SubCommand::with_name("run")
+                .about("Check an import plan and run it in this process")
                 .arg(database_arg())
                 .arg(
-                    Arg::with_name("file")
-                        .long("file")
+                    Arg::with_name("plan")
+                        .long("plan")
                         .value_name("FILE")
                         .takes_value(true)
-                        .required(true),
+                        .required(true)
+                        .help("An import v2 plan, as JSON"),
                 )
                 .arg(
-                    Arg::with_name("item-set")
-                        .long("item-set")
-                        .value_name("ID")
+                    Arg::with_name("as")
+                        .long("as")
+                        .value_name("EMAIL")
                         .takes_value(true)
-                        .required(true),
-                ),
+                        .required(true)
+                        .help("The administrator who owns the import"),
+                )
+                .arg(
+                    Arg::with_name("dry-run")
+                        .long("dry-run")
+                        .help("Print the Check summary and write nothing"),
+                )
+                .arg(
+                    Arg::with_name("confirm")
+                        .long("confirm")
+                        .value_name("COUNT")
+                        .takes_value(true)
+                        .help("The number of resources a delete plan removes"),
+                )
+                .arg(optional_store_arg())
+                .arg(archive_root_arg()),
         )
         .subcommand(
-            SubCommand::with_name("media")
-                .about("Import media files and link each to its item")
+            SubCommand::with_name("undo")
+                .about("Undo an import, or say what undoing it would do")
                 .arg(database_arg())
                 .arg(
-                    Arg::with_name("source")
-                        .long("source")
-                        .value_name("DIR")
-                        .takes_value(true)
-                        .help("Directory of media files; the base for a manifest's paths"),
-                )
-                .arg(
-                    Arg::with_name("manifest")
-                        .long("manifest")
-                        .value_name("FILE")
-                        .takes_value(true)
-                        .help("A media.json manifest (verification/acceptance/media.py)"),
-                )
-                .arg(
-                    Arg::with_name("store")
-                        .long("store")
-                        .value_name("DIR")
-                        .takes_value(true)
-                        .help("File store root; defaults to `files` beside the database"),
-                )
-                .arg(
-                    Arg::with_name("item-set")
-                        .long("item-set")
+                    Arg::with_name("id")
                         .value_name("ID")
                         .takes_value(true)
-                        .help("Restrict the identifier lookup to this item set"),
+                        .required(true)
+                        .help("Import id"),
                 )
                 .arg(
-                    Arg::with_name("item")
-                        .long("item")
-                        .value_name("ID")
+                    Arg::with_name("force")
+                        .long("force")
+                        .value_name("all")
                         .takes_value(true)
-                        .help("Link every file to this item, ignoring the identifier"),
+                        .possible_values(&["all"])
+                        .help("Restore or delete resources edited since the import wrote them"),
+                )
+                .arg(
+                    Arg::with_name("preview")
+                        .long("preview")
+                        .help("Print what the undo would do and write nothing"),
+                )
+                .arg(optional_store_arg()),
+        )
+        .subcommand(
+            SubCommand::with_name("list")
+                .about("List imports, newest first")
+                .arg(database_arg())
+                .arg(
+                    Arg::with_name("page")
+                        .long("page")
+                        .value_name("N")
+                        .takes_value(true)
+                        .default_value("1"),
+                )
+                .arg(
+                    Arg::with_name("per-page")
+                        .long("per-page")
+                        .value_name("N")
+                        .takes_value(true)
+                        .default_value("25"),
                 ),
         )
 }
@@ -357,7 +398,7 @@ fn export_command<'a, 'b>() -> App<'a, 'b> {
                         .value_name("NAME")
                         .takes_value(true)
                         .default_value("items")
-                        .help("Items only; the round trip reads back through import csv"),
+                        .help("Items only"),
                 )
                 .arg(
                     Arg::with_name("item-set")
@@ -718,6 +759,15 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// The database, store and archive root an import command names.
+fn import_at(args: &ArgMatches<'_>) -> Result<Where, CliError> {
+    Ok(Where {
+        database: PathBuf::from(value(args, "database")?),
+        store: args.value_of("store").map(PathBuf::from),
+        archive_root: args.value_of("archive-root").map(PathBuf::from),
+    })
+}
+
 async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     match args.subcommand() {
         ("template", Some(m)) => {
@@ -731,68 +781,49 @@ async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
                 template.label, template.id.0
             );
         }
-        ("csv", Some(m)) => {
-            let item_set_id: u64 = value(m, "item-set")?
-                .parse()
-                .map_err(|error| CliError::message(format!("invalid --item-set: {error}")))?;
-            let report = commands::import::import_csv(&CsvOptions {
-                database: PathBuf::from(value(m, "database")?),
-                file: PathBuf::from(value(m, "file")?),
-                item_set_id,
-            })
+        ("run", Some(m)) => {
+            let outcome = import_run::run(
+                &ImportRunOptions {
+                    at: import_at(m)?,
+                    plan: PathBuf::from(value(m, "plan")?),
+                    actor: value(m, "as")?.to_string(),
+                    dry_run: m.is_present("dry-run"),
+                    confirm: optional_id(m, "confirm")?,
+                },
+                &mut std::io::stdout().lock(),
+            )
             .await?;
-            println!(
-                "imported {} item(s) into item set {}",
-                report.imported, report.item_set
-            );
-            for error in &report.errors {
-                eprintln!("line {}: {}", error.line, error.message);
-            }
-            if !report.errors.is_empty() {
+            if outcome == RunOutcome::Failed {
                 return Ok(ExitCode::from(1));
             }
         }
-        ("media", Some(m)) => {
-            let report = media::run(&MediaOptions {
-                database: PathBuf::from(value(m, "database")?),
-                source: m.value_of("source").map(PathBuf::from),
-                manifest: m.value_of("manifest").map(PathBuf::from),
-                store: m.value_of("store").map(PathBuf::from),
-                item_set: optional_id(m, "item-set")?,
-                item: optional_id(m, "item")?,
-            })
+        ("undo", Some(m)) => {
+            let outcome = import_undo::undo(
+                &UndoOptions {
+                    at: import_at(m)?,
+                    id: value(m, "id")?.parse().map_err(|error| {
+                        CliError::message(format!("invalid import id: {error}"))
+                    })?,
+                    force_all: m.value_of("force") == Some("all"),
+                    preview: m.is_present("preview"),
+                },
+                &mut std::io::stdout().lock(),
+            )
             .await?;
-            for result in &report.results {
-                match result.status {
-                    MediaStatus::Imported => println!(
-                        "imported {} -> item {}, media {}",
-                        result.file,
-                        display_id(result.item),
-                        display_id(result.media)
-                    ),
-                    MediaStatus::Skipped => println!(
-                        "skipped {} (item {} already has it)",
-                        result.file,
-                        display_id(result.item)
-                    ),
-                    MediaStatus::Failed => println!(
-                        "failed {}: {}",
-                        result.file,
-                        result.message.as_deref().unwrap_or("no reason given")
-                    ),
-                }
-            }
-            println!(
-                "imported {}, skipped {}, failed {} of {} ({} with thumbnails)",
-                report.imported,
-                report.skipped,
-                report.failed,
-                report.results.len(),
-                report.thumbnails
-            );
-            if report.failed > 0 {
+            if outcome == UndoOutcome::Failed {
                 return Ok(ExitCode::from(1));
             }
+        }
+        ("list", Some(m)) => {
+            import_list::list(
+                &ImportListOptions {
+                    at: import_at(m)?,
+                    page: optional_id(m, "page")?.unwrap_or(1),
+                    per_page: optional_id(m, "per-page")?.unwrap_or(25),
+                },
+                &mut std::io::stdout().lock(),
+            )
+            .await?;
         }
         _ => {}
     }
@@ -824,7 +855,7 @@ async fn run_export(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
             let resource = value(m, "resource")?;
             if resource != "items" {
                 return Err(CliError::message(format!(
-                    "CSV export reads back through `import csv`, so it writes items, not {resource}"
+                    "CSV export writes items, not {resource}"
                 )));
             }
             let columns = m.value_of("columns").map(parse_columns).unwrap_or_default();
@@ -1096,8 +1127,4 @@ fn required_id(args: &ArgMatches<'_>) -> Result<u64, CliError> {
     value(args, "id")?
         .parse()
         .map_err(|error| CliError::message(format!("invalid job id: {error}")))
-}
-
-fn display_id(id: Option<u64>) -> String {
-    id.map_or_else(|| "-".to_string(), |id| id.to_string())
 }
