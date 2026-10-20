@@ -150,7 +150,7 @@ export const advancedServer = (items: number): AdvancedServer => {
             file: 'register.csv',
             found: true,
             error: null,
-            read: { hash: 'h', encoding, delimiter: ',', delimiterGuessed: true, headerLine: 1, rows: items, cellsCount: 0, blankLines: 0, cellsWithSpaces: 0, cellsSuspect: 0, columns, notes: [] },
+            read: { hash: 'h', encoding, delimiter: ',', delimiterGuessed: true, headerLine: 1, rows: items, cellsCount: 0, blankLines: 0, cellsWithSpaces: 0, cellsSuspect: 0, columns, notes: [], workbook: null },
             guess: { encoding, unsupported: null, delimiter: ',', headerLine: 1 },
             lines: ['Identifier,Title,Date,Notes', 'item_00001,Letter 1,1890,'],
           },

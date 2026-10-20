@@ -1,20 +1,15 @@
 /**
  * "Add them": what the run writes, in plain words, from the server's check
  * (items and files, the new item sets, item types and fields, items with no
- * item type), who can see them, and the start. The start sends the digest of
- * the check on screen, so a change since then answers "changed" and nothing
- * runs that the person did not see. What the run does next, its progress and
- * its end, is the run screens' (`run/`).
+ * item type), and who can see them. The start, its refusals, the progress and
+ * the end are the run screen's (`run/`), the one start path both modes share;
+ * this file gives it Simple's words for the check.
  */
-import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Action } from '../../../api/import-plan';
-import { importApi } from '../../../api/import-routes';
 import type { Check } from '../../../api/import-sections';
-import { ErrorNotice } from '../../../app/errors';
-import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
-import { usePreview } from '../lists/use-preview';
+import RunScreen from '../run/run-screen';
 import { placeHref } from '../screens';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
@@ -51,45 +46,16 @@ const Names = ({ names, one, many }: { readonly names: readonly string[]; readon
   );
 };
 
-type Start = { readonly at: 'idle' } | { readonly at: 'starting' } | { readonly at: 'started' } | { readonly at: 'failed'; readonly error: Error };
-
-export const AddThem = (): ReactElement => {
+/** The check in Simple's sentences, above the run screen's start. */
+export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const [start, setStart] = useState<Start>({ at: 'idle' });
-  const read = usePreview(['check'], {});
-  if (draft.detail.status !== 'draft') {
-    return <p role="status">{start.at === 'started' ? t('guided.add.going') : t('guided.add.started')}</p>;
-  }
-  if (read.status === 'loading') {
-    return <p role="status" className="import-slow">{t('shell.loading')}</p>;
-  }
-  if (read.status === 'error') {
-    return <ErrorNotice error={read.error} />;
-  }
-  const { check } = read.data;
   const items = counted(check, 'item');
   const files = counted(check, 'media');
   const out = left(check);
-  const saved = draft.save.status === 'saved';
-  const run = (): void => {
-    setStart({ at: 'starting' });
-    importApi.run(draft.id, { digest: check.digest }).then(
-      () =>
-        importApi.get(draft.id).then((detail) => {
-          draft.adopt(detail);
-          setStart({ at: 'started' });
-        }),
-      (error: unknown) => {
-        setStart({ at: 'failed', error: toError(error) });
-      },
-    ).catch((error: unknown) => {
-      setStart({ at: 'failed', error: toError(error) });
-    });
-  };
   return (
     <>
-      <p className="guided-big" aria-busy={read.busy}>
+      <p className="guided-big">
         {t('guided.add.ready', { what: t(ACTION_WORDS[check.action]) })}{' '}
         <b>{items === 1 ? t('guided.add.itemsOne') : t('guided.add.items', { count: number(items) })}</b>
         {', '}
@@ -134,20 +100,11 @@ export const AddThem = (): ReactElement => {
         </label>
       </p>
       <p className="muted">{t('guided.add.undo')}</p>
-      {check.action === 'delete' ? (
-        <p className="import-note">{t('guided.add.deleteAdvanced')}</p>
-      ) : (
-        <p>
-          <button type="button" className="import-primary guided-big" disabled={!check.canRun || !saved || !draft.editable || start.at === 'starting'} onClick={run}>
-            {start.at === 'starting' ? t('guided.add.starting') : items === 1 ? t('guided.add.startOne') : t('guided.add.start', { count: number(items) })}
-          </button>
-        </p>
-      )}
-      {saved ? null : <p className="muted">{t('guided.add.waitSave')}</p>}
-      {start.at === 'failed' ? <ErrorNotice error={start.error} /> : null}
-      {start.at === 'started' ? <p role="status">{t('guided.add.going')}</p> : null}
+      {check.action === 'delete' ? <p className="import-note">{t('guided.add.deleteAdvanced')}</p> : null}
     </>
   );
 };
+
+const AddThem = (): ReactElement => <RunScreen summary={SimpleSummary} />;
 
 export default AddThem;

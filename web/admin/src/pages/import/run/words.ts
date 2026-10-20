@@ -3,7 +3,6 @@
  * server made (the check, the undo preview, the undo report); a kind with
  * none is left out of the sentence.
  */
-import type { RecordKind } from '../../../api/import-plan';
 import type { CheckCount } from '../../../api/import-sections';
 import type { KindCounts, ResourceKind } from '../../../api/import-undo';
 import type { RunTranslator } from './messages';
@@ -28,28 +27,9 @@ export const kindCountsWords = (translator: RunTranslator, counts: KindCounts): 
     ['fields', counts.properties],
   ]);
 
-const COUNTED_OF: Readonly<Record<RecordKind, Counted>> = { item: 'items', media: 'files', itemSet: 'itemSets' };
-
-/** What the check says a run does, by what each record does: added, changed in place, or left out. */
-export const checkWords = (
-  translator: RunTranslator,
-  counts: readonly CheckCount[],
-): { readonly adds: string | null; readonly changes: string | null; readonly leaves: string | null; readonly items: number } => {
-  const tally = (pick: (count: CheckCount) => boolean): string | null =>
-    listWords(
-      translator,
-      (['item', 'media', 'itemSet'] as const).map((kind) => [
-        COUNTED_OF[kind],
-        counts.filter((count) => count.kind === kind && pick(count)).reduce((sum, count) => sum + count.count, 0),
-      ]),
-    );
-  return {
-    adds: tally((count) => count.does === 'create'),
-    changes: tally((count) => typeof count.does === 'object'),
-    leaves: tally((count) => count.does === 'leave'),
-    items: counts.filter((count) => count.kind === 'item' && count.does !== 'leave').reduce((sum, count) => sum + count.count, 0),
-  };
-};
+/** The items a run writes: every item the check does not leave out. */
+export const itemsWritten = (counts: readonly CheckCount[]): number =>
+  counts.filter((count) => count.kind === 'item' && count.does !== 'leave').reduce((sum, count) => sum + count.count, 0);
 
 export const resourceWords = ({ t, number }: RunTranslator, kind: ResourceKind, id: number): string =>
   t(`run.kind.${kind}`, { id: number(id) });

@@ -26,13 +26,31 @@ afterEach(() => {
 const ready = async (): Promise<HTMLElement> => screen.findByRole('button', { name: 'Add 10 items to Omeka' });
 
 describe('before the start', () => {
-  it('says what adding puts into Omeka and what it leaves out, in the check’s counts', async () => {
+  it('says what adding puts into Omeka and what it leaves out, in Simple’s words for the check’s counts', async () => {
     installFetch(runRoutes(1, { reads: [fixture('import-draft.json')] }));
     render(at(1));
     expect(await ready()).toBeEnabled();
-    expect(screen.getByText('Adding puts 10 items and 19 files into Omeka.')).toBeInTheDocument();
-    expect(screen.getByText('Left out: 1 item and 3 files.')).toBeInTheDocument();
-    expect(screen.getByText('You can undo the whole import later.')).toBeInTheDocument();
+    expect(screen.getByText(/^Ready to add them as new items:/)).toBeInTheDocument();
+    expect(screen.getByText('1 item is left out.')).toBeInTheDocument();
+    expect(screen.getByText('1 new field: “Shelf mark”.')).toBeInTheDocument();
+    expect(screen.getAllByText('You can undo the whole import later.')).toHaveLength(1);
+  });
+
+  it('keeps the summary on screen while a change saves and counts again, with the start held', async () => {
+    const fetchMock = installFetch(runRoutes(1, { reads: [fixture('import-draft.json')] }));
+    render(at(1));
+    expect(await ready()).toBeEnabled();
+    const who = screen.getByRole('combobox', { name: 'Who can see them' });
+    who.focus();
+    fireEvent.change(who, { target: { value: 'public' } });
+    expect(screen.getByRole('combobox', { name: 'Who can see them' })).toBe(who);
+    expect(who).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Add 10 items to Omeka' })).toBeDisabled();
+    await waitFor(() => {
+      expect(checks(requestsFor(fetchMock, `${pathOf(1)}/preview`)).length).toBeGreaterThan(1);
+    });
+    expect(await ready()).toBeEnabled();
+    expect(screen.getByRole('combobox', { name: 'Who can see them' })).toBe(who);
   });
 
   it('starts with the digest the counts came with, then shows the run working', async () => {
@@ -51,7 +69,7 @@ describe('before the start', () => {
     render(at(1, 'advanced', 'run'));
     expect(await screen.findByRole('button', { name: 'Run the import' })).toBeEnabled();
     expect(screen.getByRole('table', { name: 'What the run writes, by record kind and action.' })).toBeInTheDocument();
-    expect(screen.queryByText('Adding puts 10 items and 19 files into Omeka.')).toBeNull();
+    expect(screen.queryByText(/^Ready to add them as new items:/)).toBeNull();
   });
 
   it('holds Add while problems stop the start, and links to them', async () => {

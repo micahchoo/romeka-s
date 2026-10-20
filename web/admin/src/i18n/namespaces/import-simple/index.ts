@@ -267,12 +267,6 @@ export const en = {
   'guided.add.public': 'Everyone (public)',
   'guided.add.undo': 'You can undo the whole import later.',
   'guided.add.deleteAdvanced': 'Deleting items from Omeka starts in Advanced mode, where you type the count first.',
-  'guided.add.start': 'Add {count} items to Omeka',
-  'guided.add.startOne': 'Add 1 item to Omeka',
-  'guided.add.starting': 'Starting...',
-  'guided.add.waitSave': 'Wait until your last change is saved.',
-  'guided.add.going': 'Adding your items. You can leave this page. The import goes on.',
-  'guided.add.started': 'This import has started. Its progress is on this page.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

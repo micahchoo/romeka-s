@@ -251,10 +251,4 @@ export const es: ImportSimpleMessages = {
   'guided.add.public': 'Todo el mundo (público)',
   'guided.add.undo': 'Puedes deshacer toda la importación más tarde.',
   'guided.add.deleteAdvanced': 'Borrar elementos de Omeka empieza en el modo avanzado, donde primero escribes la cantidad.',
-  'guided.add.start': 'Añadir {count} elementos a Omeka',
-  'guided.add.startOne': 'Añadir 1 elemento a Omeka',
-  'guided.add.starting': 'Empezando...',
-  'guided.add.waitSave': 'Espera a que se guarde tu último cambio.',
-  'guided.add.going': 'Añadiendo tus elementos. Puedes salir de esta página. La importación sigue.',
-  'guided.add.started': 'Esta importación ha empezado. Su avance está en esta página.',
 };

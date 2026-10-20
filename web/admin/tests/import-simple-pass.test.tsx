@@ -178,7 +178,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   }, { timeout: 3000 });
   drive.look();
   drive.click(add);
-  expect(await screen.findByText('Adding your items. You can leave this page. The import goes on.', {}, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByText('Writing to Omeka...', {}, { timeout: 5000 })).toBeInTheDocument();
   return { drive, server };
 };
 
