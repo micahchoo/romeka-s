@@ -82,6 +82,11 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// A browse preview of items on a site that holds no items, in the admin
+    /// preview. A port addition: upstream prints an empty list.
+    pub no_site_items_preview: &'static str,
+    /// The same empty browse preview on the public site, with no admin hint.
+    pub no_site_items: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -121,6 +126,8 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
+    no_site_items: "There are no items to show yet.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -165,6 +172,9 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    // The admin's words, because only the admin preview shows it.
+    no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
+    no_site_items: "Todavía no hay fichas que mostrar.",
 };
 
 #[cfg(test)]

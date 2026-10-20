@@ -690,11 +690,15 @@ export interface GlobalSettingsWrite {
  */
 export type SiteItemsAction = 'add' | 'remove' | 'replace';
 
-/** The items a site change acts on: a stored-shape item query, items, or item sets. */
+/** The items a site change acts on: a stored-shape item query, or picked items and item sets. */
 export type SiteItemsSelector =
   | { readonly kind: 'query'; readonly query: JsonValue }
-  | { readonly kind: 'items'; readonly items: readonly ItemId[] }
-  | { readonly kind: 'itemSets'; readonly itemSets: readonly ItemSetId[] };
+  /** These items with the items of these item sets; both empty names nothing. */
+  | {
+      readonly kind: 'picked';
+      readonly items: readonly ItemId[];
+      readonly itemSets: readonly ItemSetId[];
+    };
 
 export interface SiteItemsCommand {
   readonly action: SiteItemsAction;
