@@ -13,6 +13,7 @@
 
 mod custom_vocabs;
 mod import_evidence;
+mod import_writes;
 mod imports;
 mod publications;
 mod resources;
@@ -26,6 +27,10 @@ mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
 pub use import_evidence::{EntryRow, NewEntry, NewUpload, UploadRow};
+pub use import_writes::{
+    BeforeImage, ImageMemberships, ImageValue, ImportAction, ImportFields, ImportResource,
+    ItemSlots, NewImportFields, NewImportItem, NewImportItemSet, NewImportMedia, Slot, StoredFile,
+};
 pub use imports::{
     BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
     ImportStatus, ImportTarget, NewImport, NewImportResource,
