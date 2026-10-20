@@ -378,6 +378,18 @@ The admin has two modes over one plan, switchable at any time without losing wor
   policies per kind, match key and scope per record kind, the action, the full decision list with
   remove, and the round-trip list's columns.
 
+
+### Run details (settled from P3-run, 2026-10-20)
+
+- An item and its media share one transaction; each media's bytes are stored first, so a refused
+  or unreadable file fails only that media record. Retry skips per record key.
+- Prelude ledger keys: `term:<label>`, `type:<label>`, `set:<folded title>`. The `local`
+  vocabulary (namespace `urn:romeka:local#`) is created on first need and is not in the ledger.
+- Files over 64 MB are sniffed from 8 KB, hashed and streamed; they get no thumbnail yet (P8).
+- left.csv columns: `kind,source,path,record,#reason`.
+- A killed worker can leave the bytes of the record it held; `romeka media sweep` removes them.
+- The job derives from the index the run route scanned; the route compared the digest.
+
 ## Values
 
 A written value is `{ type, text, lang, label, isPublic }`:
@@ -721,6 +733,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-run | unit-test-verified | 2,086 workspace tests; S1, S4, S6, S8, S9a, S17, 66 MB streamed (+3.6 MB RSS), loopback URL refused; 7 mutations caught |
 | P3-fixes | unit-test-verified | 2,007 workspace tests; 391 MySQL tests each on 8.0 and MariaDB 11; 9 messages rewritten, 0 glossary hits |
 | P3-wire | unit-test-verified | 1,953 workspace tests; S1 and S20 through the routes; digest and label mutations caught; preview 10k ~100 ms, 40k ~575 ms on a loaded machine |
 | P3-writes | unit-test-verified | 319 SQLite, 379 each on MySQL 8.0.46 and MariaDB 11.8.9; 24-case apply/restore property test; 5 mutations caught |
