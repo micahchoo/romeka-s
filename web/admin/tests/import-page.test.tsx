@@ -225,7 +225,7 @@ describe('Folder step', () => {
     const put = requestsFor(fetchMock, PATH).find((request) => request.init?.method === 'PUT');
     const saved = put === undefined ? {} : requestBody(put)['plan'];
     expect(saved).toMatchObject({ example: { optional: ['part'] } });
-    expect(isRecord(saved) ? saved['pattern'] : null).toContain('(?:_(?<part>[a-z]+))?');
+    expect(isRecord(saved) ? saved['pattern'] : null).toContain('(?:_(?<part>[\\p{L}\\p{M}]+))?');
   });
 
   it('marks a chip: choosing Page for the last name part rewrites the shape', async () => {

@@ -81,7 +81,7 @@ export const es: ImportMessages = {
   'example.pageOptional': 'La página es opcional.',
   'example.makeRequired': 'Hacerla obligatoria',
   'example.shape': 'Forma:',
-  'example.shapeNote': 'Los dígitos coinciden con la misma cantidad de dígitos; las mayúsculas, con mayúsculas.',
+  'example.shapeNote': 'Los dígitos coinciden con cualquier cantidad de dígitos, y las letras, con cualquier uso de mayúsculas.',
   'example.editRegex': 'Editar como expresión regular',
   'example.use': 'Usar como ejemplo',
   'example.noFiles': 'Esta carpeta no tiene archivos que usar como ejemplo.',
