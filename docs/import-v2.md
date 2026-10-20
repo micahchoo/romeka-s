@@ -435,12 +435,17 @@ flags by policy, blocking reasons, `canRun`, `digest`).
 all]`, `romeka import list`. They call the same omeka-api functions as the routes. `romeka import
 csv` and `romeka import media` are removed in P7.
 
-## Database (migration 0006, SQLite and MySQL; claimed 2026-10-20, romeka-s-d5 agreed)
+## Database (migrations 0006 and 0007, SQLite and MySQL; 0006 claimed 2026-10-20, romeka-s-d5 agreed)
 
-- Delete imports with status `draft` (v1 plans).
-- `romeka_import`: drop `undoable` and its index (the column has a CHECK, so SQLite rebuilds the
-  table through `omeka_db::schema::migrate`); widen the status CHECK to the v2 statuses, mapping
-  v1 `failed` to `run_failed`; add `ran_plan` (TEXT / LONGTEXT), `revision INTEGER NOT NULL DEFAULT
+v1 keeps running on `import2/base` until the cutover, so the schema change comes in two steps.
+**0006 (P3-db) is additive**; **0007 (the cutover) removes v1 state**: it deletes `draft` imports
+(v1 plans), drops `undoable` and `romeka_import_one_undoable` (the column has a CHECK, so SQLite
+rebuilds the table through `omeka_db::schema::migrate`), maps v1 `failed` to `run_failed`, and
+narrows the status CHECK to the v2 statuses.
+
+0006:
+
+- `romeka_import`: widen the status CHECK to v1 and v2 statuses together; add `ran_plan` (TEXT / LONGTEXT), `revision INTEGER NOT NULL DEFAULT
   0`, `copied_from` (nullable FK, ON DELETE SET NULL).
 - `romeka_import_resource`: add `record VARCHAR(512)`, `change VARCHAR(16) NOT NULL DEFAULT
   'created'` (`created` | `changed`), `written DATETIME`.
