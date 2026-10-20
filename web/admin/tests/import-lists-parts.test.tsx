@@ -97,8 +97,8 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
     const input = screen.getByLabelText('Choose the file');
     fireEvent.change(input, { target: { files: [new File(['Identifier,Files\n'], 'filled.csv', { type: 'text/csv' })] } });
     const total = size + 7;
-    expect(await screen.findByText(`Read ${total.toLocaleString('en')} rows from lists/1.csv.`)).toBeInTheDocument();
-    const said = screen.getByText(`Read ${total.toLocaleString('en')} rows from lists/1.csv.`).closest('p');
+    expect(await screen.findByText(`Read ${total.toLocaleString('en')} rows from filled.csv.`)).toBeInTheDocument();
+    const said = screen.getByText(`Read ${total.toLocaleString('en')} rows from filled.csv.`).closest('p');
     expect(said).toHaveTextContent(`${size.toLocaleString('en')} belong to items of this import. 7 do not.`);
     expect(screen.getByText('It fills the columns “Title [dcterms:title]”, “Date [dcterms:date]”. Its values come first, before your other lists and the file names.')).toBeInTheDocument();
     expect(screen.getByText('We did not use “Notes”: these names have no field in square brackets.')).toBeInTheDocument();

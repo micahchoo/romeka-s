@@ -148,7 +148,8 @@ export const RoundTrip = (): ReactElement => {
       })
       .then(
         (result) => {
-          setUpload({ at: 'read', result });
+          // The server stores the list under a name of its own; the person knows the one they sent.
+          setUpload({ at: 'read', result: { ...result, file: file.name } });
         },
         (error: unknown) => {
           setUpload({ at: 'failed', error: toError(error) });

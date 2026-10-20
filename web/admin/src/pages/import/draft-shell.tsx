@@ -14,6 +14,7 @@ import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { ADVANCED_BODIES } from './advanced/bodies';
 import { DraftContext } from './draft-context';
+import { FirstLook } from './first-look';
 import type { Draft } from './draft-context';
 import { useImportText } from './messages';
 import { PlanStore } from './plan-store';
@@ -88,6 +89,7 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
         <div className="import-layout">
           <Steps id={detail.id} place={place} />
           <div className="import-screen">
+            {detail.status === 'draft' ? <FirstLook /> : null}
             {counted ? <StatusLine /> : null}
             <h3 className="import-screen-title">{t(screenOf(place).title)}</h3>
             <Body key={`${place.mode}/${place.screen}`} place={place} />
