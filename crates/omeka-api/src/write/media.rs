@@ -381,6 +381,7 @@ pub async fn update(
     api.authorize_resource(MEDIA_CLASS, row.resource.owner_id)?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
+    let placed = row.position;
     if let Some(position) = payload.int_member("position") {
         row.position = Some(position);
     }
@@ -391,6 +392,14 @@ pub async fn update(
         row.alt_text = payload.str_member("o:alt_text").map(str::to_string);
     }
     repo.update(&row).await.map_err(db_error)?;
+    if row.position != placed {
+        // A media moved in its item's order is a change to the item too:
+        // import undo keeps an item whose `modified` moved after the import.
+        omeka_db::repos::ResourceRepo::new(api.pool())
+            .touch(&[ResourceId(row.item_id.0)])
+            .await
+            .map_err(db_error)?;
+    }
     resource::store_values(
         api,
         row.resource.id,

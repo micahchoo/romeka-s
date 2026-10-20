@@ -15,8 +15,8 @@
 //! server-rendered form, so no API member carries them. See
 //! [`crate::theme_settings`] and [`crate::site_settings`].
 
-use omeka_db::ids::{ItemSetId, PageId, SiteId, UserId};
-use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
+use omeka_db::ids::{ItemSetId, PageId, ResourceId, SiteId, UserId};
+use omeka_db::repos::{ItemSetRepo, ResourceRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{NewSite, NewWholeSite, SiteRow};
 use serde_json::{Value, json};
 
@@ -146,9 +146,15 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
                 .is_none()
                 .then_some(site_defaults::default_navigation as fn(PageId) -> Value),
             permissions,
-            item_sets,
+            item_sets: item_sets.clone(),
             settings,
         })
+        .await
+        .map_err(db_error)?;
+    // Each set joins the new site: a change to the set, as in `apply_item_sets`.
+    let joined: Vec<ResourceId> = item_sets.iter().map(|set| set.as_resource()).collect();
+    ResourceRepo::new(api.pool())
+        .touch(&joined)
         .await
         .map_err(db_error)?;
     api.read_member("sites", &site.id.0.to_string()).await
@@ -421,18 +427,40 @@ async fn apply_item_sets(
         return Ok(());
     };
     let repo = SiteRepo::new(api.pool());
+    let before = repo.list_item_sets(site).await.map_err(db_error)?;
     for (index, item_set) in wanted.iter().enumerate() {
         repo.add_item_set(site, *item_set, Some(index as i64 + 1))
             .await
             .map_err(db_error)?;
     }
-    for attached in repo.list_item_sets(site).await.map_err(db_error)? {
+    for attached in &before {
         if !wanted.contains(&attached.item_set_id) {
             repo.remove_item_set(site, attached.item_set_id)
                 .await
                 .map_err(db_error)?;
         }
     }
+    // A site the set joined, left or moved in is a change to the set: import
+    // undo keeps a set whose `modified` moved after the import wrote it.
+    let moved: Vec<ResourceId> = before
+        .iter()
+        .filter(|attached| {
+            let at = wanted.iter().position(|set| *set == attached.item_set_id);
+            at.is_none_or(|at| attached.position != Some(at as i64 + 1))
+        })
+        .map(|attached| attached.item_set_id)
+        .chain(
+            wanted
+                .iter()
+                .copied()
+                .filter(|set| !before.iter().any(|attached| attached.item_set_id == *set)),
+        )
+        .map(|set| set.as_resource())
+        .collect();
+    ResourceRepo::new(api.pool())
+        .touch(&moved)
+        .await
+        .map_err(db_error)?;
     Ok(())
 }
 

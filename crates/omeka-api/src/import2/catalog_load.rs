@@ -8,17 +8,17 @@
 //! value is left out unless the plan matches its kind by internal id,
 //! because nothing else in the derive can find it.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use omeka_db::Backend;
 use omeka_db::DbError;
-use omeka_db::ids::{ItemSetId, UserId};
+use omeka_db::ids::{ImportId, ItemSetId, UserId};
 use omeka_db::repos::{
-    ClassFilter, ClassRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter,
-    MediaRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, UserFilter, UserRepo,
-    ValueRewriteRepo, VocabularyFilter, VocabularyRepo,
+    ClassFilter, ClassRepo, ImportResourceRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
+    MediaFilter, MediaRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, UserFilter,
+    UserRepo, ValueRewriteRepo, VocabularyFilter, VocabularyRepo,
 };
-use omeka_db::rows::resource_type;
+use omeka_db::rows::{ImportTarget, resource_type};
 use omeka_media::validation::FileValidation;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
@@ -49,10 +49,15 @@ fn raw(id: u64) -> i64 {
 /// Read the catalog `plan` derives against. `files` is the install's
 /// file-validation settings, which the caller reads.
 ///
+/// The item types and fields import `import`'s own ledger records are left
+/// out: an earlier attempt of the same import made them from this plan, so a
+/// retry derives as the first attempt did, with no `type-exists` flag.
+///
 /// # Errors
 /// A [`DbError`] when a read fails.
 pub async fn load<DB>(
     pool: &Pool<DB>,
+    import: ImportId,
     plan: &ImportPlanV2,
     owners: Owners,
     files: FileValidation,
@@ -73,6 +78,19 @@ where
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
     let all = Paging::default();
+    let mut own_templates = HashSet::new();
+    let mut own_properties = HashSet::new();
+    for row in ImportResourceRepo::new(pool).list(import, None).await? {
+        match row.target {
+            ImportTarget::ResourceTemplate(id) => {
+                own_templates.insert(id);
+            }
+            ImportTarget::Property(id) => {
+                own_properties.insert(id);
+            }
+            _ => {}
+        }
+    }
     let prefixes: HashMap<_, _> = VocabularyRepo::new(pool)
         .list(&VocabularyFilter::default(), &all)
         .await?
@@ -90,6 +108,9 @@ where
         .list(&PropertyFilter::default(), &all)
         .await?
     {
+        if own_properties.contains(&row.id) {
+            continue;
+        }
         if let Some(term) = term_of(row.vocabulary_id, &row.local_name) {
             property_terms.insert(row.id, term.clone());
             properties.insert(term, row.label);
@@ -106,6 +127,9 @@ where
     let mut templates = Vec::new();
     let mut base_template = None;
     for row in template_repo.list().await? {
+        if own_templates.contains(&row.id) {
+            continue;
+        }
         let fields = template_repo
             .list_properties(row.id)
             .await?
@@ -368,9 +392,15 @@ mod tests {
                 json!([{ "label": "Letters", "from": { "starter": "letter" }, "class": null }]);
         });
 
-        let catalog = load(&pool, &plan, Owners::Anyone, FileValidation::Disabled)
-            .await
-            .unwrap();
+        let catalog = load(
+            &pool,
+            ImportId(1),
+            &plan,
+            Owners::Anyone,
+            FileValidation::Disabled,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(catalog.items.len(), 1);
         assert_eq!(
@@ -388,6 +418,7 @@ mod tests {
         );
         let mine = load(
             &pool,
+            ImportId(1),
             &plan,
             Owners::Only(site.id),
             FileValidation::Disabled,
@@ -396,5 +427,88 @@ mod tests {
         .unwrap();
         assert_eq!(mine.users.len(), 1, "a site admin names only themself");
         assert_ne!(mine.users[0].id, raw(admin.id.0));
+    }
+
+    #[tokio::test]
+    async fn a_retry_reads_no_type_or_field_its_own_import_made() {
+        let pool = crate::testing::temp_db().await;
+        let local = VocabularyRepo::new(&pool)
+            .create(&NewVocabulary {
+                owner_id: None,
+                namespace_uri: "urn:romeka:local#".into(),
+                prefix: "local".into(),
+                label: "Local".into(),
+                comment: None,
+            })
+            .await
+            .unwrap();
+        let field = PropertyRepo::new(&pool)
+            .create(&NewProperty {
+                owner_id: None,
+                vocabulary_id: local.id,
+                local_name: "shelf".into(),
+                label: "Shelf".into(),
+                comment: None,
+            })
+            .await
+            .unwrap();
+        let letters = TemplateRepo::new(&pool)
+            .create(&NewTemplate {
+                owner_id: None,
+                resource_class_id: None,
+                title_property_id: None,
+                description_property_id: None,
+                label: "Letters".into(),
+            })
+            .await
+            .unwrap();
+        let imports = omeka_db::repos::ImportRepo::new(&pool);
+        let new = omeka_db::rows::NewImport {
+            owner_id: None,
+            sources: json!([]),
+            plan: json!({}),
+            copied_from: None,
+        };
+        let own = imports.create_draft(&new).await.unwrap().id;
+        let other = imports.create_draft(&new).await.unwrap().id;
+        for (record, target) in [
+            ("type:Letters", ImportTarget::ResourceTemplate(letters.id)),
+            ("term:Shelf", ImportTarget::Property(field.id)),
+        ] {
+            ImportResourceRepo::record(
+                &pool,
+                own,
+                &omeka_db::rows::NewImportResource {
+                    target,
+                    record: record.into(),
+                    change: omeka_db::rows::ImportChange::Created,
+                },
+            )
+            .await
+            .unwrap();
+        }
+        let plan = plan(|plan| {
+            plan["newTypes"] =
+                json!([{ "label": "Letters", "from": { "starter": "letter" }, "class": null }]);
+        });
+        let shelf = Term::local("Shelf").unwrap();
+
+        let retry = load(&pool, own, &plan, Owners::Anyone, FileValidation::Disabled)
+            .await
+            .unwrap();
+        let elsewhere = load(
+            &pool,
+            other,
+            &plan,
+            Owners::Anyone,
+            FileValidation::Disabled,
+        )
+        .await
+        .unwrap();
+
+        assert!(retry.templates.iter().all(|t| t.label != "Letters"));
+        assert!(!retry.properties.contains_key(&shelf));
+        assert!(elsewhere.templates.iter().any(|t| t.label == "Letters"));
+        assert!(elsewhere.properties.contains_key(&shelf));
     }
 }

@@ -108,7 +108,7 @@ impl ImportKind {
 }
 
 /// One resource an import wrote, with the id type of its table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImportTarget {
     Item(ItemId),
     Media(MediaId),

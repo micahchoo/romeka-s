@@ -136,6 +136,18 @@ pub async fn apply(
     if mode == Mode::Write {
         repo.detach(site, &plan.detach).await.map_err(db_error)?;
         repo.attach(site, &plan.attach).await.map_err(db_error)?;
+        // A site joined or left is a change to the item: import undo keeps
+        // an item whose `modified` moved after the import wrote it.
+        let moved: Vec<_> = plan
+            .detach
+            .iter()
+            .chain(&plan.attach)
+            .map(|item| item.as_resource())
+            .collect();
+        omeka_db::repos::ResourceRepo::new(api.pool())
+            .touch(&moved)
+            .await
+            .map_err(db_error)?;
     }
     Ok(Change {
         matched: selected.len(),

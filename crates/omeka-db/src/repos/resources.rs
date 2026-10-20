@@ -88,6 +88,17 @@ where
         update_resource_columns(&mut conn, row).await
     }
 
+    /// Move each resource's `modified` to now: a write that changes a resource through a table
+    /// of its own (a membership, a value rewrite, a media's place) still changes the resource, and
+    /// import undo's touched test reads `modified` to see it.
+    pub async fn touch(&self, resources: &[ResourceId]) -> Result<(), DbError> {
+        if resources.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.pool.acquire().await?;
+        touch_modified::<DB>(&mut conn, resources).await
+    }
+
     /// Delete a resource and the values it carries, whatever its kind.
     ///
     /// This is the one delete path for items, item sets, media and value annotations: the kind rows
@@ -602,4 +613,26 @@ where
         let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ItemSetRow::from_db_row::<DB>).collect()
     }
+}
+
+/// `updateTimestamps` on update: each resource's `modified` moves to now.
+pub(super) async fn touch_modified<DB: Backend>(
+    conn: &mut DB::Connection,
+    resources: &[ResourceId],
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+{
+    let now = time::format(time::now());
+    for resource in resources {
+        sqlx::query("UPDATE resource SET modified = ? WHERE id = ?")
+            .bind(now.clone())
+            .bind(bind_id(*resource))
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
 }

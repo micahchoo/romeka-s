@@ -203,4 +203,20 @@ export const esServer: ServerCatalogue = {
   'server.importLinksNotSaved': 'No se pudieron guardar los enlaces de este registro: {reason}',
   'server.importSitesNotJoined':
     'Este elemento se añadió, pero no se unió a sus sitios: {reason}',
+  'server.importUndoEdited': 'Esto se editó después de que la importación lo escribiera.',
+  'server.importUndoLinked':
+    'Un elemento, un medio o un conjunto de elementos ajeno a esta importación enlaza con esto.',
+  'server.importUndoMediaAdded':
+    'Se añadieron medios a este elemento fuera de esta importación.',
+  'server.importUndoMembersAdded':
+    'Se pusieron en este conjunto elementos ajenos a esta importación.',
+  'server.importUndoLaterImport':
+    'La importación {import} cambió esto después de esta importación.',
+  'server.importUndoInUse':
+    'Elementos, medios, conjuntos de elementos o tipos de elemento ajenos a esta importación usan esto.',
+  'server.importUndoItemKept':
+    'Se conserva el elemento de este medio, así que el medio también se conserva.',
+  'server.importUndoMemberKept':
+    'Se conserva un elemento de este conjunto, así que el conjunto también se conserva.',
+  'server.importUndoStopped': 'La importación dejó de deshacerse antes del final: {reason}',
 };

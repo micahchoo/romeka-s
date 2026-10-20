@@ -13,6 +13,7 @@
 //!   [`model::Model`] out, through [`grouping`], [`join`], [`slots`],
 //!   `matching` and `flags`.
 //! - [`run`]: the model written, with [`ledger`], [`media_in`] and [`left`].
+//! - [`undo`]: an import taken back, with [`touched`].
 //!
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
@@ -41,6 +42,8 @@ pub mod sheet;
 pub mod slots;
 pub mod starters;
 pub mod tags;
+pub mod touched;
+pub mod undo;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};
