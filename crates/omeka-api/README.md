@@ -29,6 +29,16 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 `o:layout_data`, media `data`) keep PHP order because this crate enables
 `serde_json`'s `preserve_order`; without it they would sort.
 
+## Archive import
+
+`src/import/` is the logic of the archive import, a Romeka addition: the stored plan and its parse
+boundary, the archive root and its safe relative paths, the file-name pattern, the CSV reader with
+its Windows-1252 repair, the EXIF tags, the pure derive from folder and plan to rows and problems,
+the preview and the dry run, and the write side (`run`, `undo`, `left`). The server's routes in
+`omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is the one validator:
+the admin only renders the pages of rows it answers. `romeka import csv` and `export csv` share its
+CSV reader.
+
 ## Route table
 
 `src/routes.rs` expands the upstream lookup (`api` route, `:resource`
