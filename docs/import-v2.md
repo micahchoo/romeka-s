@@ -561,8 +561,8 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   refused, when the extracted bytes would pass the import's limit, an entry's ratio passes 100:1
   with more than 10 MB out, or the entry count passes 100,000.
 - **Retention.** A sweep deletes staging 30 days after an import reaches `done` or `undone`, 30 days
-  after the last run attempt of a failed import, and 7 days after a draft was last saved; incomplete
-  uploads go after 24 hours. The draft shows the date. Settings: `import_staging_keep_days`,
+  after the last run attempt of a failed import, and 7 days after a draft was last saved (`romeka_import.saved`); incomplete
+  uploads and orphaned parts go after 24 hours. `romeka serve` runs the sweep hourly. The draft shows the date. Settings: `import_staging_keep_days`,
   `import_draft_staging_keep_days`.
 - **URL sources.** The `ingester` and `mediaSource` slots drive the existing ingesters (`url`,
   `html`, `youtube`, `iiif`, `iiif_presentation`, `oembed`). Every fetch any ingester makes, in the
