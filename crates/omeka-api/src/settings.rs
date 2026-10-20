@@ -18,12 +18,21 @@
 //! ([`crate::site_settings`]). The global settings have their own port-only
 //! route, which only a global admin may read or write.
 //!
+//! Three global keys are upstream's file validation settings, which
+//! `Omeka\File\Validator` reads ([`file_validation`]). A list with no row
+//! means upstream's default list, because a Romeka install never ran
+//! upstream's `AddDefaultSettingsTask`, which stores the defaults. So
+//! [`read_global`] answers each of the three as it applies, and a `null` write
+//! restores the default.
+//!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
 //! client reads as its own default.
 
+use omeka_db::DbError;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{SettingRepo, UserSettingRepo};
+use omeka_media::validation::{DEFAULT_EXTENSIONS, DEFAULT_MEDIA_TYPES, FileValidation};
 use serde_json::{Map, Value};
 use sqlx::SqlitePool;
 
@@ -42,6 +51,15 @@ pub const LESSONS_SEEN: &str = "romeka_lessons_seen";
 /// `true` when the user switched the admin lessons off.
 pub const HIDE_LESSONS: &str = "romeka_hide_lessons";
 
+/// `SettingForm`'s allowed media types, a list of strings.
+pub const MEDIA_TYPE_WHITELIST: &str = "media_type_whitelist";
+
+/// `SettingForm`'s allowed file extensions, a list of strings.
+pub const EXTENSION_WHITELIST: &str = "extension_whitelist";
+
+/// `SettingForm`'s switch that turns file validation off.
+pub const DISABLE_FILE_VALIDATION: &str = "disable_file_validation";
+
 /// What a setting's value may be on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Shape {
@@ -51,18 +69,28 @@ enum Shape {
     Flag,
     /// A list of strings; an empty list removes the row.
     Names,
+    /// A list of strings, stored even when empty, because an empty allow
+    /// list refuses every file. Each entry is trimmed, and empty and repeated
+    /// entries are dropped, as `SettingForm`'s input filter does.
+    AllowList,
 }
 
 /// The user keys the API reads and writes. Each one has a field in the admin.
 pub const USER_SETTINGS: &[&str] = &[LOCALE, HIDE_LESSONS, LESSONS_SEEN];
 
 /// The global keys the API reads and writes.
-pub const GLOBAL_SETTINGS: &[&str] = &[LOCALE];
+pub const GLOBAL_SETTINGS: &[&str] = &[
+    LOCALE,
+    MEDIA_TYPE_WHITELIST,
+    EXTENSION_WHITELIST,
+    DISABLE_FILE_VALIDATION,
+];
 
 fn shape(key: &str) -> Shape {
     match key {
-        HIDE_LESSONS => Shape::Flag,
+        HIDE_LESSONS | DISABLE_FILE_VALIDATION => Shape::Flag,
         LESSONS_SEEN => Shape::Names,
+        MEDIA_TYPE_WHITELIST | EXTENSION_WHITELIST => Shape::AllowList,
         _ => Shape::Text,
     }
 }
@@ -138,7 +166,67 @@ pub async fn store_user(
     Ok(())
 }
 
-/// `GET /api/settings`: the global API settings as one map, for a global admin.
+/// The file validation settings as they apply, upstream's
+/// `ValidatorFactory`: each list as stored, else upstream's default, and the
+/// switch by PHP truthiness, because an adopted Omeka S database stores the
+/// checkbox as `"1"` or `"0"`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileSettings {
+    media_types: Vec<String>,
+    extensions: Vec<String>,
+    disabled: bool,
+}
+
+impl FileSettings {
+    async fn load(repo: &SettingRepo<'_>) -> Result<Self, DbError> {
+        let list = |stored: Option<Value>, default: &[&str]| match stored {
+            Some(Value::Array(names)) => names
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+            _ => default.iter().map(|name| (*name).to_string()).collect(),
+        };
+        Ok(Self {
+            media_types: list(repo.get(MEDIA_TYPE_WHITELIST).await?, DEFAULT_MEDIA_TYPES),
+            extensions: list(repo.get(EXTENSION_WHITELIST).await?, DEFAULT_EXTENSIONS),
+            disabled: repo
+                .get(DISABLE_FILE_VALIDATION)
+                .await?
+                .is_some_and(|value| php_truthy(&value)),
+        })
+    }
+}
+
+/// The file validation every ingest path checks a file against.
+///
+/// # Errors
+/// [`DbError`] when a setting row cannot be read.
+pub async fn file_validation(repo: &SettingRepo<'_>) -> Result<FileValidation, DbError> {
+    let settings = FileSettings::load(repo).await?;
+    Ok(if settings.disabled {
+        FileValidation::Disabled
+    } else {
+        FileValidation::Allow {
+            media_types: settings.media_types,
+            extensions: settings.extensions,
+        }
+    })
+}
+
+fn php_truthy(value: &Value) -> bool {
+    match value {
+        Value::Bool(flag) => *flag,
+        Value::Number(number) => number.as_f64().is_some_and(|number| number != 0.0),
+        Value::String(text) => !text.is_empty() && text != "0",
+        Value::Array(items) => !items.is_empty(),
+        Value::Object(map) => !map.is_empty(),
+        Value::Null => false,
+    }
+}
+
+/// `GET /api/settings`: the global API settings as one map, for a global
+/// admin. The three file validation settings always answer, as they apply.
 ///
 /// # Errors
 /// [`ApiError::PermissionDenied`] for any other caller, [`ApiError::Internal`]
@@ -147,11 +235,13 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     authorize_global(api.actor())?;
     let repo = SettingRepo::new(api.pool());
     let mut map = Map::new();
-    for key in GLOBAL_SETTINGS {
-        if let Some(value) = repo.get(key).await.map_err(db_error)? {
-            map.insert((*key).to_string(), value);
-        }
+    if let Some(value) = repo.get(LOCALE).await.map_err(db_error)? {
+        map.insert(LOCALE.to_string(), value);
     }
+    let files = FileSettings::load(&repo).await.map_err(db_error)?;
+    map.insert(MEDIA_TYPE_WHITELIST.to_string(), files.media_types.into());
+    map.insert(EXTENSION_WHITELIST.to_string(), files.extensions.into());
+    map.insert(DISABLE_FILE_VALIDATION.to_string(), files.disabled.into());
     Ok(ApiResponse::document(serialize(&Value::Object(map))?))
 }
 
@@ -218,13 +308,30 @@ fn parse_map(
             (Shape::Names, Value::Array(names)) if names.iter().all(Value::is_string) => {
                 Some(stored.clone())
             }
+            (Shape::AllowList, Value::Array(names)) if names.iter().all(Value::is_string) => {
+                Some(allow_list(names))
+            }
             (Shape::Text, _) => return Err(invalid(messages::setting_not_text(key))),
             (Shape::Flag, _) => return Err(invalid(messages::setting_not_flag(key))),
-            (Shape::Names, _) => return Err(invalid(messages::setting_not_names(key))),
+            (Shape::Names | Shape::AllowList, _) => {
+                return Err(invalid(messages::setting_not_names(key)));
+            }
         };
         changes.push((*name, change));
     }
     Ok(changes)
+}
+
+/// `SettingForm`'s filter for the two allow lists: trim each entry, drop the
+/// empty ones and the repeats, keep the first order.
+fn allow_list(names: &[Value]) -> Value {
+    let mut kept: Vec<String> = Vec::with_capacity(names.len());
+    for name in names.iter().filter_map(Value::as_str).map(str::trim) {
+        if !name.is_empty() && !kept.iter().any(|seen| seen == name) {
+            kept.push(name.to_string());
+        }
+    }
+    kept.into()
 }
 
 fn non_empty(value: Option<Value>) -> Option<String> {
@@ -255,6 +362,47 @@ mod tests {
         assert!(parse_user(&json!({"default_resource_template": 1})).is_err());
         assert!(parse_user(&json!({"locale": 3})).is_err());
         assert!(parse_user(&json!(["locale"])).is_err());
+    }
+
+    #[test]
+    fn an_allow_list_is_trimmed_and_kept_even_when_empty() {
+        assert_eq!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"extension_whitelist": [" pdf", "jpg", "", "pdf"]})
+            )
+            .unwrap(),
+            vec![(EXTENSION_WHITELIST, Some(json!(["pdf", "jpg"])))]
+        );
+        assert_eq!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"media_type_whitelist": []})
+            )
+            .unwrap(),
+            vec![(MEDIA_TYPE_WHITELIST, Some(json!([])))],
+            "an empty list refuses every file, so it is stored"
+        );
+        assert_eq!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"media_type_whitelist": null})
+            )
+            .unwrap(),
+            vec![(MEDIA_TYPE_WHITELIST, None)],
+            "null removes the row, which restores the default"
+        );
+        assert!(
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({"extension_whitelist": "pdf,jpg"})
+            )
+            .is_err()
+        );
     }
 
     #[test]

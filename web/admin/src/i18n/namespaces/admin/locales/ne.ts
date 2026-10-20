@@ -105,7 +105,22 @@ export const ne: AdminMessages = {
   'settings.indexFulltextSearch': 'पूर्णपाठ खोज इन्डेक्स',
   'settings.versionNotifications': 'संस्करण सूचनाहरू',
   'settings.saved': 'सेटिङहरू अद्यावधिक गरियो।',
-  'settings.note': 'पोर्टले केवल लोकेल सुरक्षित गर्छ; अन्य परिवर्तनहरू सुरक्षित हुँदैनन्।',
+  'settings.note':
+    'पोर्टले लोकेल र सुरक्षा सेटिङहरू सुरक्षित गर्छ; अन्य परिवर्तनहरू सुरक्षित हुँदैनन्।',
+  'settings.security': 'सुरक्षा',
+  'settings.disableFileValidation': 'फाइल प्रमाणीकरण असक्षम गर्नुहोस्',
+  'settings.disableFileValidationInfo':
+    'यसलाई फाइल मिडिया प्रकार र विस्तार प्रमाणीकरण असक्षम गर्न जाँच गर्नुहोस्।',
+  'settings.mediaTypeWhitelist': 'अनुमति दिइएका मिडिया प्रकारहरू',
+  'settings.mediaTypeWhitelistInfo':
+    'फाइल अपलोडका लागि अनुमति दिइएका मिडिया प्रकारहरूको अल्पविराम-पृथक सूची।',
+  'settings.restoreMediaTypes': 'डिफल्ट मिडिया प्रकारहरू पुनर्स्थापना गर्नुहोस्',
+  'settings.extensionWhitelist': 'अनुमति दिइएका फाइल विस्तारहरू',
+  'settings.extensionWhitelistInfo':
+    'फाइल अपलोडका लागि अनुमति दिइएका फाइल विस्तारहरूको अल्पविराम-पृथक सूची।',
+  'settings.restoreExtensions': 'डिफल्ट विस्तारहरू पुनर्स्थापना गर्नुहोस्',
+  'settings.restoredOnSave': 'सुरक्षित गर्दा डिफल्ट सूची पुनर्स्थापित हुन्छ।',
+  'settings.emptyListRefusesAll': 'खाली सूचीले प्रत्येक फाइललाई अस्वीकार गर्दछ।',
   'settings.locale': 'लोकेल',
   'settings.localeDefault': 'पूर्वनिर्धारित',
   'systemInfo.omeka': 'Omeka S',

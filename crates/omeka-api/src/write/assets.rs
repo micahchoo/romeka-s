@@ -11,14 +11,19 @@
 //! The port receives the upload through the multipart boundary as an
 //! [`UploadedFile`]; a create with no `file` field answers the upstream
 //! `{"errors":{"file":["No file was uploaded"]}}`. The media type comes from
-//! the bytes (`omeka_media::media_type::detected_media_type`, a narrow `finfo`)
-//! and the extension from the client file name, then the media-type map.
+//! the bytes (`omeka_media::media_type::detected_media_type`, the port's
+//! `finfo`) and the extension from the client file name, then the media-type
+//! map. The check is `omeka_media::validation`, the same validator media use,
+//! built with the asset lists instead of the settings.
 
 use omeka_db::ids::AssetId;
 use omeka_db::repos::AssetRepo;
 use omeka_db::rows::{AssetRow, NewAsset};
 use omeka_media::media_type::{detected_media_type, extension_for_media_type};
-use omeka_media::store::{FileStore, StorePrefix, extension_from_source_name, new_storage_id};
+use omeka_media::store::{
+    Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
+};
+use omeka_media::validation::{FileRefusal, FileValidation};
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -50,21 +55,15 @@ pub async fn create(
     let media_type = detected_media_type(&file.bytes);
     let extension = extension_from_source_name(&source_name)
         .or_else(|| extension_for_media_type(&media_type).map(str::to_string));
-    // `Omeka\File\Validator::validate`: the media type first, then the
-    // extension, both under the `file` key.
-    let mut invalid = Vec::new();
-    if !ALLOWED_MEDIA_TYPES.contains(&media_type.as_str()) {
-        invalid.push(messages::asset_media_type(&source_name, &media_type));
-    }
-    if !extension
-        .as_deref()
-        .is_some_and(|extension| ALLOWED_EXTENSIONS.contains(&extension))
-    {
-        invalid.push(messages::asset_extension(
-            &source_name,
-            extension.as_deref().unwrap_or(""),
-        ));
-    }
+    let validation = FileValidation::Allow {
+        media_types: ALLOWED_MEDIA_TYPES.map(str::to_string).to_vec(),
+        extensions: ALLOWED_EXTENSIONS.map(str::to_string).to_vec(),
+    };
+    let invalid: Vec<String> = validation
+        .refusals(&source_name, &media_type, extension.as_deref())
+        .iter()
+        .map(refusal_message)
+        .collect();
     if !invalid.is_empty() {
         return Err(errors("file", invalid));
     }
@@ -91,7 +90,7 @@ pub async fn create(
         return Err(ApiError::internal("the process has no file store"));
     };
     let storage_id = new_storage_id().map_err(ApiError::internal)?;
-    let path = FileStore::storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
+    let path = storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
     store.put(&file.bytes, &path).map_err(ApiError::internal)?;
     let row = AssetRepo::new(api.pool())
         .create(&NewAsset {
@@ -169,22 +168,54 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     };
     access::resource_entity(api.actor(), ASSET_CLASS, row.owner_id)?;
     let answer = api.read_member("assets", raw_id).await?;
-    delete_asset_file(api.store(), &row)?;
+    delete_asset_file(api.store().map(|store| store.as_ref()), &row)?;
     repo.delete(row.id).await.map_err(db_error)?;
     Ok(answer)
 }
 
 /// The stored bytes one asset owns (`Module::deleteAssetFile`).
-fn delete_asset_file(store: Option<&FileStore>, row: &AssetRow) -> Result<(), ApiError> {
+fn delete_asset_file(store: Option<&dyn Store>, row: &AssetRow) -> Result<(), ApiError> {
     let Some(store) = store else {
         return Ok(());
     };
     store
-        .delete(&FileStore::storage_path(
+        .delete(&storage_path(
             StorePrefix::Asset,
             &row.storage_id,
             row.extension.as_deref(),
         ))
         .map(|_| ())
         .map_err(ApiError::internal)
+}
+
+/// A refusal as the registry words it, under the `file` key.
+fn refusal_message(refusal: &FileRefusal) -> String {
+    match refusal {
+        FileRefusal::MediaType { file, media_type } => messages::asset_media_type(file, media_type),
+        FileRefusal::Extension { file, extension } => messages::asset_extension(file, extension),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A media ingest records a refusal by its display text, and the admin
+    /// translates it by the registered pattern, so the two must agree.
+    #[test]
+    fn a_refusal_displays_as_the_registered_message() {
+        let refusals = [
+            FileRefusal::MediaType {
+                file: "Thumbs.db".to_string(),
+                media_type: "application/CDFV2".to_string(),
+            },
+            FileRefusal::Extension {
+                file: "Thumbs.db".to_string(),
+                extension: "db".to_string(),
+            },
+        ];
+        for refusal in &refusals {
+            assert_eq!(refusal.to_string(), refusal_message(refusal));
+        }
+    }
 }

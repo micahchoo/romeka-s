@@ -1,9 +1,10 @@
 # omeka-media
 
-Romeka S is a fork of Omeka S. This crate holds the media subsystem: the file store and its storage path rule, one
-ingester and one renderer per upstream class, the file renderers, the three thumbnail types, the `media.data` payloads
-and the oEmbed service. `src/lib.rs` documents the module map and the one network seam (`http::HttpFetch`), and each
-ingester, renderer and thumbnailer names the upstream PHP class it mirrors.
+Romeka S is a fork of Omeka S. This crate holds the media subsystem: the `Store` trait every stored byte goes through,
+its local implementation `FileStore` and the storage path rule, one ingester and one renderer per upstream class, the
+file renderers, the three thumbnail types, the `media.data` payloads and the oEmbed service. `src/lib.rs` documents the
+module map and the one network seam (`http::HttpFetch`), and each ingester, renderer and thumbnailer names the upstream
+PHP class it mirrors.
 
 ## Benchmarks
 
@@ -11,7 +12,7 @@ ingester, renderer and thumbnailer names the upstream PHP class it mirrors.
 
 | target | area | source |
 | --- | --- | --- |
-| `store_paths` | the storage path rule, the URI and local path, the storage id, the checksum, the four filesystem calls | `src/store.rs` |
+| `store_paths` | the storage path rule, the URL and local path, the storage id, the checksum, the four filesystem calls | `src/store/` |
 | `ingest_parse` | one case per ingester, plus the two boundaries around it | `src/ingest/`, `src/data.rs` |
 | `render_html` | the six media renderers, the file renderer lookup, the text helpers | `src/render/`, `src/file_render/`, `src/text.rs` |
 | `thumbnail` | decode, the three resizes, the JPEG encode, the store path, the generate-and-store path | `src/thumbnailer.rs` |
@@ -66,7 +67,9 @@ end, on a box six agents share. Each row is a median of 50 samples (30 for the t
 95% confidence interval for the median. Iterations is the total number of timed units criterion executed; for the
 benches that take a fresh case per unit (`ingest/*`, `put/*`, `generate_thumbnails/*`) the setup runs outside the timed
 region. One row is later than the rest: `media_render/html` was re-measured after the HTML renderer began purifying the
-stored fragment, on a much busier box (load average 22), so its absolute value is an upper bound.
+stored fragment, on a much busier box (load average 22), so its absolute value is an upper bound. The store rows
+predate the `Store` trait: `put` now writes a sibling and renames it, as `put_atomic` did, `put_atomic` is gone, and
+`uri` is now the `url` bench, so `put_1KiB`, `put_atomic_1KiB` and `uri` wait for a re-measure.
 
 | bench | median | 95% CI | sd | samples | iterations | limiter |
 | --- | --- | --- | --- | --- | --- | --- |

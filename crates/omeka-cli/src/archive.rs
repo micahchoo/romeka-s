@@ -10,7 +10,7 @@
 //! ```
 //!
 //! The store files keep their store-relative paths, so restore writes them back
-//! where `FileStore::local_path` reads them.
+//! where the local store keeps them.
 //!
 //! Consistency. The database copy is taken first, then the store is read. A
 //! media row can only reference a file that existed when the row was written, so
@@ -32,7 +32,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use omeka_db::DbError;
 use omeka_db::repos::{MediaFilter, MediaRepo, Paging};
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{StorePrefix, storage_path};
 use omeka_media::thumbnailer::thumbnail_path;
 
 use crate::error::CliError;
@@ -311,11 +311,7 @@ pub async fn verify_store_references(pool: &SqlitePool, root: &Path) -> Result<u
             )));
         };
         if row.has_original {
-            let path = FileStore::storage_path(
-                StorePrefix::Original,
-                storage_id,
-                row.extension.as_deref(),
-            );
+            let path = storage_path(StorePrefix::Original, storage_id, row.extension.as_deref());
             require_file(root, &path, row.id().0)?;
             checked += 1;
         }

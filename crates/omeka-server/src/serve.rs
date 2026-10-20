@@ -14,8 +14,7 @@ use tokio::net::TcpListener;
 
 use crate::config::Config;
 use crate::logging::init_logging;
-use crate::{FILES_ROOT, FILES_URI, Services};
-use omeka_media::store::FileStore;
+use crate::{FILES_ROOT, Services, file_store};
 
 /// Bind `addr` and serve until the process stops.
 ///
@@ -38,7 +37,7 @@ pub async fn serve(addr: SocketAddr, pool: SqlitePool, base: BaseUrl) -> std::io
 /// # Errors
 /// An [`std::io::Error`] when the address cannot be bound or the server fails.
 pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Result<()> {
-    let services = Services::new(FileStore::new(FILES_ROOT, FILES_URI));
+    let services = Services::new(file_store(FILES_ROOT));
     serve_with_services(config, pool, services).await
 }
 
@@ -125,7 +124,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let (stop, stopped) = oneshot::channel();
         let server = tokio::spawn(async move {
-            let services = Services::new(FileStore::new(FILES_ROOT, FILES_URI));
+            let services = Services::new(file_store(FILES_ROOT));
             serve_listener(listener, pool, &config, services, async move {
                 let _ = stopped.await;
             })

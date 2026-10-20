@@ -41,9 +41,26 @@ const EMPTY_VALUES: Readonly<Record<string, string>> = Object.fromEntries(
 );
 
 /**
+ * One allow list as the form holds it: `SettingForm`'s comma-separated text,
+ * or `null` once its restore button asked for upstream's default.
+ */
+type ListDraft = string | null;
+
+const listText = (names: readonly string[]): string => names.join(',');
+
+/** `SettingForm`'s filter: split on commas, trim, drop the empty entries. */
+const listNames = (draft: ListDraft): readonly string[] | null =>
+  draft === null
+    ? null
+    : draft
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name !== '');
+
+/**
  * `Admin/SettingController::browseAction`. The port's `/api/settings` stores
- * only the locale so far, so the locale is saved and every other field keeps
- * its edits in page state and does not persist them.
+ * the locale and the three file validation settings, so those are saved;
+ * every other field keeps its edits in page state and does not persist them.
  */
 export const SettingsPage = (): ReactElement => {
   const { t } = useTranslator(common, admin);
@@ -64,8 +81,17 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
   const [values, setValues] = useState<Readonly<Record<string, string>>>(EMPTY_VALUES);
   const [saved, setSaved] = useState(false);
   const [locale, setLocale] = useState(localeValue(stored.locale));
+  const [disabled, setDisabled] = useState(stored.disableFileValidation);
+  const [mediaTypes, setMediaTypes] = useState<ListDraft>(listText(stored.mediaTypeWhitelist));
+  const [extensions, setExtensions] = useState<ListDraft>(listText(stored.extensionWhitelist));
   const { state: saveState, save } = useSave();
 
+  const edited =
+    <T,>(set: (value: T) => void) =>
+    (value: T): void => {
+      setSaved(false);
+      set(value);
+    };
   const setValue = (id: string, value: string): void => {
     setSaved(false);
     setValues((previous) => ({ ...previous, [id]: value }));
@@ -78,19 +104,20 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
           event.preventDefault();
           setSaved(false);
           save(async () => {
-            await api.updateSettings({ locale });
+            const answer = await api.updateSettings({
+              locale,
+              mediaTypeWhitelist: listNames(mediaTypes),
+              extensionWhitelist: listNames(extensions),
+              disableFileValidation: disabled,
+            });
+            setMediaTypes(listText(answer.mediaTypeWhitelist));
+            setExtensions(listText(answer.extensionWhitelist));
+            setDisabled(answer.disableFileValidation);
             setSaved(true);
           });
         }}
       >
-        <LocaleSelect
-          id="setting-locale"
-          value={locale}
-          onChange={(value) => {
-            setSaved(false);
-            setLocale(value);
-          }}
-        />
+        <LocaleSelect id="setting-locale" value={locale} onChange={edited(setLocale)} />
         {SETTING_FIELDS.map((field) =>
           field.kind === 'text' ? (
             <p key={field.id}>
@@ -118,6 +145,46 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
             </p>
           ),
         )}
+        <fieldset>
+          <legend>{t('settings.security')}</legend>
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={disabled}
+                aria-describedby="setting-disable_file_validation-info"
+                onChange={(event) => {
+                  edited(setDisabled)(event.target.checked);
+                }}
+              />
+              {t('settings.disableFileValidation')}
+            </label>
+            <br />
+            <small id="setting-disable_file_validation-info">
+              {t('settings.disableFileValidationInfo')}
+            </small>
+          </p>
+          <AllowListField
+            id="media_type_whitelist"
+            label={t('settings.mediaTypeWhitelist')}
+            info={t('settings.mediaTypeWhitelistInfo')}
+            restoreLabel={t('settings.restoreMediaTypes')}
+            restoredNote={t('settings.restoredOnSave')}
+            emptyNote={t('settings.emptyListRefusesAll')}
+            draft={mediaTypes}
+            onChange={edited(setMediaTypes)}
+          />
+          <AllowListField
+            id="extension_whitelist"
+            label={t('settings.extensionWhitelist')}
+            info={t('settings.extensionWhitelistInfo')}
+            restoreLabel={t('settings.restoreExtensions')}
+            restoredNote={t('settings.restoredOnSave')}
+            emptyNote={t('settings.emptyListRefusesAll')}
+            draft={extensions}
+            onChange={edited(setExtensions)}
+          />
+        </fieldset>
         <button type="submit" disabled={saveState.status === 'saving'}>
           {t('action.save')}
         </button>
@@ -126,5 +193,69 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
       {saved ? <p role="status">{t('settings.saved')}</p> : null}
       <p>{t('settings.note')}</p>
     </section>
+  );
+};
+
+interface AllowListFieldProps {
+  readonly id: string;
+  readonly label: string;
+  readonly info: string;
+  readonly restoreLabel: string;
+  readonly restoredNote: string;
+  readonly emptyNote: string;
+  readonly draft: ListDraft;
+  readonly onChange: (draft: ListDraft) => void;
+}
+
+/**
+ * `Form\Element\RestoreTextarea`: a comma-separated list and its restore
+ * button. Under the list a note says what saving will do when that differs
+ * from what the text shows: a pending restore, or an empty list, which
+ * refuses every file and which upstream saves without a word.
+ */
+const AllowListField = ({
+  id,
+  label,
+  info,
+  restoreLabel,
+  restoredNote,
+  emptyNote,
+  draft,
+  onChange,
+}: AllowListFieldProps): ReactElement => {
+  const names = listNames(draft);
+  const note = names === null ? restoredNote : names.length === 0 ? emptyNote : null;
+  const described = [`setting-${id}-info`, ...(note === null ? [] : [`setting-${id}-note`])];
+  return (
+    <p>
+      <label htmlFor={`setting-${id}`}>{label}</label>
+      <br />
+      <small id={`setting-${id}-info`}>{info}</small>
+      <br />
+      <textarea
+        id={`setting-${id}`}
+        rows={4}
+        aria-describedby={described.join(' ')}
+        value={draft ?? ''}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      />
+      {note === null ? null : (
+        <>
+          <br />
+          <small id={`setting-${id}-note`}>{note}</small>
+        </>
+      )}
+      <br />
+      <button
+        type="button"
+        onClick={() => {
+          onChange(null);
+        }}
+      >
+        {restoreLabel}
+      </button>
+    </p>
   );
 };

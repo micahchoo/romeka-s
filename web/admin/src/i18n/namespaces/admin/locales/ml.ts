@@ -106,7 +106,21 @@ export const ml: AdminMessages = {
   'settings.versionNotifications': 'പതിപ്പ് അറിയിപ്പുകൾ',
   'settings.saved': 'ക്രമീകരണങ്ങൾ പുതുക്കി.',
   'settings.note':
-    'പോർട്ട് സേവ് ചെയ്യുന്നത് ലൊക്കേൽ മാത്രമാണ്; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
+    'പോർട്ട് ലൊക്കേലും സുരക്ഷാ ക്രമീകരണങ്ങളും സേവ് ചെയ്യുന്നു; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
+  'settings.security': 'സുരക്ഷ',
+  'settings.disableFileValidation': 'ഫയൽ വാലിഡേഷൻ ഡിസേബിൾ ചെയ്യുക',
+  'settings.disableFileValidationInfo':
+    'ഇത് ചെക്ക് ചെയ്താൽ ഫയൽ മീഡിയ ടൈപ്പും എക്സ്റ്റൻഷനും വാലിഡേഷൻ ഡിസേബിൾ ആകും.',
+  'settings.mediaTypeWhitelist': 'അനുവദനീയമായ മീഡിയ ടൈപ്പുകൾ',
+  'settings.mediaTypeWhitelistInfo':
+    'ഫയൽ അപ്‌ലോഡുകൾക്കായി അനുവദനീയമായ മീഡിയ ടൈപ്പുകളുടെ ഒരു കോമ-വേർതിരിച്ച പട്ടിക.',
+  'settings.restoreMediaTypes': 'ഡിഫോൾട്ട് മീഡിയ ടൈപ്പുകൾ പുനഃസ്ഥാപിക്കുക',
+  'settings.extensionWhitelist': 'അനുവദനീയമായ ഫയൽ എക്സ്റ്റൻഷനുകൾ',
+  'settings.extensionWhitelistInfo':
+    'ഫയൽ അപ്‌ലോഡുകൾക്കായി അനുവദനീയമായ ഫയൽ എക്സ്റ്റൻഷനുകളുടെ ഒരു കോമ-വേർതിരിച്ച പട്ടിക.',
+  'settings.restoreExtensions': 'ഡിഫോൾട്ട് എക്സ്റ്റൻഷനുകൾ പുനഃസ്ഥാപിക്കുക',
+  'settings.restoredOnSave': 'സേവ് ചെയ്യുമ്പോൾ ഡിഫോൾട്ട് ലിസ്റ്റ് പുനഃസ്ഥാപിക്കപ്പെടും.',
+  'settings.emptyListRefusesAll': 'ഒരു ശൂന്യമായ ലിസ്റ്റ് എല്ലാ ഫയലുകളെയും നിരസിക്കുന്നു.',
   'settings.locale': 'ലൊക്കേൽ',
   'settings.localeDefault': 'ഡിഫോൾട്ട്',
   'systemInfo.omeka': 'Omeka S',

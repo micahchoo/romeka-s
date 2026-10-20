@@ -9,13 +9,13 @@
 
 use omeka_db::rows::MediaRow;
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{Store, StorePrefix, storage_path};
 
 use crate::errors::ApiError;
 
 /// Delete every stored file `row` names. A `None` store means the process
 /// carries no file store, so there is nothing to reach.
-pub fn delete_media_files(store: Option<&FileStore>, row: &MediaRow) -> Result<(), ApiError> {
+pub fn delete_media_files(store: Option<&dyn Store>, row: &MediaRow) -> Result<(), ApiError> {
     let Some(store) = store else {
         return Ok(());
     };
@@ -23,7 +23,7 @@ pub fn delete_media_files(store: Option<&FileStore>, row: &MediaRow) -> Result<(
         && let Some(name) = filename(row.storage_id.as_deref(), row.extension.as_deref())
     {
         store
-            .delete(&FileStore::storage_path(StorePrefix::Original, &name, None))
+            .delete(&storage_path(StorePrefix::Original, &name, None))
             .map_err(ApiError::internal)?;
     }
     if row.has_thumbnails
@@ -31,7 +31,7 @@ pub fn delete_media_files(store: Option<&FileStore>, row: &MediaRow) -> Result<(
     {
         for kind in ThumbnailType::ALL {
             store
-                .delete(&FileStore::storage_path(
+                .delete(&storage_path(
                     StorePrefix::Thumbnail(kind),
                     storage_id,
                     Some("jpg"),

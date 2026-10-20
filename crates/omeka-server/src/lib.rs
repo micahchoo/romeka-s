@@ -13,6 +13,7 @@
 //! Nothing binds a socket except [`serve`]; tests drive the app through
 //! `tower::ServiceExt::oneshot` or [`serve_with_config`] on an ephemeral port.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::Router;
@@ -21,7 +22,7 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{any, get};
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use sqlx::SqlitePool;
 use tower::ServiceBuilder;
 
@@ -70,6 +71,13 @@ pub const FILES_ROOT: &str = "files";
 /// Storage base URI: upstream's `file_store.local.base_uri`.
 pub const FILES_URI: &str = "/files";
 
+/// The process's store: the one place a backend is chosen. Every caller holds
+/// the trait object, so an object store needs a change here and nowhere else.
+#[must_use]
+pub fn file_store(root: impl Into<PathBuf>) -> Arc<dyn Store> {
+    Arc::new(FileStore::new(root, FILES_URI))
+}
+
 /// State every handler needs: the storage pool, the canonical base URL, the
 /// file store a media delete reaches, the API key credential cache that lives
 /// for the process, the attempt counters, the mailer, and whether cookies are
@@ -78,7 +86,7 @@ pub const FILES_URI: &str = "/files";
 pub struct AppState {
     pub(crate) pool: SqlitePool,
     pub(crate) base: BaseUrl,
-    pub(crate) store: FileStore,
+    pub(crate) store: Arc<dyn Store>,
     /// One [`AuthCache`] per router build, so per process in `serve`.
     /// A key that verified once skips the bcrypt check on its later requests.
     pub(crate) auth_cache: AuthCache,
@@ -95,14 +103,14 @@ pub struct AppState {
 /// store and the job runner.
 #[derive(Clone)]
 pub struct Services {
-    pub store: FileStore,
+    pub store: Arc<dyn Store>,
     pub jobs: Arc<dyn JobDispatch>,
 }
 
 impl Services {
     /// `store`, and no job runner.
     #[must_use]
-    pub fn new(store: FileStore) -> Self {
+    pub fn new(store: Arc<dyn Store>) -> Self {
         Self {
             store,
             jobs: Arc::new(NoDispatch),
@@ -123,12 +131,12 @@ impl Services {
 /// The default [`Config`] supplies the limits; [`build_router_with_config`]
 /// takes the deployment's.
 pub fn build_router(pool: SqlitePool, base: BaseUrl) -> Router {
-    build_router_with_store(pool, base, FileStore::new(FILES_ROOT, FILES_URI))
+    build_router_with_store(pool, base, file_store(FILES_ROOT))
 }
 
 /// Build the application around one file store. A test roots the store in a
 /// tempdir.
-pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: FileStore) -> Router {
+pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: Arc<dyn Store>) -> Router {
     let config = Config {
         base_url: base,
         ..Config::default()
@@ -138,11 +146,7 @@ pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: FileStore
 
 /// Build the application with the configured base URL and limits.
 pub fn build_router_with_config(pool: SqlitePool, config: &Config) -> Router {
-    build_router_with_services(
-        pool,
-        config,
-        Services::new(FileStore::new(FILES_ROOT, FILES_URI)),
-    )
+    build_router_with_services(pool, config, Services::new(file_store(FILES_ROOT)))
 }
 
 /// Build the application with the configured base URL, limits and archive

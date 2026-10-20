@@ -9,11 +9,12 @@
 //!
 //! Deletion is irreversible, so the default is a dry run and `--delete` is
 //! explicit. Three rules keep `--delete` safe. It only handles paths that
-//! `FileStore::list_files` returns, which are regular files inside the store's
-//! own directories and never a symlink. It skips a file modified in the last
-//! [`MIN_AGE`], because an import may be between storing and committing. And it
-//! reads the rows before it lists the files, so a file stored and committed
-//! after the read is young and skipped, never judged against a stale row set.
+//! `Store::list` returns for the store's own folders, which are regular files
+//! directly inside them and never a symlink. It skips a file modified in the
+//! last [`MIN_AGE`], because an import may be between storing and committing.
+//! And it reads the rows before it lists the files, so a file stored and
+//! committed after the read is young and skipped, never judged against a stale
+//! row set.
 //!
 //! Idempotent: the decision for each file is derived from the rows and the
 //! store as they are now, so a second `--delete` finds nothing left to remove.
@@ -25,7 +26,7 @@ use std::time::{Duration, SystemTime};
 use omeka_db::open_file;
 use omeka_db::repos::{AssetRepo, MediaRepo};
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{StorePrefix, storage_path};
 
 use crate::error::CliError;
 
@@ -64,14 +65,11 @@ pub struct SweepReport {
 /// cannot be listed. A file that cannot be removed is in the report.
 pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
     let pool = open_file(&options.database).await?;
-    let store = FileStore::new(
-        crate::commands::media::store_root(&options.database, options.store.as_deref()),
-        "/files",
-    );
+    let store = crate::commands::media::open_store(&options.database, options.store.as_deref());
 
     let mut named = BTreeSet::new();
     for (storage_id, extension) in MediaRepo::new(&pool).stored_names().await? {
-        named.insert(FileStore::storage_path(
+        named.insert(storage_path(
             StorePrefix::Original,
             &storage_id,
             extension.as_deref(),
@@ -81,7 +79,7 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
         }
     }
     for (storage_id, extension) in AssetRepo::new(&pool).stored_names().await? {
-        named.insert(FileStore::storage_path(
+        named.insert(storage_path(
             StorePrefix::Asset,
             &storage_id,
             extension.as_deref(),
@@ -90,7 +88,12 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
 
     let now = SystemTime::now();
     let mut report = SweepReport::default();
-    for file in store.list_files()? {
+    let mut listed = Vec::new();
+    for prefix in StorePrefix::ALL {
+        listed.extend(store.list(prefix.as_str())?);
+    }
+    listed.sort_by(|a, b| a.storage_path.cmp(&b.storage_path));
+    for file in listed {
         if named.contains(&file.storage_path) {
             continue;
         }

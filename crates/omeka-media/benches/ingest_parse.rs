@@ -27,8 +27,9 @@ use omeka_media::ingest::{
     ErrorStore, IngestEnv, IngestRequest, IngesterRegistry, MediaDraft, UploadedFile,
 };
 use omeka_media::oembed::{Oembed, OembedAllowList};
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use omeka_media::testing::{FakeHttp, FakeThumbnailer, PassthroughPurifier, media_row};
+use omeka_media::validation::FileValidation;
 
 /// Everything an ingester reads, over a scratch store the case drops when it ends.
 ///
@@ -40,6 +41,9 @@ struct Fixture {
     oembed: Oembed,
     purifier: PassthroughPurifier,
     thumbnailer: FakeThumbnailer,
+    // The upload body is arbitrary bytes, which upstream's default lists
+    // refuse; the bench times the store, so validation is off.
+    validation: FileValidation,
     _scratch: tempfile::TempDir,
 }
 
@@ -55,6 +59,7 @@ impl Fixture {
             oembed: Oembed::new(OembedAllowList::shipped()),
             purifier: PassthroughPurifier,
             thumbnailer: FakeThumbnailer::default(),
+            validation: FileValidation::Disabled,
             _scratch: scratch,
         }
     }
@@ -78,6 +83,7 @@ impl Fixture {
             purifier: &self.purifier,
             thumbnailer: &self.thumbnailer,
             oembed: &self.oembed,
+            validation: &self.validation,
         }
     }
 }
@@ -262,7 +268,12 @@ fn ingest_parse(c: &mut Criterion) {
             assert!(errors.is_empty(), "{errors:?}");
             let storage_id = draft.row.storage_id.as_deref().unwrap();
             assert!(draft.row.has_original);
-            assert!(state.store.exists(&format!("original/{storage_id}.jpg")));
+            assert!(
+                state
+                    .store
+                    .exists(&format!("original/{storage_id}.jpg"))
+                    .unwrap()
+            );
         },
     );
     ingest_case(
@@ -275,7 +286,12 @@ fn ingest_parse(c: &mut Criterion) {
             assert!(errors.is_empty(), "{errors:?}");
             assert!(draft.row.has_original);
             let storage_id = draft.row.storage_id.as_deref().unwrap();
-            assert!(state.store.exists(&format!("original/{storage_id}.png")));
+            assert!(
+                state
+                    .store
+                    .exists(&format!("original/{storage_id}.png"))
+                    .unwrap()
+            );
         },
     );
     ingest_case(

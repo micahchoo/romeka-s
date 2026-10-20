@@ -108,7 +108,21 @@ export const ta: AdminMessages = {
   'settings.versionNotifications': 'பதிப்பு அறிவிப்புகள்',
   'settings.saved': 'அமைப்புகள் புதுப்பிக்கப்பட்டன.',
   'settings.note':
-    'துறைமுகம் (Port) இருப்பிடத்தை (locale) மட்டுமே சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
+    'போர்ட் இருப்பிடத்தையும் பாதுகாப்பு அமைப்புகளையும் சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
+  'settings.security': 'பாதுகாப்பு',
+  'settings.disableFileValidation': 'கோப்பு சரிபார்ப்பை முடக்கவும்',
+  'settings.disableFileValidationInfo':
+    'கோப்பு ஊடக வகை மற்றும் நீட்டிப்பு சரிபார்ப்பை முடக்க இந்த பெட்டியைத் தேர்வு செய்யவும்.',
+  'settings.mediaTypeWhitelist': 'அனுமதிக்கப்பட்ட ஊடக வகைகள்',
+  'settings.mediaTypeWhitelistInfo':
+    'கோப்பு பதிவேற்றங்களுக்கான அனுமதிக்கப்பட்ட ஊடக வகைகளின் காற்புள்ளி பிரிக்கப்பட்ட பட்டியல்.',
+  'settings.restoreMediaTypes': 'இயல்புநிலை ஊடக வகைகளை மீட்டமைக்கவும்',
+  'settings.extensionWhitelist': 'அனுமதிக்கப்பட்ட கோப்பு நீட்டிப்புகள்',
+  'settings.extensionWhitelistInfo':
+    'கோப்பு பதிவேற்றங்களுக்கான அனுமதிக்கப்பட்ட கோப்பு நீட்டிப்புகளின் காற்புள்ளி பிரிக்கப்பட்ட பட்டியல்.',
+  'settings.restoreExtensions': 'இயல்புநிலை நீட்டிப்புகளை மீட்டமைக்கவும்',
+  'settings.restoredOnSave': 'நீங்கள் சேமிக்கும்போது இயல்புநிலை பட்டியல் மீட்டமைக்கப்படும்.',
+  'settings.emptyListRefusesAll': 'காலியான பட்டியல் ஒவ்வொரு கோப்பையும் நிராகரிக்கும்.',
   'settings.locale': 'இருப்பிடம்',
   'settings.localeDefault': 'இயல்புநிலை',
   'systemInfo.omeka': 'Omeka S',

@@ -15,7 +15,7 @@ use common::{
 use omeka_db::ids::{ItemId, UserId};
 use omeka_db::repos::{ItemRepo, MediaRepo};
 use omeka_db::rows::{NewItem, NewResource};
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 
 fn storage_id() -> &'static str {
     "4b1e5b9e0f9f4f5a8f6b2c3d4e5f6a7b8c9d0e1f"

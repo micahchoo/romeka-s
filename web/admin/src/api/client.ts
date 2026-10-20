@@ -71,6 +71,7 @@ import type {
   UserSettingsWrite,
   UserWrite,
   GlobalSettings,
+  GlobalSettingsWrite,
   Vocabulary,
   VocabularyId,
   VocabularyMemberWrite,
@@ -360,10 +361,18 @@ export class ApiClient {
     return parseGlobalSettings(await this.requestJson('/api/settings'));
   }
 
-  /** `PATCH /api/settings`: store the global `locale`; `''` removes it. */
-  async updateSettings(write: GlobalSettings): Promise<GlobalSettings> {
+  /**
+   * `PATCH /api/settings`: store the global `locale` (`''` removes it) and
+   * the file validation settings.
+   */
+  async updateSettings(write: GlobalSettingsWrite): Promise<GlobalSettings> {
     return parseGlobalSettings(
-      await this.writeJson('PATCH', '/api/settings', { locale: write.locale ?? '' }),
+      await this.writeJson('PATCH', '/api/settings', {
+        locale: write.locale ?? '',
+        media_type_whitelist: write.mediaTypeWhitelist,
+        extension_whitelist: write.extensionWhitelist,
+        disable_file_validation: write.disableFileValidation,
+      }),
     );
   }
 

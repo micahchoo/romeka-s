@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::ids::JobId;
-use omeka_media::store::FileStore;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 
 use crate::error::CliError;
@@ -49,8 +48,7 @@ pub async fn run(
         base_url: Some(base_url.to_string()),
         archive_root: config.archive_root.clone(),
     });
-    let services = Services::new(FileStore::new(store_root, omeka_server::FILES_URI))
-        .with_jobs(Arc::new(jobs));
+    let services = Services::new(omeka_server::file_store(store_root)).with_jobs(Arc::new(jobs));
     Ok(omeka_server::serve_with_services(config, pool, services).await?)
 }
 

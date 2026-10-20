@@ -74,7 +74,7 @@ impl Ingester for Url {
             hydrate_metadata: true,
         };
         if let Err(error) = ingest_file(env, draft, file, flags) {
-            errors.add("error", format!("Error storing downloaded file: {error}"));
+            error.record(errors, "Error storing downloaded file");
         }
     }
 }
@@ -82,6 +82,7 @@ impl Ingester for Url {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::store::Store;
     use crate::testing::{Harness, media_row};
 
     /// `Ingester/Url.php:55`: `ingest_url` is required.
@@ -159,7 +160,12 @@ mod tests {
         assert_eq!(draft.row.extension.as_deref(), Some("jpg"));
         assert!(draft.row.has_original);
         let storage_id = draft.row.storage_id.clone().expect("storage id");
-        assert!(harness.store.exists(&format!("original/{storage_id}.jpg")));
+        assert!(
+            harness
+                .store
+                .exists(&format!("original/{storage_id}.jpg"))
+                .unwrap()
+        );
         assert_eq!(
             harness.http.calls(),
             ["https://example.org/images/photo.jpg"]
@@ -186,6 +192,39 @@ mod tests {
         assert_eq!(draft.row.extension.as_deref(), Some("jpg"));
         assert!(draft.row.sha256.is_some());
         let storage_id = draft.row.storage_id.clone().expect("storage id");
-        assert!(!harness.store.exists(&format!("original/{storage_id}.jpg")));
+        assert!(
+            !harness
+                .store
+                .exists(&format!("original/{storage_id}.jpg"))
+                .unwrap()
+        );
+    }
+
+    /// `Ingester/Url.php` hands the download to `mediaIngestFile`, which
+    /// validates it: an executable is refused by its media type, and nothing
+    /// is stored, even with `store_original` false.
+    #[test]
+    fn url_refuses_a_download_outside_the_allow_lists() {
+        let mut exe = vec![0; 0x80];
+        exe[..2].copy_from_slice(b"MZ");
+        exe[0x3C] = 0x40;
+        exe[0x40..0x46].copy_from_slice(b"PE\x00\x00\x4c\x01");
+        let harness = Harness::new("url-refused").with_body("https://example.org/setup.exe", exe);
+        let env = harness.env();
+        let request = IngestRequest::from_value(serde_json::json!({
+            "ingest_url": "https://example.org/setup.exe",
+            "store_original": false
+        }));
+        let mut draft = MediaDraft::new(media_row(1, "url", "file"));
+        let mut errors = ErrorStore::default();
+        Url.ingest(&mut draft, &request, &env, &mut errors);
+        assert_eq!(
+            errors.messages_for("file"),
+            vec![
+                "Error validating \"/setup.exe\". Cannot store files with the media type \"application/x-dosexec\"."
+            ]
+        );
+        assert!(draft.row.storage_id.is_none());
+        assert!(!draft.row.has_thumbnails);
     }
 }

@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 use omeka_media::ThumbnailType;
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use omeka_media::thumbnailer::{ThumbnailOutcome, ThumbnailSkip, generate_thumbnails};
 
 /// A temporary store that removes its tree when the test ends.
@@ -81,10 +81,10 @@ fn generated_image_produces_three_files_with_the_expected_dimensions() {
             "{}/4b1e5b9e0f9f4f5a8f6b2c3d4e5f6a7b8c9d0e1f.jpg",
             kind.as_str()
         );
-        assert!(temp.store.exists(&path), "{path} is missing");
+        assert!(temp.store.exists(&path).unwrap(), "{path} is missing");
         assert_eq!(dimensions(&temp.store.read(&path).expect("read")), size);
     }
-    assert!(!temp.store.exists("thumbnailer-junk"));
+    assert!(!temp.store.exists("thumbnailer-junk").unwrap());
 }
 
 /// A second run finds every file present and writes none of them. The proof
@@ -149,8 +149,8 @@ fn a_partial_tree_is_completed() {
         .map(|kind| format!("{}/{storage_id}.jpg", kind.as_str()))
         .collect();
     temp.store.put(b"half", &paths[0]).expect("seed");
-    assert!(temp.store.exists(&paths[0]));
-    assert!(!temp.store.exists(&paths[1]));
+    assert!(temp.store.exists(&paths[0]).unwrap());
+    assert!(!temp.store.exists(&paths[1]).unwrap());
 
     let outcome = generate_thumbnails(&temp.store, storage_id, &png(600, 300), Some("image/png"))
         .expect("generate");
@@ -162,7 +162,7 @@ fn a_partial_tree_is_completed() {
     ];
     for (kind, size) in expected {
         let path = format!("{}/{storage_id}.jpg", kind.as_str());
-        assert!(temp.store.exists(&path), "{path} is missing");
+        assert!(temp.store.exists(&path).unwrap(), "{path} is missing");
         assert_eq!(dimensions(&temp.store.read(&path).expect("read")), size);
     }
 }
@@ -180,7 +180,7 @@ fn an_unsupported_type_is_a_typed_skip() {
             "application/pdf".to_string()
         ))
     );
-    assert!(!temp.store.exists("large/skipme.jpg"));
+    assert!(!temp.store.exists("large/skipme.jpg").unwrap());
 }
 
 /// A listed type whose bytes are not an image is a typed skip, not a panic, and
@@ -199,5 +199,5 @@ fn an_undecodable_source_is_a_typed_skip() {
         matches!(outcome, ThumbnailOutcome::Skipped(_)),
         "{outcome:?}"
     );
-    assert!(!temp.store.exists("large/nope.jpg"));
+    assert!(!temp.store.exists("large/nope.jpg").unwrap());
 }

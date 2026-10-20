@@ -18,8 +18,8 @@ pub mod decisions;
 pub mod evidence;
 pub mod plan;
 pub mod sheet;
-pub mod tags;
 pub mod starters;
+pub mod tags;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};

@@ -7,11 +7,12 @@
 //! mirror the two upstream interfaces.
 //!
 //! An ingester reads the API request, validates it, fills a [`MediaDraft`], and
-//! stores files through [`crate::store::FileStore`]. Every external dependency
+//! stores files through [`crate::store::Store`]. Every external dependency
 //! is a trait in [`IngestEnv`], so a test drives an ingester with fakes and no
 //! network, no database and no temporary server.
 
 pub mod fallback;
+mod file;
 pub mod html;
 pub mod iiif;
 pub mod iiif_presentation;
@@ -29,10 +30,10 @@ use serde_json::{Map, Value};
 use crate::data::MediaData;
 use crate::http::HttpFetch;
 use crate::oembed::Oembed;
-use crate::store::{
-    FileStore, StoreError, StorePrefix, Thumbnailer, extension_from_source_name, new_storage_id,
-    sha256_hex,
-};
+use crate::store::{Store, Thumbnailer};
+use crate::validation::FileValidation;
+
+pub use file::{IngestFile, IngestFileError, IngestFlags, ingest_file};
 
 /// A key and message pair, matching one `ErrorStore::addError` call
 /// (`Stdlib/ErrorStore.php:23`).
@@ -231,7 +232,7 @@ impl Purifier for HtmlPurifier {
 /// Every external dependency an ingester may use.
 pub struct IngestEnv<'a> {
     /// The file store.
-    pub store: &'a FileStore,
+    pub store: &'a dyn Store,
     /// The network seam.
     pub http: &'a dyn HttpFetch,
     /// The HTML purifier.
@@ -240,131 +241,8 @@ pub struct IngestEnv<'a> {
     pub thumbnailer: &'a dyn Thumbnailer,
     /// The oEmbed service.
     pub oembed: &'a Oembed,
-}
-
-/// What `TempFile::mediaIngestFile` should do with a file
-/// (`File/TempFile.php:405`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IngestFlags {
-    /// Store the original file.
-    pub store_original: bool,
-    /// Create and store thumbnails.
-    pub store_thumbnails: bool,
-    /// Set extension, media type, checksum and size even when the original is
-    /// not stored.
-    pub hydrate_metadata: bool,
-}
-
-impl Default for IngestFlags {
-    fn default() -> Self {
-        Self {
-            store_original: true,
-            store_thumbnails: true,
-            hydrate_metadata: false,
-        }
-    }
-}
-
-/// A file handed to the store, the port's shape for a `TempFile`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IngestFile {
-    /// The file bytes.
-    pub bytes: Vec<u8>,
-    /// The source name, used for the extension and stored as `media.source`.
-    pub source_name: Option<String>,
-    /// A fixed storage id, or `None` to generate one.
-    pub storage_id: Option<String>,
-    /// The detected media type, or `None` when the boundary did not detect one.
-    pub media_type: Option<String>,
-}
-
-impl IngestFile {
-    /// A file with only bytes; the storage id is generated.
-    #[must_use]
-    pub fn new(bytes: impl Into<Vec<u8>>) -> Self {
-        Self {
-            bytes: bytes.into(),
-            source_name: None,
-            storage_id: None,
-            media_type: None,
-        }
-    }
-
-    /// Set the source name.
-    #[must_use]
-    pub fn with_source_name(mut self, source_name: impl Into<String>) -> Self {
-        self.source_name = Some(source_name.into());
-        self
-    }
-
-    /// Set a fixed storage id, which tests use to make paths predictable.
-    #[must_use]
-    pub fn with_storage_id(mut self, storage_id: impl Into<String>) -> Self {
-        self.storage_id = Some(storage_id.into());
-        self
-    }
-
-    /// Set the media type.
-    #[must_use]
-    pub fn with_media_type(mut self, media_type: impl Into<String>) -> Self {
-        self.media_type = Some(media_type.into());
-        self
-    }
-}
-
-/// Store a file and record its facts on the draft, matching
-/// `TempFile::mediaIngestFile`.
-pub fn ingest_file(
-    env: &IngestEnv<'_>,
-    draft: &mut MediaDraft,
-    file: IngestFile,
-    flags: IngestFlags,
-) -> Result<(), StoreError> {
-    let storage_id = match file.storage_id {
-        Some(id) => id,
-        None => new_storage_id()?,
-    };
-    let extension = file
-        .source_name
-        .as_deref()
-        .and_then(extension_from_source_name);
-    // `TempFile::getMediaType` sniffs the bytes with `finfo`; a boundary that
-    // already knows the type (the CLI, reading the source name) supplies it.
-    let media_type = file
-        .media_type
-        .clone()
-        .or_else(|| Some(crate::media_type::detected_media_type(&file.bytes)));
-    draft.row.storage_id = Some(storage_id.clone());
-
-    if flags.store_original || flags.hydrate_metadata {
-        draft.row.extension = extension.clone();
-        draft.row.media_type = media_type.clone();
-        draft.row.sha256 = Some(sha256_hex(&file.bytes));
-        draft.row.size = Some(file.bytes.len() as i64);
-    }
-
-    if flags.store_original {
-        let path =
-            FileStore::storage_path(StorePrefix::Original, &storage_id, extension.as_deref());
-        env.store.put(&file.bytes, &path)?;
-        draft.row.has_original = true;
-    }
-
-    if flags.store_thumbnails {
-        let thumbnails = env
-            .thumbnailer
-            .thumbnails(&file.bytes, media_type.as_deref());
-        let mut made = false;
-        for (kind, bytes) in thumbnails {
-            let path =
-                FileStore::storage_path(StorePrefix::Thumbnail(kind), &storage_id, Some("jpg"));
-            env.store.put(&bytes, &path)?;
-            made = true;
-        }
-        draft.row.has_thumbnails = made;
-    }
-
-    Ok(())
+    /// The file validation settings every stored original is checked against.
+    pub validation: &'a FileValidation,
 }
 
 /// Whether a JSON value is truthy under PHP's rules.
