@@ -30,7 +30,7 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 use omeka_db::DbError;
-use omeka_db::repos::{MediaFilter, MediaRepo, Paging};
+use omeka_db::repos::{DatabaseRepo, MediaFilter, MediaRepo, Paging};
 use omeka_media::file_render::ThumbnailType;
 use omeka_media::store::{StorePrefix, storage_path};
 use omeka_media::thumbnailer::thumbnail_path;
@@ -265,11 +265,10 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<StoreFileRef>) -> Result<(), CliE
 /// # Errors
 /// A [`DbError`] when a count query fails.
 pub async fn count_rows(pool: &SqlitePool) -> Result<BTreeMap<String, i64>, DbError> {
+    let database = DatabaseRepo::new(pool);
     let mut counts = BTreeMap::new();
     for table in COUNTED_TABLES {
-        let sql = format!("SELECT COUNT(*) FROM \"{table}\"");
-        let count: i64 = sqlx::query_scalar(&sql).fetch_one(pool).await?;
-        counts.insert((*table).to_string(), count);
+        counts.insert((*table).to_string(), database.count_rows(table).await?);
     }
     Ok(counts)
 }

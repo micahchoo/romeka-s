@@ -6,9 +6,8 @@
 //! media store) and `serve` (the HTTP server). Jobs mirror
 //! `application/src/Job/*`; see [`jobs`].
 //!
-//! Persistence goes through `omeka-db` repositories. The four tables those
-//! repositories do not cover (`setting`, `job`, `fulltext_search`, `item_site`)
-//! are reached through [`store`], which documents why and what would retire it.
+//! Persistence goes through `omeka-db` repositories, the only crate that holds
+//! SQL.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
@@ -17,7 +16,6 @@ pub mod commands;
 pub mod csv;
 pub mod error;
 pub mod jobs;
-pub mod store;
 mod system_api;
 pub mod tar;
 pub mod terms;

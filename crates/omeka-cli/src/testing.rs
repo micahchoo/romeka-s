@@ -90,7 +90,7 @@ pub async fn site_items(pool: &SqlitePool, site: SiteId) -> Vec<ItemId> {
 /// Compose a job row in `starting`, the way `Dispatcher::dispatch` composes one
 /// before it starts a process. The tests run the row with `Runner::run`.
 pub async fn compose(pool: &SqlitePool, job: &dyn Job, args: Value) -> JobId {
-    crate::store::job_create(pool, job.class(), &args, None)
+    crate::jobs::compose_job(pool, job.class(), &args, None)
         .await
         .expect("compose job row")
 }

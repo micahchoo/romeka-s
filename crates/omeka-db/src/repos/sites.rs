@@ -302,6 +302,14 @@ where
         row.as_ref().map(SitePageRow::from_db_row::<DB>).transpose()
     }
 
+    /// Every page of every site, in creation order, for `SitePageAdapter::search`.
+    pub async fn list_all_pages(&self) -> Result<Vec<SitePageRow>, DbError> {
+        let rows = sqlx::query("SELECT * FROM site_page ORDER BY id")
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter().map(SitePageRow::from_db_row::<DB>).collect()
+    }
+
     /// The site's pages, in creation order. Upstream orders navigation by `site.navigation`, not by
     /// a page column.
     pub async fn list_pages(&self, site_id: SiteId) -> Result<Vec<SitePageRow>, DbError> {

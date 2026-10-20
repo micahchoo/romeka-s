@@ -136,6 +136,16 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
+    /// Every index row, by resource name then id.
+    pub async fn list(&self) -> Result<Vec<FulltextSearchRow>, DbError> {
+        let rows = sqlx::query::<DB>("SELECT * FROM fulltext_search ORDER BY resource, id")
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter()
+            .map(FulltextSearchRow::from_db_row::<DB>)
+            .collect()
+    }
+
     /// `IndexFulltextSearch::perform`'s first statement: empty the index.
     pub async fn clear(&self) -> Result<(), DbError> {
         sqlx::query("DELETE FROM fulltext_search")

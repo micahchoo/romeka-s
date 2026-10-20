@@ -191,12 +191,9 @@ authenticated caller; `value_annotations`, `jobs` and `modules` need a
 privileged one (`global_admin`, `site_admin`, `editor`, `reviewer`); everything
 else is open, including anonymous requests.
 
-`src/read/system.rs` is the one place in this crate that issues SQL. `DESIGN.md`
-says SQL strings live in `omeka-db` only, and the readgaps brief forbids editing
-that crate, so the asset, job, module, site_page and value_annotation listings
-run their own queries and parse every row through the matching
-`omeka_db::rows` struct. Reported as a deviation; the fix is a repository per
-table in `omeka-db`.
+This crate issues no SQL. The asset, job, module, site_page and
+value_annotation listings in `src/read/system.rs`, the page relations, the term
+catalogue and the list window all read through `omeka-db` repositories.
 
 ## Write endpoints
 

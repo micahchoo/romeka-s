@@ -413,8 +413,8 @@ mod tests {
         .expect("invite");
         let second_key = second.invite.expect("an invite").key;
         assert_ne!(first_key, second_key);
-        let keys: i64 = sqlx::query_scalar("SELECT count(*) FROM password_creation")
-            .fetch_one(&db.pool)
+        let keys = omeka_db::repos::DatabaseRepo::new(&db.pool)
+            .count_rows("password_creation")
             .await
             .expect("count keys");
         assert_eq!(keys, 2, "one live key per invited user");

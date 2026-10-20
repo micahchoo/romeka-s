@@ -1,7 +1,7 @@
 //! `romeka backup`: one archive holding a consistent database copy and the store.
 //!
-//! The database copy comes from `VACUUM INTO`, which writes a complete SQLite
-//! file from a read transaction. It sees one point in time even while the server
+//! The database copy comes from `DatabaseRepo::snapshot_into`, SQLite's
+//! `VACUUM INTO`, which writes a complete SQLite file from a read transaction. It sees one point in time even while the server
 //! writes, which a file copy of a write-ahead-log database does not: the copy
 //! would miss the frames still in the `-wal`. `VACUUM INTO` also compacts, so the
 //! archive holds no free pages.
@@ -19,6 +19,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use omeka_db::open_file;
+use omeka_db::repos::DatabaseRepo;
 
 use crate::archive::{
     COMMIT, DATABASE_ENTRY, DatabaseEntry, FORMAT, FORMAT_VERSION, MANIFEST_ENTRY, Manifest,
@@ -138,11 +139,7 @@ async fn build(options: &BackupOptions, staging: &Staging) -> Result<BackupRepor
 async fn export_database(database: &Path, store: &Path, target: &Path) -> Result<(), CliError> {
     let pool = open_file(database).await?;
     verify_store_references(&pool, store).await?;
-    sqlx::query("VACUUM INTO ?")
-        .bind(target.to_string_lossy().as_ref())
-        .execute(&pool)
-        .await
-        .map_err(omeka_db::DbError::from)?;
+    DatabaseRepo::new(&pool).snapshot_into(target).await?;
     pool.close().await;
     Ok(())
 }

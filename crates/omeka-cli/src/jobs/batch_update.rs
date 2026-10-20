@@ -288,7 +288,8 @@ mod tests {
         .await;
 
         assert_eq!(texts(&db.pool, item).await, ["old"]);
-        let log = crate::store::job_get(&db.pool, job_id)
+        let log = omeka_db::repos::JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .and_then(|job| job.log)
@@ -381,7 +382,8 @@ mod tests {
             .collect();
         assert_eq!(subject_texts, ["one", "two"]);
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),

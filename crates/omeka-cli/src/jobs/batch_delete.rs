@@ -127,7 +127,8 @@ mod tests {
         assert_eq!(remaining.len(), 2);
         assert!(remaining.iter().all(|row| row.resource.is_public));
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),
@@ -153,7 +154,8 @@ mod tests {
             "got {error:?}"
         );
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),

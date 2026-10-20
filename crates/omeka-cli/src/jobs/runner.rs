@@ -10,10 +10,10 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use omeka_db::ids::JobId;
+use omeka_db::repos::JobRepo;
 
 use super::status::JobStatus;
 use super::{JobContext, JobEnv, JobError, job_for};
-use crate::store;
 
 /// Runs one stored job.
 pub struct Runner<'a> {
@@ -45,7 +45,9 @@ impl<'a> Runner<'a> {
     /// [`JobError::InvalidArgument`] for a missing row or an unknown
     /// `job.class`; the job's own error after the row is marked `error`.
     pub async fn run(&self, id: JobId) -> Result<JobStatus, JobError> {
-        let row = store::job_get(self.pool, id)
+        let jobs = JobRepo::new(self.pool);
+        let row = jobs
+            .get(id)
             .await?
             .ok_or_else(|| JobError::InvalidArgument(format!("no job with id {}", id.0)))?;
         let stored = row.status.as_deref().and_then(JobStatus::parse);
@@ -58,14 +60,14 @@ impl<'a> Runner<'a> {
             Some(job) => job,
             None => {
                 let message = format!("unknown job class \"{}\"", row.class);
-                let _ = store::job_append_log(self.pool, id, &message).await;
-                let _ = store::job_finish(self.pool, id, JobStatus::Error.as_str()).await;
+                let _ = jobs.append_log(id, &message).await;
+                let _ = jobs.finish(id, JobStatus::Error.as_str()).await;
                 return Err(JobError::InvalidArgument(message));
             }
         };
         let args = row.args.clone().unwrap_or(Value::Null);
 
-        store::job_start(self.pool, id, std::process::id()).await?;
+        jobs.start(id, &std::process::id().to_string()).await?;
         let context = JobContext {
             pool: self.pool,
             job_id: id,
@@ -74,19 +76,16 @@ impl<'a> Runner<'a> {
         };
         match job.perform(&context).await {
             Ok(()) => {
-                let stored = store::job_status(self.pool, id)
-                    .await?
-                    .as_deref()
-                    .and_then(JobStatus::parse);
+                let stored = jobs.status(id).await?.as_deref().and_then(JobStatus::parse);
                 let status = stored.unwrap_or(JobStatus::Starting).ending();
-                store::job_finish(self.pool, id, status.as_str()).await?;
-                store::job_clear_pid(self.pool, id).await?;
+                jobs.finish(id, status.as_str()).await?;
+                jobs.clear_pid(id).await?;
                 Ok(status)
             }
             Err(error) => {
-                let _ = store::job_append_log(self.pool, id, &error.to_string()).await;
-                let _ = store::job_finish(self.pool, id, JobStatus::Error.as_str()).await;
-                let _ = store::job_clear_pid(self.pool, id).await;
+                let _ = jobs.append_log(id, &error.to_string()).await;
+                let _ = jobs.finish(id, JobStatus::Error.as_str()).await;
+                let _ = jobs.clear_pid(id).await;
                 Err(error)
             }
         }
@@ -127,7 +126,8 @@ mod tests {
         let status = Runner::new(&db.pool).run(job_id).await.expect("run");
 
         assert_eq!(status, JobStatus::Completed);
-        let row = store::job_get(&db.pool, job_id)
+        let row = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row");
@@ -146,7 +146,8 @@ mod tests {
         )
         .await;
         Runner::new(&db.pool).run(job_id).await.expect("run");
-        let ended = store::job_get(&db.pool, job_id)
+        let ended = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row")
@@ -156,7 +157,8 @@ mod tests {
 
         assert_eq!(status, JobStatus::Completed);
         assert_eq!(
-            store::job_get(&db.pool, job_id)
+            JobRepo::new(&db.pool)
+                .get(job_id)
                 .await
                 .unwrap()
                 .expect("row")
@@ -169,7 +171,7 @@ mod tests {
     #[tokio::test]
     async fn an_unknown_class_marks_the_row_error_without_starting_it() {
         let db = seeded_db().await;
-        let job_id = crate::store::job_create(
+        let job_id = crate::jobs::compose_job(
             &db.pool,
             "Omeka\\Job\\Missing",
             &serde_json::json!({}),
@@ -187,7 +189,8 @@ mod tests {
             matches!(error, JobError::InvalidArgument(_)),
             "got {error:?}"
         );
-        let row = store::job_get(&db.pool, job_id)
+        let row = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row");
@@ -214,7 +217,8 @@ mod tests {
             .await
             .expect_err("failure");
 
-        let row = store::job_get(&db.pool, job_id)
+        let row = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row");
@@ -246,7 +250,8 @@ mod tests {
         context.log("first").await.unwrap();
         context.log("second").await.unwrap();
 
-        let row = store::job_get(&db.pool, job_id)
+        let row = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row");
@@ -259,7 +264,8 @@ mod tests {
         for index in 0..200 {
             new_item(&db.pool, &format!("item {index}")).await;
         }
-        crate::store::write_setting(&db.pool, "batch_chunk_size", &serde_json::json!(1))
+        omeka_db::repos::SettingRepo::new(&db.pool)
+            .set("batch_chunk_size", &serde_json::json!(1))
             .await
             .unwrap();
         let job_id = compose(
@@ -272,7 +278,8 @@ mod tests {
         let pool = db.pool.clone();
         let running = tokio::spawn(async move { Runner::new(&pool).run(job_id).await });
 
-        while store::job_status(&db.pool, job_id)
+        while JobRepo::new(&db.pool)
+            .status(job_id)
             .await
             .unwrap()
             .as_deref()
@@ -280,11 +287,12 @@ mod tests {
         {
             tokio::task::yield_now().await;
         }
-        assert!(store::job_request_stop(&db.pool, job_id).await.unwrap());
+        assert!(JobRepo::new(&db.pool).request_stop(job_id).await.unwrap());
 
         let status = running.await.unwrap().expect("run");
         assert_eq!(status, JobStatus::Stopped);
-        let row = store::job_get(&db.pool, job_id)
+        let row = JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .expect("row");

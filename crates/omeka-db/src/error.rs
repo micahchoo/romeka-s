@@ -20,6 +20,14 @@ pub enum DbError {
     /// A value could not be encoded for the database before the statement ran.
     #[error("binding a value: {reason}")]
     Bind { reason: String },
+    /// The operation has no counterpart on this engine, so the port refuses it rather than
+    /// running a partial version.
+    #[error("{engine} does not support {operation}: {reason}")]
+    Unsupported {
+        engine: &'static str,
+        operation: &'static str,
+        reason: &'static str,
+    },
 }
 
 impl DbError {

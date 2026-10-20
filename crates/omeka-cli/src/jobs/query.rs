@@ -11,10 +11,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use omeka_db::ids::{ClassId, ItemSetId, TemplateId, UserId};
-use omeka_db::repos::{ItemFilter, ItemSetFilter, MediaFilter};
+use omeka_db::repos::{ItemFilter, ItemSetFilter, MediaFilter, SettingRepo};
 
 use super::{JobContext, JobError};
-use crate::store;
 
 /// Upstream's default when the `batch_chunk_size` setting is absent.
 pub const DEFAULT_CHUNK_SIZE: i64 = 100;
@@ -85,9 +84,16 @@ pub fn query_arg(context: &JobContext<'_>, name: &str) -> Result<BatchQuery, Job
 /// # Errors
 /// A database error while reading the `batch_chunk_size` setting.
 pub async fn chunk_size(context: &JobContext<'_>) -> Result<usize, JobError> {
-    let configured = store::read_setting_i64(context.pool, "batch_chunk_size")
+    // Upstream `Settings::get` returns the stored value, a number or its text.
+    let configured = match SettingRepo::new(context.pool)
+        .get("batch_chunk_size")
         .await?
-        .unwrap_or(DEFAULT_CHUNK_SIZE);
+    {
+        Some(Value::Number(number)) => number.as_i64(),
+        Some(Value::String(text)) => text.parse().ok(),
+        _ => None,
+    }
+    .unwrap_or(DEFAULT_CHUNK_SIZE);
     let size =
         usize::try_from(configured).unwrap_or(usize::try_from(DEFAULT_CHUNK_SIZE).unwrap_or(1));
     Ok(size.max(1))

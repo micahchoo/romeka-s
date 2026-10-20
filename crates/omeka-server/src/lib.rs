@@ -240,10 +240,7 @@ async fn health() -> Response {
 /// Readiness: the database answers a query. A closed or unreachable pool is a
 /// 503, so a load balancer stops sending traffic until storage is back.
 async fn ready(State(state): State<AppState>) -> Response {
-    match sqlx::query_scalar::<_, i64>("SELECT 1")
-        .fetch_one(&state.pool)
-        .await
-    {
+    match omeka_db::repos::DatabaseRepo::new(&state.pool).ping().await {
         Ok(_) => status_response(StatusCode::OK, "ready"),
         Err(_) => status_response(StatusCode::SERVICE_UNAVAILABLE, "unavailable"),
     }
