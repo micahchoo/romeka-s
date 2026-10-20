@@ -6,11 +6,13 @@
  * its `glossary-check.js`): the left column of its table is Simple's banned
  * list, and "Advanced may show" lists the precise words Advanced may use. A
  * key under `advanced.` is shown in Advanced only, so it is held to the banned
- * list less those words. To ban a word, add it here.
+ * list less those words. The `import-simple` namespace shows in Simple only, so
+ * all of it is held to the banned list. To ban a word, add it here.
  */
 import { describe, expect, it } from 'vitest';
 import { en as importEn } from '../src/i18n/namespaces/import';
 import { en as listsEn } from '../src/i18n/namespaces/import-lists';
+import { en as simple } from '../src/i18n/namespaces/import-simple';
 
 const en: Readonly<Record<string, string>> = { ...importEn, ...listsEn };
 
@@ -64,5 +66,11 @@ describe('import strings use plain words', () => {
     const found = Object.entries(en).flatMap(([key, text]) => bannedIn(key, text));
     expect(found).toEqual([]);
     expect(Object.keys(en).length).toBeGreaterThan(0);
+  });
+
+  it('every Simple screen string passes Simple’s word list', () => {
+    const found = Object.entries(simple).flatMap(([key, text]) => bannedIn(key, text));
+    expect(found).toEqual([]);
+    expect(Object.keys(simple).every((key) => !key.startsWith('advanced.'))).toBe(true);
   });
 });
