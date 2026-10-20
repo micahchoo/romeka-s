@@ -3,10 +3,8 @@
  * what a new site needs; the summary, owner and the rest live in the site's
  * Settings tab once it exists.
  *
- * A new site starts with every public item and keeps in sync with that search,
- * so it shows something on its first visit. Upstream sets `o:assign_new_items`
- * on create for the same reason; the saved search narrows it to public items,
- * and the create applies the search once.
+ * A new site holds no items and does not sync: the curator chooses its items
+ * and item sets on its Items tab, the one place that changes them.
  */
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
@@ -18,9 +16,6 @@ import { Breadcrumb } from './SiteFrame';
 import { ThemeSelect, slugFromTitle } from './siteInfo';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
-
-/** A new site's saved search: every public item (`o:item_pool` as `parse_str` stores it). */
-const DEFAULT_ITEM_POOL = { is_public: '1' };
 
 export const SiteCreatePage = (): ReactElement => {
   const { t } = useTranslator(common, sites);
@@ -46,14 +41,10 @@ export const SiteCreatePage = (): ReactElement => {
         slug: slug.trim(),
         theme,
         summary: null,
-        itemPool: DEFAULT_ITEM_POOL,
+        itemPool: null,
         isPublic,
-        assignNewItems: true,
+        assignNewItems: false,
         owner: null,
-      });
-      await api.changeSiteItems(created.id, {
-        action: 'add',
-        selector: { kind: 'query', query: DEFAULT_ITEM_POOL },
       });
       window.location.hash = `#/sites/${String(created.id)}`;
     });
@@ -83,7 +74,6 @@ export const SiteCreatePage = (): ReactElement => {
             checked={isPublic}
             onChange={setIsPublic}
           />
-          <p className="field-note">{t('sites.createItemsNote')}</p>
         </fieldset>
         {formError === null ? null : <p role="alert">{formError}</p>}
         <SaveStatus state={saveState} />

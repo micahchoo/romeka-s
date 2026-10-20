@@ -590,6 +590,13 @@ impl<'a> RenderContext<'a> {
         self
     }
 
+    /// Whether this render is the admin preview, which may point the curator
+    /// at the admin.
+    #[must_use]
+    pub(crate) fn is_preview(&self) -> bool {
+        self.block_markers == BlockMarkers::Preview
+    }
+
     /// The marker value for one block, `None` when markers are off.
     #[must_use]
     pub(crate) fn block_marker(&self, id: BlockId) -> Option<BlockId> {

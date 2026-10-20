@@ -39,6 +39,8 @@
   "page_not_found": "Page not found",
   "page_not_found_message": "The page you are trying to view does not exist. Use the back button to return to the last page.",
   "forbidden": "Forbidden",
+  "no_site_items_preview": "No items on this site yet. Add items on the Items tab.",
+  "no_site_items": "There are no items to show yet.",
   "search.search": "Search",
   "search.query": "Query",
   "search.submit": "Submit",
