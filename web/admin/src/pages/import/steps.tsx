@@ -1,18 +1,83 @@
 /**
- * Which component renders each step. Each step is its own chunk, fetched the
- * first time it opens, so the Import page's chunk stays inside the per-chunk
- * budget as steps grow.
+ * Where the person is in one import: the mode switch, the Simple step bar or
+ * the Advanced side index, and Simple's Back and Next. Every link names a
+ * place (`screens.ts`), so the browser's own back button walks the same path.
  */
-import { lazy } from 'react';
-import type { ComponentType } from 'react';
-import type { TabProps, TabSlug } from './tabs';
+import type { ReactElement } from 'react';
+import type { ImportId } from '../../api/import-plan';
+import { useImportText } from './messages';
+import { counterpart, placeHref, samePlace, screenOf, stepsOf } from './screens';
+import type { Mode, Place } from './screens';
 
-export const STEPS: Readonly<Record<TabSlug, ComponentType<TabProps>>> = {
-  folder: lazy(() => import('./folder').then((module) => ({ default: module.FolderStep }))),
-  sets: lazy(() => import('./sets').then((module) => ({ default: module.SetsStep }))),
-  types: lazy(() => import('./types').then((module) => ({ default: module.TypesStep }))),
-  sources: lazy(() => import('./sources').then((module) => ({ default: module.SourcesStep }))),
-  grid: lazy(() => import('./grid').then((module) => ({ default: module.GridStep }))),
-  check: lazy(() => import('./check').then((module) => ({ default: module.CheckStep }))),
-  run: lazy(() => import('./run').then((module) => ({ default: module.RunStep }))),
+const MODE_KEYS = {
+  simple: { name: 'shell.simple', note: 'shell.simpleNote' },
+  advanced: { name: 'shell.advanced', note: 'shell.advancedNote' },
+} as const;
+
+/** Two links, one per mode; the other mode's link lands on the screen that shows the same thing. */
+export const ModeSwitch = ({ id, place }: { readonly id: ImportId; readonly place: Place }): ReactElement => {
+  const { t } = useImportText();
+  const other = counterpart(place);
+  const hrefOf = (mode: Mode): string => placeHref(id, mode === place.mode ? place : other);
+  return (
+    <div className="import-mode-row">
+      <div className="import-mode" role="group" aria-label={t('shell.mode')}>
+        {(['simple', 'advanced'] as const).map((mode) => (
+          <a key={mode} href={hrefOf(mode)} aria-current={mode === place.mode ? 'page' : undefined}>
+            {t(MODE_KEYS[mode].name)}
+          </a>
+        ))}
+      </div>
+      <span className="muted">{t(MODE_KEYS[place.mode].note)}</span>
+    </div>
+  );
+};
+
+/** Simple's numbered steps, or Advanced's index of settings; a sub-screen marks its parent. */
+export const Steps = ({ id, place }: { readonly id: ImportId; readonly place: Place }): ReactElement => {
+  const { t } = useImportText();
+  const { steps, current } = stepsOf(place);
+  const links = steps.map((step) => {
+    const key = screenOf(step).step;
+    const here = samePlace(step, current);
+    return (
+      <li key={step.screen}>
+        <a href={placeHref(id, step)} aria-current={here ? (place.mode === 'simple' ? 'step' : 'page') : undefined}>
+          {key === undefined ? step.screen : t(key)}
+        </a>
+      </li>
+    );
+  });
+  return place.mode === 'simple' ? (
+    <ol className="import-steps" aria-label={t('shell.steps')}>
+      {links}
+    </ol>
+  ) : (
+    <nav className="import-index" aria-label={t('shell.settings')}>
+      <ul>{links}</ul>
+    </nav>
+  );
+};
+
+/** Back to the step before (or to the parent of a sub-screen), and Next to the step after. */
+export const StepNav = ({ id, place }: { readonly id: ImportId; readonly place: Place }): ReactElement | null => {
+  const { t } = useImportText();
+  if (place.mode !== 'simple') {
+    return null;
+  }
+  const { steps, current } = stepsOf(place);
+  const parent = screenOf(place).parent;
+  const index = steps.findIndex((step) => samePlace(step, current));
+  const back = parent === undefined ? steps[index - 1] : current;
+  const next = parent === undefined ? steps[index + 1] : undefined;
+  return (
+    <div className="import-step-nav">
+      {back === undefined ? <span /> : <a className="import-back" href={placeHref(id, back)}>{t('shell.back')}</a>}
+      {next === undefined ? null : (
+        <a className="button-link" href={placeHref(id, next)}>
+          {t('shell.next')}
+        </a>
+      )}
+    </div>
+  );
 };

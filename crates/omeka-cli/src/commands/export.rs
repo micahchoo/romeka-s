@@ -14,22 +14,18 @@
 //! Upstream at the frozen SHA has no CSV export. `Admin/*Export*` does not
 //! exist; the only export is `Admin/ResourceTemplateController::exportAction`,
 //! which writes one resource template as JSON. So there is no upstream column
-//! set to match. This command defines one that reads back:
+//! set to match. This command defines one:
 //!
 //! - One row per item, one header cell per value column.
 //! - A cell names a property as `prefix:local_name`, the term
-//!   [`crate::terms::resolve_property`] resolves and `romeka import csv` reads.
+//!   [`crate::terms::resolve_property`] resolves.
 //! - The default column set is every property that holds a value on any
 //!   exported item: `dcterms:title` first, then the rest by term. `--columns`
 //!   names them instead, in the order given.
 //! - A property with several values on any item gets one column per value, and
-//!   the header repeats the term. `romeka import csv` reads two cells with the
-//!   same term as two values, so repetition is what makes a multi-valued item
-//!   round-trip.
+//!   the header repeats the term, so a multi-valued item keeps every value.
 //! - Values flatten to text: a literal is its `@value`, a URI its `@id`, a
-//!   resource value its display title. Re-importing stores every cell as a
-//!   literal, so a URI or resource value comes back as a literal of that text,
-//!   and a language tag is dropped.
+//!   resource value its display title. A language tag is dropped.
 //!
 //! The column set is a port decision, not an upstream one. It is recorded here
 //! and in `crates/omeka-cli/README.md`.
@@ -277,7 +273,7 @@ struct Column {
 /// The header and its repeats.
 ///
 /// `dcterms:title` leads the derived set because it is the item's denormalised
-/// title, which `romeka import csv` reads from the first non-empty title cell.
+/// title, which is the first non-empty title cell.
 fn columns(rows: &[ItemRow], requested: &[String]) -> Vec<Column> {
     let terms = column_terms(rows, requested);
     let mut columns = Vec::new();

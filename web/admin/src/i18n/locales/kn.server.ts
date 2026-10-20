@@ -219,6 +219,9 @@ export const knServer: ServerCatalogue = {
   'server.importResourceGone': 'ಈ ದಾಖಲೆ ಬದಲಾಯಿಸುವ ಐಟಂ, ಮೀಡಿಯಾ ಅಥವಾ ಐಟಂ ಸೆಟ್ ಈಗ Omeka ನಲ್ಲಿ ಇಲ್ಲ.',
   'server.importRecordNotSaved': 'ಈ ದಾಖಲೆಯನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
   'server.importLinksNotSaved': 'ಈ ದಾಖಲೆಯ ಲಿಂಕ್‌ಗಳನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.importRecordNotDeleted': 'ಇದನ್ನು ಅಳಿಸಲಾಗಿಲ್ಲ: {reason}',
+  'server.importDeleteNotUndone':
+    'ಐಟಂಗಳು, ಮೀಡಿಯಾ ಅಥವಾ ಐಟಂ ಸೆಟ್‌ಗಳನ್ನು ಅಳಿಸಿದ ಇಂಪೋರ್ಟ್ ಅನ್ನು ರದ್ದುಗೊಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
   'server.importSitesNotJoined':
     'ಈ ಐಟಂ ಅನ್ನು ಸೇರಿಸಲಾಗಿದೆ, ಆದರೆ ಅದನ್ನು ಅದರ ಸೈಟ್‌ಗಳಿಗೆ ಸೇರಿಸಲಾಗಿಲ್ಲ: {reason}',
   'server.importUndoEdited': 'ಆಮದು ಇದನ್ನು ಬರೆದ ನಂತರ ಇದನ್ನು ಸಂಪಾದಿಸಲಾಗಿದೆ.',

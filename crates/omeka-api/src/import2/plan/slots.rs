@@ -89,7 +89,8 @@ pub enum WholePath {
     Path,
 }
 
-/// The file tags a slot can read. P8 adds IPTC and XMP ids.
+/// The file tags a slot can read: EXIF, file facts, then IPTC IIM and XMP,
+/// each named as `omeka_media::image_metadata` keys it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TagId {
     DateTimeOriginal,
@@ -106,6 +107,34 @@ pub enum TagId {
     #[serde(rename = "Pixel dimensions")]
     PixelDimensions,
     Format,
+    #[serde(rename = "IPTC By-line")]
+    IptcByline,
+    #[serde(rename = "IPTC Caption-Abstract")]
+    IptcCaption,
+    #[serde(rename = "IPTC Keywords")]
+    IptcKeywords,
+    #[serde(rename = "IPTC Object Name")]
+    IptcObjectName,
+    #[serde(rename = "IPTC Date Created")]
+    IptcDateCreated,
+    #[serde(rename = "IPTC City")]
+    IptcCity,
+    #[serde(rename = "IPTC Country")]
+    IptcCountry,
+    #[serde(rename = "XMP dc:title")]
+    XmpTitle,
+    #[serde(rename = "XMP dc:description")]
+    XmpDescription,
+    #[serde(rename = "XMP dc:creator")]
+    XmpCreator,
+    #[serde(rename = "XMP dc:subject")]
+    XmpSubject,
+    #[serde(rename = "XMP dc:rights")]
+    XmpRights,
+    #[serde(rename = "XMP photoshop:DateCreated")]
+    XmpDateCreated,
+    #[serde(rename = "XMP lr:hierarchicalSubject")]
+    XmpHierarchicalSubject,
 }
 
 /// Which files of an item's group give the item its tag values.

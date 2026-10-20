@@ -218,6 +218,9 @@ export const teServer: ServerCatalogue = {
   'server.importResourceGone': 'ఈ రికార్డును మారుస్తున్న మీడియా, ఐటమ్ లేదా ఐటమ్ సెట్ Omekaలో లేదు.',
   'server.importRecordNotSaved': 'ఈ రికార్డును సేవ్ చేయలేకపోయాము: {reason}',
   'server.importLinksNotSaved': 'ఈ రికార్డు యొక్క లింక్‌లను భద్రపరచలేకపోయాము: {reason}',
+  'server.importRecordNotDeleted': 'ఇది తొలగించబడలేదు: {reason}',
+  'server.importDeleteNotUndone':
+    'ఐటమ్‌లు, మీడియా లేదా ఐటమ్ సెట్‌లను తొలగించిన ఇంపోర్ట్‌ను రద్దు చేయడం సాధ్యం కాదు.',
   'server.importSitesNotJoined': 'ఈ ఐటమ్ జోడించబడింది, కానీ దాని సైట్‌లకు జోడించబడలేదు: {reason}',
   'server.importUndoEdited': 'దిగుమతి దీన్ని రాసిన తర్వాత ఇది సవరించబడింది.',
   'server.importUndoLinked':

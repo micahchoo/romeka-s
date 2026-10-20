@@ -244,16 +244,97 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
     assert_eq!(second.json()["plan"]["sheets"][1]["file"], "lists/2.tsv");
 }
 
+/// The filled list as an Excel user saves it: the template's header, a
+/// Devanagari title and a date cell.
+fn filled_xlsx() -> Vec<u8> {
+    let mut book = rust_xlsxwriter::Workbook::new();
+    let sheet = book.add_worksheet();
+    let header = [
+        "Identifier",
+        "Files",
+        "Title [dcterms:title]",
+        "Date [dcterms:date]",
+    ];
+    for (col, text) in (0_u16..).zip(header) {
+        sheet.write(0, col, text).unwrap();
+    }
+    sheet.write(1, 0, "BHC_006_AF_001").unwrap();
+    sheet.write(1, 2, "दीपक").unwrap();
+    let day = rust_xlsxwriter::ExcelDateTime::from_ymd(1952, 3, 4).unwrap();
+    let format = rust_xlsxwriter::Format::new().set_num_format("dd/mm/yyyy");
+    sheet.write_with_format(1, 3, &day, &format).unwrap();
+    sheet.write(2, 0, "BHC_006_AF_002").unwrap();
+    sheet.write(2, 2, "Brass bowl").unwrap();
+    book.save_to_buffer().unwrap()
+}
+
+#[tokio::test]
+async fn a39_a_filled_xlsx_list_is_stored_read_and_joined_on_its_identifier() {
+    let fixture = fixture().await;
+    add_date(&fixture).await;
+    let id = s1(&fixture).await;
+    let uploaded = fixture.upload(&id, "list.xlsx", &filled_xlsx()).await;
+    assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
+    let view = uploaded.json();
+    assert_eq!(view["plan"]["sheets"][0]["file"], "lists/1.xlsx");
+    assert_eq!(
+        view["plan"]["sheets"][0]["join"]["column"]["header"],
+        "Identifier"
+    );
+    assert!(
+        fixture
+            .files
+            .path()
+            .join(format!("staging/{id}/lists/1.xlsx"))
+            .is_file()
+    );
+
+    let preview = fixture
+        .preview(
+            &id,
+            &json!({ "include": ["records"], "records": { "slot": "dcterms:title", "perPage": 50 } }),
+        )
+        .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    let items = preview.json()["records"]["items"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let value = |key: &str, term: &str| -> Vec<String> {
+        items
+            .iter()
+            .find(|item| item["resolved"]["itemKey"] == key)
+            .and_then(|item| item["slots"][term].as_array())
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| value["text"].as_str().unwrap().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(value("BHC_006_AF_001", "dcterms:title"), ["दीपक"]);
+    assert_eq!(value("BHC_006_AF_001", "dcterms:date"), ["1952-03-04"]);
+    assert_eq!(value("BHC_006_AF_002", "dcterms:title"), ["Brass bowl"]);
+}
+
 #[tokio::test]
 async fn a_list_upload_is_refused_when_it_cannot_be_read_as_a_list() {
     let fixture = fixture().await;
     let id = s1(&fixture).await;
-    let wrong_type = fixture.upload(&id, "list.xlsx", b"PK\x03\x04").await;
+    let wrong_type = fixture.upload(&id, "list.pdf", b"%PDF-1.4").await;
     assert_eq!(
         wrong_type.status,
         StatusCode::BAD_REQUEST,
         "{}",
         wrong_type.body
+    );
+    let not_a_workbook = fixture.upload(&id, "list.xlsx", b"Identifier\nA\n").await;
+    assert_eq!(
+        not_a_workbook.status,
+        StatusCode::BAD_REQUEST,
+        "{}",
+        not_a_workbook.body
     );
     let no_identifier = fixture
         .upload(&id, "list.csv", b"Name,Title [dcterms:title]\nA,B\n")

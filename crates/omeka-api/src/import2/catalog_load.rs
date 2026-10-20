@@ -42,6 +42,18 @@ pub enum Owners {
     Only(UserId),
 }
 
+impl Owners {
+    /// The owners a caller of `role` may name: a global admin, or no user at
+    /// all, any user; anyone else only themself.
+    #[must_use]
+    pub fn of(role: Option<&str>, user: Option<UserId>) -> Self {
+        match (role, user) {
+            (Some("global_admin"), _) | (_, None) => Self::Anyone,
+            (_, Some(user)) => Self::Only(user),
+        }
+    }
+}
+
 fn raw(id: u64) -> i64 {
     i64::try_from(id).unwrap_or(i64::MAX)
 }

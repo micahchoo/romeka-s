@@ -215,6 +215,9 @@ export const hiServer: ServerCatalogue = {
     'यह रिकॉर्ड जिस आइटम, मीडिया या आइटम सेट को बदलता है, वह अब Omeka में नहीं है।',
   'server.importRecordNotSaved': 'इस रिकॉर्ड को सहेजा नहीं जा सका: {reason}',
   'server.importLinksNotSaved': 'इस रिकॉर्ड के लिंक सहेजे नहीं जा सके: {reason}',
+  'server.importRecordNotDeleted': 'इसे हटाया नहीं गया: {reason}',
+  'server.importDeleteNotUndone':
+    'जो आयात आइटम, मीडिया या आइटम सेट को हटाता है, उसे पूर्ववत नहीं किया जा सकता।',
   'server.importSitesNotJoined':
     'यह आइटम जोड़ा गया, लेकिन यह अपनी साइटों में शामिल नहीं हो सका: {reason}',
   'server.importUndoEdited': 'आयात द्वारा इसे लिखे जाने के बाद इसे संपादित किया गया।',

@@ -63,6 +63,12 @@ flate2 = "1"
 # (`import2::model::Model::seal`), files over 64 MB as they go into the store
 # (`import2/media_in.rs`), and identical-file hashing (`import2/scan/identical.rs`).
 sha2 = "0.10"
+# Import v2 workbook sheets (`import2/sheet/workbook.rs`): .xlsx, .xls and .ods
+# read as rows. MIT, pure Rust; dates come as serial numbers, so no chrono.
+calamine = "0.37"
+# The zip directory of an .xlsx or .ods, read before calamine opens it, so a
+# workbook that unpacks past its bound is refused unread. calamine's own zip.
+zip = { version = "9", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen
@@ -77,6 +83,10 @@ log = "0.4"
 tempfile = "3"
 # The import v2 tag tests write small real JPEG and TIFF files.
 image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }
+# The workbook tests write real .xlsx files as Excel would (MIT OR Apache-2.0),
+# and a compound file for .xls (already in the tree through `infer`).
+rust_xlsxwriter = "0.100"
+cfb = "0.14"
 
 [lints]
 workspace = true

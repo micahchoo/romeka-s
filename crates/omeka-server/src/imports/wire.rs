@@ -16,6 +16,7 @@ use omeka_api::import2::catalog_load::Owners;
 use omeka_api::import2::draft::DraftError;
 use omeka_api::import2::preview::PreviewError;
 use omeka_api::import2::scan::ScanError;
+use omeka_api::import2::start::AssessError;
 use omeka_api::messages;
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
@@ -127,6 +128,12 @@ impl From<ArchiveError> for ImportError {
     }
 }
 
+impl From<AssessError> for ImportError {
+    fn from(error: AssessError) -> Self {
+        Self::Internal(error.to_string())
+    }
+}
+
 impl From<PreviewError> for ImportError {
     fn from(error: PreviewError) -> Self {
         Self::Internal(error.to_string())
@@ -193,10 +200,7 @@ pub(crate) async fn admin(
 
 /// The owners `actor` may name in a plan.
 pub(crate) fn owners(actor: &Actor) -> Owners {
-    match (actor.role(), actor.user()) {
-        (Some("global_admin"), _) | (_, None) => Owners::Anyone,
-        (_, Some(user)) => Owners::Only(user),
-    }
+    Owners::of(actor.role(), actor.user())
 }
 
 /// Refuse a body that is not JSON, then read it.

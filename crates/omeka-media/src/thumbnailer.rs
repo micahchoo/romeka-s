@@ -13,9 +13,19 @@
 //! is idempotent.
 //!
 //! The formats that reach the decoder are the four GD decodes (gif, jpeg, png,
-//! webp) and tiff. TIFF is a deliberate addition: GD has no TIFF decoder, so
-//! upstream makes no thumbnail for a `.tif` unless ImageMagick is configured.
-//! Anything else is a typed [`ThumbnailSkip`], never a panic.
+//! webp), tiff and JPEG 2000. TIFF and JPEG 2000 are deliberate additions for
+//! archive masters: GD has neither decoder, so upstream makes no thumbnail for
+//! a `.tif` or a `.jp2` unless ImageMagick is configured. Anything else is a
+//! typed [`ThumbnailSkip`], never a panic.
+//!
+//! An original over 64 MB is never held whole: [`ImageThumbnailer::
+//! derivatives_from_reader`] makes a reduced copy of a TIFF or a JPEG with
+//! bounded memory (`large`), then the derivatives from the copy.
+
+mod jp2;
+mod large;
+
+use std::io::{Read, Seek};
 
 use image::DynamicImage;
 use image::codecs::jpeg::JpegEncoder;
@@ -26,16 +36,21 @@ use crate::file_render::ThumbnailType;
 use crate::store::{Store, StoreError, StorePrefix, Thumbnailer, storage_path};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
-/// (`Gd::setSource`) plus `image/tiff`, which GD cannot read (see the module
-/// docs). Any other declared type raises `CannotCreateThumbnailException`
-/// upstream.
-pub const SOURCE_MEDIA_TYPES: [&str; 5] = [
+/// (`Gd::setSource`) plus `image/tiff` and `image/jp2`, which GD cannot read
+/// (see the module docs). Any other declared type raises
+/// `CannotCreateThumbnailException` upstream.
+pub const SOURCE_MEDIA_TYPES: [&str; 6] = [
     "image/gif",
     "image/jpeg",
+    "image/jp2",
     "image/png",
     "image/tiff",
     "image/webp",
 ];
+
+/// The source media types [`ImageThumbnailer::derivatives_from_reader`]
+/// reads with bounded memory.
+pub const LARGE_SOURCE_MEDIA_TYPES: [&str; 2] = ["image/jpeg", "image/tiff"];
 
 /// Why no thumbnail was made. Upstream throws
 /// `CannotCreateThumbnailException` and `TempFile::storeThumbnails` turns it
@@ -90,23 +105,53 @@ impl ImageThumbnailer {
         if !SOURCE_MEDIA_TYPES.contains(&media_type) {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         }
-        let source = image::load_from_memory(original)
-            .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
-        if source.width() == 0 || source.height() == 0 {
-            return Err(ThumbnailSkip::Decode("the image has no pixels".to_string()));
-        }
-        let mut derivatives = Vec::with_capacity(ThumbnailType::ALL.len());
-        for kind in ThumbnailType::ALL {
-            let derivative = match kind {
-                ThumbnailType::Square => square(&source, kind.constraint()),
-                ThumbnailType::Large | ThumbnailType::Medium => {
-                    scale_to_fit(&source, kind.constraint())
-                }
-            };
-            derivatives.push((kind, encode_jpeg(&derivative)?));
-        }
-        Ok(derivatives)
+        let source = if media_type == "image/jp2" {
+            jp2::decode(original)?
+        } else {
+            image::load_from_memory(original)
+                .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?
+        };
+        derivatives(&source)
     }
+
+    /// The three derivatives of an original read from `reader` and never
+    /// held whole: a TIFF chunk by chunk, a JPEG at a reduced IDCT scale.
+    /// The memory is bounded by the reduced copy (at most 1600 pixels a
+    /// side) and one TIFF chunk ([`large::MAX_CHUNK_BYTES`]).
+    ///
+    /// # Errors
+    /// A [`ThumbnailSkip`] for a type not in [`LARGE_SOURCE_MEDIA_TYPES`], a
+    /// layout the reduced path does not read (a TIFF strip over the chunk
+    /// bound, separate colour planes, a palette; a large progressive JPEG),
+    /// or bytes that do not decode.
+    pub fn derivatives_from_reader<R: Read + Seek>(
+        &self,
+        reader: R,
+        media_type: Option<&str>,
+    ) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+        let source = match media_type.unwrap_or_default() {
+            "image/tiff" => large::tiff(reader)?,
+            "image/jpeg" => large::jpeg(reader)?,
+            other => return Err(ThumbnailSkip::UnsupportedType(other.to_string())),
+        };
+        derivatives(&source)
+    }
+}
+
+/// The three derivatives of a decoded image, one per [`ThumbnailType::ALL`].
+fn derivatives(source: &DynamicImage) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+    if source.width() == 0 || source.height() == 0 {
+        return Err(ThumbnailSkip::Decode("the image has no pixels".to_string()));
+    }
+    let mut derivatives = Vec::with_capacity(ThumbnailType::ALL.len());
+    for kind in ThumbnailType::ALL {
+        let derivative = match kind {
+            ThumbnailType::Square => square(source, kind.constraint()),
+            ThumbnailType::Large | ThumbnailType::Medium => scale_to_fit(source, kind.constraint()),
+        };
+        derivatives.push((kind, encode_jpeg(&derivative)?));
+    }
+    Ok(derivatives)
 }
 
 impl Thumbnailer for ImageThumbnailer {
@@ -144,6 +189,30 @@ pub fn generate_thumbnails(
         return Ok(ThumbnailOutcome::Existing);
     }
     let derivatives = match ImageThumbnailer.derivative_bytes(original, media_type) {
+        Ok(derivatives) => derivatives,
+        Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
+    };
+    for (kind, bytes) in derivatives {
+        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
+    }
+    Ok(ThumbnailOutcome::Generated)
+}
+
+/// [`generate_thumbnails`] for an original read from `reader` and never held
+/// whole ([`ImageThumbnailer::derivatives_from_reader`]).
+///
+/// # Errors
+/// A [`StoreError`] when a thumbnail cannot be written.
+pub fn generate_thumbnails_from_reader<R: Read + Seek>(
+    store: &dyn Store,
+    storage_id: &str,
+    reader: R,
+    media_type: Option<&str>,
+) -> Result<ThumbnailOutcome, StoreError> {
+    if thumbnails_stored(store, storage_id)? {
+        return Ok(ThumbnailOutcome::Existing);
+    }
+    let derivatives = match ImageThumbnailer.derivatives_from_reader(reader, media_type) {
         Ok(derivatives) => derivatives,
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };

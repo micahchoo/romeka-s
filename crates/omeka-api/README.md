@@ -36,8 +36,7 @@ boundary, the archive root and its safe relative paths, the file-name pattern, t
 its Windows-1252 repair, the EXIF tags, the pure derive from folder and plan to rows and problems,
 the preview and the dry run, and the write side (`run`, `undo`, `left`). The server's routes in
 `omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is the one validator:
-the admin only renders the pages of rows it answers. `romeka import csv` and `export csv` share its
-CSV reader.
+the admin only renders the pages of rows it answers.
 
 ## Route table
 

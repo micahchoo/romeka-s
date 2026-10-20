@@ -141,6 +141,28 @@ Four global settings bound the uploads. `GET /api/settings` answers each one, an
 Size the store for `import_upload_max_total` times the number of drafts in progress. The axum body
 limit (`max_body_bytes`) does not bound an upload: a `PATCH` streams its body into the store.
 
+## Import from the command line
+
+`romeka import run`, `undo` and `list` do what the Import page does, without a server. Stop other
+imports first: one import or undo works at a time, here as on the page.
+
+```
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org --dry-run
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org
+romeka import undo <id> -d <db> --store <store> --preview
+romeka import undo <id> -d <db> --store <store> [--force all]
+romeka import list -d <db>
+```
+
+- `--dry-run` prints the Check summary and writes nothing. Run it first.
+- `--as` is the email of a global or site administrator. That user owns the import. A site
+  administrator may name only themself as an owner in the plan.
+- A delete plan needs `--confirm <count>`, the count the Check summary shows.
+- A run that is refused, or a dry run, leaves no import behind. The run's files go to `--store`, so
+  point it at the store the server serves.
+- `romeka import csv` and `romeka import media` no longer exist. Put the items in a list and use
+  `import run`, or use the Import page.
+
 ## Backup and restore
 
 ```

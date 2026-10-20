@@ -214,6 +214,9 @@ export const neServer: ServerCatalogue = {
     'यो रेकर्ड परिवर्तन गर्ने मिडिया, वस्तु वा वस्तु सेट अब Omeka मा छैन।',
   'server.importRecordNotSaved': 'यो रेकर्ड सुरक्षित गर्न सकिएन: {reason}',
   'server.importLinksNotSaved': 'यस रेकर्डका लिङ्कहरू सुरक्षित गर्न सकिएन: {reason}',
+  'server.importRecordNotDeleted': 'यो मेटाइएन: {reason}',
+  'server.importDeleteNotUndone':
+    'जसले वस्तु, मिडिया वा वस्तु सेट मेटायो, त्यस आयातलाई पूर्ववत गर्न सकिँदैन।',
   'server.importSitesNotJoined':
     'यो वस्तु थपियो, तर यसलाई यसका साइटहरूमा समावेश गर्न सकिएन: {reason}',
   'server.importUndoEdited': 'आयातले यो लेखेपछि यसलाई सम्पादन गरिएको हो।',

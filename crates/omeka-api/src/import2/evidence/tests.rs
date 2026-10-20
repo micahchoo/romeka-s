@@ -75,7 +75,7 @@ fn text_cut_inside_a_character_at_the_sniff_limit_is_still_text() {
 }
 
 #[test]
-fn sheets_are_listed_apart_and_are_never_file_entries() {
+fn a39_sheets_and_workbooks_are_listed_apart_and_are_never_file_entries() {
     let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "register.csv", b"id,title\nA1,Lamp\n");
     write(dir.path(), "rows/mixed.TSV", b"id\ttitle\n");
@@ -90,12 +90,22 @@ fn sheets_are_listed_apart_and_are_never_file_entries() {
         b"These scans came from the harbour office.\n",
     );
     write(dir.path(), "book.ods", b"PK\x03\x04");
+    write(dir.path(), "ledger.xlsx", b"PK\x03\x04");
+    write(dir.path(), "old/LEDGER.XLS", b"\xD0\xCF\x11\xE0");
+    write(dir.path(), "ledger.docx", b"PK\x03\x04");
     let walk = walk(&source(dir.path())).expect("walk");
     assert_eq!(
         paths(&walk.sheets),
-        ["export.txt", "register.csv", "rows/mixed.TSV"]
+        [
+            "book.ods",
+            "export.txt",
+            "ledger.xlsx",
+            "old/LEDGER.XLS",
+            "register.csv",
+            "rows/mixed.TSV"
+        ]
     );
-    assert_eq!(paths(&walk.entries), ["book.ods", "readme.txt"]);
+    assert_eq!(paths(&walk.entries), ["ledger.docx", "readme.txt"]);
 }
 
 #[cfg(unix)]
