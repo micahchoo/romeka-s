@@ -40,6 +40,7 @@ pub mod run;
 pub mod scan;
 pub mod sheet;
 pub mod slots;
+pub mod start;
 pub mod starters;
 pub mod tags;
 pub mod template;

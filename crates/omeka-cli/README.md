@@ -24,9 +24,10 @@ romeka key add      -d PATH --owner E [--label TEXT]
 romeka key list     -d PATH
 romeka key revoke   -d PATH --identity IDENTITY
 romeka import template -d PATH --file TEMPLATE.json
-romeka import csv      -d PATH --file ITEMS.csv --item-set ID
-romeka import media    -d PATH --source DIR [--manifest FILE.json] [--store DIR]
-                              [--item-set ID] [--item ID]
+romeka import run      -d PATH --plan PLAN.json --as EMAIL [--dry-run] [--confirm COUNT]
+                              [--store DIR] [--archive-root DIR]
+romeka import undo ID  -d PATH [--force all] [--preview] [--store DIR]
+romeka import list     -d PATH [--page N] [--per-page N]
 romeka export jsonld   -d PATH --out PATH [--resource NAME] [--item-set ID]
                               [--base-url URL]
 romeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
@@ -107,22 +108,43 @@ Upstream's API shape, so an exported template reads back:
 Only `o:label` and each `o:property.o:id` are required. A duplicate label is an
 error.
 
-## CSV items
+## Import v2
 
-The first record is the header. Each header cell names a property as
-`prefix:local_name` (`dcterms:title`, `foaf:name`). Each later record is one
-item: a non-empty cell becomes a literal value on that property, and two columns
-with the same term become two values. The item's `title` column is the first
-non-empty `dcterms:title` cell. Every item joins the `--item-set` set. A column whose header starts with `#` is a
-note and is ignored. A row
-whose column count differs from the header is reported and skipped; the rest
-import. The exit code is 1 when any row failed. Values are literals only (no URI
-or resource-value columns yet).
+`romeka import run`, `undo` and `list` are the importer's second front end
+(`docs/import-v2.md`, "Command line"). They call the same `omeka_api::import2`
+functions as the routes and run the job bodies in this process, so a run needs
+no server.
 
-A row imports whole or not at all: its item, item-set link and values commit in
-one transaction, so a failed row leaves nothing. After the commit the item joins
-each site that keeps in sync with its item pool (`assign_new_items`) and whose
-pool selects it, as an API create that names no `o:site` does.
+```
+romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root /srv/archive
+romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root /srv/archive --dry-run
+romeka import undo 7 -d PATH --preview
+romeka import undo 7 -d PATH [--force all]
+romeka import list -d PATH
+```
+
+`run` makes a draft owned by `--as` (a global or site administrator) from the
+plan file, rescans the sources, derives and checks, then starts the run as the
+route does. It refuses on a blocking flag, on a plan with nothing to write, and
+on a delete plan unless `--confirm` names the count the Check summary shows.
+`--archive-root` is the folder the plan's sources read, named `archive`; without
+it the configured roots (`ROMEKA_ARCHIVE_ROOTS`) apply. `--store` defaults to
+`files` beside the database.
+
+`--dry-run` prints the Check summary (counts per action and kind, new sets,
+types and fields, flags by policy, the blocking flags, the digest) and writes
+nothing: the draft it needed is deleted again. A refused run deletes its draft
+too, so a refusal leaves no import. A run prints a `progress: done of total`
+line when the count moves and ends with `import N done: D of T records, F
+failed`, then one line per failed record. The exit code is 1 when a record
+failed or nothing was written.
+
+`undo` runs the undo job in this process. `--preview` prints what the undo
+would remove, restore, keep with its reasons and skip, and writes nothing.
+`--force all` restores or deletes touched resources too. An undo that keeps
+touched resources ends `partly_undone` and exits 0; one that stopped on an
+error ends `undo_failed` and exits 1. `list` prints one line per import,
+newest first.
 
 ## Export
 
@@ -150,76 +172,20 @@ command prints the document count.
 column set is a port decision: upstream at the frozen SHA has no CSV export.
 The only export upstream has is `Admin/ResourceTemplateController::exportAction`,
 which writes one resource template as JSON, so there is no upstream column set to
-match. The columns here read back through `romeka import csv`:
+match. The columns are:
 
-- A cell names a property as `prefix:local_name` (`dcterms:title`), the term
-  `romeka import csv` resolves.
+- A cell names a property as `prefix:local_name` (`dcterms:title`).
 - The default column set is every property that holds a value on any exported
   item, with `dcterms:title` first and the rest in term order. `--columns`
   names the terms instead, in the order given.
 - A property with several values on any item gets one column per value and the
-  header repeats the term. `romeka import csv` reads two cells with the same
-  term as two values, so this is what makes a multi-valued item round-trip.
+  header repeats the term, so a multi-valued item keeps every value.
 - Values flatten to text: a literal is its `@value`, a URI its `@id`, a resource
-  value its display title. Re-importing stores every cell as a literal, so a URI
-  or resource value comes back as a literal of that text and a language tag is
-  dropped.
+  value its display title. A language tag is dropped.
 
-`export csv` writes items only, because `romeka import csv` reads items. The
+`export csv` writes items only. The
 command prints the item count and the header it wrote. Both commands create a
 missing parent directory for `--out`.
-
-## Media files
-
-`romeka import media` copies each file into the store through `omeka-media` and
-inserts its `media` row through `omeka-db`.
-
-```
-romeka import media -d PATH --manifest media.json --source COLLECTION --store DIR --item-set ID
-romeka import media -d PATH --source COLLECTION --item-set ID
-```
-
-`--manifest FILE.json` reads the acceptance unit's `media.json` shape
-(`verification/acceptance/media.py`), so the sample that run selects imports
-unchanged:
-
-```json
-{"sample": [
-  {"identifier": "BHC_006_AF_001", "source": "BHC006_GMT_AF.xlsx:12", "file": "Artifacts/foo.jpg"}
-]}
-```
-
-`identifier` is the join key: the item whose `dcterms:identifier` literal equals
-it, restricted to `--item-set` when given. `file` resolves against `--source`
-when given, else against the manifest's directory. `source` is provenance;
-`media.source` holds the file name instead (`Media/Ingester/Upload.php:61`). An
-entry may carry `item` to name the item directly. With `--source DIR` and no
-manifest the command walks the directory for the extensions `media.py` selects
-and links each file by its stem. `--item ID` forces one item for every file.
-
-`--store DIR` is the store root (`file_store.local.base_path`), the directory
-that holds `original/`. It defaults to `files` beside the database. The stored
-path is `original/<storage_id>.<extension>`, the same rule `FileStore::storage_path`
-uses and the same value `Entity/Media.php:223` reads back as the file name.
-
-The row carries the fields `File/TempFile.php:420` sets: `source`,
-`media_type`, `storage_id`, `extension`, `sha256`, `size` and `has_original`,
-with `ingester` `upload` and `renderer` `file`. `media_type` comes from the
-file's bytes (`omeka_media::media_type`, the port's `finfo`). A file the install's
-file validation settings refuse (`media_type_whitelist`, `extension_whitelist`,
-`disable_file_validation`) is reported as failed, with upstream's message.
-
-Thumbnails for the decodable image types (gif, jpeg, png, webp) come from
-`omeka-media`'s `ImageThumbnailer`, the port of `File/Thumbnailer/Gd.php`. Each
-imported image gets the three configured sizes under `large/`, `medium/` and
-`square/`, at `<type>/<storage_id>.jpg`, and its `has_thumbnails` is true. A file
-whose bytes are not an image is stored and imported as before, with no
-thumbnails.
-
-A second run skips every file whose `(item_id, source)` pair already exists, so
-no row and no bytes are written twice. Each file is reported as `imported`,
-`skipped` or `failed` with a reason, then a summary line that includes how many
-imports got thumbnails. The exit code is 1 when any file failed.
 
 ## Media thumbnails
 
@@ -242,8 +208,8 @@ failed.
 Idempotent. When all three thumbnail files are present and `--force` is absent
 the row is skipped and nothing is written, so a second run reports zero
 generated. `--force` removes the three files first and rebuilds them. The
-`--store DIR` root defaults to `files` beside the database, the same rule
-`import media` uses.
+`--store DIR` root defaults to `files` beside the database, the same rule every
+command with a `--store` uses.
 
 ## Media sweep
 
@@ -297,7 +263,7 @@ manifest.json     the commit, the counts and the checksums
 ```
 
 `--store DIR` is the store root, the directory holding `original/` and the
-thumbnail types; the same path `import media` writes and `serve` reads. Every
+thumbnail types; the same path `import run` writes and `serve` reads. Every
 regular file under it is archived, not only the files media rows name, so assets
 and any orphan survive too.
 
@@ -410,10 +376,5 @@ when it starts a job.
   member it adds goes after the existing ones, as upstream's Update adds it.
 - `BatchUpdate`'s data maps are a `term -> literals` shape, not the full API
   hydrate array.
-- `import media` derives `media_type` from the file extension; upstream sniffs
-  the content with `finfo` and then applies its alias table
-  (`File/TempFile.php:296`). Its thumbnails come from the `image` crate, not GD;
-  the port keeps GD's two strategies and the JPEG output, so a derivative can
-  differ from GD's bytes while matching its size.
 - `src/store.rs` holds the SQL `omeka-db` has no repository for. It should move
   into `omeka-db` when those repositories exist.

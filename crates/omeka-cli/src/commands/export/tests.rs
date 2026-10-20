@@ -3,9 +3,7 @@
 use super::*;
 use crate::testing::seeded_db;
 use omeka_db::ids::{ItemSetId, PropertyId};
-use omeka_db::repos::{
-    ItemFilter, ItemRepo, ItemSetRepo, Paging, PropertyRepo, ValueRepo, VocabularyRepo,
-};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, ValueRepo};
 use omeka_db::rows::{NewItem, NewItemSet, NewResource, NewValue};
 use sqlx::SqlitePool;
 
@@ -140,7 +138,7 @@ async fn jsonld_export_rejects_an_unknown_resource() {
 }
 
 #[tokio::test]
-async fn csv_export_round_trips_through_import_csv() {
+async fn csv_export_writes_one_row_per_item_with_a_column_per_value() {
     let db = seeded_db().await;
     let source = new_item_set(&db.pool, "Source").await;
     // The title leads; two creators force the header to repeat that term.
@@ -182,74 +180,12 @@ async fn csv_export_round_trips_through_import_csv() {
         ]
     );
 
-    let target = new_item_set(&db.pool, "Target").await;
-    let imported = crate::commands::import::import_csv(&crate::commands::import::CsvOptions {
-        database: db.path.clone(),
-        file: out.clone(),
-        item_set_id: target.0,
-    })
-    .await
-    .expect("import csv");
-    assert_eq!(imported.imported, 2);
-    assert!(imported.errors.is_empty(), "errors: {:?}", imported.errors);
-
-    let source_values = values_by_title(&db.pool, source).await;
-    let target_values = values_by_title(&db.pool, target).await;
-    assert_eq!(source_values, target_values);
-}
-
-/// The `(title, term)` to sorted values map of every item in a set, so two
-/// imports compare as value multisets.
-async fn values_by_title(
-    pool: &SqlitePool,
-    item_set: ItemSetId,
-) -> BTreeMap<String, BTreeMap<String, Vec<String>>> {
-    let items = ItemRepo::new(pool)
-        .list(
-            &ItemFilter {
-                item_set_id: Some(item_set),
-                ..ItemFilter::default()
-            },
-            &Paging::default(),
-        )
-        .await
-        .expect("list items");
-    let values = ValueRepo::new(pool);
-    let mut by_title = BTreeMap::new();
-    for item in items {
-        let title = item.resource.title.clone().expect("title");
-        let mut per_term: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for row in values
-            .list_for_resource(item.resource.id)
-            .await
-            .expect("values")
-        {
-            let term = term_for(pool, row.property_id).await;
-            per_term
-                .entry(term)
-                .or_default()
-                .push(row.value.unwrap_or_default());
-        }
-        for texts in per_term.values_mut() {
-            texts.sort();
-        }
-        by_title.insert(title, per_term);
-    }
-    by_title
-}
-
-async fn term_for(pool: &SqlitePool, id: PropertyId) -> String {
-    let property = PropertyRepo::new(pool)
-        .get(id)
-        .await
-        .expect("get property")
-        .expect("property exists");
-    let vocabulary = VocabularyRepo::new(pool)
-        .get(property.vocabulary_id)
-        .await
-        .expect("get vocabulary")
-        .expect("vocabulary exists");
-    format!("{}:{}", vocabulary.prefix, property.local_name)
+    assert_eq!(
+        std::fs::read_to_string(&out).expect("read"),
+        "dcterms:title,dcterms:creator,dcterms:creator,dcterms:description\n\
+         Alpha,Ada,Alan,first\n\
+         Beta,Grace,,\n"
+    );
 }
 
 #[tokio::test]

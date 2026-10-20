@@ -3,7 +3,7 @@
 //! `run` is the entry point the dispatcher starts in a new process; the other
 //! three mirror the admin jobs page (browse, show with the log, attempt stop).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use omeka_db::ids::JobId;
 use omeka_db::rows::JobRow;
@@ -76,36 +76,56 @@ pub struct RunOptions {
 
 impl RunOptions {
     fn env(&self) -> Result<JobEnv, CliError> {
-        let defaults = JobEnv::default();
-        let base_url = match &self.base_url {
-            Some(raw) => BaseUrl::parse(raw)
-                .map_err(|error| CliError::message(format!("invalid base url {raw}: {error}")))?,
-            None => defaults.base_url,
-        };
-        Ok(JobEnv {
-            store: crate::commands::media::open_store(&self.database, self.store.as_deref()),
-            base_url,
-            archive_roots: self.archive_roots()?,
-        })
+        job_env(
+            &self.database,
+            self.store.as_deref(),
+            self.base_url.as_deref(),
+            self.archive_root.as_deref(),
+        )
     }
+}
 
-    fn archive_roots(&self) -> Result<ArchiveRoots, CliError> {
-        let config = Config::load().map_err(|error| CliError::message(error.to_string()))?;
-        let Some(root) = &self.archive_root else {
-            return Ok(config.archive_roots);
-        };
-        let root = std::path::absolute(root).map_err(|error| {
-            CliError::message(format!("cannot resolve {}: {error}", root.display()))
-        })?;
-        let named = config
-            .archive_roots
-            .iter()
-            .filter(|(name, _)| *name != ARCHIVE)
-            .map(|(name, path)| (name.to_string(), path.to_path_buf()))
-            .chain(std::iter::once((ARCHIVE.to_string(), root)))
-            .collect::<Vec<_>>();
-        ArchiveRoots::new(named).map_err(|error| CliError::message(error.to_string()))
-    }
+/// The surroundings a job reads, as `romeka job run` and the import commands
+/// build them from their flags.
+///
+/// # Errors
+/// An invalid base URL, an unreadable config, or archive roots that do not
+/// make a valid list.
+pub(crate) fn job_env(
+    database: &Path,
+    store: Option<&Path>,
+    base_url: Option<&str>,
+    archive_root: Option<&Path>,
+) -> Result<JobEnv, CliError> {
+    let defaults = JobEnv::default();
+    let base_url = match base_url {
+        Some(raw) => BaseUrl::parse(raw)
+            .map_err(|error| CliError::message(format!("invalid base url {raw}: {error}")))?,
+        None => defaults.base_url,
+    };
+    Ok(JobEnv {
+        store: crate::commands::file_store::open_store(database, store),
+        base_url,
+        archive_roots: archive_roots(archive_root)?,
+    })
+}
+
+fn archive_roots(archive_root: Option<&Path>) -> Result<ArchiveRoots, CliError> {
+    let config = Config::load().map_err(|error| CliError::message(error.to_string()))?;
+    let Some(root) = archive_root else {
+        return Ok(config.archive_roots);
+    };
+    let root = std::path::absolute(root).map_err(|error| {
+        CliError::message(format!("cannot resolve {}: {error}", root.display()))
+    })?;
+    let named = config
+        .archive_roots
+        .iter()
+        .filter(|(name, _)| *name != ARCHIVE)
+        .map(|(name, path)| (name.to_string(), path.to_path_buf()))
+        .chain(std::iter::once((ARCHIVE.to_string(), root)))
+        .collect::<Vec<_>>();
+    ArchiveRoots::new(named).map_err(|error| CliError::message(error.to_string()))
 }
 
 /// Input for `romeka job list`.

@@ -2,7 +2,7 @@
 //!
 //! Commands mirror the upstream admin workflows that have a CLI meaning:
 //! `install` (the install tasks), `user` (accounts), `key` (API keys),
-//! `import` (templates and CSV items), `backup`/`restore` (the database and the
+//! `import` (the v2 importer and templates), `backup`/`restore` (the database and the
 //! media store) and `serve` (the HTTP server). Jobs mirror
 //! `application/src/Job/*`; see [`jobs`].
 //!

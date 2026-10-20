@@ -5,7 +5,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::Response;
-use omeka_api::import2::undo::{self, UNDO_JOB, UndoError};
+use omeka_api::import2::undo::{self, UNDO_JOB, UndoError, may_undo};
 use omeka_api::messages;
 use omeka_db::repos::{ImportRepo, StartOutcome};
 use omeka_db::rows::ImportStatus;
@@ -63,17 +63,6 @@ fn cannot_undo(status: ImportStatus) -> ImportError {
 fn deleted(status: ImportStatus) -> ImportError {
     ImportError::conflict("cannotUndo", messages::IMPORT_DELETE_NOT_UNDONE)
         .with("status", json!(status.as_str()))
-}
-
-/// The states an undo may start from, as `ImportRepo::start_undo` reads them.
-fn may_undo(status: ImportStatus) -> bool {
-    matches!(
-        status,
-        ImportStatus::Done
-            | ImportStatus::RunFailed
-            | ImportStatus::UndoFailed
-            | ImportStatus::PartlyUndone
-    )
 }
 
 /// `POST /api/romeka/imports/{id}/undo {force?}`: undo an import that is

@@ -60,6 +60,18 @@ pub const UNDO_JOB: &str = "Romeka\\Job\\ImportUndo";
 /// The summary member that holds the undo's report, beside the run's.
 pub const UNDO_MEMBER: &str = "undo";
 
+/// The states an undo may start from, as `ImportRepo::start_undo` reads them.
+#[must_use]
+pub fn may_undo(status: ImportStatus) -> bool {
+    matches!(
+        status,
+        ImportStatus::Done
+            | ImportStatus::RunFailed
+            | ImportStatus::UndoFailed
+            | ImportStatus::PartlyUndone
+    )
+}
+
 /// How an undo ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UndoEnd {
