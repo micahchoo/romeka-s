@@ -68,7 +68,7 @@ RUN apt-get update \
 RUN setcap cap_net_bind_service=+ep /usr/local/bin/caddy \
     && groupadd --system romeka \
     && useradd --system --gid romeka --home-dir /data --shell /usr/sbin/nologin romeka \
-    && mkdir -p /db /data/files /srv/dist /srv/caddy/data /srv/caddy/config \
+    && mkdir -p /db /data/files /srv/dist /srv/caddy/data /srv/caddy/config /archive \
     && chown -R romeka:romeka /db /data /srv
 
 COPY --from=build /out/romeka /usr/local/bin/romeka
@@ -90,6 +90,10 @@ ENV ROMEKA_DB=/db/romeka.db \
     ROMEKA_API_PORT=8123 \
     XDG_DATA_HOME=/srv/caddy/data \
     XDG_CONFIG_HOME=/srv/caddy/config
+
+# ROMEKA_ARCHIVE_ROOT is unset, so the archive import is off. To turn it on,
+# mount a folder read-only at /archive and set ROMEKA_ARCHIVE_ROOT=/archive
+# (deploy/compose.archive.yaml does both).
 
 # The store root the server resolves is `files` under its working directory
 # (`crates/omeka-server/src/lib.rs`, FILES_ROOT), so the process starts in the

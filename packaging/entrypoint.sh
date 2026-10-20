@@ -48,7 +48,7 @@ fi
 # the server as absence.
 for name in ROMEKA_LOG ROMEKA_MAX_BODY_BYTES ROMEKA_REQUEST_TIMEOUT_SECS \
     ROMEKA_SMTP_HOST ROMEKA_SMTP_PORT ROMEKA_SMTP_USER ROMEKA_SMTP_PASSWORD \
-    ROMEKA_SMTP_TLS ROMEKA_MAIL_FROM; do
+    ROMEKA_SMTP_TLS ROMEKA_MAIL_FROM ROMEKA_ARCHIVE_ROOT; do
     if [ -z "${!name:-}" ]; then
         unset "$name"
     fi
@@ -102,7 +102,10 @@ case "${ROMEKA_MODE:-serve}" in
 esac
 
 echo "romeka: serving $HOST:$PORT with base URL $BASE_URL, the origin on :80 and :443" >&2
-romeka serve -d "$DB" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" &
+# `--store` names the store the import and undo jobs write too: the server
+# starts each job as `romeka job run` with this store, the database and
+# ROMEKA_ARCHIVE_ROOT, so the job and the server read the same files.
+romeka serve -d "$DB" --host "$HOST" --port "$PORT" --base-url "$BASE_URL" --store "$STORE" &
 serve_pid=$!
 
 caddy run --config "$CADDYFILE" --adapter caddyfile &

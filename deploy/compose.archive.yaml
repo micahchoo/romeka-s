@@ -1,0 +1,16 @@
+# The archive import, added to compose.yaml: a host folder mounted read-only
+# at /archive, and ROMEKA_ARCHIVE_ROOT pointing at it, which shows the Import
+# page in the admin.
+#
+#     cd deploy && docker compose -f compose.yaml -f compose.archive.yaml up -d
+#
+# The import only reads the folder. The originals and thumbnails it makes go
+# to the media store, like every other file, and the server starts each import
+# and undo as a `romeka job run` process with the same store and root.
+
+services:
+  romeka:
+    environment:
+      ROMEKA_ARCHIVE_ROOT: /archive
+    volumes:
+      - ${ROMEKA_ARCHIVE_DIR:?set ROMEKA_ARCHIVE_DIR in .env to the host folder to import from}:/archive:ro
