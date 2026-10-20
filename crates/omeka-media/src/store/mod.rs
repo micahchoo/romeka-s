@@ -28,6 +28,9 @@
 //! nature, such as the migration's source install.
 
 mod file;
+mod s3;
+mod s3_http;
+mod urls;
 
 pub mod conformance;
 
@@ -41,6 +44,12 @@ use thiserror::Error;
 use crate::file_render::ThumbnailType;
 
 pub use file::FileStore;
+pub use s3::{S3Config, S3ConfigError, S3Store};
+pub use urls::{FileKind, FileUrls};
+
+/// How long a signed URL stays valid when the store sets nothing else:
+/// 15 minutes, the default of `ROMEKA_S3_URL_TTL_SECS`.
+pub const DEFAULT_URL_TTL: Duration = Duration::from_secs(15 * 60);
 
 /// Where stored bytes live. One instance serves the process, chosen at
 /// startup, so callers hold an `Arc<dyn Store>`.
@@ -106,6 +115,11 @@ pub trait Store: Send + Sync + std::fmt::Debug {
 
     /// The URL a client fetches the file from (`Local::getUri`).
     fn url(&self, storage_path: &str, access: Access) -> String;
+
+    /// How long the signed URLs the API and the site render stay valid.
+    fn url_ttl(&self) -> Duration {
+        DEFAULT_URL_TTL
+    }
 }
 
 /// Who may fetch a URL from [`Store::url`].
@@ -182,6 +196,32 @@ pub enum StoreError {
     /// The operating system would not supply random bytes for a storage id.
     #[error("could not generate a storage id: {0}")]
     Random(String),
+    /// The object store refused a request or could not be reached. The message
+    /// names the action and the status, never a URL or a credential.
+    #[error("object store error at {path}: {message}")]
+    Remote {
+        /// The storage path involved.
+        path: String,
+        /// What failed.
+        message: String,
+    },
+}
+
+impl StoreError {
+    pub(crate) fn remote(path: &str, message: impl Into<String>) -> Self {
+        Self::Remote {
+            path: path.to_string(),
+            message: message.into(),
+        }
+    }
+
+    /// The caller's reader failed mid-stream.
+    pub(crate) fn reader(path: &str, source: std::io::Error) -> Self {
+        Self::Io {
+            path: PathBuf::from(path),
+            source,
+        }
+    }
 }
 
 /// The facts a stored file contributes to a media row, matching the columns

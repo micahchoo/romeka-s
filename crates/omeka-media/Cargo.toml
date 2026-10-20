@@ -44,6 +44,9 @@ ureq = { version = "~3.4", default-features = false, features = ["rustls"] }
 # Joining a `Location` header onto the request URL for the same-scheme redirect
 # rule in `src/http_client.rs`. Already in the workspace tree via sqlx.
 url = "2"
+# The S3 store's request signing (SigV4 presigned URLs) and its XML answers.
+# Sans-IO, so the blocking ureq client above sends every request. BSD-2-Clause.
+rusty-s3 = { version = "0.10", default-features = false, features = ["rustcrypto", "xml"] }
 
 [dev-dependencies]
 # Legacy Office fixtures for the media type tests: a compound file with a

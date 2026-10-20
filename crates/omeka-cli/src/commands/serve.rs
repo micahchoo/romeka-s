@@ -48,7 +48,9 @@ pub async fn run(
         base_url: Some(base_url.to_string()),
         archive_root: config.archive_root.clone(),
     });
-    let services = Services::new(omeka_server::file_store(store_root)).with_jobs(Arc::new(jobs));
+    let store = omeka_server::file_store(store_root)
+        .map_err(|error| CliError::message(error.to_string()))?;
+    let services = Services::new(store).with_jobs(Arc::new(jobs));
     Ok(omeka_server::serve_with_services(config, pool, services).await?)
 }
 

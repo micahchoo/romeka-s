@@ -85,7 +85,7 @@ async fn site() -> Site {
         ..Config::default()
     };
     let env = JobEnv {
-        store: omeka_server::file_store(&store),
+        store: omeka_server::local_store(&store),
         base_url: base,
         archive_root: Some(archive),
     };

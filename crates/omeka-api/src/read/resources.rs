@@ -13,6 +13,7 @@ use omeka_db::repos::{
     compare_opt_text_ci,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
+use omeka_media::store::FileKind;
 use omeka_media::thumbnailer::thumbnails_stored;
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
@@ -269,7 +270,15 @@ pub(crate) fn item_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, primary),
+        thumbnail_display_urls: thumbnails(
+            api,
+            relations,
+            resource.thumbnail_id,
+            primary.map(|media| Shown {
+                media,
+                item_is_public: resource.is_public,
+            }),
+        ),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         // `ItemRepresentation::primaryMedia`: the stored primary media when it
@@ -406,7 +415,15 @@ pub(crate) fn item_set_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, primary),
+        thumbnail_display_urls: thumbnails(
+            api,
+            relations,
+            resource.thumbnail_id,
+            primary.map(|media| Shown {
+                media,
+                item_is_public: relations.item_is_public(media.item_id.0),
+            }),
+        ),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         is_open: row.is_open,
@@ -474,13 +491,16 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         ),
         _ => sorted_page(rows, &sort, &limit, cmp_media(sort)),
     };
-    let relations = Relations::load(
+    let mut relations = Relations::load(
         api,
         Page::Plain,
         page.iter()
             .map(|row| (row.resource.id.0, row.resource.resource_template_id)),
     )
     .await?;
+    relations
+        .load_owners(api, page.iter().map(|row| row.item_id.0))
+        .await?;
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(media_doc(api, row, &relations));
@@ -510,12 +530,13 @@ pub async fn read_media(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiE
 
 /// The `Media` document for a row, as `read_media` answers it.
 pub(crate) async fn media_document(api: &Api<'_>, row: &MediaRow) -> Result<ApiResponse, ApiError> {
-    let relations = Relations::load(
+    let mut relations = Relations::load(
         api,
         Page::Plain,
         [(row.resource.id.0, row.resource.resource_template_id)],
     )
     .await?;
+    relations.load_owners(api, [row.item_id.0]).await?;
     Ok(ApiResponse::document(serialize(&media_doc(
         api, row, &relations,
     ))?))
@@ -531,11 +552,16 @@ pub(crate) fn media_doc(
     let base = api.base();
     let resource = &row.resource;
     let filename = media_filename(row);
-    let thumbnail_urls = media_thumbnail_urls(api, row);
+    let shown = Shown {
+        media: row,
+        item_is_public: relations.item_is_public(row.item_id.0),
+    };
+    let thumbnail_urls = media_thumbnail_urls(api, shown);
     let original_url = if row.has_original {
-        filename
-            .as_ref()
-            .map(|name| base.file_url(&format!("original/{name}")))
+        filename.as_ref().map(|name| {
+            api.files()
+                .url(&format!("original/{name}"), FileKind::Original)
+        })
     } else {
         None
     };
@@ -559,7 +585,7 @@ pub(crate) fn media_doc(
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
         title: resource.title.clone(),
-        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, Some(row)),
+        thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, Some(shown)),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
         ingester: row.ingester.clone(),
@@ -783,7 +809,7 @@ fn thumbnails(
     api: &Api<'_>,
     relations: &Relations,
     custom: Option<AssetId>,
-    primary: Option<&MediaRow>,
+    primary: Option<Shown<'_>>,
 ) -> ThumbnailDisplayUrls {
     if let Some(id) = custom {
         // `AssetRepresentation::thumbnail` returns the asset itself, so every
@@ -792,8 +818,8 @@ fn thumbnails(
             return empty_thumbnail_urls();
         };
         let url = api
-            .base()
-            .file_url(&format!("asset/{}", asset_filename(asset)));
+            .files()
+            .url(&format!("asset/{}", asset_filename(asset)), FileKind::Asset);
         return ThumbnailDisplayUrls {
             large: Some(url.clone()),
             medium: Some(url.clone()),
@@ -803,6 +829,22 @@ fn thumbnails(
     match primary {
         Some(media) => media_display_urls(api, media),
         None => empty_thumbnail_urls(),
+    }
+}
+
+/// A media as one document shows it, with whether its item is public: a
+/// thumbnail URL is plain only when both are.
+#[derive(Clone, Copy)]
+pub(crate) struct Shown<'a> {
+    media: &'a MediaRow,
+    item_is_public: bool,
+}
+
+impl Shown<'_> {
+    fn thumbnail(self) -> FileKind {
+        FileKind::Thumbnail {
+            public: self.media.resource.is_public && self.item_is_public,
+        }
     }
 }
 
@@ -819,7 +861,7 @@ fn asset_filename(row: &AssetRow) -> String {
 /// (`Module::addTermDefinitionsToContext`'s `thumbnails.types`). A media with
 /// no thumbnail file falls back to the asset for its media type, so a media
 /// (and any resource whose primary media it is) always has three URLs.
-fn media_display_urls(api: &Api<'_>, media: &MediaRow) -> ThumbnailDisplayUrls {
+fn media_display_urls(api: &Api<'_>, media: Shown<'_>) -> ThumbnailDisplayUrls {
     ThumbnailDisplayUrls {
         large: Some(media_display_url(api, media, "large")),
         medium: Some(media_display_url(api, media, "medium")),
@@ -827,11 +869,14 @@ fn media_display_urls(api: &Api<'_>, media: &MediaRow) -> ThumbnailDisplayUrls {
     }
 }
 
-fn media_display_url(api: &Api<'_>, media: &MediaRow, kind: &str) -> String {
+fn media_display_url(api: &Api<'_>, shown: Shown<'_>, kind: &str) -> String {
+    let media = shown.media;
     if has_thumbnails(api, media)
         && let Some(storage) = &media.storage_id
     {
-        return api.base().file_url(&format!("{kind}/{storage}.jpg"));
+        return api
+            .files()
+            .url(&format!("{kind}/{storage}.jpg"), shown.thumbnail());
     }
     api.base()
         .fallback_thumbnail_url(media.media_type.as_deref())
@@ -839,7 +884,8 @@ fn media_display_url(api: &Api<'_>, media: &MediaRow, kind: &str) -> String {
 
 /// `MediaRepresentation::thumbnailUrls`: the PHP empty array when the media has
 /// no thumbnails, otherwise one file URL per type.
-fn media_thumbnail_urls(api: &Api<'_>, media: &MediaRow) -> ThumbnailUrls {
+fn media_thumbnail_urls(api: &Api<'_>, shown: Shown<'_>) -> ThumbnailUrls {
+    let media = shown.media;
     let mut urls = ThumbnailUrls::empty();
     if !has_thumbnails(api, media) {
         return urls;
@@ -848,7 +894,11 @@ fn media_thumbnail_urls(api: &Api<'_>, media: &MediaRow) -> ThumbnailUrls {
         return urls;
     };
     for kind in THUMBNAIL_TYPES {
-        urls.insert(kind, api.base().file_url(&format!("{kind}/{storage}.jpg")));
+        urls.insert(
+            kind,
+            api.files()
+                .url(&format!("{kind}/{storage}.jpg"), shown.thumbnail()),
+        );
     }
     urls
 }

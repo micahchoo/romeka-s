@@ -19,6 +19,7 @@ use std::cmp::Ordering;
 use omeka_db::ids::{AssetId, JobId, UserId};
 use omeka_db::repos::{compare_opt_text_ci, compare_text_ci};
 use omeka_db::rows::{AssetRow, JobRow, ModuleRow, ResourceRow, SitePageRow, resource_type};
+use omeka_media::store::FileKind;
 use sqlx::SqlitePool;
 
 use super::paging::{Limit, Window, ordered_page};
@@ -79,7 +80,9 @@ fn asset_doc(api: &Api<'_>, row: &AssetRow) -> crate::wire::asset::Asset {
         o_id: row.id.0,
         owner: resource_ref_opt(base, "users", row.owner_id.map(|id| id.0)),
         name: row.name.clone(),
-        asset_url: base.file_url(&format!("asset/{filename}")),
+        asset_url: api
+            .files()
+            .url(&format!("asset/{filename}"), FileKind::Asset),
         filename,
         media_type: row.media_type.clone(),
         alt_text: row.alt_text.clone(),

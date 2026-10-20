@@ -59,6 +59,9 @@ pub(crate) struct Relations {
     /// The asset each page row's `resource.thumbnail_id` names, keyed by asset
     /// id, for `AbstractRepresentation::thumbnailDisplayUrl`.
     assets: HashMap<u64, AssetRow>,
+    /// Whether each item that owns a media the page shows outside its own
+    /// item is public, for the media's file URLs.
+    owners: HashMap<u64, bool>,
 }
 
 impl Relations {
@@ -96,6 +99,7 @@ impl Relations {
                     .map(|(item, _)| *item)
                     .collect();
                 relations.media = media_for(api.pool(), &item_ids).await?;
+                relations.load_owners(api, item_ids).await?;
             }
             Page::Plain => {}
         }
@@ -144,6 +148,7 @@ impl Relations {
         relations
             .media
             .extend(media_for(api.pool(), &first_items).await?);
+        relations.load_owners(api, first_items).await?;
         relations.add_shared(api, &ids, &templates).await?;
         Ok(relations)
     }
@@ -226,6 +231,30 @@ impl Relations {
     /// The asset a resource's `thumbnail_id` names, when it is on this page.
     pub(crate) fn asset(&self, id: u64) -> Option<&AssetRow> {
         self.assets.get(&id)
+    }
+
+    /// Read whether each of `items` is public, for [`Relations::item_is_public`].
+    pub(crate) async fn load_owners(
+        &mut self,
+        api: &Api<'_>,
+        items: impl IntoIterator<Item = u64>,
+    ) -> Result<(), ApiError> {
+        let ids: Vec<u64> = items
+            .into_iter()
+            .filter(|id| !self.owners.contains_key(id))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        for (id, row) in resources_for(api.pool(), &ids).await? {
+            self.owners.insert(id, row.is_public);
+        }
+        Ok(())
+    }
+
+    /// Whether an item loaded by [`Relations::load_owners`] is public. An item
+    /// that was not loaded counts as private, so its media's URLs are signed.
+    pub(crate) fn item_is_public(&self, item: u64) -> bool {
+        self.owners.get(&item).copied().unwrap_or(false)
     }
 }
 

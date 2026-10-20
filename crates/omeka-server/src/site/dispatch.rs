@@ -68,6 +68,7 @@ pub(crate) async fn dispatch(
     let loader = Loader::new(
         &state.pool,
         &state.base,
+        &state.files,
         &data.catalog,
         &data.site,
         &access,
@@ -167,7 +168,7 @@ impl SiteData {
         let catalog = load_catalog(&state.pool).await?;
         let settings = settings::load(&state.pool, row.id).await?;
         let global_per_page = global_per_page(&state.pool).await?;
-        let favicon_url = favicon_url(&state.pool, &state.base, settings.favicon()).await?;
+        let favicon_url = favicon_url(&state.pool, &state.files, settings.favicon()).await?;
         // `Manager::getResourcePageBlocks`: the site administrator's stored
         // `resource_page_blocks` (the theme's own settings row) wins over the
         // theme's default. The same row carries the design tokens.
@@ -378,6 +379,7 @@ pub(crate) async fn render_preview(
     let loader = Loader::new(
         &state.pool,
         &state.base,
+        &state.files,
         &data.catalog,
         &data.site,
         &access,
@@ -469,6 +471,7 @@ pub(crate) async fn render_resource_preview(
     let loader = Loader::new(
         &state.pool,
         &state.base,
+        &state.files,
         &data.catalog,
         &data.site,
         &access,
@@ -687,7 +690,7 @@ async fn global_per_page(pool: &SqlitePool) -> Result<usize, SiteError> {
 /// (`Module.php:195-201`), `None` when the setting is unset or names no asset.
 async fn favicon_url(
     pool: &SqlitePool,
-    base: &omeka_api::jsonld::BaseUrl,
+    files: &omeka_media::store::FileUrls,
     value: Option<&str>,
 ) -> Result<Option<String>, SiteError> {
     let Some(id) = value.and_then(|raw| raw.trim().parse::<u64>().ok()) else {
@@ -696,5 +699,5 @@ async fn favicon_url(
     let Some(row) = AssetRepo::new(pool).get(db::AssetId::from(id)).await? else {
         return Ok(None);
     };
-    Ok(Some(thumbnail_for_asset(base, &row).url))
+    Ok(Some(thumbnail_for_asset(files, &row).url))
 }
