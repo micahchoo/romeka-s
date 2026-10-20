@@ -44,6 +44,8 @@ export const esServer: ServerCatalogue = {
   'server.mediaIngesterRequired': 'Los medios deben tener definida una forma de incorporación.',
   'server.mediaIngesterInvalid': 'Los medios deben incorporarse a través de una forma válida.',
   'server.mediaItemRequired': 'Los medios deben pertenecer a una ficha.',
+  'server.jobHeldByImport':
+    'Esta tarea pertenece a una importación de archivo que se está ejecutando o deshaciendo. Elimínala cuando la importación haya terminado.',
   'server.noFileUploaded': 'No se ha subido ningún archivo',
   'server.assetMediaType': 'Error validando "{file}". No se pueden almacenar archivos con el formato "{media}".',
   'server.assetExtension': 'Error validando "{file}". No se pueden almacenar archivos con la extensión "{extension}".',

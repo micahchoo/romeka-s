@@ -7,8 +7,10 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
 import type { SetPreview } from '../../api/import-preview';
-import { STARTER_IDS, isNewType } from '../../api/imports';
-import type { ImportPlan, NewType, StarterId, TypeChoice } from '../../api/imports';
+import { isNewType } from '../../api/imports';
+import type { ImportPlan, NewType, TypeChoice } from '../../api/imports';
+import { getStarters } from '../../api/starters';
+import type { Starter, StarterId } from '../../api/starters';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
@@ -17,32 +19,30 @@ import { useLocale } from '../../i18n';
 import type { Locale } from '../../i18n';
 import { useTermLabels } from '../../i18n/termText';
 import type { TermLabels } from '../../i18n/termText';
-import { FALLBACK, STARTERS, localised } from '../item-types/starters';
-import type { Starter } from '../item-types/starters';
+import { starterLabel, starterName } from '../item-types/starter-text';
 import { useImportText } from './messages';
 import { PreviewError } from './preview-error';
 import type { TabProps } from './tabs';
 import { usePreview } from './use-preview';
 
-/** The starters by the id the plan stores; "other" is the item type pages' fallback. */
-const STARTER_BY_ID: ReadonlyMap<StarterId, Starter> = new Map(
-  [...STARTERS, FALLBACK].flatMap((starter) => {
-    const id = STARTER_IDS.find((entry) => entry === starter.id);
-    return id === undefined ? [] : [[id, starter] as const];
-  }),
-);
-
 interface TypeOptions {
   readonly templates: readonly ResourceTemplate[];
   readonly properties: ReadonlyMap<number, Property>;
+  /** The server's starters by the id the plan stores. */
+  readonly starters: ReadonlyMap<StarterId, Starter>;
 }
 
 const loadOptions = async (): Promise<TypeOptions> => {
-  const [templates, properties] = await Promise.all([
+  const [templates, properties, table] = await Promise.all([
     allPages((page) => api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'label' })),
     allPages((page) => api.listProperties({ page, perPage: PER_PAGE })),
+    getStarters(api),
   ]);
-  return { templates, properties: new Map(properties.map((property) => [Number(property.id), property])) };
+  return {
+    templates,
+    properties: new Map(properties.map((property) => [Number(property.id), property])),
+    starters: new Map(table.starters.map((starter) => [starter.id, starter])),
+  };
 };
 
 /** A choice as a select value: `t<id>` a template, `n<name>` a new type, `` none. */
@@ -69,9 +69,8 @@ const fieldsOf = (
     return '';
   }
   if (isNewType(choice)) {
-    const starter = STARTER_BY_ID.get(choice.starter);
-    return (starter?.fields ?? [])
-      .map((field) => `${localised(field.label, locale)}${field.required === true ? ' *' : ''}`)
+    return (options.starters.get(choice.starter)?.fields ?? [])
+      .map((field) => `${starterLabel(field, locale)}${field.required ? ' *' : ''}`)
       .join(', ');
   }
   const template = options.templates.find((entry) => entry.id === choice);
@@ -86,17 +85,19 @@ const fieldsOf = (
 
 const AskType = ({
   set,
+  starters,
   onCreate,
   onCancel,
 }: {
   readonly set: SetPreview;
+  readonly starters: ReadonlyMap<StarterId, Starter>;
   readonly onCreate: (type: NewType) => void;
   readonly onCancel: () => void;
 }): ReactElement => {
   const { t, locale } = useImportText();
   const [starter, setStarter] = useState<StarterId | null>(null);
   const [name, setName] = useState('');
-  const chosen = starter === null ? undefined : STARTER_BY_ID.get(starter);
+  const chosen = starter === null ? undefined : starters.get(starter);
   return (
     <form
       className="import-panel"
@@ -110,17 +111,17 @@ const AskType = ({
       <h3>{t('types.newHeading', { name: set.name })}</h3>
       <p>{t('types.question')}</p>
       <div className="import-chips" role="group" aria-label={t('types.question')}>
-        {[...STARTER_BY_ID].map(([id, entry]) => (
+        {[...starters].map(([id, entry]) => (
           <button
             key={id}
             type="button"
             aria-pressed={starter === id}
             onClick={() => {
               setStarter(id);
-              setName(localised(entry.name, locale));
+              setName(starterName(entry, locale));
             }}
           >
-            {localised(entry.name, locale)}
+            {starterName(entry, locale)}
           </button>
         ))}
       </div>
@@ -135,7 +136,7 @@ const AskType = ({
           <p className="muted">
             {t('types.startsWith', {
               fields: chosen.fields
-                .map((field) => `${localised(field.label, locale)}${field.required === true ? ' *' : ''}`)
+                .map((field) => `${starterLabel(field, locale)}${field.required ? ' *' : ''}`)
                 .join(', '),
             })}
           </p>
@@ -241,6 +242,7 @@ const TypesTable = ({
         <AskType
           key={asking.key}
           set={asking}
+          starters={options.starters}
           onCancel={() => { setAsking(null); }}
           onCreate={(type) => {
             onChange((current) => withType(current, asking.key, type));

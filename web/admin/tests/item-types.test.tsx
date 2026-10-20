@@ -66,6 +66,7 @@ const routes = (extra: Readonly<Record<string, Handler>> = {}): Handler => {
     '/api/properties': () => listResponse(PROPERTIES, PROPERTIES.length),
     '/api/resource_classes': () => listResponse(CLASSES, CLASSES.length),
     '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
+    '/api/romeka/starters': () => jsonResponse(loadFixture('starters.json')),
     '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
     ...extra,
   };
@@ -394,6 +395,42 @@ describe('a new item type', () => {
     );
     expect(body['o:resource_class']).toEqual({ 'o:id': 61 });
     expect(rowsSent(body).map((row) => row['o:property'])).toEqual([{ 'o:id': 1 }]);
+  });
+
+  it('lists and creates the fields the server lists, not a copy of its own', async () => {
+    const starters = loadFixture('starters.json');
+    if (!Array.isArray(starters)) {
+      throw new Error('expected the starter list');
+    }
+    const changed = starters.map((starter: unknown) =>
+      typeof starter === 'object' && starter !== null && 'id' in starter && starter.id === 'letter'
+        ? {
+            ...starter,
+            fields: [
+              { term: 'dcterms:title', required: true, label: 'Title', dataTypes: ['literal'] },
+              { term: 'dcterms:relation', required: false, label: 'Answers to', dataTypes: ['literal'] },
+            ],
+          }
+        : starter,
+    );
+    const fetchMock = installFetch(
+      routes({
+        '/api/romeka/starters': () => jsonResponse(changed),
+        '/api/resource_templates': created,
+      }),
+    );
+    render(<ItemTypesPage param="new" />);
+    fireEvent.change(await screen.findByLabelText('What kind of thing is this?'), {
+      target: { value: 'Letter' },
+    });
+    expect(screen.getByText('Answers to')).toBeInTheDocument();
+    expect(screen.queryByText('Sender')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Use these fields' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create item type' }));
+    const body = requestBody(
+      await waitFor(() => sent(fetchMock, '/api/resource_templates', 'POST')),
+    );
+    expect(rowsSent(body).map((row) => row['o:alternate_label'])).toEqual([null, 'Answers to']);
   });
 
   it('adds a field found from how people describe it', async () => {

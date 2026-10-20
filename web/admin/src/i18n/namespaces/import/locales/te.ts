@@ -84,7 +84,7 @@ export const te: ImportMessages = {
   'example.pageOptional': 'పేజీ ఐచ్ఛికం.',
   'example.makeRequired': 'దీనిని తప్పనిసరి చేయండి',
   'example.shape': 'ఆకారం:',
-  'example.shapeNote': 'అంకెలు అంకెలతో, అక్షరాలు అక్షరాలతో సరిపోలుతాయి.',
+  'example.shapeNote': 'అంకెలు ఎన్ని అంకెలైనా సరిపోతాయి, అక్షరాలు ఏ కేస్ అయినా సరిపోతాయి.',
   'example.editRegex': 'రెగ్యులర్ ఎక్స్‌ప్రెషన్‌గా ఎడిట్ చేయండి',
   'example.use': 'ఉదాహరణగా ఉపయోగించండి',
   'example.noFiles': 'ఈ ఫోల్డర్‌లో ఉదాహరణగా ఉపయోగించడానికి ఫైళ్లు లేవు.',

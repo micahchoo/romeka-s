@@ -45,6 +45,7 @@ type Answer = Result<Response, ImportError>;
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/romeka/archive", get(archive))
+        .route("/api/romeka/starters", get(starters))
         .route("/api/romeka/imports", get(list).post(create))
         .route(
             "/api/romeka/imports/{id}",
@@ -107,6 +108,19 @@ struct Listing {
     enabled: bool,
     path: String,
     entries: Vec<Entry>,
+}
+
+/// `GET /api/romeka/starters`: the item type starters, the one table the run
+/// creates templates from. The Item types page reads it too, so it answers
+/// with the import off.
+async fn starters(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            Ok(json(StatusCode::OK, &catalog::STARTERS))
+        }
+        .await,
+    )
 }
 
 /// `GET /api/romeka/archive?path=`: one folder of the archive.

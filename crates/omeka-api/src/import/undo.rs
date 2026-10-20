@@ -26,6 +26,10 @@ use crate::jsonld::BaseUrl;
 use crate::read::Api;
 use crate::write::{item_sets, items, media, templates, vocab};
 
+/// The summary member that holds the undo's own `{ done, total }`. The run's `progress` stays as
+/// the run left it, so the ended screens keep its numbers.
+const UNDO_PROGRESS: &str = "undoProgress";
+
 /// What an undo removed, and what it kept because something else uses it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -111,6 +115,13 @@ where
                 None => format!("kept {} {}: still in use", kind.as_str(), raw(row.target)),
             };
             done += 1;
+            keep_member(
+                pool,
+                import_id,
+                UNDO_PROGRESS,
+                serde_json::json!({ "done": done, "total": total }),
+            )
+            .await?;
             progress(Progress {
                 done,
                 total,
@@ -128,14 +139,24 @@ async fn keep_report(
     import_id: ImportId,
     report: &UndoReport,
 ) -> Result<(), UndoError> {
+    let report = serde_json::to_value(report).map_err(ApiError::internal)?;
+    keep_member(pool, import_id, "undo", report).await
+}
+
+/// Set one member of the import's summary and keep the rest. The write is also the heartbeat.
+async fn keep_member(
+    pool: &SqlitePool,
+    import_id: ImportId,
+    key: &str,
+    value: Value,
+) -> Result<(), UndoError> {
     let repo = ImportRepo::new(pool);
     let stored = repo.get(import_id).await?.and_then(|row| row.summary);
     let mut summary = match stored {
         Some(Value::Object(members)) => members,
         _ => Map::new(),
     };
-    let report = serde_json::to_value(report).map_err(ApiError::internal)?;
-    summary.insert("undo".to_string(), report);
+    summary.insert(key.to_string(), value);
     repo.set_summary(import_id, &Value::Object(summary)).await?;
     Ok(())
 }

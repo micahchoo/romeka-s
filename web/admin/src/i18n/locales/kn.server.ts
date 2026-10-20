@@ -45,6 +45,8 @@ export const knServer: ServerCatalogue = {
   'server.mediaIngesterRequired': 'ಮೀಡಿಯಾ ಇಂಜೆಸ್ಟರ್ ಅನ್ನು ಹೊಂದಿರಬೇಕು.',
   'server.mediaIngesterInvalid': 'ಮೀಡಿಯಾ ಮಾನ್ಯವಾದ ಇಂಜೆಸ್ಟರ್ ಅನ್ನು ಹೊಂದಿರಬೇಕು.',
   'server.mediaItemRequired': 'ಮೀಡಿಯಾ ಒಂದು ಐಟಂಗೆ ಸೇರಿರಬೇಕು.',
+  'server.jobHeldByImport':
+    'ಈ ಕೆಲಸವು ಚಾಲನೆಯಲ್ಲಿರುವ ಅಥವಾ ರದ್ದುಗೊಳಿಸುತ್ತಿರುವ ಆರ್ಕೈವ್ ಇಂಪೋರ್ಟ್ಗೆ ಸೇರಿದೆ. ಇಂಪೋರ್ಟ್ ಮುಗಿದ ನಂತರ ಅದನ್ನು ಅಳಿಸಿ.',
   'server.noFileUploaded': 'ಯಾವುದೇ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಆಗಿಲ್ಲ',
   'server.assetMediaType':
     '"{file}" ಅನ್ನು ದೃಢೀಕರಿಸುವಲ್ಲಿ ದೋಷ. "{media}" ಮಾಧ್ಯಮ ಪ್ರಕಾರದೊಂದಿಗೆ ಫೈಲ್‌ಗಳನ್ನು ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',

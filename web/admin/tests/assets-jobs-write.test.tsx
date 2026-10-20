@@ -230,6 +230,36 @@ describe('the job detail view', () => {
     expect(window.location.hash).toBe('#/jobs');
   });
 
+  // The server refuses a job an archive import holds; the message is a registered server pattern,
+  // so the admin shows it in the active locale and stays on the page.
+  it('job_delete_held_by_an_import_shows_the_409_message_in_the_active_locale', async () => {
+    const held =
+      'This job belongs to an archive import that is running or undoing. Delete it once the import has ended.';
+    installFetch(
+      withFixture({
+        '/api/jobs/1': (_url, init) =>
+          init?.method === 'DELETE'
+            ? jsonResponse({ errors: { error: held } }, { status: 409 })
+            : jsonResponse(job()),
+      }),
+    );
+    await setLocale('es');
+    try {
+      render(<JobsPage param="1" />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Eliminar esta tarea' }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Eliminar / }));
+
+      expect(
+        await screen.findByText(
+          /^Esta tarea pertenece a una importación de archivo que se está ejecutando o deshaciendo\. Elimínala cuando la importación haya terminado\./,
+        ),
+      ).toBeInTheDocument();
+      expect(window.location.hash).not.toBe('#/jobs');
+    } finally {
+      await setLocale('en');
+    }
+  });
+
   it('job_detail_reports_an_unparseable_id', () => {
     installFetch(withFixture({}));
     render(<JobsPage param="abc" />);

@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 use super::archive::ArchiveFolder;
-use super::catalog::Catalog;
+use super::catalog::{Catalog, starter};
 use super::media_files;
 use super::plan::ImportPlan;
 use super::work::{ItemWork, SetRef, TemplateRef, Work, WorkError};
@@ -38,7 +38,8 @@ mod lookups;
 
 pub(super) use lookups::find_property;
 use lookups::{
-    TemplateUse, existing_templates, literals, local_vocabulary, property, resolve_terms, title,
+    TemplateUse, existing_templates, find_class, literals, local_vocabulary, property,
+    resolve_terms, title,
 };
 
 /// The vocabulary new fields go in, as the admin's "Create a new field" makes it.
@@ -274,15 +275,16 @@ where
     ) -> Result<Vec<TemplateUse>, RunError> {
         let mut made = Vec::with_capacity(work.types.len());
         for new in &work.types {
-            let mut fields = Vec::with_capacity(new.fields.len());
-            for (position, field) in (1_i64..).zip(&new.fields) {
+            let starter = starter(new.starter);
+            let mut fields = Vec::with_capacity(starter.fields.len());
+            for (position, field) in (1_i64..).zip(starter.fields) {
                 fields.push(NewTemplateProperty {
                     resource_template_id: TemplateId(0),
-                    property_id: property(terms, &field.term)?,
-                    alternate_label: None,
+                    property_id: property(terms, field.term)?,
+                    alternate_label: Some(field.label.to_string()),
                     alternate_comment: None,
                     position: Some(position),
-                    data_type: None,
+                    data_type: Some(field.data_types.iter().map(|t| (*t).to_string()).collect()),
                     is_required: field.required,
                     is_private: false,
                     default_lang: None,
@@ -293,9 +295,12 @@ where
                 .as_deref()
                 .map(|term| property(terms, term))
                 .transpose()?;
+            // A vocabulary this install lacks leaves the class off, as the
+            // admin does when it lacks the starter's class.
+            let class = find_class(self.pool, starter.class_term).await?;
             let template = NewTemplate {
                 owner_id: self.owner,
-                resource_class_id: None,
+                resource_class_id: class,
                 title_property_id: title,
                 description_property_id: None,
                 label: new.name.clone(),
@@ -303,7 +308,7 @@ where
             let row = self.writer.create_template(&template, &fields).await?;
             made.push(TemplateUse {
                 id: row.id,
-                class: None,
+                class,
                 title,
             });
             self.summary.new_types.push(new.name.clone());

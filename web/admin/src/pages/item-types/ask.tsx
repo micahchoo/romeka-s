@@ -4,6 +4,7 @@
  */
 import { useId, useState } from "react";
 import type { ReactElement } from "react";
+import type { Starter, StarterTable } from "../../api/starters";
 import { plainName } from "../../app/plain-terms";
 import { useLocale } from "../../i18n";
 import { useTermLabels } from "../../i18n/termText";
@@ -11,13 +12,8 @@ import { TypeEditor } from "./editor";
 import { useItemTypesText } from "./messages";
 import type { TypeDraft } from "./model";
 import type { TypeOptions } from "./options";
-import {
-  draftFromStarter,
-  FALLBACK,
-  localised,
-  starterFor,
-  type Starter,
-} from "./starters";
+import { draftFromStarter, starterFor } from "./starter-draft";
+import { starterLabel } from "./starter-text";
 
 const titleOnly = (starter: Starter): Starter => ({
   ...starter,
@@ -26,8 +22,10 @@ const titleOnly = (starter: Starter): Starter => ({
 
 export const NewType = ({
   options,
+  table,
 }: {
   readonly options: TypeOptions;
+  readonly table: StarterTable;
 }): ReactElement => {
   const t = useItemTypesText();
   const locale = useLocale();
@@ -50,8 +48,8 @@ export const NewType = ({
   }
 
   const name = kind.trim();
-  const known = starterFor(name);
-  const starter = known ?? FALLBACK;
+  const known = starterFor(table.starters, name);
+  const starter = known ?? table.other;
   const start = (chosen: Starter): void => {
     setDraft(
       draftFromStarter(
@@ -115,7 +113,7 @@ export const NewType = ({
           <ul className="type-ask-fields">
             {fields.map(({ field, property }) => (
               <li key={field.term}>
-                {localised(field.label, locale)} <code>{property.term}</code>
+                {starterLabel(field, locale)} <code>{property.term}</code>
               </li>
             ))}
           </ul>
@@ -140,7 +138,7 @@ export const NewType = ({
                   field:
                     starter.fields[0] === undefined
                       ? ""
-                      : localised(starter.fields[0].label, locale),
+                      : starterLabel(starter.fields[0], locale),
                 })}
               </button>
             )}
