@@ -18,6 +18,7 @@ import type {
 } from 'react';
 import { useTranslator } from '../../../../i18n';
 import type { BlockDraft, BlockKey, DraftAction, ValidationIssue } from '../draft';
+import { counted } from '../messages';
 import { placementOf } from './grid';
 import {
   flatIndex,
@@ -90,12 +91,12 @@ export const CanvasCard = ({
   const name =
     issues.length === 0
       ? t('canvas.card', { position, label })
-      : t('canvas.cardIssues', { position, label, count: issues.length });
+      : counted(t, 'cardIssues', issues.length, { position, label });
 
   const remove = (): void => {
     setMenuOpen(false);
+    // The shell's toast announces the removal and offers its Undo.
     dispatch({ type: 'removeBlock', blockKey: block.key });
-    onAnnounce(t('canvas.deleted', { label }));
   };
 
   const moveOut = (): void => {
@@ -240,11 +241,14 @@ export const CanvasCard = ({
       }}
     >
       <div className="canvas-card-head">
+        <span className="canvas-card-grip" title={t('canvas.grip')} aria-hidden="true">
+          ⠿
+        </span>
         {image === null ? null : <img className="canvas-card-thumb" src={image} alt="" />}
         <span className="canvas-card-label">{label}</span>
         <span className="canvas-card-summary">{summary}</span>
         {issues.length === 0 ? null : (
-          <span className="canvas-badge">{t('canvas.issues', { count: issues.length })}</span>
+          <span className="canvas-badge">{counted(t, 'issues', issues.length)}</span>
         )}
         {mismatch ? (
           <>

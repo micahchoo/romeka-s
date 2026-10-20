@@ -8,7 +8,7 @@
  * gesture state below.
  */
 import { Fragment, useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { useTranslator } from '../../../../i18n';
 import type { JsonValue } from '../../../../api/types';
 import type { TemplateChoice } from '../../templates';
@@ -20,6 +20,7 @@ import { BlockPicker, useInsertChoices } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
 import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
+import { counted } from '../messages';
 import { romkaState } from '../romekaHash';
 import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel } from './summary';
@@ -168,18 +169,6 @@ export const PageCanvas = ({
     setPickerIndex(null);
   };
 
-  const shortcut = (event: ReactKeyboardEvent<HTMLElement>): void => {
-    if (!(event.metaKey || event.ctrlKey) || (event.key !== 'z' && event.key !== 'Z')) {
-      return;
-    }
-    const target = event.target;
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-      return;
-    }
-    event.preventDefault();
-    dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
-  };
-
   const insertPoint = (index: number): ReactElement => (
     <InsertPoint
       key={`insert-${String(index)}`}
@@ -252,7 +241,7 @@ export const PageCanvas = ({
         {renderCard(node.marker)}
         <li className="canvas-group">
           <span className="canvas-group-label">
-            {t('canvas.group', { count: node.members.length })}
+            {counted(t, 'groupBlocks', node.members.length)}
           </span>
           <ul className="canvas-group-members">
             {node.members.map((member) => (
@@ -289,36 +278,16 @@ export const PageCanvas = ({
     : undefined;
 
   return (
-    <section className="canvas" aria-label={t('canvas.region')} onKeyDown={shortcut}>
+    <section className="canvas" aria-label={t('canvas.region')}>
       <div className="canvas-toolbar">
-        <p className="canvas-count">{t('canvas.blockCount', { count: draft.blocks.length })}</p>
-        <div className="canvas-history">
-          <button
-            type="button"
-            disabled={draft.past.length === 0}
-            onClick={() => {
-              dispatch({ type: 'undo' });
-            }}
-          >
-            {t('canvas.undo')}
-          </button>
-          <button
-            type="button"
-            disabled={draft.future.length === 0}
-            onClick={() => {
-              dispatch({ type: 'redo' });
-            }}
-          >
-            {t('canvas.redo')}
-          </button>
-        </div>
+        <p className="canvas-count">{counted(t, 'blocks', draft.blocks.length)}</p>
       </div>
       <p className="canvas-live" role="status" aria-live="polite">
         {announcement}
       </p>
       {pageIssueCount === 0 ? null : (
         <p className="canvas-page-error" role="alert">
-          {t('canvas.pageIssues', { count: pageIssueCount })}
+          {counted(t, 'pageIssues', pageIssueCount)}
         </p>
       )}
       <ul
