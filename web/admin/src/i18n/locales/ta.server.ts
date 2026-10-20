@@ -47,6 +47,8 @@ export const taServer: ServerCatalogue = {
   'server.mediaIngesterRequired': 'ஊடகங்கள் ஒரு உள்ளீட்டாளரை (ingester) அமைக்க வேண்டும்.',
   'server.mediaIngesterInvalid': 'ஊடகங்கள் ஒரு சரியான உள்ளீட்டாளரை அமைக்க வேண்டும்.',
   'server.mediaItemRequired': 'ஊடகங்கள் ஒரு உருப்படியைச் சார்ந்திருக்க வேண்டும்.',
+  'server.jobHeldByImport':
+    'இந்த வேலை ஒரு ஆவணக் காப்பக இறக்குமதிக்குச் சொந்தமானது, இது இயங்குகிறது அல்லது ரத்து செய்யப்படுகிறது. இறக்குமதி முடிந்ததும் அதை நீக்கவும்.',
   'server.noFileUploaded': 'கோப்பு எதுவும் பதிவேற்றப்படவில்லை',
   'server.assetMediaType':
     '"{file}" ஐச் சரிபார்ப்பதில் பிழை. "{media}" ஊடக வகையுடன் கோப்புகளைச் சேமிக்க முடியாது.',

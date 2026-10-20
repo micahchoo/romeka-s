@@ -45,6 +45,8 @@ export const hiServer: ServerCatalogue = {
   'server.mediaIngesterRequired': 'मीडिया को एक इंजस्टर (ingester) सेट करना चाहिए।',
   'server.mediaIngesterInvalid': 'मीडिया को एक वैध इंजस्टर सेट करना चाहिए।',
   'server.mediaItemRequired': 'मीडिया को एक आइटम से संबंधित होना चाहिए।',
+  'server.jobHeldByImport':
+    'यह कार्य एक संग्रह आयात से संबंधित है जो चल रहा है या पूर्ववत हो रहा है। आयात समाप्त होने के बाद इसे हटा दें।',
   'server.noFileUploaded': 'कोई फ़ाइल अपलोड नहीं की गई',
   'server.assetMediaType':
     '"{file}" को सत्यापित करने में त्रुटि। मीडिया प्रकार "{media}" वाली फ़ाइलें संग्रहीत नहीं की जा सकतीं।',
