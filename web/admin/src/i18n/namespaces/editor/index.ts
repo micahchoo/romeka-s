@@ -584,6 +584,9 @@ export const en = {
   'region.leaveConfirm': 'The site header or footer has unsaved changes. Leave and lose them?',
   'region.pageGroup': 'On every page',
   'region.pageHelp': 'The header and footer belong to the whole site. Click one in the preview, or choose it here.',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'Three featured items',
+  'sectionTemplate.featuredItems.description': 'Three item cards in a row, each with its image, title and a link.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

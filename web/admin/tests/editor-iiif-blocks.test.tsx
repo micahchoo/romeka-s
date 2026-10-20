@@ -88,7 +88,7 @@ describe('the manifest source', () => {
   it('stores an item of this site as the manifest this server publishes', async () => {
     installFetch(handler);
     const block = renderBlock('iiifPresentation', {});
-    fireEvent.click(screen.getByRole('radio', { name: 'An item from this site' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'An item from this site' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
     expect(block().data).toEqual({ manifest_url: manifestOf(1) });
     expect(await screen.findByRole('option', { name: 'Fixture Item One', selected: true })).toBeInTheDocument();
@@ -97,13 +97,13 @@ describe('the manifest source', () => {
   it('reads a stored item manifest back as the item, and a web address as a URL', async () => {
     installFetch(handler);
     renderBlock('iiifPresentation', { manifest_url: manifestOf(1) });
-    expect(screen.getByRole('radio', { name: 'An item from this site' })).toBeChecked();
+    expect(await screen.findByRole('radio', { name: 'An item from this site' })).toBeChecked();
     expect(await screen.findByText('Fixture Item One', { selector: 'strong' })).toBeInTheDocument();
   });
 
-  it('clears the stored URL when the source changes', () => {
+  it('clears the stored URL when the source changes', async () => {
     const block = renderBlock('iiifPresentation', { manifest_url: 'https://example.org/m.json' });
-    expect(screen.getByRole('radio', { name: 'A manifest URL' })).toBeChecked();
+    expect(await screen.findByRole('radio', { name: 'A manifest URL' })).toBeChecked();
     expect(screen.getByRole('textbox', { name: 'A manifest URL' })).toHaveValue('https://example.org/m.json');
     installFetch(handler);
     fireEvent.click(screen.getByRole('radio', { name: 'An item from this site' }));

@@ -203,6 +203,18 @@ catalogue label, a `LayoutSchema` in the same format as an upstream layout, a ri
 plain renderer. `plain` has no default, so a block without one does not compile. `ROMKA_BLOCKS` holds
 the registry; `hero` is its first entry.
 
+The content blocks follow the hero: `gallery`, `featuredItem`, `button`, `quote`, `accordion`,
+`timeline` and `searchBox`, one module each under `blocks/`. They share the setting readers in
+`blocks::setting` (text, ids, a page-or-URL `Button`, an items-or-query `selection`). A block that
+lists items names them through the `items` hook; the page load reads each picked item with its main
+media's large image, and the write resolves them into `PlainItem`s with their public values and main
+image, so a plain rendering needs no database. `PlainRefs` also carries the site's locale, so a
+plain rendering prints the site's own words ("View item", "Undated"). Two plain renderings cannot
+carry what the rich one shows: the purifier allows no `details` and no `form`, so the accordion
+stores each heading as an `h3` with its answer and the search box stores a link to the search page.
+The gallery's lightbox is `js/lightbox.js`, added to a page only when a gallery on it asks for it
+(`blocks::gallery::with_assets`); without the script each image links to its file.
+
 `romeka::plain_hash` hashes the block's canonical content form with FNV-1a 64. The form keeps only
 what a reader sees, in order: text runs with whitespace collapsed, each image's `src` and `alt`, and
 each link's `href` with the text it wraps. An upstream admin save rewrites the html through

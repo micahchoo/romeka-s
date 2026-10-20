@@ -21,13 +21,17 @@ pub mod schema;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+pub mod accordion;
 pub mod asset;
 pub mod block_group;
 pub mod browse_preview;
+pub mod button;
 pub mod canonical;
 pub mod carousel;
 mod columns;
 pub mod fallback;
+pub mod featured_item;
+pub mod gallery;
 pub mod hero;
 pub mod html;
 mod iiif;
@@ -45,11 +49,15 @@ pub mod oembed;
 pub mod page_card;
 pub mod page_date_time;
 pub mod page_title;
+pub mod quote;
 pub mod romeka;
+pub mod search_box;
 pub mod section_templates;
+pub(crate) mod setting;
 pub mod style;
 pub mod table_of_contents;
 pub mod templates;
+pub mod timeline;
 
 use std::collections::BTreeSet;
 

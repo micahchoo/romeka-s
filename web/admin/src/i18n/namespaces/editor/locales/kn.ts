@@ -611,4 +611,8 @@ export const kn: EditorMessages = {
   'region.pageGroup': 'ಪ್ರತಿ ಪುಟದಲ್ಲಿ',
   'region.pageHelp':
     'ಹೆಡರ್ ಮತ್ತು ಫುಟರ್ ಇಡೀ ಸೈಟ್‌ಗೆ ಸೇರಿವೆ. ಪ್ರಿವ್ಯೂನಲ್ಲಿ ಒಂದನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ, ಅಥವಾ ಇಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ.',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'ಮೂರು ಪ್ರಮುಖ ಐಟಂಗಳು',
+  'sectionTemplate.featuredItems.description':
+    'ಪ್ರತಿ ಚಿತ್ರ, ಶೀರ್ಷಿಕೆ ಮತ್ತು ಲಿಂಕ್ ಹೊಂದಿರುವ ಮೂರು ಐಟಂ ಕಾರ್ಡ್‌ಗಳು ಒಂದು ಸಾಲಿನಲ್ಲಿರುತ್ತವೆ.',
 };

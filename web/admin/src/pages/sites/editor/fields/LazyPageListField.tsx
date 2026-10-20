@@ -5,25 +5,15 @@
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy } from 'react';
-import { useTranslator } from '../../../../i18n';
-import { common } from '../../../../i18n/namespaces/common';
+import { ControlLoading } from './ControlLoading';
 import type { PageListFieldProps } from './PageListField';
 
 const PageListField = lazy(() =>
   import('./PageListField').then((module) => ({ default: module.PageListField })),
 );
 
-const Loading = (): ReactElement => {
-  const { t } = useTranslator(common);
-  return (
-    <p className="field-note" role="status">
-      {t('loading.form')}
-    </p>
-  );
-};
-
 export const LazyPageListField = (props: PageListFieldProps): ReactElement => (
-  <Suspense fallback={<Loading />}>
+  <Suspense fallback={<ControlLoading />}>
     <PageListField {...props} />
   </Suspense>
 );

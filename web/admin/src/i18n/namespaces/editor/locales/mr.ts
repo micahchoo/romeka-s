@@ -605,4 +605,8 @@ export const mr: EditorMessages = {
   'region.pageGroup': 'प्रत्येक पृष्ठावर',
   'region.pageHelp':
     'हेडर आणि फुटर संपूर्ण साइटचे आहेत. प्रिव्ह्यूमधील एक निवडा, किंवा येथे निवडा.',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'तीन वैशिष्ट्यीकृत घटक',
+  'sectionTemplate.featuredItems.description':
+    'प्रत्येक घटकाची प्रतिमा, शीर्षक आणि लिंकसह तीन कार्ड्सची एक ओळ.',
 };

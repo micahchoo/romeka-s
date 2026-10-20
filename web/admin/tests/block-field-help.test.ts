@@ -11,15 +11,34 @@ import type { BlockField } from '../src/pages/sites/blockSchema';
 import { en } from '../src/pages/sites/editor/messages';
 import type { EditorMessages } from '../src/pages/sites/editor/messages';
 import { es } from '../src/i18n/namespaces/editor/locales/es';
+import { es as esContent } from '../src/i18n/namespaces/content-blocks/locales/es';
 import { hi } from '../src/i18n/namespaces/editor/locales/hi';
+import { hi as hiContent } from '../src/i18n/namespaces/content-blocks/locales/hi';
 import { kn } from '../src/i18n/namespaces/editor/locales/kn';
+import { kn as knContent } from '../src/i18n/namespaces/content-blocks/locales/kn';
 import { ml } from '../src/i18n/namespaces/editor/locales/ml';
+import { ml as mlContent } from '../src/i18n/namespaces/content-blocks/locales/ml';
 import { mr } from '../src/i18n/namespaces/editor/locales/mr';
+import { mr as mrContent } from '../src/i18n/namespaces/content-blocks/locales/mr';
 import { ne } from '../src/i18n/namespaces/editor/locales/ne';
+import { ne as neContent } from '../src/i18n/namespaces/content-blocks/locales/ne';
 import { ta } from '../src/i18n/namespaces/editor/locales/ta';
+import { ta as taContent } from '../src/i18n/namespaces/content-blocks/locales/ta';
 import { te } from '../src/i18n/namespaces/editor/locales/te';
+import { te as teContent } from '../src/i18n/namespaces/content-blocks/locales/te';
 
-const TABLES: Readonly<Record<string, EditorMessages>> = { en, es, hi, kn, ml, mr, ne, ta, te };
+/** Each locale's page editor table and content block table, as one. */
+const TABLES: Readonly<Record<string, EditorMessages>> = {
+  en,
+  es: { ...es, ...esContent },
+  hi: { ...hi, ...hiContent },
+  kn: { ...kn, ...knContent },
+  ml: { ...ml, ...mlContent },
+  mr: { ...mr, ...mrContent },
+  ne: { ...ne, ...neContent },
+  ta: { ...ta, ...taContent },
+  te: { ...te, ...teContent },
+};
 
 const registry = parseBlockRegistry(raw);
 

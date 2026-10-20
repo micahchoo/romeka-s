@@ -35,7 +35,7 @@ import { useUnsavedGuard } from './useUnsavedGuard';
 import { counted } from '../messages';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import './shell.css';
 
 const PageCanvas = lazy(() =>
@@ -130,7 +130,7 @@ export const PageEditor = ({
   site,
   options,
 }: PageEditorProps): ReactElement => {
-  const { t } = useTranslator(common, sites, editor);
+  const { t } = useTranslator(common, sites, ...EDITOR_NAMESPACES);
   const [draft, dispatch] = useReducer(draftReducer, page, startDraft);
   const [siteSettings, setSiteSettings] = useState<JsonValue | null>(site.siteSettings);
   const [choosing, setChoosing] = useState(page === null);

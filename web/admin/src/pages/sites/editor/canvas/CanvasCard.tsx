@@ -31,7 +31,7 @@ import {
   resizeSpan,
 } from './move';
 import { common } from '../../../../i18n/namespaces/common';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 
 /** The pixels a resize drag travels for one column when the card width is unknown. */
 const RESIZE_STEP = 40;
@@ -81,7 +81,7 @@ export const CanvasCard = ({
   onDragEnd,
   onAnnounce,
 }: CanvasCardProps): ReactElement => {
-  const { t } = useTranslator(common, editor);
+  const { t } = useTranslator(common, ...EDITOR_NAMESPACES);
   const [menuOpen, setMenuOpen] = useState(false);
   const position = flatIndex(blocks, block.key) + 1;
   const placement = placementOf(block, columns);

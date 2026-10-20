@@ -1,26 +1,38 @@
 /**
  * The page editor's field messages, read through the `editor` namespace
- * (`src/i18n/namespaces/editor/`): every block field's label, help line,
- * choice names and examples, the styling sections and the field controls' own
- * words. `src/generated/blocks.json` names only keys that table holds
- * (`parseBlockRegistry`).
+ * (`src/i18n/namespaces/editor/`) and the content blocks' own
+ * (`src/i18n/namespaces/content-blocks/`): every block field's label, help
+ * line, choice names and examples, the styling sections and the field
+ * controls' own words. `src/generated/blocks.json` names only keys those
+ * tables hold (`parseBlockRegistry`).
  */
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, MessageParams } from '../../../i18n';
-import { editor } from '../../../i18n/namespaces/editor';
+import { contentBlocks, en as contentEn } from '../../../i18n/namespaces/content-blocks';
+import type { ContentBlockMessages } from '../../../i18n/namespaces/content-blocks';
+import { editor, en as editorEn } from '../../../i18n/namespaces/editor';
+import type { EditorMessages as EditorTable } from '../../../i18n/namespaces/editor';
 
-export { en } from '../../../i18n/namespaces/editor';
-export type { EditorMessages } from '../../../i18n/namespaces/editor';
+/** The two tables the page editor reads its messages from, for a
+ * `useTranslator` call that also needs another namespace. */
+export const EDITOR_NAMESPACES = [editor, contentBlocks] as const;
+
+/** Both tables' English. */
+export const en = { ...editorEn, ...contentEn };
+
+/** Both tables in one locale. */
+export type EditorMessages = EditorTable & ContentBlockMessages;
 
 /** One page editor message id. */
-export type EditorMessageKey = KeyOf<typeof editor>;
+export type EditorMessageKey = KeyOf<typeof editor> | KeyOf<typeof contentBlocks>;
 
 /** Whether a string is a page editor message id. */
-export const isEditorMessageKey = editor.has;
+export const isEditorMessageKey = (key: string): key is EditorMessageKey =>
+  editor.has(key) || contentBlocks.has(key);
 
 /** The editor's message lookup in the active locale. */
 export const useEditorText = (): ((key: EditorMessageKey, params?: MessageParams) => string) =>
-  useTranslator(editor).t;
+  useTranslator(...EDITOR_NAMESPACES).t;
 
 /**
  * The editor's counted messages: each noun's singular and plural ids. The

@@ -165,7 +165,7 @@ impl Look {
                     .map(|slot| {
                         slot.get("url")
                             .and_then(JsonValue::as_str)
-                            .and_then(crate::blocks::hero::safe_url)
+                            .and_then(crate::blocks::setting::safe_url)
                     })
                     .collect()
             })

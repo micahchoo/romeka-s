@@ -5,8 +5,7 @@
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy } from 'react';
-import { useTranslator } from '../../../../i18n';
-import { common } from '../../../../i18n/namespaces/common';
+import { ControlLoading } from './ControlLoading';
 import { useEditorText } from '../messages';
 import { asList } from './controlBase';
 import type { ControlProps, FieldOf } from './controlBase';
@@ -14,15 +13,6 @@ import type { ControlProps, FieldOf } from './controlBase';
 const PropertyListField = lazy(() =>
   import('./PropertyListField').then((module) => ({ default: module.PropertyListField })),
 );
-
-const Loading = (): ReactElement => {
-  const { t } = useTranslator(common);
-  return (
-    <p className="field-note" role="status">
-      {t('loading.form')}
-    </p>
-  );
-};
 
 export const PropertyListControl = ({
   field,
@@ -32,7 +22,7 @@ export const PropertyListControl = ({
 }: ControlProps & { readonly field: FieldOf<'propertyList'> }): ReactElement => {
   const e = useEditorText();
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<ControlLoading />}>
       <PropertyListField
         id={id}
         label={e(field.label)}
