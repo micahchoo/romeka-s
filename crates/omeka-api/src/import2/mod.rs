@@ -4,12 +4,20 @@
 //! - [`plan`]: the stored plan and its one parse boundary, [`plan::ImportPlanV2::from_json`].
 //! - [`decisions`]: corrections keyed by an entry.
 //! - [`values`]: value types and the cell rules every reader shares.
+//! - [`archive`]: named archive roots and the folders a source reads.
+//! - [`evidence`]: the walk of a source into file entries and sheets.
+//! - [`tags`]: file tags and file facts.
+//! - [`sheet`]: the sheet reader.
 //!
-//! Everything here is pure data. The evidence, the derive and the run read
+//! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
 
+pub mod archive;
 pub mod decisions;
+pub mod evidence;
 pub mod plan;
+pub mod sheet;
+pub mod tags;
 pub mod values;
 
 use serde::{Deserialize, Deserializer};

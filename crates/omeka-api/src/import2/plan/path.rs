@@ -23,12 +23,20 @@ pub enum RelPathError {
     Backslash,
     #[error("the path starts with \"/\"")]
     Absolute,
+    #[error("the path ends with \"/\"")]
+    TrailingSlash,
+    #[error("a path segment is empty")]
+    EmptySegment,
+    #[error("a path segment is \".\"")]
+    DotSegment,
 }
 
 impl RelPath {
     /// # Errors
     /// A [`RelPathError`] when the text, its NFC form, or either of them
-    /// percent-decoded once has a `..` segment, a NUL, a `\` or a leading `/`.
+    /// percent-decoded once has a `..` segment, a NUL, a `\` or a leading `/`,
+    /// or, so that each file has one spelling, a trailing `/`, an empty
+    /// segment or a `.` segment.
     pub fn parse(text: &str) -> Result<Self, RelPathError> {
         let nfc: String = text.nfc().collect();
         for form in [text, nfc.as_str()] {
@@ -56,11 +64,19 @@ fn refuse(bytes: &[u8]) -> Result<(), RelPathError> {
     if bytes.first() == Some(&b'/') {
         return Err(RelPathError::Absolute);
     }
-    if bytes
-        .split(|byte| *byte == b'/')
-        .any(|segment| segment == b"..")
-    {
-        return Err(RelPathError::ParentSegment);
+    if bytes.is_empty() {
+        return Ok(());
+    }
+    if bytes.last() == Some(&b'/') {
+        return Err(RelPathError::TrailingSlash);
+    }
+    for segment in bytes.split(|byte| *byte == b'/') {
+        match segment {
+            b".." => return Err(RelPathError::ParentSegment),
+            b"." => return Err(RelPathError::DotSegment),
+            b"" => return Err(RelPathError::EmptySegment),
+            _ => {}
+        }
     }
     Ok(())
 }
@@ -143,5 +159,23 @@ mod tests {
         for (text, expected) in cases {
             assert_eq!(RelPath::parse(text), Err(expected), "{text:?}");
         }
+    }
+
+    #[test]
+    fn a_file_has_one_spelling_so_empty_and_dot_segments_are_refused() {
+        let cases = [
+            ("a//b", RelPathError::EmptySegment),
+            ("a/%2Fb", RelPathError::EmptySegment),
+            ("./a", RelPathError::DotSegment),
+            ("a/./b", RelPathError::DotSegment),
+            ("a/.", RelPathError::DotSegment),
+            ("a/%2e/b", RelPathError::DotSegment),
+            ("a/", RelPathError::TrailingSlash),
+            ("a%2f", RelPathError::TrailingSlash),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(RelPath::parse(text), Err(expected), "{text:?}");
+        }
+        assert!(RelPath::parse(".hidden/a.b/..c").is_ok());
     }
 }

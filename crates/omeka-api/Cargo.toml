@@ -55,6 +55,12 @@ oxrdf = "0.3"
 # and local addresses (`vocab_import/fetch.rs`), which needs ureq's own
 # resolver seam. The same version omeka-media already builds.
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+# The import v2 sheet reader (`import2/sheet/decode.rs`) guesses an unmarked
+# sheet's encoding with Mozilla's detector, so a Shift-JIS or Cyrillic sheet is
+# named and refused instead of read as Windows-1252. encoding_rs decodes UTF-16
+# and Windows-1252 and is the detector's own encoding type.
+chardetng = "1"
+encoding_rs = "0.8"
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen
