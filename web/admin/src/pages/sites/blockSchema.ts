@@ -139,7 +139,9 @@ export type BlockField =
       readonly zoomKey: string;
     })
   /** A property, stored as its term. */
-  | (FieldBase & { readonly type: 'property' });
+  | (FieldBase & { readonly type: 'property' })
+  /** Properties in a chosen order, stored as a list of terms. */
+  | (FieldBase & { readonly type: 'propertyList' });
 
 /** A layout's editable `data` members, in form order. */
 export interface LayoutSchema {
@@ -371,6 +373,8 @@ const parseField = (value: unknown, path: Path): BlockField => {
       return { ...base, type: 'mapView', zoomKey: parseString(value.zoomKey, [...path, 'zoomKey']) };
     case 'property':
       return { ...base, type: 'property' };
+    case 'propertyList':
+      return { ...base, type: 'propertyList' };
     case 'html':
       return { ...base, type: 'html' };
     case 'boolean':

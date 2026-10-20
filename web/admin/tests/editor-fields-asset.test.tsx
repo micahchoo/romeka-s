@@ -92,10 +92,9 @@ describe('the asset picker', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'omeka-logo.png' }));
 
     expect(attachmentAction(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [entry({ id: '1' })],
+      data: [entry({ id: '1' })],
     });
   });
 
@@ -143,10 +142,9 @@ describe('the asset picker', () => {
     // No Content-Type by hand: the browser sets it with the boundary.
     expect(request.init?.headers).toEqual({ Accept: 'application/json' });
     expect(attachmentAction(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [entry({ id: '3' })],
+      data: [entry({ id: '3' })],
     });
   });
 
@@ -172,17 +170,16 @@ describe('the page reference control', () => {
   it('lists the site pages and writes the chosen id into the entry', async () => {
     const { dispatch, key } = renderAsset(entry(), listHandler(() => jsonResponse(firstAsset())));
 
-    const select = await screen.findByLabelText('Links to page');
+    const select = await screen.findByRole('combobox', { name: 'A page' });
     await waitFor(() => {
       expect(select).toHaveTextContent('Welcome');
     });
     fireEvent.change(select, { target: { value: '2' } });
 
     expect(attachmentAction(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [entry({ page: '2' })],
+      data: [entry({ page: '2' })],
     });
   });
 });

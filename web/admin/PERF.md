@@ -767,6 +767,29 @@ A single build on one machine. The `fields` chunk has 1100 B left under the 1024
 next control that grows it should move a rarely used control (the page list, the item query) into a
 chunk of its own first.
 
+## Decision 25: the page list and property list controls load on demand (accepted)
+
+**Change.** The merge of `site/block-upgrades` with main put the property list control
+(`editor/fields/PropertyListField.tsx`, the item-with-metadata block's fields) and the browse query's
+property sort into the `fields` chunk beside Decision 24's media controls, and the chunk went over the
+10240 B ceiling. As Decision 24 asked, a rarely used control moved out first: the page list control
+(`LazyPageListField.tsx`, the list-of-pages block only) and the property list control
+(`propertyListControl.tsx`, item with metadata only) each load as their own chunk the first time their
+block opens, behind the `common` table's `loading.form` line. The item query control did not move: it
+already shares a chunk with the navigation link form and the site's Items page, so a lazy import of it
+saved nothing (measured: the `fields` chunk grew 169 B).
+
+**Measured.** `npm run build`, then `npm run perf:check`, on the merge tree:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| `fields` chunk | 10771 | 9925 | 315 B left under the ceiling |
+| page list | none | 1477 | `PageListField-*` |
+| property list | none | 802 | `PropertyListField-*` |
+| initial js | 86072 | 86072 | |
+
+A single build on one machine. The editor shell (9047 B) is now the next largest lazy chunk.
+
 ## Decision 26: the content blocks' strings and controls load on their own (accepted)
 
 **Change.** Seven content blocks (gallery, featured item, button, quote, accordion, timeline, search
@@ -800,6 +823,19 @@ A single build on one machine. With the strings in the `editor` table and the co
 same build measured the Tamil `editor` chunk at 11506 B and the `fields` chunk at 10418 B. Main
 after Decision 25 measured its `fields` chunk at 9925 B and its largest catalogue at 10585 B (a
 `git archive` build of main `8c48349`); the merge adds this decision's moves to that.
+
+**Measured after the merge with main** (`8c48349`, Decision 25), same steps on the merge tree. The
+three lazy controls now share one loading line, `editor/fields/ControlLoading.tsx`.
+
+| Asset | Main (`8c48349`) | Merge | Note |
+| --- | --- | --- | --- |
+| initial js | 86072 | 86064 | |
+| `fields` chunk | 9925 | 9792 | 448 B left under the ceiling; no further control moved |
+| content controls | none | 618 | `contentControls-*` |
+| manifest source | none | 1058 | `ManifestSourceField-*` |
+| page list | 1477 | 1477 | `PageListField-*` |
+| property list | 802 | 805 | `PropertyListField-*` |
+| largest catalogue chunk | 10585 | 10640 | the Malayalam `ml-*` table, 624 B under its ceiling |
 
 ## Budgets
 

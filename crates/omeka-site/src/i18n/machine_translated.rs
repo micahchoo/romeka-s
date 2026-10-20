@@ -104,6 +104,7 @@ flat_catalogue! {
         gallery_empty_preview, featured_view_item, featured_empty_preview,
         button_empty_preview, quote_empty_preview, accordion_empty_preview,
         timeline_undated, timeline_empty_preview,
+        no_matches, no_matches_preview,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

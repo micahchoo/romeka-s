@@ -67,6 +67,8 @@
  "accordion_empty_preview": "Add a heading and its answer in the block's settings.",
  "timeline_undated": "Undated",
  "timeline_empty_preview": "Pick items or a search for this timeline in the block's settings.",
+ "no_matches": "Nothing here matches yet.",
+ "no_matches_preview": "Nothing matches this block's search. Change the search in the block's settings.",
  "search.search": "Search",
  "search.query": "Query",
  "search.submit": "Submit",

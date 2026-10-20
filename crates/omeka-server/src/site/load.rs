@@ -24,13 +24,14 @@ use omeka_db::DbError;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteFilter, SiteRepo,
-    TemplateRepo, ValueRepo, compare_text_ci,
+    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteBlockAttachmentRepo,
+    SiteFilter, SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
     TemplatePropertyRow, ValueRow,
 };
+use omeka_site::blocks::page_card::{self, CardImage};
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::i18n::Messages;
 use omeka_site::nav::PageRef;
@@ -39,8 +40,8 @@ use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaRef, ResourcePage, ResourceRef, ResourceView,
-    SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, LinkedResource, MediaRef, PageCard, ResourcePage, ResourceRef,
+    ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 use sqlx::SqlitePool;
 
@@ -108,19 +109,37 @@ fn resource_name(kind: ResourceKind) -> &'static str {
     }
 }
 
+/// What a resource list is ordered by: a column of the resource, or a
+/// property's value text, as `AbstractResourceEntityAdapter::sortQuery` reads
+/// `sort_by`. Any other name orders by id.
+enum SortKey {
+    Id,
+    Created,
+    Modified,
+    Title,
+    /// Each resource's sort text on the property, by resource id.
+    Property(BTreeMap<u64, String>),
+}
+
+/// A requested order: its key and whether it descends.
+struct Order {
+    key: SortKey,
+    descending: bool,
+}
+
 /// Order a filtered row list: relevance first when a fulltext query ran under
-/// the default sort, otherwise the requested sort.
+/// the default sort, otherwise the requested order.
 fn order_rows(
     rows: &mut [LoadedRow],
-    sort: Option<&(String, String)>,
+    order: Option<&Order>,
     ranks: Option<&BTreeMap<u64, f64>>,
     sort_by_default: bool,
 ) {
     let (Some(ranks), true) = (ranks, sort_by_default) else {
-        rows.sort_by(|a, b| compare_resources(a.resource(), b.resource(), sort));
+        rows.sort_by(|a, b| compare_resources(a.resource(), b.resource(), order));
         return;
     };
-    let descending = sort.is_some_and(|(_, order)| order == "desc");
+    let descending = order.is_some_and(|order| order.descending);
     rows.sort_by(|a, b| {
         let (left, right) = (score(ranks, a), score(ranks, b));
         right.total_cmp(&left).then_with(|| {
@@ -312,6 +331,81 @@ impl<'a> Loader<'a> {
         let blocks = SiteRepo::new(self.pool).list_blocks(row.id).await?;
         page.blocks = blocks.iter().filter_map(block_from_row).collect();
         Ok(page)
+    }
+
+    /// The cards of the listed pages a list-of-pages block shows: each page
+    /// of this site the caller can see, with the image and summary its own
+    /// blocks give ([`page_card::source`]).
+    pub(crate) async fn page_cards(
+        &self,
+        ids: &[PageId],
+    ) -> Result<Vec<(PageId, PageCard)>, DbError> {
+        let rows = SiteRepo::new(self.pool)
+            .list_pages(self.db_site_id())
+            .await?;
+        let mut cards = Vec::new();
+        for id in ids {
+            let Some(row) = rows
+                .iter()
+                .find(|row| row.id.0 == id.get() && self.access.sees_site_page(row.is_public))
+            else {
+                continue;
+            };
+            let Ok(slug) = Slug::parse(&row.slug) else {
+                continue;
+            };
+            let mut page = SitePage::new(*id, self.site.id, slug, row.title.clone());
+            page.blocks = SiteRepo::new(self.pool)
+                .list_blocks(row.id)
+                .await?
+                .iter()
+                .filter_map(block_from_row)
+                .collect();
+            let source = page_card::source(&page);
+            let thumbnail = match source.image {
+                Some(CardImage::Asset(asset)) => AssetRepo::new(self.pool)
+                    .get(db::AssetId::from(asset.get()))
+                    .await?
+                    .map(|row| thumbnail_for_asset(self.base, &row)),
+                Some(CardImage::MediaBlock(block)) => {
+                    self.first_block_media_thumbnail(block).await?
+                }
+                None => None,
+            };
+            cards.push((
+                *id,
+                PageCard {
+                    thumbnail,
+                    summary: source.summary,
+                },
+            ));
+        }
+        Ok(cards)
+    }
+
+    /// The medium thumbnail of the first media attached to a block that the
+    /// caller can see.
+    async fn first_block_media_thumbnail(
+        &self,
+        block: BlockId,
+    ) -> Result<Option<Thumbnail>, DbError> {
+        let media = MediaRepo::new(self.pool);
+        for attachment in SiteBlockAttachmentRepo::new(self.pool)
+            .list_for_block(self.db_block_id(block))
+            .await?
+        {
+            let Some(id) = attachment.media_id else {
+                continue;
+            };
+            if let Some(row) = media.get(id).await?
+                && self
+                    .access
+                    .sees_resource(row.resource.is_public, row.resource.owner_id)
+            {
+                return Ok(media_thumbnail(self.base, &row, ""));
+            }
+        }
+        Ok(None)
     }
 
     /// The `application/ld+json` document a show or browse view embeds
@@ -550,9 +644,13 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourcePage, DbError> {
         let filtered = self.filtered(kind, &query.query).await?;
         let mut rows = filtered.rows;
+        let order = match &query.sort {
+            Some(sort) => Some(self.order(sort).await?),
+            None => None,
+        };
         order_rows(
             &mut rows,
-            query.sort.as_ref(),
+            order.as_ref(),
             filtered.ranks.as_ref(),
             filtered.sort_by_default,
         );
@@ -719,9 +817,36 @@ impl<'a> Loader<'a> {
             order_rows(&mut rows, None, filtered.ranks.as_ref(), true);
         } else {
             let sort = self.effective_sort(kind, &effective);
-            order_rows(&mut rows, Some(&sort), None, false);
+            let order = self.order(&sort).await?;
+            order_rows(&mut rows, Some(&order), None, false);
         }
         Ok(rows)
+    }
+
+    /// The order a `sort_by`/`sort_order` pair names. A property term loads
+    /// each resource's sort text on that property; a term the catalog does
+    /// not know orders by id.
+    async fn order(&self, (sort_by, sort_order): &(String, String)) -> Result<Order, DbError> {
+        let key = match sort_by.as_str() {
+            "created" => SortKey::Created,
+            "modified" => SortKey::Modified,
+            "title" => SortKey::Title,
+            term => match self.catalog.property_id(term) {
+                Some(property) => SortKey::Property(
+                    ValueRepo::new(self.pool)
+                        .sort_texts(property)
+                        .await?
+                        .into_iter()
+                        .map(|(resource, text)| (resource.0, text))
+                        .collect(),
+                ),
+                None => SortKey::Id,
+            },
+        };
+        Ok(Order {
+            key,
+            descending: sort_order.eq_ignore_ascii_case("desc"),
+        })
     }
 
     /// The sort a browse starts with: the query's `sort_by`/`sort_order` when it
@@ -1582,21 +1707,28 @@ fn property_id_for_term(rows: &[&ValueRow], catalog: &Catalog, term: &str) -> Op
         .map(|row| row.property_id.0)
 }
 
-/// The order a browse-preview block asks for. `created` orders by the resource's
-/// creation time, `id` by its primary key; a missing sort keeps insertion order.
-fn compare_resources(
-    a: &ResourceRow,
-    b: &ResourceRow,
-    sort: Option<&(String, String)>,
-) -> Ordering {
-    let order = match sort.map(|(key, _)| key.as_str()) {
-        Some("created") => a.created.cmp(&b.created).then(a.id.cmp(&b.id)),
-        _ => a.id.cmp(&b.id),
+/// Two resources in a requested order. A tie, and a resource with no value
+/// on a property sort, fall back to the id; a missing value sorts first, as
+/// MySQL orders `NULL` ascending.
+fn compare_resources(a: &ResourceRow, b: &ResourceRow, order: Option<&Order>) -> Ordering {
+    let Some(order) = order else {
+        return a.id.cmp(&b.id);
     };
-    if sort.is_some_and(|(_, order)| order == "desc") {
-        order.reverse()
+    let by_key = match &order.key {
+        SortKey::Id => Ordering::Equal,
+        SortKey::Created => a.created.cmp(&b.created),
+        SortKey::Modified => a.modified.cmp(&b.modified),
+        SortKey::Title => compare_opt_text_ci(a.title.as_deref(), b.title.as_deref()),
+        SortKey::Property(texts) => compare_opt_text_ci(
+            texts.get(&a.id.0).map(String::as_str),
+            texts.get(&b.id.0).map(String::as_str),
+        ),
+    };
+    let ordering = by_key.then(a.id.cmp(&b.id));
+    if order.descending {
+        ordering.reverse()
     } else {
-        order
+        ordering
     }
 }
 

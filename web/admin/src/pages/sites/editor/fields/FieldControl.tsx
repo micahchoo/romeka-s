@@ -23,7 +23,7 @@ import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
 import { Checked, Help, Labelled, helpId } from '../Labelled';
 import { AssetPicker } from './AssetPicker';
-import { WithHelp, asText } from './controlBase';
+import { WithHelp, asList, asText } from './controlBase';
 import type { ControlProps, FieldOf } from './controlBase';
 import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
@@ -33,17 +33,14 @@ import { LinkField } from './LinkField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
 import { LazyContentControl, LazyManifestSourceField } from './LazyControls';
 import { FocalPointControl, MediaRefControl } from './mediaControls';
-import { PageListField } from './PageListField';
+import { LazyPageListField } from './LazyPageListField';
+import { PropertyListControl } from './propertyListControl';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
 import { SidesField } from './SidesField';
 import { isShown } from './visibility';
 import { editor } from '../../../../i18n/namespaces/editor';
-
-/** The values of a multiple choice, keeping only the strings a select can hold. */
-const asList = (value: JsonValue | undefined): readonly string[] =>
-  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
 const TextControl = ({
   field,
@@ -158,7 +155,8 @@ const ChoiceControl = ({
   const { t } = useTranslator(editor);
   const e = useEditorText();
   if (field.multiple) {
-    const selected = asList(value);
+    // A block stored without the key renders the schema default, so show that.
+    const selected = asList(value ?? field.default ?? undefined);
     return (
       <fieldset className="block-field" aria-describedby={helpId(id)}>
         <legend>{e(field.label)}</legend>
@@ -290,6 +288,7 @@ const ItemQueryControl = ({
         onChange={onChange}
         siteId={siteId}
         resource={isQueryResource(resource) ? resource : 'items'}
+        propertySort
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
         {...(options?.classes === undefined ? {} : { classes: options.classes })}
       />
@@ -340,7 +339,7 @@ const PageListControl = ({
   const e = useEditorText();
   return (
     <WithHelp id={id} help={e(field.help)}>
-      <PageListField
+      <LazyPageListField
         id={id}
         label={e(field.label)}
         value={asText(value)}
@@ -579,6 +578,8 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <MapViewControl {...common} field={common.field} />;
     case 'property':
       return <PropertyControl {...common} field={common.field} />;
+    case 'propertyList':
+      return <PropertyListControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }

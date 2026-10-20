@@ -633,7 +633,9 @@ mod tests {
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()
             }
-            FieldKind::ItemList | FieldKind::ItemMedia => value.is_array(),
+            FieldKind::ItemList | FieldKind::ItemMedia | FieldKind::PropertyList => {
+                value.is_array()
+            }
             FieldKind::MapView { zoom_key } if key == zoom_key => value.is_number(),
             FieldKind::MapView { .. } | FieldKind::Property => value.is_string(),
         }

@@ -146,6 +146,23 @@ bundles no block templates. `background_image_asset` needs the asset's URL, whic
 the `asset` repository and fills `background-image: url(...)`, so the class is emitted and the style
 appears whenever the asset exists.
 
+Four upstream blocks take Romeka settings in `o:layout_data.romeka.settings`; unset, each renders
+as upstream does, and upstream renders the stored block plainer. The browse preview
+(`blocks/browse_preview.rs`) may draw its cards in a style of its own instead of the theme's
+`card_style` token, or as a carousel (`blocks/carousel.rs`, with `carousel.js` loaded only on a page
+that holds one), set the column count, and choose the details under each name
+(`theme/cards.rs::Detail`). A resource list carries its card style as its own class
+(`resource-cards-*`), so a block's style and the theme's never meet on one list. Its sort is the
+stored query's `sort_by`, a column or a property term, as upstream's `sortQuery` reads it; the
+loader orders by a property's smallest public value. A preview whose search matches nothing says so.
+The asset block (`blocks/asset.rs`) keeps each image's own shape unless the block asks for a 3:2
+frame, lays the images out stacked, in a row or in a grid, aligns the captions, and links a slot to
+a URL kept at `settings.attachments[<slot>].url` when it names no page. The list of pages
+(`blocks/list_of_pages.rs`) may draw its pages as cards whose image and summary come from each
+page's own blocks (`blocks/page_card.rs`, `ResourceProvider::page_card`). The item with metadata
+(`blocks/item_with_metadata.rs`) may print only a chosen, ordered list of properties (the
+`PropertyList` field kind) and may show each item as a compact card with a citation line.
+
 ### The block field registry
 
 Each layout declares the `data` fields its upstream form edits as a `blocks::schema::LayoutSchema`,

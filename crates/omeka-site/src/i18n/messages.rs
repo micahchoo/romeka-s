@@ -164,6 +164,11 @@ pub struct Messages {
     pub timeline_undated: &'static str,
     /// The editor preview of a timeline with no item.
     pub timeline_empty_preview: &'static str,
+    /// A browse preview whose search matches nothing on a site that holds
+    /// items. A Romeka addition: upstream prints an empty list.
+    pub no_matches: &'static str,
+    /// The same empty browse preview in the admin preview, with the fix.
+    pub no_matches_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -239,6 +244,9 @@ pub static EN: Messages = Messages {
     accordion_empty_preview: "Add a heading and its answer in the block's settings.",
     timeline_undated: "Undated",
     timeline_empty_preview: "Pick items or a search for this timeline in the block's settings.",
+    no_matches: "Nothing here matches yet.",
+    no_matches_preview: "Nothing matches this block's search. Change the search in the block's \
+                         settings.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -322,6 +330,9 @@ pub static ES: Messages = Messages {
     accordion_empty_preview: "Añade un encabezado y su respuesta en los ajustes del bloque.",
     timeline_undated: "Sin fecha",
     timeline_empty_preview: "Elige fichas o una búsqueda para esta cronología en los ajustes del bloque.",
+    no_matches: "Todavía no hay nada que coincida.",
+    no_matches_preview: "Nada coincide con la búsqueda de este bloque. Cambia la búsqueda en los \
+                         ajustes del bloque.",
 };
 
 #[cfg(test)]

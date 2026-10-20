@@ -19,6 +19,10 @@ export const asText = (value: JsonValue | undefined): string => {
   return typeof value === 'number' || typeof value === 'boolean' ? String(value) : '';
 };
 
+/** The values of a multiple choice, keeping only the strings a select can hold. */
+export const asList = (value: JsonValue | undefined): readonly string[] =>
+  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+
 /** The props every control of one field shares. */
 export interface ControlProps {
   readonly id: string;

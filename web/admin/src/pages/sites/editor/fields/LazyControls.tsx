@@ -7,8 +7,7 @@
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy } from 'react';
-import { useTranslator } from '../../../../i18n';
-import { common } from '../../../../i18n/namespaces/common';
+import { ControlLoading } from './ControlLoading';
 import type { ContentControlProps } from './contentControls';
 import type { ManifestSourceFieldProps } from './ManifestSourceField';
 
@@ -20,23 +19,14 @@ const ManifestSource = lazy(() =>
   import('./ManifestSourceField').then((module) => ({ default: module.ManifestSourceField })),
 );
 
-const Loading = (): ReactElement => {
-  const { t } = useTranslator(common);
-  return (
-    <p className="field-note" role="status">
-      {t('loading.form')}
-    </p>
-  );
-};
-
 export const LazyContentControl = (props: ContentControlProps): ReactElement => (
-  <Suspense fallback={<Loading />}>
+  <Suspense fallback={<ControlLoading />}>
     <ContentControl {...props} />
   </Suspense>
 );
 
 export const LazyManifestSourceField = (props: ManifestSourceFieldProps): ReactElement => (
-  <Suspense fallback={<Loading />}>
+  <Suspense fallback={<ControlLoading />}>
     <ManifestSource {...props} />
   </Suspense>
 );

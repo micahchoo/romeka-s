@@ -112,10 +112,10 @@ test('a browse preview of item sets counts the item sets in the site', async ({ 
     await insert(page, 'Browse preview');
     const form = inspector(page);
 
-    await expect(form.getByLabel('Item set')).toBeVisible();
+    await expect(form.getByLabel('Item set', { exact: true })).toBeVisible();
     await form.getByLabel('What to list').selectOption('item_sets');
     await expect(form.getByText('Item sets in this site that match: 1.')).toBeVisible();
-    await expect(form.getByLabel('Item set')).toHaveCount(0);
+    await expect(form.getByLabel('Item set', { exact: true })).toHaveCount(0);
   } finally {
     await assign([]);
   }
