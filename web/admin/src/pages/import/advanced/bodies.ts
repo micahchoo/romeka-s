@@ -4,9 +4,11 @@
  */
 import { lazy } from 'react';
 import type { AdvancedBodies } from '../bodies';
+import { RUN_BODY } from '../run/bodies';
 
 export const ADVANCED_BODIES: AdvancedBodies = {
   'all-files': lazy(() => import('../lists/all-files')),
   pair: lazy(() => import('../lists/pair')),
   items: lazy(() => import('../lists/all-items')),
+  run: RUN_BODY,
 };

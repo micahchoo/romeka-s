@@ -14,7 +14,8 @@ import { ImportConflictError, parseConflict } from './import-conflict';
 import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
 import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parseScanResult } from './import-view';
 import type { ArchiveListing, History, ImportDetail, JobStart, ScanResult } from './import-view';
-import type { ResourceKind } from './import-undo';
+import { parseUndoPreview } from './import-undo';
+import type { ResourceKind, UndoPreview } from './import-undo';
 import { hasSections, parsePreview } from './import-sections';
 import type { PreviewOptions } from './import-queries';
 import type { PreviewWith, Section } from './import-sections';
@@ -142,6 +143,11 @@ export class ImportApi {
   /** The job stops after the record in hand; 409 `notRunning` for an import that does not run. */
   async stop(id: ImportId): Promise<void> {
     await this.json('POST', `${one(id)}/stop`);
+  }
+
+  /** What an undo with nothing forced would do now, and what it would keep and why; it writes nothing. 409 `cannotUndo`. */
+  async undoPreview(id: ImportId): Promise<UndoPreview> {
+    return parseUndoPreview(await this.json('GET', `${one(id)}/undo/preview`));
   }
 
   async undo(id: ImportId, force?: Force): Promise<JobStart> {

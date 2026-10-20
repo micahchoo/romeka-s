@@ -24,15 +24,24 @@ export const useJobStatusLabel = (): ((status: string | null) => string | null) 
   );
 };
 
-/** Romeka's own job classes (`docs/archive-import.md`, Jobs) and the name each reads as. */
+/**
+ * Romeka's own job classes and the name each reads as: the first importer's
+ * (`docs/archive-import.md`, Jobs) and the run and undo of import v2
+ * (`docs/import-v2.md`), which read as the same two names.
+ */
 const CLASS_TEXT: Readonly<Record<string, 'jobs.class.importArchive' | 'jobs.class.undoImport'>> = {
   'Romeka\\Job\\ImportArchive': 'jobs.class.importArchive',
   'Romeka\\Job\\UndoImport': 'jobs.class.undoImport',
+  'Romeka\\Job\\ImportRun': 'jobs.class.importArchive',
+  'Romeka\\Job\\ImportUndo': 'jobs.class.undoImport',
 };
+
+/** Every job class whose args name an import; the scan has no name of its own. */
+const IMPORT_CLASSES: ReadonlySet<string> = new Set([...Object.keys(CLASS_TEXT), 'Romeka\\Job\\ImportScan']);
 
 /** The archive import a job works on, from its `{ "importId": n }` args, or `null`. */
 export const importOfJob = (jobClass: string, args: unknown): number | null => {
-  if (!(jobClass in CLASS_TEXT) || typeof args !== 'object' || args === null || !('importId' in args)) {
+  if (!IMPORT_CLASSES.has(jobClass) || typeof args !== 'object' || args === null || !('importId' in args)) {
     return null;
   }
   const id = args.importId;
