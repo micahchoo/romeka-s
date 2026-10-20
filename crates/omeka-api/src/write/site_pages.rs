@@ -8,18 +8,12 @@
 //! [`crate::write::body::php_json`] reproduces.
 
 use omeka_db::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
-use omeka_db::repos::{
-    AssetRepo, ItemRepo, MediaRepo, PageVersionRepo, SiteBlockAttachmentRepo, SiteRepo,
-};
+use omeka_db::repos::{ItemRepo, MediaRepo, PageVersionRepo, SiteBlockAttachmentRepo, SiteRepo};
 use omeka_db::rows::{
-    AssetRow, BlockChange, NewPageAttachment, NewPageBlock, NewSiteBlock, NewSiteBlockAttachment,
+    BlockChange, NewPageAttachment, NewPageBlock, NewSiteBlock, NewSiteBlockAttachment,
     NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
 };
 use serde_json::Value;
-
-use omeka_core::site::{RomkaCarrier, Slug};
-use omeka_site::blocks::romeka::{self, PlainRefs};
-use omeka_site::slug::page_url;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -316,7 +310,7 @@ fn purify_html_block(layout: &str, data: Value) -> Value {
 /// Apply the Romeka carrier rule to every parsed block.
 async fn carry_blocks(api: &Api<'_>, site: SiteId, blocks: &mut [Block]) -> Result<(), ApiError> {
     for block in blocks.iter_mut() {
-        let (data, layout_data) = carry_block(
+        let (data, layout_data) = super::block_carrier::carry_block(
             api,
             Some(site),
             &block.layout,
@@ -328,125 +322,6 @@ async fn carry_blocks(api: &Api<'_>, site: SiteId, blocks: &mut [Block]) -> Resu
         block.layout_data = layout_data;
     }
     Ok(())
-}
-
-/// The Romeka carrier rule for one block on its way to storage.
-///
-/// An `html` block whose `o:layout_data.romeka` names a registered Romeka block
-/// has `o:data.html` regenerated from that block's plain renderer, `plain_hash`
-/// set to the hash of what was stored and `v` set to
-/// [`romeka::CARRIER_VERSION`], which migrates a version 1 hash on its first
-/// save. A stored hash that does not vouch for `o:data.html` is an edit made
-/// outside this product: the write keeps that edit and leaves the hash alone.
-///
-/// The preview route reuses this function, so a preview renders the same plain
-/// rendering a save would store. `site` is `None` for the welcome page of a
-/// site not yet stored: no block can name a page of that site.
-pub async fn carry_block(
-    api: &Api<'_>,
-    site: Option<SiteId>,
-    layout: &str,
-    mut data: Value,
-    layout_data: Option<Value>,
-) -> Result<(Value, Option<Value>), ApiError> {
-    if layout != "html" {
-        return Ok((data, layout_data));
-    }
-    let Some(layout_data) = layout_data else {
-        return Ok((data, None));
-    };
-    let Some(carrier) = layout_data.get("romeka").and_then(RomkaCarrier::parse) else {
-        return Ok((data, Some(layout_data)));
-    };
-    let stored = data.get("html").and_then(Value::as_str).unwrap_or("");
-    if !romeka::needs_plain(&carrier, stored) {
-        return Ok((data, Some(layout_data)));
-    }
-    let refs = plain_refs(api, site, &carrier).await?;
-    let Some(plain) = romeka::plain_for(&carrier, &refs) else {
-        return Ok((data, Some(layout_data)));
-    };
-    let hash = romeka::plain_hash(&plain);
-    let mut data_object = match data {
-        Value::Object(map) => map,
-        _ => serde_json::Map::new(),
-    };
-    data_object.insert("html".to_string(), Value::String(plain));
-    data = Value::Object(data_object);
-    let mut layout_object = match layout_data {
-        Value::Object(map) => map,
-        _ => serde_json::Map::new(),
-    };
-    if let Some(Value::Object(romeka_object)) = layout_object.get_mut("romeka") {
-        romeka_object.insert("plain_hash".to_string(), Value::String(hash));
-        romeka_object.insert("v".to_string(), Value::from(romeka::CARRIER_VERSION));
-    }
-    Ok((data, Some(Value::Object(layout_object))))
-}
-
-/// The references a carrier's plain rendering reads: its background asset and
-/// its call-to-action page.
-///
-/// The asset URL is relative to the origin (`/files/...`) so the stored plain
-/// html keeps working when the page is copied to an upstream installation at
-/// another origin.
-async fn plain_refs(
-    api: &Api<'_>,
-    site: Option<SiteId>,
-    carrier: &RomkaCarrier,
-) -> Result<PlainRefs, ApiError> {
-    let mut refs = PlainRefs::new();
-    let assets = AssetRepo::new(api.pool());
-    for id in romeka::asset_refs(carrier) {
-        if let Some(row) = assets
-            .get(omeka_db::ids::AssetId::from(id.get()))
-            .await
-            .map_err(db_error)?
-        {
-            refs = refs.asset(
-                id,
-                format!("/files/{}", asset_file_path(&row)),
-                row.alt_text.clone().unwrap_or_default(),
-            );
-        }
-    }
-    let Some(site) = site else {
-        return Ok(refs);
-    };
-    let Some(site_row) = SiteRepo::new(api.pool())
-        .get(site)
-        .await
-        .map_err(db_error)?
-    else {
-        return Ok(refs);
-    };
-    let Ok(site_slug) = Slug::parse(&site_row.slug) else {
-        return Ok(refs);
-    };
-    let pages = SiteRepo::new(api.pool());
-    for id in romeka::page_refs(carrier) {
-        let Some(row) = pages.get_page(PageId(id.get())).await.map_err(db_error)? else {
-            continue;
-        };
-        if row.site_id != site {
-            continue;
-        }
-        if let Ok(slug) = Slug::parse(&row.slug) {
-            refs = refs.page(id, page_url(&site_slug, &slug));
-        }
-    }
-    Ok(refs)
-}
-
-/// `File\Store\Local::getUri`'s storage path for an asset: `asset/<name>` with
-/// the extension when the row has one.
-fn asset_file_path(row: &AssetRow) -> String {
-    match row.extension.as_deref() {
-        Some(extension) if !extension.is_empty() => {
-            format!("asset/{}.{extension}", row.storage_id)
-        }
-        _ => format!("asset/{}", row.storage_id),
-    }
 }
 
 /// `SitePageAdapter::hydrateAttachments` input: every object entry of

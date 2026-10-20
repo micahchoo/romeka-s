@@ -136,6 +136,8 @@ export const hiServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिंग {key} एक स्ट्रिंग या नल होनी चाहिए।',
   'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
   'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
+  'server.mediaNotPublic':
+    'मीडिया {id} निजी है, इसलिए एक पृष्ठ इसे प्रदर्शित नहीं कर सकता। मीडिया और उसकी वस्तु को सार्वजनिक बनाएँ, या कोई अन्य मीडिया चुनें।',
   'server.publicationTermsRemoved':
     'एक प्रकाशित शब्द को हटाया या उसका नाम बदला नहीं जा सकता: {terms}। इसके बजाय इसे अप्रचलित (deprecate) करें।',
   'server.publicationNamespaceFixed':

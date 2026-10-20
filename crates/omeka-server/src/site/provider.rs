@@ -17,6 +17,9 @@
 //! reads its `data` list and a block's `layout_data` names a background asset
 //! (`background_image_asset`), so the snapshot also carries the assets those
 //! name, keyed by id for the synchronous [`ResourceProvider::read_asset`].
+//! A block's Romeka settings may name a media (the hero's background, the IIIF
+//! image's source); the snapshot carries the image of each one the visitor may
+//! see, for [`ResourceProvider::read_image`].
 
 use omeka_core::ids::{AssetId, BlockId, MediaId, SiteId};
 use omeka_core::resource::ResourceKind;
@@ -29,9 +32,10 @@ use omeka_site::settings::SiteSettings;
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::view::{
     AssetView, AttachmentRef, BrowseQuery, MediaRef, ResourcePage, ResourceProvider, ResourceView,
-    SiteQuery, SiteSearch, SiteSort,
+    SiteQuery, SiteSearch, SiteSort, Thumbnail,
 };
 
+use omeka_api::write::block_carrier::media_image_path;
 use omeka_api::write::site_pages::ResolvedAttachment;
 
 use super::load::{Loader, media_options, thumbnail_for_asset};
@@ -50,6 +54,7 @@ pub(crate) struct LoadedResources {
     resources: Vec<(ResourceKind, u64, ResourceView)>,
     media: Vec<(MediaId, MediaRef)>,
     assets: Vec<(AssetId, AssetView)>,
+    images: Vec<(MediaId, Thumbnail)>,
 }
 
 impl ResourceProvider for LoadedResources {
@@ -88,6 +93,13 @@ impl ResourceProvider for LoadedResources {
             .iter()
             .find(|(stored, _)| *stored == id)
             .map(|(_, view)| view.clone())
+    }
+
+    fn read_image(&self, id: MediaId) -> Option<Thumbnail> {
+        self.images
+            .iter()
+            .find(|(stored, _)| *stored == id)
+            .map(|(_, image)| image.clone())
     }
 
     fn attachments(&self, block: BlockId) -> Vec<AttachmentRef> {
@@ -257,6 +269,10 @@ async fn load_blocks_from(
             for id in omeka_site::blocks::romeka::asset_refs(carrier) {
                 load_asset(loader, id, &mut loaded).await?;
             }
+            let layout = block.layout.wire_name().unwrap_or_default();
+            for id in omeka_site::blocks::romeka::media_refs(layout, carrier) {
+                load_image(loader, id, &mut loaded).await?;
+            }
         }
     }
     Ok(loaded)
@@ -284,6 +300,41 @@ async fn load_asset(
                 url: Some(thumbnail.url.clone()),
                 thumbnail: Some(thumbnail),
             },
+        ));
+    }
+    Ok(())
+}
+
+/// Keep the image of one media a Romeka setting names, when the visitor may
+/// see the media and its item, as `ResourceVisibilityFilter` decides for an
+/// attachment.
+async fn load_image(
+    loader: &Loader<'_>,
+    id: MediaId,
+    loaded: &mut LoadedResources,
+) -> Result<(), DbError> {
+    if loaded.images.iter().any(|(stored, _)| *stored == id) {
+        return Ok(());
+    }
+    let access = loader.access();
+    let Some(media) = MediaRepo::new(loader.pool())
+        .get(db::MediaId(id.get()))
+        .await?
+        .filter(|media| access.sees_resource(media.resource.is_public, media.resource.owner_id))
+    else {
+        return Ok(());
+    };
+    let item_seen = ItemRepo::new(loader.pool())
+        .get(media.item_id)
+        .await?
+        .is_some_and(|item| access.sees_resource(item.resource.is_public, item.resource.owner_id));
+    if let Some(path) = media_image_path(&media).filter(|_| item_seen) {
+        loaded.images.push((
+            id,
+            Thumbnail::new(
+                loader.base().file_url(&path),
+                media.alt_text.clone().unwrap_or_default(),
+            ),
         ));
     }
     Ok(())

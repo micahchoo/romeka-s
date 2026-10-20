@@ -96,6 +96,8 @@ pub(crate) struct TestResources {
     pub media: BTreeMap<u64, MediaRef>,
     /// `read_asset(id)` results.
     pub assets: BTreeMap<u64, AssetView>,
+    /// `read_image(id)` results.
+    pub images: BTreeMap<u64, crate::view::Thumbnail>,
     /// `search_sites(query)` results.
     pub sites: Vec<SiteView>,
 }
@@ -119,6 +121,10 @@ impl ResourceProvider for TestResources {
 
     fn read_asset(&self, id: AssetId) -> Option<AssetView> {
         self.assets.get(&id.get()).cloned()
+    }
+
+    fn read_image(&self, id: MediaId) -> Option<crate::view::Thumbnail> {
+        self.images.get(&id.get()).cloned()
     }
 
     fn attachments(&self, block: BlockId) -> Vec<AttachmentRef> {

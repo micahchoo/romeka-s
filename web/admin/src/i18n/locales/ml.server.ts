@@ -141,6 +141,8 @@ export const mlServer: ServerCatalogue = {
   'server.settingNotText': '{key} ഒരു സ്ട്രിംഗ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
   'server.settingNotFlag': '{key} ട്രൂ, ഫോൾസ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
   'server.settingNotNames': '{key} സ്ട്രിംഗുകളുടെ ഒരു ലിസ്റ്റ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
+  'server.mediaNotPublic':
+    '{id} എന്ന മീഡിയ സ്വകാര്യമാണ്, അതിനാൽ ഒരു പേജിൽ അത് കാണിക്കാൻ കഴിയില്ല. മീഡിയയും ഐറ്റവും പൊതുവാക്കുക, അല്ലെങ്കിൽ മറ്റൊരു മീഡിയ തിരഞ്ഞെടുക്കുക.',
   'server.publicationTermsRemoved':
     'പ്രസിദ്ധീകരിച്ച ഒരു പദം നീക്കം ചെയ്യാനോ പുനർനാമകരണം ചെയ്യാനോ കഴിയില്ല: {terms}. പകരം അത് ഡിപ്രിക്കേറ്റ് ചെയ്യുക.',
   'server.publicationNamespaceFixed':

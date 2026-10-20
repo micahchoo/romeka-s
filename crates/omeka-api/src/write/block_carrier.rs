@@ -1,0 +1,238 @@
+//! The Romeka carrier on a block's way to storage: the one-way rule at write.
+//!
+//! A block's Romeka settings live in `o:layout_data.romeka` (`docs/compat.md`,
+//! "Site pages: the one-way rule"). On a write, what upstream reads is derived
+//! from them here:
+//!
+//! - a Romeka block stored as `html` gets its plain rendering regenerated into
+//!   `o:data.html`, with `plain_hash` recording it;
+//! - an IIIF image whose source is a site media gets that media's Image API
+//!   address as `o:data.image_url`, so upstream opens the same image.
+//!
+//! Every media a block's settings name must be public, media and item both:
+//! the plain rendering and the stored address are read by any visitor, so a
+//! write naming a private media is refused.
+
+use omeka_core::ids::MediaId;
+use omeka_core::site::{RomkaCarrier, Slug};
+use omeka_db::ids::{AssetId, PageId, SiteId};
+use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteRepo};
+use omeka_db::rows::{AssetRow, MediaRow};
+use omeka_site::blocks::BlockLayout;
+use omeka_site::blocks::iiif_image::{IiifImage, media_info_path};
+use omeka_site::blocks::romeka::{self, PlainRefs};
+use omeka_site::slug::page_url;
+use serde_json::Value;
+
+use crate::errors::{ApiError, ValidationErrors};
+use crate::messages;
+use crate::read::{Api, db_error};
+
+/// The Romeka carrier rule for one block on its way to storage.
+///
+/// An `html` block whose `o:layout_data.romeka` names a registered Romeka block
+/// has `o:data.html` regenerated from that block's plain renderer, `plain_hash`
+/// set to the hash of what was stored and `v` set to
+/// [`romeka::CARRIER_VERSION`], which migrates a version 1 hash on its first
+/// save. A stored hash that does not vouch for `o:data.html` is an edit made
+/// outside this product: the write keeps that edit and leaves the hash alone.
+///
+/// The preview route reuses this function, so a preview renders the same plain
+/// rendering a save would store. `site` is `None` for the welcome page of a
+/// site not yet stored: no block can name a page of that site.
+pub async fn carry_block(
+    api: &Api<'_>,
+    site: Option<SiteId>,
+    layout: &str,
+    data: Value,
+    layout_data: Option<Value>,
+) -> Result<(Value, Option<Value>), ApiError> {
+    let Some(layout_data) = layout_data else {
+        return Ok((data, None));
+    };
+    let Some(carrier) = layout_data.get("romeka").and_then(RomkaCarrier::parse) else {
+        return Ok((data, Some(layout_data)));
+    };
+    let media = public_media(api, layout, &carrier).await?;
+    if layout == IiifImage.name() {
+        return Ok((with_image_url(api, data, &media), Some(layout_data)));
+    }
+    if layout != "html" {
+        return Ok((data, Some(layout_data)));
+    }
+    let stored = data.get("html").and_then(Value::as_str).unwrap_or("");
+    if !romeka::needs_plain(&carrier, stored) {
+        return Ok((data, Some(layout_data)));
+    }
+    let refs = plain_refs(api, site, &carrier, &media).await?;
+    let Some(plain) = romeka::plain_for(&carrier, &refs) else {
+        return Ok((data, Some(layout_data)));
+    };
+    let hash = romeka::plain_hash(&plain);
+    let mut data_object = match data {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    data_object.insert("html".to_string(), Value::String(plain));
+    let mut layout_object = match layout_data {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    if let Some(Value::Object(romeka_object)) = layout_object.get_mut("romeka") {
+        romeka_object.insert("plain_hash".to_string(), Value::String(hash));
+        romeka_object.insert("v".to_string(), Value::from(romeka::CARRIER_VERSION));
+    }
+    Ok((
+        Value::Object(data_object),
+        Some(Value::Object(layout_object)),
+    ))
+}
+
+/// The media the carrier's block renders, read from the database. A media
+/// that no longer exists is skipped, so the rendering leaves it out; one a
+/// visitor may not see refuses the write.
+async fn public_media(
+    api: &Api<'_>,
+    layout: &str,
+    carrier: &RomkaCarrier,
+) -> Result<Vec<(MediaId, MediaRow)>, ApiError> {
+    let mut found = Vec::new();
+    for id in romeka::media_refs(layout, carrier) {
+        let row = MediaRepo::new(api.pool())
+            .get(omeka_db::ids::MediaId(id.get()))
+            .await
+            .map_err(db_error)?;
+        let Some(row) = row else {
+            continue;
+        };
+        let item_public = ItemRepo::new(api.pool())
+            .get(row.item_id)
+            .await
+            .map_err(db_error)?
+            .is_some_and(|item| item.resource.is_public);
+        if !row.resource.is_public || !item_public {
+            let mut errors = ValidationErrors::new();
+            errors.insert(
+                "o:block".to_string(),
+                vec![messages::media_not_public(id.get())],
+            );
+            return Err(ApiError::Validation(errors));
+        }
+        found.push((id, row));
+    }
+    Ok(found)
+}
+
+/// The IIIF image's `o:data` with `image_url` set to the chosen site media's
+/// Image API address on this server, unchanged for an image URL source.
+fn with_image_url(api: &Api<'_>, data: Value, media: &[(MediaId, MediaRow)]) -> Value {
+    let Some((id, _)) = media.first() else {
+        return data;
+    };
+    let mut object = match data {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    object.insert(
+        "image_url".to_string(),
+        Value::String(format!("{}{}", api.base().as_str(), media_info_path(*id))),
+    );
+    Value::Object(object)
+}
+
+/// The file path under `/files/` of the image a Romeka setting shows for a
+/// media: its large rendition, or its original when it is an image with no
+/// renditions. `None` for a media with no image to show.
+#[must_use]
+pub fn media_image_path(row: &MediaRow) -> Option<String> {
+    let storage = row.storage_id.as_deref().filter(|id| !id.is_empty())?;
+    if row.has_thumbnails {
+        return Some(format!("large/{storage}.jpg"));
+    }
+    let is_image = row
+        .media_type
+        .as_deref()
+        .is_some_and(|kind| kind.starts_with("image/"));
+    if !row.has_original || !is_image {
+        return None;
+    }
+    Some(match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => format!("original/{storage}.{extension}"),
+        _ => format!("original/{storage}"),
+    })
+}
+
+/// The references a carrier's plain rendering reads: its background asset or
+/// media and its call-to-action pages.
+///
+/// The file URLs are relative to the origin (`/files/...`) so the stored plain
+/// html keeps working when the page is copied to an upstream installation at
+/// another origin.
+async fn plain_refs(
+    api: &Api<'_>,
+    site: Option<SiteId>,
+    carrier: &RomkaCarrier,
+    media: &[(MediaId, MediaRow)],
+) -> Result<PlainRefs, ApiError> {
+    let mut refs = PlainRefs::new();
+    let assets = AssetRepo::new(api.pool());
+    for id in romeka::asset_refs(carrier) {
+        if let Some(row) = assets
+            .get(AssetId::from(id.get()))
+            .await
+            .map_err(db_error)?
+        {
+            refs = refs.asset(
+                id,
+                format!("/files/{}", asset_file_path(&row)),
+                row.alt_text.clone().unwrap_or_default(),
+            );
+        }
+    }
+    for (id, row) in media {
+        if let Some(path) = media_image_path(row) {
+            refs = refs.media(
+                *id,
+                format!("/files/{path}"),
+                row.alt_text.clone().unwrap_or_default(),
+            );
+        }
+    }
+    let Some(site) = site else {
+        return Ok(refs);
+    };
+    let Some(site_row) = SiteRepo::new(api.pool())
+        .get(site)
+        .await
+        .map_err(db_error)?
+    else {
+        return Ok(refs);
+    };
+    let Ok(site_slug) = Slug::parse(&site_row.slug) else {
+        return Ok(refs);
+    };
+    let pages = SiteRepo::new(api.pool());
+    for id in romeka::page_refs(carrier) {
+        let Some(row) = pages.get_page(PageId(id.get())).await.map_err(db_error)? else {
+            continue;
+        };
+        if row.site_id != site {
+            continue;
+        }
+        if let Ok(slug) = Slug::parse(&row.slug) {
+            refs = refs.page(id, page_url(&site_slug, &slug));
+        }
+    }
+    Ok(refs)
+}
+
+/// `File\Store\Local::getUri`'s storage path for an asset: `asset/<name>` with
+/// the extension when the row has one.
+fn asset_file_path(row: &AssetRow) -> String {
+    match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => {
+            format!("asset/{}.{extension}", row.storage_id)
+        }
+        _ => format!("asset/{}", row.storage_id),
+    }
+}

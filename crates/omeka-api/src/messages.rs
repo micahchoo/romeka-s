@@ -358,6 +358,12 @@ messages! {
     /// A list setting whose value is not a list of strings.
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
 
+    // Site pages (`crate::write::block_carrier`). Romeka's own rule.
+
+    /// A block setting that names a media a visitor may not see.
+    fn media_not_public(id) =
+        "Media {id} is private, so a page cannot show it. Make the media and its item public, or choose another media.";
+
     // Publishing term lists and vocabularies (`crate::publish`). Romeka's own rule.
 
     /// A write that drops or renames a published term.

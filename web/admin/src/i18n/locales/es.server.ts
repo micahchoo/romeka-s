@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 126); the other
- * 78 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 128); the other
+ * 80 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -128,6 +128,8 @@ export const esServer: ServerCatalogue = {
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
   'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
   'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
+  'server.mediaNotPublic':
+    'El medio {id} es privado, así que una página no puede mostrarlo. Haga públicos el medio y su elemento, o elija otro medio.',
   'server.publicationTermsRemoved':
     'Un término publicado no se puede quitar ni renombrar: {terms}. Márcalo como obsoleto.',
   'server.publicationNamespaceFixed':

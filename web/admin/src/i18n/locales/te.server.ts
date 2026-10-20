@@ -137,6 +137,8 @@ export const teServer: ServerCatalogue = {
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
   'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
   'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
+  'server.mediaNotPublic':
+    'మీడియా {id} ప్రైవేట్‌గా ఉంది, కాబట్టి ఒక పేజీ దానిని చూపించలేదు. మీడియాను మరియు దాని ఐటమ్‌ను పబ్లిక్‌గా మార్చండి, లేదా మరొక మీడియాను ఎంచుకోండి.',
   'server.publicationTermsRemoved':
     'ఒక పబ్లిష్డ్ టర్మ్ తొలగించలేము లేదా రీనేమ్ చేయలేము: {terms}. దానికి బదులుగా డిప్రికేట్ చేయండి.',
   'server.publicationNamespaceFixed':

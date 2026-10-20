@@ -455,4 +455,52 @@ export const ml: EditorMessages = {
   'history.showTheirs': 'അവരുടെ പതിപ്പ് കാണിക്കുക',
   'history.keepMine': 'എന്റെ പതിപ്പ് നിലനിർത്തുക',
   'history.notSaved': 'സേവ് ചെയ്തില്ല: മറ്റൊരാൾ ഈ പേജ് ആദ്യം സേവ് ചെയ്തു.',
+  'romekaField.hero.heading_level': 'തലക്കെട്ട് നിലവാരം',
+  'fieldHelp.hero.heading_level':
+    'ഈ ബാനർ മുഴുവൻ പേജിന്റെയും പേര് നൽകുമ്പോൾ മാത്രം പ്രധാന തലക്കെട്ട് ഉപയോഗിക്കുക.',
+  'romekaChoice.h2': 'വിഭാഗം തലക്കെട്ട്',
+  'romekaChoice.h1': 'പ്രധാന പേജ് തലക്കെട്ട്',
+  'romekaField.hero.background_source': 'ഇതിൽ നിന്ന്',
+  'fieldHelp.hero.background_source':
+    'അപ്‌ലോഡ് ചെയ്ത ഒരു ചിത്രം, അല്ലെങ്കിൽ ഈ സൈറ്റിലെ ഒരു ഇനത്തിന്റെ ചിത്രം.',
+  'romekaChoice.backgroundAsset': 'അപ്‌ലോഡ് ചെയ്ത ഒരു ചിത്രം',
+  'romekaChoice.backgroundMedia': 'ഈ സൈറ്റിൽ നിന്നുള്ള ഒരു മീഡിയ',
+  'romekaField.hero.background_media': 'മീഡിയ പശ്ചാത്തലം',
+  'fieldHelp.hero.background_media':
+    'ഇനം കണ്ടെത്തുക, തുടർന്ന് അതിന്റെ ചിത്രങ്ങളിൽ ഒന്ന് തിരഞ്ഞെടുക്കുക. സന്ദർശകർക്ക് അത് കാണാൻ കഴിയണം.',
+  'romekaField.hero.focal': 'ഫോക്കൽ പോയിന്റ്',
+  'fieldHelp.hero.focal':
+    'ബാനർ അതിനെ മുറിക്കുമ്പോൾ ചിത്രത്തിന്റെ ഏത് ഭാഗം കാഴ്ചയിൽ നിൽക്കണമെന്ന് ക്ലിക്ക് ചെയ്യുക.',
+  'romekaField.hero.height': 'ഉയരം',
+  'fieldHelp.hero.height': 'ഫുൾ സ്ക്രീൻ സന്ദർശകന്റെ വിൻഡോ നിറയ്ക്കുന്നു.',
+  'romekaChoice.short': 'ഹ്രസ്വ',
+  'romekaChoice.tall': 'ഉയരമുള്ള',
+  'romekaChoice.fullScreen': 'ഫുൾ സ്ക്രീൻ',
+  'romekaField.hero.overlay_color': 'ഓവർലേ നിറം',
+  'fieldHelp.hero.overlay_color':
+    'ചിത്രത്തിന് മുകളിൽ വിന്യസിച്ചിരിക്കുന്ന നിറം. ഇതില്ലെങ്കിൽ കറുപ്പ്.',
+  'romekaField.hero.cta2_label': 'രണ്ടാമത്തെ ബട്ടൺ ടെക്സ്റ്റ്',
+  'fieldHelp.hero.cta2_label': 'ആദ്യത്തേതിന് അടുത്തായി ഒരു ഔട്ട്‌ലൈൻഡ് ബട്ടൺ.',
+  'fieldExample.hero.cta2_label': 'ഉദാഹരണത്തിന് പ്രോജക്റ്റിനെക്കുറിച്ച്',
+  'romekaField.hero.cta2_page': 'രണ്ടാമത്തെ ബട്ടൺ ലിങ്ക് ചെയ്യുന്നു',
+  'fieldHelp.hero.cta2_page': 'ഈ സൈറ്റിലെ ഒരു പേജ്, അല്ലെങ്കിൽ ഏതെങ്കിലും വെബ് വിലാസം.',
+  'blockField.iiifImage.source': 'ചിത്രത്തിൽ നിന്ന്',
+  'fieldHelp.iiifImage.source':
+    'വെബ്ബിൽ എവിടെനിന്നും ഒരു IIIF ചിത്രം, അല്ലെങ്കിൽ ഈ സൈറ്റിലെ ഒരു ഇനത്തിന്റെ ചിത്രം.',
+  'blockChoice.imageUrl': 'ഒരു ചിത്ര URL',
+  'blockChoice.siteMedia': 'ഈ സൈറ്റിൽ നിന്നുള്ള ഒരു മീഡിയ',
+  'blockField.iiifImage.media': 'മീഡിയ',
+  'fieldHelp.iiifImage.media':
+    'ഇനം കണ്ടെത്തുക, തുടർന്ന് അതിന്റെ ചിത്രങ്ങളിൽ ഒന്ന് തിരഞ്ഞെടുക്കുക. സന്ദർശകർക്ക് അത് കാണാൻ കഴിയണം.',
+  'mediaRef.pickItem': 'ഇനം കണ്ടെത്തുക',
+  'mediaRef.choose': 'അതിന്റെ ചിത്രങ്ങളിൽ ഒന്ന് തിരഞ്ഞെടുക്കുക',
+  'mediaRef.noImages': 'ഈ ഇനത്തിൽ ചിത്രങ്ങളൊന്നുമില്ല.',
+  'mediaRef.private': 'സ്വകാര്യം',
+  'mediaRef.fallback': 'മീഡിയ {id}',
+  'mediaRef.remove': 'നീക്കം ചെയ്യുക',
+  'mediaRef.changeItem': 'മറ്റൊരു ഇനം തിരഞ്ഞെടുക്കുക',
+  'focal.noImage': 'ആദ്യം ഒരു പശ്ചാത്തല ചിത്രം തിരഞ്ഞെടുക്കുക.',
+  'focal.frame':
+    'ഫോക്കൽ പോയിന്റ്: {x}% കുറുകെ, {y}% താഴേക്ക്. ചിത്രം ക്ലിക്ക് ചെയ്യുക അല്ലെങ്കിൽ നീക്കാൻ ആരോ കീകൾ ഉപയോഗിക്കുക.',
+  'focal.center': 'മധ്യഭാഗം',
 };

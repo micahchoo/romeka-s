@@ -133,6 +133,8 @@ export const neServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
+  'server.mediaNotPublic':
+    'मिडिया {id} निजी छ, त्यसैले पृष्ठले यसलाई देखाउन सक्दैन। मिडिया र यसको वस्तुलाई सार्वजनिक बनाउनुहोस्, वा अर्को मिडिया छान्नुहोस्।',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्दलाई हटाउन वा पुन: नामकरण गर्न सकिँदैन: {terms}। यसलाई यसको सट्टा डिप्रिकेट गर्नुहोस्।',
   'server.publicationNamespaceFixed':

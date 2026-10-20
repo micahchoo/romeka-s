@@ -143,6 +143,8 @@ export const taServer: ServerCatalogue = {
   'server.settingNotFlag': '{key} என்பது true, false அல்லது null ஆக இருக்க வேண்டும்.',
   'server.settingNotNames':
     '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
+  'server.mediaNotPublic':
+    '{id} என்ற ஊடகம் தனிப்பட்டதாகும், எனவே ஒரு பக்கத்தால் அதை காட்ட முடியாது. ஊடகத்தையும் அதன் உருப்படியையும் பொதுவாக்கவும், அல்லது வேறு ஊடகத்தைத் தேர்ந்தெடுக்கவும்.',
   'server.publicationTermsRemoved':
     'வெளியிடப்பட்ட ஒரு கலைச்சொல்லை நீக்கவோ அல்லது மறுபெயரிடவோ முடியாது: {terms}. அதற்குப் பதிலாக அதை நீக்கவும் (deprecate).',
   'server.publicationNamespaceFixed':

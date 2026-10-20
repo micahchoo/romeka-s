@@ -467,4 +467,52 @@ export const ta: EditorMessages = {
   'history.showTheirs': 'அவர்களின் பதிப்பைக் காட்டவும்',
   'history.keepMine': 'எனது பதிப்பை வைத்திருக்கவும்',
   'history.notSaved': 'சேமிக்கப்படவில்லை: வேறு யாரோ இந்தப் பக்கத்தைச் சேமித்துள்ளனர்.',
+  'romekaField.hero.heading_level': 'தலைப்பு நிலை',
+  'fieldHelp.hero.heading_level':
+    'இந்தப் பக்கத்தின் பெயரைக் குறிப்பிடும்போது மட்டும் முதன்மைத் தலைப்பைப் பயன்படுத்தவும்.',
+  'romekaChoice.h2': 'பகுதித் தலைப்பு',
+  'romekaChoice.h1': 'முதன்மைப் பக்கத் தலைப்பு',
+  'romekaField.hero.background_source': 'பின்னணி (from)',
+  'fieldHelp.hero.background_source':
+    'பதிவேற்றப்பட்ட ஒரு படம், அல்லது இந்தத் தளத்தின் ஒரு பொருளின் படத்திலிருந்து.',
+  'romekaChoice.backgroundAsset': 'பதிவேற்றப்பட்ட ஒரு படம்',
+  'romekaChoice.backgroundMedia': 'இந்தத் தளத்தின் ஒரு ஊடகம்',
+  'romekaField.hero.background_media': 'பின்னணி ஊடகம்',
+  'fieldHelp.hero.background_media':
+    'பொருளைக் கண்டறிந்து, அதன் படங்களிலிருந்து ஒன்றைத் தேர்ந்தெடுக்கவும். பார்வையாளர்கள் அதைக் காண இயல வேண்டும்.',
+  'romekaField.hero.focal': 'மையப்புள்ளி',
+  'fieldHelp.hero.focal':
+    'படத்தின் எந்தப் பகுதியை பேனர் அதை வெட்டும்போது கூடத் தெரிய வேண்டும் என்பதைக் கிளிக் செய்யவும்.',
+  'romekaField.hero.height': 'உயரம்',
+  'fieldHelp.hero.height': 'முழுத் திரை பார்வையாளரின் சாளரத்தை நிரப்புகிறது.',
+  'romekaChoice.short': 'குறுகிய',
+  'romekaChoice.tall': 'உயரமான',
+  'romekaChoice.fullScreen': 'முழுத் திரை',
+  'romekaField.hero.overlay_color': 'மேலடுக்கு நிறம்',
+  'fieldHelp.hero.overlay_color':
+    'படத்தின் மேல் அடுக்கப்பட்ட நிறம். இது இல்லையெனில் கருப்பு நிறமாக இருக்கும்.',
+  'romekaField.hero.cta2_label': 'இரண்டாவது பொத்தான் உரை',
+  'fieldHelp.hero.cta2_label': 'முதலாவதற்கு அருகில் உள்ள ஒரு கோடி பொத்தான்.',
+  'fieldExample.hero.cta2_label': 'எ.கா. திட்டத்தைப் பற்றி',
+  'romekaField.hero.cta2_page': 'இரண்டாவது பொத்தான் இணைக்கிறது',
+  'fieldHelp.hero.cta2_page': 'இந்தத் தளத்தின் ஒரு பக்கம், அல்லது ஏதேனும் ஒரு இணைய முகவரி.',
+  'blockField.iiifImage.source': 'படம் இருந்து',
+  'fieldHelp.iiifImage.source':
+    'இணையத்தில் எங்கு வேண்டுமானாலும் உள்ள IIIF படம், அல்லது இந்தத் தளத்தின் ஒரு பொருளில் இருந்து வரும் படம்.',
+  'blockChoice.imageUrl': 'ஒரு பட முகவரி',
+  'blockChoice.siteMedia': 'இந்தத் தளத்தின் ஒரு ஊடகம்',
+  'blockField.iiifImage.media': 'ஊடகம்',
+  'fieldHelp.iiifImage.media':
+    'அந்தப் பொருளைக் கண்டறிந்து, அதன் படங்களைப் பார்க்கவும். பார்வையாளர்கள் அதைப் பார்க்க முடிகிறதா என்பதை உறுதிப்படுத்தவும்.',
+  'mediaRef.pickItem': 'அந்தப் பொருளைக் கண்டறியவும்',
+  'mediaRef.choose': 'அதன் படங்களைப் பார்க்கவும்',
+  'mediaRef.noImages': 'இந்த உருப்படியில் படங்கள் இல்லை.',
+  'mediaRef.private': 'தனிப்பட்ட',
+  'mediaRef.fallback': 'ஊடகம் {id}',
+  'mediaRef.remove': 'நீக்கவும்',
+  'mediaRef.changeItem': 'மற்றொரு உருப்படியைத் தேர்ந்தெடுக்கவும்',
+  'focal.noImage': 'முதலில் பின்னணிப் படத்தை தேர்ந்தெடுக்கவும்.',
+  'focal.frame':
+    'மையப்புள்ளி: {x}% குறுக்கே, {y}% கீழே. படத்தை கிளிக் செய்யவும் அல்லது நகர்த்த \'அம்பு\' விசைகளைப் பயன்படுத்தவும்.',
+  'focal.center': 'மையப்படுத்த',
 };

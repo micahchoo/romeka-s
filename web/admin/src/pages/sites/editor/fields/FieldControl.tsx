@@ -29,6 +29,8 @@ import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
 import { ManifestSourceField } from './ManifestSourceField';
+import { FocalPointField, focalImage } from './FocalPointField';
+import { MediaRefField } from './MediaRefField';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
@@ -553,6 +555,45 @@ const ManifestSourceControl = ({
   );
 };
 
+const MediaRefControl = ({
+  field,
+  id,
+  value,
+  onChange,
+  error,
+}: ControlProps & { readonly field: FieldOf<'mediaRef'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <>
+      <MediaRefField id={id} label={e(field.label)} help={e(field.help)} value={value} onChange={onChange} />
+      {error}
+    </>
+  );
+};
+
+const FocalPointControl = ({
+  field,
+  id,
+  record,
+  siblings,
+  onPatch,
+}: ControlProps & FieldControlProps & { readonly field: FieldOf<'focalPoint'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <FocalPointField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      x={record[field.key]}
+      y={record[field.yKey]}
+      image={focalImage(field.images, record, siblings)}
+      onChange={(x, y) => {
+        onPatch({ [field.key]: x, [field.yKey]: y });
+      }}
+    />
+  );
+};
+
 export interface FieldControlProps {
   readonly field: BlockField;
   readonly value: JsonValue | undefined;
@@ -607,6 +648,10 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <AnchorControl {...common} field={common.field} />;
     case 'manifestSource':
       return <ManifestSourceControl {...common} field={common.field} />;
+    case 'mediaRef':
+      return <MediaRefControl {...common} field={common.field} />;
+    case 'focalPoint':
+      return <FocalPointControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }
