@@ -210,6 +210,9 @@ export const esServer: ServerCatalogue = {
     'El elemento, el medio o el conjunto de elementos que cambia este registro ya no está en Omeka.',
   'server.importRecordNotSaved': 'No se pudo guardar este registro: {reason}',
   'server.importLinksNotSaved': 'No se pudieron guardar los enlaces de este registro: {reason}',
+  'server.importRecordNotDeleted': 'Esto no se eliminó: {reason}',
+  'server.importDeleteNotUndone':
+    'No se puede deshacer una importación que eliminó elementos, medios o conjuntos de elementos.',
   'server.importSitesNotJoined':
     'Este elemento se añadió, pero no se unió a sus sitios: {reason}',
   'server.importUndoEdited': 'Esto se editó después de que la importación lo escribiera.',

@@ -218,7 +218,7 @@ async fn s10_an_edited_item_is_kept_and_listed_then_forced() {
 
     let row = undo(&site, id, None).await;
 
-    assert_eq!(row.status, ImportStatus::UndoFailed, "kept rows stay");
+    assert_eq!(row.status, ImportStatus::PartlyUndone, "kept rows stay");
     let report = report(&row);
     let kept = kept_of(&report, "item", edited.id().0).expect("the edited item is kept");
     assert_eq!(reasons(kept), ["edited"]);
@@ -287,7 +287,7 @@ async fn an_undo_keeps_what_a_later_import_changed_and_names_it() {
 
     let row = undo(&site, first, None).await;
 
-    assert_eq!(row.status, ImportStatus::UndoFailed);
+    assert_eq!(row.status, ImportStatus::PartlyUndone);
     let report = report(&row);
     let artifact = site.item("Artifact 1").await;
     let kept = kept_of(&report, "item", artifact.id().0).unwrap();

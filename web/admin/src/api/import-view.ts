@@ -13,7 +13,15 @@ import type { SourceState } from './import-sections';
 import { ParseError, asString, brandId } from './parse';
 import type { Parser, Path } from './types';
 
-export type ImportStatus = 'draft' | 'running' | 'done' | 'run_failed' | 'undoing' | 'undone' | 'undo_failed';
+export type ImportStatus =
+  | 'draft'
+  | 'running'
+  | 'done'
+  | 'run_failed'
+  | 'undoing'
+  | 'undone'
+  | 'partly_undone'
+  | 'undo_failed';
 export const IMPORT_STATUSES: readonly ImportStatus[] = [
   'draft',
   'running',
@@ -21,6 +29,7 @@ export const IMPORT_STATUSES: readonly ImportStatus[] = [
   'run_failed',
   'undoing',
   'undone',
+  'partly_undone',
   'undo_failed',
 ];
 

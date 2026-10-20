@@ -1,11 +1,15 @@
 //! The second pass: the links between this import's own records
 //! (`docs/import-v2.md`, "Values" and "Write details").
 //!
-//! Once every record exists, each link value is appended to the resource
-//! its record wrote, and the record's ledger row takes the time of that
-//! write, so undo never counts the import's own link as touching. Append
-//! keeps values distinct by link, so a retry that runs the pass again adds
-//! nothing twice.
+//! Once every record exists, each link value is written to the resource its
+//! record wrote, and the record's ledger row takes the time of that write,
+//! so undo never counts the import's own link as touching. A link joins the
+//! values pass one wrote for its term. Under `revise`, `update` and
+//! `replace`, a term that holds only links replaces the matched resource's
+//! values of that term, as pass one would have done had the links been
+//! known then. Append keeps values distinct by link and a replace writes the
+//! same values again, so a retry that runs the pass again adds nothing
+//! twice.
 
 use omeka_db::Backend;
 use omeka_db::DbError;
@@ -14,7 +18,7 @@ use omeka_db::repos::{ImportResourceRepo, ImportWrites};
 use omeka_db::rows::{ImportAction, ImportFields, ImportTarget, ItemSlots, Slot, ValueContent};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
-use super::fields::{content, record_link_type};
+use super::fields::{content, record_link_type, values as values_of};
 use super::units::catalogue_key;
 use super::{Run, RunError};
 use crate::import2::model::{Link, Record};
@@ -57,7 +61,18 @@ where
             let Some(target) = self.target_of(record.id) else {
                 continue;
             };
-            if let Err(error) = self.write_links(target, values).await {
+            let (replace, append) = if self.action == ImportAction::Append {
+                (Vec::new(), values)
+            } else {
+                let written: Vec<_> = values_of(&self.lookup, record)
+                    .iter()
+                    .map(|value| value.property_id)
+                    .collect();
+                values
+                    .into_iter()
+                    .partition(|value| !written.contains(&value.property_id))
+            };
+            if let Err(error) = self.write_links(target, replace, append).await {
                 self.fail(
                     record.origin.key(),
                     &catalogue_key("import_links_not_saved"),
@@ -96,33 +111,44 @@ where
         out
     }
 
+    /// `replace` takes the place of its terms' values (`revise` names only
+    /// the terms its values hold); `append` joins what is there.
     async fn write_links(
         &self,
         target: ImportTarget,
-        values: Vec<ValueContent>,
+        replace: Vec<ValueContent>,
+        append: Vec<ValueContent>,
     ) -> Result<(), DbError> {
-        let fields = ImportFields {
-            values,
-            ..ImportFields::default()
-        };
         let mut tx = self.pool.begin().await?;
         let mut writes = ImportWrites::<DB>::new(&mut tx);
-        let append = ImportAction::Append;
-        match target {
-            ImportTarget::Item(id) => {
-                writes
-                    .apply_item(id, append, &fields, &ItemSlots::default())
-                    .await?;
+        let passes = [
+            (ImportAction::Revise, replace),
+            (ImportAction::Append, append),
+        ];
+        for (action, values) in passes {
+            if values.is_empty() {
+                continue;
             }
-            ImportTarget::Media(id) => {
-                writes.apply_media(id, append, &fields).await?;
+            let fields = ImportFields {
+                values,
+                ..ImportFields::default()
+            };
+            match target {
+                ImportTarget::Item(id) => {
+                    writes
+                        .apply_item(id, action, &fields, &ItemSlots::default())
+                        .await?;
+                }
+                ImportTarget::Media(id) => {
+                    writes.apply_media(id, action, &fields).await?;
+                }
+                ImportTarget::ItemSet(id) => {
+                    writes
+                        .apply_item_set(id, action, &fields, &Slot::Unmapped)
+                        .await?;
+                }
+                ImportTarget::ResourceTemplate(_) | ImportTarget::Property(_) => return Ok(()),
             }
-            ImportTarget::ItemSet(id) => {
-                writes
-                    .apply_item_set(id, append, &fields, &Slot::Unmapped)
-                    .await?;
-            }
-            ImportTarget::ResourceTemplate(_) | ImportTarget::Property(_) => return Ok(()),
         }
         ImportResourceRepo::<DB>::touch(&mut *tx, self.import, target).await?;
         tx.commit().await?;

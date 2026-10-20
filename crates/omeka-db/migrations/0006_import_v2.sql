@@ -34,7 +34,7 @@ CREATE TABLE romeka_import (
     ran_plan TEXT,
     revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
     status TEXT NOT NULL CHECK (status IN (
-        'draft', 'running', 'done', 'run_failed', 'undoing', 'undone', 'undo_failed'
+        'draft', 'running', 'done', 'run_failed', 'undoing', 'undone', 'partly_undone', 'undo_failed'
     )),
     job_id INTEGER,
     summary TEXT,

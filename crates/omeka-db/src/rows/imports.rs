@@ -22,6 +22,8 @@ pub enum ImportStatus {
     RunFailed,
     Undoing,
     Undone,
+    /// The undo ended and kept resources that something touched; a forced undo can finish it.
+    PartlyUndone,
     UndoFailed,
 }
 
@@ -34,6 +36,7 @@ impl ImportStatus {
             Self::RunFailed => "run_failed",
             Self::Undoing => "undoing",
             Self::Undone => "undone",
+            Self::PartlyUndone => "partly_undone",
             Self::UndoFailed => "undo_failed",
         }
     }
@@ -46,6 +49,7 @@ impl ImportStatus {
             "run_failed" => Ok(Self::RunFailed),
             "undoing" => Ok(Self::Undoing),
             "undone" => Ok(Self::Undone),
+            "partly_undone" => Ok(Self::PartlyUndone),
             "undo_failed" => Ok(Self::UndoFailed),
             other => Err(DbError::Column {
                 column: "status",
@@ -62,6 +66,7 @@ pub enum ImportEnding {
     Done,
     RunFailed,
     Undone,
+    PartlyUndone,
     UndoFailed,
 }
 
@@ -72,6 +77,7 @@ impl ImportEnding {
             Self::Done => ImportStatus::Done,
             Self::RunFailed => ImportStatus::RunFailed,
             Self::Undone => ImportStatus::Undone,
+            Self::PartlyUndone => ImportStatus::PartlyUndone,
             Self::UndoFailed => ImportStatus::UndoFailed,
         }
     }
@@ -80,7 +86,7 @@ impl ImportEnding {
     pub fn ends(self) -> ImportStatus {
         match self {
             Self::Done | Self::RunFailed => ImportStatus::Running,
-            Self::Undone | Self::UndoFailed => ImportStatus::Undoing,
+            Self::Undone | Self::PartlyUndone | Self::UndoFailed => ImportStatus::Undoing,
         }
     }
 }
@@ -163,6 +169,8 @@ pub enum ImportChange {
     Created,
     /// It existed; undo restores it from its before-image.
     Changed,
+    /// It existed and a `delete` removed it. The row is for the report: nothing restores it.
+    Deleted,
 }
 
 impl ImportChange {
@@ -170,6 +178,7 @@ impl ImportChange {
         match self {
             Self::Created => "created",
             Self::Changed => "changed",
+            Self::Deleted => "deleted",
         }
     }
 
@@ -177,6 +186,7 @@ impl ImportChange {
         match stored {
             "created" => Ok(Self::Created),
             "changed" => Ok(Self::Changed),
+            "deleted" => Ok(Self::Deleted),
             other => Err(DbError::Column {
                 column: "change_kind",
                 reason: format!("`{other}` is not an import change"),

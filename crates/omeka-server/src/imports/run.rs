@@ -1,5 +1,6 @@
-//! The routes that read the evidence or start a job: scan, preview, run,
-//! stop and undo (`docs/import-v2.md`, "Wire", "Lifecycle and the ledger").
+//! The routes that read the evidence or start a job: scan, preview, run and
+//! stop (`docs/import-v2.md`, "Wire", "Lifecycle and the ledger"). Undo is
+//! in [`super::undo`].
 //!
 //! Run is the one that guards: it rescans, derives again, and starts only
 //! when the model's digest is the one the admin checked, no blocking flag
@@ -29,8 +30,6 @@ use crate::AppState;
 
 /// The job class of a run, `job.class`; its args are `{"importId": n}`.
 pub const RUN_JOB: &str = "Romeka\\Job\\ImportRun";
-/// The job class of an undo; its args are `{"importId": n, "force": ...}`.
-pub const UNDO_JOB: &str = "Romeka\\Job\\ImportUndo";
 
 /// The plan a non-draft runs from: the one its first run froze.
 pub(super) fn stored_plan(row: &ImportRow) -> Result<ImportPlanV2, ImportError> {
@@ -205,6 +204,11 @@ pub(super) async fn run(
                     return Err(ImportError::conflict("changed", messages::IMPORT_CHANGED)
                         .with("revision", json!(revision)));
                 }
+                StartOutcome::Deleted => {
+                    return Err(ImportError::Internal(
+                        "a run start answered that the import deleted".to_string(),
+                    ));
+                }
             }
             let job = compose_job(&state, &actor, RUN_JOB, row.id, None).await?;
             start_job(&state, job, StatusCode::OK).await
@@ -218,13 +222,14 @@ fn cannot_run(status: ImportStatus) -> ImportError {
         .with("status", json!(status.as_str()))
 }
 
-fn busy(other: ImportId) -> ImportError {
+pub(super) fn busy(other: ImportId) -> ImportError {
     ImportError::conflict("busy", messages::IMPORT_BUSY).with("importId", json!(other.0))
 }
 
-/// `POST /api/romeka/imports/{id}/stop`: ask the running job to stop after
-/// the record in hand. The request is `ImportRepo::request_stop`, which the
-/// job reads between records; it does not count as a heartbeat.
+/// `POST /api/romeka/imports/{id}/stop`: ask the running or undoing job to
+/// stop after the resource in hand. The request is
+/// `ImportRepo::request_stop`, which the job reads between resources; it
+/// does not count as a heartbeat.
 pub(super) async fn stop(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -235,7 +240,7 @@ pub(super) async fn stop(
         async {
             admin(&state, &uri, &headers).await?;
             let row = load(&state, &id).await?;
-            if row.status != ImportStatus::Running {
+            if !is_busy(row.status) {
                 return Err(not_running(row.status));
             }
             if !ImportRepo::new(&state.pool).request_stop(row.id).await? {
@@ -252,92 +257,10 @@ fn not_running(status: ImportStatus) -> ImportError {
         .with("status", json!(status.as_str()))
 }
 
-#[derive(Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-struct UndoBody {
-    #[serde(default)]
-    force: Option<Force>,
-}
-
-/// Which touched resources an undo restores or deletes anyway.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-enum Force {
-    All(AllWord),
-    Some(Vec<Forced>),
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum AllWord {
-    All,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Forced {
-    kind: ForcedKind,
-    id: u64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum ForcedKind {
-    Item,
-    Media,
-    ItemSet,
-    ResourceTemplate,
-    Property,
-}
-
-/// `POST /api/romeka/imports/{id}/undo {force?}`: undo an import that is
-/// done, or whose run or undo failed.
-pub(super) async fn undo(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    uri: Uri,
-    headers: HeaderMap,
-    payload: crate::limits::Payload,
-) -> Response {
-    answer(
-        async {
-            let actor = admin(&state, &uri, &headers).await?;
-            let request: UndoBody = if payload.0.is_empty() {
-                UndoBody::default()
-            } else {
-                body(&headers, &payload.0)?
-            };
-            let row = load(&state, &id).await?;
-            match ImportRepo::new(&state.pool).start_undo(row.id).await? {
-                StartOutcome::Started => {}
-                StartOutcome::Missing => return Err(super::wire::not_found(row.id.0)),
-                StartOutcome::Refused(status) => {
-                    return Err(
-                        ImportError::conflict("cannotUndo", messages::IMPORT_CANNOT_UNDO)
-                            .with("status", json!(status.as_str())),
-                    );
-                }
-                StartOutcome::Busy(other) => return Err(busy(other)),
-                StartOutcome::Changed { .. } => {
-                    return Err(ImportError::Internal(
-                        "an undo start answered a revision change".to_string(),
-                    ));
-                }
-            }
-            let force = request
-                .force
-                .map(|force| serde_json::to_value(force).unwrap_or(Value::Null));
-            let job = compose_job(&state, &actor, UNDO_JOB, row.id, force).await?;
-            start_job(&state, job, StatusCode::OK).await
-        }
-        .await,
-    )
-}
-
 /// A `starting` job row for `import`. A run or undo job is linked from the
 /// import, which is already running or undoing: a failure from here on
 /// leaves it to die by its heartbeat, which records it failed.
-async fn compose_job(
+pub(super) async fn compose_job(
     state: &AppState,
     actor: &Actor,
     class: &str,
@@ -367,7 +290,7 @@ async fn compose_job(
 
 /// Hand the job to the runner and answer `{jobId}`. A start that fails ends
 /// the job `error`, so the next read records the import failed.
-async fn start_job(state: &AppState, job: JobId, status: StatusCode) -> Answer {
+pub(super) async fn start_job(state: &AppState, job: JobId, status: StatusCode) -> Answer {
     if let Err(error) = state.jobs.start(job) {
         let jobs = JobRepo::new(&state.pool);
         jobs.append_log(job, &error.to_string()).await?;

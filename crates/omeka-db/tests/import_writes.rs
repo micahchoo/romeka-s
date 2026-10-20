@@ -425,7 +425,7 @@ on_both!(
     }
 );
 
-on_both!(apply_and_restore_move_modified, |pool| {
+on_both!(apply_moves_modified_and_restore_puts_it_back, |pool| {
     let w = world!(pool);
     let id = seeded!(pool, w);
     import_db::exec_id!(
@@ -457,11 +457,6 @@ on_both!(apply_and_restore_move_modified, |pool| {
     assert!(applied.modified > Some(created), "apply moved modified");
     assert_eq!(applied.created, created);
 
-    import_db::exec_id!(
-        pool,
-        "UPDATE resource SET modified = '2001-01-01 00:00:00' WHERE id = ?",
-        id.0
-    );
     let mut tx = pool.begin().await.unwrap();
     assert!(
         ImportWrites::<Db>::new(&mut tx)
@@ -470,7 +465,11 @@ on_both!(apply_and_restore_move_modified, |pool| {
             .unwrap()
     );
     tx.commit().await.unwrap();
-    assert!(items.get(id).await.unwrap().unwrap().resource.modified > Some(created));
+    assert_eq!(
+        items.get(id).await.unwrap().unwrap().resource.modified,
+        Some(created),
+        "the image's modified"
+    );
 });
 
 on_both!(a_gone_resource_is_neither_imaged_nor_restored, |pool| {
@@ -527,6 +526,7 @@ on_both!(a_restore_refuses_an_image_of_another_kind, |pool| {
         class: None,
         owner: None,
         is_public: true,
+        modified: None,
         memberships: ImageMemberships::Media,
     };
     let mut tx = pool.begin().await.unwrap();

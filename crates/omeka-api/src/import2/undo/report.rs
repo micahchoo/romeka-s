@@ -98,6 +98,23 @@ pub struct Kept {
     pub reasons: Vec<Reason>,
 }
 
+impl Kept {
+    #[must_use]
+    pub fn of(target: ImportTarget, touches: Vec<Touch>) -> Self {
+        Self {
+            resource: Named::of(target),
+            reasons: touches
+                .into_iter()
+                .map(|touch| Reason {
+                    touch,
+                    key: touch.key(),
+                    detail: touch.detail(),
+                })
+                .collect(),
+        }
+    }
+}
+
 /// Resources by kind.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

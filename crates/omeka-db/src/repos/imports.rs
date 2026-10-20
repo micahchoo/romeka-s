@@ -151,12 +151,13 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
-    /// Ask the running job to stop after the record in hand. One member, no heartbeat: only the
-    /// worker proves it is alive, so a request cannot extend the life of a dead import. False
-    /// unless the import is `running`.
+    /// Ask the running or undoing job to stop after the resource in hand. One member, no
+    /// heartbeat: only the worker proves it is alive, so a request cannot extend the life of a
+    /// dead import. False unless the import is `running` or `undoing`.
     pub async fn request_stop(&self, id: ImportId) -> Result<bool, DbError> {
         let done = sqlx::query(
-            "UPDATE romeka_import SET stop_requested = 1 WHERE id = ? AND status = 'running'",
+            "UPDATE romeka_import SET stop_requested = 1
+             WHERE id = ? AND status IN ('running', 'undoing')",
         )
         .bind(bind_id(id))
         .execute(self.pool)

@@ -19,10 +19,14 @@
 //!    every record to exist;
 //! 4. `left.csv`, into the store.
 //!
+//! A `delete` writes none of this: it deletes each matched resource through
+//! the API ([`delete`]), and nothing it does is undoable.
+//!
 //! A record whose key the ledger holds is skipped, so a retry converges.
 //! After each record the job proves it is alive and reads the stop request;
 //! a stop ends the run `run_failed` after the record in hand.
 
+mod delete;
 mod fields;
 mod links;
 mod prelude;
@@ -49,6 +53,7 @@ use super::ledger::{Failure, Summary, Written};
 use super::model::{Fate, Model, Parent, RecordId};
 use super::plan::{Action, ImportPlanV2, PlanError, RecordKind, SourceId};
 use super::preview::{Caches, Derived, PreviewError, derive_import};
+use super::undo::Removal;
 use super::{left, scan};
 
 pub use fields::Lookup;
@@ -76,6 +81,8 @@ pub struct RunEnv<'a> {
     /// The guarded client every URL ingester fetches through.
     pub http: HttpClient,
     pub sites: &'a dyn SiteSync,
+    /// The API's delete paths, which a `delete` run deletes through.
+    pub removal: &'a dyn Removal,
 }
 
 /// Who pressed Run: the owner of `runner` in the plan, and the owners the
@@ -154,14 +161,12 @@ where
     }
     let frozen = row.ran_plan.as_ref().unwrap_or(&row.plan);
     let plan = ImportPlanV2::from_json(&frozen.to_string())?;
+    // A delete writes no record, so the value it gets here is never read.
     let action = match plan.action.action {
-        Action::Create | Action::Append => ImportAction::Append,
+        Action::Create | Action::Append | Action::Delete => ImportAction::Append,
         Action::Revise => ImportAction::Revise,
-        other => {
-            return Err(RunError::State(format!(
-                "the action {other:?} is not written by this build"
-            )));
-        }
+        Action::Update => ImportAction::Update,
+        Action::Replace => ImportAction::Replace,
     };
     let derived = derive_import(
         pool,
@@ -250,6 +255,9 @@ where
     }
 
     async fn go(&mut self) -> Result<RunEnd, RunError> {
+        if self.derived.plan.action.action == Action::Delete {
+            return self.delete_all().await;
+        }
         self.lookup = Lookup::load(self.pool, self.model()).await?;
         self.prelude().await?;
         if let Next::Lost = self.pulse().await? {

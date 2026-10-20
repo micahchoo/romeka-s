@@ -5,7 +5,7 @@
 //! moved the import to `undoing`. The job reads the ledger once and deals
 //! with each row in this order:
 //!
-//! 1. the changed resources, newest write first, restored from their
+//! 1. the changed resources, restored from their
 //!    before-images ([`ImportWrites::restore`]);
 //! 2. the created media, then items, then item sets, deleted through the
 //!    API's delete paths ([`remove`]), so a media's files leave the store;
@@ -23,31 +23,35 @@
 //!
 //! After each resource the job proves it is alive, stores its report in the
 //! summary's `undo` member, and reads the stop request. The import ends
-//! `undone` when its ledger is empty, else `undo_failed`.
+//! `undone` when its ledger is empty, `partly_undone` when the undo kept
+//! touched resources, and `undo_failed` when it stopped on request or on an
+//! error. [`preview_undo`] answers what an undo would do, by the same
+//! [`judge`], without writing.
 
+mod judge;
+mod preview;
 mod remove;
 mod report;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use omeka_db::Backend;
 use omeka_db::DbError;
-use omeka_db::ids::{ImportId, ItemId, JobId, MediaId};
-use omeka_db::repos::{
-    BeforeImageRepo, ImportRepo, ImportResourceRepo, ImportTouchRepo, ImportWrites, MediaRepo,
-    Presence,
-};
+use omeka_db::ids::{ImportId, JobId};
+use omeka_db::repos::{BeforeImageRepo, ImportRepo, ImportResourceRepo, ImportWrites};
 use omeka_db::rows::{
-    BeforeImage, ImageMemberships, ImportChange, ImportEnding, ImportKind, ImportResource,
-    ImportResourceRow, ImportStatus, ImportTarget,
+    BeforeImage, ImportChange, ImportEnding, ImportKind, ImportResource, ImportResourceRow,
+    ImportStatus, ImportTarget,
 };
 use serde_json::{Map, Value};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
+pub use preview::{UndoPreview, preview_undo};
 pub use remove::{ApiRemoval, Removal, Removed};
 pub use report::{Counts, Force, Kept, Named, Progress, Reason, Stopped, UndoReport};
 
-use super::touched::{Own, Touch, touched};
+use self::judge::{Judge, Verdict};
+use super::touched::Touch;
 use crate::messages::{self, ServerMessage};
 
 /// The job class of an undo; its args are `{"importId": n, "force"?: ...}`.
@@ -61,7 +65,9 @@ pub const UNDO_MEMBER: &str = "undo";
 pub enum UndoEnd {
     /// The ledger is empty.
     Undone(UndoReport),
-    /// Something was kept, the undo stopped, or it failed; a new undo goes on.
+    /// Touched resources were kept; a new undo with `force` can finish it.
+    PartlyUndone(UndoReport),
+    /// The undo stopped on request or on an error; a new undo goes on.
     Failed(UndoReport),
     /// Another worker owns the import now.
     Lost,
@@ -73,6 +79,9 @@ pub enum UndoError {
     Db(#[from] DbError),
     #[error(transparent)]
     Sql(#[from] sqlx::Error),
+    /// The ledger records a delete, which is not undone.
+    #[error("the ledger records that the import deleted {0:?}; a delete is not undone")]
+    Deleted(ImportTarget),
     #[error("{0}")]
     State(String),
 }
@@ -123,23 +132,13 @@ where
         _ => Map::new(),
     };
     base.remove(UNDO_MEMBER);
-    let rows = ImportResourceRepo::<DB>::new(pool)
-        .list(import, None)
-        .await?;
-    let mut images = HashMap::new();
-    for image in BeforeImageRepo::<DB>::new(pool).list(import).await? {
-        images.insert(image.target, BeforeImage::from_json(&image.image)?);
-    }
+    let (rows, images) = ledger(pool, import).await?;
     let mut undo = Undo {
         pool,
         removal,
         import,
         job,
-        force,
-        own: Own::from_rows(&rows),
-        images,
-        verdicts: HashMap::new(),
-        kept_items: HashSet::new(),
+        judge: Judge::new(pool, import, force, &rows, images),
         base,
         report: UndoReport {
             progress: Progress {
@@ -149,11 +148,43 @@ where
             ..UndoReport::default()
         },
     };
-    undo.go(order(rows)).await
+    undo.go(rows).await
 }
 
-/// The ledger in undo order: changed resources newest first, then what the
-/// import made, media before items before sets before types before fields.
+/// The ledger rows and before-images of `import`. A row that records a
+/// delete is refused: `start_undo` never lets an undo begin on one.
+async fn ledger<DB>(
+    pool: &Pool<DB>,
+    import: ImportId,
+) -> Result<(Vec<ImportResourceRow>, HashMap<ImportTarget, BeforeImage>), UndoError>
+where
+    DB: Backend,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+{
+    let rows = ImportResourceRepo::<DB>::new(pool)
+        .list(import, None)
+        .await?;
+    if let Some(row) = rows.iter().find(|row| row.change == ImportChange::Deleted) {
+        return Err(UndoError::Deleted(row.target));
+    }
+    let mut images = HashMap::new();
+    for image in BeforeImageRepo::<DB>::new(pool).list(import).await? {
+        images.insert(image.target, BeforeImage::from_json(&image.image)?);
+    }
+    Ok((order(rows), images))
+}
+
+/// The ledger in undo order: changed resources, then what the import made,
+/// media before items before sets before types before fields, each by kind
+/// and id. One import writes a resource once, so no two rows depend on each
+/// other's order, and an order by write time would follow the whole-second
+/// clock: the same import read back in another order when its writes
+/// crossed a second.
 fn order(mut rows: Vec<ImportResourceRow>) -> Vec<ImportResourceRow> {
     let rank = |row: &ImportResourceRow| match (row.change, row.target.kind()) {
         (ImportChange::Changed, _) => 0,
@@ -163,10 +194,9 @@ fn order(mut rows: Vec<ImportResourceRow>) -> Vec<ImportResourceRow> {
         (_, ImportKind::ResourceTemplate) => 4,
         (_, ImportKind::Property) => 5,
     };
-    rows.sort_by(|a, b| {
-        rank(a)
-            .cmp(&rank(b))
-            .then_with(|| b.written.cmp(&a.written))
+    rows.sort_by_key(|row| {
+        let named = Named::of(row.target);
+        (rank(row), named.kind, named.id)
     });
     rows
 }
@@ -191,14 +221,7 @@ struct Undo<'u, DB: Backend> {
     removal: &'u dyn Removal,
     import: ImportId,
     job: JobId,
-    force: Force,
-    own: Own,
-    images: HashMap<ImportTarget, BeforeImage>,
-    /// What touched each item the import made, read once: its media ask
-    /// before the item's own turn.
-    verdicts: HashMap<ItemId, Vec<Touch>>,
-    /// Items the undo keeps, whose media it keeps too.
-    kept_items: HashSet<ItemId>,
+    judge: Judge<'u, DB>,
     /// The summary as the run left it.
     base: Map<String, Value>,
     report: UndoReport,
@@ -255,66 +278,21 @@ where
             Outcome::Restored => self.report.restored.add(kind),
             Outcome::Removed => self.report.removed.add(kind),
             Outcome::Skipped => self.report.skipped.push(Named::of(row.target)),
-            Outcome::Kept(touches) => self.report.kept.push(Kept {
-                resource: Named::of(row.target),
-                reasons: touches
-                    .into_iter()
-                    .map(|touch| Reason {
-                        touch,
-                        key: touch.key(),
-                        detail: touch.detail(),
-                    })
-                    .collect(),
-            }),
+            Outcome::Kept(touches) => self.report.kept.push(Kept::of(row.target, touches)),
         }
     }
 
     /// Deal with one row: keep, restore, delete or skip its resource.
     async fn one(&mut self, row: &ImportResourceRow) -> Result<Outcome, UndoError> {
         let target = row.target;
-        let reads = ImportTouchRepo::<DB>::new(self.pool);
-        let Presence::Here { modified } = reads.presence(target).await? else {
-            self.forget(target).await?;
-            return Ok(Outcome::Skipped);
-        };
-        let touches = match target {
-            ImportTarget::ResourceTemplate(id) if reads.template_in_use(id).await? => {
-                vec![Touch::InUse]
+        match self.judge.judge(row).await? {
+            Verdict::Gone => {
+                self.forget(target).await?;
+                return Ok(Outcome::Skipped);
             }
-            ImportTarget::Property(id) if reads.property_in_use(id).await? => vec![Touch::InUse],
-            ImportTarget::ResourceTemplate(_) | ImportTarget::Property(_) => Vec::new(),
-            ImportTarget::Item(item) if row.change == ImportChange::Created => {
-                self.verdict(row, item, modified).await?
-            }
-            ImportTarget::Media(media) if row.change == ImportChange::Created => {
-                let mut touches = self.read_touched(row, modified).await?;
-                if self.item_is_kept(media).await? {
-                    touches.push(Touch::ItemKept);
-                }
-                touches
-            }
-            ImportTarget::ItemSet(set) if row.change == ImportChange::Created => {
-                let mut touches = self.read_touched(row, modified).await?;
-                let holds_kept = reads
-                    .set_members(set)
-                    .await?
-                    .iter()
-                    .any(|member| self.kept_items.contains(&ItemId(member.resource.0)));
-                if holds_kept {
-                    touches.push(Touch::MemberKept);
-                }
-                touches
-            }
-            _ => self.read_touched(row, modified).await?,
-        };
-        if !touches.is_empty() {
-            if !self.force.covers(target) {
-                if let ImportTarget::Item(item) = target {
-                    self.kept_items.insert(item);
-                }
-                return Ok(Outcome::Kept(touches));
-            }
-            self.report.forced.push(Named::of(target));
+            Verdict::Keep(touches) => return Ok(Outcome::Kept(touches)),
+            Verdict::Act { forced: true } => self.report.forced.push(Named::of(target)),
+            Verdict::Act { forced: false } => {}
         }
         match row.change {
             ImportChange::Changed => self.restore(target).await,
@@ -330,65 +308,8 @@ where
                     Removed::AlreadyGone => Outcome::Skipped,
                 })
             }
+            ImportChange::Deleted => Err(UndoError::Deleted(target)),
         }
-    }
-
-    async fn read_touched(
-        &self,
-        row: &ImportResourceRow,
-        modified: Option<chrono::NaiveDateTime>,
-    ) -> Result<Vec<Touch>, UndoError> {
-        let before = match self.images.get(&row.target).map(|image| &image.memberships) {
-            Some(ImageMemberships::Item { media_order, .. }) => media_order.as_slice(),
-            _ => &[],
-        };
-        Ok(touched(self.pool, self.import, row, modified, &self.own, before).await?)
-    }
-
-    async fn verdict(
-        &mut self,
-        row: &ImportResourceRow,
-        item: ItemId,
-        modified: Option<chrono::NaiveDateTime>,
-    ) -> Result<Vec<Touch>, UndoError> {
-        if let Some(touches) = self.verdicts.get(&item) {
-            return Ok(touches.clone());
-        }
-        let touches = self.read_touched(row, modified).await?;
-        self.verdicts.insert(item, touches.clone());
-        Ok(touches)
-    }
-
-    /// Whether the undo keeps the media's item: a changed item kept in the
-    /// first pass, or an item this import made that is touched and not forced.
-    async fn item_is_kept(&mut self, media: MediaId) -> Result<bool, UndoError> {
-        let Some(row) = MediaRepo::<DB>::new(self.pool).get(media).await? else {
-            return Ok(false);
-        };
-        let item = row.item_id;
-        if self.kept_items.contains(&item) {
-            return Ok(true);
-        }
-        let target = ImportTarget::Item(item);
-        if !self.own.holds(target) || self.force.covers(target) {
-            return Ok(false);
-        }
-        let ledger = ImportResourceRepo::<DB>::new(self.pool)
-            .list(self.import, Some(ImportKind::Item))
-            .await?;
-        let Some(item_row) = ledger
-            .iter()
-            .find(|row| row.target == target && row.change == ImportChange::Created)
-        else {
-            return Ok(false);
-        };
-        let Presence::Here { modified } = ImportTouchRepo::<DB>::new(self.pool)
-            .presence(target)
-            .await?
-        else {
-            return Ok(false);
-        };
-        Ok(!self.verdict(item_row, item, modified).await?.is_empty())
     }
 
     /// Put a changed resource back, forgetting its row and image in the same
@@ -404,7 +325,7 @@ where
                 )));
             }
         };
-        let image = self.images.get(&target).ok_or_else(|| {
+        let image = self.judge.images.get(&target).ok_or_else(|| {
             UndoError::State(format!("the changed {target:?} has no before-image"))
         })?;
         let mut tx = self.pool.begin().await?;
@@ -460,10 +381,12 @@ where
         let left = ImportResourceRepo::<DB>::new(self.pool)
             .list(self.import, None)
             .await?;
-        let ending = if left.is_empty() && self.report.error.is_none() && !self.report.stopped {
+        let ending = if self.report.error.is_some() || self.report.stopped {
+            ImportEnding::UndoFailed
+        } else if left.is_empty() {
             ImportEnding::Undone
         } else {
-            ImportEnding::UndoFailed
+            ImportEnding::PartlyUndone
         };
         if !imports.finish(self.import, ending).await? {
             return Ok(UndoEnd::Lost);
@@ -471,7 +394,35 @@ where
         let report = std::mem::take(&mut self.report);
         Ok(match ending {
             ImportEnding::Undone => UndoEnd::Undone(report),
+            ImportEnding::PartlyUndone => UndoEnd::PartlyUndone(report),
             _ => UndoEnd::Failed(report),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use omeka_db::ids::MediaId;
+
+    fn row(id: u64, written: &str) -> ImportResourceRow {
+        ImportResourceRow {
+            import_id: ImportId(1),
+            target: ImportTarget::Media(MediaId(id)),
+            record: format!("f:s1/{id}.jpg"),
+            change: ImportChange::Created,
+            written: chrono::NaiveDateTime::parse_from_str(written, "%Y-%m-%d %H:%M:%S")
+                .unwrap_or_default(),
+        }
+    }
+
+    #[test]
+    fn the_undo_order_does_not_depend_on_the_second_a_row_was_written_in() {
+        let rows = vec![row(6, "2026-10-20 10:00:01"), row(5, "2026-10-20 10:00:00")];
+        let ids: Vec<u64> = order(rows)
+            .iter()
+            .map(|row| Named::of(row.target).id)
+            .collect();
+        assert_eq!(ids, [5, 6]);
     }
 }

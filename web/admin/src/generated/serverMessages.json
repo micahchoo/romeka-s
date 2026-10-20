@@ -165,6 +165,8 @@
     "server.importResourceGone": "The item, media or item set this record changes is no longer in Omeka.",
     "server.importRecordNotSaved": "This record could not be saved: {reason}",
     "server.importLinksNotSaved": "The links of this record could not be saved: {reason}",
+    "server.importRecordNotDeleted": "This was not deleted: {reason}",
+    "server.importDeleteNotUndone": "An import that deleted items, media or item sets cannot be undone.",
     "server.importSitesNotJoined": "This item was added, but it did not join its sites: {reason}",
     "server.importUndoEdited": "This was edited after the import wrote it.",
     "server.importUndoLinked": "An item, media or item set outside this import links to this.",

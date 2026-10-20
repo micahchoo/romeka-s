@@ -39,7 +39,7 @@ describe('the undo report', () => {
 
   it('lists each kept resource with the reasons the server gave', () => {
     const report = reportOf('kept');
-    expect(rowOf('kept').status).toBe('undo_failed');
+    expect(rowOf('kept').status).toBe('partly_undone');
     const reasons = report.kept.map((kept) => [kept.kind, kept.reasons.map((reason) => reason.reason)]);
     expect(reasons).toContainEqual(['item', ['edited']]);
     expect(reasons).toContainEqual(['media', ['itemKept']]);
