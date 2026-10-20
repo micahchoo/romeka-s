@@ -21,6 +21,7 @@ export const kn: Catalogue = {
   'page.items': 'ಅಂಶಗಳು',
   'page.itemSets': 'ಅಂಶಗಳ ಸೆಟ್‌ಗಳು',
   'page.media': 'ಮಾಧ್ಯಮ',
+  'page.import': 'ಆಮದು',
   'page.sites': 'ಸೈಟ್‌ಗಳು',
   'page.fields': 'ಕ್ಷೇತ್ರಗಳು',
   'page.users': 'ಬಳಕೆದಾರರು',

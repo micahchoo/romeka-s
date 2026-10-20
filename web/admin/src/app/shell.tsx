@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode, RefObject } from 'react';
 import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
-import { AuthBadge } from './auth';
+import { AuthBadge, useSession } from './auth';
 import { PAGE_GROUPS, PAGES } from './pages';
 import type { AdminPageId } from './pages';
 import { parseAuthRoute, parseHash, useHash } from './router';
@@ -148,22 +148,31 @@ const useSessionProbe = (): void => {
   }, []);
 };
 
+const NavLink = ({ id, active }: { readonly id: AdminPageId; readonly active: boolean }): ReactElement | null => {
+  const { t } = useTranslator();
+  const user = useSession();
+  const { offered } = PAGES[id];
+  // A refused or failed probe hides the link, as an unconfigured feature does.
+  const probe = useAsync(() => (offered === undefined ? Promise.resolve(true) : offered()), [offered, user?.id]);
+  if (offered !== undefined && !(probe.status === 'ready' && probe.data)) {
+    return null;
+  }
+  return (
+    <li>
+      <a className="nav-link" href={`#/${id}`} aria-current={active ? 'page' : undefined}>
+        {t(PAGES[id].titleKey)}
+      </a>
+    </li>
+  );
+};
+
 const NavLinks = ({
   pages,
   activeId,
 }: {
   readonly pages: readonly AdminPageId[];
   readonly activeId: AdminPageId | null;
-}): ReactElement[] => {
-  const { t } = useTranslator();
-  return pages.map((id) => (
-    <li key={id}>
-      <a className="nav-link" href={`#/${id}`} aria-current={activeId === id ? 'page' : undefined}>
-        {t(PAGES[id].titleKey)}
-      </a>
-    </li>
-  ));
-};
+}): ReactElement[] => pages.map((id) => <NavLink key={id} id={id} active={activeId === id} />);
 
 /** The gap left before a link the strip scrolls to, so it does not touch the edge. */
 const NAV_STRIP_INSET = 16;
@@ -173,21 +182,37 @@ const NAV_STRIP_INSET = 16;
  * would otherwise open at its start whatever the route. The wide rail does not
  * scroll, so the guard leaves it alone.
  */
+const bringActiveLinkIntoView = (nav: HTMLElement): void => {
+  const link = nav.querySelector('[aria-current="page"]');
+  if (!(link instanceof HTMLElement) || nav.scrollWidth <= nav.clientWidth) {
+    return;
+  }
+  const navBox = nav.getBoundingClientRect();
+  const linkBox = link.getBoundingClientRect();
+  if (linkBox.left < navBox.left || linkBox.right > navBox.right) {
+    // A link under a sub-heading keeps its heading in view: "Advanced Standards".
+    const start = (link.closest('.nav-sub') ?? link).getBoundingClientRect().left;
+    nav.scrollLeft += start - navBox.left - NAV_STRIP_INSET;
+  }
+};
+
 const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElement | null> => {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const nav = ref.current;
-    const link = nav?.querySelector('[aria-current="page"]');
-    if (nav === null || !(link instanceof HTMLElement) || nav.scrollWidth <= nav.clientWidth) {
-      return;
+    if (nav === null) {
+      return undefined;
     }
-    const navBox = nav.getBoundingClientRect();
-    const linkBox = link.getBoundingClientRect();
-    if (linkBox.left < navBox.left || linkBox.right > navBox.right) {
-      // A link under a sub-heading keeps its heading in view: "Advanced Standards".
-      const start = (link.closest('.nav-sub') ?? link).getBoundingClientRect().left;
-      nav.scrollLeft += start - navBox.left - NAV_STRIP_INSET;
-    }
+    bringActiveLinkIntoView(nav);
+    // A link shown only once its probe answers (Import) can land before the
+    // active one after this first pass and push it out of the strip again.
+    const observer = new MutationObserver(() => {
+      bringActiveLinkIntoView(nav);
+    });
+    observer.observe(nav, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+    };
   }, [activeId]);
   return ref;
 };

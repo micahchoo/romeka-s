@@ -21,6 +21,7 @@ export const ml: Catalogue = {
   'page.items': 'ഇനങ്ങൾ',
   'page.itemSets': 'ഇനം സെറ്റുകൾ',
   'page.media': 'മീഡിയ',
+  'page.import': 'ഇറക്കുമതി',
   'page.sites': 'സൈറ്റുകൾ',
   'page.fields': 'ഫീൽഡുകൾ',
   'page.users': 'ഉപയോക്താക്കൾ',

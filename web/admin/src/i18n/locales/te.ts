@@ -20,6 +20,7 @@ export const te: Catalogue = {
   'page.items': 'అంశాలు',
   'page.itemSets': 'అంశాల సమూహాలు',
   'page.media': 'మీడియా',
+  'page.import': 'దిగుమతి',
   'page.sites': 'సైట్లు',
   'page.fields': 'ఫీల్డ్‌లు',
   'page.users': 'వినియోగదారులు',

@@ -20,6 +20,7 @@ export const hi: Catalogue = {
   'page.items': 'आइटम',
   'page.itemSets': 'आइटम सेट',
   'page.media': 'मीडिया',
+  'page.import': 'आयात',
   'page.sites': 'साइट्स',
   'page.fields': 'फ़ील्ड',
   'page.users': 'उपयोगकर्ता',

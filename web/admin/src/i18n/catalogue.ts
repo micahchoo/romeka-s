@@ -24,6 +24,7 @@ export const en = {
   'page.items': 'Items',
   'page.itemSets': 'Item sets',
   'page.media': 'Media',
+  'page.import': 'Import',
   'page.sites': 'Sites',
   'page.fields': 'Fields',
   'page.users': 'Users',

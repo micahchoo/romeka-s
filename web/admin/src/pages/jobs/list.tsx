@@ -5,7 +5,7 @@ import { formatDateTime } from '../../app/format';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
-import { useJobStatusLabel } from './messages';
+import { useJobClassLabel, useJobStatusLabel } from './messages';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
 
@@ -29,6 +29,7 @@ const load = async (page: number): Promise<ApiPage<JobRow>> => {
 export const JobList = (): ReactElement => {
   const { t, locale } = useTranslator(common, admin);
   const statusLabel = useJobStatusLabel();
+  const classLabel = useJobClassLabel();
   const resource = t('resource.jobs');
   return (
     <ListPage<JobRow>
@@ -42,7 +43,7 @@ export const JobList = (): ReactElement => {
           cell: (row) => <a href={`#/jobs/${String(row.job.id)}`}>{row.job.id}</a>,
           numeric: true,
         },
-        { header: t('column.class'), cell: (row) => row.job.jobClass },
+        { header: t('column.class'), cell: (row) => classLabel(row.job.jobClass) },
         {
           header: t('column.status'),
           cell: (row) => statusLabel(row.job.status) ?? t('common.unknown'),

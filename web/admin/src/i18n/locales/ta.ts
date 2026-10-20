@@ -21,6 +21,7 @@ export const ta: Catalogue = {
   'page.items': 'உருப்படிகள்',
   'page.itemSets': 'உருப்படித் தொகுப்புகள்',
   'page.media': 'ஊடகங்கள்',
+  'page.import': 'இறக்குமதி',
   'page.sites': 'தளங்கள்',
   'page.fields': 'புலங்கள்',
   'page.users': 'பயனர்கள்',

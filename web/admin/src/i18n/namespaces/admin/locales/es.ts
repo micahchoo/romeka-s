@@ -52,6 +52,13 @@ export const es: AdminMessages = {
   'jobs.update': 'Actualizar',
   'jobs.rowName': 'Tarea n.º {id}',
   'jobs.args': 'Argumentos',
+  'jobs.log': 'Registro',
+  'jobs.logEmpty': 'La tarea todavía no ha escrito ningún registro.',
+  'jobs.logFailed': 'No se pudo leer el registro: {message}',
+  'jobs.refreshing': 'Esta página se actualiza cada 2 segundos mientras la tarea se ejecuta.',
+  'jobs.class.importArchive': 'Importación de un fondo documental',
+  'jobs.class.undoImport': 'Anulación de una importación de un fondo documental',
+  'jobs.openImport': 'Abrir la importación',
   'jobs.noWritableMember':
     'El despachador escribe una tarea, así que una actualización no cambia ningún miembro. La solicitud busca la fila y la devuelve tal cual.',
   'users.legend': 'Información del usuario',

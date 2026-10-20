@@ -1,28 +1,45 @@
 import type { ReactElement } from 'react';
-import { useState } from 'react';
 import { api } from '../../api/client';
-import type { Id, Job } from '../../api/types';
+import type { Id } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { formatDateTime } from '../../app/format';
-import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { JobUpdateForm } from './form';
-import { useJobStatusLabel } from './messages';
+import { importOfJob, useJobClassLabel, useJobStatusLabel } from './messages';
+import './jobs.css';
+import { useJobPoll } from './use-job-poll';
+import type { JobLog } from './use-job-poll';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
 
 /**
- * `Admin/JobController::showAction` with `::deleteAction`: one job, its columns
- * and the update and delete controls. The update writes no member, and the API
+ * The job's log as text (`Admin/JobController::logAction`), or why it could not be read.
+ */
+const LogView = ({ log }: { readonly log: JobLog | null }): ReactElement | null => {
+  const { t } = useTranslator(admin);
+  if (log === null) {
+    return null;
+  }
+  if ('error' in log) {
+    return <p role="alert">{t('jobs.logFailed', { message: log.error.message })}</p>;
+  }
+  return log.text === '' ? <p>{t('jobs.logEmpty')}</p> : <pre className="job-log">{log.text}</pre>;
+};
+
+/**
+ * `Admin/JobController::showAction` with `::deleteAction`: one job, its columns,
+ * its log, and the update and delete controls. While the job runs the page
+ * reads it again every 2 seconds. The update writes no member, and the API
  * serves no stop endpoint, so the stop confirm upstream shows has no form here.
  */
 export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElement => {
   const { t, locale } = useTranslator(common, admin);
   const statusLabel = useJobStatusLabel();
-  const state = useAsync(() => api.getJob(jobId), [jobId]);
-  const [edited, setEdited] = useState<Job | null>(null);
+  const classLabel = useJobClassLabel();
+  const poll = useJobPoll(jobId);
+  const state = poll.job;
 
   if (state.status === 'loading') {
     return <p role="status">{t('loading.job')}</p>;
@@ -31,7 +48,8 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
     return <ErrorNotice error={state.error} />;
   }
 
-  const job = edited ?? state.data;
+  const job = state.data;
+  const importId = importOfJob(job.jobClass, job.args);
   return (
     <section>
       <h2>{t('jobs.rowName', { id: job.id })}</h2>
@@ -40,7 +58,15 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
         <dt>{t('column.id')}</dt>
         <dd>{job.id}</dd>
         <dt>{t('column.class')}</dt>
-        <dd>{job.jobClass}</dd>
+        <dd>
+          {classLabel(job.jobClass)}
+          {classLabel(job.jobClass) === job.jobClass ? null : (
+            <>
+              {' '}
+              <code>{job.jobClass}</code>
+            </>
+          )}
+        </dd>
         <dt>{t('column.status')}</dt>
         <dd>{statusLabel(job.status) ?? t('common.unknown')}</dd>
         <dt>{t('column.owner')}</dt>
@@ -57,11 +83,21 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
         <dd>{job.ended === null ? t('common.never') : formatDateTime(job.ended, locale)}</dd>
       </dl>
 
+      {importId === null ? null : (
+        <p>
+          <a href={`#/import/${String(importId)}/run`}>{t('jobs.openImport')}</a>
+        </p>
+      )}
+
       <h3>{t('jobs.args')}</h3>
       <pre>{JSON.stringify(job.args, null, 2)}</pre>
 
+      <h3>{t('jobs.log')}</h3>
+      {poll.live ? <p className="query-count" role="status">{t('jobs.refreshing')}</p> : null}
+      <LogView log={poll.log} />
+
       <EditPanel label={t('jobs.editLabel')}>
-        <JobUpdateForm job={job} onSaved={setEdited} />
+        <JobUpdateForm job={job} onSaved={poll.onJob} />
       </EditPanel>
 
       <DeleteControl

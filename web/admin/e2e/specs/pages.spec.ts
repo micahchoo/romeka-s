@@ -6,14 +6,26 @@
  * network before. These two specs prove each page renders and reports nothing to
  * the console or the network, and that the navigation covers the whole table.
  */
+import type { Page } from '@playwright/test';
+
 import { expect, expectClean, test } from '../fixtures';
 import { adminPageIds } from '../harness/table';
+
+/**
+ * Open the app and wait for the Import link. The shell shows it only after
+ * `GET /api/romeka/archive` answers enabled, which the harness's archive root
+ * makes it, so a count taken before that answer misses one page.
+ */
+const openWithEveryLink = async (page: Page): Promise<void> => {
+  await page.goto('/');
+  await expect(page.locator('nav.app-nav a.nav-link[href="#/import"]')).toBeVisible();
+};
 
 test('every navigation entry loads with no console error and no failed request', async ({
   page,
   diagnostics,
 }) => {
-  await page.goto('/');
+  await openWithEveryLink(page);
   const links = page.locator('nav.app-nav a.nav-link');
   const count = await links.count();
   expect(count).toBeGreaterThan(0);
@@ -37,7 +49,7 @@ test('every navigation entry loads with no console error and no failed request',
 });
 
 test('the navigation covers every page id in the admin page table', async ({ page }) => {
-  await page.goto('/');
+  await openWithEveryLink(page);
   const hrefs = await page
     .locator('nav.app-nav a.nav-link')
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href') ?? ''));

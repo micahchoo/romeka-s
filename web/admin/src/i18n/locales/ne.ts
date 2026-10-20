@@ -20,6 +20,7 @@ export const ne: Catalogue = {
   'page.items': 'वस्तुहरू',
   'page.itemSets': 'वस्तु सेटहरू',
   'page.media': 'मिडिया',
+  'page.import': 'आयात',
   'page.sites': 'साइटहरू',
   'page.fields': 'क्षेत्रहरू',
   'page.users': 'प्रयोगकर्ताहरू',
