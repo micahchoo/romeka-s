@@ -25,6 +25,7 @@
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
 use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, NestedError, ValidationErrors};
@@ -73,13 +74,13 @@ pub async fn create(
     // Every inline entry is resolved before the item row is written, so a body
     // whose media cannot ingest leaves no item behind.
     let inline = inline_media(api, payload, file).await?;
-    let row = ItemRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| ItemRepo::new(db)
         .create(&NewItem {
             resource: hydrated.resource,
             primary_media_id: primary,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     resource::store_values(
         api,
         row.resource.id,
@@ -88,10 +89,10 @@ pub async fn create(
     )
     .await?;
     for id in item_sets {
-        ItemRepo::new(api.pool())
+        with_db!(api.pool(), |db| ItemRepo::new(db)
             .add_to_item_set(row.id(), id)
-            .await
-            .map_err(db_error)?;
+            .await)
+        .map_err(db_error)?;
     }
     apply_sites(api, row.id(), sites).await?;
     for prepared in inline {
@@ -113,8 +114,9 @@ pub async fn update(
 ) -> Result<crate::read::ApiResponse, ApiError> {
     validate_request(payload)?;
     let id = parse_id(ITEM_CLASS, raw_id)?;
-    let repo = ItemRepo::new(api.pool());
-    let Some(mut row) = repo.get(ItemId(id)).await.map_err(db_error)? else {
+    let Some(mut row) =
+        with_db!(api.pool(), |db| ItemRepo::new(db).get(ItemId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(ITEM_CLASS, raw_id));
     };
     api.authorize_resource(ITEM_CLASS, row.resource.owner_id)?;
@@ -126,7 +128,10 @@ pub async fn update(
     } else {
         None
     };
-    let existing_sites = repo.list_sites(row.id()).await.map_err(db_error)?;
+    let existing_sites = with_db!(api.pool(), |db| ItemRepo::new(db)
+        .list_sites(row.id())
+        .await)
+    .map_err(db_error)?;
     let sites = sites(api, payload, false, partial, &existing_sites).await?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
@@ -135,7 +140,7 @@ pub async fn update(
     if !partial || payload.has("o:primary_media") {
         row.primary_media_id = primary_media(api, payload, &row).await?;
     }
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| ItemRepo::new(db).update(&row).await).map_err(db_error)?;
     resource::store_values(
         api,
         row.resource.id,
@@ -161,8 +166,9 @@ pub async fn update(
 /// and lose the reference.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_CLASS, raw_id)?;
-    let repo = ItemRepo::new(api.pool());
-    let Some(row) = repo.get(ItemId(id)).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| ItemRepo::new(db).get(ItemId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(ITEM_CLASS, raw_id));
     };
     access::resource_entity(api.actor(), ITEM_CLASS, row.resource.owner_id)?;
@@ -171,23 +177,23 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
         media::remove(api, &media).await?;
     }
     values::clear(api, row.resource.id).await?;
-    repo.delete(row.id()).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| ItemRepo::new(db).delete(row.id()).await).map_err(db_error)?;
     fulltext::remove(api, "items", row.resource.id).await?;
     Ok(answer)
 }
 
 /// Every media the item owns, in the order `MediaRepo` stores them.
 async fn media_rows(api: &Api<'_>, item: ItemId) -> Result<Vec<MediaRow>, ApiError> {
-    MediaRepo::new(api.pool())
+    with_db!(api.pool(), |db| MediaRepo::new(db)
         .list(
             &omeka_db::repos::MediaFilter {
                 item_id: Some(item),
                 ..Default::default()
             },
-            &omeka_db::repos::Paging::default(),
+            &omeka_db::repos::Paging::default()
         )
-        .await
-        .map_err(db_error)
+        .await)
+    .map_err(db_error)
 }
 
 /// `ItemAdapter::validateRequest`.
@@ -290,9 +296,7 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         };
         let id = ItemSetId(id);
-        if ItemSetRepo::new(api.pool())
-            .get(id)
-            .await
+        if with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await)
             .map_err(db_error)?
             .is_none()
         {
@@ -308,16 +312,23 @@ async fn apply_item_sets(
     item: ItemId,
     wanted: &[ItemSetId],
 ) -> Result<(), ApiError> {
-    let repo = ItemRepo::new(api.pool());
-    for existing in repo.list_item_sets(item).await.map_err(db_error)? {
+    for existing in with_db!(api.pool(), |db| ItemRepo::new(db)
+        .list_item_sets(item)
+        .await)
+    .map_err(db_error)?
+    {
         if !wanted.contains(&existing) {
-            repo.remove_from_item_set(item, existing)
-                .await
-                .map_err(db_error)?;
+            with_db!(api.pool(), |db| ItemRepo::new(db)
+                .remove_from_item_set(item, existing)
+                .await)
+            .map_err(db_error)?;
         }
     }
     for id in wanted {
-        repo.add_to_item_set(item, *id).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemRepo::new(db)
+            .add_to_item_set(item, *id)
+            .await)
+        .map_err(db_error)?;
     }
     Ok(())
 }
@@ -351,7 +362,6 @@ async fn sites(
         return Ok(None);
     }
 
-    let repo = SiteRepo::new(api.pool());
     let mut retained: Vec<SiteId> = Vec::new();
     let mut attach: Vec<SiteId> = Vec::new();
     for entry in named.into_iter().flatten() {
@@ -368,7 +378,9 @@ async fn sites(
         if existing.contains(&site) {
             continue;
         }
-        let Some(row) = repo.get(site).await.map_err(db_error)? else {
+        let Some(row) =
+            with_db!(api.pool(), |db| SiteRepo::new(db).get(site).await).map_err(db_error)?
+        else {
             return Err(ref_not_found(SITE_CLASS, raw));
         };
         if can_assign(api, &row).await? || (is_create && row.assign_new_items) {
@@ -382,7 +394,8 @@ async fn sites(
             if retained.contains(site) {
                 continue;
             }
-            if let Some(row) = repo.get(*site).await.map_err(db_error)?
+            if let Some(row) =
+                with_db!(api.pool(), |db| SiteRepo::new(db).get(*site).await).map_err(db_error)?
                 && can_assign(api, &row).await?
             {
                 detach.push(*site);
@@ -404,10 +417,10 @@ async fn can_assign(api: &Api<'_>, site: &SiteRow) -> Result<bool, ApiError> {
     if site.owner_id == Some(user) {
         return Ok(true);
     }
-    let permissions = SiteRepo::new(api.pool())
+    let permissions = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list_permissions(site.id)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(access::has_site_permission(
         &permissions,
         user,
@@ -419,12 +432,17 @@ async fn apply_sites(api: &Api<'_>, item: ItemId, plan: Option<SitePlan>) -> Res
     let Some(plan) = plan else {
         return Ok(());
     };
-    let repo = ItemRepo::new(api.pool());
     for site in plan.detach {
-        repo.remove_from_site(item, site).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemRepo::new(db)
+            .remove_from_site(item, site)
+            .await)
+        .map_err(db_error)?;
     }
     for site in plan.attach {
-        repo.add_to_site(item, site).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemRepo::new(db)
+            .add_to_site(item, site)
+            .await)
+        .map_err(db_error)?;
     }
     Ok(())
 }
@@ -448,16 +466,16 @@ async fn primary_media(
     let wanted = array_key(raw)
         .and_then(|id| u64::try_from(id).ok())
         .map(MediaId);
-    let media = MediaRepo::new(api.pool())
+    let media = with_db!(api.pool(), |db| MediaRepo::new(db)
         .list(
             &omeka_db::repos::MediaFilter {
                 item_id: Some(row.id()),
                 ..Default::default()
             },
-            &omeka_db::repos::Paging::default(),
+            &omeka_db::repos::Paging::default()
         )
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     match wanted {
         Some(wanted) if media.iter().any(|media| media.id() == wanted) => Ok(Some(wanted)),
         _ => Err(primary_media_error()),

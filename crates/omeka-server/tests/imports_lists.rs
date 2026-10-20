@@ -9,17 +9,18 @@ mod imports_fixture;
 
 use axum::http::StatusCode;
 use imports_fixture::{BHC_PATTERN, Fixture, JPEG, bhc_006, fixture};
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 /// The seeded install knows only `dcterms:title`.
 async fn add_date(fixture: &Fixture) {
     use omeka_db::repos::{PropertyRepo, VocabularyRepo};
-    let dcterms = VocabularyRepo::new(&fixture.pool)
+    let dcterms = with_db!(&fixture.pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
-        .await
-        .unwrap()
-        .unwrap();
-    PropertyRepo::new(&fixture.pool)
+        .await)
+    .unwrap()
+    .unwrap();
+    with_db!(&fixture.pool, |db| PropertyRepo::new(db)
         .create(&omeka_db::rows::NewProperty {
             owner_id: None,
             vocabulary_id: dcterms.id,
@@ -27,8 +28,8 @@ async fn add_date(fixture: &Fixture) {
             label: "Date".to_string(),
             comment: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 }
 
 async fn s1(fixture: &Fixture) -> Value {
@@ -385,10 +386,10 @@ async fn a_running_import_shows_its_progress_and_seconds_left() {
     let fixture = fixture().await;
     let draft = fixture.draft().await;
     let id = omeka_db::ids::ImportId(draft["id"].as_u64().unwrap());
-    let repo = omeka_db::repos::ImportRepo::new(&fixture.pool);
-    repo.set_summary(id, &json!({ "progress": { "done": 3, "total": 12 } }))
-        .await
-        .unwrap();
+    with_db!(&fixture.pool, |db| omeka_db::repos::ImportRepo::new(db)
+        .set_summary(id, &json!({ "progress": { "done": 3, "total": 12 } }))
+        .await)
+    .unwrap();
     let shown = fixture
         .call("GET", &format!("/api/romeka/imports/{}", draft["id"]), None)
         .await
@@ -449,10 +450,10 @@ async fn a_preview_of_40000_entries_with_every_fact_section_fits_the_budget() {
         token: "t".into(),
         scanned: Default::default(),
     };
-    EntryRepo::new(&fixture.pool)
+    with_db!(&fixture.pool, |db| EntryRepo::new(db)
         .replace(id, &[scan], &rows)
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let column = |index: usize, header: &str| {
         json!({ "column": { "index": index, "header": header },
                 "options": { "split": null, "type": "literal", "lang": null, "private": false } })

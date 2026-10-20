@@ -41,6 +41,7 @@ use omeka_core::site::{
     BlockLayout, BlockLayoutData, PageLayout, PageLayoutData, SiteBlock, SitePage, Slug,
 };
 use omeka_db::repos::SiteRepo;
+use omeka_db::with_db;
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::resource_page_schema::RESOURCES;
 use omeka_site::theme::tokens::ThemeSettings;
@@ -79,7 +80,10 @@ pub(crate) async fn run(
     let Ok(slug) = Slug::parse(site) else {
         return not_found();
     };
-    let site_row = match SiteRepo::new(&state.pool).get_by_slug(slug.as_str()).await {
+    let site_row = match with_db!(&state.pool, |db| SiteRepo::new(db)
+        .get_by_slug(slug.as_str())
+        .await)
+    {
         Ok(Some(row)) => row,
         Ok(None) => return not_found(),
         Err(_) => return crate::empty_internal_error(),

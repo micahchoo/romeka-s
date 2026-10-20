@@ -15,6 +15,7 @@
 use omeka_db::ids::{ClassId, PropertyId, TemplateId, UserId};
 use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
+use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -56,7 +57,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let input = hydrate(api, payload, None, false).await?;
     let properties = property_inputs(api, payload).await?;
     validate(api, &input, None, request_errors).await?;
-    let row = TemplateRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: input.owner_id,
             resource_class_id: input.resource_class_id,
@@ -64,8 +65,8 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             description_property_id: input.description_property_id,
             label: input.label,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     sync_properties(api, row.id, &properties).await?;
     api.read_member("resource_templates", &row.id.0.to_string())
         .await
@@ -79,8 +80,11 @@ pub async fn update(
 ) -> Result<ApiResponse, ApiError> {
     let request_errors = validate_request(payload);
     let id = parse_id(TEMPLATE_CLASS, raw_id)?;
-    let repo = TemplateRepo::new(api.pool());
-    let Some(stored) = repo.get(TemplateId(id)).await.map_err(db_error)? else {
+    let Some(stored) = with_db!(api.pool(), |db| TemplateRepo::new(db)
+        .get(TemplateId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(TEMPLATE_CLASS, raw_id));
     };
     access::resource_entity_update(api.actor(), TEMPLATE_CLASS, stored.owner_id)?;
@@ -93,15 +97,16 @@ pub async fn update(
         None
     };
     validate(api, &input, Some(id), request_errors).await?;
-    repo.update(&TemplateRow {
-        id: stored.id,
-        owner_id: input.owner_id,
-        resource_class_id: input.resource_class_id,
-        title_property_id: input.title_property_id,
-        description_property_id: input.description_property_id,
-        label: input.label,
-    })
-    .await
+    with_db!(api.pool(), |db| TemplateRepo::new(db)
+        .update(&TemplateRow {
+            id: stored.id,
+            owner_id: input.owner_id,
+            resource_class_id: input.resource_class_id,
+            title_property_id: input.title_property_id,
+            description_property_id: input.description_property_id,
+            label: input.label,
+        })
+        .await)
     .map_err(db_error)?;
     if let Some(properties) = &properties {
         sync_properties(api, stored.id, properties).await?;
@@ -118,13 +123,16 @@ pub async fn update(
 /// `ON DELETE SET NULL`).
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(TEMPLATE_CLASS, raw_id)?;
-    let repo = TemplateRepo::new(api.pool());
-    let Some(row) = repo.get(TemplateId(id)).await.map_err(db_error)? else {
+    let Some(row) = with_db!(api.pool(), |db| TemplateRepo::new(db)
+        .get(TemplateId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(TEMPLATE_CLASS, raw_id));
     };
     access::resource_entity(api.actor(), TEMPLATE_CLASS, row.owner_id)?;
     let answer = api.read_member("resource_templates", raw_id).await?;
-    repo.delete(row.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| TemplateRepo::new(db).delete(row.id).await).map_err(db_error)?;
     Ok(answer)
 }
 
@@ -208,9 +216,7 @@ async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiE
         return Err(ref_not_found("Omeka\\Entity\\ResourceClass", raw));
     };
     let id = ClassId(id);
-    if ClassRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| ClassRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -233,9 +239,7 @@ async fn property(
         return Err(ref_not_found(PROPERTY_CLASS, raw));
     };
     let id = PropertyId(id);
-    if PropertyRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| PropertyRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -267,10 +271,10 @@ async fn validate(
 
 /// `AbstractEntityAdapter::isUnique` for `resource_template.label`.
 async fn label_taken(api: &Api<'_>, label: &str, self_id: Option<u64>) -> Result<bool, ApiError> {
-    let Some(row) = TemplateRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| TemplateRepo::new(db)
         .find_by_label(label)
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Ok(false);
     };
@@ -303,11 +307,11 @@ async fn property_inputs(
             return Err(ref_not_found(PROPERTY_CLASS, &criteria));
         }
         let property_id = PropertyId(integer as u64);
-        if PropertyRepo::new(api.pool())
+        if with_db!(api.pool(), |db| PropertyRepo::new(db)
             .get(property_id)
-            .await
-            .map_err(db_error)?
-            .is_none()
+            .await)
+        .map_err(db_error)?
+        .is_none()
         {
             return Err(ref_not_found(PROPERTY_CLASS, &criteria));
         }
@@ -363,8 +367,10 @@ async fn sync_properties(
     template_id: TemplateId,
     inputs: &[TemplatePropertyInput],
 ) -> Result<(), ApiError> {
-    let repo = TemplateRepo::new(api.pool());
-    let existing = repo.list_properties(template_id).await.map_err(db_error)?;
+    let existing = with_db!(api.pool(), |db| TemplateRepo::new(db)
+        .list_properties(template_id)
+        .await)
+    .map_err(db_error)?;
     let mut retained: Vec<u64> = Vec::new();
     for input in inputs {
         match existing
@@ -373,23 +379,24 @@ async fn sync_properties(
         {
             Some(row) => {
                 retained.push(row.id.0);
-                repo.update_property(&TemplatePropertyRow {
-                    id: row.id,
-                    resource_template_id: template_id,
-                    property_id: input.property_id,
-                    alternate_label: input.alternate_label.clone(),
-                    alternate_comment: input.alternate_comment.clone(),
-                    position: Some(input.position),
-                    data_type: input.data_type.clone(),
-                    is_required: input.is_required,
-                    is_private: input.is_private,
-                    default_lang: input.default_lang.clone(),
-                })
-                .await
+                with_db!(api.pool(), |db| TemplateRepo::new(db)
+                    .update_property(&TemplatePropertyRow {
+                        id: row.id,
+                        resource_template_id: template_id,
+                        property_id: input.property_id,
+                        alternate_label: input.alternate_label.clone(),
+                        alternate_comment: input.alternate_comment.clone(),
+                        position: Some(input.position),
+                        data_type: input.data_type.clone(),
+                        is_required: input.is_required,
+                        is_private: input.is_private,
+                        default_lang: input.default_lang.clone(),
+                    })
+                    .await)
                 .map_err(db_error)?;
             }
             None => {
-                let row = repo
+                let row = with_db!(api.pool(), |db| TemplateRepo::new(db)
                     .add_property(&NewTemplateProperty {
                         resource_template_id: template_id,
                         property_id: input.property_id,
@@ -401,15 +408,18 @@ async fn sync_properties(
                         is_private: input.is_private,
                         default_lang: input.default_lang.clone(),
                     })
-                    .await
-                    .map_err(db_error)?;
+                    .await)
+                .map_err(db_error)?;
                 retained.push(row.id.0);
             }
         }
     }
     for row in &existing {
         if !retained.contains(&row.id.0) {
-            repo.delete_property(row.id).await.map_err(db_error)?;
+            with_db!(api.pool(), |db| TemplateRepo::new(db)
+                .delete_property(row.id)
+                .await)
+            .map_err(db_error)?;
         }
     }
     Ok(())

@@ -172,7 +172,8 @@ fn the_core_routes_are_unchanged_when_no_plugin_is_registered() {
 #[tokio::test]
 async fn a_request_for_the_plugin_resource_is_served_by_the_plugin() {
     let pool = pool().await;
-    let api = Api::load_with_plugins(&pool, base(), Actor::anonymous(), registry())
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load_with_plugins(&db, base(), Actor::anonymous(), registry())
         .await
         .unwrap();
 
@@ -205,7 +206,8 @@ async fn a_request_for_the_plugin_resource_is_served_by_the_plugin() {
 #[tokio::test]
 async fn a_declined_request_falls_through_to_the_port() {
     let pool = pool().await;
-    let api = Api::load_with_plugins(&pool, base(), Actor::anonymous(), registry())
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load_with_plugins(&db, base(), Actor::anonymous(), registry())
         .await
         .unwrap();
 
@@ -219,7 +221,8 @@ async fn a_declined_request_falls_through_to_the_port() {
 #[tokio::test]
 async fn without_a_plugin_the_resource_stays_unknown() {
     let pool = pool().await;
-    let api = Api::load(&pool, base(), Actor::anonymous()).await.unwrap();
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), Actor::anonymous()).await.unwrap();
 
     let error = api.search("widgets", &Params::parse("")).await.unwrap_err();
     assert!(matches!(error, ApiError::NotImplemented(_)));

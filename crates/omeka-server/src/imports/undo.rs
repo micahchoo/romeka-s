@@ -9,6 +9,7 @@ use omeka_api::import2::undo::{self, UNDO_JOB, UndoError, may_undo};
 use omeka_api::messages;
 use omeka_db::repos::{ImportRepo, StartOutcome};
 use omeka_db::rows::ImportStatus;
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -84,7 +85,10 @@ pub(super) async fn undo(
                 body(&headers, &payload.0)?
             };
             let row = load(&state, &id).await?;
-            match ImportRepo::new(&state.pool).start_undo(row.id).await? {
+            match with_db!(&state.pool, |db| ImportRepo::new(db)
+                .start_undo(row.id)
+                .await)?
+            {
                 StartOutcome::Started => {}
                 StartOutcome::Missing => return Err(super::wire::not_found(row.id.0)),
                 StartOutcome::Refused(status) => return Err(cannot_undo(status)),
@@ -136,12 +140,12 @@ pub(super) async fn preview(
                 Some(AllWord::All) => undo::Force::All,
                 None => undo::Force::Nothing,
             };
-            let previewed = undo::preview_undo(&state.pool, row.id, force)
-                .await
-                .map_err(|error| match error {
-                    UndoError::Deleted(_) => deleted(row.status),
-                    other => ImportError::Internal(other.to_string()),
-                })?;
+            let previewed = with_db!(&state.pool, |db| undo::preview_undo(db, row.id, force)
+                .await)
+            .map_err(|error| match error {
+                UndoError::Deleted(_) => deleted(row.status),
+                other => ImportError::Internal(other.to_string()),
+            })?;
             Ok(json(StatusCode::OK, &previewed))
         }
         .await,

@@ -21,6 +21,7 @@ use omeka_db::repos::{
     FulltextRepo, MediaFilter, MediaRepo, Paging, ResourceRepo, SiteRepo, ValueRepo,
 };
 use omeka_db::rows::{FulltextSearchRow, MediaRow, ValueRow};
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::ApiError;
@@ -36,18 +37,15 @@ pub async fn reindex(api: &Api<'_>, resource: &str, id: ResourceId) -> Result<()
     let Some(row) = index_row(api, resource, id).await? else {
         return Ok(());
     };
-    FulltextRepo::new(api.pool())
-        .save(&row)
-        .await
-        .map_err(db_error)
+    with_db!(api.pool(), |db| FulltextRepo::new(db).save(&row).await).map_err(db_error)
 }
 
 /// Drop the index row for one resource.
 pub async fn remove(api: &Api<'_>, resource: &str, id: ResourceId) -> Result<(), ApiError> {
-    FulltextRepo::new(api.pool())
+    with_db!(api.pool(), |db| FulltextRepo::new(db)
         .delete(id, resource)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(())
 }
 
@@ -64,10 +62,8 @@ async fn index_row(
     if resource == "site_pages" {
         return site_page_row(api, PageId(id.0)).await;
     }
-    let Some(row) = ResourceRepo::new(api.pool())
-        .get(id)
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| ResourceRepo::new(db).get(id).await).map_err(db_error)?
     else {
         return Ok(None);
     };
@@ -102,15 +98,20 @@ async fn index_row(
 /// The page is public only when the page and its site are both public, and the
 /// owner is the site's owner.
 async fn site_page_row(api: &Api<'_>, id: PageId) -> Result<Option<FulltextSearchRow>, ApiError> {
-    let repo = SiteRepo::new(api.pool());
-    let Some(page) = repo.get_page(id).await.map_err(db_error)? else {
+    let Some(page) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get_page(id).await).map_err(db_error)?
+    else {
         return Ok(None);
     };
-    let Some(site) = repo.get(page.site_id).await.map_err(db_error)? else {
+    let Some(site) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(page.site_id).await).map_err(db_error)?
+    else {
         return Ok(None);
     };
     let mut texts = Vec::new();
-    for block in repo.list_blocks(id).await.map_err(db_error)? {
+    for block in
+        with_db!(api.pool(), |db| SiteRepo::new(db).list_blocks(id).await).map_err(db_error)?
+    {
         // `SitePageAdapter::getFulltextText` asks each layout for its text. The
         // layouts live in `omeka-site`, so the port reads every string in the
         // stored `data` and strips markup, which reaches the same words for the
@@ -133,10 +134,10 @@ async fn site_page_row(api: &Api<'_>, id: PageId) -> Result<Option<FulltextSearc
 /// `AbstractResourceEntityAdapter::getFulltextText`: the text of every public
 /// value, then the public values of each value's annotation.
 async fn value_texts(api: &Api<'_>, resource: ResourceId) -> Result<Vec<String>, ApiError> {
-    let values = ValueRepo::new(api.pool())
+    let values = with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(resource)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut texts = Vec::new();
     for value in values.iter().filter(|value| value.is_public) {
         texts.push(value_text(api, value).await?);
@@ -152,10 +153,10 @@ async fn annotation_texts(
     api: &Api<'_>,
     annotation: AnnotationId,
 ) -> Result<Vec<String>, ApiError> {
-    let values = ValueRepo::new(api.pool())
+    let values = with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(ResourceId(annotation.0))
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut texts = Vec::new();
     for value in values.iter().filter(|value| value.is_public) {
         texts.push(value_text(api, value).await?);
@@ -167,9 +168,7 @@ async fn annotation_texts(
 /// here.
 async fn value_text(api: &Api<'_>, value: &ValueRow) -> Result<String, ApiError> {
     let linked_title = match linked_resource(value) {
-        Some(id) => ResourceRepo::new(api.pool())
-            .get(id)
-            .await
+        Some(id) => with_db!(api.pool(), |db| ResourceRepo::new(db).get(id).await)
             .map_err(db_error)?
             .and_then(|row| row.title),
         None => None,
@@ -179,16 +178,16 @@ async fn value_text(api: &Api<'_>, value: &ValueRow) -> Result<String, ApiError>
 
 /// Every media of an item, in `position` order.
 async fn media_of(api: &Api<'_>, item: ResourceId) -> Result<Vec<MediaRow>, ApiError> {
-    MediaRepo::new(api.pool())
+    with_db!(api.pool(), |db| MediaRepo::new(db)
         .list(
             &MediaFilter {
                 item_id: Some(omeka_db::ids::ItemId(item.0)),
                 ..MediaFilter::default()
             },
-            &Paging::default(),
+            &Paging::default()
         )
-        .await
-        .map_err(db_error)
+        .await)
+    .map_err(db_error)
 }
 
 /// `MediaAdapter::getFulltextText`: the media's own values plus its renderer's
@@ -206,10 +205,10 @@ async fn media_text(api: &Api<'_>, media: &MediaRow) -> Result<String, ApiError>
 /// `Renderer\Html::getFulltextText`: the `html` member of `data` with its tags
 /// stripped. No other renderer implements the interface at this SHA.
 async fn renderer_text(api: &Api<'_>, id: ResourceId) -> Result<String, ApiError> {
-    let Some(row) = MediaRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| MediaRepo::new(db)
         .get(omeka_db::ids::MediaId(id.0))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Ok(String::new());
     };

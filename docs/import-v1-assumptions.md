@@ -2,125 +2,129 @@
 
 The affordance read of 2026-10-20 found these assumptions in the v1 import. Import v2 closes each row: a test names its id, or docs/compat.md records it as an accepted limit. Severity says what a person saw when an archive broke the assumption.
 
+Summary of 2026-10-20: 88 rows. Closed by test 82, accepted limit 4 (A04, A73, A76, A81), open 2 (A07, A86).
+
+A test path is relative to the repository root, followed by `::` and the test's name. For a Rust file the name is a function; for a TypeScript file it is the text of the `it` call. An accepted limit names the row of `docs/compat.md` that states it and gives its reason. An open row says what is missing.
+
 ## File names → items
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A01 | Name parts use ASCII letters, so an example in another script does not match its own path | `example.ts:65` | पत्र_001_आगे.jpg, José_001.jpg, Kraków_001.jpg, LT_௧௨.jpg | blocked | ran | |
-| A02 | A run of digits keeps the example's width | `example.ts:65` | L_7, L_12, L_130; LT_999 vs LT_1000; 1950-03-12 vs 1950-3-12 | visible | ran | |
-| A03 | Delimiters are only _ - . and space | `example.ts:33` | BHC006(1).jpg, Smith, John 1901.jpg, full-width ＿, a danda | blocked | ran | |
-| A04 | Parts split only at a delimiter, never at a change of case or digit | `example.ts:46` | BHC006front.jpg / BHC006back.jpg become two items | silent | ran | |
-| A05 | Each part keeps one letter case | `example.ts:69` | _Front, _FRONT, lt_001_front | visible | ran | |
-| A06 | Every name has the same number of delimiters and words | `example.ts:96` | 1924-01-02 Mary Smith to Jones.pdf; O’Brien; double spaces | visible | ran | |
-| A07 | Every file has an extension, or none does, like the example | `example.ts:40` | extension-less files; scan.001.tar.gz gives identifier scan.001.tar | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs` `a07_the_default_pattern_takes_one_extension_or_none` |
-| A08 | By default the whole name is the identifier | `example.ts:203` | the demo: front and back become separate items until “back” is unmarked | silent | ran | |
-| A09 | A variant suffix can be optional only when marked part or page | `example.ts:221` | “back” left as Nothing gives no hint; PH_101/102/201/202 missing | visible | ran | |
-| A10 | One identifier group: a second mark becomes identifier2, and the server ignores it | `pattern.rs:15` | Box 4/Folder 12 and Box 4/Folder 13 merge into one item | silent | ran | |
-| A11 | The example is the first file in byte order, of any type | `folder.tsx:177` | a README.txt at the top gives a pattern that matches 1 file | visible | ran | |
-| A12 | Only the top folder can be marked as the set | `example.ts:57` | a flat folder where the series is AF or PH in the name | blocked | read | |
-| A13 | An identifier is unique across the whole folder, not per subfolder | `grouping.rs:304` | Letters/001.jpg and Photos/001.jpg merge into one item in two sets | silent | read | |
-| A14 | Identifiers match exactly: case and Unicode form | `grouping.rs:309` | BHC006_front vs bhc006_back; macOS NFD Kraków vs NFC | silent | ran | |
-| A15 | More than 5 files per item means the identifier is too short | `files.tsx:22` | a 200-page diary raises a false alarm | misleading | read | |
-| A16 | Media order is byte order; page is never read; no primary media is set | `archive.rs:141 · run.rs:424` | p10 before p2, back before front; the first file drives the “first” tag rule | silent | ran | |
-| A17 | Every file is a candidate item, whatever its type | `inputs.rs:43` | _scratch/notes.txt, Thumbs.db, desktop.ini, other CSVs become items in a set that starts on | silent | ran | |
-| A18 | Names are UTF-8, folders are not dot folders or symlinks | `archive.rs:185` | Latin-1 names from a Windows ZIP, .originals/, a tree of year symlinks: dropped from every count | silent | read | |
-| A19 | The import folder never moves | `imports.rs:217` | a renamed folder: every preview errors, and the folder cannot be pointed elsewhere | blocked | read | |
-| A20 | The archive is small enough to walk on every preview | `inputs.rs:26 · archive.rs:119` | a root of 500,000 files | visible | read | |
+| A01 | Name parts use ASCII letters, so an example in another script does not match its own path | `example.ts:65` | पत्र_001_आगे.jpg, José_001.jpg, Kraków_001.jpg, LT_௧௨.jpg | blocked | ran | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself` |
+| A02 | A run of digits keeps the example's width | `example.ts:65` | L_7, L_12, L_130; LT_999 vs LT_1000; 1950-03-12 vs 1950-3-12 | visible | ran | `web/admin/tests/import-simple-pattern.test.ts::reads any number in place of "page 001", beside a word mark` |
+| A03 | Delimiters are only _ - . and space | `example.ts:33` | BHC006(1).jpg, Smith, John 1901.jpg, full-width ＿, a danda | blocked | ran | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself`; `web/admin/tests/import-advanced.test.tsx::counts what a typed pattern fits before it is used, shows its groups on a real name, then uses it` |
+| A04 | Parts split only at a delimiter, never at a change of case or digit | `example.ts:46` | BHC006front.jpg / BHC006back.jpg become two items | silent | ran | accepted limit: `docs/compat.md`, the row that starts "Simple name parts" |
+| A05 | Each part keeps one letter case | `example.ts:69` | _Front, _FRONT, lt_001_front | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a14_case_fold_makes_case_variants_one_group`; `web/admin/tests/import-simple-pattern.test.ts::reads the ticked words in the marked place as the part that changes` |
+| A06 | Every name has the same number of delimiters and words | `example.ts:96` | 1924-01-02 Mary Smith to Jones.pdf; O’Brien; double spaces | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a17_files_the_pattern_does_not_match_are_unmatched_entries`; `crates/omeka-api/src/import2/derive/tests/answers.rs::own_makes_each_unmatched_file_an_item_of_its_own` |
+| A07 | Every file has an extension, or none does, like the example | `example.ts:40` | extension-less files; scan.001.tar.gz gives identifier scan.001.tar | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a07_the_default_pattern_takes_one_extension_or_none` |
+| A08 | By default the whole name is the identifier | `example.ts:203` | the demo: front and back become separate items until “back” is unmarked | silent | ran | `web/admin/tests/import-simple-pass.test.tsx::asks what the prototype asked, with as many clicks, and starts the run on the check it showed`; `web/admin/tests/import-simple-screens.test.tsx::writes nothing on the first visit: the draft already groups by the name alone` |
+| A09 | A variant suffix can be optional only when marked part or page | `example.ts:221` | “back” left as Nothing gives no hint; PH_101/102/201/202 missing | visible | ran | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s1_the_bhc_006_demo` |
+| A10 | One identifier group: a second mark becomes identifier2, and the server ignores it | `pattern.rs:15` | Box 4/Folder 12 and Box 4/Folder 13 merge into one item | silent | ran | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s4_one_item_per_folder_pair_media_in_page_order_first_page_primary` |
+| A11 | The example is the first file in byte order, of any type | `folder.tsx:177` | a README.txt at the top gives a pattern that matches 1 file | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a17_files_the_pattern_does_not_match_are_unmatched_entries` |
+| A12 | Only the top folder can be marked as the set | `example.ts:57` | a flat folder where the series is AF or PH in the name | blocked | read | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s3_template_and_set_come_from_a_name_part_in_a_flat_folder_with_a_register` |
+| A13 | An identifier is unique across the whole folder, not per subfolder | `grouping.rs:304` | Letters/001.jpg and Photos/001.jpg merge into one item in two sets | silent | read | `crates/omeka-api/src/import2/derive/tests/anomalies.rs::a13_a29_records_whose_files_span_folders_are_anomalies` |
+| A14 | Identifiers match exactly: case and Unicode form | `grouping.rs:309` | BHC006_front vs bhc006_back; macOS NFD Kraków vs NFC | silent | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a14_case_fold_makes_case_variants_one_group`; `crates/omeka-api/src/import2/plan/path.rs::relative_paths_of_any_script_are_kept_nfc` |
+| A15 | More than 5 files per item means the identifier is too short | `files.tsx:22` | a 200-page diary raises a false alarm | misleading | read | `crates/omeka-api/src/import2/derive/tests/anomalies.rs::a15_only_a_group_past_four_times_the_median_and_five_files_is_large` |
+| A16 | Media order is byte order; page is never read; no primary media is set | `archive.rs:141 · run.rs:424` | p10 before p2, back before front; the first file drives the “first” tag rule | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a16_media_sort_naturally_by_path_or_media_order_and_the_first_is_primary`; `crates/omeka-cli/tests/import_run.rs::s4_pages_in_natural_order_and_the_first_page_is_primary` |
+| A17 | Every file is a candidate item, whatever its type | `inputs.rs:43` | _scratch/notes.txt, Thumbs.db, desktop.ini, other CSVs become items in a set that starts on | silent | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a17_files_the_pattern_does_not_match_are_unmatched_entries`; `crates/omeka-api/src/import2/derive/tests/steps.rs::a82_files_the_install_refuses_are_not_media_and_left_out` |
+| A18 | Names are UTF-8, folders are not dot folders or symlinks | `archive.rs:185` | Latin-1 names from a Windows ZIP, .originals/, a tree of year symlinks: dropped from every count | silent | read | `crates/omeka-api/src/import2/evidence/tests.rs::a18_symlinked_folders_and_dot_names_are_counted_not_followed`; `crates/omeka-api/src/import2/evidence/tests.rs::a18_names_that_are_not_utf8_are_decoded_and_kept` |
+| A19 | The import folder never moves | `imports.rs:217` | a renamed folder: every preview errors, and the folder cannot be pointed elsewhere | blocked | read | `crates/omeka-api/src/import2/scan/tests.rs::a_scan_is_stored_and_a_warm_load_reuses_it_until_the_next_scan`; `crates/omeka-api/src/import2/archive.rs::a_source_resolves_by_root_name_and_relative_path` |
+| A20 | The archive is small enough to walk on every preview | `inputs.rs:26 · archive.rs:119` | a root of 500,000 files | visible | read | `crates/omeka-api/src/import2/evidence/tests.rs::walk_100k_files_within_30_seconds`; `crates/omeka-server/tests/imports_s1.rs::a_preview_of_10000_and_40000_entries_fits_the_budget` |
 
 ## Folders → item sets
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A21 | Sets come from folders or a hand regex; no CSV column names a set | `grouping.rs:73` | a flat folder: no sets, so no type can be chosen | blocked | ran | |
-| A22 | A second-level folder name is unique across parents | `grouping.rs:79` | Letters/1950s + Photographs/1950s become one set “1950s” | silent | ran | |
-| A23 | Level 2 exists everywhere | `grouping.rs:79` | Artifacts/ beside Photographs/1950s/ gives a mixed list | visible | ran | |
-| A24 | “Same name” means the same case | `catalog.rs:91` | an existing “Photographs” and a folder “photographs”: a second set | silent | ran | |
-| A25 | A set name is not blank | `work.rs:218` | a cleared name makes a set titled “” | silent | ran | |
-| A26 | Two rows with one name want one set; Check and Run differ on a trailing space | `check.rs:87` | “Obj” and “Obj ” show as two on Check, one in the run | silent | ran | |
-| A27 | Existing set titles are unique | `catalog.rs:208` | two sets titled “Letters”: the lowest id wins | silent | read | |
-| A28 | Every item belongs to a set that is on | `grouping.rs:162` | items wanted without a set are dropped; the badge is wrong under “both” | misleading | ran | |
+| A21 | Sets come from folders or a hand regex; no CSV column names a set | `grouping.rs:73` | a flat folder: no sets, so no type can be chosen | blocked | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a22_a24_a26_a27_sets_name_an_id_a_record_or_a_title_folded_and_else_a_new_open_set`; `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s8_a_mixed_sheet_makes_item_sets_items_and_media_linked_by_identifier` |
+| A22 | A second-level folder name is unique across parents | `grouping.rs:79` | Letters/1950s + Photographs/1950s become one set “1950s” | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a22_a24_a26_a27_sets_name_an_id_a_record_or_a_title_folded_and_else_a_new_open_set` |
+| A23 | Level 2 exists everywhere | `grouping.rs:79` | Artifacts/ beside Photographs/1950s/ gives a mixed list | visible | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a57_a69_tags_read_the_first_every_or_one_part_file_and_folders_read_by_level`; `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s1_the_bhc_006_demo` |
+| A24 | “Same name” means the same case | `catalog.rs:91` | an existing “Photographs” and a folder “photographs”: a second set | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a22_a24_a26_a27_sets_name_an_id_a_record_or_a_title_folded_and_else_a_new_open_set` |
+| A25 | A set name is not blank | `work.rs:218` | a cleared name makes a set titled “” | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a25_an_empty_value_makes_no_set_type_or_field` |
+| A26 | Two rows with one name want one set; Check and Run differ on a trailing space | `check.rs:87` | “Obj” and “Obj ” show as two on Check, one in the run | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a22_a24_a26_a27_sets_name_an_id_a_record_or_a_title_folded_and_else_a_new_open_set`; `crates/omeka-api/src/import2/values.rs::titles_compare_trimmed_nfc_and_lower_case` |
+| A27 | Existing set titles are unique | `catalog.rs:208` | two sets titled “Letters”: the lowest id wins | silent | read | `crates/omeka-api/src/import2/derive/tests/slots.rs::a22_a24_a26_a27_sets_name_an_id_a_record_or_a_title_folded_and_else_a_new_open_set` |
+| A28 | Every item belongs to a set that is on | `grouping.rs:162` | items wanted without a set are dropped; the badge is wrong under “both” | misleading | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::the_value_map_names_a_template_and_an_empty_target_turns_a_set_off` |
 
 ## Sets → item types
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A29 | The type comes from the item's first set | `derive.rs:377` | under “both” the 1950s type does nothing; an identifier with files in two folders | silent | ran | |
-| A30 | A staged new type is identified by its name | `work.rs:249` | two “Thing” types, from Person and Letter: one template with Person's fields | silent | ran | |
-| A31 | The admin's starter fields are the server's | `starters.ts:50 · catalog.rs:199` | any reader of “It starts with these fields”: Letter lists created/spatial/description, the server makes identifier/date | silent | ran | |
-| A32 | Six family-archive genres cover the archive | `catalog.rs:199` | artifacts, maps, audio, newspapers: only “Other” | visible | read | |
-| A33 | Base Resource exists with that English label | `catalog.rs:26` | a renamed or deleted Base Resource: items get no template | silent | ran | |
-| A34 | A required title can be filled | `derive.rs:495` | folder-only archive with a starter type: every row left out, the type never made | visible | ran | |
-| A35 | bibo and foaf are installed | `catalog.rs:237` | an install without BIBO: termUnknown, and no fix but another starter | blocked | ran | |
-| A36 | A new type's name is free | `derive.rs:301` | a second import accepts the prefilled “Photograph” | visible | ran | |
-| A37 | A created template needs no class or description, and the grid can add fields | `run.rs:276 · work.rs:251` | “You can add more from the grid” adds values, not template fields | misleading | read | |
+| A29 | The type comes from the item's first set | `derive.rs:377` | under “both” the 1950s type does nothing; an identifier with files in two folders | silent | ran | `crates/omeka-api/src/import2/derive/tests/anomalies.rs::a13_a29_records_whose_files_span_folders_are_anomalies`; `crates/omeka-api/src/import2/derive/tests/slots.rs::a50_more_values_on_a_single_valued_slot_flag_many_values_and_keep_the_first` |
+| A30 | A staged new type is identified by its name | `work.rs:249` | two “Thing” types, from Person and Letter: one template with Person's fields | silent | ran | `crates/omeka-api/src/import2/plan/tests.rs::two_new_types_with_one_title_are_refused` |
+| A31 | The admin's starter fields are the server's | `starters.ts:50 · catalog.rs:199` | any reader of “It starts with these fields”: Letter lists created/spatial/description, the server makes identifier/date | silent | ran | `web/admin/tests/starters.test.ts::is read from the server route and keeps the server order`; `crates/omeka-server/tests/imports.rs::the_admin_fixture_is_the_starter_table` |
+| A32 | Six family-archive genres cover the archive | `catalog.rs:199` | artifacts, maps, audio, newspapers: only “Other” | visible | read | `crates/omeka-api/src/import2/derive/tests/slots.rs::a34_a37_new_types_from_the_mapping_get_a_field_per_term_written_and_require_a_title`; `web/admin/tests/import-simple-screens.test.tsx::maps a value to a new item type, and another to no item type` |
+| A33 | Base Resource exists with that English label | `catalog.rs:26` | a renamed or deleted Base Resource: items get no template | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a33_a36_template_by_id_or_label_then_a_new_type_else_unknown_type_and_the_default` |
+| A34 | A required title can be filled | `derive.rs:495` | folder-only archive with a starter type: every row left out, the type never made | visible | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a34_a37_new_types_from_the_mapping_get_a_field_per_term_written_and_require_a_title` |
+| A35 | bibo and foaf are installed | `catalog.rs:237` | an install without BIBO: termUnknown, and no fix but another starter | blocked | ran | `crates/omeka-api/src/import2/starters.rs::every_starter_term_and_class_ships_with_the_default_vocabularies`; `crates/omeka-api/src/import2/derive/tests/slots.rs::a53_new_terms_are_known_and_any_other_unknown_term_blocks` |
+| A36 | A new type's name is free | `derive.rs:301` | a second import accepts the prefilled “Photograph” | visible | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a33_a36_template_by_id_or_label_then_a_new_type_else_unknown_type_and_the_default`; `crates/omeka-server/tests/imports_drafts.rs::a_save_refuses_a_v1_plan_a_bad_plan_and_a_type_that_exists` |
+| A37 | A created template needs no class or description, and the grid can add fields | `run.rs:276 · work.rs:251` | “You can add more from the grid” adds values, not template fields | misleading | read | `crates/omeka-api/src/import2/derive/tests/slots.rs::a34_a37_new_types_from_the_mapping_get_a_field_per_term_written_and_require_a_title` |
 
 ## The spreadsheet
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A38 | One CSV per import | `plan.rs:28` | objects.csv + photos.csv; a register split by year (the other CSVs become import files) | blocked | ran | |
-| A39 | Only .csv files are sheets | `inputs.rs:43` | register.tsv, .txt, .xlsx, .ods: “This folder has no CSV file” | blocked | ran | |
-| A40 | Encodings are UTF-8 or Windows-1252 | `csv/sheet.rs:99` | UTF-16 headers with hidden NULs; Shift-JIS read as 1252; a mostly-UTF-8 file with 1252 on spoils मुंबई | silent | ran | |
-| A41 | Delimiters are comma, semicolon, tab | `plan.rs:122` | a pipe-delimited export: error with no option | blocked | ran | |
-| A42 | Lines end in LF or CRLF | `csv/reader.rs:79` | CR-only “CSV (Macintosh)”: one record, 0 rows, no error | silent | ran | |
-| A43 | Quoting is RFC 4180 | `csv/reader.rs:63` | backslash escapes, single quotes, text after a quote: “check the header row” | misleading | ran | |
-| A44 | Data rows are no wider than the header | `csv/sheet.rs:176` | a trailing delimiter on data rows only: headerRow error | misleading | ran | |
-| A45 | The header is in lines 1–5 or where detection put it | `sources.tsx:30` | six preface lines and a wrong detection | blocked | read | |
-| A46 | Headers are unique and not empty | `plan.rs:118` | two “Subject” columns: the second shows the first's values | silent | read | |
-| A47 | The join is on the identifier, exact and case-sensitive | `derive.rs:342` | x_003 vs X_003; 007 vs 7 after Excel; B 4 vs B_4: two half-items | visible | ran | |
-| A48 | One row per item; the first row wins, and duplicates are not counted | `derive.rs:343` | a register with one line per copy or accession event | silent | ran | |
-| A49 | Rows describe items, not files; CSV values never reach media | `values.rs:129` | a register with one row per image | blocked | read | |
-| A50 | One value per cell; two columns on one term keep the first | `values.rs:149` | Creator 1 / Creator 2; cats\|dogs; Smith; Jones | silent | ran | |
-| A51 | Values have no language | `rows/values.rs:84` | Title_en and Title_hi; “@en Hello” | silent | ran | |
-| A52 | Values are literals, never URIs or links | `run/lookups.rs:36` | a Rights URI column; “Part of: BHC_006_AF_001” | silent | read | |
-| A53 | A new field's label maps to one term | `plan.rs:172` | Shelf mark, Shelf-Mark, SHELF MARK all become local:shelfMark | silent | ran | |
-| A54 | A column mapped to dcterms:identifier is used | `derive.rs:442` | an old-id column vanishes, and is not listed as unmapped | silent | ran | |
-| A55 | A short or long line keeps values by position | `derive.rs:523` | an unquoted comma shifts date into creator; “Keep the values” accepts it | silent | ran | |
-| A56 | The repair counts describe the result | `csv/sheet.rs:231` | the space count includes the title line; the 1252 count does not fall after repair | misleading | ran | |
+| A38 | One CSV per import | `plan.rs:28` | objects.csv + photos.csv; a register split by year (the other CSVs become import files) | blocked | ran | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s6_a_register_with_one_row_per_image_attaches_media_by_item_key` |
+| A39 | Only .csv files are sheets | `inputs.rs:43` | register.tsv, .txt, .xlsx, .ods: “This folder has no CSV file” | blocked | ran | `crates/omeka-api/src/import2/sheet/workbook_tests.rs::a39_an_xlsx_register_reads_as_its_csv_reads`; `crates/omeka-server/tests/imports_lists.rs::a39_a_filled_xlsx_list_is_stored_read_and_joined_on_its_identifier` |
+| A40 | Encodings are UTF-8 or Windows-1252 | `csv/sheet.rs:99` | UTF-16 headers with hidden NULs; Shift-JIS read as 1252; a mostly-UTF-8 file with 1252 on spoils मुंबई | silent | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a40_utf8_and_utf16_are_read_with_or_without_a_mark`; `crates/omeka-api/src/import2/sheet/tests.rs::a40_a_1252_sheet_is_guessed_and_a_stray_1252_byte_keeps_utf8` |
+| A41 | Delimiters are comma, semicolon, tab | `plan.rs:122` | a pipe-delimited export: error with no option | blocked | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a41_every_delimiter_of_the_contract_is_found_or_used` |
+| A42 | Lines end in LF or CRLF | `csv/reader.rs:79` | CR-only “CSV (Macintosh)”: one record, 0 rows, no error | silent | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a42_cr_only_lines_are_lines` |
+| A43 | Quoting is RFC 4180 | `csv/reader.rs:63` | backslash escapes, single quotes, text after a quote: “check the header row” | misleading | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a43_a_broken_quote_flags_its_row_and_never_moves_later_rows` |
+| A44 | Data rows are no wider than the header | `csv/sheet.rs:176` | a trailing delimiter on data rows only: headerRow error | misleading | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a44_short_rows_are_padded_and_long_rows_keep_their_extra_cells` |
+| A45 | The header is in lines 1–5 or where detection put it | `sources.tsx:30` | six preface lines and a wrong detection | blocked | read | `crates/omeka-api/src/import2/sheet/tests.rs::a45_the_header_is_any_line_and_the_guess_skips_a_title` |
+| A46 | Headers are unique and not empty | `plan.rs:118` | two “Subject” columns: the second shows the first's values | silent | read | `crates/omeka-api/src/import2/sheet/tests.rs::a46_duplicate_empty_and_hash_headers_are_reported_and_keyed_by_index` |
+| A47 | The join is on the identifier, exact and case-sensitive | `derive.rs:342` | x_003 vs X_003; 007 vs 7 after Excel; B 4 vs B_4: two half-items | visible | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a47_rows_join_by_identifier_after_each_normalisation_and_only_that_one`; `crates/omeka-api/src/import2/join.rs::a47_each_normalisation_folds_what_it_names_and_nothing_else` |
+| A48 | One row per item; the first row wins, and duplicates are not counted | `derive.rs:343` | a register with one line per copy or accession event | silent | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a48_a_second_row_with_one_join_key_flags_duplicate_row_and_only_the_first_joins` |
+| A49 | Rows describe items, not files; CSV values never reach media | `values.rs:129` | a register with one row per image | blocked | read | `crates/omeka-api/src/import2/derive/tests/steps.rs::a49_media_rows_attach_to_the_item_whose_item_key_their_cell_names`; `crates/omeka-cli/tests/import_run.rs::s6_media_rows_attach_by_item_key_with_their_own_values` |
+| A50 | One value per cell; two columns on one term keep the first | `values.rs:149` | Creator 1 / Creator 2; cats\|dogs; Smith; Jones | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a50_more_values_on_a_single_valued_slot_flag_many_values_and_keep_the_first`; `crates/omeka-api/src/import2/derive/tests/slots.rs::a50_a61_column_options_split_type_language_and_private_shape_values` |
+| A51 | Values have no language | `rows/values.rs:84` | Title_en and Title_hi; “@en Hello” | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a51_values_are_distinct_by_type_text_and_lang`; `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s7_a_utf16_tsv_splits_values_and_sets_languages` |
+| A52 | Values are literals, never URIs or links | `run/lookups.rs:36` | a Rights URI column; “Part of: BHC_006_AF_001” | silent | read | `crates/omeka-api/src/import2/derive/tests/matching.rs::a52_resource_values_link_to_the_install_then_to_this_imports_records_else_link_missing` |
+| A53 | A new field's label maps to one term | `plan.rs:172` | Shelf mark, Shelf-Mark, SHELF MARK all become local:shelfMark | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a53_new_terms_are_known_and_any_other_unknown_term_blocks`; `crates/omeka-api/src/import2/plan/tests.rs::new_terms_that_make_one_term_are_refused` |
+| A54 | A column mapped to dcterms:identifier is used | `derive.rs:442` | an old-id column vanishes, and is not listed as unmapped | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a54_dcterms_identifier_defaults_to_the_group_key_unless_it_has_a_rule` |
+| A55 | A short or long line keeps values by position | `derive.rs:523` | an unquoted comma shifts date into creator; “Keep the values” accepts it | silent | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a55_a_cells_count_row_is_left_out_by_default` |
+| A56 | The repair counts describe the result | `csv/sheet.rs:231` | the space count includes the title line; the 1252 count does not fall after repair | misleading | ran | `crates/omeka-api/src/import2/sheet/tests.rs::a56_counts_skip_the_lines_above_the_header_and_follow_the_trim` |
 
 ## File tags
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A57 | Tags are EXIF, a fixed list of 11 | `tags.rs:31` | IPTC captions, XMP keywords from Lightroom, PDF info, ID3: invisible, refused if named | blocked | ran | |
-| A58 | EXIF text is UTF-8 | `image_metadata.rs:217` | a 1252 Artist from an old tool: U+FFFD, no repair | visible | read | |
-| A59 | GPS to two decimals as text is enough | `image_metadata.rs:245` | about 1 km of precision, written as a literal | silent | read | |
-| A60 | The extension tells the format | `tags.rs:164` | a misnamed file gives a wrong Format value | silent | read | |
-| A61 | An edit of a multi-valued tag field keeps the values | `values.rs:20` | “Rao ; Iyer” written as one literal | silent | ran | |
+| A57 | Tags are EXIF, a fixed list of 11 | `tags.rs:31` | IPTC captions, XMP keywords from Lightroom, PDF info, ID3: invisible, refused if named | blocked | ran | `crates/omeka-api/src/import2/tags.rs::a57_the_listed_tags_are_the_contracts_six_exif_seven_iptc_seven_xmp_and_five_facts`; `crates/omeka-media/src/image_metadata/tests.rs::a57_a_jpeg_gives_its_xmp_properties_by_namespace` |
+| A58 | EXIF text is UTF-8 | `image_metadata.rs:217` | a 1252 Artist from an old tool: U+FFFD, no repair | visible | read | `crates/omeka-media/src/image_metadata/tests.rs::a58_exif_text_that_is_not_utf8_is_read_as_1252_and_marked` |
+| A59 | GPS to two decimals as text is enough | `image_metadata.rs:245` | about 1 km of precision, written as a literal | silent | read | `crates/omeka-media/src/image_metadata/tests.rs::a59_gps_keeps_six_places` |
+| A60 | The extension tells the format | `tags.rs:164` | a misnamed file gives a wrong Format value | silent | read | `crates/omeka-api/src/import2/tags.rs::a60_file_facts_and_tags_come_from_the_index_and_the_format_is_sniffed`; `crates/omeka-api/src/import2/derive/tests/steps.rs::a60_format_mismatch_and_name_encoding_are_kept_by_default` |
+| A61 | An edit of a multi-valued tag field keeps the values | `values.rs:20` | “Rao ; Iyer” written as one literal | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a50_a61_column_options_split_type_language_and_private_shape_values`; `crates/omeka-server/tests/imports_lists.rs::the_list_round_trips_from_template_to_values_on_the_records` |
 
 ## Values and problems
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A62 | A date is YYYY, YYYY-MM or YYYY-MM-DD | `problems.rs:74` | c. 1890, 1890s, 1890~, 189X, 1890/1895, 31/12/1890, n.d.: row left out, and no bulk fix | visible | ran | |
-| A63 | Only the nine dcterms date terms are dates | `problems.rs:55` | a date in local:dateOfBirth passes as any text | silent | read | |
-| A64 | Empty matters only for required fields | `derive.rs:495` | Base Resource has none, so blank titles import silently | silent | read | |
-| A65 | Rows with problems should be left out; there is no import-anyway | `check.rs:67 · check.rs:105` | a large archive whose keeper accepts imperfect dates | visible | ran | |
-| A66 | Encoding damage is U+FFFD or 1252 mojibake | `csv/windows1252.rs:60` | MacRoman, double-encoded UTF-8 | silent | read | |
-| A67 | Sheet repairs fix every space and encoding problem | `grid-fixes.ts:38` | “Remove the spaces” is offered for tag and edit values it never touches | misleading | ran | |
-| A68 | Edits stay valid when the pattern changes | `plan.rs:32` | edits keyed by old identifiers apply to nothing | silent | read | |
-| A69 | One priority for the whole import: sheet or files | `values.rs:109` | EXIF Artist right for photos, wrong for scans | silent | ran | |
+| A62 | A date is YYYY, YYYY-MM or YYYY-MM-DD | `problems.rs:74` | c. 1890, 1890s, 1890~, 189X, 1890/1895, 31/12/1890, n.d.: row left out, and no bulk fix | visible | ran | `crates/omeka-api/src/import2/slots/dates.rs::a62_edtf_level_0_and_1_pass_and_everything_else_is_flagged` |
+| A63 | Only the nine dcterms date terms are dates | `problems.rs:55` | a date in local:dateOfBirth passes as any text | silent | read | `crates/omeka-api/src/import2/slots/dates.rs::a63_dates_are_the_nine_dc_terms_and_date_data_types` |
+| A64 | Empty matters only for required fields | `derive.rs:495` | Base Resource has none, so blank titles import silently | silent | read | `crates/omeka-api/src/import2/derive/tests/slots.rs::a64_a_required_template_field_with_no_value_flags_empty_required` |
+| A65 | Rows with problems should be left out; there is no import-anyway | `check.rs:67 · check.rs:105` | a large archive whose keeper accepts imperfect dates | visible | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a62_a63_a65_dates_not_edtf_flag_date_form_on_dc_terms_and_date_fields_and_are_kept` |
+| A66 | Encoding damage is U+FFFD or 1252 mojibake | `csv/windows1252.rs:60` | MacRoman, double-encoded UTF-8 | silent | read | `crates/omeka-api/src/import2/sheet/tests.rs::a40_an_encoding_with_no_decoder_is_refused_by_name`; `crates/omeka-api/src/import2/derive/tests/slots.rs::a56_a67_space_at_ends_is_repaired_and_encoding_suspect_kept_by_default` |
+| A67 | Sheet repairs fix every space and encoding problem | `grid-fixes.ts:38` | “Remove the spaces” is offered for tag and edit values it never touches | misleading | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a56_a67_space_at_ends_is_repaired_and_encoding_suspect_kept_by_default` |
+| A68 | Edits stay valid when the pattern changes | `plan.rs:32` | edits keyed by old identifiers apply to nothing | silent | read | `crates/omeka-api/src/import2/derive/tests/scenarios.rs::s15_after_a_new_pattern_decisions_on_surviving_files_apply_and_the_rest_are_orphans`; `crates/omeka-api/src/import2/derive/tests/decide.rs::a_many_change_survives_a_new_pattern_and_orphans_each_lost_entry_on_its_own` |
+| A69 | One priority for the whole import: sheet or files | `values.rs:109` | EXIF Artist right for photos, wrong for scans | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a57_a69_tags_read_the_first_every_or_one_part_file_and_folders_read_by_level`; `crates/omeka-api/src/import2/derive/tests/slots.rs::combine_first_takes_the_first_source_with_a_value_and_all_the_union` |
 
 ## Install, run and undo
 
 | Id | Assumption | Where (v1) | An archive that breaks it | Seen as | Evidence | Closed by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A70 | One archive root per server; symlinks are never followed | `config.rs:80` | collections on two disks or NAS shares | blocked | read | |
-| A71 | The files are already on the server | `compose.archive.yaml:16` | a volunteer with files on a laptop; a hosted install without a shell | blocked | read | |
-| A72 | Create only; an identifier is unique across the whole install | `catalog.rs:161` | a second collection also numbered 001 is skipped as “exists”; a new back scan is never attached | silent | ran | |
-| A73 | Running again with nothing new is an error | `imports.rs:385` | re-running to check that everything is in: 409 | visible | ran | |
-| A74 | Undo is one level and global | `import_lifecycle.rs:309` | undo import 2, then import 1 stays permanent, and the 409 says it is not the last | misleading | ran | |
-| A75 | Any run start may close the previous window | `import_lifecycle.rs:309` | a run that writes 0 items ends “Done.” and takes the window | silent | ran | |
-| A76 | One import or undo at a time, install-wide | `import_lifecycle.rs:295` | several archivists on one install | visible | read | |
-| A77 | A row that fails does not fail the run | `run.rs:353` | “Done.”, with raw English OS errors only in left.csv and the log | misleading | ran | |
-| A78 | Everything created is public, joins synced sites, and new sets are closed | `rows/resources.rs:73 · run.rs:253` | embargoed or restricted material | silent | ran | |
-| A79 | The owner is whoever made the draft | `import_archive.rs:144` | admin A drafts, admin B runs | silent | read | |
-| A80 | The media type is a raster image or UTF-8 text | `media_type.rs:21` | PDF, MP4, WAV become application/octet-stream and get no player | silent | ran | |
-| A81 | Thumbnails for gif, jpeg, png, tiff, webp | `thumbnailer.rs:32` | BMP, PDF, video, HEIC, JPEG 2000 | visible | ran | |
-| A82 | No file-type allow list is needed | `ingest/mod.rs:317` | Thumbs.db became the item “Thumbs” | silent | ran | |
-| A83 | A whole file fits in memory | `media_files.rs:389` | multi-GB video in a memory-limited container | visible | read | |
-| A84 | Media are stored on a local FileStore | `run.rs:134` | object storage | blocked | read | |
-| A85 | The folder stays as it was after the run | `left.rs:9` | left.csv is a 404 after a move, or describes today's files | misleading | ran | |
-| A86 | The database is SQLite (a MySQL migration exists, but run and undo take &SqlitePool) | `run.rs:24 · undo.rs:21` | a MySQL install | blocked | read | |
-| A87 | Run and left.csv derive within one request (30 s timeout) | `imports.rs:384` | 50,000 files with EXIF rules and a cold tag cache | visible | read | |
-| A88 | The operator guide's recovery steps still apply | `operator-guide.md:103` | “run the job by hand” is refused for a dead import | misleading | read | |
+| A70 | One archive root per server; symlinks are never followed | `config.rs:80` | collections on two disks or NAS shares | blocked | read | `crates/omeka-api/src/import2/archive.rs::a_root_name_is_used_once_and_its_path_is_absolute`; `crates/omeka-server/src/config/roots.rs::named_roots_come_from_the_variable_and_the_v1_root_is_archive` |
+| A71 | The files are already on the server | `compose.archive.yaml:16` | a volunteer with files on a laptop; a hosted install without a shell | blocked | read | `crates/omeka-server/tests/imports_uploads.rs::an_upload_resumes_after_a_lost_patch`; `crates/omeka-cli/tests/import_staging.rs::an_uploaded_zip_is_unpacked_scanned_and_run_into_media` |
+| A72 | Create only; an identifier is unique across the whole install | `catalog.rs:161` | a second collection also numbered 001 is skipped as “exists”; a new back scan is never attached | silent | ran | `crates/omeka-api/src/import2/derive/tests/matching.rs::a72_on_create_a_key_in_scope_flags_exists_and_one_outside_scope_is_an_anomaly`; `crates/omeka-api/src/import2/derive/tests/matching.rs::on_other_actions_one_match_acts_none_is_unmatched_and_several_flag_many_matches` |
+| A73 | Running again with nothing new is an error | `imports.rs:385` | re-running to check that everything is in: 409 | visible | ran | accepted limit: `docs/compat.md`, the row that starts "A run with nothing to write" |
+| A74 | Undo is one level and global | `import_lifecycle.rs:309` | undo import 2, then import 1 stays permanent, and the 409 says it is not the last | misleading | ran | `crates/omeka-cli/tests/import_undo_wire.rs::a_later_import_keeps_what_it_changed`; `crates/omeka-cli/tests/import_actions.rs::undoing_b_then_a_keeps_nothing_of_a_as_edited` |
+| A75 | Any run start may close the previous window | `import_lifecycle.rs:309` | a run that writes 0 items ends “Done.” and takes the window | silent | ran | `crates/omeka-cli/tests/import_actions.rs::undoing_b_then_a_keeps_nothing_of_a_as_edited` |
+| A76 | One import or undo at a time, install-wide | `import_lifecycle.rs:295` | several archivists on one install | visible | read | accepted limit: `docs/compat.md`, the row that starts "One import or undo works at a time" |
+| A77 | A row that fails does not fail the run | `run.rs:353` | “Done.”, with raw English OS errors only in left.csv and the log | misleading | ran | `crates/omeka-api/src/import2/run/units.rs::every_failure_names_a_registered_message`; `web/admin/tests/import-run-end.test.tsx::done with failures: each failure with its reason, and a retry that sends a fresh digest` |
+| A78 | Everything created is public, joins synced sites, and new sets are closed | `rows/resources.rs:73 · run.rs:253` | embargoed or restricted material | silent | ran | `crates/omeka-api/src/import2/derive/tests/slots.rs::a78_visibility_defaults_to_the_plan_and_false_no_off_0_private_mean_private`; `crates/omeka-cli/tests/import_run.rs::s1_the_bhc_006_demo_is_written_private_with_thumbnails` |
+| A79 | The owner is whoever made the draft | `import_archive.rs:144` | admin A drafts, admin B runs | silent | read | `crates/omeka-api/src/import2/derive/tests/slots.rs::owners_are_a_user_id_an_email_or_runner` |
+| A80 | The media type is a raster image or UTF-8 text | `media_type.rs:21` | PDF, MP4, WAV become application/octet-stream and get no player | silent | ran | `crates/omeka-media/tests/media_type.rs::each_fixture_reads_as_upstream_reads_it` |
+| A81 | Thumbnails for gif, jpeg, png, tiff, webp | `thumbnailer.rs:32` | BMP, PDF, video, HEIC, JPEG 2000 | visible | ran | accepted limit: `docs/compat.md`, the row that starts "A TIFF or JPEG 2000" |
+| A82 | No file-type allow list is needed | `ingest/mod.rs:317` | Thumbs.db became the item “Thumbs” | silent | ran | `crates/omeka-api/src/import2/derive/tests/steps.rs::a82_files_the_install_refuses_are_not_media_and_left_out`; `crates/omeka-api/src/import2/catalog.rs::a_file_is_refused_by_media_type_then_extension` |
+| A83 | A whole file fits in memory | `media_files.rs:389` | multi-GB video in a memory-limited container | visible | read | `crates/omeka-cli/tests/import_run_stream.rs::a_file_over_64_mb_streams_into_the_store`; `crates/omeka-media/tests/store_stream_memory.rs::file_store_streams_50_mb_without_holding_it` |
+| A84 | Media are stored on a local FileStore | `run.rs:134` | object storage | blocked | read | `crates/omeka-cli/tests/import_s3.rs::s1_on_s3_stores_every_file_in_the_bucket_and_an_undo_removes_them` |
+| A85 | The folder stays as it was after the run | `left.rs:9` | left.csv is a 404 after a move, or describes today's files | misleading | ran | `crates/omeka-server/tests/imports_run.rs::left_csv_is_the_stored_file` |
+| A86 | The database is SQLite (a MySQL migration exists, but run and undo take &SqlitePool) | `run.rs:24 · undo.rs:21` | a MySQL install | blocked | read | open: the importer and its repositories are generic over `Backend` and `crates/omeka-db/tests/import_db/mod.rs::mysql` runs them on MySQL, but `romeka serve` and the CLI open a SQLite file only (`-d PATH`). A MySQL runtime is unit P10b |
+| A87 | Run and left.csv derive within one request (30 s timeout) | `imports.rs:384` | 50,000 files with EXIF rules and a cold tag cache | visible | read | `crates/omeka-server/tests/imports_run.rs::a_scan_past_twenty_thousand_entries_is_a_job`; `crates/omeka-server/tests/imports_s1.rs::a_preview_of_10000_and_40000_entries_fits_the_budget` |
+| A88 | The operator guide's recovery steps still apply | `operator-guide.md:103` | “run the job by hand” is refused for a dead import | misleading | read | `crates/omeka-cli/tests/import_run.rs::a_hand_run_is_refused_while_the_heartbeat_is_young`; `crates/omeka-cli/tests/import_run.rs::s17_a_killed_run_retried_ends_done_with_no_duplicate` |

@@ -11,7 +11,7 @@ async fn write(dir: &std::path::Path, name: &str, contents: &str) -> PathBuf {
 }
 
 async fn title_property(pool: &sqlx::SqlitePool) -> PropertyId {
-    crate::terms::resolve_property(pool, "dcterms:title")
+    crate::terms::resolve_property(&omeka_db::DbPool::from(pool.clone()), "dcterms:title")
         .await
         .expect("dcterms:title")
 }
@@ -20,7 +20,7 @@ async fn title_property(pool: &sqlx::SqlitePool) -> PropertyId {
 async fn template_import_creates_the_template_and_its_fields() {
     let db = seeded_db().await;
     let title = title_property(&db.pool).await;
-    let creator = crate::terms::resolve_property(&db.pool, "dcterms:creator")
+    let creator = crate::terms::resolve_property(&db.db_pool, "dcterms:creator")
         .await
         .expect("dcterms:creator");
     let json = format!(
@@ -33,7 +33,7 @@ async fn template_import_creates_the_template_and_its_fields() {
     let file = write(db.path.parent().expect("dir"), "template.json", &json).await;
 
     let template = import_template(&TemplateOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         file,
     })
     .await
@@ -56,7 +56,7 @@ async fn template_import_rejects_a_duplicate_label() {
     let json = r#"{"o:label":"Base Resource"}"#;
     let file = write(db.path.parent().expect("dir"), "dupe.json", json).await;
     let error = import_template(&TemplateOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         file,
     })
     .await

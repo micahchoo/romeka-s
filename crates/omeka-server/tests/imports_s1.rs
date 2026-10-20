@@ -14,6 +14,7 @@ use imports_fixture::{BHC_PATTERN, bhc_006, fixture};
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{EntryRepo, Paging};
 use omeka_db::rows::{NewEntry, NewScan};
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 #[tokio::test]
@@ -123,7 +124,6 @@ async fn a_preview_of_10000_and_40000_entries_fits_the_budget() {
             })
             .collect();
         std::fs::write(fixture.archive.path().join("register.csv"), register).unwrap();
-        let repo = EntryRepo::new(&fixture.pool);
         let scan = NewScan {
             source: "s1".into(),
             anomalies: json!({}),
@@ -131,9 +131,15 @@ async fn a_preview_of_10000_and_40000_entries_fits_the_budget() {
             token: "t".into(),
             scanned: Default::default(),
         };
-        repo.replace(id, &[scan], &rows).await.unwrap();
+        with_db!(&fixture.pool, |db| EntryRepo::new(db)
+            .replace(id, &[scan], &rows)
+            .await)
+        .unwrap();
         let started = Instant::now();
-        let page = repo.page(id, &Paging::default()).await.unwrap();
+        let page = with_db!(&fixture.pool, |db| EntryRepo::new(db)
+            .page(id, &Paging::default())
+            .await)
+        .unwrap();
         println!(
             "{entries} entries: EntryRepo::page {:?} for {} rows",
             started.elapsed(),

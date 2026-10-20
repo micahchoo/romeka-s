@@ -16,11 +16,13 @@ use omeka_core::permissions::{Role, RoleSet, SitePermissionRole};
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage, Slug};
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, SettingRepo, SiteRepo, UserRepo,
 };
 use omeka_db::rows::{ResourceRow, SiteRow};
+use omeka_db::with_db;
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::nav::{self, NavItem, PageRef};
 use omeka_site::render::{render_index, render_page};
@@ -32,7 +34,6 @@ use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::theme::{DefaultTheme, Theme, theme_for};
 use omeka_site::view::{ErrorView, NoResources, RenderContext, ResourceProvider, View, Viewer};
 use serde_json::Value;
-use sqlx::SqlitePool;
 
 use super::load::{self, Access, BrowseScope, Loader, thumbnail_for_asset};
 use super::{Outcome, SiteError, route_slug};
@@ -158,9 +159,9 @@ impl SiteData {
     /// Resolve a site slug to everything a render reads, `None` for an unknown
     /// slug.
     async fn load(state: &AppState, slug: &Slug) -> Result<Option<Self>, SiteError> {
-        let Some(row) = SiteRepo::new(&state.pool)
+        let Some(row) = with_db!(&state.pool, |db| SiteRepo::new(db)
             .get_by_slug(slug.as_str())
-            .await?
+            .await)?
         else {
             return Ok(None);
         };
@@ -527,28 +528,28 @@ async fn show(common: &Common<'_>, controller: &str, id: u64) -> Result<Outcome,
 async fn show_kind(common: &Common<'_>, kind: ResourceKind, id: u64) -> Result<Outcome, SiteError> {
     let (resource, noindex) = match kind {
         ResourceKind::Item => {
-            let row = ItemRepo::new(common.loader.pool())
+            let row = with_db!(common.loader.pool(), |dbp| ItemRepo::new(dbp)
                 .get(db::ItemId::from(id))
-                .await?
-                .ok_or(SiteError::NotFound)?;
+                .await)?
+            .ok_or(SiteError::NotFound)?;
             require_visible(common, &row.resource)?;
             let in_site = common.loader.item_in_site(row.id()).await?;
             (common.loader.item_resource_view(&row).await?, !in_site)
         }
         ResourceKind::ItemSet => {
-            let row = ItemSetRepo::new(common.loader.pool())
+            let row = with_db!(common.loader.pool(), |dbp| ItemSetRepo::new(dbp)
                 .get(db::ItemSetId::from(id))
-                .await?
-                .ok_or(SiteError::NotFound)?;
+                .await)?
+            .ok_or(SiteError::NotFound)?;
             require_visible(common, &row.resource)?;
             let in_site = common.loader.item_set_in_site(row.id()).await?;
             (common.loader.item_set_resource_view(&row).await?, !in_site)
         }
         ResourceKind::Media => {
-            let row = MediaRepo::new(common.loader.pool())
+            let row = with_db!(common.loader.pool(), |dbp| MediaRepo::new(dbp)
                 .get(db::MediaId::from(id))
-                .await?
-                .ok_or(SiteError::NotFound)?;
+                .await)?
+            .ok_or(SiteError::NotFound)?;
             require_visible(common, &row.resource)?;
             // `noindexMedia` reads the media's item (`Module.php:813-817`).
             let in_site = common.loader.item_in_site(row.item_id).await?;
@@ -599,7 +600,7 @@ fn query_usize(query: &[(String, String)], key: &str) -> Option<usize> {
 
 /// `Catalog::load` reports a database failure as `ApiError`; the site layer's
 /// internal variant carries a `DbError`, so the message is wrapped here.
-async fn load_catalog(pool: &SqlitePool) -> Result<Catalog, SiteError> {
+async fn load_catalog(pool: &DbPool) -> Result<Catalog, SiteError> {
     Catalog::load(pool).await.map_err(|error| {
         SiteError::Internal(DbError::Column {
             column: "catalog",
@@ -611,7 +612,7 @@ async fn load_catalog(pool: &SqlitePool) -> Result<Catalog, SiteError> {
 /// The site's stored theme settings map, from its `theme_settings_<theme>` row.
 /// `None` when no row stores one, so the theme's defaults apply.
 async fn theme_settings_value(
-    pool: &SqlitePool,
+    pool: &DbPool,
     site: db::SiteId,
     theme: &str,
 ) -> Result<Option<serde_json::Value>, SiteError> {
@@ -628,14 +629,14 @@ async fn theme_settings_value(
 /// The signed-in caller with the roles the user bar's edit links read: the
 /// global role and the caller's own `site_permission` row on this site.
 async fn viewer(
-    pool: &SqlitePool,
+    pool: &DbPool,
     actor: &Actor,
     site: db::SiteId,
 ) -> Result<Option<Viewer>, SiteError> {
     let Some(user) = actor.user() else {
         return Ok(None);
     };
-    let Some(row) = UserRepo::new(pool).get(user).await? else {
+    let Some(row) = with_db!(pool, |db| UserRepo::new(db).get(user).await)? else {
         return Ok(None);
     };
     let mut roles = RoleSet {
@@ -643,9 +644,7 @@ async fn viewer(
         global: Role::from_wire_name(&row.role),
         ..RoleSet::default()
     };
-    let permission = SiteRepo::new(pool)
-        .list_permissions(site)
-        .await?
+    let permission = with_db!(pool, |db| SiteRepo::new(db).list_permissions(site).await)?
         .into_iter()
         .find(|permission| permission.user_id == user)
         .and_then(|permission| SitePermissionRole::from_wire_name(&permission.role));
@@ -661,20 +660,24 @@ async fn viewer(
 /// Whether the actor holds a permission on the site
 /// (`HasSitePermissionAssertion('viewer')` accepts every site role).
 async fn site_permission(
-    pool: &SqlitePool,
+    pool: &DbPool,
     site: db::SiteId,
     actor: &Actor,
 ) -> Result<bool, SiteError> {
     let Some(user) = actor.user() else {
         return Ok(false);
     };
-    Ok(SiteRepo::new(pool).has_permission(site, user).await?)
+    Ok(with_db!(pool, |db| SiteRepo::new(db)
+        .has_permission(site, user)
+        .await)?)
 }
 
 /// The global `pagination_per_page` setting, the fallback when a site sets no
 /// page size (`PaginatorFactory.php:20`), or 25 when even that is unset.
-async fn global_per_page(pool: &SqlitePool) -> Result<usize, SiteError> {
-    let value = SettingRepo::new(pool).get("pagination_per_page").await?;
+async fn global_per_page(pool: &DbPool) -> Result<usize, SiteError> {
+    let value = with_db!(pool, |db| SettingRepo::new(db)
+        .get("pagination_per_page")
+        .await)?;
     Ok(value
         .and_then(|value| match value {
             serde_json::Value::Number(number) => number.as_u64(),
@@ -689,14 +692,17 @@ async fn global_per_page(pool: &SqlitePool) -> Result<usize, SiteError> {
 /// The `favicon` setting's asset id resolved to its file URL
 /// (`Module.php:195-201`), `None` when the setting is unset or names no asset.
 async fn favicon_url(
-    pool: &SqlitePool,
+    pool: &DbPool,
     files: &omeka_media::store::FileUrls,
     value: Option<&str>,
 ) -> Result<Option<String>, SiteError> {
     let Some(id) = value.and_then(|raw| raw.trim().parse::<u64>().ok()) else {
         return Ok(None);
     };
-    let Some(row) = AssetRepo::new(pool).get(db::AssetId::from(id)).await? else {
+    let Some(row) = with_db!(pool, |dbp| AssetRepo::new(dbp)
+        .get(db::AssetId::from(id))
+        .await)?
+    else {
         return Ok(None);
     };
     Ok(Some(thumbnail_for_asset(files, &row).url))

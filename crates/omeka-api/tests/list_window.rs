@@ -280,7 +280,8 @@ async fn same_page(api: &Api<'_>, fast: &str) {
 #[tokio::test]
 async fn the_window_and_the_in_memory_fallback_answer_the_same_page() {
     let (pool, seed) = open_seeded().await;
-    let api = Api::load(&pool, base(), Actor::new(seed.admin, "global_admin"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), Actor::new(seed.admin, "global_admin"))
         .await
         .unwrap();
 
@@ -309,7 +310,8 @@ async fn the_window_and_the_in_memory_fallback_answer_the_same_page() {
 #[tokio::test]
 async fn a_window_reads_the_requested_page_and_counts_the_whole_filter() {
     let (pool, seed) = open_seeded().await;
-    let api = Api::load(&pool, base(), Actor::new(seed.admin, "global_admin"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), Actor::new(seed.admin, "global_admin"))
         .await
         .unwrap();
 
@@ -347,13 +349,14 @@ async fn a_window_reads_the_requested_page_and_counts_the_whole_filter() {
 #[tokio::test]
 async fn a_reader_counts_only_the_rows_it_may_see() {
     let (pool, seed) = open_seeded().await;
-    let api = Api::load(&pool, base(), Actor::new(seed.admin, "editor"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), Actor::new(seed.admin, "editor"))
         .await
         .unwrap();
     let (visible, total) = page(&api, &format!("item_set_id={}&per_page=100", seed.set_a.0)).await;
     assert_eq!(total, 8, "an editor holds view-all");
 
-    let api = Api::load(&pool, base(), Actor::anonymous()).await.unwrap();
+    let api = Api::load(&db, base(), Actor::anonymous()).await.unwrap();
     let (public, total) = page(&api, &format!("item_set_id={}&per_page=100", seed.set_a.0)).await;
     assert_eq!(total, 6, "anonymous sees the public rows of the set");
     assert_eq!(ids(&public), ids(&visible)[..6].to_vec());
@@ -363,7 +366,7 @@ async fn a_reader_counts_only_the_rows_it_may_see() {
             .all(|document| document["o:is_public"] == true)
     );
 
-    let api = Api::load(&pool, base(), Actor::new(seed.author, "author"))
+    let api = Api::load(&db, base(), Actor::new(seed.author, "author"))
         .await
         .unwrap();
     let (own, total) = page(&api, &format!("item_set_id={}&per_page=100", seed.set_a.0)).await;
@@ -377,7 +380,8 @@ async fn a_reader_counts_only_the_rows_it_may_see() {
 #[tokio::test]
 async fn a_sort_the_window_does_not_render_keeps_the_in_memory_page() {
     let (pool, seed) = open_seeded().await;
-    let api = Api::load(&pool, base(), Actor::new(seed.admin, "global_admin"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), Actor::new(seed.admin, "global_admin"))
         .await
         .unwrap();
 

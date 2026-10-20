@@ -9,6 +9,8 @@ mod common;
 
 use std::path::{Path, PathBuf};
 
+use omeka_db::repos::UserRepo;
+use omeka_db::rows::NewUser;
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 
@@ -37,6 +39,17 @@ fn migrations_without_late(dir: &str, name: &str) -> PathBuf {
         }
     }
     target
+}
+
+fn ada() -> NewUser {
+    NewUser {
+        email: "ada@example.com".to_string(),
+        name: "Ada".to_string(),
+        password_hash: None,
+        role: "global_admin".to_string(),
+        is_active: true,
+        created: None,
+    }
 }
 
 async fn sqlite_versions(pool: &SqlitePool) -> Vec<i64> {
@@ -69,6 +82,8 @@ async fn sqlite_0006_after_0007_reaches_the_fresh_schema() {
     let mut gap = all_versions(&omeka_db::MIGRATOR);
     gap.retain(|version| *version != 6);
     assert_eq!(sqlite_versions(&pool).await, gap, "the gap is in place");
+    // Rows exist before the late version, so the 0004 rebuild is not the only thing under test.
+    let user = UserRepo::new(&pool).create(&ada()).await.unwrap();
 
     omeka_db::migrate(&pool).await.unwrap();
 
@@ -76,6 +91,7 @@ async fn sqlite_0006_after_0007_reaches_the_fresh_schema() {
         sqlite_versions(&pool).await,
         all_versions(&omeka_db::MIGRATOR)
     );
+    assert_eq!(UserRepo::new(&pool).get(user.id).await.unwrap(), Some(user));
     let fresh = common::memory().await;
     assert_eq!(sqlite_schema(&pool).await, sqlite_schema(&fresh).await);
     pool.close().await;
@@ -85,35 +101,6 @@ async fn sqlite_0006_after_0007_reaches_the_fresh_schema() {
 #[cfg(feature = "mysql")]
 mod mysql {
     use super::*;
-
-    async fn create(base: &str, name: &str) -> Option<sqlx::MySqlPool> {
-        let admin = match omeka_db::open_mysql(base).await {
-            Ok(pool) => pool,
-            Err(error) => {
-                eprintln!("SKIP: cannot reach {base}: {error}");
-                return None;
-            }
-        };
-        for statement in [
-            format!("DROP DATABASE IF EXISTS `{name}`"),
-            format!("CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"),
-        ] {
-            sqlx::query(&statement).execute(&admin).await.unwrap();
-        }
-        Some(
-            omeka_db::open_mysql(&common::with_database(base, name))
-                .await
-                .unwrap(),
-        )
-    }
-
-    async fn drop_database(base: &str, name: &str) {
-        let admin = omeka_db::open_mysql(base).await.unwrap();
-        sqlx::query(&format!("DROP DATABASE IF EXISTS `{name}`"))
-            .execute(&admin)
-            .await
-            .unwrap();
-    }
 
     async fn versions(pool: &sqlx::MySqlPool) -> Vec<i64> {
         sqlx::query_scalar("SELECT version FROM _sqlx_migrations ORDER BY version")
@@ -155,37 +142,41 @@ mod mysql {
 
     #[tokio::test]
     async fn mysql_0006_after_0007_reaches_the_fresh_schema() {
-        let Some(base) = common::mysql_url() else {
+        let Some(late) = common::mysql_unmigrated().await else {
             return;
         };
-        let (late, fresh) = (
-            format!("romeka_order_{}", std::process::id()),
-            format!("romeka_order_fresh_{}", std::process::id()),
-        );
-        let Some(pool) = create(&base, &late).await else {
+        let Some(fresh) = common::mysql().await else {
+            late.cleanup().await;
             return;
         };
         let migrations = migrations_without_late("migrations-mysql", "mysql-order");
         let partial = Migrator::new(migrations.as_path()).await.unwrap();
         std::fs::remove_dir_all(&migrations).unwrap();
-        partial.run(&pool).await.unwrap();
+        partial.run(&late.pool).await.unwrap();
         let mut gap = all_versions(&omeka_db::MYSQL_MIGRATOR);
         gap.retain(|version| *version != 6);
-        assert_eq!(versions(&pool).await, gap, "the gap is in place");
+        assert_eq!(versions(&late.pool).await, gap, "the gap is in place");
+        let user = UserRepo::<sqlx::MySql>::new(&late.pool)
+            .create(&ada())
+            .await
+            .unwrap();
 
-        omeka_db::migrate_mysql(&pool).await.unwrap();
+        omeka_db::migrate(&late.pool).await.unwrap();
 
         assert_eq!(
-            versions(&pool).await,
+            versions(&late.pool).await,
             all_versions(&omeka_db::MYSQL_MIGRATOR)
         );
-        let fresh_pool = create(&base, &fresh).await.unwrap();
-        omeka_db::migrate_mysql(&fresh_pool).await.unwrap();
-        let (got, want) = (schema(&pool).await, schema(&fresh_pool).await);
-        pool.close().await;
-        fresh_pool.close().await;
-        drop_database(&base, &late).await;
-        drop_database(&base, &fresh).await;
+        assert_eq!(
+            UserRepo::<sqlx::MySql>::new(&late.pool)
+                .get(user.id)
+                .await
+                .unwrap(),
+            Some(user)
+        );
+        let (got, want) = (schema(&late.pool).await, schema(&fresh.pool).await);
+        late.cleanup().await;
+        fresh.cleanup().await;
         assert!(!want.is_empty());
         assert_eq!(got, want);
     }

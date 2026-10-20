@@ -13,6 +13,7 @@ use omeka_db::repos::{
     compare_opt_text_ci,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
+use omeka_db::with_db;
 use omeka_media::store::FileKind;
 use omeka_media::thumbnailer::thumbnails_stored;
 
@@ -134,10 +135,10 @@ async fn matching_rows(
     search: &SearchQuery,
     fulltext: Option<&std::collections::BTreeMap<u64, f64>>,
 ) -> Result<Vec<ItemRow>, ApiError> {
-    let rows = ItemRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| ItemRepo::new(db)
         .list_filtered(filter, &search.filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(rows
         .into_iter()
         .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
@@ -196,10 +197,8 @@ pub(crate) async fn matching_item_ids(
 
 pub async fn read_item(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_CLASS, raw_id)?;
-    let Some(row) = ItemRepo::new(api.pool())
-        .get(ItemId(id))
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| ItemRepo::new(db).get(ItemId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(ITEM_CLASS, raw_id));
     };
@@ -311,10 +310,10 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         api.fill_catalog().await?;
     }
     let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
-    let rows = ItemSetRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| ItemSetRepo::new(db)
         .list_filtered(&filter, &search.filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let matches = fulltext_matches(api, "item_sets", search.fulltext.as_deref()).await?;
     let rows: Vec<ItemSetRow> = rows
         .into_iter()
@@ -357,10 +356,10 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
 
 pub async fn read_item_set(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_SET_CLASS, raw_id)?;
-    let Some(row) = ItemSetRepo::new(api.pool())
+    let Some(row) = with_db!(api.pool(), |db| ItemSetRepo::new(db)
         .get(ItemSetId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(ITEM_SET_CLASS, raw_id));
     };
@@ -466,10 +465,10 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         api.fill_catalog().await?;
     }
     let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
-    let rows = MediaRepo::new(api.pool())
+    let rows = with_db!(api.pool(), |db| MediaRepo::new(db)
         .list_filtered(&filter, &search.filter, &Paging::default())
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let matches = fulltext_matches(api, "media", search.fulltext.as_deref()).await?;
     let rows: Vec<MediaRow> = rows
         .into_iter()
@@ -515,10 +514,8 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
 
 pub async fn read_media(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(MEDIA_CLASS, raw_id)?;
-    let Some(row) = MediaRepo::new(api.pool())
-        .get(MediaId(id))
-        .await
-        .map_err(db_error)?
+    let Some(row) =
+        with_db!(api.pool(), |db| MediaRepo::new(db).get(MediaId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(MEDIA_CLASS, raw_id));
     };
@@ -701,10 +698,10 @@ pub async fn search_value_annotations(
 
 pub async fn read_value_annotation(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ANNOTATION_CLASS, raw_id)?;
-    let Some(resource) = ResourceRepo::new(api.pool())
+    let Some(resource) = with_db!(api.pool(), |db| ResourceRepo::new(db)
         .get(ResourceId(id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(not_found(ANNOTATION_CLASS, raw_id));
     };

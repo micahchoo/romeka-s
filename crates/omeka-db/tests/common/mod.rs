@@ -261,6 +261,17 @@ pub fn with_database(base: &str, name: &str) -> String {
 /// A migrated MySQL database, or `None` when the suite should skip.
 #[cfg(feature = "mysql")]
 pub async fn mysql() -> Option<MysqlTest> {
+    let db = mysql_unmigrated().await?;
+    if let Err(error) = omeka_db::migrate(&db.pool).await {
+        eprintln!("SKIP: cannot migrate {}: {error}", db.name);
+        return None;
+    }
+    Some(db)
+}
+
+/// An empty MySQL database with no migration applied, or `None` when the suite should skip.
+#[cfg(feature = "mysql")]
+pub async fn mysql_unmigrated() -> Option<MysqlTest> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let base = mysql_url()?;
     let seq = NEXT.fetch_add(1, Ordering::Relaxed);
@@ -294,9 +305,5 @@ pub async fn mysql() -> Option<MysqlTest> {
             return None;
         }
     };
-    if let Err(error) = omeka_db::migrate_mysql(&pool).await {
-        eprintln!("SKIP: cannot migrate {name}: {error}");
-        return None;
-    }
     Some(MysqlTest { pool, base, name })
 }

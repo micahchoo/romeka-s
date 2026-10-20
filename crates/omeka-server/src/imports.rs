@@ -40,6 +40,7 @@ use omeka_api::import2::starters::STARTERS;
 use omeka_api::messages;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ImportRepo, JobRepo, Paging};
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -127,22 +128,19 @@ async fn list(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Re
             };
             let per_page = number("perPage", 25).min(500);
             let page = number("page", 1);
-            let repo = ImportRepo::new(&state.pool);
-            repo.settle_dead().await?;
+            with_db!(&state.pool, |db| ImportRepo::new(db).settle_dead().await)?;
             let paging = Paging::new(
                 i64::try_from(per_page).unwrap_or(500),
                 i64::try_from((page - 1).saturating_mul(per_page)).unwrap_or(i64::MAX),
             );
-            let items = repo
-                .page(&paging)
-                .await?
+            let items = with_db!(&state.pool, |db| ImportRepo::new(db).page(&paging).await)?
                 .into_iter()
                 .map(|row| ImportView::of(row, false))
                 .collect();
             Ok(json(
                 StatusCode::OK,
                 &History {
-                    total: repo.count().await?,
+                    total: with_db!(&state.pool, |db| ImportRepo::new(db).count().await)?,
                     page,
                     per_page,
                     items,
@@ -203,9 +201,9 @@ async fn create(
                 Start::CopyFrom(from) => *from,
                 Start::Sources(_) => ImportId(0),
             };
-            let row = draft::create(&state.pool, actor.user(), start)
-                .await
-                .map_err(|error| draft_error(error, copied, false))?;
+            let row = with_db!(&state.pool, |db| draft::create(db, actor.user(), start)
+                .await)
+            .map_err(|error| draft_error(error, copied, false))?;
             Ok(json(StatusCode::CREATED, &ImportView::of(row, true)))
         }
         .await,
@@ -224,10 +222,10 @@ async fn show(
             admin(&state, &uri, &headers).await?;
             let row = load(&state, &id).await?;
             let started = match (row.status, row.job_id) {
-                (omeka_db::rows::ImportStatus::Running, Some(job)) => JobRepo::new(&state.pool)
-                    .get(job)
-                    .await?
-                    .map(|job| job.started.and_utc().timestamp()),
+                (omeka_db::rows::ImportStatus::Running, Some(job)) => {
+                    with_db!(&state.pool, |db| JobRepo::new(db).get(job).await)?
+                        .map(|job| job.started.and_utc().timestamp())
+                }
                 _ => None,
             };
             Ok(json(
@@ -259,9 +257,14 @@ async fn save(
             admin(&state, &uri, &headers).await?;
             let id = parse_id(&id)?;
             let saved: SaveBody = body(&headers, &payload.0)?;
-            draft::save(&state.pool, id, &saved.plan, saved.revision)
-                .await
-                .map_err(|error| draft_error(error, id, false))?;
+            with_db!(&state.pool, |db| draft::save(
+                db,
+                id,
+                &saved.plan,
+                saved.revision
+            )
+            .await)
+            .map_err(|error| draft_error(error, id, false))?;
             let row = load(&state, &id.0.to_string()).await?;
             Ok(json(StatusCode::OK, &ImportView::of(row, true)))
         }
@@ -283,10 +286,14 @@ async fn delete(
             // The rows go with the draft, so its bytes go first.
             if load(&state, &id.0.to_string()).await?.status == omeka_db::rows::ImportStatus::Draft
             {
-                omeka_api::import2::staging::remove_all(&state.pool, &state.store, id).await?;
+                with_db!(&state.pool, |db| omeka_api::import2::staging::remove_all(
+                    db,
+                    &state.store,
+                    id
+                )
+                .await)?;
             }
-            draft::delete(&state.pool, id)
-                .await
+            with_db!(&state.pool, |db| draft::delete(db, id).await)
                 .map_err(|error| draft_error(error, id, true))?;
             Ok(Response::builder()
                 .status(StatusCode::NO_CONTENT)
@@ -348,10 +355,10 @@ async fn job_log(
             admin(&state, &uri, &headers).await?;
             let missing = || ImportError::NotFound(format!("No job has the id {id:?}."));
             let raw: u64 = id.parse().map_err(|_| missing())?;
-            let row = JobRepo::new(&state.pool)
+            let row = with_db!(&state.pool, |db| JobRepo::new(db)
                 .get(JobId::from(raw))
-                .await?
-                .ok_or_else(missing)?;
+                .await)?
+            .ok_or_else(missing)?;
             Ok(Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")

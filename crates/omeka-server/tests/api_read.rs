@@ -1,5 +1,6 @@
-//! Read-endpoint integration tests: a seeded SQLite database driven through the
-//! axum router with `oneshot`, asserting the frozen JSON-LD shapes.
+//! Read-endpoint integration tests: a seeded database driven through the axum
+//! router with `oneshot`, asserting the frozen JSON-LD shapes. SQLite, or MySQL
+//! when `ROMEKA_MYSQL_URL` is set (`common/engine.rs`).
 //!
 //! One test per resource, each asserting `@context`, `o:id` and one value.
 
@@ -9,12 +10,13 @@ mod common;
 
 use axum::http::StatusCode;
 use common::{
-    assert_envelope, get, header as header_value, router, router_with_store, seeded_pool,
-    seeded_router, send,
+    assert_envelope, get, header as header_value, router, router_with_store, seeded_engine_pool,
+    seeded_engine_router, send,
 };
 use omeka_db::ids::{ItemId, UserId};
 use omeka_db::repos::{ItemRepo, MediaRepo};
 use omeka_db::rows::{NewItem, NewResource};
+use omeka_db::with_db;
 use omeka_media::store::{FileStore, Store};
 
 fn storage_id() -> &'static str {
@@ -23,7 +25,7 @@ fn storage_id() -> &'static str {
 
 #[tokio::test]
 async fn items_search_returns_the_item_with_its_title_value() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/items", false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     let documents = answer.json();
@@ -36,7 +38,7 @@ async fn items_search_returns_the_item_with_its_title_value() {
 
 #[tokio::test]
 async fn item_member_carries_media_and_thumbnail_urls() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get(&format!("/api/items/{}", seed.item.0), false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     let item = answer.json();
@@ -53,7 +55,7 @@ async fn item_member_carries_media_and_thumbnail_urls() {
 /// one file URL per type, all under `<type>/<storage_id>.jpg`.
 #[tokio::test]
 async fn media_member_emits_the_three_thumbnail_urls_when_the_row_has_them() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get(&format!("/api/media/{}", seed.media.0), false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     let urls = &answer.json()["o:thumbnail_urls"];
@@ -69,11 +71,12 @@ async fn media_member_emits_the_three_thumbnail_urls_when_the_row_has_them() {
 /// which serializes as `[]`, not `{}`.
 #[tokio::test]
 async fn media_member_emits_an_empty_thumbnail_urls_without_files() {
-    let (pool, seed) = seeded_pool().await;
-    let repo = MediaRepo::new(&pool);
-    let mut row = repo.get(seed.media).await.unwrap().unwrap();
+    let (pool, seed) = seeded_engine_pool().await;
+    let mut row = with_db!(&pool, |db| MediaRepo::new(db).get(seed.media).await)
+        .unwrap()
+        .unwrap();
     row.has_thumbnails = false;
-    repo.update(&row).await.unwrap();
+    with_db!(&pool, |db| MediaRepo::new(db).update(&row).await).unwrap();
 
     let root = temp_store_root("empty");
     let answer = send(
@@ -90,11 +93,12 @@ async fn media_member_emits_an_empty_thumbnail_urls_without_files() {
 /// whose three derivatives exist still serves them instead of the original.
 #[tokio::test]
 async fn media_member_emits_the_three_thumbnail_urls_from_the_store_files() {
-    let (pool, seed) = seeded_pool().await;
-    let repo = MediaRepo::new(&pool);
-    let mut row = repo.get(seed.media).await.unwrap().unwrap();
+    let (pool, seed) = seeded_engine_pool().await;
+    let mut row = with_db!(&pool, |db| MediaRepo::new(db).get(seed.media).await)
+        .unwrap()
+        .unwrap();
     row.has_thumbnails = false;
-    repo.update(&row).await.unwrap();
+    with_db!(&pool, |db| MediaRepo::new(db).update(&row).await).unwrap();
 
     let root = temp_store_root("present");
     let store = FileStore::new(&root, "/files");
@@ -129,19 +133,19 @@ fn temp_store_root(tag: &str) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn items_total_results_respects_per_page() {
-    let (pool, seed) = seeded_pool().await;
-    let repo = ItemRepo::new(&pool);
+    let (pool, seed) = seeded_engine_pool().await;
     for title in ["Second item", "Third item"] {
-        repo.create(&NewItem {
-            resource: NewResource {
-                owner_id: Some(UserId(seed.user.0)),
-                title: Some(title.to_string()),
-                is_public: true,
-                ..Default::default()
-            },
-            primary_media_id: None,
-        })
-        .await
+        with_db!(&pool, |db| ItemRepo::new(db)
+            .create(&NewItem {
+                resource: NewResource {
+                    owner_id: Some(UserId(seed.user.0)),
+                    title: Some(title.to_string()),
+                    is_public: true,
+                    ..Default::default()
+                },
+                primary_media_id: None,
+            })
+            .await)
         .unwrap();
     }
     let answer = send(router(pool), get("/api/items?per_page=2", false)).await;
@@ -155,7 +159,7 @@ async fn items_total_results_respects_per_page() {
 
 #[tokio::test]
 async fn items_search_matches_the_title() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let hit = send(app.clone(), get("/api/items?search=cat", false)).await;
     assert_eq!(hit.json().as_array().unwrap().len(), 1);
     let miss = send(app, get("/api/items?search=zzz", false)).await;
@@ -164,7 +168,7 @@ async fn items_search_matches_the_title() {
 
 #[tokio::test]
 async fn missing_item_is_a_404_with_the_find_message() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/items/999", false)).await;
     assert_eq!(answer.status, StatusCode::NOT_FOUND);
     assert_eq!(
@@ -175,7 +179,7 @@ async fn missing_item_is_a_404_with_the_find_message() {
 
 #[tokio::test]
 async fn item_sets_search_carries_the_items_link() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/item_sets", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.item_set.0);
@@ -193,7 +197,7 @@ async fn item_sets_search_carries_the_items_link() {
 
 #[tokio::test]
 async fn media_search_carries_the_ingester_and_filename() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/media", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.media.0);
@@ -204,7 +208,7 @@ async fn media_search_carries_the_ingester_and_filename() {
 
 #[tokio::test]
 async fn vocabularies_carry_the_namespace_and_prefix() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/vocabularies", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.vocabulary.0);
@@ -215,7 +219,7 @@ async fn vocabularies_carry_the_namespace_and_prefix() {
 
 #[tokio::test]
 async fn resource_classes_carry_the_qualified_term() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/resource_classes", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.class.0);
@@ -225,7 +229,7 @@ async fn resource_classes_carry_the_qualified_term() {
 
 #[tokio::test]
 async fn properties_carry_the_qualified_term() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/properties", false)).await;
     let document = &answer.json()[0];
     assert_eq!(document["o:local_name"], "title");
@@ -235,7 +239,7 @@ async fn properties_carry_the_qualified_term() {
 
 #[tokio::test]
 async fn resource_templates_carry_their_properties() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/resource_templates", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.template.0);
@@ -248,7 +252,7 @@ async fn resource_templates_carry_their_properties() {
 
 #[tokio::test]
 async fn users_search_requires_an_authenticated_key() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let anonymous = send(app.clone(), get("/api/users", false)).await;
     assert_eq!(anonymous.status, StatusCode::FORBIDDEN);
     let keyed = send(app, get("/api/users", true)).await;
@@ -261,7 +265,7 @@ async fn users_search_requires_an_authenticated_key() {
 
 #[tokio::test]
 async fn sites_carry_the_slug_and_site_item_link() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/sites", false)).await;
     let document = &answer.json()[0];
     assert_envelope(document, seed.site);
@@ -275,7 +279,7 @@ async fn sites_carry_the_slug_and_site_item_link() {
 
 #[tokio::test]
 async fn value_annotations_member_returns_its_values() {
-    let (app, seed) = seeded_router().await;
+    let (app, seed) = seeded_engine_router().await;
     let answer = send(
         app,
         get(&format!("/api/value_annotations/{}", seed.annotation), true),
@@ -291,8 +295,8 @@ async fn value_annotations_member_returns_its_values() {
 #[tokio::test]
 async fn item_primary_media_falls_back_to_the_first_media() {
     use omeka_db::rows::{NewMedia, NewResource};
-    let (pool, seed) = seeded_pool().await;
-    let item = ItemRepo::new(&pool)
+    let (pool, seed) = seeded_engine_pool().await;
+    let item = with_db!(&pool, |db| ItemRepo::new(db)
         .create(&NewItem {
             resource: NewResource {
                 owner_id: Some(UserId(seed.user.0)),
@@ -302,9 +306,9 @@ async fn item_primary_media_falls_back_to_the_first_media() {
             },
             primary_media_id: None,
         })
-        .await
-        .unwrap();
-    let media = omeka_db::repos::MediaRepo::new(&pool)
+        .await)
+    .unwrap();
+    let media = with_db!(&pool, |db| omeka_db::repos::MediaRepo::new(db)
         .create(&NewMedia {
             resource: NewResource {
                 owner_id: Some(UserId(seed.user.0)),
@@ -316,8 +320,8 @@ async fn item_primary_media_falls_back_to_the_first_media() {
             renderer: "html".to_string(),
             ..Default::default()
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let answer = send(
         router(pool),
         get(&format!("/api/items/{}", item.id().0), false),
@@ -329,14 +333,12 @@ async fn item_primary_media_falls_back_to_the_first_media() {
 
 #[tokio::test]
 async fn a_private_item_is_invisible_to_anonymous_requests() {
-    let (pool, seed) = seeded_pool().await;
-    let mut item = ItemRepo::new(&pool)
-        .get(ItemId(seed.item.0))
-        .await
+    let (pool, seed) = seeded_engine_pool().await;
+    let mut item = with_db!(&pool, |db| ItemRepo::new(db).get(ItemId(seed.item.0)).await)
         .unwrap()
         .unwrap();
     item.resource.is_public = false;
-    ItemRepo::new(&pool).update(&item).await.unwrap();
+    with_db!(&pool, |db| ItemRepo::new(db).update(&item).await).unwrap();
     let app = router(pool);
 
     let anonymous = send(app.clone(), get("/api/items", false)).await;
@@ -352,7 +354,7 @@ async fn a_private_item_is_invisible_to_anonymous_requests() {
 
 #[tokio::test]
 async fn jobs_search_needs_an_admin_key_and_has_no_repository_yet() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let anonymous = send(app.clone(), get("/api/jobs", false)).await;
     assert_eq!(anonymous.status, StatusCode::FORBIDDEN);
     let keyed = send(app, get("/api/jobs", true)).await;
@@ -361,7 +363,7 @@ async fn jobs_search_needs_an_admin_key_and_has_no_repository_yet() {
 
 #[tokio::test]
 async fn assets_search_has_no_repository_yet() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let answer = send(app, get("/api/assets", false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     assert_eq!(answer.json().as_array().unwrap().len(), 0);
@@ -369,7 +371,7 @@ async fn assets_search_has_no_repository_yet() {
 
 #[tokio::test]
 async fn value_annotations_search_has_no_repository_yet() {
-    let (app, _seed) = seeded_router().await;
+    let (app, _seed) = seeded_engine_router().await;
     let anonymous = send(app.clone(), get("/api/value_annotations", false)).await;
     assert_eq!(anonymous.status, StatusCode::FORBIDDEN);
     let keyed = send(app, get("/api/value_annotations", true)).await;

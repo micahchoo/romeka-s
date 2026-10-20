@@ -9,11 +9,13 @@ use std::time::Duration;
 use omeka_api::auth::Actor;
 use omeka_api::import2::catalog_load::Owners;
 use omeka_api::messages;
+use omeka_db::DbPool;
+use omeka_db::Location;
 use omeka_db::ids::{ImportId, UserId};
 use omeka_db::repos::{ImportRepo, JobRepo, UserRepo};
 use omeka_db::rows::{ImportRow, NewJob};
+use omeka_db::with_db;
 use serde_json::{Value, json};
-use sqlx::SqlitePool;
 
 use crate::CliError;
 use crate::commands::job::job_env;
@@ -22,7 +24,7 @@ use crate::jobs::{JobEnv, JobStatus, Runner};
 /// The flags every import command takes.
 #[derive(Debug, Clone)]
 pub struct Where {
-    pub database: PathBuf,
+    pub database: Location,
     /// `--store`; `files` beside the database when `None`.
     pub store: Option<PathBuf>,
     /// `--archive-root`, the root named `archive`; the configured roots when
@@ -53,7 +55,7 @@ pub(super) struct Work<'a> {
 }
 
 pub(super) struct Session {
-    pub pool: SqlitePool,
+    pub pool: DbPool,
     pub env: JobEnv,
 }
 
@@ -65,18 +67,16 @@ impl Session {
             None,
             at.archive_root.as_deref(),
         )?;
-        let pool = omeka_db::open_file(&at.database).await?;
+        let pool = at.database.open().await?;
         // A reader records the dead first, as every route does, so the status
         // shown is the one the admin would see.
-        ImportRepo::new(&pool).settle_dead().await?;
+        with_db!(&pool, |db| ImportRepo::new(db).settle_dead().await)?;
         Ok(Self { pool, env })
     }
 
     /// The administrator `email` names, who owns the import and the job.
     pub async fn admin(&self, email: &str) -> Result<Admin, CliError> {
-        let user = UserRepo::new(&self.pool)
-            .get_by_email(email)
-            .await?
+        let user = with_db!(&self.pool, |db| UserRepo::new(db).get_by_email(email).await)?
             .ok_or_else(|| CliError::message(format!("no user has the email {email}")))?;
         if !Actor::new(user.id, user.role.clone()).is_admin() {
             return Err(CliError::message(messages::IMPORT_ADMINS_ONLY));
@@ -88,9 +88,7 @@ impl Session {
     }
 
     pub async fn import(&self, id: u64) -> Result<ImportRow, CliError> {
-        ImportRepo::new(&self.pool)
-            .get(ImportId(id))
-            .await?
+        with_db!(&self.pool, |db| ImportRepo::new(db).get(ImportId(id)).await)?
             .ok_or_else(|| CliError::message(messages::import_not_found(id)))
     }
 
@@ -117,7 +115,7 @@ impl Session {
         if let Some(force) = force {
             args["force"] = force;
         }
-        let job = JobRepo::new(&self.pool)
+        let job = with_db!(&self.pool, |db| JobRepo::new(db)
             .create(&NewJob {
                 owner_id: owner,
                 pid: None,
@@ -127,9 +125,11 @@ impl Session {
                 log: None,
                 started: None,
             })
-            .await?
-            .id;
-        ImportRepo::new(&self.pool).set_job(import, job).await?;
+            .await)?
+        .id;
+        with_db!(&self.pool, |db| ImportRepo::new(db)
+            .set_job(import, job)
+            .await)?;
         let runner = Runner::with_env(&self.pool, self.env.clone());
         let running = runner.run(job);
         tokio::pin!(running);

@@ -18,10 +18,11 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use omeka_db::DbPool;
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId};
 use omeka_db::repos::RelationRepo;
 use omeka_db::rows::{AssetRow, MediaRow, ResourceRow, ValueRow, resource_type};
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use super::values::MAX_ANNOTATION_DEPTH;
 use super::{Api, db_error};
@@ -257,14 +258,14 @@ impl Relations {
 
 /// Every media row of an item, ordered as `MediaRepo::list` orders them.
 pub(crate) async fn media_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     items: &[u64],
 ) -> Result<HashMap<u64, Vec<MediaRow>>, ApiError> {
     let items: Vec<ItemId> = items.iter().copied().map(ItemId).collect();
-    let rows = RelationRepo::new(pool)
+    let rows = with_db!(pool, |db| RelationRepo::new(db)
         .media_of_items(&items)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut media: HashMap<u64, Vec<MediaRow>> = HashMap::new();
     for row in rows {
         media.entry(row.item_id.0).or_default().push(row);
@@ -275,14 +276,14 @@ pub(crate) async fn media_for(
 /// The item-set ids of each item, ordered as `ItemRepo::list_item_sets` orders
 /// them.
 pub(crate) async fn item_sets_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     items: &[u64],
 ) -> Result<HashMap<u64, Vec<ItemSetId>>, ApiError> {
     let items: Vec<ItemId> = items.iter().copied().map(ItemId).collect();
-    let pairs = RelationRepo::new(pool)
+    let pairs = with_db!(pool, |db| RelationRepo::new(db)
         .item_sets_of_items(&items)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut memberships: HashMap<u64, Vec<ItemSetId>> = HashMap::new();
     for (item, set) in pairs {
         memberships.entry(item.0).or_default().push(set);
@@ -292,14 +293,14 @@ pub(crate) async fn item_sets_for(
 
 /// The site ids of each item, ordered as `ItemRepo::list_sites` orders them.
 pub(crate) async fn sites_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     items: &[u64],
 ) -> Result<HashMap<u64, Vec<SiteId>>, ApiError> {
     let items: Vec<ItemId> = items.iter().copied().map(ItemId).collect();
-    let pairs = RelationRepo::new(pool)
+    let pairs = with_db!(pool, |db| RelationRepo::new(db)
         .sites_of_items(&items)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut memberships: HashMap<u64, Vec<SiteId>> = HashMap::new();
     for (item, site) in pairs {
         memberships.entry(item.0).or_default().push(site);
@@ -309,14 +310,12 @@ pub(crate) async fn sites_for(
 
 /// The first item of each item set by id, with its stored primary media.
 pub(crate) async fn first_item_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     sets: &[u64],
 ) -> Result<HashMap<u64, (u64, Option<MediaId>)>, ApiError> {
     let sets: Vec<ItemSetId> = sets.iter().copied().map(ItemSetId).collect();
-    let rows = RelationRepo::new(pool)
-        .first_items(&sets)
-        .await
-        .map_err(db_error)?;
+    let rows =
+        with_db!(pool, |db| RelationRepo::new(db).first_items(&sets).await).map_err(db_error)?;
     Ok(rows
         .into_iter()
         .map(|(set, item, primary)| (set.0, (item.0, primary)))
@@ -325,24 +324,23 @@ pub(crate) async fn first_item_for(
 
 /// The asset each page row's `resource.thumbnail_id` names, keyed by asset id.
 pub(crate) async fn thumbnail_assets_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     resources: &[u64],
 ) -> Result<HashMap<u64, AssetRow>, ApiError> {
     let resources: Vec<ResourceId> = resources.iter().copied().map(ResourceId).collect();
-    let rows = RelationRepo::new(pool)
+    let rows = with_db!(pool, |db| RelationRepo::new(db)
         .thumbnail_assets(&resources)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(rows.into_iter().map(|asset| (asset.id.0, asset)).collect())
 }
 
 /// Every value on each resource, plus the values on the annotations those
 /// values carry, to the depth the builder follows them.
 pub(crate) async fn values_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     resources: &[u64],
 ) -> Result<HashMap<u64, Vec<ValueRow>>, ApiError> {
-    let repo = RelationRepo::new(pool);
     let mut by_resource: HashMap<u64, Vec<ValueRow>> = HashMap::new();
     let mut loaded: HashSet<u64> = HashSet::new();
     let mut frontier: Vec<u64> = resources
@@ -359,7 +357,8 @@ pub(crate) async fn values_for(
             break;
         }
         let level: Vec<ResourceId> = frontier.iter().copied().map(ResourceId).collect();
-        let rows = repo.values_of(&level).await.map_err(db_error)?;
+        let rows =
+            with_db!(pool, |db| RelationRepo::new(db).values_of(&level).await).map_err(db_error)?;
         let mut next = Vec::new();
         for parsed in rows {
             if let Some(annotation) = parsed.value_annotation_id {
@@ -381,14 +380,14 @@ pub(crate) async fn values_for(
 /// Every value pointing at each resource, ordered as
 /// `ValueRepo::list_pointing_at` orders them.
 pub(crate) async fn pointing_at(
-    pool: &SqlitePool,
+    pool: &DbPool,
     resources: &[u64],
 ) -> Result<HashMap<u64, Vec<ValueRow>>, ApiError> {
     let resources: Vec<ResourceId> = resources.iter().copied().map(ResourceId).collect();
-    let rows = RelationRepo::new(pool)
+    let rows = with_db!(pool, |db| RelationRepo::new(db)
         .values_pointing_at(&resources)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut pointing: HashMap<u64, Vec<ValueRow>> = HashMap::new();
     for parsed in rows {
         if let Some(target) = parsed.value_resource_id {
@@ -400,20 +399,18 @@ pub(crate) async fn pointing_at(
 
 /// The referenced resource rows, by id.
 pub(crate) async fn resources_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     ids: &[u64],
 ) -> Result<HashMap<u64, ResourceRow>, ApiError> {
     let ids: Vec<ResourceId> = ids.iter().copied().map(ResourceId).collect();
-    let rows = RelationRepo::new(pool)
-        .resources(&ids)
-        .await
-        .map_err(db_error)?;
+    let rows =
+        with_db!(pool, |db| RelationRepo::new(db).resources(&ids).await).map_err(db_error)?;
     Ok(rows.into_iter().map(|row| (row.id.0, row)).collect())
 }
 
 /// The property ids of each resource template, in upstream's order.
 pub(crate) async fn template_properties_for(
-    pool: &SqlitePool,
+    pool: &DbPool,
     templates: &[TemplateId],
 ) -> Result<HashMap<u64, Vec<PropertyId>>, ApiError> {
     let ids: Vec<TemplateId> = templates
@@ -422,10 +419,10 @@ pub(crate) async fn template_properties_for(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    let pairs = RelationRepo::new(pool)
+    let pairs = with_db!(pool, |db| RelationRepo::new(db)
         .template_properties(&ids)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut properties: HashMap<u64, Vec<PropertyId>> = HashMap::new();
     for (template, property) in pairs {
         properties

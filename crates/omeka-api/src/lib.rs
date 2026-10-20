@@ -4,7 +4,7 @@
 //! remove them.
 //!
 //! `omeka-server` binds the HTTP surface and turns these decisions into
-//! responses; [`read::Api`] answers one request against a `SqlitePool`. Write
+//! responses; [`read::Api`] answers one request against a `DbPool`. Write
 //! operations the port does not build stay typed 501s.
 //!
 //! Upstream references are to `source/omeka-s` at the frozen SHA; module

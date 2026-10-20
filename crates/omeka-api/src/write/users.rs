@@ -14,6 +14,7 @@
 use omeka_db::ids::UserId;
 use omeka_db::repos::UserRepo;
 use omeka_db::rows::{NewUser, UserRow};
+use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -33,7 +34,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let role = payload.str_member("o:role").unwrap_or_default().to_string();
     let settings = user_settings(payload)?;
     validate(None, api, &name, &email, &role).await?;
-    let row = UserRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| UserRepo::new(db)
         .create(&NewUser {
             email,
             name,
@@ -42,8 +43,8 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             is_active: payload.bool_member("o:is_active", false),
             created: None,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", &row.id.0.to_string()).await
 }
@@ -55,8 +56,9 @@ pub async fn update(
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
     let id = parse_id(USER_CLASS, raw_id)?;
-    let repo = UserRepo::new(api.pool());
-    let Some(mut row) = repo.get(UserId(id)).await.map_err(db_error)? else {
+    let Some(mut row) =
+        with_db!(api.pool(), |db| UserRepo::new(db).get(UserId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(USER_CLASS, raw_id));
     };
     api.authorize_user_update(row.id)?;
@@ -75,7 +77,7 @@ pub async fn update(
     if payload.has("o:is_active") {
         row.is_active = payload.bool_member("o:is_active", row.is_active);
     }
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| UserRepo::new(db).update(&row).await).map_err(db_error)?;
     settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", raw_id).await
 }
@@ -104,13 +106,14 @@ fn user_settings(
 /// (`resource.owner_id`, `site.owner_id` and the rest are `ON DELETE SET NULL`).
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(USER_CLASS, raw_id)?;
-    let repo = UserRepo::new(api.pool());
-    let Some(row) = repo.get(UserId(id)).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| UserRepo::new(db).get(UserId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(USER_CLASS, raw_id));
     };
     access::user_entity(api.actor(), USER_CLASS, row.id, &row.role)?;
     let answer = crate::read::user_document(api, &row)?;
-    repo.delete(row.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| UserRepo::new(db).delete(row.id).await).map_err(db_error)?;
     Ok(answer)
 }
 
@@ -148,9 +151,7 @@ async fn validate(
             None => true,
         };
         if taken
-            && UserRepo::new(api.pool())
-                .get_by_email(email)
-                .await
+            && with_db!(api.pool(), |db| UserRepo::new(db).get_by_email(email).await)
                 .map_err(db_error)?
                 .is_some()
         {

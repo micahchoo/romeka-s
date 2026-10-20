@@ -13,6 +13,7 @@ use omeka_db::rows::{
     BlockChange, NewPageAttachment, NewPageBlock, NewSiteBlock, NewSiteBlockAttachment,
     NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
 };
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -80,10 +81,10 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let Some(site_id) = ref_row(raw_site) else {
         return Err(ref_not_found("Omeka\\Entity\\Site", raw_site));
     };
-    let Some(site) = SiteRepo::new(api.pool())
+    let Some(site) = with_db!(api.pool(), |db| SiteRepo::new(db)
         .get(SiteId(site_id))
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     else {
         return Err(ref_not_found("Omeka\\Entity\\Site", raw_site));
     };
@@ -105,8 +106,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .to_string();
     let slug = slug_or_auto(payload, &title);
     validate(api, None, site.id, &title, &slug).await?;
-    let repo = SiteRepo::new(api.pool());
-    let page = repo
+    let page = with_db!(api.pool(), |db| SiteRepo::new(db)
         .add_page(&NewSitePage {
             site_id: site.id,
             slug,
@@ -116,8 +116,8 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             layout_data: payload.get("o:layout_data").map(php_json),
             ..NewSitePage::default()
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     store_blocks(api, page.id, &blocks).await?;
     fulltext::reindex(api, "site_pages", ResourceId(page.id.0)).await?;
     api.read_member("site_pages", &page.id.0.to_string()).await
@@ -134,13 +134,14 @@ pub async fn update(
 ) -> Result<ApiResponse, ApiError> {
     crate::write::values::collect(api, payload, CONTROL).await?;
     let id = parse_id(PAGE_CLASS, raw_id)?;
-    let repo = SiteRepo::new(api.pool());
-    let Some(mut page) = repo.get_page(PageId(id)).await.map_err(db_error)? else {
+    let Some(mut page) = with_db!(api.pool(), |db| SiteRepo::new(db)
+        .get_page(PageId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(PAGE_CLASS, raw_id));
     };
-    let site = repo
-        .get(page.site_id)
-        .await
+    let site = with_db!(api.pool(), |db| SiteRepo::new(db).get(page.site_id).await)
         .map_err(db_error)?
         .and_then(|row| row.owner_id);
     api.authorize_site_page(Operation::Update, page.site_id, site)
@@ -180,7 +181,7 @@ pub async fn update(
         (true, false) => BlockChange::Append(&stored),
     };
     let snapshot = crate::read::page_snapshot(api.base());
-    let outcome = PageVersionRepo::new(api.pool())
+    let outcome = with_db!(api.pool(), |db| PageVersionRepo::new(db)
         .save(
             &PageSave {
                 page: &page,
@@ -188,10 +189,10 @@ pub async fn update(
                 user: api.actor().user(),
                 expected_modified,
             },
-            &snapshot,
+            &snapshot
         )
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     match outcome {
         PageSaveOutcome::Saved { .. } => {}
         PageSaveOutcome::Missing => return Err(not_found(PAGE_CLASS, raw_id)),
@@ -234,19 +235,23 @@ async fn resolve_blocks(api: &Api<'_>, blocks: &[Block]) -> Result<Vec<NewPageBl
 /// site grants editor or admin.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(PAGE_CLASS, raw_id)?;
-    let repo = SiteRepo::new(api.pool());
-    let Some(page) = repo.get_page(PageId(id)).await.map_err(db_error)? else {
+    let Some(page) = with_db!(api.pool(), |db| SiteRepo::new(db)
+        .get_page(PageId(id))
+        .await)
+    .map_err(db_error)?
+    else {
         return Err(not_found(PAGE_CLASS, raw_id));
     };
-    let owner = repo
-        .get(page.site_id)
-        .await
+    let owner = with_db!(api.pool(), |db| SiteRepo::new(db).get(page.site_id).await)
         .map_err(db_error)?
         .and_then(|row| row.owner_id);
     api.authorize_site_page(Operation::Delete, page.site_id, owner)
         .await?;
     let answer = crate::read::site_page_document(api, &page).await?;
-    repo.delete_page(page.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| SiteRepo::new(db)
+        .delete_page(page.id)
+        .await)
+    .map_err(db_error)?;
     fulltext::remove(api, "site_pages", ResourceId(page.id.0)).await?;
     Ok(answer)
 }
@@ -360,9 +365,8 @@ fn parse_attachments(object: &serde_json::Map<String, Value>) -> Vec<RawAttachme
 }
 
 async fn store_blocks(api: &Api<'_>, page: PageId, blocks: &[Block]) -> Result<(), ApiError> {
-    let repo = SiteRepo::new(api.pool());
     for (index, block) in blocks.iter().enumerate() {
-        let row = repo
+        let row = with_db!(api.pool(), |db| SiteRepo::new(db)
             .add_block(&NewSiteBlock {
                 page_id: page,
                 layout: block.layout.clone(),
@@ -370,8 +374,8 @@ async fn store_blocks(api: &Api<'_>, page: PageId, blocks: &[Block]) -> Result<(
                 layout_data: block.layout_data.clone(),
                 position: index as i64 + 1,
             })
-            .await
-            .map_err(db_error)?;
+            .await)
+        .map_err(db_error)?;
         store_attachments(api, row.id, &block.attachments).await?;
     }
     Ok(())
@@ -384,20 +388,20 @@ async fn store_attachments(
     block: BlockId,
     attachments: &[RawAttachment],
 ) -> Result<(), ApiError> {
-    let repo = SiteBlockAttachmentRepo::new(api.pool());
     for (index, attachment) in resolve_attachments(api, attachments)
         .await?
         .into_iter()
         .enumerate()
     {
-        repo.create(&NewSiteBlockAttachment {
-            block_id: block,
-            item_id: attachment.item,
-            media_id: attachment.media,
-            caption: attachment.caption,
-            position: index as i64 + 1,
-        })
-        .await
+        with_db!(api.pool(), |db| SiteBlockAttachmentRepo::new(db)
+            .create(&NewSiteBlockAttachment {
+                block_id: block,
+                item_id: attachment.item,
+                media_id: attachment.media,
+                caption: attachment.caption,
+                position: index as i64 + 1,
+            })
+            .await)
         .map_err(db_error)?;
     }
     Ok(())
@@ -414,25 +418,21 @@ pub(crate) async fn resolve_attachments(
     api: &Api<'_>,
     attachments: &[RawAttachment],
 ) -> Result<Vec<ResolvedAttachment>, ApiError> {
-    let items = ItemRepo::new(api.pool());
-    let media = MediaRepo::new(api.pool());
     let mut resolved = Vec::with_capacity(attachments.len());
     for attachment in attachments {
         let item_id = match attachment.item {
-            Some(raw) => items
-                .get(ItemId(raw))
-                .await
+            Some(raw) => with_db!(api.pool(), |db| ItemRepo::new(db).get(ItemId(raw)).await)
                 .map_err(db_error)?
                 .map(|_| ItemId(raw)),
             None => None,
         };
         let media_id = match (item_id, attachment.media) {
-            (Some(item), Some(raw)) => media
-                .get(MediaId(raw))
-                .await
-                .map_err(db_error)?
-                .filter(|row| row.item_id == item)
-                .map(|_| MediaId(raw)),
+            (Some(item), Some(raw)) => {
+                with_db!(api.pool(), |db| MediaRepo::new(db).get(MediaId(raw)).await)
+                    .map_err(db_error)?
+                    .filter(|row| row.item_id == item)
+                    .map(|_| MediaId(raw))
+            }
             _ => None,
         };
         resolved.push(ResolvedAttachment {
@@ -470,9 +470,7 @@ pub(crate) async fn validate(
             vec![messages::SLUG_INVALID.to_string()],
         );
     } else {
-        let taken = SiteRepo::new(api.pool())
-            .list_pages(site)
-            .await
+        let taken = with_db!(api.pool(), |db| SiteRepo::new(db).list_pages(site).await)
             .map_err(db_error)?
             .into_iter()
             .any(|page| page.slug == slug && existing.map(|row| row.id) != Some(page.id));

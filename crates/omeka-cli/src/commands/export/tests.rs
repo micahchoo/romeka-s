@@ -8,7 +8,9 @@ use omeka_db::rows::{NewItem, NewItemSet, NewResource, NewValue};
 use sqlx::SqlitePool;
 
 async fn property(pool: &SqlitePool, term: &str) -> PropertyId {
-    terms::resolve_property(pool, term).await.expect(term)
+    terms::resolve_property(&omeka_db::DbPool::from(pool.clone()), term)
+        .await
+        .expect(term)
 }
 
 /// One item in `item_set` with the given `(term, text)` values.
@@ -73,7 +75,7 @@ async fn jsonld_export_writes_the_documents_the_read_layer_serves() {
 
     let out = db.path.parent().expect("dir").join("items.json");
     let report = run_jsonld(&JsonldOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: out.clone(),
         resource: "items".to_string(),
         item_set: Some(set.0),
@@ -106,7 +108,7 @@ async fn jsonld_export_to_a_directory_writes_one_file_per_document() {
     let directory = db.path.parent().expect("dir").join("documents");
     std::fs::create_dir(&directory).expect("create dir");
     let report = run_jsonld(&JsonldOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: directory.clone(),
         resource: "items".to_string(),
         item_set: Some(set.0),
@@ -126,7 +128,7 @@ async fn jsonld_export_to_a_directory_writes_one_file_per_document() {
 async fn jsonld_export_rejects_an_unknown_resource() {
     let db = seeded_db().await;
     let error = run_jsonld(&JsonldOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: db.path.parent().expect("dir").join("x.json"),
         resource: "widgets".to_string(),
         item_set: None,
@@ -162,7 +164,7 @@ async fn csv_export_writes_one_row_per_item_with_a_column_per_value() {
 
     let out = db.path.parent().expect("dir").join("items.csv");
     let report = run_csv(&CsvOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: out.clone(),
         item_set: Some(source.0),
         columns: Vec::new(),
@@ -201,7 +203,7 @@ async fn csv_export_honours_an_explicit_column_list() {
 
     let out = db.path.parent().expect("dir").join("one.csv");
     let report = run_csv(&CsvOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: out.clone(),
         item_set: Some(set.0),
         columns: vec!["dcterms:title".to_string()],
@@ -217,7 +219,7 @@ async fn csv_export_honours_an_explicit_column_list() {
 async fn csv_export_rejects_an_unknown_column() {
     let db = seeded_db().await;
     let error = run_csv(&CsvOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: db.path.parent().expect("dir").join("x.csv"),
         item_set: None,
         columns: vec!["nope:title".to_string()],
@@ -234,7 +236,7 @@ async fn csv_export_writes_the_derived_header_before_any_row() {
     add_item(&db.pool, set, &[("dcterms:title", "Alpha")]).await;
     let out = db.path.parent().expect("dir").join("empty.csv");
     let report = run_csv(&CsvOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: out.clone(),
         item_set: Some(set.0),
         columns: Vec::new(),
@@ -262,7 +264,7 @@ async fn csv_export_creates_a_missing_parent_directory() {
         .join("nested")
         .join("out.csv");
     run_csv(&CsvOptions {
-        database: db.path.clone(),
+        database: db.path.clone().into(),
         out: out.clone(),
         item_set: Some(set.0),
         columns: Vec::new(),

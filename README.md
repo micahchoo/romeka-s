@@ -61,7 +61,7 @@ cd web/admin && npm ci && npm run build      # writes web/admin/dist
 The origin serves `dist/` at `/`, the media files under `/files/`, and forwards `/api`,
 `/api-context`, `/health`, `/ready`, `/s/` and `/assets/` to the server.
 `web/admin/e2e/harness/proxy.ts` is a working example of that origin, and
-`packaging/nginx.conf.template` is the one we ship. One constraint to know before you write your
+`deploy/Caddyfile` is the one we ship. One constraint to know before you write your
 own: the admin bundle's own chunk directory is also `assets`, so the SPA's files and the theme's
 files share a URL prefix. See [`docs/operator-guide.md`](docs/operator-guide.md).
 
@@ -78,8 +78,13 @@ on the same form for accounts that were invited by email.
   assets and jobs, with the create, edit and delete forms the API supports.
 - The public site renders the bundled theme, the page blocks, the item, item-set and media views
   and site search.
-- The command line runs install, users, API keys, template, CSV and media import, JSON-LD and CSV
-  export, thumbnails, jobs, backup and restore.
+- The Import page turns a folder on the server, or files sent from the browser, into items, item
+  sets and media. It reads file names and spreadsheet lists (CSV, TSV, XLSX, XLS, ODS), asks one
+  question for each kind of problem, runs as a job, and can undo any import. Files can live in an
+  S3-compatible bucket. The rules are in [`docs/import-v2.md`](docs/import-v2.md).
+- The command line runs install, users, API keys, resource-template import, plan-driven import
+  with undo (`romeka import run`, `undo`, `list`), JSON-LD and CSV export, thumbnails, jobs, backup
+  and restore.
 - Sessions and passwords work: sign in, sign out, invite, forgot and set-password links, with the
   link written to the log when no SMTP relay is configured.
 - `omeka-migrate` copies an Omeka S MySQL database into the SQLite database Romeka S runs on
@@ -94,7 +99,7 @@ These are decisions, not surprises. Each one names where it is stated and measur
 - Some routes answer `501`. Each one has no handler, so it is not built yet rather than broken, and
   the generated route table in [`docs/api.md`](docs/api.md) marks every one of them.
 - `POST /api/jobs` stays unbuilt, because upstream's `JobAdapter::hydrate` is empty. An asset or a
-  media file arrives as a multipart upload, through `romeka import media`, or through the Import
+  media file arrives as a multipart upload, through `romeka import run`, or through the Import
   page. [`crates/omeka-api/README.md`](crates/omeka-api/README.md) gives the details.
 - There is no admin pixel parity. The workflow is the same, the markup is not.
 - The full translation catalogues are not ported. The admin ships nine locales: English, Spanish
@@ -115,7 +120,8 @@ The admin SPA covers the resource forms, not the whole upstream admin:
   carries is served by [`crates/omeka-api/src/write/vocab.rs`](crates/omeka-api/src/write/vocab.rs).
 - A job cannot be stopped from the SPA
   ([`web/admin/src/pages/jobs/detail.tsx`](web/admin/src/pages/jobs/detail.tsx)).
-- An asset cannot be uploaded from the SPA; a media file arrives through `romeka import media`.
+- An asset cannot be uploaded from the SPA; a media file arrives through the Import page or
+  `romeka import run`.
 - There is no maintenance mode.
 
 [`docs/compat.md`](docs/compat.md) is the page that lists the differences the product states about

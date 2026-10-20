@@ -19,6 +19,7 @@
 use omeka_db::ids::AssetId;
 use omeka_db::repos::AssetRepo;
 use omeka_db::rows::{AssetRow, NewAsset};
+use omeka_db::with_db;
 use omeka_media::media_type::{detected_media_type, extension_for_media_type};
 use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
@@ -92,7 +93,7 @@ pub async fn create(
     let storage_id = new_storage_id().map_err(ApiError::internal)?;
     let path = storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
     store.put(&file.bytes, &path).map_err(ApiError::internal)?;
-    let row = AssetRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| AssetRepo::new(db)
         .create(&NewAsset {
             owner_id,
             name,
@@ -101,8 +102,8 @@ pub async fn create(
             extension,
             alt_text,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     api.read_member("assets", &row.id.0.to_string()).await
 }
 
@@ -113,8 +114,9 @@ pub async fn update(
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ASSET_CLASS, raw_id)?;
-    let repo = AssetRepo::new(api.pool());
-    let Some(mut row) = repo.get(AssetId(id)).await.map_err(db_error)? else {
+    let Some(mut row) =
+        with_db!(api.pool(), |db| AssetRepo::new(db).get(AssetId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(ASSET_CLASS, raw_id));
     };
     access::resource_entity_update(api.actor(), ASSET_CLASS, row.owner_id)?;
@@ -132,7 +134,7 @@ pub async fn update(
         row.alt_text = payload.str_member("o:alt_text").map(str::to_string);
     }
     validate(&row)?;
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| AssetRepo::new(db).update(&row).await).map_err(db_error)?;
     api.read_member("assets", raw_id).await
 }
 
@@ -162,14 +164,15 @@ fn errors(key: &str, messages: Vec<String>) -> ApiError {
 /// asset loses the reference (`ON DELETE SET NULL`).
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ASSET_CLASS, raw_id)?;
-    let repo = AssetRepo::new(api.pool());
-    let Some(row) = repo.get(AssetId(id)).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| AssetRepo::new(db).get(AssetId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(ASSET_CLASS, raw_id));
     };
     access::resource_entity(api.actor(), ASSET_CLASS, row.owner_id)?;
     let answer = api.read_member("assets", raw_id).await?;
     delete_asset_file(api.store().map(|store| store.as_ref()), &row)?;
-    repo.delete(row.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| AssetRepo::new(db).delete(row.id).await).map_err(db_error)?;
     Ok(answer)
 }
 

@@ -11,7 +11,7 @@ use omeka_api::import2::staging::Limits;
 use omeka_api::import2::unzip::{UNZIP_JOB, UnzipError, unzip_upload};
 use omeka_api::messages;
 use omeka_db::ids::ImportId;
-use omeka_db::repos::SettingRepo;
+use omeka_db::with_db;
 
 use super::{Job, JobContext, JobError};
 
@@ -37,16 +37,15 @@ impl Job for ImportUnzip {
             .and_then(serde_json::Value::as_str)
             .ok_or_else(|| JobError::InvalidArgument("missing string argument \"upload\"".into()))?
             .to_string();
-        let settings =
-            omeka_api::settings::upload_settings(&SettingRepo::new(context.pool)).await?;
-        match unzip_upload(
-            context.pool,
+        let settings = omeka_api::settings::upload_settings(context.pool).await?;
+        match with_db!(context.pool, |db| unzip_upload(
+            db,
             &context.env.store,
             import,
             &upload,
             Limits::from(settings),
         )
-        .await
+        .await)
         {
             Ok(unpacked) => {
                 for note in &unpacked.notes {

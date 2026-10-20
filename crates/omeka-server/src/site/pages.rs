@@ -15,16 +15,17 @@ use std::collections::BTreeMap;
 use omeka_api::read::catalog::Catalog;
 use omeka_core::site::{Site, Slug};
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     ClassFilter, ClassRepo, FulltextRepo, ItemSetRepo, Paging, PropertyFilter, PropertyRepo,
     SiteFilter, SiteRepo,
 };
 use omeka_db::rows::SitePageRow;
+use omeka_db::with_db;
 use omeka_site::i18n::Translator;
 use omeka_site::search::{FormOption, SearchHit, SiteRef};
 use omeka_site::slug::{page_url, site_url};
-use sqlx::SqlitePool;
 
 use super::load::{Access, BrowseScope, display_title, site_from_row};
 
@@ -46,7 +47,7 @@ pub(crate) struct FormOptions {
 /// A needle ranks through the fulltext index; with no needle the pages keep the
 /// repository's creation order.
 pub(crate) async fn page_hits(
-    pool: &SqlitePool,
+    pool: &DbPool,
     site: &Site,
     scope: BrowseScope,
     needle: &str,
@@ -57,7 +58,7 @@ pub(crate) async fn page_hits(
     match scope {
         BrowseScope::Site => {
             let page_site = PageSite::of(site);
-            for row in SiteRepo::new(pool).list_pages(page_site.id).await? {
+            for row in with_db!(pool, |db| SiteRepo::new(db).list_pages(page_site.id).await)? {
                 // `SitePageVisibilityFilter` reads with the actor, so an owner
                 // sees their private page on their own site's browse.
                 if !access.sees_site_page(row.is_public) {
@@ -73,7 +74,7 @@ pub(crate) async fn page_hits(
         }
         BrowseScope::AnySite => {
             for page_site in public_page_sites(pool).await? {
-                for row in SiteRepo::new(pool).list_pages(page_site.id).await? {
+                for row in with_db!(pool, |db| SiteRepo::new(db).list_pages(page_site.id).await)? {
                     if !row.is_public {
                         continue;
                     }
@@ -102,7 +103,7 @@ pub(crate) async fn page_hits(
 /// `cross-site` scope. Laminas `formSelect` translates each option label, so a
 /// built-in term's label is in the site's locale.
 pub(crate) async fn form_options(
-    pool: &SqlitePool,
+    pool: &DbPool,
     catalog: &Catalog,
     site: db::SiteId,
     translator: Translator,
@@ -112,28 +113,28 @@ pub(crate) async fn form_options(
         let term = format!("{}:{local_name}", catalog.prefix(vocabulary));
         translator.term_label(&term, stored).to_string()
     };
-    let properties = PropertyRepo::new(pool)
+    let properties = with_db!(pool, |db| PropertyRepo::new(db)
         .list(&PropertyFilter::default(), &Paging::default())
-        .await?
-        .into_iter()
-        .map(|row| {
-            let text = label(row.vocabulary_id, &row.local_name, &row.label);
-            FormOption::new(row.id.0.to_string(), text)
-        })
-        .collect();
-    let classes = ClassRepo::new(pool)
+        .await)?
+    .into_iter()
+    .map(|row| {
+        let text = label(row.vocabulary_id, &row.local_name, &row.label);
+        FormOption::new(row.id.0.to_string(), text)
+    })
+    .collect();
+    let classes = with_db!(pool, |db| ClassRepo::new(db)
         .list(&ClassFilter::default(), &Paging::default())
-        .await?
-        .into_iter()
-        .filter(|row| !row.label.is_empty())
-        .map(|row| {
-            let text = label(row.vocabulary_id, &row.local_name, &row.label);
-            FormOption::new(row.id.0.to_string(), text)
-        })
-        .collect();
+        .await)?
+    .into_iter()
+    .filter(|row| !row.label.is_empty())
+    .map(|row| {
+        let text = label(row.vocabulary_id, &row.local_name, &row.label);
+        FormOption::new(row.id.0.to_string(), text)
+    })
+    .collect();
     let mut item_sets = Vec::new();
-    for entry in SiteRepo::new(pool).list_item_sets(site).await? {
-        if let Some(row) = ItemSetRepo::new(pool).get(entry.item_set_id).await? {
+    for entry in with_db!(pool, |db| SiteRepo::new(db).list_item_sets(site).await)? {
+        if let Some(row) = with_db!(pool, |db| ItemSetRepo::new(db).get(entry.item_set_id).await)? {
             item_sets.push(FormOption::new(
                 entry.item_set_id.0.to_string(),
                 display_title(&row.resource, messages),
@@ -150,28 +151,25 @@ pub(crate) async fn form_options(
 /// The ranks the fulltext index gives the `site_pages` rows matching a needle,
 /// `None` when the needle is blank. A page the index does not hold is not a hit,
 /// which is what the index join does upstream.
-async fn page_ranks(
-    pool: &SqlitePool,
-    needle: &str,
-) -> Result<Option<BTreeMap<u64, f64>>, DbError> {
+async fn page_ranks(pool: &DbPool, needle: &str) -> Result<Option<BTreeMap<u64, f64>>, DbError> {
     if needle.trim().is_empty() {
         return Ok(None);
     }
     Ok(Some(
-        FulltextRepo::new(pool)
+        with_db!(pool, |db| FulltextRepo::new(db)
             .search("site_pages", needle)
-            .await?
-            .into_iter()
-            .map(|hit| (hit.id.0, hit.score))
-            .collect(),
+            .await)?
+        .into_iter()
+        .map(|hit| (hit.id.0, hit.score))
+        .collect(),
     ))
 }
 
 /// Every public site whose slug parses, for a cross-site page search.
-async fn public_page_sites(pool: &SqlitePool) -> Result<Vec<PageSite>, DbError> {
-    let rows = SiteRepo::new(pool)
+async fn public_page_sites(pool: &DbPool) -> Result<Vec<PageSite>, DbError> {
+    let rows = with_db!(pool, |db| SiteRepo::new(db)
         .list(&SiteFilter::default(), &Paging::default())
-        .await?;
+        .await)?;
     Ok(rows
         .iter()
         .filter(|row| row.is_public)

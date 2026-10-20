@@ -39,7 +39,18 @@ romeka serve       -d PATH [--host H] [--port P] [--base-url URL] [--store DIR]
 romeka job run ID  -d PATH [--store DIR] [--base-url URL] [--archive-root DIR]
 ```
 
-`install` creates the SQLite file, runs the embedded migrations, inserts the
+Every `-d PATH` can be `--database-url mysql://user:password@host:port/database` instead, or
+`ROMEKA_DATABASE_URL` in the environment, for a MySQL 8.0 or MariaDB 11 database. `-d` wins over
+the variable; the two flags together are refused. A server has no folder, so a command given a
+URL and no `--store` uses `files` in its working directory. The server hands a URL to each `job
+run` child through the environment, so the password never appears in `ps`
+(`src/jobs/dispatcher.rs`). The binary builds with the MySQL driver by default (feature `mysql`);
+`--no-default-features` builds a SQLite-only one. `tests/database_url.rs` covers the flags, and
+`scripts/mysql-smoke.py` drives a built binary against an empty MySQL or MariaDB database: install,
+serve, sign in, an item with an uploaded file, search, the public site, an import v2 run and its
+undo, and the backup refusal.
+
+`install` creates the SQLite file (a MySQL database must exist already), runs the embedded migrations, inserts the
 four default vocabularies with their classes and properties, creates the
 `Base Resource` template from `InstallDefaultTemplatesTask`, writes the admin
 user (`global_admin`), and writes the small default settings. Every step is
@@ -119,7 +130,7 @@ romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root
 romeka import run -d PATH --plan plan.json --as admin@example.org --archive-root /srv/archive --dry-run
 romeka import undo 7 -d PATH --preview
 romeka import undo 7 -d PATH [--force all]
-romeka import list -d PATH
+romeka import list -d PATH [--page N] [--per-page N]
 ```
 
 `run` makes a draft owned by `--as` (a global or site administrator) from the
@@ -250,7 +261,10 @@ romeka restore -d PATH --store DIR --in FILE [--force]
 ```
 
 `backup` writes one archive holding a consistent copy of the database and the
-whole store. `restore` reads it back into a target.
+whole store. `restore` reads it back into a target. Both are for a SQLite
+database: on MySQL `backup` refuses with `DbError::Unsupported`'s reason (use
+`mysqldump --single-transaction`) before it writes anything, and `restore`
+refuses before it reads the archive.
 
 The archive is a plain (uncompressed) tar, so `tar tf backup.tar` lists it and
 `tar xf` extracts it without this CLI. Three kinds of entry:
@@ -338,18 +352,31 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   query selects what `GET /api/items` lists for a global administrator, because
   the job runs `omeka_api::site_items`, the change `POST /api/sites/{id}/items`
   runs.
-- `Romeka\Job\ImportArchive` and `Romeka\Job\UndoImport` (Romeka's own):
-  `importId`. The server's import routes compose them; each runs only for an
-  import the server moved to `running` or `undoing` and linked to that job. The
-  run appends each progress line to `job.log` and ends the import `done` or
-  `failed`, its undo window open either way; a run that already wrote is never
-  repeated. The undo ends it `undone` and closes the window; an undo that fails
-  leaves `undoing`, and a later undo converges.
+- `Romeka\Job\ImportRun` and `Romeka\Job\ImportUndo` (Romeka's own): `importId`,
+  and for an undo an optional `force`. The server's import routes compose them;
+  each runs only for an import the server moved to `running` or `undoing` and
+  linked to that job. The run commits one record at a time, appends each progress
+  line to `job.log`, writes a heartbeat every 10 seconds and ends the import
+  `done`, or `run_failed` when no record was written or a stop was asked. A
+  second run of a `run_failed` import skips the records the first one wrote.
+  The undo ends it `undone`, `partly_undone` when it kept a touched resource, or
+  `undo_failed` on an error; a later undo converges.
+- `Romeka\Job\ImportScan`: `importId`. A rescan of the sources of a draft, for
+  a source of more than 20,000 entries. The route does a smaller one in the
+  request.
+- `Romeka\Job\ImportUnzip`: `importId` and `upload`, the id of the finished
+  `.zip`. It writes each entry into the import's staging area and names what it
+  left out in the job log. A refused ZIP ends the job `error` with the reason as
+  the last log line.
+- `Romeka\Job\ImportSweep`: no arguments. It removes the staging files no import
+  needs. `romeka serve` starts it at boot and then every hour.
 
 `romeka job run <id>` takes `--store` (default `files` beside the database),
-`--base-url` (default `http://localhost`) and `--archive-root` (the import is off
-without it). `romeka serve` passes all three, with the store `--store` gave it,
-when it starts a job.
+`--base-url` (default `http://localhost`) and `--archive-root` (the root named
+`archive`; the named roots come from `ROMEKA_ARCHIVE_ROOTS` in the environment).
+It refuses a job whose import has a heartbeat younger than two minutes.
+`romeka serve` passes all three, with the store `--store` gave it, when it
+starts a job.
 
 ## Where this deviates from upstream
 

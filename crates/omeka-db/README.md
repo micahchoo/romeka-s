@@ -16,9 +16,8 @@ Repositories are generic over `Backend`, a trait in `src/backend.rs`:
 pub struct ItemRepo<'a, DB: Backend = Sqlite> { pool: &'a Pool<DB> }
 ```
 
-The default type parameter is what keeps callers unchanged. `ItemRepo::new(&sqlite_pool)` still
-names a SQLite repository, and `ItemRepo::<MySql>::new(&mysql_pool)` is the MySQL one. No caller in
-`omeka-api`, `omeka-cli` or `omeka-server` had to change.
+`ItemRepo::new(pool)` takes its engine from the pool it is given. The default type parameter
+names SQLite where a type is written without one.
 
 One repository implementation serves both engines. It asks the backend for the pieces that differ
 and never asks which engine it is running on. Those pieces are:
@@ -41,9 +40,57 @@ the readiness ping (`SELECT 1`), window functions (`COUNT(*) OVER ()`) and the r
 owns the per-engine decoding.
 
 No other crate holds SQL. `omeka-api`, `omeka-server` and `omeka-cli` reach every table through a
-repository, so a caller that is generic over `Backend` runs on either engine with no SQL of its
-own. The integration tests of those crates still arrange fixtures with raw SQLite statements; that
-is test setup, not a path a client reaches.
+repository. The integration tests of those crates still arrange most fixtures with raw SQLite
+statements; that is test setup, not a path a client reaches.
+
+### Where the engine is chosen
+
+The repositories are generic, and their callers are not. A caller holds a `DbPool`
+(`src/pool.rs`), an enum with one variant per engine, and crosses to a repository through
+`with_db!`:
+
+```rust
+let row = with_db!(api.pool(), |db| ItemRepo::new(db).get(id).await)?;
+```
+
+The macro matches the engine and runs the same call in each arm, so the repository call is
+compiled once per engine and the code around it once. `Location` parses `--database` and
+`--database-url` and opens the pool. The import v2 pipeline in `omeka-api/src/import2` was
+already generic over `Backend`, because one run holds a transaction across many repositories; its
+entry points are dispatched the same way, one `with_db!` per route or job.
+
+The other shape was a `DB: Backend` parameter through `omeka-api`, `omeka-server` and `omeka-cli`.
+Both were measured on a spike of handlers in the shape of `omeka-api/src/read/system.rs`: each
+reads one of seven repositories, then filters, sorts, pages and serializes the rows. The generic
+form instantiates every handler for both engines; the enum form instantiates only the repository
+call. One crate built with its dependencies already compiled, no incremental cache, three runs
+each, on a 32-thread host (`CARGO_BUILD_JOBS=8`, rustc 1.99.1). The raw runs are in
+`seam-spike/results.txt`:
+
+| Handlers | Form | Release build | Release binary (stripped) | Debug build |
+| --- | --- | --- | --- | --- |
+| 0 | either | 1.9 to 2.1 s | 4,612,016 B | 0.7 s |
+| 60 | generic | 12.4 to 16.2 s | 6,979,072 B | 4.1 to 4.2 s |
+| 60 | enum | 8.0 to 8.5 s | 6,185,216 B | 2.9 to 3.0 s |
+| 180 | generic | 27.4 to 27.8 s | 11,214,880 B | 10.7 to 11.2 s |
+| 180 | enum | 16.1 to 17.3 s | 8,503,872 B | 6.9 to 7.5 s |
+
+Above the empty baseline, 180 handlers cost the generic form 25.6 s and 6.60 MB of release
+build, and the enum form 14.6 s and 3.89 MB: 1.75 times the build time and 1.70 times the code.
+The spike understates the gap. Its handlers are about 20 lines; the real ones (wire documents,
+permissions, the site renderer) are longer, and the generic form copies all of it per engine. It
+also needs the 13-line bound list of [Why a local statement
+builder](#why-a-local-statement-builder) on every generic function and on the axum state, which
+doubled the spike's source (1,898 lines against 996 for 60 handlers). Neither form lets a caller forget
+an engine: a `with_db!` match that misses a variant does not compile.
+
+On the real binary the enum form costs a SQLite-only build nothing (49,988,832 bytes against
+50,003,840 before the change), and the MySQL driver with every MySQL arm adds 7.7 MB (57,696,688
+bytes, release, unstripped; `seam-spike/results.txt`).
+
+`seam-spike/gen.py N OUT` writes both forms from one handler template, so they differ only in
+the seam, and `seam-spike/measure.sh` run inside `OUT` repeats the measurement. A single crate
+bounds what the numbers say: they compare the two seams, not the workspace's own build time.
 
 A MySQL backup is the operator's. MySQL has no statement that writes a database to a file, and a
 consistent copy is `mysqldump --single-transaction` or a physical backup tool, which an operator who
@@ -149,7 +196,10 @@ proves every row of every table survives the upgrade; with `ROMEKA_UPGRADE_DB` n
 database it runs the same check on a copy of it. MySQL needs no such step: its
 `0001_init.sql` already carries upstream's `utf8mb4_bin` on both columns.
 
-`migrate` and `migrate_mysql` are both no-ops on a second run.
+`migrate` takes a SQLite pool, a MySQL pool or a `DbPool` and applies that engine's set. It is
+a no-op on a second run. It applies any version it has not recorded, including one below a version
+already recorded: the 8124 deploy recorded 0007 before its next build brought 0006
+(`tests/migration_order.rs`, on both engines).
 
 ## Running the tests
 

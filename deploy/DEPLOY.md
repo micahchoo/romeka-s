@@ -44,6 +44,7 @@ except the first one.
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
 | `ROMEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
 | `ROMEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
+| `ROMEKA_DATABASE_URL` | the server and every job | a MySQL or MariaDB database instead of the SQLite file. This deployment does not use it yet: the entrypoint passes `-d "$ROMEKA_DB"`, which wins over the variable. `compose.yaml` carries a commented MySQL service, and [`docs/operator-guide.md`](../docs/operator-guide.md), MySQL and MariaDB, covers running on one; `romeka backup` below refuses a MySQL database |
 
 An empty value in `.env` means "not configured". The entrypoint drops the empty
 ones before it starts the server, because the server reads any value that is

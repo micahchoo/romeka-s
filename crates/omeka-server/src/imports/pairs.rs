@@ -11,6 +11,7 @@ use axum::response::Response;
 use omeka_api::import2::draft;
 use omeka_api::import2::preview::pairs::{PairsError, Unmatched, pairs_csv, read_pairs};
 use omeka_api::messages;
+use omeka_db::with_db;
 use serde::Serialize;
 
 use super::answer;
@@ -94,9 +95,14 @@ pub(super) async fn upload(
                 plan.decisions.extend(read.decisions);
                 let value: serde_json::Value = serde_json::from_str(&plan.to_json())
                     .map_err(|error| ImportError::Internal(error.to_string()))?;
-                draft::save(&state.pool, row.id, &value, row.revision)
-                    .await
-                    .map_err(|error| draft_error(error, row.id, false))?;
+                with_db!(&state.pool, |db| draft::save(
+                    db,
+                    row.id,
+                    &value,
+                    row.revision
+                )
+                .await)
+                .map_err(|error| draft_error(error, row.id, false))?;
                 load(&state, &id).await?
             };
             Ok(json(

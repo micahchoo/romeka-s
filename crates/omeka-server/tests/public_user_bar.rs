@@ -212,8 +212,9 @@ async fn an_item_page_links_its_admin_page_for_callers_who_may_edit_it() {
 #[tokio::test]
 async fn the_item_page_shows_its_class_and_a_gallery_of_its_images() {
     let (pool, seed) = site_pool().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     omeka_api::theme_settings::store(
-        &pool,
+        &db,
         SiteId::from(seed.site),
         "default",
         Some(&json!({

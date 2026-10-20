@@ -84,7 +84,36 @@ services:
       - /tmp
     restart: unless-stopped
 
+  # A MySQL database instead of the SQLite file: uncomment this service and its
+  # volume, and give the romeka service
+  #
+  #     ROMEKA_DATABASE_URL: mysql://romeka:${ROMEKA_MYSQL_PASSWORD}@mysql:3306/omeka
+  #     depends_on: { mysql: { condition: service_healthy } }
+  #
+  # with ROMEKA_MYSQL_PASSWORD and ROMEKA_MYSQL_ROOT_PASSWORD in .env. The
+  # entrypoint then installs and serves with the URL and ignores ROMEKA_DB
+  # (docs/operator-guide.md, "MySQL and MariaDB"). `romeka backup`
+  # refuses a MySQL database; back it up with
+  # `docker compose exec mysql mysqldump --single-transaction omeka`.
+  #
+  # mysql:
+  #   image: mysql:8.0
+  #   command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+  #   environment:
+  #     MYSQL_DATABASE: omeka
+  #     MYSQL_USER: romeka
+  #     MYSQL_PASSWORD: ${ROMEKA_MYSQL_PASSWORD}
+  #     MYSQL_ROOT_PASSWORD: ${ROMEKA_MYSQL_ROOT_PASSWORD}
+  #   volumes:
+  #     - romeka-mysql:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+  #     interval: 10s
+  #     retries: 12
+  #   restart: unless-stopped
+
 volumes:
   romeka-db:
   romeka-files:
   romeka-caddy:
+  # romeka-mysql:

@@ -24,8 +24,8 @@ use omeka_api::import2::run::RUN_JOB;
 use omeka_api::import2::start::{self, Go, Refusal, StartError};
 use omeka_api::messages;
 use omeka_db::ids::ImportId;
-use omeka_db::repos::SettingRepo;
 use omeka_db::rows::{ImportRow, ImportStatus};
+use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -118,15 +118,22 @@ async fn make_draft(
     admin: &Admin,
     plan: &ImportPlanV2,
 ) -> Result<ImportId, CliError> {
-    let made = draft::create(
-        &session.pool,
+    let made = with_db!(&session.pool, |db| draft::create(
+        db,
         Some(admin.id),
         Start::Sources(plan.sources.clone()),
     )
-    .await
+    .await)
     .map_err(draft_error)?;
     let value: Value = serde_json::from_str(&plan.to_json())?;
-    if let Err(error) = draft::save(&session.pool, made.id, &value, made.revision).await {
+    if let Err(error) = with_db!(&session.pool, |db| draft::save(
+        db,
+        made.id,
+        &value,
+        made.revision
+    )
+    .await)
+    {
         discard(session, made.id).await?;
         return Err(draft_error(error));
     }
@@ -143,9 +150,7 @@ fn draft_error(error: DraftError) -> CliError {
 }
 
 async fn discard(session: &Session, import: ImportId) -> Result<(), CliError> {
-    draft::delete(&session.pool, import)
-        .await
-        .map_err(draft_error)
+    with_db!(&session.pool, |db| draft::delete(db, import).await).map_err(draft_error)
 }
 
 /// What [`go`] did: the Check it read, and the import row after the run, or
@@ -165,9 +170,9 @@ async fn go(
     stop: impl Future<Output = ()>,
     out: &mut dyn Write,
 ) -> Result<Ran, CliError> {
-    let files = omeka_api::settings::file_validation(&SettingRepo::new(&session.pool)).await?;
-    let assessed = start::assess(
-        &session.pool,
+    let files = omeka_api::settings::file_validation(&session.pool).await?;
+    let assessed = with_db!(&session.pool, |db| start::assess(
+        db,
         &session.env.archive_roots,
         &session.env.store,
         &Arc::new(Caches::default()),
@@ -176,7 +181,7 @@ async fn go(
         import,
         plan,
     )
-    .await
+    .await)
     .map_err(|error| CliError::message(error.to_string()))?;
     let check = assessed.check;
     let mut quiet = std::io::sink();
@@ -193,8 +198,7 @@ async fn go(
         digest: None,
         confirm: options.confirm,
     };
-    start::begin(&session.pool, &row, &check, go)
-        .await
+    with_db!(&session.pool, |db| start::begin(db, &row, &check, go).await)
         .map_err(refused)?;
     writeln!(progress, "import {} running", import.0)?;
     let work = Work {

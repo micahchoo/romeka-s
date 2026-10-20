@@ -5,8 +5,9 @@
 //! origin, because the point of publishing is that other sites and tools use it.
 
 use http::StatusCode;
+use omeka_db::DbPool;
 use omeka_db::repos::PublicationRepo;
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use super::html::{self, PageAddress};
 use super::negotiate::{self, Representation};
@@ -43,14 +44,14 @@ pub struct Request<'a> {
 
 /// Answer one request. A slug nothing is published under, a version or a term that does not
 /// exist, is a 404; an `Accept` header that names no representation this serves is a 406.
-pub async fn serve(pool: &SqlitePool, request: Request<'_>) -> Served {
+pub async fn serve(pool: &DbPool, request: Request<'_>) -> Served {
     match answer(pool, request).await {
         Ok(served) => served,
         Err(served) => served,
     }
 }
 
-async fn answer(pool: &SqlitePool, request: Request<'_>) -> Result<Served, Served> {
+async fn answer(pool: &DbPool, request: Request<'_>) -> Result<Served, Served> {
     let not_found = || Served::text(StatusCode::NOT_FOUND, "Not Found");
     let failed = || Served::text(StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error");
     let params = Params::parse(request.query);
@@ -60,13 +61,15 @@ async fn answer(pool: &SqlitePool, request: Request<'_>) -> Result<Served, Serve
             "Not Acceptable: text/turtle, application/ld+json, application/rdf+xml, application/n-triples or text/html",
         )
     })?;
-    let repo = PublicationRepo::new(pool);
-    let record = repo
+    let record = with_db!(pool, |db| PublicationRepo::new(db)
         .by_slug(request.slug)
-        .await
-        .map_err(|_| failed())?
-        .ok_or_else(not_found)?;
-    let versions = repo.versions(record.id).await.map_err(|_| failed())?;
+        .await)
+    .map_err(|_| failed())?
+    .ok_or_else(not_found)?;
+    let versions = with_db!(pool, |db| PublicationRepo::new(db)
+        .versions(record.id)
+        .await)
+    .map_err(|_| failed())?;
     let wanted = match params.get("version") {
         Some(raw) => Some(raw.parse::<u32>().map_err(|_| not_found())?),
         None => None,

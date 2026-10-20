@@ -34,8 +34,9 @@ use omeka_api::import2::sweep::{self, SWEEP_JOB};
 use omeka_api::import2::unzip::{UNZIP_JOB, is_zip};
 use omeka_api::messages;
 use omeka_db::ids::JobId;
-use omeka_db::repos::{JobRepo, SettingRepo, UploadRepo};
+use omeka_db::repos::{JobRepo, UploadRepo};
 use omeka_db::rows::{ImportRow, ImportStatus, NewJob, UploadRow};
+use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
@@ -251,7 +252,7 @@ fn number(headers: &HeaderMap, name: &str) -> Option<u64> {
 }
 
 async fn limits(state: &AppState) -> Result<omeka_api::settings::UploadSettings, Box<Response>> {
-    omeka_api::settings::upload_settings(&SettingRepo::new(&state.pool))
+    omeka_api::settings::upload_settings(&state.pool)
         .await
         .map_err(|error| shared(error.into()))
 }
@@ -320,8 +321,7 @@ pub(super) async fn list(
         async {
             let (_, row) = uploader(&state, &id, &uri, &headers, false).await?;
             let settings = limits(&state).await?;
-            let usage = staging::usage(&state.pool, row.id)
-                .await
+            let usage = with_db!(&state.pool, |db| staging::usage(db, row.id).await)
                 .map_err(|error| shared(error.into()))?;
             let keep_until = sweep::kept_until(&row, &usage.uploads, settings.into())
                 .map(|until| until.format("%Y-%m-%dT%H:%M:%S+00:00").to_string());
@@ -378,7 +378,14 @@ pub(super) async fn create(
             let settings = limits(&state).await?;
             let made = {
                 let _held = CREATING.lock().await;
-                staging::create(&state.pool, row.id, &path, length, Limits::from(settings)).await
+                with_db!(&state.pool, |db| staging::create(
+                    db,
+                    row.id,
+                    &path,
+                    length,
+                    Limits::from(settings)
+                )
+                .await)
             }
             .map_err(staging_refusal)?;
             maybe_sweep(&state, &actor).await;
@@ -422,10 +429,10 @@ pub(super) async fn head(
         async {
             speaks_tus(&headers)?;
             let (_, row) = uploader(&state, &id, &uri, &headers, false).await?;
-            let found = UploadRepo::new(&state.pool)
+            let found = with_db!(&state.pool, |db| UploadRepo::new(db)
                 .get(row.id, &upload)
-                .await
-                .map_err(|error| shared(error.into()))?;
+                .await)
+            .map_err(|error| shared(error.into()))?;
             let Some(found) = found else {
                 return Ok(tus(Response::builder().status(StatusCode::NOT_FOUND))
                     .header(header::CACHE_CONTROL, "no-store")
@@ -483,15 +490,15 @@ pub(super) async fn patch(
             let held = lock.lock().await;
             let reader = BodyReader::spawn(body, MAX_CHUNK);
             let over = reader.over();
-            let appended = staging::append(
-                &state.pool,
+            let appended = with_db!(&state.pool, |db| staging::append(
+                db,
                 &state.store,
                 row.id,
                 &upload,
                 offset,
                 Box::new(reader),
             )
-            .await;
+            .await);
             drop(held);
             let appended = match appended {
                 Ok(appended) => appended,
@@ -546,7 +553,13 @@ pub(super) async fn delete(
             let key = format!("{}/{upload}", row.id.0);
             let lock = lock_of(&key);
             let held = lock.lock().await;
-            let removed = staging::remove(&state.pool, &state.store, row.id, &upload).await;
+            let removed = with_db!(&state.pool, |db| staging::remove(
+                db,
+                &state.store,
+                row.id,
+                &upload
+            )
+            .await);
             drop(held);
             forget_lock(&key);
             match removed {
@@ -574,8 +587,7 @@ async fn start_job(
     class: &str,
     args: Value,
 ) -> Result<JobId, Box<Response>> {
-    let jobs = JobRepo::new(&state.pool);
-    let job = jobs
+    let job = with_db!(&state.pool, |db| JobRepo::new(db)
         .create(&NewJob {
             owner_id: actor.user(),
             pid: None,
@@ -585,11 +597,15 @@ async fn start_job(
             log: None,
             started: None,
         })
-        .await
-        .map_err(|error| shared(error.into()))?;
+        .await)
+    .map_err(|error| shared(error.into()))?;
     if let Err(error) = state.jobs.start(job.id) {
-        let _ = jobs.append_log(job.id, &error.to_string()).await;
-        let _ = jobs.finish(job.id, "error").await;
+        let _ = with_db!(&state.pool, |db| JobRepo::new(db)
+            .append_log(job.id, &error.to_string())
+            .await);
+        let _ = with_db!(&state.pool, |db| JobRepo::new(db)
+            .finish(job.id, "error")
+            .await);
         return Err(shared(ImportError::Internal(
             messages::import_job_not_started(error),
         )));
