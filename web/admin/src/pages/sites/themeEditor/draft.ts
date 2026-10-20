@@ -5,21 +5,44 @@
  *
  * The draft is the stored shape `crates/omeka-site/src/theme/tokens.rs`
  * reads: a preset, whether the palette derives from the brand colour, the
- * tokens set by hand, the header and footer content, and the custom CSS.
+ * tokens set by hand, the header content, the footer
+ * (`crates/omeka-site/src/theme/footer.rs`), and the custom CSS.
  * `resolve` repeats `tokens::resolve`, and the resolution samples in
  * `src/generated/themeSamples.json` pin the two together.
  */
 import type { JsonValue } from '../../../api/types';
-import { isRecord } from '../../../api/parse';
+import { ParseError, asJsonValue, isRecord } from '../../../api/parse';
+import { navigationJson, navigationLinks } from '../navigationTree';
+import type { NavLink } from '../navigationTree';
 import { isHexColour, nearestPassing, normaliseHex, contrast } from './colour';
 import { derive, roleColour } from './palette';
 import type { ColourRole, Palette, PairCheck, Shade } from './palette';
-import { THEME_REGISTRY, presetFor } from './registry';
+import { THEME_REGISTRY, presetFor, storedPresetId } from './registry';
 import type { ThemeSetting } from './registry';
 
-/** The header and footer content keys, edited beside the tokens. */
-export const CONTENT_KEYS = ['logo', 'banner', 'banner_text', 'footer_text'] as const;
+/** The header content keys, edited beside the tokens. */
+export const CONTENT_KEYS = ['logo', 'banner', 'banner_text'] as const;
 export type ContentKey = (typeof CONTENT_KEYS)[number];
+
+/** The footer keys: site content, not design, so a preset leaves them alone. */
+const FOOTER_KEYS: ReadonlySet<string> = new Set([
+  'footer_columns',
+  'footer_links',
+  'footer_contact',
+  'footer_licence',
+  'show_powered_by',
+]);
+
+/** The footer as the Footer section edits it. */
+export interface FooterDraft {
+  /** The HTML columns, at most the schema's `max`. */
+  readonly columns: readonly string[];
+  /** The site's own links, or `null` to repeat the header menu. */
+  readonly links: readonly NavLink[] | null;
+  readonly contact: string;
+  readonly licence: string;
+  readonly poweredBy: boolean;
+}
 
 /** A token value set by hand: a hex colour, a choice key or a number. */
 export type TokenValue = string | number;
@@ -30,20 +53,20 @@ export interface ThemeDraft {
   /** The tokens set by hand, by stored key. Absent means "the preset's". */
   readonly overrides: Readonly<Record<string, TokenValue>>;
   readonly content: Readonly<Record<ContentKey, string>>;
+  readonly footer: FooterDraft;
   readonly customCss: string;
 }
 
 /** Every token a curator may set by hand: colours, choices and numbers. */
 const isToken = (setting: ThemeSetting): boolean =>
   setting.key !== 'preset' &&
+  !FOOTER_KEYS.has(setting.key) &&
   (setting.kind === 'colour' ||
     setting.kind === 'font' ||
     setting.kind === 'choice' ||
     setting.kind === 'number');
 
 export const TOKEN_SETTINGS: readonly ThemeSetting[] = THEME_REGISTRY.settings.filter(isToken);
-
-const PRESET_IDS: ReadonlySet<string> = new Set(THEME_REGISTRY.presets.map((preset) => preset.id));
 
 /** A stored value read the way `Choices::from_value` reads it, `null` when refused. */
 export const tokenValue = (setting: ThemeSetting, stored: unknown): TokenValue | null => {
@@ -76,17 +99,56 @@ const contentValue = (stored: unknown): string => {
   return typeof stored === 'string' ? stored : '';
 };
 
+const storedLinks = (stored: unknown): readonly NavLink[] | null => {
+  if (!Array.isArray(stored)) {
+    return null;
+  }
+  try {
+    const value = asJsonValue(stored, ['footer_links']);
+    return Array.isArray(value) ? navigationLinks(value) : null;
+  } catch (error: unknown) {
+    if (error instanceof ParseError) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+/**
+ * The footer a stored map holds. A map from before the footer had structure
+ * carries one `footer_text`, which opens as the first column.
+ */
+const footerFromStored = (stored: Readonly<Record<string, unknown>>): FooterDraft => {
+  const columns = stored['footer_columns'];
+  const legacy = contentValue(stored['footer_text']).trim();
+  const licence = stored['footer_licence'];
+  const licences = THEME_REGISTRY.settings.find((setting) => setting.key === 'footer_licence');
+  return {
+    columns: Array.isArray(columns)
+      ? columns.filter((column): column is string => typeof column === 'string')
+      : legacy === ''
+        ? []
+        : [legacy],
+    links: storedLinks(stored['footer_links']),
+    contact: contentValue(stored['footer_contact']),
+    licence:
+      typeof licence === 'string' && licences?.kind === 'choice' && licences.choices.includes(licence)
+        ? licence
+        : 'none',
+    poweredBy: stored['show_powered_by'] !== false,
+  };
+};
+
 /**
  * The draft a stored map opens as. A map with no preset is one stored before
- * presets: the plain preset with derivation off, as the theme reads it.
- * Overrides equal to what the preset already gives are dropped, so a map the
- * old Theme page saved in full opens with only its real changes marked.
+ * presets: the preset that replaced plain, with derivation off, as the theme
+ * reads it. A preset id from before the current five opens as the preset that
+ * replaced it. Overrides equal to what the preset already gives are dropped,
+ * so a map the old Theme page saved in full opens with only its real changes
+ * marked.
  */
 export const draftFromStored = (stored: Readonly<Record<string, unknown>>): ThemeDraft => {
-  const preset =
-    typeof stored['preset'] === 'string' && PRESET_IDS.has(stored['preset'])
-      ? stored['preset']
-      : null;
+  const preset = storedPresetId(stored['preset']);
   const deriveStored = stored['derive_palette'];
   const overrides: Record<string, TokenValue> = {};
   for (const setting of TOKEN_SETTINGS) {
@@ -99,13 +161,13 @@ export const draftFromStored = (stored: Readonly<Record<string, unknown>>): Them
     logo: contentValue(stored['logo']),
     banner: contentValue(stored['banner']),
     banner_text: contentValue(stored['banner_text']),
-    footer_text: contentValue(stored['footer_text']),
   };
   const draft: ThemeDraft = {
-    preset: preset ?? 'plain',
+    preset: preset ?? THEME_REGISTRY.unsetPreset,
     derive: preset === null ? false : typeof deriveStored === 'boolean' ? deriveStored : true,
     overrides,
     content,
+    footer: footerFromStored(stored),
     customCss: typeof stored['custom_css'] === 'string' ? stored['custom_css'] : '',
   };
   return withoutRedundantOverrides(draft);
@@ -253,13 +315,27 @@ const designWire = (draft: ThemeDraft): Record<string, JsonValue> => {
   return map;
 };
 
+/** The footer half of the map. Links stay absent while the footer repeats the menu. */
+const footerWire = (footer: FooterDraft): Record<string, JsonValue> => {
+  const map: Record<string, JsonValue> = {
+    footer_columns: footer.columns.map((column) => column.trim()).filter((column) => column !== ''),
+    footer_contact: trimmedOrNull(footer.contact),
+    footer_licence: footer.licence,
+    show_powered_by: footer.poweredBy,
+  };
+  if (footer.links !== null) {
+    map['footer_links'] = [...navigationJson(footer.links)];
+  }
+  return map;
+};
+
 /** The theme settings map a save writes and a preview sends. */
 export const draftWire = (draft: ThemeDraft): Record<string, JsonValue> => ({
   ...designWire(draft),
   logo: assetId(draft.content.logo),
   banner: assetId(draft.content.banner),
   banner_text: trimmedOrNull(draft.content.banner_text),
-  footer_text: trimmedOrNull(draft.content.footer_text),
+  ...footerWire(draft.footer),
 });
 
 /** Apply a preset: its every value, with no token set by hand. */
@@ -303,5 +379,5 @@ export const importTheme = (text: string, current: ThemeDraft): ThemeDraft | nul
     return null;
   }
   const imported = draftFromStored(parsed['theme']);
-  return { ...imported, content: current.content };
+  return { ...imported, content: current.content, footer: current.footer };
 };

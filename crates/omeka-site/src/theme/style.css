@@ -425,14 +425,44 @@ header {
   justify-content: center;
 }
 
-.header-centred #search {
+/* The search sits behind a magnifier, a details element that opens with no
+   script. On a wide screen the search token decides: `search-open` shows the
+   form in the header row and hides the toggle, `search-icon` opens it as a
+   panel under the icon. A phone always keeps it behind the icon, and the open
+   form takes its own row under the header row. */
+.search-menu {
   margin-left: auto;
-  margin-right: auto;
+  position: relative;
 }
 
-#search {
-  flex: 0 1 18rem;
-  margin-left: auto;
+.search-menu > summary,
+.nav-menu > summary {
+  list-style: none;
+}
+
+.search-menu > summary::-webkit-details-marker,
+.nav-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.search-toggle {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--header-link);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.search-menu[open] > .search-toggle {
+  box-shadow: inset 0 -3px 0 var(--header-mark);
+}
+
+.search-glyph {
+  height: 1.25rem;
+  width: 1.25rem;
 }
 
 /* The header's search draws only in the header's own link colour, so it reads
@@ -445,11 +475,19 @@ header {
   width: 100%;
 }
 
-#search-form input[type="text"] {
+/* A zero width lets the field shrink with the row: its default size would
+   otherwise set the form's smallest width and push the button off a phone. */
+#search-form input[type="search"] {
   border: 0;
   border-radius: 0;
   flex: 1 1 auto;
   min-width: 0;
+  width: 0;
+}
+
+#search-form input[type="search"]::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
 }
 
 #search-form button {
@@ -470,15 +508,57 @@ header {
   box-shadow: inset 0 -3px 0 var(--header-mark);
 }
 
-/* Below the breakpoint the search takes the whole row, and a centred
-   masthead keeps its menu button on the centre line. */
+@media (max-width: 47.99rem) {
+  .search-menu {
+    display: contents;
+  }
+
+  .search-menu::details-content {
+    flex-basis: 100%;
+    order: 10;
+  }
+
+  .search-toggle {
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 48rem) {
+  .search-open .search-toggle {
+    display: none;
+  }
+
+  .search-open .search-menu::details-content {
+    content-visibility: visible;
+  }
+
+  .search-open #search {
+    width: 18rem;
+  }
+
+  /* The panel sits on the page background, so the form takes the page's
+     link colour rather than the header's. */
+  .search-icon .search-menu[open] #search {
+    --header-link: var(--color-link);
+    --header-mark: var(--color-brand);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 24px -12px color-mix(in srgb, var(--color-text) 40%, transparent);
+    padding: var(--space-2);
+    position: absolute;
+    right: 0;
+    top: 100%;
+    width: 22rem;
+    z-index: 6;
+  }
+}
+
+/* Below the breakpoint a centred masthead keeps its menu button on the centre
+   line. */
 @media (max-width: 29.99rem) {
   header {
     padding: var(--space-2) var(--space-3);
-  }
-
-  #search {
-    flex-basis: 100%;
   }
 
   .header-centred .nav-menu-toggle {
@@ -613,53 +693,229 @@ header {
   width: 3rem;
 }
 
-/* A resource view prints its title, then the kind of resource ("Item"). The
-   kind reads first, as a small label over the title. */
-.resource #content:has(> h2:first-child + h3) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+/* A resource view prints a header: the kind (and the type) as a small label
+   in the accent colour, then the display name. A name that falls back to the
+   identifier carries a note that no title was recorded. */
+.resource-header {
+  margin: 0 0 var(--space-4);
 }
 
-.resource #content > h2:first-child + h3 {
+.resource-kind-label {
   color: var(--color-accent);
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  grid-row: 1;
   letter-spacing: 0.1em;
   margin: 0 0 var(--space-2);
   text-transform: uppercase;
 }
 
-.resource #content:has(> h2:first-child + h3) > h2:first-child {
-  grid-row: 2;
+.resource-title {
+  font-size: var(--font-size-h1);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-footer {
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
+.resource-untitled-note {
   color: var(--color-muted);
-  font-size: var(--font-size-sm);
-  padding: var(--space-4) var(--space-3);
-  text-align: center;
+  font-style: italic;
+  margin: var(--space-2) 0 0;
 }
 
-.footer-text > *:first-child {
+/* The footer. The footer tone token sets its ground through the `--footer-*`
+   properties, and the footer layout token its structure (`footer-columns`,
+   `footer-split`, `footer-inline`). */
+.site-footer {
+  background: var(--footer-background);
+  border-top: 1px solid var(--color-border);
+  color: var(--footer-text);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-5);
+}
+
+.footer-inner {
+  margin: 0 auto;
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-5) var(--space-3) var(--space-4);
+}
+
+.footer-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0 0 var(--space-2);
+}
+
+.footer-texts {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.footer-text,
+.footer-contact,
+.footer-licence,
+.powered-by {
+  color: var(--footer-muted);
+}
+
+.footer-text > :first-child,
+.footer-contact > :first-child {
   margin-top: 0;
 }
 
-.footer-text > *:last-child {
-  margin-bottom: var(--space-2);
+.footer-text > :last-child,
+.footer-contact > :last-child {
+  margin-bottom: 0;
 }
 
-.footer-text p {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 68ch;
+.footer-contact {
+  font-style: normal;
 }
 
+.site-footer a {
+  color: var(--footer-link);
+}
+
+.footer-links ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-links a {
+  display: inline-block;
+  padding: var(--space-1) 0;
+}
+
+.footer-licence,
 .powered-by {
-  color: var(--color-muted);
+  margin: 0;
+}
+
+.licence-badge {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  display: inline-flex;
+  font-weight: 600;
+  gap: var(--space-1);
+  padding: 0.1em 0.6em 0.1em 0.2em;
+  text-decoration: none;
+}
+
+.licence-mark {
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  display: inline-grid;
+  font-size: 0.75em;
+  font-weight: 700;
+  height: 1.6em;
+  letter-spacing: -0.05em;
+  place-items: center;
+  width: 1.6em;
+}
+
+.footer-columns .footer-inner,
+.footer-split .footer-inner {
+  column-gap: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  row-gap: var(--space-3);
+}
+
+.footer-columns .footer-site,
+.footer-split .footer-site {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.footer-columns .footer-links,
+.footer-columns .footer-contact,
+.footer-split .footer-links,
+.footer-split .footer-contact {
+  grid-column: 2;
+}
+
+.footer-columns .footer-licence,
+.footer-columns .powered-by,
+.footer-split .footer-licence,
+.footer-split .powered-by {
+  grid-column: 1 / -1;
+}
+
+.footer-columns .powered-by {
+  border-top: 1px solid color-mix(in srgb, var(--footer-text) 20%, var(--footer-background));
+  padding-top: var(--space-3);
+}
+
+.footer-split .footer-inner {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.footer-split .footer-title {
+  font-size: clamp(2rem, 5vw, calc(var(--font-size-h1) * 1.25));
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: var(--space-3);
+}
+
+.footer-split .footer-links ul {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.footer-inline .footer-inner {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-3);
+}
+
+.footer-inline .footer-site {
+  align-items: baseline;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.footer-inline .footer-title {
+  font-size: var(--font-size-base);
+  margin: 0;
+}
+
+.footer-inline .footer-texts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.footer-inline .footer-text > * {
+  margin: 0;
+}
+
+.footer-inline .footer-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+@media (max-width: 47.99rem) {
+  .footer-columns .footer-inner,
+  .footer-split .footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-columns .footer-inner > *,
+  .footer-split .footer-inner > * {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }
 
 /* A comfortable reading measure for prose; grids and cards use the full
@@ -882,53 +1138,23 @@ footer {
   min-width: 0;
 }
 
-/* Resource lists: a responsive card grid. Every browse view and every preview
-   block renders through these rules. The thumbnail runs to the card's edges and
-   the whole card answers the pointer, though only its link takes a click. */
+/* Resource lists. Every browse view and every preview block renders through
+   these rules. A card is a thumbnail slot (the image, or a tinted surface with
+   the kind's icon and type), the name, and up to three details: type, creator
+   and date. The card style token decides the structure: `cards-caption` puts
+   the text under a 4:3 thumbnail, `cards-overlay` lays it over square tiles,
+   `cards-row` gives each resource one row. On a phone the two grid styles keep
+   two cards per row. */
 
 .resource-list {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   list-style: none;
   margin: var(--space-4) 0;
   padding: 0;
   width: 100%;
 }
 
-.resource-list .item.resource,
-.resource-list .item-set.resource,
-.resource-list .media.resource,
-.resource-list .page.resource {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  /* The card stretches to its grid track. A `width` here would resolve against
-     the track and then add the padding and border on top, so the card would
-     overhang the track and the last column would pass the content edge. */
-  padding: 0 0 var(--space-3);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-}
-
-.resource-list .resource:hover,
-.resource-list .resource:focus-within {
-  border-color: var(--color-brand);
-  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color-text) 45%, transparent);
-  transform: translateY(-2px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .resource-list .resource:hover,
-  .resource-list .resource:focus-within {
-    transform: none;
-  }
-}
-
-.resource-list .page.resource {
-  padding: var(--space-3);
+.resource-list .resource {
+  min-width: 0;
 }
 
 .resource-list .page.resource h4 {
@@ -941,29 +1167,93 @@ footer {
 }
 
 .resource-list .resource-link {
+  color: var(--color-text);
   display: block;
 }
 
-.resource-list .resource-link img {
-  aspect-ratio: 4 / 3;
-  background: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
+.resource-thumb {
+  background: var(--color-surface);
   display: block;
+  overflow: hidden;
+  position: relative;
+}
+
+.resource-thumb img {
+  display: block;
+  height: 100%;
   object-fit: cover;
   width: 100%;
 }
 
-.resource-list .resource-name {
+/* A wall of imageless resources cycles through four tints, so it reads as a
+   catalogue rather than one placeholder repeated. */
+.resource-thumb-empty {
+  align-items: center;
+  background-color: var(--color-surface);
+  background-image: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--color-background) 45%, transparent), transparent 60%);
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  justify-content: center;
+  text-align: center;
+}
+
+.resource-list .resource:nth-child(4n + 2) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-accent));
+}
+
+.resource-list .resource:nth-child(4n + 3) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-link));
+}
+
+.resource-list .resource:nth-child(4n + 4) .resource-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 94%, var(--color-text));
+}
+
+.kind-icon {
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+.resource-kind {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  padding-inline: var(--space-2);
+  text-transform: uppercase;
+}
+
+.resource-text,
+.resource-list .resource-name,
+.resource-meta {
   display: block;
+}
+
+.resource-list .resource-name {
   font-family: var(--font-heading);
-  font-size: var(--font-size-lg);
   font-weight: 600;
   line-height: 1.25;
-  margin: var(--space-3) var(--space-3) 0;
+}
+
+.resource-list .resource-name-fallback {
+  font-family: var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.resource-meta {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+}
+
+.resource-meta > span + span::before {
+  content: " · ";
 }
 
 .resource-list .resource-link:hover .resource-name,
-.resource-list .resource-link:focus .resource-name {
+.resource-list .resource-link:focus-visible .resource-name {
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
@@ -986,20 +1276,261 @@ footer {
   -webkit-line-clamp: 3;
   display: -webkit-box;
   font-size: var(--font-size-sm);
-  margin: var(--space-1) var(--space-3) 0;
   overflow: hidden;
-}
-
-.resource-placeholder {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  height: auto;
-  width: 100%;
 }
 
 .resource-list .media {
   display: block;
+}
+
+.cards-caption .resource-list {
+  display: grid;
+  gap: var(--space-4) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+}
+
+.cards-caption .resource-list .resource-thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+}
+
+.cards-caption .resource-list .resource-thumb img {
+  transition: transform 0.4s ease;
+}
+
+.cards-caption .resource-list .resource-link:hover .resource-thumb img {
+  transform: scale(1.03);
+}
+
+/* An item set reads as a stack of cards. */
+.cards-caption .resource-list .item-set .resource-thumb {
+  box-shadow: 5px -5px 0 -1px var(--color-background), 5px -5px 0 0 var(--color-border);
+  overflow: visible;
+}
+
+.cards-caption .resource-list .resource-text {
+  padding-top: var(--space-2);
+}
+
+.cards-caption .resource-list .resource-name {
+  font-size: var(--font-size-lg);
+}
+
+/* An identifier standing in for a title is one long word; at the body's
+   small size it fits a card's width instead of breaking mid-code. */
+.cards-caption .resource-list .resource-name-fallback {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.01em;
+}
+
+.cards-caption .resource-list .resource-meta-creator,
+.cards-overlay .resource-list .resource-meta-creator {
+  display: none;
+}
+
+.cards-overlay .resource-list {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+}
+
+.cards-overlay .resource-list .resource-link {
+  aspect-ratio: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.cards-overlay .resource-list .resource-thumb {
+  inset: 0;
+  position: absolute;
+}
+
+.cards-overlay .resource-list .resource-thumb-empty {
+  padding-bottom: 3.5rem;
+}
+
+.cards-overlay .resource-list .resource-thumb img {
+  transition: transform 0.5s ease;
+}
+
+.cards-overlay .resource-list .resource-link:hover .resource-thumb img {
+  transform: scale(1.04);
+}
+
+.cards-overlay .resource-list .resource-text {
+  bottom: 0;
+  left: 0;
+  padding: 2.5rem var(--space-3) var(--space-2);
+  position: absolute;
+  right: 0;
+}
+
+/* Over a photograph the caption sits on a dark scrim in every scheme, so its
+   colours are fixed keywords: no token describes a photograph. */
+.cards-overlay .resource-list .has-thumb .resource-text {
+  background: linear-gradient(to top, color-mix(in srgb, black 85%, transparent), color-mix(in srgb, black 55%, transparent) 55%, transparent);
+  color: white;
+}
+
+.cards-overlay .resource-list .has-thumb .resource-meta {
+  color: white;
+}
+
+.cards-overlay .resource-list .resource-name,
+.cards-overlay .resource-list .resource-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cards-overlay .resource-list .description {
+  display: none;
+}
+
+.cards-overlay .resource-list .resource-link:focus-visible {
+  outline-offset: -3px;
+}
+
+.cards-row .resource-list {
+  border-top: 1px solid var(--color-border);
+}
+
+.cards-row .resource-list .resource {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cards-row .resource-list .resource-link {
+  align-items: center;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+}
+
+.cards-row .resource-list .resource-link:hover {
+  background: var(--color-surface);
+}
+
+.cards-row .resource-list .resource-thumb {
+  border-radius: var(--radius-sm);
+  height: 3.5rem;
+  width: 3.5rem;
+}
+
+.cards-row .resource-list .resource-thumb-empty .kind-icon {
+  height: 1.5rem;
+  width: 1.5rem;
+}
+
+.cards-row .resource-list .resource-kind {
+  display: none;
+}
+
+.cards-row .resource-list .resource-text {
+  align-items: baseline;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2.6fr);
+}
+
+.cards-row .resource-list .resource-name {
+  color: var(--color-link);
+  font-family: var(--font-body);
+}
+
+.cards-row .resource-list .resource-name-fallback {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-sm);
+}
+
+.cards-row .resource-list .resource-meta {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 5rem;
+  margin: 0;
+}
+
+.cards-row .resource-list .resource-meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cards-row .resource-list .resource-meta > span + span::before {
+  content: none;
+}
+
+.cards-row .resource-list .resource-meta-date {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cards-row .resource-list .description {
+  -webkit-line-clamp: 1;
+  margin: 0 0 var(--space-2) calc(3.5rem + var(--space-3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cards-caption .resource-list .resource-link:hover .resource-thumb img,
+  .cards-overlay .resource-list .resource-link:hover .resource-thumb img {
+    transform: none;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .cards-caption .resource-list,
+  .cards-overlay .resource-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cards-caption .resource-list {
+    gap: var(--space-4) var(--space-2);
+  }
+
+  .cards-caption .resource-list .resource-name {
+    font-size: var(--font-size-base);
+  }
+
+  .kind-icon {
+    height: 1.75rem;
+    width: 1.75rem;
+  }
+
+  .resource-kind {
+    font-size: 0.6875rem;
+  }
+
+  .cards-overlay .resource-list .resource-text {
+    padding: 2rem var(--space-2) var(--space-2);
+  }
+
+  .cards-overlay .resource-list .resource-meta-type {
+    display: none;
+  }
+
+  .cards-row .resource-list .resource-text {
+    gap: 0.125rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cards-row .resource-list .resource-meta {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cards-row .resource-list .resource-meta > span {
+    display: inline;
+  }
+
+  .cards-row .resource-list .resource-meta > span + span::before {
+    content: " · ";
+  }
+
+  .cards-row .resource-list .resource-meta-creator {
+    display: none;
+  }
 }
 
 .browse-controls {
@@ -1013,8 +1544,10 @@ footer {
   padding-bottom: var(--space-3);
 }
 
-.browse-controls .pagination > ul {
-  margin: 0;
+/* Upstream prints the pager above the list and below it; one pager is
+   enough, so the top copy stays hidden. */
+.browse-controls .pagination {
+  display: none;
 }
 
 .advanced-search {
@@ -1023,52 +1556,84 @@ footer {
   white-space: nowrap;
 }
 
+/* The pager: Previous, a window of page numbers, Next, and a count. */
+.pagination {
+  margin: var(--space-5) 0 0;
+}
+
 .pagination > ul {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
   list-style: none;
-  margin: var(--space-3) 0;
+  margin: 0;
   padding: 0;
 }
 
-.pagination a,
-.pagination .active {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.pagination li > a,
+.pagination li > span,
+.pagination .active,
+.pager-gap {
+  align-items: center;
   border-radius: var(--radius-sm);
-  display: inline-block;
-  min-width: 2.25rem;
-  padding: var(--space-1) var(--space-2);
-  text-align: center;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0 var(--space-2);
+}
+
+.pagination li > a {
+  border: 1px solid var(--color-border);
   text-decoration: none;
 }
 
-.pagination a:hover,
-.pagination a:focus {
+.pagination li > a:hover,
+.pagination li > a:focus {
   border-color: var(--color-brand);
 }
 
 .pagination .active {
-  border-color: var(--color-brand);
-  box-shadow: inset 0 -3px 0 var(--color-brand);
-  color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-background);
   font-weight: 600;
+}
+
+.pagination [aria-disabled] > span,
+.pager-gap {
+  color: var(--color-muted);
+}
+
+.pager-prev,
+.pager-next {
+  font-weight: 600;
+}
+
+.pager-count {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: var(--space-2) 0 0;
 }
 
 /* Values, as the item and media views print them: a definition list that
    stacks on narrow screens and runs in two columns above the breakpoint. The
-   term is a small muted label, so the values carry the weight. */
+   term is a small muted label, so the values carry the weight. The item sets,
+   media list, resource class and site pages blocks print the same list. */
 
 .values,
 .item-sets,
-.media-list {
+.media-list,
+.resource-class,
+.site-pages {
   margin: 0 0 var(--space-4);
 }
 
 .values .property,
 .item-sets .property,
-.media-list .property {
+.media-list .property,
+.resource-class .property,
+.site-pages .property {
   border-top: 1px solid var(--color-border);
   display: grid;
   gap: var(--space-1) var(--space-3);
@@ -1078,13 +1643,17 @@ footer {
 
 .values .property:last-child,
 .item-sets .property:last-child,
-.media-list .property:last-child {
+.media-list .property:last-child,
+.resource-class .property:last-child,
+.site-pages .property:last-child {
   border-bottom: 1px solid var(--color-border);
 }
 
 .values .property dt,
 .item-sets .property dt,
-.media-list .property dt {
+.media-list .property dt,
+.resource-class .property dt,
+.site-pages .property dt {
   color: var(--color-muted);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -1096,7 +1665,9 @@ footer {
 
 .values .property .value,
 .item-sets .property .value,
-.media-list .property .value {
+.media-list .property .value,
+.resource-class .property .value,
+.site-pages .property .value {
   grid-column: 2;
   margin: 0;
 }
@@ -1127,56 +1698,72 @@ footer {
 @media (max-width: 39.99rem) {
   .values .property,
   .item-sets .property,
-  .media-list .property {
+  .media-list .property,
+  .resource-class .property,
+  .site-pages .property {
     display: block;
   }
 
   .values .property dt,
   .item-sets .property dt,
-  .media-list .property dt {
+  .media-list .property dt,
+  .resource-class .property dt,
+  .site-pages .property dt {
     margin-bottom: var(--space-1);
   }
 }
 
-/* An item with media lays its files beside its values on a wide screen: the
-   gallery holds the left column while the values and everything after them
-   run down the right. */
+/* The item page's layout token. `item-side` lays the media beside the values
+   on a wide screen: the media holds the left column while the values and
+   everything after them run down the right. `item-stacked` shows the media
+   first, wide, on a stage of the surface colour, with the record below. */
 @media (min-width: 60rem) {
-  .item.resource #content:has(> .media-embeds) {
+  .item-side .item.resource #content:has(> .media-embeds) {
     align-items: start;
     column-gap: var(--space-5);
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+    grid-template-columns: minmax(0, 5fr) minmax(18rem, 7fr);
   }
 
-  .item.resource #content:has(> .media-embeds) > * {
+  .item-side .item.resource #content:has(> .media-embeds) > * {
     grid-column: 1 / -1;
   }
 
-  .item.resource #content > .media-embeds {
+  .item-side .item.resource #content > .media-embeds {
     grid-column: 1;
     grid-row: 3 / span 12;
     position: sticky;
     top: var(--space-4);
   }
 
-  .item.resource #content > .media-embeds ~ * {
+  .item-side .item.resource #content > .media-embeds ~ * {
     grid-column: 2;
   }
 
   /* The side column is narrow under every content width, so each label sits
      over its value. */
-  .item.resource #content > .media-embeds ~ dl .property {
+  .item-side .item.resource #content > .media-embeds ~ dl .property {
     display: block;
   }
 
-  .item.resource #content > .media-embeds ~ dl .property dt {
+  .item-side .item.resource #content > .media-embeds ~ dl .property dt {
     margin-bottom: var(--space-1);
   }
 }
 
-/* The media a resource shows: a gallery of the item's media, one feature when
-   there is a single file. */
+.item-stacked .item.resource .media-embeds {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: clamp(var(--space-3), 4vw, var(--space-5));
+}
+
+.item-stacked .item.resource .media-embeds.media-empty {
+  padding: 0;
+}
+
+/* The media a resource shows: a gallery of the item's media. A single file
+   shows whole, never cropped. An item with no media shows a panel that says
+   so. */
 
 .media-embeds {
   display: grid;
@@ -1198,12 +1785,47 @@ footer {
 }
 
 .media-embeds > :only-child img {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: auto;
+  margin: 0 auto;
+  max-height: 70vh;
+  object-fit: contain;
+  width: auto;
 }
 
 .media-embeds video,
 .media-embeds iframe {
   border-radius: var(--radius);
+  width: 100%;
+}
+
+.media-empty {
+  display: block;
+}
+
+.media-empty .resource-thumb-empty {
+  aspect-ratio: 21 / 9;
+  border-radius: var(--radius);
+  width: 100%;
+}
+
+.item-side .media-empty .resource-thumb-empty {
+  aspect-ratio: 4 / 3;
+}
+
+/* The lightbox gallery block: the item's images as a wrapping grid of square
+   thumbnails, each linked to its full file. */
+.lightbox-gallery {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  margin: 0 0 var(--space-4);
+}
+
+.lightbox-gallery img {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  display: block;
+  object-fit: cover;
   width: 100%;
 }
 
@@ -1247,10 +1869,6 @@ footer {
   .media-page > .values {
     grid-column: 2;
   }
-}
-
-.site-pages {
-  margin: 0 0 var(--space-4);
 }
 
 #linked-resources table {
@@ -1430,7 +2048,7 @@ footer {
 }
 
 .resource-list.preview {
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  margin-bottom: var(--space-3);
 }
 
 /* Table of contents */
@@ -1709,27 +2327,50 @@ footer {
   color: var(--color-text);
 }
 
-/* With no photograph the banner is a field of the brand colour, the strongest
-   statement of the site's identity, and the overlay has nothing to dim. */
+/* With no photograph the hero is type only in every style: a kicker rule in
+   the accent, a display line and the subheading, on the page itself, so a
+   site with no images still opens with a voice of its own. */
 .romeka-hero-no-image {
-  background: var(--color-brand);
-  color: var(--color-on-brand);
+  background: transparent;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  color: var(--color-text);
+  min-height: 0;
 }
 
 .romeka-hero-no-image .romeka-hero-overlay {
   display: none;
 }
 
-.romeka-hero-no-image .romeka-hero-cta,
-.romeka-hero-no-image .romeka-hero-cta:hover,
-.romeka-hero-no-image .romeka-hero-cta:focus {
-  background: var(--color-on-brand);
-  color: var(--color-brand);
+.romeka-hero-no-image .romeka-hero-content {
+  max-width: none;
+  padding: clamp(var(--space-4), 6vw, var(--space-5)) 0 var(--space-4);
 }
 
-.romeka-hero-no-image .romeka-hero-cta:hover,
-.romeka-hero-no-image .romeka-hero-cta:focus {
-  box-shadow: 0 0 0 2px var(--color-brand), 0 0 0 4px var(--color-on-brand);
+.romeka-hero-no-image .romeka-hero-content::before {
+  background: var(--color-accent);
+  content: "";
+  display: block;
+  height: 3px;
+  width: 3rem;
+}
+
+.romeka-hero-no-image .romeka-hero-heading {
+  font-size: clamp(2.5rem, 7vw, calc(var(--font-size-h1) * 1.9));
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  max-width: 16ch;
+}
+
+.romeka-hero-no-image .romeka-hero-subheading {
+  color: var(--color-muted);
+  max-width: 34rem;
+}
+
+.romeka-hero-no-image .romeka-hero-cta {
+  background: var(--button-background);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
 }
 
 /* Over a photograph the copy sits on a dark scrim in every colour scheme, so
@@ -1832,4 +2473,137 @@ footer {
 .romeka-hero-cta:focus {
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+/* The hero style token, for a hero with a photograph. `hero-cover` runs the
+   photograph across the screen with the text on a scrim at its foot;
+   `hero-split` sets the text in a panel beside it; `hero-framed` shows the
+   whole photograph, never cropped, on a lit band, with the text below. */
+body {
+  overflow-x: clip;
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background),
+.hero-framed .romeka-hero:has(.romeka-hero-background) {
+  border-radius: 0;
+  margin-inline: calc(50% - 50vw);
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) {
+  align-items: flex-end;
+  min-height: min(72vh, 44rem);
+}
+
+.hero-cover .romeka-hero-overlay {
+  background: linear-gradient(to top, black 0%, color-mix(in srgb, black 60%, transparent) 40%, transparent 75%);
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-5) var(--space-3);
+  width: 100%;
+}
+
+.hero-cover .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+  font-size: clamp(2.5rem, 6vw, calc(var(--font-size-h1) * 1.7));
+  line-height: 1.02;
+  max-width: 14ch;
+}
+
+.hero-split .romeka-hero:has(.romeka-hero-background) {
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.hero-split .romeka-hero-background,
+.hero-framed .romeka-hero-background {
+  position: static;
+}
+
+.hero-split .romeka-hero-background {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 18rem;
+}
+
+.hero-split .romeka-hero-overlay,
+.hero-framed .romeka-hero-overlay {
+  display: none;
+}
+
+.hero-split .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  align-self: center;
+  grid-column: 1;
+  grid-row: 1;
+  padding: var(--space-4);
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) {
+  background: transparent;
+  color: var(--color-text);
+  display: grid;
+}
+
+.hero-framed .romeka-hero-background {
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--color-surface) 75%, var(--color-text)) 0%, var(--color-surface) 70%);
+  height: min(70vh, 40rem);
+  object-fit: contain;
+  padding: clamp(1rem, 4vw, 3rem);
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+  margin: 0 auto;
+  max-width: calc(var(--content-width) + 2 * var(--space-3));
+  padding: var(--space-4) var(--space-3) 0;
+  text-align: left;
+  width: 100%;
+}
+
+.hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+  font-size: clamp(2.5rem, 6vw, calc(var(--font-size-h1) * 1.7));
+  letter-spacing: -0.035em;
+}
+
+/* Above the phone breakpoint the framed hero's title takes the left column
+   and the rest of its text the right. */
+@media (min-width: 48rem) {
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+    align-items: end;
+    column-gap: var(--space-4);
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-content > :not(.romeka-hero-heading) {
+    grid-column: 2;
+  }
+
+  .hero-framed .romeka-hero:has(.romeka-hero-background) .romeka-hero-heading {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .hero-split .romeka-hero:has(.romeka-hero-background) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-split .romeka-hero-background {
+    aspect-ratio: 3 / 2;
+    grid-column: 1;
+    min-height: 0;
+  }
+
+  .hero-split .romeka-hero:has(.romeka-hero-background) .romeka-hero-content {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .hero-framed .romeka-hero-background {
+    aspect-ratio: 4 / 3;
+    height: auto;
+  }
 }

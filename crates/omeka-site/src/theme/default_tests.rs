@@ -1,6 +1,7 @@
 use super::*;
 use crate::blocks::test_support::{TestResources, context, item, literal_value, site};
 use crate::view::ResourceRef;
+use omeka_core::resource::ResourceKind;
 
 /// The layout writes the document frame from `view/layout/layout.phtml`:
 /// doctype, head, the installation title, the asset base, and the footer.
@@ -11,7 +12,10 @@ fn layout_matches_upstream_layout() {
     let ctx = context(&site, &resources);
     let document = DefaultTheme.render(&View::Index, &ctx);
     assert!(
-        document.starts_with("<!DOCTYPE html>\n<html lang=\"en\">"),
+        document.starts_with(
+            "<!DOCTYPE html>\n<html lang=\"en\" class=\"hero-split cards-row search-open \
+             footer-inline item-side\">"
+        ),
         "{document}"
     );
     assert!(document.contains("<title>Romeka S</title>"), "{document}");
@@ -25,7 +29,7 @@ fn layout_matches_upstream_layout() {
         "{document}"
     );
     assert!(
-        document.contains("<span class=\"powered-by\">Powered by Romeka S</span>"),
+        document.contains("<p class=\"powered-by\">Powered by Romeka S</p>"),
         "{document}"
     );
 }
@@ -140,7 +144,11 @@ fn item_view_matches_upstream_item_show() {
         "{document}"
     );
     assert!(
-        document.contains("<h2>An item</h2><h3>Item</h3>"),
+        document.contains(
+            "<nav class=\"breadcrumbs\"><a href=\"/s/main/item\">Items</a> / <span>An item</span></nav>\
+             <div class=\"resource-header\"><p class=\"resource-kind-label\">Item</p>\
+             <h2 class=\"resource-title\">An item</h2></div>"
+        ),
         "{document}"
     );
     assert!(
@@ -297,7 +305,7 @@ fn browse_view_matches_upstream_browse() {
         "{document}"
     );
     assert!(
-        document.contains("<li class=\"item resource\">"),
+        document.contains("<li class=\"item resource no-thumb\">"),
         "{document}"
     );
     assert!(
@@ -383,7 +391,7 @@ fn layout_and_labels_render_in_the_site_locale() {
 
     let document = DefaultTheme.render(&View::Index, &ctx);
     assert!(
-        document.starts_with("<!DOCTYPE html>\n<html lang=\"es\">"),
+        document.starts_with("<!DOCTYPE html>\n<html lang=\"es\" class=\""),
         "{document}"
     );
     assert!(document.contains("<title>Romeka S</title>"), "{document}");
@@ -392,14 +400,16 @@ fn layout_and_labels_render_in_the_site_locale() {
         "{document}"
     );
     assert!(
-        document.contains("<span class=\"powered-by\">Funciona con Romeka S</span>"),
+        document.contains("<p class=\"powered-by\">Funciona con Romeka S</p>"),
         "{document}"
     );
 
     let item = item(4, "An item", "/s/main/item/4");
     let document = DefaultTheme.render(&View::Item(&item), &ctx);
     assert!(
-        document.contains("<h2>An item</h2><h3>Ficha</h3>"),
+        document.contains(
+            "<p class=\"resource-kind-label\">Ficha</p><h2 class=\"resource-title\">An item</h2>"
+        ),
         "{document}"
     );
 }
@@ -457,7 +467,8 @@ fn layout_emits_the_theme_tokens_as_custom_properties() {
     }));
     let document = DefaultTheme.render(&View::Index, &ctx);
 
-    assert!(document.contains("<style>\n:root {"), "{document}");
+    let style = &document[document.find("<style>").expect("the token style")..];
+    assert!(style.contains("\n:root {"), "{document}");
     assert!(document.contains("--color-brand: #cc3300;"), "{document}");
     assert!(
         document
@@ -553,19 +564,31 @@ fn layout_purifies_the_footer_text() {
     );
 }
 
-/// A resource with no thumbnail shows the theme's placeholder image, the way
-/// upstream's thumbnail helper falls back to `default.png`.
+/// The poor-data card: an untitled item with no image shows its identifier
+/// without the file extension, a tinted surface with the kind icon and its
+/// type, and its type, creator and date as details. An untitled item's page
+/// says no title was recorded and shows a panel where its media would be.
 #[test]
-fn browse_renders_the_placeholder_for_a_resource_without_a_thumbnail() {
+fn an_untitled_imageless_item_still_reads_as_a_record() {
     let site = site();
     let resources = TestResources::default();
     let ctx = context(&site, &resources);
-    let mut without = item(4, "An item", "/s/main/item/4");
-    without.thumbnail = None;
+    let mut bare = item(4, "[Untitled]", "/s/main/item/4");
+    bare.thumbnail = None;
+    for (term, value) in [
+        ("dcterms:identifier", "BHC006_GMT_PN_215.png"),
+        ("dcterms:type", "Photo Narrative"),
+        ("dcterms:creator", "Citizen Curators"),
+        ("dcterms:date", "2018"),
+    ] {
+        let mut entry = literal_value(1, "Label", value);
+        entry.property_term = term.to_string();
+        bare.values.push(entry);
+    }
     let browse = BrowseView {
         kind: ResourceKind::Item,
         title: "Items".to_string(),
-        resources: vec![without],
+        resources: vec![bare.clone()],
         total: 1,
         query: Vec::new(),
         page: 1,
@@ -574,10 +597,136 @@ fn browse_renders_the_placeholder_for_a_resource_without_a_thumbnail() {
     let document = DefaultTheme.render(&View::Browse(&browse), &ctx);
     assert!(
         document.contains(
-            "<img src=\"/assets/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">"
+            "<li class=\"item resource no-thumb\"><a href=\"/s/main/item/4\" class=\"resource-link\">\
+             <span class=\"resource-thumb resource-thumb-empty\" data-kind=\"item\"><svg class=\"kind-icon\""
         ),
         "{document}"
     );
+    assert!(
+        document.contains(
+            "<span class=\"resource-kind\">Photo Narrative</span></span>\
+             <span class=\"resource-text\"><span class=\"resource-name resource-name-fallback\">BHC006_<wbr>GMT_<wbr>PN_<wbr>215</span>\
+             <span class=\"resource-meta\"><span class=\"resource-meta-type\">Photo Narrative</span>\
+             <span class=\"resource-meta-creator\">Citizen Curators</span>\
+             <span class=\"resource-meta-date\">2018</span></span></span></a></li>"
+        ),
+        "{document}"
+    );
+    assert!(!document.contains("[Untitled]</span>"), "{document}");
+
+    let page = DefaultTheme.render(&View::Item(&bare), &ctx);
+    assert!(
+        page.contains(
+            "<div class=\"resource-header\"><p class=\"resource-kind-label\">Item · Photo Narrative</p>\
+             <h2 class=\"resource-title resource-name-fallback\">BHC006_<wbr>GMT_<wbr>PN_<wbr>215</h2>\
+             <p class=\"resource-untitled-note\">No title recorded</p></div>"
+        ),
+        "{page}"
+    );
+    assert!(
+        page.contains(
+            "<div class=\"media-embeds media-empty\"><span class=\"resource-thumb resource-thumb-empty\" data-kind=\"item\">"
+        ),
+        "{page}"
+    );
+    assert!(
+        page.contains("<span class=\"resource-kind\">No media attached</span>"),
+        "{page}"
+    );
+}
+
+/// A preset's webfonts load from the theme's own assets: the frame preloads
+/// the Latin files and declares each face with `font-display: swap`. A site
+/// on system faces loads no font.
+#[test]
+fn the_frame_loads_only_the_fonts_the_site_uses() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings =
+        crate::theme::ThemeSettings::from_value(&serde_json::json!({"preset": "exhibit"}));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(
+        document
+            .contains("<link rel=\"preload\" href=\"/assets/fonts/fraunces-latin-opsz.woff2?v="),
+        "{document}"
+    );
+    assert_eq!(document.matches("rel=\"preload\"").count(), 2, "{document}");
+    assert!(
+        document.contains("@font-face { font-family: \"Noto Sans Devanagari\""),
+        "{document}"
+    );
+    assert!(!document.contains("\"Inter\""), "{document}");
+
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "preset": "exhibit",
+        "heading_font": "system-serif",
+        "body_font": "system-sans",
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(!document.contains("@font-face"), "{document}");
+    assert!(!document.contains("rel=\"preload\""), "{document}");
+}
+
+/// The footer: structured columns, links, contact, licence and the credit
+/// switch. A map from before the footer had structure shows its footer text
+/// as the first column, and with no links set the footer repeats the menu.
+#[test]
+fn the_footer_renders_its_structured_settings() {
+    let site = site();
+    let resources = TestResources::default();
+    let mut ctx = context(&site, &resources);
+    ctx.nav = crate::nav::resolve(&[], &site.slug, &[], ctx.translator().messages());
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "footer_text": "<p>Old footer</p><script>x()</script>",
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(
+        document.contains(
+            "<footer class=\"site-footer\">\n<div class=\"footer-inner\">\n<div class=\"footer-site\">\
+             <p class=\"footer-title\">Main Site</p><div class=\"footer-texts\">\
+             <div class=\"footer-text\"><p>Old footer</p></div></div></div>"
+        ),
+        "{document}"
+    );
+    assert!(
+        document.contains("<nav class=\"footer-links\" aria-label=\"Footer links\"><ul><li><a href=\"/s/main\">Home</a></li></ul></nav>"),
+        "{document}"
+    );
+    assert!(document.contains("Powered by Romeka S"), "{document}");
+
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "footer_text": "<p>Old footer</p>",
+        "footer_columns": ["<p>One</p>", " ", "<p>Two</p>", "<p>Three</p>", "<p>Four</p>"],
+        "footer_links": [{"type": "url", "data": {"label": "Contact us", "url": "https://example.org/contact"}}],
+        "footer_contact": "<p>1 Museum Road</p>",
+        "footer_licence": "cc-by-sa",
+        "show_powered_by": false,
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(!document.contains("Old footer"), "{document}");
+    assert!(document.contains("<p>Three</p>"), "{document}");
+    assert!(!document.contains("<p>Four</p>"), "{document}");
+    assert!(
+        document.contains("<li><a href=\"https://example.org/contact\">Contact us</a></li>"),
+        "{document}"
+    );
+    assert!(
+        !document.contains(">Home</a></li></ul></nav>\n<address"),
+        "{document}"
+    );
+    assert!(
+        document.contains("<address class=\"footer-contact\"><p>1 Museum Road</p></address>"),
+        "{document}"
+    );
+    assert!(
+        document.contains(
+            "<a rel=\"license\" class=\"licence-badge\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">\
+             <span class=\"licence-mark\" aria-hidden=\"true\">cc</span>CC BY-SA 4.0</a>"
+        ),
+        "{document}"
+    );
+    assert!(!document.contains("Powered by Romeka S"), "{document}");
 }
 
 /// A site's own CSS renders in its own `<style>` after the theme sheet, so its

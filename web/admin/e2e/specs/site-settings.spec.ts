@@ -100,7 +100,8 @@ test('a setting in each group changes the public site', async ({ page, diagnosti
   await page.goto(`/s/${SLUG}/item`);
   await expect(page.getByRole('link', { name: 'Settings item two' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Settings item one' })).toHaveCount(0);
-  await expect(page.locator(`a[href="/s/${SLUG}/item?page=2"]`).first()).toBeVisible();
+  // The pager above the list is hidden; the one below it is the one a reader uses.
+  await expect(page.locator(`a[href="/s/${SLUG}/item?page=2"]`).last()).toBeVisible();
   // Search: the form sends the visitor to the cross-site search.
   await expect(page.locator('form[action*="cross-site"]').first()).toBeAttached();
   // Language: the page renders in Spanish.

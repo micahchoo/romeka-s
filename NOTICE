@@ -26,3 +26,9 @@ fork point, from the RDF files of the four vocabularies upstream installs:
 
 Each vocabulary keeps the license of its own project. The extracted file holds the terms, their
 labels and their comments, and nothing else.
+
+The bundled public theme serves webfonts from `crates/omeka-site/src/theme/fonts/`: Fraunces,
+Source Sans 3, IBM Plex Sans, IBM Plex Mono, Inter, and Noto Sans and Noto Serif for Devanagari,
+Tamil, Telugu, Kannada and Malayalam. They are the WOFF2 subsets Fontsource 5.3 publishes,
+unmodified. Each is licensed under the SIL Open Font License, Version 1.1; the copyright lines and
+the license text are in `crates/omeka-site/src/theme/fonts/OFL.txt`.

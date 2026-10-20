@@ -33,15 +33,19 @@
 //! A second theme implements [`Theme`] and adds itself to [`THEMES`]. Nothing
 //! else in the crate names [`DefaultTheme`].
 
+pub mod cards;
 pub mod choices;
 pub mod color;
 pub mod custom_css;
 pub mod default;
+pub mod fonts;
+pub mod footer;
 pub mod palette;
 pub mod presets;
 pub mod search;
 pub mod style;
 pub mod tokens;
+pub mod tokens_samples;
 pub mod tokens_schema;
 mod user_bar;
 
@@ -79,6 +83,9 @@ pub enum AssetKind {
     /// An image a view references by URL, served as `image/svg+xml`. The frame
     /// does not link it; a view does.
     Image,
+    /// A WOFF2 webfont, served as `font/woff2`. The token sheet names it in an
+    /// `@font-face`, and the frame preloads the ones the site's fonts use.
+    Font,
 }
 
 impl AssetKind {
@@ -89,6 +96,7 @@ impl AssetKind {
             Self::Stylesheet => "text/css",
             Self::Script => "application/javascript",
             Self::Image => "image/svg+xml",
+            Self::Font => "font/woff2",
         }
     }
 
@@ -104,17 +112,15 @@ impl AssetKind {
         match self {
             Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
-            Self::Image => String::new(),
+            Self::Image | Self::Font => String::new(),
         }
     }
 }
 
 /// One file a theme ships, with its bytes.
 ///
-/// The bytes live here, as `&'static str`, so a caller can serve
-/// `/assets/<path>` straight from the registry and the document frame can link
-/// the same path. A theme stylesheet or script is UTF-8 text; a binary asset a
-/// later theme adds would need a byte variant.
+/// The bytes live here, compiled in, so a caller can serve `/assets/<path>`
+/// straight from the registry and the document frame can link the same path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ThemeAsset {
     /// The path under the theme's asset base, e.g. `css/style.css`.
@@ -122,7 +128,7 @@ pub struct ThemeAsset {
     /// What the asset is.
     pub kind: AssetKind,
     /// The asset's bytes.
-    pub content: &'static str,
+    pub content: &'static [u8],
 }
 
 impl ThemeAsset {
@@ -203,7 +209,7 @@ mod tests {
         assert_eq!(info.label, "Default");
         // The bundled theme declares its design tokens as its own settings.
         assert_eq!(info.settings, tokens::SETTINGS);
-        assert_eq!(info.assets.len(), 2);
+        assert_eq!(info.assets.len(), 2 + fonts::FONT_FILES.len());
     }
 
     /// The bundled theme ships its own stylesheet and the placeholder image a
@@ -213,12 +219,12 @@ mod tests {
         let asset = theme_asset("default", "css/style.css").expect("the stylesheet");
         assert_eq!(asset.kind, AssetKind::Stylesheet);
         assert_eq!(asset.kind.media_type(), "text/css");
-        assert_eq!(asset.content, style::STYLE_CSS);
+        assert_eq!(asset.content, style::STYLE_CSS.as_bytes());
         assert!(!asset.content.is_empty());
         let placeholder = theme_asset("default", "img/placeholder.svg").expect("the placeholder");
         assert_eq!(placeholder.kind, AssetKind::Image);
         assert_eq!(placeholder.kind.media_type(), "image/svg+xml");
-        assert!(placeholder.content.starts_with("<svg"));
+        assert!(placeholder.content.starts_with(b"<svg"));
         assert!(theme_asset("default", "css/missing.css").is_none());
         assert!(theme_asset("other", "css/style.css").is_none());
     }

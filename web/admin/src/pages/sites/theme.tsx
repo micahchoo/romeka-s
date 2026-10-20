@@ -1,7 +1,7 @@
 /**
- * The site Theme page: pick a preset, set a brand colour, fine-tune single
- * tokens, write custom CSS, and watch the site's homepage change beside the
- * controls.
+ * The site Theme page: pick a preset, set a brand colour, write the footer,
+ * fine-tune single tokens, write custom CSS, and watch the site's homepage
+ * change beside the controls.
  *
  * The draft (`themeEditor/draft.ts`) is the stored shape the theme reads. A
  * save PATCHes it as the site's `o:theme_settings`; a preview POSTs it to
@@ -23,7 +23,6 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
-import { HtmlEditor } from './editor/fields/HtmlEditor';
 import { PreviewPanel } from './editor/shell/PreviewPanel';
 import type { PreviewStatus } from './editor/shell/PreviewPanel';
 import { requestPreview } from './editor/preview';
@@ -33,6 +32,7 @@ import { resourcePageBlockDrafts, resourcePageBlocksWire } from './resourcePageB
 import type { ResourcePageBlocksDraft } from './resourcePageBlocksSchema';
 import { BrandPanel, ContrastPanel } from './themeEditor/BrandPanel';
 import { FineTune } from './themeEditor/FineTune';
+import { FooterSection } from './themeEditor/FooterSection';
 import { PresetGallery } from './themeEditor/PresetGallery';
 import {
   applyPreset,
@@ -101,7 +101,7 @@ const cssRefusals = (errors: ApiErrors | null, sourceErrors: ApiErrors | null): 
 
 type Tab = 'design' | 'css';
 
-/** The header and footer content: logo, banner and footer, each with its help line. */
+/** The header content: logo and banner, each with its help line. */
 const ContentSection = ({
   draft,
   onChange,
@@ -116,7 +116,7 @@ const ContentSection = ({
   };
   return (
     <fieldset className="theme-section">
-      <legend>{tt('theme.headerFooter')}</legend>
+      <legend>{tt('theme.header')}</legend>
       <AssetPicker
         id="theme-setting-logo"
         label={tt('themeSetting.logo')}
@@ -147,15 +147,6 @@ const ContentSection = ({
         />
       </p>
       {help('banner_text')}
-      <HtmlEditor
-        id="theme-setting-footer_text"
-        label={tt('themeSetting.footerText')}
-        value={draft.content.footer_text}
-        onChange={(value) => {
-          onChange('footer_text', value);
-        }}
-      />
-      {help('footer_text')}
     </fieldset>
   );
 };
@@ -377,6 +368,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
                 if (key !== undefined) {
                   update((current) => setOverride(current, key, colour));
                 }
+              }}
+            />
+            <FooterSection
+              siteId={siteId}
+              footer={draft.footer}
+              onChange={(footer) => {
+                update((current) => ({ ...current, footer }));
               }}
             />
             <FineTune

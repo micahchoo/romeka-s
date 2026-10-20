@@ -33,7 +33,7 @@ async fn unversioned_stylesheet_answers_200_and_must_revalidate() {
     assert_eq!(header_value(&answer, "cache-control"), Some(REVALIDATE));
     assert!(header_value(&answer, "etag").is_some(), "no validator");
     assert!(!stylesheet().content.is_empty());
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// The URL that names the current bytes is immutable for a year.
@@ -43,7 +43,7 @@ async fn versioned_stylesheet_is_immutable() {
     let answer = send(empty_router().await, get(&uri, false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     assert_eq!(header_value(&answer, "cache-control"), Some(IMMUTABLE));
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// A page cached before a deploy names the old version. It still gets the
@@ -57,7 +57,7 @@ async fn a_stale_version_gets_the_current_sheet_without_immutable() {
     .await;
     assert_eq!(answer.status, StatusCode::OK);
     assert_eq!(header_value(&answer, "cache-control"), Some(REVALIDATE));
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// A client that holds the current bytes revalidates to a 304.
@@ -86,6 +86,26 @@ fn the_version_follows_the_bytes() {
     assert!(version.chars().all(|ch| ch.is_ascii_hexdigit()));
     let placeholder = theme_asset("default", "img/placeholder.svg").expect("the placeholder");
     assert_ne!(placeholder.version(), version);
+}
+
+/// A webfont the theme ships is served as `font/woff2` under its path.
+#[tokio::test]
+async fn a_webfont_is_served_as_woff2() {
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+    let response = empty_router()
+        .await
+        .oneshot(get("/assets/fonts/inter-latin-opsz.woff2", false))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(header::CONTENT_TYPE).unwrap(),
+        "font/woff2"
+    );
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let font = theme_asset("default", "fonts/inter-latin-opsz.woff2").expect("the font");
+    assert_eq!(bytes.as_ref(), font.content);
 }
 
 /// A path no bundled theme ships is a 404 in the error document shape.

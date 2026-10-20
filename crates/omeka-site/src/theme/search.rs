@@ -46,13 +46,14 @@ pub(crate) fn search_form(ctx: &RenderContext<'_>, labels: &SearchLabels) -> Str
     format!(
         "<form action=\"{action}\" id=\"search-form\" role=\"search\" aria-label=\"{search}\">\n\
          <label class=\"visually-hidden\" for=\"fulltext-search\">{query}</label>\n\
-         <input type=\"text\" id=\"fulltext-search\" name=\"fulltext_search\" value=\"{value}\">\n\
+         <input type=\"search\" id=\"fulltext-search\" name=\"fulltext_search\" value=\"{value}\" placeholder=\"{placeholder}\">\n\
          <button id=\"search-submit\" type=\"submit\"><span class=\"o-icon-search\" aria-hidden=\"true\"></span><span class=\"search-submit-label\">{search}</span></button>\n\
          </form>",
         action = escape_html(&action),
         search = escape_html(labels.search),
         value = escape_html(needle),
         query = escape_html(labels.query),
+        placeholder = escape_html(ctx.translator().messages().search_placeholder),
     )
 }
 
@@ -278,6 +279,7 @@ fn list_body(
         list.page,
         list.per_page,
         list.total,
+        ctx.translator().messages(),
     );
     out.push_str("<ul class=\"resource-list\">");
     for hit in &list.hits {
@@ -290,6 +292,7 @@ fn list_body(
         list.page,
         list.per_page,
         list.total,
+        ctx.translator().messages(),
     ));
     out
 }

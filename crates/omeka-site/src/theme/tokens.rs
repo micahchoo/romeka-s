@@ -17,12 +17,14 @@
 use serde_json::{Value, json};
 
 use crate::theme::choices::{
-    ButtonStyle, ColorScheme, ContentWidth, Density, FontStack, HeaderLayout, HeaderStyle,
+    ButtonStyle, CardStyle, ColorScheme, ContentWidth, Density, FontStack, FooterLayout,
+    FooterTone, HeaderLayout, HeaderStyle, HeroStyle, ItemLayout, SearchDisplay,
 };
 use crate::theme::color::HexColor;
 use crate::theme::custom_css::{self, CustomCss};
+use crate::theme::footer::Footer;
 use crate::theme::palette::{Palette, Role, Shade, derive};
-use crate::theme::presets::{NEW_SITE_PRESET, PresetId};
+use crate::theme::presets::{NEW_SITE_PRESET, PresetId, Structure};
 
 /// The bounds the type scale clamps to, per heading level, as multiples of the
 /// base size: `(level, power, min, max)`. A large ratio grows the small
@@ -77,6 +79,18 @@ pub struct Choices {
     pub button_style: Option<ButtonStyle>,
     /// The content width, when set by hand.
     pub content_width: Option<ContentWidth>,
+    /// The hero style, when set by hand.
+    pub hero_style: Option<HeroStyle>,
+    /// The card style, when set by hand.
+    pub card_style: Option<CardStyle>,
+    /// The search display, when set by hand.
+    pub search_display: Option<SearchDisplay>,
+    /// The footer layout, when set by hand.
+    pub footer_layout: Option<FooterLayout>,
+    /// The footer tone, when set by hand.
+    pub footer_tone: Option<FooterTone>,
+    /// The item page layout, when set by hand.
+    pub item_layout: Option<ItemLayout>,
 }
 
 impl Choices {
@@ -85,14 +99,14 @@ impl Choices {
     /// here never fails, so one bad row does not break a page.
     ///
     /// A map with no `preset` was stored before presets existed. It reads as
-    /// the plain preset with derivation off, so it renders the tokens it
-    /// rendered then.
+    /// the preset that replaced plain, with derivation off. A preset id from
+    /// before the current five reads as the preset that replaced it.
     #[must_use]
     pub fn from_value(value: &Value) -> Self {
         let preset = value
             .get("preset")
             .and_then(Value::as_str)
-            .and_then(PresetId::parse);
+            .and_then(PresetId::from_stored);
         let derive = match preset {
             Some(_) => value
                 .get("derive_palette")
@@ -119,6 +133,12 @@ impl Choices {
             header_style: choice("header_style").and_then(HeaderStyle::parse),
             button_style: choice("button_style").and_then(ButtonStyle::parse),
             content_width: choice("content_width").and_then(ContentWidth::parse),
+            hero_style: choice("hero_style").and_then(HeroStyle::parse),
+            card_style: choice("card_style").and_then(CardStyle::parse),
+            search_display: choice("search_display").and_then(SearchDisplay::parse),
+            footer_layout: choice("footer_layout").and_then(FooterLayout::parse),
+            footer_tone: choice("footer_tone").and_then(FooterTone::parse),
+            item_layout: choice("item_layout").and_then(ItemLayout::parse),
         }
     }
 
@@ -132,10 +152,11 @@ impl Choices {
 }
 
 /// The theme settings map a site created through the API starts with: the
-/// new-site preset, its palette derived from its own brand colour.
+/// new-site preset with its own palette, the one its look was drawn with.
+/// Turning derivation on builds the palette from a brand colour instead.
 #[must_use]
 pub fn new_site_settings() -> Value {
-    json!({ "preset": NEW_SITE_PRESET.key(), "derive_palette": true })
+    json!({ "preset": NEW_SITE_PRESET.key(), "derive_palette": false })
 }
 
 /// Every token the sheet reads, resolved.
@@ -169,6 +190,8 @@ pub struct Tokens {
     pub button_style: ButtonStyle,
     /// The widest the content grows.
     pub content_width: ContentWidth,
+    /// The structural layouts.
+    pub structure: Structure,
 }
 
 /// The effective tokens for a site's choices: the preset, then a palette
@@ -219,10 +242,39 @@ pub fn resolve(choices: &Choices) -> Tokens {
         header_style: choices.header_style.unwrap_or(preset.header_style),
         button_style: choices.button_style.unwrap_or(preset.button_style),
         content_width: choices.content_width.unwrap_or(preset.content_width),
+        structure: Structure {
+            hero: choices.hero_style.unwrap_or(preset.structure.hero),
+            cards: choices.card_style.unwrap_or(preset.structure.cards),
+            search: choices.search_display.unwrap_or(preset.structure.search),
+            footer: choices.footer_layout.unwrap_or(preset.structure.footer),
+            footer_tone: choices.footer_tone.unwrap_or(preset.structure.footer_tone),
+            item: choices.item_layout.unwrap_or(preset.structure.item),
+        },
     }
 }
 
 impl Tokens {
+    /// The classes the frame puts on the root element, one per structural
+    /// token, which the stylesheet keys each layout on.
+    #[must_use]
+    pub fn classes(&self) -> String {
+        let structure = &self.structure;
+        [
+            structure.hero.class(),
+            structure.cards.class(),
+            structure.search.class(),
+            structure.footer.class(),
+            structure.item.class(),
+        ]
+        .join(" ")
+    }
+
+    /// The two font stacks, for the faces the frame declares.
+    #[must_use]
+    pub const fn fonts(&self) -> [FontStack; 2] {
+        [self.heading_font, self.body_font]
+    }
+
     /// The palettes the page can show, each with its shade: one for the light
     /// or dark scheme, both for the automatic one.
     #[must_use]
@@ -282,6 +334,7 @@ impl Tokens {
             .properties()
             .iter()
             .chain(self.button_style.properties().iter())
+            .chain(self.structure.footer_tone.properties().iter())
         {
             out.push_str(&format!("  --{name}: {value};\n"));
         }
@@ -320,8 +373,8 @@ pub struct ThemeSettings {
     pub banner: Option<u64>,
     /// The text beside the banner, escaped when it is printed.
     pub banner_text: Option<String>,
-    /// The footer's HTML, purified when it is printed.
-    pub footer_text: Option<String>,
+    /// The footer's content.
+    pub footer: Footer,
     /// The site's own CSS, when it has any that passes the sanitiser.
     pub custom_css: Option<CustomCss>,
 }
@@ -343,7 +396,7 @@ impl ThemeSettings {
             logo: stored_id(value, "logo"),
             banner: stored_id(value, "banner"),
             banner_text: stored_text(value, "banner_text"),
-            footer_text: stored_text(value, "footer_text"),
+            footer: Footer::from_value(value),
             custom_css: stored_text(value, "custom_css")
                 .and_then(|text| custom_css::sanitize(&text).ok()),
         }
@@ -379,7 +432,7 @@ fn stored_id(value: &Value, key: &str) -> Option<u64> {
 }
 
 /// A stored text value, `None` when absent or blank.
-fn stored_text(value: &Value, key: &str) -> Option<String> {
+pub(crate) fn stored_text(value: &Value, key: &str) -> Option<String> {
     let text = value.get(key)?.as_str()?.trim();
     (!text.is_empty()).then(|| text.to_string())
 }

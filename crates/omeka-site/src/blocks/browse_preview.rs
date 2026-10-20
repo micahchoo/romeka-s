@@ -22,7 +22,8 @@ use crate::blocks::schema::{
 };
 use crate::html::{escape_html, hyperlink, query_string};
 use crate::slug::{controller_for, resource_browse_url};
-use crate::view::{BrowseQuery, RenderContext, ResourceView};
+use crate::theme::cards::{CardParts, resource_card};
+use crate::view::{BrowseQuery, RenderContext};
 
 /// The default `components` (`BlockLayout/BrowsePreview.php::form`).
 const DEFAULT_COMPONENTS: [&str; 3] = ["resource-heading", "resource-body", "thumbnail"];
@@ -160,13 +161,13 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
         out.push_str(&format!("<h2>{}</h2>", escape_html(heading)));
     }
     out.push_str("<ul class=\"resource-list preview\">");
+    let parts = CardParts {
+        thumbnail: components.iter().any(|c| c == "thumbnail"),
+        heading: components.iter().any(|c| c == "resource-heading"),
+        body: components.iter().any(|c| c == "resource-body"),
+    };
     for resource in &page.resources {
-        out.push_str(&render_resource(
-            resource,
-            kind,
-            &components,
-            ctx.asset_base.trim_end_matches('/'),
-        ));
+        out.push_str(&resource_card(kind, resource, ctx, parts));
     }
     out.push_str("</ul>");
     if let Some(link_text) = data.link_text.as_deref().filter(|text| !text.is_empty()) {
@@ -179,64 +180,6 @@ fn render_block(data: &BrowsePreviewData, ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("</div>");
     out
-}
-
-fn render_resource(
-    resource: &ResourceView,
-    kind: ResourceKind,
-    components: &[String],
-    asset_base: &str,
-) -> String {
-    let show_thumbnail = components.iter().any(|c| c == "thumbnail");
-    let show_heading = components.iter().any(|c| c == "resource-heading");
-    let show_body = components.iter().any(|c| c == "resource-body");
-
-    let mut content = String::new();
-    if show_thumbnail {
-        // Upstream's `thumbnail` helper falls back to `default.png`; the port
-        // falls back to the theme's placeholder asset.
-        content.push_str(&match &resource.thumbnail {
-            Some(thumbnail) => format!(
-                "<img src=\"{}\" alt=\"{}\">",
-                escape_html(&thumbnail.url),
-                escape_html(&thumbnail.alt)
-            ),
-            None => format!(
-                "<img src=\"{asset_base}/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">"
-            ),
-        });
-    }
-    if show_heading {
-        content.push_str(&format!(
-            "<span class=\"resource-name\">{}</span>",
-            escape_html(&resource.title)
-        ));
-    }
-    let mut out = format!(
-        "<li class=\"{} resource\">",
-        escape_html(controller_for(kind))
-    );
-    if !content.is_empty() {
-        out.push_str(&hyperlink_raw(&content, &resource.url, "resource-link"));
-    }
-    if show_body && let Some(body) = &resource.description {
-        out.push_str(&format!(
-            "<div class=\"description\">{}</div>",
-            escape_html(body)
-        ));
-    }
-    out.push_str("</li>");
-    out
-}
-
-/// `Hyperlink::raw`: the content is already markup.
-fn hyperlink_raw(content: &str, url: &str, class: &str) -> String {
-    format!(
-        "<a href=\"{}\" class=\"{}\">{}</a>",
-        escape_html(url),
-        escape_html(class),
-        content
-    )
 }
 
 /// PHP's `parse_str` for a query string without array keys: pairs in order,
@@ -321,7 +264,7 @@ mod tests {
         );
         assert_eq!(
             BrowsePreview.render(&stored, &ctx),
-            "<div class=\"preview-block\"><h2>Latest</h2><ul class=\"resource-list preview\"><li class=\"item resource\"><a href=\"/s/main/item/4\" class=\"resource-link\"><img src=\"/files/medium/4.jpg\" alt=\"An item\"><span class=\"resource-name\">An item</span></a><div class=\"description\">A description</div></li></ul><a href=\"/s/main/item?year=2000\">Browse all</a></div>"
+            "<div class=\"preview-block\"><h2>Latest</h2><ul class=\"resource-list preview\"><li class=\"item resource has-thumb\"><a href=\"/s/main/item/4\" class=\"resource-link\"><span class=\"resource-thumb\"><img src=\"/files/medium/4.jpg\" alt=\"An item\" loading=\"lazy\"></span><span class=\"resource-text\"><span class=\"resource-name\">An item</span></span></a><div class=\"description\">A description</div></li></ul><a href=\"/s/main/item?year=2000\">Browse all</a></div>"
         );
     }
 
@@ -363,7 +306,10 @@ mod tests {
             json!({"resource_type": "item_sets", "link-text": "All sets", "components": ["resource-heading"]}),
         );
         let out = BrowsePreview.render(&stored, &ctx);
-        assert!(out.contains("<li class=\"item-set resource\">"), "{out}");
+        assert!(
+            out.contains("<li class=\"item-set resource no-thumb\"><a href=\"/s/main/item-set/2\" class=\"resource-link\"><span class=\"resource-text\">"),
+            "{out}"
+        );
         assert!(
             out.contains("<a href=\"/s/main/item-set\">All sets</a>"),
             "{out}"

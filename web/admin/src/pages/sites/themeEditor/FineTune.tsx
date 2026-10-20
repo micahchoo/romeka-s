@@ -1,6 +1,7 @@
 /**
- * The Fine-tune disclosure: every single token, grouped as colours, type and
- * layout, each with its help line and a Reset to the preset's value.
+ * The Fine-tune disclosure: every single token, grouped as colours, type,
+ * layout and page structure, each with its help line and a Reset to the
+ * preset's value.
  */
 import type { ReactElement } from 'react';
 import { useThemeText } from './messages';
@@ -38,6 +39,10 @@ const GROUPS: readonly { readonly titleKey: ThemeMessageKey; readonly keys: read
       'header_style',
       'button_style',
     ],
+  },
+  {
+    titleKey: 'theme.structure',
+    keys: ['hero_style', 'card_style', 'search_display', 'item_layout', 'footer_layout', 'footer_tone'],
   },
 ];
 

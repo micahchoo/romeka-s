@@ -12,6 +12,8 @@
 //! the href and every attribute value are escaped, and a `null` `href` renders
 //! an empty `href` attribute.
 
+use crate::i18n::{Messages, sprintf};
+
 /// Escape text for HTML body or attribute context.
 #[must_use]
 pub fn escape_html(value: &str) -> String {
@@ -162,10 +164,13 @@ pub fn query_string(pairs: &[(String, String)]) -> Option<String> {
     Some(encoded.join("&"))
 }
 
-/// Page links for a result set, the markup the pagination helper renders.
+/// Page links for a result set: Previous, a window of page numbers, Next,
+/// and a summary line.
 ///
-/// `Laminas`'s `pagination` helper wraps its links in a `nav` and carries
-/// per-link classes the port does not reproduce. Each link is
+/// Upstream's `pagination` helper prints a link per page, which is 38 links
+/// for 950 items. The port prints the first and the last page, the current
+/// page with one neighbour each side (three numbers at either end), and an
+/// ellipsis for each gap of more than one page. Each link is
 /// `{current_path}?{other query pairs}&page=N`, so a rendered page keeps its
 /// other filters. An empty string means one page.
 #[must_use]
@@ -175,6 +180,7 @@ pub fn pagination(
     page: usize,
     per_page: usize,
     total: usize,
+    messages: &Messages,
 ) -> String {
     if per_page == 0 {
         return String::new();
@@ -183,29 +189,99 @@ pub fn pagination(
     if pages <= 1 {
         return String::new();
     }
-    let mut out = String::from("<nav class=\"pagination\"><ul>");
-    for number in 1..=pages {
+    let page = page.clamp(1, pages);
+    let href = |number: usize| -> String {
         let pairs: Vec<(String, String)> = query
             .iter()
             .filter(|(key, _)| key != "page")
             .cloned()
             .chain(std::iter::once(("page".to_string(), number.to_string())))
             .collect();
-        let href = match query_string(&pairs) {
+        match query_string(&pairs) {
             Some(query) => format!("{current_path}?{query}"),
             None => current_path.to_string(),
-        };
+        }
+    };
+    let mut out = String::from("<nav class=\"pagination\"><ul>");
+    if page > 1 {
+        out.push_str(&format!(
+            "<li class=\"pager-prev\">{}</li>",
+            hyperlink(
+                messages.prev,
+                Some(&href(page - 1)),
+                &[Attr::text("rel", "prev")]
+            )
+        ));
+    } else {
+        out.push_str(&format!(
+            "<li class=\"pager-prev\" aria-disabled=\"true\"><span>{}</span></li>",
+            escape_html(messages.prev)
+        ));
+    }
+    let mut last_shown = 0;
+    for number in window(page, pages) {
+        if number > last_shown + 1 {
+            out.push_str("<li class=\"pager-gap\" aria-hidden=\"true\">…</li>");
+        }
         if number == page {
-            out.push_str(&format!("<li class=\"active\">{number}</li>"));
+            out.push_str(&format!(
+                "<li class=\"active\" aria-current=\"page\">{number}</li>"
+            ));
         } else {
             out.push_str(&format!(
                 "<li>{}</li>",
-                hyperlink(&number.to_string(), Some(&href), &[])
+                hyperlink(&number.to_string(), Some(&href(number)), &[])
             ));
         }
+        last_shown = number;
     }
-    out.push_str("</ul></nav>");
+    if page < pages {
+        out.push_str(&format!(
+            "<li class=\"pager-next\">{}</li>",
+            hyperlink(
+                messages.next,
+                Some(&href(page + 1)),
+                &[Attr::text("rel", "next")]
+            )
+        ));
+    } else {
+        out.push_str(&format!(
+            "<li class=\"pager-next\" aria-disabled=\"true\"><span>{}</span></li>",
+            escape_html(messages.next)
+        ));
+    }
+    out.push_str("</ul>");
+    out.push_str(&format!(
+        "<p class=\"pager-count\">{}</p></nav>",
+        escape_html(&sprintf(
+            messages.pager_count,
+            &[&total.to_string(), &page.to_string(), &pages.to_string()]
+        ))
+    ));
     out
+}
+
+/// The page numbers the pager shows, ascending: the first, the last, and the
+/// current page with a neighbour each side, widened to three numbers at
+/// either end. A gap of exactly one page shows that page, since an ellipsis
+/// would take the same room.
+fn window(page: usize, pages: usize) -> Vec<usize> {
+    let (low, high) = match page {
+        1 => (1, 3),
+        _ if page == pages => (pages.saturating_sub(2), pages),
+        _ => (page - 1, page + 1),
+    };
+    let mut shown: Vec<usize> = (1..=pages)
+        .filter(|&n| n == 1 || n == pages || (low..=high).contains(&n))
+        .collect();
+    let mut index = 1;
+    while index < shown.len() {
+        if shown[index] == shown[index - 1] + 2 {
+            shown.insert(index, shown[index - 1] + 1);
+        }
+        index += 1;
+    }
+    shown
 }
 
 #[cfg(test)]
@@ -247,6 +323,41 @@ mod tests {
                 &[Attr::flag("checked", true), Attr::flag("disabled", false)]
             ),
             "<input checked=\"checked\">"
+        );
+    }
+
+    /// The pager shows a window, not every page: 38 pages from page 1 read
+    /// Previous, 1 2 3 … 38, Next, with the count below.
+    #[test]
+    fn pagination_shows_a_window_of_pages() {
+        let messages = &crate::i18n::EN;
+        let html = pagination("/s/main/item", &[], 1, 25, 950, messages);
+        assert!(html.starts_with("<nav class=\"pagination\"><ul><li class=\"pager-prev\" aria-disabled=\"true\"><span>Prev</span></li><li class=\"active\" aria-current=\"page\">1</li><li><a href=\"/s/main/item?page=2\">2</a></li><li><a href=\"/s/main/item?page=3\">3</a></li><li class=\"pager-gap\" aria-hidden=\"true\">…</li><li><a href=\"/s/main/item?page=38\">38</a></li><li class=\"pager-next\"><a href=\"/s/main/item?page=2\" rel=\"next\">Next</a></li></ul>"), "{html}");
+        assert!(html.ends_with("<p class=\"pager-count\">950 results · page 1 of 38</p></nav>"));
+        assert_eq!(window(20, 38), vec![1, 19, 20, 21, 38]);
+        assert_eq!(window(3, 38), vec![1, 2, 3, 4, 38]);
+        assert_eq!(window(38, 38), vec![1, 36, 37, 38]);
+        assert_eq!(window(2, 2), vec![1, 2]);
+        assert_eq!(pagination("/x", &[], 1, 25, 25, messages), "");
+    }
+
+    /// A pager link keeps the other query pairs and replaces `page`.
+    #[test]
+    fn pagination_links_keep_the_query() {
+        let query = vec![
+            ("sort_by".to_string(), "title".to_string()),
+            ("page".to_string(), "2".to_string()),
+        ];
+        let html = pagination("/s/main/item", &query, 2, 10, 30, &crate::i18n::EN);
+        assert!(
+            html.contains(
+                "<a href=\"/s/main/item?sort_by=title&amp;page=1\" rel=\"prev\">Prev</a>"
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains("<a href=\"/s/main/item?sort_by=title&amp;page=3\">3</a>"),
+            "{html}"
         );
     }
 
