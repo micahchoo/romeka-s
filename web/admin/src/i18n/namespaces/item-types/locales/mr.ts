@@ -52,11 +52,6 @@ export const mr: ItemTypesMessages = {
   'fields.add': 'क्षेत्र जोडा',
   'fields.addHint': 'याचे वर्णन करा, उदाहरणार्थ “how many pages”',
   'field.name': '{term} साठी फॉर्मवरील नाव',
-  'field.moveHandle':
-    '{name}, क्षेत्र {position} {count} हलवा. वर आणि खाली बाण की वापरा, किंवा ओढून वापरा.',
-  'field.moved': '{name} आता क्षेत्र {position} {count} आहे.',
-  'field.moveUp': '{name} वर हलवा',
-  'field.moveDown': '{name} खाली हलवा',
   'field.remove': '{name} काढून टाका',
   'field.changeTerm': '{name} चे मानक शब्द बदल करा',
   'field.pickTerm': 'मानक शब्द शोधा',

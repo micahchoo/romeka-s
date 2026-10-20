@@ -96,4 +96,15 @@ export const hi: CommonMessages = {
   'tags.hint':
     'बाद में चीज़ों को खोजने के लिए मुफ़्त शब्द। Enter दबाएँ या एक जोड़ने के लिए अल्पविराम टाइप करें।',
   'tags.remove': 'टैग “{tag}” हटाएँ',
+  'reorder.handle': '{label} ले जाएँ, {position}/{count}',
+  'reorder.grip': 'ले जाने के लिए ड्रैग करें, या उठाने के लिए Space दबाएँ',
+  'reorder.up': '{label} को ऊपर ले जाएँ',
+  'reorder.down': '{label} को नीचे ले जाएँ',
+  'reorder.upTip': 'ऊपर ले जाएँ',
+  'reorder.downTip': 'नीचे ले जाएँ',
+  'reorder.picked':
+    '{label} उठाया गया। इसे ले जाने के लिए तीर कुंजियों का उपयोग करें, छोड़ने के लिए Space, रद्द करने के लिए Escape।',
+  'reorder.moved': '{label}: स्थान {position}/{count}।',
+  'reorder.dropped': '{label} को स्थान {position}/{count} पर छोड़ा गया।',
+  'reorder.cancelled': '{label} का स्थानांतरण रद्द कर दिया गया।',
 };

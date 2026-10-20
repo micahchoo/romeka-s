@@ -221,16 +221,16 @@ describe('a stored item type', () => {
     expect(rows[1]?.['o:data_type']).toEqual(['literal', 'customvocab:3']);
   });
 
-  it('moves a field with the arrow keys on its handle and keeps the handle focused', async () => {
+  it('moves a field picked up by its handle with the arrow keys and keeps the handle focused', async () => {
     const fetchMock = await openPhotograph();
-    const handle = screen.getByRole('button', { name: /^Move Caption, field 2 of 3/ });
-    handle.focus();
+    const handle = screen.getByRole('button', { name: 'Move Caption, 2 of 3' });
+    fireEvent.click(handle);
     fireEvent.keyDown(handle, { key: 'ArrowUp' });
-    const moved = await screen.findByRole('button', { name: /^Move Caption, field 1 of 3/ });
+    const moved = await screen.findByRole('button', { name: 'Move Caption, 1 of 3' });
     await waitFor(() => {
       expect(moved).toHaveFocus();
     });
-    expect(screen.getByText('Caption is now field 1 of 3.')).toBeInTheDocument();
+    expect(screen.getByText('Caption: position 1 of 3.')).toBeInTheDocument();
     const rows = rowsSent(await save(fetchMock));
     expect(rows.map((row) => row['o:property'])).toEqual([
       { 'o:id': 4 },

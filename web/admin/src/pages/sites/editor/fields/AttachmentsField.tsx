@@ -13,6 +13,12 @@
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
 import type { Item, ItemId, Media, MediaId } from '../../../../api/types';
+import {
+  ReorderButtons,
+  ReorderHandle,
+  ReorderStatus,
+  useReorderable,
+} from '../../../../app/reorder/useReorderable';
 import { useAsync } from '../../../../app/useAsync';
 import { mediaName, previewImageUrl } from '../../../../app/media';
 import { useTranslator } from '../../../../i18n';
@@ -28,19 +34,6 @@ import './controls.css';
 /** Replaces one entry of a list, the one place a row edit writes the list. */
 const replaceAt = <T,>(values: readonly T[], index: number, next: T): readonly T[] =>
   values.map((value, at) => (at === index ? next : value));
-
-/** Moves one entry by `delta` places, or returns the list unchanged at an edge. */
-const moveAt = <T,>(values: readonly T[], index: number, delta: number): readonly T[] => {
-  const target = index + delta;
-  const moved = values[index];
-  if (moved === undefined || target < 0 || target >= values.length) {
-    return values;
-  }
-  const next = [...values];
-  next.splice(index, 1);
-  next.splice(target, 0, moved);
-  return next;
-};
 
 /**
  * The rows after the picker's picks changed. The rows follow the picks' order,
@@ -175,6 +168,11 @@ export const AttachmentsField = ({
 }: AttachmentsFieldProps): ReactElement => {
   const { t } = useTranslator(common, editor);
   const e = useEditorText();
+  const reorder = useReorderable({
+    items: attachments,
+    onReorder: onChange,
+    labelOf: (_, index) => t('attachments.row', { position: index + 1 }),
+  });
   const picked = [
     ...new Set(attachments.flatMap((row) => (row.item === null ? [] : [row.item]))),
   ];
@@ -185,7 +183,7 @@ export const AttachmentsField = ({
       {attachments.length === 0 ? null : (
         <ul className="attachment-rows" aria-label={label}>
           {attachments.map((attachment, index) => (
-            <li className="attachment-row" key={String(index)}>
+            <li className="attachment-row" key={String(index)} {...reorder.row(index)}>
               <AttachedItem itemId={attachment.item} />
               {media ? (
                 <MediaChoice
@@ -206,26 +204,8 @@ export const AttachmentsField = ({
                 }}
               />
               <p className="attachment-actions">
-                <button
-                  type="button"
-                  disabled={index === 0}
-                  aria-label={t('attachments.moveUp', { position: index + 1 })}
-                  onClick={() => {
-                    onChange(moveAt(attachments, index, -1));
-                  }}
-                >
-                  {t('blocks.moveUpText')}
-                </button>
-                <button
-                  type="button"
-                  disabled={index === attachments.length - 1}
-                  aria-label={t('attachments.moveDown', { position: index + 1 })}
-                  onClick={() => {
-                    onChange(moveAt(attachments, index, 1));
-                  }}
-                >
-                  {t('blocks.moveDownText')}
-                </button>
+                <ReorderHandle reorder={reorder} index={index} />
+                <ReorderButtons reorder={reorder} index={index} />
                 <button
                   type="button"
                   aria-label={t('attachments.remove', { position: index + 1 })}
@@ -240,6 +220,7 @@ export const AttachmentsField = ({
           ))}
         </ul>
       )}
+      <ReorderStatus reorder={reorder} />
       <LazyItemPicker
         id={`${id}-picker`}
         label={e('attachments.pick')}

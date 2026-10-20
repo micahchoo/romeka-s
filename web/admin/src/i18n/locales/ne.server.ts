@@ -27,7 +27,7 @@ export const neServer: ServerCatalogue = {
   'server.invalidContentType':
     'अमान्य Content-Type हेडर। "application/json" को अपेक्षा गरिएको, "{received}" प्राप्त भयो।',
   'server.bodyNotObject': 'अनुरोध बडी JSON अब्जेक्ट हुनुपर्छ।',
-  'server.siteItemsOneSelector': '"query", "items" वा "item_sets" मध्ये ठिक एक',
+  'server.siteItemsOneSelector': 'नाम कि त "query", वा "items", "item_sets" वा दुवै हुनुपर्छ',
   'server.invalidCredentials': 'इमेल वा पासवर्ड अमान्य छ',
   'server.inactiveAccount': 'प्रयोगकर्ता सक्रिय छैन।',
   'server.unknownKey': 'अमान्य पासवर्ड सिर्जना कुञ्जी।',

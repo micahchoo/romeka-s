@@ -27,7 +27,7 @@ export const knServer: ServerCatalogue = {
   'server.invalidContentType':
     'ಅಮಾನ್ಯವಾದ Content-Type ಹೆಡರ್. "application/json" ನಿರೀಕ್ಷಿಸಲಾಗುತ್ತಿದೆ, ಆದರೆ "{received}" ಬಂದಿದೆ.',
   'server.bodyNotObject': 'ವಿನಂತಿಯ ದೇಹವು ಒಂದು JSON ವಸ್ತುವಾಗಿರಬೇಕು.',
-  'server.siteItemsOneSelector': 'ಹೆಸರು "query", "items" ಅಥವಾ "item_sets" ಗಳಲ್ಲಿ ಒಂದಾಗಿರಬೇಕು.',
+  'server.siteItemsOneSelector': 'ಹೆಸರು "query", ಅಥವಾ "items", "item_sets" ಅಥವಾ ಎರಡೂ ಆಗಿರಬೇಕು',
   'server.invalidCredentials': 'ಇಮೇಲ್ ಅಥವಾ ಪಾಸ್‌ವರ್ಡ್ ಅಮಾನ್ಯವಾಗಿದೆ',
   'server.inactiveAccount': 'ಬಳಕೆದಾರರು ಸಕ್ರಿಯವಾಗಿಲ್ಲ.',
   'server.unknownKey': 'ಅಮಾನ್ಯವಾದ ಪಾಸ್‌ವರ್ಡ್ ರಚನೆಯ ಕೀ.',

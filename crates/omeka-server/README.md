@@ -356,6 +356,14 @@ only, which is how the admin Theme page previews an unsaved palette. Credentials
 are the admin SPA's: the session cookie, the API key pair in the query string, or
 neither, which the access check refuses.
 
+A body with a `resource_page` member, `{"kind": "items", "id": 12}`, renders that
+item, item set or media show page instead (the kind is named as
+`resource_page_blocks` names it). Its `o:theme_settings` overrides the stored
+tokens and, when the map carries `resource_page_blocks`, the stored section
+order, so the Theme page shows a draft order on a real record. It needs what a
+site update needs (403 otherwise), answers 400 for an unknown kind or a missing
+id, and 404 for a record the caller cannot see.
+
 The status is the one the page write would answer: 403 when the caller may not
 update that page, or add a page to that site; 404 for a site slug no site holds,
 or a page id that is not a page of that site; 422 for a block or slug the write

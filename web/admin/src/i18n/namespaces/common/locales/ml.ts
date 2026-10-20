@@ -96,4 +96,15 @@ export const ml: CommonMessages = {
   'tags.hint':
     'പിന്നീട് കാര്യങ്ങൾ കണ്ടെത്താൻ സൗജന്യ വാക്കുകൾ. Enter അമർത്തുകയോ കോമ ടൈപ്പ് ചെയ്യുകയോ ചെയ്ത് ചേർക്കാം.',
   'tags.remove': '“{tag}” ടാഗ് നീക്കം ചെയ്യുക',
+  'reorder.handle': '{label} നീക്കുക, {position}/{count}',
+  'reorder.grip': 'നീക്കാൻ Drag ചെയ്യുക, അല്ലെങ്കിൽ Pick up തിരഞ്ഞെടുക്കാൻ Space അമർത്തുക',
+  'reorder.up': '{label} മുകളിലേക്ക് നീക്കുക',
+  'reorder.down': '{label} താഴേക്ക് നീക്കുക',
+  'reorder.upTip': 'മുകളിലേക്ക് നീക്കുക',
+  'reorder.downTip': 'താഴേക്ക് നീക്കുക',
+  'reorder.picked':
+    '{label} Picked up. നീക്കാൻ Arrow keys ഉപയോഗിക്കുക, Drop ചെയ്യാൻ Space, Cancel ചെയ്യാൻ Escape.',
+  'reorder.moved': '{label}: സ്ഥാനം {position}/{count}.',
+  'reorder.dropped': '{label} സ്ഥാനം {position}/{count} ൽ വച്ചു.',
+  'reorder.cancelled': '{label} നീക്കാനുള്ള നീക്കം Cancel ചെയ്തു.',
 };

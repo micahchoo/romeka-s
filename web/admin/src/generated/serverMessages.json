@@ -16,7 +16,7 @@
     "server.jsonNotContainer": "JSON: Content must be an object or array.",
     "server.invalidContentType": "Invalid Content-Type header. Expecting \"application/json\", got \"{received}\".",
     "server.bodyNotObject": "The request body must be a JSON object.",
-    "server.siteItemsOneSelector": "name exactly one of \"query\", \"items\" or \"item_sets\"",
+    "server.siteItemsOneSelector": "name either \"query\", or \"items\", \"item_sets\" or both",
     "server.invalidCredentials": "Email or password is invalid",
     "server.inactiveAccount": "The user is not active.",
     "server.unknownKey": "Invalid password creation key.",

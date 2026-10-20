@@ -27,8 +27,7 @@ export const teServer: ServerCatalogue = {
   'server.invalidContentType':
     'చెల్లని Content-Type హెడర్. "application/json" ఆశించబడింది, "{received}" వచ్చింది.',
   'server.bodyNotObject': 'అభ్యర్థన బాడీ JSON ఆబ్జెక్ట్ అయి ఉండాలి.',
-  'server.siteItemsOneSelector':
-    'పేరు ఖచ్చితంగా "query", "items" లేదా "item_sets" లలో ఒకటి అయి ఉండాలి',
+  'server.siteItemsOneSelector': 'పేరు "query", లేదా "items", "item_sets" లేదా రెండూ ఉండాలి',
   'server.invalidCredentials': 'ఇమెయిల్ లేదా పాస్‌వర్డ్ చెల్లదు',
   'server.inactiveAccount': 'వినియోగదారు క్రియాశీలకంగా లేరు.',
   'server.unknownKey': 'చలని పాస్‌వర్డ్ సృష్టి కీ.',

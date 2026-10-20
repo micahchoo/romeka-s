@@ -51,11 +51,6 @@ export const hi: ItemTypesMessages = {
   'fields.add': 'एक फ़ील्ड जोड़ें',
   'fields.addHint': 'इसका वर्णन करें, उदाहरण के लिए “how many pages”',
   'field.name': '{term} के लिए फॉर्म पर नाम',
-  'field.moveHandle':
-    '{name} को स्थानांतरित करें, {count} का {position} फ़ील्ड। ऊपर और नीचे तीर कुंजियों का उपयोग करें, या ड्रैग करें।',
-  'field.moved': '{name} अब {count} का {position} फ़ील्ड है।',
-  'field.moveUp': '{name} को ऊपर ले जाएँ',
-  'field.moveDown': '{name} को नीचे ले जाएँ',
   'field.remove': '{name} को हटाएँ',
   'field.changeTerm': '{name} के मानक शब्द को बदलें',
   'field.pickTerm': 'एक मानक शब्द खोजें',
