@@ -407,6 +407,22 @@ The admin has two modes over one plan, switchable at any time without losing wor
 - A killed worker can leave the bytes of the record it held; `romeka media sweep` removes them.
 - The job derives from the index the run route scanned; the route compared the digest.
 
+
+### Undo details (settled from P5-undo, 2026-10-20)
+
+- Touched reasons: `edited`, `linked`, `mediaAdded`, `membersAdded`, `laterImport{import}`,
+  `inUse` (a template or field used outside the import), `itemKept` (the media's item is kept),
+  `memberKept` (the set holds a kept item).
+- An undo that keeps anything ends **`partly_undone`** (a new status), not `undo_failed`; a later
+  undo with `force` can finish it. `undo_failed` means an error.
+- The before-image also holds the resource's `modified`, and a restore puts it back, so undoing a
+  later import does not make an earlier import's resources look edited.
+- The stop route also stops an undo.
+- Forcing a template or field deletes other resources' values of it; the confirmation says so.
+- Times are whole seconds; an edit in the same second as the import's write is not seen.
+- `modified` now also moves on media reordering, site item pools, site item-set lists and batch
+  updates (docs/compat.md records the divergence).
+
 ## Values
 
 A written value is `{ type, text, lang, label, isPublic }`:
@@ -480,8 +496,8 @@ equal to the number of resources it deletes.
 
 ## Lifecycle and the ledger
 
-Statuses: `draft` → `running` → `done` | `run_failed`; `done` | `run_failed` | `undo_failed` →
-`undoing` → `undone` | `undo_failed`. A dead job (no heartbeat for 2 minutes, or its job row ended)
+Statuses: `draft` → `running` → `done` | `run_failed`; `done` | `run_failed` | `undo_failed` |
+`partly_undone` → `undoing` → `undone` | `partly_undone` | `undo_failed`. A dead job (no heartbeat for 2 minutes, or its job row ended)
 is recorded on the first read as `run_failed` or `undo_failed`.
 
 - **Frozen plan.** Run start copies the plan into `ran_plan`. A non-draft import's plan cannot
@@ -752,6 +768,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P5-undo | unit-test-verified | 2,110 workspace tests; 393 MySQL tests each on 8.0 and MariaDB 11; S9b, S10, later import, stopped run, interrupted undo; 5 write paths fixed to move modified |
 | P3-facts | unit-test-verified | 2,135 workspace tests; S1 with groups; list round trip with a Devanagari title through the routes and a run; 40k preview with every section 534-548 ms; formula guard round-trips exactly |
 | P3-decide | unit-test-verified | 2,084 workspace tests; 9 mutations; streamed digest saves ~20 ms at 40k |
 | P3-run | unit-test-verified | 2,086 workspace tests; S1, S4, S6, S8, S9a, S17, 66 MB streamed (+3.6 MB RSS), loopback URL refused; 7 mutations caught |

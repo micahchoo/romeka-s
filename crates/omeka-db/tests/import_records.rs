@@ -103,8 +103,16 @@ on_both!(
         assert_eq!(found[0].change, ImportChange::Changed);
         assert_eq!(ledger.find_by_record(id, "group:l_1").await.unwrap(), []);
 
-        assert!(ledger.delete(id, item).await.unwrap());
-        assert!(!ledger.delete(id, item).await.unwrap());
+        assert!(
+            ImportResourceRepo::<Db>::delete(pool, id, item)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !ImportResourceRepo::<Db>::delete(pool, id, item)
+                .await
+                .unwrap()
+        );
         assert_eq!(targets(ledger.list(id, None).await.unwrap()), [set, media]);
         assert_eq!(targets(ledger.list(other, None).await.unwrap()), [item]);
     }
@@ -146,8 +154,8 @@ on_both!(a_before_image_is_kept_per_import_and_target, |pool| {
             .is_err(),
         "the first image is the one before the import"
     );
-    assert!(images.delete(id, item).await.unwrap());
-    assert!(!images.delete(id, item).await.unwrap());
+    assert!(BeforeImageRepo::<Db>::delete(pool, id, item).await.unwrap());
+    assert!(!BeforeImageRepo::<Db>::delete(pool, id, item).await.unwrap());
     assert_eq!(images.get(id, item).await.unwrap(), None);
 });
 

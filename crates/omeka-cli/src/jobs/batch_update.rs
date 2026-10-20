@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use omeka_db::ids::{PropertyId, ResourceId, ValueId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ValueRepo};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo};
 use omeka_db::rows::{ValueContent, ValueRow};
 
 use super::query::{chunk_size, query_arg};
@@ -221,6 +221,8 @@ async fn update_one(
         return Ok(());
     }
     values.rewrite(resource, &plan.delete, &plan.insert).await?;
+    // Upstream's batch update runs the adapter's `updateTimestamps`.
+    ResourceRepo::new(context.pool).touch(&[resource]).await?;
     Ok(())
 }
 

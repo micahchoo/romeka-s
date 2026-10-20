@@ -1,8 +1,11 @@
-//! `Romeka\Job\ImportRun` and `Romeka\Job\ImportScan`: the import v2 jobs
-//! (`docs/import-v2.md`, "Lifecycle and the ledger").
+//! `Romeka\Job\ImportRun`, `Romeka\Job\ImportUndo` and
+//! `Romeka\Job\ImportScan`: the import v2 jobs (`docs/import-v2.md`,
+//! "Lifecycle and the ledger").
 //!
-//! Both read `importId` from their args. The run's body is
-//! `omeka_api::import2::run::run_import`; this module supplies what it reads
+//! Each reads `importId` from its args. The run's body is
+//! `omeka_api::import2::run::run_import`, the undo's
+//! `omeka_api::import2::undo::undo_import` with the API's delete paths, which
+//! remove a media's files from the store. This module supplies what the run reads
 //! outside the database: the store, the archive roots, the install's file
 //! settings and URL guard, who pressed Run (the job's owner), and the site
 //! sync of a created item. [`refuse_live_hand_run`] keeps a second worker
@@ -17,6 +20,7 @@ use omeka_api::import2::catalog_load::Owners;
 use omeka_api::import2::preview::Caches;
 use omeka_api::import2::run::{RUN_JOB, RunEnd, RunEnv, Runner, SiteSync, run_import};
 use omeka_api::import2::scan::{SCAN_JOB, scan_import};
+use omeka_api::import2::undo::{ApiRemoval, Force, UNDO_JOB, UndoEnd, undo_import};
 use omeka_api::read::Api;
 use omeka_db::ids::{ImportId, ItemId, JobId};
 use omeka_db::repos::{ImportRepo, SettingRepo, UserRepo};
@@ -26,9 +30,6 @@ use sqlx::SqlitePool;
 
 use super::{Job, JobContext, JobError};
 use crate::{store, system_api};
-
-/// The job class of an undo, which `romeka job run` guards like a run.
-pub const UNDO_JOB: &str = "Romeka\\Job\\ImportUndo";
 
 fn import_id(context: &JobContext<'_>) -> Result<ImportId, JobError> {
     context
@@ -102,6 +103,73 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
         sites: &sites,
     };
     run_import(pool, &env, import, context.job_id, runner)
+        .await
+        .map_err(|error| JobError::Runtime(error.to_string()))
+}
+
+/// `Romeka\Job\ImportUndo`; its args may carry `force`.
+pub struct ImportUndo;
+
+#[async_trait]
+impl Job for ImportUndo {
+    fn class(&self) -> &'static str {
+        UNDO_JOB
+    }
+
+    async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
+        let import = import_id(context)?;
+        let force = Force::from_arg(context.arg("force")).map_err(JobError::InvalidArgument)?;
+        let outcome = undo(context, import, force).await;
+        if outcome.is_err() {
+            // As for a run: a worker that knows it failed frees the slot now.
+            let _ = ImportRepo::new(context.pool)
+                .finish(import, ImportEnding::UndoFailed)
+                .await;
+        }
+        let line = match outcome? {
+            UndoEnd::Undone(report) => format!(
+                "Import {} undone: {} removed, {} restored, {} already gone.",
+                import.0,
+                total(&report.removed),
+                total(&report.restored),
+                report.skipped.len()
+            ),
+            UndoEnd::Failed(report) => match &report.error {
+                Some(error) => {
+                    format!("Import {} was not fully undone: {}", import.0, error.detail)
+                }
+                None if report.stopped => {
+                    format!("Import {} stopped undoing on request.", import.0)
+                }
+                None => format!(
+                    "Import {} undone but for {} kept resources: {} removed, {} restored.",
+                    import.0,
+                    report.kept.len(),
+                    total(&report.removed),
+                    total(&report.restored)
+                ),
+            },
+            UndoEnd::Lost => format!(
+                "Import {} is no longer undone by this job; it stopped writing.",
+                import.0
+            ),
+        };
+        context.log(&line).await
+    }
+}
+
+fn total(counts: &omeka_api::import2::undo::Counts) -> usize {
+    counts.items + counts.media + counts.item_sets + counts.templates + counts.properties
+}
+
+async fn undo(
+    context: &JobContext<'_>,
+    import: ImportId,
+    force: Force,
+) -> Result<UndoEnd, JobError> {
+    let api = system_api::load_with_store(context.pool, Arc::clone(&context.env.store)).await?;
+    let removal = ApiRemoval { api: &api };
+    undo_import(context.pool, &removal, import, context.job_id, force)
         .await
         .map_err(|error| JobError::Runtime(error.to_string()))
 }

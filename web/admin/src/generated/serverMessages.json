@@ -165,6 +165,15 @@
     "server.importResourceGone": "The item, media or item set this record changes is no longer in Omeka.",
     "server.importRecordNotSaved": "This record could not be saved: {reason}",
     "server.importLinksNotSaved": "The links of this record could not be saved: {reason}",
-    "server.importSitesNotJoined": "This item was added, but it did not join its sites: {reason}"
+    "server.importSitesNotJoined": "This item was added, but it did not join its sites: {reason}",
+    "server.importUndoEdited": "This was edited after the import wrote it.",
+    "server.importUndoLinked": "An item, media or item set outside this import links to this.",
+    "server.importUndoMediaAdded": "Media were added to this item outside this import.",
+    "server.importUndoMembersAdded": "Items outside this import were put in this item set.",
+    "server.importUndoLaterImport": "Import {import} changed this after this import did.",
+    "server.importUndoInUse": "Items, media, item sets or item types outside this import use this.",
+    "server.importUndoItemKept": "The item of this media is kept, so the media is kept too.",
+    "server.importUndoMemberKept": "An item in this item set is kept, so the item set is kept too.",
+    "server.importUndoStopped": "The undo stopped before the end: {reason}"
   }
 }

@@ -9,14 +9,14 @@
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::resources::touch_modified;
 use super::{bind_id, bind_opt_id, insert_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{CustomVocabId, PropertyId, ResourceId, TemplateId};
+use crate::ids::{CustomVocabId, PropertyId, TemplateId};
 use crate::rows::{
     MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow, resource_type,
 };
-use crate::time;
 
 /// Bulk rewrites over `value`.
 pub struct ValueRewriteRepo<'a, DB: Backend = Sqlite> {
@@ -118,7 +118,7 @@ where
             )
             .await?;
         }
-        touch(&mut tx, &write.resources).await?;
+        touch_modified::<DB>(&mut tx, &write.resources).await?;
         tx.commit().await?;
         Ok(list)
     }
@@ -176,7 +176,7 @@ where
                 .execute(&mut *tx)
                 .await?;
         }
-        touch(&mut tx, &write.resources).await?;
+        touch_modified::<DB>(&mut tx, &write.resources).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -267,27 +267,5 @@ where
     .bind(false)
     .execute(&mut *conn)
     .await?;
-    Ok(())
-}
-
-/// `updateTimestamps` on update: each resource's `modified` moves to now.
-async fn touch<DB: Backend>(
-    conn: &mut DB::Connection,
-    resources: &[ResourceId],
-) -> Result<(), DbError>
-where
-    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
-    for<'x> i64: Encode<'x, DB> + Type<DB>,
-    for<'x> String: Encode<'x, DB> + Type<DB>,
-{
-    let now = time::format(time::now());
-    for resource in resources {
-        sqlx::query("UPDATE resource SET modified = ? WHERE id = ?")
-            .bind(now.clone())
-            .bind(bind_id(*resource))
-            .execute(&mut *conn)
-            .await?;
-    }
     Ok(())
 }

@@ -3,6 +3,9 @@
 //! Upstream grants a job `view-all` so its searches see private items, because a job may have no
 //! owner. `romeka` reads as a global administrator for the same reason.
 
+use std::sync::Arc;
+
+use omeka_media::store::Store;
 use sqlx::SqlitePool;
 
 use omeka_api::auth::Actor;
@@ -22,4 +25,22 @@ const BASE_URL: &str = "http://localhost";
 pub async fn load(pool: &SqlitePool) -> Result<Api<'_>, ApiError> {
     let base = BaseUrl::parse(BASE_URL).map_err(ApiError::internal)?;
     Api::load(pool, base, Actor::new(UserId(0), "global_admin")).await
+}
+
+/// [`load`] with the file store, for a caller whose deletes must remove a media's files.
+///
+/// # Errors
+/// As [`load`].
+pub async fn load_with_store(
+    pool: &SqlitePool,
+    store: Arc<dyn Store>,
+) -> Result<Api<'_>, ApiError> {
+    let base = BaseUrl::parse(BASE_URL).map_err(ApiError::internal)?;
+    Api::load_with_store(
+        pool,
+        base,
+        Actor::new(UserId(0), "global_admin"),
+        Some(store),
+    )
+    .await
 }

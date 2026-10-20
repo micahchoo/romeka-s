@@ -141,9 +141,17 @@ where
             .collect()
     }
 
-    /// Forget one recorded target, as undo does once it has dealt with it. False when no such row
-    /// exists.
-    pub async fn delete(&self, import: ImportId, target: ImportTarget) -> Result<bool, DbError> {
+    /// Forget one recorded target, as undo does once it has dealt with it, on the caller's
+    /// executor: a restore forgets the row in the transaction that restores, so a rerun never
+    /// sees the restore's own `modified` as a later change. False when no such row exists.
+    pub async fn delete<'e, E>(
+        executor: E,
+        import: ImportId,
+        target: ImportTarget,
+    ) -> Result<bool, DbError>
+    where
+        E: Executor<'e, Database = DB>,
+    {
         let done = sqlx::query(
             "DELETE FROM romeka_import_resource
              WHERE import_id = ? AND kind = ? AND target_id = ?",
@@ -151,7 +159,7 @@ where
         .bind(bind_id(import))
         .bind(target.kind().as_str())
         .bind(target.raw_id())
-        .execute(self.pool)
+        .execute(executor)
         .await?;
         Ok(DB::rows_affected(&done) > 0)
     }
@@ -228,15 +236,22 @@ where
         rows.iter().map(BeforeImageRow::from_db_row::<DB>).collect()
     }
 
-    /// False when no such image exists.
-    pub async fn delete(&self, import: ImportId, target: ImportTarget) -> Result<bool, DbError> {
+    /// Forget an image, on the caller's executor. False when no such image exists.
+    pub async fn delete<'e, E>(
+        executor: E,
+        import: ImportId,
+        target: ImportTarget,
+    ) -> Result<bool, DbError>
+    where
+        E: Executor<'e, Database = DB>,
+    {
         let done = sqlx::query(
             "DELETE FROM romeka_import_before WHERE import_id = ? AND kind = ? AND target_id = ?",
         )
         .bind(bind_id(import))
         .bind(target.kind().as_str())
         .bind(target.raw_id())
-        .execute(self.pool)
+        .execute(executor)
         .await?;
         Ok(DB::rows_affected(&done) > 0)
     }

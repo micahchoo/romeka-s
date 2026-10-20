@@ -220,7 +220,7 @@ where
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
     let stored = scan::load(pool, &caches.index, import, &plan.sources).await?;
-    let catalog = catalog_load::load(pool, &plan, owners, files).await?;
+    let catalog = catalog_load::load(pool, import, &plan, owners, files).await?;
     let roots = roots.clone();
     let caches = Arc::clone(caches);
     let store = Arc::clone(store);

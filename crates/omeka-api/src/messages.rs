@@ -482,6 +482,24 @@ messages! {
     fn import_links_not_saved(reason) = "The links of this record could not be saved: {reason}";
     /// A run failure: an added item did not join the sites that take new items.
     fn import_sites_not_joined(reason) = "This item was added, but it did not join its sites: {reason}";
+    /// Undo kept a resource: its `modified` is later than the import's write.
+    const IMPORT_UNDO_EDITED = "This was edited after the import wrote it.";
+    /// Undo kept a resource: something outside the import links to it.
+    const IMPORT_UNDO_LINKED = "An item, media or item set outside this import links to this.";
+    /// Undo kept an item: media were added to it outside the import.
+    const IMPORT_UNDO_MEDIA_ADDED = "Media were added to this item outside this import.";
+    /// Undo kept an item set: items outside the import were put in it.
+    const IMPORT_UNDO_MEMBERS_ADDED = "Items outside this import were put in this item set.";
+    /// Undo kept a resource: a later import changed it.
+    fn import_undo_later_import(import) = "Import {import} changed this after this import did.";
+    /// Undo kept an item type or a field: something outside the import uses it.
+    const IMPORT_UNDO_IN_USE = "Items, media, item sets or item types outside this import use this.";
+    /// Undo kept a media because undo keeps its item.
+    const IMPORT_UNDO_ITEM_KEPT = "The item of this media is kept, so the media is kept too.";
+    /// Undo kept an item set because undo keeps an item in it.
+    const IMPORT_UNDO_MEMBER_KEPT = "An item in this item set is kept, so the item set is kept too.";
+    /// Undo stopped on an error; a new undo goes on from there.
+    fn import_undo_stopped(reason) = "The undo stopped before the end: {reason}";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,
