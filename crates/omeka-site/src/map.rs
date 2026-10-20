@@ -18,32 +18,14 @@ use serde_json::{Value as JsonValue, json};
 
 use crate::html::escape_html;
 use crate::i18n::sprintf1;
-use crate::theme::{AssetKind, ThemeAsset};
+use crate::theme::{library_script, library_stylesheet};
 use crate::view::{RenderContext, ResourceView};
 
 /// The attribute that marks a map for `map.js`.
 pub const MARKER: &str = "data-romeka-map";
 
-/// The script that draws every map on a page.
-pub const MAP_SCRIPT: ThemeAsset = ThemeAsset {
-    path: "js/map.js",
-    kind: AssetKind::Library,
-    content: include_str!("map.js"),
-};
-
-/// Leaflet 1.9.4, vendored by `vendor/leaflet/update.sh` (BSD-2-Clause).
-pub const LEAFLET_SCRIPT: ThemeAsset = ThemeAsset {
-    path: "vendor/leaflet/leaflet.js",
-    kind: AssetKind::Library,
-    content: include_str!("../vendor/leaflet/leaflet.js"),
-};
-
-/// Leaflet's own stylesheet, from the same release.
-pub const LEAFLET_STYLESHEET: ThemeAsset = ThemeAsset {
-    path: "vendor/leaflet/leaflet.css",
-    kind: AssetKind::LibraryStylesheet,
-    content: include_str!("../vendor/leaflet/leaflet.css"),
-};
+/// The script that draws every map on a page, served as `js/map.js`.
+pub const MAP_SCRIPT: &str = include_str!("map.js");
 
 /// The most places one map draws, so a broad query cannot make a page heavy.
 pub const MAX_PLACES: usize = 500;
@@ -308,15 +290,11 @@ pub fn with_assets(content: String, ctx: &RenderContext<'_>) -> String {
     if !content.contains(MARKER) {
         return content;
     }
-    let base = ctx.asset_base.trim_end_matches('/');
+    let base = ctx.asset_base.as_str();
     let mut out = content;
-    for asset in [LEAFLET_STYLESHEET, LEAFLET_SCRIPT, MAP_SCRIPT] {
-        out.push_str(&asset.kind.element(&format!(
-            "{base}/{}?v={}",
-            escape_html(asset.path),
-            asset.version()
-        )));
-    }
+    out.push_str(&library_stylesheet(base, "vendor/leaflet/leaflet.css"));
+    out.push_str(&library_script(base, "vendor/leaflet/leaflet.js"));
+    out.push_str(&library_script(base, "js/map.js"));
     out
 }
 
@@ -441,11 +419,11 @@ mod tests {
             "{page}"
         );
         assert!(
-            page.contains("<script defer src=\"/assets/vendor/leaflet/leaflet.js?v="),
+            page.contains("<script src=\"/assets/vendor/leaflet/leaflet.js?v="),
             "{page}"
         );
         assert!(
-            page.contains("<script defer src=\"/assets/js/map.js?v="),
+            page.contains("<script src=\"/assets/js/map.js?v="),
             "{page}"
         );
         assert!(

@@ -414,8 +414,7 @@
           "key": "manifest_url",
           "label": "blockField.iiifPresentation.manifest_url",
           "help": "fieldHelp.iiifPresentation.manifest_url",
-          "type": "text",
-          "placeholder": "fieldExample.url"
+          "type": "manifestSource"
         },
         {
           "key": "title",
@@ -429,6 +428,35 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "romeka.height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifPresentation.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -456,6 +484,35 @@
           "help": "fieldHelp.iiif.show_title",
           "type": "boolean",
           "default": false
+        },
+        {
+          "key": "romeka.height",
+          "label": "blockField.iiif.height",
+          "help": "fieldHelp.iiifImage.height",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.height_standard"
+            },
+            {
+              "value": "small",
+              "label": "blockChoice.height_small"
+            },
+            {
+              "value": "medium",
+              "label": "blockChoice.height_medium"
+            },
+            {
+              "value": "large",
+              "label": "blockChoice.height_large"
+            },
+            {
+              "value": "full",
+              "label": "blockChoice.height_full"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -768,6 +825,63 @@
         "group": "spacing"
       },
       {
+        "key": "romeka.space_top",
+        "label": "blockLayoutData.space_top",
+        "help": "fieldHelp.layout.space_top",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "group": "spacing"
+      },
+      {
+        "key": "romeka.space_bottom",
+        "label": "blockLayoutData.space_bottom",
+        "help": "fieldHelp.layout.space_bottom",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "group": "spacing"
+      },
+      {
+        "key": "romeka.bleed",
+        "label": "blockLayoutData.bleed",
+        "help": "fieldHelp.layout.bleed",
+        "type": "boolean",
+        "group": "size"
+      },
+      {
         "key": "max_width",
         "label": "blockLayoutData.max_width",
         "help": "fieldHelp.layout.length",
@@ -784,10 +898,19 @@
         "group": "size"
       },
       {
+        "key": "romeka.text_color",
+        "label": "blockLayoutData.text_color",
+        "help": "fieldHelp.layout.text_color",
+        "type": "color",
+        "tokenKey": "romeka.text_color",
+        "group": "background"
+      },
+      {
         "key": "background_color",
         "label": "blockLayoutData.background_color",
         "help": "fieldHelp.layout.background_color",
         "type": "color",
+        "tokenKey": "romeka.background_role",
         "group": "background"
       },
       {
@@ -942,6 +1065,13 @@
         "help": "fieldHelp.layout.class",
         "type": "text",
         "advanced": true
+      },
+      {
+        "key": "romeka.anchor",
+        "label": "blockLayoutData.anchor",
+        "help": "fieldHelp.layout.anchor",
+        "type": "anchor",
+        "advanced": true
       }
     ]
   },
@@ -988,5 +1118,150 @@
         "group": "grid"
       }
     ]
-  }
+  },
+  "sectionLayoutData": {
+    "fields": [
+      {
+        "key": "romeka.section.layout",
+        "label": "section.layout",
+        "help": "fieldHelp.section.layout",
+        "type": "choice",
+        "options": [
+          {
+            "value": "stack",
+            "label": "sectionLayout.stack"
+          },
+          {
+            "value": "split-50-50",
+            "label": "sectionLayout.split5050"
+          },
+          {
+            "value": "split-40-60",
+            "label": "sectionLayout.split4060"
+          },
+          {
+            "value": "split-60-40",
+            "label": "sectionLayout.split6040"
+          },
+          {
+            "value": "cards-2",
+            "label": "sectionLayout.cards2"
+          },
+          {
+            "value": "cards-3",
+            "label": "sectionLayout.cards3"
+          },
+          {
+            "value": "cards-4",
+            "label": "sectionLayout.cards4"
+          },
+          {
+            "value": "band",
+            "label": "sectionLayout.band"
+          }
+        ]
+      },
+      {
+        "key": "romeka.section.align",
+        "label": "section.align",
+        "help": "fieldHelp.section.align",
+        "type": "choice",
+        "options": [
+          {
+            "value": "top",
+            "label": "blockChoice.top"
+          },
+          {
+            "value": "center",
+            "label": "blockChoice.center"
+          },
+          {
+            "value": "bottom",
+            "label": "blockChoice.bottom"
+          }
+        ],
+        "default": "top"
+      },
+      {
+        "key": "romeka.section.gap",
+        "label": "section.gap",
+        "help": "fieldHelp.section.gap",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "spaceChoice.none"
+          },
+          {
+            "value": "small",
+            "label": "spaceChoice.small"
+          },
+          {
+            "value": "medium",
+            "label": "spaceChoice.medium"
+          },
+          {
+            "value": "large",
+            "label": "spaceChoice.large"
+          }
+        ],
+        "default": "medium"
+      },
+      {
+        "key": "romeka.section.overlay",
+        "label": "section.overlay",
+        "help": "fieldHelp.section.overlay",
+        "type": "choice",
+        "options": [
+          {
+            "value": "none",
+            "label": "overlayChoice.none"
+          },
+          {
+            "value": "light",
+            "label": "overlayChoice.light"
+          },
+          {
+            "value": "dark",
+            "label": "overlayChoice.dark"
+          }
+        ],
+        "default": "none"
+      }
+    ]
+  },
+  "colorTokens": [
+    {
+      "value": "brand",
+      "label": "colorToken.brand"
+    },
+    {
+      "value": "on-brand",
+      "label": "colorToken.on-brand"
+    },
+    {
+      "value": "accent",
+      "label": "colorToken.accent"
+    },
+    {
+      "value": "background",
+      "label": "colorToken.background"
+    },
+    {
+      "value": "surface",
+      "label": "colorToken.surface"
+    },
+    {
+      "value": "text",
+      "label": "colorToken.text"
+    },
+    {
+      "value": "muted",
+      "label": "colorToken.muted"
+    },
+    {
+      "value": "link",
+      "label": "colorToken.link"
+    }
+  ]
 }

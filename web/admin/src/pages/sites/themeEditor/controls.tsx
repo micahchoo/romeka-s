@@ -24,12 +24,15 @@ export const ColourInput = ({
   label,
   value,
   fallback,
+  textLabel,
   onChange,
 }: {
   readonly id: string;
   readonly label: string;
   readonly value: string;
   readonly fallback: string;
+  /** The text field's own name, when a `<label for>` does not give it the right one. */
+  readonly textLabel?: string;
   readonly onChange: (value: string) => void;
 }): ReactElement => {
   const t = useThemeText();
@@ -47,6 +50,7 @@ export const ColourInput = ({
       <input
         id={id}
         type="text"
+        aria-label={textLabel}
         spellCheck={false}
         value={value}
         aria-invalid={invalid}

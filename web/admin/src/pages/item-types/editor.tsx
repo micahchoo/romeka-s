@@ -6,10 +6,11 @@
  */
 import { useState } from 'react';
 import type { ReactElement, SyntheticEvent } from 'react';
-import { useTermLabels } from '../../i18n/termText';
+import { useTermText } from '../../i18n/termComments';
 import { api } from '../../api/client';
 import type { Property, ResourceTemplate } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
+import { ReorderStatus, useReorderable } from '../../app/reorder/useReorderable';
 import { createLocalField, isLocalTerm } from '../../app/local-fields';
 import { useSave } from '../../app/save';
 import { StandardTermPicker } from '../../app/standard-term-picker';
@@ -19,7 +20,6 @@ import { useItemTypesText } from './messages';
 import {
   addField,
   freeProperties,
-  moveField,
   removeField,
   toTemplateWrite,
   type TypeDraft,
@@ -60,35 +60,14 @@ export const TypeEditor = ({
   onSaved,
 }: TypeEditorProps): ReactElement => {
   const t = useItemTypesText();
-  const text = useTermLabels();
   const [draft, setDraft] = useState(initial);
   const [kinds, setKinds] = useState<readonly ResourceKind[]>(() =>
     template === null ? RESOURCE_KINDS : usedFor(template.id),
   );
   const [tab, setTab] = useState<Tab>('fields');
-  const [moved, setMoved] = useState<{ readonly key: string; readonly message: string } | null>(
-    null,
-  );
   const [formError, setFormError] = useState<string | null>(null);
   const [properties, createField] = useProperties(options.properties);
   const { state: saveState, save } = useSave();
-
-  const move = (key: string, index: number): void => {
-    const next = moveField(draft, key, index);
-    const position = next.fields.findIndex((entry) => entry.key === key);
-    const field = next.fields[position];
-    const property = properties.find((entry) => entry.id === field?.propertyId);
-    const name =
-      field?.alternateLabel ??
-      (property === undefined ? null : text.label(property.term, property.label)) ??
-      property?.term ??
-      '';
-    setDraft(next);
-    setMoved({
-      key,
-      message: t('field.moved', { name, position: position + 1, count: next.fields.length }),
-    });
-  };
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -126,15 +105,10 @@ export const TypeEditor = ({
           <FieldList
             draft={draft}
             onChange={setDraft}
-            onMove={move}
-            moved={moved?.key ?? null}
             properties={properties}
             options={options}
             createField={createField}
           />
-          <p className="sr-only" role="status">
-            {moved?.message ?? ''}
-          </p>
           <StandardTermPicker
             label={t('fields.add')}
             placeholder={t('fields.addHint')}
@@ -169,8 +143,6 @@ export const TypeEditor = ({
 interface FieldListProps {
   readonly draft: TypeDraft;
   readonly onChange: (draft: TypeDraft) => void;
-  readonly onMove: (key: string, index: number) => void;
-  readonly moved: string | null;
   readonly properties: readonly Property[];
   readonly options: TypeOptions;
   readonly createField: (name: string) => Promise<Property>;
@@ -179,13 +151,28 @@ interface FieldListProps {
 const FieldList = ({
   draft,
   onChange,
-  onMove,
-  moved,
   properties,
   options,
   createField,
 }: FieldListProps): ReactElement => {
   const t = useItemTypesText();
+  const text = useTermText();
+  const nameOf = (field: TypeDraft['fields'][number]): string => {
+    const property = properties.find((entry) => entry.id === field.propertyId);
+    return (
+      field.alternateLabel ??
+      (property === undefined ? null : text.label(property.term, property.label)) ??
+      property?.term ??
+      `#${String(field.propertyId)}`
+    );
+  };
+  const reorder = useReorderable({
+    items: draft.fields,
+    onReorder: (fields) => {
+      onChange({ ...draft, fields });
+    },
+    labelOf: nameOf,
+  });
   if (draft.fields.length === 0) {
     return <p className="field-note">{t('fields.empty')}</p>;
   }
@@ -196,28 +183,30 @@ const FieldList = ({
   const termLesson = (index: number): TermLesson =>
     index === firstStandard ? 'term' : index === firstLocal ? 'local-field' : null;
   return (
-    <ol className="type-field-list">
-      {draft.fields.map((field, index) => (
-        <FieldRow
-          key={field.key}
-          field={field}
-          index={index}
-          count={draft.fields.length}
-          draft={draft}
-          onChange={onChange}
-          onMove={onMove}
-          onRemove={(key) => {
-            onChange(removeField(draft, key));
-          }}
-          focusHandle={moved === field.key}
-          properties={properties}
-          freeProperties={freeProperties(draft, properties, field.propertyId)}
-          dataTypes={options.dataTypes}
-          createField={createField}
-          termLesson={termLesson(index)}
-        />
-      ))}
-    </ol>
+    <>
+      <ol className="type-field-list">
+        {draft.fields.map((field, index) => (
+          <FieldRow
+            key={field.key}
+            field={field}
+            index={index}
+            reorder={reorder}
+            name={nameOf(field)}
+            draft={draft}
+            onChange={onChange}
+            onRemove={(key) => {
+              onChange(removeField(draft, key));
+            }}
+            properties={properties}
+            freeProperties={freeProperties(draft, properties, field.propertyId)}
+            dataTypes={options.dataTypes}
+            createField={createField}
+            termLesson={termLesson(index)}
+          />
+        ))}
+      </ol>
+      <ReorderStatus reorder={reorder} />
+    </>
   );
 };
 

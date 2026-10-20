@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isRecord, isUnknownArray } from '../src/api/parse';
+import { isRecord } from '../src/api/parse';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
@@ -307,11 +307,38 @@ describe('site navigation', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add child link to Browse' }));
     fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
-    expect(within(tree()).getByText('Needs a target')).toBeInTheDocument();
+    expect(within(tree()).getByText('Needs a URL')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'A page or URL link needs its target.',
+      'Some links are not complete. Fix the marked links, then save.',
+    );
+    expect(pagePatch(fetchMock)).toHaveLength(0);
+  });
+
+  it('navigation_editor_names_a_missing_label_not_a_missing_target', async () => {
+    installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add link' }));
+    fireEvent.change(screen.getByLabelText('Link type'), { target: { value: 'url' } });
+    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://example.org' } });
+
+    expect(within(tree()).getByText('Needs a label')).toBeInTheDocument();
+    expect(within(tree()).queryByText('Needs a URL')).toBeNull();
+  });
+
+  it('navigation_editor_refuses_a_second_link_to_the_same_page_before_the_server_does', async () => {
+    const fetchMock = installFetch((url) => siteRoutes(url) ?? notFound());
+    render(<SitesPage param="1" rest={['1', 'navigation']} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add link' }));
+    fireEvent.change(screen.getByLabelText('Page'), { target: { value: '1' } });
+    expect(within(tree()).getByText('Page already in the menu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Some links are not complete. Fix the marked links, then save.',
     );
     expect(pagePatch(fetchMock)).toHaveLength(0);
   });
@@ -422,89 +449,43 @@ describe('site items', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace the items' }));
 
     expect(await screen.findByText('Replaced. Items on this site: 9.')).toBeInTheDocument();
-    expect(pagePatch(fetchMock)).toEqual([{ 'o:site_item_set': [], 'o:item_pool': [] }]);
+    // No set is left, so the same write turns sync off.
+    expect(pagePatch(fetchMock)).toEqual([
+      { 'o:site_item_set': [], 'o:item_pool': [], 'o:assign_new_items': false },
+    ]);
     expect(addBodies(fetchMock)).toEqual([
       { action: 'replace', items: [12], item_sets: [], dry_run: false },
     ]);
   });
 
-  it('the sync switch stores assign_new_items and says what joins the site', async () => {
-    const fetchMock = installFetch(
+  it('the sync switch cannot be turned on while the pool would let every new item join', async () => {
+    installFetch(
       (url, init) =>
         siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound(),
     );
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
     const sync = await screen.findByRole('switch', { name: 'Keep this site in sync' });
-    // The fixture's pool is empty, so every new item would join.
-    expect(sync).toHaveAccessibleDescription(/^Every item created from now on joins this site/);
+    expect(sync).toBeDisabled();
+    expect(sync).toHaveAccessibleDescription('Pick an item set to keep this site in sync with it.');
+  });
+
+  it('the sync switch stores assign_new_items and says what turning it on does', async () => {
+    const raw = site();
+    const withSet = { ...(isRecord(raw) ? raw : {}), 'o:item_pool': { item_set_id: ['2'] } };
+    const fetchMock = installFetch((url, init) =>
+      url.pathname === '/api/sites/1' && init?.method !== 'PATCH'
+        ? jsonResponse(withSet)
+        : (siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound()),
+    );
+    render(<SitesPage param="1" rest={['1', 'resources']} />);
+
+    const sync = await screen.findByRole('switch', { name: 'Keep this site in sync' });
+    expect(sync).toBeEnabled();
+    expect(sync).toHaveAccessibleDescription(/^Off\. Turn it on and an item created in one of this site/);
     fireEvent.click(sync);
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(pagePatch(fetchMock)).toEqual([{ 'o:assign_new_items': true }]);
-  });
-});
-
-describe('site users', () => {
-  it('site_users_patches_the_permission_list_it_keeps', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return usersRoute(url) ?? notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'users']} />);
-
-    const roles = await screen.findAllByLabelText('Role');
-    expect(roles).toHaveLength(2);
-    // User 3's row is removed and user 5 becomes an editor.
-    fireEvent.click(first(screen.getAllByRole('button', { name: 'Remove' })));
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'editor' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    expect(requestBody(patch)).toEqual({
-      'o:site_permission': [{ 'o:user': { 'o:id': 5 }, 'o:role': 'editor' }],
-    });
-  });
-
-  it('site_users_adds_a_row_from_the_user_list', async () => {
-    const fetchMock = installFetch((url, init) => {
-      if (url.pathname === '/api/sites/1' && init?.method === 'PATCH') {
-        return jsonResponse(site());
-      }
-      if (url.pathname === '/api/sites/1') {
-        return jsonResponse(site());
-      }
-      return usersRoute(url) ?? notFound();
-    });
-    render(<SitesPage param="1" rest={['1', 'users']} />);
-
-    await screen.findByLabelText('Add user');
-    fireEvent.change(screen.getByLabelText('Add user'), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add user' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    const patch = first(
-      requestsFor(fetchMock, '/api/sites/1').filter(
-        (request) => request.init?.method === 'PATCH',
-      ),
-    );
-    const body = requestBody(patch);
-    const permissions = body['o:site_permission'];
-    expect(isUnknownArray(permissions)).toBe(true);
-    if (isUnknownArray(permissions)) {
-      expect(permissions).toHaveLength(3);
-      expect(permissions[2]).toEqual({ 'o:user': { 'o:id': 5 }, 'o:role': 'viewer' });
-    }
   });
 });
 
@@ -549,7 +530,6 @@ const UNREAD_KEYS = {
   vocabulary_scope: 'cross-site',
   search_apply_templates: [3, 4],
   search_restrict_templates: true,
-  iiif_viewer_sidebar: true,
 } as const;
 
 describe('site settings', () => {

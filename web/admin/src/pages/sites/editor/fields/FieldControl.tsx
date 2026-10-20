@@ -13,80 +13,36 @@
  * A required field says it is empty only after the user has left it once.
  */
 import { useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { brandId } from '../../../../api/parse';
-import type { ItemId, JsonValue, SiteId } from '../../../../api/types';
+import type { ReactElement } from 'react';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
+import { BLOCK_REGISTRY } from '../../blockRegistry';
 import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
 import { Checked, Help, Labelled, helpId } from '../Labelled';
 import { AssetPicker } from './AssetPicker';
+import { WithHelp, asText } from './controlBase';
+import type { ControlProps, FieldOf } from './controlBase';
 import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
-import { LazyItemPicker } from './LazyItemPicker';
 import { LinkField } from './LinkField';
-import { MapViewField } from './MapViewField';
+import { ManifestSourceField } from './ManifestSourceField';
+import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
-import { PropertySelect } from './PropertySelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
 import { SidesField } from './SidesField';
 import { isShown } from './visibility';
 import { editor } from '../../../../i18n/namespaces/editor';
 
-type FieldOf<Type extends BlockField['type']> = Extract<BlockField, { type: Type }>;
-
-/** A stored scalar as the string a text control shows. */
-const asText = (value: JsonValue | undefined): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  return typeof value === 'number' || typeof value === 'boolean' ? String(value) : '';
-};
-
 /** The values of a multiple choice, keeping only the strings a select can hold. */
 const asList = (value: JsonValue | undefined): readonly string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
-
-/** The props every control of one field shares. */
-interface ControlProps {
-  readonly id: string;
-  readonly value: JsonValue | undefined;
-  readonly onChange: (value: JsonValue) => void;
-  readonly error: ReactNode;
-  readonly invalid: boolean;
-  readonly siteId: SiteId;
-  readonly issues: readonly ValidationIssue[];
-  readonly blockKey: BlockKey | null;
-  readonly idPrefix: string;
-  readonly path: string;
-  /** The values beside this one, which `link`, `sides` and `itemQuery` read. */
-  readonly record: Readonly<Record<string, JsonValue>>;
-  readonly onPatch: (values: Readonly<Record<string, JsonValue>>) => void;
-  /** The editor's shared lists, so a control makes no request of its own. */
-  readonly options?: EditorOptions;
-}
-
-/** A control that renders its own label, followed by the field's help line. */
-const WithHelp = ({
-  id,
-  help,
-  children,
-}: {
-  readonly id: string;
-  readonly help: string;
-  readonly children: ReactNode;
-}): ReactElement => (
-  <div className="block-field-help">
-    {children}
-    <Help id={id} text={help} />
-  </div>
-);
 
 const TextControl = ({
   field,
@@ -399,18 +355,98 @@ const PageListControl = ({
 const ColorControl = ({
   field,
   id,
-  value,
-  onChange,
+  record,
+  onPatch,
+  options,
 }: ControlProps & { readonly field: FieldOf<'color'> }): ReactElement => {
   const e = useEditorText();
+  const tokenKey = field.tokenKey;
+  const stored = asText(record[field.key]);
+  const storedToken = tokenKey === null ? '' : asText(record[tokenKey]);
+  // A field whose role and hex share one key holds either; the hex box shows only a hex.
+  const hex = tokenKey === field.key && !stored.startsWith('#') ? '' : stored;
+  const token = tokenKey === field.key ? (stored.startsWith('#') ? '' : stored) : storedToken;
+  const write = (value: string, kind: 'hex' | 'token'): void => {
+    if (tokenKey === null) {
+      onPatch({ [field.key]: value });
+    } else if (tokenKey === field.key) {
+      onPatch({ [field.key]: value });
+    } else {
+      onPatch(
+        kind === 'hex'
+          ? { [field.key]: value, [tokenKey]: '' }
+          : { [tokenKey]: value, [field.key]: '' },
+      );
+    }
+  };
   return (
     <ColorField
       id={id}
       label={e(field.label)}
       help={e(field.help)}
-      value={asText(value)}
-      onChange={onChange}
+      value={hex}
+      onChange={(value) => {
+        write(value, 'hex');
+      }}
+      {...(tokenKey === null
+        ? {}
+        : {
+            tokens: BLOCK_REGISTRY.colorTokens,
+            token,
+            onToken: (value: string) => {
+              write(value, 'token');
+            },
+            themeSettings: options?.themeSettings ?? null,
+          })}
     />
+  );
+};
+
+/** The longest anchor the renderer writes (`style.rs::ANCHOR_MAX`). */
+const ANCHOR_MAX = 64;
+
+/**
+ * What a curator types, as an anchor the renderer accepts: lowercase letters,
+ * digits and hyphens, never starting with a hyphen. A space becomes a hyphen,
+ * so "Our story" is `our-story`; anything else is dropped.
+ */
+export const toAnchor = (raw: string): string =>
+  raw
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[\s_]+/gu, '-')
+    .replace(/[^a-z0-9-]/gu, '')
+    .replace(/-{2,}/gu, '-')
+    .replace(/^-+/u, '')
+    .slice(0, ANCHOR_MAX);
+
+const AnchorControl = ({
+  field,
+  id,
+  value,
+  onChange,
+  error,
+  invalid,
+}: ControlProps & { readonly field: FieldOf<'anchor'> }): ReactElement => {
+  const e = useEditorText();
+  const anchor = asText(value);
+  return (
+    <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
+      <input
+        id={id}
+        type="text"
+        value={anchor}
+        spellCheck={false}
+        autoCapitalize="none"
+        placeholder={e('fieldExample.layout.anchor')}
+        aria-invalid={invalid}
+        aria-describedby={helpId(id)}
+        onChange={(event) => {
+          onChange(toAnchor(event.target.value));
+        }}
+      />
+      {anchor === '' ? null : <p className="field-note">{e('field.anchorLink', { anchor })}</p>}
+    </Labelled>
   );
 };
 
@@ -457,75 +493,19 @@ const LinkControl = ({
   );
 };
 
-/** The stored ids of an item list, in order, skipping anything that is not one. */
-const asItemIds = (value: JsonValue | undefined): readonly ItemId[] =>
-  Array.isArray(value)
-    ? value.flatMap((entry) =>
-        typeof entry === 'number' && Number.isInteger(entry) && entry > 0
-          ? [brandId<'ItemId'>(entry)]
-          : [],
-      )
-    : [];
-
-const ItemListControl = ({
+const ManifestSourceControl = ({
   field,
   id,
   value,
   onChange,
-  error,
-}: ControlProps & { readonly field: FieldOf<'itemList'> }): ReactElement => {
+}: ControlProps & { readonly field: FieldOf<'manifestSource'> }): ReactElement => {
   const e = useEditorText();
   return (
-    <WithHelp id={id} help={e(field.help)}>
-      <LazyItemPicker
-        id={id}
-        label={e(field.label)}
-        mode="many"
-        picked={asItemIds(value)}
-        onChange={(picked) => {
-          onChange([...picked]);
-        }}
-      />
-      {error}
-    </WithHelp>
-  );
-};
-
-const MapViewControl = ({
-  field,
-  id,
-  record,
-  onPatch,
-  siteId,
-}: ControlProps & { readonly field: FieldOf<'mapView'> }): ReactElement => {
-  const e = useEditorText();
-  return (
-    <MapViewField
+    <ManifestSourceField
       id={id}
       label={e(field.label)}
       help={e(field.help)}
-      centreKey={field.key}
-      zoomKey={field.zoomKey}
-      record={record}
-      onPatch={onPatch}
-      siteId={siteId}
-    />
-  );
-};
-
-const PropertyControl = ({
-  field,
-  id,
-  value,
-  onChange,
-}: ControlProps & { readonly field: FieldOf<'property'> }): ReactElement => {
-  const e = useEditorText();
-  return (
-    <PropertySelect
-      id={id}
-      label={e(field.label)}
-      help={e(field.help)}
-      value={asText(value)}
+      value={value}
       onChange={onChange}
     />
   );
@@ -581,6 +561,10 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <SidesControl {...common} field={common.field} />;
     case 'link':
       return <LinkControl {...common} field={common.field} />;
+    case 'anchor':
+      return <AnchorControl {...common} field={common.field} />;
+    case 'manifestSource':
+      return <ManifestSourceControl {...common} field={common.field} />;
     case 'itemList':
       return <ItemListControl {...common} field={common.field} />;
     case 'mapView':

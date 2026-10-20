@@ -144,4 +144,7 @@ export const ne: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ट्रान्जिसनल सेरिफ',
   'themeChoice.didone': 'हाई-कन्ट्रास्ट सेरिफ',
   'themeChoice.mono': 'मोनोजेम',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वचालित योजनाले पाठकको प्रणालीलाई पछ्याउँछ, त्यसैले प्रत्येक रङको हल्का मान र गाढा मान हुन्छ।',
 };

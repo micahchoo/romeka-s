@@ -99,3 +99,8 @@
 .editor-toast button {
   padding: var(--space-1) var(--space-2);
 }
+
+.editor-history-toggle[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}

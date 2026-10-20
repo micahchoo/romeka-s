@@ -9,10 +9,12 @@
 
 use omeka_db::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
 use omeka_db::repos::{
-    AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo, ValueRepo,
+    AssetRepo, ItemRepo, MediaRepo, PageVersionRepo, SiteBlockAttachmentRepo, SiteRepo,
+    SiteSettingRepo, ValueRepo,
 };
 use omeka_db::rows::{
-    AssetRow, ItemRow, NewSiteBlock, NewSiteBlockAttachment, NewSitePage, SitePageRow,
+    AssetRow, BlockChange, ItemRow, NewPageAttachment, NewPageBlock, NewSiteBlock,
+    NewSiteBlockAttachment, NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
 };
 use serde_json::Value;
 
@@ -38,6 +40,8 @@ pub(crate) const CONTROL: &[&str] = &[
     "o:layout_data",
     "o:block",
     "o:site",
+    // Read only by an update, as the conflict check's claim (`crate::page_history`).
+    "o:modified",
 ];
 
 /// One parsed block: layout, data, optional layout data, and its raw
@@ -126,6 +130,9 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     api.read_member("site_pages", &page.id.0.to_string()).await
 }
 
+/// `PUT` and `PATCH`: authorize, parse and check as upstream does, then save in one transaction
+/// that also records the new version and runs the `o:modified` conflict check
+/// ([`omeka_db::repos::PageVersionRepo::save`], [`crate::page_history`]).
 pub async fn update(
     api: &Api<'_>,
     raw_id: &str,
@@ -146,6 +153,7 @@ pub async fn update(
     api.authorize_site_page(Operation::Update, page.site_id, site)
         .await?;
 
+    let expected_modified = crate::page_history::loaded_modified(payload);
     if !partial || payload.has("o:title") {
         page.title = payload
             .str_member("o:title")
@@ -165,7 +173,6 @@ pub async fn update(
     if !partial || payload.has("o:layout_data") {
         page.layout_data = payload.get("o:layout_data").map(php_json);
     }
-    let append = partial;
     let mut blocks = if !partial || payload.has("o:block") {
         parse_blocks(payload)?
     } else {
@@ -173,15 +180,57 @@ pub async fn update(
     };
     carry_blocks(api, page.site_id, &mut blocks).await?;
     validate(api, Some(&page), page.site_id, &page.title, &page.slug).await?;
-    repo.update_page(&page).await.map_err(db_error)?;
-    if !append || !blocks.is_empty() {
-        if !append {
-            repo_clear_blocks(api, page.id).await?;
+    let stored = resolve_blocks(api, &blocks).await?;
+    let change = match (partial, stored.is_empty()) {
+        (false, _) => BlockChange::Replace(&stored),
+        (true, true) => BlockChange::Keep,
+        (true, false) => BlockChange::Append(&stored),
+    };
+    let snapshot = crate::read::page_snapshot(api.base());
+    let outcome = PageVersionRepo::new(api.pool())
+        .save(
+            &PageSave {
+                page: &page,
+                blocks: change,
+                user: api.actor().user(),
+                expected_modified,
+            },
+            &snapshot,
+        )
+        .await
+        .map_err(db_error)?;
+    match outcome {
+        PageSaveOutcome::Saved { .. } => {}
+        PageSaveOutcome::Missing => return Err(not_found(PAGE_CLASS, raw_id)),
+        PageSaveOutcome::Stale { modified, saved_by } => {
+            return Err(crate::page_history::stale(api, modified, saved_by).await);
         }
-        store_blocks(api, page.id, &blocks).await?;
     }
     fulltext::reindex(api, "site_pages", ResourceId(page.id.0)).await?;
     api.read_member("site_pages", raw_id).await
+}
+
+/// The blocks as a save stores them, each attachment resolved the way
+/// `SitePageAdapter::hydrateAttachments` resolves it.
+async fn resolve_blocks(api: &Api<'_>, blocks: &[Block]) -> Result<Vec<NewPageBlock>, ApiError> {
+    let mut stored = Vec::with_capacity(blocks.len());
+    for block in blocks {
+        stored.push(NewPageBlock {
+            layout: block.layout.clone(),
+            data: block.data.clone(),
+            layout_data: block.layout_data.clone(),
+            attachments: resolve_attachments(api, &block.attachments)
+                .await?
+                .into_iter()
+                .map(|attachment| NewPageAttachment {
+                    item_id: attachment.item,
+                    media_id: attachment.media,
+                    caption: attachment.caption,
+                })
+                .collect(),
+        });
+    }
+    Ok(stored)
 }
 
 /// Delete a page and its blocks.
@@ -599,14 +648,6 @@ pub(crate) async fn resolve_attachments(
         });
     }
     Ok(resolved)
-}
-
-async fn repo_clear_blocks(api: &Api<'_>, page: PageId) -> Result<(), ApiError> {
-    let repo = SiteRepo::new(api.pool());
-    for block in repo.list_blocks(page).await.map_err(db_error)? {
-        repo.delete_block(block.id).await.map_err(db_error)?;
-    }
-    Ok(())
 }
 
 /// `SitePageAdapter::validateEntity`.

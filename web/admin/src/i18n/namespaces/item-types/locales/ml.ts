@@ -51,11 +51,6 @@ export const ml: ItemTypesMessages = {
   'fields.add': 'ഒരു ഫീൽഡ് ചേർക്കുക',
   'fields.addHint': 'അത് വിവരിക്കുക, ഉദാഹരണത്തിന് “എത്ര പേജുകൾ”',
   'field.name': '{term}-ൽ ഫോമിൽ നൽകേണ്ട പേര്',
-  'field.moveHandle':
-    '{name}, {position} സ്ഥാനത്തുള്ള {count}-ന്റെ ഫീൽഡ് നീക്കുക. അപ്പ്, ഡൗൺ ആരോ കീകൾ ഉപയോഗിക്കുക, അല്ലെങ്കിൽ ഡ്രാഗ് ചെയ്യുക.',
-  'field.moved': '{name} ഇപ്പോൾ {position} സ്ഥാനത്തുള്ള {count}-ന്റെ ഫീൽഡ് ആണ്.',
-  'field.moveUp': '{name} മുകളിലേക്ക് നീക്കുക',
-  'field.moveDown': '{name} താഴേക്ക് നീക്കുക',
   'field.remove': '{name} നീക്കം ചെയ്യുക',
   'field.changeTerm': '{name}-ന്റെ സ്റ്റാൻഡേർഡ് പദം മാറ്റുക',
   'field.pickTerm': 'ഒരു സ്റ്റാൻഡേർഡ് പദം കണ്ടെത്തുക',

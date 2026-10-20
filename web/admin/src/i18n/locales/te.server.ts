@@ -27,8 +27,7 @@ export const teServer: ServerCatalogue = {
   'server.invalidContentType':
     'చెల్లని Content-Type హెడర్. "application/json" ఆశించబడింది, "{received}" వచ్చింది.',
   'server.bodyNotObject': 'అభ్యర్థన బాడీ JSON ఆబ్జెక్ట్ అయి ఉండాలి.',
-  'server.siteItemsOneSelector':
-    'పేరు ఖచ్చితంగా "query", "items" లేదా "item_sets" లలో ఒకటి అయి ఉండాలి',
+  'server.siteItemsOneSelector': 'పేరు "query", లేదా "items", "item_sets" లేదా రెండూ ఉండాలి',
   'server.invalidCredentials': 'ఇమెయిల్ లేదా పాస్‌వర్డ్ చెల్లదు',
   'server.inactiveAccount': 'వినియోగదారు క్రియాశీలకంగా లేరు.',
   'server.unknownKey': 'చలని పాస్‌వర్డ్ సృష్టి కీ.',
@@ -48,6 +47,7 @@ export const teServer: ServerCatalogue = {
   'server.mediaItemRequired': 'మీడియా ఒక ఐటమ్‌కు చెందాలి.',
   'server.jobHeldByImport':
     'ఈ జాబ్ ఒక ఆర్కైవ్ ఇంపోర్ట్ కి చెందినది, ఇది రన్ అవుతోంది లేదా అన్డూ చేస్తోంది. ఇంపోర్ట్ పూర్తయిన తర్వాత దానిని డిలీట్ చేయండి.',
+  'server.pageSavedSinceOpened': 'మీరు ఈ పేజీని తెరిచిన తర్వాత ఎవరో ఒకరు దీనిని సేవ్ చేశారు.',
   'server.noFileUploaded': 'ఎటువంటి ఫైల్ అప్‌లోడ్ చేయబడలేదు',
   'server.assetMediaType':
     '"{file}"ను ధృవీకరించడంలో లోపం. "{media}" మీడియా రకంతో ఫైళ్లను నిల్వ చేయలేరు.',

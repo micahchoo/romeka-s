@@ -5,14 +5,8 @@
 //! `view/omeka/site/item/browse.phtml`, `view/omeka/site/item/show.phtml`,
 //! `view/omeka/site/item-set/browse.phtml`,
 //! `view/omeka/site/media/show.phtml`, `common/site-page-pagination.phtml`,
-//! `view/omeka/iiif-viewer/index.phtml`, `view/error/403.phtml` and
+//! `view/error/403.phtml` and
 //! `view/error/404.phtml`.
-//!
-//! The IIIF viewer page (`view/omeka/iiif-viewer/index.phtml`) is where the
-//! port departs from the upstream view. Upstream renders Mirador over a `url`
-//! query parameter; the port renders the OpenSeadragon container the media
-//! renderer emits ([`crate::view::IiifViewerView`]), because the port replaced
-//! Mirador with OpenSeadragon throughout (`omeka-media/src/render/iiif.rs`).
 //!
 //! What the templates get from view helpers the port cannot call, and how the
 //! port stands in:
@@ -47,12 +41,9 @@ use crate::i18n::{Translator, sprintf1};
 use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
-use crate::theme::style::{PLACEHOLDER_SVG, STYLE_CSS};
-use crate::theme::{AssetKind, Theme, ThemeAsset, ThemeInfo};
+use crate::theme::{Theme, ThemeInfo};
 use crate::theme::{search, user_bar};
-use crate::view::{
-    BrowseView, ErrorView, IiifViewerView, RenderContext, ResourceView, Thumbnail, View,
-};
+use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, Thumbnail, View};
 use omeka_core::resource::ResourceKind;
 
 /// The bundled theme's manifest: the id `site.theme` stores, the design tokens
@@ -61,21 +52,7 @@ pub static DEFAULT_INFO: ThemeInfo = ThemeInfo {
     name: "default",
     label: "Default",
     settings: crate::theme::tokens::SETTINGS,
-    assets: &[
-        ThemeAsset {
-            path: "css/style.css",
-            kind: AssetKind::Stylesheet,
-            content: STYLE_CSS,
-        },
-        ThemeAsset {
-            path: "img/placeholder.svg",
-            kind: AssetKind::Image,
-            content: PLACEHOLDER_SVG,
-        },
-        crate::map::MAP_SCRIPT,
-        crate::map::LEAFLET_SCRIPT,
-        crate::map::LEAFLET_STYLESHEET,
-    ],
+    assets: &super::files::FILES,
 };
 
 /// The bundled theme.
@@ -162,14 +139,6 @@ impl Theme for DefaultTheme {
                 &format!("{} search", form.resource.body_class()),
                 &search::advanced_search_view(form, ctx),
             ),
-            View::IiifViewer(iiif) => layout_with_head(
-                view,
-                ctx,
-                Some(&iiif.title),
-                "iiif-viewer",
-                &openseadragon_head(ctx),
-                &iiif_viewer_view(iiif, ctx),
-            ),
             View::Error(error) => {
                 layout(view, ctx, Some(&error.title), "error", &error_view(error))
             }
@@ -182,26 +151,12 @@ impl Theme for DefaultTheme {
 /// The head carries the core assets first, as upstream links them with
 /// `assetUrl(..., 'Omeka')`: `fonts.css` and `iconfonts.css`, then the jQuery
 /// and `global.js` scripts. The theme's own assets sit between the two, where
-/// upstream appends `style.css`. The `lang` attribute is the site's locale. A view that appends to
-/// `headScript` upstream passes its own element as `head_extra` ([`layout_with_head`]).
+/// upstream appends `style.css`. The `lang` attribute is the site's locale.
 fn layout(
     view: &View<'_>,
     ctx: &RenderContext<'_>,
     view_title: Option<&str>,
     body_class: &str,
-    content: &str,
-) -> String {
-    layout_with_head(view, ctx, view_title, body_class, "", content)
-}
-
-/// The layout with one extra head element, placed last where upstream's
-/// `headScript()->appendFile` puts a view's own script.
-fn layout_with_head(
-    view: &View<'_>,
-    ctx: &RenderContext<'_>,
-    view_title: Option<&str>,
-    body_class: &str,
-    head_extra: &str,
     content: &str,
 ) -> String {
     let info = &DEFAULT_INFO;
@@ -274,7 +229,6 @@ fn layout_with_head(
          <style>\n{tokens}</style>\n\
          {theme_assets}\
          {custom_css}\
-         {head_extra}\
          </head>\n\
          <body{body}>\n\
          <a class=\"skip-link\" id=\"skipnav\" href=\"#content\">{skip}</a>\n\
@@ -690,10 +644,35 @@ fn render_resource(kind: ResourceKind, resource: &ResourceView, ctx: &RenderCont
 /// configured resource page blocks.
 fn item_view(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
     format!(
-        "<h2>{}</h2><h3>{}</h3>{}",
+        "<h2>{}</h2><h3>{}</h3>{}{}",
         escape_html(&item.title),
         escape_html(ctx.translator().messages().item),
+        iiif_links(item, ctx),
         render_blocks(item, ctx)
+    )
+}
+
+/// The IIIF logo, after `iiif.io`'s mark: three bars and a red last stroke.
+/// Decorative, because the link text names the manifest.
+const IIIF_LOGO: &str = "<svg class=\"iiif-logo\" viewBox=\"0 0 24 21\" width=\"18\" height=\"16\" \
+     aria-hidden=\"true\" focusable=\"false\"><path fill=\"#2873AB\" d=\"M0 4h3v17H0zM5 4h3v17H5zM10 4h3v17h-3z\"/>\
+     <path fill=\"#ED1D33\" d=\"M15 4h9v3h-6v4h5v3h-5v7h-3z\"/>\
+     <path fill=\"#2873AB\" d=\"M0 0h3v3H0zM5 0h3v3H5zM10 0h3v3h-3z\"/></svg>";
+
+/// A Romeka addition to the item page: a link that opens the item in the IIIF
+/// viewer, under the site's viewer settings, and a link to its manifest.
+fn iiif_links(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    let Some(manifest) = &item.iiif_manifest else {
+        return String::new();
+    };
+    let messages = ctx.translator().messages();
+    let viewer = crate::iiif_viewer::viewer_src(&ctx.iiif_viewer_url, manifest, &ctx.settings);
+    format!(
+        "<p class=\"iiif-links\"><a href=\"{}\">{}</a> <a class=\"iiif-manifest\" href=\"{}\">{IIIF_LOGO}{}</a></p>",
+        escape_html(&viewer),
+        escape_html(messages.iiif_view_in_viewer),
+        escape_html(manifest),
+        escape_html(messages.iiif_manifest)
     )
 }
 
@@ -729,51 +708,6 @@ fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
     out.push_str(&render_blocks(media, ctx));
     out.push_str("</div>");
     out
-}
-
-/// The IIIF viewer page: the OpenSeadragon container for one stored media, in
-/// the media renderer's markup shape.
-///
-/// The markup is copied from `omeka-media/src/render/iiif.rs` (itself
-/// `Renderer/IIIF.php:12-22`) so the viewer page and the media renderer emit
-/// the same shape: `{id}` names the container and the viewer, the prefix is the
-/// OpenSeadragon images directory, and the tile source is the escaped IIIF
-/// document.
-fn iiif_viewer_view(view: &IiifViewerView, ctx: &RenderContext<'_>) -> String {
-    let id = escape_html(&format!("iiif-{}", view.media.get()));
-    let prefix_url = escape_html(&format!(
-        "{}/vendor/openseadragon/images/",
-        ctx.asset_base.trim_end_matches('/')
-    ));
-    format!(
-        r#"        <div class="openseadragon" id="{id}" data-prefix-url="{prefix_url}" data-tile-sources="{tile_sources}" style="height: {height};"></div>
-        <script>
-        {{
-            const openSeadragonDiv = document.getElementById('{id}');
-            const viewer = OpenSeadragon({{
-                id: '{id}',
-                prefixUrl: openSeadragonDiv.dataset.prefixUrl,
-                tileSources: [JSON.parse(openSeadragonDiv.dataset.tileSources)]
-            }});
-        }}
-        </script>"#,
-        id = id,
-        prefix_url = prefix_url,
-        tile_sources = escape_html(&view.tile_source),
-        height = escape_html(&view.height),
-    )
-}
-
-/// The OpenSeadragon library the viewer page loads, under the asset base.
-///
-/// Upstream appends the file to `headScript` from the block or the renderer
-/// (`block-layout/iiif-image.phtml`, `Renderer/IIIF.php:14`); the theme owns the
-/// document head, so the viewer page adds it here.
-fn openseadragon_head(ctx: &RenderContext<'_>) -> String {
-    format!(
-        "<script src=\"{}/vendor/openseadragon/openseadragon.min.js\"></script>\n",
-        ctx.asset_base.trim_end_matches('/')
-    )
 }
 
 #[cfg(test)]

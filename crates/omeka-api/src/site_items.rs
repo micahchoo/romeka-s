@@ -372,4 +372,15 @@ mod tests {
         assert!(parse_body(br#"{"action":"add","query":{},"items":[1]}"#).is_err());
         assert!(parse_body(br#"{"action":"swap","items":[1]}"#).is_err());
     }
+
+    /// The refusal says what a body may name: a query, or items and item sets
+    /// together, since the picker sends both.
+    #[test]
+    fn a_body_with_a_query_and_items_is_told_it_may_send_items_and_sets_together() {
+        let refusal = parse_body(br#"{"action":"add","query":{},"items":[1]}"#).unwrap_err();
+        assert_eq!(
+            refusal,
+            ApiError::bad_request("name either \"query\", or \"items\", \"item_sets\" or both")
+        );
+    }
 }

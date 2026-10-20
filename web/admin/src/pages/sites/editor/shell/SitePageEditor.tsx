@@ -25,7 +25,8 @@ const load = async (siteId: SiteId, pageId: PageId | null): Promise<Loaded> => {
     api.getSite(siteId),
     pageId === null ? Promise.resolve(null) : api.getSitePage(pageId),
   ]);
-  return { site, page, options: await loadEditorOptions(siteId) };
+  const options = await loadEditorOptions(siteId);
+  return { site, page, options: { ...options, themeSettings: site.themeSettings } };
 };
 
 export const SitePageEditor = ({

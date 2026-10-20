@@ -10,7 +10,9 @@ import { parseJsonObjectOrArrayText } from '../../../../api/parse';
 import type { SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { blockLayoutOptions } from '../../blockRegistry';
-import type { DraftAction, BlockDraft, PageDraft, ValidationIssue } from '../draft';
+import type { BlockKey, DraftAction, BlockDraft, PageDraft, ValidationIssue } from '../draft';
+import { groupNodeOf } from '../groups';
+import { formValues } from '../layoutPaths';
 import type { EditorOptions } from '../options';
 import { layoutLabel } from '../canvas/summary';
 import { Labelled } from '../Labelled';
@@ -32,6 +34,10 @@ const LayoutDataForm = lazy(() =>
   import('../fields').then((module) => ({ default: module.LayoutDataForm })),
 );
 
+const SectionForm = lazy(() =>
+  import('../fields').then((module) => ({ default: module.SectionForm })),
+);
+
 export interface InspectorProps {
   readonly draft: PageDraft;
   readonly block: BlockDraft;
@@ -41,6 +47,8 @@ export interface InspectorProps {
   readonly options: EditorOptions;
   /** Clears the selection, so the inspector shows the page settings again. */
   readonly onDeselect: () => void;
+  /** Selects another block, such as one of a section's slots. */
+  readonly onSelect: (key: BlockKey) => void;
 }
 
 /** A block's data as editable JSON, for a layout the registry does not name. */
@@ -101,6 +109,7 @@ export const Inspector = ({
   siteId,
   options,
   onDeselect,
+  onSelect,
 }: InspectorProps): ReactElement => {
   const { t } = useTranslator(sites, editor);
   const schema = schemaFor(draft.registry, block.layout);
@@ -108,6 +117,7 @@ export const Inspector = ({
   const layoutData = draft.registry.blockLayoutData;
   const position = draft.blocks.findIndex((entry) => entry.key === block.key) + 1;
   const label = layoutLabel(draft.registry, block, t);
+  const group = groupNodeOf(draft.blocks, block.key);
 
   return (
     <div className="block-inspector">
@@ -141,7 +151,18 @@ export const Inspector = ({
         </p>
       )}
       <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
-        {romka === undefined ? (
+        {group !== null ? (
+          <SectionForm
+            block={block}
+            members={group.members}
+            registry={draft.registry}
+            issues={issues}
+            siteId={siteId}
+            dispatch={dispatch}
+            onSelect={onSelect}
+            options={options}
+          />
+        ) : romka === undefined ? (
           schema === undefined ? (
             <UnknownData block={block} dispatch={dispatch} />
           ) : (
@@ -168,10 +189,13 @@ export const Inspector = ({
           idPrefix={`block-${block.key}-layout`}
           owner="block"
           schema={layoutData}
-          values={layoutDataObject(block)}
+          values={formValues(layoutDataObject(block), layoutData.fields)}
           grid={draft.layout === 'grid'}
           siteId={siteId}
           options={options}
+          issues={issues}
+          blockKey={block.key}
+          omit={group === null ? [] : ['background']}
           onChange={(values) => {
             dispatch({ type: 'setLayoutDataValues', blockKey: block.key, values });
           }}

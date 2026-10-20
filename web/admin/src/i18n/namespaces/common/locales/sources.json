@@ -84,5 +84,15 @@
  "tags.legend": "Tags",
  "tags.add": "Add a tag",
  "tags.hint": "Free words to find things by later. Press Enter or type a comma to add one.",
- "tags.remove": "Remove the tag “{tag}”"
+ "tags.remove": "Remove the tag “{tag}”",
+ "reorder.handle": "Move {label}, {position} of {count}",
+ "reorder.grip": "Drag to move, or press Space to pick up",
+ "reorder.up": "Move {label} up",
+ "reorder.down": "Move {label} down",
+ "reorder.upTip": "Move up",
+ "reorder.downTip": "Move down",
+ "reorder.picked": "Picked up {label}. Use the arrow keys to move it, Space to drop it, Escape to cancel.",
+ "reorder.moved": "{label}: position {position} of {count}.",
+ "reorder.dropped": "Dropped {label} at position {position} of {count}.",
+ "reorder.cancelled": "Move of {label} cancelled."
 }

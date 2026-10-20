@@ -185,6 +185,14 @@ prefix and read by no upstream code.
   `(import_id, kind, target_id)` and cascading from its import. `target_id` has no foreign key,
   because it points at one of five tables and undo deletes the target before the row.
 
+`0007_site_page_version.sql` adds `romeka_site_page_version`, one row per saved state of a site page,
+`UNIQUE (page_id, version)`, cascading from `site_page`; `user_id` goes to `NULL` when the user is
+deleted. `snapshot` is the page document as JSON. `PageVersionRepo` writes a version in the save's own
+transaction, keeps the newest 100 per page and never updates one. Migration 0006 belongs to another
+branch. The gap is safe: `Migrator::run` applies every version `_sqlx_migrations` has not recorded,
+whatever its place (read in sqlx-core 0.8.6 `migrate/migrator.rs`), so 0006 applies when it lands
+after 0007. The gap itself is measured on MySQL 8 by `tests/mysql_page_versions.rs`.
+
 The MySQL directory has no `0004`: that migration only makes SQLite's term columns case-sensitive.
 
 ## Not translated

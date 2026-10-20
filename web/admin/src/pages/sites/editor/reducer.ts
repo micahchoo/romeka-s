@@ -8,14 +8,13 @@ import {
   setAttachments,
   setBlockData,
   setField,
-  setRomkaSetting,
   writeLayoutData,
 } from './blockContent';
 import { addBlock, insertBlocks, moveBlock, removeBlock, setLayout } from './blockList';
 import { canonicalBlocks } from './groups';
 import { commit, contentOf, markSaved, redo, undo } from './history';
 import { layoutObject, readData } from './values';
-import { fromTemplateBlock } from './wire';
+import { contentFromApi, fromTemplateBlock } from './wire';
 
 const setPage = (state: PageDraft, action: ActionOf<'setPage'>): PageDraft => {
   if (action.field === 'isPublic') {
@@ -56,6 +55,12 @@ const applyTemplate = (state: PageDraft, action: ActionOf<'applyTemplate'>): Pag
   );
 };
 
+const loadPage = (state: PageDraft, action: ActionOf<'loadPage'>): PageDraft => {
+  const content = contentFromApi(action.page, state.nextKey);
+  const next = commit(state, content, state.nextKey + content.blocks.length);
+  return action.saved ? { ...next, saved: contentOf(next) } : next;
+};
+
 export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft => {
   switch (action.type) {
     case 'addBlock':
@@ -76,8 +81,6 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
       return writeLayoutData(state, action.blockKey, { [action.key]: action.value });
     case 'setLayoutDataValues':
       return writeLayoutData(state, action.blockKey, action.values);
-    case 'setRomkaSetting':
-      return setRomkaSetting(state, action);
     case 'useRomkaVersion':
       return adoptRomkaVersion(state, action);
     case 'setAttachments':
@@ -90,6 +93,8 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
       return setPageLayoutData(state, action);
     case 'applyTemplate':
       return applyTemplate(state, action);
+    case 'loadPage':
+      return loadPage(state, action);
     case 'undo':
       return undo(state);
     case 'redo':

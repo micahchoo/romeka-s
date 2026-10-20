@@ -51,11 +51,6 @@ export const ne: ItemTypesMessages = {
   'fields.add': 'क्षेत्र थप्नुहोस्',
   'fields.addHint': 'यसको वर्णन गर्नुहोस्, जस्तै “कति पृष्ठ”',
   'field.name': '{term} का लागि फारममा नाम',
-  'field.moveHandle':
-    '{count} को {position} मा रहेको {name} लाई सार्नुहोस्। माथिल्लो र तल्लो एरो कि, वा ड्र्याग प्रयोग गर्नुहोस्।',
-  'field.moved': '{name} अब {count} को {position} क्षेत्र हो।',
-  'field.moveUp': '{name} लाई माथि सार्नुहोस्',
-  'field.moveDown': '{name} लाई तल सार्नुहोस्',
   'field.remove': '{name} हटाउनुहोस्',
   'field.changeTerm': '{name} को मानक शब्द परिवर्तन गर्नुहोस्',
   'field.pickTerm': 'मानक शब्द खोज्नुहोस्',

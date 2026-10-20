@@ -125,10 +125,9 @@ describe('adding a Romeka block', () => {
 describe('editing a Romeka block', () => {
   const withSetting = (state: PageDraft, value: string): PageDraft =>
     apply(state, {
-      type: 'setRomkaSetting',
+      type: 'setLayoutDataValues',
       blockKey: blockAt(state.blocks, 0).key,
-      field: 'heading',
-      value,
+      values: { 'romeka.heading': value },
     });
 
   it('writes a setting into the carrier and keeps the other keys', () => {
@@ -149,10 +148,9 @@ describe('editing a Romeka block', () => {
   it('reports the required heading as an issue on the block', () => {
     const draft = load([carrierBlock('<h2>Old</h2>', null)]);
     const cleared = apply(draft, {
-      type: 'setRomkaSetting',
+      type: 'setLayoutDataValues',
       blockKey: blockAt(draft.blocks, 0).key,
-      field: 'heading',
-      value: '',
+      values: { 'romeka.heading': '' },
     });
     expect(validate(cleared)).toContainEqual({
       kind: 'required',

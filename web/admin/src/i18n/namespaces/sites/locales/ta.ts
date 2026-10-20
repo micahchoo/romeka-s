@@ -55,10 +55,7 @@ export const ta: SitesMessages = {
   'navigation.label': 'லேபிள்',
   'navigation.addLink': 'இணைப்பைச் சேர்க்கவும்',
   'navigation.addChild': 'துணை இணைப்பைச் சேர்க்கவும்',
-  'navigation.moveUpShort': 'மேலே',
-  'navigation.moveDownShort': 'கீழே',
   'navigation.remove': '{label} ஐ நீக்கவும்',
-  'navigation.errorMissingTarget': 'ஒரு பக்கம் அல்லது URL இணைப்பிற்கு அதன் இலக்கு தேவை.',
   'siteSettingGroup.browsing': 'உலாவல்',
   'siteSettingGroup.browsingIntro':
     'பார்வையாளர்கள் உலாவும்போது, பொருட்களின் பட்டியல்கள் எவ்வாறு தோன்றும்.',
@@ -107,7 +104,11 @@ export const ta: SitesMessages = {
   'siteSetting.propertyLabelInformationHelp':
     'உருப்படி பக்கங்கள், ஒவ்வொரு புலப் பெயருக்கு அருகிலும் கலைச்சொல் அல்லது தொழில்நுட்பச் சொல்லைக் காட்டும்.',
   'siteSetting.iiifViewerTheme': 'IIIF பார்வையாளர் தீம்',
-  'siteSetting.iiifViewerThemeHelp': 'IIIF பார்வையாளர் தொகுதிக்கு ஒளி அல்லது இருண்ட பின்னணி.',
+  'siteSetting.iiifViewerThemeHelp':
+    'IIIF பார்வையாளருக்கு, தொகுதிகளாகவும் உருப்படிப் பக்கங்களிலும், வெளிர் அல்லது அடர் பின்னணி.',
+  'siteSetting.iiifViewerSidebar': 'IIIF பார்வையாளர் பக்கவாட்டுப் பட்டை',
+  'siteSetting.iiifViewerSidebarHelp':
+    'அதன் உள்ளடக்கங்கள் மற்றும் விவரங்களைக் காட்டும் பக்கவாட்டுப் பட்டையுடன் பார்வையாளரைத் திறக்கிறது.',
   'siteSetting.locale': 'இருப்பிடம்',
   'siteSetting.localeHelp':
     'தளத்தின் சொந்த வார்த்தைகளின் மொழி, உதாரணமாக பொத்தான்கள், மெனுக்கள் மற்றும் தேதிகள்.',
@@ -178,28 +179,62 @@ export const ta: SitesMessages = {
   'siteSettingChoice.property_label_information.term': 'தொழில்நுட்பச் சொல், உதாரணமாக dcterms:title',
   'resourcePage.title': 'வளப் பக்கங்கள்',
   'resourcePage.hint':
-    'ஒரு பொருள், உருப்படித் தொகுப்பு அல்லது ஊடகப் பக்கத்தில், வரிசைப்படி காட்டப்படும் தொகுதிகள்.',
+    'ஒரு உருப்படி, உருப்படி கணம் அல்லது ஊடகப் பக்கத்தில், காட்டப்படும் பகுதிகள், வரிசைப்படி. ஒரு பகுதியை அதன் கைப்பிடியால் இழுக்கவும், அல்லது அம்புக்குறிகளைப் பயன்படுத்தவும்.',
   'resourcePage.items': 'உருப்படிகள்',
   'resourcePage.itemSets': 'உருப்படித் தொகுப்புகள்',
   'resourcePage.media': 'ஊடகங்கள்',
-  'resourcePage.blockList': '{resource}-க்கான தொகுதிகள்',
-  'resourcePage.empty': 'தொகுதிகள் இல்லை. இந்த பக்கம் அதன் தலைப்பை மட்டுமே காட்டுகிறது.',
-  'resourcePage.add': 'சேர்க்க',
-  'resourcePage.addLabel': '{resource}-இல் ஒரு தொகுதியைச் சேர்க்க',
-  'resourcePage.addPlaceholder': '[ஒரு தொகுதியைத் தேர்ந்தெடுக்கவும்]',
-  'resourcePage.remove': '{label}-ஐ நீக்கவும்',
-  'resourcePage.moveUp': '{label}-ஐ மேலே நகர்த்தவும்',
-  'resourcePage.moveDown': '{label}-ஐ கீழே நகர்த்தவும்',
-  'resourcePage.unknown': 'அறியப்படாத தொகுதி அமைப்பு [{name}]',
+  'resourcePage.blockList': '{resource} பக்கங்களில் காட்டப்படும் பகுதிகள்',
+  'resourcePage.empty':
+    'பகுதிகள் எதுவும் காட்டப்படவில்லை. இந்த பக்கம் அதன் தலைப்பை மட்டுமே காட்டுகிறது.',
+  'resourcePage.hide': 'மறை',
+  'resourcePage.hideLabel': '{label} ஐ மறைக்கவும்',
+  'resourcePage.hidden': 'மறைக்கப்பட்ட பகுதிகள்',
+  'resourcePage.hiddenList': '{resource} பக்கங்களின் மறைக்கப்பட்ட பகுதிகள்',
+  'resourcePage.show': 'காட்ட',
+  'resourcePage.showLabel': '{label} ஐக் காட்டவும்',
+  'resourcePage.unknown': 'அறியப்படாத பகுதி [{name}]',
+  'resourcePage.unknownHelp': 'தளம் இனி இந்த பகுதியை கொண்டிருக்கவில்லை, எனவே இது எதையும் காட்டாது.',
   'resourcePageBlock.itemSets': 'உருப்படிகளின் தொகுப்புகள்',
+  'resourcePageBlock.itemSetsHelp': 'உருப்படியைச் சார்ந்த உருப்படித் தொகுப்புகளுக்கான இணைப்புகள்.',
   'resourcePageBlock.lightboxGallery': 'லைட் பாக்ஸ் கேலரி',
+  'resourcePageBlock.lightboxGalleryHelp':
+    'ஒவ்வொரு படமும் ஒரு முன்னோட்டமாகத் திறக்கும் முழுப் படமாக இருக்கும்.',
   'resourcePageBlock.linkedResources': 'இணைக்கப்பட்ட வளங்கள்',
+  'resourcePageBlock.linkedResourcesHelp':
+    'இந்த உருப்படியுடன் இணைக்கப்பட்டுள்ள பிற பதிவுகள், அவை இணைக்கும் புலத்தின் அடிப்படையில் குழுவாக்கப்பட்டுள்ளன.',
   'resourcePageBlock.mediaEmbeds': 'ஊடக உட்பொதிவுகள்',
+  'resourcePageBlock.mediaEmbedsHelp':
+    'காட்டப்பட்டுள்ள ஒவ்வொரு கோப்பும், அடுத்தடுத்து ஒன்றாக இருக்கும்.',
   'resourcePageBlock.mediaList': 'ஊடகப் பட்டியல்',
+  'resourcePageBlock.mediaListHelp':
+    'உருப்படியின் கோப்புகளின் பட்டியல், ஒவ்வொன்றும் அதன் தலைப்பைக் கொண்ட ஒரு சிறிய முன்னோட்டம்.',
   'resourcePageBlock.mediaRender': 'ஊடக ரெண்டர்',
+  'resourcePageBlock.mediaRenderHelp': 'கோப்பு என்பதே அது: படம், பிளேயர் அல்லது ஆவணம்.',
   'resourcePageBlock.resourceClass': 'வள வகுப்பு',
+  'resourcePageBlock.resourceClassHelp':
+    'இது என்ன வகையான விஷயம், உதாரணமாக ஒரு உரை அல்லது ஒரு படம்.',
   'resourcePageBlock.sitePages': 'தளப் பக்கங்கள்',
+  'resourcePageBlock.sitePagesHelp':
+    'இந்த உருப்படியைக் காட்டும் தளத்தின் பக்கங்களுக்கான இணைப்புகள்.',
   'resourcePageBlock.values': 'மதிப்புகள்',
+  'resourcePageBlock.valuesHelp': 'மெட்டாடேட்டா, புல வாரியாக.',
+  'themePreview.label': 'முன்னோட்டம்',
+  'themePreview.page': 'ஒரு பக்கம்',
+  'themePreview.items': 'ஒரு உருப்படி',
+  'themePreview.item_sets': 'ஒரு உருப்படித் தொகுப்பு',
+  'themePreview.media': 'ஒரு ஊடகம்',
+  'themePreview.noneItems':
+    'இந்தத் தளத்தில் இன்னும் உருப்படிகள் இல்லை, எனவே காட்ட எந்த உருப்படிப் பக்கமும் இல்லை.',
+  'themePreview.noneItem_sets':
+    'இந்தத் தளத்தில் இன்னும் உருப்படித் தொகுப்புகள் இல்லை, எனவே காட்ட எந்த உருப்படித் தொகுப்புப் பக்கமும் இல்லை.',
+  'themePreview.noneMedia':
+    'இந்தத் தளத்தில் இன்னும் ஊடகங்கள் இல்லை, எனவே காட்ட எந்த ஊடகப் பக்கமும் இல்லை.',
+  'siteItems.syncOffSets':
+    'ஆஃப். இதை இயக்கி, இந்தத் தளத்தின் உருப்படித் தொகுப்புகளில் ஒன்றில் உருவாக்கப்பட்ட ஒரு உருப்படி தளத்தில் இணையும்.',
+  'siteItems.syncOffSearch':
+    'ஆஃப். இதை இயக்கி, இனி உருவாக்கப்படும் ஒரு உருப்படி, அந்த உருப்படி தளத்தின் சேமிக்கப்பட்ட தேடலுடன் பொருந்தும்போது இந்தத் தளத்தில் இணையும்.',
+  'siteItems.syncNeedsSets':
+    'இந்தத் தளத்தை இதனுடன் ஒத்திசைக்க ஒரு உருப்படித் தொகுப்பைத் தேர்ந்தெடுக்கவும்.',
   'sites.sortBy': 'வரிசைப்படுத்து',
   'sites.sortOrder': 'வரிசை வரிசை',
   'layout.pageTitle': 'பக்கத் தலைப்பு',
@@ -299,15 +334,12 @@ export const ta: SitesMessages = {
   'siteHub.unknownLinkType':
     'ஒரு தொகுதி இந்த இணைப்பு வகையைச் சேர்த்தது. அதன் அமைப்புகள் சேமிக்கப்பட்டபடி வைக்கப்படுகின்றன.',
   'siteHub.moveLink': '{label} ஐ நகர்த்தவும்',
-  'siteHub.needsTarget': 'இலக்கு தேவை',
   'siteHub.editLink': '{label} ஐத் திருத்தவும்',
   'siteHub.addChildTo': '{label} உடன் ஒரு குழந்தை இணைப்பைச் சேர்க்கவும்',
   'siteHub.menuPreview': 'மெனு முன்னோட்டம்',
   'siteHub.homeLink': 'முகப்பு',
   'siteHub.emptyMenuNote':
     'இணைப்புகள் இல்லாதபோது, பொதுத் தளம் அதன் முகப்புப் பக்கத்திற்கான ஒரு இணைப்பைக் காட்டுகிறது.',
-  'siteHub.unsavedConfirm':
-    'வழிசெலுத்தலில் சேமிக்கப்படாத மாற்றங்கள் உள்ளன. வெளியேறி அவற்றை இழக்கவா?',
   'siteHub.unsaved': 'சேமிக்கப்படாத மாற்றங்கள்',
   'siteHub.picked':
     '{label} தேர்ந்தெடுக்கப்பட்டது. அதை நகர்த்த அம்பு விசைகளைப் பயன்படுத்தவும், கீழே போட Space ஐயும், ரத்து செய்ய Escape ஐயும் பயன்படுத்தவும்.',
@@ -424,11 +456,36 @@ export const ta: SitesMessages = {
   'itemPicker.setChip': 'கணம்: {title}',
   'itemPicker.removeSet': '{title} என்ற கணத்தை நீக்கவும்',
   'itemPicker.clear': 'தேர்வுகளை நீக்கவும்',
+  'navigation.issueNoPage': 'ஒரு பக்கம் தேவை',
+  'navigation.issueNoUrl': 'ஒரு URL தேவை',
+  'navigation.issueNoLabel': 'ஒரு லேபிள் தேவை',
+  'navigation.issueSamePage': 'பக்கம் ஏற்கனவே மெனுவில் உள்ளது',
+  'navigation.errorLinkIssues':
+    'சில இணைப்புகள் முழுமையடையவில்லை. குறிக்கப்பட்ட இணைப்புகளைச் சரிசெய்து, பின்னர் சேமிக்கவும்.',
+  'sites.userFallback': 'பயனர் {id}',
+  'sites.errorRowNoUser':
+    'ஒவ்வொரு வரிசையிலும் ஒரு பயனரைத் தேர்ந்தெடுக்கவும், அல்லது அந்த வரிசையை நீக்கவும்.',
+  'siteHub.unsavedTabConfirm':
+    'இந்த தாவலில் சேமிக்கப்படாத மாற்றங்கள் உள்ளன. வெளியேறி அவற்றை இழக்கவா?',
+  'siteAccess.viewer':
+    'இந்தத் தளத்தைப் பார்க்க முடியும். இதன் படைப்பாளர்கள் மற்றும் மேலாளர்கள் மட்டுமே இதை மாற்ற முடியும்.',
+  'siteAccess.hub': 'முகப்புப் பக்கம் மற்றும் மெனுவை மாற்ற தள மேலாளர்கள் மட்டுமே முடியும்.',
+  'siteAccess.notInNavigation': 'வழிசெலுத்தலில் இல்லை',
+  'siteAccess.navigation': 'தள மேலாளர்கள் மட்டுமே மெனுவை மாற்ற முடியும்.',
+  'siteAccess.items': 'தள மேலாளர்கள் மட்டுமே பொருட்களைச் சேர்க்க அல்லது நீக்க முடியும்.',
+  'siteAccess.users':
+    'இந்தத் தளத்தில் யார் பணியாற்றுகிறார்கள் என்பதை மாற்ற தள மேலாளர்கள் மட்டுமே முடியும்.',
+  'siteAccess.theme': 'தள மேலாளர்கள் மட்டுமே கருப்பொருளை மாற்ற முடியும்.',
+  'siteAccess.settings': 'தள மேலாளர்கள் மட்டுமே தள அமைப்புகளை மாற்ற முடியும்.',
+  'siteAccess.delete':
+    'தளத்தின் உரிமையாளர் அல்லது ஒரு நிர்வாகி மட்டுமே இந்தத் தளத்தை நீக்க முடியும்.',
   'itemPicker.itemFallback': 'உருப்படி {id}',
   'romeka.map': 'வரைபடம்',
   'romekaHelp.map':
     'தேர்ந்தெடுக்கப்பட்ட உருப்படிகளின் இடங்கள், கீழே பட்டியலிடப்பட்டுள்ள இடங்களுடன்.',
   'resourcePageBlock.map': 'உருப்படியின் இடத்தின் வரைபடம்',
+  'resourcePageBlock.mapHelp':
+    'தளத்தின் இருப்பிடப் புலத்திலிருந்து பெறப்பட்ட, ஒரு வரைபடத்தில் உருப்படியின் இடம்.',
   'siteSettingGroup.maps': 'வரைபடங்கள்',
   'siteSettingGroup.mapsIntro':
     'ஒரு உருப்படியின் இடம் சேமிக்கப்படும் இடம், மற்றும் ஒவ்வொரு வரைபடமும் எடுக்கும் பின்னணி.',

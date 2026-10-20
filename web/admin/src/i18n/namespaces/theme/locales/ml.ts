@@ -144,4 +144,7 @@ export const ml: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ട്രാൻസിഷണൽ സെരിഫ്',
   'themeChoice.didone': 'ഹൈ-കോൺട്രാസ്റ്റ് സെരിഫ്',
   'themeChoice.mono': 'മോണോസ്പേസ്',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ഓട്ടോമാറ്റിക് സ്കീം റീഡറുടെ സിസ്റ്റത്തെ പിന്തുടരുന്നു, അതിനാൽ ഓരോ നിറത്തിനും ഒരു ലൈറ്റ് വാല്യൂവും ഒരു ഡാർക്ക് വാല്യൂവും ഉണ്ടായിരിക്കും.',
 };

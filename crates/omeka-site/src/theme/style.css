@@ -882,6 +882,45 @@ footer {
   min-width: 0;
 }
 
+/* The IIIF blocks in the editor's preview, which runs no script: a card at the
+   viewer's height that says what opens on the public page. */
+
+.iiif-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.iiif-poster p {
+  margin: 0;
+  max-width: 40ch;
+}
+
+/* The item page's links into the IIIF viewer and to the item's manifest. */
+
+.iiif-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.iiif-manifest {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iiif-logo {
+  flex: none;
+}
+
 /* Resource lists: a responsive card grid. Every browse view and every preview
    block renders through these rules. The thumbnail runs to the card's edges and
    the whole card answers the pointer, though only its link takes a click. */
@@ -1949,4 +1988,184 @@ footer {
   gap: var(--space-3);
   max-height: 18rem;
   overflow-y: auto;
+}
+
+/* Sections: a block group with a section layout (`blocks/style.rs`). The
+   group's blocks are its slots, laid out by the section's own columns on a
+   normal page and on a grid page alike, so a member's grid placement is set
+   aside here. On a tablet four and three cards become two; on a phone every
+   section is one column. Upstream renders the same wrapper with none of these
+   classes, so there the blocks stack. */
+
+.romeka-section {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.romeka-section.romeka-section-split-50-50,
+.romeka-section.romeka-section-cards-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-split-40-60 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.romeka-section.romeka-section-split-60-40 {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.romeka-section.romeka-section-cards-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-cards-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.romeka-section.romeka-section-stack,
+.romeka-section.romeka-section-band {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.romeka-section > .block,
+.page-layout-normal .romeka-section > .block {
+  grid-column: auto;
+  margin: 0;
+  min-width: 0;
+}
+
+.romeka-section.romeka-section-align-top {
+  align-items: start;
+}
+
+.romeka-section.romeka-section-align-center {
+  align-items: center;
+}
+
+.romeka-section.romeka-section-align-bottom {
+  align-items: end;
+}
+
+.romeka-section.romeka-section-gap-none {
+  gap: 0;
+}
+
+.romeka-section.romeka-section-gap-small {
+  gap: var(--space-2);
+}
+
+.romeka-section.romeka-section-gap-medium {
+  gap: var(--space-3);
+}
+
+.romeka-section.romeka-section-gap-large {
+  gap: var(--space-5);
+}
+
+/* Cards are the surface colour with the theme's corners, so a row of them
+   reads as a set. */
+.romeka-section-cards-2 > .block,
+.romeka-section-cards-3 > .block,
+.romeka-section-cards-4 > .block {
+  align-self: stretch;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.romeka-section-cards-2 > .block > :first-child,
+.romeka-section-cards-3 > .block > :first-child,
+.romeka-section-cards-4 > .block > :first-child {
+  margin-top: 0;
+}
+
+.romeka-section-cards-2 > .block > :last-child,
+.romeka-section-cards-3 > .block > :last-child,
+.romeka-section-cards-4 > .block > :last-child {
+  margin-bottom: 0;
+}
+
+/* A section with a background gets room around its slots. */
+.romeka-section.has-background {
+  padding: var(--space-4) var(--space-3);
+}
+
+/* A band, and any block set to full bleed, spans the whole window. The page
+   column is centred, so a negative margin of half the gap reaches each edge;
+   the body clips the scrollbar's width. A band's text stays in the column. */
+body {
+  overflow-x: clip;
+}
+
+.romeka-bleed,
+.romeka-section.romeka-section-band {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  max-width: none;
+  width: 100vw;
+}
+
+.romeka-section.romeka-section-band {
+  padding: var(--space-5) max(var(--space-3), (100vw - var(--content-width)) / 2);
+}
+
+.romeka-section-band > .block-html > * {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* The overlay is a wash over the section's background and under its slots.
+   The light wash is the page background, under the theme's text; the dark
+   wash is the photograph scrim the hero uses, under white text. */
+.romeka-section.romeka-section-overlay-light,
+.romeka-section.romeka-section-overlay-dark {
+  isolation: isolate;
+  position: relative;
+}
+
+.romeka-section-overlay-light::before,
+.romeka-section-overlay-dark::before {
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+
+.romeka-section-overlay-light::before {
+  background: var(--color-background);
+  opacity: 0.75;
+}
+
+.romeka-section-overlay-light {
+  color: var(--color-text);
+}
+
+.romeka-section-overlay-dark::before {
+  background: black;
+  opacity: 0.55;
+}
+
+.romeka-section-overlay-dark {
+  color: white;
+}
+
+@media screen and (max-width: 896px) {
+  .romeka-section.romeka-section-cards-3,
+  .romeka-section.romeka-section-cards-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .romeka-section.romeka-section-split-50-50,
+  .romeka-section.romeka-section-split-40-60,
+  .romeka-section.romeka-section-split-60-40,
+  .romeka-section.romeka-section-cards-2,
+  .romeka-section.romeka-section-cards-3,
+  .romeka-section.romeka-section-cards-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

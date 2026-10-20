@@ -73,6 +73,9 @@ pub struct ResourcePageBlockEntry {
     /// The catalogue key for the layout's label.
     #[serde(rename = "labelKey")]
     pub label_key: String,
+    /// The catalogue key for the one line that says what a reader sees.
+    #[serde(rename = "helpKey")]
+    pub help_key: String,
 }
 
 /// The registry the admin reads.
@@ -95,6 +98,7 @@ fn entry(resource: ResourcePageResourceSpec) -> ResourcePageResourceEntry {
             .map(|spec| ResourcePageBlockEntry {
                 name: spec.name,
                 label_key: format!("resourcePageBlock.{}", camel(spec.name)),
+                help_key: format!("resourcePageBlock.{}Help", camel(spec.name)),
             })
             .collect(),
     }
@@ -179,5 +183,6 @@ mod tests {
             .expect("items accepts a layout");
         assert_eq!(first.name, "itemSets");
         assert_eq!(first.label_key, "resourcePageBlock.itemSets");
+        assert_eq!(first.help_key, "resourcePageBlock.itemSetsHelp");
     }
 }

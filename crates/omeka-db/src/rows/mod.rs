@@ -13,6 +13,7 @@
 
 mod custom_vocabs;
 mod imports;
+mod page_versions;
 mod publications;
 mod resources;
 mod rewrites;
@@ -26,6 +27,10 @@ mod vocabularies;
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
 pub use imports::{
     ImportKind, ImportResourceRow, ImportRow, ImportStatus, ImportTarget, NewImport,
+};
+pub use page_versions::{
+    BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,
+    PageSaveOutcome, PageVersionRow,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{

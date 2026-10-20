@@ -1317,26 +1317,52 @@ fieldset.block-field {
   margin-bottom: var(--space-3);
 }
 
-/* One block of a resource page is one line: its name, then its three actions. */
+/* One section of a resource page is one row: handle, name over its one line, steps, Hide or Show. */
 .resource-page-blocks {
   margin: 0 0 var(--space-3);
-  padding-inline-start: var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.resource-page-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .resource-page-block + .resource-page-block {
   margin-top: var(--space-1);
 }
 
-.resource-page-block-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+.resource-page-block-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .resource-page-block-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin-inline-end: var(--space-2);
+  font-weight: 600;
+}
+
+.resource-page-block-help {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.resource-page-hidden h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.resource-page-hidden .resource-page-block {
+  border-style: dashed;
+  background: transparent;
 }
 
 .template-chooser {
@@ -1704,14 +1730,23 @@ td > .badge:first-child {
   color: var(--text-muted);
 }
 
-.nav-editor-save {
+/* Says why a control a site role cannot use is missing. */
+.site-access-note {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.save-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
 
-.nav-editor-save .editor-dirty[role="status"] {
+.save-bar .editor-dirty[role="status"] {
   margin: 0;
   padding: 0;
   border: 0;

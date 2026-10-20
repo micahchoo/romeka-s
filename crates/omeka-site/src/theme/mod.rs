@@ -37,6 +37,7 @@ pub mod choices;
 pub mod color;
 pub mod custom_css;
 pub mod default;
+mod files;
 pub mod palette;
 pub mod presets;
 pub mod search;
@@ -76,15 +77,19 @@ pub enum AssetKind {
     Stylesheet,
     /// A script, loaded from the head and served as `application/javascript`.
     Script,
+    /// A script a view loads where it needs it, served as
+    /// `application/javascript`. The frame does not link it, so a library such
+    /// as Mirador costs nothing on a page that does not use it.
+    Library,
     /// An image a view references by URL, served as `image/svg+xml`. The frame
     /// does not link it; a view does.
     Image,
-    /// A script library a view loads only when it needs it (Leaflet), served
-    /// as `application/javascript`. The frame does not link it.
-    Library,
-    /// The stylesheet of such a library, served as `text/css`. The frame does
-    /// not link it either.
+    /// A library's own stylesheet, such as Leaflet's, served as `text/css`.
+    /// The frame does not link it; the view that loads the library does.
     LibraryStylesheet,
+    /// A PNG image a library references by URL, such as OpenSeadragon's
+    /// navigation buttons.
+    Png,
 }
 
 impl AssetKind {
@@ -95,6 +100,7 @@ impl AssetKind {
             Self::Stylesheet | Self::LibraryStylesheet => "text/css",
             Self::Script | Self::Library => "application/javascript",
             Self::Image => "image/svg+xml",
+            Self::Png => "image/png",
         }
     }
 
@@ -108,22 +114,17 @@ impl AssetKind {
     #[must_use]
     pub fn element(self, href: &str) -> String {
         match self {
-            Self::Stylesheet | Self::LibraryStylesheet => {
-                format!("<link rel=\"stylesheet\" href=\"{href}\">")
-            }
+            Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
-            Self::Library => format!("<script defer src=\"{href}\"></script>"),
-            Self::Image => String::new(),
+            Self::Library | Self::LibraryStylesheet | Self::Image | Self::Png => String::new(),
         }
     }
 }
 
 /// One file a theme ships, with its bytes.
 ///
-/// The bytes live here, as `&'static str`, so a caller can serve
-/// `/assets/<path>` straight from the registry and the document frame can link
-/// the same path. A theme stylesheet or script is UTF-8 text; a binary asset a
-/// later theme adds would need a byte variant.
+/// The bytes live here, compiled in, so a caller can serve `/assets/<path>`
+/// straight from the registry and the document frame can link the same path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ThemeAsset {
     /// The path under the theme's asset base, e.g. `css/style.css`.
@@ -131,7 +132,7 @@ pub struct ThemeAsset {
     /// What the asset is.
     pub kind: AssetKind,
     /// The asset's bytes.
-    pub content: &'static str,
+    pub content: &'static [u8],
 }
 
 impl ThemeAsset {
@@ -140,7 +141,7 @@ impl ThemeAsset {
     /// and the asset route may let a client keep one URL's bytes for good.
     #[must_use]
     pub fn version(&self) -> String {
-        crate::blocks::canonical::byte_hash(self.content)
+        crate::blocks::canonical::bytes_hash(self.content)
     }
 }
 
@@ -179,6 +180,36 @@ pub fn theme_for(name: &str) -> Option<&'static dyn Theme> {
         .find(|theme| theme.info().name == name)
 }
 
+/// The `<script>` element that loads one of the bundled theme's libraries
+/// (an [`AssetKind::Library`]) from `asset_base`. The URL carries the bytes'
+/// version, so the asset route lets a client keep them.
+#[must_use]
+pub fn library_script(asset_base: &str, path: &str) -> String {
+    format!(
+        "<script src=\"{}\"></script>",
+        crate::html::escape_html(&library_url(asset_base, path))
+    )
+}
+
+/// The `<link>` element that loads a library's stylesheet (an
+/// [`AssetKind::LibraryStylesheet`]) from `asset_base`, versioned like
+/// [`library_script`].
+#[must_use]
+pub fn library_stylesheet(asset_base: &str, path: &str) -> String {
+    format!(
+        "<link rel=\"stylesheet\" href=\"{}\">",
+        crate::html::escape_html(&library_url(asset_base, path))
+    )
+}
+
+fn library_url(asset_base: &str, path: &str) -> String {
+    let base = asset_base.trim_end_matches('/');
+    match theme_asset(DEFAULT_INFO.name, path) {
+        Some(asset) => format!("{base}/{path}?v={}", asset.version()),
+        None => format!("{base}/{path}"),
+    }
+}
+
 /// A theme's asset by path, `None` when the theme is not bundled or does not
 /// ship that path. The caller serves the bytes with
 /// [`ThemeAsset::kind`]'s media type.
@@ -212,7 +243,8 @@ mod tests {
         assert_eq!(info.label, "Default");
         // The bundled theme declares its design tokens as its own settings.
         assert_eq!(info.settings, tokens::SETTINGS);
-        assert_eq!(info.assets.len(), 5);
+        assert!(theme_asset("default", "vendor/mirador/mirador.min.js").is_some());
+        assert!(theme_asset("default", "vendor/leaflet/leaflet.js").is_some());
     }
 
     /// The bundled theme ships its own stylesheet and the placeholder image a
@@ -222,12 +254,12 @@ mod tests {
         let asset = theme_asset("default", "css/style.css").expect("the stylesheet");
         assert_eq!(asset.kind, AssetKind::Stylesheet);
         assert_eq!(asset.kind.media_type(), "text/css");
-        assert_eq!(asset.content, style::STYLE_CSS);
+        assert_eq!(asset.content, style::STYLE_CSS.as_bytes());
         assert!(!asset.content.is_empty());
         let placeholder = theme_asset("default", "img/placeholder.svg").expect("the placeholder");
         assert_eq!(placeholder.kind, AssetKind::Image);
         assert_eq!(placeholder.kind.media_type(), "image/svg+xml");
-        assert!(placeholder.content.starts_with("<svg"));
+        assert!(placeholder.content.starts_with(b"<svg"));
         assert!(theme_asset("default", "css/missing.css").is_none());
         assert!(theme_asset("other", "css/style.css").is_none());
     }
@@ -247,12 +279,17 @@ mod tests {
         assert_eq!(AssetKind::Script.media_type(), "application/javascript");
         assert_eq!(AssetKind::Image.element("/assets/img/placeholder.svg"), "");
         assert!(!AssetKind::Image.is_head());
-        assert!(AssetKind::Stylesheet.is_head());
         assert_eq!(
-            AssetKind::Library.element("/assets/vendor/leaflet/leaflet.js"),
-            "<script defer src=\"/assets/vendor/leaflet/leaflet.js\"></script>"
+            AssetKind::Library.element("/assets/vendor/mirador/mirador.min.js"),
+            ""
         );
         assert!(!AssetKind::Library.is_head());
+        assert!(!AssetKind::Png.is_head());
+        assert!(AssetKind::Stylesheet.is_head());
+        assert_eq!(
+            AssetKind::LibraryStylesheet.element("/assets/vendor/leaflet/leaflet.css"),
+            ""
+        );
         assert!(!AssetKind::LibraryStylesheet.is_head());
         assert_eq!(AssetKind::LibraryStylesheet.media_type(), "text/css");
     }

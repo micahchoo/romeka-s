@@ -1,6 +1,7 @@
 /**
  * The site Theme page: pick a preset, set a brand colour, fine-tune single
- * tokens, write custom CSS, and watch the site's homepage change beside the
+ * tokens, write custom CSS, order the resource page sections, and watch the
+ * site's homepage, or a sample item, item set or media page, change beside the
  * controls.
  *
  * The draft (`themeEditor/draft.ts`) is the stored shape the theme reads. A
@@ -48,9 +49,18 @@ import {
 import type { CssRefusal } from './themeEditor/CustomCssTab';
 import type { ContentKey, ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
+import {
+  NONE_KEYS,
+  PreviewSwitch,
+  resourcePreviewBody,
+  useSample,
+} from './themeEditor/previewTarget';
+import type { PreviewTarget } from './themeEditor/previewTarget';
 import { useThemeText } from './themeEditor/messages';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
+import { SaveBar, useUnsavedTab } from './unsaved';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -227,6 +237,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   );
   const [tab, setTab] = useState<Tab>('design');
   const [page, setPage] = useState<SitePage | null>(null);
+  const [target, setTarget] = useState<PreviewTarget>('page');
+  const sample = useSample(siteId, target);
   const [preview, setPreview] = useState<PreviewState>({ html: null, status: 'idle', message: null });
   const [cssErrors, setCssErrors] = useState<readonly CssRefusal[]>([]);
   const [notice, setNotice] = useState<'imported' | 'importError' | null>(null);
@@ -236,7 +248,15 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   const checks = useMemo(() => contrastChecks(resolved), [resolved]);
   const problems = useMemo(() => draftProblems(draft), [draft]);
   const settings = useMemo(() => draftWire(draft), [draft]);
+  const withBlocks = useMemo(
+    () => ({
+      ...settings,
+      resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
+    }),
+    [settings, blocks],
+  );
   const blocked = problems.badHex || problems.failing > 0 || cssErrors.length > 0;
+  const unsaved = useUnsavedTab(withBlocks);
 
   const update = useCallback((change: (current: ThemeDraft) => ThemeDraft): void => {
     setDraft(change);
@@ -271,13 +291,23 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   // A short debounce keeps a slider drag or a burst of typing from firing one
   // request per change. A refused CSS draft keeps the last good render and
   // marks the CSS instead.
+  // A resource target sends the section order too; the page target leaves it
+  // out, so a section edit does not re-render a page that cannot show it.
+  const body = useMemo(() => {
+    if (sample === null) {
+      return page === null ? null : previewBody(page, settings);
+    }
+    return sample.status === 'ready' ? resourcePreviewBody(sample, withBlocks) : null;
+  }, [page, sample, settings, withBlocks]);
+
   useEffect(() => {
-    if (page === null) {
+    if (body === null) {
+      setPreview((current) => ({ ...current, html: null, status: 'idle' }));
       return;
     }
     setPreview((current) => ({ ...current, status: 'loading' }));
     const timer = setTimeout(() => {
-      requestPreview(site.slug, previewBody(page, settings)).then(
+      requestPreview(site.slug, body).then(
         (result) => {
           if (result.kind === 'html') {
             setCssErrors([]);
@@ -303,7 +333,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     return () => {
       clearTimeout(timer);
     };
-  }, [page, settings, site.slug]);
+  }, [body, site.slug]);
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
@@ -312,13 +342,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     }
     save(async () => {
       try {
-        await api.patchSite(
-          siteId,
-          encodeSiteThemeSettings({
-            ...settings,
-            resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
-          }),
-        );
+        await api.patchSite(siteId, encodeSiteThemeSettings(withBlocks));
+        unsaved.saved();
       } catch (error: unknown) {
         if (error instanceof ApiError && cssRefusals(error.errors, error.sourceErrors).length > 0) {
           setCssErrors(cssRefusals(error.errors, error.sourceErrors));
@@ -372,9 +397,12 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
             />
             <ContrastPanel
               checks={checks}
-              onUse={(role, colour) => {
-                const key = THEME_REGISTRY.colours.find((entry) => entry.role === role)?.key;
-                if (key !== undefined) {
+              onUse={(role, colour, shade) => {
+                const entry = THEME_REGISTRY.colours.find((colourEntry) => colourEntry.role === role);
+                // Under the automatic scheme a dark pair is fixed by the dark value.
+                const key =
+                  resolved.scheme === 'auto' && shade === 'dark' ? entry?.darkKey : entry?.key;
+                if (key !== undefined && key !== null) {
                   update((current) => setOverride(current, key, colour));
                 }
               }}
@@ -439,13 +467,21 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
           </p>
         ) : null}
         <SaveStatus state={saveState} />
-        <p className="form-actions">
-          <button type="submit" disabled={blocked || saveState.status === 'saving'}>
-            {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
-          </button>
-        </p>
+        <SaveBar dirty={unsaved.dirty}>
+          <p className="form-actions">
+            <button type="submit" disabled={blocked || saveState.status === 'saving'}>
+              {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
+            </button>
+          </p>
+        </SaveBar>
       </form>
-      <PreviewPanel html={preview.html} status={preview.status} message={preview.message} />
+      <PreviewPanel
+        html={preview.html}
+        status={preview.status}
+        message={preview.message}
+        controls={<PreviewSwitch value={target} onChange={setTarget} />}
+        {...(sample?.status === 'none' ? { empty: t(NONE_KEYS[sample.kind]) } : {})}
+      />
     </div>
   );
 };
@@ -454,9 +490,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
+  const access = useSiteAccess();
   // The page's own table suspends the route until it arrives, so no label renders in English.
   useThemeText();
-  if (state.status === 'loading') {
+  if (access?.has('changeSite') === false) {
+    return <AccessNote>{t('siteAccess.theme')}</AccessNote>;
+  }
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {

@@ -211,6 +211,16 @@ fn preview_control() -> Vec<&'static str> {
     control
 }
 
+/// The check before a resource page renders under a draft theme: the theme
+/// settings are a site write, so the caller needs what a site update needs.
+///
+/// # Errors
+/// [`ApiError::PermissionDenied`] for a caller who may not update the site.
+pub async fn authorize_theme_preview(api: &Api<'_>, site: SiteId) -> Result<(), ApiError> {
+    let owner = site_owner(api, site).await?;
+    api.authorize_site_update(site, owner).await
+}
+
 /// The owner the site grants a page write, for the site privilege check.
 async fn site_owner(api: &Api<'_>, site: SiteId) -> Result<Option<UserId>, ApiError> {
     Ok(SiteRepo::new(api.pool())

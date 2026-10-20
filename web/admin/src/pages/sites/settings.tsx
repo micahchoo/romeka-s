@@ -28,7 +28,7 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { SettingControl } from './SettingControl';
-import { useSiteSaved } from './SiteFrame';
+import { AccessNote, useSiteAccess, useSiteSaved } from './SiteFrame';
 import { SiteInfoFields, siteInfoOf } from './siteInfo';
 import type { SiteInfo } from './siteInfo';
 import { SITE_SETTINGS_REGISTRY } from './siteSettingsRegistry';
@@ -36,6 +36,7 @@ import { SITE_SETTING_GROUPS, siteSettingDrafts, siteSettingsWire } from './site
 import type { SiteSettingDraft, SiteSettingGroup } from './siteSettingsSchema';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
+import { SaveBar, useUnsavedTab } from './unsaved';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
@@ -114,6 +115,8 @@ const SiteSettingsEditor = ({
   );
   const [formError, setFormError] = useState<string | null>(null);
   const { state: saveState, save } = useSave();
+  const values = siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts);
+  const unsaved = useUnsavedTab({ info, values });
 
   const set = (key: string, value: SiteSettingDraft): void => {
     setDrafts((current) => ({ ...current, [key]: value }));
@@ -126,11 +129,11 @@ const SiteSettingsEditor = ({
       return;
     }
     setFormError(null);
-    const values = siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts);
     save(async () => {
       siteSaved(
         await api.patchSite(siteId, { ...encodeSiteInfo(info), ...encodeSiteSettings(values) }),
       );
+      unsaved.saved();
     });
   };
 
@@ -156,7 +159,9 @@ const SiteSettingsEditor = ({
       ))}
       {formError === null ? null : <p role="alert">{formError}</p>}
       <SaveStatus state={saveState} />
-      <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+      <SaveBar dirty={unsaved.dirty}>
+        <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+      </SaveBar>
     </form>
   );
 };
@@ -175,6 +180,7 @@ const SiteSettingsLoaded = ({
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const [managing, setManaging] = useState(false);
+  const access = useSiteAccess();
   return (
     <>
       <SiteSettingsEditor key={String(siteId)} siteId={siteId} loaded={loaded} />
@@ -209,14 +215,18 @@ const SiteSettingsLoaded = ({
           />
         ) : null}
       </Suspense>
-      <DeleteControl
-        label={t('sites.deleteLabel')}
-        rowName={loaded.site.title}
-        onConfirm={async () => {
-          await api.deleteSite(siteId);
-          window.location.hash = '#/sites';
-        }}
-      />
+      {access === null || access.has('deleteSite') ? (
+        <DeleteControl
+          label={t('sites.deleteLabel')}
+          rowName={loaded.site.title}
+          onConfirm={async () => {
+            await api.deleteSite(siteId);
+            window.location.hash = '#/sites';
+          }}
+        />
+      ) : (
+        <AccessNote>{t('siteAccess.delete')}</AccessNote>
+      )}
     </>
   );
 };
@@ -234,7 +244,11 @@ const load = async (siteId: SiteId): Promise<Loaded> => {
 export const SiteSettingsPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
-  if (state.status === 'loading') {
+  const access = useSiteAccess();
+  if (access?.has('changeSite') === false) {
+    return <AccessNote>{t('siteAccess.settings')}</AccessNote>;
+  }
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
