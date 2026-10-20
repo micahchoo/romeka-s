@@ -8,14 +8,15 @@ import { useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { ErrorNotice } from '../../app/errors';
 import { useDraft } from './draft-context';
-import { usePreview } from './lists/use-preview';
+import type { Read } from './lists/use-preview';
+import type { PreviewWith } from '../../api/import-sections';
 import { useLookAgain } from './look-again';
 import { useImportText } from './messages';
 
-export const FirstLook = (): ReactElement | null => {
+/** `sources` is the frame's read of the last look, which the title shares. */
+export const FirstLook = ({ sources: read }: { readonly sources: Read<PreviewWith<never>> }): ReactElement | null => {
   const { t } = useImportText();
   const { detail } = useDraft();
-  const read = usePreview([], {});
   const { look, lookAgain } = useLookAgain();
   const asked = useRef(false);
   const unread = read.status === 'ready' && read.data.sources.some((source) => source.scanned === null && source.error === null);
@@ -25,7 +26,7 @@ export const FirstLook = (): ReactElement | null => {
       lookAgain();
     }
   }, [unread, detail.status, lookAgain]);
-  if (look.at === 'looking') {
+  if (look.at === 'looking' || look.at === 'working') {
     return (
       <p role="status" className="import-slow">
         {t('shell.firstLook')}

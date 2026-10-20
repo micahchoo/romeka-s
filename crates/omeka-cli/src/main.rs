@@ -1,5 +1,6 @@
 //! The `romeka` binary: clap parsing and command dispatch.
 
+use std::future::Future;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -12,7 +13,7 @@ use omeka_cli::commands::import::run::{
     self as import_run, RunOptions as ImportRunOptions, RunOutcome,
 };
 use omeka_cli::commands::import::undo::{self as import_undo, UndoOptions, UndoOutcome};
-use omeka_cli::commands::import::{TemplateOptions, Where};
+use omeka_cli::commands::import::{Format, TemplateOptions, Where};
 use omeka_cli::commands::install::{self, InstallOptions};
 use omeka_cli::commands::job::{self as job_cmd};
 use omeka_cli::commands::key::{
@@ -291,6 +292,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
                         .takes_value(true)
                         .help("The number of resources a delete plan removes"),
                 )
+                .arg(json_arg())
                 .arg(optional_store_arg())
                 .arg(archive_root_arg()),
         )
@@ -318,6 +320,7 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
                         .long("preview")
                         .help("Print what the undo would do and write nothing"),
                 )
+                .arg(json_arg())
                 .arg(optional_store_arg()),
         )
         .subcommand(
@@ -337,7 +340,8 @@ fn import_command<'a, 'b>() -> App<'a, 'b> {
                         .value_name("N")
                         .takes_value(true)
                         .default_value("25"),
-                ),
+                )
+                .arg(json_arg()),
         )
 }
 
@@ -759,6 +763,43 @@ async fn run_key(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
     Ok(ExitCode::SUCCESS)
 }
 
+fn json_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("json")
+        .long("json")
+        .help("Write one JSON document when the command ends, and no progress lines")
+}
+
+fn format(args: &ArgMatches<'_>) -> Format {
+    if args.is_present("json") {
+        Format::Json
+    } else {
+        Format::Text
+    }
+}
+
+/// Resolves on the first Ctrl-C, so the running job is asked to stop and the
+/// command waits for it to end. A second Ctrl-C ends the process at once; the
+/// import is then settled `run_failed` or `undo_failed` once its heartbeat
+/// lapses.
+fn stop_on_ctrl_c() -> impl Future<Output = ()> {
+    let (tell, told) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_err() {
+            return;
+        }
+        let _ = tell.send(());
+        if tokio::signal::ctrl_c().await.is_ok() {
+            eprintln!("romeka: stopped without waiting for the job");
+            std::process::exit(130);
+        }
+    });
+    async move {
+        if told.await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    }
+}
+
 /// The database, store and archive root an import command names.
 fn import_at(args: &ArgMatches<'_>) -> Result<Where, CliError> {
     Ok(Where {
@@ -789,7 +830,9 @@ async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
                     actor: value(m, "as")?.to_string(),
                     dry_run: m.is_present("dry-run"),
                     confirm: optional_id(m, "confirm")?,
+                    format: format(m),
                 },
+                stop_on_ctrl_c(),
                 &mut std::io::stdout().lock(),
             )
             .await?;
@@ -806,7 +849,9 @@ async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
                     })?,
                     force_all: m.value_of("force") == Some("all"),
                     preview: m.is_present("preview"),
+                    format: format(m),
                 },
+                stop_on_ctrl_c(),
                 &mut std::io::stdout().lock(),
             )
             .await?;
@@ -820,6 +865,7 @@ async fn run_import(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
                     at: import_at(m)?,
                     page: optional_id(m, "page")?.unwrap_or(1),
                     per_page: optional_id(m, "per-page")?.unwrap_or(25),
+                    format: format(m),
                 },
                 &mut std::io::stdout().lock(),
             )

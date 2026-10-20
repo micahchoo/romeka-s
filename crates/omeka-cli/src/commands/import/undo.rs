@@ -1,7 +1,13 @@
 //! `romeka import undo <id> [--force all] [--preview]`: put the install back
 //! as the import found it, or say what that would do (`docs/import-v2.md`,
 //! "Lifecycle and the ledger", "Undo details").
+//!
+//! With `--json` the command writes one document when it ends: `{"import": id,
+//! "preview": <report>}` for a preview, `{"import": id, "status": <status>,
+//! "report": <report>}` for an undo. The report is the summary's `undo`
+//! member, the shape the undo routes answer.
 
+use std::future::Future;
 use std::io::Write;
 
 use omeka_api::import2::undo::{Force, UNDO_JOB, UndoError, may_undo, preview_undo};
@@ -11,7 +17,7 @@ use omeka_db::repos::{ImportRepo, StartOutcome};
 use omeka_db::rows::ImportStatus;
 use serde_json::{Value, json};
 
-use super::session::{Session, Where};
+use super::session::{Format, Session, Where, Work};
 use crate::CliError;
 
 /// Input for `romeka import undo`.
@@ -23,6 +29,7 @@ pub struct UndoOptions {
     pub force_all: bool,
     /// `--preview`: say what an undo would do and write nothing.
     pub preview: bool,
+    pub format: Format,
 }
 
 /// How an undo command ended.
@@ -34,12 +41,17 @@ pub enum UndoOutcome {
     Failed,
 }
 
-/// Undo import `options.id`, or preview the undo.
+/// Undo import `options.id`, or preview the undo. When `stop` resolves during
+/// the undo, the undo is asked to stop after the resource in hand.
 ///
 /// # Errors
 /// A [`CliError::Message`] when the import does not exist, is not in a state
 /// an undo may start from, deleted resources, or another import is busy.
-pub async fn undo(options: &UndoOptions, out: &mut dyn Write) -> Result<UndoOutcome, CliError> {
+pub async fn undo(
+    options: &UndoOptions,
+    stop: impl Future<Output = ()>,
+    out: &mut dyn Write,
+) -> Result<UndoOutcome, CliError> {
     let session = Session::open(&options.at).await?;
     let row = session.import(options.id).await?;
     if options.preview {
@@ -58,14 +70,26 @@ pub async fn undo(options: &UndoOptions, out: &mut dyn Write) -> Result<UndoOutc
                 other => CliError::message(other.to_string()),
             })?;
         let report = serde_json::to_value(previewed)?;
-        write_report(&report, "would remove", "would restore", out)?;
+        match options.format {
+            Format::Text => write_report(&report, "would remove", "would restore", out)?,
+            Format::Json => writeln!(out, "{}", json!({ "import": row.id.0, "preview": report }))?,
+        }
         return Ok(UndoOutcome::Clean);
     }
     start(&session, row.id).await?;
-    let force = options.force_all.then(|| json!("all"));
-    session
-        .perform(None, UNDO_JOB, row.id, force, Some("undo"), out)
-        .await?;
+    let work = Work {
+        owner: None,
+        class: UNDO_JOB,
+        import: row.id,
+        force: options.force_all.then(|| json!("all")),
+        member: Some("undo"),
+    };
+    let mut quiet = std::io::sink();
+    let progress: &mut dyn Write = match options.format {
+        Format::Text => out,
+        Format::Json => &mut quiet,
+    };
+    session.perform(work, stop, progress).await?;
     let ended = session.import(options.id).await?;
     let report = ended
         .summary
@@ -73,8 +97,20 @@ pub async fn undo(options: &UndoOptions, out: &mut dyn Write) -> Result<UndoOutc
         .and_then(|summary| summary.get("undo"))
         .cloned()
         .unwrap_or(Value::Null);
-    write_report(&report, "removed", "restored", out)?;
-    writeln!(out, "import {} {}", ended.id.0, ended.status.as_str())?;
+    match options.format {
+        Format::Text => {
+            write_report(&report, "removed", "restored", out)?;
+            writeln!(out, "import {} {}", ended.id.0, ended.status.as_str())?;
+        }
+        Format::Json => {
+            let document = json!({
+                "import": ended.id.0,
+                "status": ended.status.as_str(),
+                "report": report,
+            });
+            writeln!(out, "{document}")?;
+        }
+    }
     Ok(if ended.status == ImportStatus::UndoFailed {
         UndoOutcome::Failed
     } else {

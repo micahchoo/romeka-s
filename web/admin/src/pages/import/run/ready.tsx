@@ -126,9 +126,7 @@ export const Ready = ({ live, summary: SimpleSummary }: { readonly live: LiveImp
           </button>
         </p>
       )}
-      {ownWords && check.action === 'delete' ? null : (
-        <StartControl start={start} label={label} note={check.deletes > 0 || ownWords ? null : t('run.ready.later')} />
-      )}
+      <StartControl start={start} label={label} note={check.deletes > 0 || ownWords ? null : t('run.ready.later')} />
     </section>
   );
 };

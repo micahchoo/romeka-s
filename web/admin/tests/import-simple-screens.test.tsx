@@ -1,7 +1,7 @@
 /**
  * Single answers on the Simple screens, read back from the plan they save:
- * turning down the folder's list keeps it out, and an item type value maps
- * to a new item type or to none.
+ * turning down the folder's list keeps it out, an item type value maps to a
+ * new item type or to none, and Check suggests each kind's default policy.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
@@ -117,5 +117,18 @@ describe('Where they go', () => {
       expect(asRecord(item['template'], [])['map']).toEqual({ letter: 'letter', magazine: '' });
     }, { timeout: 3000 });
     expect(last(server.saved)['newTypes']).toEqual([{ label: 'letter', from: 'mapping', class: null }]);
+  }, 20_000);
+});
+
+describe('Check', () => {
+  it('suggests leaving out files that are not media, the kind’s default, when Advanced chose to keep them', async () => {
+    installFetch(simpleServer(scenario('bhc', 9), { flags: { 'not-media': 'keep' } }).handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'check']} />);
+    const card = await screen.findByRole('article', { name: '1 time: Not a picture, a sound, a film or a PDF.' }, { timeout: 5000 });
+    const leave = within(card).getByRole('radio', { name: /^Leave them out/ });
+    const keep = within(card).getByRole('radio', { name: /^Keep them as they are/ });
+    expect(keep).toBeChecked();
+    expect(leave.closest('label')).toHaveTextContent('suggested');
+    expect(keep.closest('label')).not.toHaveTextContent('suggested');
   }, 20_000);
 });

@@ -1,7 +1,9 @@
 /**
  * "Add them": what the run writes, in plain words, from the server's check
  * (items and files, the new item sets, item types and fields, items with no
- * item type), and who can see them. The start, its refusals, the progress and
+ * item type), and who can see them. A delete writes nothing and cannot be
+ * undone, so it has neither the visibility nor the undo note; its start asks
+ * for the count typed, as in Advanced. The start, its refusals, the progress and
  * the end are the run screen's (`run/`), the one start path both modes share;
  * this file gives it Simple's words for the check.
  */
@@ -83,24 +85,27 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
           <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.lookAt')}</a>
         </p>
       )}
-      <p>
-        <label data-decision="who">
-          {t('guided.add.who')}{' '}
-          <select
-            value={draft.plan.defaults.visibility}
-            disabled={!draft.editable}
-            onChange={(event) => {
-              const visibility = event.target.value === 'public' ? 'public' : 'private';
-              draft.change((plan) => ({ ...plan, defaults: { ...plan.defaults, visibility } }));
-            }}
-          >
-            <option value="private">{t('guided.add.private')}</option>
-            <option value="public">{t('guided.add.public')}</option>
-          </select>
-        </label>
-      </p>
-      <p className="muted">{t('guided.add.undo')}</p>
-      {check.action === 'delete' ? <p className="import-note">{t('guided.add.deleteAdvanced')}</p> : null}
+      {check.action === 'delete' ? null : (
+        <>
+          <p>
+            <label data-decision="who">
+              {t('guided.add.who')}{' '}
+              <select
+                value={draft.plan.defaults.visibility}
+                disabled={!draft.editable}
+                onChange={(event) => {
+                  const visibility = event.target.value === 'public' ? 'public' : 'private';
+                  draft.change((plan) => ({ ...plan, defaults: { ...plan.defaults, visibility } }));
+                }}
+              >
+                <option value="private">{t('guided.add.private')}</option>
+                <option value="public">{t('guided.add.public')}</option>
+              </select>
+            </label>
+          </p>
+          <p className="muted">{t('guided.add.undo')}</p>
+        </>
+      )}
     </>
   );
 };

@@ -48,6 +48,7 @@ export const ml: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root}-ലെ എല്ലാം',
   'words.computer': 'ഈ കമ്പ്യൂട്ടറിൽ നിന്നുള്ള ഫയലുകൾ',
+  'words.computerLists': 'ഈ കമ്പ്യൂട്ടറിൽ നിന്നുള്ള പട്ടികകൾ',
   'words.none': 'ഇതുവരെ ഫയലുകളില്ല',
   'status.draft': 'ഇതുവരെ ചേർത്തിട്ടില്ല',
   'status.running': 'ചേർക്കുന്നു',

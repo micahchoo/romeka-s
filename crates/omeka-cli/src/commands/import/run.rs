@@ -5,7 +5,12 @@
 //! does: rescan, derive, check, refuse on a blocking flag or an unconfirmed
 //! delete, start, and run the job body in this process. A refused run, and a
 //! dry run, delete the draft again, so they leave no import behind.
+//!
+//! With `--json` the command writes one document when it ends:
+//! `{"import": id | null, "check": <Check>, "status": <status> | null,
+//! "summary": <summary> | null}`. A dry run has no import and no status.
 
+use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -22,9 +27,9 @@ use omeka_db::ids::ImportId;
 use omeka_db::repos::SettingRepo;
 use omeka_db::rows::{ImportRow, ImportStatus};
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use super::session::{Admin, Session, Where};
+use super::session::{Admin, Format, Session, Where, Work};
 use crate::CliError;
 
 /// Input for `romeka import run`.
@@ -37,6 +42,7 @@ pub struct RunOptions {
     pub dry_run: bool,
     /// `--confirm`: the count a delete run removes.
     pub confirm: Option<u64>,
+    pub format: Format,
 }
 
 /// How a run command ended.
@@ -49,28 +55,52 @@ pub enum RunOutcome {
 }
 
 /// Check the plan, and run it unless `options.dry_run`. Everything the
-/// operator reads goes to `out`.
+/// operator reads goes to `out`. When `stop` resolves during the run, the run
+/// is asked to stop and ends `run_failed` after the record in hand.
 ///
 /// # Errors
 /// A [`CliError::Message`] for a plan, user or start the contract refuses;
 /// the database and job errors otherwise.
-pub async fn run(options: &RunOptions, out: &mut dyn Write) -> Result<RunOutcome, CliError> {
+pub async fn run(
+    options: &RunOptions,
+    stop: impl Future<Output = ()>,
+    out: &mut dyn Write,
+) -> Result<RunOutcome, CliError> {
     let session = Session::open(&options.at).await?;
     let admin = session.admin(&options.actor).await?;
     let plan = read_plan(&options.plan)?;
     let import = make_draft(&session, &admin, &plan).await?;
-    match go(&session, &admin, import, plan, options, out).await {
-        Ok(Some(outcome)) => Ok(outcome),
-        Ok(None) => {
+    let ran = go(&session, &admin, import, plan, options, stop, out).await;
+    let (check, ended) = match ran {
+        Ok(Ran { check, ended: None }) => {
             discard(&session, import).await?;
-            Ok(RunOutcome::Clean)
+            (check, None)
         }
+        Ok(Ran { check, ended }) => (check, ended),
         Err(error) => {
             // A run that started is no draft any more; its error is the one to show.
             let _ = discard(&session, import).await;
-            Err(error)
+            return Err(error);
+        }
+    };
+    let outcome = ended.as_ref().map_or(RunOutcome::Clean, outcome_of);
+    match options.format {
+        Format::Text => {
+            if let Some(row) = &ended {
+                write_ending(row, out)?;
+            }
+        }
+        Format::Json => {
+            let document = json!({
+                "import": ended.as_ref().map(|row| row.id.0),
+                "check": check,
+                "status": ended.as_ref().map(|row| row.status.as_str()),
+                "summary": ended.as_ref().and_then(|row| row.summary.clone()),
+            });
+            writeln!(out, "{document}")?;
         }
     }
+    Ok(outcome)
 }
 
 fn read_plan(path: &std::path::Path) -> Result<ImportPlanV2, CliError> {
@@ -118,15 +148,23 @@ async fn discard(session: &Session, import: ImportId) -> Result<(), CliError> {
         .map_err(draft_error)
 }
 
-/// Assess, print, and start. `None` means nothing ran and the draft goes.
+/// What [`go`] did: the Check it read, and the import row after the run, or
+/// `None` when nothing ran and the draft goes.
+struct Ran {
+    check: Check,
+    ended: Option<ImportRow>,
+}
+
+/// Assess, print, and start.
 async fn go(
     session: &Session,
     admin: &Admin,
     import: ImportId,
     plan: ImportPlanV2,
     options: &RunOptions,
+    stop: impl Future<Output = ()>,
     out: &mut dyn Write,
-) -> Result<Option<RunOutcome>, CliError> {
+) -> Result<Ran, CliError> {
     let files = omeka_api::settings::file_validation(&SettingRepo::new(&session.pool)).await?;
     let assessed = start::assess(
         &session.pool,
@@ -140,24 +178,38 @@ async fn go(
     )
     .await
     .map_err(|error| CliError::message(error.to_string()))?;
-    write_check(&assessed.check, out)?;
+    let check = assessed.check;
+    let mut quiet = std::io::sink();
+    let progress: &mut dyn Write = match options.format {
+        Format::Text => out,
+        Format::Json => &mut quiet,
+    };
+    write_check(&check, progress)?;
     if options.dry_run {
-        return Ok(None);
+        return Ok(Ran { check, ended: None });
     }
     let row = session.import(import.0).await?;
     let go = Go {
         digest: None,
         confirm: options.confirm,
     };
-    start::begin(&session.pool, &row, &assessed.check, go)
+    start::begin(&session.pool, &row, &check, go)
         .await
         .map_err(refused)?;
-    writeln!(out, "import {} running", import.0)?;
-    session
-        .perform(Some(admin.id), RUN_JOB, import, None, None, out)
-        .await?;
+    writeln!(progress, "import {} running", import.0)?;
+    let work = Work {
+        owner: Some(admin.id),
+        class: RUN_JOB,
+        import,
+        force: None,
+        member: None,
+    };
+    session.perform(work, stop, progress).await?;
     let ended = session.import(import.0).await?;
-    Ok(Some(write_ending(&ended, out)?))
+    Ok(Ran {
+        check,
+        ended: Some(ended),
+    })
 }
 
 fn refused(error: StartError) -> CliError {
@@ -239,7 +291,22 @@ pub(super) fn write_check(check: &Check, out: &mut dyn Write) -> Result<(), CliE
     Ok(())
 }
 
-fn write_ending(row: &ImportRow, out: &mut dyn Write) -> Result<RunOutcome, CliError> {
+/// A run is clean when it ended `done` with no failed record.
+fn outcome_of(row: &ImportRow) -> RunOutcome {
+    let failed = row
+        .summary
+        .as_ref()
+        .and_then(|summary| summary.get("failures"))
+        .and_then(Value::as_array)
+        .is_some_and(|failures| !failures.is_empty());
+    if row.status == ImportStatus::Done && !failed {
+        RunOutcome::Clean
+    } else {
+        RunOutcome::Failed
+    }
+}
+
+fn write_ending(row: &ImportRow, out: &mut dyn Write) -> Result<(), CliError> {
     let summary = row.summary.as_ref();
     let count = |member: &str| {
         summary
@@ -272,9 +339,5 @@ fn write_ending(row: &ImportRow, out: &mut dyn Write) -> Result<RunOutcome, CliE
     if stopped {
         writeln!(out, "the run stopped on request")?;
     }
-    Ok(if row.status == ImportStatus::Done && failures.is_empty() {
-        RunOutcome::Clean
-    } else {
-        RunOutcome::Failed
-    })
+    Ok(())
 }

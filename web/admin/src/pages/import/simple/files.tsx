@@ -53,8 +53,8 @@ export const YourFiles = (): ReactElement => {
         <p>
           <b>
             {files === 1
-              ? t('guided.files.countOne', { where: whereWords(draft.plan.sources, t) })
-              : t('guided.files.count', { count: number(files), where: whereWords(draft.plan.sources, t) })}
+              ? t('guided.files.countOne', { where: whereWords(draft.plan.sources, t, sources) })
+              : t('guided.files.count', { count: number(files), where: whereWords(draft.plan.sources, t, sources) })}
           </b>
         </p>
         {sources
@@ -69,17 +69,12 @@ export const YourFiles = (): ReactElement => {
         <a className="button-link import-primary" href={placeHref(draft.id, { mode: 'simple', screen: 'found' })}>
           {t('guided.files.next')}
         </a>
-        <button type="button" disabled={again.at === 'looking'} onClick={look}>
-          {again.at === 'looking' ? t('guided.files.looking') : t('guided.files.again')}
+        <button type="button" disabled={again.at === 'looking' || again.at === 'working'} onClick={look}>
+          {again.at === 'looking' || again.at === 'working' ? t('guided.files.looking') : t('guided.files.again')}
         </button>
       </p>
-      {again.at === 'done' ? (
-        <p role="status">
-          {again.result.kind === 'job'
-            ? t('guided.files.againJob')
-            : t('guided.files.againDone', { count: number(total(again.result.sources)) })}
-        </p>
-      ) : null}
+      {again.at === 'working' ? <p role="status">{t('guided.files.againJob')}</p> : null}
+      {again.at === 'done' ? <p role="status">{t('guided.files.againDone', { count: number(total(again.sources)) })}</p> : null}
       {again.at === 'failed' ? <ErrorNotice error={again.error} /> : null}
       <ComputerFiles lookAgain={look} />
     </>

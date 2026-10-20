@@ -174,6 +174,7 @@ export const es: ImportSimpleMessages = {
   'guided.check.mustFix': 'Esto debe corregirse antes de poder añadir.',
   'guided.check.keep': 'Dejarlos como están',
   'guided.check.leave': 'Dejarlos fuera',
+  'guided.check.spacesRepair': 'Quitar los espacios',
   'guided.check.other': '{count} veces: {problem}.',
   'guided.check.otherOne': '1 vez: {problem}.',
   'guided.check.cells': '{count} filas de tu lista tienen un número de celdas incorrecto.',
@@ -252,5 +253,4 @@ export const es: ImportSimpleMessages = {
   'guided.add.private': 'Solo el personal con sesión iniciada (privado)',
   'guided.add.public': 'Todo el mundo (público)',
   'guided.add.undo': 'Puedes deshacer toda la importación más tarde.',
-  'guided.add.deleteAdvanced': 'Borrar elementos de Omeka empieza en el modo avanzado, donde primero escribes la cantidad.',
 };

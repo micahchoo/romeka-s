@@ -15,6 +15,7 @@ use axum::response::Response;
 use omeka_api::auth::Actor;
 use omeka_api::import2::plan::{ImportPlanV2, PlanError};
 use omeka_api::import2::preview::{self, Derived, PreviewRequest, derive_import};
+use omeka_api::import2::run::RUN_JOB;
 use omeka_api::import2::scan::{self, SCAN_IN_REQUEST, SCAN_JOB};
 use omeka_api::import2::start::{self, Go, Refusal, StartError};
 use omeka_api::messages;
@@ -27,9 +28,6 @@ use serde_json::{Value, json};
 use super::wire::{ImportError, admin, blocking, body, json, load, owners};
 use super::{Answer, answer};
 use crate::AppState;
-
-/// The job class of a run, `job.class`; its args are `{"importId": n}`.
-pub const RUN_JOB: &str = "Romeka\\Job\\ImportRun";
 
 /// The plan a non-draft runs from: the one its first run froze.
 pub(super) fn stored_plan(row: &ImportRow) -> Result<ImportPlanV2, ImportError> {

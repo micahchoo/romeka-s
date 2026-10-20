@@ -52,6 +52,7 @@ export const en = {
   'words.folder': '{path} ({root})',
   'words.root': 'All of {root}',
   'words.computer': 'Files from this computer',
+  'words.computerLists': 'Lists from this computer',
   'words.none': 'No files yet',
   'status.draft': 'Not added yet',
   'status.running': 'Adding',

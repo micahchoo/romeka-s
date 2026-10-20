@@ -13,8 +13,9 @@ import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { ADVANCED_BODIES } from './advanced/bodies';
-import { DraftContext } from './draft-context';
+import { DraftContext, useDraft } from './draft-context';
 import { FirstLook } from './first-look';
+import { usePreview } from './lists/use-preview';
 import type { Draft } from './draft-context';
 import { useImportText } from './messages';
 import { PlanStore } from './plan-store';
@@ -40,7 +41,6 @@ const Body = ({ place }: { readonly place: Place }): ReactElement | null => {
 };
 
 const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly place: Place }): ReactElement => {
-  const { t } = useImportText();
   const [store] = useState(() => new PlanStore(importApi, initial));
   const snapshot = useSyncExternalStore(store.subscribe, store.snapshot);
   const [looks, setLooks] = useState(0);
@@ -59,55 +59,69 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
     }),
     [snapshot, initial.id, place, store, looks],
   );
-  const { detail } = snapshot;
-  const where = whereWords(detail.plan.sources, t);
+  return (
+    <DraftContext.Provider value={draft}>
+      <FrameView store={store} />
+    </DraftContext.Provider>
+  );
+};
+
+/**
+ * The frame inside the draft's context. A draft's one read of the sources (the
+ * last look) names the import in the title and tells the first look whether
+ * the files were ever looked at. A started import reads no preview: its title
+ * comes from the plan alone.
+ */
+const FrameView = ({ store }: { readonly store: PlanStore }): ReactElement => {
+  const { t } = useImportText();
+  const { detail, place, save } = useDraft();
+  const sources = usePreview([], {}, detail.status === 'draft');
+  const where = whereWords(detail.plan.sources, t, sources.status === 'ready' ? sources.data.sources : []);
   // The counts say what adding would write, so they mean nothing once the import has started,
   // and nothing on the first screen, before there are files.
   const counted = detail.status === 'draft' && !(place.mode === 'simple' && place.screen === 'files');
   return (
-    <DraftContext.Provider value={draft}>
-      <section className={`import-draft import-${place.mode}`}>
-        <p className="import-up">
-          <a href="#/import">{t('shell.home')}</a>
-        </p>
-        <header className="import-head">
-          <div className="import-title">
-            <h2>{where}</h2>
-            <span className="muted">
-              {t(statusKey(detail))}
-              {snapshot.save.status === 'closed' ? null : (
-                <>
-                  {' · '}
-                  <SaveWord save={snapshot.save} />
-                </>
-              )}
-            </span>
-          </div>
-          <ModeSwitch id={detail.id} place={place} />
-        </header>
-        <SaveNotice id={detail.id} save={snapshot.save} store={store} />
-        <div className="import-layout">
-          <Steps id={detail.id} place={place} />
-          <div className="import-screen">
-            {detail.status === 'draft' ? <FirstLook /> : null}
-            {counted ? <StatusLine /> : null}
-            <h3 className="import-screen-title">{t(screenOf(place).title)}</h3>
-            <Body key={`${place.mode}/${place.screen}`} place={place} />
-            <StepNav id={detail.id} place={place} />
-          </div>
+    <section className={`import-draft import-${place.mode}`}>
+      <p className="import-up">
+        <a href="#/import">{t('shell.home')}</a>
+      </p>
+      <header className="import-head">
+        <div className="import-title">
+          <h2>{where}</h2>
+          <span className="muted">
+            {t(statusKey(detail))}
+            {save.status === 'closed' ? null : (
+              <>
+                {' · '}
+                <SaveWord save={save} />
+              </>
+            )}
+          </span>
         </div>
-        {detail.status === 'draft' ? (
-          <DeleteControl
-            label={t('shell.delete')}
-            rowName={where}
-            onConfirm={async () => {
-              await importApi.remove(detail.id);
-              window.location.hash = '#/import';
-            }}
-          />
-        ) : null}
-      </section>
-    </DraftContext.Provider>
+        <ModeSwitch id={detail.id} place={place} />
+      </header>
+      <SaveNotice id={detail.id} save={save} store={store} />
+      <div className="import-layout">
+        <Steps id={detail.id} place={place} />
+        <div className="import-screen">
+          {detail.status === 'draft' ? <FirstLook sources={sources} /> : null}
+          {counted ? <StatusLine /> : null}
+          <h3 className="import-screen-title">{t(screenOf(place).title)}</h3>
+          <Body key={`${place.mode}/${place.screen}`} place={place} />
+          <StepNav id={detail.id} place={place} />
+        </div>
+      </div>
+      {detail.status === 'draft' ? (
+        <DeleteControl
+          label={t('shell.delete')}
+          rowName={where}
+          onConfirm={async () => {
+            await importApi.remove(detail.id);
+            window.location.hash = '#/import';
+          }}
+        />
+      ) : null}
+    </section>
   );
 };
 

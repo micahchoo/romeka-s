@@ -48,6 +48,7 @@ export const ne: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} का सबै',
   'words.computer': 'यस कम्प्युटरका फाइलहरू',
+  'words.computerLists': 'यस कम्प्युटरबाट सूचीहरू',
   'words.none': 'अहिलेसम्म कुनै फाइल छैन',
   'status.draft': 'अहिलेसम्म थपिएको छैन',
   'status.running': 'थपिरहेको',

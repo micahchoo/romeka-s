@@ -15,6 +15,7 @@
 //! attachments. A media delete re-saves the item, because the item's text
 //! included that media (`Module::deleteFulltextMedia`).
 
+use omeka_db::fulltext::{linked_resource, strip_tags, value_text as text_of};
 use omeka_db::ids::{AnnotationId, PageId, ResourceId};
 use omeka_db::repos::{
     FulltextRepo, MediaFilter, MediaRepo, Paging, ResourceRepo, SiteRepo, ValueRepo,
@@ -162,41 +163,18 @@ async fn annotation_texts(
     Ok(texts)
 }
 
-/// One value's fulltext text, as the data type registry gives it.
-///
-/// `Literal::getFulltextText` is the stored value, `Uri::getFulltextText` is
-/// the URI and the label space separated, and `AbstractResource::getFulltextText`
-/// is the referenced resource's title. `CustomVocab::getFulltextText` is the
-/// stored value whatever the shape: a term, a URI's label, nothing for an item.
+/// One value's fulltext text by [`omeka_db::fulltext::value_text`], with the linked title read
+/// here.
 async fn value_text(api: &Api<'_>, value: &ValueRow) -> Result<String, ApiError> {
-    if omeka_core::term_list::list_id(&value.r#type).is_some() {
-        return Ok(value.value.clone().unwrap_or_default());
-    }
-    if value.r#type == "uri" {
-        return Ok(format!(
-            "{} {}",
-            value.uri.as_deref().unwrap_or_default(),
-            value.value.as_deref().unwrap_or_default()
-        )
-        .trim()
-        .to_string());
-    }
-    if value.r#type.starts_with("resource") {
-        return referenced_title(api, value.value_resource_id).await;
-    }
-    Ok(value.value.clone().unwrap_or_default())
-}
-
-async fn referenced_title(api: &Api<'_>, resource: Option<ResourceId>) -> Result<String, ApiError> {
-    let Some(id) = resource else {
-        return Ok(String::new());
+    let linked_title = match linked_resource(value) {
+        Some(id) => ResourceRepo::new(api.pool())
+            .get(id)
+            .await
+            .map_err(db_error)?
+            .and_then(|row| row.title),
+        None => None,
     };
-    Ok(ResourceRepo::new(api.pool())
-        .get(id)
-        .await
-        .map_err(db_error)?
-        .and_then(|row| row.title)
-        .unwrap_or_default())
+    Ok(text_of(value, linked_title))
 }
 
 /// Every media of an item, in `position` order.
@@ -268,63 +246,6 @@ fn collect_strings(value: &Value, out: &mut Vec<String>) {
         }
         Value::Null | Value::Bool(_) | Value::Number(_) => {}
     }
-}
-
-/// `strip_tags` plus `html_entity_decode` for the entities a block body
-/// carries. The full HTML5 named-entity table is not ported; the numeric forms
-/// and the five XML entities are.
-fn strip_tags(html: &str) -> String {
-    let mut out = String::with_capacity(html.len());
-    let mut in_tag = false;
-    for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' if in_tag => in_tag = false,
-            _ if !in_tag => out.push(ch),
-            _ => {}
-        }
-    }
-    decode_entities(&out)
-}
-
-fn decode_entities(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(start) = rest.find('&') {
-        out.push_str(&rest[..start]);
-        let Some(end) = rest[start..].find(';').map(|end| start + end) else {
-            out.push_str(&rest[start..]);
-            return out;
-        };
-        let entity = &rest[start + 1..end];
-        match decode_entity(entity) {
-            Some(decoded) => out.push_str(&decoded),
-            None => out.push_str(&rest[start..=end]),
-        }
-        rest = &rest[end + 1..];
-    }
-    out.push_str(rest);
-    out
-}
-
-fn decode_entity(entity: &str) -> Option<String> {
-    let named = match entity {
-        "amp" => '&',
-        "lt" => '<',
-        "gt" => '>',
-        "quot" => '"',
-        "apos" | "#39" => '\'',
-        "nbsp" => '\u{a0}',
-        _ => {
-            let digits = entity.strip_prefix('#')?;
-            let code = match digits.strip_prefix(['x', 'X']) {
-                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-                None => digits.parse().ok()?,
-            };
-            return char::from_u32(code).map(String::from);
-        }
-    };
-    Some(named.to_string())
 }
 
 #[cfg(test)]

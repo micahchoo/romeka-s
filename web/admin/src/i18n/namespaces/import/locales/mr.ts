@@ -47,6 +47,7 @@ export const mr: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} मधील सर्व',
   'words.computer': 'या संगणकातील फाईल्स',
+  'words.computerLists': 'या संगणकावरून याद्या',
   'words.none': 'अद्याप कोणतीही फाईल नाही',
   'status.draft': 'अद्याप जोडलेले नाही',
   'status.running': 'जोडत आहे',

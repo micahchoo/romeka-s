@@ -1,6 +1,7 @@
 //! What the import commands share: the database, the job surroundings, and
 //! the administrator they act as.
 
+use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -27,6 +28,28 @@ pub struct Where {
     /// `--archive-root`, the root named `archive`; the configured roots when
     /// `None`.
     pub archive_root: Option<PathBuf>,
+}
+
+/// How a command writes what it reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Format {
+    /// Lines for an operator, progress included.
+    #[default]
+    Text,
+    /// One JSON document when the command ends, and nothing before it.
+    Json,
+}
+
+/// One job a command runs for an import.
+pub(super) struct Work<'a> {
+    pub owner: Option<UserId>,
+    pub class: &'a str,
+    pub import: ImportId,
+    /// The undo's `force` argument.
+    pub force: Option<Value>,
+    /// The summary member that holds the count: the run keeps it at the top,
+    /// the undo under `undo`.
+    pub member: Option<&'a str>,
 }
 
 pub(super) struct Session {
@@ -71,20 +94,25 @@ impl Session {
             .ok_or_else(|| CliError::message(messages::import_not_found(id)))
     }
 
-    /// Run the job of `class` for `import` in this process, as `romeka job
-    /// run` would in a child, and write a progress line to `out` whenever the
-    /// import's count moves. The import is already `running` or `undoing`.
-    /// `member` names the summary member that holds the count: the run keeps
-    /// it at the top, the undo under `undo`.
+    /// Run `work`'s job in this process, as `romeka job run` would in a
+    /// child, and write a progress line to `out` whenever the import's count
+    /// moves. The import is already `running` or `undoing`.
+    ///
+    /// When `stop` resolves, the command asks the job to stop, as the Stop
+    /// button does, and goes on waiting: the job ends after the record in hand.
     pub async fn perform(
         &self,
-        owner: Option<UserId>,
-        class: &str,
-        import: ImportId,
-        force: Option<Value>,
-        member: Option<&str>,
+        work: Work<'_>,
+        stop: impl Future<Output = ()>,
         out: &mut dyn Write,
     ) -> Result<JobStatus, CliError> {
+        let Work {
+            owner,
+            class,
+            import,
+            force,
+            member,
+        } = work;
         let mut args = json!({ "importId": import.0 });
         if let Some(force) = force {
             args["force"] = force;
@@ -103,13 +131,20 @@ impl Session {
             .id;
         ImportRepo::new(&self.pool).set_job(import, job).await?;
         let runner = Runner::with_env(&self.pool, self.env.clone());
-        let work = runner.run(job);
-        tokio::pin!(work);
+        let running = runner.run(job);
+        tokio::pin!(running);
+        tokio::pin!(stop);
+        let mut stopping = false;
         let mut ticker = tokio::time::interval(TICK);
         let mut shown = None;
         let ended = loop {
             tokio::select! {
-                ended = &mut work => break ended,
+                ended = &mut running => break ended,
+                () = &mut stop, if !stopping => {
+                    stopping = true;
+                    ImportRepo::new(&self.pool).request_stop(import).await?;
+                    writeln!(out, "stop requested: the job ends after the record in hand")?;
+                }
                 _ = ticker.tick() => {
                     let row = self.import(import.0).await?;
                     let count = progress(row.summary.as_ref(), member);

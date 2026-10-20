@@ -47,6 +47,7 @@ export const hi: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} के सभी',
   'words.computer': 'इस कंप्यूटर से फ़ाइलें',
+  'words.computerLists': 'इस कंप्यूटर से सूचियाँ',
   'words.none': 'अभी तक कोई फ़ाइल नहीं',
   'status.draft': 'अभी तक जोड़ा नहीं गया',
   'status.running': 'जोड़ा जा रहा है',

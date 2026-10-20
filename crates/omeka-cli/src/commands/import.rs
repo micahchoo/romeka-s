@@ -39,7 +39,7 @@ pub mod run;
 mod session;
 pub mod undo;
 
-pub use session::Where;
+pub use session::{Format, Where};
 
 /// Input for `romeka import template`.
 #[derive(Debug, Clone)]

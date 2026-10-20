@@ -50,6 +50,7 @@ export const ta: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} முழுவதும்',
   'words.computer': 'இந்த கணினியிலிருந்து கோப்புகள்',
+  'words.computerLists': 'இந்த கணினியிலிருந்து பட்டியல்கள்',
   'words.none': 'இன்னும் கோப்புகள் இல்லை',
   'status.draft': 'இன்னும் சேர்க்கப்படவில்லை',
   'status.running': 'சேர்க்கப்படுகிறது',

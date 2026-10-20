@@ -81,6 +81,31 @@ describe('before the start', () => {
   });
 });
 
+describe('a delete in Simple', () => {
+  const DELETE_DIGEST = asRecord(fixture('preview-check-delete.json')['check'], [])['digest'];
+
+  it('starts on this screen once the count is typed, and never says it can be undone', async () => {
+    const fetchMock = installFetch(
+      runRoutes(1, { reads: [fixture('import-draft.json'), fixture('import-running.json')], check: 'preview-check-delete.json' }),
+    );
+    render(at(1));
+    const go = await screen.findByRole('button', { name: 'Delete them from Omeka' });
+    expect(go).toBeDisabled();
+    expect(screen.getByText(/^This deletes 1 from Omeka: .* It cannot be undone\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/starts in Advanced mode/)).toBeNull();
+    expect(screen.queryByText('You can undo the whole import later.')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Who can see them' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Type 1 to confirm'), { target: { value: '2' } });
+    expect(go).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Type 1 to confirm'), { target: { value: '1' } });
+    expect(go).toBeEnabled();
+    fireEvent.click(go);
+    expect(await screen.findByText('Writing to Omeka...')).toBeInTheDocument();
+    const [sent] = requestsFor(fetchMock, `${pathOf(1)}/run`);
+    expect(sent === undefined ? null : requestBody(sent)).toEqual({ digest: DELETE_DIGEST, confirm: 1 });
+  });
+});
+
 describe('a start the server refuses', () => {
   const refused = async (answer: () => Response, mode = 'simple') => {
     const fetchMock = installFetch(runRoutes(1, { reads: [fixture('import-draft.json')], run: [answer] }));

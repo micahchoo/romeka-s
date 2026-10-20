@@ -2,7 +2,8 @@
  * One preview read for a list, made again whenever the saved answers change
  * (the import's revision), the files were looked at again, or what the
  * caller asks changes. The last answer
- * stays on screen while the next loads, so a list never blinks.
+ * stays on screen while the next loads, so a list never blinks. With
+ * `enabled` false nothing is read, and the read stays `loading`.
  */
 import { useEffect, useState } from 'react';
 import { importApi } from '../../../api/import-routes';
@@ -19,11 +20,15 @@ export type Read<T> =
 export const usePreview = <S extends Section>(
   include: readonly S[],
   options: PreviewOptions,
+  enabled = true,
 ): Read<PreviewWith<S>> => {
   const { id, detail, looks } = useDraft();
   const [read, setRead] = useState<Read<PreviewWith<S>>>({ status: 'loading' });
   const asked = JSON.stringify([include, options]);
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
     let current = true;
     setRead((last) => (last.status === 'ready' ? { ...last, busy: true } : last));
     importApi.preview(id, include, options).then(
@@ -42,6 +47,6 @@ export const usePreview = <S extends Section>(
       current = false;
     };
     // `asked` holds `include` and `options`, which are new objects on every render.
-  }, [id, detail.revision, looks, asked]);
+  }, [id, detail.revision, looks, asked, enabled]);
   return read;
 };

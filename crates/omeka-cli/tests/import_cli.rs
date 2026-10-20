@@ -275,3 +275,174 @@ async fn the_old_commands_are_gone() {
         assert!(!output.status.success(), "import {gone} still runs");
     }
 }
+
+fn delete_plan(plan: &mut Value) {
+    plan["grouping"]["pattern"] = json!(BHC_PATTERN);
+    plan["action"]["action"] = json!("delete");
+    plan["action"]["match"]["item"]["scope"] = json!("all");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_delete_runs_only_with_its_exact_count() {
+    let site = site().await;
+    bhc_006(&site);
+    assert!(
+        romeka_run(&site, &plan_file(&site, bhc_plan), &[])
+            .status
+            .success()
+    );
+    let plan = plan_file(&site, delete_plan);
+
+    for extra in [&[][..], &["--confirm", "8"][..]] {
+        let refused = romeka_run(&site, &plan, extra);
+        assert!(!refused.status.success(), "{extra:?} ran");
+        assert!(
+            stderr(&refused).contains("Pass --confirm 9."),
+            "{extra:?}: {}",
+            stderr(&refused)
+        );
+    }
+    assert_eq!(
+        site.items().await.len(),
+        9,
+        "a refused delete removes nothing"
+    );
+    assert_eq!(imports(&site).await, 1, "a refused delete keeps no draft");
+
+    let deleted = romeka_run(&site, &plan, &["--confirm", "9"]);
+    let text = stdout(&deleted);
+    assert!(deleted.status.success(), "{text}{}", stderr(&deleted));
+    assert!(site.items().await.is_empty());
+}
+
+/// The whole of stdout, as the one document a `--json` command writes.
+fn document(output: &Output) -> Value {
+    let text = stdout(output);
+    assert!(output.status.success(), "{text}{}", stderr(output));
+    serde_json::from_str(&text).unwrap_or_else(|error| panic!("{error}: {text}"))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn json_writes_one_document_per_command() {
+    let site = site().await;
+    bhc_006(&site);
+    let plan = plan_file(&site, bhc_plan);
+
+    let dry = document(&romeka_run(&site, &plan, &["--dry-run", "--json"]));
+    assert_eq!(dry["import"], Value::Null, "{dry}");
+    assert_eq!(dry["status"], Value::Null, "{dry}");
+    assert_eq!(dry["check"]["canRun"], true, "{dry}");
+
+    let ran = document(&romeka_run(&site, &plan, &["--json"]));
+    assert_eq!(ran["import"], 2, "{ran}");
+    assert_eq!(ran["status"], "done", "{ran}");
+    assert_eq!(ran["summary"]["progress"]["done"], 24, "{ran}");
+    assert_eq!(ran["check"]["digest"], dry["check"]["digest"], "{ran}");
+
+    let listed = document(&romeka(&site, &["import", "list", "--json"]));
+    assert_eq!(listed["total"], 1, "{listed}");
+    assert_eq!(listed["imports"][0]["id"], 2, "{listed}");
+    assert_eq!(listed["imports"][0]["status"], "done", "{listed}");
+    assert_eq!(listed["imports"][0]["progress"]["total"], 24, "{listed}");
+
+    let preview = document(&romeka(
+        &site,
+        &["import", "undo", "2", "--preview", "--json"],
+    ));
+    assert_eq!(preview["import"], 2, "{preview}");
+    assert_eq!(preview["preview"]["remove"]["items"], 9, "{preview}");
+
+    let undone = document(&romeka(&site, &["import", "undo", "2", "--json"]));
+    assert_eq!(undone["status"], "undone", "{undone}");
+    assert_eq!(undone["report"]["removed"]["items"], 9, "{undone}");
+}
+
+/// A run under `romeka import run`'s stop seam: the stop resolves as soon as
+/// the job runs, as a Ctrl-C at that moment would.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stop_during_the_run_ends_it_run_failed() {
+    use omeka_cli::commands::import::run::{RunOptions, RunOutcome, run};
+    use omeka_cli::commands::import::{Format, Where};
+
+    let site = site().await;
+    bhc_006(&site);
+    let options = RunOptions {
+        at: Where {
+            database: site.dir.path().join("romeka.db"),
+            store: Some(site.files.clone()),
+            archive_root: Some(site.archive.clone()),
+        },
+        plan: plan_file(&site, bhc_plan),
+        actor: ADMIN.to_string(),
+        dry_run: false,
+        confirm: None,
+        format: Format::Text,
+    };
+    let mut out = Vec::new();
+
+    let outcome = run(&options, std::future::ready(()), &mut out)
+        .await
+        .unwrap();
+
+    let text = String::from_utf8(out).unwrap();
+    assert_eq!(outcome, RunOutcome::Failed, "{text}");
+    assert!(text.contains("stop requested"), "{text}");
+    assert!(text.contains("the run stopped on request"), "{text}");
+    let row = site.row(1).await;
+    assert_eq!(row.status, ImportStatus::RunFailed);
+    let done = row.summary.as_ref().unwrap()["progress"]["done"].as_u64();
+    assert!(done < Some(24), "the run went on after the stop: {text}");
+}
+
+/// The binary itself: a SIGINT while the job runs is the stop request.
+#[tokio::test(flavor = "multi_thread")]
+async fn ctrl_c_stops_the_run() {
+    use std::io::{BufRead, BufReader};
+    use std::process::Stdio;
+
+    let site = site().await;
+    let jpeg = jpeg();
+    for n in 0..300 {
+        site.write_object(&format!("Artifacts/BHC_006_AF_{n:03}_front.jpg"), &jpeg);
+    }
+    let plan = plan_file(&site, bhc_plan);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_romeka"))
+        .args(run_args(&plan))
+        .arg("--database")
+        .arg(site.dir.path().join("romeka.db"))
+        .arg("--store")
+        .arg(&site.files)
+        .arg("--archive-root")
+        .arg(&site.archive)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
+    let mut text = String::new();
+    for line in lines.by_ref() {
+        let line = line.unwrap();
+        text.push_str(&line);
+        text.push('\n');
+        if line.ends_with(" running") {
+            break;
+        }
+    }
+    let interrupted = Command::new("kill")
+        .args(["-INT", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(interrupted.success());
+    for line in lines {
+        text.push_str(&line.unwrap());
+        text.push('\n');
+    }
+    let status = child.wait().unwrap();
+
+    assert_eq!(status.code(), Some(1), "{text}");
+    assert!(text.contains("the run stopped on request"), "{text}");
+    let row = site.row(1).await;
+    assert_eq!(row.status, ImportStatus::RunFailed, "{text}");
+    let done = row.summary.as_ref().unwrap()["progress"]["done"].as_u64();
+    assert!(done < Some(300), "the run went on after the stop: {text}");
+}
