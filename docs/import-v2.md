@@ -165,7 +165,8 @@ type Decision =
   | { kind: 'set'; entry: EntryRef; target: 'item' | 'media' | 'itemSet'; slot: SlotName;
       values: DecisionValue[] }                              // [] clears the slot
   | { kind: 'match'; entry: EntryRef; target: 'item' | 'media' | 'itemSet'; resource: number | null }
-  | { kind: 'flag'; entry: EntryRef; flag: FlagKind; slot: SlotName | null; policy: FlagPolicy };
+  | { kind: 'flag'; entry: EntryRef; flag: FlagKind; slot: SlotName | null; policy: FlagPolicy }
+  | { kind: 'pair'; row: { sheet: string; key: string }; file: { source: string; path: string } };
 interface DecisionValue { type: ValueType; text: string; lang: string | null; label: string | null }
 ```
 
@@ -625,6 +626,9 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | 2026-10-20 | Keep upstream's default file-validation lists (they refuse `.nef`, `.heic`, `.flac`, `.svg`, `.json`, `.mkv`, `.gz`); `not-media` on Check names the refused type and links to Settings > Security | parity; the operator widens the list, the import says how |
 | 2026-10-20 | Slot value maps (also turn a set off); stop route; retry of a `done` import with failures | gaps found by the P4 prototype |
 | 2026-10-20 | MySQL 0003 edited to drop a CHECK that MySQL 8.0 refuses (error 3823); no MySQL install exists yet, so the checksum change breaks nothing | the MySQL 8.0 suite had been skipping every test since 0003 |
+| 2026-10-20 | Admin UX: a guided first pass (Your files, What we found, Your list, Where they go, Check, Add) that lands in seven tabs renamed Files, List, Item sets, Item types, All items, Check, Add; the word "item" with a gloss; the server card hidden when no root is set up for the user; plain words enforced by proto2/GLOSSARY.md and glossary-check.js | user (prototype round 2) |
+| 2026-10-20 | Contract additions: `.xlsx`/`.xls` sheets (P8); a `pair` decision (row ↔ file by hand); likely copies by content hash for files of equal size (an anomaly) | user (prototype round 2) |
+| 2026-10-20 | The UX works on shapes and causes, not single items, at 50 to 40,000 items | user: "the ux breaks as soon as you have more than 50 items" |
 | 2026-10-20 | Contract review: Sonnet adversarial pass found the identity cycle, line anchors, shared `failed`, undefined actions and security gaps; all folded in | second opinion |
 
 ## Run log
