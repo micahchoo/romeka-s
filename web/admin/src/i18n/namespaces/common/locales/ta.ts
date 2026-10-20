@@ -97,4 +97,15 @@ export const ta: CommonMessages = {
   'tags.hint':
     'விஷயங்களை பின்னர் கண்டறிய இலவச சொற்கள். Enter அழுத்தவும் அல்லது ஒன்றைச் சேர்க்க ஒரு கமாவைப் தட்டச்சு செய்யவும்.',
   'tags.remove': '“{tag}” என்ற குறிச்சொல்லை நீக்கவும்',
+  'reorder.handle': '{label}-ஐ நகர்த்தவும், {position}/{count}',
+  'reorder.grip': 'நகர்த்த, இழுக்கவும் அல்லது எடுக்க Space அழுத்தவும்',
+  'reorder.up': '{label}-ஐ மேலே நகர்த்தவும்',
+  'reorder.down': '{label}-ஐ கீழே நகர்த்தவும்',
+  'reorder.upTip': 'மேலே நகர்த்தவும்',
+  'reorder.downTip': 'கீழே நகர்த்தவும்',
+  'reorder.picked':
+    '{label} எடுக்கப்பட்டது. நகர்த்த அம்பு விசைகளைப் பயன்படுத்தவும், நீக்க Space அழுத்தவும், ரத்து செய்ய Escape அழுத்தவும்.',
+  'reorder.moved': '{label}: {count}-இல் {position} என்ற இடம்.',
+  'reorder.dropped': '{count}-இல் {position}-இல் {label} விடப்பட்டது.',
+  'reorder.cancelled': '{label}-இன் நகர்வு ரத்து செய்யப்பட்டது.',
 };

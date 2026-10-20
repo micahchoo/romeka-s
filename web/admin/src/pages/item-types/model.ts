@@ -135,17 +135,6 @@ export const removeField = (draft: TypeDraft, key: string): TypeDraft => ({
   fields: draft.fields.filter((field) => field.key !== key),
 });
 
-/** The row moved to `index`, the others keeping their order. */
-export const moveField = (draft: TypeDraft, key: string, index: number): TypeDraft => {
-  const moved = draft.fields.find((field) => field.key === key);
-  if (moved === undefined) {
-    return draft;
-  }
-  const rest = draft.fields.filter((field) => field.key !== key);
-  const at = Math.max(0, Math.min(index, rest.length));
-  return { ...draft, fields: [...rest.slice(0, at), moved, ...rest.slice(at)] };
-};
-
 /** Add or drop one accepted data type, keeping the order of the others. */
 export const toggleDataType = (field: FieldDraft, type: string, on: boolean): readonly string[] =>
   on

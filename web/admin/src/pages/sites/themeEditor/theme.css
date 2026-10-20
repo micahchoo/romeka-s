@@ -465,3 +465,13 @@
   overflow: auto;
   padding: var(--space-2);
 }
+
+/* The preview's choice of page sits beside the device switch. */
+.theme-preview-target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}

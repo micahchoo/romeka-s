@@ -185,6 +185,27 @@ describe('the attachments field control', () => {
     });
   });
 
+  it('a row picked up by its handle moves with the arrow keys', () => {
+    installFetch(handler);
+    const { dispatch, key } = renderAttachments([
+      rawAttachment(5, null, 'first'),
+      rawAttachment(12, null, 'second'),
+    ]);
+
+    const handle = screen.getByRole('button', { name: 'Move attachment 1, 1 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+
+    expect(attachmentAction(dispatch)).toEqual({
+      type: 'setAttachments',
+      blockKey: key,
+      attachments: [
+        { item: 12, media: null, caption: 'second' },
+        { item: 5, media: null, caption: 'first' },
+      ],
+    });
+  });
+
   it('removing a row drops it from the list', () => {
     installFetch(handler);
     const { dispatch, key } = renderAttachments([

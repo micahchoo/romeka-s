@@ -20,8 +20,7 @@ import { ErrorNotice } from '../../app/errors';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
-import { poolKind } from './itemPool';
-import type { PoolKind } from './itemPool';
+import { syncSwitch } from './itemPool';
 import { PickerPanel, SearchPanel } from './siteItemsAdd';
 import type { AddPanelProps } from './siteItemsAdd';
 import { common } from '../../i18n/namespaces/common';
@@ -42,13 +41,6 @@ const TABS: readonly {
   { id: 'search', label: 'siteItems.bySearch', Panel: SearchPanel },
 ];
 
-/** What the sync switch says joins the site, by what the pool selects. */
-const SYNC_HELP: Readonly<Record<PoolKind, MessageId>> = {
-  every: 'siteItems.syncEvery',
-  sets: 'siteItems.syncSets',
-  search: 'siteItems.syncSearch',
-};
-
 /** The switch that stores `o:assign_new_items`, with what it adds for this site's pool. */
 const SyncSwitch = ({
   site,
@@ -60,6 +52,7 @@ const SyncSwitch = ({
   readonly onToggle: (on: boolean) => void;
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
+  const state = syncSwitch(site.assignNewItems, site.itemPool);
   return (
     <div className="site-items-sync">
       <label htmlFor="site-items-sync">
@@ -68,7 +61,7 @@ const SyncSwitch = ({
           type="checkbox"
           role="switch"
           checked={site.assignNewItems}
-          disabled={busy}
+          disabled={busy || state.disabled}
           aria-describedby="site-items-sync-help"
           onChange={(event) => {
             onToggle(event.target.checked);
@@ -77,7 +70,7 @@ const SyncSwitch = ({
         {t('siteItems.sync')}
       </label>
       <p id="site-items-sync-help" className="field-note">
-        {t(SYNC_HELP[poolKind(site.itemPool)])}
+        {t(state.help)}
       </p>
     </div>
   );

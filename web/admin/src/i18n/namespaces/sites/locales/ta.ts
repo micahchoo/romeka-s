@@ -55,8 +55,6 @@ export const ta: SitesMessages = {
   'navigation.label': 'லேபிள்',
   'navigation.addLink': 'இணைப்பைச் சேர்க்கவும்',
   'navigation.addChild': 'துணை இணைப்பைச் சேர்க்கவும்',
-  'navigation.moveUpShort': 'மேலே',
-  'navigation.moveDownShort': 'கீழே',
   'navigation.remove': '{label} ஐ நீக்கவும்',
   'navigation.errorMissingTarget': 'ஒரு பக்கம் அல்லது URL இணைப்பிற்கு அதன் இலக்கு தேவை.',
   'siteSettingGroup.browsing': 'உலாவல்',
@@ -178,28 +176,62 @@ export const ta: SitesMessages = {
   'siteSettingChoice.property_label_information.term': 'தொழில்நுட்பச் சொல், உதாரணமாக dcterms:title',
   'resourcePage.title': 'வளப் பக்கங்கள்',
   'resourcePage.hint':
-    'ஒரு பொருள், உருப்படித் தொகுப்பு அல்லது ஊடகப் பக்கத்தில், வரிசைப்படி காட்டப்படும் தொகுதிகள்.',
+    'ஒரு உருப்படி, உருப்படி கணம் அல்லது ஊடகப் பக்கத்தில், காட்டப்படும் பகுதிகள், வரிசைப்படி. ஒரு பகுதியை அதன் கைப்பிடியால் இழுக்கவும், அல்லது அம்புக்குறிகளைப் பயன்படுத்தவும்.',
   'resourcePage.items': 'உருப்படிகள்',
   'resourcePage.itemSets': 'உருப்படித் தொகுப்புகள்',
   'resourcePage.media': 'ஊடகங்கள்',
-  'resourcePage.blockList': '{resource}-க்கான தொகுதிகள்',
-  'resourcePage.empty': 'தொகுதிகள் இல்லை. இந்த பக்கம் அதன் தலைப்பை மட்டுமே காட்டுகிறது.',
-  'resourcePage.add': 'சேர்க்க',
-  'resourcePage.addLabel': '{resource}-இல் ஒரு தொகுதியைச் சேர்க்க',
-  'resourcePage.addPlaceholder': '[ஒரு தொகுதியைத் தேர்ந்தெடுக்கவும்]',
-  'resourcePage.remove': '{label}-ஐ நீக்கவும்',
-  'resourcePage.moveUp': '{label}-ஐ மேலே நகர்த்தவும்',
-  'resourcePage.moveDown': '{label}-ஐ கீழே நகர்த்தவும்',
-  'resourcePage.unknown': 'அறியப்படாத தொகுதி அமைப்பு [{name}]',
+  'resourcePage.blockList': '{resource} பக்கங்களில் காட்டப்படும் பகுதிகள்',
+  'resourcePage.empty':
+    'பகுதிகள் எதுவும் காட்டப்படவில்லை. இந்த பக்கம் அதன் தலைப்பை மட்டுமே காட்டுகிறது.',
+  'resourcePage.hide': 'மறை',
+  'resourcePage.hideLabel': '{label} ஐ மறைக்கவும்',
+  'resourcePage.hidden': 'மறைக்கப்பட்ட பகுதிகள்',
+  'resourcePage.hiddenList': '{resource} பக்கங்களின் மறைக்கப்பட்ட பகுதிகள்',
+  'resourcePage.show': 'காட்ட',
+  'resourcePage.showLabel': '{label} ஐக் காட்டவும்',
+  'resourcePage.unknown': 'அறியப்படாத பகுதி [{name}]',
+  'resourcePage.unknownHelp': 'தளம் இனி இந்த பகுதியை கொண்டிருக்கவில்லை, எனவே இது எதையும் காட்டாது.',
   'resourcePageBlock.itemSets': 'உருப்படிகளின் தொகுப்புகள்',
+  'resourcePageBlock.itemSetsHelp': 'உருப்படியைச் சார்ந்த உருப்படித் தொகுப்புகளுக்கான இணைப்புகள்.',
   'resourcePageBlock.lightboxGallery': 'லைட் பாக்ஸ் கேலரி',
+  'resourcePageBlock.lightboxGalleryHelp':
+    'ஒவ்வொரு படமும் ஒரு முன்னோட்டமாகத் திறக்கும் முழுப் படமாக இருக்கும்.',
   'resourcePageBlock.linkedResources': 'இணைக்கப்பட்ட வளங்கள்',
+  'resourcePageBlock.linkedResourcesHelp':
+    'இந்த உருப்படியுடன் இணைக்கப்பட்டுள்ள பிற பதிவுகள், அவை இணைக்கும் புலத்தின் அடிப்படையில் குழுவாக்கப்பட்டுள்ளன.',
   'resourcePageBlock.mediaEmbeds': 'ஊடக உட்பொதிவுகள்',
+  'resourcePageBlock.mediaEmbedsHelp':
+    'காட்டப்பட்டுள்ள ஒவ்வொரு கோப்பும், அடுத்தடுத்து ஒன்றாக இருக்கும்.',
   'resourcePageBlock.mediaList': 'ஊடகப் பட்டியல்',
+  'resourcePageBlock.mediaListHelp':
+    'உருப்படியின் கோப்புகளின் பட்டியல், ஒவ்வொன்றும் அதன் தலைப்பைக் கொண்ட ஒரு சிறிய முன்னோட்டம்.',
   'resourcePageBlock.mediaRender': 'ஊடக ரெண்டர்',
+  'resourcePageBlock.mediaRenderHelp': 'கோப்பு என்பதே அது: படம், பிளேயர் அல்லது ஆவணம்.',
   'resourcePageBlock.resourceClass': 'வள வகுப்பு',
+  'resourcePageBlock.resourceClassHelp':
+    'இது என்ன வகையான விஷயம், உதாரணமாக ஒரு உரை அல்லது ஒரு படம்.',
   'resourcePageBlock.sitePages': 'தளப் பக்கங்கள்',
+  'resourcePageBlock.sitePagesHelp':
+    'இந்த உருப்படியைக் காட்டும் தளத்தின் பக்கங்களுக்கான இணைப்புகள்.',
   'resourcePageBlock.values': 'மதிப்புகள்',
+  'resourcePageBlock.valuesHelp': 'மெட்டாடேட்டா, புல வாரியாக.',
+  'themePreview.label': 'முன்னோட்டம்',
+  'themePreview.page': 'ஒரு பக்கம்',
+  'themePreview.items': 'ஒரு உருப்படி',
+  'themePreview.item_sets': 'ஒரு உருப்படித் தொகுப்பு',
+  'themePreview.media': 'ஒரு ஊடகம்',
+  'themePreview.noneItems':
+    'இந்தத் தளத்தில் இன்னும் உருப்படிகள் இல்லை, எனவே காட்ட எந்த உருப்படிப் பக்கமும் இல்லை.',
+  'themePreview.noneItem_sets':
+    'இந்தத் தளத்தில் இன்னும் உருப்படித் தொகுப்புகள் இல்லை, எனவே காட்ட எந்த உருப்படித் தொகுப்புப் பக்கமும் இல்லை.',
+  'themePreview.noneMedia':
+    'இந்தத் தளத்தில் இன்னும் ஊடகங்கள் இல்லை, எனவே காட்ட எந்த ஊடகப் பக்கமும் இல்லை.',
+  'siteItems.syncOffSets':
+    'ஆஃப். இதை இயக்கி, இந்தத் தளத்தின் உருப்படித் தொகுப்புகளில் ஒன்றில் உருவாக்கப்பட்ட ஒரு உருப்படி தளத்தில் இணையும்.',
+  'siteItems.syncOffSearch':
+    'ஆஃப். இதை இயக்கி, இனி உருவாக்கப்படும் ஒரு உருப்படி, அந்த உருப்படி தளத்தின் சேமிக்கப்பட்ட தேடலுடன் பொருந்தும்போது இந்தத் தளத்தில் இணையும்.',
+  'siteItems.syncNeedsSets':
+    'இந்தத் தளத்தை இதனுடன் ஒத்திசைக்க ஒரு உருப்படித் தொகுப்பைத் தேர்ந்தெடுக்கவும்.',
   'sites.sortBy': 'வரிசைப்படுத்து',
   'sites.sortOrder': 'வரிசை வரிசை',
   'layout.pageTitle': 'பக்கத் தலைப்பு',

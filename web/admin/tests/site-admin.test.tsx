@@ -422,22 +422,40 @@ describe('site items', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace the items' }));
 
     expect(await screen.findByText('Replaced. Items on this site: 9.')).toBeInTheDocument();
-    expect(pagePatch(fetchMock)).toEqual([{ 'o:site_item_set': [], 'o:item_pool': [] }]);
+    // No set is left, so the same write turns sync off.
+    expect(pagePatch(fetchMock)).toEqual([
+      { 'o:site_item_set': [], 'o:item_pool': [], 'o:assign_new_items': false },
+    ]);
     expect(addBodies(fetchMock)).toEqual([
       { action: 'replace', items: [12], item_sets: [], dry_run: false },
     ]);
   });
 
-  it('the sync switch stores assign_new_items and says what joins the site', async () => {
-    const fetchMock = installFetch(
+  it('the sync switch cannot be turned on while the pool would let every new item join', async () => {
+    installFetch(
       (url, init) =>
         siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound(),
     );
     render(<SitesPage param="1" rest={['1', 'resources']} />);
 
     const sync = await screen.findByRole('switch', { name: 'Keep this site in sync' });
-    // The fixture's pool is empty, so every new item would join.
-    expect(sync).toHaveAccessibleDescription(/^Every item created from now on joins this site/);
+    expect(sync).toBeDisabled();
+    expect(sync).toHaveAccessibleDescription('Pick an item set to keep this site in sync with it.');
+  });
+
+  it('the sync switch stores assign_new_items and says what turning it on does', async () => {
+    const raw = site();
+    const withSet = { ...(isRecord(raw) ? raw : {}), 'o:item_pool': { item_set_id: ['2'] } };
+    const fetchMock = installFetch((url, init) =>
+      url.pathname === '/api/sites/1' && init?.method !== 'PATCH'
+        ? jsonResponse(withSet)
+        : (siteItemsRoutes({ matched: 0, added: 0, removed: 0, total: 7 })(url, init) ?? notFound()),
+    );
+    render(<SitesPage param="1" rest={['1', 'resources']} />);
+
+    const sync = await screen.findByRole('switch', { name: 'Keep this site in sync' });
+    expect(sync).toBeEnabled();
+    expect(sync).toHaveAccessibleDescription(/^Off\. Turn it on and an item created in one of this site/);
     fireEvent.click(sync);
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(pagePatch(fetchMock)).toEqual([{ 'o:assign_new_items': true }]);

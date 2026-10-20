@@ -27,7 +27,7 @@ export const hiServer: ServerCatalogue = {
   'server.invalidContentType':
     'अमान्य Content-Type हेडर। "application/json" की अपेक्षा, प्राप्त हुआ "{received}"।',
   'server.bodyNotObject': 'अनुरोध बॉडी एक JSON ऑब्जेक्ट होनी चाहिए।',
-  'server.siteItemsOneSelector': '"query", "items" या "item_sets" में से ठीक एक',
+  'server.siteItemsOneSelector': 'नाम या तो "query" होना चाहिए, या "items", "item_sets" या दोनों',
   'server.invalidCredentials': 'ईमेल या पासवर्ड अमान्य है',
   'server.inactiveAccount': 'उपयोगकर्ता सक्रिय नहीं है।',
   'server.unknownKey': 'अमान्य पासवर्ड निर्माण कुंजी।',

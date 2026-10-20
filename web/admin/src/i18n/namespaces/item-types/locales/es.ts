@@ -48,11 +48,6 @@ export const es: ItemTypesMessages = {
   'fields.add': 'Añadir un campo',
   'fields.addHint': 'Descríbelo, por ejemplo «cuántas páginas»',
   'field.name': 'Nombre en el formulario para {term}',
-  'field.moveHandle':
-    'Mover {name}, campo {position} de {count}. Usa las flechas arriba y abajo, o arrastra.',
-  'field.moved': '{name} es ahora el campo {position} de {count}.',
-  'field.moveUp': 'Subir {name}',
-  'field.moveDown': 'Bajar {name}',
   'field.remove': 'Quitar {name}',
   'field.changeTerm': 'Cambiar el término estándar de {name}',
   'field.pickTerm': 'Buscar un término estándar',

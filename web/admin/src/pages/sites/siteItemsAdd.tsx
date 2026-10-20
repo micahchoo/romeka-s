@@ -12,7 +12,7 @@
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
 import { api } from '../../api/client';
-import { encodeSiteItemPool, encodeSiteItemSets } from '../../api/write';
+import { encodeSiteItemPool, encodeSiteItemSets, encodeSiteSync } from '../../api/write';
 import type {
   ItemId,
   ItemSet,
@@ -96,9 +96,17 @@ const PreviewLine = ({
   );
 };
 
-/** The site's item sets and the pool written from them, in one write. */
+/**
+ * The site's item sets and the pool written from them, in one write. With no
+ * set left the pool is empty, which would let every new item join, so the same
+ * write turns sync off.
+ */
 const saveSets = async (site: Site, sets: readonly ItemSetId[]): Promise<Site> =>
-  api.patchSite(site.id, { ...encodeSiteItemSets(sets), ...encodeSiteItemPool(itemSetPool(sets)) });
+  api.patchSite(site.id, {
+    ...encodeSiteItemSets(sets),
+    ...encodeSiteItemPool(itemSetPool(sets)),
+    ...(sets.length === 0 ? encodeSiteSync(false) : {}),
+  });
 
 const attachedSetIds = (site: Site): readonly ItemSetId[] =>
   site.siteItemSets.map((entry) => entry.itemSet.id);

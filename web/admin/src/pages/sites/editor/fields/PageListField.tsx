@@ -11,6 +11,13 @@ import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
 import { isRecord, isUnknownArray } from '../../../../api/parse';
 import type { JsonValue, SiteId, SitePage } from '../../../../api/types';
+import {
+  ReorderButtons,
+  ReorderHandle,
+  ReorderStatus,
+  useReorderable,
+} from '../../../../app/reorder/useReorderable';
+import type { Reorderable } from '../../../../app/reorder/useReorderable';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
@@ -109,33 +116,6 @@ const removeAt = (nodes: readonly PageListNode[], path: readonly number[]): read
       );
 };
 
-/** Moves one node among its siblings, or returns the tree unchanged at an edge. */
-const moveAt = (
-  nodes: readonly PageListNode[],
-  path: readonly number[],
-  delta: number,
-): readonly PageListNode[] => {
-  const head = path[0];
-  const rest = path.slice(1);
-  if (head === undefined) {
-    return nodes;
-  }
-  if (rest.length > 0) {
-    return nodes.map((node, index) =>
-      index === head ? { ...node, children: moveAt(node.children, rest, delta) } : node,
-    );
-  }
-  const target = head + delta;
-  const moved = nodes[head];
-  if (moved === undefined || target < 0 || target >= nodes.length) {
-    return nodes;
-  }
-  const next = [...nodes];
-  next.splice(head, 1);
-  next.splice(target, 0, moved);
-  return next;
-};
-
 interface PageListNodeProps {
   readonly id: string;
   readonly node: PageListNode;
@@ -143,7 +123,8 @@ interface PageListNodeProps {
   readonly tree: readonly PageListNode[];
   readonly path: readonly number[];
   readonly index: number;
-  readonly count: number;
+  /** The node's sibling list, which orders it among its siblings. */
+  readonly siblings: Reorderable;
   readonly pages: readonly SitePage[];
   readonly onChange: (nodes: readonly PageListNode[]) => void;
 }
@@ -154,15 +135,16 @@ function PageListNode({
   tree,
   path,
   index,
-  count,
+  siblings,
   pages,
   onChange,
 }: PageListNodeProps): ReactElement {
   const { t } = useTranslator(common, sites, editor);
   const key = path.join('.');
   return (
-    <li>
+    <li {...siblings.row(index)}>
       <p>
+        <ReorderHandle reorder={siblings} index={index} />
         <label htmlFor={`${id}-${key}`}>{t('pageList.page')}</label>
         <select
           id={`${id}-${key}`}
@@ -198,26 +180,7 @@ function PageListNode({
         >
           {t('pageList.addChild')}
         </button>
-        <button
-          type="button"
-          disabled={index === 0}
-          aria-label={t('pageList.moveUp', { position: index + 1 })}
-          onClick={() => {
-            onChange(moveAt(tree, path, -1));
-          }}
-        >
-          {t('blocks.moveUpText')}
-        </button>
-        <button
-          type="button"
-          disabled={index === count - 1}
-          aria-label={t('pageList.moveDown', { position: index + 1 })}
-          onClick={() => {
-            onChange(moveAt(tree, path, 1));
-          }}
-        >
-          {t('blocks.moveDownText')}
-        </button>
+        <ReorderButtons reorder={siblings} index={index} />
         <button
           type="button"
           aria-label={t('pageList.remove', { position: index + 1 })}
@@ -229,23 +192,68 @@ function PageListNode({
         </button>
       </p>
       {node.children.length === 0 ? null : (
-        <ul className="page-list">
-          {node.children.map((child, childIndex) => (
-            <PageListNode
-              key={[...path, childIndex].join('.')}
-              id={id}
-              node={child}
-              tree={tree}
-              path={[...path, childIndex]}
-              index={childIndex}
-              count={node.children.length}
-              pages={pages}
-              onChange={onChange}
-            />
-          ))}
-        </ul>
+        <PageListLevel
+          id={id}
+          nodes={node.children}
+          tree={tree}
+          path={path}
+          pages={pages}
+          onChange={onChange}
+        />
       )}
     </li>
+  );
+}
+
+/**
+ * One level of the tree: its nodes in order. The level orders its own nodes
+ * with the shared reorder model; a node changes level only by being removed
+ * and added again, as before.
+ */
+function PageListLevel({
+  id,
+  nodes,
+  tree,
+  path,
+  pages,
+  onChange,
+}: {
+  readonly id: string;
+  readonly nodes: readonly PageListNode[];
+  readonly tree: readonly PageListNode[];
+  /** The parent's path, empty for the top level. */
+  readonly path: readonly number[];
+  readonly pages: readonly SitePage[];
+  readonly onChange: (nodes: readonly PageListNode[]) => void;
+}): ReactElement {
+  const { t } = useTranslator(common, sites, editor);
+  const siblings = useReorderable({
+    items: nodes,
+    onReorder: (next) => {
+      onChange(path.length === 0 ? next : mapAt(tree, path, (parent) => ({ ...parent, children: next })));
+    },
+    labelOf: (node, index) =>
+      node.text === '' ? t('pageList.row', { position: index + 1 }) : node.text,
+  });
+  return (
+    <>
+      <ul className="page-list">
+        {nodes.map((node, index) => (
+          <PageListNode
+            key={[...path, index].join('.')}
+            id={id}
+            node={node}
+            tree={tree}
+            path={[...path, index]}
+            index={index}
+            siblings={siblings}
+            pages={pages}
+            onChange={onChange}
+          />
+        ))}
+      </ul>
+      <ReorderStatus reorder={siblings} />
+    </>
   );
 }
 
@@ -302,21 +310,7 @@ export const PageListField = ({
   return (
     <fieldset className="block-field page-list-field">
       <legend>{label}</legend>
-      <ul className="page-list">
-        {nodes.map((node, index) => (
-          <PageListNode
-            key={String(index)}
-            id={id}
-            node={node}
-            tree={nodes}
-            path={[index]}
-            index={index}
-            count={nodes.length}
-            pages={items}
-            onChange={change}
-          />
-        ))}
-      </ul>
+      <PageListLevel id={id} nodes={nodes} tree={nodes} path={[]} pages={items} onChange={change} />
       <p>
         <button
           type="button"

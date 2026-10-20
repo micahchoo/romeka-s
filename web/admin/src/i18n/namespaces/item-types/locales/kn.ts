@@ -51,11 +51,6 @@ export const kn: ItemTypesMessages = {
   'fields.add': 'ಫೀಲ್ಡ್ ಸೇರಿಸಿ',
   'fields.addHint': 'ಇದನ್ನು ವಿವರಿಸಿ, ಉದಾಹರಣೆಗೆ “ಎಷ್ಟು ಪುಟಗಳು”',
   'field.name': '{term} ಗಾಗಿ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಹೆಸರನ್ನು ನಮೂದಿಸಿ',
-  'field.moveHandle':
-    '{name}, {position} ಸ್ಥಾನದಲ್ಲಿರುವ {count} ಫೀಲ್ಡ್ ಅನ್ನು ಸರಿಸಿ. ಮೇಲಿನ ಮತ್ತು ಕೆಳಗಿನ ಬಾಣದ ಕೀಗಳನ್ನು ಬಳಸಿ, ಅಥವಾ ಎಳೆಯಿರಿ.',
-  'field.moved': '{name} ಈಗ {position} ಸ್ಥಾನದಲ್ಲಿರುವ {count} ಫೀಲ್ಡ್ ಆಗಿದೆ.',
-  'field.moveUp': '{name} ಅನ್ನು ಮೇಲೆ ಸರಿಸಿ',
-  'field.moveDown': '{name} ಅನ್ನು ಕೆಳಗೆ ಸರಿಸಿ',
   'field.remove': '{name} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
   'field.changeTerm': '{name} ನ ಪ್ರಮಾಣಿತ ಪದವನ್ನು ಬದಲಾಯಿಸಿ',
   'field.pickTerm': 'ಪ್ರಮಾಣಿತ ಪದವನ್ನು ಹುಡುಕಿ',
