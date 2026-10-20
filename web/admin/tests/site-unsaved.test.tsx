@@ -103,7 +103,9 @@ describe('the unsaved guard on the site tabs', () => {
 
       expect(await screen.findByText('Saved.')).toBeInTheDocument();
       expect(screen.queryByText('Unsaved changes')).toBeNull();
-      await waitFor(() => expect(unloadIsHeld()).toBe(false));
+      await waitFor(() => {
+        expect(unloadIsHeld()).toBe(false);
+      });
     });
   }
 });
