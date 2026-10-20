@@ -44,6 +44,7 @@ export const es: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': 'Todo {root}',
   'words.computer': 'Archivos de este ordenador',
+  'words.computerLists': 'Listas de este ordenador',
   'words.none': 'Todavía no hay archivos',
   'status.draft': 'Sin añadir todavía',
   'status.running': 'Añadiendo',

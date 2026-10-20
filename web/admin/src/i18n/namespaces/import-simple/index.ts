@@ -189,6 +189,7 @@ export const en = {
   'guided.check.mustFix': 'This must be fixed before you can add.',
   'guided.check.keep': 'Keep them as they are',
   'guided.check.leave': 'Leave them out',
+  'guided.check.spacesRepair': 'Take the spaces off',
   'guided.check.other': '{count} times: {problem}.',
   'guided.check.otherOne': '1 time: {problem}.',
   'guided.check.cells': '{count} rows of your list have the wrong number of cells.',
@@ -268,7 +269,6 @@ export const en = {
   'guided.add.private': 'Only signed-in staff (private)',
   'guided.add.public': 'Everyone (public)',
   'guided.add.undo': 'You can undo the whole import later.',
-  'guided.add.deleteAdvanced': 'Deleting items from Omeka starts in Advanced mode, where you type the count first.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

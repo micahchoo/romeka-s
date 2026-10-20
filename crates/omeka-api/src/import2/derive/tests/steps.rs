@@ -75,6 +75,26 @@ fn a14_case_fold_makes_case_variants_one_group() {
 }
 
 #[test]
+fn a07_the_default_pattern_takes_one_extension_or_none() {
+    let files = [("README", TEXT), ("Box/scan.001.tar.gz", BINARY)];
+    let plan = plan(|plan| plan["grouping"]["pattern"] = json!(crate::import2::plan::NAME_ALONE));
+    let model = run(&index(&files), &Sheets::new(), &plan);
+    let mut keys: Vec<Origin> = kept(&model, RecordKind::Item)
+        .iter()
+        .map(|record| record.origin.clone())
+        .collect();
+    keys.sort_by_key(|origin| format!("{origin:?}"));
+    assert_eq!(
+        keys,
+        [
+            Origin::Group(GroupKey::Pattern("README".into())),
+            Origin::Group(GroupKey::Pattern("scan.001.tar".into())),
+        ]
+    );
+    assert!(model.entries.iter().all(|entry| !entry.unmatched));
+}
+
+#[test]
 fn a17_files_the_pattern_does_not_match_are_unmatched_entries() {
     let files = [("A1.jpg", JPEG), ("notes", TEXT), ("Thumbs", BINARY)];
     let plan = plan(|plan| plan["grouping"]["pattern"] = json!(PATTERN));

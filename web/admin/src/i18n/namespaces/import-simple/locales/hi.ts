@@ -189,6 +189,7 @@ export const hi: ImportSimpleMessages = {
   'guided.check.mustFix': 'इसे जोड़ने से पहले ठीक किया जाना चाहिए।',
   'guided.check.keep': 'उन्हें वैसा ही रहने दें',
   'guided.check.leave': 'उन्हें बाहर छोड़ दें',
+  'guided.check.spacesRepair': 'स्पेस हटाएँ',
   'guided.check.other': '{count} बार: {problem}।',
   'guided.check.otherOne': '1 बार: {problem}।',
   'guided.check.cells': 'आपकी सूची की {count} पंक्तियों में गलत संख्या में सेल हैं।',
@@ -275,6 +276,4 @@ export const hi: ImportSimpleMessages = {
   'guided.add.private': 'केवल हस्ताक्षरित-इन स्टाफ (निजी)',
   'guided.add.public': 'हर कोई (सार्वजनिक)',
   'guided.add.undo': 'आप बाद में पूरे आयात को पूर्ववत कर सकते हैं।',
-  'guided.add.deleteAdvanced':
-    'ओमेका से आइटम हटाने की शुरुआत एडवांस्ड मोड में होती है, जहाँ आप पहले संख्या टाइप करते हैं।',
 };

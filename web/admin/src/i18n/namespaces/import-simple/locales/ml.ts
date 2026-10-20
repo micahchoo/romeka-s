@@ -188,6 +188,7 @@ export const ml: ImportSimpleMessages = {
   'guided.check.mustFix': 'ഇത് ശരിയാക്കാതെ നിങ്ങൾക്ക് ചേർക്കാൻ കഴിയില്ല.',
   'guided.check.keep': 'അവ മാറ്റരുത്',
   'guided.check.leave': 'അവ ഒഴിവാക്കുക',
+  'guided.check.spacesRepair': 'സ്പേസുകൾ ഒഴിവാക്കുക',
   'guided.check.other': '{count} തവണ: {problem}.',
   'guided.check.otherOne': '1 തവണ: {problem}.',
   'guided.check.cells': '{count} വരികളിൽ നിങ്ങളുടെ പട്ടികയിൽ തെറ്റായ എണ്ണം സെല്ലുകൾ ഉണ്ട്.',
@@ -274,6 +275,4 @@ export const ml: ImportSimpleMessages = {
   'guided.add.private': 'ഒപ്പിട്ട ജീവനക്കാർക്ക് മാത്രം (സ്വകാര്യം)',
   'guided.add.public': 'എല്ലാവർക്കും (പൊതു)',
   'guided.add.undo': 'നിങ്ങൾക്ക് പിന്നീട് മുഴുവൻ ഇംപോർട്ടും റദ്ദാക്കാം.',
-  'guided.add.deleteAdvanced':
-    'Omeka-യിൽ നിന്ന് ഇനങ്ങൾ നീക്കം ചെയ്യുന്നത് അഡ്വാൻസ്ഡ് മോഡിൽ ആരംഭിക്കുന്നു, അവിടെ നിങ്ങൾ ആദ്യം എണ്ണം ടൈപ്പ് ചെയ്യുന്നു.',
 };

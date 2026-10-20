@@ -189,6 +189,7 @@ export const mr: ImportSimpleMessages = {
   'guided.check.mustFix': 'हे दुरुस्त केल्याशिवाय तुम्ही जोडू शकत नाही.',
   'guided.check.keep': 'त्यांना तसेच ठेवा',
   'guided.check.leave': 'त्यांना वगळा',
+  'guided.check.spacesRepair': 'रिकाम्या जागा काढून टाका',
   'guided.check.other': '{count} वेळा: {problem}.',
   'guided.check.otherOne': '{problem} - 1 वेळ.',
   'guided.check.cells': '{count} ओळींमध्ये तुमच्या सूचीमध्ये चुकीच्या संख्येने कोष्ठके आहेत.',
@@ -273,6 +274,4 @@ export const mr: ImportSimpleMessages = {
   'guided.add.private': 'केवळ स्वाक्षरी केलेले कर्मचारी (खाजगी)',
   'guided.add.public': 'सर्व (सार्वजनिक)',
   'guided.add.undo': 'तुम्ही नंतर संपूर्ण आयात पूर्ववत करू शकता.',
-  'guided.add.deleteAdvanced':
-    'ओमेका मधील आयटम हटवण्याची प्रक्रिया प्रगत मोडमध्ये सुरू होते, जिथे तुम्ही प्रथम संख्या टाईप करता.',
 };

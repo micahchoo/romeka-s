@@ -679,8 +679,10 @@ admin screens need at scale"). A request may carry `seed` (it draws the sample r
 
 `romeka import run --plan plan.json --as <email> [--dry-run] [--confirm <count>]`, `romeka import
 undo <id> [--preview] [--force all]`, `romeka import list [--page N] [--per-page N]`. They call the
-same omeka-api functions as the routes. `romeka import csv` and `romeka import media` were removed
-in P7; `romeka import template` (a resource template from JSON) stays.
+same omeka-api functions as the routes. `run`, `undo` and `list` take `--json` (one document when the
+command ends); Ctrl-C during run or undo is Stop, a second Ctrl-C exits. `romeka import csv` and
+`romeka import media` were removed in P7; `romeka import template` (a resource template from JSON)
+stays.
 
 ## Database (migration 0006, SQLite and MySQL; claimed 2026-10-20, romeka-s-d5 agreed)
 

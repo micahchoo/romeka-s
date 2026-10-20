@@ -94,16 +94,28 @@ const merged = (groups: readonly ScenarioGroup[], marks: number, listed: boolean
 
 const sameFacts = (a: unknown, b: Record<string, unknown>): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-export const simpleServer = (scenario: Scenario): SimpleServer => {
+/** What the last look found in a staging source of the plan. */
+export interface StagingState {
+  readonly files: number;
+  readonly sheetFiles: readonly string[];
+}
+
+/**
+ * `planEdits` replace members of the stored draft's plan, as an earlier save
+ * in Advanced would; `staging` is the last look's state of a plan source
+ * named `up`.
+ */
+export const simpleServer = (scenario: Scenario, planEdits: Record<string, unknown> = {}, staging: StagingState | null = null): SimpleServer => {
   const base = recordTemplate();
   const saved: Record<string, unknown>[] = [];
   const runs: Record<string, unknown>[] = [];
   let revision = 0;
   let status = 'draft';
-  let plan: Record<string, unknown> = asRecord(fixture('import-draft.json')['plan'], []);
+  let plan: Record<string, unknown> = { ...asRecord(fixture('import-draft.json')['plan'], []), ...planEdits };
   const detail = (): Record<string, unknown> => ({ ...fixture('import-draft.json'), revision, status, plan });
   const sources = (): unknown[] => [
     { source: 's1', scanned: '2026-10-21T09:00:00+00:00', files: scenario.files, sheetFiles: [scenario.sheet.file], error: null },
+    ...(staging === null ? [] : [{ source: 'up', scanned: '2026-10-21T09:00:00+00:00', files: staging.files, sheetFiles: staging.sheetFiles, error: null }]),
   ];
   const record = (id: number, group: ScenarioGroup): Record<string, unknown> => {
     const key = `${scenario.name}_${String(id)}`;
@@ -170,12 +182,13 @@ export const simpleServer = (scenario: Scenario): SimpleServer => {
       } else if (section === 'anomalies') {
         answer['anomalies'] = groups.some((group) => group.files === '7+') ? [{ largeGroup: { record: 1, files: 200, median: 1 } }] : [];
       } else if (section === 'flags') {
+        const policies = isRecord(asked['flags']) ? asked['flags'] : {};
         answer['flags'] = scenario.flags
           .filter((flag) => listed || flag.kind === 'not-media')
           .map((flag) => ({
             kind: flag.kind,
             slot: flag.slot,
-            policy: ['not-media', 'cells-count', 'exists'].includes(flag.kind) ? 'leave' : 'keep',
+            policy: policies[flag.kind] ?? (['not-media', 'cells-count', 'exists'].includes(flag.kind) ? 'leave' : 'keep'),
             count: flag.count,
             samples: [{ subject: { record: 7 }, record: 7, detail: flag.detail }],
           }));

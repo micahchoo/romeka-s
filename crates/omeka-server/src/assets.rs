@@ -17,6 +17,12 @@
 //! `js/global.js`, `vendor/jquery/jquery.min.js`) are upstream admin assets the
 //! port does not ship (the inventory records them as `unported-admin-asset`),
 //! so they stay a 404 here.
+//!
+//! `/application/asset/thumbnails/<kind>.png` serves upstream's four fallback
+//! thumbnails, copied byte for byte from
+//! `application/asset/thumbnails/` at the pinned upstream commit. The API links
+//! them for a media with no thumbnail of its own
+//! (`omeka_api::jsonld::BaseUrl::fallback_thumbnail_url`).
 
 use axum::Router;
 use axum::body::Body;
@@ -45,7 +51,46 @@ const REVALIDATE: &str = "no-cache";
 
 /// The `/assets` routes, mounted into [`crate::build_router`].
 pub(crate) fn router() -> Router<AppState> {
-    Router::new().route("/assets/{*path}", any(handle))
+    Router::new().route("/assets/{*path}", any(handle)).route(
+        "/application/asset/thumbnails/{name}",
+        any(fallback_thumbnail),
+    )
+}
+
+/// Upstream's fallback thumbnails by file name. The names are the ones
+/// `thumbnails.fallbacks` in upstream's `module.config.php` lists.
+const FALLBACK_THUMBNAILS: [(&str, &[u8]); 4] = [
+    (
+        "default.png",
+        include_bytes!("../assets/thumbnails/default.png"),
+    ),
+    (
+        "image.png",
+        include_bytes!("../assets/thumbnails/image.png"),
+    ),
+    (
+        "video.png",
+        include_bytes!("../assets/thumbnails/video.png"),
+    ),
+    (
+        "audio.png",
+        include_bytes!("../assets/thumbnails/audio.png"),
+    ),
+];
+
+async fn fallback_thumbnail(method: Method, Path(name): Path<String>) -> Response {
+    if method != Method::GET {
+        return method_not_allowed();
+    }
+    let Some((_, bytes)) = FALLBACK_THUMBNAILS.iter().find(|(file, _)| *file == name) else {
+        return crate::not_found().await;
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/png")
+        .header(header::CACHE_CONTROL, HeaderValue::from_static(REVALIDATE))
+        .body(Body::from(*bytes))
+        .unwrap_or_else(|_| crate::empty_internal_error())
 }
 
 async fn handle(method: Method, Path(path): Path<String>, RawQuery(query): RawQuery) -> Response {

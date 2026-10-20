@@ -48,6 +48,7 @@ export const kn: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} ನ ಎಲ್ಲವೂ',
   'words.computer': 'ಈ ಕಂಪ್ಯೂಟರ್‌ನಿಂದ ಫೈಲ್‌ಗಳು',
+  'words.computerLists': 'ಈ ಕಂಪ್ಯೂಟರ್‌ನಿಂದ ಪಟ್ಟಿಗಳು',
   'words.none': 'ಇನ್ನೂ ಯಾವುದೇ ಫೈಲ್‌ಗಳಿಲ್ಲ',
   'status.draft': 'ಇನ್ನೂ ಸೇರಿಸಲಾಗಿಲ್ಲ',
   'status.running': 'ಸೇರಿಸಲಾಗುತ್ತಿದೆ',

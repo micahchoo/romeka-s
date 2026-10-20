@@ -192,6 +192,7 @@ export const kn: ImportSimpleMessages = {
   'guided.check.mustFix': 'ಇದನ್ನು ನೀವು ಸೇರಿಸುವ ಮೊದಲು ಸರಿಪಡಿಸಬೇಕು.',
   'guided.check.keep': 'ಅವುಗಳನ್ನು ಹಾಗೆಯೇ ಇರಿಸಿ',
   'guided.check.leave': 'ಅವುಗಳನ್ನು ಹೊರಗಿಡಿ',
+  'guided.check.spacesRepair': 'ಸ್ಪೇಸ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ',
   'guided.check.other': '{count} ಬಾರಿ: {problem}.',
   'guided.check.otherOne': '1 ಬಾರಿ: {problem}.',
   'guided.check.cells': '{count} ಸಾಲುಗಳ ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ತಪ್ಪು ಸಂಖ್ಯೆಯ ಸೆಲ್‌ಗಳಿವೆ.',
@@ -278,6 +279,4 @@ export const kn: ImportSimpleMessages = {
   'guided.add.private': 'ಕೇವಲ ಸೈನ್-ಇನ್ ಸಿಬ್ಬಂದಿ (ಖಾಸಗಿ)',
   'guided.add.public': 'ಎಲ್ಲರೂ (ಸಾರ್ವಜನಿಕ)',
   'guided.add.undo': 'ನೀವು ನಂತರ ಇಡೀ ಆಮದನ್ನು ರದ್ದುಗೊಳಿಸಬಹುದು.',
-  'guided.add.deleteAdvanced':
-    'Omeka ದಿಂದ ವಸ್ತುಗಳನ್ನು ಅಳಿಸುವುದು ಅಡ್ವಾನ್ಸ್ಡ್ ಮೋಡ್‌ನಲ್ಲಿ ಪ್ರಾರಂಭವಾಗುತ್ತದೆ, ಅಲ್ಲಿ ನೀವು ಮೊದಲು ಸಂಖ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡುತ್ತೀರಿ.',
 };

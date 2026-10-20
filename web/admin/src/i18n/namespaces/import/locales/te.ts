@@ -47,6 +47,7 @@ export const te: ImportMessages = {
   'words.folder': '{path} ({root})',
   'words.root': '{root} మొత్తం',
   'words.computer': 'ఈ కంప్యూటర్ నుండి ఫైల్‌లు',
+  'words.computerLists': 'ఈ కంప్యూటర్ నుండి జాబితాలు',
   'words.none': 'ఇంకా ఫైల్‌లు లేవు',
   'status.draft': 'ఇంకా జోడించబడలేదు',
   'status.running': 'జోడిస్తోంది',

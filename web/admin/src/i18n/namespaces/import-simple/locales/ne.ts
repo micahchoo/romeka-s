@@ -190,6 +190,7 @@ export const ne: ImportSimpleMessages = {
   'guided.check.mustFix': 'यो थप्नु अघि यसलाई सुधार्नु पर्छ।',
   'guided.check.keep': 'तिनीहरूलाई जस्ताको तस्तै राख्नुहोस्',
   'guided.check.leave': 'तिनीहरूलाई बाहिर राख्नुहोस्',
+  'guided.check.spacesRepair': 'खाली ठाउँहरू हटाउनुहोस्',
   'guided.check.other': '{count} पटक: {problem}।',
   'guided.check.otherOne': '1 पटक: {problem}।',
   'guided.check.cells': '{count} वटा पङ्क्तिहरूमा तपाईँको सूचीमा गलत सङ्ख्याका कोष्ठकहरू छन्।',
@@ -274,6 +275,4 @@ export const ne: ImportSimpleMessages = {
   'guided.add.private': 'केवल साइन-इन कर्मचारी (निजी)',
   'guided.add.public': 'सबै (सार्वजनिक)',
   'guided.add.undo': 'तपाईँले पछि सम्पूर्ण आयातलाई पूर्ववत गर्न सक्नुहुन्छ।',
-  'guided.add.deleteAdvanced':
-    'Omeka बाट वस्तुहरू मेटाउन सुरु गर्न, तपाईँले पहिले उन्नत मोड मा गणना टाइप गर्नुपर्छ।',
 };

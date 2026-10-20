@@ -26,8 +26,19 @@ semantic versioning.
   a published term can only be added or deprecated. Migration 0003.
 - Lessons: a short note the first time an action rests on a standard, once per user, with a "?" to recall it and a
   "Show lessons" switch in the user settings.
-- Archive import: with `ROMEKA_ARCHIVE_ROOT` set, the admin's Import page (under Content) turns a server folder into
-  items, item sets and media in seven steps: Folder (mark an example file name, or write a regex), Item sets, Item
+- Import v2 replaces the archive import below (`docs/import-v2.md`). One plan, saved as a draft, drives a folder
+  on the server (`ROMEKA_ARCHIVE_ROOTS`, `name=path` pairs; `ROMEKA_ARCHIVE_ROOT` stays as the root named
+  `archive`), files and ZIPs uploaded from the browser (tus, into the import's staging area), and lists (CSV,
+  TSV). The admin has a guided Simple mode (Your files, What we found, Your list, Where they go, Check, Add) and
+  an Advanced mode with eight tabs. Check counts flags by kind with a policy each (keep, repair, leave); only plan
+  problems block a run. An import can create, append, revise, update, replace or delete, and a delete runs only
+  with its count typed. Undo puts back what the import changed and keeps what was edited since, until
+  `force`. The run, undo, rescan, unzip and staging sweep are jobs (`Romeka\Job\ImportRun`, `ImportUndo`,
+  `ImportScan`, `ImportUnzip`, `ImportSweep`). `romeka import run`, `undo` and `list` are the command line's
+  front end, with `--json` output and Ctrl-C as Stop; `romeka import csv` and `romeka import media` are gone.
+  Migration 0006.
+- Archive import (replaced by import v2 above; kept here as history): with `ROMEKA_ARCHIVE_ROOT` set, the admin's
+  Import page (under Content) turned a server folder into items, item sets and media in seven steps: Folder (mark an example file name, or write a regex), Item sets, Item
   types, Sources (a CSV, read with detection and Windows-1252 repair, and EXIF tags), Grid (problems with bulk
   fixes, cell edits), Check (a dry run) and Run. The run and the undo are jobs (`Romeka\Job\ImportArchive`,
   `Romeka\Job\UndoImport`) in a `romeka job run` child, and the Jobs page shows their log while they run. The last

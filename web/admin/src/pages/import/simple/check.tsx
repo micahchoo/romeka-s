@@ -57,7 +57,7 @@ const Card = ({ cause, shown, onAnother }: { readonly cause: Cause; readonly sho
   const words = wordsOf(cause.id);
   const answered = readState(draft.plan).answered.includes(cause.id);
   const answer = answerOf(draft.plan, cause.id);
-  const suggested = suggestedOf(cause.id);
+  const suggested = suggestedOf(draft.plan, cause.id);
   const blocking = isBlocking(cause.id);
   const example = cause.examples.length === 0 ? null : (cause.examples[shown % cause.examples.length] ?? null);
   const answer1 = (value: string): void => {

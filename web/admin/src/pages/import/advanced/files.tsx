@@ -40,7 +40,7 @@ const Sources = (): ReactElement => {
               const state = stateOf(source);
               return (
                 <li key={source.id}>
-                  <b>{whereWords([source], t)}</b>{' '}
+                  <b>{whereWords([source], t, read.status === 'ready' ? read.data.sources : [])}</b>{' '}
                   <code>{source.id}</code>{' '}
                   {state === undefined ? null : state.error !== null ? (
                     <span role="alert">{t('adv.files.sources.error', { message: state.error })}</span>

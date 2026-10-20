@@ -195,6 +195,7 @@ export const ta: ImportSimpleMessages = {
   'guided.check.mustFix': 'இதை நீங்கள் சேர்க்கும் முன் சரிசெய்ய வேண்டும்.',
   'guided.check.keep': 'அவற்றை அப்படியே வைத்திருக்கவும்',
   'guided.check.leave': 'அவற்றை நீக்கிவிடவும்',
+  'guided.check.spacesRepair': 'இடைவெளிகளை நீக்கவும்',
   'guided.check.other': '{count} முறை: {problem}.',
   'guided.check.otherOne': '{problem}-இல் 1 முறை.',
   'guided.check.cells': '{count} வரிசைகளில் உங்கள் பட்டியலில் தவறான எண்ணிக்கையிலான செல்கள் உள்ளன.',
@@ -287,6 +288,4 @@ export const ta: ImportSimpleMessages = {
   'guided.add.private': 'உள்நுழைந்த பணியாளர்கள் மட்டுமே (தனியார்)',
   'guided.add.public': 'அனைவரும் (பொது)',
   'guided.add.undo': 'நீங்கள் முழு இறக்குமதியையும் பின்னர் ரத்து செய்யலாம்.',
-  'guided.add.deleteAdvanced':
-    'Omeka-விலிருந்து உருப்படிகளை நீக்குவது மேம்பட்ட முறையில் தொடங்குகிறது, அங்கு நீங்கள் முதலில் எண்ணிக்கையைத் தட்டச்சு செய்ய வேண்டும்.',
 };

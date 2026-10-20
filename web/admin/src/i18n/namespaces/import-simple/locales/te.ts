@@ -187,6 +187,7 @@ export const te: ImportSimpleMessages = {
   'guided.check.mustFix': 'దీనిని మీరు జోడించే ముందు సరిచేయాలి.',
   'guided.check.keep': 'వాటిని అలాగే ఉంచండి',
   'guided.check.leave': 'వాటిని వదిలివేయండి',
+  'guided.check.spacesRepair': 'స్పేస్‌లను తొలగించండి',
   'guided.check.other': '{count} సార్లు: {problem}.',
   'guided.check.otherOne': '1 సారి: {problem}.',
   'guided.check.cells': 'మీ జాబితాలో {count} వరుసలు తప్పు సంఖ్యలో కణాలను కలిగి ఉన్నాయి.',
@@ -273,6 +274,4 @@ export const te: ImportSimpleMessages = {
   'guided.add.private': 'కేవలం సైన్-ఇన్ చేసిన సిబ్బంది (ప్రైవేట్)',
   'guided.add.public': 'అందరూ (ప్రజా)',
   'guided.add.undo': 'మీరు తర్వాత మొత్తం ఇంపోర్ట్‌ను అన్‌డూ చేయవచ్చు.',
-  'guided.add.deleteAdvanced':
-    'Omeka నుండి అంశాలను తొలగించడం Advanced మోడ్‌లో ప్రారంభమవుతుంది, అక్కడ మీరు మొదట కౌంట్‌ను టైప్ చేస్తారు.',
 };

@@ -30,6 +30,7 @@ mod error;
 mod time;
 
 pub mod backend;
+pub mod fulltext;
 pub mod ids;
 mod pool;
 pub mod repos;
