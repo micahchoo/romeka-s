@@ -1,0 +1,79 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ],
+  "values": [
+    {
+      "slot": "sets",
+      "values": {
+        "items": [
+          {
+            "count": 5,
+            "spellings": [
+              "Artifacts"
+            ],
+            "text": "Artifacts"
+          },
+          {
+            "count": 4,
+            "spellings": [
+              "Photographs"
+            ],
+            "text": "Photographs"
+          },
+          {
+            "count": 1,
+            "spellings": [
+              "Bulk"
+            ],
+            "text": "Bulk"
+          }
+        ],
+        "page": 1,
+        "perPage": 50,
+        "total": 3
+      }
+    },
+    {
+      "slot": "template",
+      "values": {
+        "items": [
+          {
+            "count": 10,
+            "spellings": [
+              "Artifact"
+            ],
+            "text": "Artifact"
+          }
+        ],
+        "page": 1,
+        "perPage": 50,
+        "total": 1
+      }
+    },
+    {
+      "slot": "class",
+      "values": {
+        "items": [],
+        "page": 1,
+        "perPage": 50,
+        "total": 0
+      }
+    }
+  ]
+}

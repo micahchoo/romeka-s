@@ -1,0 +1,145 @@
+{
+  "anomalies": [
+    {
+      "sheetChanged": {
+        "now": "b1ebb0f938343aa006efe0de3baeb6dcd5ea182c430e26c5efb249830737c18d",
+        "sheet": "register",
+        "stored": "stale-hash"
+      }
+    },
+    {
+      "headerNotes": {
+        "notes": [
+          "duplicate \"Notes\" at [3, 4]"
+        ],
+        "sheet": "register"
+      }
+    },
+    {
+      "unmappedColumns": {
+        "columns": [
+          [
+            3,
+            "Notes"
+          ],
+          [
+            4,
+            "Notes"
+          ]
+        ],
+        "sheet": "register"
+      }
+    },
+    {
+      "sheetUnread": {
+        "detail": "missing",
+        "sheet": "lost"
+      }
+    },
+    {
+      "decisionOverlap": {
+        "decisions": [
+          2,
+          3
+        ],
+        "record": 8,
+        "slot": "dcterms:title"
+      }
+    },
+    {
+      "outsideScope": {
+        "ids": [
+          5
+        ],
+        "key": "BHC_006_PH_101",
+        "record": 20
+      }
+    },
+    {
+      "spanFolders": {
+        "folders": [
+          "s1:Artifacts",
+          "s1:Photographs/1950s"
+        ],
+        "record": 8
+      }
+    },
+    {
+      "largeGroup": {
+        "files": 7,
+        "median": 1,
+        "record": 12
+      }
+    },
+    {
+      "unusedEntries": {
+        "entries": [
+          {
+            "file": {
+              "path": "Misc/café.jpg",
+              "source": "s1"
+            }
+          },
+          {
+            "file": {
+              "path": "Misc/loose.jpg",
+              "source": "s1"
+            }
+          },
+          {
+            "file": {
+              "path": "_scratch/Thumbs.db",
+              "source": "s1"
+            }
+          },
+          {
+            "file": {
+              "path": "_scratch/notes.txt",
+              "source": "s1"
+            }
+          },
+          {
+            "row": {
+              "key": "BHC_006_AF_003#1",
+              "sheet": "register"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "walk": {
+        "collisions": [],
+        "decoded": [
+          "Misc/caf�.jpg"
+        ],
+        "dot": 1,
+        "source": "s1",
+        "special": 0,
+        "symlinks": 1,
+        "unreadable": [],
+        "unusable_names": [
+          "Misc/back\\slash.jpg"
+        ]
+      }
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

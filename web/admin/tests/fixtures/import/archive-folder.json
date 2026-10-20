@@ -1,0 +1,57 @@
+{
+  "entries": [
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_001_back.jpg",
+      "path": "Artifacts/BHC_006_AF_001_back.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_001_front.jpg",
+      "path": "Artifacts/BHC_006_AF_001_front.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_002_back.jpg",
+      "path": "Artifacts/BHC_006_AF_002_back.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_002_front.jpg",
+      "path": "Artifacts/BHC_006_AF_002_front.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_003_back.jpg",
+      "path": "Artifacts/BHC_006_AF_003_back.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_003_front.jpg",
+      "path": "Artifacts/BHC_006_AF_003_front.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_004_back.jpg",
+      "path": "Artifacts/BHC_006_AF_004_back.jpg",
+      "size": 20
+    },
+    {
+      "kind": "file",
+      "name": "BHC_006_AF_004_front.jpg",
+      "path": "Artifacts/BHC_006_AF_004_front.jpg",
+      "size": 20
+    }
+  ],
+  "path": "Artifacts",
+  "root": "archive",
+  "roots": [
+    "archive"
+  ]
+}

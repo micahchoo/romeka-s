@@ -1,0 +1,479 @@
+{
+  "entries": {
+    "items": [
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 3,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_front.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 1,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_002_back.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 4,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_002_front.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 5,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_back.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 31,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_front.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 7,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_back.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 9,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_front.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 10,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p1.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 13,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p2.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 14,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p3.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 15,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p4.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 16,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p5.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 17,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p6.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 18,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Bulk/BHC_006_BK_001_p7.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 19,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Misc/café.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [
+          {
+            "detail": "Latin1",
+            "kind": "name-encoding",
+            "policy": "keep",
+            "slot": null,
+            "subject": {
+              "entry": {
+                "file": {
+                  "path": "Misc/café.jpg",
+                  "source": "s1"
+                }
+              }
+            }
+          }
+        ],
+        "left": null,
+        "record": null,
+        "unmatched": true
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Misc/loose.jpg",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": null,
+        "unmatched": true
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_101.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 21,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 11,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_103.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 23,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_104.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": 25,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Scans/BHC_006_SC_001_p1.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": "parent",
+        "record": 27,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Scans/BHC_006_SC_001_p10.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": "parent",
+        "record": 28,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Scans/BHC_006_SC_001_p2.tif",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": "parent",
+        "record": 29,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "_scratch/Thumbs.db",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [
+          {
+            "detail": "application/CDFV2",
+            "kind": "not-media",
+            "policy": "leave",
+            "slot": null,
+            "subject": {
+              "entry": {
+                "file": {
+                  "path": "_scratch/Thumbs.db",
+                  "source": "s1"
+                }
+              }
+            }
+          }
+        ],
+        "left": {
+          "flag": "not-media"
+        },
+        "record": null,
+        "unmatched": true
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "_scratch/notes.txt",
+            "source": "s1"
+          }
+        },
+        "example": true,
+        "flags": [],
+        "left": null,
+        "record": null,
+        "unmatched": true
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_AF_001#1",
+            "sheet": "register"
+          }
+        },
+        "example": false,
+        "flags": [],
+        "left": null,
+        "record": 0,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_AF_002#1",
+            "sheet": "register"
+          }
+        },
+        "example": false,
+        "flags": [],
+        "left": null,
+        "record": 2,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_PH_101#1",
+            "sheet": "register"
+          }
+        },
+        "example": false,
+        "flags": [],
+        "left": null,
+        "record": 20,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_ZZ_999#1",
+            "sheet": "register"
+          }
+        },
+        "example": false,
+        "flags": [],
+        "left": null,
+        "record": 32,
+        "unmatched": false
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_AF_003#1",
+            "sheet": "register"
+          }
+        },
+        "example": false,
+        "flags": [
+          {
+            "detail": "BHC_006_AF_003,Short row\n",
+            "kind": "cells-count",
+            "policy": "leave",
+            "slot": null,
+            "subject": {
+              "entry": {
+                "row": {
+                  "key": "BHC_006_AF_003#1",
+                  "sheet": "register"
+                }
+              }
+            }
+          }
+        ],
+        "left": {
+          "flag": "cells-count"
+        },
+        "record": null,
+        "unmatched": false
+      }
+    ],
+    "page": 1,
+    "perPage": 50,
+    "total": 31
+  },
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "code": "changed",
+  "digest": "3576e8d602b362e01f256b6568d1eed0a7cdf927a9c4c713521aa8ac8fb65e83",
+  "errors": {
+    "error": "The files or the import's settings changed after the last check. Check the import again before you run it."
+  }
+}

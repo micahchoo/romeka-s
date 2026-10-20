@@ -1,0 +1,42 @@
+{
+  "orphans": [
+    {
+      "decision": 8,
+      "entry": {
+        "file": {
+          "path": "Misc/loose.jpg",
+          "source": "s1"
+        }
+      },
+      "reason": "noGroup"
+    },
+    {
+      "decision": 11,
+      "entry": {
+        "file": {
+          "path": "gone/missing.jpg",
+          "source": "s1"
+        }
+      },
+      "reason": "missingEntry"
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

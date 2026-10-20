@@ -1,0 +1,209 @@
+[
+  {
+    "include": [
+      "records"
+    ],
+    "records": {
+      "kind": "item",
+      "page": 2,
+      "perPage": 5,
+      "flag": "date-form",
+      "slot": "dcterms:date",
+      "text": "lamp",
+      "folder": "Artifacts",
+      "files": "2",
+      "left": false
+    }
+  },
+  {
+    "include": [
+      "records"
+    ],
+    "records": {
+      "kind": "media",
+      "set": {
+        "existing": 1
+      },
+      "template": {
+        "existing": 1
+      }
+    }
+  },
+  {
+    "include": [
+      "records"
+    ],
+    "records": {
+      "kind": "itemSet",
+      "set": {
+        "record": 3
+      },
+      "template": {
+        "new": 0
+      }
+    }
+  },
+  {
+    "include": [
+      "records"
+    ],
+    "records": {
+      "set": {
+        "new": 0
+      },
+      "template": "none",
+      "files": "7+",
+      "left": true
+    }
+  },
+  {
+    "include": [
+      "records"
+    ],
+    "records": {
+      "shape": {
+        "files": "2",
+        "folders": [
+          "Artifacts"
+        ],
+        "media": [
+          "image"
+        ],
+        "pattern": true,
+        "row": true,
+        "parts": [
+          "back",
+          "front"
+        ],
+        "pages": null
+      }
+    }
+  },
+  {
+    "include": [
+      "shapes"
+    ],
+    "shapes": {
+      "page": 1,
+      "perPage": 20,
+      "text": "Artifacts"
+    },
+    "seed": 7
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "page": 1,
+      "perPage": 10,
+      "flag": "not-media",
+      "text": "Misc",
+      "used": false,
+      "folder": "Misc"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "paired": true
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "unmatched"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "decision"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "flag"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "parent"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "noFiles"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "noRecord"
+    }
+  },
+  {
+    "include": [
+      "identical"
+    ],
+    "identical": {
+      "page": 1,
+      "perPage": 2,
+      "text": "loose"
+    }
+  },
+  {
+    "include": [
+      "unpaired"
+    ],
+    "unpaired": {
+      "rows": {
+        "page": 1,
+        "perPage": 5,
+        "text": "ghost"
+      },
+      "files": {
+        "perPage": 5
+      }
+    }
+  },
+  {
+    "include": [
+      "values"
+    ],
+    "values": {
+      "kind": "media",
+      "page": 1,
+      "perPage": 10
+    }
+  },
+  {
+    "include": [
+      "check",
+      "flags",
+      "anomalies",
+      "orphans",
+      "sheets",
+      "tags",
+      "histogram"
+    ],
+    "seed": 0
+  }
+]

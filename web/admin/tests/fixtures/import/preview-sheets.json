@@ -1,0 +1,102 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sheets": [
+    {
+      "error": null,
+      "file": "register.csv",
+      "found": true,
+      "guess": {
+        "delimiter": ",",
+        "encoding": {
+          "confidence": 1.0,
+          "encoding": "utf-8"
+        },
+        "headerLine": 1,
+        "unsupported": null
+      },
+      "id": "register",
+      "lines": [
+        "Id,Title,Date,Notes,Notes",
+        "BHC_006_AF_001,Brass lamp,1950,a,b",
+        "BHC_006_AF_002,Copper pot,circa 1950s?,,",
+        "BHC_006_PH_101,Portrait,1951-03,,",
+        "BHC_006_ZZ_999,Ghost row,1960,,",
+        "BHC_006_AF_003,Short row",
+        ""
+      ],
+      "read": {
+        "blankLines": 0,
+        "cellsCount": 1,
+        "cellsSuspect": 0,
+        "cellsWithSpaces": 0,
+        "columns": [
+          {
+            "header": "Id",
+            "index": 0,
+            "mappable": true
+          },
+          {
+            "header": "Title",
+            "index": 1,
+            "mappable": true
+          },
+          {
+            "header": "Date",
+            "index": 2,
+            "mappable": true
+          },
+          {
+            "header": "Notes",
+            "index": 3,
+            "mappable": true
+          },
+          {
+            "header": "Notes",
+            "index": 4,
+            "mappable": true
+          }
+        ],
+        "delimiter": ",",
+        "delimiterGuessed": true,
+        "encoding": {
+          "confidence": 1.0,
+          "encoding": "utf-8"
+        },
+        "hash": "b1ebb0f938343aa006efe0de3baeb6dcd5ea182c430e26c5efb249830737c18d",
+        "headerLine": 1,
+        "notes": [
+          "duplicate header \"Notes\" at columns 3, 4"
+        ],
+        "rows": 5
+      },
+      "source": "s1"
+    },
+    {
+      "error": null,
+      "file": "lost.csv",
+      "found": false,
+      "guess": null,
+      "id": "lost",
+      "lines": [],
+      "read": null,
+      "source": "s1"
+    }
+  ],
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

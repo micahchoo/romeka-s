@@ -1,0 +1,1348 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "records": {
+    "items": [
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_001_front.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 0,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          1
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_AF_001"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_AF_001",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 0
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [
+          {
+            "key": "BHC_006_AF_001#1",
+            "sheet": "register"
+          }
+        ],
+        "slots": {
+          "dcterms:date": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "1950",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          ],
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_001",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": "en",
+              "link": null,
+              "text": "Brass lamp",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_001",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          },
+          {
+            "path": "Artifacts/BHC_006_AF_002_back.jpg",
+            "source": "s1"
+          },
+          {
+            "path": "Artifacts/BHC_006_AF_002_front.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [
+          {
+            "detail": "circa 1950s?",
+            "kind": "date-form",
+            "policy": "keep",
+            "slot": "dcterms:date",
+            "subject": {
+              "record": 2
+            }
+          }
+        ],
+        "id": 2,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          3,
+          4,
+          5
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_AF_002"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_AF_002",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 0
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [
+          {
+            "key": "BHC_006_AF_002#1",
+            "sheet": "register"
+          }
+        ],
+        "slots": {
+          "dcterms:date": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "circa 1950s?",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          ],
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_002",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": "en",
+              "link": null,
+              "text": "Copper pot",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_002",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_003_front.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 6,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          7
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_AF_003"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_AF_003",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 0
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_003",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_003",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_003",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_004_back.jpg",
+            "source": "s1"
+          },
+          {
+            "path": "Artifacts/BHC_006_AF_004_front.jpg",
+            "source": "s1"
+          },
+          {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 8,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          9,
+          10,
+          11
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_AF_004"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_AF_004",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 0
+            },
+            {
+              "new": 1
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_004",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Back title",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_004",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs/1950s",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Bulk/BHC_006_BK_001_p1.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p2.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p3.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p4.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p5.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p6.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Bulk/BHC_006_BK_001_p7.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 12,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_BK_001"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_BK_001",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 2
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_BK_001",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_BK_001",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_BK_001",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Bulk",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Bulk",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Photographs/1950s/BHC_006_PH_101.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 20,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          21
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_PH_101"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_PH_101",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 1
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [
+          {
+            "key": "BHC_006_PH_101#1",
+            "sheet": "register"
+          }
+        ],
+        "slots": {
+          "dcterms:date": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "1951-03",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          ],
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_101",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": "en",
+              "link": null,
+              "text": "Studio portrait",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": "Portrait",
+              "lang": null,
+              "link": null,
+              "text": "http://x.org/a",
+              "type": "uri"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_101",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs/1950s",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Photographs/1950s/BHC_006_PH_103.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [
+          {
+            "detail": null,
+            "kind": "empty-required",
+            "policy": "keep",
+            "slot": "dcterms:title",
+            "subject": {
+              "record": 22
+            }
+          }
+        ],
+        "id": 22,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          23
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_PH_103"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_PH_103",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 1
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_103",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_103",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs/1950s",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Photographs/1950s/BHC_006_PH_104.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [
+          {
+            "detail": null,
+            "kind": "empty-required",
+            "policy": "keep",
+            "slot": "dcterms:title",
+            "subject": {
+              "record": 24
+            }
+          }
+        ],
+        "id": 24,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          25
+        ],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_PH_104"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_PH_104",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 1
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_104",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_PH_104",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            },
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs/1950s",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Photographs",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": {
+          "left": {
+            "decision": 10
+          }
+        },
+        "files": [
+          {
+            "path": "Scans/BHC_006_SC_001_p1.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Scans/BHC_006_SC_001_p2.tif",
+            "source": "s1"
+          },
+          {
+            "path": "Scans/BHC_006_SC_001_p10.tif",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 26,
+        "kind": "item",
+        "matches": [],
+        "media": [],
+        "origin": {
+          "group": {
+            "pattern": "BHC_006_SC_001"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_SC_001",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_SC_001",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_SC_001",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_SC_001",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Scans",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_003_back.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 30,
+        "kind": "item",
+        "matches": [],
+        "media": [
+          31
+        ],
+        "origin": {
+          "group": {
+            "own": {
+              "path": "Artifacts/BHC_006_AF_003_back.jpg",
+              "source": "s1"
+            }
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "Artifacts/BHC_006_AF_003_back.jpg",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [
+            {
+              "new": 0
+            }
+          ],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts/BHC_006_AF_003_back.jpg",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_003",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts/BHC_006_AF_003_back.jpg",
+              "type": "literal"
+            }
+          ],
+          "local:shelfMark": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "sets": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifacts",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [],
+        "flags": [
+          {
+            "detail": null,
+            "kind": "no-file",
+            "policy": "keep",
+            "slot": null,
+            "subject": {
+              "record": 32
+            }
+          }
+        ],
+        "id": 32,
+        "kind": "item",
+        "matches": [],
+        "media": [],
+        "origin": {
+          "row": {
+            "key": "BHC_006_ZZ_999#1",
+            "sheet": "register"
+          }
+        },
+        "parent": null,
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": "BHC_006_ZZ_999",
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [],
+          "sites": [],
+          "template": {
+            "new": 0
+          },
+          "visibility": "private"
+        },
+        "rows": [
+          {
+            "key": "BHC_006_ZZ_999#1",
+            "sheet": "register"
+          }
+        ],
+        "slots": {
+          "dcterms:date": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "1960",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          ],
+          "dcterms:identifier": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_ZZ_999",
+              "type": "literal"
+            }
+          ],
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": "en",
+              "link": null,
+              "text": "Ghost row",
+              "type": "literal"
+            }
+          ],
+          "itemKey": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_ZZ_999",
+              "type": "literal"
+            }
+          ],
+          "template": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "Artifact",
+              "type": "literal"
+            }
+          ]
+        }
+      }
+    ],
+    "page": 1,
+    "perPage": 50,
+    "total": 11
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}
