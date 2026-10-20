@@ -58,6 +58,8 @@ ureq = { version = "3", default-features = false, features = ["rustls"] }
 # and Windows-1252 and is the detector's own encoding type.
 chardetng = "1"
 encoding_rs = "0.8"
+# The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
+regex = "1"
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen

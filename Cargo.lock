@@ -1626,6 +1626,7 @@ dependencies = [
  "oxrdf",
  "oxrdfio",
  "proptest",
+ "regex",
  "serde",
  "serde_json",
  "sqlx",
