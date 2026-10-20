@@ -22,6 +22,8 @@ import {
   optionalField,
   parseListOf,
 } from './parse';
+import { STARTER_IDS } from './starters';
+import type { StarterId } from './starters';
 import type { Id, ItemSetId, Parser, Path, TemplateId } from './types';
 
 export type ImportId = Id<'ImportId'>;
@@ -29,10 +31,6 @@ export type ImportId = Id<'ImportId'>;
 /** What one marked part of the example file name means. */
 export type Label = 'identifier' | 'part' | 'page' | 'set';
 export const LABELS: readonly Label[] = ['identifier', 'part', 'page', 'set'];
-
-/** The item type starters the Item types tab offers (`pages/item-types/starters.ts`). */
-export type StarterId = 'letter' | 'photograph' | 'postcard' | 'diary' | 'person' | 'other';
-export const STARTER_IDS: readonly StarterId[] = ['letter', 'photograph', 'postcard', 'diary', 'person', 'other'];
 
 /** Which folders become item sets. */
 export type SetLevel = 'level1' | 'level2' | 'both' | 'path' | 'group';

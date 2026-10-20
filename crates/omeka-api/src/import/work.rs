@@ -13,7 +13,7 @@ use super::archive::{ArchiveError, ArchiveFolder};
 use super::catalog::{Catalog, TemplateField, starter_fields, starter_title};
 use super::derive::{self, Issue, Model, Row, TypeSource};
 use super::inputs::Inputs;
-use super::plan::ImportPlan;
+use super::plan::{ImportPlan, StarterId};
 use super::tags::{FsTagReader, TagCache, TagReader};
 use super::values::{IDENTIFIER_TERM, Sources};
 
@@ -44,6 +44,7 @@ pub enum TemplateRef {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewTypeWork {
     pub name: String,
+    pub starter: StarterId,
     pub fields: Vec<TemplateField>,
     /// The term of its title property.
     pub title: Option<String>,
@@ -250,6 +251,7 @@ impl Work {
                 TemplateRef::New(at.unwrap_or_else(|| {
                     self.types.push(NewTypeWork {
                         name: name.to_string(),
+                        starter: new.starter,
                         fields: starter_fields(new.starter),
                         title: starter_title(new.starter),
                     });

@@ -6,7 +6,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { loadFormOptions } from '../src/app/options';
 import { ItemTypesPage } from '../src/pages/item-types/page';
-import { installFetch, listResponse, route } from './stub';
+import { loadFixture } from './loadFixture';
+import { installFetch, jsonResponse, listResponse, route } from './stub';
 
 const PROPERTY_COUNT = 450;
 const CLASS_COUNT = 105;
@@ -100,6 +101,7 @@ describe('every page of a long list', () => {
         '/api/resource_classes': paged('resource_classes', CLASS_COUNT),
         '/api/properties': paged('properties', PROPERTY_COUNT),
         '/api/data_types': empty,
+        '/api/romeka/starters': () => jsonResponse(loadFixture('starters.json')),
       }),
     );
     render(<ItemTypesPage param="new" />);

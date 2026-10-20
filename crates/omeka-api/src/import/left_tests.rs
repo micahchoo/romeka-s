@@ -70,7 +70,7 @@ async fn the_left_out_csv_lists_problem_skipped_and_failed_rows_with_their_reaso
     ];
     let mut value = plan().to_json();
     value["skip"] = json!(["P_001"]);
-    value["edits"] = json!({ "L_001": { "dcterms:date": "1900-02-31" } });
+    value["edits"] = json!({ "L_001": { "dcterms:created": "1900-02-31" } });
     let plan = ImportPlan::from_json(&value).expect("plan");
     let folder = ArchiveRoot::new(&fixture.archive)
         .expect("root")
@@ -80,12 +80,12 @@ async fn the_left_out_csv_lists_problem_skipped_and_failed_rows_with_their_reaso
     let csv = left_out_csv(&folder, &plan, &fixture.catalog, &failures, &FsTagReader).expect("csv");
     assert_eq!(
         csv,
-        "dcterms:identifier,dcterms:title,dcterms:date,dcterms:creator,bibo:recipient,\
-         local:shelfMark,#reason\n\
-         L_001,First letter,1900-02-31,,,A-1,problems: date (dcterms:date)\n\
-         L_002,Second letter,,,,A-2,failed: value refused\n\
-         P_001,Harbour,,,,B-1,skipped\n\
-         X_404,,,,,,failed: gone\n",
+        "dcterms:identifier,dcterms:title,dcterms:creator,bibo:recipient,dcterms:created,\
+         dcterms:spatial,dcterms:description,local:shelfMark,#reason\n\
+         L_001,First letter,,,1900-02-31,,,A-1,problems: date (dcterms:created)\n\
+         L_002,Second letter,,,,,,A-2,failed: value refused\n\
+         P_001,Harbour,,,,,,B-1,skipped\n\
+         X_404,,,,,,,,failed: gone\n",
         "the Letter type's fields are grid columns; a failure the folder no longer makes keeps its line"
     );
 }

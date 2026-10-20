@@ -152,6 +152,61 @@ async fn with_no_archive_root_the_listing_says_off_and_nothing_can_be_created() 
 }
 
 #[tokio::test]
+async fn the_starters_are_listed_even_with_the_import_off_and_need_an_admin() {
+    let fixture = fixture_with(false, Recorder::default()).await;
+    let anonymous = send(fixture.app.clone(), get("/api/romeka/starters", false)).await;
+    assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
+
+    let listed = send(fixture.app.clone(), get("/api/romeka/starters", true)).await;
+    assert_eq!(listed.status, StatusCode::OK, "{}", listed.body);
+    let starters = listed.json();
+    let ids: Vec<&str> = starters
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|starter| starter["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "letter",
+            "photograph",
+            "postcard",
+            "diary",
+            "person",
+            "other"
+        ]
+    );
+    assert_eq!(
+        starters[0]["fields"][2],
+        json!({
+            "term": "dcterms:creator", "required": false,
+            "label": "Sender", "dataTypes": ["literal"]
+        })
+    );
+    assert_eq!(starters[0]["nameKey"], "starter.letter");
+    assert_eq!(starters[0]["classTerm"], "bibo:Letter");
+    assert_eq!(
+        starters,
+        serde_json::to_value(omeka_api::import::catalog::STARTERS).unwrap(),
+        "the wire is the table the run reads"
+    );
+}
+
+/// The admin's tests serve this file as the starters route. When the table
+/// changes, rewrite it from the route's answer.
+#[test]
+fn the_admin_fixture_is_the_starter_table() {
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/admin/tests/fixtures/starters.json");
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(
+        fixture,
+        serde_json::to_value(omeka_api::import::catalog::STARTERS).unwrap()
+    );
+}
+
+#[tokio::test]
 async fn the_archive_lists_folders_and_refuses_a_path_outside_the_root() {
     let fixture = fixture().await;
     let root = send(fixture.app.clone(), get("/api/romeka/archive?path=", true)).await;
@@ -220,6 +275,7 @@ async fn an_anonymous_caller_is_401_and_an_author_is_403() {
     for uri in [
         "/api/romeka/imports",
         "/api/romeka/archive",
+        "/api/romeka/starters",
         "/api/romeka/jobs/1/log",
     ] {
         let answer = send(
