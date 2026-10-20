@@ -93,6 +93,19 @@ pub struct Messages {
     pub page_not_found_message: &'static str,
     /// `view/error/403.phtml`: the heading.
     pub forbidden: &'static str,
+    /// The browse pager's summary, `%s results · page %s of %s` over the
+    /// total, the page and the page count. Upstream's pager has no summary.
+    pub pager_count: &'static str,
+    /// The note under a resource heading whose title is a fallback.
+    pub no_title_recorded: &'static str,
+    /// The panel an item page shows when the item has no media.
+    pub no_media_attached: &'static str,
+    /// The footer's link list, as its `nav` label.
+    pub footer_links: &'static str,
+    /// The footer's licence line when the site keeps every right.
+    pub all_rights_reserved: &'static str,
+    /// The header search field's placeholder.
+    pub search_placeholder: &'static str,
     /// A IIIF block in the editor's script-free preview: the `IIIF viewer: %s.
     /// It opens on the public page.` pattern, over the block's title. A Romeka
     /// string; upstream's preview runs the viewer.
@@ -107,6 +120,17 @@ pub struct Messages {
     pub no_site_items_preview: &'static str,
     /// The same empty browse preview on the public site, with no admin hint.
     pub no_site_items: &'static str,
+    /// A map's accessible name, and the item page's map section label. A
+    /// Romeka addition, as every `map_` message is.
+    pub map: &'static str,
+    /// The disclosure under a map block that lists its places as links.
+    pub map_places: &'static str,
+    /// A marker that stands for several close places, `%s` the count.
+    pub map_place_count: &'static str,
+    /// The editor preview's poster for a map block, `%s` the place count.
+    pub map_poster: &'static str,
+    /// The editor preview's poster for a map block with no places.
+    pub map_no_places_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -151,11 +175,23 @@ pub static EN: Messages = Messages {
     page_not_found_message: "The page you are trying to view does not exist. \
                              Use the back button to return to the last page.",
     forbidden: "Forbidden",
+    pager_count: "%s results · page %s of %s",
+    no_title_recorded: "No title recorded",
+    no_media_attached: "No media attached",
+    footer_links: "Footer links",
+    all_rights_reserved: "All rights reserved",
+    search_placeholder: "Search the collection",
     iiif_poster: "IIIF viewer: %s. It opens on the public page.",
     iiif_view_in_viewer: "View in the IIIF viewer",
     iiif_manifest: "IIIF manifest",
     no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
     no_site_items: "There are no items to show yet.",
+    map: "Map",
+    map_places: "Places on this map",
+    map_place_count: "%s places",
+    map_poster: "A map of %s places. The map itself shows on the public page.",
+    map_no_places_preview: "This map has no places yet. Its items need a \"lat, lng\" value in the \
+                            location field the site settings name.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -206,12 +242,25 @@ pub static ES: Messages = Messages {
     page_not_found_message: "La página solicitada no existe. El botón de volver \
                              atrás regresará a la última página.",
     forbidden: "Prohibido",
+    // The theme's own strings, not in `es.po`.
+    pager_count: "%s resultados · página %s de %s",
+    no_title_recorded: "Sin título registrado",
+    no_media_attached: "Sin medios adjuntos",
+    footer_links: "Enlaces del pie de página",
+    all_rights_reserved: "Todos los derechos reservados",
+    search_placeholder: "Buscar en la colección",
     iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
     iiif_view_in_viewer: "Ver en el visor IIIF",
     iiif_manifest: "Manifiesto IIIF",
     // The admin's words, because only the admin preview shows it.
     no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
     no_site_items: "Todavía no hay fichas que mostrar.",
+    map: "Mapa",
+    map_places: "Lugares de este mapa",
+    map_place_count: "%s lugares",
+    map_poster: "Un mapa de %s lugares. El mapa se muestra en la página pública.",
+    map_no_places_preview: "Este mapa aún no tiene lugares. Sus fichas necesitan un valor \
+                            \"lat, lng\" en el campo de ubicación que indican los ajustes del sitio.",
 };
 
 #[cfg(test)]

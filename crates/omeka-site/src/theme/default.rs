@@ -42,9 +42,8 @@ use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::{Theme, ThemeInfo};
-use crate::theme::{search, user_bar};
-use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, Thumbnail, View};
-use omeka_core::resource::ResourceKind;
+use crate::theme::{cards, fonts, search, user_bar};
+use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, View};
 
 /// The bundled theme's manifest: the id `site.theme` stores, the design tokens
 /// it reads, and the files it ships.
@@ -73,7 +72,7 @@ impl Theme for DefaultTheme {
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
-                &page_view(ctx),
+                &crate::map::with_assets(page_view(ctx), ctx),
             ),
             View::Browse(browse) => {
                 let mut content = browse_view(browse, ctx, tr);
@@ -89,7 +88,7 @@ impl Theme for DefaultTheme {
                 )
             }
             View::Item(item) => {
-                let mut content = item_view(item, ctx);
+                let mut content = crate::map::with_assets(item_view(item, ctx), ctx);
                 content.push_str(&jsonld_script(ctx, item.jsonld.as_deref()));
                 layout(view, ctx, Some(&item.title), "item resource show", &content)
             }
@@ -195,6 +194,10 @@ fn layout(
     // value is validated at the storage boundary, so nothing a curator stored
     // reaches the sheet as CSS.
     let tokens = ctx.theme_settings.css();
+    let fonts = ctx.theme_settings.tokens.fonts();
+    let font_faces = fonts::faces(fonts, assets);
+    let font_preloads = fonts::preloads(fonts, assets);
+    let root_classes = ctx.theme_settings.tokens.classes();
     let header = ctx.theme_settings.tokens.header_layout.class();
     // The site's own CSS follows the theme sheet so its rules win. It passed
     // the sanitiser when it was read, which refuses `</style` among the rest,
@@ -205,7 +208,7 @@ fn layout(
     };
     let logo = logo_markup(ctx);
     let banner = banner_markup(ctx);
-    let footer_text = footer_text(ctx);
+    let footer = ctx.theme_settings.footer.render(ctx, tr);
     // `Module.php:188-203` prepends the favicon to `headLink` on `view.layout`.
     let favicon = match &ctx.favicon_url {
         Some(url) => format!("<link rel=\"icon\" href=\"{}\">\n", escape_html(url)),
@@ -220,13 +223,14 @@ fn layout(
     };
     let user_bar = user_bar::render(view, ctx, tr);
     format!(
-        "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n\
+        "<!DOCTYPE html>\n<html lang=\"{lang}\" class=\"{root_classes}\">\n<head>\n\
          <meta charset=\"utf-8\">\n\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
          <title>{title}</title>\n\
          {robots}\
          {favicon}\
-         <style>\n{tokens}</style>\n\
+         {font_preloads}\
+         <style>\n{font_faces}{tokens}</style>\n\
          {theme_assets}\
          {custom_css}\
          </head>\n\
@@ -241,12 +245,15 @@ fn layout(
          <summary class=\"nav-menu-toggle\"><span class=\"nav-menu-icon\" aria-hidden=\"true\"></span>{menu_label}</summary>\n\
          <nav id=\"top-nav\" aria-label=\"{menu_label}\">\n{nav_menu}\n</nav>\n\
          </details>\n\
+         <details class=\"search-menu\">\n\
+         <summary class=\"search-toggle\">{search_icon}<span class=\"visually-hidden\">{search_label}</span></summary>\n\
          <div id=\"search\">{search_form}</div>\n\
+         </details>\n\
          </div>\n\
          </header>\n\
          <div id=\"content\" role=\"main\">\n\
          {content}\n</div>\n\
-         <footer>\n{footer_text}<span class=\"powered-by\">{powered_by}</span>\n</footer>\n\
+         {footer}\n\
          </body>\n</html>",
         lang = tr.locale().tag(),
         body = match body_class {
@@ -256,8 +263,13 @@ fn layout(
         header = header,
         logo = logo,
         banner = banner,
-        footer_text = footer_text,
+        footer = footer,
         tokens = tokens,
+        font_faces = font_faces,
+        font_preloads = font_preloads,
+        root_classes = escape_html(&root_classes),
+        search_icon = SEARCH_ICON,
+        search_label = escape_html(tr.search_labels().search),
         site_title = site_title,
         nav_menu = nav_menu,
         menu_label = escape_html(menu_label),
@@ -266,9 +278,15 @@ fn layout(
         robots = robots,
         favicon = favicon,
         search_form = search::search_form(ctx, tr.search_labels()),
-        powered_by = escape_html(tr.messages().powered_by),
     )
 }
+
+/// The header's search toggle: a magnifier. The toggle's name is the hidden
+/// text beside it.
+const SEARCH_ICON: &str = "<svg class=\"search-glyph\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" \
+    focusable=\"false\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\" fill=\"none\" \
+    stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"m15.5 15.5 5 5\" stroke=\"currentColor\" \
+    stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
 
 /// The page the header's own navigation is showing, for `aria-current`.
 ///
@@ -368,18 +386,6 @@ fn banner_markup(ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("</div>\n");
     out
-}
-
-/// The footer's HTML, purified at render the way an `html` block is, so a row
-/// stored before the write path purified it still cannot execute.
-fn footer_text(ctx: &RenderContext<'_>) -> String {
-    match ctx.theme_settings.footer_text.as_deref() {
-        Some(html) => format!(
-            "<div class=\"footer-text\">{}</div>\n",
-            omeka_core::purify::purify(html)
-        ),
-        None => String::new(),
-    }
 }
 
 /// `Controller/Site/PageController.php:41-43`: `page {layout_data.class}
@@ -568,6 +574,7 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
         browse.page,
         browse.per_page,
         browse.total,
+        ctx.translator().messages(),
     ));
     let search_url = resource_action_url(&ctx.site.slug, controller_for(browse.kind), "search");
     let search_url = match crate::html::query_string(&ctx.query) {
@@ -582,7 +589,12 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
     out.push_str("</div>");
     out.push_str("<ul class=\"resource-list\">");
     for resource in &browse.resources {
-        out.push_str(&render_resource(browse.kind, resource, ctx));
+        out.push_str(&cards::resource_card(
+            browse.kind,
+            resource,
+            ctx,
+            cards::CardParts::ALL,
+        ));
     }
     out.push_str("</ul>");
     out.push_str(&pagination(
@@ -591,62 +603,23 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
         browse.page,
         browse.per_page,
         browse.total,
+        ctx.translator().messages(),
     ));
-    out
-}
-
-/// One `li` of a browse list (`view/omeka/site/item/browse.phtml`).
-///
-/// A resource without a thumbnail shows the theme's placeholder, the way
-/// upstream's `thumbnail` helper falls back to `default.png`.
-fn render_resource(kind: ResourceKind, resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
-    let thumbnail = resource
-        .thumbnail
-        .clone()
-        .map(|Thumbnail { url, alt }| {
-            format!(
-                "<img src=\"{}\" alt=\"{}\">",
-                escape_html(&url),
-                escape_html(&alt)
-            )
-        })
-        .unwrap_or_else(|| {
-            format!(
-                "<img src=\"{}/img/placeholder.svg\" alt=\"\" class=\"resource-placeholder\">",
-                ctx.asset_base.trim_end_matches('/')
-            )
-        });
-    let mut out = format!(
-        "<li class=\"{} resource\">",
-        escape_html(controller_for(kind))
-    );
-    out.push_str(&format!(
-        "<a href=\"{}\" class=\"resource-link\">{}<span class=\"resource-name\">{}</span></a>",
-        escape_html(&resource.url),
-        thumbnail,
-        escape_html(&resource.title)
-    ));
-    if let Some(body) = resource
-        .description
-        .as_deref()
-        .filter(|body| !body.is_empty())
-    {
-        out.push_str(&format!(
-            "<div class=\"description\">{}</div>",
-            escape_html(body)
-        ));
-    }
-    out.push_str("</li>");
     out
 }
 
 /// `view/omeka/site/item/show.phtml`: the heading, the `Item` label and the
-/// configured resource page blocks.
+/// configured resource page blocks. The heading is the port's resource header
+/// ([`cards::resource_header`]): the kind and type over the display name. A
+/// breadcrumb leads back to the item browse, and the IIIF links follow the
+/// header.
 fn item_view(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    let browse = format!("/s/{}/item", ctx.site.slug);
     format!(
-        "<h2>{}</h2><h3>{}</h3>{}{}",
-        escape_html(&item.title),
-        escape_html(ctx.translator().messages().item),
+        "<nav class=\"breadcrumbs\">{} / <span>{}</span></nav>{}{}{}",
+        hyperlink(ctx.translator().messages().items, Some(&browse), &[]),
+        escape_html(&cards::display_name(item, ctx).0),
+        cards::resource_header(item, ctx),
         iiif_links(item, ctx),
         render_blocks(item, ctx)
     )
@@ -679,20 +652,15 @@ fn iiif_links(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
 /// `view/omeka/site/item-set/browse.phtml` for a single item set.
 fn item_set_view(item_set: &ResourceView, ctx: &RenderContext<'_>) -> String {
     format!(
-        "<h2>{}</h2><h3>{}</h3>{}",
-        escape_html(&item_set.title),
-        escape_html(ctx.translator().messages().item_set),
+        "{}{}",
+        cards::resource_header(item_set, ctx),
         render_blocks(item_set, ctx)
     )
 }
 
 /// `view/omeka/site/media/show.phtml`.
 fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
-    let mut out = format!(
-        "<h2>{}</h2><h3>{}</h3>",
-        escape_html(&media.title),
-        escape_html(ctx.translator().messages().media)
-    );
+    let mut out = cards::resource_header(media, ctx);
     if let Some(parent) = &media.parent_item {
         out.push_str(&format!(
             "<p class=\"media-parent-item\">{}</p>",

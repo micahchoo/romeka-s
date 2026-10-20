@@ -27,7 +27,13 @@ fork point, from the RDF files of the four vocabularies upstream installs:
 Each vocabulary keeps the license of its own project. The extracted file holds the terms, their
 labels and their comments, and nothing else.
 
-The public site's IIIF viewers are vendored under `crates/omeka-site/vendor/` by
+The bundled public theme serves webfonts from `crates/omeka-site/src/theme/fonts/`: Fraunces,
+Source Sans 3, IBM Plex Sans, IBM Plex Mono, Inter, and Noto Sans and Noto Serif for Devanagari,
+Tamil, Telugu, Kannada and Malayalam. They are the WOFF2 subsets Fontsource 5.3 publishes,
+unmodified. Each is licensed under the SIL Open Font License, Version 1.1; the copyright lines and
+the license text are in `crates/omeka-site/src/theme/fonts/OFL.txt`.
+
+The public site's IIIF viewers and maps are vendored under `crates/omeka-site/vendor/` by
 `crates/omeka-site/vendor/update.sh`, each beside its own license file, unmodified but for the
 removed source-map comment, and served from `/assets/vendor/`:
 
@@ -39,5 +45,9 @@ removed source-map comment, and served from `/assets/vendor/`:
                        Copyright (C) 2009 CodePlex Foundation,
                        Copyright (C) 2010-2024 OpenSeadragon contributors
                        (`build/openseadragon/openseadragon.min.js` and its button images)
+  Leaflet 1.9.4        https://github.com/Leaflet/Leaflet           BSD 2-Clause License
+                       Copyright (c) 2010-2023, Volodymyr Agafonkin,
+                       Copyright (c) 2010-2011, CloudMade
+                       (`dist/leaflet.js` and `dist/leaflet.css`)
 
-Upstream Omeka S ships the same two libraries, at `mirador ^4.0.0` and `openseadragon ^5.0.1`.
+Upstream Omeka S ships the same two IIIF libraries, at `mirador ^4.0.0` and `openseadragon ^5.0.1`.

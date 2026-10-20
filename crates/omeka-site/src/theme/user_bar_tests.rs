@@ -228,3 +228,50 @@ fn a_view_with_nothing_to_edit_offers_no_edit_link() {
     assert!(bar.contains("Admin dashboard"), "{bar}");
     assert!(!bar.contains("admin-edit"), "{bar}");
 }
+
+/// Logout from a page a signed-out reader cannot see returns to the site's
+/// home, and from a private site to the installation's root, never to a 404.
+#[test]
+fn logout_from_a_private_page_returns_to_a_public_one() {
+    let logout_action = |bar: &str| {
+        let start = bar.find("action=\"").expect("a logout form") + "action=\"".len();
+        bar[start..start + bar[start..].find('"').expect("the end")].to_string()
+    };
+    let mut site = site();
+    let resources = TestResources::default();
+    let mut private_page = page(PageLayout::Normal, serde_json::json!({}), Vec::new());
+    private_page.is_public = false;
+    let public_page = page(PageLayout::Normal, serde_json::json!({}), Vec::new());
+
+    let mut ctx = context(&site, &resources);
+    ctx.current_path = "/s/main/page/welcome".to_string();
+    ctx.viewer = viewer(Role::Researcher, None);
+    ctx.page = Some(&public_page);
+    assert_eq!(
+        logout_action(&bar_for(&View::Page, &ctx)),
+        "/logout?redirect=%2Fs%2Fmain%2Fpage%2Fwelcome"
+    );
+    ctx.page = Some(&private_page);
+    assert_eq!(
+        logout_action(&bar_for(&View::Page, &ctx)),
+        "/logout?redirect=%2Fs%2Fmain"
+    );
+
+    let mut item = owned(ResourceKind::Item, 3, 5);
+    item.is_public = false;
+    ctx.current_path = "/s/main/item/3".to_string();
+    assert_eq!(
+        logout_action(&bar_for(&View::Item(&item), &ctx)),
+        "/logout?redirect=%2Fs%2Fmain"
+    );
+
+    site.is_public = false;
+    let mut ctx = context(&site, &resources);
+    ctx.viewer = viewer(Role::Researcher, None);
+    ctx.page = Some(&public_page);
+    ctx.current_path = "/s/main/page/welcome".to_string();
+    assert_eq!(
+        logout_action(&bar_for(&View::Page, &ctx)),
+        "/logout?redirect=%2F"
+    );
+}

@@ -33,16 +33,20 @@
 //! A second theme implements [`Theme`] and adds itself to [`THEMES`]. Nothing
 //! else in the crate names [`DefaultTheme`].
 
+pub mod cards;
 pub mod choices;
 pub mod color;
 pub mod custom_css;
 pub mod default;
 mod files;
+pub mod fonts;
+pub mod footer;
 pub mod palette;
 pub mod presets;
 pub mod search;
 pub mod style;
 pub mod tokens;
+pub mod tokens_samples;
 pub mod tokens_schema;
 mod user_bar;
 
@@ -84,6 +88,12 @@ pub enum AssetKind {
     /// An image a view references by URL, served as `image/svg+xml`. The frame
     /// does not link it; a view does.
     Image,
+    /// A WOFF2 webfont, served as `font/woff2`. The token sheet names it in an
+    /// `@font-face`, and the frame preloads the ones the site's fonts use.
+    Font,
+    /// A library's own stylesheet, such as Leaflet's, served as `text/css`.
+    /// The frame does not link it; the view that loads the library does.
+    LibraryStylesheet,
     /// A PNG image a library references by URL, such as OpenSeadragon's
     /// navigation buttons.
     Png,
@@ -94,9 +104,10 @@ impl AssetKind {
     #[must_use]
     pub const fn media_type(self) -> &'static str {
         match self {
-            Self::Stylesheet => "text/css",
+            Self::Stylesheet | Self::LibraryStylesheet => "text/css",
             Self::Script | Self::Library => "application/javascript",
             Self::Image => "image/svg+xml",
+            Self::Font => "font/woff2",
             Self::Png => "image/png",
         }
     }
@@ -113,7 +124,9 @@ impl AssetKind {
         match self {
             Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
-            Self::Library | Self::Image | Self::Png => String::new(),
+            Self::Library | Self::LibraryStylesheet | Self::Image | Self::Font | Self::Png => {
+                String::new()
+            }
         }
     }
 }
@@ -138,7 +151,7 @@ impl ThemeAsset {
     /// and the asset route may let a client keep one URL's bytes for good.
     #[must_use]
     pub fn version(&self) -> String {
-        crate::blocks::canonical::bytes_hash(self.content)
+        crate::blocks::canonical::byte_hash(self.content)
     }
 }
 
@@ -182,15 +195,29 @@ pub fn theme_for(name: &str) -> Option<&'static dyn Theme> {
 /// version, so the asset route lets a client keep them.
 #[must_use]
 pub fn library_script(asset_base: &str, path: &str) -> String {
-    let base = asset_base.trim_end_matches('/');
-    let src = match theme_asset(DEFAULT_INFO.name, path) {
-        Some(asset) => format!("{base}/{path}?v={}", asset.version()),
-        None => format!("{base}/{path}"),
-    };
     format!(
         "<script src=\"{}\"></script>",
-        crate::html::escape_html(&src)
+        crate::html::escape_html(&library_url(asset_base, path))
     )
+}
+
+/// The `<link>` element that loads a library's stylesheet (an
+/// [`AssetKind::LibraryStylesheet`]) from `asset_base`, versioned like
+/// [`library_script`].
+#[must_use]
+pub fn library_stylesheet(asset_base: &str, path: &str) -> String {
+    format!(
+        "<link rel=\"stylesheet\" href=\"{}\">",
+        crate::html::escape_html(&library_url(asset_base, path))
+    )
+}
+
+fn library_url(asset_base: &str, path: &str) -> String {
+    let base = asset_base.trim_end_matches('/');
+    match theme_asset(DEFAULT_INFO.name, path) {
+        Some(asset) => format!("{base}/{path}?v={}", asset.version()),
+        None => format!("{base}/{path}"),
+    }
 }
 
 /// A theme's asset by path, `None` when the theme is not bundled or does not
@@ -226,7 +253,15 @@ mod tests {
         assert_eq!(info.label, "Default");
         // The bundled theme declares its design tokens as its own settings.
         assert_eq!(info.settings, tokens::SETTINGS);
+        assert_eq!(
+            info.assets
+                .iter()
+                .filter(|asset| asset.kind == AssetKind::Font)
+                .count(),
+            fonts::FONT_FILES.len()
+        );
         assert!(theme_asset("default", "vendor/mirador/mirador.min.js").is_some());
+        assert!(theme_asset("default", "vendor/leaflet/leaflet.js").is_some());
     }
 
     /// The bundled theme ships its own stylesheet and the placeholder image a
@@ -268,5 +303,11 @@ mod tests {
         assert!(!AssetKind::Library.is_head());
         assert!(!AssetKind::Png.is_head());
         assert!(AssetKind::Stylesheet.is_head());
+        assert_eq!(
+            AssetKind::LibraryStylesheet.element("/assets/vendor/leaflet/leaflet.css"),
+            ""
+        );
+        assert!(!AssetKind::LibraryStylesheet.is_head());
+        assert_eq!(AssetKind::LibraryStylesheet.media_type(), "text/css");
     }
 }

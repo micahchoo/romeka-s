@@ -28,6 +28,7 @@ use omeka_db::ids as db;
 use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteBlockAttachmentRepo};
 use omeka_db::rows::AssetRow;
 use omeka_site::blocks::browse_preview::parse_query;
+use omeka_site::blocks::romeka::ItemSelection;
 use omeka_site::settings::SiteSettings;
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::view::{
@@ -273,9 +274,43 @@ async fn load_blocks_from(
             for id in omeka_site::blocks::romeka::media_refs(layout, carrier) {
                 load_image(loader, id, &mut loaded).await?;
             }
+            if let Some(selection) = omeka_site::blocks::romeka::items(carrier) {
+                load_selection(loader, site, selection, &mut loaded).await?;
+            }
         }
     }
     Ok(loaded)
+}
+
+/// The items a Romeka block selects (the map's): each picked item the caller
+/// may see, or the answer to its search, keyed as the block's render asks.
+async fn load_selection(
+    loader: &Loader<'_>,
+    site: SiteId,
+    selection: ItemSelection,
+    loaded: &mut LoadedResources,
+) -> Result<(), DbError> {
+    match selection {
+        ItemSelection::Picked(ids) => {
+            let items = ItemRepo::new(loader.pool());
+            let access = loader.access();
+            for id in ids {
+                let Some(row) = items.get(db::ItemId(id.get())).await? else {
+                    continue;
+                };
+                if access.sees_resource(row.resource.is_public, row.resource.owner_id) {
+                    let view = loader.item_resource_view(&row).await?;
+                    push_resource(loaded, ResourceKind::Item, id.get(), &view);
+                }
+            }
+        }
+        ItemSelection::Query(query) => {
+            let search = ItemSelection::browse_query(&query, site, omeka_site::map::MAX_PLACES);
+            let result = loader.search(ResourceKind::Item, &search).await?;
+            loaded.searches.push((ResourceKind::Item, search, result));
+        }
+    }
+    Ok(())
 }
 
 /// Keep one asset in the snapshot unless it is already there.

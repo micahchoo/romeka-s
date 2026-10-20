@@ -25,6 +25,11 @@ const FONT_STACKS: Readonly<Record<string, string>> = {
   'transitional-serif': 'Charter, Cambria, serif',
   didone: 'Didot, "Bodoni 72", "Bodoni MT", Georgia, serif',
   mono: 'ui-monospace, Menlo, monospace',
+  fraunces: 'Fraunces, Georgia, serif',
+  'source-sans-3': '"Source Sans 3", system-ui, sans-serif',
+  'ibm-plex-sans': '"IBM Plex Sans", system-ui, sans-serif',
+  inter: 'Inter, system-ui, sans-serif',
+  'ibm-plex-mono': '"IBM Plex Mono", ui-monospace, monospace',
 };
 
 const fontStack = (key: string | number | undefined): string =>
@@ -60,7 +65,8 @@ const Miniature = ({ preset, derive }: { readonly preset: Preset; readonly deriv
     preset: preset.id,
     derive,
     overrides: {},
-    content: { logo: '', banner: '', banner_text: '', footer_text: '' },
+    content: { logo: '', banner: '', banner_text: '' },
+    footer: { columns: [], links: null, contact: '', licence: 'none', poweredBy: true },
     customCss: '',
   });
   const palette = resolved.scheme === 'dark' ? resolved.dark : resolved.light;

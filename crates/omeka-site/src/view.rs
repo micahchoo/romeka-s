@@ -54,6 +54,8 @@ pub struct ResourceView {
     pub title: String,
     /// `resource.owner_id`, which decides whether the caller may edit it.
     pub owner: Option<UserId>,
+    /// `resource.is_public`: whether a reader who is not signed in may see it.
+    pub is_public: bool,
     /// The resource class label (`resourceClass()->label()`), translated by
     /// term, `None` when the resource has no class.
     pub class_label: Option<String>,
@@ -107,6 +109,7 @@ impl ResourceView {
             url: url.into(),
             title: title.into(),
             owner: None,
+            is_public: true,
             class_label: None,
             description: None,
             values: Vec::new(),

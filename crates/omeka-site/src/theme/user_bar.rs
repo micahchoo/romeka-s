@@ -6,6 +6,7 @@ use omeka_core::resource::ResourceKind;
 
 use crate::html::{escape_html, urlencode};
 use crate::i18n::{Messages, Translator, sprintf1};
+use crate::slug::site_url;
 use crate::view::{RenderContext, ResourceView, View};
 
 /// `common/user-bar.phtml`: the admin bar a signed-in caller sees, or a login
@@ -18,7 +19,10 @@ use crate::view::{RenderContext, ResourceView, View};
 ///
 /// Logout is a form, because ending a session is a write: a `POST /logout`
 /// that the server's same-origin check guards. Both Logout and Log in carry
-/// the page's path as `redirect`, so the reader comes back to it.
+/// the page's path as `redirect`, so the reader comes back to it. Logout from
+/// a page a signed-out reader cannot see returns to the site's home instead,
+/// or to the installation's root when the site itself is private, so the
+/// reader does not land on a 404.
 pub(crate) fn render(view: &View<'_>, ctx: &RenderContext<'_>, tr: Translator) -> String {
     // `UserBar.php:35-43`: `-1` never, `1` always, otherwise only when signed in.
     if !ctx.settings.shows_user_bar(ctx.viewer.is_some()) {
@@ -49,7 +53,7 @@ pub(crate) fn render(view: &View<'_>, ctx: &RenderContext<'_>, tr: Translator) -
          </div>\
          <div class=\"user-links\">\
          <span class=\"user-id\">{signed_in}</span> \
-         <form method=\"post\" action=\"/logout?redirect={redirect}\">\
+         <form method=\"post\" action=\"/logout?redirect={logout_redirect}\">\
          <button type=\"submit\" class=\"logout\">{logout}</button></form>\
          </div></nav>\n",
         dashboard = escape_html(messages.admin_dashboard),
@@ -59,7 +63,27 @@ pub(crate) fn render(view: &View<'_>, ctx: &RenderContext<'_>, tr: Translator) -
             &format!("<strong>{}</strong>", escape_html(&viewer.name)),
         ),
         logout = escape_html(messages.log_out),
+        logout_redirect = urlencode(&logout_target(view, ctx)),
     )
+}
+
+/// Where Logout sends the reader: back to this page when it is public, else
+/// to the nearest page that is.
+fn logout_target(view: &View<'_>, ctx: &RenderContext<'_>) -> String {
+    let shown_publicly = match view {
+        View::Page => ctx.page.is_none_or(|page| page.is_public),
+        View::Item(resource) | View::ItemSet(resource) | View::Media(resource) => {
+            resource.is_public
+        }
+        _ => true,
+    };
+    if !ctx.site.is_public {
+        "/".to_string()
+    } else if shown_publicly {
+        ctx.current_path.clone()
+    } else {
+        site_url(&ctx.site.slug)
+    }
 }
 
 /// An admin editor the caller may open from the bar.

@@ -70,8 +70,8 @@ test('a preset, a brand and custom CSS reach the preview and the public page', a
   await expect.poll(() => computed(frame, '.header-inner', 'display'), { timeout: 10_000 }).toBe('flex');
   expect(await computed(frame, '.skip-link', 'position')).toBe('absolute');
 
-  // One click applies Civic: its brand band is the header's background.
-  await page.getByRole('button', { name: /^Civic/ }).click();
+  // One click applies Community: its brand band is the header's background.
+  await page.getByRole('button', { name: /^Community/ }).click();
   await expect.poll(() => rootProperty(frame, '--color-brand'), { timeout: 10_000 }).toBe('#0b57d0');
   await expect
     .poll(() => computed(frame, 'header', 'background-color'), { timeout: 10_000 })
@@ -100,6 +100,44 @@ test('a preset, a brand and custom CSS reach the preview and the public page', a
   expect(await css('.header-inner', 'display')).toBe('flex');
   expect(await css('.site-title a', 'color')).toBe(TITLE_RED);
   expect(await css('header', 'background-color')).toBe('rgb(124, 58, 237)');
+});
+
+test('a preset sets the page structure and the Footer section reaches the public page', async ({ page }) => {
+  await holdKey(page);
+  await openThemePage(page);
+  const frame = previewFrame(page);
+
+  await page.getByRole('button', { name: /^Exhibit/ }).click();
+  // Exhibit's structure is classes on the root, and its fonts load from the theme.
+  await expect
+    .poll(() => frame.locator('html').getAttribute('class'), { timeout: 10_000 })
+    .toBe('hero-cover cards-caption search-icon footer-columns item-stacked');
+
+  const footer = page.getByRole('group', { name: 'Footer' });
+  await footer.getByRole('button', { name: 'Add a column' }).click();
+  await footer.getByRole('textbox', { name: 'Column 1' }).fill('Open Tuesday to Sunday.');
+  await footer.getByLabel('Licence').selectOption('cc-by');
+  await footer.getByRole('checkbox', { name: 'Show "Powered by Romeka S"' }).uncheck();
+  await expect(frame.locator('.licence-badge')).toHaveText('ccCC BY 4.0', { timeout: 10_000 });
+
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+
+  await page.goto(`/s/${SITE_SLUG}/page/${WELCOME_SLUG}`);
+  const publicFooter = page.getByRole('contentinfo');
+  await expect(publicFooter.getByText('Open Tuesday to Sunday.')).toBeVisible();
+  await expect(publicFooter.getByRole('link', { name: 'CC BY 4.0' })).toHaveAttribute(
+    'href',
+    'https://creativecommons.org/licenses/by/4.0/',
+  );
+  await expect(publicFooter.getByText('Powered by Romeka S')).toHaveCount(0);
+  // The menu's links repeat in the footer until the curator sets their own.
+  await expect(publicFooter.getByRole('navigation', { name: 'Footer links' }).getByRole('link').first()).toBeVisible();
+  const font = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts].filter((face) => face.status === 'loaded').map((face) => face.family);
+  });
+  expect(font).toContain('Fraunces');
 });
 
 test('custom CSS the sanitiser refuses shows its error and is not saved', async ({ page }) => {

@@ -425,6 +425,18 @@ export const en = {
   'siteAccess.settings': 'Only site managers can change the site settings.',
   'siteAccess.delete': 'Only the site owner or an administrator can delete this site.',
   'itemPicker.itemFallback': 'Item {id}',
+  'romeka.map': 'Map',
+  'romekaHelp.map': 'The places of chosen items on a map, with the places listed below it.',
+  'resourcePageBlock.map': 'Map of the item\'s place',
+  'resourcePageBlock.mapHelp': 'The item\'s place on a map, from the site\'s location field.',
+  'siteSettingGroup.maps': 'Maps',
+  'siteSettingGroup.mapsIntro': 'Where an item\'s place is stored, and the background every map draws.',
+  'siteSetting.romekaLocationProperty': 'Location field',
+  'siteSetting.romekaLocationPropertyHelp': 'The property whose "lat, lng" values place an item on a map, for example Spatial Coverage. The item form offers a small map for it.',
+  'siteSetting.romekaMapTiles': 'Map tiles',
+  'siteSetting.romekaMapTilesHelp': 'A tile address with {z}, {x} and {y}. The default is OpenStreetMap, whose usage policy requires the credit line and forbids heavy use.',
+  'siteSetting.romekaMapAttribution': 'Map credit',
+  'siteSetting.romekaMapAttributionHelp': 'The credit line the tile provider requires, shown in the corner of every map.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

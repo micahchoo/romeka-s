@@ -39,20 +39,28 @@ The bundled theme is edited by tokens, not code. A site stores its choices in th
 
 | Key | What it holds |
 | --- | --- |
-| `preset` | one of `theme::presets::PRESETS`: `plain`, `archive`, `gallery`, `editorial`, `civic` |
+| `preset` | one of `theme::presets::PRESETS`: `exhibit`, `catalogue`, `gallery`, `journal`, `community`; the ids the first presets stored (`plain`, `archive`, `editorial`, `civic`) read as their replacements (`presets::LEGACY_IDS`) |
 | `derive_palette` | whether the palette is derived from the brand colour (default on) |
 | `brand_color` and the six other `*_color` keys | colours set by hand; under the `auto` scheme they are the light palette's |
 | `accent_color_dark` and the five other `*_color_dark` keys | the dark palette's colours under the `auto` scheme (`tokens::DARK_EDITABLE`); ignored under `light` and `dark` |
 | `color_scheme`, the fonts, sizes, `density`, `corner_radius`, `content_width`, `header_layout`, `header_style`, `button_style` | tokens set by hand |
-| `logo`, `banner`, `banner_text`, `footer_text` | header and footer content |
+| `hero_style`, `card_style`, `search_display`, `item_layout`, `footer_layout`, `footer_tone` | structural tokens set by hand |
+| `logo`, `banner`, `banner_text` | header content |
+| `footer_columns`, `footer_links`, `footer_contact`, `footer_licence`, `show_powered_by` | the footer (`theme::footer`); an old `footer_text` reads as the first column |
 | `custom_css` | the site's own CSS |
 
 `theme::tokens::Choices::from_value` is the boundary: it keeps the values the theme accepts and drops
 the rest. `theme::tokens::resolve` is the one function that turns choices into effective tokens: the
 preset's values, then a palette derived from the brand colour when derivation is on, then the values
-set by hand. A map with no `preset` was stored before presets and reads as `plain` with derivation off,
-the look those sites had; a site created through the API starts from `presets::NEW_SITE_PRESET`
-(`tokens::new_site_settings`, written by `omeka-api`'s site create).
+set by hand. A map with no `preset` was stored before presets and reads as `catalogue` (the preset that
+replaced `plain`) with derivation off; a site created through the API starts from
+`presets::NEW_SITE_PRESET`, `exhibit`, with its own palette (`tokens::new_site_settings`, written by
+`omeka-api`'s site create).
+
+The presets differ in structure as well as colour. Each structural token is a class on the root
+element (`hero-cover`, `cards-row`, `search-icon`, `footer-columns`, `item-side` and their siblings)
+that `style.css` keys the layout on; the footer tone is a set of `--footer-*` properties, as the header
+style is a set of `--header-*` ones.
 
 `theme::palette::derive` builds a light and a dark palette from one colour in OKLab
 (`theme::color`): the backgrounds take the brand's hue at the preset's lightness, and each text colour
@@ -63,15 +71,22 @@ brand colour (`--color-on-brand`) is never stored; the theme picks it.
 
 `Tokens::css` emits the tokens as CSS custom properties in one `<style>` in the head, and
 `theme/style.css` uses those properties everywhere and names no colour of its own. A test checks that
-every property the sheet reads is one the tokens emit, for every preset. The font stacks are curated
-system stacks, so no font file is requested.
+every property the sheet reads is one the tokens emit, for every preset. A font is a curated system
+stack or a webfont the theme serves itself (`theme::fonts`: Fraunces, Source Sans 3, IBM Plex Sans,
+IBM Plex Mono, Inter, with the Noto faces for the Indic scripts). The frame declares and preloads only
+the faces the site's two fonts name, every face swaps in, and a Noto face loads only for its script.
+No font is requested from another origin.
 
 `theme::tokens::registry()` is serialised to `web/admin/src/generated/themeSettings.json`, which the
 admin Theme page renders. `theme::tokens_schema::samples()` is serialised to
 `web/admin/src/generated/themeSamples.json`: derived palettes, nearest-passing suggestions and resolved
 maps, which an admin test replays against its copy of the arithmetic. A Rust test keeps both files
-byte-identical. A resource without a thumbnail shows the theme's `img/placeholder.svg`, the port's
-stand-in for upstream's `default.png`.
+byte-identical.
+
+A resource list draws each resource as a card (`theme::cards`) built for poor data: with no thumbnail
+the card shows a tinted surface with the kind's icon and type, and with no title it shows the
+identifier without a file extension. The theme still ships `img/placeholder.svg` at its old URL, for
+custom CSS that names it.
 
 ### Custom CSS
 

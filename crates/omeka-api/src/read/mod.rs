@@ -24,6 +24,7 @@ mod php;
 mod probe;
 mod relations;
 mod resources;
+pub(crate) use resources::query_rows;
 mod resources_generic;
 mod system;
 mod term_lists;

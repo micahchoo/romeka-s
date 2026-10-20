@@ -17,7 +17,7 @@ import { SITE_SLUG, WELCOME_SLUG } from '../harness/seed';
 import { readHarness } from '../harness/state';
 
 /** The bundled theme's presets (`crates/omeka-site/src/theme/presets.rs`). */
-const PRESETS = ['plain', 'archive', 'gallery', 'editorial', 'civic'] as const;
+const PRESETS = ['exhibit', 'catalogue', 'gallery', 'journal', 'community'] as const;
 const SCHEMES = ['light', 'dark'] as const;
 
 const siteId = async (request: APIRequestContext): Promise<number> => {
@@ -135,5 +135,37 @@ test('Log in on the public site returns the reader to the page', async ({ page, 
     await expect(page.getByRole('navigation', { name: 'Omeka User' })).toContainText(`Signed in as ${adminName}`);
   } finally {
     await settings(null);
+  }
+});
+
+test('Logout from a private page returns the reader to the site home, not a 404', async ({ page, request }) => {
+  const site = await siteId(request);
+  const slug = `staff-notes-${String(Date.now())}`;
+  const created = await request.post('/api/site_pages', {
+    data: {
+      'o:site': { 'o:id': site },
+      'o:title': 'Staff notes',
+      'o:slug': slug,
+      'o:is_public': false,
+      'o:block': [{ 'o:layout': 'html', 'o:data': { html: '<p>For staff only.</p>' } }],
+    },
+  });
+  expect(created.status(), await created.text()).toBe(200);
+  const document: unknown = await created.json();
+  const pageId = typeof document === 'object' && document !== null && 'o:id' in document ? document['o:id'] : null;
+  try {
+    await signIn(page);
+    await page.goto(`/s/${SITE_SLUG}/page/${slug}`);
+    await expect(page.getByText('For staff only.')).toBeVisible();
+    await page.getByRole('navigation', { name: 'Omeka User' }).getByRole('button', { name: 'Logout' }).click();
+
+    // The site root answers with the first page its menu links.
+    await expect(page).toHaveURL(new RegExp(`/s/${SITE_SLUG}(/page/${WELCOME_SLUG})?$`));
+    await expect(page.getByText('This is the first page of your site.')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Omeka User' })).toHaveCount(0);
+  } finally {
+    if (typeof pageId === 'number') {
+      await request.delete(`/api/site_pages/${String(pageId)}`);
+    }
   }
 });

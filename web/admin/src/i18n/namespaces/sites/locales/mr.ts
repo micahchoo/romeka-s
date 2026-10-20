@@ -456,4 +456,19 @@ export const mr: SitesMessages = {
   'siteAccess.settings': 'केवळ साइट व्यवस्थापकच साइट सेटिंग्ज बदलू शकतात.',
   'siteAccess.delete': 'केवळ साइट मालक किंवा प्रशासक ही साइट हटवू शकतात.',
   'itemPicker.itemFallback': 'घटक {id}',
+  'romeka.map': 'नकाशा',
+  'romekaHelp.map': 'निवडलेल्या घटकांचे नकाशावरील स्थान, ज्यामध्ये खालील सूची दिली आहे.',
+  'resourcePageBlock.map': 'घटकाच्या स्थानाचा नकाशा',
+  'resourcePageBlock.mapHelp': 'साइटच्या स्थान क्षेत्रातून मिळालेले घटकाचे स्थान.',
+  'siteSettingGroup.maps': 'नकाशे',
+  'siteSettingGroup.mapsIntro': 'घटकाचे स्थान आणि नकाशाद्वारे रेखाटली जाणारी पार्श्वभूमी.',
+  'siteSetting.romekaLocationProperty': 'स्थान क्षेत्र',
+  'siteSetting.romekaLocationPropertyHelp':
+    '"lat, lng" मूल्ये असलेला गुणधर्म, जो घटकाला नकाशावर स्थान देतो, उदाहरणार्थ अवकाशीय व्याप्ती. घटकाचे स्वरूप याला एक लहान नकाशा प्रदान करते.',
+  'siteSetting.romekaMapTiles': 'नकाशाचे टायल्स',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} आणि {y} सह टायल्सचा पत्ता. डीफॉल्ट OpenStreetMap आहे, ज्याची वापर धोरण क्रेडिट ओळीची आवश्यकता असते आणि जड वापरास प्रतिबंध करते.',
+  'siteSetting.romekaMapAttribution': 'नकाशाचे श्रेय',
+  'siteSetting.romekaMapAttributionHelp':
+    'टायल्स प्रदात्याद्वारे आवश्यक असलेली श्रेय ओळ, जी प्रत्येक नकाशाच्या कोपऱ्यात दर्शविली जाते.',
 };

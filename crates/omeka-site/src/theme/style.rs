@@ -519,6 +519,32 @@ mod tests {
         assert!(missing.is_empty(), "classes with no rule: {missing:?}");
     }
 
+    /// A structural class sits on the root element, so no view may print the
+    /// same class on an element of its own: the sheet's rule for the one
+    /// would land on the other. A magnifier once shared `search-icon` with
+    /// the search token and shrank the whole page to its 20px.
+    #[test]
+    fn root_classes_never_name_an_element_class() {
+        use crate::theme::choices::{
+            CardStyle, FooterLayout, HeroStyle, ItemLayout, SearchDisplay,
+        };
+        let mut roots: Vec<&str> = Vec::new();
+        roots.extend(HeroStyle::ALL.iter().map(|v| v.class()));
+        roots.extend(CardStyle::ALL.iter().map(|v| v.class()));
+        roots.extend(SearchDisplay::ALL.iter().map(|v| v.class()));
+        roots.extend(FooterLayout::ALL.iter().map(|v| v.class()));
+        roots.extend(ItemLayout::ALL.iter().map(|v| v.class()));
+        for document in documents() {
+            let body = document.split_once("<body").map_or("", |(_, rest)| rest);
+            for attribute in body.split("class=\"").skip(1) {
+                let value = attribute.split('"').next().unwrap_or_default();
+                for class in value.split_whitespace() {
+                    assert!(!roots.contains(&class), "{class} is a root class");
+                }
+            }
+        }
+    }
+
     /// The sheet names no colour of its own. Colours arrive only as the custom
     /// properties the frame emits from the site's tokens, so a hard-coded value
     /// here would ignore the Theme page.
@@ -656,6 +682,10 @@ mod tests {
             "romeka-hero-cta-outline",
             "romeka-hero-actions",
             "romeka-hero-height-tall",
+            "romeka-map",
+            "romeka-map-canvas",
+            "romeka-map-poster",
+            "romeka-map-section",
             "romeka-section",
             "romeka-section-split-40-60",
             "romeka-section-cards-3",

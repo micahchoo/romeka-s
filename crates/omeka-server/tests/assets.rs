@@ -88,6 +88,26 @@ fn the_version_follows_the_bytes() {
     assert_ne!(placeholder.version(), version);
 }
 
+/// A webfont the theme ships is served as `font/woff2` under its path.
+#[tokio::test]
+async fn a_webfont_is_served_as_woff2() {
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+    let response = empty_router()
+        .await
+        .oneshot(get("/assets/fonts/inter-latin-opsz.woff2", false))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(header::CONTENT_TYPE).unwrap(),
+        "font/woff2"
+    );
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let font = theme_asset("default", "fonts/inter-latin-opsz.woff2").expect("the font");
+    assert_eq!(bytes.as_ref(), font.content);
+}
+
 /// A path no bundled theme ships is a 404 in the error document shape.
 #[tokio::test]
 async fn missing_asset_is_a_404_error_document() {

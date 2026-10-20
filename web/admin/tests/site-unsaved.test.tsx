@@ -42,9 +42,9 @@ const TABS: readonly {
 }[] = [
   {
     tab: 'theme',
-    ready: () => screen.findByRole('button', { name: /^Civic/ }),
+    ready: () => screen.findByRole('button', { name: /^Community/ }),
     edit: () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Civic/ }));
+      fireEvent.click(screen.getByRole('button', { name: /^Community/ }));
     },
   },
   {

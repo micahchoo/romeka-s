@@ -1,5 +1,12 @@
 {
-  "newSitePreset": "archive",
+  "newSitePreset": "exhibit",
+  "unsetPreset": "catalogue",
+  "legacyPresets": {
+    "archive": "exhibit",
+    "civic": "community",
+    "editorial": "journal",
+    "plain": "catalogue"
+  },
   "settings": [
     {
       "key": "preset",
@@ -7,11 +14,11 @@
       "helpKey": "themeSetting.presetHelp",
       "kind": "choice",
       "choices": [
-        "plain",
-        "archive",
+        "exhibit",
+        "catalogue",
         "gallery",
-        "editorial",
-        "civic"
+        "journal",
+        "community"
       ]
     },
     {
@@ -85,7 +92,12 @@
         "geometric",
         "transitional-serif",
         "didone",
-        "mono"
+        "mono",
+        "fraunces",
+        "source-sans-3",
+        "ibm-plex-sans",
+        "inter",
+        "ibm-plex-mono"
       ]
     },
     {
@@ -100,7 +112,12 @@
         "geometric",
         "transitional-serif",
         "didone",
-        "mono"
+        "mono",
+        "fraunces",
+        "source-sans-3",
+        "ibm-plex-sans",
+        "inter",
+        "ibm-plex-mono"
       ]
     },
     {
@@ -149,7 +166,8 @@
       "choices": [
         "narrow",
         "standard",
-        "wide"
+        "wide",
+        "full"
       ]
     },
     {
@@ -186,6 +204,70 @@
       ]
     },
     {
+      "key": "hero_style",
+      "labelKey": "themeSetting.heroStyle",
+      "helpKey": "themeSetting.heroStyleHelp",
+      "kind": "choice",
+      "choices": [
+        "cover",
+        "split",
+        "framed"
+      ]
+    },
+    {
+      "key": "card_style",
+      "labelKey": "themeSetting.cardStyle",
+      "helpKey": "themeSetting.cardStyleHelp",
+      "kind": "choice",
+      "choices": [
+        "caption",
+        "overlay",
+        "row"
+      ]
+    },
+    {
+      "key": "search_display",
+      "labelKey": "themeSetting.searchDisplay",
+      "helpKey": "themeSetting.searchDisplayHelp",
+      "kind": "choice",
+      "choices": [
+        "open",
+        "icon"
+      ]
+    },
+    {
+      "key": "item_layout",
+      "labelKey": "themeSetting.itemLayout",
+      "helpKey": "themeSetting.itemLayoutHelp",
+      "kind": "choice",
+      "choices": [
+        "stacked",
+        "side"
+      ]
+    },
+    {
+      "key": "footer_layout",
+      "labelKey": "themeSetting.footerLayout",
+      "helpKey": "themeSetting.footerLayoutHelp",
+      "kind": "choice",
+      "choices": [
+        "columns",
+        "split",
+        "inline"
+      ]
+    },
+    {
+      "key": "footer_tone",
+      "labelKey": "themeSetting.footerTone",
+      "helpKey": "themeSetting.footerToneHelp",
+      "kind": "choice",
+      "choices": [
+        "page",
+        "surface",
+        "inverse"
+      ]
+    },
+    {
       "key": "logo",
       "labelKey": "themeSetting.logo",
       "helpKey": "themeSetting.logoHelp",
@@ -204,10 +286,46 @@
       "kind": "text"
     },
     {
-      "key": "footer_text",
-      "labelKey": "themeSetting.footerText",
-      "helpKey": "themeSetting.footerTextHelp",
+      "key": "footer_columns",
+      "labelKey": "themeSetting.footerColumns",
+      "helpKey": "themeSetting.footerColumnsHelp",
+      "kind": "htmlColumns",
+      "max": 3
+    },
+    {
+      "key": "footer_links",
+      "labelKey": "themeSetting.footerLinks",
+      "helpKey": "themeSetting.footerLinksHelp",
+      "kind": "links"
+    },
+    {
+      "key": "footer_contact",
+      "labelKey": "themeSetting.footerContact",
+      "helpKey": "themeSetting.footerContactHelp",
       "kind": "html"
+    },
+    {
+      "key": "footer_licence",
+      "labelKey": "themeSetting.footerLicence",
+      "helpKey": "themeSetting.footerLicenceHelp",
+      "kind": "choice",
+      "choices": [
+        "none",
+        "cc-by",
+        "cc-by-sa",
+        "cc-by-nd",
+        "cc-by-nc",
+        "cc-by-nc-sa",
+        "cc-by-nc-nd",
+        "cc0",
+        "all-rights-reserved"
+      ]
+    },
+    {
+      "key": "show_powered_by",
+      "labelKey": "themeSetting.showPoweredBy",
+      "helpKey": "themeSetting.showPoweredByHelp",
+      "kind": "toggle"
     },
     {
       "key": "custom_css",
@@ -219,85 +337,97 @@
   ],
   "presets": [
     {
-      "id": "plain",
-      "labelKey": "themePreset.plain",
-      "descriptionKey": "themePreset.plainDescription",
+      "id": "exhibit",
+      "labelKey": "themePreset.exhibit",
+      "descriptionKey": "themePreset.exhibitDescription",
       "recipe": {
-        "tint": 0.3,
-        "paper": 1.0,
-        "ink": 0.19
-      },
-      "light": {
-        "brand": "#6aa9d6",
-        "accent": "#b45309",
-        "background": "#ffffff",
-        "surface": "#f5f7f8",
-        "text": "#222222",
-        "muted": "#5a6470",
-        "link": "#1a5d8f"
-      },
-      "dark": {
-        "brand": "#6aa9d6",
-        "accent": "#e8b27a",
-        "background": "#12161a",
-        "surface": "#1b2126",
-        "text": "#e8ecef",
-        "muted": "#9aa6b2",
-        "link": "#8ab6e8"
-      },
-      "tokens": {
-        "color_scheme": "light",
-        "heading_font": "system-serif",
-        "body_font": "system-sans",
-        "base_font_size": 16,
-        "type_ratio": 125,
-        "density": "comfortable",
-        "corner_radius": 4,
-        "content_width": "standard",
-        "header_layout": "logo-left",
-        "header_style": "plain",
-        "button_style": "soft"
-      }
-    },
-    {
-      "id": "archive",
-      "labelKey": "themePreset.archive",
-      "descriptionKey": "themePreset.archiveDescription",
-      "recipe": {
-        "tint": 1.8,
-        "paper": 0.975,
+        "tint": 1.6,
+        "paper": 0.965,
         "ink": 0.2
       },
       "light": {
-        "brand": "#7a4a14",
-        "accent": "#6b5420",
-        "background": "#faf6ee",
-        "surface": "#f0e8d8",
-        "text": "#2b241c",
-        "muted": "#675a49",
-        "link": "#7a4a14"
+        "brand": "#8c2f1b",
+        "accent": "#8c2f1b",
+        "background": "#f6f2ea",
+        "surface": "#ebe4d6",
+        "text": "#1f1b16",
+        "muted": "#6a6052",
+        "link": "#8c2f1b"
       },
       "dark": {
-        "brand": "#d08a5a",
-        "accent": "#d9bf84",
-        "background": "#1d1915",
-        "surface": "#27221c",
-        "text": "#efe7da",
-        "muted": "#b5a893",
-        "link": "#e3a477"
+        "brand": "#d9876a",
+        "accent": "#e9a07f",
+        "background": "#1c1915",
+        "surface": "#26221c",
+        "text": "#efe8dc",
+        "muted": "#b8ad9a",
+        "link": "#eba287"
       },
       "tokens": {
         "color_scheme": "light",
-        "heading_font": "transitional-serif",
-        "body_font": "system-serif",
+        "heading_font": "fraunces",
+        "body_font": "source-sans-3",
         "base_font_size": 17,
-        "type_ratio": 120,
-        "density": "comfortable",
+        "type_ratio": 125,
+        "density": "spacious",
         "corner_radius": 2,
-        "content_width": "standard",
+        "content_width": "wide",
         "header_layout": "centred",
         "header_style": "rule",
-        "button_style": "outline"
+        "button_style": "solid",
+        "hero_style": "cover",
+        "card_style": "caption",
+        "search_display": "icon",
+        "item_layout": "stacked",
+        "footer_layout": "columns",
+        "footer_tone": "inverse"
+      }
+    },
+    {
+      "id": "catalogue",
+      "labelKey": "themePreset.catalogue",
+      "descriptionKey": "themePreset.catalogueDescription",
+      "recipe": {
+        "tint": 0.4,
+        "paper": 0.985,
+        "ink": 0.19
+      },
+      "light": {
+        "brand": "#1d2a33",
+        "accent": "#0b5a63",
+        "background": "#fafaf9",
+        "surface": "#eef0f1",
+        "text": "#1b2227",
+        "muted": "#56616b",
+        "link": "#0b5a63"
+      },
+      "dark": {
+        "brand": "#2b3f4c",
+        "accent": "#7cc4cc",
+        "background": "#12171a",
+        "surface": "#1b2227",
+        "text": "#e6ebee",
+        "muted": "#a0acb5",
+        "link": "#7cc4cc"
+      },
+      "tokens": {
+        "color_scheme": "light",
+        "heading_font": "ibm-plex-sans",
+        "body_font": "ibm-plex-sans",
+        "base_font_size": 15,
+        "type_ratio": 120,
+        "density": "compact",
+        "corner_radius": 3,
+        "content_width": "wide",
+        "header_layout": "logo-left",
+        "header_style": "band",
+        "button_style": "solid",
+        "hero_style": "split",
+        "card_style": "row",
+        "search_display": "open",
+        "item_layout": "side",
+        "footer_layout": "inline",
+        "footer_tone": "surface"
       }
     },
     {
@@ -311,81 +441,93 @@
       },
       "light": {
         "brand": "#1c1c1c",
-        "accent": "#a3540f",
+        "accent": "#8a5a12",
         "background": "#fafafa",
         "surface": "#f0f0f0",
         "text": "#161616",
         "muted": "#5c5c5c",
-        "link": "#1c1c1c"
+        "link": "#7a4f0e"
       },
       "dark": {
-        "brand": "#f2f2f2",
-        "accent": "#f0b35a",
-        "background": "#0f0f10",
-        "surface": "#1a1a1c",
-        "text": "#ededed",
-        "muted": "#a6a6a6",
-        "link": "#c9d7ff"
+        "brand": "#f0c27a",
+        "accent": "#f0c27a",
+        "background": "#111214",
+        "surface": "#1c1e22",
+        "text": "#ecebe8",
+        "muted": "#a3a29d",
+        "link": "#f0c27a"
       },
       "tokens": {
         "color_scheme": "dark",
-        "heading_font": "geometric",
-        "body_font": "system-sans",
-        "base_font_size": 15,
-        "type_ratio": 130,
-        "density": "compact",
+        "heading_font": "inter",
+        "body_font": "inter",
+        "base_font_size": 16,
+        "type_ratio": 140,
+        "density": "comfortable",
         "corner_radius": 0,
-        "content_width": "wide",
+        "content_width": "full",
         "header_layout": "logo-left",
         "header_style": "minimal",
-        "button_style": "outline"
+        "button_style": "solid",
+        "hero_style": "framed",
+        "card_style": "overlay",
+        "search_display": "icon",
+        "item_layout": "stacked",
+        "footer_layout": "split",
+        "footer_tone": "page"
       }
     },
     {
-      "id": "editorial",
-      "labelKey": "themePreset.editorial",
-      "descriptionKey": "themePreset.editorialDescription",
+      "id": "journal",
+      "labelKey": "themePreset.journal",
+      "descriptionKey": "themePreset.journalDescription",
       "recipe": {
-        "tint": 0.0,
-        "paper": 1.0,
-        "ink": 0.17
+        "tint": 0.8,
+        "paper": 0.99,
+        "ink": 0.19
       },
       "light": {
-        "brand": "#111111",
-        "accent": "#b3001b",
-        "background": "#ffffff",
-        "surface": "#f4f3ef",
-        "text": "#121212",
-        "muted": "#545454",
-        "link": "#b3001b"
+        "brand": "#7a2318",
+        "accent": "#7a2318",
+        "background": "#fffdf8",
+        "surface": "#f3efe6",
+        "text": "#1d1a16",
+        "muted": "#5f574b",
+        "link": "#7a2318"
       },
       "dark": {
-        "brand": "#f5f5f5",
-        "accent": "#ff6b7a",
-        "background": "#141414",
-        "surface": "#1f1f1f",
-        "text": "#f2f2f2",
-        "muted": "#a8a8a8",
-        "link": "#ff8a96"
+        "brand": "#e39a86",
+        "accent": "#eba287",
+        "background": "#1a1815",
+        "surface": "#24211d",
+        "text": "#eee8dd",
+        "muted": "#b5ab9b",
+        "link": "#eba287"
       },
       "tokens": {
         "color_scheme": "light",
-        "heading_font": "didone",
-        "body_font": "transitional-serif",
+        "heading_font": "fraunces",
+        "body_font": "fraunces",
         "base_font_size": 18,
-        "type_ratio": 140,
+        "type_ratio": 125,
         "density": "spacious",
         "corner_radius": 0,
         "content_width": "narrow",
         "header_layout": "centred",
         "header_style": "rule",
-        "button_style": "solid"
+        "button_style": "outline",
+        "hero_style": "cover",
+        "card_style": "caption",
+        "search_display": "icon",
+        "item_layout": "stacked",
+        "footer_layout": "inline",
+        "footer_tone": "page"
       }
     },
     {
-      "id": "civic",
-      "labelKey": "themePreset.civic",
-      "descriptionKey": "themePreset.civicDescription",
+      "id": "community",
+      "labelKey": "themePreset.community",
+      "descriptionKey": "themePreset.communityDescription",
       "recipe": {
         "tint": 0.6,
         "paper": 1.0,
@@ -411,16 +553,22 @@
       },
       "tokens": {
         "color_scheme": "light",
-        "heading_font": "humanist",
-        "body_font": "humanist",
-        "base_font_size": 16,
+        "heading_font": "inter",
+        "body_font": "inter",
+        "base_font_size": 17,
         "type_ratio": 125,
-        "density": "comfortable",
+        "density": "spacious",
         "corner_radius": 8,
         "content_width": "wide",
         "header_layout": "logo-left",
         "header_style": "band",
-        "button_style": "solid"
+        "button_style": "solid",
+        "hero_style": "split",
+        "card_style": "caption",
+        "search_display": "open",
+        "item_layout": "side",
+        "footer_layout": "columns",
+        "footer_tone": "surface"
       }
     }
   ],

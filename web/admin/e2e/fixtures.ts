@@ -95,9 +95,14 @@ export const test = base.extend<Fixtures>({
     await use({
       consoleErrors,
       failedRequests,
+      // A request the previous page left behind belongs to that page: the browser
+      // may never report it finished once the page is gone, so the next step
+      // starts with no pending request.
       reset: () => {
         consoleErrors.length = 0;
         failedRequests.length = 0;
+        pending.clear();
+        lastChange = Date.now();
       },
       idle: async () => {
         const deadline = Date.now() + IDLE_TIMEOUT_MS;

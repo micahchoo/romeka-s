@@ -66,4 +66,14 @@ export const hi: ResourcesMessages = {
   'items.bulkConfirmAdd': '{site} में {count} जोड़ें',
   'items.bulkDone': '{site} में अब {total} आइटम हैं।',
   'items.bulkConfirmRemove': '{site} से {count} हटाएँ',
+  'place.legend': 'मैप पर रखें: {field}',
+  'place.help':
+    'मैप पर क्लिक करें, या "lat, lng" टाइप करें। प्रत्येक स्थान को {term} मान के रूप में सहेजा जाता है, जिसे साइट के मैप्स दिखाते हैं।',
+  'place.mapLabel': 'मैप: चयनित स्थान सेट करने के लिए क्लिक करें',
+  'place.value': 'स्थान {number}',
+  'place.remove': 'स्थान {number} हटाएँ',
+  'place.add': 'स्थान जोड़ें',
+  'place.invalid':
+    '-90 से 90 के बीच अक्षांश, एक अल्पविराम, और -180 से 180 के बीच देशांतर टाइप करें।',
+  'place.unavailable': 'मैप लोड नहीं हो सका। स्थान को "lat, lng" के रूप में टाइप करें।',
 };
