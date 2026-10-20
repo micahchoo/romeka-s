@@ -28,6 +28,9 @@ export const te: ImportMessages = {
   'home.server.starting': 'ప్రారంభిస్తోంది...',
   'home.server.top': 'పై ఫోల్డర్‌కు వెళ్లండి',
   'home.computer.title': 'ఈ కంప్యూటర్‌లో',
+  'home.computer.note':
+    'ఈ కంప్యూటర్ నుండి ఫైల్‌లు, ఫోల్డర్ లేదా జిప్ ఫైల్‌ను పంపండి. మీరు తదుపరి పేజీలో వాటిని జోడిస్తారు.',
+  'home.computer.start': 'ఈ కంప్యూటర్ నుండి ఫైల్‌లతో ప్రారంభించండి',
   'home.past.title': 'గత ఇంపోర్ట్‌లు',
   'home.past.empty': 'ఇంకా గత ఇంపోర్ట్‌లు లేవు. ఒకటి ప్రారంభించడానికి పైన ఒక ఫోల్డర్‌ను ఎంచుకోండి.',
   'home.past.resource': 'ఇంపోర్ట్‌లు',
@@ -55,6 +58,7 @@ export const te: ImportMessages = {
   'status.partly_undone': 'పాక్షికంగా రద్దు చేయబడింది: కొన్ని ఐటమ్‌లు ఉంచబడ్డాయి',
   'status.undo_failed': 'రద్దు చివరికి ముందే ఆగిపోయింది',
   'shell.loading': 'ఇంపోర్ట్ లోడ్ అవుతోంది...',
+  'shell.firstLook': 'మీ ఫైళ్లను మొదటిసారి పరిశీలిస్తున్నాం...',
   'shell.badId': '"{param}" అనేది ఇంపోర్ట్ సంఖ్య కాదు.',
   'shell.badScreen': 'ఈ ఇంపోర్ట్‌కు ఆ పేరుతో పేజీ లేదు.',
   'shell.fromStart': 'ఇంపోర్ట్‌ను మొదటి నుండి తెరవండి',
@@ -152,7 +156,8 @@ export const te: ImportMessages = {
   'upload.state.waiting': 'వేచి ఉండండి',
   'upload.state.sending': 'పంపండి',
   'upload.state.paused': 'విరామం ఇవ్వబడింది',
-  'upload.state.needsFile': '{size} లో {sent} వద్ద ఆగిపోయింది. కొనసాగించడానికి ఈ ఫైల్‌ను మళ్ళీ జోడించండి.',
+  'upload.state.needsFile':
+    '{size} లో {sent} వద్ద ఆగిపోయింది. కొనసాగించడానికి ఈ ఫైల్‌ను మళ్ళీ జోడించండి.',
   'upload.state.unpacking': 'జిప్ ఫైల్‌ను విడదీస్తోంది...',
   'upload.state.done': 'పంపబడినవి',
   'upload.state.unpacked': 'విడదీయబడింది. దీని ఫైల్‌లు జోడించబడ్డాయి.',

@@ -28,6 +28,9 @@ export const mr: ImportMessages = {
   'home.server.starting': 'सुरू होत आहे...',
   'home.server.top': 'मुख्य फोल्डरवर जा',
   'home.computer.title': 'या संगणकावर',
+  'home.computer.note':
+    'या संगणकावरून फाईल्स, फोल्डर किंवा झिप फाईल पाठवा. तुम्ही पुढील पृष्ठावर त्या जोडता.',
+  'home.computer.start': 'या संगणकातील फाईल्सपासून सुरुवात करा',
   'home.past.title': 'मागील आयात',
   'home.past.empty': 'अद्याप कोणतीही मागील आयात नाही. सुरुवात करण्यासाठी वरून एक फोल्डर निवडा.',
   'home.past.resource': 'आयात',
@@ -55,6 +58,7 @@ export const mr: ImportMessages = {
   'status.partly_undone': 'अंशतः पूर्ववत केले: काही आयटम ठेवले गेले',
   'status.undo_failed': 'पूर्ववत शेवट होण्यापूर्वी थांबले',
   'shell.loading': 'आयात लोड करत आहे...',
+  'shell.firstLook': 'तुमच्या फाईल्स पहिल्यांदा तपासत आहोत...',
   'shell.badId': '"{param}" हा आयातीचा क्रमांक नाही.',
   'shell.badScreen': 'या आयातीमध्ये त्या नावाचे पान नाही.',
   'shell.fromStart': 'आयात सुरुवातीपासून उघडा',
@@ -152,7 +156,8 @@ export const mr: ImportMessages = {
   'upload.state.waiting': 'प्रतीक्षा',
   'upload.state.sending': 'पाठवणे',
   'upload.state.paused': 'थांबवले',
-  'upload.state.needsFile': '{size} पैकी {sent} वर थांबले. पुढे सुरू ठेवण्यासाठी ही फाईल पुन्हा जोडा.',
+  'upload.state.needsFile':
+    '{size} पैकी {sent} वर थांबले. पुढे सुरू ठेवण्यासाठी ही फाईल पुन्हा जोडा.',
   'upload.state.unpacking': 'झिप फाईल उलगडत आहे...',
   'upload.state.done': 'पाठवले',
   'upload.state.unpacked': 'उलगडले. याची फाईल्स जोडल्या आहेत.',

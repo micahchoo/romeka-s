@@ -64,6 +64,7 @@ export const en = {
   'status.undo_failed': 'Undo stopped before the end',
   // The frame around one import: mode, steps, saving.
   'shell.loading': 'Loading the import...',
+  'shell.firstLook': 'Looking at your files for the first time...',
   'shell.badId': '"{param}" is not the number of an import.',
   'shell.badScreen': 'This import has no page with that name.',
   'shell.fromStart': 'Open the import from the start',

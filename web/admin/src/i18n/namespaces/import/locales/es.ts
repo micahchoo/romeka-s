@@ -55,6 +55,7 @@ export const es: ImportMessages = {
   'status.partly_undone': 'Deshecha en parte: se conservaron algunos elementos',
   'status.undo_failed': 'El deshacer se detuvo antes del final',
   'shell.loading': 'Cargando la importación...',
+  'shell.firstLook': 'Mirando tus archivos por primera vez...',
   'shell.badId': '"{param}" no es el número de una importación.',
   'shell.badScreen': 'Esta importación no tiene ninguna página con ese nombre.',
   'shell.fromStart': 'Abrir la importación desde el principio',

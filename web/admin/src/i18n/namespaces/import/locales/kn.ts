@@ -28,6 +28,9 @@ export const kn: ImportMessages = {
   'home.server.starting': 'ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ...',
   'home.server.top': 'ಮೇಲಿನ ಫೋಲ್ಡರ್‌ಗೆ ಹೋಗಿ',
   'home.computer.title': 'ಈ ಕಂಪ್ಯೂಟರ್‌ನಲ್ಲಿ',
+  'home.computer.note':
+    'ಈ ಕಂಪ್ಯೂಟರ್‌ನಿಂದ ಫೈಲ್‌ಗಳು, ಫೋಲ್ಡರ್ ಅಥವಾ ಜಿಪ್ ಫೈಲ್ ಕಳುಹಿಸಿ. ನೀವು ಮುಂದಿನ ಪುಟದಲ್ಲಿ ಅವುಗಳನ್ನು ಸೇರಿಸುತ್ತೀರಿ.',
+  'home.computer.start': 'ಈ ಕಂಪ್ಯೂಟರ್‌ನಿಂದ ಫೈಲ್‌ಗಳೊಂದಿಗೆ ಪ್ರಾರಂಭಿಸಿ',
   'home.past.title': 'ಹಿಂದಿನ ಇಂಪೋರ್ಟ್‌ಗಳು',
   'home.past.empty':
     'ಇನ್ನೂ ಹಿಂದಿನ ಇಂಪೋರ್ಟ್‌ಗಳಿಲ್ಲ. ಒಂದನ್ನು ಪ್ರಾರಂಭಿಸಲು ಮೇಲೆ ಒಂದು ಫೋಲ್ಡರ್ ಅನ್ನು ಆರಿಸಿ.',
@@ -56,6 +59,7 @@ export const kn: ImportMessages = {
   'status.partly_undone': 'ಭಾಗಶಃ ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ: ಕೆಲವು ಐಟಂಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ',
   'status.undo_failed': 'ರದ್ದುಗೊಳಿಸುವಿಕೆ ಕೊನೆಯ ಮೊದಲೇ ನಿಂತಿತು',
   'shell.loading': 'ಇಂಪೋರ್ಟ್ ಲೋಡ್ ಆಗುತ್ತಿದೆ...',
+  'shell.firstLook': 'ನಿಮ್ಮ ಫೈಲ್‌ಗಳನ್ನು ಮೊದಲ ಬಾರಿಗೆ ನೋಡಲಾಗುತ್ತಿದೆ...',
   'shell.badId': '"{param}" ಒಂದು ಇಂಪೋರ್ಟ್‌ನ ಸಂಖ್ಯೆಯಲ್ಲ.',
   'shell.badScreen': 'ಈ ಇಂಪೋರ್ಟ್‌ನಲ್ಲಿ ಆ ಹೆಸರಿನ ಪುಟವಿಲ್ಲ.',
   'shell.fromStart': 'ಇಂಪೋರ್ಟ್ ಅನ್ನು ಆರಂಭದಿಂದ ತೆರೆಯಿರಿ',
@@ -153,7 +157,8 @@ export const kn: ImportMessages = {
   'upload.state.waiting': 'ಕಾಯಲಾಗುತ್ತಿದೆ',
   'upload.state.sending': 'ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ',
   'upload.state.paused': 'ವಿರಾಮಗೊಳಿಸಲಾಗಿದೆ',
-  'upload.state.needsFile': '{size} ರಲ್ಲಿ {sent} ಬಳಿ ನಿಲ್ಲಿಸಲಾಗಿದೆ. ಮುಂದುವರಿಸಲು ಈ ಫೈಲ್ ಅನ್ನು ಮತ್ತೆ ಸೇರಿಸಿ.',
+  'upload.state.needsFile':
+    '{size} ರಲ್ಲಿ {sent} ಬಳಿ ನಿಲ್ಲಿಸಲಾಗಿದೆ. ಮುಂದುವರಿಸಲು ಈ ಫೈಲ್ ಅನ್ನು ಮತ್ತೆ ಸೇರಿಸಿ.',
   'upload.state.unpacking': 'ಜಿಪ್ ಫೈಲ್ ಅನ್ನು ಬಿಡಿಸಲಾಗುತ್ತಿದೆ...',
   'upload.state.done': 'ಕಳುಹಿಸಲಾಗಿದೆ',
   'upload.state.unpacked': 'ಬಿಡಿಸಲಾಗಿದೆ. ಇದರ ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ.',
@@ -165,12 +170,14 @@ export const kn: ImportMessages = {
   'upload.resumeFile': '{name} ಅನ್ನು ಮುಂದುವರಿಸಿ',
   'upload.removeFile': '{name} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
   'upload.retryFile': '{name} ಅನ್ನು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ',
-  'upload.announce.finished': '{name} ಅನ್ನು ಕಳುಹಿಸಲಾಗಿದೆ. ಪೂರ್ಣಗೊಂಡ ಫೈಲ್‌ಗಳು: {count} ರಲ್ಲಿ {done}.',
+  'upload.announce.finished':
+    '{name} ಅನ್ನು ಕಳುಹಿಸಲಾಗಿದೆ. ಪೂರ್ಣಗೊಂಡ ಫೈಲ್‌ಗಳು: {count} ರಲ್ಲಿ {done}.',
   'upload.announce.failed': '{name} ಅನ್ನು ಕಳುಹಿಸಲಾಗಿಲ್ಲ. {reason}',
   'upload.announce.allDone': 'ಎಲ್ಲಾ ಫೈಲ್‌ಗಳನ್ನು ಕಳುಹಿಸಲಾಗಿದೆ.',
   'upload.problem.fileTooLarge':
     'ಈ ಫೈಲ್ {limit} ಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ, ಒಂದು ಫೈಲ್‌ನಲ್ಲಿ ಇರಬಹುದಾದ ಗರಿಷ್ಠ ಮಿತಿ. ಇದನ್ನು ಸಣ್ಣ ಫೈಲ್‌ಗಳಾಗಿ ವಿಭಜಿಸಿ, ಅಥವಾ ಮಿತಿಯನ್ನು ಹೆಚ್ಚಿಸಲು ನಿರ್ವಾಹಕರನ್ನು ಕೇಳಿ.',
-  'upload.problem.importFull': 'ಈ ಆಮದಿನಲ್ಲಿ ಈ ಫೈಲ್‌ಗೆ ಸ್ಥಳವಿಲ್ಲ: ಇದು {limit} ವರೆಗೆ ಹಿಡಿಯಬಲ್ಲದು, ಮತ್ತು {used} ಬಳಕೆಯಾಗಿದೆ. ಕೆಲವು ಫೈಲ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ, ಅಥವಾ ಉಳಿದವುಗಳನ್ನು ಮತ್ತೊಂದು ಆಮದಿನಲ್ಲಿ ಇರಿಸಿ.',
+  'upload.problem.importFull':
+    'ಈ ಆಮದಿನಲ್ಲಿ ಈ ಫೈಲ್‌ಗೆ ಸ್ಥಳವಿಲ್ಲ: ಇದು {limit} ವರೆಗೆ ಹಿಡಿಯಬಲ್ಲದು, ಮತ್ತು {used} ಬಳಕೆಯಾಗಿದೆ. ಕೆಲವು ಫೈಲ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ, ಅಥವಾ ಉಳಿದವುಗಳನ್ನು ಮತ್ತೊಂದು ಆಮದಿನಲ್ಲಿ ಇರಿಸಿ.',
   'upload.problem.badName':
     'ಸರ್ವರ್ ಈ ಹೆಸರನ್ನು ಬಳಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಫೈಲ್ ಅಥವಾ ಅದರ ಫೋಲ್ಡರ್ ಅನ್ನು ಮರುನಾಮಕರಣ ಮಾಡಿ, ನಂತರ ಅದನ್ನು ಮತ್ತೆ ಸೇರಿಸಿ.',
   'upload.problem.importStarted':

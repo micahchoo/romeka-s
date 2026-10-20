@@ -28,6 +28,9 @@ export const hi: ImportMessages = {
   'home.server.starting': 'शुरू हो रहा है...',
   'home.server.top': 'शीर्ष फ़ोल्डर पर जाएँ',
   'home.computer.title': 'इस कंप्यूटर पर',
+  'home.computer.note':
+    'इस कंप्यूटर से फ़ाइलें, एक फोल्डर या एक ज़िप फ़ाइल भेजें। आप उन्हें अगले पृष्ठ पर जोड़ते हैं।',
+  'home.computer.start': 'इस कंप्यूटर से फ़ाइलों के साथ शुरू करें',
   'home.past.title': 'पिछले आयात',
   'home.past.empty': 'अभी तक कोई पिछला आयात नहीं है। शुरू करने के लिए ऊपर से एक फ़ोल्डर चुनें।',
   'home.past.resource': 'आयात',
@@ -55,6 +58,7 @@ export const hi: ImportMessages = {
   'status.partly_undone': 'आंशिक रूप से पूर्ववत: कुछ आइटम रखे गए',
   'status.undo_failed': 'पूर्ववत अंत से पहले रुक गया',
   'shell.loading': 'आयात लोड किया जा रहा है...',
+  'shell.firstLook': 'अपनी फ़ाइलों को पहली बार देख रहे हैं...',
   'shell.badId': '"{param}" आयात का नंबर नहीं है।',
   'shell.badScreen': 'इस आयात में उस नाम का कोई पेज नहीं है।',
   'shell.fromStart': 'आयात को शुरुआत से खोलें',
@@ -143,7 +147,8 @@ export const hi: ImportMessages = {
   'upload.overall': '{size} में से {sent} भेजा गया। पूरी हुई फ़ाइलें: {count} में से {done}।',
   'upload.pauseAll': 'सभी को रोकें',
   'upload.resumeAll': 'सभी को फिर से शुरू करें',
-  'upload.leaveNote': 'यदि आप यह पृष्ठ छोड़ देते हैं, तो भेजना रुक जाता है। वापस आएँ और वही फ़ाइलें फिर से जोड़ें, ताकि भेजना वहीं से आगे बढ़े जहाँ रुका था।',
+  'upload.leaveNote':
+    'यदि आप यह पृष्ठ छोड़ देते हैं, तो भेजना रुक जाता है। वापस आएँ और वही फ़ाइलें फिर से जोड़ें, ताकि भेजना वहीं से आगे बढ़े जहाँ रुका था।',
   'upload.listLabel': 'भेजी जा रही फ़ाइलें',
   'upload.doneList': 'भेजे गए: {count}',
   'upload.moreRows': 'और {count} अधिक।',
@@ -151,7 +156,8 @@ export const hi: ImportMessages = {
   'upload.state.waiting': 'प्रतीक्षा',
   'upload.state.sending': 'भेजना',
   'upload.state.paused': 'विराम',
-  'upload.state.needsFile': '{size} में से {sent} पर रुका। जारी रखने के लिए यह फ़ाइल फिर से जोड़ें।',
+  'upload.state.needsFile':
+    '{size} में से {sent} पर रुका। जारी रखने के लिए यह फ़ाइल फिर से जोड़ें।',
   'upload.state.unpacking': 'ज़िप फ़ाइल को अनज़िप करना...',
   'upload.state.done': 'भेजे गए',
   'upload.state.unpacked': 'अनज़िप किया गया। इसकी फ़ाइलें जोड़ दी गई हैं।',
