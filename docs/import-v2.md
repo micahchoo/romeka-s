@@ -290,6 +290,10 @@ item-set records; for media, the media of the matched item.
   single-valued slot (it adds sets and sites); `revise` writes slots with values; `update` writes
   every mapped slot (empty clears); `replace` also clears unmapped template, class, owner, sets and
   sites, and keeps visibility (the run always maps owner and visibility from the plan defaults).
+- `update` and `replace` also write the default item type, owner and visibility (upstream writes
+  the form's defaults on every action); `revise` writes only slots with values (a deliberate
+  difference: it never turns public items private). A `delete` run makes no new fields, types or
+  sets, and deletes media, then items, then item sets.
 - Append compares values by term, type, text and language (a URI by its URI, a link by its id).
 - Removing a value removes its annotation; a restore makes the annotation again.
 - The title is recomputed on every write, as upstream's title hydrator does.
@@ -419,7 +423,8 @@ The admin has two modes over one plan, switchable at any time without losing wor
   undo with `force` can finish it. `undo_failed` means an error.
 - The before-image also holds the resource's `modified`, and a restore puts it back, so undoing a
   later import does not make an earlier import's resources look edited.
-- The stop route also stops an undo.
+- The stop route also stops an undo; a stopped undo ends `undo_failed` with `stopped: true`.
+- Undo orders rows by rank, kind and id, never by written time.
 - Forcing a template or field deletes other resources' values of it; the confirmation says so.
 - Times are whole seconds; an edit in the same second as the import's write is not seen.
 - `modified` now also moves on media reordering, site item pools, site item-set lists and batch
@@ -522,7 +527,8 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   paths reattach their decisions.
 - **left.csv** is written to the store when a run ends (`imports/<id>/left.csv`): the left-out and
   failed entries with `#reason`. It no longer depends on the folder staying put.
-- **Undo** acts on one import that is `done`, `run_failed` or `undo_failed`. Order: restore changed
+- **Undo** acts on one import that is `done`, `run_failed`, `undo_failed` or `partly_undone`, and
+  never on one whose ledger records a delete. Order: restore changed
   resources from before-images; delete created media; delete created items; delete created item
   sets, templates and properties that nothing else uses. For each resource:
   - not touched: deleted (created) or restored (changed), through the API write paths;
@@ -613,6 +619,7 @@ All need a signed-in global admin or site admin.
 | `POST /api/romeka/imports/{id}/preview` `{ include, plan?, records?, entries? }` | sections below |
 | `POST /api/romeka/imports/{id}/run` `{ digest, confirm? }` | `{ jobId }`; also a retry |
 | `POST /api/romeka/imports/{id}/stop` | 202; the job stops after the record in hand |
+| `GET /api/romeka/imports/{id}/undo/preview[?force=all]` | `{ remove, restore, kept, skipped, forced }`, read-only |
 | `POST /api/romeka/imports/{id}/undo` `{ force?: Array<{ kind, id }> \| 'all' }` | `{ jobId }` |
 | `GET /api/romeka/imports/{id}/left.csv` | the stored file |
 | `/api/romeka/imports/{id}/uploads[/{upload}]` | tus 1.0 core |
@@ -770,6 +777,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P5-actions | unit-test-verified | 2,206 workspace tests x3; 403 MySQL tests each engine; S13, S9 update/replace + exact undo, undo B then A, undo preview equals undo; 11 mutations |
 | P3-extras | unit-test-verified | 2,155 workspace tests; 9 mutations; 40k preview with every section 545-595 ms quiet, over 600 ms under load 14-17 |
 | P5-undo | unit-test-verified | 2,110 workspace tests; 393 MySQL tests each on 8.0 and MariaDB 11; S9b, S10, later import, stopped run, interrupted undo; 5 write paths fixed to move modified |
 | P3-facts | unit-test-verified | 2,135 workspace tests; S1 with groups; list round trip with a Devanagari title through the routes and a run; 40k preview with every section 534-548 ms; formula guard round-trips exactly |

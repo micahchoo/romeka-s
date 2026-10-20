@@ -25,6 +25,7 @@ mod import_evidence;
 mod import_index;
 mod import_ledger;
 mod import_lifecycle;
+mod import_made;
 mod import_state;
 mod import_touched;
 mod import_writes;

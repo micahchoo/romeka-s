@@ -435,3 +435,49 @@ on_both!(a_media_and_an_item_set_restore_too, |pool| {
         }
     }
 });
+
+on_both!(a_restore_puts_back_the_modified_time, |pool| {
+    let w = world!(pool);
+    let id = rich_item!(pool, w);
+    import_db::exec_id!(
+        pool,
+        "UPDATE resource SET modified = '2001-02-03 04:05:06' WHERE id = ?",
+        id.0
+    );
+    let target = ImportResource::Item(id);
+    let image = image_of!(pool, target);
+    let modified = |pool| async move {
+        ResourceRepo::<Db>::new(pool)
+            .get(id.as_resource())
+            .await
+            .unwrap()
+            .unwrap()
+            .modified
+            .map(|at| at.to_string())
+    };
+    let mut tx = pool.begin().await.unwrap();
+    let mut writes = ImportWrites::<Db>::new(&mut tx);
+    writes
+        .apply_item(
+            id,
+            ImportAction::Replace,
+            &ImportFields::default(),
+            &ItemSlots::default(),
+        )
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    assert_ne!(modified(pool).await.as_deref(), Some("2001-02-03 04:05:06"));
+
+    let mut tx = pool.begin().await.unwrap();
+    ImportWrites::<Db>::new(&mut tx)
+        .restore(target, &image)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(
+        modified(pool).await.as_deref(),
+        Some("2001-02-03 04:05:06"),
+        "an undo does not make the resource look edited"
+    );
+});

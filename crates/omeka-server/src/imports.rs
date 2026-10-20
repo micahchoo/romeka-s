@@ -20,6 +20,7 @@ mod lists;
 mod multipart;
 mod progress;
 mod run;
+mod undo;
 mod wire;
 
 use axum::Router;
@@ -55,7 +56,8 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/romeka/imports/{id}/preview", post(run::preview))
         .route("/api/romeka/imports/{id}/run", post(run::run))
         .route("/api/romeka/imports/{id}/stop", post(run::stop))
-        .route("/api/romeka/imports/{id}/undo", post(run::undo))
+        .route("/api/romeka/imports/{id}/undo", post(undo::undo))
+        .route("/api/romeka/imports/{id}/undo/preview", get(undo::preview))
         .route("/api/romeka/imports/{id}/left.csv", get(left_csv))
         .route(
             "/api/romeka/imports/{id}/template.csv",

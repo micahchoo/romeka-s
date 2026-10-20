@@ -480,6 +480,10 @@ messages! {
     fn import_record_not_saved(reason) = "This record could not be saved: {reason}";
     /// A run failure: the second pass could not write a record's links.
     fn import_links_not_saved(reason) = "The links of this record could not be saved: {reason}";
+    /// A run failure: the API refused to delete what a `delete` record matched.
+    fn import_record_not_deleted(reason) = "This was not deleted: {reason}";
+    /// 409 `cannotUndo` for an import that deleted resources.
+    const IMPORT_DELETE_NOT_UNDONE = "An import that deleted items, media or item sets cannot be undone.";
     /// A run failure: an added item did not join the sites that take new items.
     fn import_sites_not_joined(reason) = "This item was added, but it did not join its sites: {reason}";
     /// Undo kept a resource: its `modified` is later than the import's write.

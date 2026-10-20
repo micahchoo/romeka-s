@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS romeka_import (
   PRIMARY KEY(id),
   CONSTRAINT CHK_ROMEKA_IMPORT_REVISION CHECK (revision >= 0),
   CONSTRAINT CHK_ROMEKA_IMPORT_STOP CHECK (stop_requested IN (0, 1)),
-  CONSTRAINT CHK_ROMEKA_IMPORT_STATUS CHECK (status IN ('draft', 'running', 'done', 'run_failed', 'undoing', 'undone', 'undo_failed')),
+  CONSTRAINT CHK_ROMEKA_IMPORT_STATUS CHECK (status IN ('draft', 'running', 'done', 'run_failed', 'undoing', 'undone', 'partly_undone', 'undo_failed')),
   CONSTRAINT FK_ROMEKA_IMPORT_OWNER FOREIGN KEY (owner_id) REFERENCES `user` (id) ON DELETE SET NULL,
   CONSTRAINT FK_ROMEKA_IMPORT_JOB FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE SET NULL,
   CONSTRAINT FK_ROMEKA_IMPORT_COPIED_FROM FOREIGN KEY (copied_from) REFERENCES romeka_import (id) ON DELETE SET NULL

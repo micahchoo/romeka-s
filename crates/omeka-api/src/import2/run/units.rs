@@ -31,7 +31,7 @@ use crate::messages::{self, ServerMessage};
 
 /// The registry names of every message a run failure carries; the test
 /// below holds each to a registered message, so a misspelt name fails.
-const FAILURE_MESSAGES: [&str; 10] = [
+const FAILURE_MESSAGES: [&str; 11] = [
     "import_file_unreadable",
     "import_file_refused",
     "import_file_not_stored",
@@ -42,6 +42,7 @@ const FAILURE_MESSAGES: [&str; 10] = [
     "import_record_not_saved",
     "import_links_not_saved",
     "import_sites_not_joined",
+    "import_record_not_deleted",
 ];
 
 /// The catalogue key of a registered message, by its registry name.
