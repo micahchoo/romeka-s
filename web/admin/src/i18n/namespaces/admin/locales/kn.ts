@@ -54,6 +54,13 @@ export const kn: AdminMessages = {
   'jobs.update': 'ನವೀಕರಿಸಿ',
   'jobs.rowName': 'ಕೆಲಸ #{id}',
   'jobs.args': 'ಆರ್ಗ್ಯುಮೆಂಟ್‌ಗಳು',
+  'jobs.log': 'ಲಾಗ್',
+  'jobs.logEmpty': 'ಕೆಲಸವು ಇನ್ನೂ ಯಾವುದೇ ಲಾಗ್ ಅನ್ನು ಬರೆದಿಲ್ಲ.',
+  'jobs.logFailed': 'ಲಾಗ್ ಅನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',
+  'jobs.refreshing': 'ಈ ಪುಟವು ಕೆಲಸ ನಡೆಯುತ್ತಿರುವಾಗ ಪ್ರತಿ 2 ಸೆಕೆಂಡಿಗೆ ನವೀಕರಿಸುತ್ತದೆ.',
+  'jobs.class.importArchive': 'ಆರ್ಕೈವ್ ಆಮದು',
+  'jobs.class.undoImport': 'ಆರ್ಕೈವ್ ಆಮದು ರದ್ದು',
+  'jobs.openImport': 'ಆಮದು ತೆರೆಯಿರಿ',
   'jobs.noWritableMember':
     'ಕೆಲಸವು ಅದರ ರವಾನೆದಾರರಿಂದ ಬರೆಯಲ್ಪಟ್ಟಿದೆ, ಆದ್ದರಿಂದ ನವೀಕರಣವು ಯಾವುದೇ ಸದಸ್ಯರನ್ನು ಬದಲಾಯಿಸುವುದಿಲ್ಲ. ವಿನಂತಿಯು ಸಾಲನ್ನು ಹುಡುಕುತ್ತದೆ ಮತ್ತು ಅದನ್ನು ಹಿಂತಿರುಗಿಸುತ್ತದೆ.',
   'users.legend': 'ಬಳಕೆದಾರರ ಮಾಹಿತಿ',

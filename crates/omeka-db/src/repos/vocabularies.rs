@@ -317,6 +317,15 @@ where
     }
 
     pub async fn create(&self, new: &NewProperty) -> Result<PropertyRow, DbError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::insert(&mut conn, new).await
+    }
+
+    /// Insert a property on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert(
+        conn: &mut DB::Connection,
+        new: &NewProperty,
+    ) -> Result<PropertyRow, DbError> {
         let query = sqlx::query(
             "INSERT INTO property (owner_id, vocabulary_id, local_name, label, comment)
              VALUES (?, ?, ?, ?, ?)",
@@ -326,7 +335,7 @@ where
         .bind(&new.local_name)
         .bind(&new.label)
         .bind(&new.comment);
-        let id = insert_id(query, self.pool).await?;
+        let id = insert_id(query, &mut *conn).await?;
         Ok(PropertyRow {
             id: PropertyId::from(id),
             owner_id: new.owner_id,

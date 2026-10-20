@@ -12,8 +12,10 @@
 //! [`generate_thumbnails`] writes them through [`crate::store::FileStore`] and
 //! is idempotent.
 //!
-//! Only the four formats GD decodes reach the decoder: gif, jpeg, png and
-//! webp. Anything else is a typed [`ThumbnailSkip`], never a panic.
+//! The formats that reach the decoder are the four GD decodes (gif, jpeg, png,
+//! webp) and tiff. TIFF is a deliberate addition: GD has no TIFF decoder, so
+//! upstream makes no thumbnail for a `.tif` unless ImageMagick is configured.
+//! Anything else is a typed [`ThumbnailSkip`], never a panic.
 
 use image::DynamicImage;
 use image::codecs::jpeg::JpegEncoder;
@@ -23,9 +25,17 @@ use thiserror::Error;
 use crate::file_render::ThumbnailType;
 use crate::store::{FileStore, StoreError, StorePrefix, Thumbnailer};
 
-/// The source media types GD decodes (`Gd::setSource`). Any other declared
-/// type raises `CannotCreateThumbnailException` there.
-pub const SOURCE_MEDIA_TYPES: [&str; 4] = ["image/gif", "image/jpeg", "image/png", "image/webp"];
+/// The source media types the thumbnailer decodes: the four GD decodes
+/// (`Gd::setSource`) plus `image/tiff`, which GD cannot read (see the module
+/// docs). Any other declared type raises `CannotCreateThumbnailException`
+/// upstream.
+pub const SOURCE_MEDIA_TYPES: [&str; 5] = [
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "image/webp",
+];
 
 /// Why no thumbnail was made. Upstream throws
 /// `CannotCreateThumbnailException` and `TempFile::storeThumbnails` turns it
@@ -289,7 +299,7 @@ mod tests {
         assert_eq!(square, (200, 200));
     }
 
-    /// `Gd::setSource` accepts gif, jpeg, png and webp, and rejects every other
+    /// The thumbnailer accepts gif, jpeg, png, tiff and webp, and rejects every other
     /// declared type with a typed skip.
     #[test]
     fn unsupported_media_types_are_a_typed_skip() {
@@ -364,8 +374,44 @@ mod tests {
         );
         assert!(
             ImageThumbnailer
-                .thumbnails(&bytes, Some("image/tiff"))
+                .thumbnails(&bytes, Some("image/bmp"))
                 .is_empty()
+        );
+    }
+
+    /// A TIFF original gets the three JPEG derivatives like any other source.
+    #[test]
+    fn a_tiff_original_gets_three_thumbnails() {
+        let image = image::RgbImage::from_fn(1000, 500, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, 40])
+        });
+        let mut tiff = Vec::new();
+        image::DynamicImage::ImageRgb8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut tiff),
+                image::ImageFormat::Tiff,
+            )
+            .expect("encode tiff");
+        assert_eq!(crate::media_type::detected_media_type(&tiff), "image/tiff");
+        let derivatives = ImageThumbnailer
+            .derivative_bytes(&tiff, Some("image/tiff"))
+            .expect("thumbnails");
+        let sizes: Vec<_> = derivatives
+            .iter()
+            .map(|(kind, bytes)| (*kind, dimensions(bytes)))
+            .collect();
+        assert_eq!(
+            sizes,
+            [
+                (ThumbnailType::Large, (800, 400)),
+                (ThumbnailType::Medium, (400, 200)),
+                (ThumbnailType::Square, (200, 200)),
+            ]
+        );
+        assert!(
+            derivatives
+                .iter()
+                .all(|(_, b)| b.starts_with(&[0xFF, 0xD8]))
         );
     }
 }

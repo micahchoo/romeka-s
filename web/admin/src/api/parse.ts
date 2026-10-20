@@ -1053,3 +1053,40 @@ export function parseApiErrors(value: unknown): ApiErrors | null {
   }
   return errors;
 }
+
+/** One of a closed set of strings, as a wire enum is. */
+export const asOneOf = <T extends string>(choices: readonly T[], value: unknown, path: Path): T => {
+  const text = asString(value, path);
+  const found = choices.find((choice) => choice === text);
+  if (found === undefined) {
+    throw new ParseError(path, `one of ${choices.join(', ')}`);
+  }
+  return found;
+};
+
+/** A member the server may leave out: `undefined` when absent, parsed when present. */
+export const optionalField = <T>(
+  object: Record<string, unknown>,
+  key: string,
+  path: Path,
+  parse: FieldParser<T>,
+): T | undefined => {
+  const value = object[key];
+  return value === undefined ? undefined : parse(value, [...path, key]);
+};
+
+/** A JSON object whose every value one parser reads, as a keyed map. */
+export const asRecordOf = <T>(
+  value: unknown,
+  path: Path,
+  parse: FieldParser<T>,
+): Readonly<Record<string, T>> => {
+  const object = asRecord(value, path);
+  return Object.fromEntries(
+    Object.entries(object).map(([key, entry]) => [key, parse(entry, [...path, key])]),
+  );
+};
+
+/** A list of strings. */
+export const asStringList = (value: unknown, path: Path): readonly string[] =>
+  parseListOf(asString)(value, path);

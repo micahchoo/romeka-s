@@ -54,6 +54,13 @@ export const ne: AdminMessages = {
   'jobs.update': 'अद्यावधिक गर्नुहोस्',
   'jobs.rowName': 'कार्य #{id}',
   'jobs.args': 'तर्कहरू',
+  'jobs.log': 'लग',
+  'jobs.logEmpty': 'कार्यले अहिलेसम्म कुनै लग लेखेको छैन।',
+  'jobs.logFailed': 'लग पढ्न सकिएन: {message}',
+  'jobs.refreshing': 'यो पृष्ठ कार्य चल्दा हरेक 2 सेकेन्डमा रिफ्रेस हुन्छ।',
+  'jobs.class.importArchive': 'आर्काइभ आयात',
+  'jobs.class.undoImport': 'आर्काइभ आयातको पूर्वस्थिति',
+  'jobs.openImport': 'आयात खोल्नुहोस्',
   'jobs.noWritableMember':
     'एउटा कार्य यसको डिस्प्याचरद्वारा लेखिन्छ, त्यसैले अद्यावधिकले कुनै सदस्यलाई परिवर्तन गर्दैन। अनुरोधले पङ्क्ति फेला पार्छ र यसलाई फिर्ता पढ्छ।',
   'users.legend': 'प्रयोगकर्ता जानकारी',

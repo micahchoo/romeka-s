@@ -13,6 +13,9 @@
 //! Nothing binds a socket except [`serve`]; tests drive the app through
 //! `tower::ServiceExt::oneshot` or [`serve_with_config`] on an ephemeral port.
 
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -38,9 +41,12 @@ mod accounts;
 mod assets;
 mod config;
 mod http;
+mod imports;
+pub mod jobs;
 mod limits;
 mod logging;
 pub mod mail;
+mod mail_config;
 mod publish;
 mod serve;
 mod settings;
@@ -51,8 +57,10 @@ mod tags;
 mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
+pub use imports::{IMPORT_JOB, UNDO_JOB};
+pub use jobs::{DispatchError, JobDispatch, NoDispatch};
 pub use logging::init_logging;
-pub use serve::{serve, serve_with_config, shutdown_signal};
+pub use serve::{serve, serve_with_config, serve_with_services, shutdown_signal};
 
 /// The `/api` JSON-LD media type (`ApiJsonStrategy::$formats['jsonld']`).
 pub const JSONLD_CONTENT_TYPE: &str = omeka_api::read::JSONLD_CONTENT_TYPE;
@@ -83,6 +91,37 @@ pub struct AppState {
     /// True when the configured base URL is https, so a session cookie is
     /// marked `Secure`.
     pub(crate) secure_cookies: bool,
+    /// The archive import's root folder; `None` turns the import off.
+    pub(crate) archive_root: Option<PathBuf>,
+    /// What starts a composed job row.
+    pub(crate) jobs: Arc<dyn JobDispatch>,
+    /// Each archive file's tags, remembered for the life of the process.
+    pub(crate) tag_reader: omeka_api::import::tags::SharedTagReader,
+}
+
+/// What the process supplies beyond the pool and the [`Config`]: the file
+/// store and the job runner.
+#[derive(Clone)]
+pub struct Services {
+    pub store: FileStore,
+    pub jobs: Arc<dyn JobDispatch>,
+}
+
+impl Services {
+    /// `store`, and no job runner.
+    #[must_use]
+    pub fn new(store: FileStore) -> Self {
+        Self {
+            store,
+            jobs: Arc::new(NoDispatch),
+        }
+    }
+
+    #[must_use]
+    pub fn with_jobs(mut self, jobs: Arc<dyn JobDispatch>) -> Self {
+        self.jobs = jobs;
+        self
+    }
 }
 
 /// Build the application: `/health`, `/ready`, `/api`, `/api-context`, the
@@ -95,22 +134,29 @@ pub fn build_router(pool: SqlitePool, base: BaseUrl) -> Router {
     build_router_with_store(pool, base, FileStore::new(FILES_ROOT, FILES_URI))
 }
 
-/// Build the application around one file store.
-///
-/// A test roots the store in a tempdir; the CLI's `serve` has no store option
-/// yet, so it goes through [`build_router`] and the working-directory default.
+/// Build the application around one file store. A test roots the store in a
+/// tempdir.
 pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: FileStore) -> Router {
-    build_app(pool, base, store, &Config::default())
+    let config = Config {
+        base_url: base,
+        ..Config::default()
+    };
+    build_router_with_services(pool, &config, Services::new(store))
 }
 
 /// Build the application with the configured base URL and limits.
 pub fn build_router_with_config(pool: SqlitePool, config: &Config) -> Router {
-    build_app(
+    build_router_with_services(
         pool,
-        config.base_url.clone(),
-        FileStore::new(FILES_ROOT, FILES_URI),
         config,
+        Services::new(FileStore::new(FILES_ROOT, FILES_URI)),
     )
+}
+
+/// Build the application with the configured base URL, limits and archive
+/// root, around the process's file store and job runner.
+pub fn build_router_with_services(pool: SqlitePool, config: &Config, services: Services) -> Router {
+    build_app(pool, services, config)
 }
 
 /// The routes, wrapped in the middleware stack. The outer layer is [`ServiceBuilder`]'s
@@ -118,16 +164,20 @@ pub fn build_router_with_config(pool: SqlitePool, config: &Config) -> Router {
 /// compression runs on the tagged body, the same-origin guard refuses a
 /// cookie-authenticated write from another origin, and the body cap is nearest
 /// the routes.
-fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config) -> Router {
+fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
+    let base = config.base_url.clone();
     let secure_cookies = base.as_str().starts_with("https://");
     let state = AppState {
         pool,
         base: base.clone(),
-        store,
+        store: services.store,
         auth_cache: AuthCache::new(),
         limiter: Limiter::new(omeka_api::limits::RateLimits::default()),
         mailer: Mailer::from_config(&config.mail, base.clone()),
         secure_cookies,
+        archive_root: config.archive_root.clone(),
+        jobs: services.jobs,
+        tag_reader: omeka_api::import::tags::SharedTagReader::default(),
     };
     let routes = Router::new()
         .route("/health", get(health))
@@ -140,6 +190,7 @@ fn build_app(pool: SqlitePool, base: BaseUrl, store: FileStore, config: &Config)
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(site_items::router())
+        .merge(imports::router())
         .merge(tags::router())
         .merge(vocab_import::router())
         .merge(settings::router())

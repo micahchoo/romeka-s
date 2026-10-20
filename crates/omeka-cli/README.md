@@ -32,9 +32,11 @@ romeka export jsonld   -d PATH --out PATH [--resource NAME] [--item-set ID]
 romeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
                               [--columns TERM,TERM]
 romeka media thumbnails -d PATH [--store DIR] [--force]
+romeka media sweep -d PATH [--store DIR] [--delete]
 romeka backup      -d PATH --store DIR --out FILE
 romeka restore     -d PATH --store DIR --in FILE [--force]
-romeka serve       [--host H] [--port P]
+romeka serve       -d PATH [--host H] [--port P] [--base-url URL] [--store DIR]
+romeka job run ID  -d PATH [--store DIR] [--base-url URL] [--archive-root DIR]
 ```
 
 `install` creates the SQLite file, runs the embedded migrations, inserts the
@@ -111,7 +113,8 @@ The first record is the header. Each header cell names a property as
 `prefix:local_name` (`dcterms:title`, `foaf:name`). Each later record is one
 item: a non-empty cell becomes a literal value on that property, and two columns
 with the same term become two values. The item's `title` column is the first
-non-empty `dcterms:title` cell. Every item joins the `--item-set` set. A row
+non-empty `dcterms:title` cell. Every item joins the `--item-set` set. A column whose header starts with `#` is a
+note and is ignored. A row
 whose column count differs from the header is reported and skipped; the rest
 import. The exit code is 1 when any row failed. Values are literals only (no URI
 or resource-value columns yet).
@@ -242,6 +245,38 @@ generated. `--force` removes the three files first and rebuilds them. The
 `--store DIR` root defaults to `files` beside the database, the same rule
 `import media` uses.
 
+## Media sweep
+
+`romeka media sweep` finds store files that no row names. An import stores an
+item's files and then commits its row; a crash between the two leaves files
+that no `media` row names, and the undo job, which works from rows, cannot see
+them.
+
+```
+romeka media sweep -d PATH [--store DIR] [--delete]
+```
+
+It lists `original/`, `asset/` and the `large/`, `medium/` and `square/`
+directories. A file is named when a `media` row has its `storage_id` (the
+original with the row's extension, and a `.jpg` thumbnail of each type) or an
+`asset` row has it. The rest are orphans.
+
+Without `--delete` the run only prints `orphan <path>` per file and a summary
+line. Deletion cannot be undone, so it is explicit: with `--delete` the run
+removes the orphans and prints `removed <path>` for each. The exit code is 1
+when a file could not be removed.
+
+A file modified in the last 10 minutes is skipped and counted, because an
+import may be between storing and committing. A symlink is never followed and
+never listed, and nothing outside the store root is read or removed. A file
+elsewhere under the root, or in a subdirectory, is not the store's and is left
+alone. Run the sweep while no import is running if you can: the age rule
+protects a file in flight, not a very slow import.
+
+Idempotent. The decision comes from the rows and the store as they are now, so
+a second `--delete` finds nothing to remove. The `--store DIR` root defaults to
+`files` beside the database.
+
 ## Backup and restore
 
 ```
@@ -338,6 +373,18 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   query selects what `GET /api/items` lists for a global administrator, because
   the job runs `omeka_api::site_items`, the change `POST /api/sites/{id}/items`
   runs.
+- `Romeka\Job\ImportArchive` and `Romeka\Job\UndoImport` (Romeka's own):
+  `importId`. The server's import routes compose them; each runs only for an
+  import the server moved to `running` or `undoing` and linked to that job. The
+  run appends each progress line to `job.log` and ends the import `done` or
+  `failed`, its undo window open either way; a run that already wrote is never
+  repeated. The undo ends it `undone` and closes the window; an undo that fails
+  leaves `undoing`, and a later undo converges.
+
+`romeka job run <id>` takes `--store` (default `files` beside the database),
+`--base-url` (default `http://localhost`) and `--archive-root` (the import is off
+without it). `romeka serve` passes all three, with the store `--store` gave it,
+when it starts a job.
 
 ## Where this deviates from upstream
 

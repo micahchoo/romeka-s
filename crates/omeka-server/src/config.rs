@@ -20,6 +20,8 @@ use serde::Deserialize;
 use thiserror::Error;
 use tracing::level_filters::LevelFilter;
 
+pub use crate::mail_config::{MailConfig, MailTls};
+
 /// Interface the server binds when nothing overrides it.
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 /// Port the server binds when nothing overrides it.
@@ -61,9 +63,8 @@ pub const SMTP_PASSWORD_ENV: &str = "ROMEKA_SMTP_PASSWORD";
 pub const SMTP_TLS_ENV: &str = "ROMEKA_SMTP_TLS";
 /// Envelope sender of every message the server sends.
 pub const MAIL_FROM_ENV: &str = "ROMEKA_MAIL_FROM";
-
-/// Envelope sender when nothing overrides it.
-pub const DEFAULT_MAIL_FROM: &str = "no-reply@romeka.invalid";
+/// The server folder the archive import reads. Unset or empty turns the import off.
+pub const ARCHIVE_ROOT_ENV: &str = "ROMEKA_ARCHIVE_ROOT";
 
 /// Everything the server needs to bind and serve.
 #[derive(Debug, Clone, PartialEq)]
@@ -75,93 +76,8 @@ pub struct Config {
     pub max_body_bytes: usize,
     pub request_timeout: Duration,
     pub mail: MailConfig,
-}
-
-/// How the SMTP transport protects the connection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum MailTls {
-    /// Connect in the clear, then upgrade with the STARTTLS command
-    /// (`SmtpTransport::starttls_relay`).
-    #[default]
-    Starttls,
-    /// Connect over TLS from the first byte (`SmtpTransport::relay`).
-    Tls,
-    /// No TLS at all (`SmtpTransport::builder_dangerous`).
-    None,
-}
-
-impl MailTls {
-    /// The port this mode implies when none is configured: the submission port
-    /// for STARTTLS, the submissions port for implicit TLS, and SMTP for none.
-    #[must_use]
-    pub fn default_port(self) -> u16 {
-        match self {
-            Self::Starttls => 587,
-            Self::Tls => 465,
-            Self::None => 25,
-        }
-    }
-}
-
-impl std::fmt::Display for MailTls {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Starttls => "starttls",
-            Self::Tls => "tls",
-            Self::None => "none",
-        })
-    }
-}
-
-impl std::str::FromStr for MailTls {
-    type Err = String;
-
-    fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        match raw.to_ascii_lowercase().as_str() {
-            "starttls" => Ok(Self::Starttls),
-            "tls" => Ok(Self::Tls),
-            "none" => Ok(Self::None),
-            other => Err(format!("expected starttls, tls or none, got {other}")),
-        }
-    }
-}
-
-/// The mail settings, from `ROMEKA_SMTP_*` and `ROMEKA_MAIL_FROM`.
-///
-/// A `host` is what turns mail on: with none, the server uses the log transport
-/// and every message goes to the log, which is the default because a deployment
-/// with no relay must still run, and the link is returned to the caller either
-/// way.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MailConfig {
-    pub host: Option<String>,
-    pub port: Option<u16>,
-    pub user: Option<String>,
-    pub password: Option<String>,
-    pub tls: MailTls,
-    /// Envelope sender; [`DEFAULT_MAIL_FROM`] when nothing sets it.
-    pub from: String,
-}
-
-impl Default for MailConfig {
-    fn default() -> Self {
-        Self {
-            host: None,
-            port: None,
-            user: None,
-            password: None,
-            tls: MailTls::Starttls,
-            from: DEFAULT_MAIL_FROM.to_string(),
-        }
-    }
-}
-
-impl MailConfig {
-    /// The port the transport connects to.
-    #[must_use]
-    pub fn port(&self) -> u16 {
-        self.port.unwrap_or_else(|| self.tls.default_port())
-    }
+    /// The archive import's root folder; `None` means the import is off.
+    pub archive_root: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -177,6 +93,7 @@ impl Default for Config {
             max_body_bytes: DEFAULT_MAX_BODY_BYTES,
             request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
             mail: MailConfig::default(),
+            archive_root: None,
         }
     }
 }
@@ -263,6 +180,9 @@ impl Config {
         if let Some(from) = &file.mail_from {
             self.mail.from = from.clone();
         }
+        if let Some(root) = &file.archive_root {
+            self.archive_root = archive_root(root);
+        }
         Ok(())
     }
 
@@ -303,6 +223,9 @@ impl Config {
         }
         if let Some(from) = env(MAIL_FROM_ENV) {
             self.mail.from = from;
+        }
+        if let Some(root) = env(ARCHIVE_ROOT_ENV) {
+            self.archive_root = archive_root(&root);
         }
         Ok(())
     }
@@ -362,6 +285,15 @@ struct FileConfig {
     smtp_tls: Option<String>,
     #[serde(default)]
     mail_from: Option<String>,
+    #[serde(default)]
+    archive_root: Option<String>,
+}
+
+/// An empty value turns the import off, so the environment can override a
+/// file that turns it on.
+fn archive_root(value: &str) -> Option<PathBuf> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| PathBuf::from(value))
 }
 
 fn read_file(path: &Path) -> Result<FileConfig, ConfigError> {
@@ -412,6 +344,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
+    use crate::mail_config::DEFAULT_MAIL_FROM;
 
     fn no_env(_key: &str) -> Option<String> {
         None
@@ -586,5 +519,20 @@ mod tests {
             message.contains(SMTP_TLS_ENV) && message.contains("ssl"),
             "{message}"
         );
+    }
+
+    #[test]
+    fn the_archive_root_comes_from_the_file_and_an_empty_variable_turns_it_off() {
+        assert_eq!(Config::default().archive_root, None);
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), r#"{"archive_root":"/srv/archive"}"#).unwrap();
+        let on = Config::from_sources(no_env, Some(file.path())).unwrap();
+        assert_eq!(on.archive_root, Some(PathBuf::from("/srv/archive")));
+        let off = Config::from_sources(
+            |key| (key == ARCHIVE_ROOT_ENV).then(String::new),
+            Some(file.path()),
+        )
+        .unwrap();
+        assert_eq!(off.archive_root, None);
     }
 }

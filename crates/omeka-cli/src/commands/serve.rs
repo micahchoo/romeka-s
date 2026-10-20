@@ -1,21 +1,35 @@
 //! `romeka serve`: start the HTTP server.
 //!
 //! `omeka-server` owns the router and the socket. This command opens the SQLite
-//! database, parses the base URL used in the JSON-LD links, and hands both to
-//! the server.
+//! database, parses the base URL used in the JSON-LD links, roots the file
+//! store, and hands the server a job runner that starts `romeka job run` with
+//! the same database, store, base URL and archive root.
 
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use omeka_api::jsonld::BaseUrl;
+use omeka_db::ids::JobId;
+use omeka_media::store::FileStore;
+use omeka_server::{Config, DispatchError, JobDispatch, Services};
 
 use crate::error::CliError;
+use crate::jobs::JobCommand;
 
-/// Bind `host:port` and serve until the process stops.
+/// Bind `host:port` and serve until the process stops. `store` is the file
+/// store root; `files` in the working directory when `None`, as before.
 ///
 /// # Errors
-/// A [`CliError::Message`] when the host, the port or the base URL is invalid,
-/// or when the database cannot be opened.
-pub async fn run(host: &str, port: u16, database: &str, base_url: &str) -> Result<(), CliError> {
+/// A [`CliError::Message`] when the host, the port, the base URL or the config
+/// is invalid, or when the database cannot be opened.
+pub async fn run(
+    host: &str,
+    port: u16,
+    database: &str,
+    base_url: &str,
+    store: Option<&Path>,
+) -> Result<(), CliError> {
     let address: SocketAddr = format!("{host}:{port}")
         .parse()
         .map_err(|error| CliError::message(format!("invalid address {host}:{port}: {error}")))?;
@@ -24,7 +38,41 @@ pub async fn run(host: &str, port: u16, database: &str, base_url: &str) -> Resul
         .map_err(|error| CliError::message(format!("cannot open {database}: {error}")))?;
     let base = BaseUrl::parse(base_url)
         .map_err(|error| CliError::message(format!("invalid base url {base_url}: {error}")))?;
-    Ok(omeka_server::serve(address, pool, base).await?)
+    let mut config = Config::load().map_err(|error| CliError::message(error.to_string()))?;
+    config.set_address(address);
+    config.set_base_url(base);
+    let store_root = absolute(store.unwrap_or(Path::new(omeka_server::FILES_ROOT)))?;
+    let jobs = ProcessDispatch(JobCommand {
+        program: None,
+        database: absolute(Path::new(database))?,
+        store: Some(store_root.clone()),
+        base_url: Some(base_url.to_string()),
+        archive_root: config.archive_root.clone(),
+    });
+    let services = Services::new(FileStore::new(store_root, omeka_server::FILES_URI))
+        .with_jobs(Arc::new(jobs));
+    Ok(omeka_server::serve_with_services(config, pool, services).await?)
+}
+
+/// A child started from another working directory reads the same files.
+fn absolute(path: &Path) -> Result<PathBuf, CliError> {
+    std::path::absolute(path)
+        .map_err(|error| CliError::message(format!("cannot resolve {}: {error}", path.display())))
+}
+
+/// Starts each job in a new `romeka job run` process and reaps it when it
+/// exits, so a long-lived server leaves no zombie processes.
+struct ProcessDispatch(JobCommand);
+
+impl JobDispatch for ProcessDispatch {
+    fn start(&self, job: JobId) -> Result<(), DispatchError> {
+        let mut child = self
+            .0
+            .spawn(job)
+            .map_err(|error| DispatchError(error.to_string()))?;
+        std::thread::spawn(move || child.wait());
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -83,7 +131,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_rejects_an_invalid_host() {
-        let error = run("not a host", 0, ":memory:", "http://localhost")
+        let error = run("not a host", 0, ":memory:", "http://localhost", None)
             .await
             .expect_err("invalid host");
         assert!(error.to_string().contains("invalid address"), "got {error}");
@@ -91,7 +139,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_rejects_an_invalid_base_url() {
-        let error = run("127.0.0.1", 0, ":memory:", "localhost")
+        let error = run("127.0.0.1", 0, ":memory:", "localhost", None)
             .await
             .expect_err("invalid base url");
         assert!(

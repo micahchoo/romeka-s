@@ -35,7 +35,7 @@ serde_json.workspace = true
 sha2 = "0.10"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 thiserror.workspace = true
-tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
 
 [dev-dependencies]
 axum = "0.8"

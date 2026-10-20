@@ -13,6 +13,7 @@ import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { archiveRoot, writeArchive } from './harness/archive';
 import { ensureCli, mintKey, runCli } from './harness/cli';
 import { freePort, startProxy } from './harness/proxy';
 import { prepareWorkDir, seedData, seedSystem, storeRoot } from './harness/seed';
@@ -60,6 +61,7 @@ const waitForHealth = async (serverUrl: string): Promise<void> => {
 export default async function globalSetup(): Promise<() => Promise<void>> {
   const workDir = mkdtempSync(join(tmpdir(), 'romeka-e2e-work-'));
   prepareWorkDir(workDir);
+  writeArchive(workDir);
   const dbPath = join(workDir, 'db.sqlite');
 
   buildApp();
@@ -115,8 +117,16 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       String(serverPort),
       '--base-url',
       proxy.url,
+      '--store',
+      storeRoot(workDir),
     ],
-    { cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] },
+    // The archive root turns the Import page on. The server starts each import
+    // job as its own `romeka job run` process with the same database and store.
+    {
+      cwd: workDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ROMEKA_ARCHIVE_ROOT: archiveRoot(workDir) },
+    },
   );
   let serverLog = '';
   server.stdout.on('data', (chunk: Buffer) => {
@@ -173,6 +183,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
         `  origin     ${proxy.url} (serves ${servedRoot}, a copy of ${DIST_ROOT}, /files and /s)`,
         `  port       ${serverUrl}`,
         `  work dir   ${workDir}`,
+        `  archive    ${archiveRoot(workDir)}`,
         `  seeded     item set ${String(seeded.itemSetId)}, items ${seeded.itemIds.join(', ')}`,
         `             media ${String(seeded.mediaId)}, site ${String(seeded.siteId)}`,
         `             asset ${String(system.assetId)}, job ${String(system.jobId)}`,

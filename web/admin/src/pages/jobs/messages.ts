@@ -23,3 +23,31 @@ export const useJobStatusLabel = (): ((status: string | null) => string | null) 
     [t],
   );
 };
+
+/** Romeka's own job classes (`docs/archive-import.md`, Jobs) and the name each reads as. */
+const CLASS_TEXT: Readonly<Record<string, 'jobs.class.importArchive' | 'jobs.class.undoImport'>> = {
+  'Romeka\\Job\\ImportArchive': 'jobs.class.importArchive',
+  'Romeka\\Job\\UndoImport': 'jobs.class.undoImport',
+};
+
+/** The archive import a job works on, from its `{ "importId": n }` args, or `null`. */
+export const importOfJob = (jobClass: string, args: unknown): number | null => {
+  if (!(jobClass in CLASS_TEXT) || typeof args !== 'object' || args === null || !('importId' in args)) {
+    return null;
+  }
+  const id = args.importId;
+  return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
+};
+
+/** A job class as a reader names it: Romeka's own get a name, any other shows as stored. */
+export const useJobClassLabel = (): ((jobClass: string) => string) => {
+  const { t } = useTranslator(admin);
+  return useMemo(
+    () =>
+      (jobClass: string): string => {
+        const key = CLASS_TEXT[jobClass];
+        return key === undefined ? jobClass : t(key);
+      },
+    [t],
+  );
+};

@@ -61,7 +61,17 @@ where
 
     pub async fn create(&self, new: &NewMedia) -> Result<MediaRow, DbError> {
         let mut tx = self.pool.begin().await?;
-        let resource = insert_resource(&mut tx, &new.resource, resource_type::MEDIA).await?;
+        let row = Self::insert(&mut tx, new).await?;
+        tx.commit().await?;
+        Ok(row)
+    }
+
+    /// Insert a media on the caller's connection, so it can join a larger transaction.
+    pub(crate) async fn insert(
+        conn: &mut DB::Connection,
+        new: &NewMedia,
+    ) -> Result<MediaRow, DbError> {
+        let resource = insert_resource(conn, &new.resource, resource_type::MEDIA).await?;
         sqlx::query(
             "INSERT INTO media
                  (id, item_id, ingester, renderer, data, source, media_type, storage_id, extension,
@@ -90,9 +100,8 @@ where
         .bind(new.position)
         .bind(&new.lang)
         .bind(&new.alt_text)
-        .execute(&mut *tx)
+        .execute(&mut *conn)
         .await?;
-        tx.commit().await?;
         Ok(MediaRow {
             resource,
             item_id: new.item_id,
@@ -176,6 +185,23 @@ where
             .await?;
         tx.commit().await?;
         Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// The `(storage_id, extension)` of every media row that names a stored file. A row with no
+    /// `storage_id` (an oEmbed or HTML media) has no file and is left out.
+    pub async fn stored_names(&self) -> Result<Vec<(String, Option<String>)>, DbError> {
+        let rows =
+            sqlx::query("SELECT storage_id, extension FROM media WHERE storage_id IS NOT NULL")
+                .fetch_all(self.pool)
+                .await?;
+        rows.iter()
+            .map(|row| {
+                Ok((
+                    DB::text(row, "storage_id")?,
+                    DB::opt_text(row, "extension")?,
+                ))
+            })
+            .collect()
     }
 
     pub async fn list(

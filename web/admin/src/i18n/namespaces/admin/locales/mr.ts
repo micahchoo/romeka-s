@@ -54,6 +54,13 @@ export const mr: AdminMessages = {
   'jobs.update': 'अद्ययावत करा',
   'jobs.rowName': 'नोकरी #{id}',
   'jobs.args': 'युक्तिवाद',
+  'jobs.log': 'लॉग',
+  'jobs.logEmpty': 'या कामात अद्याप कोणताही लॉग नाही.',
+  'jobs.logFailed': 'लॉग वाचता आला नाही: {message}',
+  'jobs.refreshing': 'ही पृष्ठे कामाच्या वेळी दर 2 सेकंदांनी रिफ्रेश होतात.',
+  'jobs.class.importArchive': 'आर्काइव्ह आयात',
+  'jobs.class.undoImport': 'आर्काइव्ह आयाताचे पूर्ववत करणे',
+  'jobs.openImport': 'आयात उघडा',
   'jobs.noWritableMember':
     'नोकरी तिच्या डिस्पॅचरद्वारे लिहिली जाते, त्यामुळे अद्ययावत केल्याने कोणताही सदस्य बदलत नाही. विनंती ओळ शोधते आणि ती परत वाचते.',
   'users.legend': 'वापरकर्ता माहिती',

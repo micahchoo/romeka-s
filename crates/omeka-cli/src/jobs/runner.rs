@@ -12,18 +12,25 @@ use sqlx::SqlitePool;
 use omeka_db::ids::JobId;
 
 use super::status::JobStatus;
-use super::{JobContext, JobError, job_for};
+use super::{JobContext, JobEnv, JobError, job_for};
 use crate::store;
 
 /// Runs one stored job.
 pub struct Runner<'a> {
     pool: &'a SqlitePool,
+    env: JobEnv,
 }
 
 impl<'a> Runner<'a> {
+    /// A runner with the default [`JobEnv`].
     #[must_use]
     pub fn new(pool: &'a SqlitePool) -> Self {
-        Self { pool }
+        Self::with_env(pool, JobEnv::default())
+    }
+
+    #[must_use]
+    pub fn with_env(pool: &'a SqlitePool, env: JobEnv) -> Self {
+        Self { pool, env }
     }
 
     /// Run the job row `id` to a terminal status.
@@ -63,6 +70,7 @@ impl<'a> Runner<'a> {
             pool: self.pool,
             job_id: id,
             args: &args,
+            env: &self.env,
         };
         match job.perform(&context).await {
             Ok(()) => {
@@ -227,10 +235,12 @@ mod tests {
         )
         .await;
         let args = serde_json::Value::Null;
+        let env = JobEnv::default();
         let context = JobContext {
             pool: &db.pool,
             job_id,
             args: &args,
+            env: &env,
         };
 
         context.log("first").await.unwrap();

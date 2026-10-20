@@ -54,6 +54,13 @@ export const hi: AdminMessages = {
   'jobs.update': 'अपडेट',
   'jobs.rowName': 'कार्य #{id}',
   'jobs.args': 'तर्क',
+  'jobs.log': 'लॉग',
+  'jobs.logEmpty': 'जॉब ने अभी तक कोई लॉग नहीं लिखा है।',
+  'jobs.logFailed': 'लॉग नहीं पढ़ा जा सका: {message}',
+  'jobs.refreshing': 'यह पेज जॉब चलने के दौरान हर 2 सेकंड में रिफ्रेश होता है।',
+  'jobs.class.importArchive': 'आर्काइव इम्पोर्ट',
+  'jobs.class.undoImport': 'आर्काइव इम्पोर्ट का अनडू',
+  'jobs.openImport': 'इम्पोर्ट खोलें',
   'jobs.noWritableMember':
     'एक कार्य इसके डिस्पैचर द्वारा लिखा जाता है, इसलिए एक अपडेट किसी सदस्य को नहीं बदलता है। अनुरोध पंक्ति को ढूँढता है और उसे वापस पढ़ता है।',
   'users.legend': 'उपयोगकर्ता जानकारी',

@@ -26,8 +26,19 @@ semantic versioning.
   a published term can only be added or deprecated. Migration 0003.
 - Lessons: a short note the first time an action rests on a standard, once per user, with a "?" to recall it and a
   "Show lessons" switch in the user settings.
+- Archive import: with `ROMEKA_ARCHIVE_ROOT` set, the admin's Import page (under Content) turns a server folder into
+  items, item sets and media in seven steps: Folder (mark an example file name, or write a regex), Item sets, Item
+  types, Sources (a CSV, read with detection and Windows-1252 repair, and EXIF tags), Grid (problems with bulk
+  fixes, cell edits), Check (a dry run) and Run. The run and the undo are jobs (`Romeka\Job\ImportArchive`,
+  `Romeka\Job\UndoImport`) in a `romeka job run` child, and the Jobs page shows their log while they run. The last
+  import can be undone until the next one starts. TIFF originals get thumbnails. `romeka serve --store` and
+  `romeka job run --store --base-url --archive-root` are new; `deploy/compose.archive.yaml` mounts a folder
+  read-only. Migration 0005.
 
 ### Changed
+
+- The phone nav strip keeps the active link in view when a link appears after the first render, as the Import
+  link does once its probe answers.
 
 - Corrected the pages that still called the golden fixtures missing and two `omeka-api` test targets
   red: the fixtures are at [`fixtures/api/`](fixtures/api/README.md), `docs/gen/check_wire.py` reads

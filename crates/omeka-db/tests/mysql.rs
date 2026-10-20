@@ -139,7 +139,7 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
         .fetch_one(&db.pool)
         .await
         .expect("count migrations");
-    assert_eq!(applied, 3, "three migration files");
+    assert_eq!(applied, 4, "four migration files, numbered 1, 2, 3 and 5");
 
     db.cleanup().await;
 }
@@ -1069,4 +1069,123 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
             .expect("count rows");
         assert_eq!(rows, 1, "{table} holds only the whole site's row");
     }
+}
+
+/// `0005_archive_import.sql`: MySQL has no partial unique index, so the repository alone keeps one
+/// open undo window; two concurrent starts never both win; a stale heartbeat settles as failed;
+/// and `record` joins the caller's transaction.
+#[tokio::test]
+async fn imports_keep_one_open_undo_window_and_record_inside_a_transaction() {
+    use omeka_db::repos::{ImportRepo, ImportResourceRepo, StartOutcome};
+    use omeka_db::rows::{ImportStatus, ImportTarget, NewImport};
+
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let imports = ImportRepo::<MySql>::new(&db.pool);
+    let new = |folder: &str| NewImport {
+        owner_id: None,
+        folder: folder.to_string(),
+        plan: json!({"pattern": null}),
+    };
+    let first = imports.create_draft(&new("a")).await.expect("draft").id;
+    let second = imports.create_draft(&new("b")).await.expect("draft").id;
+
+    let (left, right) = tokio::join!(imports.start_run(first), imports.start_run(second));
+    let mut outcomes = [left.expect("start"), right.expect("start")];
+    outcomes.sort_by_key(|outcome| matches!(outcome, StartOutcome::Busy(_)));
+    assert_eq!(outcomes[0], StartOutcome::Started, "{outcomes:?}");
+    assert!(matches!(outcomes[1], StartOutcome::Busy(_)), "{outcomes:?}");
+    let winner = imports.undoable().await.expect("window").expect("one").id;
+    let loser = if winner == first { second } else { first };
+    let worker = JobRepo::<MySql>::new(&db.pool)
+        .create(&NewJob {
+            owner_id: None,
+            pid: None,
+            status: Some("in_progress".to_string()),
+            class: "Romeka\\Job\\ImportArchive".to_string(),
+            args: None,
+            log: None,
+            started: None,
+        })
+        .await
+        .expect("job")
+        .id;
+    assert!(imports.set_job(winner, worker).await.expect("link"));
+    assert!(imports.heartbeat(winner, worker).await.expect("beat"));
+    let stale = "UPDATE romeka_import
+                 SET summary = JSON_SET(summary, '$.heartbeat', '2000-01-01 00:00:00') WHERE id = ?";
+    sqlx::query(stale)
+        .bind(winner.0 as i64)
+        .execute(&db.pool)
+        .await
+        .expect("age the heartbeat");
+    assert_eq!(imports.settle_dead().await.expect("settle"), [winner]);
+    let job = JobRepo::<MySql>::new(&db.pool)
+        .get(worker)
+        .await
+        .expect("get")
+        .expect("job");
+    assert_eq!(job.status.as_deref(), Some("error"));
+    assert!(
+        job.log
+            .expect("log")
+            .contains("no heartbeat since 2000-01-01 00:00:00")
+    );
+    assert_eq!(
+        imports.get(winner).await.expect("get").expect("row").status,
+        ImportStatus::Failed
+    );
+    assert_eq!(
+        imports.start_run(loser).await.expect("start"),
+        StartOutcome::Started
+    );
+    imports
+        .set_summary(loser, &json!({"items": 1}))
+        .await
+        .expect("summary");
+    assert!(
+        imports
+            .get(loser)
+            .await
+            .expect("get")
+            .expect("row")
+            .summary
+            .expect("summary")[omeka_db::repos::HEARTBEAT]
+            .is_string()
+    );
+    let open: Vec<i64> = sqlx::query_scalar("SELECT id FROM romeka_import WHERE undoable = 1")
+        .fetch_all(&db.pool)
+        .await
+        .expect("read windows");
+    assert_eq!(open, [loser.0 as i64]);
+    assert_eq!(
+        imports.start_undo(winner).await.expect("undo"),
+        StartOutcome::Refused {
+            status: ImportStatus::Failed,
+            undoable: false
+        }
+    );
+
+    let target = ImportTarget::Item(ItemId(7));
+    let mut tx = db.pool.begin().await.expect("begin");
+    ImportResourceRepo::<MySql>::record(&mut *tx, first, target)
+        .await
+        .expect("record");
+    tx.rollback().await.expect("rollback");
+    let resources = ImportResourceRepo::<MySql>::new(&db.pool);
+    assert_eq!(resources.list(first, None).await.expect("list"), []);
+
+    ImportResourceRepo::<MySql>::record(&db.pool, first, target)
+        .await
+        .expect("record");
+    sqlx::query("UPDATE romeka_import SET status = 'draft' WHERE id = ?")
+        .bind(first.0 as i64)
+        .execute(&db.pool)
+        .await
+        .expect("back to a draft");
+    assert!(imports.delete_draft(first).await.expect("delete"));
+    assert_eq!(resources.list(first, None).await.expect("list"), []);
+
+    db.cleanup().await;
 }

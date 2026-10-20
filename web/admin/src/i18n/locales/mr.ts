@@ -20,6 +20,7 @@ export const mr: Catalogue = {
   'page.items': 'घटक',
   'page.itemSets': 'घटक संच',
   'page.media': 'माध्यमे',
+  'page.import': 'आयात',
   'page.sites': 'संकेतस्थळे',
   'page.fields': 'क्षेत्रे',
   'page.users': 'वापरकर्ते',

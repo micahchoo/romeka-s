@@ -20,7 +20,9 @@ describe('shell navigation', () => {
     await screen.findByRole('alert');
 
     const nav = screen.getByRole('navigation', { name: 'Admin pages' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(Object.keys(PAGES).length);
+    // A page the server must offer (Import) is hidden when its probe fails.
+    const always = Object.values(PAGES).filter((page) => page.offered === undefined);
+    expect(within(nav).getAllByRole('link')).toHaveLength(always.length);
 
     expect(within(nav).getByRole('link', { name: 'Items' })).toHaveAttribute(
       'aria-current',

@@ -25,6 +25,7 @@ environment, then the arguments `romeka serve` passes.
 | `smtp_password` | `ROMEKA_SMTP_PASSWORD` | unset | SMTP password |
 | `smtp_tls` | `ROMEKA_SMTP_TLS` | `starttls` | `starttls`, `tls` or `none` |
 | `mail_from` | `ROMEKA_MAIL_FROM` | `no-reply@romeka.invalid` | Envelope sender |
+| `archive_root` | `ROMEKA_ARCHIVE_ROOT` | unset | Server folder the archive import reads; unset or empty turns the import off |
 
 The TLS mode implies the port when none is set: `starttls` 587, `tls` 465,
 `none` 25. `starttls` requires the upgrade before it will send; `tls` wraps the
@@ -52,9 +53,9 @@ ROMEKA_CONFIG=/etc/romeka/romeka.json romeka serve -d /data/romeka.db \
 ```
 
 `romeka serve` always passes a host, a port and a base URL, so those three come
-from the command line in practice. The file's `host`, `port` and `base_url` are
-read by `serve_with_config`, which the CLI does not call yet; the log level and
-the limits reach the server through both paths today.
+from the command line in practice. It loads the config itself, overrides those
+three, and calls `serve_with_services` with its file store (`--store`, default
+`files` in the working directory) and a job runner.
 
 ## Server operations
 
@@ -109,9 +110,8 @@ cascade rules and permission matrix are in `crates/omeka-api/README.md`.
 
 The file store a media delete reaches lives on `AppState`. `build_router` roots
 it at `FILES_ROOT` (`files`, upstream's `file_store.local.base_path`), and
-`build_router_with_store` takes one for a test. `omeka-cli`'s `serve` has no
-`--store` option, so a server started through it always uses the
-working-directory default; the CLI is another unit's file.
+`build_router_with_store` takes one for a test. `romeka serve --store DIR` roots
+it at `DIR`, and passes the same store to every job process it starts.
 
 ## Accounts
 
@@ -260,6 +260,22 @@ what `GET /api/items` lists for the caller. `dry_run: true` answers the counts a
 writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
+
+## Archive import
+
+The `/api/romeka/archive`, `/api/romeka/imports` and `/api/romeka/jobs/{id}/log`
+routes are Romeka additions (`src/imports.rs`); `docs/archive-import.md` holds their
+contract. The rules live in `omeka_api::import`. Only a global or site
+administrator may call them: anonymous is 401, any other role 403.
+
+The server starts the run and undo jobs through the `JobDispatch` trait object
+in `Services`. `romeka serve` supplies one that starts `romeka job run <id>
+--database <path> --store <dir> --base-url <url> [--archive-root <dir>]` with the
+server's own values and reaps the child; a router built without one fails every
+start. A run or an undo starts through `ImportRepo::start_run`/`start_undo`, one locked
+transaction that refuses while another import is live. Every read first records
+dead imports (`ImportRepo::settle_dead`): a dead import shows `failed` with
+`died`, blocks nothing, and may be undone while it holds the window.
 
 ## Tags
 

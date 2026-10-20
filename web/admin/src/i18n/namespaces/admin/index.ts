@@ -59,6 +59,13 @@ export const en = {
   'jobs.update': 'Update',
   'jobs.rowName': 'Job #{id}',
   'jobs.args': 'Arguments',
+  'jobs.log': 'Log',
+  'jobs.logEmpty': 'The job has written no log yet.',
+  'jobs.logFailed': 'The log could not be read: {message}',
+  'jobs.refreshing': 'This page refreshes every 2 seconds while the job runs.',
+  'jobs.class.importArchive': 'Archive import',
+  'jobs.class.undoImport': 'Undo of an archive import',
+  'jobs.openImport': 'Open the import',
   'jobs.noWritableMember':
     'A job is written by its dispatcher, so an update changes no member. The request finds the row and reads it back.',
   // Users.

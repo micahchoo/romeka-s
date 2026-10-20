@@ -53,6 +53,7 @@ define_id!(SitePermissionId, "site_permission");
 define_id!(JobId, "job");
 define_id!(CustomVocabId, "custom_vocab");
 define_id!(PublicationId, "romeka_publication");
+define_id!(ImportId, "romeka_import");
 
 impl ItemId {
     /// The `resource` row this item shares its id with (`item.id` references `resource.id`).

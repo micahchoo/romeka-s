@@ -13,6 +13,7 @@
 //! - the four upsert statements (`ON CONFLICT` against `ON DUPLICATE KEY UPDATE`, `INSERT OR
 //!   IGNORE` against `INSERT IGNORE`),
 //! - the full-text query (`MATCH` on the FTS5 mirror against MySQL's `MATCH ... AGAINST`).
+//! - how a transaction serializes against other writers (`BEGIN IMMEDIATE` against `FOR UPDATE`).
 //!
 //! Everything else is shared: table and column names, `?` placeholders, the join and filter shapes
 //! of the repositories, and the row structs. `DESIGN.md` fixes the port on one storage engine per
@@ -176,6 +177,17 @@ pub trait Backend: Database {
     /// `job`: append a line to the log. SQLite joins strings with `||`; MySQL's `||` is a logical
     /// OR, so it needs `CONCAT`.
     fn append_job_log() -> &'static str;
+
+    /// The statement that opens a transaction which must not interleave with another writer.
+    ///
+    /// SQLite's plain `BEGIN` takes the write lock at the first write, so two transactions can
+    /// both read and then fail to upgrade with `SQLITE_BUSY`. `BEGIN IMMEDIATE` takes the lock
+    /// first and makes the second wait. MySQL begins plainly and locks rows with [`Self::for_update`].
+    fn begin_write() -> &'static str;
+
+    /// The suffix that makes a read lock the rows it reads until the transaction ends. SQLite
+    /// has no row locks and needs none inside `BEGIN IMMEDIATE`.
+    fn for_update() -> &'static str;
 
     /// The full-text select. Two columns: the resource id and the match score.
     fn fulltext_select() -> &'static str;
@@ -345,6 +357,14 @@ impl Backend for sqlx::Sqlite {
         "UPDATE job SET log = COALESCE(log, '') || ? || char(10) WHERE id = ?"
     }
 
+    fn begin_write() -> &'static str {
+        "BEGIN IMMEDIATE"
+    }
+
+    fn for_update() -> &'static str {
+        ""
+    }
+
     fn fulltext_select() -> &'static str {
         "SELECT fulltext_search.id, bm25(fulltext_search_fts) AS rank
          FROM fulltext_search_fts
@@ -495,6 +515,14 @@ impl Backend for sqlx::MySql {
 
     fn append_job_log() -> &'static str {
         "UPDATE job SET log = CONCAT(COALESCE(log, ''), ?, char(10)) WHERE id = ?"
+    }
+
+    fn begin_write() -> &'static str {
+        "BEGIN"
+    }
+
+    fn for_update() -> &'static str {
+        " FOR UPDATE"
     }
 
     fn fulltext_select() -> &'static str {

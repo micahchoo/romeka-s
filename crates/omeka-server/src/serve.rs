@@ -14,6 +14,8 @@ use tokio::net::TcpListener;
 
 use crate::config::Config;
 use crate::logging::init_logging;
+use crate::{FILES_ROOT, FILES_URI, Services};
+use omeka_media::store::FileStore;
 
 /// Bind `addr` and serve until the process stops.
 ///
@@ -36,6 +38,20 @@ pub async fn serve(addr: SocketAddr, pool: SqlitePool, base: BaseUrl) -> std::io
 /// # Errors
 /// An [`std::io::Error`] when the address cannot be bound or the server fails.
 pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Result<()> {
+    let services = Services::new(FileStore::new(FILES_ROOT, FILES_URI));
+    serve_with_services(config, pool, services).await
+}
+
+/// Bind the configured address and serve with the caller's file store and
+/// job runner until a signal arrives.
+///
+/// # Errors
+/// An [`std::io::Error`] when the address cannot be bound or the server fails.
+pub async fn serve_with_services(
+    config: Config,
+    pool: SqlitePool,
+    services: Services,
+) -> std::io::Result<()> {
     init_logging(config.log_level);
     let listener = TcpListener::bind((config.host.as_str(), config.port)).await?;
     tracing::info!(
@@ -44,7 +60,7 @@ pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Res
         base_url = config.base_url.as_str(),
         "listening"
     );
-    serve_listener(listener, pool, &config, shutdown_signal()).await
+    serve_listener(listener, pool, &config, services, shutdown_signal()).await
 }
 
 /// Serve a bound listener until `shutdown` resolves.
@@ -52,12 +68,13 @@ async fn serve_listener<F>(
     listener: TcpListener,
     pool: SqlitePool,
     config: &Config,
+    services: Services,
     shutdown: F,
 ) -> std::io::Result<()>
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    let app = crate::build_router_with_config(pool, config);
+    let app = crate::build_router_with_services(pool, config, services);
     // The connect info is what gives a handler the socket peer, which the
     // login limit counts when no proxy header names an address.
     axum::serve(
@@ -108,7 +125,8 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let (stop, stopped) = oneshot::channel();
         let server = tokio::spawn(async move {
-            serve_listener(listener, pool, &config, async move {
+            let services = Services::new(FileStore::new(FILES_ROOT, FILES_URI));
+            serve_listener(listener, pool, &config, services, async move {
                 let _ = stopped.await;
             })
             .await

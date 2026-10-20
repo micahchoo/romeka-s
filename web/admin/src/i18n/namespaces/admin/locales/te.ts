@@ -54,6 +54,13 @@ export const te: AdminMessages = {
   'jobs.update': 'నవీకరించండి',
   'jobs.rowName': 'ఉద్యోగం #{id}',
   'jobs.args': 'ఆర్గ్యుమెంట్లు',
+  'jobs.log': 'లాగ్',
+  'jobs.logEmpty': 'ఈ పని ఇంకా ఎటువంటి లాగ్ రాయలేదు.',
+  'jobs.logFailed': 'లాగ్‌ను చదవడం సాధ్యం కాలేదు: {message}',
+  'jobs.refreshing': 'ఈ పేజీ పని జరుగుతున్నప్పుడు ప్రతి 2 సెకన్లకు రిఫ్రెష్ అవుతుంది.',
+  'jobs.class.importArchive': 'ఆర్కైవ్ ఇంపోర్ట్',
+  'jobs.class.undoImport': 'ఆర్కైవ్ ఇంపోర్ట్ రద్దు',
+  'jobs.openImport': 'ఇంపోర్ట్‌ను తెరవండి',
   'jobs.noWritableMember':
     'ఒక ఉద్యోగం దాని డిస్పాచర్ ద్వారా వ్రాయబడుతుంది, కాబట్టి ఒక నవీకరణ ఏ సభ్యుడిని మార్చదు. అభ్యర్థన వరుసను కనుగొని, దానిని తిరిగి చదువుతుంది.',
   'users.legend': 'వినియోగదారు సమాచారం',

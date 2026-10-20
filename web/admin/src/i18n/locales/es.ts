@@ -21,6 +21,7 @@ export const es: Catalogue = {
   'page.items': 'Elementos',
   'page.itemSets': 'Conjuntos de elementos',
   'page.media': 'Medios',
+  'page.import': 'Importar',
   'page.sites': 'Sitios',
   'page.fields': 'Campos',
   'page.users': 'Usuarios',

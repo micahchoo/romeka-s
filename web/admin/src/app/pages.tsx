@@ -11,6 +11,7 @@
  */
 import { lazy } from 'react';
 import type { ComponentType } from 'react';
+import { api } from '../api/client';
 import type { MessageKey } from '../i18n';
 import type { PageProps } from './router';
 
@@ -19,6 +20,7 @@ export type AdminPageId =
   | 'items'
   | 'item-sets'
   | 'media'
+  | 'import'
   | 'sites'
   | 'resource-templates'
   | 'term-lists'
@@ -42,6 +44,11 @@ export interface AdminPage {
   /** Whether the route's content takes the full width instead of the reading
    * width, read from the hash segments after the page id. */
   readonly wide?: (rest: readonly string[]) => boolean;
+  /**
+   * Whether the nav offers the page, asked once per signed-in user. A page
+   * without it is always offered; its route works either way.
+   */
+  readonly offered?: () => Promise<boolean>;
 }
 
 export type PageGroupId = 'content' | 'describe' | 'admin';
@@ -63,7 +70,7 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'content',
     titleKey: 'group.content',
-    pages: ['dashboard', 'items', 'item-sets', 'media', 'sites'],
+    pages: ['dashboard', 'items', 'item-sets', 'media', 'import', 'sites'],
   },
   {
     id: 'describe',
@@ -106,6 +113,17 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/media/page').then((module) => ({ default: module.MediaPage })),
     ),
+  },
+  import: {
+    titleKey: 'page.import',
+    upstream: 'Romeka: GET /api/romeka/archive, /api/romeka/imports (docs/archive-import.md)',
+    element: lazy(() =>
+      import('../pages/import/page').then((module) => ({ default: module.ImportPage })),
+    ),
+    // A step's file table lays a column per pattern group.
+    wide: (rest) => rest[0] !== undefined,
+    // Hidden while the server has no `ROMEKA_ARCHIVE_ROOT`; the client loads with the page.
+    offered: () => import('../api/imports').then((module) => module.archiveEnabled(api)),
   },
   sites: {
     titleKey: 'page.sites',

@@ -49,6 +49,21 @@ where
         Self { pool }
     }
 
+    /// The `(storage_id, extension)` of every asset row.
+    pub async fn stored_names(&self) -> Result<Vec<(String, Option<String>)>, DbError> {
+        let rows = sqlx::query("SELECT storage_id, extension FROM asset")
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter()
+            .map(|row| {
+                Ok((
+                    DB::text(row, "storage_id")?,
+                    DB::opt_text(row, "extension")?,
+                ))
+            })
+            .collect()
+    }
+
     pub async fn create(&self, new: &NewAsset) -> Result<AssetRow, DbError> {
         let query = sqlx::query(
             "INSERT INTO asset (owner_id, name, media_type, storage_id, extension, alt_text)

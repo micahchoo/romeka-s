@@ -15,7 +15,9 @@
 //!   plus the file renderer trait, a registry mirroring
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
-//!   decodes gif, jpeg, png and webp and stores the three derivatives.
+//!   decodes gif, jpeg, png, tiff and webp and stores the three derivatives.
+//! - [`image_metadata`]: the EXIF tags and pixel size of an image, for the
+//!   archive import's tag preview.
 //! - [`data`]: the typed `media.data` payloads.
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
 //!
@@ -40,6 +42,7 @@ pub mod data;
 pub mod file_render;
 pub mod http;
 pub mod http_client;
+pub mod image_metadata;
 pub mod ingest;
 pub mod media_type;
 pub mod oembed;
@@ -52,6 +55,7 @@ pub mod uri;
 
 pub use file_render::{FileRendererRegistry, ThumbnailType};
 pub use http_client::HttpClient;
+pub use image_metadata::image_metadata;
 pub use ingest::IngesterRegistry;
 pub use render::RendererRegistry;
 pub use thumbnailer::{ImageThumbnailer, ThumbnailOutcome, ThumbnailSkip, generate_thumbnails};

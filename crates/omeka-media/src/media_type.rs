@@ -69,6 +69,15 @@ mod tests {
             detected_media_type(b"RIFF\x1a\x00\x00\x00WEBPVP8 "),
             "image/webp"
         );
+        // Both TIFF byte orders: `II*\0` and `MM\0*`.
+        assert_eq!(
+            detected_media_type(b"II*\x00\x08\x00\x00\x00"),
+            "image/tiff"
+        );
+        assert_eq!(
+            detected_media_type(b"MM\x00*\x00\x00\x00\x08"),
+            "image/tiff"
+        );
     }
 
     /// Text is `text/plain` and an unrecognised binary is

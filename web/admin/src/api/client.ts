@@ -816,9 +816,15 @@ export class ApiClient {
     };
   }
 
-  async requestJson(path: string): Promise<unknown> {
-    const response = await this.get(this.apiUrl(path));
+  async requestJson(path: string, params?: URLSearchParams): Promise<unknown> {
+    const response = await this.get(this.apiUrl(path, params));
     return readJsonBody(response);
+  }
+
+  /** A `text/plain` answer, such as a job's log. */
+  async requestText(path: string): Promise<string> {
+    const response = await this.get(this.apiUrl(path));
+    return response.text();
   }
 
   async writeJson(
@@ -838,7 +844,8 @@ export class ApiClient {
     return readJsonBody(response);
   }
 
-  async deleteJson(path: string): Promise<void> {
+  /** `check` reads the answer; the default is the detached entity an `/api` delete renders. */
+  async deleteJson(path: string, check: (raw: unknown) => void = assertDetached): Promise<void> {
     const response = await this.fetchFn(this.apiUrl(path), {
       method: 'DELETE',
       headers: { Accept: 'application/json' },
@@ -847,7 +854,7 @@ export class ApiClient {
     if (!response.ok) {
       throw await this.apiError(response);
     }
-    assertDetached(await readJsonBody(response));
+    check(await readJsonBody(response));
   }
 
   private async get(url: string): Promise<Response> {

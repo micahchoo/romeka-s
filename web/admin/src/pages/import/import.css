@@ -1,0 +1,321 @@
+/* The Import page. Everything else comes from the admin stylesheet. */
+
+.import-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.import-save {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.import-banner {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.import-draft button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.import-mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+
+.import-wide {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.import-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.import-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.import-chips > span {
+  color: var(--text-muted);
+}
+
+.import-folders button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 10rem;
+}
+
+.import-folders small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.import-panel {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.import-panel > :first-child {
+  margin-top: 0;
+}
+
+.import-example {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+}
+
+.import-example-folder {
+  display: contents;
+}
+
+.import-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3rem;
+  padding: var(--space-1) var(--space-2);
+}
+
+.import-chip small {
+  font-size: 11px;
+}
+
+.import-draft .import-chip[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.import-sep {
+  align-self: center;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.import-hint {
+  margin: 0 0 var(--space-2);
+}
+
+.import-tag {
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.import-tag-identifier { background: #dce8fa; color: #174a8c; }
+.import-tag-part { background: #fbe6d2; color: #7a3f06; }
+.import-tag-page { background: #ece2f6; color: #5b3486; }
+.import-tag-set { background: #dcefe0; color: #2a5f37; }
+.import-tag-ext { background: #e9ecef; color: #3f4a54; }
+.import-tag-other { background: #f4f1d0; color: #5c5410; }
+
+button.import-chip.import-tag {
+  border-color: currentColor;
+}
+
+.import-path-button {
+  color: var(--text);
+  text-align: start;
+  text-decoration: none;
+}
+
+.import-radio {
+  display: block;
+  margin: 0 0 var(--space-1);
+}
+
+.import-fields {
+  white-space: normal;
+  color: var(--text-muted);
+}
+
+/* The dry run: the label first, the number, then the names it counts. */
+.import-check th {
+  font-weight: normal;
+  text-align: start;
+}
+
+.import-check td:last-child {
+  color: var(--text-muted);
+}
+
+.import-undo {
+  margin: 0 0 var(--space-4);
+}
+
+.import-undo h3 {
+  margin-top: 0;
+}
+
+.import-step-nav {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.import-raw {
+  overflow-x: auto;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+
+.import-raw-number {
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.import-raw mark {
+  background: var(--accent-soft);
+  color: inherit;
+  font-weight: 600;
+}
+
+.import-part {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.import-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.import-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.import-kinds {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.import-kinds li {
+  margin: 0 0 var(--space-1);
+}
+
+.import-link {
+  margin-inline-start: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.import-link:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.import-grid th small {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.import-grid .import-pinned {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+
+.import-row-problems ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-cell button {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  padding: var(--space-1);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text);
+  text-align: start;
+  font: inherit;
+}
+
+.import-cell-bad button {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.import-problem {
+  display: block;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.import-cell-selected button {
+  outline: 2px solid var(--accent);
+}
+
+.import-conflict {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.import-unmapped {
+  color: var(--text-muted);
+}
+
+.import-skipped {
+  opacity: 0.6;
+}
+
+.import-edit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.import-edit-bar label {
+  flex: 1 1 16rem;
+}
