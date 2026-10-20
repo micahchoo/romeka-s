@@ -17,6 +17,8 @@
 //! `Ingester\Fallback` backs every unregistered name and has no renderer, so an
 //! unknown ingester is refused the way upstream refuses the fallback.
 
+use std::sync::Arc;
+
 use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
@@ -30,7 +32,7 @@ use omeka_media::ingest::{
     UploadedFile as IngestUpload,
 };
 use omeka_media::oembed::{Oembed, OembedAllowList};
-use omeka_media::store::FileStore;
+use omeka_media::store::Store;
 use omeka_media::thumbnailer::ImageThumbnailer;
 use omeka_media::validation::FileValidation;
 use serde_json::Value;
@@ -170,14 +172,14 @@ pub(crate) async fn prepare(
 /// seam is: a `url` or `iiif` create would otherwise hold its tokio worker for
 /// the length of a fetch and stall every other request the worker carries.
 async fn ingest(
-    store: FileStore,
+    store: Arc<dyn Store>,
     ingester: String,
     request: IngestRequest,
     source: Option<String>,
     validation: FileValidation,
 ) -> Result<(MediaDraft, ErrorStore), ApiError> {
     tokio::task::spawn_blocking(move || {
-        run_ingester(&store, &ingester, request, source, &validation)
+        run_ingester(store.as_ref(), &ingester, request, source, &validation)
     })
     .await
     .map_err(|error| ApiError::internal(format!("the media ingester did not finish: {error}")))
@@ -265,7 +267,7 @@ fn ingest_request(payload: &Payload, file: Option<&UploadedFile>) -> IngestReque
 /// Drive one ingester over one request. Its caller is [`ingest`], which puts it
 /// on the blocking pool because every ingester is synchronous.
 fn run_ingester(
-    store: &FileStore,
+    store: &dyn Store,
     ingester: &str,
     request: IngestRequest,
     source: Option<String>,
@@ -408,7 +410,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 /// its media; `item.primary_media_id` and any site block attachment lose the
 /// reference (`ON DELETE SET NULL`).
 pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError> {
-    crate::write::files::delete_media_files(api.store(), row)?;
+    crate::write::files::delete_media_files(api.store().map(|store| store.as_ref()), row)?;
     values::clear(api, row.resource.id).await?;
     MediaRepo::new(api.pool())
         .delete(row.id())

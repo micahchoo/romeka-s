@@ -21,7 +21,7 @@ use omeka_media::ingest::{
     HtmlPurifier, IngestEnv, IngestFile, IngestFlags, MediaDraft, ingest_file,
 };
 use omeka_media::oembed::{Oembed, OembedAllowList};
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{Store, StorePrefix, storage_path};
 use omeka_media::thumbnailer::ImageThumbnailer;
 use omeka_media::validation::FileValidation;
 
@@ -38,7 +38,7 @@ const INGESTER: &str = "upload";
 /// A message for the first file that could not be read, that `validation`
 /// refused, or that could not be stored.
 pub fn store_all(
-    store: &FileStore,
+    store: &dyn Store,
     validation: &FileValidation,
     files: &[FileWork],
     owner: Option<UserId>,
@@ -61,7 +61,7 @@ pub fn store_all(
 
 /// Remove the bytes of files whose row did not commit. A file already gone is
 /// fine; a file that cannot be removed stays, and nothing names it.
-pub fn discard(store: &FileStore, stored: &[NewMedia]) {
+pub fn discard(store: &dyn Store, stored: &[NewMedia]) {
     for media in stored {
         if let Some(id) = media.storage_id.as_deref() {
             remove_storage(store, id, media.extension.as_deref());
@@ -69,14 +69,10 @@ pub fn discard(store: &FileStore, stored: &[NewMedia]) {
     }
 }
 
-fn remove_storage(store: &FileStore, storage_id: &str, extension: Option<&str>) {
-    let _ = store.delete(&FileStore::storage_path(
-        StorePrefix::Original,
-        storage_id,
-        extension,
-    ));
+fn remove_storage(store: &dyn Store, storage_id: &str, extension: Option<&str>) {
+    let _ = store.delete(&storage_path(StorePrefix::Original, storage_id, extension));
     for kind in ThumbnailType::ALL {
-        let _ = store.delete(&FileStore::storage_path(
+        let _ = store.delete(&storage_path(
             StorePrefix::Thumbnail(kind),
             storage_id,
             Some("jpg"),
@@ -87,7 +83,7 @@ fn remove_storage(store: &FileStore, storage_id: &str, extension: Option<&str>) 
 type Partial = Option<(String, Option<String>)>;
 
 fn store_one(
-    store: &FileStore,
+    store: &dyn Store,
     validation: &FileValidation,
     file: &FileWork,
     owner: Option<UserId>,

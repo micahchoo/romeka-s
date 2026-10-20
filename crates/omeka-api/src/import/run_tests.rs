@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use omeka_db::ids::{ImportId, ItemSetId, PropertyId};
 use omeka_db::repos::{
@@ -15,7 +16,7 @@ use omeka_db::repos::{
 };
 use omeka_db::rows::{ImportKind, NewImport, NewItemSet, NewProperty, NewResource, NewVocabulary};
 use omeka_db::{migrate, open_file};
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use serde_json::json;
 use sqlx::SqlitePool;
 
@@ -29,7 +30,7 @@ use crate::jsonld::BaseUrl;
 pub(super) struct Fixture {
     _dir: tempfile::TempDir,
     pub(super) pool: SqlitePool,
-    pub(super) store: FileStore,
+    pub(super) store: Arc<dyn Store>,
     store_root: PathBuf,
     pub(super) archive: PathBuf,
     pub(super) photos: ItemSetId,
@@ -132,7 +133,7 @@ pub(super) async fn fixture() -> Fixture {
     let catalog = super::catalog::load(&pool).await.expect("catalog");
     Fixture {
         catalog,
-        store: FileStore::new(&store_root, "/files"),
+        store: Arc::new(FileStore::new(&store_root, "/files")),
         store_root,
         archive,
         pool,

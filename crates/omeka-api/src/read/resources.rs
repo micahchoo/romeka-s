@@ -13,8 +13,7 @@ use omeka_db::repos::{
     compare_opt_text_ci,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
-use omeka_media::ThumbnailType;
-use omeka_media::thumbnailer::thumbnail_path;
+use omeka_media::thumbnailer::thumbnails_stored;
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
 use super::params::{Sort, SortField};
@@ -860,9 +859,9 @@ fn has_thumbnails(api: &Api<'_>, media: &MediaRow) -> bool {
     let (Some(store), Some(storage_id)) = (api.store(), media.storage_id.as_deref()) else {
         return false;
     };
-    ThumbnailType::ALL
-        .iter()
-        .all(|kind| store.exists(&thumbnail_path(storage_id, *kind)))
+    // A store that cannot answer leaves the row on its original, as a row
+    // without the flag already is.
+    thumbnails_stored(store.as_ref(), storage_id).unwrap_or(false)
 }
 
 /// `Entity\Media::getFilename`: the storage id plus the extension.

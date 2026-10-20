@@ -187,7 +187,7 @@ mod tests {
     };
     use omeka_db::rows::{NewItem, NewItemSet, NewMedia, NewResource, NewValue};
     use omeka_media::file_render::ThumbnailType;
-    use omeka_media::store::{FileStore, StorePrefix, sha256_hex};
+    use omeka_media::store::{FileStore, Store, StorePrefix, sha256_hex, storage_path};
     use omeka_media::thumbnailer::thumbnail_path;
 
     use crate::commands::restore::{self, RestoreOptions};
@@ -235,7 +235,7 @@ mod tests {
         let file_store = FileStore::new(store, "/files");
         let storage_id = omeka_media::store::new_storage_id().expect("storage id");
         let extension = name.rsplit_once('.').map(|(_, extension)| extension);
-        let path = FileStore::storage_path(StorePrefix::Original, &storage_id, extension);
+        let path = storage_path(StorePrefix::Original, &storage_id, extension);
         file_store.put(bytes, &path).expect("store bytes");
         let thumbnails = bytes.starts_with(&[0x89, b'P', b'N', b'G']);
         if thumbnails {
@@ -351,7 +351,7 @@ mod tests {
         );
         pool.close().await;
 
-        let original = FileStore::storage_path(StorePrefix::Original, &storage_id, Some("png"));
+        let original = storage_path(StorePrefix::Original, &storage_id, Some("png"));
         let stored = std::fs::read(store.path().join(&original)).expect("source bytes");
         assert_eq!(
             std::fs::read(target_store.join(&original)).expect("restored bytes"),
@@ -413,7 +413,7 @@ mod tests {
         let (_set, item, _title) = seed_item(&db).await;
         let store = tempfile::tempdir().expect("store dir");
         let storage_id = seed_media(&db, item, store.path(), "doc.pdf", b"body").await;
-        let original = FileStore::storage_path(StorePrefix::Original, &storage_id, Some("pdf"));
+        let original = storage_path(StorePrefix::Original, &storage_id, Some("pdf"));
         std::fs::remove_file(store.path().join(&original)).expect("remove original");
 
         let archive_dir = tempfile::tempdir().expect("archive dir");
@@ -486,7 +486,7 @@ mod tests {
         FileStore::new(store.path(), "/files")
             .put(
                 b"raw",
-                &FileStore::storage_path(StorePrefix::Original, &storage_id, None),
+                &storage_path(StorePrefix::Original, &storage_id, None),
             )
             .expect("store bytes");
         MediaRepo::new(&db.pool)

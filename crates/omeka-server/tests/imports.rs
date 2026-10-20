@@ -16,7 +16,6 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ApiKeyRepo, ImportRepo, JobRepo, PropertyRepo, UserRepo};
 use omeka_db::rows::{NewApiKey, NewProperty, NewUser};
-use omeka_media::store::FileStore;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
@@ -78,7 +77,7 @@ async fn fixture_with(archive: bool, jobs: Recorder) -> Fixture {
     };
     let jobs = Arc::new(jobs);
     let services =
-        Services::new(FileStore::new(dir.path().join("files"), "/files")).with_jobs(jobs.clone());
+        Services::new(omeka_server::file_store(dir.path().join("files"))).with_jobs(jobs.clone());
     Fixture {
         app: omeka_server::build_router_with_services(pool.clone(), &config, services),
         pool,

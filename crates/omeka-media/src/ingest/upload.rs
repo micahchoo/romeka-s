@@ -61,6 +61,7 @@ impl Ingester for Upload {
 mod tests {
     use super::*;
     use crate::ingest::UploadedFile;
+    use crate::store::Store;
     use crate::testing::{Harness, media_row};
     use crate::validation::FileValidation;
 
@@ -129,7 +130,12 @@ mod tests {
         assert!(draft.row.has_original);
         let storage_id = draft.row.storage_id.clone().expect("storage id");
         assert_eq!(storage_id.len(), 40);
-        assert!(harness.store.exists(&format!("original/{storage_id}.jpg")));
+        assert!(
+            harness
+                .store
+                .exists(&format!("original/{storage_id}.jpg"))
+                .unwrap()
+        );
     }
 
     /// `Ingester/Upload.php:61`: an `o:source` the caller already set is not
@@ -183,6 +189,11 @@ mod tests {
         Upload.ingest(&mut draft, &request, &env, &mut errors);
         assert!(errors.is_empty(), "{errors:?}");
         let storage_id = draft.row.storage_id.clone().expect("storage id");
-        assert!(harness.store.exists(&format!("original/{storage_id}.db")));
+        assert!(
+            harness
+                .store
+                .exists(&format!("original/{storage_id}.db"))
+                .unwrap()
+        );
     }
 }

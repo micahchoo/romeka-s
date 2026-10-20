@@ -10,12 +10,13 @@
 //! summary keeps as `undo`. The caller closes the undo window.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
 use omeka_db::repos::{ImportRepo, ImportResourceRepo, ImportWriteRepo, MediaRepo};
 use omeka_db::rows::{ImportKind, ImportTarget};
-use omeka_media::store::FileStore;
+use omeka_media::store::Store;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use sqlx::SqlitePool;
@@ -73,7 +74,7 @@ pub enum UndoError {
 /// far stays removed, and a rerun goes on from there.
 pub async fn undo<F>(
     pool: &SqlitePool,
-    store: &FileStore,
+    store: &Arc<dyn Store>,
     import_id: ImportId,
     mut progress: F,
 ) -> Result<UndoReport, UndoError>

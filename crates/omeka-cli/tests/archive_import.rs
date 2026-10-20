@@ -14,7 +14,6 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_cli::commands::install::{InstallOptions, run as install};
 use omeka_cli::jobs::{JobEnv, Runner};
 use omeka_db::ids::JobId;
-use omeka_media::store::FileStore;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
@@ -86,7 +85,7 @@ async fn site() -> Site {
         ..Config::default()
     };
     let env = JobEnv {
-        store: FileStore::new(&store, omeka_server::FILES_URI),
+        store: omeka_server::file_store(&store),
         base_url: base,
         archive_root: Some(archive),
     };

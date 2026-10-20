@@ -36,7 +36,7 @@ use std::sync::Arc;
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
 use omeka_db::ids::{SiteId, UserId};
-use omeka_media::store::FileStore;
+use omeka_media::store::Store;
 use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
 use sqlx::SqlitePool;
 
@@ -65,7 +65,7 @@ pub struct Api<'a> {
     base: BaseUrl,
     actor: Actor,
     catalog: Catalog,
-    store: Option<FileStore>,
+    store: Option<Arc<dyn Store>>,
     plugins: Arc<Registry>,
 }
 
@@ -80,7 +80,7 @@ impl<'a> Api<'a> {
         pool: &'a SqlitePool,
         base: BaseUrl,
         actor: Actor,
-        store: Option<FileStore>,
+        store: Option<Arc<dyn Store>>,
     ) -> Result<Self, ApiError> {
         Self::load_with_registry(pool, base, actor, store, adapters::core_registry()).await
     }
@@ -101,7 +101,7 @@ impl<'a> Api<'a> {
         pool: &'a SqlitePool,
         base: BaseUrl,
         actor: Actor,
-        store: Option<FileStore>,
+        store: Option<Arc<dyn Store>>,
         plugins: Arc<Registry>,
     ) -> Result<Self, ApiError> {
         Ok(Self {
@@ -245,7 +245,7 @@ impl<'a> Api<'a> {
     }
 
     /// The file store a media delete reaches, `None` when the process has none.
-    pub(crate) fn store(&self) -> Option<&FileStore> {
+    pub(crate) fn store(&self) -> Option<&Arc<dyn Store>> {
         self.store.as_ref()
     }
 

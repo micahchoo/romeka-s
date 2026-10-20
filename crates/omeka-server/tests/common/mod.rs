@@ -87,7 +87,11 @@ pub fn router(pool: SqlitePool) -> Router {
 
 /// Build a router whose media deletes reach `store`.
 pub fn router_with_store(pool: SqlitePool, store: FileStore) -> Router {
-    omeka_server::build_router_with_store(pool, BaseUrl::parse("http://localhost").unwrap(), store)
+    omeka_server::build_router_with_store(
+        pool,
+        BaseUrl::parse("http://localhost").unwrap(),
+        std::sync::Arc::new(store),
+    )
 }
 
 /// Seed the default-install-like rows every read test asserts against.

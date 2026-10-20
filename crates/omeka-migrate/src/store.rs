@@ -8,13 +8,13 @@
 use std::path::{Path, PathBuf};
 
 use omeka_db::rows::AssetRow;
-use omeka_media::store::{FileStore, StorePrefix};
+use omeka_media::store::{FileStore, Store, StorePrefix, storage_path};
 
 use crate::error::MigrateError;
 
 /// Copy every asset row's stored file from the source store into the target store.
 ///
-/// The storage path is `asset/<storage_id>[.<extension>]`, which [`FileStore::storage_path`]
+/// The storage path is `asset/<storage_id>[.<extension>]`, which [`storage_path`]
 /// builds. A source asset whose file is not in the source store stops the run by name, because a
 /// silent miss would leave a migrated thumbnail pointing at nothing.
 pub(crate) fn copy_asset_files(
@@ -25,18 +25,18 @@ pub(crate) fn copy_asset_files(
     let source = FileStore::new(source_root, "/files");
     let target = FileStore::new(target_root, "/files");
     for asset in assets {
-        let storage_path = FileStore::storage_path(
+        let storage_path = storage_path(
             StorePrefix::Asset,
             &asset.storage_id,
             asset.extension.as_deref(),
         );
-        if !source.exists(&storage_path) {
+        if !source.exists(&storage_path)? {
             return Err(MigrateError::MissingAssetFile {
                 storage_id: asset.storage_id.clone(),
                 path: source.local_path(&storage_path)?,
             });
         }
-        target.put_atomic(&source.read(&storage_path)?, &storage_path)?;
+        target.put(&source.read(&storage_path)?, &storage_path)?;
     }
     Ok(())
 }

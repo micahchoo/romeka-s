@@ -20,7 +20,9 @@ use omeka_db::ids::AssetId;
 use omeka_db::repos::AssetRepo;
 use omeka_db::rows::{AssetRow, NewAsset};
 use omeka_media::media_type::{detected_media_type, extension_for_media_type};
-use omeka_media::store::{FileStore, StorePrefix, extension_from_source_name, new_storage_id};
+use omeka_media::store::{
+    Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
+};
 use omeka_media::validation::{FileRefusal, FileValidation};
 use serde_json::Value;
 
@@ -88,7 +90,7 @@ pub async fn create(
         return Err(ApiError::internal("the process has no file store"));
     };
     let storage_id = new_storage_id().map_err(ApiError::internal)?;
-    let path = FileStore::storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
+    let path = storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
     store.put(&file.bytes, &path).map_err(ApiError::internal)?;
     let row = AssetRepo::new(api.pool())
         .create(&NewAsset {
@@ -166,18 +168,18 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     };
     access::resource_entity(api.actor(), ASSET_CLASS, row.owner_id)?;
     let answer = api.read_member("assets", raw_id).await?;
-    delete_asset_file(api.store(), &row)?;
+    delete_asset_file(api.store().map(|store| store.as_ref()), &row)?;
     repo.delete(row.id).await.map_err(db_error)?;
     Ok(answer)
 }
 
 /// The stored bytes one asset owns (`Module::deleteAssetFile`).
-fn delete_asset_file(store: Option<&FileStore>, row: &AssetRow) -> Result<(), ApiError> {
+fn delete_asset_file(store: Option<&dyn Store>, row: &AssetRow) -> Result<(), ApiError> {
     let Some(store) = store else {
         return Ok(());
     };
     store
-        .delete(&FileStore::storage_path(
+        .delete(&storage_path(
             StorePrefix::Asset,
             &row.storage_id,
             row.extension.as_deref(),

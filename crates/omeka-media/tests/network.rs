@@ -27,6 +27,7 @@ use omeka_media::http::{FetchErrorKind, HttpFetch};
 use omeka_media::http_client::HttpClient;
 use omeka_media::ingest::{ErrorStore, IngestEnv, IngestRequest, IngesterRegistry, MediaDraft};
 use omeka_media::oembed::{AllowRule, Oembed, OembedAllowList};
+use omeka_media::store::Store;
 use omeka_media::testing::{FakeThumbnailer, Harness, PassthroughPurifier, media_row};
 
 /// What the loopback server answers for one path.

@@ -7,7 +7,7 @@
 //! mirror the two upstream interfaces.
 //!
 //! An ingester reads the API request, validates it, fills a [`MediaDraft`], and
-//! stores files through [`crate::store::FileStore`]. Every external dependency
+//! stores files through [`crate::store::Store`]. Every external dependency
 //! is a trait in [`IngestEnv`], so a test drives an ingester with fakes and no
 //! network, no database and no temporary server.
 
@@ -30,7 +30,7 @@ use serde_json::{Map, Value};
 use crate::data::MediaData;
 use crate::http::HttpFetch;
 use crate::oembed::Oembed;
-use crate::store::{FileStore, Thumbnailer};
+use crate::store::{Store, Thumbnailer};
 use crate::validation::FileValidation;
 
 pub use file::{IngestFile, IngestFileError, IngestFlags, ingest_file};
@@ -232,7 +232,7 @@ impl Purifier for HtmlPurifier {
 /// Every external dependency an ingester may use.
 pub struct IngestEnv<'a> {
     /// The file store.
-    pub store: &'a FileStore,
+    pub store: &'a dyn Store,
     /// The network seam.
     pub http: &'a dyn HttpFetch,
     /// The HTML purifier.

@@ -24,7 +24,6 @@ use common::{append_key, json_request, seeded_pool, send};
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::repos::PropertyRepo;
 use omeka_db::rows::NewProperty;
-use omeka_media::store::FileStore;
 use omeka_server::{Config, Services};
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
@@ -184,7 +183,7 @@ async fn app(dir: &Path) -> (Router, SqlitePool) {
         archive_root: Some(dir.join("archive")),
         ..Config::default()
     };
-    let services = Services::new(FileStore::new(dir.join("files"), "/files"));
+    let services = Services::new(omeka_server::file_store(dir.join("files")));
     (
         omeka_server::build_router_with_services(pool.clone(), &config, services),
         pool,
