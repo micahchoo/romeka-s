@@ -19,7 +19,8 @@ use axum::http::StatusCode;
 use imports_fixture::{BHC_PATTERN, Fixture, JPEG, TIFF, bhc_006, fixture};
 use imports_wire::recorder::Fixtures;
 use imports_wire::scene::{
-    REGISTER, add_date, at, checked, existing_item, ok, refused, rich_plan, upload_list,
+    REGISTER, add_date, at, checked, existing_item, ok, pairs_answers, refused, rich_plan,
+    upload_list,
 };
 use omeka_db::ids::ImportId;
 use omeka_db::repos::ImportRepo;
@@ -170,6 +171,7 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
 
     conflicts_before_a_run(&fixture, &mut out, &draft, &id).await;
     runs(&fixture, &mut out, &id).await;
+    pairs_answers(&fixture, &mut out, &id).await;
     out.finish();
 }
 
@@ -316,7 +318,12 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
         "the plan is back to the checked one"
     );
 
-    let empty = fixture.draft().await;
+    // A new draft makes one item per name; with no pattern it makes nothing.
+    let made = fixture.draft().await;
+    let empty = ok(fixture
+        .save(&made, |plan| plan["grouping"]["pattern"] = json!(null))
+        .await)
+    .await;
     ok(fixture.call("POST", &at(&empty["id"], "/scan"), None).await).await;
     let nothing = fixture
         .call(
@@ -515,6 +522,14 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
         &refused(again, StatusCode::CONFLICT, Some("cannotRun")).await,
     );
 
+    // Keyed in the query string, as a client without a session asks.
+    out.json(
+        "undo-preview.json",
+        &ok(fixture
+            .call("GET", &at(&done["id"], "/undo/preview"), None)
+            .await)
+        .await,
+    );
     out.json(
         "undo.json",
         &ok(fixture

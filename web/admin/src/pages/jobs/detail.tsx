@@ -85,7 +85,7 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
 
       {importId === null ? null : (
         <p>
-          <a href={`#/import/${String(importId)}/run`}>{t('jobs.openImport')}</a>
+          <a href={`#/import/${String(importId)}`}>{t('jobs.openImport')}</a>
         </p>
       )}
 

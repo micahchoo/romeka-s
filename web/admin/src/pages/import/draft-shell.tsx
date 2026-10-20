@@ -14,6 +14,7 @@ import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { ADVANCED_BODIES } from './advanced/bodies';
 import { DraftContext } from './draft-context';
+import { FirstLook } from './first-look';
 import type { Draft } from './draft-context';
 import { useImportText } from './messages';
 import { PlanStore } from './plan-store';
@@ -42,12 +43,21 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
   const { t } = useImportText();
   const [store] = useState(() => new PlanStore(importApi, initial));
   const snapshot = useSyncExternalStore(store.subscribe, store.snapshot);
+  const [looks, setLooks] = useState(0);
   useEffect(() => () => {
     store.close();
   }, [store]);
   const draft = useMemo<Draft>(
-    () => ({ ...snapshot, id: initial.id, place, change: (edit) => { store.change(edit); } }),
-    [snapshot, initial.id, place, store],
+    () => ({
+      ...snapshot,
+      id: initial.id,
+      place,
+      change: (edit) => { store.change(edit); },
+      adopt: (next) => { store.adopt(next); },
+      looks,
+      looked: () => { setLooks((count) => count + 1); },
+    }),
+    [snapshot, initial.id, place, store, looks],
   );
   const { detail } = snapshot;
   const where = whereWords(detail.plan.sources, t);
@@ -79,6 +89,7 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
         <div className="import-layout">
           <Steps id={detail.id} place={place} />
           <div className="import-screen">
+            {detail.status === 'draft' ? <FirstLook /> : null}
             {counted ? <StatusLine /> : null}
             <h3 className="import-screen-title">{t(screenOf(place).title)}</h3>
             <Body key={`${place.mode}/${place.screen}`} place={place} />

@@ -1,0 +1,79 @@
+/* The Simple screens. Everything else comes from the Import and admin stylesheets. */
+
+.guided-ask {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.guided-ask > p:first-child {
+  margin-top: 0;
+}
+
+.guided-ask-q {
+  font-weight: 600;
+}
+
+.guided-done {
+  border-color: var(--success, #2f7d4f);
+}
+
+.guided-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
+  font-size: 1.125rem;
+}
+
+.guided-chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.guided-sep {
+  color: var(--text-muted);
+}
+
+.guided-opts {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  padding: 0;
+  border: 0;
+}
+
+.guided-opts label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.guided-ticks {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guided-cards {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.guided-big {
+  font-size: 1.125rem;
+}
+
+.guided-pill {
+  margin-left: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--surface-muted, #eef2f7);
+  font-size: 0.8125rem;
+}

@@ -244,6 +244,8 @@ fn s6_a_register_with_one_row_per_image_attaches_media_by_item_key() {
         ("scans/s003.tif", TIFF),
     ];
     let plan = plan(|plan| {
+        // The files make no items of their own: the register's rows are the items.
+        plan["grouping"]["pattern"] = json!(null);
         plan["sheets"] = json!([
             sheet_plan("objects", &["Id", "Title"]),
             sheet_plan("images", &["Object", "File", "Page"])

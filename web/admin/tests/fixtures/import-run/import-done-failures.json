@@ -1,0 +1,864 @@
+{
+  "copiedFrom": 1,
+  "created": "2026-10-21T09:00:00+00:00",
+  "died": null,
+  "finished": "2026-10-21T09:00:00+00:00",
+  "id": 6,
+  "jobId": 2,
+  "ownerId": 1,
+  "plan": {
+    "action": {
+      "action": "create",
+      "match": {
+        "item": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "itemSet": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "media": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        }
+      },
+      "unmatched": "leave"
+    },
+    "decisions": [
+      {
+        "file": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": {
+          "with": {
+            "file": {
+              "path": "Artifacts/BHC_006_AF_002_front.jpg",
+              "source": "s1"
+            }
+          }
+        }
+      },
+      {
+        "file": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": {
+          "with": {
+            "file": {
+              "path": "Artifacts/BHC_006_AF_004_front.jpg",
+              "source": "s1"
+            }
+          }
+        }
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_front.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": null,
+            "text": "Front title",
+            "type": "literal"
+          }
+        ]
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": null,
+            "text": "Back title",
+            "type": "literal"
+          }
+        ]
+      },
+      {
+        "file": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": "own"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_101.tif",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": "en",
+            "text": "Studio portrait",
+            "type": "literal"
+          },
+          {
+            "label": "Portrait",
+            "lang": null,
+            "text": "http://x.org/a",
+            "type": "uri"
+          }
+        ]
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_AF_001#1",
+            "sheet": "register"
+          }
+        },
+        "kind": "match",
+        "resource": null,
+        "target": "item"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        },
+        "flag": "format-mismatch",
+        "kind": "flag",
+        "policy": "leave",
+        "slot": null
+      },
+      {
+        "file": {
+          "path": "Misc/loose.jpg",
+          "source": "s1"
+        },
+        "kind": "pair",
+        "row": {
+          "key": "BHC_006_ZZ_999#1",
+          "sheet": "register"
+        }
+      },
+      {
+        "change": {
+          "kind": "set",
+          "slot": "dcterms:title",
+          "target": "item",
+          "values": []
+        },
+        "entries": [
+          {
+            "file": {
+              "path": "Photographs/1950s/BHC_006_PH_103.tif",
+              "source": "s1"
+            }
+          },
+          {
+            "file": {
+              "path": "Photographs/1950s/BHC_006_PH_104.tif",
+              "source": "s1"
+            }
+          }
+        ],
+        "kind": "many"
+      },
+      {
+        "change": {
+          "kind": "leave"
+        },
+        "entries": [
+          {
+            "file": {
+              "path": "Scans/BHC_006_SC_001_p1.tif",
+              "source": "s1"
+            }
+          }
+        ],
+        "kind": "many"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "gone/missing.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "leave"
+      }
+    ],
+    "defaults": {
+      "owner": "runner",
+      "sites": [],
+      "template": null,
+      "visibility": "private"
+    },
+    "example": {
+      "labels": {
+        "n0": "identifier"
+      },
+      "optional": [
+        "part"
+      ],
+      "path": "Artifacts/BHC_006_AF_001_front.jpg"
+    },
+    "flags": {
+      "space-at-ends": "keep",
+      "unmatched": "leave"
+    },
+    "grouping": {
+      "caseFold": false,
+      "pattern": "^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z]{2}_\\d{3})(?:_(?<part>[a-z0-9]+))?\\.(?:jpg|tif)$"
+    },
+    "newTerms": [
+      {
+        "label": "Shelf mark"
+      }
+    ],
+    "newTypes": [
+      {
+        "class": null,
+        "from": "mapping",
+        "label": "Artifact"
+      }
+    ],
+    "sheets": [
+      {
+        "columns": [
+          {
+            "column": {
+              "header": "Title",
+              "index": 1
+            },
+            "options": {
+              "lang": "en",
+              "private": false,
+              "split": null,
+              "type": "literal"
+            }
+          },
+          {
+            "column": {
+              "header": "Date",
+              "index": 2
+            },
+            "options": {
+              "lang": null,
+              "private": false,
+              "split": "|",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          }
+        ],
+        "file": "register.csv",
+        "hash": "stale-hash",
+        "id": "register",
+        "itemKey": null,
+        "join": {
+          "column": {
+            "header": "Id",
+            "index": 0
+          },
+          "normalize": {
+            "caseFold": true,
+            "leadingZeros": false,
+            "separators": false
+          },
+          "on": "identifier"
+        },
+        "read": {
+          "delimiter": "auto",
+          "encoding": "auto",
+          "headerLine": 1,
+          "quote": "\"",
+          "trim": true
+        },
+        "rowKind": "item",
+        "source": "s1"
+      },
+      {
+        "columns": [],
+        "file": "lost.csv",
+        "hash": null,
+        "id": "lost",
+        "itemKey": null,
+        "join": null,
+        "read": {
+          "delimiter": ",",
+          "encoding": "windows-1252",
+          "headerLine": 2,
+          "quote": "'",
+          "trim": false
+        },
+        "rowKind": "media",
+        "source": "s1"
+      }
+    ],
+    "slots": {
+      "item": {
+        "dcterms:date": {
+          "combine": "all",
+          "sources": [
+            {
+              "column": {
+                "header": "Date",
+                "index": 2
+              },
+              "from": "column",
+              "sheet": "register"
+            }
+          ]
+        },
+        "dcterms:title": {
+          "combine": "first",
+          "sources": [
+            {
+              "column": {
+                "header": "Title",
+                "index": 1
+              },
+              "from": "column",
+              "sheet": "register"
+            },
+            {
+              "from": "group",
+              "name": "identifier"
+            }
+          ]
+        },
+        "local:shelfMark": {
+          "combine": "all",
+          "sources": [
+            {
+              "from": "folder",
+              "level": 1
+            },
+            {
+              "from": "folder",
+              "level": "path"
+            }
+          ]
+        },
+        "sets": {
+          "combine": "first",
+          "map": {
+            "Scans": ""
+          },
+          "sources": [
+            {
+              "from": "group",
+              "name": "set"
+            }
+          ]
+        },
+        "template": {
+          "combine": "first",
+          "sources": [
+            {
+              "from": "constant",
+              "value": "Artifact"
+            }
+          ]
+        }
+      },
+      "itemSet": {},
+      "media": {
+        "dcterms:title": {
+          "combine": "first",
+          "sources": [
+            {
+              "fact": "name",
+              "from": "file"
+            },
+            {
+              "files": "first",
+              "from": "tag",
+              "tag": "File name"
+            }
+          ]
+        }
+      }
+    },
+    "sources": [
+      {
+        "id": "s1",
+        "kind": "folder",
+        "path": "",
+        "root": "archive"
+      }
+    ],
+    "version": 2
+  },
+  "progress": {
+    "done": 8,
+    "secondsLeft": null,
+    "total": 9
+  },
+  "ranPlan": {
+    "action": {
+      "action": "create",
+      "match": {
+        "item": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "itemSet": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "media": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        }
+      },
+      "unmatched": "leave"
+    },
+    "decisions": [
+      {
+        "file": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": {
+          "with": {
+            "file": {
+              "path": "Artifacts/BHC_006_AF_002_front.jpg",
+              "source": "s1"
+            }
+          }
+        }
+      },
+      {
+        "file": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": {
+          "with": {
+            "file": {
+              "path": "Artifacts/BHC_006_AF_004_front.jpg",
+              "source": "s1"
+            }
+          }
+        }
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_front.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": null,
+            "text": "Front title",
+            "type": "literal"
+          }
+        ]
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_004_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": null,
+            "text": "Back title",
+            "type": "literal"
+          }
+        ]
+      },
+      {
+        "file": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_003_back.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "move",
+        "to": "own"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_101.tif",
+            "source": "s1"
+          }
+        },
+        "kind": "set",
+        "slot": "dcterms:title",
+        "target": "item",
+        "values": [
+          {
+            "label": null,
+            "lang": "en",
+            "text": "Studio portrait",
+            "type": "literal"
+          },
+          {
+            "label": "Portrait",
+            "lang": null,
+            "text": "http://x.org/a",
+            "type": "uri"
+          }
+        ]
+      },
+      {
+        "entry": {
+          "row": {
+            "key": "BHC_006_AF_001#1",
+            "sheet": "register"
+          }
+        },
+        "kind": "match",
+        "resource": null,
+        "target": "item"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "Photographs/1950s/BHC_006_PH_102.tif",
+            "source": "s1"
+          }
+        },
+        "flag": "format-mismatch",
+        "kind": "flag",
+        "policy": "leave",
+        "slot": null
+      },
+      {
+        "file": {
+          "path": "Misc/loose.jpg",
+          "source": "s1"
+        },
+        "kind": "pair",
+        "row": {
+          "key": "BHC_006_ZZ_999#1",
+          "sheet": "register"
+        }
+      },
+      {
+        "change": {
+          "kind": "set",
+          "slot": "dcterms:title",
+          "target": "item",
+          "values": []
+        },
+        "entries": [
+          {
+            "file": {
+              "path": "Photographs/1950s/BHC_006_PH_103.tif",
+              "source": "s1"
+            }
+          },
+          {
+            "file": {
+              "path": "Photographs/1950s/BHC_006_PH_104.tif",
+              "source": "s1"
+            }
+          }
+        ],
+        "kind": "many"
+      },
+      {
+        "change": {
+          "kind": "leave"
+        },
+        "entries": [
+          {
+            "file": {
+              "path": "Scans/BHC_006_SC_001_p1.tif",
+              "source": "s1"
+            }
+          }
+        ],
+        "kind": "many"
+      },
+      {
+        "entry": {
+          "file": {
+            "path": "gone/missing.jpg",
+            "source": "s1"
+          }
+        },
+        "kind": "leave"
+      }
+    ],
+    "defaults": {
+      "owner": "runner",
+      "sites": [],
+      "template": null,
+      "visibility": "private"
+    },
+    "example": {
+      "labels": {
+        "n0": "identifier"
+      },
+      "optional": [
+        "part"
+      ],
+      "path": "Artifacts/BHC_006_AF_001_front.jpg"
+    },
+    "flags": {
+      "space-at-ends": "keep",
+      "unmatched": "leave"
+    },
+    "grouping": {
+      "caseFold": false,
+      "pattern": "^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z]{2}_\\d{3})(?:_(?<part>[a-z0-9]+))?\\.(?:jpg|tif)$"
+    },
+    "newTerms": [
+      {
+        "label": "Shelf mark"
+      }
+    ],
+    "newTypes": [
+      {
+        "class": null,
+        "from": "mapping",
+        "label": "Artifact"
+      }
+    ],
+    "sheets": [
+      {
+        "columns": [
+          {
+            "column": {
+              "header": "Title",
+              "index": 1
+            },
+            "options": {
+              "lang": "en",
+              "private": false,
+              "split": null,
+              "type": "literal"
+            }
+          },
+          {
+            "column": {
+              "header": "Date",
+              "index": 2
+            },
+            "options": {
+              "lang": null,
+              "private": false,
+              "split": "|",
+              "type": {
+                "dataType": "edtf"
+              }
+            }
+          }
+        ],
+        "file": "register.csv",
+        "hash": "stale-hash",
+        "id": "register",
+        "itemKey": null,
+        "join": {
+          "column": {
+            "header": "Id",
+            "index": 0
+          },
+          "normalize": {
+            "caseFold": true,
+            "leadingZeros": false,
+            "separators": false
+          },
+          "on": "identifier"
+        },
+        "read": {
+          "delimiter": "auto",
+          "encoding": "auto",
+          "headerLine": 1,
+          "quote": "\"",
+          "trim": true
+        },
+        "rowKind": "item",
+        "source": "s1"
+      },
+      {
+        "columns": [],
+        "file": "lost.csv",
+        "hash": null,
+        "id": "lost",
+        "itemKey": null,
+        "join": null,
+        "read": {
+          "delimiter": ",",
+          "encoding": "windows-1252",
+          "headerLine": 2,
+          "quote": "'",
+          "trim": false
+        },
+        "rowKind": "media",
+        "source": "s1"
+      }
+    ],
+    "slots": {
+      "item": {
+        "dcterms:date": {
+          "combine": "all",
+          "sources": [
+            {
+              "column": {
+                "header": "Date",
+                "index": 2
+              },
+              "from": "column",
+              "sheet": "register"
+            }
+          ]
+        },
+        "dcterms:title": {
+          "combine": "first",
+          "sources": [
+            {
+              "column": {
+                "header": "Title",
+                "index": 1
+              },
+              "from": "column",
+              "sheet": "register"
+            },
+            {
+              "from": "group",
+              "name": "identifier"
+            }
+          ]
+        },
+        "local:shelfMark": {
+          "combine": "all",
+          "sources": [
+            {
+              "from": "folder",
+              "level": 1
+            },
+            {
+              "from": "folder",
+              "level": "path"
+            }
+          ]
+        },
+        "sets": {
+          "combine": "first",
+          "map": {
+            "Scans": ""
+          },
+          "sources": [
+            {
+              "from": "group",
+              "name": "set"
+            }
+          ]
+        },
+        "template": {
+          "combine": "first",
+          "sources": [
+            {
+              "from": "constant",
+              "value": "Artifact"
+            }
+          ]
+        }
+      },
+      "itemSet": {},
+      "media": {
+        "dcterms:title": {
+          "combine": "first",
+          "sources": [
+            {
+              "fact": "name",
+              "from": "file"
+            },
+            {
+              "files": "first",
+              "from": "tag",
+              "tag": "File name"
+            }
+          ]
+        }
+      }
+    },
+    "sources": [
+      {
+        "id": "s1",
+        "kind": "folder",
+        "path": "",
+        "root": "archive"
+      }
+    ],
+    "version": 2
+  },
+  "revision": 0,
+  "sources": [
+    {
+      "id": "s1",
+      "kind": "folder",
+      "path": "",
+      "root": "archive"
+    }
+  ],
+  "status": "done",
+  "stopRequested": false,
+  "summary": {
+    "failures": [
+      {
+        "record": "group:BHC_006_AF_003",
+        "key": "importFileUnreadable",
+        "detail": "The file \"Artifacts/BHC_006_AF_003_front.jpg\" could not be read: permission denied"
+      }
+    ],
+    "progress": {
+      "done": 8,
+      "total": 9
+    },
+    "stopped": false
+  },
+  "undoReport": null
+}

@@ -33,6 +33,8 @@ export interface PagedListProps<T> {
   readonly rowKey: (row: T) => string;
   /** Shown in place of the table when the list has no rows at all. */
   readonly empty: ReactNode;
+  /** Told each page that arrives, so a caller can count what the filter selects. */
+  readonly onPage?: (data: Paged<T>) => void;
 }
 
 type Shown<T> =
@@ -40,7 +42,7 @@ type Shown<T> =
   | { readonly status: 'error'; readonly error: Error }
   | { readonly status: 'ready'; readonly data: Paged<T> };
 
-export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, empty }: PagedListProps<T>): ReactElement => {
+export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, empty, onPage }: PagedListProps<T>): ReactElement => {
   const { t } = useImportText();
   const [page, setPage] = useState(1);
   const [shown, setShown] = useState<Shown<T>>({ status: 'loading' });
@@ -59,6 +61,7 @@ export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, em
         if (current) {
           setShown({ status: 'ready', data });
           setBusy(false);
+          onPage?.(data);
         }
       },
       (error: unknown) => {
@@ -77,7 +80,7 @@ export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, em
   if (shown.status === 'loading') {
     return (
       <p role="status" className="import-slow">
-        {t('lists.loading', { page })}
+        {t('paged.loading', { page })}
       </p>
     );
   }
@@ -118,7 +121,7 @@ export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, em
       {lastPage > 1 ? <Pager page={view.page} lastPage={lastPage} total={view.total} label={resource} onPage={setPage} /> : null}
       {busy ? (
         <p role="status" className="import-slow">
-          {t('lists.loading', { page })}
+          {t('paged.loading', { page })}
         </p>
       ) : null}
     </section>

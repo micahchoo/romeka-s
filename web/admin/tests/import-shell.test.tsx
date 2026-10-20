@@ -110,8 +110,65 @@ describe('the frame', () => {
     expect(screen.getByRole('button', { name: 'Make a copy' })).toBeInTheDocument();
     await act(async () => {});
     expect(requestsFor(fetchMock, '/api/romeka/imports/6/preview')).toHaveLength(0);
-    expect(requestsFor(fetchMock, `${PATH}/preview`)).toHaveLength(1);
+    // The draft's two: the status line's counts, and the first look's question whether its files were ever looked at.
+    expect(requestsFor(fetchMock, `${PATH}/preview`)).toHaveLength(2);
     expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+  });
+
+  it('looks at the files once when a source was never looked at, and says so meanwhile', async () => {
+    const full: Record<string, unknown> = { ...fixture('preview-check.json'), flags: fixture('preview-flags.json')['flags'] };
+    let looked = false;
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const unread: Handler = (_url, init) => {
+      const include = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), [])['include'];
+      const sections = Array.isArray(include) ? include.map(String) : [];
+      const sources = Array.isArray(full['sources']) ? full['sources'] : [];
+      return jsonResponse({
+        ...Object.fromEntries(Object.entries(full).filter(([key]) => sections.includes(key))),
+        pattern: full['pattern'],
+        sources: looked ? sources : sources.map((source) => ({ ...asRecord(source, []), scanned: null, files: 0 })),
+      });
+    };
+    const fetchMock = installFetch(
+      route({
+        [PATH]: () => jsonResponse(fixture('import-draft.json')),
+        [`${PATH}/preview`]: unread,
+        // The scan's answer arrives only when the test lets it, so the wait is seen.
+        [`${PATH}/scan`]: () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start: (controller) => {
+                void gate.then(() => {
+                  looked = true;
+                  controller.enqueue(new TextEncoder().encode(JSON.stringify(fixture('scan.json'))));
+                  controller.close();
+                });
+              },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+      }),
+    );
+    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    expect(await screen.findByText('Looking at your files for the first time...')).toBeInTheDocument();
+    release();
+    await waitFor(() => {
+      expect(screen.queryByText('Looking at your files for the first time...')).toBeNull();
+    });
+    expect(requestsFor(fetchMock, `${PATH}/scan`)).toHaveLength(1);
+  });
+
+  it('does not look at files already looked at', async () => {
+    const fetchMock = installFetch(
+      route({ [PATH]: () => jsonResponse(fixture('import-draft.json')), [`${PATH}/preview`]: preview }),
+    );
+    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    await screen.findByText(CaseFold.label);
+    await act(async () => {});
+    expect(requestsFor(fetchMock, `${PATH}/scan`)).toHaveLength(0);
   });
 
   it('says so for a screen that does not exist and for an id that is not a number', async () => {

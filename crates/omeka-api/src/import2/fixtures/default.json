@@ -1,7 +1,7 @@
 {
   "version": 2,
   "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "BHC_006" }, { "kind": "staging", "id": "staging" }],
-  "grouping": { "pattern": null, "caseFold": false },
+  "grouping": { "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$", "caseFold": false },
   "example": null,
   "sheets": [],
   "slots": { "item": {}, "media": {}, "itemSet": {} },

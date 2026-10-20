@@ -178,6 +178,8 @@ async fn s6_media_rows_attach_by_item_key_with_their_own_values() {
     );
     let id = site
         .draft(|plan| {
+            // The files make no items of their own: the register's rows are the items.
+            plan["grouping"]["pattern"] = json!(null);
             plan["sheets"] = json!([
                 sheet_plan("objects", &["Id", "Title"]),
                 sheet_plan("images", &["Object", "File", "Page"])

@@ -91,6 +91,18 @@ export class PlanStore {
     this.set({ detail, plan: detail.plan, save: opened(detail) });
   }
 
+  /**
+   * Takes an import a route other than the save answered, such as an added
+   * list. Only while nothing waits to be saved: an edit not yet sent would be
+   * lost under the new revision.
+   */
+  adopt(detail: ImportDetail): void {
+    if (this.timer !== null || this.out || this.state.plan !== this.state.detail.plan) {
+      return;
+    }
+    this.set({ detail, plan: detail.plan, save: opened(detail) });
+  }
+
   /** Stops the timer and sends an edit still waiting, as the page that edits it goes away. */
   close(): void {
     window.removeEventListener('pagehide', this.leave);

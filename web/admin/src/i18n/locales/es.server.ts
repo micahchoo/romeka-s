@@ -201,6 +201,8 @@ export const esServer: ServerCatalogue = {
   'server.importListUnread': 'No se puede leer la lista: {reason}',
   'server.importListNoIdentifier':
     'La lista no tiene la columna Identifier, así que sus filas no encuentran sus elementos. Conserva la columna Identifier de la lista que descargaste.',
+  'server.importPairsColumns':
+    'La lista necesita la columna Row y la columna Files. Conserva las dos columnas de la lista que descargaste.',
   'server.importFileUnreadable': 'No se pudo leer el archivo "{path}": {reason}',
   'server.importFileRefused': 'El archivo "{path}" no se añadió: {reason}',
   'server.importFileNotStored': 'No se pudo guardar el archivo "{path}": {reason}',

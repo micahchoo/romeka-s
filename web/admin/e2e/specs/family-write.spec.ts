@@ -221,7 +221,7 @@ test('the seeded job is updated and deleted', async ({ page, diagnostics }) => {
   const { jobId } = readHarness();
 
   await page.goto('/#/jobs');
-  await page.getByRole('link', { name: String(jobId) }).click();
+  await page.getByRole('link', { name: String(jobId), exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`#/jobs/${String(jobId)}$`));
   await expect(page.getByText(JOB_CLASS)).toBeVisible();
   // The seed writes no status, so this proves the null `o:status` the wire sends
@@ -245,6 +245,6 @@ test('the seeded job is updated and deleted', async ({ page, diagnostics }) => {
   await page.getByRole('button', { name: `Delete Job #${String(jobId)}` }).click();
 
   await expect(page).toHaveURL(/#\/jobs$/);
-  await expect(page.getByRole('link', { name: String(jobId) })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: String(jobId), exact: true })).toHaveCount(0);
   await expectClean(diagnostics, 'job delete');
 });

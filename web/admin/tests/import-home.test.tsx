@@ -1,6 +1,6 @@
 /**
- * The Import start page (`#/import`): a folder under an archive root starts a
- * draft, and the past imports page through the history 50 at a time, each
+ * The Import start page (`#/import`): a folder under an archive root, or
+ * files from this computer, starts a draft, and the past imports page through the history 50 at a time, each
  * with its status in plain words, a copy, and "Try again" when its run may go
  * again. Every answer is a fixture the server's routes wrote.
  */
@@ -61,6 +61,23 @@ describe('Where are your files', () => {
     });
     const post = first(requestsFor(fetchMock, '/api/romeka/imports').filter((request) => request.init?.method === 'POST'));
     expect(requestBody(post)).toEqual({ sources: [{ id: 's1', kind: 'folder', root: 'archive', path: 'Artifacts' }] });
+  });
+
+  it('starts a draft over files from this computer, on Your files', async () => {
+    const fetchMock = installFetch(
+      route({
+        '/api/romeka/archive': archive,
+        '/api/romeka/imports': (_url, init) =>
+          init?.method === 'POST' ? jsonResponse(fixture('import-draft.json')) : jsonResponse(EMPTY_HISTORY),
+      }),
+    );
+    render(<ImportPage param={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start with files from this computer' }));
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#/import/1/simple/files');
+    });
+    const post = first(requestsFor(fetchMock, '/api/romeka/imports').filter((request) => request.init?.method === 'POST'));
+    expect(requestBody(post)).toEqual({ sources: [{ id: 's1', kind: 'staging' }] });
   });
 
   it('switches between archive roots', async () => {

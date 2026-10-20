@@ -1,0 +1,64 @@
+{
+  "remove": {
+    "itemSets": 2,
+    "items": 8,
+    "media": 13,
+    "properties": 0,
+    "templates": 0
+  },
+  "restore": {
+    "itemSets": 0,
+    "items": 0,
+    "media": 0,
+    "properties": 0,
+    "templates": 0
+  },
+  "kept": [
+    {
+      "id": 5,
+      "kind": "media",
+      "reasons": [
+        {
+          "detail": "The item of this media is kept, so the media is kept too.",
+          "key": "server.importUndoItemKept",
+          "reason": "itemKept"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "media",
+      "reasons": [
+        {
+          "detail": "The item of this media is kept, so the media is kept too.",
+          "key": "server.importUndoItemKept",
+          "reason": "itemKept"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "item",
+      "reasons": [
+        {
+          "detail": "This was edited after the import wrote it.",
+          "key": "server.importUndoEdited",
+          "reason": "edited"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "kind": "itemSet",
+      "reasons": [
+        {
+          "detail": "An item in this item set is kept, so the item set is kept too.",
+          "key": "server.importUndoMemberKept",
+          "reason": "memberKept"
+        }
+      ]
+    }
+  ],
+  "skipped": [],
+  "forced": []
+}

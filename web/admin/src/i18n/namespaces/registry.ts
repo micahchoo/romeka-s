@@ -31,4 +31,8 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'lessons', what: 'lessons messages', type: 'LessonsMessages' },
   { id: 'publish', what: 'Publish panel messages', type: 'PublishMessages' },
   { id: 'import', what: 'Import page messages', type: 'ImportMessages' },
+  { id: 'import-lists', what: 'Import review list messages', type: 'ImportListsMessages' },
+  { id: 'import-simple', what: 'Import page Simple screen messages', type: 'ImportSimpleMessages' },
+  { id: 'import-advanced', what: 'Import Advanced screen messages', type: 'ImportAdvancedMessages' },
+  { id: 'import-run', what: 'import run screen messages', type: 'ImportRunMessages' },
 ];

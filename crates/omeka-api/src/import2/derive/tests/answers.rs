@@ -127,7 +127,10 @@ fn own_makes_each_unmatched_file_an_item_of_its_own() {
 
 #[test]
 fn own_needs_a_pattern_that_compiles() {
-    let plan = plan(|plan| plan["anomalies"] = json!({ "unmatchedFiles": "own" }));
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(null);
+        plan["anomalies"] = json!({ "unmatchedFiles": "own" });
+    });
     let model = run(&index(FILES), &Sheets::new(), &plan);
     assert!(
         item_keys(&model).is_empty(),
