@@ -767,6 +767,40 @@ A single build on one machine. The `fields` chunk has 1100 B left under the 1024
 next control that grows it should move a rarely used control (the page list, the item query) into a
 chunk of its own first.
 
+## Decision 26: the content blocks' strings and controls load on their own (accepted)
+
+**Change.** Seven content blocks (gallery, featured item, button, quote, accordion, timeline, search
+box) bring two field kinds and 88 field strings. Put in the page editor's table, the strings took the
+Tamil, Malayalam, Hindi and Telugu `editor` chunks over the 11264 B catalogue ceiling, and the two
+controls took the `fields` chunk over 10240 B. Three moves:
+
+- The strings are their own namespace, `content-blocks`. The page editor reads both tables
+  (`editor/messages.ts`, `EDITOR_NAMESPACES`), so a curator's first editor visit fetches one more
+  locale chunk, in parallel with the editor's.
+- The item and item-media controls (`editor/fields/contentControls.tsx`) load as one chunk behind
+  `LazyControls.tsx` and the `common` table's `loading.form` line.
+- The IIIF manifest source control, which only the IIIF presentation block uses, moved behind the
+  same file. On this branch the chunk had 31 B left before the content blocks, so a rarely used
+  control had to leave first, as Decision 24 said.
+
+**Measured.** `npm run build`, then `npm run perf:check`, and gzip bytes from `zlib.gzipSync` per
+emitted asset, against this branch's base (`6a788a1`) built the same way from a `git archive` copy
+with the same `node_modules`:
+
+| Asset | Before (`6a788a1`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86074 | 86065 | the registry parser's two new kinds, less what the moves took out (inferred) |
+| `fields` chunk | 10208 | 10173 | 67 B left under the ceiling |
+| content controls | none | 618 | `contentControls-*` |
+| manifest source | none | 1058 | `ManifestSourceField-*` |
+| largest catalogue chunk | 10176 | 10176 | the Tamil `editor` table, unchanged |
+| Tamil `content-blocks` table | none | 2372 | the largest of the new table's chunks |
+
+A single build on one machine. With the strings in the `editor` table and the controls eager, the
+same build measured the Tamil `editor` chunk at 11506 B and the `fields` chunk at 10418 B. Main
+after Decision 25 measured its `fields` chunk at 9925 B and its largest catalogue at 10585 B (a
+`git archive` build of main `8c48349`); the merge adds this decision's moves to that.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

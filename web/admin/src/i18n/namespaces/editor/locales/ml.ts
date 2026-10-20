@@ -553,4 +553,8 @@ export const ml: EditorMessages = {
   'region.pageGroup': 'എല്ലാ പേജിലും',
   'region.pageHelp':
     'സൈറ്റ് ഹെഡറും ഫൂട്ടറും മുഴുവൻ സൈറ്റിന്റേതാണ്. പ്രിവ്യൂവിൽ ഒന്നിൽ ക്ലിക്ക് ചെയ്യുക, അല്ലെങ്കിൽ ഇവിടെ തിരഞ്ഞെടുക്കുക.',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'മൂന്ന് പ്രധാന ഇനങ്ങൾ',
+  'sectionTemplate.featuredItems.description':
+    'ഓരോന്നിലും ചിത്രവും, പേരും, ലിങ്കും ഉള്ള മൂന്ന് ഇനം കാർഡുകൾ.',
 };

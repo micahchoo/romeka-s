@@ -9,8 +9,10 @@
 
 use serde_json::{Value as JsonValue, json};
 
+use super::featured_item::FeaturedItem;
+use super::quote::Quote;
 use super::romeka::CARRIER_VERSION;
-use super::templates::{TemplateBlock, layout_block};
+use super::templates::{TemplateBlock, layout_block, romka_block};
 
 /// One section template.
 pub struct SectionTemplate {
@@ -89,14 +91,29 @@ pub fn section_templates() -> Vec<SectionTemplate> {
             members: vec![card("First card"), card("Second card"), card("Third card")],
         },
         SectionTemplate {
+            id: "featured-items",
+            label: "sectionTemplate.featuredItems.label",
+            description: "sectionTemplate.featuredItems.description",
+            settings: json!({ "section": { "layout": "cards-3" } }),
+            members: vec![
+                romka_block(&FeaturedItem, json!({ "image": "top" })),
+                romka_block(&FeaturedItem, json!({ "image": "top" })),
+                romka_block(&FeaturedItem, json!({ "image": "top" })),
+            ],
+        },
+        SectionTemplate {
             id: "quote-band",
             label: "sectionTemplate.quoteBand.label",
             description: "sectionTemplate.quoteBand.description",
             settings: json!({ "section": { "layout": "band" }, "background_role": "surface" }),
-            members: vec![
-                html("<blockquote><p>A line worth remembering.</p><p>Who said it</p></blockquote>")
-                    .with_layout_data(json!({ "alignment_text": "center" })),
-            ],
+            members: vec![romka_block(
+                &Quote,
+                json!({
+                    "text": "<p>A line worth remembering.</p>",
+                    "attribution": "Who said it",
+                    "style": "large",
+                }),
+            )],
         },
         SectionTemplate {
             id: "image-band",
@@ -119,9 +136,10 @@ mod tests {
     use crate::blocks::style::{RomekaStyle, Section};
     use omeka_core::site::BlockLayoutData;
 
-    /// The brief names five shapes, and each id is unique.
+    /// The five shapes the sections brief named and the featured items row,
+    /// each id unique.
     #[test]
-    fn the_picker_offers_the_five_named_sections() {
+    fn the_picker_offers_the_named_sections() {
         let ids: Vec<&str> = section_templates()
             .iter()
             .map(|section| section.id)
@@ -132,6 +150,7 @@ mod tests {
                 "media-text",
                 "text-media",
                 "three-cards",
+                "featured-items",
                 "quote-band",
                 "image-band"
             ]

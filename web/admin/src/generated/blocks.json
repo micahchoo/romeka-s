@@ -939,6 +939,430 @@
           "type": "boolean"
         }
       ]
+    },
+    {
+      "name": "gallery",
+      "label": "romeka.gallery",
+      "description": "romekaHelp.gallery",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.gallery.source",
+          "help": "fieldHelp.gallery.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "media",
+              "label": "romekaChoice.gallery.media"
+            },
+            {
+              "value": "assets",
+              "label": "romekaChoice.gallery.assets"
+            }
+          ],
+          "default": "media"
+        },
+        {
+          "key": "media",
+          "label": "romekaField.gallery.media",
+          "help": "fieldHelp.gallery.media",
+          "type": "itemMedia",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "media"
+          }
+        },
+        {
+          "key": "assets",
+          "label": "romekaField.gallery.assets",
+          "help": "fieldHelp.gallery.assets",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "asset",
+              "label": "romekaField.gallery.asset",
+              "help": "fieldHelp.gallery.asset",
+              "type": "assetRef"
+            },
+            {
+              "key": "caption",
+              "label": "romekaField.gallery.caption",
+              "help": "fieldHelp.gallery.caption",
+              "type": "html"
+            }
+          ],
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "assets"
+          }
+        },
+        {
+          "key": "layout",
+          "label": "romekaField.gallery.layout",
+          "help": "fieldHelp.gallery.layout",
+          "type": "choice",
+          "options": [
+            {
+              "value": "grid",
+              "label": "romekaChoice.gallery.grid"
+            },
+            {
+              "value": "masonry",
+              "label": "romekaChoice.gallery.masonry"
+            },
+            {
+              "value": "carousel",
+              "label": "romekaChoice.gallery.carousel"
+            }
+          ],
+          "default": "grid"
+        },
+        {
+          "key": "columns",
+          "label": "romekaField.gallery.columns",
+          "help": "fieldHelp.gallery.columns",
+          "type": "integer",
+          "min": 2,
+          "max": 6,
+          "default": 3
+        },
+        {
+          "key": "captions",
+          "label": "romekaField.gallery.captions",
+          "help": "fieldHelp.gallery.captions",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "lightbox",
+          "label": "romekaField.gallery.lightbox",
+          "help": "fieldHelp.gallery.lightbox",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "featuredItem",
+      "label": "romeka.featuredItem",
+      "description": "romekaHelp.featuredItem",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "item",
+          "label": "romekaField.featuredItem.item",
+          "help": "fieldHelp.featuredItem.item",
+          "type": "itemRef",
+          "required": true
+        },
+        {
+          "key": "image",
+          "label": "romekaField.featuredItem.image",
+          "help": "fieldHelp.featuredItem.image",
+          "type": "choice",
+          "options": [
+            {
+              "value": "left",
+              "label": "blockChoice.left"
+            },
+            {
+              "value": "right",
+              "label": "blockChoice.right"
+            },
+            {
+              "value": "top",
+              "label": "romekaChoice.featuredItem.top"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "key": "fields",
+          "label": "romekaField.featuredItem.fields",
+          "help": "fieldHelp.featuredItem.fields",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "property",
+              "label": "romekaField.featuredItem.property",
+              "help": "fieldHelp.featuredItem.property",
+              "type": "property"
+            }
+          ]
+        },
+        {
+          "key": "link_label",
+          "label": "romekaField.featuredItem.link_label",
+          "help": "fieldHelp.featuredItem.link_label",
+          "type": "text",
+          "placeholder": "fieldExample.featuredItem.link_label"
+        }
+      ]
+    },
+    {
+      "name": "button",
+      "label": "romeka.button",
+      "description": "romekaHelp.button",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "button_label",
+          "label": "romekaField.button.button_label",
+          "help": "fieldHelp.button.button_label",
+          "type": "text",
+          "placeholder": "fieldExample.button.button_label",
+          "required": true
+        },
+        {
+          "key": "button_page",
+          "label": "romekaField.button.button_page",
+          "help": "fieldHelp.button.button_page",
+          "type": "link",
+          "urlKey": "button_url"
+        },
+        {
+          "key": "button2_label",
+          "label": "romekaField.button.button2_label",
+          "help": "fieldHelp.button.button2_label",
+          "type": "text"
+        },
+        {
+          "key": "button2_page",
+          "label": "romekaField.button.button2_page",
+          "help": "fieldHelp.button.button2_page",
+          "type": "link",
+          "urlKey": "button2_url"
+        },
+        {
+          "key": "style",
+          "label": "romekaField.button.style",
+          "help": "fieldHelp.button.style",
+          "type": "choice",
+          "options": [
+            {
+              "value": "solid",
+              "label": "romekaChoice.button.solid"
+            },
+            {
+              "value": "outline",
+              "label": "romekaChoice.button.outline"
+            }
+          ],
+          "default": "solid"
+        },
+        {
+          "key": "alignment",
+          "label": "romekaField.button.alignment",
+          "help": "fieldHelp.button.alignment",
+          "type": "choice",
+          "options": [
+            {
+              "value": "left",
+              "label": "blockChoice.left"
+            },
+            {
+              "value": "center",
+              "label": "blockChoice.center"
+            },
+            {
+              "value": "right",
+              "label": "blockChoice.right"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "key": "size",
+          "label": "romekaField.button.size",
+          "help": "fieldHelp.button.size",
+          "type": "choice",
+          "options": [
+            {
+              "value": "small",
+              "label": "romekaChoice.button.small"
+            },
+            {
+              "value": "medium",
+              "label": "romekaChoice.medium"
+            },
+            {
+              "value": "large",
+              "label": "romekaChoice.button.large"
+            }
+          ],
+          "default": "medium"
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "label": "romeka.quote",
+      "description": "romekaHelp.quote",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "text",
+          "label": "romekaField.quote.text",
+          "help": "fieldHelp.quote.text",
+          "type": "html",
+          "required": true
+        },
+        {
+          "key": "attribution",
+          "label": "romekaField.quote.attribution",
+          "help": "fieldHelp.quote.attribution",
+          "type": "text",
+          "placeholder": "fieldExample.quote.attribution"
+        },
+        {
+          "key": "item",
+          "label": "romekaField.quote.item",
+          "help": "fieldHelp.quote.item",
+          "type": "itemRef"
+        },
+        {
+          "key": "style",
+          "label": "romekaField.quote.style",
+          "help": "fieldHelp.quote.style",
+          "type": "choice",
+          "options": [
+            {
+              "value": "plain",
+              "label": "romekaChoice.quote.plain"
+            },
+            {
+              "value": "large",
+              "label": "romekaChoice.quote.large"
+            },
+            {
+              "value": "band",
+              "label": "romekaChoice.quote.band"
+            }
+          ],
+          "default": "large"
+        }
+      ]
+    },
+    {
+      "name": "accordion",
+      "label": "romeka.accordion",
+      "description": "romekaHelp.accordion",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "entries",
+          "label": "romekaField.accordion.entries",
+          "help": "fieldHelp.accordion.entries",
+          "type": "repeat",
+          "fields": [
+            {
+              "key": "heading",
+              "label": "romekaField.accordion.heading",
+              "help": "fieldHelp.accordion.heading",
+              "type": "text"
+            },
+            {
+              "key": "answer",
+              "label": "romekaField.accordion.answer",
+              "help": "fieldHelp.accordion.answer",
+              "type": "html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "timeline",
+      "label": "romeka.timeline",
+      "description": "romekaHelp.timeline",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "source",
+          "label": "romekaField.timeline.source",
+          "help": "fieldHelp.timeline.source",
+          "type": "choice",
+          "options": [
+            {
+              "value": "items",
+              "label": "romekaChoice.map.items"
+            },
+            {
+              "value": "query",
+              "label": "romekaChoice.map.query"
+            }
+          ],
+          "default": "items"
+        },
+        {
+          "key": "items",
+          "label": "romekaField.timeline.items",
+          "help": "fieldHelp.timeline.items",
+          "type": "itemList",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "items"
+          }
+        },
+        {
+          "key": "query",
+          "label": "romekaField.timeline.query",
+          "help": "fieldHelp.timeline.query",
+          "type": "itemQuery",
+          "when": {
+            "field": "source",
+            "test": "equals",
+            "value": "query"
+          }
+        },
+        {
+          "key": "property",
+          "label": "romekaField.timeline.property",
+          "help": "fieldHelp.timeline.property",
+          "type": "property",
+          "default": "dcterms:date"
+        }
+      ]
+    },
+    {
+      "name": "searchBox",
+      "label": "romeka.searchBox",
+      "description": "romekaHelp.searchBox",
+      "carrier": "html",
+      "fields": [
+        {
+          "key": "placeholder",
+          "label": "romekaField.searchBox.placeholder",
+          "help": "fieldHelp.searchBox.placeholder",
+          "type": "text",
+          "placeholder": "fieldExample.searchBox.placeholder"
+        },
+        {
+          "key": "resource",
+          "label": "romekaField.searchBox.resource",
+          "help": "fieldHelp.searchBox.resource",
+          "type": "choice",
+          "options": [
+            {
+              "value": "all",
+              "label": "romekaChoice.searchBox.all"
+            },
+            {
+              "value": "items",
+              "label": "romekaChoice.searchBox.items"
+            },
+            {
+              "value": "item_sets",
+              "label": "romekaChoice.searchBox.item_sets"
+            }
+          ],
+          "default": "all"
+        }
+      ]
     }
   ],
   "romekaVersion": 2,

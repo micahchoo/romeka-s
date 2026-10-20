@@ -53,7 +53,7 @@ pub(crate) fn layout_block(layout: &'static str, data: JsonValue) -> TemplateBlo
 }
 
 /// A Romeka block with its settings.
-fn romka_block(block: &'static dyn RomkaBlock, settings: JsonValue) -> TemplateBlock {
+pub(crate) fn romka_block(block: &'static dyn RomkaBlock, settings: JsonValue) -> TemplateBlock {
     TemplateBlock::Romka {
         block,
         settings,
@@ -627,12 +627,13 @@ mod tests {
             FieldKind::PageRef
             | FieldKind::AssetRef
             | FieldKind::MediaRef
+            | FieldKind::ItemRef
             | FieldKind::FocalPoint { .. } => value.is_number() || numeric_string(value),
             FieldKind::ItemQuery { .. } => value.is_string() || value.is_object(),
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()
             }
-            FieldKind::ItemList => value.is_array(),
+            FieldKind::ItemList | FieldKind::ItemMedia => value.is_array(),
             FieldKind::MapView { zoom_key } if key == zoom_key => value.is_number(),
             FieldKind::MapView { .. } | FieldKind::Property => value.is_string(),
         }

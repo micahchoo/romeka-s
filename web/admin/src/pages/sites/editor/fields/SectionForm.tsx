@@ -27,7 +27,7 @@ import {
 import type { SectionShape } from '../sections';
 import { layoutDataObject } from '../values';
 import { useTranslator } from '../../../../i18n';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import { sites } from '../../../../i18n/namespaces/sites';
 import { FieldControl } from './FieldControl';
 import './section.css';
@@ -125,7 +125,7 @@ const Slots = ({
   readonly registry: BlockRegistry;
   readonly onSelect: (key: BlockKey) => void;
 }): ReactElement => {
-  const { t } = useTranslator(sites, editor);
+  const { t } = useTranslator(sites, ...EDITOR_NAMESPACES);
   const empty = emptySlots(shape, members.length);
   return (
     <div className="block-field">

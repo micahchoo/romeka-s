@@ -131,6 +131,39 @@ pub struct Messages {
     pub map_poster: &'static str,
     /// The editor preview's poster for a map block with no places.
     pub map_no_places_preview: &'static str,
+    /// A gallery's accessible name. A Romeka addition, as every `gallery_`
+    /// message is.
+    pub gallery: &'static str,
+    /// The lightbox's close button.
+    pub gallery_close: &'static str,
+    /// The lightbox's button to the image before.
+    pub gallery_previous: &'static str,
+    /// The lightbox's button to the image after.
+    pub gallery_next: &'static str,
+    /// The lightbox's position line, `{index}` the image's number and `{count}`
+    /// the gallery's image count, named so a locale can put them in its own
+    /// order.
+    pub gallery_position: &'static str,
+    /// The editor preview of a gallery with no images.
+    pub gallery_empty_preview: &'static str,
+    /// A featured item card's link to the item. A Romeka addition, as every
+    /// `featured_` message is.
+    pub featured_view_item: &'static str,
+    /// The editor preview of a featured item card with no item to show.
+    pub featured_empty_preview: &'static str,
+    /// The editor preview of a button block with no complete button. A Romeka
+    /// addition.
+    pub button_empty_preview: &'static str,
+    /// The editor preview of a quote block with no quotation. A Romeka
+    /// addition.
+    pub quote_empty_preview: &'static str,
+    /// The editor preview of an accordion with no entry. A Romeka addition.
+    pub accordion_empty_preview: &'static str,
+    /// The heading of a timeline's items with no date. A Romeka addition, as
+    /// every `timeline_` message is.
+    pub timeline_undated: &'static str,
+    /// The editor preview of a timeline with no item.
+    pub timeline_empty_preview: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -192,6 +225,20 @@ pub static EN: Messages = Messages {
     map_poster: "A map of %s places. The map itself shows on the public page.",
     map_no_places_preview: "This map has no places yet. Its items need a \"lat, lng\" value in the \
                             location field the site settings name.",
+    gallery: "Gallery",
+    gallery_close: "Close",
+    gallery_previous: "Previous image",
+    gallery_next: "Next image",
+    gallery_position: "Image {index} of {count}",
+    gallery_empty_preview: "This gallery has no images yet. Pick items or assets in the block's \
+                            settings.",
+    featured_view_item: "View item",
+    featured_empty_preview: "Pick an item for this card in the block's settings.",
+    button_empty_preview: "Give the button a label and a page or a URL in the block's settings.",
+    quote_empty_preview: "Write the quotation in the block's settings.",
+    accordion_empty_preview: "Add a heading and its answer in the block's settings.",
+    timeline_undated: "Undated",
+    timeline_empty_preview: "Pick items or a search for this timeline in the block's settings.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -261,6 +308,20 @@ pub static ES: Messages = Messages {
     map_poster: "Un mapa de %s lugares. El mapa se muestra en la página pública.",
     map_no_places_preview: "Este mapa aún no tiene lugares. Sus fichas necesitan un valor \
                             \"lat, lng\" en el campo de ubicación que indican los ajustes del sitio.",
+    gallery: "Galería",
+    gallery_close: "Cerrar",
+    gallery_previous: "Imagen anterior",
+    gallery_next: "Imagen siguiente",
+    gallery_position: "Imagen {index} de {count}",
+    gallery_empty_preview: "Esta galería aún no tiene imágenes. Elige fichas o recursos en los \
+                            ajustes del bloque.",
+    featured_view_item: "Ver ficha",
+    featured_empty_preview: "Elige una ficha para esta tarjeta en los ajustes del bloque.",
+    button_empty_preview: "Da al botón un texto y una página o una URL en los ajustes del bloque.",
+    quote_empty_preview: "Escribe la cita en los ajustes del bloque.",
+    accordion_empty_preview: "Añade un encabezado y su respuesta en los ajustes del bloque.",
+    timeline_undated: "Sin fecha",
+    timeline_empty_preview: "Elige fichas o una búsqueda para esta cronología en los ajustes del bloque.",
 };
 
 #[cfg(test)]

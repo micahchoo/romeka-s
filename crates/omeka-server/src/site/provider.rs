@@ -282,8 +282,9 @@ async fn load_blocks_from(
     Ok(loaded)
 }
 
-/// The items a Romeka block selects (the map's): each picked item the caller
-/// may see, or the answer to its search, keyed as the block's render asks.
+/// The items a Romeka block selects: each picked item the caller may see, or
+/// the answer to its search, keyed as the block's render asks. A picked item's
+/// main media carries its large thumbnail, the size a gallery or a card shows.
 async fn load_selection(
     loader: &Loader<'_>,
     site: SiteId,
@@ -299,13 +300,15 @@ async fn load_selection(
                     continue;
                 };
                 if access.sees_resource(row.resource.is_public, row.resource.owner_id) {
-                    let view = loader.item_resource_view(&row).await?;
+                    let view = loader
+                        .item_resource_view_with(&row, &media_options(Some("large"), None))
+                        .await?;
                     push_resource(loaded, ResourceKind::Item, id.get(), &view);
                 }
             }
         }
         ItemSelection::Query(query) => {
-            let search = ItemSelection::browse_query(&query, site, omeka_site::map::MAX_PLACES);
+            let search = ItemSelection::browse_query(&query, site, ItemSelection::LIMIT);
             let result = loader.search(ResourceKind::Item, &search).await?;
             loaded.searches.push((ResourceKind::Item, search, result));
         }

@@ -3,12 +3,12 @@
  * one-line summary of the block's content.
  */
 import type { KeyOf, MessageKey, Translator } from '../../../../i18n';
-import type { editor } from '../../../../i18n/namespaces/editor';
 import type { sites } from '../../../../i18n/namespaces/sites';
 import type { BlockRegistry } from '../../blockSchema';
 import type { TemplateBlock } from '../../templates';
 import type { BlockDraft, LayoutData } from '../draft';
 import { counted } from '../messages';
+import type { EditorMessageKey } from '../messages';
 import { carrierOf, romkaFor } from '../romeka';
 import { SECTION_LAYOUT_PATH, sectionOf } from '../sections';
 import { dataObject, readLayoutData } from '../values';
@@ -29,7 +29,7 @@ const clip = (text: string): string =>
   text.length > MAX_SUMMARY ? `${text.slice(0, MAX_SUMMARY - 1)}...` : text;
 
 /** The message lookup a card reads its labels through. */
-export type Translate = Translator<MessageKey | KeyOf<typeof sites> | KeyOf<typeof editor>>['t'];
+export type Translate = Translator<MessageKey | KeyOf<typeof sites> | EditorMessageKey>['t'];
 
 /** The card's content summary: HTML text, the page title, or an attachment count. */
 export const blockSummary = (

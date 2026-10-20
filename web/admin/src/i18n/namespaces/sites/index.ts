@@ -437,6 +437,21 @@ export const en = {
   'siteSetting.romekaMapTilesHelp': 'A tile address with {z}, {x} and {y}. The default is OpenStreetMap, whose usage policy requires the credit line and forbids heavy use.',
   'siteSetting.romekaMapAttribution': 'Map credit',
   'siteSetting.romekaMapAttributionHelp': 'The credit line the tile provider requires, shown in the corner of every map.',
+  // The content blocks: gallery, featured item, button, quote, accordion, timeline, search box.
+  'romeka.gallery': 'Image gallery',
+  'romekaHelp.gallery': 'Images from items or assets in a grid, columns or a carousel, with a lightbox.',
+  'romeka.featuredItem': 'Featured item',
+  'romekaHelp.featuredItem': 'One item as a card: its image, chosen fields and a link to it.',
+  'romeka.button': 'Button',
+  'romekaHelp.button': 'One or two links drawn as buttons, to a page or a URL.',
+  'romeka.quote': 'Quote',
+  'romekaHelp.quote': 'A quotation with who said it and, if you like, the item it comes from.',
+  'romeka.accordion': 'Accordion',
+  'romekaHelp.accordion': 'Questions or headings that each open their answer, for FAQs and long notes.',
+  'romeka.timeline': 'Timeline',
+  'romekaHelp.timeline': 'Items in date order along a line, each with its thumbnail and title.',
+  'romeka.searchBox': 'Search box',
+  'romekaHelp.searchBox': 'A search field for the site, its items or its item sets.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

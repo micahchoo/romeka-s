@@ -18,11 +18,16 @@
 use omeka_core::ids::MediaId;
 use omeka_core::site::{RomkaCarrier, Slug};
 use omeka_db::ids::{AssetId, ItemId, PageId, SiteId};
-use omeka_db::repos::{AssetRepo, ItemRepo, MediaRepo, SiteRepo, SiteSettingRepo, ValueRepo};
+use omeka_db::repos::{
+    AssetRepo, ItemRepo, MediaFilter, MediaRepo, Paging, SiteRepo, SiteSettingRepo, ValueRepo,
+};
 use omeka_db::rows::{AssetRow, ItemRow, MediaRow};
 use omeka_site::blocks::BlockLayout;
 use omeka_site::blocks::iiif_image::{IiifImage, media_info_path};
-use omeka_site::blocks::romeka::{self, ItemSelection, PlainItem, PlainRefs};
+use omeka_site::blocks::romeka::{
+    self, ItemSelection, PlainImage, PlainItem, PlainRefs, PlainValue,
+};
+use omeka_site::i18n::Locale;
 use omeka_site::slug::{page_url, resource_show_url};
 use serde_json::Value;
 
@@ -218,6 +223,13 @@ async fn plain_refs(
     let Ok(site_slug) = Slug::parse(&site_row.slug) else {
         return Ok(refs);
     };
+    if let Some(Value::String(tag)) = SiteSettingRepo::new(api.pool())
+        .get(site, "locale")
+        .await
+        .map_err(db_error)?
+    {
+        refs = refs.locale(Locale::parse(&tag));
+    }
     let pages = SiteRepo::new(api.pool());
     for id in romeka::page_refs(carrier) {
         let Some(row) = pages.get_page(PageId(id.get())).await.map_err(db_error)? else {
@@ -238,11 +250,11 @@ async fn plain_refs(
     Ok(refs)
 }
 
-/// The selected items a plain rendering lists, each with its values in the
-/// site's location field.
+/// The selected items a plain rendering lists, each with its public values,
+/// the image of its main media and its values in the site's location field.
 ///
-/// The plain html is public, so only public items and public values are
-/// listed, whoever saves the page. A site with no location field lists none.
+/// The plain html is public, so only public items, public values and public
+/// media are listed, whoever saves the page.
 async fn plain_items(
     api: &Api<'_>,
     site: SiteId,
@@ -254,13 +266,10 @@ async fn plain_items(
         .await
         .map_err(db_error)?;
     api.fill_catalog().await?;
-    let Some(property) = term
+    let location = term
         .as_ref()
         .and_then(Value::as_str)
-        .and_then(|term| api.catalog().property_id(term))
-    else {
-        return Ok(Vec::new());
-    };
+        .and_then(|term| api.catalog().property_id(term));
     let rows: Vec<ItemRow> = match selection {
         ItemSelection::Picked(ids) => {
             let repo = ItemRepo::new(api.pool());
@@ -276,41 +285,93 @@ async fn plain_items(
             let search = ItemSelection::browse_query(
                 &query,
                 omeka_core::ids::SiteId::new(site.0),
-                omeka_site::map::MAX_PLACES,
+                ItemSelection::LIMIT,
             );
             let params = crate::read::params::Params::from_decoded(search.query);
             crate::read::query_rows(api, &params).await?
         }
     };
-    let values = ValueRepo::new(api.pool());
     let mut items = Vec::new();
     for row in rows
         .iter()
         .filter(|row| row.resource.is_public)
-        .take(omeka_site::map::MAX_PLACES)
+        .take(ItemSelection::LIMIT)
     {
-        let places: Vec<String> = values
-            .list_for_resource(row.resource.id)
+        items.push(plain_item(api, site_slug, row, location).await?);
+    }
+    Ok(items)
+}
+
+/// One public item as a plain rendering reads it.
+async fn plain_item(
+    api: &Api<'_>,
+    site_slug: &Slug,
+    row: &ItemRow,
+    location: Option<omeka_db::ids::PropertyId>,
+) -> Result<PlainItem, ApiError> {
+    let id = omeka_core::ids::ItemId::new(row.id().0);
+    let mut item = PlainItem::new(
+        id,
+        row.resource
+            .title
+            .clone()
+            .unwrap_or_else(|| omeka_site::i18n::EN.untitled.to_string()),
+        resource_show_url(site_slug, "item", row.id().0),
+    );
+    for value in ValueRepo::new(api.pool())
+        .list_for_resource(row.resource.id)
+        .await
+        .map_err(db_error)?
+        .into_iter()
+        .filter(|value| value.is_public)
+    {
+        let Some(text) = value.value.clone().or_else(|| value.uri.clone()) else {
+            continue;
+        };
+        if Some(value.property_id) == location {
+            item.places.push(text.clone());
+        }
+        if let Some(property) = api.catalog().property(value.property_id) {
+            item.values.push(PlainValue {
+                term: property.term.clone(),
+                label: property.label.clone(),
+                text,
+            });
+        }
+    }
+    item.image = main_image(api, row).await?;
+    Ok(item)
+}
+
+/// The image of an item's main media, its primary media or else its first
+/// public one, `None` when that media has no image to show.
+async fn main_image(api: &Api<'_>, row: &ItemRow) -> Result<Option<PlainImage>, ApiError> {
+    let repo = MediaRepo::new(api.pool());
+    let primary = match row.primary_media_id {
+        Some(id) => repo.get(id).await.map_err(db_error)?,
+        None => None,
+    };
+    let media = match primary.filter(|media| media.resource.is_public) {
+        Some(media) => Some(media),
+        None => repo
+            .list(
+                &MediaFilter {
+                    item_id: Some(row.id()),
+                    ..MediaFilter::default()
+                },
+                &Paging::default(),
+            )
             .await
             .map_err(db_error)?
             .into_iter()
-            .filter(|value| value.is_public && value.property_id == property)
-            .filter_map(|value| value.value)
-            .collect();
-        if places.is_empty() {
-            continue;
-        }
-        items.push(PlainItem {
-            title: row
-                .resource
-                .title
-                .clone()
-                .unwrap_or_else(|| omeka_site::i18n::EN.untitled.to_string()),
-            url: resource_show_url(site_slug, "item", row.id().0),
-            places,
-        });
-    }
-    Ok(items)
+            .find(|media| media.resource.is_public),
+    };
+    Ok(media.and_then(|media| {
+        media_image_path(&media).map(|path| PlainImage {
+            url: format!("/files/{path}"),
+            alt: media.alt_text.clone().unwrap_or_default(),
+        })
+    }))
 }
 
 /// `File\Store\Local::getUri`'s storage path for an asset: `asset/<name>` with

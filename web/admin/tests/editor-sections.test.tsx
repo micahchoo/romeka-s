@@ -247,7 +247,7 @@ describe('the section templates in the block picker', () => {
     expect(stored(blockAt(blocks, 0), 'romeka.section.layout')).toBe('split-40-60');
   });
 
-  it('offers the five sections the brief names', () => {
+  it('offers the named sections, the featured items row among them', () => {
     renderEditor(load([]));
     fireEvent.click(screen.getByRole('button', { name: /Insert block/ }));
     const heading = screen.getByRole('heading', { name: 'Sections' });
@@ -260,6 +260,7 @@ describe('the section templates in the block picker', () => {
       'Media and text',
       'Text and media',
       'Three cards',
+      'Three featured items',
       'Quote band',
       'Full-width image band',
     ]);

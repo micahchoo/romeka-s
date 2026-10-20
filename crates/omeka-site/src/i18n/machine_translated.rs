@@ -100,6 +100,10 @@ flat_catalogue! {
         footer_links, all_rights_reserved, search_placeholder, iiif_poster, iiif_view_in_viewer,
         iiif_manifest, no_site_items_preview, no_site_items,
         map, map_places, map_place_count, map_poster, map_no_places_preview,
+        gallery, gallery_close, gallery_previous, gallery_next, gallery_position,
+        gallery_empty_preview, featured_view_item, featured_empty_preview,
+        button_empty_preview, quote_empty_preview, accordion_empty_preview,
+        timeline_undated, timeline_empty_preview,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

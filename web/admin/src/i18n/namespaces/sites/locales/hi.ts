@@ -471,4 +471,22 @@ export const hi: SitesMessages = {
   'siteSetting.romekaMapAttribution': 'मैप क्रेडिट',
   'siteSetting.romekaMapAttributionHelp':
     'टाइल प्रदाता द्वारा आवश्यक क्रेडिट लाइन, जो प्रत्येक मैप के कोने में दिखाई देती है।',
+  'romeka.gallery': 'इमेज गैलरी',
+  'romekaHelp.gallery': 'आइटम या एसेट्स से छवियों को ग्रिड, कॉलम या कैरोसेल में, लाइटबॉक्स के साथ।',
+  'romeka.featuredItem': 'विशेष आइटम',
+  'romekaHelp.featuredItem':
+    'एक कार्ड के रूप में एक आइटम: इसकी छवि, चुने गए फ़ील्ड और इसके लिए एक लिंक।',
+  'romeka.button': 'बटन',
+  'romekaHelp.button': 'एक या दो लिंक बटन के रूप में बनाए गए, एक पेज या URL के लिए।',
+  'romeka.quote': 'उद्धरण',
+  'romekaHelp.quote':
+    'एक उद्धरण जिसमें यह कहा गया है और, यदि आप चाहें, तो वह आइटम जिससे यह आता है।',
+  'romeka.accordion': 'एकॉर्डियन',
+  'romekaHelp.accordion':
+    'प्रश्न या शीर्षक जो प्रत्येक अपने उत्तर को खोलते हैं, FAQ और लंबी टिप्पणियों के लिए।',
+  'romeka.timeline': 'समयरेखा',
+  'romekaHelp.timeline':
+    'एक रेखा के साथ तिथि क्रम में आइटम, प्रत्येक अपनी थंबनेल और शीर्षक के साथ।',
+  'romeka.searchBox': 'खोज बॉक्स',
+  'romekaHelp.searchBox': 'साइट, इसके आइटम या इसके आइटम सेट के लिए एक खोज क्षेत्र।',
 };

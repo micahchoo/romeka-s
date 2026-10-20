@@ -5,7 +5,7 @@
 import type { ReactElement } from 'react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslator } from '../../../../i18n';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { EDITOR_NAMESPACES } from '../messages';
 import type { EditorMessageKey } from '../messages';
 
 /** One key cap. `mod` is Cmd on a Mac and Ctrl elsewhere. */
@@ -44,7 +44,7 @@ const ROWS: readonly KeyRow[] = [
 const onMac = (): boolean => /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export const KeysPopover = (): ReactElement => {
-  const { t } = useTranslator(editor);
+  const { t } = useTranslator(...EDITOR_NAMESPACES);
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLDivElement | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);

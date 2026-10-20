@@ -326,6 +326,75 @@
       ]
     },
     {
+      "id": "featured-items",
+      "label": "sectionTemplate.featuredItems.label",
+      "description": "sectionTemplate.featuredItems.description",
+      "blocks": [
+        {
+          "layout": "blockGroup",
+          "data": {
+            "span": "3"
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "blockGroup",
+              "settings": {
+                "section": {
+                  "layout": "cards-3"
+                }
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        },
+        {
+          "layout": "html",
+          "data": {
+            "html": ""
+          },
+          "layoutData": {
+            "romeka": {
+              "block": "featuredItem",
+              "settings": {
+                "image": "top"
+              },
+              "v": 2
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "quote-band",
       "label": "sectionTemplate.quoteBand.label",
       "description": "sectionTemplate.quoteBand.description",
@@ -351,10 +420,18 @@
         {
           "layout": "html",
           "data": {
-            "html": "<blockquote><p>A line worth remembering.</p><p>Who said it</p></blockquote>"
+            "html": ""
           },
           "layoutData": {
-            "alignment_text": "center"
+            "romeka": {
+              "block": "quote",
+              "settings": {
+                "attribution": "Who said it",
+                "style": "large",
+                "text": "<p>A line worth remembering.</p>"
+              },
+              "v": 2
+            }
           }
         }
       ]

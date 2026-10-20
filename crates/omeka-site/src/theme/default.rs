@@ -72,7 +72,10 @@ impl Theme for DefaultTheme {
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
-                &crate::map::with_assets(page_view(ctx), ctx),
+                &crate::map::with_assets(
+                    crate::blocks::gallery::with_assets(page_view(ctx), ctx),
+                    ctx,
+                ),
             ),
             View::Browse(browse) => {
                 let mut content = browse_view(browse, ctx, tr);

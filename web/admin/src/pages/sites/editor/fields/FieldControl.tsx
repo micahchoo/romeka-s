@@ -30,8 +30,8 @@ import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
-import { ManifestSourceField } from './ManifestSourceField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
+import { LazyContentControl, LazyManifestSourceField } from './LazyControls';
 import { FocalPointControl, MediaRefControl } from './mediaControls';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
@@ -502,7 +502,7 @@ const ManifestSourceControl = ({
 }: ControlProps & { readonly field: FieldOf<'manifestSource'> }): ReactElement => {
   const e = useEditorText();
   return (
-    <ManifestSourceField
+    <LazyManifestSourceField
       id={id}
       label={e(field.label)}
       help={e(field.help)}
@@ -572,6 +572,9 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <FocalPointControl {...common} field={common.field} />;
     case 'itemList':
       return <ItemListControl {...common} field={common.field} />;
+    case 'itemRef':
+    case 'itemMedia':
+      return <LazyContentControl {...common} field={common.field} />;
     case 'mapView':
       return <MapViewControl {...common} field={common.field} />;
     case 'property':

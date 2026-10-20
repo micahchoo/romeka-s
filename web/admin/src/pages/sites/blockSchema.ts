@@ -128,6 +128,11 @@ export type BlockField =
     })
   /** Items picked one by one, stored as their ids in pick order. */
   | (FieldBase & { readonly type: 'itemList' })
+  /** One item, stored as its id. */
+  | (FieldBase & { readonly type: 'itemRef' })
+  /** Items picked one by one, each with an optional media and a caption,
+   * stored as `{item, media, caption}` records in pick order. */
+  | (FieldBase & { readonly type: 'itemMedia' })
   | (FieldBase & {
       /** A `"lat, lng"` centre under `key` and a zoom under `zoomKey`; no centre fits every place. */
       readonly type: 'mapView';
@@ -358,6 +363,10 @@ const parseField = (value: unknown, path: Path): BlockField => {
       return { ...base, type: 'link', urlKey: parseString(value.urlKey, [...path, 'urlKey']) };
     case 'itemList':
       return { ...base, type: 'itemList' };
+    case 'itemRef':
+      return { ...base, type: 'itemRef' };
+    case 'itemMedia':
+      return { ...base, type: 'itemMedia' };
     case 'mapView':
       return { ...base, type: 'mapView', zoomKey: parseString(value.zoomKey, [...path, 'zoomKey']) };
     case 'property':

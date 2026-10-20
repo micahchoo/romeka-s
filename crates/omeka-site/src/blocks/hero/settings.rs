@@ -7,10 +7,8 @@
 use omeka_core::ids::{AssetId, MediaId, PageId};
 use serde_json::Value as JsonValue;
 
-use super::super::romeka::PlainRefs;
+use super::super::setting::{Button, text as text_of, whole as id_of};
 use super::super::style::Colour;
-use crate::slug::page_url;
-use crate::view::RenderContext;
 
 /// The block's typed settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,56 +169,6 @@ impl Alignment {
     }
 }
 
-/// One call to action: its text and its target, a page of the site or a URL.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Button {
-    pub(super) label: String,
-    pub(super) page: Option<PageId>,
-    pub(super) url: String,
-}
-
-impl Button {
-    fn parse(settings: &JsonValue, prefix: &str) -> Self {
-        Self {
-            label: text_of(settings, &format!("{prefix}_label")),
-            page: settings
-                .get(format!("{prefix}_page"))
-                .and_then(id_of)
-                .map(PageId::new),
-            url: text_of(settings, &format!("{prefix}_url")),
-        }
-    }
-
-    /// The target on the rendered page: the stored page when it is still in
-    /// the site, else the URL when it is a safe one. A button with no text
-    /// has no target, because it would render as an empty link.
-    pub(super) fn href(&self, ctx: &RenderContext<'_>) -> Option<String> {
-        if self.label.is_empty() {
-            return None;
-        }
-        if let Some(id) = self.page
-            && let Some(page) = ctx.pages.iter().find(|page| page.id == id)
-        {
-            return Some(page_url(&ctx.site.slug, &page.slug));
-        }
-        safe_url(&self.url)
-    }
-
-    /// The same target at write time, where only the resolved page URLs are
-    /// available.
-    pub(super) fn plain_href(&self, refs: &PlainRefs) -> Option<String> {
-        if self.label.is_empty() {
-            return None;
-        }
-        if let Some(id) = self.page
-            && let Some(url) = refs.page_of(id)
-        {
-            return Some(url.to_string());
-        }
-        safe_url(&self.url)
-    }
-}
-
 impl HeroSettings {
     pub(super) fn parse(settings: &JsonValue) -> Self {
         let choice = |key: &str| settings.get(key).and_then(JsonValue::as_str);
@@ -269,39 +217,5 @@ impl Background {
             .get("background")
             .and_then(id_of)
             .map_or(Self::None, |id| Self::Asset(AssetId::new(id)))
-    }
-}
-
-fn text_of(settings: &JsonValue, key: &str) -> String {
-    settings
-        .get(key)
-        .and_then(JsonValue::as_str)
-        .unwrap_or("")
-        .to_string()
-}
-
-/// A whole number from a JSON number or a numeric string, the two shapes a
-/// form and a stored document use.
-fn id_of(value: &JsonValue) -> Option<u64> {
-    match value {
-        JsonValue::Number(number) => number.as_u64(),
-        JsonValue::String(text) => text.trim().parse::<u64>().ok(),
-        _ => None,
-    }
-}
-
-/// A URL safe to put in an `href`: relative, or an absolute http, https or
-/// mailto URL. A stored `javascript:` or `data:` target renders nothing.
-fn safe_url(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    match trimmed.split_once(':') {
-        Some((scheme, _)) if !scheme.contains('/') => {
-            let scheme = scheme.to_ascii_lowercase();
-            matches!(scheme.as_str(), "http" | "https" | "mailto").then(|| trimmed.to_string())
-        }
-        _ => Some(trimmed.to_string()),
     }
 }

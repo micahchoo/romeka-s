@@ -540,4 +540,8 @@ export const hi: EditorMessages = {
   'region.pageGroup': 'प्रत्येक पृष्ठ पर',
   'region.pageHelp':
     'हेडर और फुटर पूरे साइट के हैं। पूर्वावलोकन में एक पर क्लिक करें, या यहाँ चुनें।',
+  // The featured items section template.
+  'sectionTemplate.featuredItems.label': 'तीन प्रमुख मदें',
+  'sectionTemplate.featuredItems.description':
+    'एक पंक्ति में तीन मद कार्ड, जिनमें से प्रत्येक की अपनी छवि, शीर्षक और एक लिंक है।',
 };
