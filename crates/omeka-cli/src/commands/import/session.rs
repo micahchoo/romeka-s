@@ -142,7 +142,7 @@ impl Session {
                 ended = &mut running => break ended,
                 () = &mut stop, if !stopping => {
                     stopping = true;
-                    ImportRepo::new(&self.pool).request_stop(import).await?;
+                    with_db!(&self.pool, |db| ImportRepo::new(db).request_stop(import).await)?;
                     writeln!(out, "stop requested: the job ends after the record in hand")?;
                 }
                 _ = ticker.tick() => {

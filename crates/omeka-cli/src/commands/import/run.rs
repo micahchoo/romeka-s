@@ -198,8 +198,7 @@ async fn go(
         digest: None,
         confirm: options.confirm,
     };
-    with_db!(&session.pool, |db| start::begin(db, &row, &check, go).await)
-        .map_err(refused)?;
+    with_db!(&session.pool, |db| start::begin(db, &row, &check, go).await).map_err(refused)?;
     writeln!(progress, "import {} running", import.0)?;
     let work = Work {
         owner: Some(admin.id),

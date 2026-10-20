@@ -368,7 +368,7 @@ async fn a_stop_during_the_run_ends_it_run_failed() {
     bhc_006(&site);
     let options = RunOptions {
         at: Where {
-            database: site.dir.path().join("romeka.db"),
+            database: site.dir.path().join("romeka.db").into(),
             store: Some(site.files.clone()),
             archive_root: Some(site.archive.clone()),
         },
