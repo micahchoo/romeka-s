@@ -104,8 +104,8 @@ export class ImportApi {
   }
 
   /** 409 `stale` when `revision` is not the stored one, 409 `notDraft` once the import has started. */
-  async save(id: ImportId, plan: ImportPlan, revision: number): Promise<ImportDetail> {
-    return parseImportDetail(await this.json('PUT', one(id), { body: { plan, revision } }));
+  async save(id: ImportId, plan: ImportPlan, revision: number, options: { readonly keepalive?: boolean } = {}): Promise<ImportDetail> {
+    return parseImportDetail(await this.json('PUT', one(id), { body: { plan, revision }, ...options }));
   }
 
   /** A draft only; the route answers 204. */
@@ -188,7 +188,13 @@ export class ImportApi {
   private async send(
     method: string,
     path: string,
-    options: { readonly params?: URLSearchParams; readonly body?: unknown; readonly form?: FormData } = {},
+    options: {
+      readonly params?: URLSearchParams;
+      readonly body?: unknown;
+      readonly form?: FormData;
+      /** Lets the request outlive the page, for a save sent as the page closes. */
+      readonly keepalive?: boolean;
+    } = {},
   ): Promise<Response> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     let body: string | FormData | undefined;
@@ -202,6 +208,7 @@ export class ImportApi {
       method,
       headers,
       credentials: 'same-origin',
+      ...(options.keepalive === true ? { keepalive: true } : {}),
       ...(body === undefined ? {} : { body }),
     });
     if (!response.ok) {
@@ -213,7 +220,13 @@ export class ImportApi {
   private async json(
     method: string,
     path: string,
-    options: { readonly params?: URLSearchParams; readonly body?: unknown; readonly form?: FormData } = {},
+    options: {
+      readonly params?: URLSearchParams;
+      readonly body?: unknown;
+      readonly form?: FormData;
+      /** Lets the request outlive the page, for a save sent as the page closes. */
+      readonly keepalive?: boolean;
+    } = {},
   ): Promise<unknown> {
     const text = await (await this.send(method, path, options)).text();
     return text === '' ? null : parseJson(text);

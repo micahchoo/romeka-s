@@ -5,7 +5,6 @@
  */
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { getJobLog } from '../../api/imports';
 import type { Id, Job } from '../../api/types';
 import { toError } from '../../app/useAsync';
 import type { AsyncState } from '../../app/useAsync';
@@ -27,7 +26,7 @@ export interface JobPoll {
 }
 
 const readLog = (jobId: Id<'JobId'>): Promise<JobLog> =>
-  getJobLog(api, jobId).then(
+  api.requestText(`/api/romeka/jobs/${String(jobId)}/log`).then(
     (text) => ({ text }),
     (error: unknown) => ({ error: toError(error) }),
   );

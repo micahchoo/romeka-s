@@ -11,7 +11,6 @@
  */
 import { lazy } from 'react';
 import type { ComponentType } from 'react';
-import { api } from '../api/client';
 import type { MessageKey } from '../i18n';
 import type { PageProps } from './router';
 
@@ -116,14 +115,21 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
   },
   import: {
     titleKey: 'page.import',
-    upstream: 'Romeka: GET /api/romeka/archive, /api/romeka/imports (docs/archive-import.md)',
+    upstream: 'Romeka: GET /api/romeka/archive, /api/romeka/imports (docs/import-v2.md)',
     element: lazy(() =>
       import('../pages/import/page').then((module) => ({ default: module.ImportPage })),
     ),
-    // A step's file table lays a column per pattern group.
+    // One import's screens hold a side index and wide tables of records.
     wide: (rest) => rest[0] !== undefined,
-    // Hidden while the server has no `ROMEKA_ARCHIVE_ROOT`; the client loads with the page.
-    offered: () => import('../api/imports').then((module) => module.archiveEnabled(api)),
+    // Offered to whoever may read the import routes (global and site admins).
+    // Uploads need no archive root, so an install without one still offers it.
+    offered: () =>
+      import('../api/import-routes').then(({ importApi }) =>
+        importApi.archive().then(
+          () => true,
+          () => false,
+        ),
+      ),
   },
   sites: {
     titleKey: 'page.sites',

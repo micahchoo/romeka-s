@@ -224,6 +224,9 @@ export const mlServer: ServerCatalogue = {
     'ഈ റെക്കോർഡ് മാറ്റുന്ന ഐറ്റം, മീഡിയ അല്ലെങ്കിൽ ഐറ്റം സെറ്റ് ഇപ്പോൾ Omeka-യിൽ ഇല്ല.',
   'server.importRecordNotSaved': 'ഈ റെക്കോർഡ് സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',
   'server.importLinksNotSaved': 'ഈ റെക്കോർഡിന്റെ ലിങ്കുകൾ സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importRecordNotDeleted': 'ഇത് ഡിലീറ്റ് ചെയ്തില്ല: {reason}',
+  'server.importDeleteNotUndone':
+    'ഐറ്റങ്ങൾ, മീഡിയ അല്ലെങ്കിൽ ഐറ്റം സെറ്റുകൾ ഡിലീറ്റ് ചെയ്ത ഒരു ഇംപോർട്ട് അൺഡൂ ചെയ്യാൻ കഴിയില്ല.',
   'server.importSitesNotJoined':
     'ഈ ഐറ്റം ചേർത്തു, പക്ഷേ അതിനെ അതിന്റെ സൈറ്റുകളിൽ ചേർത്തില്ല: {reason}',
   'server.importUndoEdited': 'ഇംപോർട്ട് ഇത് എഴുതിയതിന് ശേഷം ഇത് എഡിറ്റ് ചെയ്തിട്ടുണ്ട്.',

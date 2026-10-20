@@ -219,6 +219,9 @@ export const mrServer: ServerCatalogue = {
     'या नोंदीत बदल करणारा आयटम, मीडिया किंवा आयटम सेट आता Omeka मध्ये नाही.',
   'server.importRecordNotSaved': 'ही नोंद जतन करता आली नाही: {reason}',
   'server.importLinksNotSaved': 'या नोंदीचे दुवे जतन करता आले नाहीत: {reason}',
+  'server.importRecordNotDeleted': 'हे हटवले गेले नाही: {reason}',
+  'server.importDeleteNotUndone':
+    'ज्या आयातीने आयटम, मीडिया किंवा आयटम सेट हटवले आहेत, ते पूर्ववत करता येत नाहीत.',
   'server.importSitesNotJoined':
     'हा आयटम जोडला गेला, परंतु तो त्याच्या साइट्समध्ये समाविष्ट होऊ शकला नाही: {reason}',
   'server.importUndoEdited': 'आयातीने हे लिहिल्यानंतर यात संपादन केले गेले.',
