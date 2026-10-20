@@ -116,6 +116,33 @@
       "entries"
     ],
     "entries": {
+      "kind": "file",
+      "folder": "Misc"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "kind": "row"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "sheet": "register",
+      "paired": false,
+      "perPage": 50
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
       "reason": "unmatched"
     }
   },
@@ -149,6 +176,22 @@
     ],
     "entries": {
       "reason": "noFiles"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "identical"
+    }
+  },
+  {
+    "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "noRow"
     }
   },
   {

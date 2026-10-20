@@ -6,13 +6,13 @@
 import type { ReactElement } from 'react';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 import { listHref } from './address';
 import { BUCKET_WORDS } from './facts-words';
 import { usePreview } from './use-preview';
 
 export const FilesChart = (): ReactElement | null => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const read = usePreview(['histogram'], {});
   if (read.status === 'loading') {

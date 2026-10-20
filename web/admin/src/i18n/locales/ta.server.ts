@@ -217,6 +217,8 @@ export const taServer: ServerCatalogue = {
   'server.importListUnread': 'பட்டியலை வாசிக்க முடியவில்லை: {reason}',
   'server.importListNoIdentifier':
     'பட்டியலில் அடையாளங்காட்டி (Identifier) நெடுவரிசை இல்லை, எனவே அதன் வரிசைகள் அவற்றின் உருப்படிகளைக் கண்டறிய முடியாது. நீங்கள் பதிவிறக்கிய பட்டியலின் அடையாளங்காட்டி நெடுவரிசையை வைத்திருக்கவும்.',
+  'server.importPairsColumns':
+    'பட்டியலில் Row நெடுவரிசையும் Files நெடுவரிசையும் தேவை. நீங்கள் பதிவிறக்கம் செய்த பட்டியலின் இரண்டு நெடுவரிசைகளையும் அப்படியே வைத்திருக்கவும்.',
   'server.importFileUnreadable': '"{path}" கோப்பை வாசிக்க முடியவில்லை: {reason}',
   'server.importFileRefused': '"{path}" கோப்பு சேர்க்கப்படவில்லை: {reason}',
   'server.importFileNotStored': '"{path}" கோப்பை சேமிக்க முடியவில்லை: {reason}',

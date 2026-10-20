@@ -16,8 +16,8 @@ import { useHash } from '../../../app/router';
 import { useDraft } from '../draft-context';
 import { Filters } from '../filters';
 import type { FilterField, FilterValue } from '../filters';
-import { useImportText } from '../messages';
-import type { ImportMessageKey } from '../messages';
+import { useListsText } from './messages';
+import type { ListsMessageKey } from './messages';
 import { PagedList } from '../paged-list';
 import { filterFromHash } from './address';
 import { ChangeMany } from './change-many';
@@ -28,20 +28,22 @@ import { fileName, folderOf, leftWords } from './record-words';
 export const FILE_FILTERS = ['text', 'used', 'reason', 'folder'] as const;
 export type FileFilter = (typeof FILE_FILTERS)[number];
 
-const REASON_WORDS: Readonly<Record<Unused, ImportMessageKey>> = {
+const REASON_WORDS: Readonly<Record<Unused, ListsMessageKey>> = {
   unmatched: 'lists.files.why.unmatched',
   decision: 'lists.files.why.decision',
   flag: 'lists.files.why.flag',
   parent: 'lists.files.why.parent',
   noFiles: 'lists.files.why.noFiles',
+  identical: 'lists.files.why.identical',
+  noRow: 'lists.files.why.noRow',
   noRecord: 'lists.files.why.noRecord',
 };
 
 export const entriesQuery = (filter: FilterValue<FileFilter>): EntriesQuery => {
   const reason = UNUSED_REASONS.find((one) => one === filter.reason);
   return {
-    // A folder filter, even the empty one, answers files only: list rows have no folder (`preview/query.rs`).
-    folder: filter.folder ?? '',
+    kind: 'file',
+    ...(filter.folder === undefined ? {} : { folder: filter.folder }),
     ...(filter.text === undefined ? {} : { text: filter.text }),
     ...(filter.used === undefined ? {} : { used: filter.used === 'yes' }),
     ...(reason === undefined ? {} : { reason }),
@@ -58,7 +60,7 @@ const fileOnly = (entry: EntryView): readonly { readonly file: FileRef }[] => {
 const move = (to: MoveTo): Change => ({ kind: 'move', to });
 
 export const AllFiles = (): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const hash = useHash();
   const [filter, setFilter] = useState<FilterValue<FileFilter>>(() => filterFromHash(hash, FILE_FILTERS));

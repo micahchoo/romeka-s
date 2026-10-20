@@ -80,7 +80,7 @@ export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, em
   if (shown.status === 'loading') {
     return (
       <p role="status" className="import-slow">
-        {t('lists.loading', { page })}
+        {t('paged.loading', { page })}
       </p>
     );
   }
@@ -121,7 +121,7 @@ export const PagedList = <T,>({ label, resource, load, deps, columns, rowKey, em
       {lastPage > 1 ? <Pager page={view.page} lastPage={lastPage} total={view.total} label={resource} onPage={setPage} /> : null}
       {busy ? (
         <p role="status" className="import-slow">
-          {t('lists.loading', { page })}
+          {t('paged.loading', { page })}
         </p>
       ) : null}
     </section>

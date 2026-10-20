@@ -19,8 +19,8 @@ import { useHash } from '../../../app/router';
 import { useDraft } from '../draft-context';
 import { Filters } from '../filters';
 import type { FilterField, FilterValue } from '../filters';
-import { useImportText } from '../messages';
-import type { ImportTranslator } from '../messages';
+import { useListsText } from './messages';
+import type { ListsTranslator } from './messages';
 import { PagedList } from '../paged-list';
 import { filterFromHash } from './address';
 import { loadCatalog } from './catalog';
@@ -84,7 +84,7 @@ const setChange = (text: string): Change => ({ kind: 'set', target: 'item', slot
 const typeChange = (text: string): Change => ({ kind: 'set', target: 'item', slot: 'template', values: [literal(text)] });
 
 /** The changes the bar offers: a set or a type is sent by id, a new one by its title. */
-const choicesOf = (catalog: Catalog | null, check: Check | null, plan: ImportPlan, t: ImportTranslator['t']): readonly ChangeChoice[] => {
+const choicesOf = (catalog: Catalog | null, check: Check | null, plan: ImportPlan, t: ListsTranslator['t']): readonly ChangeChoice[] => {
   const sets = [
     ...(catalog?.itemSets ?? []).map((set) => ({ name: set.title ?? `#${String(set.id)}`, text: String(set.id) })),
     ...(check?.newSets ?? []).map((set) => ({ name: set.title, text: set.title })),
@@ -114,7 +114,7 @@ const fieldsOf = (
   catalog: Catalog | null,
   check: Check | null,
   plan: ImportPlan,
-  text: ImportTranslator,
+  text: ListsTranslator,
 ): readonly FilterField<ItemFilter>[] => {
   const { t, number } = text;
   return [
@@ -178,7 +178,7 @@ const fieldsOf = (
   ];
 };
 
-const typeName = (record: RecordView, catalog: Catalog | null, plan: ImportPlan, t: ImportTranslator['t']): string => {
+const typeName = (record: RecordView, catalog: Catalog | null, plan: ImportPlan, t: ListsTranslator['t']): string => {
   const template = record.resolved.template;
   if (template === null) {
     return t('lists.none');
@@ -190,7 +190,7 @@ const typeName = (record: RecordView, catalog: Catalog | null, plan: ImportPlan,
 };
 
 export const AllItems = (): ReactElement => {
-  const text = useImportText();
+  const text = useListsText();
   const { t, number } = text;
   const draft = useDraft();
   const hash = useHash();

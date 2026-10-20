@@ -6,9 +6,9 @@
  */
 import type { Bucket, MediaKind, ShapeFacts } from '../../../api/import-sections';
 import type { ImportPlan } from '../../../api/import-plan';
-import type { ImportMessageKey, ImportTranslator } from '../messages';
+import type { ListsMessageKey, ListsTranslator } from './messages';
 
-export const BUCKET_WORDS: Readonly<Record<Bucket, ImportMessageKey>> = {
+export const BUCKET_WORDS: Readonly<Record<Bucket, ListsMessageKey>> = {
   '0': 'lists.facts.files0',
   '1': 'lists.facts.files1',
   '2': 'lists.facts.files2',
@@ -17,7 +17,7 @@ export const BUCKET_WORDS: Readonly<Record<Bucket, ImportMessageKey>> = {
   '7+': 'lists.facts.files7',
 };
 
-const MEDIA_WORDS: Readonly<Record<MediaKind, ImportMessageKey>> = {
+const MEDIA_WORDS: Readonly<Record<MediaKind, ListsMessageKey>> = {
   image: 'lists.facts.image',
   pdf: 'lists.facts.pdf',
   audio: 'lists.facts.audio',
@@ -28,7 +28,7 @@ const MEDIA_WORDS: Readonly<Record<MediaKind, ImportMessageKey>> = {
 const quoted = (words: readonly string[]): string => words.map((word) => `“${word}”`).join(', ');
 
 /** "2 files, all images, and a row in your list", for the sentence "N items have …". */
-export const factsWords = (facts: ShapeFacts, plan: ImportPlan, t: ImportTranslator['t']): string => {
+export const factsWords = (facts: ShapeFacts, plan: ImportPlan, t: ListsTranslator['t']): string => {
   const parts: string[] = [t(BUCKET_WORDS[facts.files])];
   if (facts.media.length === 1 && facts.media[0] !== undefined) {
     parts.push(t('lists.facts.allOf', { kind: t(MEDIA_WORDS[facts.media[0]]) }));
@@ -51,7 +51,7 @@ export const factsWords = (facts: ShapeFacts, plan: ImportPlan, t: ImportTransla
 };
 
 /** "They are in the folder “letters”." */
-export const foldersWords = (facts: ShapeFacts, t: ImportTranslator['t']): string => {
+export const foldersWords = (facts: ShapeFacts, t: ListsTranslator['t']): string => {
   const named = facts.folders.filter((folder) => folder !== '');
   if (named.length === 0) {
     return t('lists.facts.topFolder');

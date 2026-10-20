@@ -205,6 +205,8 @@ export const hiServer: ServerCatalogue = {
   'server.importListUnread': 'सूची नहीं पढ़ी जा सकती: {reason}',
   'server.importListNoIdentifier':
     'सूची में आइडेंटिफ़ायर कॉलम नहीं है, इसलिए इसकी पंक्तियाँ अपने आइटम नहीं ढूंढ सकतीं। आपने जो सूची डाउनलोड की थी, उसका आइडेंटिफ़ायर कॉलम बनाए रखें।',
+  'server.importPairsColumns':
+    'सूची में Row कॉलम और Files कॉलम चाहिए। आपने जो सूची डाउनलोड की थी, उसके दोनों कॉलम रहने दें।',
   'server.importFileUnreadable': 'फ़ाइल "{path}" नहीं पढ़ी जा सकी: {reason}',
   'server.importFileRefused': 'फ़ाइल "{path}" नहीं जोड़ी गई: {reason}',
   'server.importFileNotStored': 'फ़ाइल "{path}" संग्रहीत नहीं की जा सकी: {reason}',

@@ -86,6 +86,7 @@ describe('reading', () => {
       route({
         '/api/romeka/imports/1/left.csv': () => new Response(csv('left.csv'), { headers: { 'Content-Type': 'text/csv' } }),
         '/api/romeka/imports/1/template.csv': () => new Response(csv('template.csv'), { headers: { 'Content-Type': 'text/csv' } }),
+        '/api/romeka/imports/1/pairs.csv': () => new Response(csv('pairs.csv'), { headers: { 'Content-Type': 'text/csv' } }),
         '/api/romeka/jobs/7/log': () => new Response('record 1 written\n'),
       }),
     );
@@ -94,6 +95,10 @@ describe('reading', () => {
     expect(list.startsWith('\u{feff}Identifier,Files,Title [dcterms:title]')).toBe(true);
     expect(only(requestsFor(fetchMock, '/api/romeka/imports/1/template.csv')).url.search).toBe('?columns=dcterms%3Atitle%2Cdcterms%3Adate');
     expect(await api.jobLog(7)).toBe('record 1 written\n');
+    expect(api.pairsUrl(ID)).toBe('/api/romeka/imports/1/pairs.csv');
+    const down = csv('pairs.csv');
+    expect(down.startsWith('\u{feff}Row [sheet:key],')).toBe(true);
+    expect(down.split('\r\n')[0]?.endsWith(',Files')).toBe(true);
     expect(api.templateUrl(ID, ['dcterms:title'])).toBe('/api/romeka/imports/1/template.csv?columns=dcterms%3Atitle');
   });
 });
@@ -167,6 +172,22 @@ describe('writing', () => {
     const form = sent.init?.body;
     expect(form).toBeInstanceOf(FormData);
     expect(form instanceof FormData ? form.get('file') : null).toBeInstanceOf(File);
+    expect(new Headers(sent.init?.headers).has('Content-Type')).toBe(false);
+  });
+});
+
+describe('the pairs list', () => {
+  it('uploads a filled list as a multipart form and reads the cells that made no pair', async () => {
+    const fetchMock = installFetch(route({ '/api/romeka/imports/1/pairs': () => answer('pairs-added.json') }));
+    const result = await api.addPairs(ID, new File(['Row [sheet:key],Files\n'], 'pairs.csv', { type: 'text/csv' }));
+    expect(result.added).toBe(1);
+    expect(result.already).toBe(0);
+    expect(result.unmatchedTotal).toBe(2);
+    expect(result.unmatched.map((cell) => cell.why)).toEqual(['noItem', 'noRow']);
+    expect(result.import.plan.decisions.some((decision) => decision.kind === 'pair')).toBe(true);
+    const sent = only(requestsFor(fetchMock, '/api/romeka/imports/1/pairs'));
+    expect(sent.init?.method).toBe('POST');
+    expect(sent.init?.body).toBeInstanceOf(FormData);
     expect(new Headers(sent.init?.headers).has('Content-Type')).toBe(false);
   });
 });

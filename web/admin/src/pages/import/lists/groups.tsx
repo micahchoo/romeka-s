@@ -12,7 +12,7 @@ import type { ShapeGroup } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 import { listHref } from './address';
 import { ChangeMany } from './change-many';
 import { factsWords, foldersWords } from './facts-words';
@@ -25,7 +25,7 @@ export const GROUPS_PER_PAGE = 20;
 const FILES_SHOWN = 4;
 
 const Example = ({ record }: { readonly record: RecordView }): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const title = recordTitle(record);
   const more = record.files.length - FILES_SHOWN;
   return (
@@ -46,7 +46,7 @@ const Example = ({ record }: { readonly record: RecordView }): ReactElement => {
 };
 
 const Group = ({ group, shown, onAnother }: { readonly group: ShapeGroup; readonly shown: number; readonly onAnother: () => void }): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const sample = group.samples[shown % Math.max(1, group.samples.length)];
   const items = draft.place.mode === 'simple' ? ({ mode: 'simple', screen: 'all-items' } as const) : ({ mode: 'advanced', screen: 'items' } as const);
@@ -83,13 +83,13 @@ const Group = ({ group, shown, onAnother }: { readonly group: ShapeGroup; readon
 };
 
 export const Groups = (): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const [page, setPage] = useState(1);
   const [seed, setSeed] = useState(0);
   const [shown, setShown] = useState<Readonly<Record<string, number>>>({});
   const read = usePreview(['shapes'], { shapes: { page, perPage: GROUPS_PER_PAGE }, seed });
   if (read.status === 'loading') {
-    return <p role="status" className="import-slow">{t('lists.loading', { page })}</p>;
+    return <p role="status" className="import-slow">{t('paged.loading', { page })}</p>;
   }
   if (read.status === 'error') {
     return <ErrorNotice error={read.error} />;

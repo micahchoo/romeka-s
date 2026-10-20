@@ -24,7 +24,9 @@ describe.each([9, 40_000])('Pair by hand at %i items', (size) => {
     expect(await screen.findByRole('heading', { name: rowsHeading })).toBeInTheDocument();
     expect(screen.getAllByRole('radio')).toHaveLength(Math.min(rows, 10));
     expect(screen.getAllByRole('button', { name: 'Choose a row first' })).toHaveLength(Math.min(files, 10));
-    expect(screen.queryByText(/Pairing them here goes one at a time/) !== null).toBe(rows > 30);
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /rows have no file: pair them in a spreadsheet/ }) !== null).toBe(rows > 30);
+    });
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search the files' }), { target: { value: `item_${pad(1)}` } });
     fireEvent.click(within(screen.getByRole('search', { name: 'Search the files' })).getByRole('button', { name: 'Search' }));
@@ -50,4 +52,36 @@ describe.each([9, 40_000])('Pair by hand at %i items', (size) => {
     }, { timeout: 3000 });
     expect(server.saved[1]?.['decisions']).toEqual([]);
   }, 20_000);
+});
+
+describe('the pairs list at 40,000 items', () => {
+  it('goes down as a link, comes back as pairs, says what made none and undoes the pairs', async () => {
+    const server = listsServer(40_000);
+    const fetchMock = installFetch(server.handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'pair']} />);
+    const rows = countOf(40_000, (n) => !hasFile(n));
+    const card = (await screen.findByRole('heading', { name: `${rows.toLocaleString('en')} rows have no file: pair them in a spreadsheet` })).closest('section');
+    if (card === null) {
+      throw new Error('the pairs list has no card');
+    }
+    expect(within(card).getByText(/such as item_00001\.jpg/)).toBeInTheDocument();
+    const download = within(card).getByRole('link', { name: `Download the ${rows.toLocaleString('en')} rows (.csv)` });
+    expect(download.getAttribute('href')).toBe('/api/romeka/imports/1/pairs.csv');
+
+    fireEvent.change(within(card).getByLabelText('Choose the file'), { target: { files: [new File(['Row [sheet:key],Files\n'], 'pairs.csv', { type: 'text/csv' })] } });
+    expect(await within(card).findByText('Paired 1 row.')).toBeInTheDocument();
+    expect(requestsFor(fetchMock, `${PATH}/pairs`)).toHaveLength(1);
+    expect(within(card).getByText('2 cells made no pair.')).toBeInTheDocument();
+    fireEvent.click(within(card).getByText('Show the 2 cells that made no pair'));
+    expect(within(card).getByText(/register:NOWHERE#1: “nothing\.jpg”/)).toBeInTheDocument();
+    expect(within(card).getByText('No row of this import has this address.')).toBeInTheDocument();
+    expect(within(card).getByText('The file is in no item of this import: its name did not fit your example.')).toBeInTheDocument();
+
+    fireEvent.click(within(card).getByRole('button', { name: 'Undo these pairs' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    }, { timeout: 3000 });
+    expect(server.saved[0]?.['decisions']).toEqual([]);
+    expect(within(card).queryByText('Paired 1 row.')).not.toBeInTheDocument();
+  }, 30_000);
 });

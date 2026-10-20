@@ -13,7 +13,7 @@ import type { Change } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 import { manyDecision } from './gather';
 import type { Gathered } from './gather';
 
@@ -42,7 +42,7 @@ type Step =
   | { readonly at: 'done'; readonly label: string; readonly count: number };
 
 export const ChangeMany = ({ count, noun, choices, gather }: ChangeManyProps): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const [step, setStep] = useState<Step>({ at: 'idle' });
   const stop = useRef<AbortController | null>(null);

@@ -4,10 +4,10 @@
  */
 import type { ReactElement } from 'react';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 
 export const ChangesMade = (): ReactElement | null => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const decisions = draft.plan.decisions;
   if (decisions.length === 0) {

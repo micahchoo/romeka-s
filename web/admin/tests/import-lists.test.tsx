@@ -72,10 +72,12 @@ describe.each([9, 40_000])('Every item at %i items', (size) => {
 describe.each([9, 40_000])('Every file at %i items', (size) => {
   it('draws one page, filters to files not in an item, and moves them all at once', async () => {
     const server = listsServer(size);
-    installFetch(server.handler);
+    const fetchMock = installFetch(server.handler);
     render(at('advanced', 'all-files'));
     const files = countOf(size, hasFile);
     expect(await screen.findByText(`${files.toLocaleString('en')} files`)).toBeInTheDocument();
+    const first = requestsFor(fetchMock, `${PATH}/preview`).map(requestBody).find((body) => body['entries'] !== undefined);
+    expect(first?.['entries']).toEqual({ kind: 'file', page: 1, perPage: 50 });
     expect(bodyRows('Every file')).toHaveLength(Math.min(files, 50));
 
     fireEvent.change(screen.getByLabelText('In an item'), { target: { value: 'no' } });

@@ -462,6 +462,8 @@ messages! {
     fn import_list_unread(reason) = "The list cannot be read: {reason}";
     /// `POST …/sheets` with a list whose header has no Identifier column.
     const IMPORT_LIST_NO_IDENTIFIER = "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.";
+    /// `POST …/pairs` with a list that lacks the Row column or the Files column.
+    const IMPORT_PAIRS_COLUMNS = "The list needs the Row column and the Files column. Keep both columns of the list you downloaded.";
     /// A run failure: a file the record names could not be opened or read.
     fn import_file_unreadable(path, reason) = "The file \"{path}\" could not be read: {reason}";
     /// A run failure: the install's file settings refused a file.

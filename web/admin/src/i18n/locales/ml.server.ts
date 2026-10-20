@@ -214,6 +214,8 @@ export const mlServer: ServerCatalogue = {
   'server.importListUnread': 'ലിസ്റ്റ് വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
   'server.importListNoIdentifier':
     'ലിസ്റ്റിൽ ഐഡന്റിഫയർ കോളം ഇല്ല, അതിനാൽ അതിലെ വരികൾക്ക് അവയുടെ ഐറ്റങ്ങൾ കണ്ടെത്താൻ കഴിയില്ല. നിങ്ങൾ ഡൗൺലോഡ് ചെയ്ത ലിസ്റ്റിന്റെ ഐഡന്റിഫയർ കോളം നിലനിർത്തുക.',
+  'server.importPairsColumns':
+    'പട്ടികയിൽ Row കോളവും Files കോളവും വേണം. നിങ്ങൾ ഡൗൺലോഡ് ചെയ്ത പട്ടികയിലെ രണ്ട് കോളങ്ങളും അതുപോലെ നിലനിർത്തുക.',
   'server.importFileUnreadable': '"{path}" എന്ന ഫയൽ വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
   'server.importFileRefused': '"{path}" എന്ന ഫയൽ ചേർക്കാൻ കഴിഞ്ഞില്ല: {reason}',
   'server.importFileNotStored': '"{path}" എന്ന ഫയൽ സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: {reason}',

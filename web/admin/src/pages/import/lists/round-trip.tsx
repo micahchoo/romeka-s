@@ -5,19 +5,18 @@
  * read and the rows that belong to no item of this import.
  */
 import { useId, useState } from 'react';
-import type { DragEvent, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { importApi } from '../../../api/import-routes';
-import type { EntryView } from '../../../api/import-model';
 import type { ImportPlan, SlotRule, SlotRules } from '../../../api/import-plan';
 import type { ImportDetail } from '../../../api/import-view';
 import { ErrorNotice } from '../../../app/errors';
 import { TableScroll } from '../../../app/table-scroll';
 import { toError, useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 import { loadProperties } from './catalog';
 import { csvHead } from './csv-head';
-import { gather } from './gather';
+import { ListDrop } from './list-drop';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
 const SLOT_COLUMNS = ['sets', 'template', 'visibility'] as const;
@@ -63,19 +62,18 @@ export const readUpload = async (before: ImportPlan, after: ImportDetail): Promi
   }
   const preview = await importApi.preview(after.id, ['sheets']);
   const read = preview.sheets.find((sheet) => sheet.id === added.id)?.read ?? null;
-  const load = (page: number, perPage: number) =>
-    importApi.preview(after.id, ['entries'], { entries: { paired: false, page, perPage } }).then((answer) => answer.entries);
-  const ofSheet = (entry: EntryView) => ('row' in entry.entry && entry.entry.row.sheet === added.id ? [entry.entry] : []);
-  const strays = await gather(load, ofSheet, () => '', () => undefined);
-  const keys = strays.entries.flatMap((entry) => ('row' in entry ? [entry.row.key] : []));
+  const strays = (
+    await importApi.preview(after.id, ['entries'], { entries: { sheet: added.id, paired: false, perPage: STRAYS_SHOWN } })
+  ).entries;
+  const keys = strays.items.flatMap((entry) => ('row' in entry.entry ? [entry.entry.row.key] : []));
   const mapped = added.columns.map((column) => column.column.header);
   const kept = new Set(['Identifier', 'Files', ...mapped]);
   return {
     sheet: added.id,
     file: added.file,
     rows: read?.rows ?? 0,
-    strays: keys.length,
-    strayKeys: keys.slice(0, STRAYS_SHOWN),
+    strays: strays.total,
+    strayKeys: keys,
     mapped,
     unmapped: (read?.columns ?? []).map((column) => column.header).filter((header) => !kept.has(header)),
   };
@@ -88,7 +86,7 @@ type Upload =
   | { readonly at: 'read'; readonly result: UploadResult };
 
 const Result = ({ result, onRemove }: { readonly result: UploadResult; readonly onRemove: () => void }): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const quote = (words: readonly string[]): string => words.map((word) => `“${word}”`).join(', ');
   return (
     <div className="import-note" role="status">
@@ -119,7 +117,7 @@ const Result = ({ result, onRemove }: { readonly result: UploadResult; readonly 
 };
 
 export const RoundTrip = (): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const id = useId();
   const [columns, setColumns] = useState<readonly string[]>(FIRST_COLUMNS);
@@ -157,14 +155,6 @@ export const RoundTrip = (): ReactElement => {
         },
       );
   };
-  const onDrop = (event: DragEvent<HTMLDivElement>): void => {
-    event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (file !== undefined && canSend) {
-      send(file);
-    }
-  };
-
   return (
     <section className="import-card import-trip" aria-labelledby={`${id}-title`}>
       <h4 id={`${id}-title`}>{t('lists.trip.title')}</h4>
@@ -249,33 +239,7 @@ export const RoundTrip = (): ReactElement => {
         </a>
       </p>
       <h5>{t('lists.trip.step2')}</h5>
-      <div
-        className="import-drop"
-        onDragOver={(event) => {
-          event.preventDefault();
-        }}
-        onDrop={onDrop}
-      >
-        <p>{t('lists.trip.drop')}</p>
-        <p className="muted">{t('lists.trip.kinds')}</p>
-        <label className="button-link import-file">
-          {t('lists.trip.choose')}
-          <input
-            type="file"
-            accept=".csv,.tsv"
-            className="import-file-input"
-            disabled={!canSend}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file !== undefined) {
-                send(file);
-              }
-              event.target.value = '';
-            }}
-          />
-        </label>
-        {draft.editable && draft.save.status !== 'saved' ? <p className="muted">{t('lists.trip.waitSave')}</p> : null}
-      </div>
+      <ListDrop canSend={canSend} waitingForSave={draft.editable && draft.save.status !== 'saved'} onFile={send} />
       {upload.at === 'sending' ? <p role="status">{t('lists.trip.sending', { file: upload.name })}</p> : null}
       {upload.at === 'failed' ? <ErrorNotice error={upload.error} /> : null}
       {upload.at === 'read' ? (

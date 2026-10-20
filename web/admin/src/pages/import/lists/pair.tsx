@@ -5,21 +5,20 @@
  * picks a row, then its file; each pair is one `pair` decision. The server
  * never proposes a pair (`docs/import-v2.md`, "Unpaired lists").
  */
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ReactElement, ReactNode, SyntheticEvent } from 'react';
 import type { FileRef, RowRef } from '../../../api/import-plan';
 import type { Paged } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
 import { useDraft } from '../draft-context';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
+import { PairsList } from './pairs-list';
 import { fileName, folderOf } from './record-words';
 import { usePreview } from './use-preview';
 
 /** Ten a side keeps both lists in view at once. */
 export const PAIR_PER_PAGE = 10;
-/** Past this many rows, one at a time is slow (`docs/import-v2.md`, decision of 2026-10-20). */
-export const PAIR_BY_HAND = 30;
 
 const rowKey = (row: RowRef): string => `${row.sheet}\u0000${row.key}`;
 const fileKey = (file: FileRef): string => `${file.source}\u0000${file.path}`;
@@ -30,7 +29,7 @@ interface Side {
 }
 
 const Search = ({ label, value, onSearch }: { readonly label: string; readonly value: string; readonly onSearch: (text: string) => void }): ReactElement => {
-  const { t } = useImportText();
+  const { t } = useListsText();
   const id = useId();
   const [typed, setTyped] = useState(value);
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
@@ -50,7 +49,7 @@ const Search = ({ label, value, onSearch }: { readonly label: string; readonly v
           }}
         />
       </label>
-      <button type="submit">{t('lists.search')}</button>
+      <button type="submit">{t('paged.search')}</button>
     </form>
   );
 };
@@ -61,7 +60,7 @@ const Paging = <T,>({ data, resource, onPage }: { readonly data: Paged<T>; reado
 };
 
 export const PairByHand = (): ReactElement => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const draft = useDraft();
   const [rows, setRows] = useState<Side>({ page: 1, text: '' });
   const [files, setFiles] = useState<Side>({ page: 1, text: '' });
@@ -71,9 +70,17 @@ export const PairByHand = (): ReactElement => {
   const made = draft.plan.decisions.flatMap((decision, index) => (decision.kind === 'pair' ? [{ decision, index }] : []));
   const pairedRows = new Set(made.map(({ decision }) => rowKey(decision.row)));
   const pairedFiles = new Set(made.map(({ decision }) => fileKey(decision.file)));
+  // The search narrows the rows below, never the list the spreadsheet offers.
+  const [allRows, setAllRows] = useState(0);
+  const total = read.status === 'ready' ? read.data.unpaired.rows.total : null;
+  useEffect(() => {
+    if (total !== null && rows.text === '') {
+      setAllRows(total);
+    }
+  }, [total, rows.text]);
 
   if (read.status === 'loading') {
-    return <p role="status" className="import-slow">{t('lists.loading', { page: 1 })}</p>;
+    return <p role="status" className="import-slow">{t('paged.loading', { page: 1 })}</p>;
   }
   if (read.status === 'error') {
     return <ErrorNotice error={read.error} />;
@@ -93,7 +100,7 @@ export const PairByHand = (): ReactElement => {
   return (
     <div className="import-pair">
       <p className="lede">{t('lists.pair.lede')}</p>
-      {unpaired.rows.total > PAIR_BY_HAND ? <p className="import-note">{t('lists.pair.many', { count: number(unpaired.rows.total) })}</p> : null}
+      <PairsList rows={allRows} example={unpaired.files.items[0] === undefined ? null : fileName(unpaired.files.items[0].file)} />
       <div className="import-pair-grid" aria-busy={read.busy}>
         <section className="import-card">
           <h4>{unpaired.rows.total === 1 ? t('lists.pair.rowsOne') : t('lists.pair.rows', { count: number(unpaired.rows.total) })}</h4>

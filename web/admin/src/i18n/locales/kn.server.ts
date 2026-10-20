@@ -209,6 +209,8 @@ export const knServer: ServerCatalogue = {
   'server.importListUnread': 'ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ: {reason}',
   'server.importListNoIdentifier':
     'ಪಟ್ಟಿಯಲ್ಲಿ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಅದರ ಸಾಲುಗಳು ತಮ್ಮ ಐಟಂಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಿಲ್ಲ. ನೀವು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಪಟ್ಟಿಯ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಅನ್ನು ಇರಿಸಿ.',
+  'server.importPairsColumns':
+    'ಪಟ್ಟಿಗೆ Row ಕಾಲಮ್ ಮತ್ತು Files ಕಾಲಮ್ ಬೇಕು. ನೀವು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಪಟ್ಟಿಯ ಎರಡೂ ಕಾಲಮ್‌ಗಳನ್ನು ಹಾಗೆಯೇ ಇರಿಸಿ.',
   'server.importFileUnreadable': '"{path}" ಫೈಲ್ ಅನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
   'server.importFileRefused': '"{path}" ಫೈಲ್ ಅನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ: {reason}',
   'server.importFileNotStored': '"{path}" ಫೈಲ್ ಅನ್ನು ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',

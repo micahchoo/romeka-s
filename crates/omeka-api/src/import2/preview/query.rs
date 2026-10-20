@@ -14,7 +14,7 @@ use crate::import2::decisions::EntryRef;
 use crate::import2::model::{
     EntryState, Fate, Flag, LeftBy, Model, Record, RecordId, SetRef, Subject, TemplateRef,
 };
-use crate::import2::plan::{FlagKind, RecordKind, SlotName};
+use crate::import2::plan::{FlagKind, RecordKind, SheetId, SlotName};
 use crate::import2::values::fold_title;
 
 /// A page holds at most this many entries or records.
@@ -128,6 +128,21 @@ pub struct EntriesQuery {
     /// are never in the answer when this is set.
     #[serde(default)]
     pub paired: Option<bool>,
+    /// Only files, or only sheet rows. The folder filter already keeps
+    /// files only, so this is how a list of files asks for them without one.
+    #[serde(default)]
+    pub kind: Option<EntryKind>,
+    /// Rows of this sheet; files are never in the answer when this is set.
+    #[serde(default)]
+    pub sheet: Option<SheetId>,
+}
+
+/// What an entry is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EntryKind {
+    File,
+    Row,
 }
 
 /// Why an entry is in no record the run writes.
@@ -328,6 +343,16 @@ pub(super) fn entries(model: &Model, query: &EntriesQuery, flags: &FlagsBy<'_>) 
                     EntryRef::File(file) => in_folder(file.path.as_str(), folder),
                     EntryRef::Row(_) => false,
                 })
+            && query.kind.is_none_or(|kind| {
+                matches!(
+                    (&state.entry, kind),
+                    (EntryRef::File(_), EntryKind::File) | (EntryRef::Row(_), EntryKind::Row)
+                )
+            })
+            && query.sheet.as_ref().is_none_or(|sheet| match &state.entry {
+                EntryRef::Row(row) => row.sheet == *sheet,
+                EntryRef::File(_) => false,
+            })
             && query.paired.is_none_or(|paired| match &state.entry {
                 EntryRef::Row(_) => state
                     .record

@@ -204,6 +204,8 @@ export const neServer: ServerCatalogue = {
   'server.importListUnread': 'सूची पढ्न सकिएन: {reason}',
   'server.importListNoIdentifier':
     'सूचीमा कुनै आइडेन्टिफायर कोलम छैन, त्यसैले यसका पङ्क्तिहरूले आफ्ना वस्तुहरू फेला पार्न सक्दैनन्। तपाईँले डाउनलोड गर्नुभएको सूचीको आइडेन्टिफायर कोलम सुरक्षित राख्नुहोस्।',
+  'server.importPairsColumns':
+    'सूचीमा Row र Files स्तम्भ आवश्यक छन्। तपाईँले डाउनलोड गर्नुभएको सूचीका दुवै स्तम्भ राख्नुहोस्।',
   'server.importFileUnreadable': 'फाइल "{path}" पढ्न सकिएन: {reason}',
   'server.importFileRefused': 'फाइल "{path}" थपिएन: {reason}',
   'server.importFileNotStored': 'फाइल "{path}" भण्डारण गर्न सकिएन: {reason}',

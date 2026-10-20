@@ -4,7 +4,7 @@
  */
 import type { LeftBy, RecordView } from '../../../api/import-model';
 import type { FileRef } from '../../../api/import-plan';
-import type { ImportMessageKey, ImportTranslator } from '../messages';
+import type { ListsMessageKey, ListsTranslator } from './messages';
 
 export const fileName = (file: FileRef): string => file.path.slice(file.path.lastIndexOf('/') + 1);
 
@@ -28,14 +28,14 @@ export const recordName = (record: RecordView): string => {
 
 export const recordTitle = (record: RecordView): string | null => record.slots['dcterms:title']?.[0]?.text ?? null;
 
-const LEFT: Readonly<Record<Exclude<LeftBy, { readonly decision: number } | { readonly flag: string }>, ImportMessageKey>> = {
+const LEFT: Readonly<Record<Exclude<LeftBy, { readonly decision: number } | { readonly flag: string }>, ListsMessageKey>> = {
   parent: 'lists.left.parent',
   noFiles: 'lists.left.noFiles',
   identical: 'lists.left.identical',
   noRow: 'lists.left.noRow',
 };
 
-export const leftWords = (left: LeftBy, t: ImportTranslator['t']): string => {
+export const leftWords = (left: LeftBy, t: ListsTranslator['t']): string => {
   if (typeof left === 'string') {
     return t(LEFT[left]);
   }

@@ -7,13 +7,13 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
-import { useImportText } from '../messages';
+import { useListsText } from './messages';
 import { usePreview } from './use-preview';
 
 export const IDENTICAL_PER_PAGE = 20;
 
 export const IdenticalFiles = (): ReactElement | null => {
-  const { t, number } = useImportText();
+  const { t, number } = useListsText();
   const [page, setPage] = useState(1);
   const read = usePreview(['identical'], { identical: { page, perPage: IDENTICAL_PER_PAGE } });
   if (read.status === 'loading') {

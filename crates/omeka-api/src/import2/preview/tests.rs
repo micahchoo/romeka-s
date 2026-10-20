@@ -107,6 +107,39 @@ fn records_page_by_kind_and_filter_by_text_and_flag() {
 }
 
 #[test]
+fn entries_are_filtered_to_files_or_to_rows_by_kind() {
+    let derived = derived(&["A1.jpg", "A2.jpg"], |_| {});
+    let total = |entries: serde_json::Value| {
+        preview(
+            &derived,
+            &request(json!({ "include": ["entries"], "entries": entries })),
+        )
+        .entries
+        .unwrap()
+        .total
+    };
+    assert_eq!(total(json!({})), 2);
+    assert_eq!(total(json!({ "kind": "file" })), 2);
+    assert_eq!(total(json!({ "kind": "row" })), 0, "no sheet, so no row");
+    assert_eq!(
+        total(json!({ "kind": "file", "folder": "" })),
+        2,
+        "the folder filter keeps answering files only"
+    );
+    assert_eq!(
+        total(json!({ "sheet": "nowhere" })),
+        0,
+        "a sheet filter answers that sheet's rows only"
+    );
+    assert!(
+        serde_json::from_value::<PreviewRequest>(
+            json!({ "include": ["entries"], "entries": { "kind": "folder" } })
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn a_request_with_an_unknown_member_or_section_is_refused() {
     assert!(
         serde_json::from_value::<PreviewRequest>(json!({ "include": ["everything"] })).is_err()

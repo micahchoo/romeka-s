@@ -127,7 +127,7 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
         answer['records'] = paged(hits, pageOf(query));
       } else if (section === 'entries') {
         const query = isRecord(body['entries']) ? body['entries'] : {};
-        if (query['paired'] === false) {
+        if (query['paired'] === false || query['sheet'] !== undefined) {
           answer['entries'] = paged(strayRows, pageOf(query));
         } else {
           const used = typeof query['used'] === 'boolean' ? query['used'] : null;
@@ -180,6 +180,14 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
     },
     [`${PATH}/preview`]: preview,
     [`${PATH}/template.csv`]: () => new Response(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/import/template.csv')), { status: 200 }),
+    [`${PATH}/pairs.csv`]: () => new Response(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/import/pairs.csv')), { status: 200 }),
+    [`${PATH}/pairs`]: () => {
+      revision += 1;
+      const added = fixture('pairs-added.json');
+      const pair = { kind: 'pair', row: { sheet: 'register', key: 'item_00003#1' }, file: { source: 's1', path: 'Letters/item_00001.jpg' } };
+      const plan = { ...asRecord(draft()['plan'], []), decisions: [pair] };
+      return jsonResponse({ ...added, import: { ...draft(), plan } });
+    },
     [`${PATH}/sheets`]: () => {
       revision += 1;
       return jsonResponse({ ...fixture('import-sheet-added.json'), id: 1, revision });

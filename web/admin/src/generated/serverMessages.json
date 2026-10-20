@@ -156,6 +156,7 @@
     "server.importListTooLarge": "The list is larger than 50 MB.",
     "server.importListUnread": "The list cannot be read: {reason}",
     "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.",
+    "server.importPairsColumns": "The list needs the Row column and the Files column. Keep both columns of the list you downloaded.",
     "server.importFileUnreadable": "The file \"{path}\" could not be read: {reason}",
     "server.importFileRefused": "The file \"{path}\" was not added: {reason}",
     "server.importFileNotStored": "The file \"{path}\" could not be stored: {reason}",
