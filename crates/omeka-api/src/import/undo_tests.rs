@@ -3,7 +3,8 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use omeka_db::repos::{ImportResourceRepo, ItemRepo, ValueRepo};
+use omeka_db::ids::ImportId;
+use omeka_db::repos::{ImportRepo, ImportResourceRepo, ItemRepo, ValueRepo};
 use omeka_db::rows::{ImportKind, NewItem, NewValue};
 
 use super::run::{find_property, run};
@@ -205,4 +206,43 @@ async fn an_undo_that_stopped_part_way_converges_on_the_next_undo() {
     assert_eq!(fixture.count("resource_template").await, 0);
     assert!(fixture.stored().is_empty());
     assert_eq!(fixture.count("romeka_import_resource").await, 0);
+}
+
+async fn summary_of(fixture: &super::run_tests::Fixture, import: ImportId) -> serde_json::Value {
+    ImportRepo::new(&fixture.pool)
+        .get(import)
+        .await
+        .expect("import")
+        .and_then(|row| row.summary)
+        .expect("summary")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_undo_publishes_its_own_progress_and_leaves_the_runs() {
+    let fixture = fixture().await;
+    let (import, _, _) = fixture.run().await;
+    let run_progress = summary_of(&fixture, import).await["progress"].clone();
+    let total = ImportResourceRepo::new(&fixture.pool)
+        .list(import, None)
+        .await
+        .expect("records")
+        .len();
+    let (pool, store) = (fixture.pool.clone(), fixture.store.clone());
+    crash_after(2, |mut stop| async move {
+        let _ = undo(&pool, &store, import, move |step| stop(step.done)).await;
+    })
+    .await;
+
+    let summary = summary_of(&fixture, import).await;
+    assert_eq!(
+        summary["undoProgress"],
+        serde_json::json!({"done": 2, "total": total})
+    );
+    assert_eq!(summary["progress"], run_progress, "the run's numbers stay");
+
+    fixture.undo(import).await;
+    // A rerun counts only the targets still recorded.
+    let finished = &summary_of(&fixture, import).await["undoProgress"];
+    assert_eq!(finished["done"], finished["total"]);
+    assert!(finished["total"].as_u64().unwrap() > 0);
 }

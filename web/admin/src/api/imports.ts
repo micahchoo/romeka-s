@@ -111,6 +111,8 @@ export interface ImportSummary {
   /** The titles of the existing item sets the run added items to. */
   readonly existingSets: readonly string[];
   readonly progress: { readonly done: number; readonly total: number };
+  /** The undo's own count of targets removed, or `null` before an undo has started. */
+  readonly undoProgress: { readonly done: number; readonly total: number } | null;
 }
 
 export type KeptKind = 'itemSet' | 'template' | 'field';
@@ -270,6 +272,12 @@ export const parseImportSummary: Parser<ImportSummary> = (raw, path = []) => {
     ),
     existingSets: strings(object, 'existingSets', path),
     progress: { done: count(progress, 'done', at), total: count(progress, 'total', at) },
+    // Absent until an undo starts, and in summaries stored before undo reported progress.
+    undoProgress:
+      optionalField(object, 'undoProgress', path, (value, here) => {
+        const counts = asRecord(value, here);
+        return { done: count(counts, 'done', here), total: count(counts, 'total', here) };
+      }) ?? null,
   };
 };
 
