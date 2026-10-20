@@ -36,9 +36,8 @@
 //! Thumbnails for the decodable image types come from `omeka-media`'s
 //! [`ImageThumbnailer`], which writes the three sizes through the store, so
 //! `has_thumbnails` is true for a file whose bytes decoded as an image.
-//! `media_type` comes from the file extension (upstream sniffs the content with
-//! `finfo`); the table lives here because the CLI is the boundary that knows the
-//! source name.
+//! `media_type` comes from the bytes, as upstream's `finfo` reads it, and a file
+//! the install's file validation settings refuse is reported as failed.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -51,7 +50,9 @@ use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
 use omeka_db::ids::{ItemId, ItemSetId, PropertyId};
 use omeka_db::open_file;
-use omeka_db::repos::{ItemFilter, ItemRepo, MediaFilter, MediaRepo, Paging, ValueRepo};
+use omeka_db::repos::{
+    ItemFilter, ItemRepo, MediaFilter, MediaRepo, Paging, SettingRepo, ValueRepo,
+};
 use omeka_db::rows::{NewMedia, NewResource};
 use omeka_media::data::MediaData;
 use omeka_media::http::{FetchError, HttpFetch, HttpResponse};
@@ -191,12 +192,14 @@ pub async fn run(options: &MediaOptions) -> Result<MediaReport, CliError> {
     let purifier = HtmlPurifier;
     let thumbnailer = ImageThumbnailer;
     let oembed = Oembed::new(OembedAllowList::shipped());
+    let validation = omeka_api::settings::file_validation(&SettingRepo::new(&pool)).await?;
     let env = IngestEnv {
         store: &store,
         http: &network,
         purifier: &purifier,
         thumbnailer: &thumbnailer,
         oembed: &oembed,
+        validation: &validation,
     };
 
     let mut report = MediaReport::default();
@@ -306,33 +309,6 @@ fn is_media_name(name: &str) -> bool {
     extension_of(name).is_some_and(|extension| MEDIA_EXTENSIONS.contains(&extension.as_str()))
 }
 
-/// The media type for a source name, mirroring `TempFile::getMediaType`.
-///
-/// Upstream sniffs the content with `finfo` and then applies its alias table. The
-/// CLI knows only the source name, so it maps the extension. A name with no
-/// usable extension falls back to `application/octet-stream`.
-fn detect_media_type(source_name: &str) -> &'static str {
-    let Some(extension) = extension_of(source_name) else {
-        return "application/octet-stream";
-    };
-    match extension.as_str() {
-        "jpg" | "jpeg" | "jpe" => "image/jpeg",
-        "png" => "image/png",
-        "gif" => "image/gif",
-        "tif" | "tiff" | "nef" => "image/tiff",
-        "webp" => "image/webp",
-        "pdf" => "application/pdf",
-        "mp3" => "audio/mpeg",
-        "wav" => "audio/x-wav",
-        "mp4" => "video/mp4",
-        "mov" => "video/quicktime",
-        "avi" => "video/x-msvideo",
-        "ogg" => "audio/ogg",
-        "txt" => "text/plain",
-        _ => "application/octet-stream",
-    }
-}
-
 fn extension_of(name: &str) -> Option<String> {
     name.rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
@@ -428,9 +404,7 @@ async fn import_one(
     let mut draft = MediaDraft::new(draft);
     // `Ingester/Upload.php:61`: with no `o:source`, the source is the file name.
     draft.row.source = Some(source.clone());
-    let file = IngestFile::new(bytes)
-        .with_source_name(source.clone())
-        .with_media_type(detect_media_type(&source).to_string());
+    let file = IngestFile::new(bytes).with_source_name(source.clone());
     if let Err(error) = ingest_file(env, &mut draft, file, IngestFlags::default()) {
         return failure(format!("cannot store {}: {error}", planned.display));
     }
@@ -687,9 +661,13 @@ mod tests {
         let other = add_item(&db, set, "BHC_006_AF_002").await;
 
         let source = tempfile::tempdir().expect("source dir");
-        let bytes = b"jpeg-bytes-1";
+        let bytes = b"\xFF\xD8\xFF\xE0jpeg-bytes-1";
         write_file(source.path(), "Artifacts/one.jpg", bytes);
-        write_file(source.path(), "Artifacts/two.pdf", b"%PDF-1.4 body");
+        write_file(
+            source.path(),
+            "Artifacts/two.pdf",
+            b"%PDF-1.4\n%\xE2\xE3\xCF\xD3 body",
+        );
         let manifest = write_manifest(
             source.path(),
             r#"{"identifier":"BHC_006_AF_001","source":"AF.xlsx:2","file":"Artifacts/one.jpg"},
@@ -918,17 +896,6 @@ mod tests {
         let rows = media_of(&db, item).await;
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].source.as_deref(), Some("BHC_006_AF_001.jpg"));
-    }
-
-    #[test]
-    fn detect_media_type_maps_the_acceptance_extensions() {
-        assert_eq!(detect_media_type("photo.JPG"), "image/jpeg");
-        assert_eq!(detect_media_type("scan.tif"), "image/tiff");
-        assert_eq!(detect_media_type("raw.nef"), "image/tiff");
-        assert_eq!(detect_media_type("clip.mp4"), "video/mp4");
-        assert_eq!(detect_media_type("talk.mp3"), "audio/mpeg");
-        assert_eq!(detect_media_type("doc.pdf"), "application/pdf");
-        assert_eq!(detect_media_type("noext"), "application/octet-stream");
     }
 
     #[test]

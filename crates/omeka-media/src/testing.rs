@@ -24,6 +24,7 @@ use crate::ingest::{IngestEnv, Purifier};
 use crate::oembed::{Oembed, OembedAllowList};
 use crate::render::{MediaView, RenderEnv};
 use crate::store::{FileStore, Thumbnailer};
+use crate::validation::FileValidation;
 
 /// A network seam that serves configured routes and records every call.
 #[derive(Debug, Default)]
@@ -151,6 +152,8 @@ pub struct Harness {
     pub http: FakeHttp,
     /// The oEmbed service, using the shipped allowlist.
     pub oembed: Oembed,
+    /// The file validation, upstream's default lists unless replaced.
+    pub validation: FileValidation,
     purifier: Box<dyn Purifier>,
     thumbnailer: FakeThumbnailer,
     root: PathBuf,
@@ -170,6 +173,7 @@ impl Harness {
             store: FileStore::new(&root, "/files"),
             http: FakeHttp::new(),
             oembed: Oembed::new(OembedAllowList::shipped()),
+            validation: FileValidation::default(),
             purifier: Box::new(PassthroughPurifier),
             thumbnailer: FakeThumbnailer::default(),
             root,
@@ -206,6 +210,13 @@ impl Harness {
         self
     }
 
+    /// Replace the file validation.
+    #[must_use]
+    pub fn with_validation(mut self, validation: FileValidation) -> Self {
+        self.validation = validation;
+        self
+    }
+
     /// Replace the purifier.
     #[must_use]
     pub fn with_purifier(mut self, purifier: impl Purifier + 'static) -> Self {
@@ -229,6 +240,7 @@ impl Harness {
             purifier: self.purifier.as_ref(),
             thumbnailer: &self.thumbnailer,
             oembed: &self.oembed,
+            validation: &self.validation,
         }
     }
 }

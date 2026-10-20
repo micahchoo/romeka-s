@@ -1,0 +1,268 @@
+//! File validation, the port of `Omeka\File\Validator`.
+//!
+//! Upstream refuses a file whose media type or resolved extension is not on
+//! an allow list. The lists and the off switch are three global settings
+//! (`media_type_whitelist`, `extension_whitelist`, `disable_file_validation`),
+//! whose defaults are `SettingForm::MEDIA_TYPE_WHITELIST` and
+//! `SettingForm::EXTENSION_WHITELIST`. [`crate::ingest::ingest_file`] runs the
+//! check for every file it stores, as `TempFile::mediaIngestFile` does.
+
+use std::fmt;
+
+/// `SettingForm::MEDIA_TYPE_WHITELIST` (`Form/SettingForm.php:22-83`),
+/// verbatim. The stray comma in `video/x-ms-asf,` is upstream's, so an ASF
+/// file is refused by default there too.
+pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
+    "application/msword",
+    "application/ogg",
+    "application/pdf",
+    "application/rtf",
+    "application/vnd.ms-access",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.ms-project",
+    "application/vnd.ms-write",
+    "application/vnd.oasis.opendocument.chart",
+    "application/vnd.oasis.opendocument.database",
+    "application/vnd.oasis.opendocument.formula",
+    "application/vnd.oasis.opendocument.graphics",
+    "application/vnd.oasis.opendocument.presentation",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/x-gzip",
+    "application/x-ms-wmp",
+    "application/x-msdownload",
+    "application/x-shockwave-flash",
+    "application/x-tar",
+    "application/zip",
+    "audio/midi",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/x-aac",
+    "audio/x-aiff",
+    "audio/x-ms-wma",
+    "audio/x-ms-wax",
+    "audio/x-realaudio",
+    "audio/x-wav",
+    "image/bmp",
+    "image/gif",
+    "image/jp2",
+    "image/jpeg",
+    "image/pjpeg",
+    "image/png",
+    "image/tiff",
+    "image/webp",
+    "image/x-icon",
+    "text/css",
+    "text/plain",
+    "text/richtext",
+    "video/divx",
+    "video/mp4",
+    "video/mpeg",
+    "video/ogg",
+    "video/quicktime",
+    "video/webm",
+    "video/x-ms-asf,",
+    "video/x-msvideo",
+    "video/x-ms-wmv",
+];
+
+/// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), verbatim.
+pub const DEFAULT_EXTENSIONS: &[&str] = &[
+    "aac", "aif", "aiff", "asf", "asx", "avi", "bmp", "c", "cc", "class", "css", "divx", "doc",
+    "docx", "exe", "gif", "gz", "gzip", "h", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg", "m4a",
+    "m4v", "mdb", "mid", "midi", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp",
+    "odb", "odc", "odf", "odg", "odp", "ods", "odt", "ogg", "opus", "pdf", "png", "pot", "pps",
+    "ppt", "pptx", "qt", "ra", "ram", "rtf", "rtx", "swf", "tar", "tif", "tiff", "txt", "wav",
+    "wax", "webm", "webp", "wma", "wmv", "wmx", "wri", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
+];
+
+/// What a store may accept, the state `Omeka\File\Validator` is built with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileValidation {
+    /// `disable_file_validation` is on: every file passes.
+    Disabled,
+    /// A file passes when both lists hold its media type and its resolved
+    /// extension. An empty list refuses every file, as `in_array` does.
+    Allow {
+        /// Media types, compared exactly.
+        media_types: Vec<String>,
+        /// Lower-case extensions, compared exactly.
+        extensions: Vec<String>,
+    },
+}
+
+impl Default for FileValidation {
+    /// Upstream's two default lists, what a fresh install stores.
+    fn default() -> Self {
+        Self::Allow {
+            media_types: owned(DEFAULT_MEDIA_TYPES),
+            extensions: owned(DEFAULT_EXTENSIONS),
+        }
+    }
+}
+
+impl FileValidation {
+    /// The reasons a file is refused, in upstream's order (media type, then
+    /// extension); empty when the file passes. `extension` is the resolved
+    /// extension (`TempFile::getExtension`), `None` when there is none.
+    #[must_use]
+    pub fn refusals(
+        &self,
+        source_name: &str,
+        media_type: &str,
+        extension: Option<&str>,
+    ) -> Vec<FileRefusal> {
+        let Self::Allow {
+            media_types,
+            extensions,
+        } = self
+        else {
+            return Vec::new();
+        };
+        let mut refusals = Vec::new();
+        if !media_types.iter().any(|allowed| allowed == media_type) {
+            refusals.push(FileRefusal::MediaType {
+                file: source_name.to_string(),
+                media_type: media_type.to_string(),
+            });
+        }
+        if !extension.is_some_and(|extension| extensions.iter().any(|allowed| allowed == extension))
+        {
+            refusals.push(FileRefusal::Extension {
+                file: source_name.to_string(),
+                extension: extension.unwrap_or_default().to_string(),
+            });
+        }
+        refusals
+    }
+}
+
+/// One reason a file is refused. The display text is upstream's message, the
+/// msgid the admin translates (`omeka_api::messages::asset_media_type` and
+/// `asset_extension` register it).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileRefusal {
+    /// The media type is not on the list.
+    MediaType {
+        /// The source name.
+        file: String,
+        /// The detected media type.
+        media_type: String,
+    },
+    /// The resolved extension is not on the list; empty when there is none.
+    Extension {
+        /// The source name.
+        file: String,
+        /// The resolved extension.
+        extension: String,
+    },
+}
+
+impl fmt::Display for FileRefusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MediaType { file, media_type } => write!(
+                f,
+                "Error validating \"{file}\". Cannot store files with the media type \"{media_type}\"."
+            ),
+            Self::Extension { file, extension } => write!(
+                f,
+                "Error validating \"{file}\". Cannot store files with the resolved extension \"{extension}\"."
+            ),
+        }
+    }
+}
+
+fn owned(names: &[&str]) -> Vec<String> {
+    names.iter().map(|name| (*name).to_string()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A PDF and a JPEG pass the defaults; so does an `.exe` by extension,
+    /// which upstream's default list names, but not by its media type.
+    #[test]
+    fn the_defaults_pass_documents_and_refuse_executables() {
+        let defaults = FileValidation::default();
+        assert!(
+            defaults
+                .refusals("report.pdf", "application/pdf", Some("pdf"))
+                .is_empty()
+        );
+        assert!(
+            defaults
+                .refusals("photo.jpg", "image/jpeg", Some("jpg"))
+                .is_empty()
+        );
+        assert_eq!(
+            defaults.refusals("setup.exe", "application/x-dosexec", Some("exe")),
+            vec![FileRefusal::MediaType {
+                file: "setup.exe".to_string(),
+                media_type: "application/x-dosexec".to_string(),
+            }]
+        );
+    }
+
+    /// `Validator::validate` checks the media type, then the extension, and
+    /// keeps both messages.
+    #[test]
+    fn a_thumbnail_cache_is_refused_twice_in_upstream_order() {
+        let refusals =
+            FileValidation::default().refusals("Thumbs.db", "application/CDFV2", Some("db"));
+        let messages: Vec<String> = refusals.iter().map(ToString::to_string).collect();
+        assert_eq!(
+            messages,
+            [
+                "Error validating \"Thumbs.db\". Cannot store files with the media type \"application/CDFV2\".",
+                "Error validating \"Thumbs.db\". Cannot store files with the resolved extension \"db\".",
+            ]
+        );
+    }
+
+    /// A text file named `.ini` passes the media type and fails the
+    /// extension; a file with no extension fails with an empty one.
+    #[test]
+    fn the_extension_is_checked_on_its_own() {
+        let defaults = FileValidation::default();
+        assert_eq!(
+            defaults.refusals("desktop.ini", "text/plain", Some("ini")),
+            vec![FileRefusal::Extension {
+                file: "desktop.ini".to_string(),
+                extension: "ini".to_string(),
+            }]
+        );
+        assert_eq!(
+            defaults.refusals("README", "text/plain", None),
+            vec![FileRefusal::Extension {
+                file: "README".to_string(),
+                extension: String::new(),
+            }]
+        );
+    }
+
+    /// `disable_file_validation` passes anything; an empty list refuses
+    /// everything.
+    #[test]
+    fn disabled_passes_and_an_empty_list_refuses() {
+        assert!(
+            FileValidation::Disabled
+                .refusals("Thumbs.db", "application/CDFV2", Some("db"))
+                .is_empty()
+        );
+        let empty = FileValidation::Allow {
+            media_types: Vec::new(),
+            extensions: Vec::new(),
+        };
+        assert_eq!(
+            empty.refusals("photo.jpg", "image/jpeg", Some("jpg")).len(),
+            2
+        );
+    }
+}

@@ -655,6 +655,26 @@ export interface UserSettingsWrite {
 export interface GlobalSettings {
   /** The global `locale`, or `null` when none is stored. */
   readonly locale: string | null;
+  /**
+   * `media_type_whitelist` as it applies: the stored list, else upstream's
+   * default, which the server answers in its place.
+   */
+  readonly mediaTypeWhitelist: readonly string[];
+  /** `extension_whitelist` as it applies, the same way. */
+  readonly extensionWhitelist: readonly string[];
+  /** `disable_file_validation`: every file passes when `true`. */
+  readonly disableFileValidation: boolean;
+}
+
+/**
+ * A `PATCH /api/settings` body. A list of `null` removes its row, which
+ * restores upstream's default list; an empty list refuses every file.
+ */
+export interface GlobalSettingsWrite {
+  readonly locale: string | null;
+  readonly mediaTypeWhitelist: readonly string[] | null;
+  readonly extensionWhitelist: readonly string[] | null;
+  readonly disableFileValidation: boolean;
 }
 
 /**

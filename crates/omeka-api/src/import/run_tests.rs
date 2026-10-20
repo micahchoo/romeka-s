@@ -100,7 +100,9 @@ pub(super) async fn fixture() -> Fixture {
     write(
         &folder,
         "Letters/L_002_front.jpg",
-        b"\xFF\xD8 not really a jpeg",
+        // A JPEG signature over a broken body: it reads as `image/jpeg`, so
+        // file validation passes it, and it does not decode.
+        b"\xFF\xD8\xFF\xE0 not really a jpeg",
     );
     write(
         &folder,

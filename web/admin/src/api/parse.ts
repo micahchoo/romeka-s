@@ -557,9 +557,20 @@ const parseLessonSettings = (object: Record<string, unknown>, path: Path): Lesso
 };
 
 /** `GET /api/settings`, a port route that answers one map of setting keys. */
-export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => ({
-  locale: optionalString(asRecord(raw, path), 'locale', path),
-});
+export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const names = (key: string): readonly string[] =>
+    parseListOf(asString)(field(object, key, path), [...path, key]);
+  return {
+    locale: optionalString(object, 'locale', path),
+    mediaTypeWhitelist: names('media_type_whitelist'),
+    extensionWhitelist: names('extension_whitelist'),
+    disableFileValidation: asBoolean(field(object, 'disable_file_validation', path), [
+      ...path,
+      'disable_file_validation',
+    ]),
+  };
+};
 
 /**
  * `POST /api/users/<id>/password-link`. The route is not a representation, so

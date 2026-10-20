@@ -103,7 +103,22 @@ export const es: AdminMessages = {
   'settings.indexFulltextSearch': 'Indexar búsqueda de texto completo',
   'settings.versionNotifications': 'Notificaciones de versión',
   'settings.saved': 'Configuración actualizada.',
-  'settings.note': 'El port aún solo guarda el idioma; los demás cambios no se guardan.',
+  'settings.note':
+    'El port guarda el idioma y la configuración de seguridad; los demás cambios no se guardan.',
+  'settings.security': 'Seguridad',
+  'settings.disableFileValidation': 'Deshabilitar validación de ficheros',
+  'settings.disableFileValidationInfo':
+    'Marque esta casilla para deshabilitar la validación del tipo de medio y de la extensión de los ficheros.',
+  'settings.mediaTypeWhitelist': 'Tipos de medios permitidos',
+  'settings.mediaTypeWhitelistInfo':
+    'Una lista separada por comas de los tipos de medios permitidos para subir ficheros.',
+  'settings.restoreMediaTypes': 'Restaurar los tipos de medios predefinidos',
+  'settings.extensionWhitelist': 'Extensiones de archivo permitidas',
+  'settings.extensionWhitelistInfo':
+    'Una lista separada por comas de las extensiones de archivo permitidas para subir ficheros.',
+  'settings.restoreExtensions': 'Restaurar las extensiones predefinidas',
+  'settings.restoredOnSave': 'La lista predefinida se restaura al guardar.',
+  'settings.emptyListRefusesAll': 'Una lista vacía rechaza todos los ficheros.',
   'settings.locale': 'Idioma',
   'settings.localeDefault': 'Predefinido',
   'systemInfo.omeka': 'Omeka S',

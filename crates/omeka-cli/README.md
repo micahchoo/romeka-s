@@ -204,10 +204,10 @@ uses and the same value `Entity/Media.php:223` reads back as the file name.
 
 The row carries the fields `File/TempFile.php:420` sets: `source`,
 `media_type`, `storage_id`, `extension`, `sha256`, `size` and `has_original`,
-with `ingester` `upload` and `renderer` `file`. `media_type` comes from the file
-extension (`jpg` becomes `image/jpeg`, `pdf` becomes `application/pdf`, else
-`application/octet-stream`), because the CLI knows the source name and upstream's
-content sniffing (`finfo`) is not packaged.
+with `ingester` `upload` and `renderer` `file`. `media_type` comes from the
+file's bytes (`omeka_media::media_type`, the port's `finfo`). A file the install's
+file validation settings refuse (`media_type_whitelist`, `extension_whitelist`,
+`disable_file_validation`) is reported as failed, with upstream's message.
 
 Thumbnails for the decodable image types (gif, jpeg, png, webp) come from
 `omeka-media`'s `ImageThumbnailer`, the port of `File/Thumbnailer/Gd.php`. Each

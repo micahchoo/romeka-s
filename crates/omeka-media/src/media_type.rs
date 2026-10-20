@@ -1,105 +1,234 @@
-//! Content-based media type detection, the port of `finfo(FILEINFO_MIME_TYPE)`
-//! in `File/TempFile::getMediaType`.
+//! Content-based media type detection, the port of `File/TempFile::getMediaType`.
 //!
-//! Upstream reads the type from the file's bytes with PHP's `finfo`, maps a
-//! short alias table, and stores the result on the asset or media row. The port
-//! has no libmagic, so it detects the image formats the image decoder already
-//! knows (`image::guess_format`, `File/Thumbnailer/Gd.php` covers the same
-//! four) plus a UTF-8 text guess, and answers `application/octet-stream` for
-//! anything else. The divergence is only visible in the error message for a
-//! file the whitelist already rejects.
+//! Upstream reads the type from the file's bytes with PHP's `finfo`
+//! (libmagic), then maps `TempFile::MEDIA_TYPE_ALIASES`. The port has no
+//! libmagic. It reads binary signatures with the `infer` crate and renames
+//! the few answers where `infer` and libmagic disagree ([`FINFO_NAMES`]), and
+//! it reads UTF-8 text itself (JSON, XML, SVG, HTML, RTF, plain). The answer
+//! then goes through the same alias table upstream uses. `tests/media_type.rs`
+//! pins each format against libmagic's answer on the oracle.
 //!
 //! [`extension_for_media_type`] is the `File/TempFile` `$mediaTypeMap` fallback
-//! for a source name with no usable extension, limited to the media types the
-//! asset whitelist allows (`application/config/module.config.php:44-58`).
+//! for a source name with no usable extension.
+
+/// The answer for bytes nothing recognises, as libmagic gives it.
+const OCTET_STREAM: &str = "application/octet-stream";
+
+/// The `infer` answers libmagic 5.46 names differently, measured on the
+/// oracle. `infer` reports a HEIC file as `image/heif`, and a compound file
+/// that is not a known Office document (a `Thumbs.db`) as `x-ole-storage`.
+const FINFO_NAMES: &[(&str, &str)] = &[
+    ("image/heif", "image/heic"),
+    ("audio/m4a", "audio/x-m4a"),
+    ("audio/x-flac", "audio/flac"),
+    (
+        "application/vnd.microsoft.portable-executable",
+        "application/x-dosexec",
+    ),
+    ("application/x-ole-storage", "application/CDFV2"),
+];
+
+/// `TempFile::MEDIA_TYPE_ALIASES` (`File/TempFile.php:19-58`), verbatim.
+const MEDIA_TYPE_ALIASES: &[(&str, &str)] = &[
+    ("application/x-ogg", "application/ogg"),
+    ("text/rtf", "application/rtf"),
+    ("audio/mid", "audio/midi"),
+    ("audio/x-midi", "audio/midi"),
+    ("audio/mp3", "audio/mpeg"),
+    ("audio/mpeg3", "audio/mpeg"),
+    ("audio/x-mp3", "audio/mpeg"),
+    ("audio/x-mpeg", "audio/mpeg"),
+    ("audio/x-mpeg3", "audio/mpeg"),
+    ("audio/x-mpegaudio", "audio/mpeg"),
+    ("audio/x-mpg", "audio/mpeg"),
+    ("audio/x-ogg", "audio/ogg"),
+    ("audio/aac", "audio/x-aac"),
+    ("audio/aiff", "audio/x-aiff"),
+    ("audio/x-wma", "audio/x-ms-wma"),
+    ("audio/wma", "audio/x-ms-wma"),
+    ("audio/x-mp4", "audio/mp4"),
+    ("audio/x-m4a", "audio/mp4"),
+    ("audio/wav", "audio/x-wav"),
+    ("image/x-ms-bmp", "image/bmp"),
+    ("image/icon", "image/x-icon"),
+    ("video/x-m4v", "video/mp4"),
+    ("video/asf", "video/x-ms-asf"),
+    ("video/wmv", "video/x-ms-wmv"),
+    ("video/avi", "video/x-msvideo"),
+    ("video/msvideo", "video/x-msvideo"),
+];
 
 /// The media type of a byte slice, as `TempFile::getMediaType` reads it.
-///
-/// An image the `image` crate recognises keeps the crate's MIME name, a byte
-/// slice that is valid UTF-8 and carries no NUL is `text/plain`, and anything
-/// else is `application/octet-stream`.
 #[must_use]
 pub fn detected_media_type(bytes: &[u8]) -> String {
-    if let Ok(format) = image::guess_format(bytes) {
-        return format.to_mime_type().to_string();
-    }
-    if is_text(bytes) {
-        return "text/plain".to_string();
-    }
-    "application/octet-stream".to_string()
+    let found = match infer::get(bytes) {
+        // `infer` reads text by its first bytes only, so an SVG is `text/xml`
+        // to it; text is read here instead.
+        Some(kind) if kind.mime_type() == "application/zip" => {
+            office_open_xml(bytes).unwrap_or("application/zip")
+        }
+        Some(kind) if kind.matcher_type() != infer::MatcherType::Text => {
+            lookup(FINFO_NAMES, kind.mime_type())
+        }
+        _ => text_media_type(bytes).unwrap_or(OCTET_STREAM),
+    };
+    lookup(MEDIA_TYPE_ALIASES, found).to_string()
 }
 
-/// The first extension `File/TempFile`'s `$mediaTypeMap` lists for a media type,
-/// for the four types `api_assets.allowed_media_types` names.
+/// The first extension `File/TempFile`'s `$mediaTypeMap` lists for a media
+/// type (`application/data/media-types/media-type-map.php`).
 ///
-/// Upstream's map is 3,300 lines; the port carries the entries the whitelist
-/// can actually reach, so a rejected type falls back to no extension and is
-/// refused by the extension check as well.
+/// Upstream's map is 3,300 lines; the port carries the entries for the types
+/// [`detected_media_type`] can answer, read from the oracle's copy. A type
+/// the map has no extension for (`audio/flac`, `text/xml`) is `None`, as it is
+/// upstream.
 #[must_use]
 pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
     Some(match media_type {
-        "image/png" => "png",
-        "image/jpeg" => "jpeg",
+        "application/json" => "json",
+        "application/msword" => "doc",
+        "application/octet-stream" => "bin",
+        "application/pdf" => "pdf",
+        "application/rtf" => "rtf",
+        "application/vnd.ms-excel" => "xls",
+        "application/vnd.ms-powerpoint" => "ppt",
+        "application/vnd.oasis.opendocument.presentation" => "odp",
+        "application/vnd.oasis.opendocument.spreadsheet" => "ods",
+        "application/vnd.oasis.opendocument.text" => "odt",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "pptx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+        "application/x-shockwave-flash" => "swf",
+        "application/x-tar" => "tar",
+        "application/zip" => "zip",
+        "audio/midi" => "mid",
+        "audio/mp4" => "m4a",
+        "audio/mpeg" => "mp3",
+        "audio/ogg" => "oga",
+        "audio/x-aac" => "aac",
+        "audio/x-aiff" => "aif",
+        "audio/x-wav" => "wav",
+        "image/bmp" => "bmp",
         "image/gif" => "gif",
+        "image/heic" => "heic",
+        "image/jp2" => "jp2",
+        "image/jpeg" => "jpeg",
+        "image/png" => "png",
+        "image/svg+xml" => "svg",
+        "image/tiff" => "tiff",
         "image/webp" => "webp",
+        "text/html" => "html",
+        "text/plain" => "txt",
+        "video/mp4" => "mp4",
+        "video/mpeg" => "mpeg",
+        "video/quicktime" => "qt",
+        "video/webm" => "webm",
+        "video/x-flv" => "flv",
+        "video/x-matroska" => "mkv",
+        "video/x-ms-wmv" => "wmv",
+        "video/x-msvideo" => "avi",
         _ => return None,
     })
 }
 
-/// Whether a byte slice reads as UTF-8 text: valid UTF-8, and no NUL byte.
-fn is_text(bytes: &[u8]) -> bool {
-    !bytes.contains(&0) && std::str::from_utf8(bytes).is_ok()
+fn lookup<'a>(table: &[(&str, &'a str)], name: &'a str) -> &'a str {
+    table
+        .iter()
+        .find(|(from, _)| *from == name)
+        .map_or(name, |(_, to)| to)
+}
+
+/// The Office Open XML type of a zip, by libmagic's `msooxml` rule: the
+/// first entry is package metadata, and the third entry's name, else the
+/// fourth's, starts with the part folder. `infer` has the same rule but
+/// reads a package of exactly three entries as a plain zip.
+fn office_open_xml(bytes: &[u8]) -> Option<&'static str> {
+    const PACKAGE: [&[u8]; 4] = [
+        b"[Content_Types].xml",
+        b"_rels/.rels",
+        b"docProps",
+        b"customXml",
+    ];
+    // A local file header is 30 bytes before its name; libmagic's `&26`
+    // after matching the 4-byte signature lands on the name.
+    const NAME: usize = 30;
+    let first = bytes.get(NAME..)?;
+    if let Some(found) = part_type(first) {
+        return Some(found);
+    }
+    if !PACKAGE.iter().any(|name| first.starts_with(name)) {
+        return None;
+    }
+    let first_size = u32::from_le_bytes(bytes.get(18..22)?.try_into().ok()?);
+    let second = next_header(bytes, usize::try_from(first_size).ok()?.checked_add(49)?)?;
+    let third = next_header(bytes, second + NAME)?;
+    part_type(bytes.get(third + NAME..)?).or_else(|| {
+        let fourth = next_header(bytes, third + NAME + 26)?;
+        part_type(bytes.get(fourth + NAME..)?)
+    })
+}
+
+/// The offset of the next zip local file header within 6000 bytes of
+/// `start`, libmagic's `search/6000`.
+fn next_header(bytes: &[u8], start: usize) -> Option<usize> {
+    let window = bytes.get(start..bytes.len().min(start + 6000))?;
+    window
+        .windows(4)
+        .position(|candidate| candidate == b"PK\x03\x04")
+        .map(|found| start + found)
+}
+
+fn part_type(name: &[u8]) -> Option<&'static str> {
+    if name.starts_with(b"word/") {
+        Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    } else if name.starts_with(b"ppt/") {
+        Some("application/vnd.openxmlformats-officedocument.presentationml.presentation")
+    } else if name.starts_with(b"xl/") {
+        Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    } else {
+        None
+    }
+}
+
+/// The type of bytes that read as text: valid UTF-8 with no NUL. `None` for
+/// anything else.
+fn text_media_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.is_empty() {
+        return Some("application/x-empty");
+    }
+    if bytes.contains(&0) {
+        return None;
+    }
+    let text = std::str::from_utf8(bytes).ok()?;
+    let start = text.trim_start_matches('\u{feff}').trim_start();
+    Some(if start.starts_with("{\\rtf") {
+        "text/rtf"
+    } else if (start.starts_with('{') || start.starts_with('['))
+        && serde_json::from_str::<serde_json::Value>(text).is_ok()
+    {
+        "application/json"
+    } else if start.starts_with("<svg") || (infer::text::is_xml(bytes) && start.contains("<svg")) {
+        "image/svg+xml"
+    } else if infer::text::is_xml(bytes) {
+        "text/xml"
+    } else if infer::text::is_html(bytes) {
+        "text/html"
+    } else {
+        "text/plain"
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The four image formats the asset whitelist allows are detected from
-    /// their magic bytes, whatever the source name says.
+    /// `$mediaTypeMap`'s first extension, and `None` for a type the map has no
+    /// entry for.
     #[test]
-    fn image_formats_are_detected_from_bytes() {
-        assert_eq!(
-            detected_media_type(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]),
-            "image/png"
-        );
-        assert_eq!(detected_media_type(&[0xFF, 0xD8, 0xFF, 0xE0]), "image/jpeg");
-        assert_eq!(detected_media_type(b"GIF89a\x01\x00"), "image/gif");
-        assert_eq!(
-            detected_media_type(b"RIFF\x1a\x00\x00\x00WEBPVP8 "),
-            "image/webp"
-        );
-        // Both TIFF byte orders: `II*\0` and `MM\0*`.
-        assert_eq!(
-            detected_media_type(b"II*\x00\x08\x00\x00\x00"),
-            "image/tiff"
-        );
-        assert_eq!(
-            detected_media_type(b"MM\x00*\x00\x00\x00\x08"),
-            "image/tiff"
-        );
-    }
-
-    /// Text is `text/plain` and an unrecognised binary is
-    /// `application/octet-stream`, the two `finfo` answers the message for a
-    /// rejected file can carry.
-    #[test]
-    fn text_and_binary_fallbacks() {
-        assert_eq!(detected_media_type(b"hello text\n"), "text/plain");
-        assert_eq!(
-            detected_media_type(&[0x00, 0x01, 0x02, 0x03]),
-            "application/octet-stream"
-        );
-    }
-
-    /// `$mediaTypeMap`'s first extension for the whitelist, and `None` for a
-    /// type the map (as ported) does not carry.
-    #[test]
-    fn extension_fallback_for_whitelisted_types() {
-        assert_eq!(extension_for_media_type("image/png"), Some("png"));
+    fn extension_fallback_follows_the_media_type_map() {
         assert_eq!(extension_for_media_type("image/jpeg"), Some("jpeg"));
-        assert_eq!(extension_for_media_type("image/gif"), Some("gif"));
-        assert_eq!(extension_for_media_type("image/webp"), Some("webp"));
-        assert_eq!(extension_for_media_type("text/plain"), None);
+        assert_eq!(extension_for_media_type("application/pdf"), Some("pdf"));
+        assert_eq!(extension_for_media_type("text/plain"), Some("txt"));
+        assert_eq!(extension_for_media_type("audio/flac"), None);
     }
 }

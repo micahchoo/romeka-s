@@ -52,7 +52,7 @@ impl Ingester for Upload {
         }
         let ingest = IngestFile::new(file.bytes.clone()).with_source_name(file.name.clone());
         if let Err(error) = ingest_file(env, draft, ingest, IngestFlags::default()) {
-            errors.add("error", format!("Error storing uploaded file: {error}"));
+            error.record(errors, "Error storing uploaded file");
         }
     }
 }
@@ -62,6 +62,7 @@ mod tests {
     use super::*;
     use crate::ingest::UploadedFile;
     use crate::testing::{Harness, media_row};
+    use crate::validation::FileValidation;
 
     /// `Ingester/Upload.php:45`: no file data is an error under `error`.
     #[test]
@@ -147,5 +148,41 @@ mod tests {
         let mut errors = ErrorStore::default();
         Upload.ingest(&mut draft, &request, &env, &mut errors);
         assert_eq!(draft.row.source.as_deref(), Some("chosen"));
+    }
+
+    /// `TempFile::mediaIngestFile` validates before it stores: a file the
+    /// default lists refuse leaves an error under `file` and nothing stored.
+    #[test]
+    fn upload_refuses_a_file_outside_the_allow_lists() {
+        let harness = Harness::new("upload-refused");
+        let env = harness.env();
+        let request = IngestRequest::from_value(serde_json::json!({"file_index": 0}))
+            .with_files(vec![UploadedFile::new("Thumbs.db", b"thumbnail cache")]);
+        let mut draft = MediaDraft::new(media_row(1, "upload", "file"));
+        let mut errors = ErrorStore::default();
+        Upload.ingest(&mut draft, &request, &env, &mut errors);
+        assert_eq!(
+            errors.messages_for("file"),
+            vec![
+                "Error validating \"Thumbs.db\". Cannot store files with the resolved extension \"db\"."
+            ]
+        );
+        assert!(draft.row.storage_id.is_none());
+        assert!(!draft.row.has_original);
+    }
+
+    /// `disable_file_validation` lets the same file through.
+    #[test]
+    fn upload_stores_any_file_when_validation_is_disabled() {
+        let harness = Harness::new("upload-unvalidated").with_validation(FileValidation::Disabled);
+        let env = harness.env();
+        let request = IngestRequest::from_value(serde_json::json!({"file_index": 0}))
+            .with_files(vec![UploadedFile::new("Thumbs.db", b"thumbnail cache")]);
+        let mut draft = MediaDraft::new(media_row(1, "upload", "file"));
+        let mut errors = ErrorStore::default();
+        Upload.ingest(&mut draft, &request, &env, &mut errors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let storage_id = draft.row.storage_id.clone().expect("storage id");
+        assert!(harness.store.exists(&format!("original/{storage_id}.db")));
     }
 }

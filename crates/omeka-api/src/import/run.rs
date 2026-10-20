@@ -14,12 +14,13 @@ use std::collections::BTreeMap;
 
 use omeka_db::DbError;
 use omeka_db::ids::{ImportId, ItemSetId, PropertyId, ResourceId, TemplateId, UserId};
-use omeka_db::repos::{ImportRepo, ImportWriteRepo, NewImportMedia, TemplateRepo};
+use omeka_db::repos::{ImportRepo, ImportWriteRepo, NewImportMedia, SettingRepo, TemplateRepo};
 use omeka_db::rows::{
     NewItem, NewItemSet, NewProperty, NewResource, NewTemplate, NewTemplateProperty, NewWholeItem,
     ValueContent,
 };
 use omeka_media::store::FileStore;
+use omeka_media::validation::FileValidation;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
@@ -158,9 +159,11 @@ where
             return Err(RunError::TemplateExists(new.name.clone()));
         }
     }
+    let validation = crate::settings::file_validation(&SettingRepo::new(pool)).await?;
     let mut runner = Runner {
         pool,
         store,
+        validation,
         writer: ImportWriteRepo::new(pool, import_id),
         import_id,
         owner,
@@ -211,6 +214,7 @@ struct Made {
 struct Runner<'a, F> {
     pool: &'a SqlitePool,
     store: &'a FileStore,
+    validation: FileValidation,
     writer: ImportWriteRepo<'a>,
     import_id: ImportId,
     owner: Option<UserId>,
@@ -354,7 +358,9 @@ where
         let store = self.store.clone();
         let owner = self.owner;
         let files = item.files.clone();
-        let stored = blocking(move || media_files::store_all(&store, &files, owner)).await?;
+        let validation = self.validation.clone();
+        let stored =
+            blocking(move || media_files::store_all(&store, &validation, &files, owner)).await?;
         let line = match stored {
             Ok(media) => self.commit(api, made, &item, media).await?,
             Err(message) => self.fail(&item.identifier, message),

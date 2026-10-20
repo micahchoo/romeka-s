@@ -5,7 +5,10 @@
 //! - [`store`]: the file store and the storage path rule
 //!   (`File/Store/Local.php`, `File/TempFile.php`).
 //! - [`media_type`]: the content-based media type read
-//!   (`File/TempFile::getMediaType`), a narrow stand-in for PHP's `finfo`.
+//!   (`File/TempFile::getMediaType`), a stand-in for PHP's `finfo` built on
+//!   the `infer` crate and checked against libmagic.
+//! - [`validation`]: the media type and extension allow lists
+//!   (`File/Validator.php`) every stored original is checked against.
 //! - [`ingest`]: one module per ingester under `Media/Ingester/`, plus the
 //!   ingester and mutable-ingester traits and a registry mirroring
 //!   `Media/Ingester/Manager.php`.
@@ -52,6 +55,7 @@ pub mod testing;
 pub mod text;
 pub mod thumbnailer;
 pub mod uri;
+pub mod validation;
 
 pub use file_render::{FileRendererRegistry, ThumbnailType};
 pub use http_client::HttpClient;
