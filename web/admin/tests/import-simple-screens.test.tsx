@@ -1,0 +1,92 @@
+/**
+ * Single answers on the Simple screens, read back from the plan they save:
+ * turning down the folder's list keeps it out, and an item type value maps
+ * to a new item type or to none.
+ */
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useSyncExternalStore } from 'react';
+import type { ReactElement } from 'react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { asRecord } from '../src/api/parse';
+import { ImportPage } from '../src/pages/import/page';
+import { scenario } from './import-simple-scenarios';
+import { simpleServer } from './import-simple-server';
+import { installFetch } from './stub';
+
+const subscribe = (listener: () => void): (() => void) => {
+  window.addEventListener('hashchange', listener);
+  return () => {
+    window.removeEventListener('hashchange', listener);
+  };
+};
+
+const Routed = (): ReactElement => {
+  const hash = useSyncExternalStore(subscribe, () => window.location.hash);
+  const rest = hash.replace(/^#\/import\/?/, '').split('/').filter((part) => part !== '');
+  return <ImportPage param={rest[0] ?? null} rest={rest} />;
+};
+
+const go = (screenName: string): void => {
+  window.location.hash = `#/import/1/simple/${screenName}`;
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+};
+
+const last = (saved: readonly Record<string, unknown>[]): Record<string, unknown> => saved[saved.length - 1] ?? {};
+
+const sheetsOf = (plan: Record<string, unknown>): readonly unknown[] => (Array.isArray(plan['sheets']) ? plan['sheets'] : []);
+
+/** Opens "What we found", which sets the pattern and reads the folder's list, and waits for both to be saved. */
+const opened = async (): Promise<ReturnType<typeof simpleServer>> => {
+  const server = simpleServer(scenario('meera', 9));
+  installFetch(server.handler);
+  window.location.hash = '#/import/1/simple/found';
+  render(<Routed />);
+  await waitFor(() => {
+    expect(sheetsOf(last(server.saved))).toHaveLength(1);
+  }, { timeout: 5000 });
+  return server;
+};
+
+afterEach(() => {
+  window.location.hash = '';
+});
+
+describe('Your list', () => {
+  it('uses the folder’s list as the suggested answer, and “No” takes it out and keeps it out', async () => {
+    const server = await opened();
+    expect(String(asRecord(last(server.saved)['grouping'], [])['pattern'])).toContain('(?<identifier>');
+    go('list');
+    fireEvent.click(await screen.findByRole('button', { name: 'No, it is not about these items' }, { timeout: 5000 }));
+    await waitFor(() => {
+      expect(sheetsOf(last(server.saved))).toHaveLength(0);
+    }, { timeout: 3000 });
+    expect(asRecord(last(server.saved)['example'], [])['notLists']).toEqual(['register.csv']);
+    expect(await screen.findByRole('button', { name: 'No, it is not about these items', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yes, use it', pressed: false })).toBeEnabled();
+
+    const saves = server.saved.length;
+    go('found');
+    expect(await screen.findByRole('region', { name: 'Your items in groups' }, { timeout: 5000 })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(server.saved).toHaveLength(saves);
+  }, 20_000);
+});
+
+describe('Where they go', () => {
+  it('maps a value to a new item type, and another to no item type', async () => {
+    const server = await opened();
+    go('list');
+    const type = await screen.findByRole('combobox', { name: 'Where the column Type goes' }, { timeout: 5000 });
+    fireEvent.change(type, { target: { value: 'template' } });
+    go('where');
+    const letter = await screen.findByRole('combobox', { name: 'Item type for letter' }, { timeout: 5000 });
+    expect(letter).toHaveValue('');
+    fireEvent.change(letter, { target: { value: within(letter).getByRole('option', { name: 'A new item type “letter”' }).getAttribute('value') } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Item type for magazine' }), { target: { value: 'none' } });
+    await waitFor(() => {
+      const item = asRecord(asRecord(last(server.saved)['slots'], [])['item'], []);
+      expect(asRecord(item['template'], [])['map']).toEqual({ letter: 'letter', magazine: '' });
+    }, { timeout: 3000 });
+    expect(last(server.saved)['newTypes']).toEqual([{ label: 'letter', from: 'mapping', class: null }]);
+  }, 20_000);
+});
