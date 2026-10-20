@@ -523,6 +523,7 @@ export const mr: EditorMessages = {
   'mediaRef.choose': 'त्याच्या प्रतिमांपैकी एक निवडा',
   'mediaRef.noImages': 'या आयटममध्ये कोणतीही प्रतिमा नाही.',
   'mediaRef.private': 'खाजगी',
+  'mediaRef.privateChosen': 'ही प्रतिमा खाजगी आहे, त्यामुळे अभ्यागत ती पाहत नाहीत.',
   'mediaRef.fallback': 'मीडिया {id}',
   'mediaRef.remove': 'काढून टाका',
   'mediaRef.changeItem': 'दुसरी वस्तू निवडा',

@@ -507,6 +507,7 @@ export const en = {
   'mediaRef.choose': 'Choose one of its images',
   'mediaRef.noImages': 'This item has no image.',
   'mediaRef.private': 'Private',
+  'mediaRef.privateChosen': 'This image is private, so visitors do not see it.',
   'mediaRef.fallback': 'Media {id}',
   'mediaRef.remove': 'Remove',
   'mediaRef.changeItem': 'Choose another item',

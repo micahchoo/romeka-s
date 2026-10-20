@@ -137,8 +137,6 @@ export const mrServer: ServerCatalogue = {
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
   'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
   'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
-  'server.mediaNotPublic':
-    '{id} मधील मीडिया खाजगी आहे, त्यामुळे पृष्ठ तो दर्शवू शकत नाही. मीडिया आणि त्याची वस्तू सार्वजनिक करा, किंवा दुसरे मीडिया निवडा.',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्द काढता येत नाही किंवा त्याचे नाव बदलता येत नाही: {terms}. त्याऐवजी ते अप्रचलित (deprecate) करा.',
   'server.publicationNamespaceFixed':

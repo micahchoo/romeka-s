@@ -504,6 +504,7 @@ export const es: EditorMessages = {
   'mediaRef.choose': 'Elija una de sus imágenes',
   'mediaRef.noImages': 'Este elemento no tiene imágenes.',
   'mediaRef.private': 'Privado',
+  'mediaRef.privateChosen': 'Esta imagen es privada, así que los visitantes no la ven.',
   'mediaRef.fallback': 'Medio {id}',
   'mediaRef.remove': 'Quitar',
   'mediaRef.changeItem': 'Elegir otro elemento',

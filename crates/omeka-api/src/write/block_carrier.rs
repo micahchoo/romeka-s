@@ -9,9 +9,11 @@
 //! - an IIIF image whose source is a site media gets that media's Image API
 //!   address as `o:data.image_url`, so upstream opens the same image.
 //!
-//! Every media a block's settings name must be public, media and item both:
-//! the plain rendering and the stored address are read by any visitor, so a
-//! write naming a private media is refused.
+//! Any visitor reads the plain rendering and the stored address, so both
+//! leave out a media that is private, or whose item is private. The write
+//! does not refuse it: the reference stays in the settings, and the rich
+//! render shows it to a visitor who may see it. Refusing would block every
+//! later save of a page whose media became private after it was chosen.
 
 use omeka_core::ids::MediaId;
 use omeka_core::site::{RomkaCarrier, Slug};
@@ -24,8 +26,7 @@ use omeka_site::blocks::romeka::{self, ItemSelection, PlainItem, PlainRefs};
 use omeka_site::slug::{page_url, resource_show_url};
 use serde_json::Value;
 
-use crate::errors::{ApiError, ValidationErrors};
-use crate::messages;
+use crate::errors::ApiError;
 use crate::read::{Api, db_error};
 
 /// The Romeka carrier rule for one block on its way to storage.
@@ -55,7 +56,11 @@ pub async fn carry_block(
     };
     let media = public_media(api, layout, &carrier).await?;
     if layout == IiifImage.name() {
-        return Ok((with_image_url(api, data, &media), Some(layout_data)));
+        let names_media = !romeka::media_refs(layout, &carrier).is_empty();
+        return Ok((
+            with_image_url(api, data, names_media, &media),
+            Some(layout_data),
+        ));
     }
     if layout != "html" {
         return Ok((data, Some(layout_data)));
@@ -88,9 +93,9 @@ pub async fn carry_block(
     ))
 }
 
-/// The media the carrier's block renders, read from the database. A media
-/// that no longer exists is skipped, so the rendering leaves it out; one a
-/// visitor may not see refuses the write.
+/// The media the carrier's block renders that any visitor may see, read from
+/// the database. A media that no longer exists, or that is private or on a
+/// private item, is skipped, so the plain rendering leaves it out.
 async fn public_media(
     api: &Api<'_>,
     layout: &str,
@@ -110,33 +115,35 @@ async fn public_media(
             .await
             .map_err(db_error)?
             .is_some_and(|item| item.resource.is_public);
-        if !row.resource.is_public || !item_public {
-            let mut errors = ValidationErrors::new();
-            errors.insert(
-                "o:block".to_string(),
-                vec![messages::media_not_public(id.get())],
-            );
-            return Err(ApiError::Validation(errors));
+        if row.resource.is_public && item_public {
+            found.push((id, row));
         }
-        found.push((id, row));
     }
     Ok(found)
 }
 
 /// The IIIF image's `o:data` with `image_url` set to the chosen site media's
 /// Image API address on this server, unchanged for an image URL source.
-fn with_image_url(api: &Api<'_>, data: Value, media: &[(MediaId, MediaRow)]) -> Value {
-    let Some((id, _)) = media.first() else {
+///
+/// A chosen media no visitor may see stores the empty address, on which
+/// upstream renders nothing.
+fn with_image_url(
+    api: &Api<'_>,
+    data: Value,
+    names_media: bool,
+    media: &[(MediaId, MediaRow)],
+) -> Value {
+    if !names_media {
         return data;
-    };
+    }
+    let address = media.first().map_or_else(String::new, |(id, _)| {
+        format!("{}{}", api.base().as_str(), media_info_path(*id))
+    });
     let mut object = match data {
         Value::Object(map) => map,
         _ => serde_json::Map::new(),
     };
-    object.insert(
-        "image_url".to_string(),
-        Value::String(format!("{}{}", api.base().as_str(), media_info_path(*id))),
-    );
+    object.insert("image_url".to_string(), Value::String(address));
     Value::Object(object)
 }
 

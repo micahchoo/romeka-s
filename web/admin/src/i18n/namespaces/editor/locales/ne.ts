@@ -521,6 +521,7 @@ export const ne: EditorMessages = {
   'mediaRef.choose': 'यसका छविहरू मध्ये एक छान्नुहोस्',
   'mediaRef.noImages': 'यस वस्तुमा कुनै छवि छैन।',
   'mediaRef.private': 'निजी',
+  'mediaRef.privateChosen': 'यो छवि निजी छ, त्यसैले आगन्तुकहरूले यसलाई देख्दैनन्।',
   'mediaRef.fallback': 'मिडिया {id}',
   'mediaRef.remove': 'हटाउनुहोस्',
   'mediaRef.changeItem': 'अर्को वस्तु छान्नुहोस्',

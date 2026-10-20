@@ -519,6 +519,7 @@ export const hi: EditorMessages = {
   'mediaRef.choose': 'इसके चित्रों में से एक चुनें',
   'mediaRef.noImages': 'इस वस्तु में कोई छवि नहीं है।',
   'mediaRef.private': 'निजी',
+  'mediaRef.privateChosen': 'यह छवि निजी है, इसलिए आगंतुक इसे नहीं देख पाते।',
   'mediaRef.fallback': 'मीडिया {id}',
   'mediaRef.remove': 'हटाएँ',
   'mediaRef.changeItem': 'एक अन्य वस्तु चुनें',

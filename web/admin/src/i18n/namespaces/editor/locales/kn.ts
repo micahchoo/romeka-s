@@ -526,6 +526,7 @@ export const kn: EditorMessages = {
   'mediaRef.choose': 'ಅದರ ಚಿತ್ರಗಳಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ',
   'mediaRef.noImages': 'ಈ ಐಟಂ ಯಾವುದೇ ಚಿತ್ರವನ್ನು ಹೊಂದಿಲ್ಲ.',
   'mediaRef.private': 'ಖಾಸಗಿ',
+  'mediaRef.privateChosen': 'ಈ ಚಿತ್ರವು ಖಾಸಗಿಯಾಗಿದೆ, ಆದ್ದರಿಂದ ಸಂದರ್ಶಕರು ಇದನ್ನು ನೋಡುವುದಿಲ್ಲ.',
   'mediaRef.fallback': 'ಮಾಧ್ಯಮ {id}',
   'mediaRef.remove': 'ತೆಗೆದುಹಾಕಿ',
   'mediaRef.changeItem': 'ಮತ್ತೊಂದು ಐಟಂ ಅನ್ನು ಆರಿಸಿ',

@@ -139,8 +139,6 @@ export const knServer: ServerCatalogue = {
   'server.settingNotText': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್ ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotFlag': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸತ್ಯ, ಸುಳ್ಳು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
-  'server.mediaNotPublic':
-    'ಮಾಧ್ಯಮ {id} ಖಾಸಗಿಯಾಗಿದೆ, ಆದ್ದರಿಂದ ಪುಟವು ಅದನ್ನು ತೋರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಮಾಧ್ಯಮ ಮತ್ತು ಅದರ ಐಟಂ ಅನ್ನು ಸಾರ್ವಜನಿಕಗೊಳಿಸಿ, ಅಥವಾ ಮತ್ತೊಂದು ಮಾಧ್ಯಮವನ್ನು ಆರಿಸಿ.',
   'server.publicationTermsRemoved':
     'ಪ್ರಕಟಿತ ಪದವನ್ನು ತೆಗೆದುಹಾಕಲು ಅಥವಾ ಮರುನಾಮಕರಣ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ: {terms}. ಅದನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
   'server.publicationNamespaceFixed':

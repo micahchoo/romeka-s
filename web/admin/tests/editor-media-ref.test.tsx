@@ -3,7 +3,7 @@
  * media source and the hero's background, with the hero's focal point set on
  * the chosen image.
  */
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useReducer } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -19,15 +19,16 @@ import { installFetch, jsonResponse, listResponse } from './stub';
 
 const item = loadFixture('item-1.json');
 const media = loadFixture('media-951.json');
-const fixtureMedia = (isPublic: boolean): unknown =>
-  typeof media === 'object' && media !== null ? { ...media, 'o:is_public': isPublic } : media;
+const withVisibility = (record: unknown, isPublic: boolean): unknown =>
+  typeof record === 'object' && record !== null ? { ...record, 'o:is_public': isPublic } : record;
+const fixtureMedia = (isPublic: boolean): unknown => withVisibility(media, isPublic);
 
-/** The archive: item 1, whose one image is media 951, public or private. */
+/** The archive: item 1, whose one image is media 951; each public or private. */
 const archive =
-  (isPublic = true) =>
+  (isPublic = true, itemPublic = true) =>
   (url: URL): Response => {
     if (url.pathname === '/api/items') {
-      return listResponse([item], 1);
+      return listResponse([withVisibility(item, itemPublic)], 1);
     }
     if (url.pathname === '/api/item_sets' || url.pathname === '/api/resource_classes') {
       return listResponse([], 0);
@@ -38,8 +39,9 @@ const archive =
     if (url.pathname === '/api/media/951') {
       return jsonResponse(fixtureMedia(isPublic));
     }
-    if (url.pathname === '/api/items/1') {
-      return jsonResponse(item);
+    // Item 1 in the picker; item 31 as media 951's own item.
+    if (url.pathname === '/api/items/1' || url.pathname === '/api/items/31') {
+      return jsonResponse(withVisibility(item, itemPublic));
     }
     return jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
   };
@@ -88,6 +90,15 @@ describe('the IIIF image from a media of this site', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
     const radio = await screen.findByRole('radio', { name: /Private/ });
     expect(radio).toBeDisabled();
+    expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
+  });
+
+  it('does not let the curator choose a public media of a private item', async () => {
+    installFetch(archive(true, false));
+    const block = renderIiif();
+    fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
+    expect(await screen.findByRole('radio', { name: /Private/ })).toBeDisabled();
     expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
   });
 });
@@ -154,6 +165,23 @@ describe('the hero background from a media of this site', () => {
       fireEvent.click(frame, { clientX: 150, clientY: 125 });
     });
     expect(heroSettings()).toMatchObject({ focal_x: 25, focal_y: 75 });
+  });
+
+  it('keeps a chosen media that turned private and says visitors do not see it', async () => {
+    installFetch(archive(false));
+    render(<HeroForm initial={heroDraft({ background_source: 'media', background_media: 951 })} />);
+    expect(await screen.findByText('This image is private, so visitors do not see it.')).toBeInTheDocument();
+    expect(heroSettings()).toMatchObject({ background_media: 951 });
+  });
+
+  it('says nothing of privacy while the chosen media is public', async () => {
+    installFetch(archive());
+    render(<HeroForm initial={heroDraft({ background_source: 'media', background_media: 951 })} />);
+    // The item's images are listed once its visibility is known.
+    await waitFor(() => {
+      expect(document.querySelector('.media-choice input[type="radio"]')).not.toBeNull();
+    });
+    expect(screen.queryByText('This image is private, so visitors do not see it.')).toBeNull();
   });
 
   it('asks for an image first when the hero has none', () => {

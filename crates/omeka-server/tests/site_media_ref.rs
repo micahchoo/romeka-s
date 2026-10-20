@@ -1,9 +1,10 @@
 //! A block setting that names a media of the site (`mediaRef`): the hero's
 //! background and the IIIF image's source.
 //!
-//! The write resolves the media into the stored plain rendering and refuses a
-//! private one, because what it stores is public; the public page renders the
-//! media's image only for a visitor who may see it.
+//! The write resolves the media into the stored plain rendering. What it
+//! stores is public, so a private media is left out of it, and the save still
+//! succeeds; the public page renders the media's image only for a visitor who
+//! may see it.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -122,13 +123,15 @@ async fn a_hero_with_site_media_stores_and_renders_its_image() {
     );
 }
 
-/// A private media is refused with a 422 that names it, and nothing is stored.
+/// A private media does not refuse the save: the plain rendering leaves its
+/// image out, the reference stays in the settings, and the public page shows
+/// no image.
 #[tokio::test]
-async fn a_private_media_is_refused() {
+async fn a_private_media_saves_without_its_image() {
     let (pool, seed) = seeded_pool().await;
     let app = router(pool.clone());
     let private = add_media(&pool, seed.item, seed.user, false).await;
-    let answer = send(
+    let created = send(
         app.clone(),
         json_request(
             "POST",
@@ -137,20 +140,52 @@ async fn a_private_media_is_refused() {
         ),
     )
     .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let block = &created.json()["o:block"][0];
+    assert_eq!(block["o:data"]["html"], "<h2>Maps</h2>");
     assert_eq!(
-        answer.status,
-        StatusCode::UNPROCESSABLE_ENTITY,
-        "{}",
-        answer.body
-    );
-    assert_eq!(
-        answer.json()["errors"]["o:block"][0],
-        format!(
-            "Media {private} is private, so a page cannot show it. Make the media and its item public, or choose another media."
-        )
+        block["o:layout_data"]["romeka"]["settings"]["background_media"],
+        private
     );
     let page = send(app, get("/s/museum/page/media-hero", false)).await;
-    assert_eq!(page.status, StatusCode::NOT_FOUND, "the page was stored");
+    assert_eq!(page.status, StatusCode::OK, "{}", page.body);
+    assert!(page.body.contains("romeka-hero-no-image"), "{}", page.body);
+    assert!(!page.body.contains("privatescan"), "{}", page.body);
+}
+
+/// The IIIF image with a private site media stores the empty `image_url`, on
+/// which upstream renders nothing, and keeps the reference.
+#[tokio::test]
+async fn an_iiif_image_from_a_private_media_stores_no_address() {
+    let (pool, seed) = seeded_pool().await;
+    let app = router(pool.clone());
+    let private = add_media(&pool, seed.item, seed.user, false).await;
+    let body = page_body(
+        seed.site,
+        "iiif-private",
+        "iiifImage",
+        json!({ "image_url": "", "title": "Scan" }),
+        json!({ "block": "iiifImage", "v": 2, "settings": { "source": "media", "media": private } }),
+    );
+    let created = send(
+        app.clone(),
+        json_request("POST", &append_key("/api/site_pages"), &body),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let block = &created.json()["o:block"][0];
+    assert_eq!(block["o:data"]["image_url"], "");
+    assert_eq!(
+        block["o:layout_data"]["romeka"]["settings"]["media"],
+        private
+    );
+    let page = send(app, get("/s/museum/page/iiif-private", false)).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.body);
+    assert!(
+        !page.body.contains(&format!("/iiif/image/3/{private}/")),
+        "{}",
+        page.body
+    );
 }
 
 /// The IIIF image with a site media source stores that media's Image API
@@ -189,7 +224,7 @@ async fn an_iiif_image_from_site_media_stores_its_image_api_address() {
 }
 
 /// A media that turns private after the save is left out of the public page,
-/// though the stored plain rendering still names it.
+/// though the stored plain rendering still names it until the next save.
 #[tokio::test]
 async fn a_media_made_private_later_is_not_shown() {
     let (pool, seed) = seeded_pool().await;

@@ -528,6 +528,7 @@ export const te: EditorMessages = {
   'mediaRef.choose': 'దాని చిత్రాలలో ఒకదాన్ని ఎంచుకోండి',
   'mediaRef.noImages': 'ఈ అంశానికి ఎటువంటి చిత్రం లేదు.',
   'mediaRef.private': 'ప్రైవేటు',
+  'mediaRef.privateChosen': 'ఈ చిత్రం ప్రైవేటు, కాబట్టి సందర్శకులు దీనిని చూడలేరు.',
   'mediaRef.fallback': 'మీడియా {id}',
   'mediaRef.remove': 'తొలగించండి',
   'mediaRef.changeItem': 'మరొక అంశాన్ని ఎంచుకోండి',

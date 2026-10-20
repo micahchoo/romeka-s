@@ -62,8 +62,9 @@ pub trait RomkaBlock: Sync {
         Vec::new()
     }
 
-    /// The media ids the rendering uses, so a write can refuse a private one
-    /// and a page load can read the visible ones first.
+    /// The media ids the rendering uses, so a write can leave a private one
+    /// out of the plain rendering and a page load can read the visible ones
+    /// first.
     fn media_refs(&self, _settings: &JsonValue) -> Vec<MediaId> {
         Vec::new()
     }

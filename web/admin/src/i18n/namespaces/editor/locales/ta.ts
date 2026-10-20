@@ -546,6 +546,7 @@ export const ta: EditorMessages = {
   'mediaRef.choose': 'அதன் படங்களைப் பார்க்கவும்',
   'mediaRef.noImages': 'இந்த உருப்படியில் படங்கள் இல்லை.',
   'mediaRef.private': 'தனிப்பட்ட',
+  'mediaRef.privateChosen': 'இந்த படம் தனிப்பட்டது, எனவே பார்வையாளர்கள் இதைக் காண முடியாது.',
   'mediaRef.fallback': 'ஊடகம் {id}',
   'mediaRef.remove': 'நீக்கவும்',
   'mediaRef.changeItem': 'மற்றொரு உருப்படியைத் தேர்ந்தெடுக்கவும்',

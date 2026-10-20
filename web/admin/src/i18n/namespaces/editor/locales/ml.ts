@@ -531,6 +531,7 @@ export const ml: EditorMessages = {
   'mediaRef.choose': 'അതിന്റെ ചിത്രങ്ങളിൽ ഒന്ന് തിരഞ്ഞെടുക്കുക',
   'mediaRef.noImages': 'ഈ ഇനത്തിൽ ചിത്രങ്ങളൊന്നുമില്ല.',
   'mediaRef.private': 'സ്വകാര്യം',
+  'mediaRef.privateChosen': 'ഈ ചിത്രം സ്വകാര്യമാണ്, അതിനാൽ സന്ദർശകർ ഇത് കാണില്ല.',
   'mediaRef.fallback': 'മീഡിയ {id}',
   'mediaRef.remove': 'നീക്കം ചെയ്യുക',
   'mediaRef.changeItem': 'മറ്റൊരു ഇനം തിരഞ്ഞെടുക്കുക',

@@ -112,7 +112,6 @@
     "server.settingNotText": "The setting {key} must be a string or null.",
     "server.settingNotFlag": "The setting {key} must be true, false or null.",
     "server.settingNotNames": "The setting {key} must be a list of strings or null.",
-    "server.mediaNotPublic": "Media {id} is private, so a page cannot show it. Make the media and its item public, or choose another media.",
     "server.publicationTermsRemoved": "A published term cannot be removed or renamed: {terms}. Deprecate it instead.",
     "server.publicationNamespaceFixed": "A published vocabulary keeps its namespace, so its terms keep their URIs.",
     "server.publicationNotDeletable": "A published term list or vocabulary cannot be deleted. Deprecate its terms instead.",

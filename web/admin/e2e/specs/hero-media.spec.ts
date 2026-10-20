@@ -2,7 +2,8 @@
  * The hero with a background from a media of this site, end to end: the
  * curator finds the item, the media is chosen, the focal point and height are
  * set, the live preview shows the image, the save stores it, and the public
- * page renders it. A private media is offered but cannot be chosen.
+ * page renders it. A private media is offered but cannot be chosen, and a
+ * chosen media that turns private later does not block the next save.
  */
 import { deflateSync, crc32 } from 'node:zlib';
 import type { Page } from '@playwright/test';
@@ -167,6 +168,34 @@ test('a private media is shown but cannot be chosen', async ({ page }) => {
   const radio = form.getByRole('radio', { name: /Private/ });
   await expect(radio).toBeDisabled();
   await expect(radio).not.toBeChecked();
+});
+
+test('a hero whose media turned private still saves and tells the curator', async ({ page }) => {
+  const title = 'E2E hero scan made private';
+  const item = await createItem(page, title, true);
+  await page.goto(await createPage(page, `${PAGE_SLUG}-later`));
+  const form = await heroFromMedia(page, title);
+  await expect(form.getByRole('radio', { name: 'harbour.png' })).toBeChecked();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+
+  const record: unknown = await (await page.request.get(`/api/items/${String(item)}`)).json();
+  const media =
+    typeof record === 'object' && record !== null && 'o:media' in record ? idOf(first(record['o:media'])) : 0;
+  const hidden = await page.request.patch(`/api/media/${String(media)}`, { data: { 'o:is_public': false } });
+  expect(hidden.status(), await hidden.text()).toBe(200);
+
+  await page.reload();
+  await page.locator('.canvas-card').filter({ hasText: 'Hero banner' }).first().click();
+  await expect(form.getByText('This image is private, so visitors do not see it.')).toBeVisible();
+  await form.getByRole('textbox', { name: 'Heading', exact: true }).fill('Charts, revised');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+
+  const response = await page.goto(`/s/${SITE_SLUG}/page/${PAGE_SLUG}-later`);
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('.romeka-hero-heading')).toHaveText('Charts, revised');
+  await expect(page.locator('.romeka-hero-background')).toHaveCount(0);
 });
 
 test('a IIIF image from a media of this site opens through the Image API', async ({ page, diagnostics }) => {
