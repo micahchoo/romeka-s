@@ -640,7 +640,8 @@ flags by policy, blocking reasons, `canRun`, `digest`).
 ## Command line
 
 `romeka import run --plan plan.json --as <email> [--dry-run]`, `romeka import undo <id> [--force
-all]`, `romeka import list`. They call the same omeka-api functions as the routes. `romeka import
+all]`, `romeka import list`. They call the same omeka-api functions as the routes. `run`, `undo` and `list` take `--json` (one
+document when the command ends); Ctrl-C during run or undo is Stop, a second Ctrl-C exits. `romeka import
 csv` and `romeka import media` are removed in P7.
 
 ## Database (migration 0006, SQLite and MySQL; claimed 2026-10-20, romeka-s-d5 agreed)
