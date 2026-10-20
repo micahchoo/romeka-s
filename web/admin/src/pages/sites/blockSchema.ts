@@ -101,7 +101,13 @@ export type BlockField =
   | (FieldBase & { readonly type: 'attachments'; readonly media: boolean })
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
   | (FieldBase & { readonly type: 'pageList' })
-  | (FieldBase & { readonly type: 'color' })
+  | (FieldBase & {
+      /** A hex colour under `key`, or a theme colour role under `tokenKey`. */
+      readonly type: 'color';
+      /** Where a theme role is stored, or `null` for a field that takes hex only. */
+      readonly tokenKey: string | null;
+    })
+  | (FieldBase & { readonly type: 'anchor' })
   | (FieldBase & { readonly type: 'sides'; readonly keys: SideKeys })
   | (FieldBase & {
       /** A page under `key`, or a URL under `urlKey`; one is set at a time. */
@@ -142,6 +148,13 @@ export interface RomkaHash {
   readonly legacyHash: string;
 }
 
+/** One theme colour role a colour field may store. */
+export interface ColorToken {
+  /** The stored value, the role's `--color-<value>` suffix. */
+  readonly value: string;
+  readonly label: EditorMessageKey;
+}
+
 /** The whole block registry. */
 export interface BlockRegistry {
   readonly layouts: readonly BlockLayoutSchema[];
@@ -151,6 +164,9 @@ export interface BlockRegistry {
   readonly romekaHash: RomkaHash;
   readonly blockLayoutData: LayoutSchema;
   readonly pageLayoutData: LayoutSchema;
+  /** A block group's section, under `o:layout_data.romeka.section`. */
+  readonly sectionLayoutData: LayoutSchema;
+  readonly colorTokens: readonly ColorToken[];
 }
 
 const parseString = (value: unknown, path: Path): string => {
@@ -306,7 +322,13 @@ const parseField = (value: unknown, path: Path): BlockField => {
         placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
       };
     case 'color':
-      return { ...base, type: 'color' };
+      return {
+        ...base,
+        type: 'color',
+        tokenKey: parseOptionalString(value.tokenKey, [...path, 'tokenKey']),
+      };
+    case 'anchor':
+      return { ...base, type: 'anchor' };
     case 'sides':
       return { ...base, type: 'sides', keys: parseSideKeys(value.keys, [...path, 'keys']) };
     case 'link':
@@ -415,5 +437,7 @@ export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
     romekaHash: parseRomkaHash(raw.romekaHash, ['romekaHash']),
     blockLayoutData: parseSchema(raw.blockLayoutData, ['blockLayoutData']),
     pageLayoutData: parseSchema(raw.pageLayoutData, ['pageLayoutData']),
+    sectionLayoutData: parseSchema(raw.sectionLayoutData, ['sectionLayoutData']),
+    colorTokens: parseListOf(parseOption)(raw.colorTokens, ['colorTokens']),
   };
 };

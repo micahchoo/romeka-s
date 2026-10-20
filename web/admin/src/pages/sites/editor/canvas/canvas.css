@@ -245,3 +245,56 @@
 .canvas-resize:focus-visible {
   background: var(--accent-soft);
 }
+
+/* A section: its blocks in the section's own columns, one slot each, so the
+   Outline shows the row the visitor sees. An empty slot is a drop target. */
+.canvas-slots {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-slot {
+  min-width: 0;
+  list-style: none;
+}
+
+.canvas-slot-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-slots-cards .canvas-card {
+  background: var(--accent-soft);
+}
+
+.canvas-slot-empty {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  padding: var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.canvas-slot-empty:hover {
+  border-color: var(--accent);
+}
+
+.canvas-section .canvas-card-head {
+  flex-wrap: wrap;
+}
+
+.canvas-section .canvas-card-summary {
+  flex-basis: 100%;
+  white-space: normal;
+}

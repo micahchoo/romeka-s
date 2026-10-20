@@ -51,16 +51,18 @@ export const moveByOne = (
   return { type: 'moveBlock', blockKey: key, toIndex: target };
 };
 
-/** Appends a block to a group, the model's group-aware move. */
+/** Puts a block into a group, before the member `before` (its slot) or at the end. */
 export const intoGroup = (
   blocks: readonly BlockDraft[],
   key: BlockKey,
   group: BlockKey,
+  before: BlockKey | null = null,
 ): DraftAction => ({
   type: 'moveBlock',
   blockKey: key,
   toIndex: Math.max(0, flatIndex(blocks, key)),
   into: group,
+  ...(before === null ? {} : { before }),
 });
 
 /** Forces a block out of its group, keeping its place in the flow. */

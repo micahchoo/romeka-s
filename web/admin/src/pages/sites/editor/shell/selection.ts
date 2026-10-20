@@ -5,7 +5,7 @@
 import type { BlockDraft, BlockKey, PageContent } from '../draft';
 
 /** Who selected, so the other surface knows to reveal the block. */
-export type SelectionSource = 'outline' | 'preview' | 'issue';
+export type SelectionSource = 'outline' | 'preview' | 'issue' | 'inspector';
 
 export interface Selection {
   readonly key: BlockKey;

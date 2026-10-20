@@ -18,6 +18,7 @@ import { FIELD_GROUPS } from '../../blockSchema';
 import type { BlockField, FieldGroup, LayoutSchema } from '../../blockSchema';
 import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
+import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
 import { FieldControl } from './FieldControl';
 import './controls.css';
@@ -60,6 +61,11 @@ export interface LayoutDataFormProps {
   readonly options?: EditorOptions;
   /** Controls the form shows before the schema's fields, such as the page layout. */
   readonly children?: ReactNode;
+  /** The draft's issues and the block they are read for, so a field shows its own. */
+  readonly issues?: readonly ValidationIssue[];
+  readonly blockKey?: BlockKey | null;
+  /** Sections another panel shows instead, such as a section's background. */
+  readonly omit?: readonly FieldGroup[];
 }
 
 export const LayoutDataForm = ({
@@ -72,6 +78,9 @@ export const LayoutDataForm = ({
   siteId,
   options,
   children,
+  issues = [],
+  blockKey = null,
+  omit = [],
 }: LayoutDataFormProps): ReactElement => {
   const t = useEditorText();
   const labels = OWNERS[owner];
@@ -87,8 +96,8 @@ export const LayoutDataForm = ({
       siblings={schema.fields}
       onPatch={onChange}
       path={field.key}
-      issues={[]}
-      blockKey={null}
+      issues={issues}
+      blockKey={blockKey}
       siteId={siteId}
       idPrefix={idPrefix}
       {...(options === undefined ? {} : { options })}
@@ -104,6 +113,9 @@ export const LayoutDataForm = ({
       {FIELD_GROUPS.map((group) => {
         const fields = schema.fields.filter((field) => field.group === group && !field.advanced);
         if (fields.length === 0) {
+          return null;
+        }
+        if (omit.includes(group)) {
           return null;
         }
         const offGrid = group === 'grid' && !grid;

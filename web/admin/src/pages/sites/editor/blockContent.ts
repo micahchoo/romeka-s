@@ -11,6 +11,7 @@ import type { ActionOf, BlockDraft, BlockKey, PageDraft } from './draft';
 import { isGroup } from './groups';
 import { commit, contentOf } from './history';
 import { carrierOf, romkaFor, settingsOf, withSettings, withoutPlainHash } from './romeka';
+import { writePaths } from './layoutPaths';
 import { dataObject, layoutDataObject } from './values';
 
 const findBlock = (state: PageDraft, key: BlockKey): BlockDraft | undefined =>
@@ -46,8 +47,9 @@ export const setBlockData = (state: PageDraft, action: ActionOf<'setBlockData'>)
 };
 
 /**
- * Merges `values` into one block's `o:layout_data`. Consecutive writes of the
- * same keys share an undo entry, so typing into a linked padding undoes at once.
+ * Merges `values` into one block's `o:layout_data`, a `romeka.` key into the
+ * block's Romeka settings (`layoutPaths.ts`). Consecutive writes of the same keys
+ * share an undo entry, so typing into a linked padding undoes at once.
  */
 export const writeLayoutData = (
   state: PageDraft,
@@ -60,7 +62,13 @@ export const writeLayoutData = (
   }
   return replaceBlock(
     state,
-    { ...target, layoutData: { ...layoutDataObject(target), ...values } },
+    {
+      ...target,
+      layoutData: writePaths(layoutDataObject(target), values, {
+        layout: target.layout,
+        version: state.registry.romekaVersion,
+      }),
+    },
     `layoutData:${blockKey}:${Object.keys(values).sort().join(',')}`,
   );
 };

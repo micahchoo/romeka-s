@@ -48,6 +48,14 @@ export interface BuiltinTemplate extends TemplateContent {
   readonly description: MessageKey;
 }
 
+/** A built-in section: a block group and its blocks, inserted where the curator chose. */
+export interface BuiltinSection {
+  readonly id: string;
+  readonly label: MessageKey;
+  readonly description: MessageKey;
+  readonly blocks: readonly TemplateBlock[];
+}
+
 /** A saved template as the site setting row stores it. */
 export interface SavedTemplate extends TemplateContent {
   readonly name: string;

@@ -1,0 +1,102 @@
+/* The Section panel: the layout diagrams and the slot list. Loaded with the
+ * fields chunk. */
+.section-picker-label {
+  font-weight: 600;
+}
+
+.section-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.section-choice {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: stretch;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.section-choice:hover {
+  border-color: var(--accent);
+}
+
+.section-choice[aria-checked="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
+}
+
+.section-diagram {
+  display: grid;
+  gap: 3px;
+  height: 2.25rem;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: var(--bg);
+}
+
+.section-diagram-band {
+  padding-inline: 0;
+  background: var(--border);
+}
+
+.section-diagram-slot {
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.section-diagram-cards .section-diagram-slot {
+  background: var(--surface);
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
+.section-slots {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section-slot {
+  display: grid;
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.section-slot:hover {
+  border-color: var(--accent);
+}
+
+.section-slot-number {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.section-slot-empty {
+  place-items: center;
+  border-style: dashed;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  cursor: default;
+}

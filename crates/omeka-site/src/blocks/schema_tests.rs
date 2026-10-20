@@ -100,6 +100,7 @@ fn every_field_list() -> Vec<(String, &'static [Field])> {
     );
     lists.push(("blockLayoutData".to_string(), BLOCK_LAYOUT_DATA.fields));
     lists.push(("pageLayoutData".to_string(), PAGE_LAYOUT_DATA.fields));
+    lists.push(("sectionLayoutData".to_string(), SECTION_LAYOUT_DATA.fields));
     let mut index = 0;
     while index < lists.len() {
         let (name, fields) = lists[index].clone();

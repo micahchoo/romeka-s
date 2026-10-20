@@ -371,6 +371,12 @@ pub struct BlockLayoutData {
     /// Upstream ignores it and its admin keeps it (see `docs/compat.md`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub romeka: Option<RomkaCarrier>,
+    /// The whole `romeka` object as stored, `Null` when absent or not an
+    /// object. Its `settings` also hold the Romeka-only styling of any block
+    /// and a group's section layout, which the site crate reads
+    /// (`omeka_site::blocks::style`).
+    #[serde(skip)]
+    pub romeka_raw: JsonValue,
 }
 
 /// The `o:layout_data.romeka` member of a Romeka block's carrier.
@@ -443,6 +449,11 @@ impl BlockLayoutData {
             background_image_position_x: opt_text(data, "background_image_position_x"),
             background_image_size: opt_text(data, "background_image_size"),
             romeka: data.get("romeka").and_then(RomkaCarrier::parse),
+            romeka_raw: data
+                .get("romeka")
+                .filter(|value| value.is_object())
+                .cloned()
+                .unwrap_or(JsonValue::Null),
         }
     }
 }

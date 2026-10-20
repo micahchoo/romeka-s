@@ -17,6 +17,7 @@ import type { ReactElement, ReactNode } from 'react';
 import type { JsonValue, SiteId } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
+import { BLOCK_REGISTRY } from '../../blockRegistry';
 import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
@@ -395,18 +396,98 @@ const PageListControl = ({
 const ColorControl = ({
   field,
   id,
-  value,
-  onChange,
+  record,
+  onPatch,
+  options,
 }: ControlProps & { readonly field: FieldOf<'color'> }): ReactElement => {
   const e = useEditorText();
+  const tokenKey = field.tokenKey;
+  const stored = asText(record[field.key]);
+  const storedToken = tokenKey === null ? '' : asText(record[tokenKey]);
+  // A field whose role and hex share one key holds either; the hex box shows only a hex.
+  const hex = tokenKey === field.key && !stored.startsWith('#') ? '' : stored;
+  const token = tokenKey === field.key ? (stored.startsWith('#') ? '' : stored) : storedToken;
+  const write = (value: string, kind: 'hex' | 'token'): void => {
+    if (tokenKey === null) {
+      onPatch({ [field.key]: value });
+    } else if (tokenKey === field.key) {
+      onPatch({ [field.key]: value });
+    } else {
+      onPatch(
+        kind === 'hex'
+          ? { [field.key]: value, [tokenKey]: '' }
+          : { [tokenKey]: value, [field.key]: '' },
+      );
+    }
+  };
   return (
     <ColorField
       id={id}
       label={e(field.label)}
       help={e(field.help)}
-      value={asText(value)}
-      onChange={onChange}
+      value={hex}
+      onChange={(value) => {
+        write(value, 'hex');
+      }}
+      {...(tokenKey === null
+        ? {}
+        : {
+            tokens: BLOCK_REGISTRY.colorTokens,
+            token,
+            onToken: (value: string) => {
+              write(value, 'token');
+            },
+            themeSettings: options?.themeSettings ?? null,
+          })}
     />
+  );
+};
+
+/** The longest anchor the renderer writes (`style.rs::ANCHOR_MAX`). */
+const ANCHOR_MAX = 64;
+
+/**
+ * What a curator types, as an anchor the renderer accepts: lowercase letters,
+ * digits and hyphens, never starting with a hyphen. A space becomes a hyphen,
+ * so "Our story" is `our-story`; anything else is dropped.
+ */
+export const toAnchor = (raw: string): string =>
+  raw
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[\s_]+/gu, '-')
+    .replace(/[^a-z0-9-]/gu, '')
+    .replace(/-{2,}/gu, '-')
+    .replace(/^-+/u, '')
+    .slice(0, ANCHOR_MAX);
+
+const AnchorControl = ({
+  field,
+  id,
+  value,
+  onChange,
+  error,
+  invalid,
+}: ControlProps & { readonly field: FieldOf<'anchor'> }): ReactElement => {
+  const e = useEditorText();
+  const anchor = asText(value);
+  return (
+    <Labelled id={id} label={e(field.label)} help={e(field.help)} error={error}>
+      <input
+        id={id}
+        type="text"
+        value={anchor}
+        spellCheck={false}
+        autoCapitalize="none"
+        placeholder={e('fieldExample.layout.anchor')}
+        aria-invalid={invalid}
+        aria-describedby={helpId(id)}
+        onChange={(event) => {
+          onChange(toAnchor(event.target.value));
+        }}
+      />
+      {anchor === '' ? null : <p className="field-note">{e('field.anchorLink', { anchor })}</p>}
+    </Labelled>
   );
 };
 
@@ -503,6 +584,8 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <SidesControl {...common} field={common.field} />;
     case 'link':
       return <LinkControl {...common} field={common.field} />;
+    case 'anchor':
+      return <AnchorControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }

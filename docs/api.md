@@ -1432,6 +1432,7 @@ An error body is `{"errors": {"<field>": "<message>"}}`, or a list of messages f
 | `ApiError::BadRequest` | 400 | the body is not a JSON object, or a member the resource rejects |
 | `ApiError::PermissionDenied` | 403 | the caller's role does not hold the operation |
 | `ApiError::NotFound` | 404 | an unknown resource name, or a row the caller may not see |
+| `ApiError::Conflict` | CONFLICT |  |
 | `ApiError::MethodNotAllowed` | 405 | the method is not routed on that path shape |
 | `ApiError::UnsupportedMediaType` | 415 | a write body whose Content-Type is neither JSON nor multipart |
 | `ApiError::Validation` | 422 | a body member failed validation, keyed by member |

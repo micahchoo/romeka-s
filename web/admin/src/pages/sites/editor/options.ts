@@ -5,12 +5,14 @@
  * rather than one per control.
  */
 import { api } from '../../../api/client';
-import type { ItemSet, ResourceClass, SiteId, SitePage } from '../../../api/types';
+import type { ItemSet, JsonValue, ResourceClass, SiteId, SitePage } from '../../../api/types';
 
 export interface EditorOptions {
   readonly pages: readonly SitePage[];
   readonly itemSets: readonly ItemSet[];
   readonly classes: readonly ResourceClass[];
+  /** The site's theme settings, which colour a colour field's theme swatches. */
+  readonly themeSettings?: JsonValue | null;
 }
 
 export const loadEditorOptions = async (siteId: SiteId): Promise<EditorOptions> => {
