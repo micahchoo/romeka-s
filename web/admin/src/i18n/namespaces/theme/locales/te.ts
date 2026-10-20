@@ -145,4 +145,7 @@ export const te: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ట్రాన్సిషనల్ సెరిఫ్',
   'themeChoice.didone': 'హై-కాంట్రాస్ట్ సెరిఫ్',
   'themeChoice.mono': 'మోనోస్పేస్',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'ఆటోమేటిక్ స్కీమ్ రీడర్ యొక్క సిస్టమ్‌ను అనుసరిస్తుంది, కాబట్టి ప్రతి రంగుకు లైట్ వాల్యూ మరియు డార్క్ వాల్యూ ఉంటాయి.',
 };

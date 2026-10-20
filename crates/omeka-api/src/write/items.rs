@@ -18,9 +18,9 @@
 //! `o:site` follows `ItemAdapter::hydrate` (`Api/Adapter/ItemAdapter.php:233-276`):
 //! a named site is attached only when the caller may assign items there or, on a
 //! create, the site assigns new items. Upstream's create that does not name the
-//! member takes every site whose `assign_new_items` is true; here those sites keep
-//! in sync with their item pool instead (`crate::site_items`): such a create, and
-//! every update, joins the item to each of them whose pool newly selects it.
+//! member takes every site whose `assign_new_items` is true; here such a create
+//! joins the item to each of those sites whose item pool selects it
+//! (`crate::site_items::attach_on_create`). An update joins no site, as upstream.
 
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
@@ -99,7 +99,7 @@ pub async fn create(
     }
     fulltext::reindex(api, "items", row.resource.id).await?;
     if syncs {
-        site_items::attach_new_matches(api, row.id(), &[]).await?;
+        site_items::attach_on_create(api, row.id()).await?;
     }
     api.read_member("items", &row.resource.id.0.to_string())
         .await
@@ -129,7 +129,6 @@ pub async fn update(
     let existing_sites = repo.list_sites(row.id()).await.map_err(db_error)?;
     let sites = sites(api, payload, false, partial, &existing_sites).await?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
-    let synced_before = site_items::synced_sites_matching(api, row.id()).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     // `shouldHydrate($request, 'o:primary_media')`: a partial update that does
     // not name the member keeps the stored primary media.
@@ -149,7 +148,6 @@ pub async fn update(
     }
     apply_sites(api, row.id(), sites).await?;
     fulltext::reindex(api, "items", row.resource.id).await?;
-    site_items::attach_new_matches(api, row.id(), &synced_before).await?;
     api.read_member("items", raw_id).await
 }
 
@@ -348,7 +346,7 @@ async fn sites(
     }
     // On CREATE without an `o:site` array, upstream takes every site that
     // assigns new items. Those sites sync against their pool once the item is
-    // written (`site_items::attach_new_matches`), so the plan attaches none.
+    // written (`site_items::attach_on_create`), so the plan attaches none.
     if is_create && named.is_none() {
         return Ok(None);
     }

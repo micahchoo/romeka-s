@@ -140,6 +140,9 @@ export const en = {
   'themeChoice.transitionalSerif': 'Transitional serif',
   'themeChoice.didone': 'High-contrast serif',
   'themeChoice.mono': 'Monospace',
+  // A colour's light and dark values under the automatic scheme.
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp': 'The automatic scheme follows the reader\'s system, so each colour has a light value and a dark value.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

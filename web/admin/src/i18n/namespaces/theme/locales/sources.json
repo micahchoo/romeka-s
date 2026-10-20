@@ -128,5 +128,7 @@
  "themeChoice.geometric": "Geometric sans",
  "themeChoice.transitionalSerif": "Transitional serif",
  "themeChoice.didone": "High-contrast serif",
- "themeChoice.mono": "Monospace"
+ "themeChoice.mono": "Monospace",
+ "theme.shadeValue": "{label} ({shade})",
+ "theme.shadesHelp": "The automatic scheme follows the reader's system, so each colour has a light value and a dark value."
 }

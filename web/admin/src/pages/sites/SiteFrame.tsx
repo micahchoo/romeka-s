@@ -7,15 +7,22 @@
  * screens. The frame reads the site on its own, beside the screen's own reads,
  * so it never delays them: every authenticated request costs one bcrypt check
  * and parallel requests share it (`web/admin/PERF.md`).
+ *
+ * The frame is also where a screen learns what the signed-in user may do to
+ * the site (`siteAccess.ts`): it reads the site's permissions once and hands
+ * the capability set down, `null` until the site has arrived.
  */
 import { createContext, useContext, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { api, defaultBaseUrl } from '../../api/client';
 import type { PageId, Site, SiteId } from '../../api/types';
+import { useSession } from '../../app/auth';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { sites } from '../../i18n/namespaces/sites';
+import { FULL_ACCESS, siteAccess } from './siteAccess';
+import type { SiteCapability } from './siteAccess';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof sites>;
@@ -31,17 +38,23 @@ export const SITE_TABS: readonly {
   readonly screen: SiteScreen;
   readonly segment: string;
   readonly labelKey: MessageId;
+  /** A tab whose whole purpose is this write is left out of the bar without it. */
+  readonly needs?: SiteCapability;
 }[] = [
   { screen: 'pages', segment: '', labelKey: 'sites.pages' },
   { screen: 'navigation', segment: '/navigation', labelKey: 'page.navigation' },
   { screen: 'resources', segment: '/resources', labelKey: 'page.siteResources' },
-  { screen: 'users', segment: '/users', labelKey: 'page.siteUsers' },
-  { screen: 'theme', segment: '/theme', labelKey: 'page.siteTheme' },
-  { screen: 'settings', segment: '/settings', labelKey: 'page.siteSettings' },
+  { screen: 'users', segment: '/users', labelKey: 'page.siteUsers', needs: 'changeSite' },
+  { screen: 'theme', segment: '/theme', labelKey: 'page.siteTheme', needs: 'changeSite' },
+  { screen: 'settings', segment: '/settings', labelKey: 'page.siteSettings', needs: 'changeSite' },
 ];
 
 export const siteHref = (siteId: SiteId, screen: SiteScreen = 'pages'): string =>
   `#/sites/${String(siteId)}${SITE_TABS.find((tab) => tab.screen === screen)?.segment ?? ''}`;
+
+/** The name a site's theme goes by: the bundled theme's label, else its id. */
+export const themeLabel = (theme: string, t: (key: 'sites.defaultThemeLabel') => string): string =>
+  theme === 'default' ? t('sites.defaultThemeLabel') : theme;
 
 /** The public address of a site, or of one of its pages. */
 export const publicUrl = (siteSlug: string, pageSlug: string | null = null): string => {
@@ -79,12 +92,27 @@ const SiteSavedContext = createContext<(site: Site) => void>(() => undefined);
 
 export const useSiteSaved = (): ((site: Site) => void) => useContext(SiteSavedContext);
 
+/** Outside a frame every control is offered, and the server decides. */
+const SiteAccessContext = createContext<ReadonlySet<SiteCapability> | null>(FULL_ACCESS);
+
+/** What the signed-in user may do to the framed site; `null` while the frame reads it. */
+export const useSiteAccess = (): ReadonlySet<SiteCapability> | null => useContext(SiteAccessContext);
+
+/** The one line that says why a control is missing. */
+export const AccessNote = ({ children }: { readonly children: string }): ReactElement => (
+  <p className="site-access-note" role="note">
+    {children}
+  </p>
+);
+
 const SiteTabs = ({
   siteId,
   view,
+  access,
 }: {
   readonly siteId: SiteId;
   readonly view: SiteView;
+  readonly access: ReadonlySet<SiteCapability> | null;
 }): ReactElement => {
   const { t } = useTranslator(sites);
   const current = (screen: SiteScreen): 'page' | 'true' | undefined => {
@@ -96,7 +124,9 @@ const SiteTabs = ({
   return (
     <nav className="site-tabs" aria-label={t('sites.sectionsLabel')}>
       <ul>
-        {SITE_TABS.map((tab) => (
+        {SITE_TABS.filter(
+          (tab) => tab.needs === undefined || access === null || access.has(tab.needs),
+        ).map((tab) => (
           <li key={tab.screen}>
             <a href={siteHref(siteId, tab.screen)} aria-current={current(tab.screen)}>
               {t(tab.labelKey)}
@@ -126,6 +156,9 @@ export const SiteFrame = ({
     [pageId],
   );
   const site = saved ?? (loaded.status === 'ready' ? loaded.data : null);
+  const user = useSession();
+  const access =
+    site !== null ? siteAccess(site, user) : loaded.status === 'error' ? FULL_ACCESS : null;
   const siteTitle = site?.title ?? t('siteHub.siteFallback', { id: siteId });
 
   const screenTitle = (): string | null => {
@@ -159,8 +192,10 @@ export const SiteFrame = ({
           </a>
         )}
       </header>
-      <SiteTabs siteId={siteId} view={view} />
-      <SiteSavedContext.Provider value={setSaved}>{children}</SiteSavedContext.Provider>
+      <SiteTabs siteId={siteId} view={view} access={access} />
+      <SiteAccessContext.Provider value={access}>
+        <SiteSavedContext.Provider value={setSaved}>{children}</SiteSavedContext.Provider>
+      </SiteAccessContext.Provider>
     </div>
   );
 };

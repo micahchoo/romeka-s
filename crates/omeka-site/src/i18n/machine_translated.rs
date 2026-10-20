@@ -96,7 +96,8 @@ flat_catalogue! {
         admin_dashboard, edit_page, edit_item, edit_item_set, edit_media, resource_class,
         log_out, log_in, skip_to_main, menu, home, browse, browse_item_sets, custom_url,
         missing_page, untitled, site_pages, title, class, linked_caption, page_not_found,
-        page_not_found_message, forbidden,
+        page_not_found_message, forbidden, iiif_poster, iiif_view_in_viewer, iiif_manifest,
+        no_site_items_preview, no_site_items,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

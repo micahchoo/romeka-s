@@ -41,7 +41,8 @@ The bundled theme is edited by tokens, not code. A site stores its choices in th
 | --- | --- |
 | `preset` | one of `theme::presets::PRESETS`: `plain`, `archive`, `gallery`, `editorial`, `civic` |
 | `derive_palette` | whether the palette is derived from the brand colour (default on) |
-| `brand_color` and the six other `*_color` keys | colours set by hand |
+| `brand_color` and the six other `*_color` keys | colours set by hand; under the `auto` scheme they are the light palette's |
+| `accent_color_dark` and the five other `*_color_dark` keys | the dark palette's colours under the `auto` scheme (`tokens::DARK_EDITABLE`); ignored under `light` and `dark` |
 | `color_scheme`, the fonts, sizes, `density`, `corner_radius`, `content_width`, `header_layout`, `header_style`, `button_style` | tokens set by hand |
 | `logo`, `banner`, `banner_text`, `footer_text` | header and footer content |
 | `custom_css` | the site's own CSS |
@@ -95,6 +96,23 @@ the subset of upstream `application/asset/css/page-blocks.css` that applies to t
 emits, its page-grid rules are `application/asset/css/page-grid.css`, and it adds a rule for every
 block wrapper class no upstream rule names. A stored block `class` is arbitrary, so only a
 registered layout's wrapper has a rule.
+
+### The IIIF viewers
+
+`iiif_viewer` is the viewer page upstream renders bare (`view/omeka/iiif-viewer/index.phtml`):
+`mirador_config` builds `IiifViewerController`'s configuration with its allow-list, `viewer_page`
+renders the document, and `viewer_src` is the link a block or the item page opens it with, under the
+site's `iiif_viewer_sidebar` and `iiif_viewer_theme`. Mirador 4 and OpenSeadragon 5 are vendored
+under `vendor/` by `vendor/update.sh` and listed in `theme/files.rs` as library assets, which the
+frame never links: the viewer page loads Mirador, and the IIIF image block and the IIIF image media
+embed load OpenSeadragon where they call it.
+
+Both IIIF blocks take a height (`blocks/iiif.rs`), a Romeka setting of an upstream block kept in
+`o:layout_data.romeka.settings`; a schema field marked `romeka` is stored there. In the editor's
+script-free preview both render a poster card in place of the viewer. The presentation block's
+manifest field is the `manifestSource` kind: a URL, or an item of this site stored as its manifest
+URL, so upstream opens the same manifest. The item view links an item with a paintable media to the
+viewer and to its manifest (`ResourceView::iiif_manifest`).
 
 ### Page blocks
 
@@ -215,7 +233,6 @@ upstream ignores; the admin writes it through `o:site_settings`.
 | `CrossSiteSearch` | `view/omeka/site/cross-site-search/*.phtml` + `view/common/cross-site-search/*.phtml` |
 | `SearchList` | `view/omeka/site/page/browse.phtml` |
 | `AdvancedSearch` | `view/omeka/site/item/search.phtml`, `item-set/search.phtml`, `view/common/advanced-search.phtml` |
-| `IiifViewer` | `view/omeka/iiif-viewer/index.phtml` |
 | `Error` | `view/error/404.phtml`, `view/error/403.phtml` |
 
 The port's frame prints the site title as the document's `<h1>`. Upstream's bare
@@ -299,8 +316,6 @@ Six lookups: `search` (a browse), `read` (one resource), `read_media`, `read_ass
 
 ## Not ported
 
-- `resourcePageBlocks` (the `Site/ResourcePageBlockLayout/*` registry). The item, item-set and
-  media views print the values the provider supplies instead.
 - `searchFilters` and `browse()->renderSortSelector`. The browse views print the pagination and the
   advanced-search link without the filter UI.
 - Module view listeners (`trigger('view.show.before')` and friends). There are no modules.

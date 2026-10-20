@@ -6,7 +6,7 @@
 use omeka_core::site::SitePage;
 
 use crate::theme::Theme;
-use crate::view::{ErrorView, IiifViewerView, RenderContext, View};
+use crate::view::{RenderContext, View};
 
 /// Render a page's blocks, in `position` order, into a full HTML document.
 ///
@@ -34,28 +34,6 @@ pub fn render_index(theme: &dyn Theme, ctx: &RenderContext<'_>) -> String {
 #[must_use]
 pub fn render(theme: &dyn Theme, view: &View<'_>, ctx: &RenderContext<'_>) -> String {
     theme.render(view, ctx)
-}
-
-/// Render the IIIF viewer page for one stored media, or the 404 page when the
-/// request named no media the caller holds.
-///
-/// The caller resolves the media id at the route boundary: a media the store
-/// does not hold, or one that is not public, arrives as `None` and renders the
-/// same document a missing resource renders (`view/error/404.phtml`). A held
-/// media arrives as an [`IiifViewerView`] built from its stored IIIF document.
-#[must_use]
-pub fn render_iiif_viewer(
-    theme: &dyn Theme,
-    media: Option<IiifViewerView>,
-    ctx: &RenderContext<'_>,
-) -> String {
-    match media {
-        Some(media) => theme.render(&View::IiifViewer(&media), ctx),
-        None => theme.render(
-            &View::Error(&ErrorView::not_found(ctx.translator().messages())),
-            ctx,
-        ),
-    }
 }
 
 #[cfg(test)]
@@ -142,33 +120,6 @@ mod tests {
             BlockLayout::from_wire_name("other").wire_name(),
             None,
             "the fallback carries no wire name"
-        );
-    }
-
-    /// The viewer entry point renders the media's container, and an unknown
-    /// media id renders the 404 document the caller's `None` stands for.
-    #[test]
-    fn render_iiif_viewer_serves_the_container_or_the_404_shape() {
-        let site = site();
-        let ctx = context(&site, &NoResources);
-
-        let media = IiifViewerView::new(
-            omeka_core::ids::MediaId::new(7),
-            "A map",
-            r#"{"@id":"https://example.org/iiif/7"}"#,
-        );
-        let document = render_iiif_viewer(&DefaultTheme, Some(media), &ctx);
-        assert!(document.contains("id=\"iiif-7\""), "{document}");
-        assert!(
-            document.contains("https://example.org/iiif/7"),
-            "{document}"
-        );
-
-        let document = render_iiif_viewer(&DefaultTheme, None, &ctx);
-        assert!(document.contains("<h1>Page not found</h1>"), "{document}");
-        assert!(
-            document.contains("<title>Page not found · Romeka S</title>"),
-            "{document}"
         );
     }
 

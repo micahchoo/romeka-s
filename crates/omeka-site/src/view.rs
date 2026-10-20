@@ -87,6 +87,9 @@ pub struct ResourceView {
     /// `view.show.after` / `view.browse.after`, honouring
     /// `disable_jsonld_embed`). `None` when the caller did not build one.
     pub jsonld: Option<String>,
+    /// The item's IIIF manifest URL, absolute, when the item has a media a
+    /// canvas can paint. The item view links it and opens it in the viewer.
+    pub iiif_manifest: Option<String>,
 }
 
 impl ResourceView {
@@ -116,6 +119,7 @@ impl ResourceView {
             primary_media: None,
             parent_item: None,
             jsonld: None,
+            iiif_manifest: None,
         }
     }
 }
@@ -352,43 +356,6 @@ impl ResourceProvider for NoResources {
     }
 }
 
-/// One stored media opened in the IIIF viewer page.
-///
-/// The viewer page stands in for upstream's `iiif-viewer` route
-/// (`Controller/IiifViewerController.php`, `view/omeka/iiif-viewer/index.phtml`).
-/// Upstream renders Mirador over a `url` query parameter; the port renders the
-/// OpenSeadragon container the media renderer emits
-/// (`omeka-media/src/render/iiif.rs`, from `Media/Renderer/IIIF.php`) inside the
-/// site theme, keyed by a stored media id. The tile source is the media's stored
-/// IIIF document: an image information document or a presentation manifest.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IiifViewerView {
-    /// `media.id`, which names the container and the OpenSeadragon instance.
-    pub media: MediaId,
-    /// `media.displayTitle`, the document title and the viewer's label.
-    pub title: String,
-    /// The IIIF document the viewer opens, as JSON. The theme escapes it into
-    /// the container's `data-tile-sources` attribute and the inline script
-    /// parses it back, exactly as the media renderer does.
-    pub tile_source: String,
-    /// The container height, a CSS length. `Renderer/IIIF.php:16` builds
-    /// `{int}px` and defaults to `400px`; the caller may set a page height.
-    pub height: String,
-}
-
-impl IiifViewerView {
-    /// A viewer for a media at the media renderer's default height, `400px`.
-    #[must_use]
-    pub fn new(media: MediaId, title: impl Into<String>, tile_source: impl Into<String>) -> Self {
-        Self {
-            media,
-            title: title.into(),
-            tile_source: tile_source.into(),
-            height: "400px".to_string(),
-        }
-    }
-}
-
 /// Which theme view to render.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View<'a> {
@@ -414,8 +381,6 @@ pub enum View<'a> {
     /// `view/omeka/site/item/search.phtml` and its siblings:
     /// `common/advanced-search.phtml`.
     AdvancedSearch(&'a AdvancedSearchForm),
-    /// The IIIF viewer page (`view/omeka/iiif-viewer/index.phtml`).
-    IiifViewer(&'a IiifViewerView),
     /// `view/error/404.phtml` and `view/error/403.phtml`, the two error pages
     /// `Mvc\ExceptionListener` renders inside the site layout.
     Error(&'a ErrorView),
@@ -588,6 +553,14 @@ impl<'a> RenderContext<'a> {
     pub fn with_preview_markers(mut self) -> Self {
         self.block_markers = BlockMarkers::Preview;
         self
+    }
+
+    /// Whether this render is the admin preview: a block that needs a script
+    /// shows what it will be instead, and the page may point the curator at
+    /// the admin.
+    #[must_use]
+    pub(crate) fn is_preview(&self) -> bool {
+        self.block_markers == BlockMarkers::Preview
     }
 
     /// The marker value for one block, `None` when markers are off.

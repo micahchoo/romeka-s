@@ -33,7 +33,7 @@ async fn unversioned_stylesheet_answers_200_and_must_revalidate() {
     assert_eq!(header_value(&answer, "cache-control"), Some(REVALIDATE));
     assert!(header_value(&answer, "etag").is_some(), "no validator");
     assert!(!stylesheet().content.is_empty());
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// The URL that names the current bytes is immutable for a year.
@@ -43,7 +43,7 @@ async fn versioned_stylesheet_is_immutable() {
     let answer = send(empty_router().await, get(&uri, false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     assert_eq!(header_value(&answer, "cache-control"), Some(IMMUTABLE));
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// A page cached before a deploy names the old version. It still gets the
@@ -57,7 +57,7 @@ async fn a_stale_version_gets_the_current_sheet_without_immutable() {
     .await;
     assert_eq!(answer.status, StatusCode::OK);
     assert_eq!(header_value(&answer, "cache-control"), Some(REVALIDATE));
-    assert_eq!(answer.body, stylesheet().content);
+    assert_eq!(answer.body.as_bytes(), stylesheet().content);
 }
 
 /// A client that holds the current bytes revalidates to a 304.

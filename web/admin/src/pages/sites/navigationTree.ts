@@ -286,19 +286,40 @@ export const keyboardMove = (
   }
 };
 
+/** What a link lacks for the server to take it. */
+export type LinkIssue = 'noPage' | 'noUrl' | 'noLabel' | 'samePage';
+
+const ownIssue = (link: NavLink): LinkIssue | null => {
+  if (link.type === 'page') {
+    return link.pageId === null ? 'noPage' : null;
+  }
+  if (link.type === 'url') {
+    if (link.url.trim() === '') {
+      return 'noUrl';
+    }
+    return link.label.trim() === '' ? 'noLabel' : null;
+  }
+  return null;
+};
+
 /**
- * The links the server would refuse (`Link/Page.php::isValid`,
- * `Link/Url.php::isValid`): a page link with no page, a URL link with no URL
- * or no label.
+ * The links the server would refuse, each with what it lacks, in reading
+ * order (`Link/Page.php::isValid`, `Link/Url.php::isValid`, and
+ * `Site\Navigation\Translator`'s "page links must be unique"). The first link
+ * to a page is the one kept; every later link to it is the issue.
  */
-export const linkIssues = (links: readonly NavLink[]): ReadonlySet<number> => {
-  const issues = new Set<number>();
+export const linkIssues = (links: readonly NavLink[]): ReadonlyMap<number, LinkIssue> => {
+  const issues = new Map<number, LinkIssue>();
+  const seen = new Set<PageId>();
   const visit = (link: NavLink): void => {
-    if (
-      (link.type === 'page' && link.pageId === null) ||
-      (link.type === 'url' && (link.url.trim() === '' || link.label.trim() === ''))
-    ) {
-      issues.add(link.key);
+    const own = ownIssue(link);
+    if (own !== null) {
+      issues.set(link.key, own);
+    } else if (link.type === 'page' && link.pageId !== null) {
+      if (seen.has(link.pageId)) {
+        issues.set(link.key, 'samePage');
+      }
+      seen.add(link.pageId);
     }
     link.links.forEach(visit);
   };
