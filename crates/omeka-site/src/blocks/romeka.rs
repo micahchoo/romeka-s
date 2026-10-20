@@ -16,13 +16,13 @@
 
 use std::collections::BTreeMap;
 
-use omeka_core::ids::{AssetId, PageId};
+use omeka_core::ids::{AssetId, ItemId, PageId, SiteId};
 use omeka_core::site::{BlockData, RomkaCarrier, SiteBlock};
 use serde_json::Value as JsonValue;
 
 use super::canonical;
 use super::schema::LayoutSchema;
-use crate::view::RenderContext;
+use crate::view::{BrowseQuery, RenderContext};
 
 /// The smallest block a Romeka extension declares: a name, a form, a rich
 /// render and the plain render the upstream layout stores.
@@ -61,6 +61,38 @@ pub trait RomkaBlock: Sync {
     fn page_refs(&self, _settings: &JsonValue) -> Vec<PageId> {
         Vec::new()
     }
+
+    /// The items the settings select, so a caller can load them before the
+    /// rich render reads them and resolve them before the plain render.
+    fn items(&self, _settings: &JsonValue) -> Option<ItemSelection> {
+        None
+    }
+}
+
+/// The items a block's settings select.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItemSelection {
+    /// Items picked one by one, in pick order.
+    Picked(Vec<ItemId>),
+    /// The items a stored browse query finds, as a query string.
+    Query(String),
+}
+
+impl ItemSelection {
+    /// The search a [`Self::Query`] selection runs on `site`, at most `limit`
+    /// items. The render and the page snapshot both build it here, because the
+    /// snapshot answers a search by equality.
+    #[must_use]
+    pub fn browse_query(query: &str, site: SiteId, limit: usize) -> BrowseQuery {
+        let mut pairs = super::browse_preview::parse_query(query);
+        pairs.push(("site_id".to_string(), site.get().to_string()));
+        BrowseQuery {
+            query: pairs,
+            site,
+            limit: Some(limit),
+            sort: None,
+        }
+    }
 }
 
 /// A resolved asset, as a plain rendering names it.
@@ -81,6 +113,18 @@ pub struct PlainAsset {
 pub struct PlainRefs {
     assets: BTreeMap<AssetId, PlainAsset>,
     pages: BTreeMap<PageId, String>,
+    items: Vec<PlainItem>,
+}
+
+/// A resolved item, as a plain rendering lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainItem {
+    /// The item's display title.
+    pub title: String,
+    /// The item's page, relative to the origin.
+    pub url: String,
+    /// The item's location values, as stored.
+    pub places: Vec<String>,
 }
 
 impl PlainRefs {
@@ -122,10 +166,24 @@ impl PlainRefs {
     pub fn page_of(&self, id: PageId) -> Option<&str> {
         self.pages.get(&id).map(String::as_str)
     }
+
+    /// The same map with one more item of the block's selection resolved.
+    #[must_use]
+    pub fn item(mut self, item: PlainItem) -> Self {
+        self.items.push(item);
+        self
+    }
+
+    /// The selected items the caller resolved and may show to anyone, in
+    /// selection order.
+    #[must_use]
+    pub fn items(&self) -> &[PlainItem] {
+        &self.items
+    }
 }
 
 /// The registered Romeka blocks, in registry order.
-pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 1] = [&super::hero::Hero];
+pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 2] = [&super::hero::Hero, &super::map::Map];
 
 /// Every registered Romeka block.
 #[must_use]
@@ -249,6 +307,13 @@ pub fn page_refs(carrier: &RomkaCarrier) -> Vec<PageId> {
     block(carrier.block.as_str())
         .map(|definition| definition.page_refs(&carrier.settings))
         .unwrap_or_default()
+}
+
+/// The items a carrier's settings select, `None` for a block that selects
+/// none.
+#[must_use]
+pub fn items(carrier: &RomkaCarrier) -> Option<ItemSelection> {
+    block(carrier.block.as_str())?.items(&carrier.settings)
 }
 
 #[cfg(test)]

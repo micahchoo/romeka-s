@@ -122,7 +122,27 @@ pub struct SiteSettings {
     /// `iiif_viewer_sidebar`, default false (`SiteSettingsForm.php:430-440`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub iiif_viewer_sidebar: Option<bool>,
+    /// `romeka_location_property`, a Romeka-only key, default unset: the
+    /// property whose `lat, lng` values place an item on a map.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub romeka_location_property: Option<String>,
+    /// `romeka_map_tiles`, a Romeka-only key: the tile URL template a map
+    /// draws its basemap from, default OpenStreetMap's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub romeka_map_tiles: Option<String>,
+    /// `romeka_map_attribution`, a Romeka-only key: the credit line the tile
+    /// provider requires, default OpenStreetMap's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub romeka_map_attribution: Option<String>,
 }
+
+/// The tile URL template a map uses when the site names none: OpenStreetMap's
+/// own tile server, whose usage policy asks for the attribution line and
+/// limits heavy use.
+pub const DEFAULT_MAP_TILES: &str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+/// The attribution OpenStreetMap's tiles require.
+pub const DEFAULT_MAP_ATTRIBUTION: &str = "\u{a9} OpenStreetMap contributors";
 
 /// The `browse_defaults_public_items` value: the sort a public browse starts
 /// with (`Stdlib/Browse.php:167-170`).
@@ -336,6 +356,41 @@ impl SiteSettings {
     pub fn iiif_viewer_sidebar(&self) -> bool {
         self.iiif_viewer_sidebar.unwrap_or(false)
     }
+
+    /// The property term whose values hold an item's places, `None` when the
+    /// site names none and no map has places.
+    #[must_use]
+    pub fn location_property(&self) -> Option<&str> {
+        self.romeka_location_property.as_deref()
+    }
+
+    /// The basemap's tile URL template. A stored template that is not an
+    /// `http` or `https` URL with `{z}`, `{x}` and `{y}` cannot draw a map, so
+    /// the default stands in for it.
+    #[must_use]
+    pub fn map_tiles(&self) -> &str {
+        self.romeka_map_tiles
+            .as_deref()
+            .filter(|template| is_tile_template(template))
+            .unwrap_or(DEFAULT_MAP_TILES)
+    }
+
+    /// The basemap's attribution line, as plain text.
+    #[must_use]
+    pub fn map_attribution(&self) -> &str {
+        self.romeka_map_attribution
+            .as_deref()
+            .unwrap_or(DEFAULT_MAP_ATTRIBUTION)
+    }
+}
+
+/// Whether a tile URL template can draw a map: a web URL naming the zoom and
+/// both tile coordinates.
+fn is_tile_template(template: &str) -> bool {
+    (template.starts_with("https://") || template.starts_with("http://"))
+        && ["{z}", "{x}", "{y}"]
+            .iter()
+            .all(|part| template.contains(part))
 }
 
 /// The kind of value a site setting holds, so a caller can render the right
@@ -409,6 +464,8 @@ pub enum SettingGroup {
     Language,
     /// The menus, bars and browser tab around every page.
     Navigation,
+    /// The maps: where an item's place is stored and what the map draws.
+    Maps,
     /// Settings only an Omeka expert changes.
     Advanced,
 }
@@ -416,7 +473,7 @@ pub enum SettingGroup {
 /// Every key [`SiteSettings`] reads, in `SiteSettingsForm` order. The admin's
 /// site settings form renders these, and the site loader reads the stored rows
 /// into a [`SiteSettings`].
-pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
+pub static SITE_SETTINGS: [SiteSettingSpec; 30] = [
     SiteSettingSpec {
         key: "installation_title",
         label: "Name in the browser tab",
@@ -605,6 +662,27 @@ pub static SITE_SETTINGS: [SiteSettingSpec; 27] = [
         kind: SettingKind::Boolean,
         default: SettingDefault::Boolean(false),
         group: None,
+    },
+    SiteSettingSpec {
+        key: "romeka_location_property",
+        label: "Location field",
+        kind: SettingKind::Property,
+        default: SettingDefault::Unset,
+        group: Some(SettingGroup::Maps),
+    },
+    SiteSettingSpec {
+        key: "romeka_map_tiles",
+        label: "Map tiles",
+        kind: SettingKind::Text,
+        default: SettingDefault::Text(DEFAULT_MAP_TILES),
+        group: Some(SettingGroup::Maps),
+    },
+    SiteSettingSpec {
+        key: "romeka_map_attribution",
+        label: "Map credit",
+        kind: SettingKind::Text,
+        default: SettingDefault::Text(DEFAULT_MAP_ATTRIBUTION),
+        group: Some(SettingGroup::Maps),
     },
 ];
 
@@ -847,6 +925,34 @@ mod tests {
         assert!(settings.search_apply_templates().is_empty());
         assert!(!settings.search_restrict_templates());
         assert!(!settings.iiif_viewer_sidebar());
+        assert_eq!(settings.location_property(), None);
+        assert_eq!(
+            settings.map_tiles(),
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        );
+        assert_eq!(
+            settings.map_attribution(),
+            "\u{a9} OpenStreetMap contributors"
+        );
+    }
+
+    /// A stored tile template draws the map only when it is a web URL with the
+    /// zoom and both coordinates; anything else keeps OpenStreetMap's.
+    #[test]
+    fn map_tiles_keep_the_default_for_a_template_that_cannot_draw() {
+        let stored = |template: &str| SiteSettings {
+            romeka_map_tiles: Some(template.to_string()),
+            ..SiteSettings::default()
+        };
+        let custom = "https://tiles.example.org/{z}/{x}/{y}.png";
+        assert_eq!(stored(custom).map_tiles(), custom);
+        for broken in [
+            "javascript:alert(1)//{z}{x}{y}",
+            "https://tiles.example.org/{z}/{x}.png",
+            "/tiles/{z}/{x}/{y}.png",
+        ] {
+            assert_eq!(stored(broken).map_tiles(), DEFAULT_MAP_TILES, "{broken}");
+        }
     }
 
     /// The user bar shows for a signed-in caller under the default, never under
@@ -966,6 +1072,9 @@ mod tests {
             }
             "search_restrict_templates" => Some(settings.search_restrict_templates().to_string()),
             "iiif_viewer_sidebar" => Some(settings.iiif_viewer_sidebar().to_string()),
+            "romeka_location_property" => settings.location_property().map(str::to_string),
+            "romeka_map_tiles" => Some(settings.map_tiles().to_string()),
+            "romeka_map_attribution" => Some(settings.map_attribution().to_string()),
             other => panic!("{other} has no accessor"),
         }
     }
@@ -987,7 +1096,7 @@ mod tests {
     #[test]
     fn settings_schema_matches_the_accessors() {
         let defaults = SiteSettings::default();
-        assert_eq!(SITE_SETTINGS.len(), 27);
+        assert_eq!(SITE_SETTINGS.len(), 30);
         for entry in &SITE_SETTINGS {
             assert!(!entry.label.is_empty(), "{}", entry.key);
             assert_eq!(

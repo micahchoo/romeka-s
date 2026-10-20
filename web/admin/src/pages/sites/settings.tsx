@@ -60,6 +60,7 @@ const GROUP_TEXT: Readonly<
   itemPages: { legend: 'siteSettingGroup.itemPages', intro: 'siteSettingGroup.itemPagesIntro' },
   language: { legend: 'siteSettingGroup.language', intro: 'siteSettingGroup.languageIntro' },
   navigation: { legend: 'siteSettingGroup.navigation', intro: 'siteSettingGroup.navigationIntro' },
+  maps: { legend: 'siteSettingGroup.maps', intro: 'siteSettingGroup.mapsIntro' },
   advanced: { legend: 'siteSettingGroup.advanced', intro: 'siteSettingGroup.advancedIntro' },
 };
 

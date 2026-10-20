@@ -4,8 +4,9 @@
 //! viewers are vendored under `crates/omeka-site/vendor/` by
 //! `vendor/update.sh`, at the versions `NOTICE` records: Mirador for the viewer
 //! page and OpenSeadragon, with its button images, for the IIIF image block and
-//! the IIIF image media renderer. They are libraries, so the document frame
-//! never links them; the view that needs one loads it.
+//! the IIIF image media renderer; and Leaflet, with its stylesheet, for maps.
+//! They are libraries, so the document frame never links them; the view that
+//! needs one loads it.
 
 use super::style::{PLACEHOLDER_SVG, STYLE_CSS};
 use super::{AssetKind, ThemeAsset};
@@ -29,7 +30,7 @@ macro_rules! png {
 }
 
 /// The bundled theme's files, in the order the frame links its head assets.
-pub(super) static FILES: [ThemeAsset; 45] = [
+pub(super) static FILES: [ThemeAsset; 48] = [
     ThemeAsset {
         path: "css/style.css",
         kind: AssetKind::Stylesheet,
@@ -45,6 +46,13 @@ pub(super) static FILES: [ThemeAsset; 45] = [
         kind: AssetKind::Library,
         content: crate::iiif_viewer::INIT_SCRIPT.as_bytes(),
     },
+    ThemeAsset {
+        path: "js/map.js",
+        kind: AssetKind::Library,
+        content: crate::map::MAP_SCRIPT.as_bytes(),
+    },
+    vendored!(Library, "leaflet/leaflet.js"),
+    vendored!(LibraryStylesheet, "leaflet/leaflet.css"),
     vendored!(Library, "mirador/mirador.min.js"),
     vendored!(Library, "openseadragon/openseadragon.min.js"),
     png!("button_grouphover.png"),
@@ -93,8 +101,8 @@ pub(super) static FILES: [ThemeAsset; 45] = [
 mod tests {
     use super::*;
 
-    /// Every vendored library and image is served, so a refresh that adds a
-    /// file cannot leave it a 404. The licences are not served.
+    /// Every vendored library, stylesheet and image is served, so a refresh
+    /// that adds a file cannot leave it a 404. The licences are not served.
     #[test]
     fn every_vendored_file_is_listed() {
         let root = concat!(env!("CARGO_MANIFEST_DIR"), "/vendor");
@@ -107,7 +115,7 @@ mod tests {
                     folders.push(path);
                 } else if matches!(
                     path.extension().and_then(|ext| ext.to_str()),
-                    Some("js" | "png")
+                    Some("js" | "css" | "png")
                 ) {
                     let relative = path.strip_prefix(root).expect("under the root");
                     on_disk.push(format!("vendor/{}", relative.display()));

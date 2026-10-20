@@ -455,4 +455,20 @@ export const hi: SitesMessages = {
   'siteAccess.settings': 'केवल साइट प्रबंधक ही साइट सेटिंग्स बदल सकते हैं।',
   'siteAccess.delete': 'केवल साइट स्वामी या प्रशासक ही इस साइट को हटा सकते हैं।',
   'itemPicker.itemFallback': 'आइटम {id}',
+  'romeka.map': 'मैप',
+  'romekaHelp.map': 'चुने गए आइटमों के स्थान एक मानचित्र पर, नीचे उनकी सूची के साथ।',
+  'resourcePageBlock.map': 'आइटम की जगह का मैप',
+  'resourcePageBlock.mapHelp': 'साइट के स्थान क्षेत्र से आइटम की मैप लोकेशन।',
+  'siteSettingGroup.maps': 'मैप्स',
+  'siteSettingGroup.mapsIntro':
+    'आइटम की जगह कहाँ संग्रहीत है, और प्रत्येक मैप क्या पृष्ठभूमि खींचता है।',
+  'siteSetting.romekaLocationProperty': 'स्थान क्षेत्र',
+  'siteSetting.romekaLocationPropertyHelp':
+    'वह गुण जिसकी "lat, lng" मान एक आइटम को मैप पर रखते हैं, उदाहरण के लिए स्थानिक कवरेज। आइटम फॉर्म एक छोटा मैप प्रदान करता है।',
+  'siteSetting.romekaMapTiles': 'मैप टाइल्स',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x} और {y} के साथ एक टाइल पता। डिफ़ॉल्ट OpenStreetMap है, जिसकी उपयोग नीति के लिए क्रेडिट लाइन की आवश्यकता होती है और भारी उपयोग को प्रतिबंधित करती है।',
+  'siteSetting.romekaMapAttribution': 'मैप क्रेडिट',
+  'siteSetting.romekaMapAttributionHelp':
+    'टाइल प्रदाता द्वारा आवश्यक क्रेडिट लाइन, जो प्रत्येक मैप के कोने में दिखाई देती है।',
 };

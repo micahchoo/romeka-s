@@ -39,7 +39,7 @@ pub struct ResourcePageBlockSpec {
 }
 
 /// Every registered resource page block layout, in `module.config.php` order.
-pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 9] = [
+pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 10] = [
     ResourcePageBlockSpec {
         name: "itemSets",
         label: "Item sets",
@@ -55,6 +55,14 @@ pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 9] = [
         name: "linkedResources",
         label: "Linked resources",
         resources: &[ResourceKind::Item, ResourceKind::ItemSet],
+    },
+    // A Romeka addition: the item's own places, from the site's location
+    // field. Upstream has no such layout, so its manager renders nothing for
+    // the name.
+    ResourcePageBlockSpec {
+        name: "map",
+        label: "Map of the item's place",
+        resources: &[ResourceKind::Item],
     },
     ResourcePageBlockSpec {
         name: "mediaEmbeds",
@@ -196,6 +204,7 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
         "mediaRender" => media_render(resource),
         "resourceClass" => resource_class(resource, ctx.translator().messages()),
         "lightboxGallery" => lightbox_gallery(resource),
+        "map" => crate::map::item_section(resource, ctx),
         _ => String::new(),
     }
 }

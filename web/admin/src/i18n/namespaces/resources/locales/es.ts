@@ -64,4 +64,12 @@ export const es: ResourcesMessages = {
   'items.bulkConfirmAdd': 'Añadir {count} a {site}',
   'items.bulkDone': '{site} tiene ahora {total} elementos.',
   'items.bulkConfirmRemove': 'Quitar {count} de {site}',
+  'place.legend': 'Lugar en un mapa: {field}',
+  'place.help': 'Haga clic en el mapa o escriba "lat, lng". Cada lugar se guarda como un valor de {term}, que muestran los mapas del sitio.',
+  'place.mapLabel': 'Mapa: haga clic para fijar el lugar seleccionado',
+  'place.value': 'Lugar {number}',
+  'place.remove': 'Quitar el lugar {number}',
+  'place.add': 'Añadir un lugar',
+  'place.invalid': 'Escriba una latitud de -90 a 90, una coma y una longitud de -180 a 180.',
+  'place.unavailable': 'El mapa no se pudo cargar. Escriba el lugar como "lat, lng".',
 };

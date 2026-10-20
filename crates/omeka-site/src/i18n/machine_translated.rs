@@ -97,7 +97,8 @@ flat_catalogue! {
         log_out, log_in, skip_to_main, menu, home, browse, browse_item_sets, custom_url,
         missing_page, untitled, site_pages, title, class, linked_caption, page_not_found,
         page_not_found_message, forbidden, iiif_poster, iiif_view_in_viewer, iiif_manifest,
-        no_site_items_preview, no_site_items,
+        no_site_items_preview, no_site_items, map, map_places, map_place_count, map_poster,
+        map_no_places_preview,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

@@ -73,7 +73,7 @@ impl Theme for DefaultTheme {
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
-                &page_view(ctx),
+                &crate::map::with_assets(page_view(ctx), ctx),
             ),
             View::Browse(browse) => {
                 let mut content = browse_view(browse, ctx, tr);
@@ -89,7 +89,7 @@ impl Theme for DefaultTheme {
                 )
             }
             View::Item(item) => {
-                let mut content = item_view(item, ctx);
+                let mut content = crate::map::with_assets(item_view(item, ctx), ctx);
                 content.push_str(&jsonld_script(ctx, item.jsonld.as_deref()));
                 layout(view, ctx, Some(&item.title), "item resource show", &content)
             }

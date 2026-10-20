@@ -16,6 +16,7 @@ import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
 import { loadAssignableSites, SitesFieldset } from './sites';
+import { PlaceField, locationFields } from './PlaceField';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -96,6 +97,9 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
         createField={createLocalField}
         showLessons
       />
+      {locationFields(options.sites, options.properties).map((field) => (
+        <PlaceField key={field.term} field={field} draft={draft} onChange={setDraft} />
+      ))}
       <TagsField
         idPrefix="item"
         draft={draft}
