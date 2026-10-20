@@ -52,7 +52,7 @@ const typed = (draft: PageDraft, html: string): PageDraft =>
   apply(draft, { type: 'setField', blockKey: keyOf(draft, 'html'), field: 'html', value: html });
 
 const mount = (draft: PageDraft) =>
-  renderHook(({ current }: { current: PageDraft }) => usePreview(current, 'my-site', SITE, PAGE), {
+  renderHook(({ current }: { current: PageDraft }) => usePreview(current, 'my-site', SITE, PAGE, null), {
     initialProps: { current: draft },
   });
 

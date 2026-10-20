@@ -83,11 +83,12 @@ test('the editor deselects, undoes, lists its keys and restores a removed block'
   await page.keyboard.press('Escape');
   await expect(title).toBeVisible();
 
-  // A click on the preview outside every block does the same.
+  // A click on the preview outside every block and the site header and
+  // footer does the same: the content area's left margin.
   await cards.first().click();
   await expect(title).toHaveCount(0);
   await shown(page)
-    .locator('body')
+    .locator('#content')
     .click({ position: { x: 5, y: 5 } });
   await expect(title).toBeVisible();
 

@@ -719,6 +719,31 @@ they ride the initial payload.
 A single build on one machine. The largest lazy chunk is the editor shell at 7924 B of the 10240 B
 ceiling, and the initial payload has 1064 B left under 87040.
 
+## Decision 23: the site region inspector loads on demand (accepted)
+
+**Change.** The page editor selects the site header and the site footer. The site-wide inspector
+(`editor/shell/SiteRegionInspector.tsx`) is a lazy chunk, fetched on the first region selection. It
+reuses the Theme page's Header and Footer sections and its token rows, so Rollup moves the code the
+two screens share (`FooterSection`, `HeaderSection`, `TokenField`, `siteTheme`) out of the Theme
+page's chunk into one shared chunk. The selection union, the region buttons in the page settings,
+the toolbar's unsaved note and the lazy import ride the editor shell.
+
+**Measured.** `npm run build`, then gzip bytes from `zlib.gzipSync` per emitted asset, against main
+`b817f94` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before (`b817f94`) | After | Note |
+| --- | --- | --- | --- |
+| initial js (`perf:check`) | 86073 | 86082 | |
+| editor shell (`shell-*`) | 8399 | 9013 | the selection union, the region buttons, the unsaved note |
+| live panel (`LivePanel-*`) | 3290 js, 672 css | 3579 js, 711 css | region outlines and their style |
+| site region inspector | none | 1140 | |
+| Theme page (`theme-*`) | 8333 | 5558, plus 3584 shared | the shared sections moved out |
+| English editor messages | 6970 | 7148 | 12 `region.*` keys |
+| largest editor locale (`ml`) | 8680 | 8911 | under the 11264 catalogue ceiling |
+
+A single build on one machine. The largest lazy chunk is still `fields-*` (9018 B by `perf:check`);
+the editor shell is next at 9013 B of the 10240 B ceiling.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

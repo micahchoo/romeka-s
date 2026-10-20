@@ -43,7 +43,7 @@ use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::{Theme, ThemeInfo};
 use crate::theme::{cards, fonts, search, user_bar};
-use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, View};
+use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, SiteRegion, View};
 
 /// The bundled theme's manifest: the id `site.theme` stores, the design tokens
 /// it reads, and the files it ships.
@@ -238,7 +238,7 @@ fn layout(
          <a class=\"skip-link\" id=\"skipnav\" href=\"#content\">{skip}</a>\n\
          {user_bar}\
          {banner}\
-         <header class=\"{header}\">\n\
+         <header class=\"{header}\"{header_region}>\n\
          <div class=\"header-inner\">\n\
          {logo}{site_title}\n\
          <details class=\"nav-menu\">\n\
@@ -261,6 +261,7 @@ fn layout(
             class => format!(" class=\"{}\"", escape_html(class)),
         },
         header = header,
+        header_region = ctx.region_marker(SiteRegion::Header),
         logo = logo,
         banner = banner,
         footer = footer,
@@ -371,7 +372,10 @@ fn banner_markup(ctx: &RenderContext<'_>) -> String {
     if image.is_none() && text.is_none() {
         return String::new();
     }
-    let mut out = String::from("<div class=\"site-banner\">");
+    let mut out = format!(
+        "<div class=\"site-banner\"{}>",
+        ctx.region_marker(SiteRegion::Header)
+    );
     if let Some(url) = image {
         out.push_str(&format!(
             "<img class=\"site-banner-image\" src=\"{}\" alt=\"\">",

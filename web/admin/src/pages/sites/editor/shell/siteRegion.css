@@ -1,0 +1,38 @@
+/* The site region inspector's banner: set apart in the text colour, the same
+ * colour the preview outlines a region in, so the two read as one thing. */
+.site-wide-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.site-wide-banner-text {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 600;
+}
+
+.site-wide-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.site-wide-banner > [role='status'],
+.site-wide-banner > [role='alert'] {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.site-region-inspector .theme-section {
+  min-width: 0;
+}

@@ -3,7 +3,7 @@
  * draft change, the newest answer kept while the next one is in flight.
  */
 import { useEffect, useRef, useState } from 'react';
-import type { PageId, SiteId } from '../../../../api/types';
+import type { JsonValue, PageId, SiteId } from '../../../../api/types';
 import { toError } from '../../../../app/useAsync';
 import type { PageContent } from '../draft';
 import { previewRequest, requestPreview } from '../preview';
@@ -36,6 +36,8 @@ export const usePreview = (
   siteSlug: string,
   siteId: SiteId,
   pageId: PageId | null,
+  /** An unsaved site-wide theme map the render uses instead of the stored one. */
+  themeSettings: Readonly<Record<string, JsonValue>> | null,
 ): PreviewState => {
   const [state, setState] = useState<PreviewState>({
     render: null,
@@ -48,7 +50,7 @@ export const usePreview = (
   const inFlight = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const { body, order } = previewRequest(draft, siteId, pageId);
+    const { body, order } = previewRequest(draft, siteId, pageId, themeSettings);
     const text = JSON.stringify(body);
     if (text === lastSent.current) {
       return;
@@ -91,7 +93,7 @@ export const usePreview = (
     return () => {
       clearTimeout(timer);
     };
-  }, [draft, siteSlug, siteId, pageId]);
+  }, [draft, siteSlug, siteId, pageId, themeSettings]);
 
   useEffect(
     () => () => {
