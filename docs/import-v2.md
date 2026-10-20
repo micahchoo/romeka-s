@@ -314,38 +314,69 @@ item-set records; for media, the media of the matched item.
 - The index loader reads entries unordered (`EntryRepo::all`) and sorts in Rust; no path index.
 
 
-### What the admin screens need at scale (from the round-3 prototype, 2026-10-20)
+### What the admin screens need at scale (revised 2026-10-20 after user review)
 
-The admin never draws more than about 1,000 elements: it reviews **shapes** and **causes**, pages
-lists 50 rows at a time, and acts on whatever a filter selects. The server answers:
+Rule: the server states facts it can compute exactly, never a guess about meaning. No side-word
+lists, no edit-distance matching, no name-similarity pairing. Where meaning is needed, the person
+supplies it (marks an example, maps values, pairs a row) or fills in a list.
 
-- **`shapes`** preview section: one row per shape with a count, three sample records (a seed in
-  the request draws others), and `odd: bool`. A shape key is the file-count bucket (1, 2, 3, 4–6,
-  7+) plus the set of side words in the record's file names. Side words are a parsed fact of each
-  file entry: the pattern's `part` and `page` groups when the pattern has them, else a built-in list
-  (`front`, `back`, `verso`, `recto`, `cover`, `पुढे`, `मागे`, `p<N>`, `page <N>`) matched as whole
-  name parts. Unmatched files and likely copies are file shapes with counts and samples. A shape
-  is odd when it holds under 2% of records or a file-count bucket of 7+.
-- **Histogram** of files per record, in the buckets above, in `shapes`.
-- **Cause samples**: `flags` adds, per kind and slot, three sample records (seeded like shapes) and,
-  for `pair` suggestions, the row, its file name and the closest file name (edit distance ≤ 2
-  after NFC and case fold).
-- **Likely copies** at scan time: files of equal size whose names differ only by ` (2)`, ` copy`,
-  `Copy of `, `-1` style suffixes, confirmed by a SHA-256 of both; an anomaly with a count.
-- **Filters** on `records`: shape, folder, item set, item type, file-count bucket, flag kind and
+The admin never draws more than about 1,000 elements: it reviews **groups of records that share
+facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. The server answers:
+
+- **`shapes`** preview section: records grouped by exact facts only: file-count bucket (1, 2, 3,
+  4–6, 7+), top folder, the media types present (image, PDF, audio, video, other), whether the
+  pattern matched, and whether a list row joined. Each group: a count, three sample records (a
+  seed in the request draws others), and `odd: bool` (under 2% of records, or 7+ files). Groups
+  are described by their facts ("2,104 items have 2 files, both images, and a row in your list"),
+  never by inferred meaning. The pattern's `part` and `page` groups, when the person marked them,
+  are facts too and may split groups.
+- **Histogram** of files per record in the same buckets.
+- **Cause samples**: `flags` adds, per kind and slot, a count and three sample records.
+- **Identical files**: files of equal size and equal SHA-256 (hashed only when sizes collide), an
+  anomaly with a count and the pairs. No name heuristics.
+- **Unpaired lists**: list rows with no file and files with no row, each paged and sorted by name,
+  so the person pairs them by hand (`pair` decision) with a searchable picker.
+- **Values with counts** for text slots that name things (template, sets, class): each distinct
+  value after trim, NFC and case fold, with its record count. Equal-after-fold values are one value
+  ("Letter" and "letter"); anything else ("Letters", "पत्र") is a separate value the person can map
+  with `SlotRule.map`.
+- **Filters** on `records`: group, folder, item set, item type, file-count bucket, flag kind and
   slot, left out or not, text in any slot. On `entries`: used or not, reason not used, folder,
   text. On sheet rows: paired or not.
-- **Changes to many records** are decisions that name the records they hit, stored compactly:
-  `{ kind: 'many', entries: EntryRef[], change: Decision-without-entry }`, applied in list order
-  like other decisions. After a rescan, records that match the filter the change was made from
-  but are not in `entries` are listed on Check ("12 new items match an earlier change") with an
-  answer to extend it (the request carries the filter; the plan stores the result).
-- **Spelling groups** for text slots that name things (template, sets, class): values grouped by
-  title fold and edit distance ≤ 1, with a count per spelling; the admin turns a group into
-  `SlotRule.map` entries.
-- **Run progress** carries an estimate: records done, records total, and seconds left from the
-  rate so far. No email: the page says the run goes on if the person leaves.
-- Policies stay one per flag kind; a per-record `flag` decision covers exceptions.
+- **Changes to many records** name the records they hit: `{ kind: 'many', entries: EntryRef[],
+  change: Decision-without-entry }`, applied in list order. After a rescan, records that match the
+  filter the change came from but are not in `entries` are counted on Check with an answer to
+  extend the change (the request carries the filter; the plan stores the result).
+- **Run progress** carries records done, records total and seconds left from the rate so far. No
+  email: the page says the run goes on if the person leaves.
+
+### The list round trip (2026-10-20, user)
+
+A person can describe items in a spreadsheet they fill in themselves:
+
+- `GET /api/romeka/imports/{id}/template.csv?columns=<term>,<term>…` answers one row per item
+  record, in record order: `Identifier`, `Files` (the record's file names, `|`-separated), then one
+  column per chosen property, prefilled with the record's current values (`|` between values).
+  Headers read `Label [prefix:local]` (e.g. `Title [dcterms:title]`) so the upload maps itself.
+  UTF-8 with a BOM, so Excel opens Devanagari correctly. Columns the person may choose: any
+  property of the install, plus item set, item type, visibility.
+- `POST /api/romeka/imports/{id}/sheets` (multipart, one file, at most 50 MB; `.csv`, `.tsv`, and
+  `.xlsx` once P8 lands) stores the file in the import's staging and adds a `SheetPlan` joined on
+  `Identifier`, columns mapped from the bracketed terms, `|` as each column's split. Columns
+  without a bracketed term stay unmapped for the person to map.
+- A filled list counts as evidence like any sheet: its values win over file tags by default
+  (`combine: first`, list first).
+
+### Simple and Advanced (2026-10-20, user)
+
+The admin has two modes over one plan, switchable at any time without losing work:
+
+- **Simple**: the guided pass (Your files, What we found, Your list, Where they go, Check, Add) with
+  suggested answers; expert settings hidden.
+- **Advanced**: every rule the plan holds, editable: the file pattern (marked example and regex),
+  each slot's ordered sources and value map, column options (split, type, language, private), flag
+  policies per kind, match key and scope per record kind, the action, the full decision list with
+  remove, and the round-trip list's columns.
 
 ## Values
 
@@ -680,6 +711,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | 2026-10-20 | Admin UX: a guided first pass (Your files, What we found, Your list, Where they go, Check, Add) that lands in seven tabs renamed Files, List, Item sets, Item types, All items, Check, Add; the word "item" with a gloss; the server card hidden when no root is set up for the user; plain words enforced by proto2/GLOSSARY.md and glossary-check.js | user (prototype round 2) |
 | 2026-10-20 | Contract additions: `.xlsx`/`.xls` sheets (P8); a `pair` decision (row ↔ file by hand); likely copies by content hash for files of equal size (an anomaly) | user (prototype round 2) |
 | 2026-10-20 | The UX works on shapes and causes, not single items, at 50 to 40,000 items | user: "the ux breaks as soon as you have more than 50 items" |
+| 2026-10-20 | Facts only, never inferred meaning; list round trip (template.csv down, filled sheet up); Simple and Advanced modes | user: "shapes is making promises that only an llm can solve" |
 | 2026-10-20 | UX at scale: shapes and causes, paged lists, changes to many that name their records; server additions listed under "What the admin screens need at scale" | user; round-3 prototype measured flat 20/21 decisions from 50 to 40,000 items |
 | 2026-10-20 | Contract review: Sonnet adversarial pass found the identity cycle, line anchors, shared `failed`, undefined actions and security gaps; all folded in | second opinion |
 
