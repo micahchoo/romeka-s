@@ -18,6 +18,7 @@ import { ErrorNotice } from '../../app/errors';
 import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 import { ItemSetPanel, PickPanel, SearchPanel } from './siteItemsAdd';
 import type { AddPanelProps } from './siteItemsAdd';
 import { common } from '../../i18n/namespaces/common';
@@ -42,11 +43,11 @@ const TABS: readonly {
 /** The switch that stores `o:assign_new_items`. */
 const SyncSwitch = ({
   site,
-  busy,
+  disabled,
   onToggle,
 }: {
   readonly site: Site;
-  readonly busy: boolean;
+  readonly disabled: boolean;
   readonly onToggle: (on: boolean) => void;
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
@@ -58,7 +59,7 @@ const SyncSwitch = ({
           type="checkbox"
           role="switch"
           checked={site.assignNewItems}
-          disabled={busy}
+          disabled={disabled}
           aria-describedby="site-items-sync-help"
           onChange={(event) => {
             onToggle(event.target.checked);
@@ -128,7 +129,7 @@ const AddTabs = (props: AddPanelProps): ReactElement => {
   );
 };
 
-/** One page of the items on the site, each with a remove button. */
+/** One page of the items on the site, each with a remove button when the caller may remove. */
 const SiteItemsList = ({
   items,
   page,
@@ -142,7 +143,7 @@ const SiteItemsList = ({
   readonly lastPage: number;
   readonly busy: boolean;
   readonly onPage: (page: number) => void;
-  readonly onRemove: (item: Item) => void;
+  readonly onRemove: ((item: Item) => void) | null;
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
   if (items.length === 0) {
@@ -162,17 +163,19 @@ const SiteItemsList = ({
                 <img className="site-items-thumb" src={thumbnail} alt="" />
               )}
               <a href={`#/items/${String(item.id)}`}>{title}</a>
-              <button
-                type="button"
-                className="link-button"
-                disabled={busy}
-                aria-label={t('siteItems.removeLabel', { title })}
-                onClick={() => {
-                  onRemove(item);
-                }}
-              >
-                {t('action.remove')}
-              </button>
+              {onRemove === null ? null : (
+                <button
+                  type="button"
+                  className="link-button"
+                  disabled={busy}
+                  aria-label={t('siteItems.removeLabel', { title })}
+                  onClick={() => {
+                    onRemove(item);
+                  }}
+                >
+                  {t('action.remove')}
+                </button>
+              )}
             </li>
           );
         })}
@@ -203,7 +206,13 @@ const SiteItemsList = ({
   );
 };
 
-const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement => {
+const SiteItemsPane = ({
+  initial,
+  canChange,
+}: {
+  readonly initial: Site;
+  readonly canChange: boolean;
+}): ReactElement => {
   const { t } = useTranslator(common, sites);
   const [site, setSite] = useState(initial);
   const [version, setVersion] = useState(0);
@@ -260,13 +269,16 @@ const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement =>
         <p className="site-items-total" role="status">
           {shown === null ? t('siteItems.counting') : t('siteItems.count', { count: shown.total })}
         </p>
-        <SyncSwitch site={site} busy={busy} onToggle={toggleSync} />
+        <SyncSwitch site={site} disabled={busy || !canChange} onToggle={toggleSync} />
       </header>
+      {canChange ? null : <AccessNote>{t('siteAccess.items')}</AccessNote>}
       <p className="site-items-message" role="status">
         {message}
       </p>
       {failure === null ? null : <ErrorNotice error={failure} />}
-      <AddTabs site={site} version={version} busy={busy} run={run} onSite={setSite} />
+      {canChange ? (
+        <AddTabs site={site} version={version} busy={busy} run={run} onSite={setSite} />
+      ) : null}
       <section aria-labelledby="site-items-list-heading">
         <h3 id="site-items-list-heading">{t('siteItems.listHeading')}</h3>
         {listing.status === 'error' ? (
@@ -280,7 +292,7 @@ const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement =>
             lastPage={shown.lastPage}
             busy={busy}
             onPage={setPage}
-            onRemove={remove}
+            onRemove={canChange ? remove : null}
           />
         )}
       </section>
@@ -292,11 +304,18 @@ const SiteItemsPane = ({ initial }: { readonly initial: Site }): ReactElement =>
 export const SiteResourcesPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
-  if (state.status === 'loading') {
+  const access = useSiteAccess();
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} />;
   }
-  return <SiteItemsPane key={String(siteId)} initial={state.data} />;
+  return (
+    <SiteItemsPane
+      key={String(siteId)}
+      initial={state.data}
+      canChange={access.has('changeSite')}
+    />
+  );
 };

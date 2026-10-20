@@ -58,7 +58,6 @@ export const kn: SitesMessages = {
   'navigation.moveUpShort': 'ಮೇಲೆ',
   'navigation.moveDownShort': 'ಕೆಳಗೆ',
   'navigation.remove': '{label} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
-  'navigation.errorMissingTarget': 'ಪುಟ ಅಥವಾ URL ಲಿಂಕ್ ತನ್ನ ಗುರಿಯನ್ನು ಹೊಂದಿರಬೇಕು.',
   'siteSettingGroup.browsing': 'ಬ್ರೌಸಿಂಗ್',
   'siteSettingGroup.browsingIntro': 'ಸಂದರ್ಶಕರು ಬ್ರೌಸ್ ಮಾಡಿದಾಗ ಐಟಂಗಳ ಪಟ್ಟಿಗಳು ಹೇಗೆ ಕಾಣುತ್ತವೆ.',
   'siteSettingGroup.search': 'ಹುಡುಕಾಟ',
@@ -294,15 +293,12 @@ export const kn: SitesMessages = {
   'siteHub.unknownLinkType':
     'ಒಂದು ಮಾಡ್ಯೂಲ್ ಈ ಲಿಂಕ್ ಪ್ರಕಾರವನ್ನು ಸೇರಿಸಿದೆ. ಇದರ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸಿದಂತೆ ಇರಿಸಲಾಗುತ್ತದೆ.',
   'siteHub.moveLink': '{label} ಅನ್ನು ಸರಿಸಿ',
-  'siteHub.needsTarget': 'ಗುರಿಯನ್ನು ಹೊಂದಿರಬೇಕು',
   'siteHub.editLink': '{label} ಅನ್ನು ಎಡಿಟ್ ಮಾಡಿ',
   'siteHub.addChildTo': '{label} ಗೆ ಚೈಲ್ಡ್ ಲಿಂಕ್ ಸೇರಿಸಿ',
   'siteHub.menuPreview': 'ಮೆನು ಪ್ರಿವ್ಯೂ',
   'siteHub.homeLink': 'ಮುಖಪುಟ',
   'siteHub.emptyMenuNote':
     'ಯಾವುದೇ ಲಿಂಕ್‌ಗಳಿಲ್ಲದೆ, ಸಾರ್ವಜನಿಕ ಸೈಟ್ ತನ್ನ ಮುಖಪುಟಕ್ಕೆ ಒಂದು ಲಿಂಕ್ ಅನ್ನು ತೋರಿಸುತ್ತದೆ.',
-  'siteHub.unsavedConfirm':
-    'ನ್ಯಾವಿಗೇಷನ್‌ನಲ್ಲಿ ಉಳಿಸದ ಬದಲಾವಣೆಗಳಿವೆ. ಬಿಟ್ಟುಬಿಡಿ ಮತ್ತು ಅವುಗಳನ್ನು ಕಳೆದುಕೊಳ್ಳಿ?',
   'siteHub.unsaved': 'ಉಳಿಸದ ಬದಲಾವಣೆಗಳು',
   'siteHub.picked':
     '{label} ಅನ್ನು ಆರಿಸಿಕೊಳ್ಳಲಾಗಿದೆ. ಅದನ್ನು ಸರಿಸಲು ಬಾಣದ ಕೀಗಳನ್ನು ಬಳಸಿ, ಬಿಡಲು ಸ್ಪೇಸ್ ಒತ್ತಿ, ರದ್ದುಗೊಳಿಸಲು ಎಸ್ಕೇಪ್ ಒತ್ತಿ.',
@@ -381,4 +377,24 @@ export const kn: SitesMessages = {
   'itemPicker.clear': 'ಆಯ್ಕೆಗಳನ್ನು ಅಳಿಸಿ',
   'sites.createItemsNote':
     'ಹೊಸ ಸೈಟ್ ಎಲ್ಲಾ ಸಾರ್ವಜನಿಕ ಅಂಶಗಳನ್ನು ಒಳಗೊಂಡಿರುತ್ತದೆ ಮತ್ತು ಅವುಗಳೊಂದಿಗೆ ಸಮನ್ವಯವನ್ನು ಕಾಯ್ದುಕೊಳ್ಳುತ್ತದೆ.',
+  'navigation.issueNoPage': 'ಪುಟ ಅಗತ್ಯವಿದೆ',
+  'navigation.issueNoUrl': 'URL ಅಗತ್ಯವಿದೆ',
+  'navigation.issueNoLabel': 'ಲೇಬಲ್ ಅಗತ್ಯವಿದೆ',
+  'navigation.issueSamePage': 'ಪುಟ ಈಗಾಗಲೇ ಮೆನುವಿನಲ್ಲಿದೆ',
+  'navigation.errorLinkIssues':
+    'ಕೆಲವು ಲಿಂಕ್‌ಗಳು ಪೂರ್ಣಗೊಂಡಿಲ್ಲ. ಗುರುತಿಸಲಾದ ಲಿಂಕ್‌ಗಳನ್ನು ಸರಿಪಡಿಸಿ, ನಂತರ ಉಳಿಸಿ.',
+  'sites.userFallback': 'ಬಳಕೆದಾರ {id}',
+  'sites.errorRowNoUser': 'ಪ್ರತಿ ಸಾಲಿನಲ್ಲಿ ಒಬ್ಬ ಬಳಕೆದಾರನನ್ನು ಆರಿಸಿ, ಅಥವಾ ಸಾಲನ್ನು ತೆಗೆದುಹಾಕಿ.',
+  'siteHub.unsavedTabConfirm':
+    'ಈ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ಉಳಿಸದ ಬದಲಾವಣೆಗಳಿವೆ. ಬಿಟ್ಟುಬಿಡಿ ಮತ್ತು ಅವುಗಳನ್ನು ಕಳೆದುಕೊಳ್ಳಿ?',
+  'siteAccess.viewer':
+    'ನೀವು ಈ ಸೈಟ್ ಅನ್ನು ವೀಕ್ಷಿಸಬಹುದು. ಇದರ ಸೃಷ್ಟಿಕರ್ತರು ಮತ್ತು ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಇದನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.hub': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಮುಖಪುಟ ಮತ್ತು ಮೆನುವನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.notInNavigation': 'ನ್ಯಾವಿಗೇಷನ್‌ನಲ್ಲಿ ಇಲ್ಲ',
+  'siteAccess.navigation': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಮೆನುವನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.items': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಐಟಂಗಳನ್ನು ಸೇರಿಸಬಹುದು ಅಥವಾ ತೆಗೆದುಹಾಕಬಹುದು.',
+  'siteAccess.users': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಈ ಸೈಟ್‌ನಲ್ಲಿ ಕೆಲಸ ಮಾಡುವವರನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.theme': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಥೀಮ್ ಅನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.settings': 'ಕೇವಲ ಸೈಟ್ ವ್ಯವಸ್ಥಾಪಕರು ಮಾತ್ರ ಸೈಟ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಬದಲಾಯಿಸಬಹುದು.',
+  'siteAccess.delete': 'ಸೈಟ್ ಮಾಲೀಕರು ಅಥವಾ ನಿರ್ವಾಹಕರು ಮಾತ್ರ ಈ ಸೈಟ್ ಅನ್ನು ಅಳಿಸಬಹುದು.',
 };

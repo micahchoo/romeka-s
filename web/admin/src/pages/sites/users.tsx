@@ -3,9 +3,11 @@
  *
  * Upstream lists every site permission as a user and a role and saves the whole
  * list as `o:site_permission`; `SiteAdapter::hydrate` keeps the rows the body
- * names, changes their roles and removes the rest. An entry missing a user or a
- * role is skipped, so a half-filled row is dropped rather than rejected. The
- * three roles and their labels are upstream's (`site-admin/index/users.phtml`).
+ * names, changes their roles and removes the rest. Upstream skips an entry
+ * missing a user; this tab flags such a row and holds the save instead, so a
+ * row the curator sees is never dropped without a word. Each user appears in
+ * at most one row. The three roles and their labels are upstream's
+ * (`site-admin/index/users.phtml`).
  */
 import type { ReactElement } from 'react';
 import { useState } from 'react';
@@ -15,13 +17,14 @@ import type { Site, SiteId, SiteRole, User, UserId } from '../../api/types';
 import { SITE_ROLES } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus, SubmitRow } from '../../app/fields';
-import { userOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
+import { SaveBar, useUnsavedTab } from './unsaved';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
@@ -75,8 +78,11 @@ const SiteUsersEditor = ({
     loaded.site.sitePermissions.map((permission) => draft(permission.user.id, permission.role)),
   );
   const [pending, setPending] = useState('');
+  const [flagged, setFlagged] = useState(false);
   const { state: saveState, save } = useSave();
-  const options = userOptions(loaded.users);
+  const held = new Set(rows.flatMap((row) => (row.userId === null ? [] : [row.userId])));
+  const unlisted = loaded.users.filter((user) => !held.has(user.id));
+  const unsaved = useUnsavedTab(rows.map((row) => [row.userId, row.role]));
 
   const patch = (key: number, change: Partial<PermissionDraft>): void => {
     setRows((current) =>
@@ -87,12 +93,16 @@ const SiteUsersEditor = ({
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
     const permissions = rows.flatMap((row) =>
-      row.userId === null || row.role === ''
-        ? []
-        : [{ userId: row.userId, role: row.role }],
+      row.userId === null ? [] : [{ userId: row.userId, role: row.role }],
     );
+    if (permissions.length < rows.length) {
+      setFlagged(true);
+      return;
+    }
+    setFlagged(false);
     save(async () => {
       await api.patchSite(siteId, encodeSitePermissions(permissions));
+      unsaved.saved();
     });
   };
 
@@ -115,22 +125,26 @@ const SiteUsersEditor = ({
                 <select
                   id={`permission-user-${String(row.key)}`}
                   value={row.userId === null ? '' : String(row.userId)}
+                  aria-invalid={flagged && row.userId === null}
                   onChange={(event) => {
-                    const selected = options.find(
-                      (option) => String(option.id) === event.target.value,
+                    const selected = loaded.users.find(
+                      (user) => String(user.id) === event.target.value,
                     );
                     patch(row.key, { userId: selected?.id ?? null });
                   }}
                 >
                   <option value="">{t('sites.userSelect')}</option>
-                  {row.userId === null ? null : (
-                    <option value={String(row.userId)}>{String(row.userId)}</option>
+                  {row.userId === null || loaded.users.some((user) => user.id === row.userId) ? null : (
+                    // A user the list does not hold (beyond its page, or not readable) keeps its row.
+                    <option value={String(row.userId)}>{t('sites.userFallback', { id: row.userId })}</option>
                   )}
-                  {options.map((option) => (
-                    <option key={String(option.id)} value={String(option.id)}>
-                      {option.label}
-                    </option>
-                  ))}
+                  {loaded.users
+                    .filter((user) => user.id === row.userId || !held.has(user.id))
+                    .map((user) => (
+                      <option key={String(user.id)} value={String(user.id)}>
+                        {user.name}
+                      </option>
+                    ))}
                 </select>
               </td>
               <td>
@@ -176,9 +190,9 @@ const SiteUsersEditor = ({
           }}
         >
           <option value="">{t('sites.userSelect')}</option>
-          {options.map((option) => (
-            <option key={String(option.id)} value={String(option.id)}>
-              {option.label}
+          {unlisted.map((user) => (
+            <option key={String(user.id)} value={String(user.id)}>
+              {user.name}
             </option>
           ))}
         </select>
@@ -186,7 +200,7 @@ const SiteUsersEditor = ({
           type="button"
           disabled={pending === ''}
           onClick={() => {
-            const user = options.find((option) => String(option.id) === pending);
+            const user = unlisted.find((option) => String(option.id) === pending);
             if (user !== undefined) {
               setRows((current) => [...current, draft(user.id, 'viewer')]);
               setPending('');
@@ -196,8 +210,13 @@ const SiteUsersEditor = ({
           {t('sites.addUser')}
         </button>
       </p>
+      {flagged && rows.some((row) => row.userId === null) ? (
+        <p role="alert">{t('sites.errorRowNoUser')}</p>
+      ) : null}
       <SaveStatus state={saveState} />
-      <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+      <SaveBar dirty={unsaved.dirty}>
+        <SubmitRow label={t('action.save')} busy={saveState.status === 'saving'} />
+      </SaveBar>
     </form>
   );
 };
@@ -206,7 +225,11 @@ const SiteUsersEditor = ({
 export const SiteUsersPage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
-  if (state.status === 'loading') {
+  const access = useSiteAccess();
+  if (access?.has('changeSite') === false) {
+    return <AccessNote>{t('siteAccess.users')}</AccessNote>;
+  }
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {

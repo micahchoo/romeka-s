@@ -143,4 +143,7 @@ export const hi: ThemeMessages = {
   'themeChoice.transitionalSerif': 'ट्रांज़िशनल सेरिफ',
   'themeChoice.didone': 'हाई-कॉन्ट्रास्ट सेरिफ',
   'themeChoice.mono': 'मोनोस्पेस',
+  'theme.shadeValue': '{label} ({shade})',
+  'theme.shadesHelp':
+    'स्वचालित योजना पाठक की प्रणाली का अनुसरण करती है, इसलिए प्रत्येक रंग का एक हल्का मान और एक गहरा मान होता है।',
 };

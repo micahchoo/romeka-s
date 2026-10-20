@@ -96,6 +96,22 @@ describe('site browse and create', () => {
     );
   });
 
+  it('sites_browse_names_the_bundled_theme_as_the_hub_does', async () => {
+    installFetch((url) =>
+      url.pathname === '/api/sites'
+        ? jsonResponse(loadFixture('sites-page.json'))
+        : notFound(),
+    );
+    render(<SitesPage />);
+
+    const row = (await screen.findByRole('link', { name: 'My Site' })).closest('tr');
+    if (row === null) {
+      throw new Error('the site link sits in a row');
+    }
+    expect(within(row).getByRole('cell', { name: 'Default' })).toBeInTheDocument();
+    expect(within(row).queryByRole('cell', { name: 'default' })).toBeNull();
+  });
+
   it('site_create_derives_the_slug_from_the_title_and_posts_the_new_site_without_navigation', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/sites' && init?.method === 'POST') {

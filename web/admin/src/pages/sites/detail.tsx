@@ -19,7 +19,8 @@ import { TableScroll } from '../../app/table-scroll';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { firstLinkedPage, linkedPages, pageLinkJson } from './navigationTree';
-import { publicUrl, siteHref } from './SiteFrame';
+import { AccessNote, publicUrl, siteHref, themeLabel, useSiteAccess } from './SiteFrame';
+import type { SiteCapability } from './siteAccess';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 
@@ -62,6 +63,7 @@ const PageRow = ({
   isExplicitHomepage,
   inNavigation,
   busy,
+  access,
   onSetHomepage,
   onClearHomepage,
   onAddToNavigation,
@@ -73,6 +75,7 @@ const PageRow = ({
   readonly isExplicitHomepage: boolean;
   readonly inNavigation: boolean;
   readonly busy: boolean;
+  readonly access: ReadonlySet<SiteCapability>;
   readonly onSetHomepage: () => void;
   readonly onClearHomepage: () => void;
   readonly onAddToNavigation: () => void;
@@ -80,10 +83,12 @@ const PageRow = ({
   const { t } = useTranslator(common, sites);
   const editHref = `#/sites/${String(site.id)}/pages/${String(page.id)}`;
   const title = page.title ?? t('common.pageFallback', { id: page.id });
+  const canEdit = access.has('editPages');
+  const canChange = access.has('changeSite');
   return (
     <tr>
       <th scope="row">
-        <a href={editHref}>{title}</a>
+        {canEdit ? <a href={editHref}>{title}</a> : title}
         {isHomepage ? <span className="badge badge-accent">{t('siteHub.homepage')}</span> : null}
       </th>
       <td>
@@ -101,26 +106,28 @@ const PageRow = ({
       <td>
         {inNavigation ? (
           t('siteHub.inNavigation')
-        ) : (
+        ) : canChange ? (
           <button type="button" className="link-button" disabled={busy} onClick={onAddToNavigation}>
             {t('siteHub.addToNavigation')}
           </button>
+        ) : (
+          t('siteAccess.notInNavigation')
         )}
       </td>
       <td>
         <span className="row-actions">
-          <a href={editHref}>{t('siteHub.edit')}</a>
+          {canEdit ? <a href={editHref}>{t('siteHub.edit')}</a> : null}
           {page.slug === null ? null : (
             <a href={publicUrl(site.slug, page.slug)} target="_blank" rel="noreferrer">
               {t('siteHub.view')}
             </a>
           )}
-          {isHomepage ? null : (
+          {isHomepage || !canChange ? null : (
             <button type="button" className="link-button" disabled={busy} onClick={onSetHomepage}>
               {t('siteHub.setHomepage')}
             </button>
           )}
-          {isExplicitHomepage ? (
+          {isExplicitHomepage && canChange ? (
             <button type="button" className="link-button" disabled={busy} onClick={onClearHomepage}>
               {t('siteHub.clearHomepage')}
             </button>
@@ -131,7 +138,13 @@ const PageRow = ({
   );
 };
 
-const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
+const PagesSection = ({
+  loaded,
+  access,
+}: {
+  readonly loaded: Loaded;
+  readonly access: ReadonlySet<SiteCapability>;
+}): ReactElement => {
   const { t } = useTranslator(common, sites);
   const [site, setSite] = useState(loaded.site);
   const { state: saveState, save } = useSave();
@@ -149,10 +162,17 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
     <section className="hub-section" aria-labelledby="hub-pages">
       <div className="hub-section-head">
         <h3 id="hub-pages">{t('sites.pages')}</h3>
-        <a className="button-link" href={`#/sites/${String(site.id)}/pages/new`}>
-          {t('sites.addPage')}
-        </a>
+        {access.has('editPages') ? (
+          <a className="button-link" href={`#/sites/${String(site.id)}/pages/new`}>
+            {t('sites.addPage')}
+          </a>
+        ) : null}
       </div>
+      {!access.has('editPages') ? (
+        <AccessNote>{t('siteAccess.viewer')}</AccessNote>
+      ) : !access.has('changeSite') ? (
+        <AccessNote>{t('siteAccess.hub')}</AccessNote>
+      ) : null}
       {loaded.pages.length === 0 ? (
         <p>{t('sites.noPages')}</p>
       ) : (
@@ -177,6 +197,7 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
                   isExplicitHomepage={site.homepage?.id === page.id}
                   inNavigation={inNavigation.has(page.id)}
                   busy={busy}
+                  access={access}
                   onSetHomepage={() => {
                     patch(encodeSiteHomepage(page.id));
                   }}
@@ -197,13 +218,21 @@ const PagesSection = ({ loaded }: { readonly loaded: Loaded }): ReactElement => 
   );
 };
 
-const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
+const AboutSection = ({
+  site,
+  access,
+}: {
+  readonly site: Site;
+  readonly access: ReadonlySet<SiteCapability>;
+}): ReactElement => {
   const { t } = useTranslator(common, sites);
   return (
     <section className="hub-section" aria-labelledby="hub-about">
       <div className="hub-section-head">
         <h3 id="hub-about">{t('siteHub.about')}</h3>
-        <a href={siteHref(site.id, 'settings')}>{t('siteHub.editSettings')}</a>
+        {access.has('changeSite') ? (
+          <a href={siteHref(site.id, 'settings')}>{t('siteHub.editSettings')}</a>
+        ) : null}
       </div>
       <dl>
         <dt>{t('siteHub.address')}</dt>
@@ -215,7 +244,7 @@ const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
         <dt>{t('siteHub.visibility')}</dt>
         <dd>{site.isPublic ? t('common.public') : t('common.private')}</dd>
         <dt>{t('sites.theme')}</dt>
-        <dd>{site.theme === 'default' ? t('sites.defaultThemeLabel') : site.theme}</dd>
+        <dd>{themeLabel(site.theme, t)}</dd>
         {site.summary === null ? null : (
           <>
             <dt>{t('sites.summary')}</dt>
@@ -230,7 +259,8 @@ const AboutSection = ({ site }: { readonly site: Site }): ReactElement => {
 export const SiteDetail = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => load(siteId), [siteId]);
-  if (state.status === 'loading') {
+  const access = useSiteAccess();
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {
@@ -238,8 +268,8 @@ export const SiteDetail = ({ siteId }: { readonly siteId: SiteId }): ReactElemen
   }
   return (
     <div className="site-hub">
-      <PagesSection loaded={state.data} />
-      <AboutSection site={state.data.site} />
+      <PagesSection loaded={state.data} access={access} />
+      <AboutSection site={state.data.site} access={access} />
     </div>
   );
 };
