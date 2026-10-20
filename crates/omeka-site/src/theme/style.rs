@@ -209,7 +209,10 @@ mod tests {
                     "overlay": "medium",
                     "alignment": "center",
                     "cta_label": "Browse",
-                    "cta_page": 3
+                    "cta_page": 3,
+                    "cta2_label": "About",
+                    "cta2_url": "/s/main/page/about",
+                    "height": "tall"
                 },
                 "plain_hash": crate::blocks::romeka::plain_hash(plain)
             }}),
@@ -676,6 +679,9 @@ mod tests {
             "list-of-pages-link",
             "romeka-hero",
             "romeka-hero-cta",
+            "romeka-hero-cta-outline",
+            "romeka-hero-actions",
+            "romeka-hero-height-tall",
             "romeka-map",
             "romeka-map-canvas",
             "romeka-map-poster",

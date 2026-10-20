@@ -97,6 +97,13 @@ pub trait BlockLayout: Sync {
     fn schema(&self) -> &'static schema::LayoutSchema {
         &schema::EMPTY
     }
+
+    /// The media ids the block renders from its Romeka settings
+    /// (`o:layout_data.romeka.settings`), the only place a media reference of
+    /// an upstream block may live.
+    fn media_refs(&self, _settings: &serde_json::Value) -> Vec<omeka_core::ids::MediaId> {
+        Vec::new()
+    }
 }
 
 /// The registry, in the order `module.config.php` lists (`invokables` then

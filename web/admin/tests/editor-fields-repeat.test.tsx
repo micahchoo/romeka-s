@@ -94,7 +94,7 @@ describe('the repeat field control', () => {
 });
 
 describe('the page list field control', () => {
-  it('moves a subpage among its siblings and leaves the level above alone', () => {
+  it('moves a subpage among its siblings and leaves the level above alone', async () => {
     const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
     const stored = JSON.stringify([
       { text: 'Welcome', data: { id: 1 }, children: [child('Alpha', 2), child('Beta', 3)] },
@@ -102,7 +102,7 @@ describe('the page list field control', () => {
     ]);
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
 
-    expect(screen.getByRole('button', { name: 'Move Beta, 2 of 2' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Move Beta, 2 of 2' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Move Beta up' }));
 
     expect(action(dispatch)).toEqual({
@@ -116,12 +116,12 @@ describe('the page list field control', () => {
     });
   });
 
-  it('moves a top-level page picked up by its handle', () => {
+  it('moves a top-level page picked up by its handle', async () => {
     const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
     const stored = JSON.stringify([child('Welcome', 1), child('Last', 4)]);
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
 
-    const handle = screen.getByRole('button', { name: 'Move Last, 2 of 2' });
+    const handle = await screen.findByRole('button', { name: 'Move Last, 2 of 2' });
     fireEvent.click(handle);
     fireEvent.keyDown(handle, { key: 'ArrowUp' });
 
@@ -133,10 +133,10 @@ describe('the page list field control', () => {
     });
   });
 
-  it('adds an empty page node as the stored JSON string', () => {
+  it('adds an empty page node as the stored JSON string', async () => {
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: '' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add page' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add page' }));
 
     expect(action(dispatch)).toEqual({
       type: 'setField',
@@ -151,7 +151,7 @@ describe('the page list field control', () => {
     const stored = JSON.stringify([{ text: 'Welcome', data: { id: 1 }, children: [] }]);
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
 
-    const select = screen.getByLabelText('Page');
+    const select = await screen.findByLabelText('Page');
     await waitFor(() => {
       expect(select).toHaveTextContent('Draft');
     });

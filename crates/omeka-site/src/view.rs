@@ -316,6 +316,13 @@ pub trait ResourceProvider {
     /// Read one asset by id, `None` when it does not exist.
     fn read_asset(&self, id: AssetId) -> Option<AssetView>;
 
+    /// The image a Romeka setting shows for one media: its large rendition, or
+    /// its original when it has no renditions, with its alt text. `None` when
+    /// the media does not exist, has no image, or the visitor may not see it.
+    fn read_image(&self, _id: MediaId) -> Option<Thumbnail> {
+        None
+    }
+
     /// The `site_block_attachment` rows of a block, ordered by `position`.
     ///
     /// The item-with-metadata, media and asset blocks read their content here;
@@ -482,6 +489,15 @@ pub enum BlockMarkers {
     Preview,
 }
 
+/// A part of the site frame every page shares, which the admin preview marks
+/// so the editor can select it: `data-romeka-region="header"` on the banner
+/// and the header, `data-romeka-region="footer"` on the footer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SiteRegion {
+    Header,
+    Footer,
+}
+
 /// The signed-in caller of a public render: who the user bar names, and the
 /// roles that decide which edit links it offers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -581,6 +597,17 @@ impl<'a> RenderContext<'a> {
     #[must_use]
     pub(crate) fn is_preview(&self) -> bool {
         self.block_markers == BlockMarkers::Preview
+    }
+
+    /// ` data-romeka-region="…"` for one site region, or nothing when markers
+    /// are off.
+    #[must_use]
+    pub(crate) fn region_marker(&self, region: SiteRegion) -> &'static str {
+        match (self.block_markers, region) {
+            (BlockMarkers::Off, _) => "",
+            (BlockMarkers::Preview, SiteRegion::Header) => " data-romeka-region=\"header\"",
+            (BlockMarkers::Preview, SiteRegion::Footer) => " data-romeka-region=\"footer\"",
+        }
     }
 
     /// The marker value for one block, `None` when markers are off.

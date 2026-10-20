@@ -2706,7 +2706,6 @@ header {
 .romeka-hero {
   position: relative;
   display: flex;
-  min-height: calc(var(--space-5) * 7);
   overflow: hidden;
   background: var(--color-surface);
   border-radius: var(--radius);
@@ -2773,6 +2772,25 @@ header {
   object-fit: cover;
 }
 
+.romeka-hero-height-short {
+  min-height: calc(var(--space-5) * 4);
+}
+
+.romeka-hero-height-medium {
+  min-height: calc(var(--space-5) * 7);
+}
+
+.romeka-hero-height-tall {
+  min-height: calc(var(--space-5) * 11);
+}
+
+.romeka-hero-height-full {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* A curator's overlay colour is an inline background on this element
+   (`blocks/hero`); without one the scrim is black. */
 .romeka-hero-overlay {
   position: absolute;
   inset: 0;
@@ -2861,6 +2879,27 @@ header {
   color: var(--color-text);
 }
 
+.romeka-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The second button is an outline in the text's own colour, so it reads as
+   the lesser choice on a photograph and on the brand colour alike. The extra
+   class outranks the no-image rule above. */
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px currentColor;
+  color: inherit;
+}
+
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline:hover,
+.romeka-hero .romeka-hero-cta.romeka-hero-cta-outline:focus {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
 /* The hero style token, for a hero with a photograph. `hero-cover` runs the
    photograph across the screen with the text on a scrim at its foot;
    `hero-split` sets the text in a panel beside it; `hero-framed` shows the
@@ -2877,6 +2916,11 @@ body {
 
 .hero-cover .romeka-hero:has(.romeka-hero-background) {
   align-items: flex-end;
+}
+
+/* The cover style's own height stands in for the default (medium) height; a
+   curator's other height choice keeps its own rule above. */
+.hero-cover .romeka-hero-height-medium:has(.romeka-hero-background) {
   min-height: min(72vh, 44rem);
 }
 

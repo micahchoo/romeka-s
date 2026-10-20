@@ -24,6 +24,7 @@ import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
 import { counted } from '../messages';
 import { romkaState } from '../romekaHash';
+import { selectedKey } from '../shell/selection';
 import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel, sectionLabel } from './summary';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
@@ -107,10 +108,10 @@ export const PageCanvas = ({
   dispatch,
 }: PageCanvasProps): ReactElement => {
   const { t } = useTranslator(sites, editor);
-  const selectedKey = selection?.key ?? null;
+  const selected = selectedKey(selection);
   const list = useRef<HTMLUListElement | null>(null);
   useEffect(() => {
-    if (selection === null || selection.from === 'outline') {
+    if (selection?.kind !== 'block' || selection.from === 'outline') {
       return;
     }
     for (const card of list.current?.querySelectorAll('[data-key]') ?? []) {
@@ -202,7 +203,7 @@ export const PageCanvas = ({
         image={imageUrl(block)}
         issues={issuesByBlock.get(block.key) ?? []}
         mismatch={romkaState(draft.registry, block) === 'edited'}
-        selected={selectedKey === block.key}
+        selected={selected === block.key}
         picked={pickedKey === block.key}
         grid={grid}
         columns={columns}

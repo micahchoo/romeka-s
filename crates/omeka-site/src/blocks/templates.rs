@@ -624,7 +624,10 @@ mod tests {
             FieldKind::Integer { .. } => value.is_number() || numeric_string(value),
             FieldKind::Boolean => value.is_boolean(),
             FieldKind::Choice { .. } => value.is_string(),
-            FieldKind::PageRef | FieldKind::AssetRef => value.is_number() || numeric_string(value),
+            FieldKind::PageRef
+            | FieldKind::AssetRef
+            | FieldKind::MediaRef
+            | FieldKind::FocalPoint { .. } => value.is_number() || numeric_string(value),
             FieldKind::ItemQuery { .. } => value.is_string() || value.is_object(),
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()

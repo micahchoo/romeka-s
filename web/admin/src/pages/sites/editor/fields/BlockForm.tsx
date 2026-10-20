@@ -46,16 +46,18 @@ export const BlockForm = ({
   const data = dataObject(block);
   const layoutData = layoutDataObject(block);
   const mine = issues.filter((issue) => issue.blockKey === block.key);
+  // A `when` test may name a Romeka setting (the IIIF image's source), so the
+  // record the controls read holds those beside `o:data`.
+  const record = {
+    ...data,
+    ...Object.fromEntries(
+      schema.fields.flatMap((field) => {
+        const stored = settingPath(field.key) === null ? undefined : readPath(layoutData, field.key);
+        return stored === undefined ? [] : [[field.key, stored] as const];
+      }),
+    ),
+  };
   const idPrefix = `block-${block.key}`;
-  // A `when` test may name a Romeka setting, so the record the controls test
-  // holds those beside the `o:data` members.
-  const record: Record<string, JsonValue> = { ...data };
-  for (const field of schema.fields) {
-    const value = settingPath(field.key) === null ? undefined : readPath(layoutData, field.key);
-    if (value !== undefined) {
-      record[field.key] = value;
-    }
-  }
   const valueOf = (field: BlockField): JsonValue | undefined => {
     if (settingPath(field.key) !== null) {
       return readPath(layoutData, field.key);

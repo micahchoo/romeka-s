@@ -23,7 +23,7 @@ import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
 import { Checked, Help, Labelled, helpId } from '../Labelled';
 import { AssetPicker } from './AssetPicker';
-import { WithHelp, asText } from './controlBase';
+import { WithHelp, asList, asText } from './controlBase';
 import type { ControlProps, FieldOf } from './controlBase';
 import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
@@ -32,18 +32,15 @@ import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
 import { ManifestSourceField } from './ManifestSourceField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
-import { PageListField } from './PageListField';
-import { PropertyListField } from './PropertyListField';
+import { FocalPointControl, MediaRefControl } from './mediaControls';
+import { LazyPageListField } from './LazyPageListField';
+import { PropertyListControl } from './propertyListControl';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
 import { SidesField } from './SidesField';
 import { isShown } from './visibility';
 import { editor } from '../../../../i18n/namespaces/editor';
-
-/** The values of a multiple choice, keeping only the strings a select can hold. */
-const asList = (value: JsonValue | undefined): readonly string[] =>
-  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
 const TextControl = ({
   field,
@@ -342,7 +339,7 @@ const PageListControl = ({
   const e = useEditorText();
   return (
     <WithHelp id={id} help={e(field.help)}>
-      <PageListField
+      <LazyPageListField
         id={id}
         label={e(field.label)}
         value={asText(value)}
@@ -514,24 +511,6 @@ const ManifestSourceControl = ({
   );
 };
 
-const PropertyListControl = ({
-  field,
-  id,
-  value,
-  onChange,
-}: ControlProps & { readonly field: FieldOf<'propertyList'> }): ReactElement => {
-  const e = useEditorText();
-  return (
-    <PropertyListField
-      id={id}
-      label={e(field.label)}
-      help={e(field.help)}
-      value={asList(value)}
-      onChange={onChange}
-    />
-  );
-};
-
 export interface FieldControlProps {
   readonly field: BlockField;
   readonly value: JsonValue | undefined;
@@ -586,6 +565,10 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <AnchorControl {...common} field={common.field} />;
     case 'manifestSource':
       return <ManifestSourceControl {...common} field={common.field} />;
+    case 'mediaRef':
+      return <MediaRefControl {...common} field={common.field} />;
+    case 'focalPoint':
+      return <FocalPointControl {...common} field={common.field} />;
     case 'itemList':
       return <ItemListControl {...common} field={common.field} />;
     case 'mapView':

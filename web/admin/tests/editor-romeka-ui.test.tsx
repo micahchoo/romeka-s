@@ -20,7 +20,7 @@ const Harness = ({ initial }: { readonly initial: PageDraft }): ReactElement => 
     <PageCanvas
       draft={draft}
       siteSettings={null}
-      selection={selected === null ? null : { key: selected, from: 'outline' }}
+      selection={selected === null ? null : { kind: 'block', key: selected, from: 'outline' }}
       onSelect={setSelected}
       dispatch={dispatch}
     />

@@ -170,7 +170,7 @@ describe('the list of pages', () => {
 describe('the item with metadata fields', () => {
   it('adds, orders and removes the properties it prints', async () => {
     const block = renderBlock('itemWithMetadata', {});
-    const fields = screen.getByRole('group', { name: 'Fields to show' });
+    const fields = await screen.findByRole('group', { name: 'Fields to show' });
     expect(within(fields).getByText('No fields chosen.')).toBeInTheDocument();
     const add = within(fields).getByLabelText('Add a field');
     await within(fields).findByRole('option', { name: 'Title (dcterms:title)' });
