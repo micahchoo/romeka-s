@@ -76,7 +76,7 @@ impl RunOptions {
             None => defaults.base_url,
         };
         Ok(JobEnv {
-            store: crate::commands::media::open_store(&self.database, self.store.as_deref()),
+            store: crate::commands::media::open_store(&self.database, self.store.as_deref())?,
             base_url,
             archive_root: self.archive_root.clone(),
         })

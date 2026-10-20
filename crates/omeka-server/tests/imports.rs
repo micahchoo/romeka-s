@@ -77,7 +77,7 @@ async fn fixture_with(archive: bool, jobs: Recorder) -> Fixture {
     };
     let jobs = Arc::new(jobs);
     let services =
-        Services::new(omeka_server::file_store(dir.path().join("files"))).with_jobs(jobs.clone());
+        Services::new(omeka_server::local_store(dir.path().join("files"))).with_jobs(jobs.clone());
     Fixture {
         app: omeka_server::build_router_with_services(pool.clone(), &config, services),
         pool,

@@ -183,7 +183,7 @@ async fn app(dir: &Path) -> (Router, SqlitePool) {
         archive_root: Some(dir.join("archive")),
         ..Config::default()
     };
-    let services = Services::new(omeka_server::file_store(dir.join("files")));
+    let services = Services::new(omeka_server::local_store(dir.join("files")));
     (
         omeka_server::build_router_with_services(pool.clone(), &config, services),
         pool,

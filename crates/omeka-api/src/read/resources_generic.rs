@@ -56,6 +56,14 @@ enum KindRow {
 }
 
 impl KindRow {
+    /// The item that owns a media row.
+    fn media_item(&self) -> Option<u64> {
+        match self {
+            Self::Media(row) => Some(row.item_id.0),
+            _ => None,
+        }
+    }
+
     /// The shared `resource` row.
     fn resource(&self) -> &ResourceRow {
         match self {
@@ -115,7 +123,10 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         &limit,
         |a, b| a.id().cmp(&b.id()),
     );
-    let relations = Relations::load_many(api, page.iter().map(KindRow::resource)).await?;
+    let mut relations = Relations::load_many(api, page.iter().map(KindRow::resource)).await?;
+    relations
+        .load_owners(api, page.iter().filter_map(KindRow::media_item))
+        .await?;
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(render(api, row, &relations)?);
@@ -149,7 +160,8 @@ pub async fn read_resource(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, A
     }
     let kind = typed_row(api, row).await?;
     api.allow(kind.kind_resource_name(), Operation::Read)?;
-    let relations = Relations::load_many(api, std::iter::once(kind.resource())).await?;
+    let mut relations = Relations::load_many(api, std::iter::once(kind.resource())).await?;
+    relations.load_owners(api, kind.media_item()).await?;
     Ok(ApiResponse::document(serialize(&render(
         api, &kind, &relations,
     )?)?))

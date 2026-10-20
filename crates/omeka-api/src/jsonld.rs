@@ -96,13 +96,6 @@ impl BaseUrl {
         format!("{}/{API_PATH}/{resource}", self.0)
     }
 
-    /// A stored-file URL. `File\Store\Local::getUri` joins the store's
-    /// `base_uri` (the origin plus `/files`) with the storage path:
-    /// `{prefix}/{name}.{extension}`.
-    pub fn file_url(&self, storage_path: &str) -> String {
-        format!("{}/files/{storage_path}", self.0)
-    }
-
     /// The fallback thumbnail asset for a media type, as the `assetUrl` view
     /// helper resolves `thumbnails.fallbacks` from
     /// `application/config/module.config.php:241-248`. Upstream matches the

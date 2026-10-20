@@ -65,7 +65,7 @@ pub struct SweepReport {
 /// cannot be listed. A file that cannot be removed is in the report.
 pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
     let pool = open_file(&options.database).await?;
-    let store = crate::commands::media::open_store(&options.database, options.store.as_deref());
+    let store = crate::commands::media::open_store(&options.database, options.store.as_deref())?;
 
     let mut named = BTreeSet::new();
     for (storage_id, extension) in MediaRepo::new(&pool).stored_names().await? {

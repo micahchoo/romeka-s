@@ -37,7 +37,7 @@ use std::sync::Arc;
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
 use omeka_db::ids::{SiteId, UserId};
-use omeka_media::store::Store;
+use omeka_media::store::{FileUrls, Store};
 use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
 use sqlx::SqlitePool;
 
@@ -70,6 +70,7 @@ pub struct Api<'a> {
     actor: Actor,
     catalog: Catalog,
     store: Option<Arc<dyn Store>>,
+    files: FileUrls,
     plugins: Arc<Registry>,
 }
 
@@ -108,12 +109,17 @@ impl<'a> Api<'a> {
         store: Option<Arc<dyn Store>>,
         plugins: Arc<Registry>,
     ) -> Result<Self, ApiError> {
+        let files = match &store {
+            Some(store) => FileUrls::new(store.clone(), base.as_str()),
+            None => FileUrls::local(base.as_str()),
+        };
         Ok(Self {
             pool,
             base,
             actor,
             catalog: Catalog::load_for_read(pool).await?,
             store,
+            files,
             plugins,
         })
     }
@@ -246,6 +252,12 @@ impl<'a> Api<'a> {
 
     pub fn actor(&self) -> &Actor {
         &self.actor
+    }
+
+    /// The URLs of stored files: the store's, or the local `/files` ones when
+    /// the read has no store.
+    pub(crate) fn files(&self) -> &FileUrls {
+        &self.files
     }
 
     /// The file store a media delete reaches, `None` when the process has none.

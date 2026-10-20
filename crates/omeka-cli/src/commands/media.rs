@@ -182,7 +182,7 @@ pub async fn run(options: &MediaOptions) -> Result<MediaReport, CliError> {
     let items = ItemIndex::build(&pool, options.item_set.map(ItemSetId::from), property).await?;
     let mut existing = imported_media(&pool).await?;
 
-    let store = open_store(&options.database, options.store.as_deref());
+    let store = open_store(&options.database, options.store.as_deref())?;
     let renderer = omeka_media::IngesterRegistry::with_defaults()
         .get(INGESTER)
         .renderer();
@@ -313,9 +313,14 @@ fn extension_of(name: &str) -> Option<String> {
         .filter(|extension| !extension.is_empty())
 }
 
-/// The store a command reads and writes, rooted at [`store_root`].
-pub(crate) fn open_store(database: &Path, store: Option<&Path>) -> Arc<dyn Store> {
+/// The store a command reads and writes: `ROMEKA_STORE_BACKEND`'s choice, with the
+/// local folder at [`store_root`].
+pub(crate) fn open_store(
+    database: &Path,
+    store: Option<&Path>,
+) -> Result<Arc<dyn Store>, CliError> {
     omeka_server::file_store(store_root(database, store))
+        .map_err(|error| CliError::message(error.to_string()))
 }
 
 /// The store root: the explicit `--store`, else `files` beside the database.

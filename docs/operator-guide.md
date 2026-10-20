@@ -50,6 +50,13 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS` | none, none, `starttls` | relay credentials and transport security |
 | `ROMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | the envelope sender |
 | `ROMEKA_ARCHIVE_ROOT` | none | the server folder the archive import reads (config file key `archive_root`). Unset or empty, the Import page is off |
+| `ROMEKA_STORE_BACKEND` | `local` | `local` keeps files under `--store`; `s3` keeps them in the bucket below. Environment only, no config file key |
+| `ROMEKA_S3_ENDPOINT` | none | the S3 service, such as `https://s3.eu-west-1.amazonaws.com` or `http://minio:9000`. Buckets are addressed path style. Required for `s3` |
+| `ROMEKA_S3_BUCKET` | none | the bucket. Required for `s3` |
+| `ROMEKA_S3_REGION` | `us-east-1` | the region the signatures name. MinIO accepts the default |
+| `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY` | none | the key pair. Required for `s3`. The secret is never logged or printed |
+| `ROMEKA_S3_PUBLIC_BASE` | none | where plain file URLs point instead of the bucket, such as a CDN in front of it |
+| `ROMEKA_S3_URL_TTL_SECS` | `900` | how long a signed file URL stays valid, 1 to 604800 seconds |
 
 Two traps. `--base-url` is not cosmetic: every resource link, every `@id` and the `Link` pagination
 header are built from it, and the write path checks that a state-changing request carrying the
@@ -85,6 +92,44 @@ square/<storage_id>.jpg
   import the same `--store`, or media rows will exist while their files 404
   ([`../crates/omeka-cli/src/commands/serve.rs`](../crates/omeka-cli/src/commands/serve.rs),
   [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
+
+## Object storage
+
+With `ROMEKA_STORE_BACKEND=s3` every byte the local tree would hold goes to the bucket instead, under
+the same keys (`original/<storage_id>.<extension>`, `large/...`, `medium/...`, `square/...`,
+`asset/...`). `romeka serve`, the `romeka job run` children it starts and the file commands
+(`media`, `thumbnails`, `sweep`) read the same variables, so they all reach the same bucket. A wrong
+value stops the process at startup and names the variable. A wrong key or a missing bucket shows on
+the first read or write as an `object store error` that names the S3 action and its status
+([`../crates/omeka-server/src/config_store.rs`](../crates/omeka-server/src/config_store.rs),
+[`../crates/omeka-media/src/store/s3.rs`](../crates/omeka-media/src/store/s3.rs)).
+
+The API and the public site name each file with the URL its visibility allows
+([`../crates/omeka-media/src/store/urls.rs`](../crates/omeka-media/src/store/urls.rs)):
+
+| File | URL |
+| --- | --- |
+| an original, of any resource | signed, valid for `ROMEKA_S3_URL_TTL_SECS` |
+| a thumbnail of a media whose media and item are public | plain: `ROMEKA_S3_PUBLIC_BASE/<key>`, or the object in the bucket |
+| a thumbnail of a private media, or of a media of a private item | signed |
+| an asset (a site logo, a resource thumbnail) | plain |
+
+A signed URL is produced only in a document or page the caller may see, so only that caller gets it.
+It names the endpoint, so the browser must reach the endpoint. A plain URL answers only if anyone may
+read its key, so give the bucket a policy that allows anonymous `s3:GetObject` on `large/*`,
+`medium/*`, `square/*` and `asset/*`, and nothing on `original/*`; or put a CDN with its own read
+access in front of those prefixes and name it in `ROMEKA_S3_PUBLIC_BASE`. The thumbnail of a private
+resource lives under the same public prefixes, so its plain key is as private as its storage id, 40
+random hex characters; the API and the site never render it plain. Add a lifecycle rule that aborts
+incomplete multipart uploads after a day: a stream longer than 5 MiB goes up in parts, and a failed
+upload that also fails to abort leaves its parts.
+
+The key pair needs `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket` and
+`s3:AbortMultipartUpload` on the bucket. Without `s3:ListBucket`, S3 answers 403 instead of 404 for a
+missing object, and every existence check fails.
+
+Backups (`romeka backup`, `deploy/backup.sh`) copy the local store only. With `s3`, back the bucket
+up with the service's own tools (versioning, replication, `mc mirror`).
 
 ## Jobs and the archive import
 

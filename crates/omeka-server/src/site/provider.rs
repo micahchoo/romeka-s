@@ -39,6 +39,7 @@ use omeka_site::view::{
 
 use omeka_api::write::block_carrier::media_image_path;
 use omeka_api::write::site_pages::ResolvedAttachment;
+use omeka_media::store::FileKind;
 
 use super::load::{Loader, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
@@ -351,7 +352,7 @@ async fn load_asset(
         .get(db::AssetId::from(id.get()))
         .await?;
     if let Some(row) = row {
-        let thumbnail = thumbnail_for_asset(loader.base(), &row);
+        let thumbnail = thumbnail_for_asset(loader.files(), &row);
         loaded.assets.push((
             id,
             AssetView {
@@ -384,15 +385,23 @@ async fn load_image(
     else {
         return Ok(());
     };
-    let item_seen = ItemRepo::new(loader.pool())
-        .get(media.item_id)
-        .await?
+    let item = ItemRepo::new(loader.pool()).get(media.item_id).await?;
+    let item_seen = item
+        .as_ref()
         .is_some_and(|item| access.sees_resource(item.resource.is_public, item.resource.owner_id));
     if let Some(path) = media_image_path(&media).filter(|_| item_seen) {
+        let kind = if path.starts_with("original/") {
+            FileKind::Original
+        } else {
+            FileKind::Thumbnail {
+                public: media.resource.is_public
+                    && item.is_some_and(|item| item.resource.is_public),
+            }
+        };
         loaded.images.push((
             id,
             Thumbnail::new(
-                loader.base().file_url(&path),
+                loader.files().url(&path, kind),
                 media.alt_text.clone().unwrap_or_default(),
             ),
         ));
@@ -453,7 +462,10 @@ async fn load_attachments(
                 .as_ref()
                 .map(|view| view.url.clone())
                 .unwrap_or_default();
-            let media_ref = loader.media_ref(media_row, &item_url, options).await?;
+            let item_is_public = loader.item_is_public(media_row.item_id).await?;
+            let media_ref = loader
+                .media_ref(media_row, &item_url, item_is_public, options)
+                .await?;
             let id = media_row.id();
             if !loaded
                 .media

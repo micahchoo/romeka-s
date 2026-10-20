@@ -50,6 +50,7 @@ use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
 use omeka_media::render::{
     MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
 };
+use omeka_media::store::{FileKind, FileUrls};
 
 use super::SiteError;
 
@@ -174,6 +175,7 @@ const ASSET_BASE: &str = "/assets";
 pub(crate) struct Loader<'a> {
     pool: &'a SqlitePool,
     base: &'a BaseUrl,
+    files: &'a FileUrls,
     catalog: &'a Catalog,
     site: &'a Site,
     access: &'a Access<'a>,
@@ -230,6 +232,7 @@ impl<'a> Loader<'a> {
     pub(crate) fn new(
         pool: &'a SqlitePool,
         base: &'a BaseUrl,
+        files: &'a FileUrls,
         catalog: &'a Catalog,
         site: &'a Site,
         access: &'a Access<'a>,
@@ -238,6 +241,7 @@ impl<'a> Loader<'a> {
         Self {
             pool,
             base,
+            files,
             catalog,
             site,
             access,
@@ -259,9 +263,18 @@ impl<'a> Loader<'a> {
         self.catalog
     }
 
-    /// The request base URL, for building a stored file's URL.
-    pub(crate) fn base(&self) -> &'a BaseUrl {
-        self.base
+    /// The stored files' URLs.
+    pub(crate) fn files(&self) -> &'a FileUrls {
+        self.files
+    }
+
+    /// Whether an item is public, for the file URLs of a media shown without
+    /// its item. A missing item counts as private.
+    pub(crate) async fn item_is_public(&self, item: db::ItemId) -> Result<bool, DbError> {
+        Ok(ItemRepo::new(self.pool)
+            .get(item)
+            .await?
+            .is_some_and(|row| row.resource.is_public))
     }
 
     fn db_site_id(&self) -> db::SiteId {
@@ -366,7 +379,7 @@ impl<'a> Loader<'a> {
                 Some(CardImage::Asset(asset)) => AssetRepo::new(self.pool)
                     .get(db::AssetId::from(asset.get()))
                     .await?
-                    .map(|row| thumbnail_for_asset(self.base, &row)),
+                    .map(|row| thumbnail_for_asset(self.files, &row)),
                 Some(CardImage::MediaBlock(block)) => {
                     self.first_block_media_thumbnail(block).await?
                 }
@@ -402,7 +415,8 @@ impl<'a> Loader<'a> {
                     .access
                     .sees_resource(row.resource.is_public, row.resource.owner_id)
             {
-                return Ok(media_thumbnail(self.base, &row, ""));
+                let item_is_public = self.item_is_public(row.item_id).await?;
+                return Ok(media_thumbnail(self.files, &row, item_is_public, ""));
             }
         }
         Ok(None)
@@ -512,11 +526,15 @@ impl<'a> Loader<'a> {
         if let Some(media_row) = media {
             let alt = view.title.clone();
             let media_id = media_row.id();
+            let item_is_public = row.resource.is_public;
             if view.thumbnail.is_none() {
-                view.thumbnail = self.thumbnail_for(media_id, &alt).await?;
+                view.thumbnail = self.thumbnail_for(media_id, item_is_public, &alt).await?;
             }
             let item_url = view.url.clone();
-            view.primary_media = Some(self.media_ref(&media_row, &item_url, options).await?);
+            view.primary_media = Some(
+                self.media_ref(&media_row, &item_url, item_is_public, options)
+                    .await?,
+            );
         }
         self.add_item_lists(row, &mut view).await?;
         Ok(view)
@@ -530,6 +548,7 @@ impl<'a> Loader<'a> {
         &self,
         row: &MediaRow,
         item_url: &str,
+        item_is_public: bool,
         options: &RenderOptions,
     ) -> Result<MediaRef, DbError> {
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
@@ -539,7 +558,8 @@ impl<'a> Loader<'a> {
             self.render_env(),
             item_url.to_string(),
             media_url.clone(),
-        );
+        )
+        .in_item(item_is_public);
         let thumbnail = view
             .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
             .map(|url| Thumbnail::new(url.to_string(), row.alt_text.clone().unwrap_or_default()));
@@ -586,7 +606,7 @@ impl<'a> Loader<'a> {
         let base = self.base.as_str();
         RenderEnv {
             server_url: base.to_string(),
-            file_base_uri: format!("{base}/files"),
+            files: self.files.clone(),
             asset_base_path: ASSET_BASE.to_string(),
             viewer_url: format!("{base}/iiif-viewer"),
             iiif_viewer_sidebar: self.settings.iiif_viewer_sidebar(),
@@ -609,10 +629,12 @@ impl<'a> Loader<'a> {
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let alt = view.title.clone();
+        let item = ItemRepo::new(self.pool).get(row.item_id).await?;
+        let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
         if view.thumbnail.is_none() {
-            view.thumbnail = media_thumbnail(self.base, row, &alt);
+            view.thumbnail = media_thumbnail(self.files, row, item_is_public, &alt);
         }
-        let item_url = match ItemRepo::new(self.pool).get(row.item_id).await? {
+        let item_url = match item {
             Some(item) => {
                 let url = resource_show_url(&self.site.slug, "item", item.id().0);
                 view.parent_item = Some(ResourceRef {
@@ -628,7 +650,7 @@ impl<'a> Loader<'a> {
         // the renderer's own defaults (the large thumbnail, linked to the
         // original).
         view.media_embeds.push(
-            self.media_ref(row, &item_url, &RenderOptions::default())
+            self.media_ref(row, &item_url, item_is_public, &RenderOptions::default())
                 .await?,
         );
         Ok(view)
@@ -961,7 +983,7 @@ impl<'a> Loader<'a> {
             .get(id)
             .await?
             .as_ref()
-            .map(|row| thumbnail_for_asset(self.base, row)))
+            .map(|row| thumbnail_for_asset(self.files, row)))
     }
 
     /// The shared fields of every resource view: id, kind, URL, title, values
@@ -1257,14 +1279,19 @@ impl<'a> Loader<'a> {
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
-                thumbnail: square_thumbnail(self.base, &entry, &title),
+                thumbnail: square_thumbnail(self.files, &entry, row.resource.is_public, &title),
             });
             // `media-embeds.phtml`: `$media->render()` with no options, so the
             // renderer's defaults hold: the large thumbnail, linked to the
             // original.
             view.media_embeds.push(
-                self.media_ref(&entry, &item_url, &RenderOptions::default())
-                    .await?,
+                self.media_ref(
+                    &entry,
+                    &item_url,
+                    row.resource.is_public,
+                    &RenderOptions::default(),
+                )
+                .await?,
             );
         }
         for page in SiteRepo::new(self.pool)
@@ -1402,7 +1429,8 @@ impl<'a> Loader<'a> {
                 return Ok(None);
             }
             let title = display_title(&row.resource, self.messages());
-            let thumbnail = square_thumbnail(self.base, &row, &title);
+            let item_is_public = self.item_is_public(row.item_id).await?;
+            let thumbnail = square_thumbnail(self.files, &row, item_is_public, &title);
             return Ok(Some((
                 ResourceKind::Media,
                 ResourceRef {
@@ -1486,7 +1514,8 @@ impl<'a> Loader<'a> {
             }),
             None => self.first_media(row.id()).await?,
         };
-        Ok(media.and_then(|media| square_thumbnail(self.base, &media, alt)))
+        Ok(media
+            .and_then(|media| square_thumbnail(self.files, &media, row.resource.is_public, alt)))
     }
 
     /// The item's first media row the caller can see, `ItemRepresentation`'s
@@ -1511,12 +1540,13 @@ impl<'a> Loader<'a> {
     async fn thumbnail_for(
         &self,
         media_id: db::MediaId,
+        item_is_public: bool,
         alt: &str,
     ) -> Result<Option<Thumbnail>, DbError> {
         Ok(MediaRepo::new(self.pool)
             .get(media_id)
             .await?
-            .and_then(|media| media_thumbnail(self.base, &media, alt)))
+            .and_then(|media| media_thumbnail(self.files, &media, item_is_public, alt)))
     }
 }
 
@@ -1601,23 +1631,43 @@ pub(crate) fn media_options(thumbnail_type: Option<&str>, link: Option<&str>) ->
 
 /// The medium thumbnail of a media file, `None` without thumbnails or a stored
 /// path (`FileRenderer/*` exposes `medium/{storage_id}.jpg`).
-fn media_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
-    thumbnail_at(base, media, "medium", alt)
+fn media_thumbnail(
+    files: &FileUrls,
+    media: &MediaRow,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
+    thumbnail_at(files, media, "medium", item_is_public, alt)
 }
 
 /// The square thumbnail of a media file, the size `linkPretty('square')` asks
 /// for (`FileRenderer/*` exposes `square/{storage_id}.jpg`).
-fn square_thumbnail(base: &BaseUrl, media: &MediaRow, alt: &str) -> Option<Thumbnail> {
-    thumbnail_at(base, media, "square", alt)
+fn square_thumbnail(
+    files: &FileUrls,
+    media: &MediaRow,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
+    thumbnail_at(files, media, "square", item_is_public, alt)
 }
 
-fn thumbnail_at(base: &BaseUrl, media: &MediaRow, size: &str, alt: &str) -> Option<Thumbnail> {
+/// A thumbnail URL is plain only when the media and its item are public.
+fn thumbnail_at(
+    files: &FileUrls,
+    media: &MediaRow,
+    size: &str,
+    item_is_public: bool,
+    alt: &str,
+) -> Option<Thumbnail> {
     if !media.has_thumbnails {
         return None;
     }
     let storage_id = media.storage_id.as_deref()?;
+    let kind = FileKind::Thumbnail {
+        public: media.resource.is_public && item_is_public,
+    };
     Some(Thumbnail::new(
-        base.file_url(&format!("{size}/{storage_id}.jpg")),
+        files.url(&format!("{size}/{storage_id}.jpg"), kind),
         alt,
     ))
 }
@@ -1735,20 +1785,20 @@ fn compare_resources(a: &ResourceRow, b: &ResourceRow, order: Option<&Order>) ->
 /// The thumbnail an asset shows: `AssetRepresentation::thumbnail` returns the
 /// asset itself, so the image is the asset's file URL and the alt is its
 /// alt text (`AbstractRepresentation::thumbnailAltText`).
-pub(crate) fn thumbnail_for_asset(base: &BaseUrl, row: &AssetRow) -> Thumbnail {
+pub(crate) fn thumbnail_for_asset(files: &FileUrls, row: &AssetRow) -> Thumbnail {
     Thumbnail::new(
-        asset_url(base, row),
+        asset_url(files, row),
         row.alt_text.clone().unwrap_or_default(),
     )
 }
 
 /// `AssetRepresentation::assetUrl`: the stored file under `asset/<filename>`.
-fn asset_url(base: &BaseUrl, row: &AssetRow) -> String {
+fn asset_url(files: &FileUrls, row: &AssetRow) -> String {
     let filename = match row.extension.as_deref() {
         Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
         _ => row.storage_id.clone(),
     };
-    base.file_url(&format!("asset/{filename}"))
+    files.url(&format!("asset/{filename}"), FileKind::Asset)
 }
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {
