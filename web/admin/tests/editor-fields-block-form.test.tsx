@@ -49,7 +49,7 @@ const renderBlock = (
 
 describe('the block form scalar controls', () => {
   it('text dispatches setField with the typed value', () => {
-    const block = draftFor('oembed', { url: '', refresh: false });
+    const block = draftFor('oembed', { url: '' });
     const dispatch = renderBlock(block, 'oembed').dispatch;
 
     fireEvent.change(screen.getByLabelText('Media URL'), {
@@ -62,13 +62,13 @@ describe('the block form scalar controls', () => {
   });
 
   it('boolean dispatches setField with the checkbox state', () => {
-    const block = draftFor('oembed', { url: '', refresh: false });
-    const dispatch = renderBlock(block, 'oembed').dispatch;
+    const block = draftFor('iiifImage', { show_title: false });
+    const dispatch = renderBlock(block, 'iiifImage').dispatch;
 
-    fireEvent.click(screen.getByLabelText('Fetch the embed again'));
+    fireEvent.click(screen.getByLabelText('Show title'));
 
     expect(actionsOf(dispatch)).toEqual([
-      { type: 'setField', blockKey: block.key, field: 'refresh', value: true },
+      { type: 'setField', blockKey: block.key, field: 'show_title', value: true },
     ]);
   });
 

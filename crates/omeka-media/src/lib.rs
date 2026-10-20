@@ -29,7 +29,8 @@
 //! `Url`, `Youtube`, `IIIF`, `IiifPresentation` and `OEmbed` fetch over HTTP
 //! upstream. The port routes every fetch through [`http::HttpFetch`]. In
 //! production that is [`HttpClient`], the blocking rustls client in
-//! [`http_client`]; in tests it is [`testing::FakeHttp`], so no test touches the
+//! [`http_client`], which admits every hop through the URL guard in
+//! [`http_guard`]; in tests it is [`testing::FakeHttp`], so no test touches the
 //! network (DESIGN.md "Exclusions: live external services").
 //!
 //! # Boundaries
@@ -45,6 +46,7 @@ pub mod data;
 pub mod file_render;
 pub mod http;
 pub mod http_client;
+pub mod http_guard;
 pub mod image_metadata;
 pub mod ingest;
 pub mod media_type;

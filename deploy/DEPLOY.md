@@ -2,8 +2,8 @@
 
 One container runs everything. Inside it, `romeka serve` answers on
 `127.0.0.1:8123` and Caddy terminates TLS on `:80` and `:443`, serves the admin
-SPA out of the image, serves the media files out of the store volume, and
-forwards `/api`, `/api-context`, `/assets`, `/s`, `/health` and `/ready` to the
+SPA out of the image, serves the media files out of the store volume once the
+server allows each one, and forwards `/api`, `/api-context`, `/assets`, `/s`, `/health` and `/ready` to the
 server. Only 80 and 443 leave the container.
 
 Three volumes hold the state:
@@ -313,6 +313,16 @@ server reading a newer schema is the failure that loses data.
 - The store is a volume and the origin serves it, so media bytes are only
   present if the store holds them. A restore mirrors the store, and an upgrade
   never touches it.
+- Caddy asks the server about every `/files/` request before it serves the
+  file (`forward_auth` to `GET /api/romeka/files/allow`). A file of a private
+  item or media is served only to a signed-in user who may see it, or to a
+  request whose query string carries that user's API key pair. Everyone else
+  gets 403. A file that no media or asset row names is a 404, so a file left in
+  the store after its row was deleted is no longer served. Private files carry
+  `Cache-Control: private` and `Vary: Cookie`. Every file carries
+  `X-Content-Type-Options: nosniff`, and HTML, SVG and XML files carry
+  `Content-Security-Policy: sandbox`. Measured on a loopback Caddy 2.11 with a
+  release server, the check adds about 0.1 ms to a public JPEG.
 - The proxy passes the `Origin`, `Referer` and `Cookie` headers through
   unchanged. If you put another proxy in front of this one, it must do the
   same, or every signed-in write is refused with 403.
@@ -362,7 +372,7 @@ romeka key add -d /db/romeka.db --owner admin@example.org
 | --- | --- |
 | `compose.yaml` | the service, the volumes, the ports and the health check |
 | `compose.archive.yaml` | the archive import: the read-only `/archive` mount and `ROMEKA_ARCHIVE_ROOT` |
-| `Caddyfile` | TLS, the SPA, the media files and the routes Caddy forwards |
+| `Caddyfile` | TLS, the SPA, the media files behind the server's access check, and the routes Caddy forwards |
 | `.env.example` | every setting, with its default and a one-line comment |
 | `backup.sh` | procedure 4, as one command |
 | `restore.sh` | procedure 5, as one command |

@@ -9,6 +9,11 @@
 //! leaves the machine. The recorded fixtures drive the fake-based tests in
 //! `ingesters.rs`.
 //!
+//! The URL guard refuses loopback by default, so a test that needs the server
+//! builds its client with [`AddressPolicy::AllowPrivate`], the operator's
+//! `import_allow_private_urls`. The last tests run each ingester with the
+//! default client and prove the guard refuses the same loopback URLs.
+//!
 //! `Youtube` is not covered here. Its poster host is a fixed `img.youtube.com`
 //! (`Ingester/Youtube.php:79`), which a loopback server cannot serve without a
 //! DNS override. It runs against `omeka_media::testing::FakeHttp` instead.
@@ -18,13 +23,14 @@
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use omeka_media::http::{FetchErrorKind, HttpFetch};
 use omeka_media::http_client::HttpClient;
+use omeka_media::http_guard::{AddressPolicy, Resolve};
 use omeka_media::ingest::{ErrorStore, IngestEnv, IngestRequest, IngesterRegistry, MediaDraft};
 use omeka_media::oembed::{AllowRule, Oembed, OembedAllowList};
 use omeka_media::store::Store;
@@ -75,6 +81,8 @@ impl Route {
 struct Server {
     addr: SocketAddr,
     routes: Arc<Mutex<BTreeMap<String, Route>>>,
+    /// The requests served, so a refused fetch can be shown to reach nothing.
+    hits: Arc<AtomicUsize>,
     stop: Arc<AtomicBool>,
     accept: Option<thread::JoinHandle<()>>,
 }
@@ -89,14 +97,17 @@ impl Server {
         let addr = listener.local_addr().expect("local addr");
         let routes: Arc<Mutex<BTreeMap<String, Route>>> = Arc::new(Mutex::new(BTreeMap::new()));
         let stop = Arc::new(AtomicBool::new(false));
+        let hits = Arc::new(AtomicUsize::new(0));
         let stop_accept = Arc::clone(&stop);
         let routes_accept = Arc::clone(&routes);
+        let hits_accept = Arc::clone(&hits);
         let accept = thread::spawn(move || {
             for stream in listener.incoming() {
                 if stop_accept.load(Ordering::Relaxed) {
                     break;
                 }
                 if let Ok(stream) = stream {
+                    hits_accept.fetch_add(1, Ordering::SeqCst);
                     let routes = Arc::clone(&routes_accept);
                     thread::spawn(move || serve(stream, &routes));
                 }
@@ -105,6 +116,7 @@ impl Server {
         Self {
             addr,
             routes,
+            hits,
             stop,
             accept: Some(accept),
         }
@@ -116,6 +128,11 @@ impl Server {
             .lock()
             .expect("routes lock")
             .insert(path.to_string(), route);
+    }
+
+    /// The connections served so far.
+    fn hits(&self) -> usize {
+        self.hits.load(Ordering::SeqCst)
     }
 
     /// An absolute `http://` URL for a path on this server.
@@ -198,11 +215,27 @@ struct NetHarness {
     oembed: Oembed,
 }
 
+/// The real client with the address check lifted, so it reaches the loopback
+/// server.
+fn loopback_client() -> HttpClient {
+    HttpClient::new().with_address_policy(AddressPolicy::AllowPrivate)
+}
+
 impl NetHarness {
+    /// A harness whose client may reach the loopback server.
     fn new(tag: &str) -> Self {
+        Self::with_client(tag, loopback_client())
+    }
+
+    /// A harness with the default, guarded client.
+    fn guarded(tag: &str) -> Self {
+        Self::with_client(tag, HttpClient::new())
+    }
+
+    fn with_client(tag: &str, client: HttpClient) -> Self {
         Self {
             harness: Harness::new(tag),
-            client: HttpClient::new(),
+            client,
             purifier: PassthroughPurifier,
             thumbnailer: FakeThumbnailer::default(),
             oembed: Oembed::new(OembedAllowList::shipped()),
@@ -242,7 +275,7 @@ impl NetHarness {
 fn client_fetches_status_reason_and_body() {
     let mut server = Server::start();
     server.route("/file", Route::ok("hello"));
-    let response = HttpClient::new()
+    let response = loopback_client()
         .fetch(&server.url("/file"))
         .expect("fetch");
     assert_eq!(response.status, 200);
@@ -255,7 +288,7 @@ fn client_fetches_status_reason_and_body() {
 fn client_returns_a_non_2xx_response_without_an_error() {
     let mut server = Server::start();
     server.route("/missing", Route::status(404, "Not Found", ""));
-    let response = HttpClient::new()
+    let response = loopback_client()
         .fetch(&server.url("/missing"))
         .expect("a 404 is a response, not a transport error");
     assert_eq!(response.status, 404);
@@ -267,7 +300,7 @@ fn client_returns_a_non_2xx_response_without_an_error() {
 fn client_times_out_instead_of_hanging() {
     let mut server = Server::start();
     server.route("/slow", Route::Stall);
-    let client = HttpClient::new().with_timeout(Duration::from_millis(200));
+    let client = loopback_client().with_timeout(Duration::from_millis(200));
     let started = Instant::now();
     let error = client.fetch(&server.url("/slow")).expect_err("timeout");
     assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
@@ -278,7 +311,7 @@ fn client_times_out_instead_of_hanging() {
 fn client_fails_an_oversized_response() {
     let mut server = Server::start();
     server.route("/big", Route::ok(vec![b'x'; 4096]));
-    let client = HttpClient::new().with_max_bytes(1024);
+    let client = loopback_client().with_max_bytes(1024);
     let error = client.fetch(&server.url("/big")).expect_err("too large");
     assert_eq!(error.kind(), FetchErrorKind::TooLarge, "{error}");
 }
@@ -288,7 +321,7 @@ fn client_follows_a_same_scheme_redirect() {
     let mut server = Server::start();
     server.route("/from", Route::redirect("/to"));
     server.route("/to", Route::ok("final"));
-    let response = HttpClient::new()
+    let response = loopback_client()
         .fetch(&server.url("/from"))
         .expect("fetch");
     assert_eq!(response.status, 200);
@@ -299,7 +332,7 @@ fn client_follows_a_same_scheme_redirect() {
 fn client_does_not_follow_a_cross_scheme_redirect() {
     let mut server = Server::start();
     server.route("/from", Route::redirect("https://example.org/to"));
-    let response = HttpClient::new()
+    let response = loopback_client()
         .fetch(&server.url("/from"))
         .expect("fetch");
     assert_eq!(
@@ -313,7 +346,7 @@ fn client_reports_a_refused_connection() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
     let addr = listener.local_addr().expect("local addr");
     drop(listener);
-    let client = HttpClient::new().with_timeout(Duration::from_millis(500));
+    let client = loopback_client().with_timeout(Duration::from_millis(500));
     let error = client
         .fetch(&format!("http://{addr}/x"))
         .expect_err("connection refused");
@@ -425,4 +458,107 @@ fn oembed_ingester_over_the_real_client() {
     assert_eq!(draft.data.to_value()["title"], "T");
     assert_eq!(draft.row.source.as_deref(), Some(source.as_str()));
     assert!(draft.row.has_thumbnails);
+}
+
+/// A resolver that answers every name with loopback and records the names.
+#[derive(Debug, Default)]
+struct LoopbackResolver {
+    names: Mutex<Vec<String>>,
+}
+
+impl Resolve for LoopbackResolver {
+    fn resolve(&self, host: &str) -> std::io::Result<Vec<std::net::IpAddr>> {
+        self.names
+            .lock()
+            .expect("names lock")
+            .push(host.to_string());
+        Ok(vec![std::net::Ipv4Addr::LOCALHOST.into()])
+    }
+}
+
+/// `url` through the default client: the loopback file is refused, the
+/// download error names the refusal, and the server sees no connection.
+#[test]
+fn url_ingester_is_guarded() {
+    let mut server = Server::start();
+    server.route("/files/logo.png", Route::ok("png"));
+    let net = NetHarness::guarded("guard-url");
+    let (draft, errors) = net.run(
+        "url",
+        serde_json::json!({"ingest_url": server.url("/files/logo.png")}),
+    );
+    assert!(!errors.is_empty(), "the loopback download is refused");
+    assert!(format!("{errors:?}").contains("refused"), "{errors:?}");
+    assert_eq!(draft.row.storage_id, None);
+    assert_eq!(server.hits(), 0);
+}
+
+/// `iiif` through the default client: the info document is never fetched.
+#[test]
+fn iiif_ingester_is_guarded() {
+    let mut server = Server::start();
+    server.route("/iiif/1/info.json", Route::ok("{}"));
+    let net = NetHarness::guarded("guard-iiif");
+    let (_, errors) = net.run(
+        "iiif",
+        serde_json::json!({"o:source": server.url("/iiif/1/info.json")}),
+    );
+    assert!(!errors.is_empty(), "the loopback document is refused");
+    assert_eq!(server.hits(), 0);
+}
+
+/// `iiif_presentation` through the default client: the manifest is never
+/// fetched.
+#[test]
+fn iiif_presentation_ingester_is_guarded() {
+    let mut server = Server::start();
+    server.route("/manifest", Route::ok("{}"));
+    let net = NetHarness::guarded("guard-iiif-presentation");
+    let (_, errors) = net.run(
+        "iiif_presentation",
+        serde_json::json!({"o:source": server.url("/manifest")}),
+    );
+    assert!(!errors.is_empty(), "the loopback manifest is refused");
+    assert_eq!(server.hits(), 0);
+}
+
+/// `oembed` through the default client: even with loopback on the allow list,
+/// the page is never fetched, so no endpoint is discovered.
+#[test]
+fn oembed_ingester_is_guarded() {
+    let mut server = Server::start();
+    server.route("/page", Route::ok("<html></html>"));
+    let allow = OembedAllowList::new(vec![AllowRule {
+        hosts: vec!["127.0.0.1"],
+        path_prefixes: Vec::new(),
+        endpoint: None,
+    }]);
+    let net = NetHarness::guarded("guard-oembed").with_oembed(Oembed::new(allow));
+    let (_, errors) = net.run(
+        "oembed",
+        serde_json::json!({"o:source": server.url("/page")}),
+    );
+    assert!(!errors.is_empty(), "the loopback page is refused");
+    assert_eq!(server.hits(), 0);
+}
+
+/// `youtube` fetches its poster from the fixed `img.youtube.com`. A resolver
+/// that answers loopback for it shows the poster fetch passes the guard: the
+/// name is looked up once, the answer is refused, and the media keeps no
+/// thumbnail. The ingester ignores a failed poster fetch, as upstream does.
+#[test]
+fn youtube_ingester_is_guarded() {
+    let resolver = Arc::new(LoopbackResolver::default());
+    let client = HttpClient::new().with_resolver(Arc::clone(&resolver));
+    let net = NetHarness::with_client("guard-youtube", client);
+    let (draft, errors) = net.run(
+        "youtube",
+        serde_json::json!({"o:source": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}),
+    );
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(!draft.row.has_thumbnails, "the poster was refused");
+    assert_eq!(
+        *resolver.names.lock().expect("names lock"),
+        vec!["img.youtube.com".to_string()]
+    );
 }

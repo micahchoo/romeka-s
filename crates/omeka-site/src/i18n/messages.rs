@@ -48,6 +48,17 @@ pub struct Messages {
     /// The user bar's link to the admin. Upstream labels it with the
     /// installation title; the port names the place, `Admin dashboard`.
     pub admin_dashboard: &'static str,
+    /// The user bar's link to the page editor. Upstream labels every edit
+    /// link `Edit`; the port names what opens.
+    pub edit_page: &'static str,
+    /// The user bar's link to the item's admin page.
+    pub edit_item: &'static str,
+    /// The user bar's link to the item set's admin page.
+    pub edit_item_set: &'static str,
+    /// The user bar's link to the media's admin page.
+    pub edit_media: &'static str,
+    /// `resource-page-block-layout/resource-class.phtml`: the label.
+    pub resource_class: &'static str,
     /// `view/layout/layout.phtml`: the skip link.
     pub skip_to_main: &'static str,
     /// The theme header's menu toggle and its `nav` label. Upstream's
@@ -110,6 +121,11 @@ pub static EN: Messages = Messages {
     log_out: "Logout",
     log_in: "Log in",
     admin_dashboard: "Admin dashboard",
+    edit_page: "Edit this page",
+    edit_item: "Edit item",
+    edit_item_set: "Edit item set",
+    edit_media: "Edit media",
+    resource_class: "Resource class",
     skip_to_main: "Skip to main content",
     menu: "Menu",
     home: "Home",
@@ -152,6 +168,12 @@ pub static ES: Messages = Messages {
     log_out: "Cerrar sesión",
     log_in: "Iniciar sesión",
     admin_dashboard: "Panel de administración",
+    // "Edit this page" is not in `es.po`; the other edit labels are.
+    edit_page: "Editar esta página",
+    edit_item: "Editar ficha",
+    edit_item_set: "Editar conjunto de fichas",
+    edit_media: "Editar medios",
+    resource_class: "Clase de recurso",
     skip_to_main: "Saltar al contenido principal",
     // Not in `es.po`; the port's own translation.
     menu: "Menú",

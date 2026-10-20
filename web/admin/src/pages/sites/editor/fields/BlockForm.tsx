@@ -10,6 +10,8 @@ import { useEditorText } from '../messages';
 import type { BlockLayoutSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { isGroup, spanOf } from '../groups';
+import { Help, helpId } from '../Labelled';
 import { dataObject } from '../values';
 import { AttachmentsField } from './AttachmentsField';
 import { FieldControl } from './FieldControl';
@@ -26,6 +28,37 @@ export interface BlockFormProps {
   /** The editor's shared lists, so the controls make no requests of their own. */
   readonly options?: EditorOptions;
 }
+
+/**
+ * A group's size, shown and not edited: the group owns the blocks after it, so
+ * the size changes only when a block moves into or out of the group.
+ */
+const GroupSize = ({
+  id,
+  label,
+  count,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+}): ReactElement => {
+  const { t } = useTranslator(editor);
+  return (
+    <div className="block-field">
+      <label htmlFor={id}>{label}</label>
+      <output id={id} aria-describedby={helpId(id)}>
+        {count}
+      </output>
+      <Help
+        id={id}
+        text={t('fieldHelp.blockGroup.spanFixed', {
+          into: t('canvas.intoGroup'),
+          out: t('canvas.outOfGroup'),
+        })}
+      />
+    </div>
+  );
+};
 
 export const BlockForm = ({
   block,
@@ -46,7 +79,14 @@ export const BlockForm = ({
   return (
     <div className="block-form">
       {schema.fields.map((field) =>
-        field.type === 'attachments' ? (
+        isGroup(block) && field.key === 'span' ? (
+          <GroupSize
+            key={field.key}
+            id={`${idPrefix}-${field.key}`}
+            label={e(field.label)}
+            count={spanOf(block)}
+          />
+        ) : field.type === 'attachments' ? (
           <AttachmentsField
             key={field.key}
             id={`${idPrefix}-${field.key}`}

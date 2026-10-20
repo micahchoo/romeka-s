@@ -122,6 +122,7 @@ flows on the wire, one handler per route:
 | --- | --- | --- |
 | `POST /api/login` | `{email, password}` | 200 the user document and `Set-Cookie`; 401, 403, 429 |
 | `POST /api/logout` | any body, ignored | 204, the cookie cleared |
+| `POST /logout?redirect=<path>` | any body, ignored | 303 to `redirect` when it is a path on this origin, else to `/`; the cookie cleared |
 | `GET /api/me` | | 200 the user document, or 401 |
 | `POST /api/password` | `{key, password}` | 200 the user document; 404, 422 |
 | `POST /api/password/forgot` | `{email}` | 204, or 429 |
@@ -336,7 +337,10 @@ neither, which the access check refuses.
 The status is the one the page write would answer: 403 when the caller may not
 update that page, or add a page to that site; 404 for a site slug no site holds,
 or a page id that is not a page of that site; 422 for a block or slug the write
-would reject; 415 for a body that is not JSON.
+would reject; 415 for a body that is not JSON. The one check the preview skips is
+an empty title or slug, so a new page previews before the curator types: it
+renders under the site locale's `[Untitled]` and the slug `untitled`, and the
+save still refuses both.
 
 Nothing is written. `write::site_pages_preview` parses with the write's own
 `parse_blocks`, purifier, `validate` and attachment resolution, and

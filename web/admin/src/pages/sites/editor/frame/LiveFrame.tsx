@@ -21,6 +21,7 @@ import type { BlockKey, PageDraft } from '../draft';
 import { fitFrame, frameStyle, useBoxSize } from '../frameFit';
 import type { DeviceWidth } from '../frameFit';
 import { isGroup, parseNodes } from '../groups';
+import { counted } from '../messages';
 import type { PreviewRender } from '../preview';
 import type { Selection } from '../shell/selection';
 import { restoreAnchor, takeAnchor } from './anchor';
@@ -43,7 +44,8 @@ export interface LiveFrameProps {
   readonly draft: PageDraft;
   readonly selection: Selection | null;
   readonly templates: readonly TemplateChoice[];
-  readonly onSelect: (key: BlockKey) => void;
+  /** `null` for a click on the page outside every block. */
+  readonly onSelect: (key: BlockKey | null) => void;
   readonly onInsert: (target: InsertTarget, choice: PickerChoice) => void;
 }
 
@@ -161,10 +163,7 @@ export const LiveFrame = ({
         setHovered(node === null ? null : next.blockAt(node));
       },
       onPick: (node) => {
-        const key = next.blockAt(node);
-        if (key !== null) {
-          latest.current.onSelect(key);
-        }
+        latest.current.onSelect(next.blockAt(node));
       },
     });
     win.addEventListener('scroll', remeasure, { passive: true });
@@ -218,7 +217,7 @@ export const LiveFrame = ({
       }
       const label =
         node?.kind === 'group'
-          ? t('canvas.group', { count: node.members.length })
+          ? counted(t, 'groupBlocks', node.members.length)
           : layoutLabel(draft.registry, block, t);
       return { key, box: boxOf(element, shownFrame), label };
     };

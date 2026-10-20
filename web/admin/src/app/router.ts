@@ -97,6 +97,21 @@ const splitHash = (hash: string): { segments: readonly string[]; query: URLSearc
   };
 };
 
+/**
+ * Where a sign-in sends the reader back to: the `redirect` the public site's
+ * Log in link carries (`/login?redirect=/s/<site>/...`). Only a path on this
+ * origin passes: it starts with one `/`, never `//host`, and holds printable
+ * ASCII with no backslash, which some browsers read as a slash. The server's
+ * Logout applies the same rule (`omeka-server/src/accounts.rs`).
+ */
+export const signInReturnPath = (search: string): string | null => {
+  const target = new URLSearchParams(search).get('redirect');
+  if (target === null || !/^\/(?!\/)[\x21-\x7e]*$/.test(target) || target.includes('\\')) {
+    return null;
+  }
+  return target;
+};
+
 export const parseAuthRoute = (hash: string, search: string): AuthRoute | null => {
   const { segments, query } = splitHash(hash);
   const slug = segments[0];
