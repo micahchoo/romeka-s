@@ -85,12 +85,11 @@ impl Theme for DefaultTheme {
     }
 
     fn render(&self, view: &View<'_>, ctx: &RenderContext<'_>) -> String {
-        let info = self.info();
         let tr = ctx.translator();
         match view {
-            View::Index => layout(info, ctx, None, "home", &index_view(tr)),
+            View::Index => layout(view, ctx, None, "home", &index_view(tr)),
             View::Page => layout(
-                info,
+                view,
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
@@ -102,7 +101,7 @@ impl Theme for DefaultTheme {
                     content.push_str(&jsonld_script(ctx, resource.jsonld.as_deref()));
                 }
                 layout(
-                    info,
+                    view,
                     ctx,
                     Some(&browse.title),
                     &format!("{} resource browse", controller_for(browse.kind)),
@@ -112,13 +111,13 @@ impl Theme for DefaultTheme {
             View::Item(item) => {
                 let mut content = item_view(item, ctx);
                 content.push_str(&jsonld_script(ctx, item.jsonld.as_deref()));
-                layout(info, ctx, Some(&item.title), "item resource show", &content)
+                layout(view, ctx, Some(&item.title), "item resource show", &content)
             }
             View::ItemSet(item_set) => {
                 let mut content = item_set_view(item_set, ctx);
                 content.push_str(&jsonld_script(ctx, item_set.jsonld.as_deref()));
                 layout(
-                    info,
+                    view,
                     ctx,
                     Some(&item_set.title),
                     "item-set resource browse",
@@ -129,7 +128,7 @@ impl Theme for DefaultTheme {
                 let mut content = media_view(media, ctx);
                 content.push_str(&jsonld_script(ctx, media.jsonld.as_deref()));
                 layout(
-                    info,
+                    view,
                     ctx,
                     Some(&media.title),
                     "media resource show",
@@ -137,31 +136,31 @@ impl Theme for DefaultTheme {
                 )
             }
             View::Search(results) => layout(
-                info,
+                view,
                 ctx,
                 None,
                 "index search",
                 &search::search_view(results, ctx),
             ),
             View::CrossSiteSearch(page) => {
-                layout(info, ctx, None, "", &search::cross_site_view(page, ctx))
+                layout(view, ctx, None, "", &search::cross_site_view(page, ctx))
             }
             View::SearchList(list) => layout(
-                info,
+                view,
                 ctx,
                 None,
                 "page browse",
                 &search::search_list_view(list, ctx),
             ),
             View::AdvancedSearch(form) => layout(
-                info,
+                view,
                 ctx,
                 None,
                 &format!("{} search", form.resource.body_class()),
                 &search::advanced_search_view(form, ctx),
             ),
             View::IiifViewer(iiif) => layout_with_head(
-                info,
+                view,
                 ctx,
                 Some(&iiif.title),
                 "iiif-viewer",
@@ -169,7 +168,7 @@ impl Theme for DefaultTheme {
                 &iiif_viewer_view(iiif, ctx),
             ),
             View::Error(error) => {
-                layout(info, ctx, Some(&error.title), "error", &error_view(error))
+                layout(view, ctx, Some(&error.title), "error", &error_view(error))
             }
         }
     }
@@ -183,25 +182,26 @@ impl Theme for DefaultTheme {
 /// upstream appends `style.css`. The `lang` attribute is the site's locale. A view that appends to
 /// `headScript` upstream passes its own element as `head_extra` ([`layout_with_head`]).
 fn layout(
-    info: &ThemeInfo,
+    view: &View<'_>,
     ctx: &RenderContext<'_>,
     view_title: Option<&str>,
     body_class: &str,
     content: &str,
 ) -> String {
-    layout_with_head(info, ctx, view_title, body_class, "", content)
+    layout_with_head(view, ctx, view_title, body_class, "", content)
 }
 
 /// The layout with one extra head element, placed last where upstream's
 /// `headScript()->appendFile` puts a view's own script.
 fn layout_with_head(
-    info: &ThemeInfo,
+    view: &View<'_>,
     ctx: &RenderContext<'_>,
     view_title: Option<&str>,
     body_class: &str,
     head_extra: &str,
     content: &str,
 ) -> String {
+    let info = &DEFAULT_INFO;
     let tr = ctx.translator();
     let title = match view_title.filter(|title| !title.is_empty()) {
         Some(title) => format!(
@@ -260,7 +260,7 @@ fn layout_with_head(
     } else {
         ""
     };
-    let user_bar = user_bar::render(ctx, tr);
+    let user_bar = user_bar::render(view, ctx, tr);
     format!(
         "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n\
          <meta charset=\"utf-8\">\n\

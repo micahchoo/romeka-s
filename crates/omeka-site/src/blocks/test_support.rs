@@ -171,6 +171,7 @@ pub(crate) fn media_ref(title: &str, url: &str) -> MediaRef {
         url: url.to_string(),
         original_url: None,
         title: title.to_string(),
+        media_type: None,
         thumbnail: None,
         embed: None,
     }

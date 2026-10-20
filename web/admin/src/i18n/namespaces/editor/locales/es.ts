@@ -112,8 +112,6 @@ export const es: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'Las páginas listadas, en orden.',
   'blockField.oembed.url': 'URL del medio',
   'fieldHelp.oembed.url': 'Un enlace de YouTube, Vimeo u otro proveedor oEmbed.',
-  'blockField.oembed.refresh': 'Volver a obtener la inserción',
-  'fieldHelp.oembed.refresh': 'Recarga la inserción del proveedor al guardar.',
   'romekaField.hero.heading': 'Encabezado',
   'fieldHelp.hero.heading': 'El texto grande del banner.',
   'fieldExample.hero.heading': 'p. ej., Bienvenido a la colección',

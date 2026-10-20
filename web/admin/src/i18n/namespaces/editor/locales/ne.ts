@@ -115,8 +115,6 @@ export const ne: EditorMessages = {
   'fieldHelp.listOfPages.pagelist': 'सूचीबद्ध पृष्ठहरू, क्रममा।',
   'blockField.oembed.url': 'मिडिया URL',
   'fieldHelp.oembed.url': 'YouTube, Vimeo वा अर्को oEmbed प्रदायकबाट लिङ्क।',
-  'blockField.oembed.refresh': 'एम्बेड फेच गर्नुहोस्',
-  'fieldHelp.oembed.refresh': 'सुरक्षित गर्दा प्रदायकबाट एम्बेड पुन: लोड गर्दछ।',
   'romekaField.hero.heading': 'शीर्षक',
   'fieldHelp.hero.heading': 'ब्यानरमा रहेको ठुलो पाठ।',
   'fieldExample.hero.heading': 'जस्तै, सङ्ग्रहमा स्वागत छ',

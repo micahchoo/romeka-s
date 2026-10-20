@@ -23,7 +23,9 @@ use omeka_core::resource::ResourceKind;
 use crate::html::{escape_html, hyperlink};
 use crate::i18n::{Messages, sprintf};
 use crate::settings::SiteSettings;
-use crate::view::{LinkedResource, RenderContext, ResourceRef, ResourceView, Thumbnail, ValueRef};
+use crate::view::{
+    LinkedResource, MediaRef, RenderContext, ResourceRef, ResourceView, Thumbnail, ValueRef,
+};
 
 /// One registered resource page block layout, as the manager lists it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,14 +45,11 @@ pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 9] = [
         label: "Item sets",
         resources: &[ResourceKind::Item],
     },
+    // `LightboxGallery::getCompatibleResourceNames`: items and media only.
     ResourcePageBlockSpec {
         name: "lightboxGallery",
         label: "Lightbox gallery",
-        resources: &[
-            ResourceKind::Item,
-            ResourceKind::ItemSet,
-            ResourceKind::Media,
-        ],
+        resources: &[ResourceKind::Item, ResourceKind::Media],
     },
     ResourcePageBlockSpec {
         name: "linkedResources",
@@ -195,6 +194,8 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
         "mediaList" => media_list(resource, ctx),
         "linkedResources" => linked_resources(resource, ctx.translator().messages()),
         "mediaRender" => media_render(resource),
+        "resourceClass" => resource_class(resource, ctx.translator().messages()),
+        "lightboxGallery" => lightbox_gallery(resource),
         _ => String::new(),
     }
 }
@@ -221,6 +222,59 @@ fn media_render(resource: &ResourceView) -> String {
         .first()
         .and_then(|media| media.embed.clone())
         .unwrap_or_default()
+}
+
+/// `resource-class.phtml`: the class label, nothing when there is no class.
+fn resource_class(resource: &ResourceView, messages: &Messages) -> String {
+    let Some(label) = &resource.class_label else {
+        return String::new();
+    };
+    format!(
+        "<dl class=\"resource-class\"><div class=\"property\"><dt>{}</dt>\
+         <dd class=\"value\">{}</dd></div></dl>",
+        escape_html(messages.resource_class),
+        escape_html(label)
+    )
+}
+
+/// `lightbox-gallery-item.phtml` and `lightbox-gallery-media.phtml`, without
+/// the script: each image file as its thumbnail, linked to the full image.
+/// A media page whose file is not an image falls back to `media-render.phtml`,
+/// as upstream does. Upstream's "Other Media" list under an item's gallery is
+/// not reproduced; the media list block shows every media.
+fn lightbox_gallery(resource: &ResourceView) -> String {
+    let images: Vec<String> = resource
+        .media_embeds
+        .iter()
+        .filter_map(image_link)
+        .collect();
+    if images.is_empty() {
+        return match resource.kind {
+            ResourceKind::Media => media_render(resource),
+            ResourceKind::Item | ResourceKind::ItemSet => String::new(),
+        };
+    }
+    format!("<div class=\"lightbox-gallery\">{}</div>", images.concat())
+}
+
+/// One gallery entry: an image file with a stored original, as a link to it.
+fn image_link(media: &MediaRef) -> Option<String> {
+    let is_image = media
+        .media_type
+        .as_deref()
+        .is_some_and(|kind| kind.starts_with("image/"));
+    let original = media.original_url.as_deref().filter(|_| is_image)?;
+    let (src, alt) = match &media.thumbnail {
+        Some(Thumbnail { url, alt }) if !alt.is_empty() => (url.as_str(), alt.as_str()),
+        Some(Thumbnail { url, .. }) => (url.as_str(), media.title.as_str()),
+        None => (original, media.title.as_str()),
+    };
+    Some(format!(
+        "<a href=\"{}\" class=\"resource-link\"><img src=\"{}\" alt=\"{}\"></a>",
+        escape_html(original),
+        escape_html(src),
+        escape_html(alt)
+    ))
 }
 
 /// `common/resource-values.phtml`: values grouped by property, each value with
@@ -362,7 +416,14 @@ fn linked_resources(resource: &ResourceView, messages: &Messages) -> String {
         }
         out.push_str("<tr class=\"linked-resource\"><td>");
         out.push_str(&link_pretty_target(&link.resource, true));
-        out.push_str("</td><td></td></tr>");
+        out.push_str("</td><td>");
+        if let Some(class) = &link.class_label {
+            out.push_str(&format!(
+                "<span class=\"resource-class\">{}</span>",
+                escape_html(class)
+            ));
+        }
+        out.push_str("</td></tr>");
     }
     if open.is_some() {
         out.push_str("</tbody></table>");
