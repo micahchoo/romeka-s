@@ -21,7 +21,14 @@ impl FileTags for Warm {
     }
 }
 
-fn median_of_seven(items: usize) -> (Duration, Vec<Duration>) {
+struct Load {
+    index: crate::import2::derive::Index,
+    sheets: crate::import2::derive::Sheets,
+    plan: crate::import2::plan::ImportPlanV2,
+    tags: Warm,
+}
+
+fn load(items: usize) -> Load {
     let paths: Vec<String> = (0..items)
         .map(|n| format!("Box {}/OBJ_{n:06}.jpg", n / 500))
         .collect();
@@ -62,6 +69,27 @@ fn median_of_seven(items: usize) -> (Duration, Vec<Duration>) {
             })
             .collect(),
     );
+    Load {
+        index,
+        sheets,
+        plan,
+        tags,
+    }
+}
+
+fn median(mut runs: Vec<Duration>) -> (Duration, Vec<Duration>) {
+    let mut sorted = runs.clone();
+    sorted.sort();
+    (sorted[3], std::mem::take(&mut runs))
+}
+
+fn median_of_seven(items: usize) -> (Duration, Vec<Duration>) {
+    let Load {
+        index,
+        sheets,
+        plan,
+        tags,
+    } = load(items);
     let catalog = catalog();
     let mut runs = Vec::new();
     for _ in 0..7 {
@@ -76,9 +104,7 @@ fn median_of_seven(items: usize) -> (Duration, Vec<Duration>) {
             items
         );
     }
-    let mut sorted = runs.clone();
-    sorted.sort();
-    (sorted[3], runs)
+    median(runs)
 }
 
 #[test]
@@ -92,4 +118,35 @@ fn the_derive_of_10000_and_40000_items_fits_the_preview_budget() {
             "{items}: {median:?}"
         );
     }
+}
+
+/// The streamed digest against the buffered one it replaced, interleaved
+/// so both see the same machine load.
+#[test]
+#[ignore = "release-mode timing; run by hand"]
+fn the_streamed_digest_of_40000_items_against_the_buffered_one() {
+    let Load {
+        index,
+        sheets,
+        plan,
+        tags,
+    } = load(40_000);
+    let model = derive(&index, &sheets, &plan, &catalog(), &tags);
+    let (mut streamed, mut buffered) = (Vec::new(), Vec::new());
+    for _ in 0..7 {
+        let unsealed = model.clone();
+        let started = Instant::now();
+        let sealed = unsealed.seal();
+        streamed.push(started.elapsed());
+        let started = Instant::now();
+        let bytes = serde_json::to_vec(&model).expect("json");
+        let hex = omeka_media::store::sha256_hex(&bytes);
+        buffered.push(started.elapsed());
+        assert_eq!(sealed.digest, hex, "one digest either way");
+        assert_eq!(sealed.digest, model.digest);
+    }
+    let (streamed, streamed_runs) = median(streamed);
+    let (buffered, buffered_runs) = median(buffered);
+    println!("digest of 40000 items: streamed median {streamed:?} of {streamed_runs:?}");
+    println!("digest of 40000 items: buffered median {buffered:?} of {buffered_runs:?}");
 }

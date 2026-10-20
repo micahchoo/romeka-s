@@ -16,7 +16,7 @@ mod tests;
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::catalog::Catalog;
-use super::decisions::Decision;
+use super::decisions::Act;
 use super::evidence::{FileEntry, Walk};
 use super::flags::FlagBook;
 use super::join::{self, SheetIn};
@@ -81,7 +81,8 @@ pub fn derive(
 
     let grouping = grouping::group(index, plan);
     let mut orphans = grouping.orphans.clone();
-    let joined = join::join(&sheet_ins, &grouping, &mut book);
+    let mut joined = join::join(&sheet_ins, &grouping, &plan.decisions, &mut book);
+    orphans.append(&mut joined.orphans);
     let mut made = records::make(&grouping, &joined, &sheet_ins, catalog, &mut book);
     let entries: Vec<_> = made
         .drafts
@@ -250,10 +251,13 @@ fn plan_flags(plan: &ImportPlanV2, catalog: &Catalog, book: &mut FlagBook<'_>) {
         .iter()
         .filter_map(|term| Term::local(&term.label))
         .collect();
-    let decided = plan.decisions.iter().filter_map(|decision| match decision {
-        Decision::Set { slot, .. } => Some(slot),
-        _ => None,
-    });
+    let decided = plan
+        .decisions
+        .iter()
+        .filter_map(|decision| match decision.act()? {
+            Act::Set { slot, .. } => Some(slot),
+            _ => None,
+        });
     let named: BTreeSet<&Term> = plan
         .slots
         .rules()

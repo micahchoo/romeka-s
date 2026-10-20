@@ -307,6 +307,9 @@ pub enum Anomaly {
 pub struct Orphan {
     /// The decision's index in the plan.
     pub decision: usize,
+    /// The entry the reason is about: one of a `many` decision's entries,
+    /// the missing side of a `pair`, or the file a `move` names.
+    pub entry: EntryRef,
     pub reason: OrphanReason,
 }
 
@@ -369,9 +372,21 @@ impl Model {
         self.flags.iter().any(|flag| flag.policy.is_none())
     }
 
+    /// Hash the model's JSON as it is written. The bytes are those of
+    /// `serde_json::to_vec`, so the digest of a model does not depend on how
+    /// it is hashed.
     pub(crate) fn seal(mut self) -> Self {
-        let bytes = serde_json::to_vec(&self).unwrap_or_default();
-        self.digest = omeka_media::store::sha256_hex(&bytes);
+        use sha2::{Digest, Sha256};
+        // serde_json writes token by token; the buffer hands the hasher
+        // whole blocks.
+        let mut writer = std::io::BufWriter::with_capacity(64 * 1024, Sha256::new());
+        let hasher = serde_json::to_writer(&mut writer, &self)
+            .ok()
+            .and_then(|()| writer.into_inner().ok());
+        // Every map key is a string and the hasher never fails, so the
+        // error arm is unreachable; it digests nothing rather than panic.
+        let hash = hasher.map_or_else(|| Sha256::digest([]), Digest::finalize);
+        self.digest = omeka_media::text::hex_encode(&hash);
         self
     }
 }
