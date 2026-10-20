@@ -8,7 +8,7 @@ use super::super::flags::{FlagBook, expected_types};
 use super::super::grouping::Grouping;
 use super::super::join::{Joined, RowAt, SheetIn};
 use super::super::model::{LeftBy, Origin, RecordId, Subject};
-use super::super::plan::{FlagKind, FlagPolicy, RecordKind};
+use super::super::plan::{FlagKind, FlagPolicy, ItemsWithoutRowAnswer, RecordKind, RowKind};
 
 /// A record before its slots are resolved.
 pub(crate) struct Draft {
@@ -66,12 +66,7 @@ fn file_flags(
         .files
         .iter()
         .enumerate()
-        .map(|(at, _)| {
-            grouping
-                .moved_out
-                .get(&at)
-                .map(|decision| LeftBy::Decision(*decision))
-        })
+        .map(|(at, _)| grouping.left_out.get(&at).copied())
         .collect();
     for (at, file) in grouping.files.iter().enumerate() {
         let entry = [EntryRef::File(file.file.clone())];
@@ -113,9 +108,11 @@ pub(crate) fn make(
     joined: &Joined,
     sheets: &[SheetIn<'_>],
     catalog: &Catalog,
+    without_row: ItemsWithoutRowAnswer,
     book: &mut FlagBook<'_>,
 ) -> Made {
     let file_left = file_flags(grouping, catalog, book);
+    let leave_rowless = without_row == ItemsWithoutRowAnswer::Leave && joins_items(sheets);
     let mut file_record = vec![None; grouping.files.len()];
     let mut drafts: Vec<Draft> = Vec::new();
     let next = |drafts: &Vec<Draft>| RecordId(u32::try_from(drafts.len()).unwrap_or(u32::MAX));
@@ -139,6 +136,9 @@ pub(crate) fn make(
         let item = next(&drafts);
         let mut draft = Draft::new(RecordKind::Item, Origin::Group(key.clone()));
         draft.identifier = Some(key.text().to_string());
+        if rows.is_empty() && leave_rowless {
+            draft.left = Some(LeftBy::NoRow);
+        }
         draft.rows = rows;
         draft.files.clone_from(&kept);
         drafts.push(draft);
@@ -202,6 +202,19 @@ pub(crate) fn make(
         file_left,
         file_record,
     }
+}
+
+/// Whether a sheet the derive read joins item rows to file groups: without
+/// one, no item could have a row, so `itemsWithoutRow: leave` is moot.
+fn joins_items(sheets: &[SheetIn<'_>]) -> bool {
+    sheets.iter().any(|sheet| {
+        sheet.sheet.is_some()
+            && sheet.plan.join.is_some()
+            && !matches!(
+                sheet.plan.row_kind,
+                RowKind::All(RecordKind::Media | RecordKind::ItemSet)
+            )
+    })
 }
 
 fn no_file(

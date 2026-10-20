@@ -10,6 +10,9 @@
 //! which the caller feeds; the plan itself holds no database or files.
 
 mod action;
+mod anomalies;
+#[cfg(test)]
+mod anomalies_tests;
 mod check;
 mod flags;
 mod names;
@@ -24,6 +27,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use action::{
     Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
 };
+pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, UnmatchedFilesAnswer};
 pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};
@@ -58,6 +62,10 @@ pub struct ImportPlanV2 {
     pub decisions: Vec<Decision>,
     pub new_types: Vec<NewType>,
     pub new_terms: Vec<NewTerm>,
+    /// Missing means the defaults, and the defaults are not written, so a
+    /// plan stored before this member keeps its bytes.
+    #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
+    pub anomalies: AnomalyAnswers,
 }
 
 /// The member `version: 2`.
@@ -330,6 +338,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError>
         decisions: Vec::new(),
         new_types: Vec::new(),
         new_terms: Vec::new(),
+        anomalies: AnomalyAnswers::default(),
     };
     check::plan(&plan)?;
     Ok(plan)

@@ -1,12 +1,14 @@
-//! Steps 1 and 2 of the derive: files grouped by group key, then the `move`
-//! decisions, a `many` move as one move per file (`docs/import-v2.md`, "The
-//! derive").
+//! Steps 1 and 2 of the derive: files grouped by group key, then the plan's
+//! answers to unmatched and identical files, then the `move` decisions, a
+//! `many` move as one move per file (`docs/import-v2.md`, "The derive").
+//! A decision comes last so that it wins over an answer.
 //!
 //! The group key is the text of the pattern's `identifier` group, NFC, and
 //! case-folded when `grouping.caseFold` is on. It is not the record's
 //! `dcterms:identifier`: that slot is resolved later and only defaults to
 //! the group key.
 
+mod identical;
 pub mod pattern;
 
 use std::collections::{BTreeMap, HashMap};
@@ -16,8 +18,9 @@ use unicode_normalization::UnicodeNormalization;
 use super::decisions::{EntryRef, FileRef, MoveAlone, MoveTo, Moved, moves};
 use super::derive::Index;
 use super::evidence::FileEntry;
-use super::model::{GroupKey, Orphan, OrphanReason, PatternState};
-use super::plan::{ImportPlanV2, SourceId};
+use super::join::SheetIn;
+use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternState};
+use super::plan::{IdenticalAnswer, ImportPlanV2, SourceId, UnmatchedFilesAnswer};
 use super::values::fold_title;
 use pattern::{FilePattern, Groups, IDENTIFIER, PatternError};
 
@@ -45,13 +48,18 @@ pub(crate) struct Grouping<'i> {
     pub by_ref: HashMap<FileRef, usize>,
     /// Each group's files, in path order.
     pub groups: BTreeMap<GroupKey, Vec<usize>>,
-    /// The `move … leave` decision that took a file out of every group.
-    pub moved_out: BTreeMap<usize, usize>,
+    /// Why a file is out of every group: a `move … leave` decision, or
+    /// `identical: keepOne`. An unmatched file is not here.
+    pub left_out: BTreeMap<usize, LeftBy>,
     pub pattern: PatternState,
     pub orphans: Vec<Orphan>,
 }
 
-pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
+pub(crate) fn group<'i>(
+    index: &'i Index,
+    plan: &ImportPlanV2,
+    sheets: &[SheetIn<'_>],
+) -> Grouping<'i> {
     let compiled = FilePattern::compile(plan.grouping.pattern.as_deref());
     let pattern = match &compiled {
         Ok(pattern) => PatternState::Groups(pattern.group_names().to_vec()),
@@ -84,10 +92,16 @@ pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
         .map(|(at, file)| (file.file.clone(), at))
         .collect();
 
+    // With no pattern yet, no file is one a pattern does not fit.
+    let own_unmatched =
+        compiled.is_ok() && plan.anomalies.unmatched_files == UnmatchedFilesAnswer::Own;
     let mut group_of: Vec<Option<GroupKey>> = files
         .iter()
         .map(|file| {
-            let text: String = file.group(IDENTIFIER)?.nfc().collect();
+            let Some(text) = file.group(IDENTIFIER) else {
+                return own_unmatched.then(|| GroupKey::Own(file.file.clone()));
+            };
+            let text: String = text.nfc().collect();
             Some(GroupKey::Pattern(if plan.grouping.case_fold {
                 fold_title(&text)
             } else {
@@ -96,7 +110,13 @@ pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
         })
         .collect();
 
-    let mut moved_out = BTreeMap::new();
+    let mut left_out = BTreeMap::new();
+    if plan.anomalies.identical == IdenticalAnswer::KeepOne {
+        for place in identical::dropped(index, &files, &by_ref, sheets, &plan.decisions) {
+            group_of[place] = None;
+            left_out.insert(place, LeftBy::Identical);
+        }
+    }
     let mut orphans = Vec::new();
     for Moved { decision, file, to } in moves(&plan.decisions) {
         let orphan = |file: &FileRef, reason| Orphan {
@@ -120,15 +140,15 @@ pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
                     continue;
                 };
                 group_of[moved] = Some(key);
-                moved_out.remove(&moved);
+                left_out.remove(&moved);
             }
             MoveTo::Alone(MoveAlone::Own) => {
                 group_of[moved] = Some(GroupKey::Own(files[moved].file.clone()));
-                moved_out.remove(&moved);
+                left_out.remove(&moved);
             }
             MoveTo::Alone(MoveAlone::Leave) => {
                 group_of[moved] = None;
-                moved_out.insert(moved, decision);
+                left_out.insert(moved, LeftBy::Decision(decision));
             }
         }
     }
@@ -143,7 +163,7 @@ pub(crate) fn group<'i>(index: &'i Index, plan: &ImportPlanV2) -> Grouping<'i> {
         files,
         by_ref,
         groups,
-        moved_out,
+        left_out,
         pattern,
         orphans,
     }

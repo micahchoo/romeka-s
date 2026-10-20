@@ -23,12 +23,12 @@ const BHC_PATTERN: &str = r"^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z
 fn bhc_006(site: &Site) {
     let (jpeg, tiff) = (jpeg(), tiff());
     for n in 1..=4 {
-        site.write(&format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), &jpeg);
-        site.write(&format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), &jpeg);
-        site.write(&format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), &tiff);
+        site.write_object(&format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), &jpeg);
+        site.write_object(&format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), &jpeg);
+        site.write_object(&format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), &tiff);
     }
     for page in ["p1", "p2", "p10"] {
-        site.write(&format!("Scans/BHC_006_SC_001_{page}.tif"), &tiff);
+        site.write_object(&format!("Scans/BHC_006_SC_001_{page}.tif"), &tiff);
     }
     site.write("_scratch/notes.txt", b"call the donor about AF_003\n");
     site.write(
@@ -113,9 +113,9 @@ async fn s4_pages_in_natural_order_and_the_first_page_is_primary() {
     let site = site().await;
     let tiff = tiff();
     for page in ["2", "10", "1"] {
-        site.write(&format!("Box 1/Folder 1/{page}.tif"), &tiff);
+        site.write_object(&format!("Box 1/Folder 1/{page}.tif"), &tiff);
     }
-    site.write("Box 1/Folder 2/1.tif", &tiff);
+    site.write_object("Box 1/Folder 2/1.tif", &tiff);
     let synced = omeka_db::repos::SiteRepo::new(&site.pool)
         .create(&omeka_db::rows::NewSite {
             slug: "synced".into(),
@@ -169,7 +169,7 @@ async fn s6_media_rows_attach_by_item_key_with_their_own_values() {
     let site = site().await;
     let tiff = tiff();
     for name in ["s001", "s002", "s003"] {
-        site.write(&format!("scans/{name}.tif"), &tiff);
+        site.write_object(&format!("scans/{name}.tif"), &tiff);
     }
     site.write("objects.csv", b"Id,Title\nO1,Diary\nO2,Map\n");
     site.write(
@@ -577,7 +577,7 @@ async fn a_hand_run_is_refused_while_the_heartbeat_is_young() {
 async fn a_run_writes_the_values_of_an_uploaded_list_from_the_staging_area() {
     let site = site().await;
     for name in ["A1.jpg", "A2.jpg", "A3.jpg"] {
-        site.write(name, &jpeg());
+        site.write_object(name, &jpeg());
     }
     let id = site
         .draft(|plan| {

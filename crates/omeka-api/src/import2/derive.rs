@@ -79,11 +79,18 @@ pub fn derive(
         .collect();
     finish::sheet_findings(plan, sheets, &mut book, &mut anomalies);
 
-    let grouping = grouping::group(index, plan);
+    let grouping = grouping::group(index, plan, &sheet_ins);
     let mut orphans = grouping.orphans.clone();
     let mut joined = join::join(&sheet_ins, &grouping, &plan.decisions, &mut book);
     orphans.append(&mut joined.orphans);
-    let mut made = records::make(&grouping, &joined, &sheet_ins, catalog, &mut book);
+    let mut made = records::make(
+        &grouping,
+        &joined,
+        &sheet_ins,
+        catalog,
+        plan.anomalies.items_without_row,
+        &mut book,
+    );
     let entries: Vec<_> = made
         .drafts
         .iter()

@@ -208,7 +208,6 @@ pub fn read(
 
     let mut rows = Vec::new();
     let mut counts = Counts::default();
-    let mut seen: HashMap<String, usize> = HashMap::new();
     let width = columns.len();
     while let Some(record) = parsed.next_record(width) {
         let tidy = |cell: String| {
@@ -238,15 +237,6 @@ pub fn read(
         } else {
             None
         };
-        let row_key = match key {
-            Some(column) => {
-                let value: String = cell_at(&cells, &extra, column.index).trim().nfc().collect();
-                let n = seen.entry(value.clone()).or_default();
-                *n += 1;
-                RowKey::new(&format!("{value}#{n}"))
-            }
-            None => RowKey::new(&record.line.to_string()),
-        };
         for cell in cells.iter().chain(&extra) {
             counts.cells_with_spaces += usize::from(cell.trim() != cell);
             counts.cells_suspect += usize::from(looks_misdecoded(cell));
@@ -254,7 +244,7 @@ pub fn read(
         counts.cells_count += usize::from(problem.is_some());
         rows.push(Row {
             line: record.line,
-            key: row_key,
+            key: RowKey::new(&record.line.to_string()),
             cells,
             extra,
             cells_count: problem.map(|problem| CellsCount {
@@ -264,6 +254,9 @@ pub fn read(
         });
     }
     counts.rows = rows.len();
+    if let Some(column) = key {
+        key_rows(&mut rows, column);
+    }
     Ok(Sheet {
         hash: omeka_media::store::sha256_hex(bytes),
         encoding,
@@ -465,6 +458,22 @@ fn header_notes(columns: &[Column]) -> Vec<HeaderNote> {
         }
     }
     notes
+}
+
+/// Key each row by its `column` value, trimmed and NFC, and `#n` for the
+/// row's place among rows with that value. A caller that changes the key
+/// column's cells after the read keys the rows again.
+pub(crate) fn key_rows(rows: &mut [Row], column: &ColumnRef) {
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    for row in rows {
+        let value: String = cell_at(&row.cells, &row.extra, column.index)
+            .trim()
+            .nfc()
+            .collect();
+        let n = seen.entry(value.clone()).or_default();
+        *n += 1;
+        row.key = RowKey::new(&format!("{value}#{n}"));
+    }
 }
 
 fn cell_at<'c>(cells: &'c [String], extra: &'c [String], index: u32) -> &'c str {

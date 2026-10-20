@@ -237,7 +237,7 @@ fn title_cell(title: &str) -> (String, String) {
     let read = list_read(false);
     let mut sheet = sheet::read(text.as_bytes(), &read, None).unwrap();
     let raw = sheet.rows[0].cells[2].clone();
-    unescape_list(&mut sheet);
+    unescape_list(&mut sheet, None);
     (raw, sheet.rows[0].cells[2].clone())
 }
 
@@ -320,11 +320,73 @@ fn the_quote_comes_off_on_upload_so_every_value_round_trips() {
 }
 
 #[test]
-fn only_a_quote_before_a_formula_character_comes_off_and_only_in_bracketed_columns() {
+fn only_a_quote_before_a_formula_character_comes_off_and_only_in_the_identifier_and_bracketed_columns()
+ {
     let read = list_read(false);
-    let text = "Identifier,Files,Title [dcterms:title],Notes\r\n'-5,,'-5,'-5\r\nB,,'x,'=y\r\n";
+    let text = "Identifier,Files,Title [dcterms:title],Notes\r\n'-5,'-5,'-5,'-5\r\nB,,'x,'=y\r\n";
     let mut sheet = sheet::read(text.as_bytes(), &read, None).unwrap();
-    unescape_list(&mut sheet);
-    assert_eq!(sheet.rows[0].cells, ["'-5", "", "-5", "'-5"]);
+    unescape_list(&mut sheet, None);
+    assert_eq!(sheet.rows[0].cells, ["-5", "'-5", "-5", "'-5"]);
     assert_eq!(sheet.rows[1].cells, ["B", "", "'x", "'=y"]);
+}
+
+#[test]
+fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
+    let index = index(&["-001.jpg", "=X.jpg"]);
+    let mut value = serde_json::to_value(plan()).unwrap();
+    value["grouping"]["pattern"] = json!(r"^(?<identifier>[^/]+)\.jpg$");
+    let mut plan = ImportPlanV2::from_json(&value.to_string()).unwrap();
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let text = String::from_utf8(template_csv(
+        &model,
+        &catalog(),
+        &columns(&["dcterms:title"]),
+    ))
+    .unwrap();
+    let lines: Vec<&str> = text.split("\r\n").collect();
+    assert_eq!(lines[1], "'-001,'-001.jpg,\"Untitled, \"\"draft\"\"\"");
+    assert_eq!(lines[2], "'=X,'=X.jpg,\"Untitled, \"\"draft\"\"\"");
+
+    let filled = format!(
+        "{}\r\n'-001,'-001.jpg,Lamp\r\n'=X,'=X.jpg,Bowl\r\n",
+        lines[0].trim_start_matches('\u{feff}')
+    );
+    let read = list_read(false);
+    let key = ColumnRef {
+        index: 0,
+        header: IDENTIFIER.to_string(),
+    };
+    let mut sheet = sheet::read(filled.as_bytes(), &read, Some(&key)).unwrap();
+    let added = add_list(
+        &mut plan,
+        RelPath::parse("lists/1.csv").unwrap(),
+        read,
+        &sheet,
+        &catalog(),
+    )
+    .unwrap();
+    unescape_list(&mut sheet, sheet::key_column(&plan.sheets[0]));
+    assert_eq!(sheet.rows[0].cells[0], "-001");
+    assert_eq!(sheet.rows[0].key.as_str(), "-001#1");
+    assert_eq!(sheet.rows[1].cells[0], "=X");
+
+    let sheets: Sheets = [(added.sheet, Ok(sheet))].into_iter().collect();
+    let model = derive(&index, &sheets, &plan, &catalog(), &NoTags);
+    let title = |key: &str| {
+        model
+            .kept()
+            .find(|record| {
+                record.kind == RecordKind::Item && record.resolved.item_key.as_deref() == Some(key)
+            })
+            .and_then(|record| {
+                record.slots.get(
+                    &ListColumn::parse("dcterms:title", &catalog())
+                        .unwrap()
+                        .slot(),
+                )
+            })
+            .map(|values| values[0].value.text.clone())
+    };
+    assert_eq!(title("-001").as_deref(), Some("Lamp"));
+    assert_eq!(title("=X").as_deref(), Some("Bowl"));
 }

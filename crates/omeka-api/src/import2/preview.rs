@@ -12,10 +12,12 @@
 //! computed only when the request names it.
 
 mod causes;
+mod columns;
 mod counts;
 mod evidence;
 mod facts;
 mod identical;
+mod names;
 mod query;
 mod sample;
 mod sheets;
@@ -33,10 +35,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 pub use causes::{FlagCount, FlagSample};
+pub use columns::{ColumnMatches, SheetMatches};
 pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
 pub use evidence::{ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView};
 pub use facts::{Bucket, BucketCount, MediaKind, PAGE, SAMPLES, ShapeFacts, ShapeGroup, Shapes};
 pub use identical::{IdenticalFiles, IdenticalView};
+pub use names::{NameWords, NameWordsQuery, WordCount};
 pub use query::{
     EntriesQuery, EntryView, MAX_PER_PAGE, Page, PageQuery, RecordView, RecordsQuery, SetFilter,
     TemplateFilter, Unused,
@@ -85,6 +89,8 @@ pub enum Section {
     Identical,
     Unpaired,
     Values,
+    NameWords,
+    ColumnMatches,
 }
 
 /// `POST /api/romeka/imports/{id}/preview`.
@@ -108,6 +114,8 @@ pub struct PreviewRequest {
     pub unpaired: Option<UnpairedQuery>,
     #[serde(default)]
     pub values: Option<ValuesQuery>,
+    #[serde(default)]
+    pub name_words: Option<NameWordsQuery>,
     /// Draws the sample records of `shapes` and `flags`; 0 when left out.
     #[serde(default)]
     pub seed: Option<u64>,
@@ -156,6 +164,10 @@ pub struct Preview {
     pub unpaired: Option<Unpaired>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub values: Option<Vec<SlotValues>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_words: Option<NameWords>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_matches: Option<Vec<SheetMatches>>,
 }
 
 /// File tags read from disk through the shared cache.
@@ -320,10 +332,19 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
             .then(|| unpaired::unpaired(model, &request.unpaired.clone().unwrap_or_default())),
         values: wants(Section::Values)
             .then(|| counts::values(model, &request.values.clone().unwrap_or_default())),
+        name_words: wants(Section::NameWords).then(|| {
+            names::name_words(
+                &derived.stored,
+                &request.name_words.clone().unwrap_or_default(),
+            )
+        }),
+        column_matches: wants(Section::ColumnMatches).then(|| columns::column_matches(derived)),
     }
 }
 
 #[cfg(test)]
 mod facts_tests;
+#[cfg(test)]
+mod names_tests;
 #[cfg(test)]
 mod tests;

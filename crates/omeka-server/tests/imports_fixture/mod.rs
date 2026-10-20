@@ -144,6 +144,11 @@ impl Fixture {
         write_tree(self.archive.path(), files);
     }
 
+    /// Write `files` as [`write_objects`] does.
+    pub fn write_objects(&self, files: &[(&str, &[u8])]) {
+        write_objects(self.archive.path(), files);
+    }
+
     /// A draft on the whole archive root, as its JSON view.
     pub async fn draft(&self) -> Value {
         let made = self
@@ -178,6 +183,29 @@ impl Fixture {
         .await
     }
 
+    /// `POST /api/romeka/imports/{id}/sheets` with one file, as the admin.
+    pub async fn upload(&self, id: &Value, name: &str, bytes: &[u8]) -> Answer {
+        const BOUNDARY: &str = "romeka-list-boundary";
+        let mut body = format!(
+            "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: text/csv\r\n\r\n"
+        )
+        .into_bytes();
+        body.extend_from_slice(bytes);
+        body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
+        let request = axum::http::Request::builder()
+            .method("POST")
+            .uri(format!(
+                "/api/romeka/imports/{id}/sheets?key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}"
+            ))
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={BOUNDARY}"),
+            )
+            .body(axum::body::Body::from(body))
+            .unwrap();
+        send(self.app.clone(), request).await
+    }
+
     pub async fn row(&self, id: &Value) -> ImportRow {
         ImportRepo::new(&self.pool)
             .get(ImportId(id.as_u64().unwrap()))
@@ -203,6 +231,15 @@ pub fn write_tree(root: &Path, files: &[(&str, &[u8])]) {
     }
 }
 
+/// Write each file with its path after its bytes. Files of distinct
+/// objects never share their bytes, and the derive keeps only one of
+/// identical files (`anomalies.identical: keepOne`).
+pub fn write_objects(root: &Path, files: &[(&str, &[u8])]) {
+    for (path, bytes) in files {
+        write_tree(root, &[(path, &[*bytes, path.as_bytes()].concat())]);
+    }
+}
+
 pub const JPEG: &[u8] = b"\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00";
 pub const TIFF: &[u8] = b"II*\x00\x08\x00\x00\x00\x00\x00";
 
@@ -210,28 +247,30 @@ pub const TIFF: &[u8] = b"II*\x00\x08\x00\x00\x00\x00\x00";
 /// four photographs in a decade folder, one scan in three pages, and a
 /// scratch folder of a note and a Windows thumbnail cache.
 pub fn bhc_006(root: &Path) {
-    let mut files: Vec<(String, &[u8])> = Vec::new();
+    let mut objects: Vec<(String, &[u8])> = Vec::new();
     for n in 1..=4 {
-        files.push((format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), JPEG));
-        files.push((format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), JPEG));
-        files.push((format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), TIFF));
+        objects.push((format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), JPEG));
+        objects.push((format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), JPEG));
+        objects.push((format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), TIFF));
     }
     for page in ["p1", "p2", "p10"] {
-        files.push((format!("Scans/BHC_006_SC_001_{page}.tif"), TIFF));
+        objects.push((format!("Scans/BHC_006_SC_001_{page}.tif"), TIFF));
     }
-    files.push((
-        "_scratch/notes.txt".into(),
-        b"call the donor about AF_003\n",
-    ));
-    files.push((
-        "_scratch/Thumbs.db".into(),
-        b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00",
-    ));
-    let listed: Vec<(&str, &[u8])> = files
+    let listed: Vec<(&str, &[u8])> = objects
         .iter()
         .map(|(path, bytes)| (path.as_str(), *bytes))
         .collect();
-    write_tree(root, &listed);
+    write_objects(root, &listed);
+    write_tree(
+        root,
+        &[
+            ("_scratch/notes.txt", b"call the donor about AF_003\n"),
+            (
+                "_scratch/Thumbs.db",
+                b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00",
+            ),
+        ],
+    );
 }
 
 /// The pattern S1 groups the demo by: the top folder is the set, the
