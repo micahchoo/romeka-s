@@ -440,6 +440,10 @@ export const PageEditor = ({
                   deselect();
                   focusAfter.current = 'inspector';
                 }}
+                onSelect={(key) => {
+                  setSelection({ key, from: 'inspector' });
+                  focusAfter.current = 'inspector';
+                }}
                 issues={issues}
                 siteId={siteId}
                 options={options}

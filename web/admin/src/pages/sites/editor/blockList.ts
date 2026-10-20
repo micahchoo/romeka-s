@@ -76,7 +76,7 @@ export const moveBlock = (state: PageDraft, action: ActionOf<'moveBlock'>): Page
     return state;
   }
   if (action.into !== undefined && action.into !== null) {
-    const appended = appendToGroup(nodes, action.into, removed);
+    const appended = appendToGroup(nodes, action.into, removed, action.before ?? null);
     if (appended !== null) {
       return commit(state, { ...contentOf(state), blocks: renderNodes(appended) });
     }

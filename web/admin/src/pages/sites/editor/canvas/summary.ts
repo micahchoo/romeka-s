@@ -10,6 +10,7 @@ import type { TemplateBlock } from '../../templates';
 import type { BlockDraft, LayoutData } from '../draft';
 import { counted } from '../messages';
 import { carrierOf, romkaFor } from '../romeka';
+import { SECTION_LAYOUT_PATH, sectionOf } from '../sections';
 import { dataObject, readLayoutData } from '../values';
 
 const MAX_SUMMARY = 80;
@@ -73,8 +74,20 @@ export const layoutLabel = (
   if (romka !== undefined) {
     return t(romka.label);
   }
+  const section = sectionOf(block);
+  if (section !== null) {
+    return t('section.named', { layout: sectionLabel(registry, section.layout, t) });
+  }
   const entry = registry.layouts.find((candidate) => candidate.name === block.layout);
   return entry === undefined ? t('layout.unknown', { name: block.layout }) : t(entry.label);
+};
+
+/** The name of a section layout, from the section schema's own option label. */
+export const sectionLabel = (registry: BlockRegistry, layout: string, t: Translate): string => {
+  const field = registry.sectionLayoutData.fields.find((entry) => entry.key === SECTION_LAYOUT_PATH);
+  const option =
+    field?.type === 'choice' ? field.options.find((entry) => entry.value === layout) : undefined;
+  return option === undefined ? layout : t(option.label);
 };
 
 /** The labels of a template's blocks, one per block, for its chooser card. */

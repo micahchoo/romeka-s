@@ -10,14 +10,8 @@ import type { JsonValue } from '../../../api/types';
 import type { ActionOf, BlockDraft, BlockKey, PageDraft } from './draft';
 import { isGroup } from './groups';
 import { commit, contentOf } from './history';
-import {
-  carrierOf,
-  newCarrier,
-  romkaFor,
-  settingsOf,
-  withSettings,
-  withoutPlainHash,
-} from './romeka';
+import { carrierOf, withoutPlainHash } from './romeka';
+import { writePaths } from './layoutPaths';
 import { dataObject, layoutDataObject } from './values';
 
 const findBlock = (state: PageDraft, key: BlockKey): BlockDraft | undefined =>
@@ -53,8 +47,11 @@ export const setBlockData = (state: PageDraft, action: ActionOf<'setBlockData'>)
 };
 
 /**
- * Merges `values` into one block's `o:layout_data`. Consecutive writes of the
- * same keys share an undo entry, so typing into a linked padding undoes at once.
+ * Merges `values` into one block's `o:layout_data`, a `romeka.` key into the
+ * block's Romeka settings (`layoutPaths.ts`), whether the form is the block's
+ * styling, a group's section, a Romeka block's own settings or a Romeka field
+ * of an upstream block's data form. Consecutive writes of the same keys
+ * share an undo entry, so typing into a linked padding undoes at once.
  */
 export const writeLayoutData = (
   state: PageDraft,
@@ -67,51 +64,15 @@ export const writeLayoutData = (
   }
   return replaceBlock(
     state,
-    { ...target, layoutData: { ...layoutDataObject(target), ...values } },
+    {
+      ...target,
+      layoutData: writePaths(layoutDataObject(target), values, {
+        layout: target.layout,
+        version: state.registry.romekaVersion,
+      }),
+    },
     `layoutData:${blockKey}:${Object.keys(values).sort().join(',')}`,
   );
-};
-
-/**
- * Writes one setting into `o:layout_data.romeka.settings`: a Romeka block's
- * own setting, or a Romeka setting of an upstream block (a schema field marked
- * `romeka`), whose carrier names the block's own layout and is created on the
- * first write.
- */
-export const setRomkaSetting = (
-  state: PageDraft,
-  action: ActionOf<'setRomkaSetting'>,
-): PageDraft => {
-  const target = findBlock(state, action.blockKey);
-  if (target === undefined) {
-    return state;
-  }
-  const settings = { ...settingsOf(target), [action.field]: action.value };
-  const edit = `romkaSetting:${action.blockKey}:${action.field}`;
-  if (romkaFor(state.registry, target) !== undefined) {
-    return replaceBlock(
-      state,
-      {
-        ...target,
-        layoutData: target.layoutData === null ? null : withSettings(target.layoutData, settings),
-      },
-      edit,
-    );
-  }
-  const keepsSettings = state.registry.layouts
-    .find((layout) => layout.name === target.layout)
-    ?.fields.some((field) => field.romeka && field.key === action.field);
-  if (keepsSettings !== true) {
-    return state;
-  }
-  const layoutData =
-    target.layoutData !== null && carrierOf(target) !== null
-      ? withSettings(target.layoutData, settings)
-      : {
-          ...layoutDataObject(target),
-          ...newCarrier(target.layout, settings, state.registry.romekaVersion),
-        };
-  return replaceBlock(state, { ...target, layoutData }, edit);
 };
 
 export const adoptRomkaVersion = (

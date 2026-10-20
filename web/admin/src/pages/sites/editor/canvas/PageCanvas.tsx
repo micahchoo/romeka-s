@@ -8,14 +8,16 @@
  * gesture state below.
  */
 import { Fragment, useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { DragEvent, ReactElement } from 'react';
 import { useTranslator } from '../../../../i18n';
 import type { JsonValue } from '../../../../api/types';
 import type { TemplateChoice } from '../../templates';
 import type { BlockDraft, BlockKey, DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { validate } from '../draft';
 import { parseNodes } from '../groups';
-import type { DraftNode } from '../groups';
+import type { DraftNode, GroupNode } from '../groups';
+import { emptySlots, gridColumns, sectionOf } from '../sections';
+import type { SectionOf } from '../sections';
 import { BlockPicker, useInsertChoices } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
 import { gridGap, pageColumns } from './grid';
@@ -23,7 +25,7 @@ import { flatIndex, intoGroup } from './move';
 import { counted } from '../messages';
 import { romkaState } from '../romekaHash';
 import type { Selection } from '../shell/selection';
-import { blockSummary, layoutLabel } from './summary';
+import { blockSummary, layoutLabel, sectionLabel } from './summary';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
 import { editor } from '../../../../i18n/namespaces/editor';
 import { sites } from '../../../../i18n/namespaces/sites';
@@ -151,11 +153,11 @@ export const PageCanvas = ({
     setDraggingKey(null);
   };
 
-  const dropInto = (group: BlockKey): void => {
-    if (draggingKey === null) {
+  const dropInto = (group: BlockKey, before: BlockKey | null = null): void => {
+    if (draggingKey === null || draggingKey === before) {
       return;
     }
-    dispatch(intoGroup(draft.blocks, draggingKey, group));
+    dispatch(intoGroup(draft.blocks, draggingKey, group, before));
     setDraggingKey(null);
   };
 
@@ -226,6 +228,77 @@ export const PageCanvas = ({
     );
   };
 
+  /** A drop target that puts the dragged block into `group`, before `before` or at the end. */
+  const dropTarget = (group: BlockKey, before: BlockKey | null) => ({
+    onDragOver: (event: DragEvent) => {
+      event.preventDefault();
+    },
+    onDrop: (event: DragEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dropInto(group, before);
+    },
+  });
+
+  /** A group with a section layout: its blocks in the section's own columns, one slot each. */
+  const renderSection = (node: GroupNode, section: SectionOf): ReactElement => {
+    const empty = emptySlots(section.shape, node.members.length);
+    const layoutName = sectionLabel(draft.registry, section.layout, t);
+    return (
+      <Fragment key={node.marker.key}>
+        {insertPoint(flatIndex(draft.blocks, node.marker.key))}
+        {renderCard(node.marker)}
+        <li
+          className="canvas-group canvas-section"
+          data-section={section.layout}
+          aria-label={t('canvas.section', { layout: layoutName })}
+        >
+          <span className="canvas-group-label">
+            {layoutName} · {counted(t, 'blocks', node.members.length)}
+          </span>
+          <ul
+            className={section.shape.cards ? 'canvas-slots canvas-slots-cards' : 'canvas-slots'}
+            style={{ gridTemplateColumns: gridColumns(section.shape) }}
+          >
+            {node.members.map((member, index) => (
+              <li
+                key={member.key}
+                className="canvas-slot"
+                data-slot={index + 1}
+                {...dropTarget(node.marker.key, member.key)}
+              >
+                <ul className="canvas-slot-items">
+                  {insertPoint(flatIndex(draft.blocks, member.key))}
+                  {renderCard(member)}
+                </ul>
+              </li>
+            ))}
+            {Array.from({ length: empty }, (_, index) => (
+              <li
+                key={`empty-${String(index)}`}
+                className="canvas-slot canvas-slot-empty"
+                data-slot={node.members.length + index + 1}
+                data-drop-into={node.marker.key}
+                {...dropTarget(node.marker.key, null)}
+              >
+                {t('canvas.slotEmpty', { slot: node.members.length + index + 1 })}
+              </li>
+            ))}
+          </ul>
+          {empty > 0 ? null : (
+            <div
+              className="canvas-drop-into"
+              data-drop-into={node.marker.key}
+              {...dropTarget(node.marker.key, null)}
+            >
+              <span className="canvas-visually-hidden">{t('canvas.groupDrop')}</span>
+            </div>
+          )}
+        </li>
+      </Fragment>
+    );
+  };
+
   const renderNode = (node: DraftNode): ReactElement => {
     if (node.kind === 'block') {
       return (
@@ -234,6 +307,10 @@ export const PageCanvas = ({
           {renderCard(node.block)}
         </Fragment>
       );
+    }
+    const section = sectionOf(node.marker);
+    if (section !== null) {
+      return renderSection(node, section);
     }
     return (
       <Fragment key={node.marker.key}>

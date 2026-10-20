@@ -295,6 +295,50 @@ mod tests {
         page
     }
 
+    /// A page with one section per layout, each with an alignment, a gap and
+    /// an overlay, and a block with every shared styling member.
+    fn sections_page() -> SitePage {
+        let mut page = SitePage::new(
+            PageId::new(6),
+            SiteId::new(1),
+            Slug::parse("sections").unwrap(),
+            "Sections",
+        );
+        let aligns = ["top", "center", "bottom"];
+        let gaps = ["none", "small", "medium", "large"];
+        let overlays = ["none", "light", "dark"];
+        for (index, (layout, _)) in crate::blocks::style::SectionLayout::ALL.iter().enumerate() {
+            page.blocks.push(block_with_layout(
+                "blockGroup",
+                json!({"span": "1"}),
+                json!({"romeka": {"block": "blockGroup", "v": 2, "settings": {"section": {
+                    "layout": layout,
+                    "align": aligns[index % aligns.len()],
+                    "gap": gaps[index % gaps.len()],
+                    "overlay": overlays[index % overlays.len()],
+                }}}}),
+            ));
+            page.blocks
+                .push(block("html", json!({"html": "<p>Slot</p>"})));
+        }
+        page.blocks.push(block_with_layout(
+            "html",
+            json!({"html": "<p>Styled</p>"}),
+            json!({"romeka": {"block": "html", "v": 2, "settings": {
+                "anchor": "styled",
+                "space_top": "small",
+                "space_bottom": "large",
+                "bleed": true,
+                "text_color": "muted",
+                "background_role": "surface",
+            }}}),
+        ));
+        for (index, block) in page.blocks.iter_mut().enumerate() {
+            block.position = index as i64 + 1;
+        }
+        page
+    }
+
     /// The documents whose fragments the stylesheet must style: a page with
     /// every layout, a grid page, a browse per resource kind, and the remaining
     /// views.
@@ -347,6 +391,12 @@ mod tests {
         documents.push(crate::render::render_page(
             &crate::theme::DefaultTheme,
             &grid,
+            &mut ctx,
+        ));
+        let sections = sections_page();
+        documents.push(crate::render::render_page(
+            &crate::theme::DefaultTheme,
+            &sections,
             &mut ctx,
         ));
 
@@ -600,6 +650,11 @@ mod tests {
             "list-of-pages-link",
             "romeka-hero",
             "romeka-hero-cta",
+            "romeka-section",
+            "romeka-section-split-40-60",
+            "romeka-section-cards-3",
+            "romeka-section-band",
+            "romeka-bleed",
             "iiif-poster",
             "iiif-links",
             "page-layout-grid",

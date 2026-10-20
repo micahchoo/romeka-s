@@ -22,6 +22,8 @@ export const issueMessage = (issue: ValidationIssue): FieldMessage => {
       return { key: 'field.errorMin', params: { min: issue.min } };
     case 'max':
       return { key: 'field.errorMax', params: { max: issue.max } };
+    case 'taken':
+      return { key: 'field.errorAnchorTaken' };
   }
 };
 

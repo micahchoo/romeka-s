@@ -100,6 +100,7 @@ fn every_field_list() -> Vec<(String, &'static [Field])> {
     );
     lists.push(("blockLayoutData".to_string(), BLOCK_LAYOUT_DATA.fields));
     lists.push(("pageLayoutData".to_string(), PAGE_LAYOUT_DATA.fields));
+    lists.push(("sectionLayoutData".to_string(), SECTION_LAYOUT_DATA.fields));
     let mut index = 0;
     while index < lists.len() {
         let (name, fields) = lists[index].clone();
@@ -200,7 +201,10 @@ fn every_field_has_help_and_layout_data_alone_groups() {
 
 fn assert_keys_are_read(layout: &str, fields: &'static [Field], read: &[&'static str]) {
     // A Romeka setting lives in the layout data, which the data parse never reads.
-    for field in fields.iter().filter(|field| !field.romeka) {
+    for field in fields
+        .iter()
+        .filter(|field| romeka_setting(field.key).is_none())
+    {
         match field.kind {
             FieldKind::Attachments { .. } => {}
             FieldKind::Repeat { fields: inner } => assert_keys_are_read(layout, inner, read),

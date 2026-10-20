@@ -33,6 +33,7 @@ pub mod iiif_image;
 pub mod iiif_presentation;
 pub mod item_with_metadata;
 pub mod layout;
+pub mod layout_schema;
 pub mod line_break;
 pub mod list_of_pages;
 pub mod list_of_sites;
@@ -41,8 +42,12 @@ pub mod oembed;
 pub mod page_date_time;
 pub mod page_title;
 pub mod romeka;
+pub mod section_templates;
+pub mod style;
 pub mod table_of_contents;
 pub mod templates;
+
+use std::collections::BTreeSet;
 
 use omeka_core::site::{BlockData, BlockLayout as LayoutId, SiteBlock, SitePage};
 
@@ -151,6 +156,10 @@ pub fn render_block(block: &SiteBlock, ctx: &RenderContext<'_>) -> String {
 /// classes and inline styles `AbstractLayout` derives from the block's layout
 /// data, and the page element carries the page layout's own classes. The page
 /// layout data and every block's layout data come from the page.
+///
+/// A block's Romeka anchor becomes the wrapper's `id` the first time the page
+/// names it; a later block with the same anchor renders without one, so the
+/// page never carries two elements with one id.
 #[must_use]
 pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
     let mut ordered: Vec<&SiteBlock> = page.blocks.iter().collect();
@@ -161,7 +170,11 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
     let mut in_group = false;
     let mut span = 0_i64;
     let mut counted = 0_i64;
+    let mut anchors = BTreeSet::new();
     for block in ordered {
+        let anchor = style::RomekaStyle::parse(&block.layout_data)
+            .anchor
+            .filter(|anchor| anchors.insert(anchor.clone()));
         if block.layout == LayoutId::BlockGroup {
             if in_group {
                 // Blocks may not overlap, so a group inside a group closes the
@@ -171,7 +184,13 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
             in_group = true;
             span = group_span(block);
             counted = 0;
-            out.push_str(&layout::group_open(block, page.layout, columns, ctx));
+            out.push_str(&layout::group_open(
+                block,
+                page.layout,
+                columns,
+                anchor.as_deref(),
+                ctx,
+            ));
         } else {
             let classes = layout::block_classes(block, page.layout, columns);
             let styles = layout::block_inline_styles(block, ctx);
@@ -179,6 +198,7 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
             out.push_str(&layout::block_wrapper(
                 &classes,
                 &styles,
+                anchor.as_deref(),
                 ctx.block_marker(block.id),
                 &body,
             ));
@@ -538,3 +558,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "section_tests.rs"]
+mod section_tests;

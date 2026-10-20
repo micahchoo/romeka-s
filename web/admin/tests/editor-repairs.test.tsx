@@ -2,7 +2,7 @@
  * The page editor repairs, through the route a curator opens: the page
  * settings come back after a selection, Undo and Redo live in the toolbar with
  * their shortcuts, the Keys popover lists the hidden keys, a removed block can
- * be brought back from its toast, and a group's size is read-only.
+ * be brought back from its toast, and a group lists its blocks as slots.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -260,16 +260,16 @@ describe('the hidden keys', () => {
   });
 });
 
-describe('a group size is read-only (R6)', () => {
-  it('shows the count with the move actions as the way to change it', async () => {
+describe('a group lists its blocks as slots (R6)', () => {
+  it('shows each block in its slot, with no count to type into', async () => {
     await renderEditor();
     fireEvent.click(screen.getByRole('listitem', { name: /Block 2: Block group/ }));
     const inspector = screen.getByRole('region', { name: 'Block inspector' });
 
-    const size = await within(inspector).findByLabelText('Blocks in the group');
-    expect(size).toHaveTextContent('1');
+    const slot = await within(inspector).findByRole('button', { name: /Slot 1/ });
+    expect(slot).toHaveTextContent('HTML');
+    expect(inspector).toHaveTextContent('1 block');
     expect(within(inspector).queryByRole('spinbutton')).toBeNull();
-    expect(inspector).toHaveTextContent('Move into the group above');
-    expect(inspector).toHaveTextContent('Move out of the group');
+    expect(within(inspector).queryByLabelText('Blocks in the group')).toBeNull();
   });
 });

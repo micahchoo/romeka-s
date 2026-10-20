@@ -53,7 +53,8 @@ export interface SideKeys {
 }
 
 interface FieldBase {
-  /** The `o:data` key, or a group's own name. */
+  /** The stored key, or a group's own name. A key under `romeka.` names a
+   * Romeka setting in `o:layout_data.romeka.settings` (`editor/layoutPaths.ts`). */
   readonly key: string;
   readonly label: EditorMessageKey;
   /** The one line under the control that says what the visitor sees. */
@@ -67,9 +68,6 @@ interface FieldBase {
   readonly group: FieldGroup | null;
   /** Whether the form tucks the field under "Advanced". */
   readonly advanced: boolean;
-  /** Whether the value is a Romeka setting of an upstream block, kept in
-   * `o:layout_data.romeka.settings` rather than in `o:data`. */
-  readonly romeka: boolean;
 }
 
 /** One field of a layout's form, by the control it renders. */
@@ -104,7 +102,13 @@ export type BlockField =
   | (FieldBase & { readonly type: 'attachments'; readonly media: boolean })
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
   | (FieldBase & { readonly type: 'pageList' })
-  | (FieldBase & { readonly type: 'color' })
+  | (FieldBase & {
+      /** A hex colour under `key`, or a theme colour role under `tokenKey`. */
+      readonly type: 'color';
+      /** Where a theme role is stored, or `null` for a field that takes hex only. */
+      readonly tokenKey: string | null;
+    })
+  | (FieldBase & { readonly type: 'anchor' })
   /** A IIIF manifest URL, chosen as a URL or as an item of this site. */
   | (FieldBase & { readonly type: 'manifestSource' })
   | (FieldBase & { readonly type: 'sides'; readonly keys: SideKeys })
@@ -147,6 +151,13 @@ export interface RomkaHash {
   readonly legacyHash: string;
 }
 
+/** One theme colour role a colour field may store. */
+export interface ColorToken {
+  /** The stored value, the role's `--color-<value>` suffix. */
+  readonly value: string;
+  readonly label: EditorMessageKey;
+}
+
 /** The whole block registry. */
 export interface BlockRegistry {
   readonly layouts: readonly BlockLayoutSchema[];
@@ -156,6 +167,9 @@ export interface BlockRegistry {
   readonly romekaHash: RomkaHash;
   readonly blockLayoutData: LayoutSchema;
   readonly pageLayoutData: LayoutSchema;
+  /** A block group's section, under `o:layout_data.romeka.settings.section`. */
+  readonly sectionLayoutData: LayoutSchema;
+  readonly colorTokens: readonly ColorToken[];
 }
 
 const parseString = (value: unknown, path: Path): string => {
@@ -302,7 +316,6 @@ const parseField = (value: unknown, path: Path): BlockField => {
     when: parseCondition(value.when, [...path, 'when']),
     group: parseGroup(value.group, [...path, 'group']),
     advanced: parseFlag(value.advanced, [...path, 'advanced']),
-    romeka: parseFlag(value.romeka, [...path, 'romeka']),
   };
   switch (parseString(value.type, [...path, 'type'])) {
     case 'text':
@@ -312,7 +325,13 @@ const parseField = (value: unknown, path: Path): BlockField => {
         placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
       };
     case 'color':
-      return { ...base, type: 'color' };
+      return {
+        ...base,
+        type: 'color',
+        tokenKey: parseOptionalString(value.tokenKey, [...path, 'tokenKey']),
+      };
+    case 'anchor':
+      return { ...base, type: 'anchor' };
     case 'manifestSource':
       return { ...base, type: 'manifestSource' };
     case 'sides':
@@ -423,5 +442,7 @@ export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
     romekaHash: parseRomkaHash(raw.romekaHash, ['romekaHash']),
     blockLayoutData: parseSchema(raw.blockLayoutData, ['blockLayoutData']),
     pageLayoutData: parseSchema(raw.pageLayoutData, ['pageLayoutData']),
+    sectionLayoutData: parseSchema(raw.sectionLayoutData, ['sectionLayoutData']),
+    colorTokens: parseListOf(parseOption)(raw.colorTokens, ['colorTokens']),
   };
 };
