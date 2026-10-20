@@ -328,7 +328,7 @@ async fn a_run_creates_items_sets_a_type_a_field_media_and_files_and_records_the
         .list_properties(template.id)
         .await
         .expect("fields");
-    assert_eq!(fields.len(), 5, "the letter starter's fields");
+    assert_eq!(fields.len(), 7, "the letter starter's fields");
     assert!(fields[0].is_required);
 
     let items = ItemRepo::new(&fixture.pool)
@@ -471,4 +471,90 @@ async fn a_plan_that_names_an_unknown_term_writes_nothing() {
     );
     assert_eq!(fixture.count("item_set").await, 1);
     assert_eq!(fixture.count("romeka_import_resource").await, 0);
+}
+
+/// The Types tab lists `catalog::STARTERS`; a run must create exactly those
+/// fields, labels and class, or the tab promises what the run does not make.
+#[tokio::test]
+async fn a_new_type_is_made_exactly_as_its_starter_lists() {
+    use omeka_db::repos::ClassRepo;
+    use omeka_db::rows::NewClass;
+
+    let fixture = fixture().await;
+    for vocabulary in &crate::vocab_import::defaults::DEFAULT_VOCABULARIES {
+        let prefix = VocabularyRepo::new(&fixture.pool)
+            .get_by_prefix(vocabulary.prefix)
+            .await
+            .expect("vocabulary")
+            .expect("installed");
+        for class in vocabulary.members().expect("members").classes {
+            ClassRepo::new(&fixture.pool)
+                .create(&NewClass {
+                    owner_id: None,
+                    vocabulary_id: prefix.id,
+                    local_name: class.local_name,
+                    label: class.label,
+                    comment: None,
+                })
+                .await
+                .expect("class");
+        }
+    }
+    let mut plan = plan();
+    let mut value = plan.to_json();
+    value["typeFor"] = json!({
+        "Letters": { "starter": "letter", "name": "Letter" },
+        "Photos": { "starter": "photograph", "name": "Photograph" },
+    });
+    plan = ImportPlan::from_json(&value).expect("plan");
+    fixture.run_plan(plan).await;
+
+    for starter in &super::catalog::STARTERS {
+        if !matches!(starter.name, "Letter" | "Photograph") {
+            continue;
+        }
+        let template = TemplateRepo::new(&fixture.pool)
+            .find_by_label(starter.name)
+            .await
+            .expect("find")
+            .expect("the new type");
+        let (prefix, local) = starter.class_term.split_once(':').expect("term");
+        let vocabulary = VocabularyRepo::new(&fixture.pool)
+            .get_by_prefix(prefix)
+            .await
+            .expect("vocabulary")
+            .expect("installed");
+        let class = ClassRepo::new(&fixture.pool)
+            .find(vocabulary.id, local)
+            .await
+            .expect("class")
+            .expect("installed");
+        assert_eq!(
+            template.resource_class_id,
+            Some(class.id),
+            "{}",
+            starter.name
+        );
+        let rows = TemplateRepo::new(&fixture.pool)
+            .list_properties(template.id)
+            .await
+            .expect("fields");
+        assert_eq!(rows.len(), starter.fields.len(), "{}", starter.name);
+        for (row, field) in rows.iter().zip(starter.fields) {
+            let id = find_property(&fixture.pool, field.term)
+                .await
+                .expect("find")
+                .expect("property");
+            assert_eq!(row.property_id, id, "{}", field.term);
+            assert_eq!(row.is_required, field.required, "{}", field.term);
+            assert_eq!(
+                row.alternate_label.as_deref(),
+                Some(field.label),
+                "{}",
+                field.term
+            );
+            let types: Vec<String> = field.data_types.iter().map(|t| (*t).to_string()).collect();
+            assert_eq!(row.data_type, Some(types), "{}", field.term);
+        }
+    }
 }

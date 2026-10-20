@@ -162,6 +162,11 @@ messages! {
     /// `MediaAdapter` for a media without an item.
     const MEDIA_ITEM_REQUIRED = "Media must belong to an item.";
 
+    // Jobs.
+
+    /// The 409 for deleting the job of an archive import that is running or undoing.
+    const JOB_HELD_BY_IMPORT = "This job belongs to an archive import that is running or undoing. Delete it once the import has ended.";
+
     // Assets.
 
     /// `AssetAdapter` for a create without a file.

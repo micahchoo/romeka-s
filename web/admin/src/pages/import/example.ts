@@ -4,8 +4,11 @@
  *
  * The pattern stays inside what both JavaScript and the Rust `regex` crate
  * accept, because the server compiles it there: named groups `(?<name>…)`,
- * character classes, fixed counts and optional non-capturing groups. Digits are
- * `[0-9]`, not `\d`, which the Rust crate reads as any Unicode digit.
+ * character classes and optional non-capturing groups. Letters are `\p{L}`
+ * plus `\p{M}`, because a Devanagari vowel sign is a mark and not a letter;
+ * digits are `\p{Nd}`, because the archive holds Tamil digits too. JavaScript
+ * needs the `u` flag to read either property, so a caller builds its `RegExp`
+ * with `u`.
  */
 import type { ImportExample, Label } from '../../api/imports';
 
@@ -31,6 +34,8 @@ export interface CompiledExample {
 }
 
 const DELIMITER = /^[_\-. ]$/;
+const DIGITS = /^\p{Nd}+$/u;
+const LETTERS = /^[\p{L}\p{M}]+$/u;
 
 export const folderKey = (index: number): string => `d${String(index)}`;
 
@@ -61,59 +66,105 @@ export const labelsFor = (key: string): readonly Label[] => {
   return key.startsWith('d') ? ['identifier', 'page'] : ['identifier', 'part', 'page'];
 };
 
-/** Text of the same kind: the same number of digits, capitals, small letters, or any of them. */
+/**
+ * Text of the same kind: one or more digits in any script, one or more letters
+ * and their combining marks in any case, or a run of both.
+ */
 const kindOf = (text: string): string => {
-  if (/^[0-9]+$/.test(text)) {
-    return `[0-9]{${String(text.length)}}`;
+  if (DIGITS.test(text)) {
+    return '\\p{Nd}+';
   }
-  if (/^[A-Z]+$/.test(text)) {
-    return '[A-Z]+';
+  if (LETTERS.test(text)) {
+    return '[\\p{L}\\p{M}]+';
   }
-  if (/^[a-z]+$/.test(text)) {
-    return '[a-z]+';
-  }
-  return '[A-Za-z0-9]+';
+  return '[\\p{L}\\p{M}\\p{N}]+';
 };
 
 const escapeDelimiter = (text: string): string => (text === '.' ? '\\.' : text);
 
 interface Piece {
-  /** `null` for a delimiter, `undefined` for an unmarked part. */
+  /** `null` for a literal or the folder gap, `undefined` for an unmarked part. */
   readonly label: Label | null | undefined;
-  pattern: string;
-  text: string;
+  readonly pattern: string;
+  readonly text: string;
+  /** The gap that lets any depth of folders follow the last marked one. */
+  readonly gap?: boolean;
 }
 
 /**
- * Consecutive name parts with one label, with or without a delimiter between
- * them, are one group: `BHC`, `006`, `AF`, `001` marked identifier are the
- * identifier `BHC_006_AF_001`.
+ * Folders up to the last marked one are one segment each; any depth of folders
+ * may follow, so `Photographs/1950s/PH_101.tif` fits an example one folder deep.
  */
-const namePieces = (parts: ExampleParts, labels: ImportExample['labels']): readonly Piece[] => {
-  const pieces: Piece[] = [];
-  for (const part of parts.name) {
-    if (part.delimiter) {
-      pieces.push({ label: null, pattern: escapeDelimiter(part.text), text: part.text });
-      continue;
-    }
-    const label = labels[part.key];
-    const last = pieces.at(-1);
-    const beforeLast = pieces.at(-2);
-    if (label !== undefined && last?.label === label) {
-      last.pattern += kindOf(part.text);
-      last.text += part.text;
-    } else if (label !== undefined && last?.label === null && beforeLast?.label === label) {
-      pieces.pop();
-      beforeLast.pattern += last.pattern + kindOf(part.text);
-      beforeLast.text += last.text + part.text;
-    } else {
-      pieces.push({ label, pattern: kindOf(part.text), text: part.text });
-    }
+const folderPieces = (parts: ExampleParts, labels: ImportExample['labels']): readonly Piece[] => {
+  if (parts.folders.length === 0) {
+    return [];
   }
+  let last = -1;
+  parts.folders.forEach((_folder, index) => {
+    if (labels[folderKey(index)] !== undefined) {
+      last = index;
+    }
+  });
+  const pieces: Piece[] = [];
+  for (let index = 0; index <= last; index += 1) {
+    pieces.push({ label: labels[folderKey(index)], pattern: '[^/]+', text: parts.folders[index] ?? '' });
+    pieces.push({ label: null, pattern: '/', text: '/' });
+  }
+  pieces.push({ label: null, pattern: '(?:[^/]+/)*', text: '…/', gap: true });
   return pieces;
 };
 
-/** A group name not yet taken: `identifier`, then `identifier2`. */
+const namePieces = (parts: ExampleParts, labels: ImportExample['labels']): readonly Piece[] =>
+  parts.name.map((part) =>
+    part.delimiter
+      ? { label: null, pattern: escapeDelimiter(part.text), text: part.text }
+      : { label: labels[part.key], pattern: kindOf(part.text), text: part.text },
+  );
+
+/**
+ * Every identifier mark is one group, never `identifier2`: the server reads
+ * only `identifier`, so `Box 4` and `Folder 12` marked identifier must read as
+ * `Box 4/Folder 12`, and two such folders stay two items. Everything between
+ * the first and last mark joins the group, separators included; a contradictory
+ * label between them is folded in rather than splitting the identifier.
+ */
+const mergeIdentifiers = (pieces: readonly Piece[]): readonly Piece[] => {
+  const merged: Piece[] = [];
+  let index = 0;
+  while (index < pieces.length) {
+    const piece = pieces[index];
+    if (piece === undefined) {
+      break;
+    }
+    if (piece.label !== 'identifier') {
+      merged.push(piece);
+      index += 1;
+      continue;
+    }
+    let end = index;
+    for (let scan = pieces.length - 1; scan > index; scan -= 1) {
+      if (pieces[scan]?.label === 'identifier') {
+        end = scan;
+        break;
+      }
+    }
+    let pattern = '';
+    let text = '';
+    for (let scan = index; scan <= end; scan += 1) {
+      const part = pieces[scan];
+      if (part === undefined) {
+        continue;
+      }
+      pattern += part.pattern;
+      text += part.text;
+    }
+    merged.push({ label: 'identifier', pattern, text });
+    index = end + 1;
+  }
+  return merged;
+};
+
+/** A group name not yet taken: `identifier`, `part`, and so on. */
 const claim = (used: Set<string>, label: Label): string => {
   let name: string = label;
   let n = 2;
@@ -125,45 +176,10 @@ const claim = (used: Set<string>, label: Label): string => {
   return name;
 };
 
-/**
- * Folders up to the last marked one are one segment each; any depth of folders
- * may follow, so `Photographs/1950s/PH_101.tif` fits an example one folder deep.
- */
-const compileFolders = (
-  parts: ExampleParts,
-  labels: ImportExample['labels'],
-  used: Set<string>,
-): CompiledExample => {
-  if (parts.folders.length === 0) {
-    return { pattern: '', shape: '' };
-  }
-  let last = -1;
-  parts.folders.forEach((_folder, index) => {
-    if (labels[folderKey(index)] !== undefined) {
-      last = index;
-    }
-  });
-  let pattern = '';
-  let shape = '';
-  for (let index = 0; index <= last; index += 1) {
-    const label = labels[folderKey(index)];
-    if (label === undefined) {
-      pattern += '[^/]+/';
-      shape += `[${parts.folders[index] ?? ''}]/`;
-    } else {
-      const name = claim(used, label);
-      pattern += `(?<${name}>[^/]+)/`;
-      shape += `{${name}}/`;
-    }
-  }
-  return { pattern: `${pattern}(?:[^/]+/)*`, shape: `${shape}…/` };
-};
-
 export const compileExample = (example: ImportExample): CompiledExample => {
   const parts = splitExample(example.path);
   const used = new Set<string>();
-  const folders = compileFolders(parts, example.labels, used);
-  const pieces = namePieces(parts, example.labels);
+  const pieces = mergeIdentifiers([...folderPieces(parts, example.labels), ...namePieces(parts, example.labels)]);
   let pattern = '';
   let shape = '';
   pieces.forEach((piece, index) => {
@@ -180,7 +196,7 @@ export const compileExample = (example: ImportExample): CompiledExample => {
     const name = claim(used, piece.label);
     const group = `(?<${name}>${piece.pattern})`;
     const previous = pieces[index - 1];
-    if (example.optional.includes(piece.label) && previous?.label === null) {
+    if (example.optional.includes(piece.label) && previous?.label === null && previous.gap !== true) {
       // The delimiter before an optional part is optional with it.
       pattern = `${pattern.slice(0, pattern.length - previous.pattern.length)}(?:${previous.pattern}${group})?`;
       shape = `${shape.slice(0, shape.length - previous.text.length)}[${previous.text}{${name}}]`;
@@ -189,10 +205,10 @@ export const compileExample = (example: ImportExample): CompiledExample => {
       shape += `{${name}}`;
     }
   });
-  const ext = parts.ext === '' ? { pattern: '', shape: '' } : { pattern: '\\.(?<ext>[A-Za-z0-9]+)', shape: '.{ext}' };
+  const ext = parts.ext === '' ? { pattern: '', shape: '' } : { pattern: '\\.(?<ext>[\\p{L}\\p{M}\\p{N}]+)', shape: '.{ext}' };
   return {
-    pattern: `^${folders.pattern}${pattern}${ext.pattern}$`,
-    shape: `${folders.shape}${shape}${ext.shape}`,
+    pattern: `^${pattern}${ext.pattern}$`,
+    shape: `${shape}${ext.shape}`,
   };
 };
 

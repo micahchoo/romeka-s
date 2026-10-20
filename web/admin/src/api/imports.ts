@@ -22,6 +22,8 @@ import {
   optionalField,
   parseListOf,
 } from './parse';
+import { STARTER_IDS } from './starters';
+import type { StarterId } from './starters';
 import type { Id, ItemSetId, Parser, Path, TemplateId } from './types';
 
 export type ImportId = Id<'ImportId'>;
@@ -29,10 +31,6 @@ export type ImportId = Id<'ImportId'>;
 /** What one marked part of the example file name means. */
 export type Label = 'identifier' | 'part' | 'page' | 'set';
 export const LABELS: readonly Label[] = ['identifier', 'part', 'page', 'set'];
-
-/** The item type starters the Item types tab offers (`pages/item-types/starters.ts`). */
-export type StarterId = 'letter' | 'photograph' | 'postcard' | 'diary' | 'person' | 'other';
-export const STARTER_IDS: readonly StarterId[] = ['letter', 'photograph', 'postcard', 'diary', 'person', 'other'];
 
 /** Which folders become item sets. */
 export type SetLevel = 'level1' | 'level2' | 'both' | 'path' | 'group';
@@ -111,6 +109,8 @@ export interface ImportSummary {
   /** The titles of the existing item sets the run added items to. */
   readonly existingSets: readonly string[];
   readonly progress: { readonly done: number; readonly total: number };
+  /** The undo's own count of targets removed, or `null` before an undo has started. */
+  readonly undoProgress: { readonly done: number; readonly total: number } | null;
 }
 
 export type KeptKind = 'itemSet' | 'template' | 'field';
@@ -270,6 +270,12 @@ export const parseImportSummary: Parser<ImportSummary> = (raw, path = []) => {
     ),
     existingSets: strings(object, 'existingSets', path),
     progress: { done: count(progress, 'done', at), total: count(progress, 'total', at) },
+    // Absent until an undo starts, and in summaries stored before undo reported progress.
+    undoProgress:
+      optionalField(object, 'undoProgress', path, (value, here) => {
+        const counts = asRecord(value, here);
+        return { done: count(counts, 'done', here), total: count(counts, 'total', here) };
+      }) ?? null,
   };
 };
 

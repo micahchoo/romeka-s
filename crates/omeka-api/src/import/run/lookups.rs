@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use omeka_db::DbError;
 use omeka_db::ids::{ClassId, PropertyId, TemplateId};
-use omeka_db::repos::{PropertyRepo, TemplateRepo, VocabularyRepo};
+use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo, VocabularyRepo};
 use omeka_db::rows::{NewVocabulary, ValueContent};
 use sqlx::SqlitePool;
 
@@ -78,6 +78,20 @@ pub(in crate::import) async fn find_property(
         return Ok(None);
     };
     Ok(PropertyRepo::new(pool)
+        .find(vocabulary.id, local_name)
+        .await?
+        .map(|row| row.id))
+}
+
+/// The resource class `prefix:local_name` names, if any.
+pub(super) async fn find_class(pool: &SqlitePool, term: &str) -> Result<Option<ClassId>, DbError> {
+    let Some((prefix, local_name)) = term.split_once(':') else {
+        return Ok(None);
+    };
+    let Some(vocabulary) = VocabularyRepo::new(pool).get_by_prefix(prefix).await? else {
+        return Ok(None);
+    };
+    Ok(ClassRepo::new(pool)
         .find(vocabulary.id, local_name)
         .await?
         .map(|row| row.id))

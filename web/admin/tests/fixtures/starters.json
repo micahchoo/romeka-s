@@ -1,0 +1,339 @@
+[
+  {
+    "id": "letter",
+    "nameKey": "starter.letter",
+    "name": "Letter",
+    "words": [
+      "letter",
+      "letters",
+      "carta",
+      "cartas"
+    ],
+    "classTerm": "bibo:Letter",
+    "fields": [
+      {
+        "term": "dcterms:title",
+        "required": true,
+        "label": "Title",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:identifier",
+        "required": false,
+        "label": "Identifier",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:creator",
+        "required": false,
+        "label": "Sender",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "bibo:recipient",
+        "required": false,
+        "label": "Recipient",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:created",
+        "required": false,
+        "label": "Date written",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:spatial",
+        "required": false,
+        "label": "Place",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:description",
+        "required": false,
+        "label": "Description",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "photograph",
+    "nameKey": "starter.photograph",
+    "name": "Photograph",
+    "words": [
+      "photograph",
+      "photographs",
+      "photo",
+      "photos",
+      "picture",
+      "pictures",
+      "fotografia",
+      "fotografias",
+      "foto",
+      "fotos"
+    ],
+    "classTerm": "dctype:StillImage",
+    "fields": [
+      {
+        "term": "dcterms:title",
+        "required": true,
+        "label": "Title",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:identifier",
+        "required": false,
+        "label": "Identifier",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:creator",
+        "required": false,
+        "label": "Photographer",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:created",
+        "required": false,
+        "label": "Date taken",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:spatial",
+        "required": false,
+        "label": "Place",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:subject",
+        "required": false,
+        "label": "Who is in it",
+        "dataTypes": [
+          "literal",
+          "resource:item"
+        ]
+      },
+      {
+        "term": "dcterms:rights",
+        "required": false,
+        "label": "Rights",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "postcard",
+    "nameKey": "starter.postcard",
+    "name": "Postcard",
+    "words": [
+      "postcard",
+      "postcards",
+      "postal",
+      "postales"
+    ],
+    "classTerm": "bibo:Letter",
+    "fields": [
+      {
+        "term": "dcterms:title",
+        "required": true,
+        "label": "Title",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:identifier",
+        "required": false,
+        "label": "Identifier",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:creator",
+        "required": false,
+        "label": "Sender",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "bibo:recipient",
+        "required": false,
+        "label": "Recipient",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:date",
+        "required": false,
+        "label": "Date sent",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:spatial",
+        "required": false,
+        "label": "Postmark place",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:description",
+        "required": false,
+        "label": "Description",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "diary",
+    "nameKey": "starter.diary",
+    "name": "Diary",
+    "words": [
+      "diary",
+      "diaries",
+      "journal",
+      "journals",
+      "diario",
+      "diarios"
+    ],
+    "classTerm": "bibo:Document",
+    "fields": [
+      {
+        "term": "dcterms:title",
+        "required": true,
+        "label": "Title",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:identifier",
+        "required": false,
+        "label": "Identifier",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:creator",
+        "required": false,
+        "label": "Writer",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:date",
+        "required": false,
+        "label": "Dates covered",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "bibo:numPages",
+        "required": false,
+        "label": "Number of pages",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "person",
+    "nameKey": "starter.person",
+    "name": "Person",
+    "words": [
+      "person",
+      "people",
+      "persons",
+      "persona",
+      "personas"
+    ],
+    "classTerm": "foaf:Person",
+    "fields": [
+      {
+        "term": "foaf:name",
+        "required": true,
+        "label": "Name",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:identifier",
+        "required": false,
+        "label": "Identifier",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:description",
+        "required": false,
+        "label": "Relationship",
+        "dataTypes": [
+          "literal"
+        ]
+      },
+      {
+        "term": "dcterms:date",
+        "required": false,
+        "label": "Born",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "other",
+    "nameKey": "starter.other",
+    "name": "Physical object",
+    "words": [],
+    "classTerm": "dctype:PhysicalObject",
+    "fields": [
+      {
+        "term": "dcterms:title",
+        "required": true,
+        "label": "Title",
+        "dataTypes": [
+          "literal"
+        ]
+      }
+    ]
+  }
+]

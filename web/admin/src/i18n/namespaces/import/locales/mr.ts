@@ -83,7 +83,8 @@ export const mr: ImportMessages = {
   'example.pageOptional': 'पान ऐच्छिक आहे.',
   'example.makeRequired': 'हे अनिवार्य करा',
   'example.shape': 'आकार:',
-  'example.shapeNote': 'अंक समान संख्येच्या अंकांशी जुळतात, अक्षरे अक्षरांशी जुळतात.',
+  'example.shapeNote':
+    'अंक कोणत्याही संख्येच्या अंकांशी जुळतात, आणि अक्षरे कोणत्याही केसशी जुळतात.',
   'example.editRegex': 'रेग्युलर एक्सप्रेशन म्हणून संपादन करा',
   'example.use': 'उदाहरण म्हणून वापरा',
   'example.noFiles': 'या फोल्डरमध्ये वापरण्यासाठी कोणतीही फाईल नाही.',

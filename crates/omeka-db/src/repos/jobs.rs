@@ -182,4 +182,18 @@ where
             .await?;
         Ok(DB::rows_affected(&done) > 0)
     }
+
+    /// Delete the job unless an archive import that is running or undoing holds it. One statement,
+    /// so no import can start between the check and the delete. False when the job is missing or held.
+    pub async fn delete_unless_held(&self, id: JobId) -> Result<bool, DbError> {
+        let done = sqlx::query(
+            "DELETE FROM job WHERE id = ? AND NOT EXISTS (
+                SELECT 1 FROM romeka_import
+                WHERE job_id = job.id AND status IN ('running', 'undoing'))",
+        )
+        .bind(bind_id(id))
+        .execute(self.pool)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
 }

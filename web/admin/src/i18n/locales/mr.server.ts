@@ -46,6 +46,8 @@ export const mrServer: ServerCatalogue = {
   'server.mediaIngesterRequired': 'मीडियाने इनगेस्टर सेट करणे आवश्यक आहे.',
   'server.mediaIngesterInvalid': 'मीडियाने वैध इनगेस्टर सेट करणे आवश्यक आहे.',
   'server.mediaItemRequired': 'मीडिया एखाद्या आयटमचा भाग असणे आवश्यक आहे.',
+  'server.jobHeldByImport':
+    'हे कार्य चालू असलेल्या किंवा पूर्ववत होणाऱ्या संग्रहाच्या आयातीचे आहे. आयात पूर्ण झाल्यावर तो हटवा.',
   'server.noFileUploaded': 'कोणतीही फाईल अपलोड केली गेली नाही',
   'server.assetMediaType':
     '"{file}" चे प्रमाणीकरण करताना त्रुटी. मीडिया प्रकार "{media}" सह फाईल्स साठवता येत नाहीत.',

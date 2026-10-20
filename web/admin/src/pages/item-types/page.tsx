@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { getStarters, type StarterTable } from '../../api/starters';
 import { templateIdFromParam } from '../../api/parse';
 import type { ResourceTemplate, TemplateId } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
@@ -22,13 +23,21 @@ import { loadTypeOptions, type TypeOptions } from './options';
 import { common } from '../../i18n/namespaces/common';
 import { itemTypes } from '../../i18n/namespaces/item-types';
 
+const loadNewType = async (): Promise<{
+  readonly options: TypeOptions;
+  readonly table: StarterTable;
+}> => {
+  const [options, table] = await Promise.all([loadTypeOptions(), getStarters(api)]);
+  return { options, table };
+};
+
 const Loading = ({
   children,
 }: {
-  readonly children: (options: TypeOptions) => ReactElement;
+  readonly children: (loaded: Awaited<ReturnType<typeof loadNewType>>) => ReactElement;
 }): ReactElement => {
   const { t } = useTranslator(common, itemTypes);
-  const state = useAsync(loadTypeOptions, []);
+  const state = useAsync(loadNewType, []);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.form')}</p>;
   }
@@ -91,7 +100,7 @@ const ItemTypesRoute = ({ param }: { readonly param: string | null }): ReactElem
     return <TypeList />;
   }
   if (param === 'new') {
-    return <Loading>{(options) => <NewType options={options} />}</Loading>;
+    return <Loading>{({ options, table }) => <NewType options={options} table={table} />}</Loading>;
   }
   const templateId = templateIdFromParam(param);
   if (templateId === null) {

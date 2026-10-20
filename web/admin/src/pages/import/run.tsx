@@ -30,7 +30,10 @@ const JobLink = ({ detail }: { readonly detail: ImportDetail }): ReactElement | 
 
 const Progress = ({ detail, label }: { readonly detail: ImportDetail; readonly label: ImportMessageKey }): ReactElement => {
   const { t, number } = useImportText();
-  const progress = detail.summary?.progress ?? { done: 0, total: 0 };
+  // An undo counts its own targets; the run's numbers stay in `progress` for the ended screens.
+  const summary = detail.summary;
+  const progress =
+    (detail.status === 'undoing' ? summary?.undoProgress : summary?.progress) ?? { done: 0, total: 0 };
   return (
     <>
       <p role="status">{t(label, { done: number(progress.done), total: number(progress.total) })}</p>
