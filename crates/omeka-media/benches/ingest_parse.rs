@@ -29,6 +29,7 @@ use omeka_media::ingest::{
 use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::FileStore;
 use omeka_media::testing::{FakeHttp, FakeThumbnailer, PassthroughPurifier, media_row};
+use omeka_media::validation::FileValidation;
 
 /// Everything an ingester reads, over a scratch store the case drops when it ends.
 ///
@@ -40,6 +41,9 @@ struct Fixture {
     oembed: Oembed,
     purifier: PassthroughPurifier,
     thumbnailer: FakeThumbnailer,
+    // The upload body is arbitrary bytes, which upstream's default lists
+    // refuse; the bench times the store, so validation is off.
+    validation: FileValidation,
     _scratch: tempfile::TempDir,
 }
 
@@ -55,6 +59,7 @@ impl Fixture {
             oembed: Oembed::new(OembedAllowList::shipped()),
             purifier: PassthroughPurifier,
             thumbnailer: FakeThumbnailer::default(),
+            validation: FileValidation::Disabled,
             _scratch: scratch,
         }
     }
@@ -78,6 +83,7 @@ impl Fixture {
             purifier: &self.purifier,
             thumbnailer: &self.thumbnailer,
             oembed: &self.oembed,
+            validation: &self.validation,
         }
     }
 }

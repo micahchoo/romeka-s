@@ -220,6 +220,7 @@ impl NetHarness {
             purifier: &self.purifier,
             thumbnailer: &self.thumbnailer,
             oembed: &self.oembed,
+            validation: &self.harness.validation,
         }
     }
 

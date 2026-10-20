@@ -128,11 +128,17 @@ describe('columns page', () => {
 });
 
 describe('settings page', () => {
+  const fileSettings = {
+    media_type_whitelist: ['application/pdf', 'image/jpeg'],
+    extension_whitelist: ['pdf', 'jpg'],
+    disable_file_validation: false,
+  };
+
   it('settings_saves_the_global_locale_and_keeps_the_other_fields_in_the_page', async () => {
     const fetchMock = installFetch(
       route({
         '/api/settings': (_url, init) =>
-          jsonResponse(init?.method === 'PATCH' ? { locale: 'en' } : { locale: 'es' }),
+          jsonResponse({ ...fileSettings, locale: init?.method === 'PATCH' ? 'en' : 'es' }),
       }),
     );
     render(<SettingsPage />);
@@ -150,7 +156,56 @@ describe('settings page', () => {
     const patch = first(
       requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
     );
-    expect(requestBody(patch)).toEqual({ locale: 'en' });
+    expect(requestBody(patch)).toEqual({ locale: 'en', ...fileSettings });
+  });
+
+  it('settings_saves_the_file_validation_lists_and_restores_a_default_with_null', async () => {
+    const restoredTypes = ['application/msword', 'application/pdf'];
+    const fetchMock = installFetch(
+      route({
+        '/api/settings': (_url, init) =>
+          jsonResponse(
+            init?.method === 'PATCH'
+              ? {
+                  media_type_whitelist: restoredTypes,
+                  extension_whitelist: ['pdf', 'tif'],
+                  disable_file_validation: true,
+                }
+              : fileSettings,
+          ),
+      }),
+    );
+    render(<SettingsPage />);
+
+    const types = await screen.findByLabelText('Allowed media types');
+    expect(types).toHaveValue('application/pdf,image/jpeg');
+    const extensions = screen.getByLabelText('Allowed file extensions');
+    fireEvent.change(extensions, { target: { value: ' pdf , tif,, ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Restore default media types' }));
+    expect(types).toHaveValue('');
+    expect(types).toHaveAccessibleDescription(
+      'A comma-separated list of allowed media types for file uploads. The default list is restored when you save.',
+    );
+    fireEvent.change(types, { target: { value: ' , ' } });
+    expect(types).toHaveAccessibleDescription(
+      'A comma-separated list of allowed media types for file uploads. An empty list refuses every file.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Restore default media types' }));
+    fireEvent.click(screen.getByLabelText('Disable file validation'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Settings updated.');
+    const patch = first(
+      requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
+    );
+    expect(requestBody(patch)).toEqual({
+      locale: '',
+      media_type_whitelist: null,
+      extension_whitelist: ['pdf', 'tif'],
+      disable_file_validation: true,
+    });
+    expect(types).toHaveValue(restoredTypes.join(','));
+    expect(screen.getByLabelText('Disable file validation')).toBeChecked();
   });
 
   it('settings_shows_the_refusal_a_caller_other_than_a_global_admin_gets', async () => {

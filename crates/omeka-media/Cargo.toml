@@ -16,6 +16,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 getrandom = "0.2"
+# Content-based media type detection from magic bytes, the stand-in for
+# upstream's `finfo` (libmagic). MIT, pure Rust; its `cfb` feature reads the
+# compound file of a legacy Office document (doc, xls, ppt).
+infer = "0.22"
 sha2 = "0.10"
 # Decoding and resizing for the thumbnailer (`File/Thumbnailer/Gd.php`): the
 # four source formats GD accepts (gif, jpeg, png, webp) plus tiff, a deliberate
@@ -42,6 +46,10 @@ ureq = { version = "3", default-features = false, features = ["rustls"] }
 url = "2"
 
 [dev-dependencies]
+# Legacy Office fixtures for the media type tests: a compound file with a
+# chosen root CLSID. Both are already in the tree through `infer`.
+cfb = "0.14"
+uuid = "1"
 # The micro-benchmark runner. `plotters` and `rayon` are off, so the benches
 # emit the text report and the machine-readable `estimates.json` without
 # pulling a charting stack into the workspace.

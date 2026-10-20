@@ -23,6 +23,7 @@ use omeka_media::ingest::{
 use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::{FileStore, StorePrefix};
 use omeka_media::thumbnailer::ImageThumbnailer;
+use omeka_media::validation::FileValidation;
 
 use super::work::FileWork;
 
@@ -34,15 +35,17 @@ const INGESTER: &str = "upload";
 /// the message names the file.
 ///
 /// # Errors
-/// A message for the first file that could not be read or stored.
+/// A message for the first file that could not be read, that `validation`
+/// refused, or that could not be stored.
 pub fn store_all(
     store: &FileStore,
+    validation: &FileValidation,
     files: &[FileWork],
     owner: Option<UserId>,
 ) -> Result<Vec<NewMedia>, String> {
     let mut stored: Vec<NewMedia> = Vec::with_capacity(files.len());
     for (index, file) in files.iter().enumerate() {
-        match store_one(store, file, owner, index) {
+        match store_one(store, validation, file, owner, index) {
             Ok(one) => stored.push(one),
             Err((partial, message)) => {
                 discard(store, &stored);
@@ -85,6 +88,7 @@ type Partial = Option<(String, Option<String>)>;
 
 fn store_one(
     store: &FileStore,
+    validation: &FileValidation,
     file: &FileWork,
     owner: Option<UserId>,
     index: usize,
@@ -112,6 +116,7 @@ fn store_one(
         purifier: &purifier,
         thumbnailer: &thumbnailer,
         oembed: &oembed,
+        validation,
     };
     let ingest = IngestFile::new(bytes).with_source_name(file.source().to_string());
     if let Err(error) = ingest_file(&env, &mut draft, ingest, IngestFlags::default()) {

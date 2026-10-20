@@ -21,7 +21,7 @@ use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
 use omeka_db::ids::{ItemId, MediaId, ResourceId};
-use omeka_db::repos::{ItemRepo, MediaRepo};
+use omeka_db::repos::{ItemRepo, MediaRepo, SettingRepo};
 use omeka_db::rows::{ItemRow, MediaRow, NewMedia, NewResource};
 use omeka_media::data::MediaData;
 use omeka_media::http_client::HttpClient;
@@ -32,6 +32,7 @@ use omeka_media::ingest::{
 use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::FileStore;
 use omeka_media::thumbnailer::ImageThumbnailer;
+use omeka_media::validation::FileValidation;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -133,7 +134,10 @@ pub(crate) async fn prepare(
     // `MediaAdapter::hydrate` sets `source` from `o:source` before the ingester
     // runs, and an ingester overwrites it only when the body named none.
     let source = payload.str_member("o:source").map(str::to_string);
-    let (draft, errors) = ingest(store, ingester.clone(), request, source).await?;
+    let validation = crate::settings::file_validation(&SettingRepo::new(api.pool()))
+        .await
+        .map_err(db_error)?;
+    let (draft, errors) = ingest(store, ingester.clone(), request, source, validation).await?;
     if !errors.is_empty() {
         return Err(ingest_errors(&errors));
     }
@@ -170,10 +174,13 @@ async fn ingest(
     ingester: String,
     request: IngestRequest,
     source: Option<String>,
+    validation: FileValidation,
 ) -> Result<(MediaDraft, ErrorStore), ApiError> {
-    tokio::task::spawn_blocking(move || run_ingester(&store, &ingester, request, source))
-        .await
-        .map_err(|error| ApiError::internal(format!("the media ingester did not finish: {error}")))
+    tokio::task::spawn_blocking(move || {
+        run_ingester(&store, &ingester, request, source, &validation)
+    })
+    .await
+    .map_err(|error| ApiError::internal(format!("the media ingester did not finish: {error}")))
 }
 
 /// The ingester a create names.
@@ -262,6 +269,7 @@ fn run_ingester(
     ingester: &str,
     request: IngestRequest,
     source: Option<String>,
+    validation: &FileValidation,
 ) -> (MediaDraft, ErrorStore) {
     let registry = IngesterRegistry::with_defaults();
     let implementation = registry.get(ingester);
@@ -283,6 +291,7 @@ fn run_ingester(
         purifier: &purifier,
         thumbnailer: &thumbnailer,
         oembed: &oembed,
+        validation,
     };
     let mut errors = ErrorStore::default();
     implementation.ingest(&mut draft, &request, &env, &mut errors);

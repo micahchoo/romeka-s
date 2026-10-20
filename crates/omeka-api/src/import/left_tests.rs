@@ -3,7 +3,7 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use omeka_db::repos::ImportRepo;
+use omeka_db::repos::{ImportRepo, SettingRepo};
 use serde_json::json;
 
 use super::archive::ArchiveRoot;
@@ -33,6 +33,29 @@ async fn the_summary_names_the_sets_the_run_filled_and_why_a_row_failed() {
     let failure = &summary.failures[0];
     assert_eq!(failure.identifier, "L_002");
     assert!(failure.reason.contains("value refused"), "{failure:?}");
+}
+
+/// The run stores a file the way an upload does, so the install's file
+/// validation settings apply: a TIFF master is refused once `tif` leaves the
+/// extension list, and its item fails with upstream's message.
+#[tokio::test]
+async fn a_file_the_validation_settings_refuse_fails_its_item() {
+    let fixture = fixture().await;
+    SettingRepo::new(&fixture.pool)
+        .set("extension_whitelist", &json!(["jpg"]))
+        .await
+        .expect("setting");
+    let (_, summary, _) = fixture.run().await;
+
+    assert_eq!(summary.failures.len(), 1, "{:?}", summary.failures);
+    let failure = &summary.failures[0];
+    assert_eq!(failure.identifier, "L_001");
+    assert!(
+        failure.reason.contains(
+            "Error validating \"L_001_back.tif\". Cannot store files with the resolved extension \"tif\"."
+        ),
+        "{failure:?}"
+    );
 }
 
 #[tokio::test]

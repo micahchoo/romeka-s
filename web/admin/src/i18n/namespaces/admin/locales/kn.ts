@@ -105,7 +105,22 @@ export const kn: AdminMessages = {
   'settings.indexFulltextSearch': 'ಪೂರ್ಣಪಠ್ಯ ಹುಡುಕಾಟ ಸೂಚ್ಯಂಕ',
   'settings.versionNotifications': 'ಆವೃತ್ತಿ ಅಧಿಸೂಚನೆಗಳು',
   'settings.saved': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ.',
-  'settings.note': 'ಪೋರ್ಟ್ ಕೇವಲ ಸ್ಥಳವನ್ನು ಉಳಿಸುತ್ತದೆ; ಇತರ ಬದಲಾವಣೆಗಳು ಉಳಿಯುವುದಿಲ್ಲ.',
+  'settings.note':
+    'ಪೋರ್ಟ್ ಸ್ಥಳ ಮತ್ತು ಭದ್ರತಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸುತ್ತದೆ; ಇತರ ಬದಲಾವಣೆಗಳು ಉಳಿಯುವುದಿಲ್ಲ.',
+  'settings.security': 'ಭದ್ರತೆ',
+  'settings.disableFileValidation': 'ಫೈಲ್ ಮೌಲ್ಯೀಕರಣವನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ',
+  'settings.disableFileValidationInfo':
+    'ಫೈಲ್ ಮಾಧ್ಯಮ ಪ್ರಕಾರ ಮತ್ತು ವಿಸ್ತರಣೆ ಮೌಲ್ಯೀಕರಣವನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲು ಈ ಆಯ್ಕೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.',
+  'settings.mediaTypeWhitelist': 'ಅನುಮತಿಸಲಾದ ಮಾಧ್ಯಮ ಪ್ರಕಾರಗಳು',
+  'settings.mediaTypeWhitelistInfo':
+    'ಫೈಲ್ ಅಪ್‌ಲೋಡ್‌ಗಳಿಗಾಗಿ ಅನುಮತಿಸಲಾದ ಮಾಧ್ಯಮ ಪ್ರಕಾರಗಳ ಅಲ್ಪವಿರಾಮ-ಬೇರ್ಪಡಿಸಿದ ಪಟ್ಟಿ.',
+  'settings.restoreMediaTypes': 'ಡೀಫಾಲ್ಟ್ ಮಾಧ್ಯಮ ಪ್ರಕಾರಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ',
+  'settings.extensionWhitelist': 'ಅನುಮತಿಸಲಾದ ಫೈಲ್ ವಿಸ್ತರಣೆಗಳು',
+  'settings.extensionWhitelistInfo':
+    'ಫೈಲ್ ಅಪ್‌ಲೋಡ್‌ಗಳಿಗಾಗಿ ಅನುಮತಿಸಲಾದ ಫೈಲ್ ವಿಸ್ತರಣೆಗಳ ಅಲ್ಪವಿರಾಮ-ಬೇರ್ಪಡಿಸಿದ ಪಟ್ಟಿ.',
+  'settings.restoreExtensions': 'ಡೀಫಾಲ್ಟ್ ವಿಸ್ತರಣೆಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ',
+  'settings.restoredOnSave': 'ನೀವು ಉಳಿಸಿದಾಗ ಡೀಫಾಲ್ಟ್ ಪಟ್ಟಿಯನ್ನು ಮರುಸ್ಥಾಪಿಸಲಾಗುತ್ತದೆ.',
+  'settings.emptyListRefusesAll': 'ಖಾಲಿ ಪಟ್ಟಿಯು ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ನಿರಾಕರಿಸುತ್ತದೆ.',
   'settings.locale': 'ಸ್ಥಳ',
   'settings.localeDefault': 'ಡೀಫಾಲ್ಟ್',
   'systemInfo.omeka': 'Omeka S',

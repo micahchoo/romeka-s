@@ -56,7 +56,7 @@ async fn set_global_locale(app: &Router, locale: &str) {
     )
     .await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
-    assert_eq!(answer.json(), json!({ "locale": locale }));
+    assert_eq!(answer.json()["locale"], json!(locale));
 }
 
 /// Store a user's own locale as that user, through the user write.
@@ -157,7 +157,11 @@ async fn the_global_settings_are_for_a_global_admin_only() {
 
     let admin = send(app.clone(), common::get("/api/settings", true)).await;
     assert_eq!(admin.status, StatusCode::OK, "{}", admin.body);
-    assert_eq!(admin.json(), json!({}), "the seed stores no locale");
+    assert!(
+        admin.json().get("locale").is_none(),
+        "the seed stores no locale: {}",
+        admin.body
+    );
 }
 
 #[tokio::test]

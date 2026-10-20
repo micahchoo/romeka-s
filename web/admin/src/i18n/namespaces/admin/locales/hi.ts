@@ -105,7 +105,22 @@ export const hi: AdminMessages = {
   'settings.indexFulltextSearch': 'पूर्णपाठ खोज सूचकांक',
   'settings.versionNotifications': 'संस्करण अधिसूचना',
   'settings.saved': 'सेटिंग्स अपडेट की गईं।',
-  'settings.note': 'पोर्ट केवल लोकेल सहेजता है; अन्य परिवर्तन सहेजे नहीं जाते हैं।',
+  'settings.note':
+    'पोर्ट लोकेल और सुरक्षा सेटिंग्स को सहेजता है; अन्य परिवर्तन सहेजे नहीं जाते।',
+  'settings.security': 'सुरक्षा',
+  'settings.disableFileValidation': 'फ़ाइल सत्यापन अक्षम करें',
+  'settings.disableFileValidationInfo':
+    'इस विकल्प को चेक करें ताकि फ़ाइल मीडिया प्रकार और एक्सटेंशन सत्यापन अक्षम हो जाए।',
+  'settings.mediaTypeWhitelist': 'अनुमत मीडिया प्रकार',
+  'settings.mediaTypeWhitelistInfo':
+    'फ़ाइल अपलोड के लिए अनुमत मीडिया प्रकारों की एक अल्पविराम-पृथक सूची।',
+  'settings.restoreMediaTypes': 'डिफ़ॉल्ट मीडिया प्रकारों को पुनर्स्थापित करें',
+  'settings.extensionWhitelist': 'अनुमत फ़ाइल एक्सटेंशन',
+  'settings.extensionWhitelistInfo':
+    'फ़ाइल अपलोड के लिए अनुमत फ़ाइल एक्सटेंशनों की एक अल्पविराम-पृथक सूची।',
+  'settings.restoreExtensions': 'डिफ़ॉल्ट एक्सटेंशन को पुनर्स्थापित करें',
+  'settings.restoredOnSave': 'सहेजने पर डिफ़ॉल्ट सूची पुनर्स्थापित हो जाती है।',
+  'settings.emptyListRefusesAll': 'एक खाली सूची हर फ़ाइल को अस्वीकार कर देती है।',
   'settings.locale': 'लोकेल',
   'settings.localeDefault': 'डिफ़ॉल्ट',
   'systemInfo.omeka': 'Omeka S',
