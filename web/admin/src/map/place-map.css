@@ -1,0 +1,26 @@
+/* A small map inside a form: tall enough to aim a click, short enough that
+ * the form's next field stays near. */
+.place-map {
+  block-size: 15rem;
+  inline-size: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.place-map-status {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+}
+
+/* One typed place on the item form: its input and its remove button. */
+.place-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  margin-top: var(--space-2);
+}
+
+.place-row > .field-error {
+  flex-basis: 100%;
+}

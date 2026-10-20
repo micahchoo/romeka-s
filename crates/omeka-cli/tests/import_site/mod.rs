@@ -81,7 +81,7 @@ pub fn tiff() -> Vec<u8> {
 /// test lets go, then fails, so the held file never lands.
 #[derive(Debug)]
 pub struct GatedStore {
-    inner: FileStore,
+    inner: Arc<dyn Store>,
     gate: Mutex<Option<Gate>>,
     /// Originals left to pass before one is slowed, and by how much.
     slow: Mutex<Option<(usize, Duration)>>,
@@ -192,6 +192,9 @@ impl Store for GatedStore {
     fn url(&self, path: &str, access: Access) -> String {
         self.inner.url(path, access)
     }
+    fn url_ttl(&self) -> Duration {
+        self.inner.url_ttl()
+    }
 }
 
 /// Runs each job on the test's runtime, as `romeka job run` would in a
@@ -242,7 +245,14 @@ pub fn write(root: &Path, relative: &str, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap();
 }
 
+/// A site whose store is a local folder at `files` in the tempdir.
 pub async fn site() -> Site {
+    site_with(|files| Arc::new(FileStore::new(files, omeka_server::FILES_URI))).await
+}
+
+/// A site whose store is the one `store` makes; it is handed the local
+/// `files` folder, which an object store leaves empty.
+pub async fn site_with(store: impl FnOnce(&Path) -> Arc<dyn Store>) -> Site {
     let dir = tempfile::tempdir().unwrap();
     let database = dir.path().join("romeka.db");
     install(&InstallOptions {
@@ -269,7 +279,7 @@ pub async fn site() -> Site {
         ..Config::default()
     };
     let store = Arc::new(GatedStore {
-        inner: FileStore::new(&files, omeka_server::FILES_URI),
+        inner: store(&files),
         gate: Mutex::new(None),
         slow: Mutex::new(None),
     });

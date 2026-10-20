@@ -233,14 +233,13 @@
   background: var(--surface);
 }
 
-.type-field-handle {
+.type-field > .reorder-handle {
   align-self: start;
   min-height: 2rem;
-  padding: 0 var(--space-1);
-  border-color: transparent;
-  background: none;
-  color: var(--text-muted);
-  cursor: grab;
+}
+
+.type-field-actions .reorder-buttons {
+  display: grid;
 }
 
 .type-field-body {

@@ -1,7 +1,8 @@
 /**
- * The site Theme page: pick a preset, set a brand colour, fine-tune single
- * tokens, write custom CSS, and watch the site's homepage change beside the
- * controls.
+ * The site Theme page: pick a preset, set a brand colour, write the footer,
+ * fine-tune single tokens, write custom CSS, order the resource page sections,
+ * and watch the site's homepage, or a sample item, item set or media page,
+ * change beside the controls.
  *
  * The draft (`themeEditor/draft.ts`) is the stored shape the theme reads. A
  * save PATCHes it as the site's `o:theme_settings`; a preview POSTs it to
@@ -14,25 +15,23 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../../api/client';
-import { isRecord } from '../../api/parse';
 import type { ApiErrors, JsonValue, Site, SiteId, SitePage } from '../../api/types';
-import { encodeSiteThemeSettings } from '../../api/write';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { AssetPicker } from './editor/fields/AssetPicker';
-import { HtmlEditor } from './editor/fields/HtmlEditor';
 import { PreviewPanel } from './editor/shell/PreviewPanel';
 import type { PreviewStatus } from './editor/shell/PreviewPanel';
 import { requestPreview } from './editor/preview';
 import { ResourcePageBlocksField } from './ResourcePageBlocksField';
 import { RESOURCE_PAGE_BLOCKS_REGISTRY } from './resourcePageBlocksRegistry';
-import { resourcePageBlockDrafts, resourcePageBlocksWire } from './resourcePageBlocksSchema';
+import { resourcePageBlockDrafts } from './resourcePageBlocksSchema';
 import type { ResourcePageBlocksDraft } from './resourcePageBlocksSchema';
 import { BrandPanel, ContrastPanel } from './themeEditor/BrandPanel';
 import { FineTune } from './themeEditor/FineTune';
+import { FooterSection } from './themeEditor/FooterSection';
+import { HeaderSection } from './themeEditor/HeaderSection';
 import { PresetGallery } from './themeEditor/PresetGallery';
 import {
   applyPreset,
@@ -46,11 +45,21 @@ import {
   setOverride,
 } from './themeEditor/draft';
 import type { CssRefusal } from './themeEditor/CustomCssTab';
-import type { ContentKey, ThemeDraft } from './themeEditor/draft';
+import type { ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
+import {
+  NONE_KEYS,
+  PreviewSwitch,
+  resourcePreviewBody,
+  useSample,
+} from './themeEditor/previewTarget';
+import type { PreviewTarget } from './themeEditor/previewTarget';
 import { useThemeText } from './themeEditor/messages';
+import { saveThemeSettings, storedThemeSettings, themeSettingsWrite } from './themeEditor/siteTheme';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
+import { SaveBar, useUnsavedTab } from './unsaved';
+import { AccessNote, useSiteAccess } from './SiteFrame';
 import './themeEditor/theme.css';
 
 const CustomCssTab = lazy(() => import('./themeEditor/CustomCssTab'));
@@ -61,10 +70,8 @@ const CSS_MAX_BYTES = ((): number => {
   return setting?.kind === 'css' ? setting.maxBytes : 65536;
 })();
 
-const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
-  const value = site.themeSettings;
-  return isRecord(value) ? value : {};
-};
+const storedSettings = (site: Site): Readonly<Record<string, unknown>> =>
+  storedThemeSettings(site.themeSettings);
 
 /** The preview request body: the stored page plus the unsaved theme map. */
 const previewBody = (
@@ -100,65 +107,6 @@ const cssRefusals = (errors: ApiErrors | null, sourceErrors: ApiErrors | null): 
 };
 
 type Tab = 'design' | 'css';
-
-/** The header and footer content: logo, banner and footer, each with its help line. */
-const ContentSection = ({
-  draft,
-  onChange,
-}: {
-  readonly draft: ThemeDraft;
-  readonly onChange: (key: ContentKey, value: string) => void;
-}): ReactElement => {
-  const tt = useThemeText();
-  const help = (key: ContentKey): ReactElement | null => {
-    const setting = settingFor(key);
-    return setting === undefined ? null : <p className="field-note theme-help">{tt(setting.helpKey)}</p>;
-  };
-  return (
-    <fieldset className="theme-section">
-      <legend>{tt('theme.headerFooter')}</legend>
-      <AssetPicker
-        id="theme-setting-logo"
-        label={tt('themeSetting.logo')}
-        value={draft.content.logo}
-        onChange={(value) => {
-          onChange('logo', value);
-        }}
-      />
-      {help('logo')}
-      <AssetPicker
-        id="theme-setting-banner"
-        label={tt('themeSetting.banner')}
-        value={draft.content.banner}
-        onChange={(value) => {
-          onChange('banner', value);
-        }}
-      />
-      {help('banner')}
-      <p>
-        <label htmlFor="theme-setting-banner_text">{tt('themeSetting.bannerText')}</label>
-        <input
-          id="theme-setting-banner_text"
-          type="text"
-          value={draft.content.banner_text}
-          onChange={(event) => {
-            onChange('banner_text', event.target.value);
-          }}
-        />
-      </p>
-      {help('banner_text')}
-      <HtmlEditor
-        id="theme-setting-footer_text"
-        label={tt('themeSetting.footerText')}
-        value={draft.content.footer_text}
-        onChange={(value) => {
-          onChange('footer_text', value);
-        }}
-      />
-      {help('footer_text')}
-    </fieldset>
-  );
-};
 
 /** Export, import and reset: the theme as a file, and the way back to the preset. */
 const ThemeFileActions = ({
@@ -227,6 +175,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   );
   const [tab, setTab] = useState<Tab>('design');
   const [page, setPage] = useState<SitePage | null>(null);
+  const [target, setTarget] = useState<PreviewTarget>('page');
+  const sample = useSample(siteId, target);
   const [preview, setPreview] = useState<PreviewState>({ html: null, status: 'idle', message: null });
   const [cssErrors, setCssErrors] = useState<readonly CssRefusal[]>([]);
   const [notice, setNotice] = useState<'imported' | 'importError' | null>(null);
@@ -236,7 +186,9 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   const checks = useMemo(() => contrastChecks(resolved), [resolved]);
   const problems = useMemo(() => draftProblems(draft), [draft]);
   const settings = useMemo(() => draftWire(draft), [draft]);
+  const withBlocks = useMemo(() => themeSettingsWrite(draft, blocks), [draft, blocks]);
   const blocked = problems.badHex || problems.failing > 0 || cssErrors.length > 0;
+  const unsaved = useUnsavedTab(withBlocks);
 
   const update = useCallback((change: (current: ThemeDraft) => ThemeDraft): void => {
     setDraft(change);
@@ -271,13 +223,23 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   // A short debounce keeps a slider drag or a burst of typing from firing one
   // request per change. A refused CSS draft keeps the last good render and
   // marks the CSS instead.
+  // A resource target sends the section order too; the page target leaves it
+  // out, so a section edit does not re-render a page that cannot show it.
+  const body = useMemo(() => {
+    if (sample === null) {
+      return page === null ? null : previewBody(page, settings);
+    }
+    return sample.status === 'ready' ? resourcePreviewBody(sample, withBlocks) : null;
+  }, [page, sample, settings, withBlocks]);
+
   useEffect(() => {
-    if (page === null) {
+    if (body === null) {
+      setPreview((current) => ({ ...current, html: null, status: 'idle' }));
       return;
     }
     setPreview((current) => ({ ...current, status: 'loading' }));
     const timer = setTimeout(() => {
-      requestPreview(site.slug, previewBody(page, settings)).then(
+      requestPreview(site.slug, body).then(
         (result) => {
           if (result.kind === 'html') {
             setCssErrors([]);
@@ -303,7 +265,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     return () => {
       clearTimeout(timer);
     };
-  }, [page, settings, site.slug]);
+  }, [body, site.slug]);
 
   const submit = (event: { preventDefault: () => void }): void => {
     event.preventDefault();
@@ -312,13 +274,8 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     }
     save(async () => {
       try {
-        await api.patchSite(
-          siteId,
-          encodeSiteThemeSettings({
-            ...settings,
-            resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
-          }),
-        );
+        await saveThemeSettings(siteId, withBlocks);
+        unsaved.saved();
       } catch (error: unknown) {
         if (error instanceof ApiError && cssRefusals(error.errors, error.sourceErrors).length > 0) {
           setCssErrors(cssRefusals(error.errors, error.sourceErrors));
@@ -372,11 +329,21 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
             />
             <ContrastPanel
               checks={checks}
-              onUse={(role, colour) => {
-                const key = THEME_REGISTRY.colours.find((entry) => entry.role === role)?.key;
-                if (key !== undefined) {
+              onUse={(role, colour, shade) => {
+                const entry = THEME_REGISTRY.colours.find((colourEntry) => colourEntry.role === role);
+                // Under the automatic scheme a dark pair is fixed by the dark value.
+                const key =
+                  resolved.scheme === 'auto' && shade === 'dark' ? entry?.darkKey : entry?.key;
+                if (key !== undefined && key !== null) {
                   update((current) => setOverride(current, key, colour));
                 }
+              }}
+            />
+            <FooterSection
+              siteId={siteId}
+              footer={draft.footer}
+              onChange={(footer) => {
+                update((current) => ({ ...current, footer }));
               }}
             />
             <FineTune
@@ -386,7 +353,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
                 update((current) => setOverride(current, key, value));
               }}
             />
-            <ContentSection
+            <HeaderSection
               draft={draft}
               onChange={(key, value) => {
                 update((current) => ({ ...current, content: { ...current.content, [key]: value } }));
@@ -439,13 +406,21 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
           </p>
         ) : null}
         <SaveStatus state={saveState} />
-        <p className="form-actions">
-          <button type="submit" disabled={blocked || saveState.status === 'saving'}>
-            {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
-          </button>
-        </p>
+        <SaveBar dirty={unsaved.dirty}>
+          <p className="form-actions">
+            <button type="submit" disabled={blocked || saveState.status === 'saving'}>
+              {saveState.status === 'saving' ? t('field.saving') : t('action.save')}
+            </button>
+          </p>
+        </SaveBar>
       </form>
-      <PreviewPanel html={preview.html} status={preview.status} message={preview.message} />
+      <PreviewPanel
+        html={preview.html}
+        status={preview.status}
+        message={preview.message}
+        controls={<PreviewSwitch value={target} onChange={setTarget} />}
+        {...(sample?.status === 'none' ? { empty: t(NONE_KEYS[sample.kind]) } : {})}
+      />
     </div>
   );
 };
@@ -454,9 +429,13 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
 export const SiteThemePage = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
   const { t } = useTranslator(common, sites);
   const state = useAsync(() => api.getSite(siteId), [siteId]);
+  const access = useSiteAccess();
   // The page's own table suspends the route until it arrives, so no label renders in English.
   useThemeText();
-  if (state.status === 'loading') {
+  if (access?.has('changeSite') === false) {
+    return <AccessNote>{t('siteAccess.theme')}</AccessNote>;
+  }
+  if (state.status === 'loading' || access === null) {
     return <p role="status">{t('loading.site')}</p>;
   }
   if (state.status === 'error') {

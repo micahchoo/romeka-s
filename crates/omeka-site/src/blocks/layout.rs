@@ -11,10 +11,15 @@
 //! `LengthCssDataType::PATTERN`, a background colour must be a `<hex-color>`, and
 //! a grid position or span outside the page's columns falls back to `auto` or to
 //! the column count. A bare number is pixels (`prepareLength`).
+//!
+//! After upstream's classes and styles each wrapper carries the Romeka-only
+//! styling of [`super::style`], and a group with a section layout carries the
+//! section's classes. Upstream ignores both, so its wrapper is the same div.
 
 use omeka_core::ids::BlockId;
 use omeka_core::site::{BlockLayout, PageLayout, PageLayoutData, SiteBlock};
 
+use super::style::{RomekaStyle, Section, is_hex_color};
 use crate::html::escape_html;
 use crate::view::RenderContext;
 
@@ -66,6 +71,7 @@ pub(crate) fn block_classes(
         ));
     }
     let data = &block.layout_data;
+    let romeka = RomekaStyle::parse(data);
     if let Some(class) = data.class.as_deref()
         && !class.trim().is_empty()
     {
@@ -91,6 +97,7 @@ pub(crate) fn block_classes(
         ],
     );
     if data.background_image_asset.is_some()
+        || romeka.background.is_some()
         || data
             .background_color
             .as_deref()
@@ -124,6 +131,9 @@ pub(crate) fn block_classes(
             ("contain", "block-layout-background-image-size-contain"),
         ],
     );
+    if romeka.bleed {
+        classes.push("romeka-bleed".to_string());
+    }
     classes
 }
 
@@ -154,6 +164,7 @@ pub(crate) fn block_inline_styles(block: &SiteBlock, ctx: &RenderContext<'_>) ->
         data.padding_bottom.as_deref(),
     );
     push_length(&mut styles, "padding-left", data.padding_left.as_deref());
+    styles.extend(RomekaStyle::parse(data).styles());
     styles
 }
 
@@ -162,16 +173,24 @@ fn marker_attribute(marker: Option<BlockId>) -> String {
     marker.map_or_else(String::new, |id| format!(" data-romeka-block=\"{id}\""))
 }
 
+/// ` id="anchor"`, or nothing for a block without one. The anchor is a
+/// validated slug, so it needs no escaping, but it is escaped all the same.
+fn id_attribute(anchor: Option<&str>) -> String {
+    anchor.map_or_else(String::new, |id| format!(" id=\"{}\"", escape_html(id)))
+}
+
 /// The `<div>` `BlockLayout::render` wraps a block in.
 #[must_use]
 pub(crate) fn block_wrapper(
     classes: &[String],
     styles: &[String],
+    anchor: Option<&str>,
     marker: Option<BlockId>,
     body: &str,
 ) -> String {
     format!(
-        "<div class=\"{}\" style=\"{}\"{}>{}</div>",
+        "<div{} class=\"{}\" style=\"{}\"{}>{}</div>",
+        id_attribute(anchor),
         escape_html(&classes.join(" ")),
         escape_html(&styles.join("; ")),
         marker_attribute(marker),
@@ -180,12 +199,14 @@ pub(crate) fn block_wrapper(
 }
 
 /// The opening `<div>` for a `blockGroup`: `PageLayout::render`'s own branch,
-/// which appends the grid classes to the block's own.
+/// which appends the grid classes to the block's own, then the section's
+/// classes when the group has a section layout.
 #[must_use]
 pub(crate) fn group_open(
     block: &SiteBlock,
     page_layout: PageLayout,
     columns: i64,
+    anchor: Option<&str>,
     ctx: &RenderContext<'_>,
 ) -> String {
     let mut classes = block_classes(block, page_layout, columns);
@@ -194,9 +215,13 @@ pub(crate) fn group_open(
         classes.push("grid-position-1".to_string());
         classes.push(format!("grid-span-{columns}"));
     }
+    if let Some(section) = Section::parse(&block.layout_data) {
+        classes.extend(section.classes());
+    }
     let styles = block_inline_styles(block, ctx);
     format!(
-        "<div class=\"{}\" style=\"{}\"{}>",
+        "<div{} class=\"{}\" style=\"{}\"{}>",
+        id_attribute(anchor),
         escape_html(&classes.join(" ")),
         escape_html(&styles.join("; ")),
         marker_attribute(ctx.block_marker(block.id))
@@ -244,14 +269,6 @@ fn span_class(value: Option<&str>, columns: i64) -> String {
         Some(number) if number >= 1 && number <= columns => format!("grid-span-{number}"),
         _ => format!("grid-span-{columns}"),
     }
-}
-
-/// `$isValidHexColor`: `#` and three or six hex digits.
-fn is_hex_color(value: &str) -> bool {
-    let Some(digits) = value.strip_prefix('#') else {
-        return false;
-    };
-    (digits.len() == 3 || digits.len() == 6) && digits.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 /// A CSS `<length>: `LengthCssDataType::PATTERN`, `^(\d*\.?\d+)(unit)?$`.

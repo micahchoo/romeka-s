@@ -23,7 +23,7 @@ pub const DEFAULT_BASE_URL: &str = "http://localhost";
 impl Default for JobEnv {
     fn default() -> Self {
         Self {
-            store: omeka_server::file_store(omeka_server::FILES_ROOT),
+            store: omeka_server::local_store(omeka_server::FILES_ROOT),
             base_url: BaseUrl::parse(DEFAULT_BASE_URL)
                 .unwrap_or_else(|_| unreachable!("the default base URL literal parses")),
             archive_roots: ArchiveRoots::default(),

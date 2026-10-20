@@ -18,6 +18,7 @@ use serde_json::{Map, Value as JsonValue, json};
 
 use super::hero::Hero;
 use super::romeka::{self, RomkaBlock};
+use super::section_templates::section_templates;
 
 /// One block a template lays down.
 pub enum TemplateBlock {
@@ -43,7 +44,7 @@ pub enum TemplateBlock {
 }
 
 /// A block of a registered layout.
-fn layout_block(layout: &'static str, data: JsonValue) -> TemplateBlock {
+pub(crate) fn layout_block(layout: &'static str, data: JsonValue) -> TemplateBlock {
     TemplateBlock::Layout {
         layout,
         data,
@@ -52,7 +53,7 @@ fn layout_block(layout: &'static str, data: JsonValue) -> TemplateBlock {
 }
 
 /// A Romeka block with its settings.
-fn romka_block(block: &'static dyn RomkaBlock, settings: JsonValue) -> TemplateBlock {
+pub(crate) fn romka_block(block: &'static dyn RomkaBlock, settings: JsonValue) -> TemplateBlock {
     TemplateBlock::Romka {
         block,
         settings,
@@ -63,7 +64,11 @@ fn romka_block(block: &'static dyn RomkaBlock, settings: JsonValue) -> TemplateB
 impl TemplateBlock {
     /// The same block placed in a grid cell of `span` columns.
     fn spanning(self, span: i64) -> Self {
-        let extra = json!({ "grid_column_span": span.to_string() });
+        self.with_layout_data(json!({ "grid_column_span": span.to_string() }))
+    }
+
+    /// The same block with `extra` added to its `o:layout_data`.
+    pub(crate) fn with_layout_data(self, extra: JsonValue) -> Self {
         match self {
             Self::Layout {
                 layout,
@@ -316,6 +321,22 @@ pub fn welcome_blocks() -> Vec<TemplateBlockEntry> {
 pub struct TemplateRegistry {
     /// Every template, in registry order.
     pub templates: Vec<TemplateEntry>,
+    /// Every section template, in the order the block picker lists them.
+    pub sections: Vec<SectionEntry>,
+}
+
+/// One section template as the admin reads it: a group and its blocks, which
+/// the block picker inserts where the curator chose.
+#[derive(Debug, Serialize)]
+pub struct SectionEntry {
+    /// The template's id.
+    pub id: &'static str,
+    /// The catalogue key for the template's name.
+    pub label: &'static str,
+    /// The catalogue key for the template's description.
+    pub description: &'static str,
+    /// The group block first, then its members.
+    pub blocks: Vec<TemplateBlockEntry>,
 }
 
 /// One template as the admin reads it.
@@ -354,6 +375,15 @@ pub struct TemplateBlockEntry {
 pub fn template_registry() -> TemplateRegistry {
     TemplateRegistry {
         templates: templates().into_iter().map(template_entry).collect(),
+        sections: section_templates()
+            .into_iter()
+            .map(|section| SectionEntry {
+                id: section.id,
+                label: section.label,
+                description: section.description,
+                blocks: section.blocks().iter().map(block_entry).collect(),
+            })
+            .collect(),
     }
 }
 
@@ -401,7 +431,7 @@ fn layout_name(layout: PageLayout) -> &'static str {
 /// A template block as the admin reads it. A Romeka block becomes its carrier
 /// with the block's settings under `o:layout_data.romeka`; the carrier's own
 /// content is empty, because the first save generates the plain rendering.
-fn block_entry(block: &TemplateBlock) -> TemplateBlockEntry {
+pub(crate) fn block_entry(block: &TemplateBlock) -> TemplateBlockEntry {
     match block {
         TemplateBlock::Layout {
             layout,
@@ -511,6 +541,12 @@ mod tests {
         for block in &welcome() {
             check_block("welcome", block);
         }
+        for section in section_templates() {
+            let id = section.id;
+            for block in &section.blocks() {
+                check_block(id, block);
+            }
+        }
     }
 
     fn check_block(template: &str, block: &TemplateBlock) {
@@ -579,18 +615,29 @@ mod tests {
             FieldKind::Text { .. }
             | FieldKind::Html
             | FieldKind::PageList
-            | FieldKind::Color
+            | FieldKind::Color { .. }
+            | FieldKind::Anchor
+            | FieldKind::ManifestSource
             | FieldKind::Sides { .. } => value.is_string(),
             FieldKind::Link { url_key } if key == url_key => value.is_string(),
             FieldKind::Link { .. } => value.is_number() || numeric_string(value),
             FieldKind::Integer { .. } => value.is_number() || numeric_string(value),
             FieldKind::Boolean => value.is_boolean(),
             FieldKind::Choice { .. } => value.is_string(),
-            FieldKind::PageRef | FieldKind::AssetRef => value.is_number() || numeric_string(value),
+            FieldKind::PageRef
+            | FieldKind::AssetRef
+            | FieldKind::MediaRef
+            | FieldKind::ItemRef
+            | FieldKind::FocalPoint { .. } => value.is_number() || numeric_string(value),
             FieldKind::ItemQuery { .. } => value.is_string() || value.is_object(),
             FieldKind::Attachments { .. } | FieldKind::Repeat { .. } => {
                 value.is_object() || value.is_array()
             }
+            FieldKind::ItemList | FieldKind::ItemMedia | FieldKind::PropertyList => {
+                value.is_array()
+            }
+            FieldKind::MapView { zoom_key } if key == zoom_key => value.is_number(),
+            FieldKind::MapView { .. } | FieldKind::Property => value.is_string(),
         }
     }
 

@@ -202,7 +202,7 @@ fn search_list_view_matches_page_browse_phtml() {
     let document = render(&View::SearchList(&list), &ctx);
     assert!(
         document.contains(
-            "<h2>Pages</h2><ul class=\"resource-list\"><li class=\"page resource\"><h3><a href=\"/s/main/page/welcome\">Welcome</a></h3></li></ul>"
+            "<h2>Pages</h2><ul class=\"resource-list resource-cards-row\"><li class=\"page resource\"><h3><a href=\"/s/main/page/welcome\">Welcome</a></h3></li></ul>"
         ),
         "{document}"
     );
@@ -418,11 +418,11 @@ fn a_hindi_site_renders_the_frame_and_search_in_hindi() {
     };
     let document = render(&View::Index, &hindi);
     assert!(
-        document.starts_with("<!DOCTYPE html>\n<html lang=\"hi\">"),
+        document.starts_with("<!DOCTYPE html>\n<html lang=\"hi\" class=\""),
         "{document}"
     );
     assert!(
-        document.contains("<span class=\"powered-by\">Romeka S द्वारा संचालित</span>"),
+        document.contains("<p class=\"powered-by\">Romeka S द्वारा संचालित</p>"),
         "{document}"
     );
     assert!(document.contains("aria-label=\"खोज\""), "{document}");

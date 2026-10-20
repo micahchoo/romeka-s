@@ -126,3 +126,36 @@ export const poolKind = (pool: JsonValue | null): PoolKind => {
   }
   return entries.every(([key]) => key === 'item_set_id') ? 'sets' : 'search';
 };
+
+/** The help line the sync switch can show, a `sites` message id. */
+export type SyncHelp =
+  | 'siteItems.syncSets'
+  | 'siteItems.syncSearch'
+  | 'siteItems.syncEvery'
+  | 'siteItems.syncOffSets'
+  | 'siteItems.syncOffSearch'
+  | 'siteItems.syncNeedsSets';
+
+/**
+ * The sync switch for a site: whether it can be used, and the line under it.
+ * Off, the line says what turning it on would do; on, it says what joins. An
+ * empty pool would let every new item join, so the switch cannot be turned on
+ * until the site has an item set; a site already syncing that way can still
+ * turn it off.
+ */
+export const syncSwitch = (
+  on: boolean,
+  pool: JsonValue | null,
+): { readonly disabled: boolean; readonly help: SyncHelp } => {
+  const kind = poolKind(pool);
+  if (on) {
+    return {
+      disabled: false,
+      help: kind === 'sets' ? 'siteItems.syncSets' : kind === 'search' ? 'siteItems.syncSearch' : 'siteItems.syncEvery',
+    };
+  }
+  if (kind === 'every') {
+    return { disabled: true, help: 'siteItems.syncNeedsSets' };
+  }
+  return { disabled: false, help: kind === 'sets' ? 'siteItems.syncOffSets' : 'siteItems.syncOffSearch' };
+};

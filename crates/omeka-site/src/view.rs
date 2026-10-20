@@ -9,7 +9,7 @@
 //! resource's display title and description, its thumbnail, its item sets and
 //! its media, and a site entry for the list-of-sites block.
 
-use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, ResourceId, SiteId, UserId};
+use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, PageId, ResourceId, SiteId, UserId};
 use omeka_core::permissions::RoleSet;
 use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{Site, SitePage};
@@ -54,6 +54,8 @@ pub struct ResourceView {
     pub title: String,
     /// `resource.owner_id`, which decides whether the caller may edit it.
     pub owner: Option<UserId>,
+    /// `resource.is_public`: whether a reader who is not signed in may see it.
+    pub is_public: bool,
     /// The resource class label (`resourceClass()->label()`), translated by
     /// term, `None` when the resource has no class.
     pub class_label: Option<String>,
@@ -87,6 +89,9 @@ pub struct ResourceView {
     /// `view.show.after` / `view.browse.after`, honouring
     /// `disable_jsonld_embed`). `None` when the caller did not build one.
     pub jsonld: Option<String>,
+    /// The item's IIIF manifest URL, absolute, when the item has a media a
+    /// canvas can paint. The item view links it and opens it in the viewer.
+    pub iiif_manifest: Option<String>,
 }
 
 impl ResourceView {
@@ -104,6 +109,7 @@ impl ResourceView {
             url: url.into(),
             title: title.into(),
             owner: None,
+            is_public: true,
             class_label: None,
             description: None,
             values: Vec::new(),
@@ -116,6 +122,7 @@ impl ResourceView {
             primary_media: None,
             parent_item: None,
             jsonld: None,
+            iiif_manifest: None,
         }
     }
 }
@@ -309,6 +316,13 @@ pub trait ResourceProvider {
     /// Read one asset by id, `None` when it does not exist.
     fn read_asset(&self, id: AssetId) -> Option<AssetView>;
 
+    /// The image a Romeka setting shows for one media: its large rendition, or
+    /// its original when it has no renditions, with its alt text. `None` when
+    /// the media does not exist, has no image, or the visitor may not see it.
+    fn read_image(&self, _id: MediaId) -> Option<Thumbnail> {
+        None
+    }
+
     /// The `site_block_attachment` rows of a block, ordered by `position`.
     ///
     /// The item-with-metadata, media and asset blocks read their content here;
@@ -317,6 +331,23 @@ pub trait ResourceProvider {
 
     /// Search sites, `$view->api()->search('sites', ...)`.
     fn search_sites(&self, query: &SiteQuery) -> SiteSearch;
+
+    /// A page's card, as a list-of-pages block in card mode shows it; `None`
+    /// when the page is not one the caller can see or the provider did not
+    /// load it.
+    fn page_card(&self, _page: PageId) -> Option<PageCard> {
+        None
+    }
+}
+
+/// A page as a card: the image and summary its own blocks give
+/// ([`crate::blocks::page_card::source`]), the image resolved to a URL.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PageCard {
+    /// The card's image.
+    pub thumbnail: Option<Thumbnail>,
+    /// The page's summary, as plain text.
+    pub summary: Option<String>,
 }
 
 /// A provider with no data: every search is empty, every read is missing.
@@ -352,43 +383,6 @@ impl ResourceProvider for NoResources {
     }
 }
 
-/// One stored media opened in the IIIF viewer page.
-///
-/// The viewer page stands in for upstream's `iiif-viewer` route
-/// (`Controller/IiifViewerController.php`, `view/omeka/iiif-viewer/index.phtml`).
-/// Upstream renders Mirador over a `url` query parameter; the port renders the
-/// OpenSeadragon container the media renderer emits
-/// (`omeka-media/src/render/iiif.rs`, from `Media/Renderer/IIIF.php`) inside the
-/// site theme, keyed by a stored media id. The tile source is the media's stored
-/// IIIF document: an image information document or a presentation manifest.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IiifViewerView {
-    /// `media.id`, which names the container and the OpenSeadragon instance.
-    pub media: MediaId,
-    /// `media.displayTitle`, the document title and the viewer's label.
-    pub title: String,
-    /// The IIIF document the viewer opens, as JSON. The theme escapes it into
-    /// the container's `data-tile-sources` attribute and the inline script
-    /// parses it back, exactly as the media renderer does.
-    pub tile_source: String,
-    /// The container height, a CSS length. `Renderer/IIIF.php:16` builds
-    /// `{int}px` and defaults to `400px`; the caller may set a page height.
-    pub height: String,
-}
-
-impl IiifViewerView {
-    /// A viewer for a media at the media renderer's default height, `400px`.
-    #[must_use]
-    pub fn new(media: MediaId, title: impl Into<String>, tile_source: impl Into<String>) -> Self {
-        Self {
-            media,
-            title: title.into(),
-            tile_source: tile_source.into(),
-            height: "400px".to_string(),
-        }
-    }
-}
-
 /// Which theme view to render.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View<'a> {
@@ -414,8 +408,6 @@ pub enum View<'a> {
     /// `view/omeka/site/item/search.phtml` and its siblings:
     /// `common/advanced-search.phtml`.
     AdvancedSearch(&'a AdvancedSearchForm),
-    /// The IIIF viewer page (`view/omeka/iiif-viewer/index.phtml`).
-    IiifViewer(&'a IiifViewerView),
     /// `view/error/404.phtml` and `view/error/403.phtml`, the two error pages
     /// `Mvc\ExceptionListener` renders inside the site layout.
     Error(&'a ErrorView),
@@ -495,6 +487,15 @@ pub enum BlockMarkers {
     #[default]
     Off,
     Preview,
+}
+
+/// A part of the site frame every page shares, which the admin preview marks
+/// so the editor can select it: `data-romeka-region="header"` on the banner
+/// and the header, `data-romeka-region="footer"` on the footer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SiteRegion {
+    Header,
+    Footer,
 }
 
 /// The signed-in caller of a public render: who the user bar names, and the
@@ -590,11 +591,23 @@ impl<'a> RenderContext<'a> {
         self
     }
 
-    /// Whether this render is the admin preview, which may point the curator
-    /// at the admin.
+    /// Whether this render is the admin preview: a block that needs a script
+    /// shows what it will be instead, and the page may point the curator at
+    /// the admin.
     #[must_use]
     pub(crate) fn is_preview(&self) -> bool {
         self.block_markers == BlockMarkers::Preview
+    }
+
+    /// ` data-romeka-region="…"` for one site region, or nothing when markers
+    /// are off.
+    #[must_use]
+    pub(crate) fn region_marker(&self, region: SiteRegion) -> &'static str {
+        match (self.block_markers, region) {
+            (BlockMarkers::Off, _) => "",
+            (BlockMarkers::Preview, SiteRegion::Header) => " data-romeka-region=\"header\"",
+            (BlockMarkers::Preview, SiteRegion::Footer) => " data-romeka-region=\"footer\"",
+        }
     }
 
     /// The marker value for one block, `None` when markers are off.

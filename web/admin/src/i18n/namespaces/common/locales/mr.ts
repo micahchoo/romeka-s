@@ -96,4 +96,15 @@ export const mr: CommonMessages = {
   'tags.hint':
     'नंतर गोष्टी शोधण्यासाठी मोफत शब्द. शोधण्यासाठी Enter दाबा किंवा एक जोडण्यासाठी स्वल्पविराम टाईप करा.',
   'tags.remove': '“{tag}” हा टॅग काढून टाका',
+  'reorder.handle': '{label} हलवा, {position}/{count}',
+  'reorder.grip': 'हलवण्यासाठी ड्रॅग करा, किंवा उचलण्यासाठी Space दाबा',
+  'reorder.up': '{label} वर हलवा',
+  'reorder.down': '{label} खाली हलवा',
+  'reorder.upTip': 'वर हलवा',
+  'reorder.downTip': 'खाली हलवा',
+  'reorder.picked':
+    '{label} उचलले. ते हलवण्यासाठी बाण की वापरा, टाकण्यासाठी Space दाबा, रद्द करण्यासाठी Escape दाबा.',
+  'reorder.moved': '{label}: {count} पैकी {position} स्थान.',
+  'reorder.dropped': '{label} {count} पैकी {position} स्थानावर सोडले.',
+  'reorder.cancelled': '{label} ची हालचाल रद्द केली.',
 };

@@ -70,6 +70,14 @@ export const en = {
   'items.bulkConfirmAdd': 'Add {count} to {site}',
   'items.bulkDone': '{site} now has {total} items.',
   'items.bulkConfirmRemove': 'Remove {count} from {site}',
+  'place.legend': 'Place on a map: {field}',
+  'place.help': 'Click the map, or type "lat, lng". Each place is saved as a {term} value, which the site\'s maps show.',
+  'place.mapLabel': 'Map: click to set the selected place',
+  'place.value': 'Place {number}',
+  'place.remove': 'Remove place {number}',
+  'place.add': 'Add a place',
+  'place.invalid': 'Type a latitude from -90 to 90, a comma, and a longitude from -180 to 180.',
+  'place.unavailable': 'The map could not load. Type the place as "lat, lng".',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

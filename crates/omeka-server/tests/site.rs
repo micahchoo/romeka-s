@@ -226,11 +226,19 @@ async fn item_show_renders_the_item_values() {
     let answer = send(router(pool), get(&path, false)).await;
     assert_eq!(answer.status, StatusCode::OK);
     assert!(
-        answer.body.contains("<h2>A picture of a cat</h2>"),
+        answer
+            .body
+            .contains("<h2 class=\"resource-title\">A picture of a cat</h2>"),
         "{}",
         answer.body
     );
-    assert!(answer.body.contains("<h3>Item</h3>"), "{}", answer.body);
+    assert!(
+        answer
+            .body
+            .contains("<p class=\"resource-kind-label\">Item"),
+        "{}",
+        answer.body
+    );
     assert!(answer.body.contains("<dt>Title</dt>"), "{}", answer.body);
     assert!(
         answer.body.contains(
@@ -266,7 +274,7 @@ async fn item_browse_lists_the_site_items() {
     assert_eq!(answer.status, StatusCode::OK);
     assert!(answer.body.contains("<h2>Items</h2>"), "{}", answer.body);
     assert!(
-        answer.body.contains("<li class=\"item resource\">"),
+        answer.body.contains("<li class=\"item resource "),
         "{}",
         answer.body
     );
@@ -296,7 +304,7 @@ async fn item_set_browse_lists_the_sets() {
         answer.body
     );
     assert!(
-        answer.body.contains("<li class=\"item-set resource\">"),
+        answer.body.contains("<li class=\"item-set resource "),
         "{}",
         answer.body
     );
@@ -314,9 +322,17 @@ async fn item_set_show_renders_the_item_set() {
     let path = format!("/s/museum/item-set/{}", seed.item_set.0);
     let answer = send(router(pool), get(&path, false)).await;
     assert_eq!(answer.status, StatusCode::OK);
-    assert!(answer.body.contains("<h3>Item set</h3>"), "{}", answer.body);
     assert!(
-        answer.body.contains("<h2>Featured photographs</h2>"),
+        answer
+            .body
+            .contains("<p class=\"resource-kind-label\">Item set"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer
+            .body
+            .contains("<h2 class=\"resource-title\">Featured photographs</h2>"),
         "{}",
         answer.body
     );
@@ -329,7 +345,13 @@ async fn media_show_names_the_parent_item() {
     let path = format!("/s/museum/media/{}", seed.media.0);
     let answer = send(router(pool), get(&path, false)).await;
     assert_eq!(answer.status, StatusCode::OK);
-    assert!(answer.body.contains("<h3>Media</h3>"), "{}", answer.body);
+    assert!(
+        answer
+            .body
+            .contains("<p class=\"resource-kind-label\">Media"),
+        "{}",
+        answer.body
+    );
     assert!(
         answer.body.contains(&format!(
             "Part of <a href=\"/s/museum/item/{}\">A picture of a cat</a>",
@@ -901,7 +923,7 @@ async fn a_resource_custom_thumbnail_wins_over_its_media() {
     assert_eq!(answer.status, StatusCode::OK);
     assert!(
         answer.body.contains(&format!(
-            "<img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\">"
+            "<img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\" loading=\"lazy\">"
         )),
         "{}",
         answer.body

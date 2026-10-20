@@ -55,10 +55,7 @@ export const ml: SitesMessages = {
   'navigation.label': 'ലേബൽ',
   'navigation.addLink': 'ലിങ്ക് ചേർക്കുക',
   'navigation.addChild': 'ചൈൽഡ് ലിങ്ക് ചേർക്കുക',
-  'navigation.moveUpShort': 'മുകളിലേക്ക്',
-  'navigation.moveDownShort': 'താഴേക്ക്',
   'navigation.remove': '{label} നീക്കം ചെയ്യുക',
-  'navigation.errorMissingTarget': 'ഒരു പേജ് അല്ലെങ്കിൽ URL ലിങ്കിന് അതിന്റെ ലക്ഷ്യം ആവശ്യമാണ്.',
   'siteSettingGroup.browsing': 'ബ്രൗസിംഗ്',
   'siteSettingGroup.browsingIntro': 'സന്ദർശകർ ബ്രൗസ് ചെയ്യുമ്പോൾ ഇനങ്ങൾ എങ്ങനെ കാണപ്പെടുന്നു.',
   'siteSettingGroup.search': 'തിരയുക',
@@ -105,7 +102,10 @@ export const ml: SitesMessages = {
     'ഐറ്റം പേജുകൾ ഓരോ ഫീൽഡ് നാമത്തിന് അടുത്തും വൊക്കാബുലറി അല്ലെങ്കിൽ ടെക്നിക്കൽ ടേം കാണിക്കുന്നു.',
   'siteSetting.iiifViewerTheme': 'IIIF വ്യൂവർ തീം',
   'siteSetting.iiifViewerThemeHelp':
-    'IIIF വ്യൂവർ ബ്ലോക്കിന് ലൈറ്റ് അല്ലെങ്കിൽ ഡാർക്ക് ബാക്ക്ഗ്രൗണ്ട്.',
+    'IIIF വ്യൂവറിനായി ഒരു ലൈറ്റ് അല്ലെങ്കിൽ ഡാർക്ക് ബാക്ക്ഗ്രൗണ്ട്, ബ്ലോക്കുകളിലും ഐറ്റം പേജുകളിലും.',
+  'siteSetting.iiifViewerSidebar': 'IIIF വ്യൂവർ സൈഡ്‌ബാർ',
+  'siteSetting.iiifViewerSidebarHelp':
+    'ഉള്ളടക്കങ്ങളുടെയും വിശദാംശങ്ങളുടെയും സൈഡ്‌ബാർ കാണിച്ചുകൊണ്ട് വ്യൂവർ തുറക്കുന്നു.',
   'siteSetting.locale': 'ലൊക്കേൽ',
   'siteSetting.localeHelp':
     'സൈറ്റിന്റെ സ്വന്തം വാക്കുകളുടെ ഭാഷ, ഉദാഹരണത്തിന് ബട്ടണുകൾ, മെനുകൾ, തീയതികൾ.',
@@ -175,28 +175,57 @@ export const ml: SitesMessages = {
   'siteSettingChoice.property_label_information.term': 'സാങ്കേതിക പദം, ഉദാഹരണത്തിന് dcterms:title',
   'resourcePage.title': 'റിസോഴ്സ് പേജുകൾ',
   'resourcePage.hint':
-    'ഇനങ്ങൾ, ഇനം സെറ്റുകൾ അല്ലെങ്കിൽ മീഡിയ പേജ് കാണിക്കുന്ന ബ്ലോക്കുകൾ, ക്രമത്തിൽ.',
+    'ഒരു ഇനം, ഇനം സെറ്റ് അല്ലെങ്കിൽ മീഡിയ പേജ് കാണിക്കുന്ന ക്രമത്തിലുള്ള ഭാഗങ്ങൾ. അതിന്റെ ഹാൻഡിൽ ഉപയോഗിച്ച് ഒരു ഭാഗം ഡ്രാഗ് ചെയ്യുക, അല്ലെങ്കിൽ ആരോകൾ ഉപയോഗിക്കുക.',
   'resourcePage.items': 'ഇനങ്ങൾ',
   'resourcePage.itemSets': 'ഇനം സെറ്റുകൾ',
   'resourcePage.media': 'മീഡിയ',
-  'resourcePage.blockList': '{resource}-നായുള്ള ബ്ലോക്കുകൾ',
-  'resourcePage.empty': 'ബ്ലോക്കുകൾ ഇല്ല. ഈ പേജ് അതിന്റെ തലക്കെട്ട് മാത്രമേ കാണിക്കുന്നുള്ളൂ.',
-  'resourcePage.add': 'ചേർക്കുക',
-  'resourcePage.addLabel': '{resource}-ലേക്ക് ഒരു ബ്ലോക്ക് ചേർക്കുക',
-  'resourcePage.addPlaceholder': '[ഒരു ബ്ലോക്ക് തിരഞ്ഞെടുക്കുക]',
-  'resourcePage.remove': '{label} നീക്കം ചെയ്യുക',
-  'resourcePage.moveUp': '{label} മുകളിലേക്ക് നീക്കുക',
-  'resourcePage.moveDown': '{label} താഴേക്ക് നീക്കുക',
-  'resourcePage.unknown': 'അജ്ഞാതമായ ബ്ലോക്ക് ലേഔട്ട് [{name}]',
+  'resourcePage.blockList': '{resource} പേജുകളിൽ കാണിക്കുന്ന ഭാഗങ്ങൾ',
+  'resourcePage.empty':
+    'ഭാഗങ്ങളൊന്നും കാണിക്കുന്നില്ല. ഈ പേജ് അതിന്റെ തലക്കെട്ട് മാത്രമേ കാണിക്കുന്നുള്ളൂ.',
+  'resourcePage.hide': 'മറയ്ക്കുക',
+  'resourcePage.hideLabel': '{label} മറയ്ക്കുക',
+  'resourcePage.hidden': 'മറച്ചുവെച്ച ഭാഗങ്ങൾ',
+  'resourcePage.hiddenList': '{resource} പേജുകളിലെ മറച്ചുവെച്ച ഭാഗങ്ങൾ',
+  'resourcePage.show': 'കാണിക്കുക',
+  'resourcePage.showLabel': '{label} കാണിക്കുക',
+  'resourcePage.unknown': 'അജ്ഞാതമായ ഭാഗം [{name}]',
+  'resourcePage.unknownHelp': 'സൈറ്റിൽ ഇനി ഈ ഭാഗം ഇല്ലാത്തതിനാൽ, അത് ഒന്നും കാണിക്കുന്നില്ല.',
   'resourcePageBlock.itemSets': 'ഐറ്റം സെറ്റുകൾ',
+  'resourcePageBlock.itemSetsHelp': 'ഇനങ്ങളുടെ ഭാഗമായ ഐറ്റം സെറ്റുകളിലേക്കുള്ള ലിങ്കുകൾ.',
   'resourcePageBlock.lightboxGallery': 'ലൈറ്റ്‌ബോക്സ് ഗാലറി',
+  'resourcePageBlock.lightboxGalleryHelp':
+    'ഓരോ ചിത്രവും ഒരു തംബ്‌നെയിൽ ആയി കാണിക്കുന്നു, അത് പൂർണ്ണരൂപം തുറക്കുന്നു.',
   'resourcePageBlock.linkedResources': 'ലിങ്ക് ചെയ്ത റിസോഴ്‌സുകൾ',
+  'resourcePageBlock.linkedResourcesHelp':
+    'ഈ ഒന്നിലേക്ക് ലിങ്ക് ചെയ്യുന്ന മറ്റ് റെക്കോർഡുകൾ, അവയെ ബന്ധിപ്പിക്കുന്ന ഫീൽഡ് അനുസരിച്ച് ഗ്രൂപ്പ് ചെയ്തിരിക്കുന്നു.',
   'resourcePageBlock.mediaEmbeds': 'മീഡിയ എംബഡുകൾ',
+  'resourcePageBlock.mediaEmbedsHelp': 'ഓരോ ഫയലും ഓരോന്നായി, പൂർണ്ണരൂപത്തിൽ കാണിക്കുന്നു.',
   'resourcePageBlock.mediaList': 'മീഡിയ ലിസ്റ്റ്',
+  'resourcePageBlock.mediaListHelp':
+    'ഇനത്തിന്റെ ഫയലുകളുടെ പട്ടിക, ഓരോന്നും അതിന്റെ തലക്കെട്ടുള്ള ചെറിയ തംബ്‌നെയിൽ.',
   'resourcePageBlock.mediaRender': 'മീഡിയ റെൻഡർ',
+  'resourcePageBlock.mediaRenderHelp': 'ഫയൽ തന്നെ: ചിത്രം, പ്ലെയർ അല്ലെങ്കിൽ ഡോക്യുമെന്റ്.',
   'resourcePageBlock.resourceClass': 'റിസോഴ്‌സ് ക്ലാസ്',
+  'resourcePageBlock.resourceClassHelp':
+    'ഇത് ഏത് തരത്തിലുള്ള കാര്യമാണ്, ഉദാഹരണത്തിന് ഒരു ടെക്സ്റ്റ് അല്ലെങ്കിൽ ഒരു ചിത്രം.',
   'resourcePageBlock.sitePages': 'സൈറ്റ് പേജുകൾ',
+  'resourcePageBlock.sitePagesHelp': 'ഈ ഇനം കാണിക്കുന്ന സൈറ്റിലെ പേജുകളിലേക്കുള്ള ലിങ്കുകൾ.',
   'resourcePageBlock.values': 'മൂല്യങ്ങൾ',
+  'resourcePageBlock.valuesHelp': 'മെറ്റാഡാറ്റ, ഓരോ ഫീൽഡും.',
+  'themePreview.label': 'പ്രിവ്യൂ',
+  'themePreview.page': 'ഒരു പേജ്',
+  'themePreview.items': 'ഒരു ഇനം',
+  'themePreview.item_sets': 'ഒരു ഇനം സെറ്റ്',
+  'themePreview.media': 'ഒരു മീഡിയ',
+  'themePreview.noneItems': 'ഈ സൈറ്റിൽ ഇനങ്ങളൊന്നുമില്ല, അതിനാൽ കാണിക്കാൻ ഇനം പേജുകളില്ല.',
+  'themePreview.noneItem_sets':
+    'ഈ സൈറ്റിൽ ഇനം സെറ്റുകളൊന്നുമില്ല, അതിനാൽ കാണിക്കാൻ ഇനം സെറ്റ് പേജുകളില്ല.',
+  'themePreview.noneMedia': 'ഈ സൈറ്റിൽ മീഡിയകളൊന്നുമില്ല, അതിനാൽ കാണിക്കാൻ മീഡിയ പേജുകളില്ല.',
+  'siteItems.syncOffSets':
+    'ഓഫ്. ഇത് ഓൺ ചെയ്യുക, ഈ സൈറ്റിലെ ഏതെങ്കിലും ഇനം സെറ്റുകളിൽ സൃഷ്ടിച്ച ഒരു ഇനം സൈറ്റിൽ ചേരുന്നു.',
+  'siteItems.syncOffSearch':
+    'ഓഫ്. ഇത് ഓൺ ചെയ്യുക, ഇനി മുതൽ സൃഷ്ടിക്കുന്ന ഇനങ്ങൾ ഈ സൈറ്റിൽ ചേരും, അവ സൈറ്റിന്റെ സേവ് ചെയ്ത സെർച്ചുമായി പൊരുത്തപ്പെടുമ്പോൾ.',
+  'siteItems.syncNeedsSets': 'ഈ സൈറ്റിനെ ഇതിനോട് സമന്വയിപ്പിക്കാൻ ഒരു ഇനം സെറ്റ് തിരഞ്ഞെടുക്കുക.',
   'sites.sortBy': 'ക്രമീകരിക്കുക',
   'sites.sortOrder': 'ക്രമീകരണ ക്രമം',
   'layout.pageTitle': 'പേജ് തലക്കെട്ട്',
@@ -296,14 +325,12 @@ export const ml: SitesMessages = {
   'siteHub.unknownLinkType':
     'ഒരു മോഡ്യൂൾ ഈ ലിങ്ക് ടൈപ്പ് ചേർത്തു. ഇതിന്റെ ക്രമീകരണങ്ങൾ ശേഖരിച്ചതുപോലെ തന്നെ തുടരുന്നു.',
   'siteHub.moveLink': '{label} മാറ്റുക',
-  'siteHub.needsTarget': 'ഒരു ലക്ഷ്യസ്ഥാനം ആവശ്യമാണ്',
   'siteHub.editLink': '{label} എഡിറ്റ് ചെയ്യുക',
   'siteHub.addChildTo': '{label}-ലേക്ക് ഒരു ചൈൽഡ് ലിങ്ക് ചേർക്കുക',
   'siteHub.menuPreview': 'മെനു പ്രിവ്യൂ',
   'siteHub.homeLink': 'ഹോം',
   'siteHub.emptyMenuNote':
     'ലിങ്കുകൾ ഒന്നുമില്ലെങ്കിൽ, പൊതുസൈറ്റ് അതിന്റെ ഹോംപേജിലേക്ക് ഒരു ലിങ്ക് കാണിക്കുന്നു.',
-  'siteHub.unsavedConfirm': 'നാവിഗേഷനിൽ മാറ്റങ്ങൾ സേവ് ചെയ്തിട്ടില്ല. പോയി അവ നഷ്ടപ്പെടുത്തണോ?',
   'siteHub.unsaved': 'സേവ് ചെയ്യാത്ത മാറ്റങ്ങൾ',
   'siteHub.picked':
     '{label} തിരഞ്ഞെടുക്കപ്പെട്ടു. അത് നീക്കാൻ ആരോ കീകൾ ഉപയോഗിക്കുക, ഇടാൻ സ്പേസ്, റദ്ദാക്കാൻ എസ്‌കേപ്പ്.',
@@ -415,5 +442,63 @@ export const ml: SitesMessages = {
   'itemPicker.setChip': '{title} സെറ്റ് ചെയ്യുക',
   'itemPicker.removeSet': '{title} എന്ന സെറ്റ് നീക്കം ചെയ്യുക',
   'itemPicker.clear': 'തിരഞ്ഞെടുപ്പുകൾ നീക്കം ചെയ്യുക',
+  'navigation.issueNoPage': 'ഒരു പേജ് ആവശ്യമാണ്',
+  'navigation.issueNoUrl': 'ഒരു URL ആവശ്യമാണ്',
+  'navigation.issueNoLabel': 'ഒരു ലേബൽ ആവശ്യമാണ്',
+  'navigation.issueSamePage': 'പേജ് ഇതിനകം മെനുവിൽ ഉണ്ട്',
+  'navigation.errorLinkIssues':
+    'ചില ലിങ്കുകൾ പൂർണ്ണമല്ല. അടയാളപ്പെടുത്തിയ ലിങ്കുകൾ ശരിയാക്കുക, തുടർന്ന് സേവ് ചെയ്യുക.',
+  'sites.userFallback': 'ഉപയോക്താവ് {id}',
+  'sites.errorRowNoUser':
+    'ഓരോ വരിയിലും ഒരു ഉപയോക്താവിനെ തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ വരി നീക്കം ചെയ്യുക.',
+  'siteHub.unsavedTabConfirm': 'ഈ ടാബിൽ സേവ് ചെയ്യാത്ത മാറ്റങ്ങൾ ഉണ്ട്. പോകുക, അവ നഷ്ടപ്പെടുമോ?',
+  'siteAccess.viewer':
+    'നിങ്ങൾക്ക് ഈ സൈറ്റ് കാണാം. ഇതിന്റെ സ്രഷ്ടാക്കളും മാനേജർമാരും മാത്രമേ ഇത് മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.hub': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഹോംപേജും മെനുവും മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.notInNavigation': 'നാവിഗേഷനിൽ ഇല്ല',
+  'siteAccess.navigation': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ മെനു മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.items': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഇനങ്ങൾ ചേർക്കാനോ നീക്കം ചെയ്യാനോ കഴിയൂ.',
+  'siteAccess.users': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ ഈ സൈറ്റിൽ ആര് ജോലി ചെയ്യണമെന്ന് മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.theme': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ തീം മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.settings': 'സൈറ്റ് മാനേജർമാർക്ക് മാത്രമേ സൈറ്റ് ക്രമീകരണങ്ങൾ മാറ്റാൻ കഴിയൂ.',
+  'siteAccess.delete':
+    'സൈറ്റ് ഉടമയ്ക്കോ അഡ്മിനിസ്ട്രേറ്റർക്കോ മാത്രമേ ഈ സൈറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയൂ.',
   'itemPicker.itemFallback': 'ഇനം {id}',
+  'romeka.map': 'മാപ്പ്',
+  'romekaHelp.map': 'തിരഞ്ഞെടുത്ത ഇനങ്ങളുടെ മാപ്പ്, അതിന് താഴെ നൽകിയിരിക്കുന്ന സ്ഥലങ്ങൾ.',
+  'resourcePageBlock.map': 'ഇനത്തിന്റെ സ്ഥലത്തിന്റെ മാപ്പ്',
+  'resourcePageBlock.mapHelp': 'സൈറ്റിന്റെ ലൊക്കേഷൻ ഫീൽഡിൽ നിന്നുള്ള ഒരു ഇനത്തിന്റെ സ്ഥലം.',
+  'siteSettingGroup.maps': 'മാപ്പുകൾ',
+  'siteSettingGroup.mapsIntro':
+    'ഒരു ഇനത്തിന്റെ സ്ഥലം എവിടെയാണ് സൂക്ഷിച്ചിരിക്കുന്നത്, ഓരോ മാപ്പും വരയ്ക്കുന്ന പശ്ചാത്തലം.',
+  'siteSetting.romekaLocationProperty': 'ലൊക്കേഷൻ ഫീൽഡ്',
+  'siteSetting.romekaLocationPropertyHelp':
+    '"lat, lng" മൂല്യങ്ങളുള്ള പ്രോപ്പർട്ടി, ഒരു മാപ്പിൽ ഒരു ഇനത്തെ സ്ഥാപിക്കുന്നു, ഉദാഹരണത്തിന് സ്പേഷ്യൽ കവറേജ്. ഇനം ഫോം ഇതിനായി ഒരു ചെറിയ മാപ്പ് നൽകുന്നു.',
+  'siteSetting.romekaMapTiles': 'മാപ്പ് ടൈലുകൾ',
+  'siteSetting.romekaMapTilesHelp':
+    '{z}, {x}, {y} എന്നിവയുള്ള ഒരു ടൈൽ വിലാസം. ഡിഫോൾട്ട് OpenStreetMap ആണ്, ഇതിന്റെ ഉപയോഗ നയം ക്രെഡിറ്റ് ലൈൻ ആവശ്യപ്പെടുകയും കനത്ത ഉപയോഗം നിരോധിക്കുകയും ചെയ്യുന്നു.',
+  'siteSetting.romekaMapAttribution': 'മാപ്പ് ക്രെഡിറ്റ്',
+  'siteSetting.romekaMapAttributionHelp':
+    'ടൈൽ പ്രൊവൈഡർ ആവശ്യപ്പെടുന്ന ക്രെഡിറ്റ് ലൈൻ, ഓരോ മാപ്പിന്റെയും കോണിൽ കാണിക്കുന്നു.',
+  'romeka.gallery': 'ഇമേജ് ഗാലറി',
+  'romekaHelp.gallery':
+    'ഇനങ്ങളിൽ നിന്നോ അസറ്റുകളിൽ നിന്നോ ഉള്ള ചിത്രങ്ങൾ ഒരു ഗ്രിഡ്, കോളങ്ങൾ അല്ലെങ്കിൽ ഒരു കറൗസൽ, ലൈറ്റ്‌ബോക്സ് സഹിതം.',
+  'romeka.featuredItem': 'ഫീച്ചർ ചെയ്ത ഇനം',
+  'romekaHelp.featuredItem':
+    'ഒരു കാർഡ്: അതിന്റെ ചിത്രം, തിരഞ്ഞെടുത്ത ഫീൽഡുകൾ, ഇതിലേക്കുള്ള ലിങ്ക്.',
+  'romeka.button': 'ബട്ടൺ',
+  'romekaHelp.button':
+    'ഒരു പേജിലേക്കോ URL-ലേക്കോ ഉള്ള ഒരു അല്ലെങ്കിൽ രണ്ട് ലിങ്കുകൾ ബട്ടണുകളായി വരച്ചു.',
+  'romeka.quote': 'ഉദ്ധരണി',
+  'romekaHelp.quote':
+    'ആര് പറഞ്ഞു എന്നതും, നിങ്ങൾക്ക് താല്പര്യമുണ്ടെങ്കിൽ അതിൽ നിന്ന് വന്ന ഇനവും ഉൾപ്പെടുത്തിയ ഒരു ഉദ്ധരണി.',
+  'romeka.accordion': 'അకార్ഡിയൻ',
+  'romekaHelp.accordion':
+    'FAQ-കൾക്കും നീളമുള്ള കുറിപ്പുകൾക്കും ഓരോ ഉത്തരങ്ങൾ തുറക്കുന്ന ചോദ്യങ്ങൾ അല്ലെങ്കിൽ തലക്കെട്ടുകൾ.',
+  'romeka.timeline': 'ടൈംലൈൻ',
+  'romekaHelp.timeline':
+    'ഒരു വരിയിലൂടെ തീയതി ക്രമത്തിൽ ഇനങ്ങൾ, ഓരോന്നിനും ഒരു ത്രംബ്‌നെയിലും തലക്കെട്ടും ഉണ്ടായിരിക്കും.',
+  'romeka.searchBox': 'സെർച്ച് ബോക്സ്',
+  'romekaHelp.searchBox':
+    'സൈറ്റ്, ഇനങ്ങൾ അല്ലെങ്കിൽ ഇനം സെറ്റുകൾ എന്നിവയ്ക്കായി ഒരു സെർച്ച് ഫീൽഡ്.',
 };

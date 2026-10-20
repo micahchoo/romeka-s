@@ -39,19 +39,28 @@ The bundled theme is edited by tokens, not code. A site stores its choices in th
 
 | Key | What it holds |
 | --- | --- |
-| `preset` | one of `theme::presets::PRESETS`: `plain`, `archive`, `gallery`, `editorial`, `civic` |
+| `preset` | one of `theme::presets::PRESETS`: `exhibit`, `catalogue`, `gallery`, `journal`, `community`; the ids the first presets stored (`plain`, `archive`, `editorial`, `civic`) read as their replacements (`presets::LEGACY_IDS`) |
 | `derive_palette` | whether the palette is derived from the brand colour (default on) |
-| `brand_color` and the six other `*_color` keys | colours set by hand |
+| `brand_color` and the six other `*_color` keys | colours set by hand; under the `auto` scheme they are the light palette's |
+| `accent_color_dark` and the five other `*_color_dark` keys | the dark palette's colours under the `auto` scheme (`tokens::DARK_EDITABLE`); ignored under `light` and `dark` |
 | `color_scheme`, the fonts, sizes, `density`, `corner_radius`, `content_width`, `header_layout`, `header_style`, `button_style` | tokens set by hand |
-| `logo`, `banner`, `banner_text`, `footer_text` | header and footer content |
+| `hero_style`, `card_style`, `search_display`, `item_layout`, `footer_layout`, `footer_tone` | structural tokens set by hand |
+| `logo`, `banner`, `banner_text` | header content |
+| `footer_columns`, `footer_links`, `footer_contact`, `footer_licence`, `show_powered_by` | the footer (`theme::footer`); an old `footer_text` reads as the first column |
 | `custom_css` | the site's own CSS |
 
 `theme::tokens::Choices::from_value` is the boundary: it keeps the values the theme accepts and drops
 the rest. `theme::tokens::resolve` is the one function that turns choices into effective tokens: the
 preset's values, then a palette derived from the brand colour when derivation is on, then the values
-set by hand. A map with no `preset` was stored before presets and reads as `plain` with derivation off,
-the look those sites had; a site created through the API starts from `presets::NEW_SITE_PRESET`
-(`tokens::new_site_settings`, written by `omeka-api`'s site create).
+set by hand. A map with no `preset` was stored before presets and reads as `catalogue` (the preset that
+replaced `plain`) with derivation off; a site created through the API starts from
+`presets::NEW_SITE_PRESET`, `exhibit`, with its own palette (`tokens::new_site_settings`, written by
+`omeka-api`'s site create).
+
+The presets differ in structure as well as colour. Each structural token is a class on the root
+element (`hero-cover`, `cards-row`, `search-icon`, `footer-columns`, `item-side` and their siblings)
+that `style.css` keys the layout on; the footer tone is a set of `--footer-*` properties, as the header
+style is a set of `--header-*` ones.
 
 `theme::palette::derive` builds a light and a dark palette from one colour in OKLab
 (`theme::color`): the backgrounds take the brand's hue at the preset's lightness, and each text colour
@@ -62,15 +71,22 @@ brand colour (`--color-on-brand`) is never stored; the theme picks it.
 
 `Tokens::css` emits the tokens as CSS custom properties in one `<style>` in the head, and
 `theme/style.css` uses those properties everywhere and names no colour of its own. A test checks that
-every property the sheet reads is one the tokens emit, for every preset. The font stacks are curated
-system stacks, so no font file is requested.
+every property the sheet reads is one the tokens emit, for every preset. A font is a curated system
+stack or a webfont the theme serves itself (`theme::fonts`: Fraunces, Source Sans 3, IBM Plex Sans,
+IBM Plex Mono, Inter, with the Noto faces for the Indic scripts). The frame declares and preloads only
+the faces the site's two fonts name, every face swaps in, and a Noto face loads only for its script.
+No font is requested from another origin.
 
 `theme::tokens::registry()` is serialised to `web/admin/src/generated/themeSettings.json`, which the
 admin Theme page renders. `theme::tokens_schema::samples()` is serialised to
 `web/admin/src/generated/themeSamples.json`: derived palettes, nearest-passing suggestions and resolved
 maps, which an admin test replays against its copy of the arithmetic. A Rust test keeps both files
-byte-identical. A resource without a thumbnail shows the theme's `img/placeholder.svg`, the port's
-stand-in for upstream's `default.png`.
+byte-identical.
+
+A resource list draws each resource as a card (`theme::cards`) built for poor data: with no thumbnail
+the card shows a tinted surface with the kind's icon and type, and with no title it shows the
+identifier without a file extension. The theme still ships `img/placeholder.svg` at its old URL, for
+custom CSS that names it.
 
 ### Custom CSS
 
@@ -96,6 +112,23 @@ emits, its page-grid rules are `application/asset/css/page-grid.css`, and it add
 block wrapper class no upstream rule names. A stored block `class` is arbitrary, so only a
 registered layout's wrapper has a rule.
 
+### The IIIF viewers
+
+`iiif_viewer` is the viewer page upstream renders bare (`view/omeka/iiif-viewer/index.phtml`):
+`mirador_config` builds `IiifViewerController`'s configuration with its allow-list, `viewer_page`
+renders the document, and `viewer_src` is the link a block or the item page opens it with, under the
+site's `iiif_viewer_sidebar` and `iiif_viewer_theme`. Mirador 4 and OpenSeadragon 5 are vendored
+under `vendor/` by `vendor/update.sh` and listed in `theme/files.rs` as library assets, which the
+frame never links: the viewer page loads Mirador, and the IIIF image block and the IIIF image media
+embed load OpenSeadragon where they call it.
+
+Both IIIF blocks take a height (`blocks/iiif.rs`), a Romeka setting of an upstream block kept in
+`o:layout_data.romeka.settings`; a schema field marked `romeka` is stored there. In the editor's
+script-free preview both render a poster card in place of the viewer. The presentation block's
+manifest field is the `manifestSource` kind: a URL, or an item of this site stored as its manifest
+URL, so upstream opens the same manifest. The item view links an item with a paintable media to the
+viewer and to its manifest (`ResourceView::iiif_manifest`).
+
 ### Page blocks
 
 `blocks::render_page_blocks` reproduces `View/Helper/PageLayout::render`: the page's blocks in
@@ -112,6 +145,23 @@ bundles no block templates. `background_image_asset` needs the asset's URL, whic
 `ResourceProvider::read_asset` lookup supplies; the bundled theme's provider resolves the id through
 the `asset` repository and fills `background-image: url(...)`, so the class is emitted and the style
 appears whenever the asset exists.
+
+Four upstream blocks take Romeka settings in `o:layout_data.romeka.settings`; unset, each renders
+as upstream does, and upstream renders the stored block plainer. The browse preview
+(`blocks/browse_preview.rs`) may draw its cards in a style of its own instead of the theme's
+`card_style` token, or as a carousel (`blocks/carousel.rs`, with `carousel.js` loaded only on a page
+that holds one), set the column count, and choose the details under each name
+(`theme/cards.rs::Detail`). A resource list carries its card style as its own class
+(`resource-cards-*`), so a block's style and the theme's never meet on one list. Its sort is the
+stored query's `sort_by`, a column or a property term, as upstream's `sortQuery` reads it; the
+loader orders by a property's smallest public value. A preview whose search matches nothing says so.
+The asset block (`blocks/asset.rs`) keeps each image's own shape unless the block asks for a 3:2
+frame, lays the images out stacked, in a row or in a grid, aligns the captions, and links a slot to
+a URL kept at `settings.attachments[<slot>].url` when it names no page. The list of pages
+(`blocks/list_of_pages.rs`) may draw its pages as cards whose image and summary come from each
+page's own blocks (`blocks/page_card.rs`, `ResourceProvider::page_card`). The item with metadata
+(`blocks/item_with_metadata.rs`) may print only a chosen, ordered list of properties (the
+`PropertyList` field kind) and may show each item as a compact card with a citation line.
 
 ### The block field registry
 
@@ -152,6 +202,18 @@ settings under `o:layout_data.romeka`. `blocks::romeka` owns the rule. `RomkaBlo
 catalogue label, a `LayoutSchema` in the same format as an upstream layout, a rich renderer and a
 plain renderer. `plain` has no default, so a block without one does not compile. `ROMKA_BLOCKS` holds
 the registry; `hero` is its first entry.
+
+The content blocks follow the hero: `gallery`, `featuredItem`, `button`, `quote`, `accordion`,
+`timeline` and `searchBox`, one module each under `blocks/`. They share the setting readers in
+`blocks::setting` (text, ids, a page-or-URL `Button`, an items-or-query `selection`). A block that
+lists items names them through the `items` hook; the page load reads each picked item with its main
+media's large image, and the write resolves them into `PlainItem`s with their public values and main
+image, so a plain rendering needs no database. `PlainRefs` also carries the site's locale, so a
+plain rendering prints the site's own words ("View item", "Undated"). Two plain renderings cannot
+carry what the rich one shows: the purifier allows no `details` and no `form`, so the accordion
+stores each heading as an `h3` with its answer and the search box stores a link to the search page.
+The gallery's lightbox is `js/lightbox.js`, added to a page only when a gallery on it asks for it
+(`blocks::gallery::with_assets`); without the script each image links to its file.
 
 `romeka::plain_hash` hashes the block's canonical content form with FNV-1a 64. The form keeps only
 what a reader sees, in order: text runs with whitespace collapsed, each image's `src` and `alt`, and
@@ -215,7 +277,6 @@ upstream ignores; the admin writes it through `o:site_settings`.
 | `CrossSiteSearch` | `view/omeka/site/cross-site-search/*.phtml` + `view/common/cross-site-search/*.phtml` |
 | `SearchList` | `view/omeka/site/page/browse.phtml` |
 | `AdvancedSearch` | `view/omeka/site/item/search.phtml`, `item-set/search.phtml`, `view/common/advanced-search.phtml` |
-| `IiifViewer` | `view/omeka/iiif-viewer/index.phtml` |
 | `Error` | `view/error/404.phtml`, `view/error/403.phtml` |
 
 The port's frame prints the site title as the document's `<h1>`. Upstream's bare
@@ -299,8 +360,6 @@ Six lookups: `search` (a browse), `read` (one resource), `read_media`, `read_ass
 
 ## Not ported
 
-- `resourcePageBlocks` (the `Site/ResourcePageBlockLayout/*` registry). The item, item-set and
-  media views print the values the provider supplies instead.
 - `searchFilters` and `browse()->renderSortSelector`. The browse views print the pagination and the
   advanced-search link without the filter UI.
 - Module view listeners (`trigger('view.show.before')` and friends). There are no modules.

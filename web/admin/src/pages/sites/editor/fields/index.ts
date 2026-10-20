@@ -8,4 +8,6 @@ export type { BlockFormProps } from './BlockForm';
 export { RomkaForm } from './RomkaForm';
 export type { RomkaFormProps } from './RomkaForm';
 export { LayoutDataForm } from './LayoutDataForm';
+export { SectionForm } from './SectionForm';
+export type { SectionFormProps } from './SectionForm';
 export type { LayoutDataFormProps } from './LayoutDataForm';

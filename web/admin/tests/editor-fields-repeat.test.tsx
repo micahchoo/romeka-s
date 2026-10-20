@@ -41,10 +41,9 @@ describe('the repeat field control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [{}],
+      data: [{}],
     });
   });
 
@@ -57,19 +56,87 @@ describe('the repeat field control', () => {
     });
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [{ ...entry, alt_link_title: 'Read more' }],
+      data: [{ ...entry, alt_link_title: 'Read more' }],
+    });
+  });
+
+  it('moves a record up with its arrow button', () => {
+    const first = { id: '1', page: '', alt_link_title: 'one', caption: '' };
+    const second = { id: '2', page: '', alt_link_title: 'two', caption: '' };
+    const { dispatch, key } = renderHarness('asset', { attachments: [first, second] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move item 2 up' }));
+
+    expect(action(dispatch)).toEqual({
+      type: 'setBlockData',
+      blockKey: key,
+      data: [second, first],
+    });
+  });
+
+  it('moves a record picked up by its handle with the arrow keys', () => {
+    const first = { id: '1', page: '', alt_link_title: 'one', caption: '' };
+    const second = { id: '2', page: '', alt_link_title: 'two', caption: '' };
+    const { dispatch, key } = renderHarness('asset', { attachments: [first, second] });
+
+    const handle = screen.getByRole('button', { name: 'Move item 1, 1 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+
+    expect(action(dispatch)).toEqual({
+      type: 'setBlockData',
+      blockKey: key,
+      data: [second, first],
     });
   });
 });
 
 describe('the page list field control', () => {
-  it('adds an empty page node as the stored JSON string', () => {
+  it('moves a subpage among its siblings and leaves the level above alone', async () => {
+    const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
+    const stored = JSON.stringify([
+      { text: 'Welcome', data: { id: 1 }, children: [child('Alpha', 2), child('Beta', 3)] },
+      child('Last', 4),
+    ]);
+    const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
+
+    expect(await screen.findByRole('button', { name: 'Move Beta, 2 of 2' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Beta up' }));
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'pagelist',
+      value: JSON.stringify([
+        { text: 'Welcome', data: { id: 1 }, children: [child('Beta', 3), child('Alpha', 2)] },
+        child('Last', 4),
+      ]),
+    });
+  });
+
+  it('moves a top-level page picked up by its handle', async () => {
+    const child = (text: string, id: number) => ({ text, data: { id }, children: [] });
+    const stored = JSON.stringify([child('Welcome', 1), child('Last', 4)]);
+    const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
+
+    const handle = await screen.findByRole('button', { name: 'Move Last, 2 of 2' });
+    fireEvent.click(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+
+    expect(action(dispatch)).toEqual({
+      type: 'setField',
+      blockKey: key,
+      field: 'pagelist',
+      value: JSON.stringify([child('Last', 4), child('Welcome', 1)]),
+    });
+  });
+
+  it('adds an empty page node as the stored JSON string', async () => {
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: '' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add page' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add page' }));
 
     expect(action(dispatch)).toEqual({
       type: 'setField',
@@ -84,7 +151,7 @@ describe('the page list field control', () => {
     const stored = JSON.stringify([{ text: 'Welcome', data: { id: 1 }, children: [] }]);
     const { dispatch, key } = renderHarness('listOfPages', { pagelist: stored });
 
-    const select = screen.getByLabelText('Page');
+    const select = await screen.findByLabelText('Page');
     await waitFor(() => {
       expect(select).toHaveTextContent('Draft');
     });

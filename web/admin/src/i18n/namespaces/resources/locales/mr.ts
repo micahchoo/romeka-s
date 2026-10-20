@@ -66,4 +66,13 @@ export const mr: ResourcesMessages = {
   'items.bulkConfirmAdd': '{site} मध्ये {count} जोडा',
   'items.bulkDone': '{site} कडे आता {total} घटक आहेत.',
   'items.bulkConfirmRemove': '{site} मधून {count} काढून टाका',
+  'place.legend': 'नकाशावर ठेवा: {field}',
+  'place.help':
+    'नकाशावर क्लिक करा, किंवा "lat, lng" टाईप करा. प्रत्येक ठिकाण {term} मूल्य म्हणून जतन केले जाते, जे साइटचे नकाशे दर्शवतात.',
+  'place.mapLabel': 'नकाशा: निवडलेले ठिकाण निश्चित करण्यासाठी क्लिक करा',
+  'place.value': '{number} स्थान',
+  'place.remove': '{number} स्थान काढून टाका',
+  'place.add': 'एक स्थान जोडा',
+  'place.invalid': '-90 ते 90 मधील अक्षांश, एक स्वल्पविराम आणि -180 ते 180 मधील रेखांश टाईप करा.',
+  'place.unavailable': 'नकाशा लोड होऊ शकला नाही. ती जागा "lat, lng" या स्वरूपात टाईप करा.',
 };

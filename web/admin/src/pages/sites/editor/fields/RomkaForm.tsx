@@ -9,6 +9,7 @@ import type { SiteId } from '../../../../api/types';
 import type { RomkaBlockSchema } from '../../blockSchema';
 import type { BlockDraft, DraftAction, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
+import { romekaKey } from '../layoutPaths';
 import { settingsOf } from '../romeka';
 import { FieldControl } from './FieldControl';
 
@@ -44,18 +45,21 @@ export const RomkaForm = ({
           value={settings[field.key]}
           onChange={(value) => {
             dispatch({
-              type: 'setRomkaSetting',
+              type: 'setLayoutDataValues',
               blockKey: block.key,
-              field: field.key,
-              value,
+              values: { [romekaKey(field.key)]: value },
             });
           }}
           record={settings}
           siblings={romka.fields}
           onPatch={(values) => {
-            for (const [key, value] of Object.entries(values)) {
-              dispatch({ type: 'setRomkaSetting', blockKey: block.key, field: key, value });
-            }
+            dispatch({
+              type: 'setLayoutDataValues',
+              blockKey: block.key,
+              values: Object.fromEntries(
+                Object.entries(values).map(([key, value]) => [romekaKey(key), value]),
+              ),
+            });
           }}
           path={field.key}
           issues={mine}

@@ -23,6 +23,7 @@ import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
 import { Labelled } from '../Labelled';
 import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
+import { propertyName, useProperties } from './useProperties';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
 
@@ -108,7 +109,29 @@ export interface ItemQueryFieldProps {
   readonly showCount?: boolean;
   /** The resource the query searches; items unless a sibling choice says otherwise. */
   readonly resource?: QueryResource;
+  /** True where the query's reader sorts by a property's value (a block's
+   * public render does); the sort then offers every property. */
+  readonly propertySort?: boolean;
 }
+
+/** The sort select's properties, loaded only where a property sort applies. A
+ * stored term the list does not hold yet keeps its own option. */
+const PropertySortOptions = ({ current }: { readonly current: string }): ReactElement => {
+  const e = useEditorText();
+  const state = useProperties();
+  const properties = state.status === 'ready' ? state.data : [];
+  const listed = !current.includes(':') || properties.some((property) => property.term === current);
+  return (
+    <optgroup label={e('query.sortProperties')}>
+      {listed ? null : <option value={current}>{current}</option>}
+      {properties.map((property) => (
+        <option key={String(property.id)} value={property.term}>
+          {propertyName(property)}
+        </option>
+      ))}
+    </optgroup>
+  );
+};
 
 /** The list request one stored query makes: one row, for the total header. */
 const countQuery = (
@@ -180,6 +203,7 @@ export const ItemQueryField = ({
   sortable = true,
   showCount = true,
   resource = 'items',
+  propertySort = false,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator(common, sites);
   const text = useTermLabels();
@@ -220,7 +244,9 @@ export const ItemQueryField = ({
     onChange(formatQuery(withQueryValue(pairs, key, next)));
   };
   const sortFields =
-    sortBy !== '' && !SORT_FIELDS.some((field) => field.value === sortBy)
+    sortBy !== '' &&
+    !SORT_FIELDS.some((field) => field.value === sortBy) &&
+    !(propertySort && sortBy.includes(':'))
       ? [{ value: sortBy, label: null }, ...SORT_FIELDS]
       : SORT_FIELDS;
 
@@ -282,6 +308,7 @@ export const ItemQueryField = ({
                   {field.label === null ? t('query.optionFallback', { id: field.value }) : t(field.label)}
                 </option>
               ))}
+              {propertySort ? <PropertySortOptions current={sortBy} /> : null}
             </select>
             <select
               id={`${id}-sort-order`}

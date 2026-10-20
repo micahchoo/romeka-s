@@ -69,18 +69,51 @@ describe('readFrame', () => {
 
   it('resolves a node to the innermost real block above it', () => {
     const map = readFrame(mountRender(), order, groups);
-    expect(map.blockAt(byId('member'))).toBe(member);
-    expect(map.blockAt(byId('group'))).toBe(group);
-    expect(map.blockAt(byId('one').firstChild ?? byId('one'))).toBe(html);
+    expect(map.targetAt(byId('member'))).toEqual({ kind: 'block', key: member });
+    expect(map.targetAt(byId('group'))).toEqual({ kind: 'block', key: group });
+    expect(map.targetAt(byId('one').firstChild ?? byId('one'))).toEqual({ kind: 'block', key: html });
   });
 
   it('ignores a marker inside a block and a marker no request position names', () => {
     const map = readFrame(mountRender(), order, groups);
-    expect(map.blockAt(byId('spoof'))).toBe(html);
-    expect(map.blockAt(byId('stray'))).toBeNull();
+    expect(map.targetAt(byId('spoof'))).toEqual({ kind: 'block', key: html });
+    expect(map.targetAt(byId('stray'))).toBeNull();
     expect([...map.elements.values()]).not.toContain(byId('spoof'));
   });
+
+  it('maps the banner and the header to the header region and the footer to the footer region', () => {
+    const doc = mountFramed();
+    const map = readFrame(doc, order, groups);
+    expect(map.regions.get('header')).toEqual([byId('banner'), byId('header')]);
+    expect(map.regions.get('footer')).toEqual([byId('footer')]);
+    expect(map.targetAt(byId('site-title'))).toEqual({ kind: 'region', region: 'header' });
+    expect(map.targetAt(byId('banner-text'))).toEqual({ kind: 'region', region: 'header' });
+    expect(map.targetAt(byId('column'))).toEqual({ kind: 'region', region: 'footer' });
+    expect(map.targetAt(byId('member'))).toEqual({ kind: 'block', key: member });
+  });
+
+  it('ignores a region marker inside a block or a region, and one naming no region', () => {
+    const doc = mountFramed();
+    const map = readFrame(doc, order, groups);
+    expect(map.targetAt(byId('block-spoof'))).toEqual({ kind: 'block', key: html });
+    expect(map.regions.get('header')).not.toContain(byId('footer-spoof'));
+    expect(map.targetAt(byId('footer-spoof'))).toEqual({ kind: 'region', region: 'footer' });
+    expect(map.targetAt(byId('unknown'))).toBeNull();
+  });
 });
+
+/** The render inside the site frame: a banner and header above, a footer below, and three spoofs. */
+const mountFramed = (): Document => {
+  document.body.innerHTML = `
+    <div class="site-banner" data-romeka-region="header" id="banner"><p id="banner-text">Hello</p></div>
+    <header data-romeka-region="header" id="header"><a id="site-title">Site</a></header>
+    <div id="content">${RENDER.replace('<a id="link"', '<p data-romeka-region="header" id="block-spoof">x</p><a id="link"')}</div>
+    <aside data-romeka-region="sidebar" id="unknown"></aside>
+    <footer data-romeka-region="footer" id="footer">
+      <div id="column"><p data-romeka-region="header" id="footer-spoof">Spoof</p></div>
+    </footer>`;
+  return document;
+};
 
 describe('guardFrame', () => {
   it('stops a link from navigating and reports what was clicked until detached', () => {

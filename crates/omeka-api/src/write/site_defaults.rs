@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 
 use crate::errors::ApiError;
 use crate::read::Api;
-use crate::write::site_pages::carry_block;
+use crate::write::block_carrier::carry_block;
 
 /// The navigation a site created without `o:navigation` gets: the welcome
 /// page, then `SiteAdapter::getDefaultNavigation`'s browse link.

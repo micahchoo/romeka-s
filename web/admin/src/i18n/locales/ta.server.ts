@@ -28,8 +28,7 @@ export const taServer: ServerCatalogue = {
   'server.invalidContentType':
     'தவறான Content-Type தலைப்பு. "application/json" எதிர்பார்க்கப்பட்டது, ஆனால் "{received}" கிடைத்தது.',
   'server.bodyNotObject': 'கோரிக்கை உடல் ஒரு JSON பொருளாக இருக்க வேண்டும்.',
-  'server.siteItemsOneSelector':
-    '"query", "items" அல்லது "item_sets" ஆகியவற்றில் சரியாக ஒன்றைக் குறிப்பிடவும்',
+  'server.siteItemsOneSelector': 'பெயர் "query", அல்லது "items", "item_sets" அல்லது இரண்டும்',
   'server.invalidCredentials': 'மின்னஞ்சல் அல்லது கடவுச்சொல் தவறானது',
   'server.inactiveAccount': 'பயனர் செயல்பாட்டில் இல்லை.',
   'server.unknownKey': 'தவறான கடவுச்சொல் உருவாக்கும் சாவி.',
@@ -49,6 +48,8 @@ export const taServer: ServerCatalogue = {
   'server.mediaItemRequired': 'ஊடகங்கள் ஒரு உருப்படியைச் சார்ந்திருக்க வேண்டும்.',
   'server.jobHeldByImport':
     'இந்த வேலை ஒரு ஆவணக் காப்பக இறக்குமதிக்குச் சொந்தமானது, இது இயங்குகிறது அல்லது ரத்து செய்யப்படுகிறது. இறக்குமதி முடிந்ததும் அதை நீக்கவும்.',
+  'server.pageSavedSinceOpened':
+    'இந்த பக்கம் திறக்கப்பட்ட பிறகு யாரோ ஒருவர் அதைச் சேமித்து வைத்துள்ளனர்.',
   'server.noFileUploaded': 'கோப்பு எதுவும் பதிவேற்றப்படவில்லை',
   'server.assetMediaType':
     '"{file}" ஐச் சரிபார்ப்பதில் பிழை. "{media}" ஊடக வகையுடன் கோப்புகளைச் சேமிக்க முடியாது.',

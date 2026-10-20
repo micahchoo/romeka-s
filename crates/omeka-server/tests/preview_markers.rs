@@ -114,3 +114,84 @@ async fn the_preview_marks_every_block_and_group_and_the_public_page_marks_none(
         found[1].1
     );
 }
+
+const REGION: &str = "data-romeka-region=\"";
+
+/// Each region marker's value with the tag it sits on, in document order.
+fn regions(document: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for (at, _) in document.match_indices(REGION) {
+        let value_start = at + REGION.len();
+        let value_end = value_start + document[value_start..].find('"').unwrap();
+        let tag_start = document[..at].rfind('<').unwrap();
+        let tag_end = at + document[at..].find('>').unwrap();
+        out.push((
+            document[value_start..value_end].to_string(),
+            document[tag_start..=tag_end].to_string(),
+        ));
+    }
+    out
+}
+
+#[tokio::test]
+async fn the_preview_marks_the_site_header_and_footer_and_the_public_page_does_not() {
+    let (pool, seed) = visibility_pool().await;
+    let app = router(pool);
+
+    let public = send(
+        app.clone(),
+        common::get("/s/vis-pub/page/vis-pub-public", false),
+    )
+    .await;
+    assert_eq!(public.status, StatusCode::OK, "{}", public.body);
+    assert!(
+        !public.body.contains("data-romeka-region"),
+        "the public page carries a region marker: {}",
+        public.body
+    );
+
+    let body = json!({
+        "o:id": seed.public_page,
+        "o:title": "Vis public page",
+        "o:slug": "vis-pub-public",
+        "o:is_public": true,
+        "o:layout": "",
+        "o:layout_data": {},
+        "o:block": [{"o:layout": "html", "o:data": {"html": "<p data-romeka-region=\"footer\">Copy</p>"}}],
+        "o:theme_settings": {"banner_text": "Welcome to the archive"},
+    });
+    let preview = send(
+        app,
+        json_request(
+            "POST",
+            &format!(
+                "/s/vis-pub/preview?key_identity={OWNER_KEY_IDENTITY}&key_credential={OWNER_KEY_CREDENTIAL}"
+            ),
+            &body.to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+
+    let found = regions(&preview.body);
+    let frame: Vec<(&str, &str)> = found
+        .iter()
+        .filter(|(_, tag)| !tag.starts_with("<p"))
+        .map(|(value, tag)| (value.as_str(), tag.split_whitespace().next().unwrap_or("")))
+        .collect();
+    assert_eq!(
+        frame,
+        [
+            ("header", "<div"),
+            ("header", "<header"),
+            ("footer", "<footer")
+        ],
+        "{}",
+        preview.body
+    );
+    assert!(
+        found[0].1.contains("site-banner"),
+        "the first header marker is not the banner: {}",
+        found[0].1
+    );
+}

@@ -87,7 +87,7 @@ pub struct ThumbnailReport {
 pub async fn run(options: &ThumbnailOptions) -> Result<ThumbnailReport, CliError> {
     let pool = open_file(&options.database).await?;
     let store =
-        crate::commands::file_store::open_store(&options.database, options.store.as_deref());
+        crate::commands::file_store::open_store(&options.database, options.store.as_deref())?;
     let rows = MediaRepo::new(&pool)
         .list(&MediaFilter::default(), &Paging::default())
         .await?;

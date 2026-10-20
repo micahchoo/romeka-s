@@ -9,12 +9,12 @@ import type { JsonValue } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { useInsertChoices } from '../canvas/BlockPicker';
 import { DeviceBar } from '../DeviceBar';
-import type { BlockKey, DraftAction, PageDraft } from '../draft';
+import type { DraftAction, PageDraft } from '../draft';
 import { LiveFrame } from '../frame/LiveFrame';
 import type { PickerChoice } from '../frame/LiveFrame';
 import type { InsertTarget } from '../frame/geometry';
 import type { DeviceWidth } from '../frameFit';
-import type { Selection } from './selection';
+import type { Selection, Subject } from './selection';
 import type { PreviewState } from './usePreview';
 import { sites } from '../../../../i18n/namespaces/sites';
 
@@ -23,8 +23,8 @@ export interface LivePanelProps {
   readonly draft: PageDraft;
   readonly selection: Selection | null;
   readonly siteSettings: JsonValue | null;
-  /** `null` for a click on the page outside every block. */
-  readonly onSelect: (key: BlockKey | null) => void;
+  /** `null` for a click on the page outside every block and region. */
+  readonly onSelect: (target: Subject | null) => void;
   readonly dispatch: (action: DraftAction) => void;
 }
 

@@ -27,7 +27,7 @@ export const hiServer: ServerCatalogue = {
   'server.invalidContentType':
     'अमान्य Content-Type हेडर। "application/json" की अपेक्षा, प्राप्त हुआ "{received}"।',
   'server.bodyNotObject': 'अनुरोध बॉडी एक JSON ऑब्जेक्ट होनी चाहिए।',
-  'server.siteItemsOneSelector': '"query", "items" या "item_sets" में से ठीक एक',
+  'server.siteItemsOneSelector': 'नाम या तो "query" होना चाहिए, या "items", "item_sets" या दोनों',
   'server.invalidCredentials': 'ईमेल या पासवर्ड अमान्य है',
   'server.inactiveAccount': 'उपयोगकर्ता सक्रिय नहीं है।',
   'server.unknownKey': 'अमान्य पासवर्ड निर्माण कुंजी।',
@@ -47,6 +47,7 @@ export const hiServer: ServerCatalogue = {
   'server.mediaItemRequired': 'मीडिया को एक आइटम से संबंधित होना चाहिए।',
   'server.jobHeldByImport':
     'यह कार्य एक संग्रह आयात से संबंधित है जो चल रहा है या पूर्ववत हो रहा है। आयात समाप्त होने के बाद इसे हटा दें।',
+  'server.pageSavedSinceOpened': 'आपके इसे खोलने के बाद किसी और ने इस पृष्ठ को सहेजा।',
   'server.noFileUploaded': 'कोई फ़ाइल अपलोड नहीं की गई',
   'server.assetMediaType':
     '"{file}" को सत्यापित करने में त्रुटि। मीडिया प्रकार "{media}" वाली फ़ाइलें संग्रहीत नहीं की जा सकतीं।',

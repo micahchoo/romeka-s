@@ -17,12 +17,14 @@
 use serde_json::{Value, json};
 
 use crate::theme::choices::{
-    ButtonStyle, ColorScheme, ContentWidth, Density, FontStack, HeaderLayout, HeaderStyle,
+    ButtonStyle, CardStyle, ColorScheme, ContentWidth, Density, FontStack, FooterLayout,
+    FooterTone, HeaderLayout, HeaderStyle, HeroStyle, ItemLayout, SearchDisplay,
 };
 use crate::theme::color::HexColor;
 use crate::theme::custom_css::{self, CustomCss};
+use crate::theme::footer::Footer;
 use crate::theme::palette::{Palette, Role, Shade, derive};
-use crate::theme::presets::{NEW_SITE_PRESET, PresetId};
+use crate::theme::presets::{NEW_SITE_PRESET, PresetId, Structure};
 
 /// The bounds the type scale clamps to, per heading level, as multiples of the
 /// base size: `(level, power, min, max)`. A large ratio grows the small
@@ -45,6 +47,18 @@ pub const MAX_TYPE_RATIO: u32 = 160;
 /// The largest corner radius, in pixels.
 pub const MAX_RADIUS: u32 = 24;
 
+/// The colours a site may set apart for the dark palette under the automatic
+/// scheme, each under its own stored key. The brand has none: the dark
+/// palette already follows the brand, derived or set by hand.
+pub const DARK_EDITABLE: [(Role, &str); 6] = [
+    (Role::Accent, "accent_color_dark"),
+    (Role::Background, "background_color_dark"),
+    (Role::Surface, "surface_color_dark"),
+    (Role::Text, "text_color_dark"),
+    (Role::Muted, "muted_color_dark"),
+    (Role::Link, "link_color_dark"),
+];
+
 /// What a site chose: a preset, whether to derive the palette from the brand
 /// colour, and the tokens it set by hand. `None` means "the preset's".
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -55,6 +69,9 @@ pub struct Choices {
     pub derive: bool,
     /// The colours set by hand, the brand among them.
     pub colours: Vec<(Role, HexColor)>,
+    /// The dark palette's colours set by hand, read under the automatic
+    /// scheme only.
+    pub dark_colours: Vec<(Role, HexColor)>,
     /// The scheme, when set by hand.
     pub scheme: Option<ColorScheme>,
     /// The heading font, when set by hand.
@@ -77,6 +94,18 @@ pub struct Choices {
     pub button_style: Option<ButtonStyle>,
     /// The content width, when set by hand.
     pub content_width: Option<ContentWidth>,
+    /// The hero style, when set by hand.
+    pub hero_style: Option<HeroStyle>,
+    /// The card style, when set by hand.
+    pub card_style: Option<CardStyle>,
+    /// The search display, when set by hand.
+    pub search_display: Option<SearchDisplay>,
+    /// The footer layout, when set by hand.
+    pub footer_layout: Option<FooterLayout>,
+    /// The footer tone, when set by hand.
+    pub footer_tone: Option<FooterTone>,
+    /// The item page layout, when set by hand.
+    pub item_layout: Option<ItemLayout>,
 }
 
 impl Choices {
@@ -85,14 +114,14 @@ impl Choices {
     /// here never fails, so one bad row does not break a page.
     ///
     /// A map with no `preset` was stored before presets existed. It reads as
-    /// the plain preset with derivation off, so it renders the tokens it
-    /// rendered then.
+    /// the preset that replaced plain, with derivation off. A preset id from
+    /// before the current five reads as the preset that replaced it.
     #[must_use]
     pub fn from_value(value: &Value) -> Self {
         let preset = value
             .get("preset")
             .and_then(Value::as_str)
-            .and_then(PresetId::parse);
+            .and_then(PresetId::from_stored);
         let derive = match preset {
             Some(_) => value
                 .get("derive_palette")
@@ -108,6 +137,10 @@ impl Choices {
                 .iter()
                 .filter_map(|&(role, key)| Some((role, HexColor::parse(choice(key)?)?)))
                 .collect(),
+            dark_colours: DARK_EDITABLE
+                .iter()
+                .filter_map(|&(role, key)| Some((role, HexColor::parse(choice(key)?)?)))
+                .collect(),
             scheme: choice("color_scheme").and_then(ColorScheme::parse),
             heading_font: choice("heading_font").and_then(FontStack::parse),
             body_font: choice("body_font").and_then(FontStack::parse),
@@ -119,6 +152,12 @@ impl Choices {
             header_style: choice("header_style").and_then(HeaderStyle::parse),
             button_style: choice("button_style").and_then(ButtonStyle::parse),
             content_width: choice("content_width").and_then(ContentWidth::parse),
+            hero_style: choice("hero_style").and_then(HeroStyle::parse),
+            card_style: choice("card_style").and_then(CardStyle::parse),
+            search_display: choice("search_display").and_then(SearchDisplay::parse),
+            footer_layout: choice("footer_layout").and_then(FooterLayout::parse),
+            footer_tone: choice("footer_tone").and_then(FooterTone::parse),
+            item_layout: choice("item_layout").and_then(ItemLayout::parse),
         }
     }
 
@@ -132,10 +171,11 @@ impl Choices {
 }
 
 /// The theme settings map a site created through the API starts with: the
-/// new-site preset, its palette derived from its own brand colour.
+/// new-site preset with its own palette, the one its look was drawn with.
+/// Turning derivation on builds the palette from a brand colour instead.
 #[must_use]
 pub fn new_site_settings() -> Value {
-    json!({ "preset": NEW_SITE_PRESET.key(), "derive_palette": true })
+    json!({ "preset": NEW_SITE_PRESET.key(), "derive_palette": false })
 }
 
 /// Every token the sheet reads, resolved.
@@ -169,6 +209,8 @@ pub struct Tokens {
     pub button_style: ButtonStyle,
     /// The widest the content grows.
     pub content_width: ContentWidth,
+    /// The structural layouts.
+    pub structure: Structure,
 }
 
 /// The effective tokens for a site's choices: the preset, then a palette
@@ -176,7 +218,8 @@ pub struct Tokens {
 ///
 /// A colour override applies to the palette the page shows first: the dark one
 /// under the dark scheme, the light one otherwise. Under the automatic scheme
-/// the dark palette stays the preset's or the derived one.
+/// the dark palette takes the dark overrides ([`DARK_EDITABLE`]) instead, and
+/// keeps the preset's or the derived colour where there is none.
 #[must_use]
 pub fn resolve(choices: &Choices) -> Tokens {
     let preset = choices.preset.preset();
@@ -204,6 +247,11 @@ pub fn resolve(choices: &Choices) -> Tokens {
     for &(role, colour) in &choices.colours {
         shown.set(role, colour);
     }
+    if scheme == ColorScheme::Auto {
+        for &(role, colour) in &choices.dark_colours {
+            dark.set(role, colour);
+        }
+    }
     Tokens {
         preset: choices.preset,
         scheme,
@@ -219,10 +267,39 @@ pub fn resolve(choices: &Choices) -> Tokens {
         header_style: choices.header_style.unwrap_or(preset.header_style),
         button_style: choices.button_style.unwrap_or(preset.button_style),
         content_width: choices.content_width.unwrap_or(preset.content_width),
+        structure: Structure {
+            hero: choices.hero_style.unwrap_or(preset.structure.hero),
+            cards: choices.card_style.unwrap_or(preset.structure.cards),
+            search: choices.search_display.unwrap_or(preset.structure.search),
+            footer: choices.footer_layout.unwrap_or(preset.structure.footer),
+            footer_tone: choices.footer_tone.unwrap_or(preset.structure.footer_tone),
+            item: choices.item_layout.unwrap_or(preset.structure.item),
+        },
     }
 }
 
 impl Tokens {
+    /// The classes the frame puts on the root element, one per structural
+    /// token, which the stylesheet keys each layout on.
+    #[must_use]
+    pub fn classes(&self) -> String {
+        let structure = &self.structure;
+        [
+            structure.hero.class(),
+            structure.cards.class(),
+            structure.search.class(),
+            structure.footer.class(),
+            structure.item.class(),
+        ]
+        .join(" ")
+    }
+
+    /// The two font stacks, for the faces the frame declares.
+    #[must_use]
+    pub const fn fonts(&self) -> [FontStack; 2] {
+        [self.heading_font, self.body_font]
+    }
+
     /// The palettes the page can show, each with its shade: one for the light
     /// or dark scheme, both for the automatic one.
     #[must_use]
@@ -282,6 +359,7 @@ impl Tokens {
             .properties()
             .iter()
             .chain(self.button_style.properties().iter())
+            .chain(self.structure.footer_tone.properties().iter())
         {
             out.push_str(&format!("  --{name}: {value};\n"));
         }
@@ -320,8 +398,8 @@ pub struct ThemeSettings {
     pub banner: Option<u64>,
     /// The text beside the banner, escaped when it is printed.
     pub banner_text: Option<String>,
-    /// The footer's HTML, purified when it is printed.
-    pub footer_text: Option<String>,
+    /// The footer's content.
+    pub footer: Footer,
     /// The site's own CSS, when it has any that passes the sanitiser.
     pub custom_css: Option<CustomCss>,
 }
@@ -343,7 +421,7 @@ impl ThemeSettings {
             logo: stored_id(value, "logo"),
             banner: stored_id(value, "banner"),
             banner_text: stored_text(value, "banner_text"),
-            footer_text: stored_text(value, "footer_text"),
+            footer: Footer::from_value(value),
             custom_css: stored_text(value, "custom_css")
                 .and_then(|text| custom_css::sanitize(&text).ok()),
         }
@@ -379,7 +457,7 @@ fn stored_id(value: &Value, key: &str) -> Option<u64> {
 }
 
 /// A stored text value, `None` when absent or blank.
-fn stored_text(value: &Value, key: &str) -> Option<String> {
+pub(crate) fn stored_text(value: &Value, key: &str) -> Option<String> {
     let text = value.get(key)?.as_str()?.trim();
     (!text.is_empty()).then(|| text.to_string())
 }

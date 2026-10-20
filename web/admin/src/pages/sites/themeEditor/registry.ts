@@ -1,6 +1,7 @@
 /**
  * The theme registry: the tokens the Theme page edits, the five presets with
- * every value, the colour roles and the contrast pairs.
+ * every value, the preset ids earlier presets stored, the colour roles and the
+ * contrast pairs.
  *
  * `src/generated/themeSettings.json` is written by
  * `crates/omeka-site/src/theme/tokens_schema.rs`, and a Rust test keeps it
@@ -32,7 +33,9 @@ export type ThemeSetting =
       readonly max: number;
       readonly step: number;
     })
-  | (SettingBase & { readonly kind: 'css'; readonly maxBytes: number });
+  | (SettingBase & { readonly kind: 'css'; readonly maxBytes: number })
+  | (SettingBase & { readonly kind: 'htmlColumns'; readonly max: number })
+  | (SettingBase & { readonly kind: 'links' });
 
 /** A preset's tokens other than its palette, by stored key. */
 export type PresetTokens = Readonly<Record<string, string | number>>;
@@ -50,10 +53,21 @@ export interface Preset {
 
 export interface ThemeRegistry {
   readonly newSitePreset: string;
+  /** The preset a map with no preset id reads as. */
+  readonly unsetPreset: string;
+  /** The ids earlier presets stored, each with the preset it reads as. */
+  readonly legacyPresets: Readonly<Record<string, string>>;
   readonly settings: readonly ThemeSetting[];
   readonly presets: readonly Preset[];
-  /** Each colour role with the key a site stores it under. */
-  readonly colours: readonly { readonly role: ColourRole; readonly key: string }[];
+  /**
+   * Each colour role with the key a site stores it under, and the key of its
+   * dark value under the automatic scheme (`null` for the brand).
+   */
+  readonly colours: readonly {
+    readonly role: ColourRole;
+    readonly key: string;
+    readonly darkKey: string | null;
+  }[];
   readonly pairs: readonly (readonly [Role, Role])[];
   readonly aa: number;
 }
@@ -138,6 +152,10 @@ const parseSetting = (value: unknown, path: Path): ThemeSetting => {
       };
     case 'css':
       return { ...base, kind, maxBytes: num(object.maxBytes, [...path, 'maxBytes']) };
+    case 'htmlColumns':
+      return { ...base, kind, max: num(object.max, [...path, 'max']) };
+    case 'links':
+      return { ...base, kind };
     default:
       throw new ParseError([...path, 'kind'], 'a known token kind');
   }
@@ -183,8 +201,13 @@ const parsePreset = (value: unknown, path: Path): Preset => {
 /** Narrow the generated `themeSettings.json` into the typed registry. */
 export const parseThemeRegistry = (value: unknown): ThemeRegistry => {
   const object = record(value, []);
+  const legacy = record(object.legacyPresets, ['legacyPresets']);
   return {
     newSitePreset: str(object.newSitePreset, ['newSitePreset']),
+    unsetPreset: str(object.unsetPreset, ['unsetPreset']),
+    legacyPresets: Object.fromEntries(
+      Object.entries(legacy).map(([id, preset]) => [id, str(preset, ['legacyPresets', id])]),
+    ),
     settings: parseListOf(parseSetting)(object.settings, ['settings']),
     presets: parseListOf(parsePreset)(object.presets, ['presets']),
     colours: parseListOf((entry: unknown, path: Path) => {
@@ -192,6 +215,7 @@ export const parseThemeRegistry = (value: unknown): ThemeRegistry => {
       return {
         role: colourRole(colour.role, [...path, 'role']),
         key: str(colour.key, [...path, 'key']),
+        darkKey: colour.darkKey === null ? null : str(colour.darkKey, [...path, 'darkKey']),
       };
     })(object.colours, ['colours']),
     pairs: parseListOf((entry: unknown, path: Path): readonly [Role, Role] => {
@@ -211,10 +235,26 @@ export const THEME_REGISTRY: ThemeRegistry = parseThemeRegistry(raw);
 export const settingFor = (key: string): ThemeSetting | undefined =>
   THEME_REGISTRY.settings.find((setting) => setting.key === key);
 
-/** A preset by id, falling back to the first (plain). */
+/**
+ * The preset a stored id names, as `PresetId::from_stored` reads it: a current
+ * id, or a legacy one as the preset that replaced it. `null` for any other.
+ */
+export const storedPresetId = (id: unknown): string | null => {
+  if (typeof id !== 'string') {
+    return null;
+  }
+  if (THEME_REGISTRY.presets.some((preset) => preset.id === id)) {
+    return id;
+  }
+  return THEME_REGISTRY.legacyPresets[id] ?? null;
+};
+
+/** A preset by id, falling back to the one an unset map reads as. */
 export const presetFor = (id: string): Preset => {
   const found = THEME_REGISTRY.presets.find((preset) => preset.id === id);
-  const fallback = THEME_REGISTRY.presets[0];
+  const fallback =
+    THEME_REGISTRY.presets.find((preset) => preset.id === THEME_REGISTRY.unsetPreset) ??
+    THEME_REGISTRY.presets[0];
   if (found !== undefined) {
     return found;
   }

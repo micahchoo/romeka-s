@@ -79,7 +79,7 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Import | import a folder of files from the server as items, item sets and media, and undo the last import. Shown only when the server has an archive folder; see the next section |
 | Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
 | Users | list, invite, edit role and active flag, mint a password link, delete |
-| Sites and pages | list sites, create one, edit its theme settings, navigation, page blocks and user permissions; edit a page's blocks. A new site holds no items. Its Items tab picks items and whole item sets, adds them or replaces the site's items with them, and keeps the site in sync: when sync is on, an item created in one of the site's item sets joins the site. Editing an item never adds it, so an item you remove stays removed |
+| Sites and pages | list sites and create one; each site opens on its hub, with tabs for its navigation, items, users, theme and settings, and a page editor with a live preview. The next section describes them |
 | Vocabularies, properties, resource classes, resource templates | one browse list each, a detail view per row, and the create, edit and delete forms the API supports |
 | Assets, jobs, modules | one browse list each; assets and jobs have a detail view with the update and delete controls |
 | Query | the advanced search form; `Preview` runs a real search and lists the matches |
@@ -91,6 +91,44 @@ Media create is not offered in the application and there is no web upload: `POST
 row's fields but stores no file. A file arrives through `romeka import media` or the Import page,
 which both write the three thumbnail sizes. Values are not editable in the media form either.
 [`../web/admin/README.md`](../web/admin/README.md) has the full route list.
+
+## Build a site
+
+A site opens on its hub. The hub lists the site's pages, says which page is the homepage, which pages
+are public and which are in the menu, and lets you set the homepage or add a page to the menu with
+one click. It also says how many items the site holds, with a link to the Items tab. The tabs beside
+it are Navigation, Items, Users, Theme and Settings.
+
+- **Pages.** Add page opens a template chooser: five built-in starting points, the site's own saved
+  templates, or a blank page. The editor shows the page as the public site renders it, beside an
+  Outline of its blocks. Click a block in the preview to edit it, or add a block between two others.
+  The device bar previews the page at desktop, tablet and phone widths. Save as template keeps the
+  page's layout for the next page.
+- **Navigation.** The menu as a tree: drag a link, or pick it and move it with the arrow keys. A link
+  that the server would refuse is marked with what it lacks (a page, a URL or a label), and so is a
+  second link to the same page. The menu preview shows the result.
+- **Items.** Which items the site shows. A new site holds no items. The Items and sets tab is one
+  picker: search titles and values, filter by class or media, and pick single items or whole item
+  sets. Add items puts the picks on the site; Replace with these makes them the site's only items, and asks
+  first with the number of items that leave. By search adds the items that match a search, once. Each
+  way shows how many items it adds before it adds them. The sync switch adds new items only: when it
+  is on, an item created in one of the site's item sets joins the site (with no item sets, every new
+  item joins). Editing an item never adds it, so an item you remove stays removed.
+- **Users.** Who works on the site, with a site role: Manager, Creator or Viewer.
+- **Theme.** Pick one of five presets (Plain, Archive, Gallery, Editorial, Civic), set a brand colour
+  that the palette follows, and fine-tune single colours, fonts and spacing. Under the automatic
+  colour scheme each colour has a light value and a dark value. A palette that fails WCAG AA 4.5:1
+  cannot be saved, and the contrast panel offers the nearest colour that passes. Custom CSS has its own
+  tab.
+- **Settings.** The site's title, address, summary, owner and visibility, then the site settings
+  in groups: browsing, search, item pages, language, navigation and advanced. The saved templates
+  are managed here too.
+
+Navigation, Theme, Settings and Users mark unsaved changes, and ask before you leave the tab or close
+the window. What the tabs offer follows your site role. A Manager, the site's owner and an
+administrator change everything; only the owner or an administrator deletes the site. A Creator adds
+and edits pages, and sees the menu and the items without the controls that change them. A Viewer
+reads the pages. A control your role cannot use is not shown, and one line says why.
 
 ## Import a folder from the server
 

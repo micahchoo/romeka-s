@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 150); the other
- * 102 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 207); the other
+ * 159 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -27,7 +27,7 @@ export const esServer: ServerCatalogue = {
   'server.jsonNotContainer': 'JSON: el contenido debe ser un objeto o un vector.',
   'server.invalidContentType': 'Cabecera Content-Type no válida. Se esperaba "application/json" y se recibió "{received}".',
   'server.bodyNotObject': 'El cuerpo de la solicitud debe ser un objeto JSON.',
-  'server.siteItemsOneSelector': 'indique exactamente uno de "query", "items" o "item_sets"',
+  'server.siteItemsOneSelector': 'indique "query", o bien "items", "item_sets" o ambos',
   'server.invalidCredentials': 'Correo electrónico o contraseña no válidos',
   'server.inactiveAccount': 'El usuario no está activo.',
   'server.unknownKey': 'La clave de creación de contraseña no es válida.',
@@ -46,6 +46,7 @@ export const esServer: ServerCatalogue = {
   'server.mediaItemRequired': 'Los medios deben pertenecer a una ficha.',
   'server.jobHeldByImport':
     'Esta tarea pertenece a una importación de archivo que se está ejecutando o deshaciendo. Elimínala cuando la importación haya terminado.',
+  'server.pageSavedSinceOpened': 'Otra persona guardó esta página después de que la abriera.',
   'server.noFileUploaded': 'No se ha subido ningún archivo',
   'server.assetMediaType': 'Error validando "{file}". No se pueden almacenar archivos con el formato "{media}".',
   'server.assetExtension': 'Error validando "{file}". No se pueden almacenar archivos con la extensión "{extension}".',

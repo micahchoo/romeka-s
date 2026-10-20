@@ -52,11 +52,6 @@ export const en = {
   "fields.add": "Add a field",
   "fields.addHint": "Describe it, for example “how many pages”",
   "field.name": "Name on the form for {term}",
-  "field.moveHandle":
-    "Move {name}, field {position} of {count}. Use the up and down arrow keys, or drag.",
-  "field.moved": "{name} is now field {position} of {count}.",
-  "field.moveUp": "Move {name} up",
-  "field.moveDown": "Move {name} down",
   "field.remove": "Remove {name}",
   "field.changeTerm": "Change the standard term of {name}",
   "field.pickTerm": "Find a standard term",

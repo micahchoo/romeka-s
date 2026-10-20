@@ -109,7 +109,7 @@ async fn attach(pool: &SqlitePool, item: ItemId, site: SiteId) {
 
 /// The count of `li.resource` entries a browse page renders.
 fn resource_count(body: &str) -> usize {
-    body.matches("class=\"item resource\"").count()
+    body.matches("<li class=\"item resource ").count()
 }
 
 /// `GET /api/sites/{id}` carries the stored rows as `o:site_settings`, and a

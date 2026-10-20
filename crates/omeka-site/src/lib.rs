@@ -20,6 +20,7 @@
 //! - [`i18n`]: the site locale from `site_setting.locale`, the message
 //!   catalogue the theme and the blocks render, and locale-aware dates.
 //! - [`render`]: renders a site page into a full document.
+//! - [`iiif_viewer`]: the IIIF viewer page (`view/omeka/iiif-viewer/index.phtml`).
 //!
 //! The crate holds no database, no HTTP and no async. Everything it needs from
 //! storage arrives through [`view::RenderContext`], so a caller can test a page
@@ -32,6 +33,8 @@
 pub mod blocks;
 pub mod html;
 pub mod i18n;
+pub mod iiif_viewer;
+pub mod map;
 pub mod nav;
 pub mod render;
 pub mod resource_page;

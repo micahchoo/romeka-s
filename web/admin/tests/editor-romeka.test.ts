@@ -103,7 +103,13 @@ describe('adding a Romeka block', () => {
     const carrier = carrierOf(block);
     expect(carrier).not.toBeNull();
     expect(carrier?.block).toBe('hero');
-    expect(settingsOf(block)).toEqual({ overlay: 'medium', alignment: 'left' });
+    expect(settingsOf(block)).toEqual({
+      heading_level: 'h2',
+      background_source: 'asset',
+      height: 'medium',
+      overlay: 'medium',
+      alignment: 'left',
+    });
   });
 
   it('offers every generated field through the carrier schema', () => {
@@ -111,13 +117,21 @@ describe('adding a Romeka block', () => {
     expect(hero?.carrier).toBe('html');
     expect(hero?.fields.map((field) => field.key)).toEqual([
       'heading',
+      'heading_level',
       'subheading',
       'body',
+      'background_source',
       'background',
+      'background_media',
+      'focal_x',
+      'height',
+      'overlay_color',
       'overlay',
       'alignment',
       'cta_label',
       'cta_page',
+      'cta2_label',
+      'cta2_page',
     ]);
   });
 });
@@ -125,10 +139,9 @@ describe('adding a Romeka block', () => {
 describe('editing a Romeka block', () => {
   const withSetting = (state: PageDraft, value: string): PageDraft =>
     apply(state, {
-      type: 'setRomkaSetting',
+      type: 'setLayoutDataValues',
       blockKey: blockAt(state.blocks, 0).key,
-      field: 'heading',
-      value,
+      values: { 'romeka.heading': value },
     });
 
   it('writes a setting into the carrier and keeps the other keys', () => {
@@ -149,10 +162,9 @@ describe('editing a Romeka block', () => {
   it('reports the required heading as an issue on the block', () => {
     const draft = load([carrierBlock('<h2>Old</h2>', null)]);
     const cleared = apply(draft, {
-      type: 'setRomkaSetting',
+      type: 'setLayoutDataValues',
       blockKey: blockAt(draft.blocks, 0).key,
-      field: 'heading',
-      value: '',
+      values: { 'romeka.heading': '' },
     });
     expect(validate(cleared)).toContainEqual({
       kind: 'required',

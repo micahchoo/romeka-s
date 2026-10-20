@@ -24,6 +24,7 @@ mod php;
 mod probe;
 mod relations;
 mod resources;
+pub(crate) use resources::query_rows;
 mod resources_generic;
 mod system;
 mod term_lists;
@@ -36,7 +37,7 @@ use std::sync::Arc;
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
 use omeka_db::ids::{SiteId, UserId};
-use omeka_media::store::Store;
+use omeka_media::store::{FileUrls, Store};
 use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
 use sqlx::SqlitePool;
 
@@ -55,9 +56,12 @@ pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
 
 use catalog::Catalog;
 
+pub(crate) use meta::{
+    page_snapshot, site_document, site_page_document, site_page_visible, user_document,
+};
 pub use meta::{session_user_response, user_response};
-pub(crate) use meta::{site_document, site_page_document, user_document};
 pub(crate) use resources::{item_document, item_set_document, matching_item_ids, media_document};
+pub(crate) use response::serialize;
 
 /// One request's read surface.
 pub struct Api<'a> {
@@ -66,6 +70,7 @@ pub struct Api<'a> {
     actor: Actor,
     catalog: Catalog,
     store: Option<Arc<dyn Store>>,
+    files: FileUrls,
     plugins: Arc<Registry>,
 }
 
@@ -104,12 +109,17 @@ impl<'a> Api<'a> {
         store: Option<Arc<dyn Store>>,
         plugins: Arc<Registry>,
     ) -> Result<Self, ApiError> {
+        let files = match &store {
+            Some(store) => FileUrls::new(store.clone(), base.as_str()),
+            None => FileUrls::local(base.as_str()),
+        };
         Ok(Self {
             pool,
             base,
             actor,
             catalog: Catalog::load_for_read(pool).await?,
             store,
+            files,
             plugins,
         })
     }
@@ -242,6 +252,12 @@ impl<'a> Api<'a> {
 
     pub fn actor(&self) -> &Actor {
         &self.actor
+    }
+
+    /// The URLs of stored files: the store's, or the local `/files` ones when
+    /// the read has no store.
+    pub(crate) fn files(&self) -> &FileUrls {
+        &self.files
     }
 
     /// The file store a media delete reaches, `None` when the process has none.

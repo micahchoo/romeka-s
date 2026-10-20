@@ -91,6 +91,14 @@
       "default": "light"
     },
     {
+      "key": "iiif_viewer_sidebar",
+      "labelKey": "siteSetting.iiifViewerSidebar",
+      "helpKey": "siteSetting.iiifViewerSidebarHelp",
+      "group": "itemPages",
+      "kind": "boolean",
+      "default": false
+    },
+    {
       "key": "subnav_display",
       "labelKey": "siteSetting.subnavDisplay",
       "helpKey": "siteSetting.subnavDisplayHelp",
@@ -211,6 +219,29 @@
         "term"
       ],
       "default": "none"
+    },
+    {
+      "key": "romeka_location_property",
+      "labelKey": "siteSetting.romekaLocationProperty",
+      "helpKey": "siteSetting.romekaLocationPropertyHelp",
+      "group": "maps",
+      "kind": "property"
+    },
+    {
+      "key": "romeka_map_tiles",
+      "labelKey": "siteSetting.romekaMapTiles",
+      "helpKey": "siteSetting.romekaMapTilesHelp",
+      "group": "maps",
+      "kind": "text",
+      "default": "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    },
+    {
+      "key": "romeka_map_attribution",
+      "labelKey": "siteSetting.romekaMapAttribution",
+      "helpKey": "siteSetting.romekaMapAttributionHelp",
+      "group": "maps",
+      "kind": "text",
+      "default": "© OpenStreetMap contributors"
     }
   ]
 }

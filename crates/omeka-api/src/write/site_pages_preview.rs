@@ -115,7 +115,7 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
             // The same carrier step a write runs, so a preview renders exactly
             // what a save would store: the plain rendering regenerated from the
             // block's own renderer, with its hash recorded.
-            let (data, layout_data) = super::site_pages::carry_block(
+            let (data, layout_data) = super::block_carrier::carry_block(
                 api,
                 Some(site),
                 &block.layout,
@@ -209,6 +209,16 @@ fn preview_control() -> Vec<&'static str> {
     control.push("o:id");
     control.push("o:theme_settings");
     control
+}
+
+/// The check before a resource page renders under a draft theme: the theme
+/// settings are a site write, so the caller needs what a site update needs.
+///
+/// # Errors
+/// [`ApiError::PermissionDenied`] for a caller who may not update the site.
+pub async fn authorize_theme_preview(api: &Api<'_>, site: SiteId) -> Result<(), ApiError> {
+    let owner = site_owner(api, site).await?;
+    api.authorize_site_update(site, owner).await
 }
 
 /// The owner the site grants a page write, for the site privilege check.

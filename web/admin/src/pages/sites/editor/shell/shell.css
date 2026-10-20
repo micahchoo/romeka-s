@@ -99,3 +99,26 @@
 .editor-toast button {
   padding: var(--space-1) var(--space-2);
 }
+
+.editor-history-toggle[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.page-settings-regions {
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.page-settings-region-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.editor-site-wide-dirty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

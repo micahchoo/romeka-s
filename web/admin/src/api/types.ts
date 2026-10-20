@@ -511,6 +511,34 @@ export interface SitePage {
   readonly modified: string | null;
 }
 
+/** Who saved a page version: a user the history routes name. */
+export interface PageAuthor {
+  readonly id: UserId;
+  readonly name: string;
+}
+
+/** One entry of `GET /api/site_pages/{id}/versions`, a Romeka route. */
+export interface PageVersionSummary {
+  readonly version: number;
+  /** When this state went live. */
+  readonly created: string;
+  /** `null` for the state a page had before its first recorded save, or a deleted user. */
+  readonly author: PageAuthor | null;
+  readonly blockCount: number;
+}
+
+/**
+ * What a page update answered: the stored page, or the refusal of a save made
+ * from an older `o:modified` than the stored page's, with who saved since.
+ */
+export type PageSaveResult =
+  | { readonly kind: 'saved'; readonly page: SitePage }
+  | {
+      readonly kind: 'stale';
+      readonly modified: string | null;
+      readonly author: PageAuthor | null;
+    };
+
 /** One `o:attachment` entry as a write accepts it. The ids are resolved server-side. */
 export interface SiteBlockAttachmentWrite {
   readonly item: ItemId | null;

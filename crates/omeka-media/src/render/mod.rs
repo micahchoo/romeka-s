@@ -24,13 +24,14 @@ use omeka_core::resource::Media;
 
 use crate::data::MediaData;
 use crate::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
+use crate::store::{FileKind, FileUrls};
 
 /// Site and server configuration a renderer may read.
 ///
 /// The values mirror what upstream reaches through `$view`: `assetUrl` for the
 /// OpenSeadragon prefix (`Renderer/IIIF.php:20`), `serverUrl` plus `basePath`
 /// for absolute fallback thumbnails (`Renderer/MediaRepresentation.php:80`),
-/// the file store base URI, the IIIF viewer route, and the two `iiif_viewer_*`
+/// the file store's URLs, the IIIF viewer route, and the two `iiif_viewer_*`
 /// site settings (`Renderer/IiifPresentation.php:18`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderEnv {
@@ -38,8 +39,8 @@ pub struct RenderEnv {
     pub server_url: String,
     /// The Omeka application asset path, e.g. `/application/asset`.
     pub asset_base_path: String,
-    /// The file store base URI, e.g. `/files`.
-    pub file_base_uri: String,
+    /// The stored files' URLs: `/files/...` on the local store.
+    pub files: FileUrls,
     /// The canonical IIIF viewer route.
     pub viewer_url: String,
     /// The `iiif_viewer_sidebar` site setting.
@@ -53,7 +54,7 @@ impl Default for RenderEnv {
         Self {
             server_url: "https://example.org".to_string(),
             asset_base_path: "/application/asset".to_string(),
-            file_base_uri: "/files".to_string(),
+            files: FileUrls::local(""),
             viewer_url: "https://example.org/iiif-viewer".to_string(),
             iiif_viewer_sidebar: false,
             iiif_viewer_theme: "light".to_string(),
@@ -103,16 +104,14 @@ impl MediaView {
             .or_else(|| media.source.clone())
             .unwrap_or_else(|| "[Untitled]".to_string());
         let original_url = if media.has_original {
-            media
-                .filename()
-                .map(|filename| format!("{}/original/{filename}", env.file_base_uri))
+            media.filename().map(|filename| {
+                env.files
+                    .url(&format!("original/{filename}"), FileKind::Original)
+            })
         } else {
             None
         };
-        let thumbnails = ThumbnailType::ALL
-            .into_iter()
-            .map(|kind| (kind, thumbnail_url(&media, &env, kind)))
-            .collect();
+        let thumbnails = thumbnail_urls(&media, &env, media.core.is_public);
         let alt_text = media.alt_text.clone();
         Self {
             media,
@@ -127,6 +126,18 @@ impl MediaView {
         }
     }
 
+    /// The same view for a media whose item is public or not: a thumbnail URL
+    /// is plain only when the media and its item are both public.
+    #[must_use]
+    pub fn in_item(mut self, item_is_public: bool) -> Self {
+        self.thumbnails = thumbnail_urls(
+            &self.media,
+            &self.env,
+            self.media.core.is_public && item_is_public,
+        );
+        self
+    }
+
     /// The thumbnail URL for a type.
     #[must_use]
     pub fn thumbnail_url(&self, kind: ThumbnailType) -> Option<&str> {
@@ -137,11 +148,21 @@ impl MediaView {
 /// `MediaRepresentation::thumbnailUrl`: the stored thumbnail, or the configured
 /// fallback asset when the row has no thumbnails
 /// (`MediaRepresentation.php:64`, `application/config/module.config.php:240`).
-fn thumbnail_url(media: &Media, env: &RenderEnv, kind: ThumbnailType) -> String {
+fn thumbnail_urls(media: &Media, env: &RenderEnv, public: bool) -> BTreeMap<ThumbnailType, String> {
+    ThumbnailType::ALL
+        .into_iter()
+        .map(|kind| (kind, thumbnail_url(media, env, kind, public)))
+        .collect()
+}
+
+fn thumbnail_url(media: &Media, env: &RenderEnv, kind: ThumbnailType, public: bool) -> String {
     if media.has_thumbnails
         && let Some(storage_id) = media.storage_id.as_deref()
     {
-        return format!("{}/{}/{storage_id}.jpg", env.file_base_uri, kind.as_str());
+        return env.files.url(
+            &format!("{}/{storage_id}.jpg", kind.as_str()),
+            FileKind::Thumbnail { public },
+        );
     }
     let fallback = match media
         .media_type

@@ -367,7 +367,9 @@ async fn a_clean_carrier_renders_the_rich_banner() {
     assert_eq!(page.status, StatusCode::OK, "{}", page.body);
     assert!(
         page.body
-            .contains("class=\"romeka-hero romeka-hero-align-center romeka-hero-overlay-strong\""),
+            .contains(
+                "class=\"romeka-hero romeka-hero-align-center romeka-hero-overlay-strong romeka-hero-height-medium\""
+            ),
         "the rich banner did not render: {}",
         page.body
     );

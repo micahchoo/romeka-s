@@ -10,7 +10,7 @@ use omeka_db::ids::{PageId, SiteId, UserId};
 use omeka_db::repos::{
     Paging, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, UserFilter, UserRepo, compare_text_ci,
 };
-use omeka_db::rows::{SiteBlockRow, SitePageRow, SiteRow, UserRow};
+use omeka_db::rows::{PageImage, PageImageBlock, SitePageRow, SiteRow, UserRow};
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
 use super::params::{Sort, SortField};
@@ -253,7 +253,7 @@ async fn site_access(api: &Api<'_>, site: SiteId) -> Result<Option<SiteAccess>, 
 
 /// Whether the actor may read the page (`SitePageVisibilityFilter`: a public
 /// page of a public site, the site's owner, or a site permission).
-async fn site_page_visible(api: &Api<'_>, row: &SitePageRow) -> Result<bool, ApiError> {
+pub(crate) async fn site_page_visible(api: &Api<'_>, row: &SitePageRow) -> Result<bool, ApiError> {
     let Some(access) = site_access(api, row.site_id).await? else {
         return Ok(false);
     };
@@ -373,16 +373,42 @@ async fn site_page_doc(
     api: &Api<'_>,
     row: &SitePageRow,
 ) -> Result<crate::wire::site_page::SitePage, ApiError> {
-    let base = api.base();
     let blocks = SiteRepo::new(api.pool())
         .list_blocks(row.id)
         .await
         .map_err(db_error)?;
-    let mut documents = Vec::with_capacity(blocks.len());
-    for block in &blocks {
-        documents.push(block_doc(api, block).await?);
+    let attachments = SiteBlockAttachmentRepo::new(api.pool());
+    let mut image = PageImage {
+        page: row.clone(),
+        blocks: Vec::with_capacity(blocks.len()),
+    };
+    for block in blocks {
+        image.blocks.push(PageImageBlock {
+            attachments: attachments
+                .list_for_block(block.id)
+                .await
+                .map_err(db_error)?,
+            block,
+        });
     }
-    Ok(crate::wire::site_page::SitePage {
+    Ok(page_document(api.base(), &image))
+}
+
+/// The snapshot a page version keeps: the page document as a read answers it at that moment.
+pub(crate) fn page_snapshot(
+    base: &BaseUrl,
+) -> impl Fn(&PageImage) -> Result<serde_json::Value, omeka_db::DbError> + Send + Sync + '_ {
+    move |image| {
+        serde_json::to_value(page_document(base, image)).map_err(|error| omeka_db::DbError::Bind {
+            reason: format!("page snapshot: {error}"),
+        })
+    }
+}
+
+/// `SitePageRepresentation::getJsonLd` over a stored page.
+fn page_document(base: &BaseUrl, image: &PageImage) -> crate::wire::site_page::SitePage {
+    let row = &image.page;
+    crate::wire::site_page::SitePage {
         context: base.api_context(),
         id: base.api_resource("site_pages", row.id.0),
         jsonld_type: JsonLdType::single("o:SitePage"),
@@ -396,11 +422,15 @@ async fn site_page_doc(
             .layout_data
             .clone()
             .unwrap_or_else(|| serde_json::json!([])),
-        block: documents,
+        block: image
+            .blocks
+            .iter()
+            .map(|entry| block_doc(base, entry))
+            .collect(),
         site: resource_ref(base, "sites", row.site_id.0),
         created: super::jsonld_date(row.created),
         modified: row.modified.map(super::jsonld_date),
-    })
+    }
 }
 
 /// `SitePageBlockRepresentation::jsonSerialize`.
@@ -409,29 +439,22 @@ async fn site_page_doc(
 /// order, each as `SiteBlockAttachmentRepresentation` writes it: `o:item` and
 /// `o:media` are resource references or `null`, `o:caption` is the stored
 /// string (never null upstream).
-async fn block_doc(
-    api: &Api<'_>,
-    row: &SiteBlockRow,
-) -> Result<crate::wire::site_page::SitePageBlock, ApiError> {
-    let rows = SiteBlockAttachmentRepo::new(api.pool())
-        .list_for_block(row.id)
-        .await
-        .map_err(db_error)?;
-    let base = api.base();
-    let attachment = rows
-        .iter()
-        .map(|row| crate::wire::site_page::SiteBlockAttachment {
-            item: resource_ref_opt(base, "items", row.item_id.map(|id| id.0)),
-            media: resource_ref_opt(base, "media", row.media_id.map(|id| id.0)),
-            caption: row.caption.clone(),
-        })
-        .collect();
-    Ok(crate::wire::site_page::SitePageBlock {
+fn block_doc(base: &BaseUrl, entry: &PageImageBlock) -> crate::wire::site_page::SitePageBlock {
+    let row = &entry.block;
+    crate::wire::site_page::SitePageBlock {
         layout: row.layout.clone(),
         data: row.data.clone(),
         layout_data: row.layout_data.clone(),
-        attachment,
-    })
+        attachment: entry
+            .attachments
+            .iter()
+            .map(|row| crate::wire::site_page::SiteBlockAttachment {
+                item: resource_ref_opt(base, "items", row.item_id.map(|id| id.0)),
+                media: resource_ref_opt(base, "media", row.media_id.map(|id| id.0)),
+                caption: row.caption.clone(),
+            })
+            .collect(),
+    }
 }
 
 // ------------------------------------------------------- root and context

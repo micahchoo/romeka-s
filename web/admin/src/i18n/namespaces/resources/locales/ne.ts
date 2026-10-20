@@ -66,4 +66,14 @@ export const ne: ResourcesMessages = {
   'items.bulkConfirmAdd': '{site} मा {count} थप्नुहोस्',
   'items.bulkDone': '{site} मा अहिले {total} वस्तुहरू छन्।',
   'items.bulkConfirmRemove': '{site} बाट {count} हटाउनुहोस्',
+  'place.legend': 'नक्सामा राख्नुहोस्: {field}',
+  'place.help':
+    'नक्सामा क्लिक गर्नुहोस्, वा "lat, lng" टाइप गर्नुहोस्। प्रत्येक स्थान {term} मानको रूपमा सुरक्षित गरिन्छ, जसलाई साइटको नक्साले देखाउँछ।',
+  'place.mapLabel': 'नक्सा: चयन गरिएको स्थान सेट गर्न क्लिक गर्नुहोस्',
+  'place.value': '{number} स्थान',
+  'place.remove': '{number} स्थान हटाउनुहोस्',
+  'place.add': 'स्थान थप्नुहोस्',
+  'place.invalid':
+    '-90 देखि 90 सम्मको अक्षांश, एउटा अल्पविराम, र -180 देखि 180 सम्मको देशान्तर टाइप गर्नुहोस्।',
+  'place.unavailable': 'नक्सा लोड हुन सकेन। स्थानलाई "lat, lng" को रूपमा टाइप गर्नुहोस्।',
 };

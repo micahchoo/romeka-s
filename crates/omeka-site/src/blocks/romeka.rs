@@ -16,13 +16,14 @@
 
 use std::collections::BTreeMap;
 
-use omeka_core::ids::{AssetId, PageId};
+use omeka_core::ids::{AssetId, ItemId, MediaId, PageId, SiteId};
 use omeka_core::site::{BlockData, RomkaCarrier, SiteBlock};
 use serde_json::Value as JsonValue;
 
 use super::canonical;
 use super::schema::LayoutSchema;
-use crate::view::RenderContext;
+use crate::i18n::{Locale, Messages};
+use crate::view::{BrowseQuery, RenderContext};
 
 /// The smallest block a Romeka extension declares: a name, a form, a rich
 /// render and the plain render the upstream layout stores.
@@ -61,14 +62,57 @@ pub trait RomkaBlock: Sync {
     fn page_refs(&self, _settings: &JsonValue) -> Vec<PageId> {
         Vec::new()
     }
+
+    /// The media ids the rendering uses, so a write can leave a private one
+    /// out of the plain rendering and a page load can read the visible ones
+    /// first.
+    fn media_refs(&self, _settings: &JsonValue) -> Vec<MediaId> {
+        Vec::new()
+    }
+
+    /// The items the settings select, so a caller can load them before the
+    /// rich render reads them and resolve them before the plain render.
+    fn items(&self, _settings: &JsonValue) -> Option<ItemSelection> {
+        None
+    }
 }
 
-/// A resolved asset, as a plain rendering names it.
+/// The items a block's settings select.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PlainAsset {
+pub enum ItemSelection {
+    /// Items picked one by one, in pick order.
+    Picked(Vec<ItemId>),
+    /// The items a stored browse query finds, as a query string.
+    Query(String),
+}
+
+impl ItemSelection {
+    /// The most items one selection reads, so a broad query cannot make a
+    /// page heavy.
+    pub const LIMIT: usize = 500;
+
+    /// The search a [`Self::Query`] selection runs on `site`, at most `limit`
+    /// items. The render and the page snapshot both build it here, because the
+    /// snapshot answers a search by equality.
+    #[must_use]
+    pub fn browse_query(query: &str, site: SiteId, limit: usize) -> BrowseQuery {
+        let mut pairs = super::browse_preview::parse_query(query);
+        pairs.push(("site_id".to_string(), site.get().to_string()));
+        BrowseQuery {
+            query: pairs,
+            site,
+            limit: Some(limit),
+            sort: None,
+        }
+    }
+}
+
+/// A resolved image, an asset's or a media's, as a plain rendering names it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainImage {
     /// The file URL, relative to the origin the page is served from.
     pub url: String,
-    /// The alt text, the empty string when the asset has none.
+    /// The alt text, the empty string when the file has none.
     pub alt: String,
 }
 
@@ -79,8 +123,62 @@ pub struct PlainAsset {
 /// renderer stays a pure transform from values to HTML.
 #[derive(Debug, Clone, Default)]
 pub struct PlainRefs {
-    assets: BTreeMap<AssetId, PlainAsset>,
+    assets: BTreeMap<AssetId, PlainImage>,
+    media: BTreeMap<MediaId, PlainImage>,
     pages: BTreeMap<PageId, String>,
+    items: Vec<PlainItem>,
+    locale: Locale,
+}
+
+/// A resolved item, as a plain rendering lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainItem {
+    /// The item's id, so a block can find the item a record names.
+    pub id: ItemId,
+    /// The item's display title.
+    pub title: String,
+    /// The item's page, relative to the origin.
+    pub url: String,
+    /// The image of the item's main media, when it has a public one.
+    pub image: Option<PlainImage>,
+    /// The item's public values, in property order.
+    pub values: Vec<PlainValue>,
+    /// The item's location values, as stored.
+    pub places: Vec<String>,
+}
+
+/// One public value of a resolved item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainValue {
+    /// The property's term, e.g. `dcterms:date`.
+    pub term: String,
+    /// The property's label, e.g. `Date`.
+    pub label: String,
+    /// The value as text: the literal, or a URI's label or address.
+    pub text: String,
+}
+
+impl PlainItem {
+    /// An item with a title and a page and nothing else resolved.
+    #[must_use]
+    pub fn new(id: ItemId, title: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            id,
+            title: title.into(),
+            url: url.into(),
+            image: None,
+            values: Vec::new(),
+            places: Vec::new(),
+        }
+    }
+
+    /// The texts of the values of the property `term`, in order.
+    pub fn texts<'a>(&'a self, term: &'a str) -> impl Iterator<Item = &'a str> + 'a {
+        self.values
+            .iter()
+            .filter(move |value| value.term == term)
+            .map(|value| value.text.as_str())
+    }
 }
 
 impl PlainRefs {
@@ -95,7 +193,20 @@ impl PlainRefs {
     pub fn asset(mut self, id: AssetId, url: impl Into<String>, alt: impl Into<String>) -> Self {
         self.assets.insert(
             id,
-            PlainAsset {
+            PlainImage {
+                url: url.into(),
+                alt: alt.into(),
+            },
+        );
+        self
+    }
+
+    /// The same map with one media image resolved.
+    #[must_use]
+    pub fn media(mut self, id: MediaId, url: impl Into<String>, alt: impl Into<String>) -> Self {
+        self.media.insert(
+            id,
+            PlainImage {
                 url: url.into(),
                 alt: alt.into(),
             },
@@ -112,8 +223,15 @@ impl PlainRefs {
 
     /// The asset named by `id`, `None` when the caller could not resolve it.
     #[must_use]
-    pub fn asset_of(&self, id: AssetId) -> Option<&PlainAsset> {
+    pub fn asset_of(&self, id: AssetId) -> Option<&PlainImage> {
         self.assets.get(&id)
+    }
+
+    /// The image of the media named by `id`, `None` when the caller could not
+    /// resolve it.
+    #[must_use]
+    pub fn media_of(&self, id: MediaId) -> Option<&PlainImage> {
+        self.media.get(&id)
     }
 
     /// The URL of the page named by `id`, `None` when the caller could not
@@ -122,10 +240,55 @@ impl PlainRefs {
     pub fn page_of(&self, id: PageId) -> Option<&str> {
         self.pages.get(&id).map(String::as_str)
     }
+
+    /// The same map with one more item of the block's selection resolved.
+    #[must_use]
+    pub fn item(mut self, item: PlainItem) -> Self {
+        self.items.push(item);
+        self
+    }
+
+    /// The selected items the caller resolved and may show to anyone, in
+    /// selection order.
+    #[must_use]
+    pub fn items(&self) -> &[PlainItem] {
+        &self.items
+    }
+
+    /// The same map for a site whose words are in `locale`.
+    #[must_use]
+    pub fn locale(mut self, locale: Locale) -> Self {
+        self.locale = locale;
+        self
+    }
+
+    /// The catalogue of the site's locale, for the words a plain rendering
+    /// prints itself, such as a link's text.
+    #[must_use]
+    pub fn messages(&self) -> &'static Messages {
+        self.locale.translator().messages()
+    }
+
+    /// The selected item `id`, `None` when the caller could not resolve it or
+    /// may not show it.
+    #[must_use]
+    pub fn item_of(&self, id: ItemId) -> Option<&PlainItem> {
+        self.items.iter().find(|item| item.id == id)
+    }
 }
 
 /// The registered Romeka blocks, in registry order.
-pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 1] = [&super::hero::Hero];
+pub static ROMKA_BLOCKS: [&dyn RomkaBlock; 9] = [
+    &super::hero::Hero,
+    &super::map::Map,
+    &super::gallery::Gallery,
+    &super::featured_item::FeaturedItem,
+    &super::button::ButtonBlock,
+    &super::quote::Quote,
+    &super::accordion::Accordion,
+    &super::timeline::Timeline,
+    &super::search_box::SearchBox,
+];
 
 /// Every registered Romeka block.
 #[must_use]
@@ -249,6 +412,24 @@ pub fn page_refs(carrier: &RomkaCarrier) -> Vec<PageId> {
     block(carrier.block.as_str())
         .map(|definition| definition.page_refs(&carrier.settings))
         .unwrap_or_default()
+}
+
+/// The media ids a block stored under `layout` renders from its carrier: the
+/// Romeka block's when the carrier names one, else the upstream layout's own
+/// Romeka settings (the IIIF image's site media).
+#[must_use]
+pub fn media_refs(layout: &str, carrier: &RomkaCarrier) -> Vec<MediaId> {
+    match block(carrier.block.as_str()) {
+        Some(definition) => definition.media_refs(&carrier.settings),
+        None => super::layout_for(layout).media_refs(&carrier.settings),
+    }
+}
+
+/// The items a carrier's settings select, `None` for a block that selects
+/// none.
+#[must_use]
+pub fn items(carrier: &RomkaCarrier) -> Option<ItemSelection> {
+    block(carrier.block.as_str())?.items(&carrier.settings)
 }
 
 #[cfg(test)]

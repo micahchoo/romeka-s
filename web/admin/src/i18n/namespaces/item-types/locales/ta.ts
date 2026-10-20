@@ -51,11 +51,6 @@ export const ta: ItemTypesMessages = {
   'fields.add': 'ஒரு புலத்தைச் சேர்க்கவும்',
   'fields.addHint': 'அதை விவரிக்கவும், உதாரணமாக “எத்தனை பக்கங்கள்”',
   'field.name': '{term}-க்கான படிவத்தில் உள்ள பெயர்',
-  'field.moveHandle':
-    '{name}-ஐ, {position}-இல் உள்ள {count}-ன் புலத்திற்கு மாற்றவும். மேல் மற்றும் கீழ் அம்பு keys-ஐப் பயன்படுத்தவும், அல்லது இழுக்கவும்.',
-  'field.moved': '{name} இப்போது {position}-இல் உள்ள {count}-ன் புலமாக உள்ளது.',
-  'field.moveUp': '{name}-ஐ மேலே நகர்த்தவும்',
-  'field.moveDown': '{name}-ஐ கீழே நகர்த்தவும்',
   'field.remove': '{name}-ஐ நீக்கவும்',
   'field.changeTerm': '{name}-ன் தரப்படுத்தப்பட்ட சொல்லை மாற்றவும்',
   'field.pickTerm': 'ஒரு தரப்படுத்தப்பட்ட சொல்லைக் கண்டறியவும்',

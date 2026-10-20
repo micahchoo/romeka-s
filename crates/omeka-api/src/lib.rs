@@ -20,6 +20,7 @@ pub mod limits;
 pub mod login;
 pub mod messages;
 pub mod origin;
+pub mod page_history;
 pub mod password;
 pub mod publish;
 pub mod read;

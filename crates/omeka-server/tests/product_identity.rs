@@ -79,7 +79,7 @@ async fn a_rendered_page_carries_the_product_name() {
     assert!(
         answer
             .body
-            .contains("<span class=\"powered-by\">Powered by Romeka S</span>"),
+            .contains("<p class=\"powered-by\">Powered by Romeka S</p>"),
         "{}",
         answer.body
     );

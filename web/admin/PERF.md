@@ -694,6 +694,149 @@ as the other tabs.
 
 A single build on one machine. Opening Settings or Users now costs one more request after the route.
 
+## Decision 22: page history loads on demand, its API calls ride the initial payload (accepted)
+
+**Change.** The page editor gains a History panel, a version view and a refused-save dialog. The
+panel and the version view are one lazy chunk (`editor/shell/HistoryPanel.tsx`), fetched on the
+first press of History; the dialog is another (`editor/shell/ConflictDialog.tsx`), fetched only when
+a save is refused. The client methods and their parsers (`listPageVersions`, `getPageVersion`,
+`parsePageVersionSummary`, `parseStalePage`) live in `src/api/`, where every boundary parse lives, so
+they ride the initial payload.
+
+**Measured.** `npm run build`, then gzip bytes from `zlib.gzipSync` per emitted asset, against main
+`d0775a7` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before (`d0775a7`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 85708 | 85976 | the save result union, the two reads and their parsers |
+| editor shell (`shell-*`) | 7274 | 7924 | the History toggle, the lazy imports, `usePageSave` |
+| history panel and version view | none | 1189 js, 446 css | |
+| refused-save dialog | none | 617 | |
+| version time format | none | 265 | shared by the two chunks above |
+| shared editor chunks (`draft`, `blockSchema`, `groups`, `romeka`, `preview`) | 7616 in five | 6672 in one | the history chunk imports `preview` and `wire`, so Rollup merged them |
+| English editor messages | 5129 | 5483 | 22 `history.*` keys |
+
+A single build on one machine. The largest lazy chunk is the editor shell at 7924 B of the 10240 B
+ceiling, and the initial payload has 1064 B left under 87040.
+
+## Decision 23: the site region inspector loads on demand (accepted)
+
+**Change.** The page editor selects the site header and the site footer. The site-wide inspector
+(`editor/shell/SiteRegionInspector.tsx`) is a lazy chunk, fetched on the first region selection. It
+reuses the Theme page's Header and Footer sections and its token rows, so Rollup moves the code the
+two screens share (`FooterSection`, `HeaderSection`, `TokenField`, `siteTheme`) out of the Theme
+page's chunk into one shared chunk. The selection union, the region buttons in the page settings,
+the toolbar's unsaved note and the lazy import ride the editor shell.
+
+**Measured.** `npm run build`, then gzip bytes from `zlib.gzipSync` per emitted asset, against main
+`b817f94` built the same way from a `git archive` copy with the same `node_modules`:
+
+| Asset | Before (`b817f94`) | After | Note |
+| --- | --- | --- | --- |
+| initial js (`perf:check`) | 86073 | 86082 | |
+| editor shell (`shell-*`) | 8399 | 9013 | the selection union, the region buttons, the unsaved note |
+| live panel (`LivePanel-*`) | 3290 js, 672 css | 3579 js, 711 css | region outlines and their style |
+| site region inspector | none | 1140 | |
+| Theme page (`theme-*`) | 8333 | 5558, plus 3584 shared | the shared sections moved out |
+| English editor messages | 6970 | 7148 | 12 `region.*` keys |
+| largest editor locale (`ml`) | 8680 | 8911 | under the 11264 catalogue ceiling |
+
+A single build on one machine. The largest lazy chunk is still `fields-*` (9018 B by `perf:check`);
+the editor shell is next at 9013 B of the 10240 B ceiling.
+
+## Decision 24: the media reference and focal point controls join the editor fields chunk (accepted)
+
+**Change.** A block setting may name a media of the site. Its control (`editor/fields/MediaRefField.tsx`)
+finds the item with the item picker and chooses one of its images; the hero's focal point control
+(`editor/fields/FocalPointField.tsx`) sets a point on that image. Both are in the `fields` chunk with
+the other field controls; the item picker stays its own chunk. 40 `editor` keys cover the new hero,
+IIIF image and control words.
+
+**Measured.** `npm run build`, then `npm run perf:check` and gzip bytes from `zlib.gzipSync` per
+emitted asset, against main `509560d` built the same way from a `git archive` copy with the same
+`node_modules`:
+
+| Asset | Before (`509560d`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86043 | 86049 | the two new field kinds in the registry parser |
+| `fields` chunk | 8046 | 9140 | the two controls; now the largest lazy chunk |
+| `fields` css | 1266 | 1437 | the focal frame and the disabled media choice |
+| English editor messages | 6451 | 7000 | |
+
+A single build on one machine. The `fields` chunk has 1100 B left under the 10240 B ceiling, so the
+next control that grows it should move a rarely used control (the page list, the item query) into a
+chunk of its own first.
+
+## Decision 25: the page list and property list controls load on demand (accepted)
+
+**Change.** The merge of `site/block-upgrades` with main put the property list control
+(`editor/fields/PropertyListField.tsx`, the item-with-metadata block's fields) and the browse query's
+property sort into the `fields` chunk beside Decision 24's media controls, and the chunk went over the
+10240 B ceiling. As Decision 24 asked, a rarely used control moved out first: the page list control
+(`LazyPageListField.tsx`, the list-of-pages block only) and the property list control
+(`propertyListControl.tsx`, item with metadata only) each load as their own chunk the first time their
+block opens, behind the `common` table's `loading.form` line. The item query control did not move: it
+already shares a chunk with the navigation link form and the site's Items page, so a lazy import of it
+saved nothing (measured: the `fields` chunk grew 169 B).
+
+**Measured.** `npm run build`, then `npm run perf:check`, on the merge tree:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| `fields` chunk | 10771 | 9925 | 315 B left under the ceiling |
+| page list | none | 1477 | `PageListField-*` |
+| property list | none | 802 | `PropertyListField-*` |
+| initial js | 86072 | 86072 | |
+
+A single build on one machine. The editor shell (9047 B) is now the next largest lazy chunk.
+
+## Decision 26: the content blocks' strings and controls load on their own (accepted)
+
+**Change.** Seven content blocks (gallery, featured item, button, quote, accordion, timeline, search
+box) bring two field kinds and 88 field strings. Put in the page editor's table, the strings took the
+Tamil, Malayalam, Hindi and Telugu `editor` chunks over the 11264 B catalogue ceiling, and the two
+controls took the `fields` chunk over 10240 B. Three moves:
+
+- The strings are their own namespace, `content-blocks`. The page editor reads both tables
+  (`editor/messages.ts`, `EDITOR_NAMESPACES`), so a curator's first editor visit fetches one more
+  locale chunk, in parallel with the editor's.
+- The item and item-media controls (`editor/fields/contentControls.tsx`) load as one chunk behind
+  `LazyControls.tsx` and the `common` table's `loading.form` line.
+- The IIIF manifest source control, which only the IIIF presentation block uses, moved behind the
+  same file. On this branch the chunk had 31 B left before the content blocks, so a rarely used
+  control had to leave first, as Decision 24 said.
+
+**Measured.** `npm run build`, then `npm run perf:check`, and gzip bytes from `zlib.gzipSync` per
+emitted asset, against this branch's base (`6a788a1`) built the same way from a `git archive` copy
+with the same `node_modules`:
+
+| Asset | Before (`6a788a1`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86074 | 86065 | the registry parser's two new kinds, less what the moves took out (inferred) |
+| `fields` chunk | 10208 | 10173 | 67 B left under the ceiling |
+| content controls | none | 618 | `contentControls-*` |
+| manifest source | none | 1058 | `ManifestSourceField-*` |
+| largest catalogue chunk | 10176 | 10176 | the Tamil `editor` table, unchanged |
+| Tamil `content-blocks` table | none | 2372 | the largest of the new table's chunks |
+
+A single build on one machine. With the strings in the `editor` table and the controls eager, the
+same build measured the Tamil `editor` chunk at 11506 B and the `fields` chunk at 10418 B. Main
+after Decision 25 measured its `fields` chunk at 9925 B and its largest catalogue at 10585 B (a
+`git archive` build of main `8c48349`); the merge adds this decision's moves to that.
+
+**Measured after the merge with main** (`8c48349`, Decision 25), same steps on the merge tree. The
+three lazy controls now share one loading line, `editor/fields/ControlLoading.tsx`.
+
+| Asset | Main (`8c48349`) | Merge | Note |
+| --- | --- | --- | --- |
+| initial js | 86072 | 86064 | |
+| `fields` chunk | 9925 | 9792 | 448 B left under the ceiling; no further control moved |
+| content controls | none | 618 | `contentControls-*` |
+| manifest source | none | 1058 | `ManifestSourceField-*` |
+| page list | 1477 | 1477 | `PageListField-*` |
+| property list | 802 | 805 | `PropertyListField-*` |
+| largest catalogue chunk | 10585 | 10640 | the Malayalam `ml-*` table, 624 B under its ceiling |
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

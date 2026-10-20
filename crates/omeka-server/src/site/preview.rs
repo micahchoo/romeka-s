@@ -18,6 +18,11 @@
 //! ([`crate::accounts::same_origin_write`]) already covers it, exactly as it
 //! covers a cookie-authenticated `/api` write.
 //!
+//! A body with a `resource_page` member (`{"kind": "items", "id": 12}`, the
+//! kind named as `resource_page_blocks` names it) renders that item, item set
+//! or media page instead, under the body's `o:theme_settings`, so the Theme
+//! page shows a draft section order on a real record ([`run_resource`]).
+//!
 //! The answer carries `Cache-Control: no-store`, `X-Robots-Tag: noindex` and a
 //! script-free CSP, because the editor renders it in a sandboxed iframe and
 //! nothing here should be cached or indexed.
@@ -26,18 +31,20 @@ use axum::body::Body;
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 
-use omeka_api::errors::ErrorDocument;
-use omeka_api::write::body::Payload;
+use omeka_api::errors::{ApiError, ErrorDocument};
+use omeka_api::write::body::{Payload, php_json, ref_row};
 use omeka_api::write::site_pages::ResolvedAttachment;
 use omeka_api::write::site_pages_preview::{self, Preview};
 use omeka_core::ids::{BlockId, PageId, SiteId};
-use omeka_core::resource::Timestamp;
+use omeka_core::resource::{ResourceKind, Timestamp};
 use omeka_core::site::{
     BlockLayout, BlockLayoutData, PageLayout, PageLayoutData, SiteBlock, SitePage, Slug,
 };
 use omeka_db::repos::SiteRepo;
 use omeka_site::blocks::parse::parse_block_data;
+use omeka_site::resource_page_schema::RESOURCES;
 use omeka_site::theme::tokens::ThemeSettings;
+use serde_json::Value;
 
 use super::{Outcome, SiteError, dispatch};
 use crate::AppState;
@@ -85,21 +92,15 @@ pub(crate) async fn run(
         Ok(payload) => payload,
         Err(error) => return crate::error_response(error),
     };
+    if let Some(target) = payload.get("resource_page") {
+        return run_resource(state, site_row.id, uri, &api, &payload, target).await;
+    }
     let preview = match site_pages_preview::preview(&api, &payload, site_row.id).await {
         Ok(preview) => preview,
         Err(error) => return crate::error_response(error),
     };
-    // Draft custom CSS the sanitiser refuses is answered the way the site
-    // write answers it, so the editor can mark the lines while the curator
-    // types; the frame would drop it anyway.
-    if let Some(messages) = preview
-        .theme_settings
-        .as_ref()
-        .and_then(omeka_api::theme_settings::custom_css_errors)
-    {
-        let mut errors = omeka_api::errors::ValidationErrors::new();
-        errors.insert("o:theme_settings".to_string(), messages);
-        return crate::error_response(omeka_api::errors::ApiError::Validation(errors));
+    if let Some(refused) = refused_css(preview.theme_settings.as_ref()) {
+        return refused;
     }
     let actor = api.actor().clone();
     let Some(page) = build_page(&preview) else {
@@ -139,6 +140,66 @@ pub(crate) async fn run(
     {
         Ok(Outcome::Html(html)) => html_response(html),
         // The frame renders a page; a redirect here would be a bug, not a page.
+        Ok(Outcome::Redirect(_)) => crate::empty_internal_error(),
+        Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
+        Err(SiteError::Internal(_)) => crate::empty_internal_error(),
+    }
+}
+
+/// Draft custom CSS the sanitiser refuses, answered the way the site write
+/// answers it, so the editor can mark the lines while the curator types; the
+/// frame would drop it anyway.
+fn refused_css(theme_settings: Option<&Value>) -> Option<Response> {
+    let messages = theme_settings.and_then(omeka_api::theme_settings::custom_css_errors)?;
+    let mut errors = omeka_api::errors::ValidationErrors::new();
+    errors.insert("o:theme_settings".to_string(), messages);
+    Some(crate::error_response(ApiError::Validation(errors)))
+}
+
+/// The resource a `resource_page` member names: its kind by the stored map's
+/// resource name, and its id.
+fn resource_target(target: &Value) -> Option<(ResourceKind, u64)> {
+    let name = target.get("kind")?.as_str()?;
+    let kind = RESOURCES.iter().find(|resource| resource.key == name)?.kind;
+    let id = target.get("id").and_then(ref_row)?;
+    Some((kind, id))
+}
+
+/// A resource page under the body's draft theme settings: the item, item set
+/// or media show page, with the draft `resource_page_blocks` order when the
+/// body carries one. It needs the site update right, since only a caller who
+/// may save the theme sees a draft of it.
+async fn run_resource(
+    state: &AppState,
+    site: omeka_db::ids::SiteId,
+    uri: &Uri,
+    api: &omeka_api::read::Api<'_>,
+    payload: &Payload,
+    target: &Value,
+) -> Response {
+    if let Err(error) = site_pages_preview::authorize_theme_preview(api, site).await {
+        return crate::error_response(error);
+    }
+    let Some((kind, id)) = resource_target(target) else {
+        return crate::error_response(ApiError::bad_request(
+            "resource_page names a kind (items, item_sets or media) and an id",
+        ));
+    };
+    let theme_settings = payload.get("o:theme_settings").map(php_json);
+    if let Some(refused) = refused_css(theme_settings.as_ref()) {
+        return refused;
+    }
+    match dispatch::render_resource_preview(
+        state,
+        uri,
+        api.actor(),
+        kind,
+        id,
+        theme_settings.as_ref(),
+    )
+    .await
+    {
+        Ok(Outcome::Html(html)) => html_response(html),
         Ok(Outcome::Redirect(_)) => crate::empty_internal_error(),
         Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
         Err(SiteError::Internal(_)) => crate::empty_internal_error(),

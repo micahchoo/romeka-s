@@ -14,35 +14,48 @@
       "blocks": [
         {
           "name": "itemSets",
-          "labelKey": "resourcePageBlock.itemSets"
+          "labelKey": "resourcePageBlock.itemSets",
+          "helpKey": "resourcePageBlock.itemSetsHelp"
         },
         {
           "name": "lightboxGallery",
-          "labelKey": "resourcePageBlock.lightboxGallery"
+          "labelKey": "resourcePageBlock.lightboxGallery",
+          "helpKey": "resourcePageBlock.lightboxGalleryHelp"
         },
         {
           "name": "linkedResources",
-          "labelKey": "resourcePageBlock.linkedResources"
+          "labelKey": "resourcePageBlock.linkedResources",
+          "helpKey": "resourcePageBlock.linkedResourcesHelp"
+        },
+        {
+          "name": "map",
+          "labelKey": "resourcePageBlock.map",
+          "helpKey": "resourcePageBlock.mapHelp"
         },
         {
           "name": "mediaEmbeds",
-          "labelKey": "resourcePageBlock.mediaEmbeds"
+          "labelKey": "resourcePageBlock.mediaEmbeds",
+          "helpKey": "resourcePageBlock.mediaEmbedsHelp"
         },
         {
           "name": "mediaList",
-          "labelKey": "resourcePageBlock.mediaList"
+          "labelKey": "resourcePageBlock.mediaList",
+          "helpKey": "resourcePageBlock.mediaListHelp"
         },
         {
           "name": "resourceClass",
-          "labelKey": "resourcePageBlock.resourceClass"
+          "labelKey": "resourcePageBlock.resourceClass",
+          "helpKey": "resourcePageBlock.resourceClassHelp"
         },
         {
           "name": "sitePages",
-          "labelKey": "resourcePageBlock.sitePages"
+          "labelKey": "resourcePageBlock.sitePages",
+          "helpKey": "resourcePageBlock.sitePagesHelp"
         },
         {
           "name": "values",
-          "labelKey": "resourcePageBlock.values"
+          "labelKey": "resourcePageBlock.values",
+          "helpKey": "resourcePageBlock.valuesHelp"
         }
       ]
     },
@@ -55,15 +68,18 @@
       "blocks": [
         {
           "name": "linkedResources",
-          "labelKey": "resourcePageBlock.linkedResources"
+          "labelKey": "resourcePageBlock.linkedResources",
+          "helpKey": "resourcePageBlock.linkedResourcesHelp"
         },
         {
           "name": "resourceClass",
-          "labelKey": "resourcePageBlock.resourceClass"
+          "labelKey": "resourcePageBlock.resourceClass",
+          "helpKey": "resourcePageBlock.resourceClassHelp"
         },
         {
           "name": "values",
-          "labelKey": "resourcePageBlock.values"
+          "labelKey": "resourcePageBlock.values",
+          "helpKey": "resourcePageBlock.valuesHelp"
         }
       ]
     },
@@ -77,19 +93,23 @@
       "blocks": [
         {
           "name": "lightboxGallery",
-          "labelKey": "resourcePageBlock.lightboxGallery"
+          "labelKey": "resourcePageBlock.lightboxGallery",
+          "helpKey": "resourcePageBlock.lightboxGalleryHelp"
         },
         {
           "name": "mediaRender",
-          "labelKey": "resourcePageBlock.mediaRender"
+          "labelKey": "resourcePageBlock.mediaRender",
+          "helpKey": "resourcePageBlock.mediaRenderHelp"
         },
         {
           "name": "resourceClass",
-          "labelKey": "resourcePageBlock.resourceClass"
+          "labelKey": "resourcePageBlock.resourceClass",
+          "helpKey": "resourcePageBlock.resourceClassHelp"
         },
         {
           "name": "values",
-          "labelKey": "resourcePageBlock.values"
+          "labelKey": "resourcePageBlock.values",
+          "helpKey": "resourcePageBlock.valuesHelp"
         }
       ]
     }

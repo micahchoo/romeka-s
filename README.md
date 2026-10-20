@@ -93,11 +93,12 @@ These are decisions, not surprises. Each one names where it is stated and measur
   ([`crates/omeka-plugin/README.md`](crates/omeka-plugin/README.md)).
 - Some routes answer `501`. Each one has no handler, so it is not built yet rather than broken, and
   the generated route table in [`docs/api.md`](docs/api.md) marks every one of them.
-- `POST /api/assets` and `POST /api/jobs` stay unbuilt, and a media file arrives through
-  `romeka import media` rather than an API upload.
-  [`crates/omeka-api/README.md`](crates/omeka-api/README.md) gives the reason for each.
+- `POST /api/jobs` stays unbuilt, because upstream's `JobAdapter::hydrate` is empty. An asset or a
+  media file arrives as a multipart upload, through `romeka import media`, or through the Import
+  page. [`crates/omeka-api/README.md`](crates/omeka-api/README.md) gives the details.
 - There is no admin pixel parity. The workflow is the same, the markup is not.
-- The full translation catalogues are not ported. Two locales ship.
+- The full translation catalogues are not ported. The admin ships nine locales: English, Spanish
+  and seven machine-translated Indic locales.
 - No call goes to a live external service, so oEmbed, YouTube and remote IIIF are out.
 - Fulltext ranking is SQLite FTS5's, and it differs from MySQL's.
 

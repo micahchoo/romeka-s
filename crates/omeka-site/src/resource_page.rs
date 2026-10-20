@@ -39,7 +39,7 @@ pub struct ResourcePageBlockSpec {
 }
 
 /// Every registered resource page block layout, in `module.config.php` order.
-pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 9] = [
+pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 10] = [
     ResourcePageBlockSpec {
         name: "itemSets",
         label: "Item sets",
@@ -55,6 +55,14 @@ pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 9] = [
         name: "linkedResources",
         label: "Linked resources",
         resources: &[ResourceKind::Item, ResourceKind::ItemSet],
+    },
+    // A Romeka addition: the item's own places, from the site's location
+    // field. Upstream has no such layout, so its manager renders nothing for
+    // the name.
+    ResourcePageBlockSpec {
+        name: "map",
+        label: "Map of the item's place",
+        resources: &[ResourceKind::Item],
     },
     ResourcePageBlockSpec {
         name: "mediaEmbeds",
@@ -187,7 +195,7 @@ pub fn render_blocks(resource: &ResourceView, ctx: &RenderContext<'_>) -> String
 
 fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     match name {
-        "mediaEmbeds" => media_embeds(resource),
+        "mediaEmbeds" => media_embeds(resource, ctx),
         "values" => values(resource, &ctx.settings),
         "itemSets" => item_sets(resource, ctx),
         "sitePages" => site_pages(resource, ctx),
@@ -196,14 +204,23 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
         "mediaRender" => media_render(resource),
         "resourceClass" => resource_class(resource, ctx.translator().messages()),
         "lightboxGallery" => lightbox_gallery(resource),
+        "map" => crate::map::item_section(resource, ctx),
         _ => String::new(),
     }
 }
 
 /// `media-embeds.phtml`: each media's renderer markup inside `media-embeds`.
-fn media_embeds(resource: &ResourceView) -> String {
+/// Where upstream prints nothing for an item with no media, the theme shows a
+/// panel that says so, so the page keeps its shape.
+fn media_embeds(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     if resource.media_embeds.is_empty() {
-        return String::new();
+        return format!(
+            "<div class=\"media-embeds media-empty\">{}</div>",
+            crate::theme::cards::empty_thumb(
+                resource.kind,
+                ctx.translator().messages().no_media_attached
+            )
+        );
     }
     let mut out = String::from("<div class=\"media-embeds\">");
     for media in &resource.media_embeds {
