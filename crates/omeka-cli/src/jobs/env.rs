@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use omeka_api::import2::archive::ArchiveRoots;
+use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_media::store::Store;
 

@@ -2,19 +2,19 @@
 //! `GET …/template.csv?columns=` answers the list to fill in, and
 //! `POST …/sheets` stores a filled list (CSV, TSV, .xlsx, .xls or .ods) in
 //! the import's staging area and adds it to the draft's plan. The rules live in
-//! `omeka_api::import2::template`; these handlers read the request, move
+//! `omeka_api::import::template`; these handlers read the request, move
 //! the bytes through the store, and save the plan.
 
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
-use omeka_api::import2::catalog_load;
-use omeka_api::import2::draft;
-use omeka_api::import2::plan::{ReadOptions, RelPath};
-use omeka_api::import2::preview::staging_path;
-use omeka_api::import2::sheet;
-use omeka_api::import2::template::{
+use omeka_api::import::catalog_load;
+use omeka_api::import::draft;
+use omeka_api::import::plan::{ReadOptions, RelPath};
+use omeka_api::import::preview::staging_path;
+use omeka_api::import::sheet;
+use omeka_api::import::template::{
     ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, template_csv,
 };
 use omeka_api::messages;

@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use axum::Router;
-use omeka_api::import2::archive::ArchiveRoots;
+use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::ids::{ImportId, JobId};

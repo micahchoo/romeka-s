@@ -10,7 +10,7 @@ mod import_site;
 use std::time::{Duration, Instant};
 
 use import_site::{Site, col, jpeg, rule, sheet_plan, site, tiff};
-use omeka_api::import2::undo::UNDO_JOB;
+use omeka_api::import::undo::UNDO_JOB;
 use omeka_db::ids::{ImportId, PropertyId};
 use omeka_db::repos::{ImportRepo, JobRepo, ValueRepo};
 use omeka_db::rows::{ImportChange, ImportRow, ImportStatus, NewJob};

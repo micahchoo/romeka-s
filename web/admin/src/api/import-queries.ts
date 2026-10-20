@@ -1,6 +1,6 @@
 /**
  * What a preview request asks of its sections: the filters on `records` and
- * `entries` and the pages of the other lists (`crates/omeka-api/src/import2/preview/query.rs`
+ * `entries` and the pages of the other lists (`crates/omeka-api/src/import/preview/query.rs`
  * and its siblings). A filter left out does not narrow. Every body these types
  * can build is one the server takes (`fixtures/import/requests.json`).
  */

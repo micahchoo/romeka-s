@@ -13,7 +13,7 @@ import { ParseError } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RUST_PLANS = resolve(HERE, '../../../crates/omeka-api/src/import2/fixtures');
+const RUST_PLANS = resolve(HERE, '../../../crates/omeka-api/src/import/fixtures');
 
 const rustPlan = (name: string): unknown => {
   const value: unknown = JSON.parse(readFileSync(resolve(RUST_PLANS, name), 'utf8'));

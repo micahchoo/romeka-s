@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use omeka_api::import2::archive::{ArchiveRoots, V1_ROOT_NAME};
+use omeka_api::import::archive::{ArchiveRoots, V1_ROOT_NAME};
 
 use super::{ARCHIVE_ROOTS_ENV, ConfigError, invalid};
 

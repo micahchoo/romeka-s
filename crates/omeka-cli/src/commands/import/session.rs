@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use omeka_api::auth::Actor;
-use omeka_api::import2::catalog_load::Owners;
+use omeka_api::import::catalog_load::Owners;
 use omeka_api::messages;
 use omeka_db::DbPool;
 use omeka_db::Location;

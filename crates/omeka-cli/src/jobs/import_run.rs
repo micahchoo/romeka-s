@@ -3,8 +3,8 @@
 //! "Lifecycle and the ledger").
 //!
 //! Each reads `importId` from its args. The run's body is
-//! `omeka_api::import2::run::run_import`, the undo's
-//! `omeka_api::import2::undo::undo_import` with the API's delete paths, which
+//! `omeka_api::import::run::run_import`, the undo's
+//! `omeka_api::import::undo::undo_import` with the API's delete paths, which
 //! remove a media's files from the store. This module supplies what the run reads
 //! outside the database: the store, the archive roots, the install's file
 //! settings and URL guard, who pressed Run (the job's owner), the site
@@ -16,11 +16,11 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use omeka_api::import2::catalog_load::Owners;
-use omeka_api::import2::preview::Caches;
-use omeka_api::import2::run::{RUN_JOB, RunEnd, RunEnv, Runner, SiteSync, run_import};
-use omeka_api::import2::scan::{SCAN_JOB, scan_import};
-use omeka_api::import2::undo::{ApiRemoval, Force, UNDO_JOB, UndoEnd, undo_import};
+use omeka_api::import::catalog_load::Owners;
+use omeka_api::import::preview::Caches;
+use omeka_api::import::run::{RUN_JOB, RunEnd, RunEnv, Runner, SiteSync, run_import};
+use omeka_api::import::scan::{SCAN_JOB, scan_import};
+use omeka_api::import::undo::{ApiRemoval, Force, UNDO_JOB, UndoEnd, undo_import};
 use omeka_api::read::Api;
 use omeka_db::DbPool;
 use omeka_db::ids::{ImportId, ItemId, JobId};
@@ -168,7 +168,7 @@ impl Job for ImportUndo {
     }
 }
 
-fn total(counts: &omeka_api::import2::undo::Counts) -> usize {
+fn total(counts: &omeka_api::import::undo::Counts) -> usize {
     counts.items + counts.media + counts.item_sets + counts.templates + counts.properties
 }
 

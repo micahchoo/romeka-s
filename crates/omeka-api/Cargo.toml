@@ -39,7 +39,7 @@ thiserror = { workspace = true }
 # `rt` feature is the minimum the blocking pool needs; every other tokio feature
 # this crate tests with is a dev-dependency.
 tokio = { version = "1", features = ["rt"] }
-# Import v2 stores paths and row keys NFC (`import2/plan/path.rs`), so a name
+# Import v2 stores paths and row keys NFC (`import/plan/path.rs`), so a name
 # typed on macOS and one read from Linux are one entry. Already in the lock.
 unicode-normalization = "0.1"
 # The vocabulary importer reads the RDF serialisations upstream's EasyRdf reads
@@ -48,7 +48,7 @@ unicode-normalization = "0.1"
 oxrdfio = "0.2"
 # The term types oxrdfio's parsers yield.
 oxrdf = "0.3"
-# The import v2 sheet reader (`import2/sheet/decode.rs`) guesses an unmarked
+# The import v2 sheet reader (`import/sheet/decode.rs`) guesses an unmarked
 # sheet's encoding with Mozilla's detector, so a Shift-JIS or Cyrillic sheet is
 # named and refused instead of read as Windows-1252. encoding_rs decodes UTF-16
 # and Windows-1252 and is the detector's own encoding type.
@@ -56,14 +56,14 @@ chardetng = "1"
 encoding_rs = "0.8"
 # The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
 regex = "1"
-# The import v2 unzip job (`import2/unzip.rs`) inflates deflated ZIP entries
+# The import v2 unzip job (`import/unzip.rs`) inflates deflated ZIP entries
 # and checks their CRC-32. Already in the lock (omeka-server uses it).
 flate2 = "1"
 # SHA-256 as a stream, three uses: the import model's digest
-# (`import2::model::Model::seal`), files over 64 MB as they go into the store
-# (`import2/media_in.rs`), and identical-file hashing (`import2/scan/identical.rs`).
+# (`import::model::Model::seal`), files over 64 MB as they go into the store
+# (`import/media_in.rs`), and identical-file hashing (`import/scan/identical.rs`).
 sha2 = "0.10"
-# Import v2 workbook sheets (`import2/sheet/workbook.rs`): .xlsx, .xls and .ods
+# Import v2 workbook sheets (`import/sheet/workbook.rs`): .xlsx, .xls and .ods
 # read as rows. MIT, pure Rust; dates come as serial numbers, so no chrono.
 calamine = "0.37"
 # The zip directory of an .xlsx or .ods, read before calamine opens it, so a

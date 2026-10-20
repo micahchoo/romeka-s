@@ -1,7 +1,7 @@
 /**
  * The preview (`POST /api/romeka/imports/{id}/preview`): the sections the
  * admin can ask for and the parse of each. The shapes are
- * `crates/omeka-api/src/import2/preview.rs` and its submodules; what the
+ * `crates/omeka-api/src/import/preview.rs` and its submodules; what the
  * request asks of them is `import-queries.ts`, and the sheet and tag views
  * are `import-sheet-views.ts`.
  *

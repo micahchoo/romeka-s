@@ -5,7 +5,7 @@ types, the JSON-LD serializer, the route table, error documents, adapter
 registry, API key parsing, and the read and write endpoints over `omeka-db`.
 `omeka-server` turns these into axum responses. `read::Api` holds the
 deployment's `omeka_db::DbPool`; every repository call goes through
-`omeka_db::with_db!`, and the import v2 pipeline (`src/import2`) stays generic
+`omeka_db::with_db!`, and the import v2 pipeline (`src/import`) stays generic
 over `omeka_db::Backend` because a run holds one transaction across many
 repositories.
 
@@ -35,8 +35,7 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 ## Archive import
 
-`src/import2/` is the logic of import v2, a Romeka addition (`docs/import-v2.md`). It keeps the name
-`import2` until the last unit renames it. The module is generic over `omeka_db::Backend` and holds no
+`src/import/` is the logic of import v2, a Romeka addition (`docs/import-v2.md`). The module is generic over `omeka_db::Backend` and holds no
 SQL. Its parts:
 
 - Rules and evidence. `plan` is the stored plan and its one parse boundary. `archive` holds the named

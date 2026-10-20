@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use import_site::{Site, jpeg, rule, site_with, tiff};
-use omeka_api::import2::staging::{self, Limits};
+use omeka_api::import::staging::{self, Limits};
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::{ImportStatus, JobRow, NewJob};
@@ -352,7 +352,7 @@ async fn uploads_are_staged_in_the_bucket_part_by_part_unpacked_and_run() {
             owner_id: None,
             pid: None,
             status: Some("starting".to_string()),
-            class: omeka_api::import2::unzip::UNZIP_JOB.to_string(),
+            class: omeka_api::import::unzip::UNZIP_JOB.to_string(),
             args: Some(json!({ "importId": id, "upload": zip.id })),
             log: None,
             started: None,

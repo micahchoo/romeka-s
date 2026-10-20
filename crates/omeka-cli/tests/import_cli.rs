@@ -11,7 +11,7 @@ use std::process::{Command, Output};
 use std::time::Duration;
 
 use import_site::{Site, jpeg, rule, site, tiff};
-use omeka_api::import2::plan::{SourcePlan, default_plan};
+use omeka_api::import::plan::{SourcePlan, default_plan};
 use omeka_db::repos::ImportRepo;
 use omeka_db::rows::ImportStatus;
 use serde_json::{Value, json};

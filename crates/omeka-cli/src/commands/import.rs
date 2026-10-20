@@ -1,7 +1,7 @@
 //! `romeka import`: the importer's second front end, and a resource template
 //! from JSON.
 //!
-//! `run`, `undo` and `list` call the same `omeka_api::import2` functions the
+//! `run`, `undo` and `list` call the same `omeka_api::import` functions the
 //! routes do and run the job bodies in this process
 //! (`docs/import-v2.md`, "Command line"). `template` reads one resource
 //! template.
