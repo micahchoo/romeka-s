@@ -133,6 +133,7 @@ export const neServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
+  'server.settingNotCount': 'सेटिङ {key} शून्यभन्दा माथिको पूर्ण सङ्ख्या वा शून्य हुनुपर्छ।',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्दलाई हटाउन वा पुन: नामकरण गर्न सकिँदैन: {terms}। यसलाई यसको सट्टा डिप्रिकेट गर्नुहोस्।',
   'server.publicationNamespaceFixed':
@@ -158,4 +159,127 @@ export const neServer: ServerCatalogue = {
   'server.publicationMatchInvalid': 'मिलान (match) एउटा पूर्ण http वा https URI हुनुपर्छ।',
   'server.publicationMatchTermLists': 'केवल एउटा शब्द सूचीको शब्दले एउटा आधिकारिकतालाई लिङ्क गर्छ।',
   'server.publicationTermIriInvalid': 'शब्द URI {uri} एउटा मान्य IRI होइन।',
+  'server.importAdminsOnly':
+    'केवल एक विश्वव्यापी वा साइट प्रशासकले मात्र एउटा आर्काइभ आयात गर्न सक्छन्।',
+  'server.importNotFound': '{id} आइडी भएको कुनै आयात छैन।',
+  'server.importRequestUnreadable': 'अनुरोध पढ्न सकिँदैन: {reason}',
+  'server.importPlanRefused': 'आयातको सेटिङहरू सुरक्षित गर्न सकिँदैन: {reason}',
+  'server.importStale':
+    'कसैले यसलाई तपाईँले खोलेपछि यस आयातलाई सुरक्षित गर्‍यो। यसका परिवर्तनहरू हेर्नका लागि यसलाई पुनः लोड गर्नुहोस्।',
+  'server.importPlanFrozen':
+    'यो आयात पहिले नै सुरु भइसकेको छ, त्यसैले यसको सेटिङहरू परिवर्तन गर्न सकिँदैन। यसलाई परिवर्तन गर्नका लागि प्रतिलिपि बनाउनुहोस्।',
+  'server.importV1Plan':
+    'यो आयात पुरानो आयातकर्ताद्वारा गरिएको हो, त्यसैले यसलाई यहाँ खोल्न वा प्रतिलिपि गर्न सकिँदैन।',
+  'server.importTypeExists':
+    'Omeka मा पहिले नै "{label}" नामको एउटा वस्तु प्रकार छ। नयाँ प्रकारका लागि अर्को नाम छान्नुहोस्।',
+  'server.importDeleteNotDraft':
+    'केवल अहिलेसम्म नथपिएको आयात मात्र मेट्न सकिन्छ। चलिसकेको आयात अघिल्ला आयातहरूमा रहन्छ।',
+  'server.importChanged':
+    'अन्तिम जाँचपछि फाइलहरू वा आयातको सेटिङहरू परिवर्तन भएका छन्। यसलाई चलाउनु अघि आयातलाई पुनः जाँच गर्नुहोस्।',
+  'server.importBlocked':
+    'यो आयात तबसम्म चल्न सक्दैन जबसम्म जाँच सूचीमा रहेका समस्याहरू समाधान हुँदैनन्।',
+  'server.importNothingToRun': 'यस आयातमा लेख्नका लागि केही छैन।',
+  'server.importConfirmDelete':
+    'यो आयातले {count} वटा वस्तु, मिडिया र वस्तु सेटहरू मेटाउँछ र यसलाई पूर्ववत गर्न सकिँदैन। यसलाई चलाउनका लागि त्यो सङ्ख्या पुष्टि गर्नुहोस्।',
+  'server.importBusy':
+    'अर्को आयात चल्दैछ वा पूर्ववत भइरहेको छ। यो समाप्त भएपछि पुनः प्रयास गर्नुहोस्।',
+  'server.importCannotRun':
+    'केवल एउटा आयात जुन अहिलेसम्म थपिएको छैन, जुन अन्त्य हुनु अघि रोकिएको थियो, वा जुन असफलताका साथ समाप्त भएको थियो, त्यसले मात्र चल्न सक्छ।',
+  'server.importCannotUndo':
+    'केवल एउटा आयात जुन समाप्त भएको छ, वा जुन अन्त्य हुनु अघि रोकिएको थियो, त्यसलाई मात्र पूर्ववत गर्न सकिन्छ।',
+  'server.importNotRunning': 'यो आयात चल्दैछैन।',
+  'server.importNoRoot': '"{root}" नामको कुनै आर्काइभ फोल्डर छैन।',
+  'server.importOutsideRoot': '"{path}" फोल्डर आर्काइभ फोल्डरको बाहिर छ।',
+  'server.importFolderMissing': 'आर्काइभमा "{path}" फोल्डर छैन।',
+  'server.importNotAFolder': '"{path}" एउटा फाइल हो, फोल्डर होइन।',
+  'server.importScanBusy':
+    'यो आयात चल्दैछ वा पूर्ववत भइरहेको छ। यो समाप्त भएपछि फाइलहरू फेरि हेर्नुहोस्।',
+  'server.importNoLeftFile':
+    'यो आयातमा अहिलेसम्म बाहिर राखिएका फाइलहरूको सूची छैन। यो तब लेखिन्छ जब एउटा रन समाप्त हुन्छ।',
+  'server.importJobNotStarted': 'आयात सुरु हुन सकेन: {reason}',
+  'server.importListColumnUnknown':
+    'सूचीमा "{column}" कोलम हुन सक्दैन। कुनै प्रोपर्टी, आइटम सेट, आइटम टाइप वा भिजुअलिटी छान्नुहोस्।',
+  'server.importListOneFile': 'फारममा एउटा सूची फाइल पठाउनुहोस्।',
+  'server.importListType':
+    '"{name}" .csv, .tsv, .xlsx, .xls वा .ods फाइल होइन। यस सूचीलाई यी मध्ये कुनै एकको रूपमा सुरक्षित गर्नुहोस्, त्यसपछि यसलाई पुनः पठाउनुहोस्।',
+  'server.importListTooLarge': 'सूची 50 MB भन्दा ठुलो छ।',
+  'server.importListUnread': 'सूची पढ्न सकिएन: {reason}',
+  'server.importListNoIdentifier':
+    'सूचीमा कुनै आइडेन्टिफायर कोलम छैन, त्यसैले यसका पङ्क्तिहरूले आफ्ना वस्तुहरू फेला पार्न सक्दैनन्। तपाईँले डाउनलोड गर्नुभएको सूचीको आइडेन्टिफायर कोलम सुरक्षित राख्नुहोस्।',
+  'server.importPairsColumns':
+    'सूचीमा Row र Files स्तम्भ आवश्यक छन्। तपाईँले डाउनलोड गर्नुभएको सूचीका दुवै स्तम्भ राख्नुहोस्।',
+  'server.importFileUnreadable': 'फाइल "{path}" पढ्न सकिएन: {reason}',
+  'server.importFileRefused': 'फाइल "{path}" थपिएन: {reason}',
+  'server.importFileNotStored': 'फाइल "{path}" भण्डारण गर्न सकिएन: {reason}',
+  'server.importSourceRefused': '"{source}" थपिएन: {reason}',
+  'server.importMediaNoSource': 'यस मिडियामा थप्न कुनै फाइल वा ठेगाना तोकिएको छैन।',
+  'server.importMediaNoItem': 'यस मिडियाको वस्तु थपिएन, त्यसैले मिडिया पनि थपिएन।',
+  'server.importResourceGone':
+    'यो रेकर्ड परिवर्तन गर्ने मिडिया, वस्तु वा वस्तु सेट अब Omeka मा छैन।',
+  'server.importRecordNotSaved': 'यो रेकर्ड सुरक्षित गर्न सकिएन: {reason}',
+  'server.importLinksNotSaved': 'यस रेकर्डका लिङ्कहरू सुरक्षित गर्न सकिएन: {reason}',
+  'server.importRecordNotDeleted': 'यो मेटाइएन: {reason}',
+  'server.importDeleteNotUndone':
+    'जसले वस्तु, मिडिया वा वस्तु सेट मेटायो, त्यस आयातलाई पूर्ववत गर्न सकिँदैन।',
+  'server.importSitesNotJoined':
+    'यो वस्तु थपियो, तर यसलाई यसका साइटहरूमा समावेश गर्न सकिएन: {reason}',
+  'server.importUndoEdited': 'आयातले यो लेखेपछि यसलाई सम्पादन गरिएको हो।',
+  'server.importUndoLinked':
+    'यस आयात बाहिरको कुनै वस्तु, मिडिया वा वस्तु सेटले यसलाई लिङ्क गरेको छ।',
+  'server.importUndoMediaAdded': 'यस आयात बाहिरबाट यस वस्तुमा मिडिया थपिएको छ।',
+  'server.importUndoMembersAdded': 'यस आयात बाहिरका वस्तुहरू यस वस्तु सेटमा राखिएका छन्।',
+  'server.importUndoLaterImport': 'यस आयातपछि आयात {import} ले यसलाई परिवर्तन गर्‍यो।',
+  'server.importUndoInUse':
+    'यस आयात बाहिरका वस्तु, मिडिया, वस्तु सेट वा वस्तु प्रकारहरूले यसको प्रयोग गर्छन्।',
+  'server.importUndoItemKept': 'यस मिडियाको वस्तु सुरक्षित छ, त्यसैले मिडिया पनि सुरक्षित छ।',
+  'server.importUndoMemberKept':
+    'यस वस्तु सेटको एउटा वस्तु सुरक्षित छ, त्यसैले वस्तु सेट पनि सुरक्षित छ।',
+  'server.importUndoStopped': 'पूर्ववत गर्ने काम अन्त्य हुनुअघि नै रोकियो: {reason}',
+  'server.importUploadOwnerOnly':
+    'केवल यस आयात सुरु गर्ने व्यक्ति वा ग्लोबल एडमिनिस्ट्रेटरले मात्र यसमा फाइलहरू थप्न सक्छन्।',
+  'server.importUploadNotDraft':
+    'फाइलहरू आयात चल्नुअघि मात्र थप्न सकिन्छ। थप फाइलहरू थप्न, यस आयातको प्रतिलिपि बनाउनुहोस्।',
+  'server.importUploadPath': 'फाइलको नाम "{path}" प्रयोग गर्न सकिँदैन: {reason}।',
+  'server.importUploadTooLarge':
+    'यो फाइल {limit} बाइट्सभन्दा ठुलो छ, जुन आयातले लिने सबैभन्दा ठुलो फाइल हो।',
+  'server.importUploadFull':
+    'यस आयातका फाइलहरूले {limit} बाइट्स नाघ्नेछन्, जुन आयातले एकै पटकमा राख्न सक्ने अधिकतम फाइल हो। केही फाइलहरू हटाउनुहोस्, वा आफ्ना फाइलहरू पुगेर सकिएपछि, पुनः प्रयास गर्नुहोस्।',
+  'server.importUploadChunkTooLarge':
+    'यो अनुरोधले {limit} बाइट्सभन्दा बढी बोकेको छ। फाइललाई साना टुक्राहरूमा पठाउनुहोस्।',
+  'server.importUploadInProgress':
+    '"{path}" अझै बाटोमै छ। यसलाई पुनः सुरु गर्नुको सट्टा, त्यसै अपलोड जारी राख्नुहोस्।',
+  'server.importUploadNotFound': 'यस आयातमा "{upload}" id भएको कुनै पनि अपलोड छैन।',
+  'server.importUploadOffset':
+    'सर्भरले यस फाइलको {received} बाइट्स प्राप्त गरेको छ। तिनीहरू पछि आउने बाइट्सहरू पठाउनुहोस्।',
+  'server.importUploadPastLength': 'यी बाइट्सहरूले यस अपलोडले घोषणा गरेको आकार नाघ्छन्।',
+  'server.importUploadLength': 'फाइलको आकार बाइट्समा पठाउन Upload-Length प्रयोग गर्नुहोस्।',
+  'server.importUploadMetadata':
+    'फाइलको नाम "filename" को रूपमा र base64 मा यसको नाम "name" को रूपमा Upload-Metadata पठाउनुहोस्।',
+  'server.importUploadOffsetMissing':
+    'पहिले नै पठाइसकिएका बाइट्सको सङ्ख्याको साथ Upload-Offset पठाउनुहोस्।',
+  'server.importUploadContentType':
+    'Content-Type application/offset+octet-stream को साथ बाइट्स पठाउनुहोस्।',
+  'server.importUploadVersion':
+    'यो सर्भरले Resumable Upload प्रोटोकलको संस्करण 1.0.0 बोल्छ। Tus-Resumable: 1.0.0 पठाउनुहोस्।',
+  'server.importUploadInterrupted':
+    'बाइट्सहरू अनुरोध समाप्त हुनु अघि आइपुग्न छोड्यो, त्यसैले तीमध्ये कुनै पनि राखिएनन्। अफसेट माग्नुहोस् र तिनीहरूलाई फेरि पठाउनुहोस्।',
+  'server.importZipEscapes': '"{name}" ZIP मा यसको फोल्डर बाहिर अवतरण हुनेछ, त्यसैले यसलाई हटाइयो।',
+  'server.importZipLink': '"{name}" ZIP मा एउटा लिङ्क हो, त्यसैले यसलाई हटाइयो।',
+  'server.importZipUnusable': '"{name}" ZIP मा {reason} भएको नाम छ, त्यसैले यसलाई हटाइयो।',
+  'server.importZipUnsupported':
+    '"{name}" ZIP मा इन्क्रिप्ट गरिएको छ वा यस्तो तरिकाले प्याक गरिएको छ जुन Romeka S ले खोल्न सक्दैन, त्यसैले यसलाई हटाइयो।',
+  'server.importZipRenamed':
+    '"{name}" ZIP मा ठुला अक्षरहरूलाई बेवास्ता गर्दा पहिलेको फाइलको नाम जस्तै छ, त्यसैले यसलाई "{renamed}" को रूपमा थपियो।',
+  'server.importZipBomb':
+    'ZIP लाई अस्वीकार गरियो: "{name}" ले आफ्नो प्याक गरिएको आकारको 100 गुणाभन्दा बढी खोल्छ। यसबाट केही पनि थपिएन।',
+  'server.importZipFull':
+    'ZIP लाई अस्वीकार गरियो: यसका फाइलहरूले {limit} बाइट्स पार गर्नेछन्, जुन एक आयातले राख्न सक्ने सबैभन्दा बढी हो। यसबाट केही पनि थपिएन।',
+  'server.importZipTooMany':
+    'ZIP लाई अस्वीकार गरियो: यसमा {count} फाइलहरू छन्, जुन 100,000 भन्दा बढी छन्। यसबाट केही पनि थपिएन।',
+  'server.importZipFileTooLarge':
+    'ZIP लाई अस्वीकार गरियो: "{name}" {limit} बाइट्स भन्दा ठुलो छ, जुन सबैभन्दा ठुलो फाइल हो जसले आयात लिन्छ। यसबाट केही पनि थपिएन।',
+  'server.importZipUnreadable':
+    'ZIP लाई अस्वीकार गरियो: यसलाई पढ्न सकिएन ({reason})। यसबाट केही पनि थपिएन।',
+  'server.importZipUnpacked': 'ZIP लाई खोल्दा: {count} फाइलहरू थपिए।',
+  'server.importSweepDone': '{imports} आयातहरूका फाइलहरू हटाइयो, र {uploads} अपूर्ण अपलोडहरू।',
 };

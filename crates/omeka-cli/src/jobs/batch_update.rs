@@ -20,8 +20,9 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use omeka_db::ids::{PropertyId, ResourceId, ValueId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ValueRepo};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo};
 use omeka_db::rows::{ValueContent, ValueRow};
+use omeka_db::with_db;
 
 use super::query::{chunk_size, query_arg};
 use super::{Job, JobContext, JobError};
@@ -157,36 +158,36 @@ async fn item_ids(
     context: &JobContext<'_>,
     query: &super::query::BatchQuery,
 ) -> Result<Vec<ResourceId>, JobError> {
-    Ok(ItemRepo::new(context.pool)
+    Ok(with_db!(context.pool, |db| ItemRepo::new(db)
         .list(&query.item_filter(), &Paging::default())
-        .await?
-        .into_iter()
-        .map(|row| row.resource.id)
-        .collect())
+        .await)?
+    .into_iter()
+    .map(|row| row.resource.id)
+    .collect())
 }
 
 async fn item_set_ids(
     context: &JobContext<'_>,
     query: &super::query::BatchQuery,
 ) -> Result<Vec<ResourceId>, JobError> {
-    Ok(ItemSetRepo::new(context.pool)
+    Ok(with_db!(context.pool, |db| ItemSetRepo::new(db)
         .list(&query.item_set_filter(), &Paging::default())
-        .await?
-        .into_iter()
-        .map(|row| row.resource.id)
-        .collect())
+        .await)?
+    .into_iter()
+    .map(|row| row.resource.id)
+    .collect())
 }
 
 async fn media_ids(
     context: &JobContext<'_>,
     query: &super::query::BatchQuery,
 ) -> Result<Vec<ResourceId>, JobError> {
-    Ok(MediaRepo::new(context.pool)
+    Ok(with_db!(context.pool, |db| MediaRepo::new(db)
         .list(&query.media_filter(), &Paging::default())
-        .await?
-        .into_iter()
-        .map(|row| row.resource.id)
-        .collect())
+        .await)?
+    .into_iter()
+    .map(|row| row.resource.id)
+    .collect())
 }
 
 async fn update_entries(context: &JobContext<'_>, name: &str) -> Result<Entries, JobError> {
@@ -215,12 +216,19 @@ async fn update_one(
     resource: ResourceId,
     edit: &Edit,
 ) -> Result<(), JobError> {
-    let values = ValueRepo::new(context.pool);
-    let plan = edit.plan(&values.list_for_resource(resource).await?);
+    let plan = edit.plan(&with_db!(context.pool, |db| ValueRepo::new(db)
+        .list_for_resource(resource)
+        .await)?);
     if plan.delete.is_empty() && plan.insert.is_empty() {
         return Ok(());
     }
-    values.rewrite(resource, &plan.delete, &plan.insert).await?;
+    with_db!(context.pool, |db| ValueRepo::new(db)
+        .rewrite(resource, &plan.delete, &plan.insert)
+        .await)?;
+    // Upstream's batch update runs the adapter's `updateTimestamps`.
+    with_db!(context.pool, |db| ResourceRepo::new(db)
+        .touch(&[resource])
+        .await)?;
     Ok(())
 }
 
@@ -229,6 +237,7 @@ mod tests {
     use super::*;
     use crate::jobs::Runner;
     use crate::testing::{compose, refuse_value, seeded_db, site_items, synced_site};
+    use omeka_db::DbPool;
     use omeka_db::ids::ItemId;
     use omeka_db::repos::ValueRepo;
     use omeka_db::rows::{NewItem, NewResource};
@@ -245,7 +254,9 @@ mod tests {
             .await
             .unwrap();
         for (term, text) in values {
-            let property = crate::terms::resolve_property(pool, term).await.unwrap();
+            let property = crate::terms::resolve_property(&DbPool::from(pool.clone()), term)
+                .await
+                .unwrap();
             ValueRepo::new(pool)
                 .create(&ValueContent::literal(property, *text).on(item.resource.id))
                 .await
@@ -265,8 +276,9 @@ mod tests {
     }
 
     async fn run(pool: &sqlx::SqlitePool, args: serde_json::Value) -> omeka_db::ids::JobId {
-        let job_id = compose(pool, &BatchUpdate, args).await;
-        Runner::new(pool).run(job_id).await.expect("run");
+        let pool = DbPool::from(pool.clone());
+        let job_id = compose(&pool, &BatchUpdate, args).await;
+        Runner::new(&pool).run(job_id).await.expect("run");
         job_id
     }
 
@@ -286,7 +298,8 @@ mod tests {
         .await;
 
         assert_eq!(texts(&db.pool, item).await, ["old"]);
-        let log = crate::store::job_get(&db.pool, job_id)
+        let log = omeka_db::repos::JobRepo::new(&db.pool)
+            .get(job_id)
             .await
             .unwrap()
             .and_then(|job| job.log)
@@ -341,7 +354,7 @@ mod tests {
             .unwrap();
         let resource = item.resource.id;
         let values = ValueRepo::new(&db.pool);
-        let description = crate::terms::resolve_property(&db.pool, "dcterms:description")
+        let description = crate::terms::resolve_property(&db.db_pool, "dcterms:description")
             .await
             .unwrap();
         values
@@ -350,7 +363,7 @@ mod tests {
             .unwrap();
 
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchUpdate,
             serde_json::json!({
                 "resource": "items",
@@ -359,7 +372,7 @@ mod tests {
             }),
         )
         .await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
 
         let stored = values.list_for_resource(resource).await.unwrap();
         let description_texts: Vec<&str> = stored
@@ -369,7 +382,7 @@ mod tests {
             .collect();
         assert_eq!(description_texts, ["new"]);
 
-        let subject = crate::terms::resolve_property(&db.pool, "dcterms:subject")
+        let subject = crate::terms::resolve_property(&db.db_pool, "dcterms:subject")
             .await
             .unwrap();
         let subject_texts: Vec<&str> = stored
@@ -379,7 +392,8 @@ mod tests {
             .collect();
         assert_eq!(subject_texts, ["one", "two"]);
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),
@@ -402,7 +416,7 @@ mod tests {
             .unwrap();
         let resource = item.resource.id;
         let values = ValueRepo::new(&db.pool);
-        let subject = crate::terms::resolve_property(&db.pool, "dcterms:subject")
+        let subject = crate::terms::resolve_property(&db.db_pool, "dcterms:subject")
             .await
             .unwrap();
         values
@@ -415,7 +429,7 @@ mod tests {
             .unwrap();
 
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchUpdate,
             serde_json::json!({
                 "resource": "items",
@@ -423,7 +437,7 @@ mod tests {
             }),
         )
         .await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
 
         let stored = values.list_for_resource(resource).await.unwrap();
         let remaining: Vec<&str> = stored

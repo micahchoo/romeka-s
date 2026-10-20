@@ -1,13 +1,7 @@
-//! `assets`, `jobs` and `modules`, plus the two row queries `site_pages` and
-//! `value_annotations` need for their listings.
-//!
-//! `omeka-db` keeps a row struct for every one of these tables but no
-//! repository walks them, and the readgaps brief forbids editing that crate.
-//! `DESIGN.md` says SQL strings live in `omeka-db` only, so the two rules
-//! cannot both hold; the brief wins and the queries sit here, one per table.
-//! Every row still parses through the `omeka_db::rows` struct for its table, so
-//! the boundary is unchanged: raw columns in, typed rows out. Reported as a
-//! deviation from `DESIGN.md`.
+//! `assets`, `jobs` and `modules`, plus the two row reads `site_pages` and
+//! `value_annotations` need for their listings. Each list reads every row
+//! through its `omeka_db` repository and filters, sorts and pages in memory,
+//! the way the adapters below describe.
 //!
 //! The representations are `AssetRepresentation`, `JobRepresentation` and
 //! `ModuleRepresentation`. `ModuleRepresentation` reads `o:ini` from the
@@ -16,11 +10,15 @@
 
 use std::cmp::Ordering;
 
+use omeka_db::DbPool;
 use omeka_db::ids::{AssetId, JobId, UserId};
-use omeka_db::repos::{compare_opt_text_ci, compare_text_ci};
+use omeka_db::repos::{
+    AssetFilter, AssetRepo, JobFilter, JobRepo, ModuleRepo, Paging, ResourceRepo, SiteRepo,
+    compare_opt_text_ci, compare_text_ci,
+};
 use omeka_db::rows::{AssetRow, JobRow, ModuleRow, ResourceRow, SitePageRow, resource_type};
+use omeka_db::with_db;
 use omeka_media::store::FileKind;
-use sqlx::SqlitePool;
 
 use super::paging::{Limit, Window, ordered_page};
 use super::params::{Params, Sort};
@@ -121,31 +119,15 @@ fn cmp_asset(field: &str) -> impl Fn(&AssetRow, &AssetRow) -> Ordering + '_ {
     }
 }
 
-async fn asset_rows(pool: &SqlitePool) -> Result<Vec<AssetRow>, ApiError> {
-    let rows = sqlx::query(
-        "SELECT id, owner_id, name, media_type, storage_id, extension, alt_text FROM asset",
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(ApiError::internal)?;
-    rows.iter()
-        .map(AssetRow::from_row)
-        .collect::<Result<_, _>>()
-        .map_err(db_error)
+async fn asset_rows(pool: &DbPool) -> Result<Vec<AssetRow>, ApiError> {
+    with_db!(pool, |db| AssetRepo::new(db)
+        .list(&AssetFilter::default(), &Paging::default())
+        .await)
+    .map_err(db_error)
 }
 
-async fn asset_row(pool: &SqlitePool, id: AssetId) -> Result<Option<AssetRow>, ApiError> {
-    let row = sqlx::query(
-        "SELECT id, owner_id, name, media_type, storage_id, extension, alt_text \
-         FROM asset WHERE id = ?",
-    )
-    .bind(id.0 as i64)
-    .fetch_optional(pool)
-    .await
-    .map_err(ApiError::internal)?;
-    row.map(|row| AssetRow::from_row(&row))
-        .transpose()
-        .map_err(db_error)
+async fn asset_row(pool: &DbPool, id: AssetId) -> Result<Option<AssetRow>, ApiError> {
+    with_db!(pool, |db| AssetRepo::new(db).get(id).await).map_err(db_error)
 }
 
 // ------------------------------------------------------------------- jobs
@@ -231,30 +213,15 @@ fn cmp_job(field: &str) -> impl Fn(&JobRow, &JobRow) -> Ordering + '_ {
     }
 }
 
-async fn job_rows(pool: &SqlitePool) -> Result<Vec<JobRow>, ApiError> {
-    let rows =
-        sqlx::query("SELECT id, owner_id, pid, status, class, args, log, started, ended FROM job")
-            .fetch_all(pool)
-            .await
-            .map_err(ApiError::internal)?;
-    rows.iter()
-        .map(JobRow::from_row)
-        .collect::<Result<_, _>>()
-        .map_err(db_error)
+async fn job_rows(pool: &DbPool) -> Result<Vec<JobRow>, ApiError> {
+    with_db!(pool, |db| JobRepo::new(db)
+        .list(&JobFilter::default(), &Paging::default())
+        .await)
+    .map_err(db_error)
 }
 
-async fn job_row(pool: &SqlitePool, id: JobId) -> Result<Option<JobRow>, ApiError> {
-    let row = sqlx::query(
-        "SELECT id, owner_id, pid, status, class, args, log, started, ended \
-         FROM job WHERE id = ?",
-    )
-    .bind(id.0 as i64)
-    .fetch_optional(pool)
-    .await
-    .map_err(ApiError::internal)?;
-    row.map(|row| JobRow::from_row(&row))
-        .transpose()
-        .map_err(db_error)
+async fn job_row(pool: &DbPool, id: JobId) -> Result<Option<JobRow>, ApiError> {
+    with_db!(pool, |db| JobRepo::new(db).get(id).await).map_err(db_error)
 }
 
 // ---------------------------------------------------------------- modules
@@ -313,58 +280,25 @@ fn module_doc(api: &Api<'_>, row: &ModuleRow) -> crate::wire::module::Module {
     }
 }
 
-async fn module_rows(pool: &SqlitePool) -> Result<Vec<ModuleRow>, ApiError> {
-    let rows = sqlx::query("SELECT id, is_active, version FROM module")
-        .fetch_all(pool)
-        .await
-        .map_err(ApiError::internal)?;
-    rows.iter()
-        .map(ModuleRow::from_row)
-        .collect::<Result<_, _>>()
-        .map_err(db_error)
+async fn module_rows(pool: &DbPool) -> Result<Vec<ModuleRow>, ApiError> {
+    with_db!(pool, |db| ModuleRepo::new(db).list().await).map_err(db_error)
 }
 
-async fn module_row(pool: &SqlitePool, id: &str) -> Result<Option<ModuleRow>, ApiError> {
-    let row = sqlx::query("SELECT id, is_active, version FROM module WHERE id = ?")
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(ApiError::internal)?;
-    row.map(|row| ModuleRow::from_row(&row))
-        .transpose()
-        .map_err(db_error)
+async fn module_row(pool: &DbPool, id: &str) -> Result<Option<ModuleRow>, ApiError> {
+    with_db!(pool, |db| ModuleRepo::new(db).get(id).await).map_err(db_error)
 }
 
 // -------------------------------------------------- rows other reads list
 
 /// Every `value_annotation` resource, for `ValueAnnotationAdapter::search`.
-pub(crate) async fn annotation_rows(pool: &SqlitePool) -> Result<Vec<ResourceRow>, ApiError> {
-    let rows = sqlx::query(
-        "SELECT id, owner_id, resource_class_id, resource_template_id, thumbnail_id, \
-         title, is_public, created, modified, resource_type FROM resource \
-         WHERE resource_type = ?",
-    )
-    .bind(resource_type::VALUE_ANNOTATION)
-    .fetch_all(pool)
-    .await
-    .map_err(ApiError::internal)?;
-    rows.iter()
-        .map(ResourceRow::from_row)
-        .collect::<Result<_, _>>()
-        .map_err(db_error)
+pub(crate) async fn annotation_rows(pool: &DbPool) -> Result<Vec<ResourceRow>, ApiError> {
+    with_db!(pool, |db| ResourceRepo::new(db)
+        .list_of_type(resource_type::VALUE_ANNOTATION)
+        .await)
+    .map_err(db_error)
 }
 
 /// Every `site_page` row, for `SitePageAdapter::search`.
-pub(crate) async fn page_rows(pool: &SqlitePool) -> Result<Vec<SitePageRow>, ApiError> {
-    let rows = sqlx::query(
-        "SELECT id, site_id, slug, title, is_public, layout, layout_data, created, modified \
-         FROM site_page",
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(ApiError::internal)?;
-    rows.iter()
-        .map(SitePageRow::from_row)
-        .collect::<Result<_, _>>()
-        .map_err(db_error)
+pub(crate) async fn page_rows(pool: &DbPool) -> Result<Vec<SitePageRow>, ApiError> {
+    with_db!(pool, |db| SiteRepo::new(db).list_all_pages().await).map_err(db_error)
 }

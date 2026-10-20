@@ -1,540 +1,353 @@
-//! The preview: the sections of the model a tab asks for, a page at a time.
+//! The preview: one import derived against its stored index, and the
+//! sections the admin asks for (`docs/import-v2.md`, "Wire").
 //!
-//! [`PreviewRequest`] is the parse boundary for `POST .../preview`. [`build`]
-//! answers only the sections the request names; rows and files come back as
-//! a filtered page, so the browser never holds the whole folder.
+//! [`derive_import`] gathers the derive's input: the index from the
+//! database ([`scan::load`], warm from [`IndexCache`]), the catalog
+//! ([`catalog_load::load`]), the plan's sheets from disk through
+//! [`SheetCache`] (a staging sheet through the [`Store`]), and file tags
+//! read lazily through the shared [`TagCache`]. Only a tag a slot rule names
+//! opens a file. The derive runs on the blocking pool. [`preview`] then cuts
+//! the sections from the model; it is pure except for the `tags` section,
+//! which reads the tags of at most [`TAG_SAMPLES`] files. A section is
+//! computed only when the request names it.
 
-use std::collections::{BTreeMap, BTreeSet};
+mod causes;
+mod columns;
+mod counts;
+mod evidence;
+mod facts;
+mod identical;
+mod names;
+pub mod pairs;
+mod query;
+mod sample;
+mod sheets;
+mod unpaired;
 
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use omeka_db::Backend;
+use omeka_db::DbError;
+use omeka_db::ids::ImportId;
+use omeka_media::store::Store;
+use omeka_media::validation::FileValidation;
 use serde::{Deserialize, Serialize};
+use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
+pub use causes::{FlagCount, FlagSample};
+pub use columns::{ColumnMatches, SheetMatches};
+pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
+pub use evidence::{
+    ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView, WorkbookView,
+};
+pub use facts::{Bucket, BucketCount, MediaKind, PAGE, SAMPLES, ShapeFacts, ShapeGroup, Shapes};
+pub use identical::{IdenticalFiles, IdenticalView};
+pub use names::{NameWords, NameWordsQuery, WordCount};
+pub use query::{
+    EntriesQuery, EntryKind, EntryView, MAX_PER_PAGE, Page, PageQuery, RecordView, RecordsQuery,
+    SetFilter, TemplateFilter, Unused,
+};
+pub use sheets::{MAX_BYTES, MAX_SHEETS, ReadSheet, SheetCache, staging_path};
+pub use unpaired::{Unpaired, UnpairedFile, UnpairedQuery, UnpairedRow};
+
+use super::archive::{ArchiveRoots, SourceDir};
 use super::catalog::Catalog;
-use super::check::Check;
-use super::csv::sheet::{self, Detected};
-use super::derive::{Column, Model, Row};
-use super::grouping::SetEntry;
-use super::inputs::Inputs;
-use super::plan::{Delimiter, ImportPlan};
-use super::problems::{ProblemKind, RowProblem};
-use super::tags::{TAGS, TagCache, TagKind};
-use super::values::Source;
+use super::catalog_load::{self, Owners};
+use super::check::{Check, check};
+use super::decisions::EntryRef;
+use super::derive::{FileTags, Sheets, derive};
+use super::evidence::FileEntry;
+use super::model::{Anomaly, Model, OrphanReason, PatternState};
+use super::plan::{ImportPlanV2, SheetId, SourceId, SourcePlan, TagId};
+use super::scan::{self, IndexCache, SourceState, StoredIndex};
+use super::tags::{Embedded, TagCache};
+use facts::Facts;
+use query::FlagsBy;
 
-/// The most rows one page holds.
-pub const ROWS_LIMIT: usize = 200;
-/// The most files one page holds.
-pub const FILES_LIMIT: usize = 1000;
-const DEFAULT_LIMIT: usize = 50;
+/// How many files the `tags` section reads tags from.
+pub const TAG_SAMPLES: usize = 5;
 
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+/// The caches one process shares across previews.
+#[derive(Default)]
+pub struct Caches {
+    pub tags: TagCache,
+    pub sheets: SheetCache,
+    pub index: IndexCache,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Section {
+    Entries,
+    Sheets,
+    Tags,
+    Records,
+    Flags,
+    Anomalies,
+    Orphans,
+    Check,
+    Shapes,
+    Histogram,
+    Identical,
+    Unpaired,
+    Values,
+    NameWords,
+    ColumnMatches,
+}
+
+/// `POST /api/romeka/imports/{id}/preview`.
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreviewRequest {
-    pub include: BTreeSet<Section>,
+    pub include: Vec<Section>,
+    /// A plan to preview in place of the stored one; it is not saved.
     #[serde(default)]
-    pub files: FilesQuery,
+    pub plan: Option<serde_json::Value>,
     #[serde(default)]
-    pub rows: RowsQuery,
-    /// A plan to derive from instead of the stored one: edits the admin has
-    /// not saved yet, or a candidate pattern. It passes the same boundary as
-    /// a saved plan.
-    #[serde(default, deserialize_with = "plan_override")]
-    pub plan: Option<ImportPlan>,
+    pub records: Option<RecordsQuery>,
+    #[serde(default)]
+    pub entries: Option<EntriesQuery>,
+    /// The page of `shapes` groups.
+    #[serde(default)]
+    pub shapes: Option<PageQuery>,
+    #[serde(default)]
+    pub identical: Option<PageQuery>,
+    #[serde(default)]
+    pub unpaired: Option<UnpairedQuery>,
+    #[serde(default)]
+    pub values: Option<ValuesQuery>,
+    #[serde(default)]
+    pub name_words: Option<NameWordsQuery>,
+    /// Draws the sample records of `shapes` and `flags`; 0 when left out.
+    #[serde(default)]
+    pub seed: Option<u64>,
 }
 
-fn plan_override<'de, D>(deserializer: D) -> Result<Option<ImportPlan>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
-    value
-        .map(|value| ImportPlan::from_json(&value).map_err(serde::de::Error::custom))
-        .transpose()
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrphanView {
+    pub decision: usize,
+    pub reason: OrphanReason,
+    /// The entry the reason is about, not the whole decision: a `many`
+    /// decision holds thousands of entries.
+    pub entry: EntryRef,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Section {
-    Files,
-    Sets,
-    Csv,
-    Tags,
-    Rows,
-    Check,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum FileFilter {
-    #[default]
-    All,
-    Match,
-    Miss,
-}
-
-/// Files of items with this many files; 3 means three or more.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(try_from = "u8")]
-pub struct PerItem(usize);
-
-impl TryFrom<u8> for PerItem {
-    type Error = String;
-
-    fn try_from(value: u8) -> Result<Self, String> {
-        match value {
-            1..=3 => Ok(Self(usize::from(value))),
-            _ => Err(format!("perItem is 1, 2 or 3, not {value}")),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields, default)]
-pub struct FilesQuery {
-    pub filter: FileFilter,
-    pub per_item: Option<PerItem>,
-    pub offset: usize,
-    pub limit: usize,
-}
-
-impl Default for FilesQuery {
-    fn default() -> Self {
-        Self {
-            filter: FileFilter::All,
-            per_item: None,
-            offset: 0,
-            limit: DEFAULT_LIMIT,
-        }
-    }
-}
-
-/// `kind` alone matches a kind in any field; with `term`, in that field only.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields, default)]
-pub struct RowsQuery {
-    pub problems_only: bool,
-    /// Only the rows whose identifier an item already holds.
-    pub existing_only: bool,
-    pub kind: Option<ProblemKind>,
-    pub term: Option<String>,
-    pub query: Option<String>,
-    pub offset: usize,
-    pub limit: usize,
-}
-
-impl Default for RowsQuery {
-    fn default() -> Self {
-        Self {
-            problems_only: false,
-            existing_only: false,
-            kind: None,
-            term: None,
-            query: None,
-            offset: 0,
-            limit: DEFAULT_LIMIT,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// The answer: every source's scan state and the pattern's state, then
+/// each section the request named.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Preview {
+    pub sources: Vec<SourceState>,
+    pub pattern: PatternState,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<PreviewError>,
+    pub entries: Option<Page<EntryView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub files: Option<FilesSection>,
+    pub sheets: Option<Vec<SheetView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sets: Option<Vec<SetEntry>>,
+    pub tags: Option<Vec<TagView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub csv: Option<CsvSection>,
+    pub records: Option<Page<RecordView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<TagSection>>,
+    pub flags: Option<Vec<FlagCount>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rows: Option<RowsSection>,
+    pub anomalies: Option<Vec<Anomaly>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub orphans: Option<Vec<OrphanView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub check: Option<Check>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PreviewError {
-    pub key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilesSection {
-    pub total: usize,
-    pub matched: usize,
-    pub items: usize,
-    pub group_names: Vec<String>,
-    pub buckets: BTreeMap<String, usize>,
-    pub biggest: Option<Biggest>,
-    pub filtered: usize,
-    pub page: Vec<FileLine>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Biggest {
-    pub identifier: String,
-    pub files: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileLine {
-    pub path: String,
-    pub matched: bool,
-    /// The item's 1-based number among the items the files make.
-    pub item: Option<usize>,
-    pub item_files: usize,
-    pub groups: BTreeMap<String, [usize; 2]>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CsvSection {
-    pub files: Vec<String>,
-    pub head: Vec<String>,
-    pub raw_lines: Vec<String>,
-    pub detected: Detected,
-    #[serde(rename = "cellsLookLike1252")]
-    pub cells_look_like_1252: usize,
-    pub cells_with_spaces: usize,
-    /// `delimiter` or `headerRow` when the chosen reading gives the wrong
-    /// number of cells.
-    pub row_count_error: Option<&'static str>,
-    pub joined: usize,
-    pub rows_without_file: usize,
-    pub items_without_row: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct TagSection {
-    pub tag: &'static str,
-    pub kind: TagKind,
-    pub found: usize,
-    pub sample: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RowsSection {
-    pub columns: Vec<Column>,
-    pub unmapped: Vec<String>,
-    pub total: usize,
-    pub with_problems: usize,
-    /// Rows whose identifier an item already holds.
-    pub existing: usize,
-    pub filtered: usize,
-    pub kinds: Vec<KindCount>,
-    pub page: Vec<RowLine>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct KindCount {
-    pub kind: ProblemKind,
-    pub term: Option<String>,
-    pub count: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RowLine {
-    pub identifier: String,
-    pub sets: Vec<String>,
-    #[serde(rename = "type")]
-    pub item_type: String,
-    pub files: Vec<String>,
-    pub cells: Vec<CellLine>,
-    pub extra: Vec<String>,
-    pub row_problems: Vec<RowProblem>,
-    pub skipped: bool,
-    pub problems: usize,
-    pub existing: Option<ExistingItem>,
-}
-
-/// The item that already holds a row's identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExistingItem {
-    pub item_id: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct CellLine {
-    pub term: String,
-    pub value: String,
-    pub source: Source,
-    pub problems: Vec<ProblemKind>,
+    pub shapes: Option<Shapes>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub conflict: Option<Conflict>,
+    pub histogram: Option<Vec<BucketCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identical: Option<IdenticalFiles>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpaired: Option<Unpaired>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<SlotValues>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_words: Option<NameWords>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_matches: Option<Vec<SheetMatches>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Conflict {
-    pub csv: String,
-    pub files: String,
+/// File tags read from disk through the shared cache.
+pub struct DiskTags {
+    caches: Arc<Caches>,
+    dirs: BTreeMap<SourceId, SourceDir>,
 }
 
-/// Everything the preview reads, gathered by the caller.
-pub struct PreviewContext<'a> {
-    pub plan: &'a ImportPlan,
-    pub inputs: &'a Inputs,
-    pub model: &'a Model,
-    pub tags: &'a TagCache<'a>,
-    pub catalog: &'a Catalog,
+impl FileTags for DiskTags {
+    fn tag(&self, source: &SourceId, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        self.caches.tags.tag(self.dirs.get(source)?, entry, tag)
+    }
 }
 
-/// The sections `request` names.
+/// One import derived, with what the sections read besides the model.
+pub struct Derived {
+    pub plan: Arc<ImportPlanV2>,
+    pub model: Model,
+    pub catalog: Catalog,
+    pub stored: StoredIndex,
+    pub sheets: BTreeMap<SheetId, Arc<ReadSheet>>,
+    pub tags: DiskTags,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PreviewError {
+    #[error(transparent)]
+    Db(#[from] DbError),
+    #[error("the derive stopped: {0}")]
+    Panicked(String),
+}
+
+/// Derive `plan` against import `import`'s stored index. A sheet in a
+/// staging source is read from `store`, under the import's staging area.
+///
+/// # Errors
+/// [`PreviewError::Db`] when the index or the catalog cannot be read.
+#[allow(clippy::too_many_arguments)]
+pub async fn derive_import<DB>(
+    pool: &Pool<DB>,
+    roots: &ArchiveRoots,
+    store: &Arc<dyn Store>,
+    caches: &Arc<Caches>,
+    import: ImportId,
+    plan: Arc<ImportPlanV2>,
+    owners: Owners,
+    files: FileValidation,
+) -> Result<Derived, PreviewError>
+where
+    DB: Backend,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> f64: Decode<'x, DB> + Type<DB>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Vec<u8>: Decode<'x, DB> + Type<DB>,
+    for<'x> Option<Vec<u8>>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+{
+    let stored = scan::load(pool, &caches.index, import, &plan.sources).await?;
+    let catalog = catalog_load::load(pool, import, &plan, owners, files).await?;
+    let roots = roots.clone();
+    let caches = Arc::clone(caches);
+    let store = Arc::clone(store);
+    tokio::task::spawn_blocking(move || {
+        let dirs = scan::source_dirs(&roots, &plan.sources);
+        let read: BTreeMap<SheetId, Arc<ReadSheet>> = plan
+            .sheets
+            .iter()
+            .filter_map(|sheet| {
+                let read = match plan
+                    .sources
+                    .iter()
+                    .find(|source| *source.id() == sheet.source)?
+                {
+                    SourcePlan::Folder { .. } => {
+                        caches.sheets.read(sheet, dirs.get(&sheet.source)?)
+                    }
+                    SourcePlan::Staging { .. } => caches.sheets.read_stored(
+                        sheet,
+                        store.as_ref(),
+                        &staging_path(import, &sheet.file),
+                    ),
+                }?;
+                Some((sheet.id.clone(), read))
+            })
+            .collect();
+        let sheets: Sheets = read
+            .iter()
+            .map(|(id, read)| (id.clone(), read.sheet.clone()))
+            .collect();
+        let tags = DiskTags { caches, dirs };
+        let model = derive(&stored.index, &sheets, &plan, &catalog, &tags);
+        Derived {
+            plan,
+            model,
+            catalog,
+            stored,
+            sheets: read,
+            tags,
+        }
+    })
+    .await
+    .map_err(|error| PreviewError::Panicked(error.to_string()))
+}
+
+/// The sections `request` names, cut from `derived`.
 #[must_use]
-pub fn build(context: &PreviewContext<'_>, request: &PreviewRequest) -> Preview {
-    let model = context.model;
+pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
+    let model = &derived.model;
     let wants = |section| request.include.contains(&section);
+    let seed = request.seed.unwrap_or(0);
+    let flags = (wants(Section::Entries) || wants(Section::Records) || wants(Section::Shapes))
+        .then(|| FlagsBy::new(model));
+    let records_query = request.records.clone().unwrap_or_default();
+    let facts = (wants(Section::Shapes)
+        || (wants(Section::Records) && records_query.shape.is_some()))
+    .then(|| Facts::new(&derived.plan, &derived.stored));
+    let flags_for = |section| flags.as_ref().filter(|_| wants(section));
     Preview {
-        error: model.issues.first().map(|issue| PreviewError {
-            key: issue.key().to_string(),
-            detail: issue.detail(),
+        sources: derived.stored.sources.clone(),
+        pattern: model.pattern.clone(),
+        entries: flags_for(Section::Entries).map(|flags| {
+            query::entries(model, &request.entries.clone().unwrap_or_default(), flags)
         }),
-        files: wants(Section::Files).then(|| files_section(model, &request.files)),
-        sets: wants(Section::Sets).then(|| model.sets.clone()),
-        csv: wants(Section::Csv).then(|| csv_section(context)),
-        tags: wants(Section::Tags).then(|| tags_section(model, context.tags)),
-        rows: wants(Section::Rows).then(|| rows_section(model, &request.rows)),
-        check: wants(Section::Check).then(|| model.check(context.plan, context.catalog)),
-    }
-}
-
-fn files_section(model: &Model, query: &FilesQuery) -> FilesSection {
-    let item_files =
-        |item: Option<usize>| item.map_or(0, |index| model.file_items[index].files.len());
-    let mut buckets = BTreeMap::new();
-    for item in &model.file_items {
-        *buckets
-            .entry(item.files.len().min(3).to_string())
-            .or_insert(0) += 1;
-    }
-    let biggest = model
-        .file_items
-        .iter()
-        .fold(None::<&super::grouping::FileItem>, |top, item| match top {
-            Some(top) if top.files.len() >= item.files.len() => Some(top),
-            _ => Some(item),
-        })
-        .map(|item| Biggest {
-            identifier: item.identifier.clone(),
-            files: item.files.len(),
-        });
-    let selected: Vec<_> = model
-        .files
-        .iter()
-        .filter(|file| match (query.per_item, query.filter) {
-            (Some(PerItem(count)), _) => {
-                file.item.is_some() && item_files(file.item).min(3) == count
-            }
-            (None, FileFilter::All) => true,
-            (None, FileFilter::Match) => file.groups.is_some(),
-            (None, FileFilter::Miss) => file.groups.is_none(),
-        })
-        .collect();
-    let page = selected
-        .iter()
-        .skip(query.offset)
-        .take(query.limit.min(FILES_LIMIT))
-        .map(|file| FileLine {
-            path: file.file.path.clone(),
-            matched: file.groups.is_some(),
-            item: file.item.map(|index| index + 1),
-            item_files: item_files(file.item),
-            groups: file
-                .groups
+        sheets: wants(Section::Sheets).then(|| evidence::sheet_views(derived)),
+        tags: wants(Section::Tags).then(|| evidence::tag_views(derived)),
+        records: flags_for(Section::Records)
+            .map(|flags| query::records(model, &records_query, flags, facts.as_ref())),
+        flags: wants(Section::Flags).then(|| causes::flag_counts(model, seed)),
+        anomalies: wants(Section::Anomalies).then(|| model.anomalies.clone()),
+        orphans: wants(Section::Orphans).then(|| {
+            model
+                .orphans
                 .iter()
-                .flatten()
-                .map(|(name, group)| (name.clone(), [group.utf16.0, group.utf16.1]))
-                .collect(),
-        })
-        .collect();
-    FilesSection {
-        total: model.files.len(),
-        matched: model
-            .files
-            .iter()
-            .filter(|file| file.groups.is_some())
-            .count(),
-        items: model.file_items.len(),
-        group_names: model.group_names.clone(),
-        buckets,
-        biggest,
-        filtered: selected.len(),
-        page,
+                .map(|orphan| OrphanView {
+                    decision: orphan.decision,
+                    reason: orphan.reason,
+                    entry: orphan.entry.clone(),
+                })
+                .collect()
+        }),
+        check: wants(Section::Check).then(|| check(&derived.plan, model)),
+        shapes: flags_for(Section::Shapes)
+            .zip(facts.as_ref())
+            .map(|(flags, facts)| {
+                let query = request.shapes.clone().unwrap_or_default();
+                facts::shapes(model, facts, flags, &query, seed)
+            }),
+        histogram: wants(Section::Histogram).then(|| facts::histogram(model)),
+        identical: wants(Section::Identical).then(|| {
+            identical::identical(
+                &derived.stored,
+                &request.identical.clone().unwrap_or_default(),
+            )
+        }),
+        unpaired: wants(Section::Unpaired)
+            .then(|| unpaired::unpaired(model, &request.unpaired.clone().unwrap_or_default())),
+        values: wants(Section::Values)
+            .then(|| counts::values(model, &request.values.clone().unwrap_or_default())),
+        name_words: wants(Section::NameWords).then(|| {
+            names::name_words(
+                &derived.stored,
+                &request.name_words.clone().unwrap_or_default(),
+            )
+        }),
+        column_matches: wants(Section::ColumnMatches).then(|| columns::column_matches(derived)),
     }
 }
 
-fn csv_section(context: &PreviewContext<'_>) -> CsvSection {
-    let model = context.model;
-    let inspection = match (&context.plan.csv, &context.inputs.csv) {
-        (Some(plan), Some(Ok(bytes))) => Some(sheet::inspect(bytes, plan)),
-        _ => None,
-    };
-    let row_count_error = model
-        .sheet
-        .as_ref()
-        .and_then(|sheet| sheet.as_ref().err())
-        .filter(|error| error.is_row_count())
-        .map(|error| error.key());
-    let (head, raw_lines, detected, look_1252, spaces) = match inspection {
-        Some(seen) => (
-            seen.head,
-            seen.raw_lines,
-            seen.detected,
-            seen.cells_look_like_1252,
-            seen.cells_with_spaces,
-        ),
-        None => (
-            Vec::new(),
-            Vec::new(),
-            Detected {
-                delimiter: Delimiter::Comma,
-                header_row: 1,
-            },
-            0,
-            0,
-        ),
-    };
-    CsvSection {
-        files: context.inputs.csv_files.clone(),
-        head,
-        raw_lines,
-        detected,
-        cells_look_like_1252: look_1252,
-        cells_with_spaces: spaces,
-        row_count_error,
-        joined: model.join.joined,
-        rows_without_file: model.join.rows_without_file,
-        items_without_row: model.join.items_without_row,
-    }
-}
-
-/// Each tag over the matched files: how many have it, and the first value.
-fn tags_section(model: &Model, tags: &TagCache<'_>) -> Vec<TagSection> {
-    let matched: Vec<_> = model
-        .files
-        .iter()
-        .filter(|file| file.groups.is_some())
-        .collect();
-    TAGS.iter()
-        .map(|(tag, kind)| {
-            let values: Vec<String> = matched
-                .iter()
-                .map(|file| tags.value(&file.file, tag))
-                .filter(|v| !v.is_empty())
-                .collect();
-            TagSection {
-                tag,
-                kind: *kind,
-                found: values.len(),
-                sample: values.into_iter().next().unwrap_or_default(),
-            }
-        })
-        .collect()
-}
-
-fn rows_section(model: &Model, query: &RowsQuery) -> RowsSection {
-    let needle = query
-        .query
-        .as_deref()
-        .map(|q| q.trim().to_lowercase())
-        .filter(|q| !q.is_empty());
-    let selected: Vec<&Row> = model
-        .rows
-        .iter()
-        .filter(|row| !query.problems_only || (row.existing.is_none() && row.problems() > 0))
-        .filter(|row| !query.existing_only || row.existing.is_some())
-        .filter(|row| {
-            query.kind.is_none_or(|kind| {
-                row.existing.is_none()
-                    && row.kinds().iter().any(|key| {
-                        key.kind == kind
-                            && query
-                                .term
-                                .as_ref()
-                                .is_none_or(|term| key.term.as_ref() == Some(term))
-                    })
-            })
-        })
-        .filter(|row| {
-            needle
-                .as_ref()
-                .is_none_or(|needle| row.item.identifier.to_lowercase().contains(needle))
-        })
-        .collect();
-    let page = selected
-        .iter()
-        .skip(query.offset)
-        .take(query.limit.min(ROWS_LIMIT))
-        .map(|row| row_line(model, row))
-        .collect();
-    RowsSection {
-        columns: model.columns.clone(),
-        unmapped: model.unmapped.clone(),
-        total: model.rows.len(),
-        with_problems: model.with_problems(),
-        existing: model
-            .rows
-            .iter()
-            .filter(|row| row.existing.is_some())
-            .count(),
-        filtered: selected.len(),
-        kinds: model
-            .kinds()
-            .into_iter()
-            .map(|(key, count)| KindCount {
-                kind: key.kind,
-                term: key.term,
-                count,
-            })
-            .collect(),
-        page,
-    }
-}
-
-fn row_line(model: &Model, row: &Row) -> RowLine {
-    let set_name = |key: &String| {
-        model
-            .sets
-            .iter()
-            .find(|set| set.key == *key)
-            .map_or_else(|| key.clone(), |set| set.name.clone())
-    };
-    RowLine {
-        identifier: row.item.identifier.clone(),
-        sets: row.item.set_keys.iter().map(set_name).collect(),
-        item_type: row.item_type.name().to_string(),
-        files: row
-            .item
-            .files
-            .iter()
-            .map(|&index| model.files[index].file.path.clone())
-            .collect(),
-        cells: row
-            .cells
-            .iter()
-            .map(|cell| CellLine {
-                term: cell.term.clone(),
-                value: cell.value.value.clone(),
-                source: cell.value.source,
-                problems: cell.problems.clone(),
-                conflict: (!cell.value.csv.is_empty()
-                    && !cell.value.files.is_empty()
-                    && cell.value.csv != cell.value.files)
-                    .then(|| Conflict {
-                        csv: cell.value.csv.clone(),
-                        files: cell.value.files.clone(),
-                    }),
-            })
-            .collect(),
-        extra: row.extra.clone(),
-        row_problems: row.row_problems.clone(),
-        skipped: row.skipped,
-        problems: row.problems(),
-        existing: row.existing.map(|item_id| ExistingItem { item_id }),
-    }
-}
+#[cfg(test)]
+mod facts_tests;
+#[cfg(test)]
+mod names_tests;
+#[cfg(test)]
+mod tests;

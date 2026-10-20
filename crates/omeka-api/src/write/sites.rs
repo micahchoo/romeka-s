@@ -15,9 +15,10 @@
 //! server-rendered form, so no API member carries them. See
 //! [`crate::theme_settings`] and [`crate::site_settings`].
 
-use omeka_db::ids::{ItemSetId, PageId, SiteId, UserId};
-use omeka_db::repos::{ItemSetRepo, SiteRepo, UserRepo};
+use omeka_db::ids::{ItemSetId, PageId, ResourceId, SiteId, UserId};
+use omeka_db::repos::{ItemSetRepo, ResourceRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{NewSite, NewWholeSite, SiteRow};
+use omeka_db::with_db;
 use serde_json::{Value, json};
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -125,7 +126,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         settings.push((crate::theme_settings::key(&theme), map));
     }
     let first_page = site_defaults::welcome_page(api).await?;
-    let site = SiteRepo::new(api.pool())
+    let site = with_db!(api.pool(), |db| SiteRepo::new(db)
         .create_whole(&NewWholeSite {
             site: NewSite {
                 owner_id: owner,
@@ -146,11 +147,14 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
                 .is_none()
                 .then_some(site_defaults::default_navigation as fn(PageId) -> Value),
             permissions,
-            item_sets,
+            item_sets: item_sets.clone(),
             settings,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
+    // Each set joins the new site: a change to the set, as in `apply_item_sets`.
+    let joined: Vec<ResourceId> = item_sets.iter().map(|set| set.as_resource()).collect();
+    with_db!(api.pool(), |db| ResourceRepo::new(db).touch(&joined).await).map_err(db_error)?;
     api.read_member("sites", &site.id.0.to_string()).await
 }
 
@@ -162,8 +166,9 @@ pub async fn update(
 ) -> Result<ApiResponse, ApiError> {
     crate::write::values::collect(api, payload, CONTROL).await?;
     let id = parse_id(SITE_CLASS, raw_id)?;
-    let repo = SiteRepo::new(api.pool());
-    let Some(mut row) = repo.get(SiteId(id)).await.map_err(db_error)? else {
+    let Some(mut row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(SiteId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
     api.authorize_site_update(row.id, row.owner_id).await?;
@@ -235,7 +240,7 @@ pub async fn update(
         payload.get("o:theme_settings"),
     )
     .await?;
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| SiteRepo::new(db).update(&row).await).map_err(db_error)?;
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
     if let Some(pages) = pages {
@@ -255,22 +260,23 @@ pub async fn update(
 /// site.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(SITE_CLASS, raw_id)?;
-    let repo = SiteRepo::new(api.pool());
-    let Some(row) = repo.get(SiteId(id)).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(SiteId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(SITE_CLASS, raw_id));
     };
     access::owned_entity(api.actor(), SITE_CLASS, row.owner_id)?;
     // The document carries the permission-filtered page list; read the
     // permission once here so `site_document` does not query it again.
     let permission = match api.actor().user() {
-        Some(user) => SiteRepo::new(api.pool())
+        Some(user) => with_db!(api.pool(), |db| SiteRepo::new(db)
             .has_permission(row.id, user)
-            .await
-            .map_err(db_error)?,
+            .await)
+        .map_err(db_error)?,
         None => false,
     };
     let answer = crate::read::site_document(api, &row, permission).await?;
-    repo.delete(row.id).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| SiteRepo::new(db).delete(row.id).await).map_err(db_error)?;
     Ok(answer)
 }
 
@@ -291,11 +297,11 @@ async fn owner(api: &Api<'_>, payload: &Payload) -> Result<Option<UserId>, ApiEr
         return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
     }
     let id = UserId(integer as u64);
-    if omeka_db::repos::UserRepo::new(api.pool())
+    if with_db!(api.pool(), |db| omeka_db::repos::UserRepo::new(db)
         .get(id)
-        .await
-        .map_err(db_error)?
-        .is_none()
+        .await)
+    .map_err(db_error)?
+    .is_none()
     {
         return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
     }
@@ -328,9 +334,7 @@ async fn permissions(
             return Err(ref_not_found(USER_CLASS, raw_user));
         };
         let user = UserId(user_id);
-        if UserRepo::new(api.pool())
-            .get(user)
-            .await
+        if with_db!(api.pool(), |db| UserRepo::new(db).get(user).await)
             .map_err(db_error)?
             .is_none()
         {
@@ -351,19 +355,24 @@ async fn apply_permissions(
     let Some(wanted) = wanted else {
         return Ok(());
     };
-    let repo = SiteRepo::new(api.pool());
     let mut retained: Vec<UserId> = Vec::with_capacity(wanted.len());
     for (user, role) in wanted {
-        repo.set_permission(site, *user, role)
-            .await
-            .map_err(db_error)?;
+        with_db!(api.pool(), |db| SiteRepo::new(db)
+            .set_permission(site, *user, role)
+            .await)
+        .map_err(db_error)?;
         retained.push(*user);
     }
-    for permission in repo.list_permissions(site).await.map_err(db_error)? {
+    for permission in with_db!(api.pool(), |db| SiteRepo::new(db)
+        .list_permissions(site)
+        .await)
+    .map_err(db_error)?
+    {
         if !retained.contains(&permission.user_id) {
-            repo.remove_permission(site, permission.user_id)
-                .await
-                .map_err(db_error)?;
+            with_db!(api.pool(), |db| SiteRepo::new(db)
+                .remove_permission(site, permission.user_id)
+                .await)
+            .map_err(db_error)?;
         }
     }
     Ok(())
@@ -396,9 +405,7 @@ async fn site_item_sets(
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         };
         let item_set = ItemSetId(item_set_id);
-        if ItemSetRepo::new(api.pool())
-            .get(item_set)
-            .await
+        if with_db!(api.pool(), |db| ItemSetRepo::new(db).get(item_set).await)
             .map_err(db_error)?
             .is_none()
         {
@@ -420,19 +427,42 @@ async fn apply_item_sets(
     let Some(wanted) = wanted else {
         return Ok(());
     };
-    let repo = SiteRepo::new(api.pool());
+    let before = with_db!(api.pool(), |db| SiteRepo::new(db)
+        .list_item_sets(site)
+        .await)
+    .map_err(db_error)?;
     for (index, item_set) in wanted.iter().enumerate() {
-        repo.add_item_set(site, *item_set, Some(index as i64 + 1))
-            .await
-            .map_err(db_error)?;
+        with_db!(api.pool(), |db| SiteRepo::new(db)
+            .add_item_set(site, *item_set, Some(index as i64 + 1))
+            .await)
+        .map_err(db_error)?;
     }
-    for attached in repo.list_item_sets(site).await.map_err(db_error)? {
+    for attached in &before {
         if !wanted.contains(&attached.item_set_id) {
-            repo.remove_item_set(site, attached.item_set_id)
-                .await
-                .map_err(db_error)?;
+            with_db!(api.pool(), |db| SiteRepo::new(db)
+                .remove_item_set(site, attached.item_set_id)
+                .await)
+            .map_err(db_error)?;
         }
     }
+    // A site the set joined, left or moved in is a change to the set: import
+    // undo keeps a set whose `modified` moved after the import wrote it.
+    let moved: Vec<ResourceId> = before
+        .iter()
+        .filter(|attached| {
+            let at = wanted.iter().position(|set| *set == attached.item_set_id);
+            at.is_none_or(|at| attached.position != Some(at as i64 + 1))
+        })
+        .map(|attached| attached.item_set_id)
+        .chain(
+            wanted
+                .iter()
+                .copied()
+                .filter(|set| !before.iter().any(|attached| attached.item_set_id == *set)),
+        )
+        .map(|set| set.as_resource())
+        .collect();
+    with_db!(api.pool(), |db| ResourceRepo::new(db).touch(&moved).await).map_err(db_error)?;
     Ok(())
 }
 
@@ -448,9 +478,7 @@ async fn named_pages(api: &Api<'_>, payload: &Payload) -> Result<Vec<PageId>, Ap
             return Err(ref_not_found(PAGE_CLASS, raw));
         };
         let page = PageId(id);
-        if SiteRepo::new(api.pool())
-            .get_page(page)
-            .await
+        if with_db!(api.pool(), |db| SiteRepo::new(db).get_page(page).await)
             .map_err(db_error)?
             .is_none()
         {
@@ -465,10 +493,14 @@ async fn named_pages(api: &Api<'_>, payload: &Payload) -> Result<Vec<PageId>, Ap
 /// `PATCH` that carries the member) removes every page the body does not name.
 /// Upstream adds nothing here; on create the welcome page is the only one.
 async fn retain_pages(api: &Api<'_>, site: SiteId, wanted: &[PageId]) -> Result<(), ApiError> {
-    let repo = SiteRepo::new(api.pool());
-    for page in repo.list_pages(site).await.map_err(db_error)? {
+    for page in
+        with_db!(api.pool(), |db| SiteRepo::new(db).list_pages(site).await).map_err(db_error)?
+    {
         if !wanted.contains(&page.id) {
-            repo.delete_page(page.id).await.map_err(db_error)?;
+            with_db!(api.pool(), |db| SiteRepo::new(db)
+                .delete_page(page.id)
+                .await)
+            .map_err(db_error)?;
         }
     }
     Ok(())
@@ -506,9 +538,7 @@ async fn homepage(api: &Api<'_>, payload: &Payload) -> Result<Option<PageId>, Ap
         return Err(ref_not_found(PAGE_CLASS, raw));
     };
     let page = PageId(id);
-    if SiteRepo::new(api.pool())
-        .get_page(page)
-        .await
+    if with_db!(api.pool(), |db| SiteRepo::new(db).get_page(page).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -569,9 +599,7 @@ async fn validate(
             None => true,
         };
         if taken
-            && SiteRepo::new(api.pool())
-                .get_by_slug(slug)
-                .await
+            && with_db!(api.pool(), |db| SiteRepo::new(db).get_by_slug(slug).await)
                 .map_err(db_error)?
                 .is_some()
         {
@@ -593,9 +621,7 @@ async fn validate(
         );
     }
     if let Some(page) = homepage_id {
-        let owner = SiteRepo::new(api.pool())
-            .get_page(page)
-            .await
+        let owner = with_db!(api.pool(), |db| SiteRepo::new(db).get_page(page).await)
             .map_err(db_error)?
             .map(|row| row.site_id);
         if owner != existing.map(|row| row.id) {

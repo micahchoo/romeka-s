@@ -12,6 +12,8 @@
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
 mod custom_vocabs;
+mod import_evidence;
+mod import_writes;
 mod imports;
 mod page_versions;
 mod publications;
@@ -25,8 +27,14 @@ mod values;
 mod vocabularies;
 
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
+pub use import_evidence::{EntryRow, NewEntry, NewScan, NewUpload, ScanRow, UploadRow};
+pub use import_writes::{
+    BeforeImage, ImageMemberships, ImageValue, ImportAction, ImportFields, ImportResource,
+    ItemSlots, NewImportFields, NewImportItem, NewImportItemSet, NewImportMedia, Slot, StoredFile,
+};
 pub use imports::{
-    ImportKind, ImportResourceRow, ImportRow, ImportStatus, ImportTarget, NewImport,
+    BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
+    ImportStatus, ImportTarget, NewImport, NewImportResource, may_run,
 };
 pub use page_versions::{
     BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,

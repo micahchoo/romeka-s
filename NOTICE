@@ -51,3 +51,5 @@ removed source-map comment, and served from `/assets/vendor/`:
                        (`dist/leaflet.js` and `dist/leaflet.css`)
 
 Upstream Omeka S ships the same two IIIF libraries, at `mirador ^4.0.0` and `openseadragon ^5.0.1`.
+
+crates/omeka-server/assets/thumbnails/*.png are upstream Omeka S application/asset/thumbnails at 5e413f0, GPL-3.0.

@@ -1,0 +1,7 @@
+{
+  "code": "stale",
+  "errors": {
+    "error": "Someone else saved this import after you opened it. Reload it to see their changes."
+  },
+  "revision": 1
+}

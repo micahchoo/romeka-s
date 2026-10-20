@@ -43,7 +43,7 @@ impl Fixture {
     }
     async fn sweep(&self, delete: bool) -> SweepReport {
         sweep(&SweepOptions {
-            database: self.database(),
+            database: self.database().into(),
             store: Some(self.store()),
             delete,
             min_age: MIN_AGE,
@@ -58,7 +58,7 @@ async fn fixture() -> Fixture {
     let outside = tempfile::tempdir().unwrap();
     let database = dir.path().join("romeka.db");
     install(&InstallOptions {
-        database: database.clone(),
+        database: database.clone().into(),
         email: "admin@example.org".to_string(),
         name: "Admin".to_string(),
         password: "a long test password".to_string(),

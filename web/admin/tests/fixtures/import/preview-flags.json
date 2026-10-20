@@ -1,0 +1,134 @@
+{
+  "flags": [
+    {
+      "count": 2,
+      "kind": "empty-required",
+      "policy": "keep",
+      "samples": [
+        {
+          "detail": null,
+          "record": 22,
+          "subject": {
+            "record": 22
+          }
+        },
+        {
+          "detail": null,
+          "record": 24,
+          "subject": {
+            "record": 24
+          }
+        }
+      ],
+      "slot": "dcterms:title"
+    },
+    {
+      "count": 1,
+      "kind": "date-form",
+      "policy": "keep",
+      "samples": [
+        {
+          "detail": "circa 1950s?",
+          "record": 2,
+          "subject": {
+            "record": 2
+          }
+        }
+      ],
+      "slot": "dcterms:date"
+    },
+    {
+      "count": 1,
+      "kind": "name-encoding",
+      "policy": "keep",
+      "samples": [
+        {
+          "detail": "Latin1",
+          "record": null,
+          "subject": {
+            "entry": {
+              "file": {
+                "path": "Misc/café.jpg",
+                "source": "s1"
+              }
+            }
+          }
+        }
+      ],
+      "slot": null
+    },
+    {
+      "count": 1,
+      "kind": "cells-count",
+      "policy": "leave",
+      "samples": [
+        {
+          "detail": "BHC_006_AF_003,Short row\n",
+          "record": null,
+          "subject": {
+            "entry": {
+              "row": {
+                "key": "BHC_006_AF_003#1",
+                "sheet": "register"
+              }
+            }
+          }
+        }
+      ],
+      "slot": null
+    },
+    {
+      "count": 1,
+      "kind": "no-file",
+      "policy": "keep",
+      "samples": [
+        {
+          "detail": null,
+          "record": 32,
+          "subject": {
+            "record": 32
+          }
+        }
+      ],
+      "slot": null
+    },
+    {
+      "count": 1,
+      "kind": "not-media",
+      "policy": "leave",
+      "samples": [
+        {
+          "detail": "application/CDFV2",
+          "record": null,
+          "subject": {
+            "entry": {
+              "file": {
+                "path": "_scratch/Thumbs.db",
+                "source": "s1"
+              }
+            }
+          }
+        }
+      ],
+      "slot": null
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

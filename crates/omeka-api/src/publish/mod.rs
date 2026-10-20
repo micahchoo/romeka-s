@@ -26,9 +26,10 @@ mod source;
 
 use chrono::{NaiveDateTime, Timelike};
 use omeka_core::publication::{Snapshot, TermStates};
+use omeka_db::DbPool;
 use omeka_db::repos::PublicationRepo;
 use omeka_db::rows::{PublicationRow, PublicationTarget, PublicationVersionRow};
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
@@ -48,18 +49,17 @@ struct Published {
     meta: VersionMeta,
 }
 
-async fn record(pool: &SqlitePool, target: PublicationTarget) -> Result<Record, ApiError> {
-    let repo = PublicationRepo::new(pool);
-    let Some(row) = repo.get(target).await.map_err(db_error)? else {
+async fn record(pool: &DbPool, target: PublicationTarget) -> Result<Record, ApiError> {
+    let Some(row) =
+        with_db!(pool, |db| PublicationRepo::new(db).get(target).await).map_err(db_error)?
+    else {
         return Ok(Record {
             row: None,
             states: TermStates::new(),
             latest: None,
         });
     };
-    let latest = repo
-        .latest(row.id)
-        .await
+    let latest = with_db!(pool, |db| PublicationRepo::new(db).latest(row.id).await)
         .map_err(db_error)?
         .map(|version| published(&version))
         .transpose()?;

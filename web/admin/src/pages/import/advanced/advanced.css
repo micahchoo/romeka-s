@@ -1,0 +1,161 @@
+/* The Advanced settings: a name and its plain line beside the control, stacked on a narrow screen. */
+.adv-section h4 {
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.adv-section h5 {
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.adv-setting {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) 2fr;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 40rem) {
+  .adv-setting {
+    grid-template-columns: 1fr;
+  }
+}
+
+.adv-setting-name {
+  font-weight: 600;
+}
+
+.adv-plain {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.adv-setting-control > * + * {
+  margin-top: var(--space-2);
+}
+
+.adv-list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.adv-scroll {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.adv-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.5rem;
+}
+
+.adv-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adv-narrow {
+  width: 6rem;
+}
+
+.adv-pattern textarea {
+  display: block;
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+}
+
+.adv-pattern > * + * {
+  margin-top: var(--space-2);
+}
+
+.adv-problem {
+  color: var(--danger);
+}
+
+/* A named group of the pattern on a real path: colour, plus an underline style, so no group is told by colour alone. */
+.adv-parts-name {
+  font-family: var(--font-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.adv-group {
+  padding: 0 1px;
+  border-radius: var(--radius);
+  color: inherit;
+}
+
+.adv-group-identifier {
+  background: var(--accent-soft);
+  text-decoration: underline solid;
+}
+
+.adv-group-part {
+  background: var(--danger-soft);
+  text-decoration: underline dashed;
+}
+
+.adv-group-other {
+  background: var(--surface);
+  text-decoration: underline dotted;
+}
+
+.adv-parts-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.adv-lines {
+  margin: var(--space-2) 0 0;
+  font-size: 0.875rem;
+}
+
+.adv-columns td,
+.adv-columns th,
+.adv-table td,
+.adv-table th {
+  vertical-align: top;
+}
+
+.adv-rule {
+  margin: 0 0 var(--space-3);
+}
+
+.adv-sources {
+  margin: 0 0 var(--space-2);
+}
+
+.adv-sources li + li {
+  margin-top: var(--space-1);
+}
+
+.adv-map {
+  margin-top: var(--space-3);
+}
+
+.adv-danger {
+  border-color: var(--danger);
+}
+
+.adv-danger-button:enabled {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.adv-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -352,8 +352,9 @@ async fn the_auth_routes_are_not_shadowed_by_the_resource_routes() {
 #[tokio::test]
 async fn create_password_action_spends_the_key_once() {
     let (pool, _seed, _editor, _inactive, invited) = pool_with_users().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let app = router(pool.clone());
-    let issued = login::issue_key(&pool, &invited, true)
+    let issued = login::issue_key(&db, &invited, true)
         .await
         .expect("mint a key");
 
@@ -414,8 +415,9 @@ async fn an_expired_key_is_404_and_deactivates_the_user_like_upstream() {
 #[tokio::test]
 async fn a_rejected_password_is_422_with_the_validation_document() {
     let (pool, _seed, _editor, _inactive, invited) = pool_with_users().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let app = router(pool.clone());
-    let issued = login::issue_key(&pool, &invited, true)
+    let issued = login::issue_key(&db, &invited, true)
         .await
         .expect("mint a key");
 

@@ -1,0 +1,15 @@
+{
+  "blocking": [
+    {
+      "detail": "dcterms:nothing",
+      "kind": "unknown-term",
+      "policy": null,
+      "slot": "dcterms:nothing",
+      "subject": "plan"
+    }
+  ],
+  "code": "blocked",
+  "errors": {
+    "error": "This import cannot run until the problems the check lists are fixed."
+  }
+}

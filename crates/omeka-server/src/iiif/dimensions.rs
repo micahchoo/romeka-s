@@ -55,7 +55,7 @@ fn read_size(store: &dyn Store, storage_path: &str) -> Option<Size> {
 
 fn size_of(bytes: &[u8]) -> Option<Size> {
     let tags = image_metadata(&mut Cursor::new(bytes));
-    let width = tags.get("Width")?.parse().ok()?;
-    let height = tags.get("Height")?.parse().ok()?;
+    let width = tags.get("Width")?.values.first()?.parse().ok()?;
+    let height = tags.get("Height")?.values.first()?.parse().ok()?;
     Some((width, height))
 }

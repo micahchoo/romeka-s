@@ -13,13 +13,12 @@
 //! hands it over. With `--password` the account is created active and complete,
 //! which is what the command did before and what a scripted install needs.
 
-use std::path::PathBuf;
-
 use omeka_api::login;
 use omeka_api::password;
-use omeka_db::open_file;
+use omeka_db::Location;
 use omeka_db::repos::{Paging, UserFilter, UserRepo};
 use omeka_db::rows::{NewUser, UserRow};
+use omeka_db::with_db;
 
 use omeka_core::permissions::Role;
 use omeka_server::mail::SET_PASSWORD_PATH;
@@ -29,7 +28,7 @@ use crate::error::CliError;
 /// Input for `romeka user add`.
 #[derive(Debug, Clone)]
 pub struct AddOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub email: String,
     pub name: String,
     /// The password to store. `None` makes the command an invite.
@@ -42,14 +41,14 @@ pub struct AddOptions {
 /// Input for `romeka user list`.
 #[derive(Debug, Clone)]
 pub struct ListOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub role: Option<String>,
 }
 
 /// Input for `romeka user set-password`.
 #[derive(Debug, Clone)]
 pub struct SetPasswordOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub email: String,
     pub password: String,
 }
@@ -57,7 +56,7 @@ pub struct SetPasswordOptions {
 /// Input for `romeka user grant-admin`.
 #[derive(Debug, Clone)]
 pub struct GrantAdminOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub email: String,
 }
 
@@ -83,9 +82,12 @@ pub struct Invite {
 /// random source for the invite key.
 pub async fn add(options: &AddOptions) -> Result<AddedUser, CliError> {
     let role = parse_role(&options.role)?;
-    let pool = open_file(&options.database).await?;
-    let users = UserRepo::new(&pool);
-    if users.get_by_email(&options.email).await?.is_some() {
+    let pool = options.database.open().await?;
+    if with_db!(&pool, |db| UserRepo::new(db)
+        .get_by_email(&options.email)
+        .await)?
+    .is_some()
+    {
         return Err(CliError::message(format!(
             "a user with email \"{}\" already exists",
             options.email
@@ -95,7 +97,7 @@ pub async fn add(options: &AddOptions) -> Result<AddedUser, CliError> {
         Some(plain) => Some(password::hash(plain)?),
         None => None,
     };
-    let user = users
+    let user = with_db!(&pool, |db| UserRepo::new(db)
         .create(&NewUser {
             email: options.email.clone(),
             name: options.name.clone(),
@@ -106,7 +108,7 @@ pub async fn add(options: &AddOptions) -> Result<AddedUser, CliError> {
             is_active: options.password.is_some(),
             created: None,
         })
-        .await?;
+        .await)?;
     if options.password.is_some() {
         return Ok(AddedUser { user, invite: None });
     }
@@ -129,17 +131,17 @@ pub async fn list(options: &ListOptions) -> Result<Vec<UserRow>, CliError> {
         Some(name) => Some(parse_role(name)?.wire_name().to_string()),
         None => None,
     };
-    let pool = open_file(&options.database).await?;
-    UserRepo::new(&pool)
+    let pool = options.database.open().await?;
+    with_db!(&pool, |db| UserRepo::new(db)
         .list(
             &UserFilter {
                 role,
                 ..UserFilter::default()
             },
-            &Paging::default(),
+            &Paging::default()
         )
-        .await
-        .map_err(CliError::from)
+        .await)
+    .map_err(CliError::from)
 }
 
 /// Replace a user's password hash.
@@ -147,11 +149,10 @@ pub async fn list(options: &ListOptions) -> Result<Vec<UserRow>, CliError> {
 /// # Errors
 /// A [`CliError::Message`] when no account has this email.
 pub async fn set_password(options: &SetPasswordOptions) -> Result<UserRow, CliError> {
-    let pool = open_file(&options.database).await?;
-    let users = UserRepo::new(&pool);
-    let mut user = find_by_email(&users, &options.email).await?;
+    let pool = options.database.open().await?;
+    let mut user = find_by_email(&pool, &options.email).await?;
     user.password_hash = Some(password::hash(&options.password)?);
-    users.update(&user).await?;
+    with_db!(&pool, |db| UserRepo::new(db).update(&user).await)?;
     Ok(user)
 }
 
@@ -160,18 +161,15 @@ pub async fn set_password(options: &SetPasswordOptions) -> Result<UserRow, CliEr
 /// # Errors
 /// A [`CliError::Message`] when no account has this email.
 pub async fn grant_admin(options: &GrantAdminOptions) -> Result<UserRow, CliError> {
-    let pool = open_file(&options.database).await?;
-    let users = UserRepo::new(&pool);
-    let mut user = find_by_email(&users, &options.email).await?;
+    let pool = options.database.open().await?;
+    let mut user = find_by_email(&pool, &options.email).await?;
     user.role = Role::GlobalAdmin.wire_name().to_string();
-    users.update(&user).await?;
+    with_db!(&pool, |db| UserRepo::new(db).update(&user).await)?;
     Ok(user)
 }
 
-async fn find_by_email(users: &UserRepo<'_>, email: &str) -> Result<UserRow, CliError> {
-    users
-        .get_by_email(email)
-        .await?
+async fn find_by_email(pool: &omeka_db::DbPool, email: &str) -> Result<UserRow, CliError> {
+    with_db!(pool, |db| UserRepo::new(db).get_by_email(email).await)?
         .ok_or_else(|| CliError::message(format!("no user with email \"{email}\"")))
 }
 
@@ -181,6 +179,8 @@ fn parse_role(name: &str) -> Result<Role, CliError> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::testing::temp_db;
 
@@ -188,7 +188,7 @@ mod tests {
 
     fn add_options(database: PathBuf, email: &str, role: &str) -> AddOptions {
         AddOptions {
-            database,
+            database: database.into(),
             email: email.to_string(),
             name: "A Person".to_string(),
             password: Some("secret".to_string()),
@@ -222,7 +222,7 @@ mod tests {
         assert!(created.invite.is_none());
 
         let users = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             role: None,
         })
         .await
@@ -231,14 +231,14 @@ mod tests {
         assert_eq!(users[0].email, "editor@example.org");
 
         let editors = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             role: Some("editor".to_string()),
         })
         .await
         .expect("list editors");
         assert_eq!(editors.len(), 1);
         let researchers = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             role: Some("researcher".to_string()),
         })
         .await
@@ -278,7 +278,7 @@ mod tests {
         .await
         .expect("add");
         let updated = set_password(&SetPasswordOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             email: "pw@example.org".to_string(),
             password: "new-secret".to_string(),
         })
@@ -293,7 +293,7 @@ mod tests {
     async fn set_password_fails_for_an_unknown_user() {
         let db = temp_db().await;
         let error = set_password(&SetPasswordOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             email: "missing@example.org".to_string(),
             password: "secret".to_string(),
         })
@@ -313,7 +313,7 @@ mod tests {
         .await
         .expect("add");
         let promoted = grant_admin(&GrantAdminOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             email: "plain@example.org".to_string(),
         })
         .await
@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(promoted.role, "global_admin");
 
         let admins = list(&ListOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             role: Some("global_admin".to_string()),
         })
         .await
@@ -333,7 +333,7 @@ mod tests {
     async fn grant_admin_fails_for_an_unknown_user() {
         let db = temp_db().await;
         let error = grant_admin(&GrantAdminOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             email: "ghost@example.org".to_string(),
         })
         .await
@@ -368,7 +368,7 @@ mod tests {
         // The link's key is what the set-password route spends: it sets the
         // password and activates the account.
         let spent = omeka_api::login::set_password(
-            &db.pool,
+            &db.db_pool,
             &omeka_api::password::PasswordRules::default(),
             &invite.key,
             "hunter2",
@@ -383,7 +383,7 @@ mod tests {
 
         // And the key is spent: a second attempt is refused.
         let again = omeka_api::login::set_password(
-            &db.pool,
+            &db.db_pool,
             &omeka_api::password::PasswordRules::default(),
             &invite.key,
             "hunter3",
@@ -413,8 +413,8 @@ mod tests {
         .expect("invite");
         let second_key = second.invite.expect("an invite").key;
         assert_ne!(first_key, second_key);
-        let keys: i64 = sqlx::query_scalar("SELECT count(*) FROM password_creation")
-            .fetch_one(&db.pool)
+        let keys = omeka_db::repos::DatabaseRepo::new(&db.pool)
+            .count_rows("password_creation")
             .await
             .expect("count keys");
         assert_eq!(keys, 2, "one live key per invited user");

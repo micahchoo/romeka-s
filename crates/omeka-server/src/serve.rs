@@ -9,7 +9,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 
 use omeka_api::jsonld::BaseUrl;
-use sqlx::SqlitePool;
+use omeka_db::DbPool;
 use tokio::net::TcpListener;
 
 use crate::config::Config;
@@ -25,7 +25,11 @@ use crate::{FILES_ROOT, Services, file_store};
 /// # Errors
 /// An [`std::io::Error`] when the config cannot be loaded, the address cannot be
 /// bound, or the server fails.
-pub async fn serve(addr: SocketAddr, pool: SqlitePool, base: BaseUrl) -> std::io::Result<()> {
+pub async fn serve(
+    addr: SocketAddr,
+    pool: impl Into<DbPool>,
+    base: BaseUrl,
+) -> std::io::Result<()> {
     let mut config = Config::load().map_err(std::io::Error::other)?;
     config.set_address(addr);
     config.set_base_url(base);
@@ -37,7 +41,7 @@ pub async fn serve(addr: SocketAddr, pool: SqlitePool, base: BaseUrl) -> std::io
 /// # Errors
 /// An [`std::io::Error`] when the store settings are invalid, the address
 /// cannot be bound or the server fails.
-pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Result<()> {
+pub async fn serve_with_config(config: Config, pool: impl Into<DbPool>) -> std::io::Result<()> {
     let services = Services::new(file_store(FILES_ROOT).map_err(std::io::Error::other)?);
     serve_with_services(config, pool, services).await
 }
@@ -49,7 +53,7 @@ pub async fn serve_with_config(config: Config, pool: SqlitePool) -> std::io::Res
 /// An [`std::io::Error`] when the address cannot be bound or the server fails.
 pub async fn serve_with_services(
     config: Config,
-    pool: SqlitePool,
+    pool: impl Into<DbPool>,
     services: Services,
 ) -> std::io::Result<()> {
     init_logging(config.log_level);
@@ -60,13 +64,13 @@ pub async fn serve_with_services(
         base_url = config.base_url.as_str(),
         "listening"
     );
-    serve_listener(listener, pool, &config, services, shutdown_signal()).await
+    serve_listener(listener, pool.into(), &config, services, shutdown_signal()).await
 }
 
 /// Serve a bound listener until `shutdown` resolves.
 async fn serve_listener<F>(
     listener: TcpListener,
-    pool: SqlitePool,
+    pool: DbPool,
     config: &Config,
     services: Services,
     shutdown: F,
@@ -126,7 +130,7 @@ mod tests {
         let (stop, stopped) = oneshot::channel();
         let server = tokio::spawn(async move {
             let services = Services::new(crate::local_store(FILES_ROOT));
-            serve_listener(listener, pool, &config, services, async move {
+            serve_listener(listener, pool.into(), &config, services, async move {
                 let _ = stopped.await;
             })
             .await

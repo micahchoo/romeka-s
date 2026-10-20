@@ -115,9 +115,10 @@ impl KeyCredentials {
     }
 }
 
+use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{ApiKeyRepo, UserRepo};
-use sqlx::SqlitePool;
+use omeka_db::with_db;
 
 use crate::auth_cache::{Bcrypt, CredentialVerifier};
 use crate::errors::ApiError;
@@ -224,7 +225,7 @@ impl Actor {
 ///
 /// This is the uncached path, for a caller that authenticates once.
 /// [`authenticate_with`] is the server's entry point.
-pub async fn authenticate<'a, I>(pool: &SqlitePool, pairs: I) -> Result<Actor, ApiError>
+pub async fn authenticate<'a, I>(pool: &DbPool, pairs: I) -> Result<Actor, ApiError>
 where
     I: IntoIterator<Item = (&'a str, &'a str)>,
 {
@@ -242,7 +243,7 @@ where
 /// remembers past verdicts therefore cannot outlive a deleted key or a
 /// deactivated owner; it only replaces the credential check.
 pub async fn authenticate_with<'a, I>(
-    pool: &SqlitePool,
+    pool: &DbPool,
     verifier: &impl CredentialVerifier,
     pairs: I,
 ) -> Result<Actor, ApiError>
@@ -255,17 +256,14 @@ where
     if !credentials.identity_is_well_formed() {
         return Ok(Actor::anonymous());
     }
-    let keys = ApiKeyRepo::new(pool);
-    let Some(key) = keys
+    let Some(key) = with_db!(pool, |db| ApiKeyRepo::new(db)
         .get(credentials.identity())
-        .await
-        .map_err(ApiError::internal)?
+        .await)
+    .map_err(ApiError::internal)?
     else {
         return Ok(Actor::anonymous());
     };
-    let Some(owner) = UserRepo::new(pool)
-        .get(key.owner_id)
-        .await
+    let Some(owner) = with_db!(pool, |db| UserRepo::new(db).get(key.owner_id).await)
         .map_err(ApiError::internal)?
     else {
         return Ok(Actor::anonymous());
@@ -282,7 +280,9 @@ where
     }
     // `KeyAdapter` records the use; the caller's address is not threaded
     // through this layer, so only the timestamp moves.
-    let _ = keys.touch(credentials.identity(), None, None).await;
+    let _ = with_db!(pool, |db| ApiKeyRepo::new(db)
+        .touch(credentials.identity(), None, None)
+        .await);
     Ok(Actor::new(owner.id, owner.role))
 }
 

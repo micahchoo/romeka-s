@@ -23,8 +23,9 @@ use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
 use omeka_db::ids::{ItemId, MediaId, ResourceId};
-use omeka_db::repos::{ItemRepo, MediaRepo, SettingRepo};
+use omeka_db::repos::{ItemRepo, MediaRepo};
 use omeka_db::rows::{ItemRow, MediaRow, NewMedia, NewResource};
+use omeka_db::with_db;
 use omeka_media::data::MediaData;
 use omeka_media::http_client::HttpClient;
 use omeka_media::ingest::{
@@ -136,11 +137,10 @@ pub(crate) async fn prepare(
     // `MediaAdapter::hydrate` sets `source` from `o:source` before the ingester
     // runs, and an ingester overwrites it only when the body named none.
     let source = payload.str_member("o:source").map(str::to_string);
-    let settings = SettingRepo::new(api.pool());
-    let validation = crate::settings::file_validation(&settings)
+    let validation = crate::settings::file_validation(api.pool())
         .await
         .map_err(db_error)?;
-    let policy = crate::settings::address_policy(&settings)
+    let policy = crate::settings::address_policy(api.pool())
         .await
         .map_err(db_error)?;
     let http = HttpClient::new().with_address_policy(policy);
@@ -230,7 +230,7 @@ pub(crate) async fn insert(
     } else {
         item.resource.owner_id
     };
-    let row = MediaRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| MediaRepo::new(db)
         .create(&NewMedia {
             resource: NewResource {
                 owner_id,
@@ -252,8 +252,8 @@ pub(crate) async fn insert(
             lang: prepared.lang,
             alt_text: prepared.alt_text,
         })
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     resource::store_values(
         api,
         row.resource.id,
@@ -374,13 +374,15 @@ pub async fn update(
     partial: bool,
 ) -> Result<ApiResponse, ApiError> {
     let id = parse_id(MEDIA_CLASS, raw_id)?;
-    let repo = MediaRepo::new(api.pool());
-    let Some(mut row) = repo.get(MediaId(id)).await.map_err(db_error)? else {
+    let Some(mut row) =
+        with_db!(api.pool(), |db| MediaRepo::new(db).get(MediaId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(MEDIA_CLASS, raw_id));
     };
     api.authorize_resource(MEDIA_CLASS, row.resource.owner_id)?;
     let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
+    let placed = row.position;
     if let Some(position) = payload.int_member("position") {
         row.position = Some(position);
     }
@@ -390,7 +392,15 @@ pub async fn update(
     if !partial || payload.has("o:alt_text") {
         row.alt_text = payload.str_member("o:alt_text").map(str::to_string);
     }
-    repo.update(&row).await.map_err(db_error)?;
+    with_db!(api.pool(), |db| MediaRepo::new(db).update(&row).await).map_err(db_error)?;
+    if row.position != placed {
+        // A media moved in its item's order is a change to the item too:
+        // import undo keeps an item whose `modified` moved after the import.
+        with_db!(api.pool(), |db| omeka_db::repos::ResourceRepo::new(db)
+            .touch(&[ResourceId(row.item_id.0)])
+            .await)
+        .map_err(db_error)?;
+    }
     resource::store_values(
         api,
         row.resource.id,
@@ -407,8 +417,9 @@ pub async fn update(
 /// row.
 pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(MEDIA_CLASS, raw_id)?;
-    let repo = MediaRepo::new(api.pool());
-    let Some(row) = repo.get(MediaId(id)).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| MediaRepo::new(db).get(MediaId(id)).await).map_err(db_error)?
+    else {
         return Err(not_found(MEDIA_CLASS, raw_id));
     };
     access::resource_entity(api.actor(), MEDIA_CLASS, row.resource.owner_id)?;
@@ -426,10 +437,7 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
 pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError> {
     crate::write::files::delete_media_files(api.store().map(|store| store.as_ref()), row)?;
     values::clear(api, row.resource.id).await?;
-    MediaRepo::new(api.pool())
-        .delete(row.id())
-        .await
-        .map_err(db_error)?;
+    with_db!(api.pool(), |db| MediaRepo::new(db).delete(row.id()).await).map_err(db_error)?;
     fulltext::remove(api, "media", row.resource.id).await?;
     // `Module::deleteFulltextMedia`: the item's index text included this media,
     // so the item is re-indexed after the media row is gone.
@@ -447,10 +455,8 @@ async fn item(api: &Api<'_>, payload: &Payload) -> Result<ItemRow, ApiError> {
     let Some(id) = ref_row(raw) else {
         return Err(ref_not_found(ITEM_CLASS, raw));
     };
-    let Some(item) = ItemRepo::new(api.pool())
-        .get(ItemId(id))
-        .await
-        .map_err(db_error)?
+    let Some(item) =
+        with_db!(api.pool(), |db| ItemRepo::new(db).get(ItemId(id)).await).map_err(db_error)?
     else {
         return Err(ref_not_found(ITEM_CLASS, raw));
     };

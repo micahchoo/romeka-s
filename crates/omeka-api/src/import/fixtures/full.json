@@ -1,0 +1,113 @@
+{
+  "version": 2,
+  "sources": [
+    { "kind": "folder", "id": "s1", "root": "archive", "path": "BHC_006/दस्तावेज़" },
+    { "kind": "staging", "id": "up" }
+  ],
+  "grouping": { "pattern": "^(?<set>[^/]+)/(?<identifier>BHC_[0-9]{3}_[A-Z]{2}_[0-9]{3})(?:_(?<part>[a-z]+))?\\.[a-z]+$", "caseFold": true },
+  "example": { "path": "Artifacts/BHC_006_AF_001_front.jpg", "labels": { "n0": "identifier", "n2": "part" }, "optional": ["part"] },
+  "sheets": [
+    {
+      "id": "register",
+      "source": "s1",
+      "file": "register.csv",
+      "hash": "sha256:9f2c",
+      "read": { "encoding": "auto", "delimiter": ";", "quote": "\"", "headerLine": 2, "trim": true },
+      "rowKind": "item",
+      "join": {
+        "on": "identifier",
+        "column": { "index": 0, "header": "Accession No" },
+        "normalize": { "caseFold": true, "leadingZeros": true, "separators": true }
+      },
+      "itemKey": null,
+      "columns": [
+        { "column": { "index": 1, "header": "Title" }, "options": { "split": null, "type": "literal", "lang": "en", "private": false } },
+        { "column": { "index": 2, "header": "Title_hi" }, "options": { "split": "|", "type": "literal", "lang": "hi", "private": false } },
+        { "column": { "index": 3, "header": "Source" }, "options": { "split": null, "type": "uri", "lang": null, "private": true } },
+        { "column": { "index": 4, "header": "Part of" }, "options": { "split": ";", "type": { "resource": "identifier" }, "lang": null, "private": false } },
+        { "column": { "index": 5, "header": "Related id" }, "options": { "split": null, "type": { "resource": "internalId" }, "lang": null, "private": false } },
+        { "column": { "index": 6, "header": "Count" }, "options": { "split": null, "type": { "dataType": "numeric:integer" }, "lang": null, "private": false } }
+      ]
+    },
+    {
+      "id": "mixed",
+      "source": "up",
+      "file": "rows/mixed.tsv",
+      "hash": null,
+      "read": { "encoding": "utf-16le", "delimiter": "\t", "quote": "none", "headerLine": 1, "trim": false },
+      "rowKind": { "column": { "index": 0, "header": "Kind" } },
+      "join": {
+        "on": "fileName",
+        "column": { "index": 2, "header": "File" },
+        "normalize": { "caseFold": false, "leadingZeros": false, "separators": false }
+      },
+      "itemKey": { "index": 1, "header": "Item" },
+      "columns": [
+        { "column": { "index": 3, "header": "Ingester" }, "options": { "split": null, "type": "literal", "lang": null, "private": false } }
+      ]
+    }
+  ],
+  "slots": {
+    "item": {
+      "dcterms:title": {
+        "sources": [
+          { "from": "column", "sheet": "register", "column": { "index": 1, "header": "Title" } },
+          { "from": "column", "sheet": "register", "column": { "index": 2, "header": "Title_hi" } },
+          { "from": "group", "name": "identifier" }
+        ],
+        "combine": "all"
+      },
+      "sets": { "sources": [{ "from": "folder", "level": 1 }, { "from": "folder", "level": "path" }], "combine": "first" },
+      "template": { "sources": [{ "from": "constant", "value": "Artifact" }], "combine": "first" },
+      "dcterms:created": { "sources": [{ "from": "tag", "tag": "DateTimeOriginal", "files": "first" }], "combine": "first" },
+      "dcterms:creator": { "sources": [{ "from": "tag", "tag": "Artist", "files": { "part": "front" } }], "combine": "all" },
+      "local:shelfMark": { "sources": [{ "from": "tag", "tag": "Pixel dimensions", "files": "all" }], "combine": "all" },
+      "visibility": { "sources": [{ "from": "column", "sheet": "register", "column": { "index": 3, "header": "Source" } }], "combine": "first" }
+    },
+    "media": {
+      "dcterms:format": { "sources": [{ "from": "file", "fact": "format" }], "combine": "first" },
+      "mediaOrder": { "sources": [{ "from": "file", "fact": "name" }], "combine": "first" },
+      "ingester": { "sources": [{ "from": "column", "sheet": "mixed", "column": { "index": 3, "header": "Ingester" } }], "combine": "first" }
+    },
+    "itemSet": {
+      "dcterms:title": { "sources": [{ "from": "file", "fact": "path" }, { "from": "file", "fact": "size" }], "combine": "first" }
+    }
+  },
+  "action": {
+    "action": "revise",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "importSets" },
+      "media": { "key": "internalId", "scope": "all" },
+      "itemSet": { "key": "dcterms:title", "scope": { "sets": [3, 7] } }
+    },
+    "unmatched": "create"
+  },
+  "defaults": { "visibility": "public", "owner": 4, "sites": [1, 2], "template": 9 },
+  "flags": { "space-at-ends": "keep", "not-media": "keep", "unmatched": "leave" },
+  "decisions": [
+    { "kind": "move", "file": { "file": { "source": "s1", "path": "Artifacts/BHC_006_AF_001_back.jpg" } }, "to": { "with": { "file": { "source": "s1", "path": "Artifacts/BHC_006_AF_002.jpg" } } } },
+    { "kind": "move", "file": { "file": { "source": "up", "path": "scan.tif" } }, "to": "own" },
+    { "kind": "move", "file": { "file": { "source": "s1", "path": "_scratch/x.psd" } }, "to": "leave" },
+    { "kind": "leave", "entry": { "row": { "sheet": "register", "key": "BHC_006_AF_003 #2" } } },
+    {
+      "kind": "set",
+      "entry": { "file": { "source": "s1", "path": "Artifacts/BHC_006_AF_001_front.jpg" } },
+      "target": "item",
+      "slot": "dcterms:title",
+      "values": [
+        { "type": "literal", "text": "Lamp", "lang": "en", "label": null },
+        { "type": "uri", "text": "http://x.org/a", "lang": null, "label": "A" }
+      ]
+    },
+    { "kind": "set", "entry": { "row": { "sheet": "register", "key": "7" } }, "target": "item", "slot": "sets", "values": [] },
+    { "kind": "match", "entry": { "row": { "sheet": "register", "key": "BHC_006_AF_004" } }, "target": "item", "resource": 120 },
+    { "kind": "match", "entry": { "row": { "sheet": "mixed", "key": "line 4" } }, "target": "itemSet", "resource": null },
+    { "kind": "flag", "entry": { "row": { "sheet": "register", "key": "BHC_006_AF_005" } }, "flag": "date-form", "slot": "dcterms:created", "policy": "leave" },
+    { "kind": "flag", "entry": { "file": { "source": "s1", "path": "a.jpg" } }, "flag": "format-mismatch", "slot": null, "policy": "keep" }
+  ],
+  "newTypes": [
+    { "label": "Artifact", "from": "mapping", "class": null },
+    { "label": "Photo", "from": { "starter": "photograph" }, "class": "dctype:StillImage" }
+  ],
+  "newTerms": [{ "label": "Shelf mark" }, { "label": "दिनांक" }]
+}

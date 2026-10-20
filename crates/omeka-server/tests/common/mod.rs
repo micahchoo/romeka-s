@@ -7,6 +7,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, dead_code)]
 
+pub mod engine;
+
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, Request, StatusCode};
@@ -22,7 +24,7 @@ use omeka_db::rows::{
     NewSiteBlock, NewSiteBlockAttachment, NewSitePage, NewTemplate, NewTemplateProperty, NewUser,
     NewValue, NewVocabulary,
 };
-use omeka_db::{migrate, open_memory};
+use omeka_db::{DbPool, migrate, open_memory, with_db};
 use omeka_media::store::FileStore;
 use omeka_server::build_router;
 use sqlx::SqlitePool;
@@ -77,16 +79,29 @@ pub async fn seeded_router() -> (Router, Seed) {
 pub async fn seeded_pool() -> (SqlitePool, Seed) {
     let pool = open_memory().await.unwrap();
     migrate(&pool).await.unwrap();
+    let seed = seed(&DbPool::from(pool.clone())).await;
+    (pool, seed)
+}
+
+/// [`seeded_router`] on the engine `ROMEKA_MYSQL_URL` chooses ([`engine::pool`]).
+pub async fn seeded_engine_router() -> (Router, Seed) {
+    let (pool, seed) = seeded_engine_pool().await;
+    (router(pool), seed)
+}
+
+/// The seeded rows on the engine `ROMEKA_MYSQL_URL` chooses ([`engine::pool`]).
+pub async fn seeded_engine_pool() -> (DbPool, Seed) {
+    let pool = engine::pool().await;
     let seed = seed(&pool).await;
     (pool, seed)
 }
 
-pub fn router(pool: SqlitePool) -> Router {
+pub fn router(pool: impl Into<DbPool>) -> Router {
     build_router(pool, BaseUrl::parse("http://localhost").unwrap())
 }
 
 /// Build a router whose media deletes reach `store`.
-pub fn router_with_store(pool: SqlitePool, store: FileStore) -> Router {
+pub fn router_with_store(pool: impl Into<DbPool>, store: FileStore) -> Router {
     omeka_server::build_router_with_store(
         pool,
         BaseUrl::parse("http://localhost").unwrap(),
@@ -95,8 +110,8 @@ pub fn router_with_store(pool: SqlitePool, store: FileStore) -> Router {
 }
 
 /// Seed the default-install-like rows every read test asserts against.
-async fn seed(pool: &SqlitePool) -> Seed {
-    let user = UserRepo::new(pool)
+pub async fn seed(pool: &DbPool) -> Seed {
+    let user = with_db!(pool, |db| UserRepo::new(db)
         .create(&NewUser {
             email: "admin@example.com".to_string(),
             name: "Admin".to_string(),
@@ -105,9 +120,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             is_active: true,
             created: None,
         })
-        .await
-        .unwrap();
-    ApiKeyRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| ApiKeyRepo::new(db)
         .create(&NewApiKey {
             id: KEY_IDENTITY.to_string(),
             owner_id: user.id,
@@ -117,10 +132,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             last_accessed: None,
             created: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let dcterms = VocabularyRepo::new(pool)
+    let dcterms = with_db!(pool, |db| VocabularyRepo::new(db)
         .create(&NewVocabulary {
             owner_id: None,
             namespace_uri: "http://purl.org/dc/terms/".to_string(),
@@ -128,9 +143,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             label: "Dublin Core".to_string(),
             comment: Some("DCMI Metadata Terms".to_string()),
         })
-        .await
-        .unwrap();
-    let dctype = VocabularyRepo::new(pool)
+        .await)
+    .unwrap();
+    let dctype = with_db!(pool, |db| VocabularyRepo::new(db)
         .create(&NewVocabulary {
             owner_id: None,
             namespace_uri: "http://purl.org/dc/dcmitype/".to_string(),
@@ -138,9 +153,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             label: "Dublin Core Type".to_string(),
             comment: None,
         })
-        .await
-        .unwrap();
-    let title = PropertyRepo::new(pool)
+        .await)
+    .unwrap();
+    let title = with_db!(pool, |db| PropertyRepo::new(db)
         .create(&NewProperty {
             owner_id: None,
             vocabulary_id: dcterms.id,
@@ -148,9 +163,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             label: "Title".to_string(),
             comment: Some("A name given to the resource.".to_string()),
         })
-        .await
-        .unwrap();
-    let image = ClassRepo::new(pool)
+        .await)
+    .unwrap();
+    let image = with_db!(pool, |db| ClassRepo::new(db)
         .create(&NewClass {
             owner_id: None,
             vocabulary_id: dctype.id,
@@ -158,9 +173,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             label: "Image".to_string(),
             comment: Some("An image.".to_string()),
         })
-        .await
-        .unwrap();
-    let template = TemplateRepo::new(pool)
+        .await)
+    .unwrap();
+    let template = with_db!(pool, |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: Some(user.id),
             resource_class_id: Some(image.id),
@@ -168,9 +183,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             description_property_id: None,
             label: "Picture".to_string(),
         })
-        .await
-        .unwrap();
-    TemplateRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| TemplateRepo::new(db)
         .add_property(&NewTemplateProperty {
             resource_template_id: template.id,
             property_id: title.id,
@@ -182,10 +197,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             is_private: false,
             default_lang: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let item_set = ItemSetRepo::new(pool)
+    let item_set = with_db!(pool, |db| ItemSetRepo::new(db)
         .create(&NewItemSet {
             resource: NewResource {
                 owner_id: Some(user.id),
@@ -198,10 +213,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             },
             is_open: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let item = ItemRepo::new(pool)
+    let item = with_db!(pool, |db| ItemRepo::new(db)
         .create(&NewItem {
             resource: NewResource {
                 owner_id: Some(user.id),
@@ -214,9 +229,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             },
             primary_media_id: None,
         })
-        .await
-        .unwrap();
-    ValueRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: item.id().as_resource(),
             property_id: title.id,
@@ -228,13 +243,13 @@ async fn seed(pool: &SqlitePool) -> Seed {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
-    ItemRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| ItemRepo::new(db)
         .add_to_item_set(item.id(), item_set.id())
-        .await
-        .unwrap();
-    ValueRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: item_set.id().as_resource(),
             property_id: title.id,
@@ -246,10 +261,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let media = MediaRepo::new(pool)
+    let media = with_db!(pool, |db| MediaRepo::new(db)
         .create(&NewMedia {
             resource: NewResource {
                 owner_id: Some(user.id),
@@ -276,12 +291,14 @@ async fn seed(pool: &SqlitePool) -> Seed {
             lang: None,
             alt_text: None,
         })
-        .await
+        .await)
+    .unwrap();
+    let mut item_row = with_db!(pool, |db| ItemRepo::new(db).get(item.id()).await)
+        .unwrap()
         .unwrap();
-    let mut item_row = ItemRepo::new(pool).get(item.id()).await.unwrap().unwrap();
     item_row.primary_media_id = Some(media.id());
-    ItemRepo::new(pool).update(&item_row).await.unwrap();
-    ValueRepo::new(pool)
+    with_db!(pool, |db| ItemRepo::new(db).update(&item_row).await).unwrap();
+    with_db!(pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: media.id().as_resource(),
             property_id: title.id,
@@ -293,10 +310,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let site = SiteRepo::new(pool)
+    let site = with_db!(pool, |db| SiteRepo::new(db)
         .create(&NewSite {
             thumbnail_id: None,
             homepage_id: None,
@@ -311,10 +328,10 @@ async fn seed(pool: &SqlitePool) -> Seed {
             assign_new_items: false,
             created: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
-    let annotation = ResourceRepo::new(pool)
+    let annotation = with_db!(pool, |db| ResourceRepo::new(db)
         .create_annotation(&NewResource {
             owner_id: Some(user.id),
             resource_class_id: None,
@@ -324,9 +341,9 @@ async fn seed(pool: &SqlitePool) -> Seed {
             is_public: true,
             created: None,
         })
-        .await
-        .unwrap();
-    ValueRepo::new(pool)
+        .await)
+    .unwrap();
+    with_db!(pool, |db| ValueRepo::new(db)
         .create(&NewValue {
             resource_id: annotation.id().as_resource(),
             property_id: title.id,
@@ -338,8 +355,8 @@ async fn seed(pool: &SqlitePool) -> Seed {
             uri: None,
             is_public: true,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 
     Seed {
         user: user.id,

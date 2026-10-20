@@ -91,12 +91,15 @@ render the header and their own page, with no admin navigation:
   link to each row it names. See "Vocabulary family detail views". Each view carries the edit form
   and the delete control for its row; `#/vocabularies/new`, `#/properties/new`,
   `#/resource-classes/new` and `#/resource-templates/new` create one, reached from the list page.
-- `#/import` starts an archive import from a folder under the server's archive root and lists the
-  earlier imports, with the undo banner while the last one can be undone. The nav link shows only
-  when `GET /api/romeka/archive` answers `enabled: true`. `#/import/<id>/<step>` is one import's
-  seven steps (`folder`, `sets`, `types`, `sources`, `grid`, `check`, `run`), and
-  `#/import/<id>/grid/problems` the Grid with only the rows that have problems
-  (`src/pages/import/`, wire in `src/api/imports.ts` and `src/api/import-preview.ts`).
+- `#/import` starts an import (import v2, `docs/import-v2.md`) from a folder under one of the
+  server's archive roots or from files uploaded from this computer, and lists the earlier imports.
+  The nav link shows to whoever may read the import routes; the server folder card shows only when
+  a root is set up for the user. `#/import/<id>/simple/<screen>` is the guided pass (`files`,
+  `found`, `list`, `where`, `check`, `add`, with the sub-screens `example`, `all-files`, `pair`
+  and `all-items`), and `#/import/<id>/advanced/<screen>` the eight tabs (`files`, `lists`,
+  `fields`, `problems`, `existing`, `changes`, `items`, `run`, with `all-files` and `pair`). Both modes edit one saved plan
+  and share one start path (`src/pages/import/`, wire in `src/api/import-routes.ts`,
+  `src/api/import-sections.ts` and `src/api/import-uploads.ts`).
 - `#/assets/<id>` shows one asset with its edit and delete controls. `#/jobs/<id>` shows one job with
   its update and delete controls, and its log from `GET /api/romeka/jobs/<id>/log`, read again every
   two seconds while the job runs. There is no create route for either. See "Write requests".
@@ -400,8 +403,8 @@ These are the upstream details the parsers depend on. They are read from the PHP
 - Search responses are bare arrays. Pagination comes from the `Link` header and
   `Omeka-S-Total-Results`.
 - `o:thumbnail_urls` carries one file URL per thumbnail type when the row has thumbnails, and the
-  empty PHP array `[]` when it has none. The parser reads both. `romeka import media` generates the
-  three derivatives, so the seeded rows carry the URLs.
+  empty PHP array `[]` when it has none. The parser reads both. The e2e seed uploads its media
+  through `POST /api/media`, which makes the three derivatives, so the seeded rows carry the URLs.
 - `o:title` is null on every media row of the live collection. The label falls back the way
   `MediaRepresentation::displayTitle` does, to `o:source`, then to `o:filename`.
 - `thumbnail_display_urls` has the keys `large`, `medium`, `square`, always present. Each is the
@@ -516,7 +519,7 @@ The teardown stops both servers and deletes the temporary directory.
 
 | Spec | What it drives |
 | --- | --- |
-| `e2e/specs/archive-import.spec.ts` | Drives the seven Import steps on the fixture folder: marks the part in an example name and makes it optional, renames a set, makes a Photograph type, reads the CSV with detection, maps a column to a new field, uses two bulk fixes and one cell edit, checks the dry-run counts, runs the job, finds the items and a TIFF's JPEG thumbnail, then undoes from the banner and asserts the items and stored files are gone. A second test runs two imports and asserts the first can no longer be undone (409). |
+| `e2e/specs/archive-import.spec.ts` | Import v2 against the real port: the Simple pass on a BHC_006-like folder (the files, what we found, one example, the list round trip, where they go, the check, the start, the progress, the end), then an undo that keeps the one item edited since and undoes it anyway; an Advanced edit read in Simple, the pairs list round trip, a ZIP sent from this computer, and a delete the server refuses until its count is typed. Every import job is a real `romeka job run` child. |
 | `e2e/specs/pages.spec.ts` | Clicks every link in the admin navigation, asserts the shell renders the page title with no console error and no failed request, then asserts the navigation covers every member of the `AdminPageId` union in `src/app/pages.tsx`. |
 | `e2e/specs/budget.spec.ts` | Measures the user paths through the Performance API in the browser and writes `perf/summary.json`: a cold first contentful paint, the items list render, an item detail render, an item create round trip and a page navigation, five runs each, with the `/api` span behind each one. |
 | `e2e/specs/item-sets.spec.ts` | Creates an item set, renames it, sees it in the browse table, deletes it, and checks a cancelled delete writes nothing. |

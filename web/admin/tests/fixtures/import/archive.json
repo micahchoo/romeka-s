@@ -1,0 +1,51 @@
+{
+  "entries": [
+    {
+      "kind": "folder",
+      "name": "Artifacts",
+      "path": "Artifacts",
+      "size": null
+    },
+    {
+      "kind": "folder",
+      "name": "Bulk",
+      "path": "Bulk",
+      "size": null
+    },
+    {
+      "kind": "folder",
+      "name": "Misc",
+      "path": "Misc",
+      "size": null
+    },
+    {
+      "kind": "folder",
+      "name": "Photographs",
+      "path": "Photographs",
+      "size": null
+    },
+    {
+      "kind": "folder",
+      "name": "Scans",
+      "path": "Scans",
+      "size": null
+    },
+    {
+      "kind": "folder",
+      "name": "_scratch",
+      "path": "_scratch",
+      "size": null
+    },
+    {
+      "kind": "file",
+      "name": "register.csv",
+      "path": "register.csv",
+      "size": 193
+    }
+  ],
+  "path": "",
+  "root": "archive",
+  "roots": [
+    "archive"
+  ]
+}

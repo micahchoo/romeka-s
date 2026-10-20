@@ -3,7 +3,11 @@
 Romeka S is a fork of Omeka S. This crate holds the `/api` REST layer: wire
 types, the JSON-LD serializer, the route table, error documents, adapter
 registry, API key parsing, and the read and write endpoints over `omeka-db`.
-`omeka-server` turns these into axum responses.
+`omeka-server` turns these into axum responses. `read::Api` holds the
+deployment's `omeka_db::DbPool`; every repository call goes through
+`omeka_db::with_db!`, and the import v2 pipeline (`src/import`) stays generic
+over `omeka_db::Backend` because a run holds one transaction across many
+repositories.
 
 The wire keeps upstream's member names, member order and error documents, so a
 client written against Omeka S reads the same answers here.
@@ -31,13 +35,28 @@ Untyped `serde_json::Value` members (`o:ini`, `o:args`, `o:item_pool`,
 
 ## Archive import
 
-`src/import/` is the logic of the archive import, a Romeka addition: the stored plan and its parse
-boundary, the archive root and its safe relative paths, the file-name pattern, the CSV reader with
-its Windows-1252 repair, the EXIF tags, the pure derive from folder and plan to rows and problems,
-the preview and the dry run, and the write side (`run`, `undo`, `left`). The server's routes in
-`omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is the one validator:
-the admin only renders the pages of rows it answers. `romeka import csv` and `export csv` share its
-CSV reader.
+`src/import/` is the logic of import v2, a Romeka addition (`docs/import-v2.md`). The module is generic over `omeka_db::Backend` and holds no
+SQL. Its parts:
+
+- Rules and evidence. `plan` is the stored plan and its one parse boundary. `archive` holds the named
+  roots and the safe relative paths. `evidence` walks a source into file entries, with `scan` to store
+  the walk. `sheet` reads CSV, TSV, `.xlsx`, `.xls` and `.ods` lists, with the encodings, delimiters
+  and quotes of the contract. `tags` reads EXIF, IPTC and XMP tags and file facts.
+- The pure derive. `derive` takes the evidence, the plan, the decisions and a catalog of the install,
+  and gives a model of records, flags, anomalies and a digest. It uses `grouping` (the file-name
+  pattern), `join`, `slots`, `matching` and `flags`. It never touches a disk or a database.
+- What the admin reads. `preview` answers the sections of `POST …/preview`, `check` the counts and
+  the digest, `draft` the stored drafts, `template` the list a person fills in, and `starters` the
+  starter item types.
+- The write side. `run` writes the model one record at a time, with `ledger`, `media_in` and `left`.
+  `undo` takes an import back, with `touched` to find what changed since.
+- Uploads. `staging` keeps the files a person sent, `unzip` unpacks a ZIP among them, and `sweep`
+  removes them when no import needs them.
+
+The server's routes in `omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is
+the one validator: the admin only renders what it answers. The routes are in
+[`../omeka-server/README.md`](../omeka-server/README.md), and the commands in
+[`../omeka-cli/README.md`](../omeka-cli/README.md).
 
 ## Route table
 
@@ -192,12 +211,9 @@ authenticated caller; `value_annotations`, `jobs` and `modules` need a
 privileged one (`global_admin`, `site_admin`, `editor`, `reviewer`); everything
 else is open, including anonymous requests.
 
-`src/read/system.rs` is the one place in this crate that issues SQL. `DESIGN.md`
-says SQL strings live in `omeka-db` only, and the readgaps brief forbids editing
-that crate, so the asset, job, module, site_page and value_annotation listings
-run their own queries and parse every row through the matching
-`omeka_db::rows` struct. Reported as a deviation; the fix is a repository per
-table in `omeka-db`.
+This crate issues no SQL. The asset, job, module, site_page and
+value_annotation listings in `src/read/system.rs`, the page relations, the term
+catalogue and the list window all read through `omeka-db` repositories.
 
 ## Write endpoints
 

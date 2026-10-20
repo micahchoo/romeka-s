@@ -13,7 +13,6 @@
 //! Nothing binds a socket except [`serve`]; tests drive the app through
 //! `tower::ServiceExt::oneshot` or [`serve_with_config`] on an ephemeral port.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::Router;
@@ -22,13 +21,16 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{any, get};
+use omeka_db::DbPool;
+use omeka_db::with_db;
 use omeka_media::store::{FileUrls, Store};
-use sqlx::SqlitePool;
 use tower::ServiceBuilder;
 
 use omeka_api::auth;
 use omeka_api::auth_cache::AuthCache;
 use omeka_api::errors::{ApiError, ErrorDocument};
+use omeka_api::import::archive::ArchiveRoots;
+use omeka_api::import::preview::Caches;
 use omeka_api::jsonld::{self, BaseUrl};
 use omeka_api::limits::Limiter;
 use omeka_api::read::{Api, ApiResponse, Params};
@@ -62,7 +64,6 @@ mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use config_store::{StoreConfig, file_store, local_store, store_for};
-pub use imports::{IMPORT_JOB, UNDO_JOB};
 pub use jobs::{DispatchError, JobDispatch, NoDispatch};
 pub use logging::init_logging;
 pub use serve::{serve, serve_with_config, serve_with_services, shutdown_signal};
@@ -83,7 +84,7 @@ pub const FILES_URI: &str = "/files";
 /// marked `Secure`.
 #[derive(Clone)]
 pub struct AppState {
-    pub(crate) pool: SqlitePool,
+    pub(crate) pool: DbPool,
     pub(crate) base: BaseUrl,
     pub(crate) store: Arc<dyn Store>,
     /// The URLs the site renders for stored files, from `store`.
@@ -98,12 +99,12 @@ pub struct AppState {
     /// True when the configured base URL is https, so a session cookie is
     /// marked `Secure`.
     pub(crate) secure_cookies: bool,
-    /// The archive import's root folder; `None` turns the import off.
-    pub(crate) archive_root: Option<PathBuf>,
-    /// What starts a composed job row.
+    /// The runner the import routes start their jobs through.
     pub(crate) jobs: Arc<dyn JobDispatch>,
-    /// Each archive file's tags, remembered for the life of the process.
-    pub(crate) tag_reader: omeka_api::import::tags::SharedTagReader,
+    /// The named archive folders an import's folder sources read.
+    pub(crate) archive_roots: Arc<ArchiveRoots>,
+    /// The tag, sheet and evidence index caches every preview shares.
+    pub(crate) import_caches: Arc<Caches>,
     /// The pixel size of each stored image a IIIF document has named.
     pub(crate) iiif_dimensions: Arc<iiif::Dimensions>,
 }
@@ -138,14 +139,19 @@ impl Services {
 /// and a fallback for everything else.
 ///
 /// The default [`Config`] supplies the limits; [`build_router_with_config`]
-/// takes the deployment's.
-pub fn build_router(pool: SqlitePool, base: BaseUrl) -> Router {
+/// takes the deployment's. `pool` is a [`DbPool`], or a SQLite pool a test
+/// built.
+pub fn build_router(pool: impl Into<DbPool>, base: BaseUrl) -> Router {
     build_router_with_store(pool, base, local_store(FILES_ROOT))
 }
 
 /// Build the application around one file store. A test roots the store in a
 /// tempdir.
-pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: Arc<dyn Store>) -> Router {
+pub fn build_router_with_store(
+    pool: impl Into<DbPool>,
+    base: BaseUrl,
+    store: Arc<dyn Store>,
+) -> Router {
     let config = Config {
         base_url: base,
         ..Config::default()
@@ -154,14 +160,18 @@ pub fn build_router_with_store(pool: SqlitePool, base: BaseUrl, store: Arc<dyn S
 }
 
 /// Build the application with the configured base URL and limits.
-pub fn build_router_with_config(pool: SqlitePool, config: &Config) -> Router {
+pub fn build_router_with_config(pool: impl Into<DbPool>, config: &Config) -> Router {
     build_router_with_services(pool, config, Services::new(local_store(FILES_ROOT)))
 }
 
 /// Build the application with the configured base URL, limits and archive
 /// root, around the process's file store and job runner.
-pub fn build_router_with_services(pool: SqlitePool, config: &Config, services: Services) -> Router {
-    build_app(pool, services, config)
+pub fn build_router_with_services(
+    pool: impl Into<DbPool>,
+    config: &Config,
+    services: Services,
+) -> Router {
+    build_app(pool.into(), services, config)
 }
 
 /// The routes, wrapped in the middleware stack. The outer layer is [`ServiceBuilder`]'s
@@ -169,7 +179,7 @@ pub fn build_router_with_services(pool: SqlitePool, config: &Config, services: S
 /// compression runs on the tagged body, the same-origin guard refuses a
 /// cookie-authenticated write from another origin, and the body cap is nearest
 /// the routes.
-fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
+fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
     let base = config.base_url.clone();
     let secure_cookies = base.as_str().starts_with("https://");
     let state = AppState {
@@ -181,9 +191,9 @@ fn build_app(pool: SqlitePool, services: Services, config: &Config) -> Router {
         limiter: Limiter::new(omeka_api::limits::RateLimits::default()),
         mailer: Mailer::from_config(&config.mail, base.clone()),
         secure_cookies,
-        archive_root: config.archive_root.clone(),
         jobs: services.jobs,
-        tag_reader: omeka_api::import::tags::SharedTagReader::default(),
+        archive_roots: Arc::new(config.archive_roots.clone()),
+        import_caches: Arc::new(Caches::default()),
         iiif_dimensions: Arc::default(),
     };
     let routes = Router::new()
@@ -240,9 +250,9 @@ async fn health() -> Response {
 /// Readiness: the database answers a query. A closed or unreachable pool is a
 /// 503, so a load balancer stops sending traffic until storage is back.
 async fn ready(State(state): State<AppState>) -> Response {
-    match sqlx::query_scalar::<_, i64>("SELECT 1")
-        .fetch_one(&state.pool)
-        .await
+    match with_db!(&state.pool, |db| omeka_db::repos::DatabaseRepo::new(db)
+        .ping()
+        .await)
     {
         Ok(_) => status_response(StatusCode::OK, "ready"),
         Err(_) => status_response(StatusCode::SERVICE_UNAVAILABLE, "unavailable"),

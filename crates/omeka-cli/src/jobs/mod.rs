@@ -17,22 +17,26 @@ mod batch_delete;
 mod batch_update;
 mod dispatcher;
 mod env;
-mod import_archive;
+mod import_run;
 mod index_fulltext_search;
 mod query;
 mod runner;
 mod status;
+mod sweep;
+mod unzip;
 mod update_site_items;
 
 pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
-pub use dispatcher::{Dispatcher, JobCommand, JobContext};
+pub use dispatcher::{DATABASE_URL_ENV, Dispatcher, JobCommand, JobContext, compose_job};
 pub use env::JobEnv;
-pub use import_archive::{ImportArchive, UndoImport};
+pub use import_run::{ImportRun, ImportScan, ImportUndo, refuse_live_hand_run};
 pub use index_fulltext_search::IndexFulltextSearch;
 pub use query::BatchQuery;
 pub use runner::Runner;
 pub use status::JobStatus;
+pub use sweep::ImportSweep;
+pub use unzip::ImportUnzip;
 pub use update_site_items::UpdateSiteItems;
 
 use async_trait::async_trait;
@@ -71,12 +75,15 @@ pub trait Job: Send + Sync {
 static BATCH_DELETE: BatchDelete = BatchDelete;
 static BATCH_UPDATE: BatchUpdate = BatchUpdate;
 static INDEX_FULLTEXT_SEARCH: IndexFulltextSearch = IndexFulltextSearch;
+static IMPORT_RUN: ImportRun = ImportRun;
+static IMPORT_SCAN: ImportScan = ImportScan;
+static IMPORT_UNDO: ImportUndo = ImportUndo;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
-static IMPORT_ARCHIVE: ImportArchive = ImportArchive;
-static UNDO_IMPORT: UndoImport = UndoImport;
+static IMPORT_UNZIP: ImportUnzip = ImportUnzip;
+static IMPORT_SWEEP: ImportSweep = ImportSweep;
 
 /// The job for a `job.class` value, the port's registry of the four upstream
-/// jobs and the archive import's two. `Dispatcher::dispatch` resolves the class the same way through the
+/// jobs and Romeka's import jobs. `Dispatcher::dispatch` resolves the class the same way through the
 /// service manager. `None` for a class this build does not register.
 #[must_use]
 pub fn job_for(class: &str) -> Option<&'static dyn Job> {
@@ -85,8 +92,11 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         "Omeka\\Job\\BatchUpdate" => Some(&BATCH_UPDATE),
         "Omeka\\Job\\IndexFulltextSearch" => Some(&INDEX_FULLTEXT_SEARCH),
         "Omeka\\Job\\UpdateSiteItems" => Some(&UPDATE_SITE_ITEMS),
-        omeka_server::IMPORT_JOB => Some(&IMPORT_ARCHIVE),
-        omeka_server::UNDO_JOB => Some(&UNDO_IMPORT),
+        omeka_api::import::run::RUN_JOB => Some(&IMPORT_RUN),
+        omeka_api::import::scan::SCAN_JOB => Some(&IMPORT_SCAN),
+        omeka_api::import::undo::UNDO_JOB => Some(&IMPORT_UNDO),
+        omeka_api::import::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
+        omeka_api::import::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
         _ => None,
     }
 }

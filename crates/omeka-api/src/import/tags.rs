@@ -1,181 +1,239 @@
-//! The tags a file offers as value sources: EXIF read from inside the file,
-//! and facts about the file itself.
+//! File tags and file facts: the values a file offers to a slot
+//! (`docs/import-v2.md`, `SourceRef` `tag` and `file`).
 //!
-//! [`TAGS`] is the catalogue, in the order the Sources tab lists it. Reading
-//! a file is the slow part, so [`TagCache`] reads each file at most once and
-//! only when a value asks for an EXIF tag or the pixel size. File name, Folder,
-//! Size and Format never open the file.
+//! File facts and the file tags (`File name`, `Folder`, `Size`, `Format`)
+//! come from the evidence index and never open the file. EXIF, IPTC and XMP
+//! tags and `Pixel dimensions` read the file's headers through
+//! `omeka_media::image_metadata`, which seeks and never loads the pixels.
+//! [`TagCache`] reads each file once per (path, modified time, size), the
+//! three the index already holds, so a cached answer costs no system call.
 
-use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::SystemTime;
 
-use serde::Serialize;
+use super::archive::SourceDir;
+use super::evidence::FileEntry;
+pub use omeka_media::image_metadata::{Embedded, Metadata};
 
-use super::archive::ArchiveFile;
+use super::plan::{FileFact, TagId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TagKind {
+    /// Read from inside the file, from its EXIF block.
     Exif,
+    /// Read from inside the file, from its IPTC block.
+    Iptc,
+    /// Read from inside the file, from its XMP packet.
+    Xmp,
+    /// A fact about the file.
     File,
 }
 
-pub const DATE_TIME_ORIGINAL: &str = "DateTimeOriginal";
-const PIXEL_DIMENSIONS: &str = "Pixel dimensions";
+impl TagKind {
+    /// The name the wire gives the kind.
+    #[must_use]
+    pub const fn wire(self) -> &'static str {
+        match self {
+            Self::Exif => "exif",
+            Self::Iptc => "iptc",
+            Self::Xmp => "xmp",
+            Self::File => "file",
+        }
+    }
 
-/// Every tag the import reads, in display order.
-pub const TAGS: [(&str, TagKind); 11] = [
-    (DATE_TIME_ORIGINAL, TagKind::Exif),
-    ("Artist", TagKind::Exif),
-    ("Copyright", TagKind::Exif),
-    ("ImageDescription", TagKind::Exif),
-    ("GPS", TagKind::Exif),
-    ("Model", TagKind::Exif),
-    ("File name", TagKind::File),
-    ("Folder", TagKind::File),
-    ("Size", TagKind::File),
-    (PIXEL_DIMENSIONS, TagKind::File),
-    ("Format", TagKind::File),
+    /// Whether the tag is read from inside the file.
+    #[must_use]
+    pub const fn is_embedded(self) -> bool {
+        !matches!(self, Self::File)
+    }
+}
+
+/// The tags the Sources tab lists, in its order.
+pub const TAGS: [(TagId, TagKind); 25] = [
+    (TagId::DateTimeOriginal, TagKind::Exif),
+    (TagId::Artist, TagKind::Exif),
+    (TagId::Copyright, TagKind::Exif),
+    (TagId::ImageDescription, TagKind::Exif),
+    (TagId::Gps, TagKind::Exif),
+    (TagId::Model, TagKind::Exif),
+    (TagId::IptcByline, TagKind::Iptc),
+    (TagId::IptcCaption, TagKind::Iptc),
+    (TagId::IptcKeywords, TagKind::Iptc),
+    (TagId::IptcObjectName, TagKind::Iptc),
+    (TagId::IptcDateCreated, TagKind::Iptc),
+    (TagId::IptcCity, TagKind::Iptc),
+    (TagId::IptcCountry, TagKind::Iptc),
+    (TagId::XmpTitle, TagKind::Xmp),
+    (TagId::XmpDescription, TagKind::Xmp),
+    (TagId::XmpCreator, TagKind::Xmp),
+    (TagId::XmpSubject, TagKind::Xmp),
+    (TagId::XmpRights, TagKind::Xmp),
+    (TagId::XmpDateCreated, TagKind::Xmp),
+    (TagId::XmpHierarchicalSubject, TagKind::Xmp),
+    (TagId::FileName, TagKind::File),
+    (TagId::Folder, TagKind::File),
+    (TagId::Size, TagKind::File),
+    (TagId::PixelDimensions, TagKind::File),
+    (TagId::Format, TagKind::File),
 ];
 
-/// The kind of a tag the import reads, `None` for any other name.
+/// The `image_metadata` key of a tag read from inside the file.
+fn embedded_key(tag: TagId) -> Option<&'static str> {
+    Some(match tag {
+        TagId::DateTimeOriginal => "DateTimeOriginal",
+        TagId::Artist => "Artist",
+        TagId::Copyright => "Copyright",
+        TagId::ImageDescription => "ImageDescription",
+        TagId::Gps => "GPS",
+        TagId::Model => "Model",
+        TagId::IptcByline => "IPTC By-line",
+        TagId::IptcCaption => "IPTC Caption-Abstract",
+        TagId::IptcKeywords => "IPTC Keywords",
+        TagId::IptcObjectName => "IPTC Object Name",
+        TagId::IptcDateCreated => "IPTC Date Created",
+        TagId::IptcCity => "IPTC City",
+        TagId::IptcCountry => "IPTC Country",
+        TagId::XmpTitle => "XMP dc:title",
+        TagId::XmpDescription => "XMP dc:description",
+        TagId::XmpCreator => "XMP dc:creator",
+        TagId::XmpSubject => "XMP dc:subject",
+        TagId::XmpRights => "XMP dc:rights",
+        TagId::XmpDateCreated => "XMP photoshop:DateCreated",
+        TagId::XmpHierarchicalSubject => "XMP lr:hierarchicalSubject",
+        TagId::FileName | TagId::Folder | TagId::Size | TagId::PixelDimensions | TagId::Format => {
+            return None;
+        }
+    })
+}
+
+/// A file fact. `size` is the byte count; `format` is the sniffed media
+/// type, never a guess from the extension.
 #[must_use]
-pub fn kind_of(tag: &str) -> Option<TagKind> {
-    TAGS.iter()
-        .find(|(name, _)| *name == tag)
-        .map(|(_, kind)| *kind)
+pub fn file_fact(entry: &FileEntry, fact: FileFact) -> String {
+    match fact {
+        FileFact::Name => entry.name().to_string(),
+        FileFact::Path => entry.path.to_string(),
+        FileFact::Size => entry.size.to_string(),
+        FileFact::Format => entry.sniffed.clone(),
+    }
 }
 
-/// Reads the embedded metadata of one file, as `omeka_media::image_metadata`
-/// answers it. Tests supply their own.
-pub trait TagReader {
-    fn read(&self, file: &ArchiveFile) -> BTreeMap<&'static str, String>;
+/// Reads the embedded metadata of one file, keyed as
+/// `omeka_media::image_metadata` keys it. Tests supply their own.
+pub trait TagReader: Send + Sync {
+    fn read(&self, file: &Path) -> Metadata;
 }
 
-/// Reads the file from disk, only as far as its headers and directories. An
-/// unreadable file has no tags.
+/// Reads from disk, as far as the headers. An unreadable file has no tags.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FsTagReader;
 
 impl TagReader for FsTagReader {
-    fn read(&self, file: &ArchiveFile) -> BTreeMap<&'static str, String> {
-        std::fs::File::open(&file.absolute)
+    fn read(&self, file: &Path) -> Metadata {
+        std::fs::File::open(file)
             .map(|handle| omeka_media::image_metadata(&mut std::io::BufReader::new(handle)))
             .unwrap_or_default()
     }
 }
 
-/// The most files a [`SharedTagReader`] remembers before it starts over.
-const SHARED_CAPACITY: usize = 100_000;
+/// The most files a cache remembers before it starts over.
+const CAPACITY: usize = 100_000;
 
 type FileKey = (PathBuf, Option<SystemTime>, u64);
+type Read = Arc<Metadata>;
 
-/// A disk reader that remembers each file's tags across previews, so the
-/// Sources tab asking again does not reread large TIFFs. A file is the same
-/// while its path, modification time and size are; a changed file is read
-/// again. Clones share one memory.
-#[derive(Debug, Clone, Default)]
-pub struct SharedTagReader {
-    seen: Arc<Mutex<HashMap<FileKey, BTreeMap<&'static str, String>>>>,
+/// Tag values of files, each file read once while its index entry stays
+/// the same. Shared across previews, so asking again does not reread a
+/// large TIFF.
+pub struct TagCache<R = FsTagReader> {
+    reader: R,
+    seen: Mutex<HashMap<FileKey, Read>>,
 }
 
-impl TagReader for SharedTagReader {
-    fn read(&self, file: &ArchiveFile) -> BTreeMap<&'static str, String> {
-        let Ok(metadata) = std::fs::metadata(&file.absolute) else {
-            return BTreeMap::new();
-        };
-        let key = (
-            file.absolute.clone(),
-            metadata.modified().ok(),
-            metadata.len(),
-        );
-        if let Some(found) = self
-            .seen
-            .lock()
-            .ok()
-            .and_then(|seen| seen.get(&key).cloned())
-        {
-            return found;
-        }
-        let tags = FsTagReader.read(file);
-        if let Ok(mut seen) = self.seen.lock() {
-            if seen.len() >= SHARED_CAPACITY {
-                seen.clear();
-            }
-            seen.insert(key, tags.clone());
-        }
-        tags
+impl Default for TagCache {
+    fn default() -> Self {
+        Self::new(FsTagReader)
     }
 }
 
-/// Tag values of files, each file read once.
-pub struct TagCache<'r> {
-    reader: &'r dyn TagReader,
-    read: RefCell<HashMap<String, Rc<BTreeMap<&'static str, String>>>>,
-}
-
-impl<'r> TagCache<'r> {
-    #[must_use]
-    pub fn new(reader: &'r dyn TagReader) -> Self {
+impl<R: TagReader> TagCache<R> {
+    pub fn new(reader: R) -> Self {
         Self {
             reader,
-            read: RefCell::new(HashMap::new()),
+            seen: Mutex::new(HashMap::new()),
         }
     }
 
-    fn embedded(&self, file: &ArchiveFile) -> Rc<BTreeMap<&'static str, String>> {
-        if let Some(found) = self.read.borrow().get(&file.path) {
-            return Rc::clone(found);
+    /// The value of `tag` for `entry`, `None` when the file has none. A
+    /// tag that repeats (IPTC Keywords, an XMP bag) gives its values joined
+    /// by `; `; [`TagCache::tag`] gives them apart.
+    #[must_use]
+    pub fn value(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<String> {
+        Some(self.tag(source, entry, tag)?.values.join("; "))
+    }
+
+    /// The values of `tag` for `entry`, apart, and whether the file's text
+    /// was read as Windows-1252 (`encoding-suspect`). `None` when the file
+    /// has no such tag; a file fact has one value and is never suspect.
+    #[must_use]
+    pub fn tag(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        let fact = match tag {
+            TagId::FileName => entry.name().to_string(),
+            TagId::Folder => entry.folder().to_string(),
+            TagId::Size => human_size(entry.size),
+            TagId::Format => entry.sniffed.clone(),
+            TagId::PixelDimensions => {
+                let tags = self.read(source, entry);
+                let one = |key| tags.get(key)?.values.first().cloned();
+                format!("{} × {}", one("Width")?, one("Height")?)
+            }
+            _ => {
+                let mut found = self.embedded(source, entry, tag)?;
+                found.values.retain(|value| !value.is_empty());
+                return (!found.values.is_empty()).then_some(found);
+            }
+        };
+        (!fact.is_empty()).then(|| Embedded {
+            values: vec![fact],
+            windows_1252: false,
+        })
+    }
+
+    /// The values of a tag read from inside the file, apart, and whether
+    /// its text was read as Windows-1252 (`encoding-suspect`). `None` for
+    /// a file fact and when the file has no such tag.
+    #[must_use]
+    pub fn embedded(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        self.read(source, entry).get(embedded_key(tag)?).cloned()
+    }
+
+    fn read(&self, source: &SourceDir, entry: &FileEntry) -> Read {
+        let disk = entry.disk_path();
+        let key = (source.dir().join(&disk), entry.modified, entry.size);
+        let seen = || self.seen.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(found) = seen().get(&key) {
+            return Arc::clone(found);
         }
-        let tags = Rc::new(self.reader.read(file));
-        self.read
-            .borrow_mut()
-            .insert(file.path.clone(), Rc::clone(&tags));
+        let tags = Arc::new(
+            source
+                .locate(&disk)
+                .map(|file| self.reader.read(&file))
+                .unwrap_or_default(),
+        );
+        let mut seen = seen();
+        if seen.len() >= CAPACITY {
+            seen.clear();
+        }
+        seen.insert(key, Arc::clone(&tags));
         tags
     }
-
-    /// The value of `tag` for `file`, `""` when the file has none.
-    #[must_use]
-    pub fn value(&self, file: &ArchiveFile, tag: &str) -> String {
-        let (folder, name) = file.path.rsplit_once('/').unwrap_or(("", &file.path));
-        match tag {
-            "File name" => name.to_string(),
-            "Folder" => folder.to_string(),
-            "Size" => human_size(file.size),
-            "Format" => format_of(name),
-            PIXEL_DIMENSIONS => {
-                let tags = self.embedded(file);
-                match (tags.get("Width"), tags.get("Height")) {
-                    (Some(width), Some(height)) => format!("{width} × {height}"),
-                    _ => String::new(),
-                }
-            }
-            _ => self.embedded(file).get(tag).cloned().unwrap_or_default(),
-        }
-    }
 }
 
-/// The format name of a file by its extension: `JPEG`, `TIFF`, or the
-/// extension in capitals.
-fn format_of(name: &str) -> String {
-    let Some((_, extension)) = name.rsplit_once('.') else {
-        return String::new();
-    };
-    match extension.to_ascii_lowercase().as_str() {
-        "jpg" | "jpeg" => "JPEG".to_string(),
-        "tif" | "tiff" => "TIFF".to_string(),
-        "txt" => "Text".to_string(),
-        other => other.to_ascii_uppercase(),
-    }
-}
-
-/// Decimal units, as a file manager shows them: `812 B`, `12 KB`, `4.1 MB`,
-/// `48 MB`.
-fn human_size(bytes: u64) -> String {
+/// Decimal units, as a file manager shows them: `812 B`, `12 KB`, `4.1 MB`.
+#[must_use]
+pub fn human_size(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
     if bytes < 1000 {
         return format!("{bytes} B");
@@ -187,7 +245,7 @@ fn human_size(bytes: u64) -> String {
         value /= 1000.0;
         unit += 1;
     }
-    if value < 10.0 && unit > 0 {
+    if value < 10.0 {
         format!("{value:.1} {}", UNITS[unit])
     } else {
         format!("{value:.0} {}", UNITS[unit])
@@ -195,14 +253,13 @@ fn human_size(bytes: u64) -> String {
 }
 
 /// `2019:05:14 11:02:10` as the ISO date `2019-05-14`. `None` for text that
-/// is not an EXIF date, and for the all-zero date cameras write when they do
-/// not know.
+/// is not an EXIF date, and for the all-zero date cameras write when they
+/// do not know.
 #[must_use]
 pub fn exif_date_to_iso(value: &str) -> Option<String> {
     let date = value.get(..10)?;
-    let bytes = date.as_bytes();
-    let shape = bytes.iter().enumerate().all(|(index, byte)| match index {
-        4 | 7 => *byte == b':',
+    let shape = date.bytes().enumerate().all(|(index, byte)| match index {
+        4 | 7 => byte == b':',
         _ => byte.is_ascii_digit(),
     });
     if !shape || date.starts_with("0000") {
@@ -214,111 +271,172 @@ pub fn exif_date_to_iso(value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
-    use super::*;
-    use std::cell::Cell;
-    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-    struct Counting(Cell<usize>);
+    use super::*;
+    use crate::import::evidence::walk;
+
+    struct Counting(AtomicUsize);
+
+    fn one(text: &str) -> Embedded {
+        Embedded {
+            values: vec![text.to_string()],
+            windows_1252: false,
+        }
+    }
 
     impl TagReader for Counting {
-        fn read(&self, _: &ArchiveFile) -> BTreeMap<&'static str, String> {
-            self.0.set(self.0.get() + 1);
-            BTreeMap::from([
-                ("Artist", "R. Mehta".to_string()),
-                ("Width", "7200".to_string()),
-                ("Height", "5400".to_string()),
+        fn read(&self, _: &Path) -> Metadata {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Metadata::from([
+                ("Artist", one("R. Mehta")),
+                ("Width", one("7200")),
+                ("Height", one("5400")),
+                (
+                    "IPTC Keywords",
+                    Embedded {
+                        values: vec!["harbour".into(), "मुंबई".into()],
+                        windows_1252: false,
+                    },
+                ),
+                (
+                    "XMP dc:creator",
+                    Embedded {
+                        values: vec!["André".into()],
+                        windows_1252: true,
+                    },
+                ),
             ])
         }
     }
 
-    fn file(path: &str, size: u64) -> ArchiveFile {
-        ArchiveFile {
-            path: path.to_string(),
-            size,
-            absolute: PathBuf::from(path),
+    fn scanned(bytes: &[u8]) -> (tempfile::TempDir, SourceDir, FileEntry) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("Photographs/1950s")).expect("mkdir");
+        std::fs::write(dir.path().join("Photographs/1950s/BHC_101.jpg"), bytes).expect("write");
+        let source = SourceDir::standalone(dir.path()).expect("source");
+        let entry = walk(&source).expect("walk").entries.remove(0);
+        (dir, source, entry)
+    }
+
+    #[test]
+    fn a57_the_listed_tags_are_the_contracts_six_exif_seven_iptc_seven_xmp_and_five_facts() {
+        let of = |wanted| TAGS.iter().filter(|(_, kind)| *kind == wanted).count();
+        assert_eq!(TAGS.len(), 25);
+        assert_eq!(
+            [
+                of(TagKind::Exif),
+                of(TagKind::Iptc),
+                of(TagKind::Xmp),
+                of(TagKind::File)
+            ],
+            [6, 7, 7, 5]
+        );
+        for (tag, kind) in TAGS {
+            assert_eq!(embedded_key(tag).is_some(), kind.is_embedded(), "{tag:?}");
+            let name = serde_json::to_value(tag).expect("name");
+            if let Some(key) = embedded_key(tag) {
+                assert_eq!(name, key, "a tag is named as the reader keys it");
+            }
+            assert_eq!(serde_json::from_value::<TagId>(name).expect("parse"), tag);
         }
+        let kinds: Vec<_> = TAGS.iter().map(|(_, kind)| kind.wire()).collect();
+        assert_eq!(kinds[0], "exif");
+        assert_eq!(kinds[6], "iptc");
+        assert_eq!(kinds[13], "xmp");
+        assert_eq!(kinds[24], "file");
     }
 
     #[test]
-    fn file_facts_never_open_the_file_and_exif_opens_it_once() {
-        let reader = Counting(Cell::new(0));
-        let cache = TagCache::new(&reader);
-        let tif = file("Photographs/1950s/BHC_006_PH_101.tif", 61_000_000);
-        assert_eq!(cache.value(&tif, "File name"), "BHC_006_PH_101.tif");
-        assert_eq!(cache.value(&tif, "Folder"), "Photographs/1950s");
-        assert_eq!(cache.value(&tif, "Size"), "61 MB");
-        assert_eq!(cache.value(&tif, "Format"), "TIFF");
-        assert_eq!(reader.0.get(), 0);
-        assert_eq!(cache.value(&tif, "Artist"), "R. Mehta");
-        assert_eq!(cache.value(&tif, "Pixel dimensions"), "7200 × 5400");
-        assert_eq!(cache.value(&tif, "Model"), "");
-        assert_eq!(reader.0.get(), 1);
+    fn a57_a_repeating_tag_gives_its_values_apart_or_joined_and_a58_marks_1252() {
+        let (_dir, source, entry) = scanned(b"\x89PNG\r\n\x1a\n");
+        let cache = TagCache::new(Counting(AtomicUsize::new(0)));
+        let keywords = cache
+            .embedded(&source, &entry, TagId::IptcKeywords)
+            .expect("keywords");
+        assert_eq!(keywords.values, ["harbour", "मुंबई"]);
+        assert_eq!(
+            cache.value(&source, &entry, TagId::IptcKeywords).as_deref(),
+            Some("harbour; मुंबई")
+        );
+        let creator = cache
+            .embedded(&source, &entry, TagId::XmpCreator)
+            .expect("creator");
+        assert!(creator.windows_1252);
+        assert_eq!(cache.embedded(&source, &entry, TagId::IptcCity), None);
+        assert_eq!(cache.embedded(&source, &entry, TagId::FileName), None);
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 1, "opened once");
     }
 
     #[test]
-    fn sizes_read_like_a_file_manager() {
+    fn a60_file_facts_and_tags_come_from_the_index_and_the_format_is_sniffed() {
+        let (_dir, source, entry) = scanned(b"\x89PNG\r\n\x1a\n");
+        let cache = TagCache::new(Counting(AtomicUsize::new(0)));
+        assert_eq!(file_fact(&entry, FileFact::Name), "BHC_101.jpg");
+        assert_eq!(
+            file_fact(&entry, FileFact::Path),
+            "Photographs/1950s/BHC_101.jpg"
+        );
+        assert_eq!(file_fact(&entry, FileFact::Size), "8");
+        assert_eq!(file_fact(&entry, FileFact::Format), "image/png");
+        let tag = |tag| cache.value(&source, &entry, tag);
+        assert_eq!(tag(TagId::FileName).as_deref(), Some("BHC_101.jpg"));
+        assert_eq!(tag(TagId::Folder).as_deref(), Some("Photographs/1950s"));
+        assert_eq!(tag(TagId::Size).as_deref(), Some("8 B"));
+        assert_eq!(tag(TagId::Format).as_deref(), Some("image/png"));
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 0, "no file opened");
+        assert_eq!(tag(TagId::Artist).as_deref(), Some("R. Mehta"));
+        assert_eq!(tag(TagId::PixelDimensions).as_deref(), Some("7200 × 5400"));
+        assert_eq!(tag(TagId::Model), None);
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 1, "opened once");
+    }
+
+    #[test]
+    fn a_file_is_read_again_only_when_its_index_entry_changes() {
+        let (_dir, source, entry) = scanned(b"\x89PNG\r\n\x1a\n");
+        let cache = TagCache::new(Counting(AtomicUsize::new(0)));
+        let _ = cache.value(&source, &entry, TagId::Artist);
+        let _ = cache.value(&source, &entry, TagId::Artist);
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 1);
+        let rescanned = FileEntry {
+            size: entry.size + 1,
+            ..entry.clone()
+        };
+        let _ = cache.value(&source, &rescanned, TagId::Artist);
+        assert_eq!(cache.reader.0.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn the_disk_reader_reads_a_real_jpeg_and_a_missing_file_has_no_tags() {
+        let pixels = image::RgbImage::from_pixel(16, 12, image::Rgb([90, 120, 150]));
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(pixels)
+            .write_to(&mut bytes, image::ImageFormat::Jpeg)
+            .expect("encode");
+        let (dir, source, entry) = scanned(&bytes.into_inner());
+        let cache = TagCache::default();
+        assert_eq!(
+            cache
+                .value(&source, &entry, TagId::PixelDimensions)
+                .as_deref(),
+            Some("16 × 12")
+        );
+        std::fs::remove_file(dir.path().join(entry.path.as_str())).expect("rm");
+        let gone = FileEntry { size: 1, ..entry };
+        assert_eq!(cache.value(&source, &gone, TagId::Artist), None);
+    }
+
+    #[test]
+    fn sizes_read_like_a_file_manager_and_exif_dates_become_iso() {
         assert_eq!(human_size(812), "812 B");
         assert_eq!(human_size(12_000), "12 KB");
         assert_eq!(human_size(4_100_000), "4.1 MB");
-        assert_eq!(human_size(48_000_000), "48 MB");
-    }
-
-    #[test]
-    fn an_exif_date_becomes_an_iso_date() {
+        assert_eq!(human_size(61_000_000), "61 MB");
         assert_eq!(
             exif_date_to_iso("2019:05:14 11:02:10").as_deref(),
             Some("2019-05-14")
         );
         assert_eq!(exif_date_to_iso("0000:00:00 00:00:00"), None);
         assert_eq!(exif_date_to_iso("14/05/2019"), None);
-    }
-
-    #[test]
-    fn the_disk_reader_answers_an_unreadable_file_with_no_tags() {
-        assert!(FsTagReader.read(&file("/no/such/file.jpg", 0)).is_empty());
-    }
-
-    #[test]
-    fn the_shared_reader_rereads_a_file_only_when_its_time_or_size_changes() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("photo.jpg");
-        let pixels = image::RgbImage::from_pixel(16, 12, image::Rgb([90, 120, 150]));
-        let mut bytes = std::io::Cursor::new(Vec::new());
-        image::DynamicImage::ImageRgb8(pixels)
-            .write_to(&mut bytes, image::ImageFormat::Jpeg)
-            .expect("encode");
-        let bytes = bytes.into_inner();
-        std::fs::write(&path, &bytes).expect("write");
-        let file = ArchiveFile {
-            path: "photo.jpg".to_string(),
-            size: bytes.len() as u64,
-            absolute: path.clone(),
-        };
-        let reader = SharedTagReader::default();
-        let first = reader.read(&file);
-        assert_eq!(first.get("Width").map(String::as_str), Some("16"));
-
-        let modified = std::fs::metadata(&path)
-            .and_then(|m| m.modified())
-            .expect("mtime");
-        std::fs::write(&path, vec![0_u8; bytes.len()]).expect("same size, no image");
-        let handle = std::fs::File::options()
-            .write(true)
-            .open(&path)
-            .expect("open");
-        handle.set_modified(modified).expect("keep the time");
-        assert_eq!(
-            reader.clone().read(&file),
-            first,
-            "an unchanged file is remembered"
-        );
-
-        handle
-            .set_modified(modified + std::time::Duration::from_secs(60))
-            .expect("touch");
-        assert!(
-            reader.read(&file).is_empty(),
-            "a changed file is read again"
-        );
     }
 }

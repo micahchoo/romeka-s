@@ -357,6 +357,8 @@ messages! {
     fn setting_not_flag(key) = "The setting {key} must be true, false or null.";
     /// A list setting whose value is not a list of strings.
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
+    /// A count setting written as anything but a whole number above zero.
+    fn setting_not_count(key) = "The setting {key} must be a whole number above zero, or null.";
 
     // Publishing term lists and vocabularies (`crate::publish`). Romeka's own rule.
 
@@ -400,6 +402,170 @@ messages! {
     const PUBLICATION_MATCH_TERM_LISTS = "Only the terms of a term list link to an authority.";
     /// A term whose namespace and local name do not make a valid IRI.
     fn publication_term_iri_invalid(uri) = "The term URI {uri} is not a valid IRI.";
+
+    // Import v2 (`docs/import-v2.md`, "Wire"). Romeka's own routes: upstream
+    // has no msgid for these, so the text is plain English for archivists.
+
+    /// Any import route, for a caller who is neither a global nor a site admin.
+    const IMPORT_ADMINS_ONLY = "Only a global or site administrator may import an archive.";
+    /// An import id that names no import.
+    fn import_not_found(id) = "No import has the id {id}.";
+    /// A request body the import routes cannot read.
+    fn import_request_unreadable(reason) = "The request cannot be read: {reason}";
+    /// A plan the boundary refuses; the reason is the parser's English.
+    fn import_plan_refused(reason) = "The import's settings cannot be saved: {reason}";
+    /// 409 `stale`: another save landed after the caller read the plan.
+    const IMPORT_STALE = "Someone else saved this import after you opened it. Reload it to see their changes.";
+    /// 409 on a plan save once the import has started.
+    const IMPORT_PLAN_FROZEN = "This import has already started, so its settings cannot change. Make a copy to change it.";
+    /// 409 `v1Plan`: the plan was made by the first importer.
+    const IMPORT_V1_PLAN = "This import was made by the old importer, so it cannot be opened or copied here.";
+    /// 409 `typeExists` on a plan save.
+    fn import_type_exists(label) = "An item type named \"{label}\" is already in Omeka. Choose another name for the new type.";
+    /// 409 on deleting an import that is not a draft.
+    const IMPORT_DELETE_NOT_DRAFT = "Only an import that is not added yet can be deleted. An import that has run stays in Past imports.";
+    /// 409 `changed`: the run derived another model than the one checked.
+    const IMPORT_CHANGED = "The files or the import's settings changed after the last check. Check the import again before you run it.";
+    /// 409 `blocked`: the check lists problems that stop the run.
+    const IMPORT_BLOCKED = "This import cannot run until the problems the check lists are fixed.";
+    /// 409 `nothing`: no record would be written.
+    const IMPORT_NOTHING_TO_RUN = "This import has nothing to write.";
+    /// 409 `confirm`: a delete run needs the number it deletes.
+    fn import_confirm_delete(count) = "This import deletes {count} items, media and item sets and cannot be undone. Confirm with that number to run it.";
+    /// 409 `busy`: one import at a time, install-wide.
+    const IMPORT_BUSY = "Another import is running or being undone. Try again when it has ended.";
+    /// 409 on run for a status that cannot run.
+    const IMPORT_CANNOT_RUN = "Only an import that is not added yet, that stopped before the end, or that finished with failures can run.";
+    /// 409 on undo for a status that cannot be undone.
+    const IMPORT_CANNOT_UNDO = "Only an import that has finished, or that stopped before the end, can be undone.";
+    /// 409 on stop for an import that is not running.
+    const IMPORT_NOT_RUNNING = "This import is not running.";
+    /// A source names an archive folder the server does not have.
+    fn import_no_root(root) = "There is no archive folder named \"{root}\".";
+    /// A folder path that resolves outside its archive folder.
+    fn import_outside_root(path) = "The folder \"{path}\" is outside the archive folder.";
+    /// A folder path with nothing at it.
+    fn import_folder_missing(path) = "There is no folder \"{path}\" in the archive.";
+    /// A folder path that names a file.
+    fn import_not_a_folder(path) = "\"{path}\" is a file, not a folder.";
+    /// 409 on a rescan while the import's job works on it.
+    const IMPORT_SCAN_BUSY = "This import is running or being undone. Look at the files again once that has ended.";
+    /// 404 for `left.csv` before a run has ended.
+    const IMPORT_NO_LEFT_FILE = "This import has no list of left-out files yet. It is written when a run ends.";
+    /// The job runner refused to start the job.
+    fn import_job_not_started(reason) = "The import could not start: {reason}";
+    /// `template.csv?columns=` names a column that is no property, item set, item type or visibility.
+    fn import_list_column_unknown(column) = "The list cannot have the column \"{column}\". Choose a property, the item sets, the item type or the visibility.";
+    /// `POST …/sheets` without exactly one file in the form.
+    const IMPORT_LIST_ONE_FILE = "Send one list file in the form.";
+    /// `POST …/sheets` with a file that is not a CSV, TSV or workbook.
+    fn import_list_type(name) = "\"{name}\" is not a .csv, .tsv, .xlsx, .xls or .ods file. Save the list as one of these, then send it again.";
+    /// `POST …/sheets` with a file over 50 MB.
+    const IMPORT_LIST_TOO_LARGE = "The list is larger than 50 MB.";
+    /// `POST …/sheets` with a list the sheet reader refuses.
+    fn import_list_unread(reason) = "The list cannot be read: {reason}";
+    /// `POST …/sheets` with a list whose header has no Identifier column.
+    const IMPORT_LIST_NO_IDENTIFIER = "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.";
+    /// `POST …/pairs` with a list that lacks the Row column or the Files column.
+    const IMPORT_PAIRS_COLUMNS = "The list needs the Row column and the Files column. Keep both columns of the list you downloaded.";
+    /// A run failure: a file the record names could not be opened or read.
+    fn import_file_unreadable(path, reason) = "The file \"{path}\" could not be read: {reason}";
+    /// A run failure: the install's file settings refused a file.
+    fn import_file_refused(path, reason) = "The file \"{path}\" was not added: {reason}";
+    /// A run failure: the file store did not take a file's bytes.
+    fn import_file_not_stored(path, reason) = "The file \"{path}\" could not be stored: {reason}";
+    /// A run failure: an address the media ingester refused or could not fetch.
+    fn import_source_refused(source, reason) = "\"{source}\" was not added: {reason}";
+    /// A run failure: a media record with neither a file nor an address.
+    const IMPORT_MEDIA_NO_SOURCE = "This media names no file and no address to add.";
+    /// A run failure: a media record whose item was not added.
+    const IMPORT_MEDIA_NO_ITEM = "This media's item was not added, so the media was not added either.";
+    /// A run failure: the resource a record changes was deleted since the check.
+    const IMPORT_RESOURCE_GONE = "The item, media or item set this record changes is no longer in Omeka.";
+    /// A run failure: the database refused the record's rows.
+    fn import_record_not_saved(reason) = "This record could not be saved: {reason}";
+    /// A run failure: the second pass could not write a record's links.
+    fn import_links_not_saved(reason) = "The links of this record could not be saved: {reason}";
+    /// A run failure: the API refused to delete what a `delete` record matched.
+    fn import_record_not_deleted(reason) = "This was not deleted: {reason}";
+    /// 409 `cannotUndo` for an import that deleted resources.
+    const IMPORT_DELETE_NOT_UNDONE = "An import that deleted items, media or item sets cannot be undone.";
+    /// A run failure: an added item did not join the sites that take new items.
+    fn import_sites_not_joined(reason) = "This item was added, but it did not join its sites: {reason}";
+    /// Undo kept a resource: its `modified` is later than the import's write.
+    const IMPORT_UNDO_EDITED = "This was edited after the import wrote it.";
+    /// Undo kept a resource: something outside the import links to it.
+    const IMPORT_UNDO_LINKED = "An item, media or item set outside this import links to this.";
+    /// Undo kept an item: media were added to it outside the import.
+    const IMPORT_UNDO_MEDIA_ADDED = "Media were added to this item outside this import.";
+    /// Undo kept an item set: items outside the import were put in it.
+    const IMPORT_UNDO_MEMBERS_ADDED = "Items outside this import were put in this item set.";
+    /// Undo kept a resource: a later import changed it.
+    fn import_undo_later_import(import) = "Import {import} changed this after this import did.";
+    /// Undo kept an item type or a field: something outside the import uses it.
+    const IMPORT_UNDO_IN_USE = "Items, media, item sets or item types outside this import use this.";
+    /// Undo kept a media because undo keeps its item.
+    const IMPORT_UNDO_ITEM_KEPT = "The item of this media is kept, so the media is kept too.";
+    /// Undo kept an item set because undo keeps an item in it.
+    const IMPORT_UNDO_MEMBER_KEPT = "An item in this item set is kept, so the item set is kept too.";
+    /// Undo stopped on an error; a new undo goes on from there.
+    fn import_undo_stopped(reason) = "The undo stopped before the end: {reason}";
+    /// An upload by someone who neither started the import nor is a global admin.
+    const IMPORT_UPLOAD_OWNER_ONLY = "Only the person who started this import, or a global administrator, can add files to it.";
+    /// An upload into an import that has run.
+    const IMPORT_UPLOAD_NOT_DRAFT = "Files can be added only before an import runs. To add more files, make a copy of this import.";
+    /// An upload whose file name the path rules refuse.
+    fn import_upload_path(path, reason) = "The file name \"{path}\" cannot be used: {reason}.";
+    /// An upload larger than `import_upload_max_file`.
+    fn import_upload_too_large(limit) = "This file is larger than {limit} bytes, the largest file an import takes.";
+    /// An upload that would take the import past `import_upload_max_total`.
+    fn import_upload_full(limit) = "The files of this import would pass {limit} bytes, the most one import holds. Remove some files, or let the files still on their way finish, and try again.";
+    /// One `PATCH` with more bytes than the chunk limit.
+    fn import_upload_chunk_too_large(limit) = "This request carries more than {limit} bytes. Send the file in smaller chunks.";
+    /// A new upload for a path an unfinished upload holds.
+    fn import_upload_in_progress(path) = "\"{path}\" is still on its way. Go on with that upload instead of starting it again.";
+    /// A tus request naming an upload the import does not hold.
+    fn import_upload_not_found(upload) = "This import has no upload with the id \"{upload}\".";
+    /// A `PATCH` whose `Upload-Offset` is not the stored offset.
+    fn import_upload_offset(received) = "The server has {received} bytes of this file. Send the bytes that come after them.";
+    /// A `PATCH` that would pass the declared `Upload-Length`.
+    const IMPORT_UPLOAD_PAST_LENGTH = "These bytes go past the size this upload declared.";
+    /// A `POST` without a usable `Upload-Length`.
+    const IMPORT_UPLOAD_LENGTH = "Send Upload-Length with the size of the file in bytes.";
+    /// A `POST` without a file name in `Upload-Metadata`.
+    const IMPORT_UPLOAD_METADATA = "Send Upload-Metadata with the file name, as \"filename\" and its name in base64.";
+    /// A `PATCH` without a usable `Upload-Offset`.
+    const IMPORT_UPLOAD_OFFSET_MISSING = "Send Upload-Offset with the number of bytes already sent.";
+    /// A `PATCH` whose body is not `application/offset+octet-stream`.
+    const IMPORT_UPLOAD_CONTENT_TYPE = "Send the bytes with Content-Type application/offset+octet-stream.";
+    /// A tus request without `Tus-Resumable: 1.0.0`.
+    const IMPORT_UPLOAD_VERSION = "This server speaks version 1.0.0 of the resumable upload protocol. Send Tus-Resumable: 1.0.0.";
+    /// A `PATCH` whose body stopped before the request ended; nothing of it was kept.
+    const IMPORT_UPLOAD_INTERRUPTED = "The bytes stopped arriving before the request ended, so none of them were kept. Ask for the offset and send them again.";
+    /// A ZIP entry whose path would leave its folder, or is absolute.
+    fn import_zip_escapes(name) = "\"{name}\" in the ZIP would land outside its folder, so it was left out.";
+    /// A ZIP entry that is a symbolic link.
+    fn import_zip_link(name) = "\"{name}\" in the ZIP is a link, so it was left out.";
+    /// A ZIP entry whose name the path rules refuse.
+    fn import_zip_unusable(name, reason) = "\"{name}\" in the ZIP has a name that cannot be used ({reason}), so it was left out.";
+    /// A ZIP entry that is encrypted or packed with a method the reader lacks.
+    fn import_zip_unsupported(name) = "\"{name}\" in the ZIP is encrypted or packed in a way Romeka S cannot unpack, so it was left out.";
+    /// A ZIP entry renamed because an earlier entry has its name when case is ignored.
+    fn import_zip_renamed(name, renamed) = "\"{name}\" in the ZIP has the name of an earlier file when capitals are ignored, so it was added as \"{renamed}\".";
+    /// A ZIP refused: an entry unpacks to more than 100 times its packed size and 10 MB.
+    fn import_zip_bomb(name) = "The ZIP was refused: \"{name}\" unpacks to more than 100 times its packed size. Nothing from it was added.";
+    /// A ZIP refused: its files would pass `import_upload_max_total`.
+    fn import_zip_full(limit) = "The ZIP was refused: its files would pass {limit} bytes, the most one import holds. Nothing from it was added.";
+    /// A ZIP refused: more than 100,000 entries.
+    fn import_zip_too_many(count) = "The ZIP was refused: it holds {count} files, more than 100,000. Nothing from it was added.";
+    /// A ZIP refused: an entry larger than `import_upload_max_file`.
+    fn import_zip_file_too_large(name, limit) = "The ZIP was refused: \"{name}\" is larger than {limit} bytes, the largest file an import takes. Nothing from it was added.";
+    /// A ZIP refused: its directory or an entry's bytes do not read.
+    fn import_zip_unreadable(reason) = "The ZIP was refused: it could not be read ({reason}). Nothing from it was added.";
+    /// A ZIP unpacked.
+    fn import_zip_unpacked(count) = "The ZIP was unpacked: {count} files were added.";
+    /// The staging sweep ended.
+    fn import_sweep_done(imports, uploads) = "The files of {imports} imports were removed, and {uploads} unfinished uploads.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

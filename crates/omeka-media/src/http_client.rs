@@ -21,11 +21,14 @@
 //!   two chunks of the body, so a slow but live download of a large file
 //!   finishes. [`DEFAULT_TIMEOUT`] (one hour) caps the whole fetch, redirects
 //!   included. Upstream sets no explicit timeout, so Laminas' Socket adapter
-//!   default applies. ureq's own timeouts are all totals, so the body is read
-//!   on a thread and the idle clock runs on the caller's side of a channel.
-//! - **A response size cap.** Upstream has none: `File/Downloader.php` streams
-//!   into a temporary file. The port hands the body back as one `Vec<u8>`, so it
-//!   caps the body at [`DEFAULT_MAX_BYTES`], the contract's
+//!   default applies. ureq's own timeouts are all totals, so the transport
+//!   clamps every wait on the socket to the idle timeout: a stalled read fails
+//!   on the caller's thread, and dropping the response closes the socket.
+//! - **A response size cap, and a streamed body.** Upstream has none:
+//!   `File/Downloader.php` streams into a temporary file.
+//!   [`HttpClient::fetch_stream`] hands the body back as a reader, so a caller
+//!   streams it into the store; [`HttpFetch::fetch`] reads it into one
+//!   `Vec<u8>`. Both cap the body at [`DEFAULT_MAX_BYTES`], the contract's
 //!   `import_upload_max_file`.
 //! - **Same-scheme redirects only.** The [`HttpFetch`] contract forbids
 //!   following a redirect into another scheme. A same-scheme redirect is
@@ -36,14 +39,14 @@
 //!   (`File/Downloader.php:61`). The trait puts retries on the caller, and no
 //!   caller retries yet.
 
-use std::io::Read;
+use std::io::{self, Read};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::mpsc::{self, RecvTimeoutError};
-use std::thread;
 use std::time::{Duration, Instant};
 
-use ureq::unversioned::transport::DefaultConnector;
+use ureq::unversioned::transport::{
+    Buffers, ConnectionDetails, Connector, DefaultConnector, NextTimeout, Transport,
+};
 
 use crate::http::{FetchError, FetchErrorKind, HttpFetch, HttpResponse};
 use crate::http_guard::{AddressPolicy, Pinned, Resolve, UrlGuard};
@@ -56,13 +59,9 @@ pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 /// that keeps making progress still ends here.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60 * 60);
 
-/// The size of one read from the response body.
-const CHUNK_BYTES: usize = 64 * 1024;
-
 /// The default cap on a response body: 2 GiB, the default of
-/// `import_upload_max_file` (docs/import-v2.md "Staging"). The setting does
-/// not exist yet, so the cap is this constant; a caller that reads the setting
-/// passes it to [`HttpClient::with_max_bytes`].
+/// `import_upload_max_file` (docs/import-v2.md "Staging"). A caller that reads
+/// the setting passes it to [`HttpClient::with_max_bytes`].
 pub const DEFAULT_MAX_BYTES: usize = 2 * 1024 * 1024 * 1024;
 
 /// The largest number of redirects the client follows.
@@ -194,16 +193,20 @@ impl HttpClient {
             .timeout_connect(Some(idle))
             .timeout_recv_response(Some(idle))
             .build();
-        ureq::Agent::with_parts(config, DefaultConnector::new(), Pinned(addresses))
+        let connector = IdleConnector {
+            inner: DefaultConnector::new(),
+            idle,
+        };
+        ureq::Agent::with_parts(config, connector, Pinned(addresses))
     }
 
-    /// One request with no redirect handling: the response, its body and the
-    /// `Location` header when the response carries one.
+    /// One request with no redirect handling: the response, with its body
+    /// unread, and the `Location` header when the response carries one.
     fn request(
         &self,
         url: &url::Url,
         deadline: Instant,
-    ) -> Result<(HttpResponse, Option<String>), FetchError> {
+    ) -> Result<(StreamedResponse, Option<String>), FetchError> {
         let addresses = self
             .guard
             .admit(url, remaining(deadline)?.min(self.idle_timeout))?;
@@ -231,89 +234,37 @@ impl HttpClient {
             .get("content-type")
             .and_then(|value| value.to_str().ok())
             .map(ToOwned::to_owned);
-        let body = self.read_body(response.into_body())?;
+        let content_length = response
+            .headers()
+            .get("content-length")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.trim().parse().ok());
         Ok((
-            HttpResponse {
+            StreamedResponse {
                 status,
                 reason,
-                body,
                 content_type,
+                content_length,
+                body: Capped {
+                    inner: Box::new(response.into_body().into_reader()),
+                    left: self.max_bytes,
+                    max_bytes: self.max_bytes,
+                },
             },
             location,
         ))
     }
-}
 
-impl HttpClient {
-    /// Read a body, giving up when no chunk arrives for the idle timeout.
+    /// Fetch a URL as [`HttpFetch::fetch`] does, with the body unread: the
+    /// caller streams it, so a large file never sits in memory. Reading past
+    /// the size cap fails with an error that [`FetchError::from_body`] reads
+    /// as [`FetchErrorKind::TooLarge`]; a read that waits longer than the idle
+    /// timeout fails as [`FetchErrorKind::Timeout`], and dropping the response
+    /// closes its socket.
     ///
-    /// The read runs on a thread because ureq's timeouts are totals. If the
-    /// idle clock fires, the thread is left to end when the agent's overall
-    /// deadline closes its socket; it holds nothing the caller needs.
-    fn read_body(&self, body: ureq::Body) -> Result<Vec<u8>, FetchError> {
-        let (sender, receiver) = mpsc::channel();
-        thread::spawn(move || {
-            let mut reader = body.into_reader();
-            loop {
-                let mut chunk = vec![0u8; CHUNK_BYTES];
-                match reader.read(&mut chunk) {
-                    Ok(0) => return,
-                    Ok(read) => {
-                        chunk.truncate(read);
-                        if sender.send(Ok(chunk)).is_err() {
-                            return;
-                        }
-                    }
-                    Err(error) => {
-                        let _ = sender.send(Err(error));
-                        return;
-                    }
-                }
-            }
-        });
-        let mut body = Vec::new();
-        loop {
-            match receiver.recv_timeout(self.idle_timeout) {
-                Ok(Ok(chunk)) => {
-                    // A body of exactly the cap passes; one byte over fails.
-                    if body.len() + chunk.len() > self.max_bytes {
-                        return Err(too_large(self.max_bytes));
-                    }
-                    body.extend_from_slice(&chunk);
-                }
-                Ok(Err(error)) => {
-                    return Err(map_error(ureq::Error::from(error), self.max_bytes));
-                }
-                Err(RecvTimeoutError::Timeout) => {
-                    return Err(FetchError::with_kind(
-                        FetchErrorKind::Timeout,
-                        format!(
-                            "fetch failed: no data for {} seconds",
-                            self.idle_timeout.as_secs_f64()
-                        ),
-                    ));
-                }
-                Err(RecvTimeoutError::Disconnected) => return Ok(body),
-            }
-        }
-    }
-}
-
-/// The time left before `deadline`, or a timeout once it has passed.
-fn remaining(deadline: Instant) -> Result<Duration, FetchError> {
-    let left = deadline.saturating_duration_since(Instant::now());
-    if left.is_zero() {
-        return Err(FetchError::with_kind(
-            FetchErrorKind::Timeout,
-            "the fetch passed its deadline",
-        ));
-    }
-    Ok(left)
-}
-
-impl HttpFetch for HttpClient {
-    /// Fetch a URL, following same-scheme redirects up to [`MAX_REDIRECTS`].
-    fn fetch(&self, url: &str) -> Result<HttpResponse, FetchError> {
+    /// # Errors
+    /// A [`FetchError`] when no response arrived.
+    pub fn fetch_stream(&self, url: &str) -> Result<StreamedResponse, FetchError> {
         let deadline = Instant::now() + self.timeout;
         let mut current = parse_http_url(url)?;
         for _ in 0..=MAX_REDIRECTS {
@@ -336,6 +287,186 @@ impl HttpFetch for HttpClient {
             FetchErrorKind::Transport,
             format!("too many redirects fetching {url}"),
         ))
+    }
+}
+
+/// A response whose body has not been read yet.
+pub struct StreamedResponse {
+    pub status: u16,
+    pub reason: String,
+    pub content_type: Option<String>,
+    /// The `Content-Length` header, when the response carried one.
+    pub content_length: Option<u64>,
+    body: Capped,
+}
+
+impl std::fmt::Debug for StreamedResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamedResponse")
+            .field("status", &self.status)
+            .field("content_length", &self.content_length)
+            .finish_non_exhaustive()
+    }
+}
+
+impl StreamedResponse {
+    /// `Laminas\Http\Response::isOk`: status in the 2xx range.
+    #[must_use]
+    pub fn is_ok(&self) -> bool {
+        (200..300).contains(&self.status)
+    }
+
+    /// Read the whole body.
+    ///
+    /// # Errors
+    /// [`FetchErrorKind::TooLarge`] past the cap, [`FetchErrorKind::Timeout`]
+    /// for a stall, or the transport's failure.
+    pub fn into_response(mut self) -> Result<HttpResponse, FetchError> {
+        let mut body = Vec::new();
+        self.body
+            .read_to_end(&mut body)
+            .map_err(|error| FetchError::from_body(&error))?;
+        Ok(HttpResponse {
+            status: self.status,
+            reason: self.reason,
+            body,
+            content_type: self.content_type,
+        })
+    }
+}
+
+impl Read for StreamedResponse {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        self.body.read(buffer)
+    }
+}
+
+/// A body reader that fails one byte past the cap.
+struct Capped {
+    inner: Box<dyn Read + Send + Sync>,
+    left: usize,
+    max_bytes: usize,
+}
+
+impl Read for Capped {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        // One byte more than the cap is asked for, so a body of exactly the
+        // cap passes and one byte over fails.
+        let want = buffer.len().min(self.left.saturating_add(1));
+        let read = self.inner.read(&mut buffer[..want]).map_err(|error| {
+            io::Error::other(map_error(ureq::Error::from(error), self.max_bytes))
+        })?;
+        if read > self.left {
+            return Err(io::Error::other(too_large(self.max_bytes)));
+        }
+        self.left -= read;
+        Ok(read)
+    }
+}
+
+impl FetchError {
+    /// The fetch error a body read failed with: the one [`Capped`] carries,
+    /// or a transport failure.
+    #[must_use]
+    pub fn from_body(error: &io::Error) -> Self {
+        match error
+            .get_ref()
+            .and_then(|inner| inner.downcast_ref::<Self>())
+        {
+            Some(fetch) => Self::with_kind(fetch.kind, fetch.message.clone()),
+            None => Self::with_kind(FetchErrorKind::Body, format!("fetch failed: {error}")),
+        }
+    }
+}
+
+/// The connector of every agent: ureq's own, with each socket wait clamped
+/// to the idle timeout.
+#[derive(Debug)]
+struct IdleConnector {
+    inner: DefaultConnector,
+    idle: Duration,
+}
+
+impl Connector<()> for IdleConnector {
+    type Out = IdleTransport;
+
+    fn connect(
+        &self,
+        details: &ConnectionDetails,
+        chained: Option<()>,
+    ) -> Result<Option<Self::Out>, ureq::Error> {
+        Ok(self
+            .inner
+            .connect(details, chained)?
+            .map(|inner| IdleTransport {
+                inner,
+                idle: self.idle,
+            }))
+    }
+}
+
+/// A transport whose every wait for the socket ends at the idle timeout, so
+/// a stalled read fails where it was made and the socket goes with the
+/// response that owns it.
+#[derive(Debug)]
+struct IdleTransport {
+    inner: Box<dyn Transport>,
+    idle: Duration,
+}
+
+impl IdleTransport {
+    fn clamp(&self, timeout: NextTimeout) -> NextTimeout {
+        if *timeout.after > self.idle {
+            NextTimeout {
+                after: self.idle.into(),
+                reason: timeout.reason,
+            }
+        } else {
+            timeout
+        }
+    }
+}
+
+impl Transport for IdleTransport {
+    fn buffers(&mut self) -> &mut dyn Buffers {
+        self.inner.buffers()
+    }
+
+    fn transmit_output(&mut self, amount: usize, timeout: NextTimeout) -> Result<(), ureq::Error> {
+        let timeout = self.clamp(timeout);
+        self.inner.transmit_output(amount, timeout)
+    }
+
+    fn await_input(&mut self, timeout: NextTimeout) -> Result<bool, ureq::Error> {
+        let timeout = self.clamp(timeout);
+        self.inner.await_input(timeout)
+    }
+
+    fn is_open(&mut self) -> bool {
+        self.inner.is_open()
+    }
+
+    fn is_tls(&self) -> bool {
+        self.inner.is_tls()
+    }
+}
+
+/// The time left before `deadline`, or a timeout once it has passed.
+fn remaining(deadline: Instant) -> Result<Duration, FetchError> {
+    let left = deadline.saturating_duration_since(Instant::now());
+    if left.is_zero() {
+        return Err(FetchError::with_kind(
+            FetchErrorKind::Timeout,
+            "the fetch passed its deadline",
+        ));
+    }
+    Ok(left)
+}
+
+impl HttpFetch for HttpClient {
+    /// Fetch a URL, following same-scheme redirects up to [`MAX_REDIRECTS`].
+    fn fetch(&self, url: &str) -> Result<HttpResponse, FetchError> {
+        self.fetch_stream(url)?.into_response()
     }
 }
 
@@ -384,217 +515,4 @@ fn is_connect_error(error: &std::io::Error) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A non-http scheme and a relative string are `InvalidUrl`, caught before
-    /// any socket opens.
-    #[test]
-    fn rejects_a_non_http_url() {
-        let client = HttpClient::new();
-        assert_eq!(
-            client.fetch("ftp://example.org/a").map_err(|e| e.kind()),
-            Err(FetchErrorKind::InvalidUrl)
-        );
-        assert_eq!(
-            client.fetch("example.org/a").map_err(|e| e.kind()),
-            Err(FetchErrorKind::InvalidUrl)
-        );
-    }
-
-    /// The builder carries the timeout and the cap.
-    #[test]
-    fn builder_sets_the_limits() {
-        let client = HttpClient::new()
-            .with_timeout(Duration::from_millis(5))
-            .with_max_bytes(16);
-        assert_eq!(client.timeout(), Duration::from_millis(5));
-        assert_eq!(client.max_bytes(), 16);
-        assert_eq!(HttpClient::default().max_bytes(), DEFAULT_MAX_BYTES);
-    }
-
-    use std::collections::VecDeque;
-    use std::io::{Read, Write};
-    use std::net::{IpAddr, TcpListener};
-    use std::sync::Mutex;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    /// An address no test machine owns, standing in for a public host. The
-    /// guard checks it as public; [`UrlGuard::dial_as`] then dials it at a
-    /// loopback server.
-    const PUBLIC: &str = "198.51.100.7";
-
-    /// A resolver that answers each lookup with the next queued answer, and
-    /// repeats the last one.
-    #[derive(Debug)]
-    struct Answers {
-        queue: Mutex<VecDeque<Vec<IpAddr>>>,
-        lookups: AtomicUsize,
-    }
-
-    impl Answers {
-        fn new(answers: &[&str]) -> Arc<Self> {
-            Arc::new(Self {
-                queue: Mutex::new(
-                    answers
-                        .iter()
-                        .map(|answer| vec![answer.parse().unwrap()])
-                        .collect(),
-                ),
-                lookups: AtomicUsize::new(0),
-            })
-        }
-    }
-
-    impl Resolve for Answers {
-        fn resolve(&self, _host: &str) -> std::io::Result<Vec<IpAddr>> {
-            self.lookups.fetch_add(1, Ordering::SeqCst);
-            let mut queue = self.queue.lock().unwrap();
-            let answer = if queue.len() > 1 {
-                queue.pop_front().unwrap_or_default()
-            } else {
-                queue.front().cloned().unwrap_or_default()
-            };
-            Ok(answer)
-        }
-    }
-
-    /// A loopback server that answers every connection with `head` and
-    /// `body`, and counts the connections.
-    fn server(head: String, body: &'static str) -> (SocketAddr, Arc<AtomicUsize>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr = listener.local_addr().unwrap();
-        let hits = Arc::new(AtomicUsize::new(0));
-        let counted = Arc::clone(&hits);
-        std::thread::spawn(move || {
-            for mut stream in listener.incoming().flatten() {
-                counted.fetch_add(1, Ordering::SeqCst);
-                let mut request = [0u8; 2048];
-                let _ = stream.read(&mut request);
-                let _ = write!(
-                    stream,
-                    "{head}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                    body.len()
-                );
-            }
-        });
-        (addr, hits)
-    }
-
-    fn ok_server(body: &'static str) -> (SocketAddr, Arc<AtomicUsize>) {
-        server("HTTP/1.1 200 OK\r\n".to_string(), body)
-    }
-
-    fn redirect_server(location: &str) -> (SocketAddr, Arc<AtomicUsize>) {
-        server(
-            format!("HTTP/1.1 302 Found\r\nLocation: {location}\r\n"),
-            "",
-        )
-    }
-
-    /// A client whose resolver is `answers`, and which dials each public
-    /// address `PUBLIC:<port>` at the loopback server on that port.
-    fn client(answers: &Arc<Answers>, locals: &[SocketAddr]) -> HttpClient {
-        let routes: Vec<(u16, SocketAddr)> =
-            locals.iter().map(|local| (local.port(), *local)).collect();
-        routed(answers, &routes)
-    }
-
-    /// A client that dials `PUBLIC:<port>` at the server each route names.
-    fn routed(answers: &Arc<Answers>, routes: &[(u16, SocketAddr)]) -> HttpClient {
-        let mut client = HttpClient::new().with_resolver(Arc::clone(answers));
-        let public: IpAddr = PUBLIC.parse().unwrap();
-        client.guard.dial_as = routes
-            .iter()
-            .map(|(port, local)| (SocketAddr::new(public, *port), *local))
-            .collect();
-        client
-    }
-
-    /// A public host that redirects to a loopback address is refused at the
-    /// redirect, and the loopback server sees no connection.
-    #[test]
-    fn a_redirect_to_loopback_is_refused() {
-        let (inside, inside_hits) = ok_server("secret");
-        let (outside, outside_hits) = redirect_server(&format!("http://{inside}/admin"));
-        let answers = Answers::new(&[PUBLIC]);
-        let error = client(&answers, &[outside])
-            .fetch(&format!("http://public.test:{}/start", outside.port()))
-            .expect_err("refused at the redirect");
-        assert_eq!(error.kind(), FetchErrorKind::Refused, "{error}");
-        assert_eq!(outside_hits.load(Ordering::SeqCst), 1, "the first hop ran");
-        assert_eq!(
-            inside_hits.load(Ordering::SeqCst),
-            0,
-            "no loopback connection"
-        );
-    }
-
-    /// The same redirect shape is followed when the target is public, so the
-    /// refusal above is the guard's and not the redirect handling's.
-    #[test]
-    fn a_redirect_between_public_hosts_is_followed() {
-        let (target, target_hits) = ok_server("final");
-        let (outside, _) = redirect_server(&format!("http://other.test:{}/to", target.port()));
-        let answers = Answers::new(&[PUBLIC]);
-        let response = client(&answers, &[outside, target])
-            .fetch(&format!("http://public.test:{}/from", outside.port()))
-            .expect("fetch");
-        assert_eq!(response.body, b"final");
-        assert_eq!(target_hits.load(Ordering::SeqCst), 1);
-        assert_eq!(
-            answers.lookups.load(Ordering::SeqCst),
-            2,
-            "one lookup per hop"
-        );
-    }
-
-    /// DNS rebinding: the resolver answers public, then loopback. The fetch
-    /// looks the host up once and connects to the first answer, and a
-    /// redirect back to the same host is looked up again and refused.
-    #[test]
-    fn a_rebinding_host_is_connected_to_its_checked_address() {
-        let (inside, inside_hits) = ok_server("inside");
-        let (outside, outside_hits) = ok_server("outside");
-        let answers = Answers::new(&[PUBLIC, "127.0.0.1"]);
-        // The URL names the inside server's port, so a connection to the
-        // second answer would reach it.
-        let response = routed(&answers, &[(inside.port(), outside)])
-            .fetch(&format!("http://rebind.test:{}/", inside.port()))
-            .expect("fetch");
-        assert_eq!(response.body, b"outside");
-        assert_eq!(answers.lookups.load(Ordering::SeqCst), 1);
-        assert_eq!(outside_hits.load(Ordering::SeqCst), 1);
-        assert_eq!(inside_hits.load(Ordering::SeqCst), 0);
-    }
-
-    #[test]
-    fn a_redirect_to_a_rebound_host_is_checked_again() {
-        let (inside, inside_hits) = ok_server("inside");
-        let location = format!("http://rebind.test:{}/again", inside.port());
-        let (outside, outside_hits) = redirect_server(&location);
-        let answers = Answers::new(&[PUBLIC, "127.0.0.1"]);
-        let error = routed(&answers, &[(inside.port(), outside)])
-            .fetch(&format!("http://rebind.test:{}/", inside.port()))
-            .expect_err("the second answer is refused");
-        assert_eq!(error.kind(), FetchErrorKind::Refused, "{error}");
-        assert_eq!(
-            answers.lookups.load(Ordering::SeqCst),
-            2,
-            "one lookup per hop"
-        );
-        assert_eq!(outside_hits.load(Ordering::SeqCst), 1);
-        assert_eq!(inside_hits.load(Ordering::SeqCst), 0);
-    }
-
-    /// A redirect that adds credentials is refused like a first URL with them.
-    #[test]
-    fn a_redirect_with_credentials_is_refused() {
-        let (outside, _) = redirect_server(&format!("http://user:pw@{PUBLIC}/x"));
-        let answers = Answers::new(&[PUBLIC]);
-        let error = client(&answers, &[outside])
-            .fetch(&format!("http://public.test:{}/", outside.port()))
-            .expect_err("refused");
-        assert_eq!(error.kind(), FetchErrorKind::Refused, "{error}");
-    }
-}
+mod tests;

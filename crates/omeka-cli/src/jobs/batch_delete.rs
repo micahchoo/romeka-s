@@ -8,6 +8,7 @@ use async_trait::async_trait;
 
 use omeka_db::ids::{ItemId, ItemSetId, MediaId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging};
+use omeka_db::with_db;
 
 use super::query::{chunk_size, query_arg};
 use super::{Job, JobContext, JobError};
@@ -28,52 +29,52 @@ impl Job for BatchDelete {
 
         match resource.as_str() {
             "items" => {
-                let ids: Vec<ItemId> = ItemRepo::new(context.pool)
+                let ids: Vec<ItemId> = with_db!(context.pool, |db| ItemRepo::new(db)
                     .list(&query.item_filter(), &Paging::default())
-                    .await?
-                    .into_iter()
-                    .map(|row| row.id())
-                    .collect();
+                    .await)?
+                .into_iter()
+                .map(|row| row.id())
+                .collect();
                 for ids in ids.chunks(chunk) {
                     if context.should_stop().await? {
                         return Ok(());
                     }
                     for id in ids {
-                        ItemRepo::new(context.pool).delete(*id).await?;
+                        with_db!(context.pool, |db| ItemRepo::new(db).delete(*id).await)?;
                     }
                 }
                 Ok(())
             }
             "item_sets" => {
-                let ids: Vec<ItemSetId> = ItemSetRepo::new(context.pool)
+                let ids: Vec<ItemSetId> = with_db!(context.pool, |db| ItemSetRepo::new(db)
                     .list(&query.item_set_filter(), &Paging::default())
-                    .await?
-                    .into_iter()
-                    .map(|row| row.id())
-                    .collect();
+                    .await)?
+                .into_iter()
+                .map(|row| row.id())
+                .collect();
                 for ids in ids.chunks(chunk) {
                     if context.should_stop().await? {
                         return Ok(());
                     }
                     for id in ids {
-                        ItemSetRepo::new(context.pool).delete(*id).await?;
+                        with_db!(context.pool, |db| ItemSetRepo::new(db).delete(*id).await)?;
                     }
                 }
                 Ok(())
             }
             "media" => {
-                let ids: Vec<MediaId> = MediaRepo::new(context.pool)
+                let ids: Vec<MediaId> = with_db!(context.pool, |db| MediaRepo::new(db)
                     .list(&query.media_filter(), &Paging::default())
-                    .await?
-                    .into_iter()
-                    .map(|row| row.id())
-                    .collect();
+                    .await)?
+                .into_iter()
+                .map(|row| row.id())
+                .collect();
                 for ids in ids.chunks(chunk) {
                     if context.should_stop().await? {
                         return Ok(());
                     }
                     for id in ids {
-                        MediaRepo::new(context.pool).delete(*id).await?;
+                        with_db!(context.pool, |db| MediaRepo::new(db).delete(*id).await)?;
                     }
                 }
                 Ok(())
@@ -113,12 +114,12 @@ mod tests {
         items.create(&new_item("private", false)).await.unwrap();
 
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "items", "query": {"is_public": false}}),
         )
         .await;
-        Runner::new(&db.pool).run(job_id).await.expect("run");
+        Runner::new(&db.db_pool).run(job_id).await.expect("run");
 
         let remaining = items
             .list(&ItemFilter::default(), &Paging::default())
@@ -127,7 +128,8 @@ mod tests {
         assert_eq!(remaining.len(), 2);
         assert!(remaining.iter().all(|row| row.resource.is_public));
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),
@@ -139,12 +141,12 @@ mod tests {
     async fn batch_delete_rejects_an_unknown_resource() {
         let db = seeded_db().await;
         let job_id = compose(
-            &db.pool,
+            &db.db_pool,
             &BatchDelete,
             serde_json::json!({"resource": "widgets"}),
         )
         .await;
-        let error = Runner::new(&db.pool)
+        let error = Runner::new(&db.db_pool)
             .run(job_id)
             .await
             .expect_err("unknown resource");
@@ -153,7 +155,8 @@ mod tests {
             "got {error:?}"
         );
         assert_eq!(
-            crate::store::job_status(&db.pool, job_id)
+            omeka_db::repos::JobRepo::new(&db.pool)
+                .status(job_id)
                 .await
                 .unwrap()
                 .as_deref(),

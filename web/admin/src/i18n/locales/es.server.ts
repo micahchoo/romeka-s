@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 128); the other
- * 80 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 207); the other
+ * 159 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -128,6 +128,7 @@ export const esServer: ServerCatalogue = {
   'server.settingNotText': 'El ajuste {key} debe ser una cadena o null.',
   'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
   'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
+  'server.settingNotCount': 'El ajuste {key} debe ser un número entero mayor que cero, o null.',
   'server.publicationTermsRemoved':
     'Un término publicado no se puede quitar ni renombrar: {terms}. Márcalo como obsoleto.',
   'server.publicationNamespaceFixed':
@@ -154,4 +155,112 @@ export const esServer: ServerCatalogue = {
   'server.publicationMatchTermLists':
     'Solo los términos de una lista de términos se enlazan a una autoridad.',
   'server.publicationTermIriInvalid': 'El URI de término {uri} no es un IRI válido.',
+  'server.importAdminsOnly': 'Solo un administrador global o de sitio puede importar un archivo.',
+  'server.importNotFound': 'Ninguna importación tiene el id {id}.',
+  'server.importRequestUnreadable': 'No se puede leer la solicitud: {reason}',
+  'server.importPlanRefused': 'No se pueden guardar los ajustes de la importación: {reason}',
+  'server.importStale':
+    'Otra persona guardó esta importación después de que la abrieras. Vuelve a cargarla para ver sus cambios.',
+  'server.importPlanFrozen':
+    'Esta importación ya empezó, así que sus ajustes no pueden cambiar. Haz una copia para cambiarlo.',
+  'server.importV1Plan':
+    'Esta importación se hizo con el importador antiguo, así que no se puede abrir ni copiar aquí.',
+  'server.importTypeExists':
+    'Ya hay un tipo de ficha llamado "{label}" en Omeka. Elige otro nombre para el tipo nuevo.',
+  'server.importDeleteNotDraft':
+    'Solo se puede eliminar una importación que aún no se ha añadido. Una importación que se ha ejecutado queda en Importaciones anteriores.',
+  'server.importChanged':
+    'Los archivos o los ajustes de la importación cambiaron después de la última comprobación. Vuelve a comprobar la importación antes de ejecutarla.',
+  'server.importBlocked':
+    'Esta importación no puede ejecutarse hasta que se corrijan los problemas que indica la comprobación.',
+  'server.importNothingToRun': 'Esta importación no tiene nada que escribir.',
+  'server.importConfirmDelete':
+    'Esta importación elimina {count} elementos, medios y conjuntos de elementos y no se puede deshacer. Confirma con ese número para ejecutarla.',
+  'server.importBusy':
+    'Otra importación se está ejecutando o deshaciendo. Vuelve a intentarlo cuando haya terminado.',
+  'server.importCannotRun':
+    'Solo puede ejecutarse una importación que aún no se ha añadido, que se detuvo antes del final o que terminó con fallos.',
+  'server.importCannotUndo':
+    'Solo se puede deshacer una importación que terminó o que se detuvo antes del final.',
+  'server.importNotRunning': 'Esta importación no se está ejecutando.',
+  'server.importNoRoot': 'No hay ninguna carpeta de archivo llamada "{root}".',
+  'server.importOutsideRoot': 'La carpeta "{path}" está fuera de la carpeta de archivo.',
+  'server.importFolderMissing': 'No hay ninguna carpeta "{path}" en el archivo.',
+  'server.importNotAFolder': '"{path}" es un archivo, no una carpeta.',
+  'server.importScanBusy':
+    'Esta importación se está ejecutando o deshaciendo. Vuelve a mirar los archivos cuando haya terminado.',
+  'server.importNoLeftFile':
+    'Esta importación aún no tiene una lista de archivos que quedaron fuera. Se escribe cuando termina una ejecución.',
+  'server.importJobNotStarted': 'No se pudo iniciar la importación: {reason}',
+  'server.importListColumnUnknown':
+    'La lista no puede tener la columna "{column}". Elige una propiedad, los conjuntos de elementos, el tipo de elemento o la visibilidad.',
+  'server.importListOneFile': 'Envía un solo archivo de lista en el formulario.',
+  'server.importListType':
+    '"{name}" no es un archivo .csv, .tsv, .xlsx, .xls ni .ods. Guarda la lista en uno de estos formatos y vuelve a enviarla.',
+  'server.importListTooLarge': 'La lista ocupa más de 50 MB.',
+  'server.importListUnread': 'No se puede leer la lista: {reason}',
+  'server.importListNoIdentifier':
+    'La lista no tiene la columna Identifier, así que sus filas no encuentran sus elementos. Conserva la columna Identifier de la lista que descargaste.',
+  'server.importPairsColumns':
+    'La lista necesita la columna Row y la columna Files. Conserva las dos columnas de la lista que descargaste.',
+  'server.importFileUnreadable': 'No se pudo leer el archivo "{path}": {reason}',
+  'server.importFileRefused': 'El archivo "{path}" no se añadió: {reason}',
+  'server.importFileNotStored': 'No se pudo guardar el archivo "{path}": {reason}',
+  'server.importSourceRefused': '"{source}" no se añadió: {reason}',
+  'server.importMediaNoSource': 'Este medio no indica ningún archivo ni ninguna dirección que añadir.',
+  'server.importMediaNoItem':
+    'El elemento de este medio no se añadió, así que el medio tampoco se añadió.',
+  'server.importResourceGone':
+    'El elemento, el medio o el conjunto de elementos que cambia este registro ya no está en Omeka.',
+  'server.importRecordNotSaved': 'No se pudo guardar este registro: {reason}',
+  'server.importLinksNotSaved': 'No se pudieron guardar los enlaces de este registro: {reason}',
+  'server.importRecordNotDeleted': 'Esto no se eliminó: {reason}',
+  'server.importDeleteNotUndone':
+    'No se puede deshacer una importación que eliminó elementos, medios o conjuntos de elementos.',
+  'server.importSitesNotJoined':
+    'Este elemento se añadió, pero no se unió a sus sitios: {reason}',
+  'server.importUndoEdited': 'Esto se editó después de que la importación lo escribiera.',
+  'server.importUndoLinked':
+    'Un elemento, un medio o un conjunto de elementos ajeno a esta importación enlaza con esto.',
+  'server.importUndoMediaAdded':
+    'Se añadieron medios a este elemento fuera de esta importación.',
+  'server.importUndoMembersAdded':
+    'Se pusieron en este conjunto elementos ajenos a esta importación.',
+  'server.importUndoLaterImport':
+    'La importación {import} cambió esto después de esta importación.',
+  'server.importUndoInUse':
+    'Elementos, medios, conjuntos de elementos o tipos de elemento ajenos a esta importación usan esto.',
+  'server.importUndoItemKept':
+    'Se conserva el elemento de este medio, así que el medio también se conserva.',
+  'server.importUndoMemberKept':
+    'Se conserva un elemento de este conjunto, así que el conjunto también se conserva.',
+  'server.importUndoStopped': 'La importación dejó de deshacerse antes del final: {reason}',
+  'server.importUploadOwnerOnly': 'Solo quien empezó esta importación, o un administrador global, puede añadirle archivos.',
+  'server.importUploadNotDraft': 'Solo se pueden añadir archivos antes de ejecutar una importación. Para añadir más archivos, haz una copia de esta importación.',
+  'server.importUploadPath': 'El nombre de archivo "{path}" no se puede usar: {reason}.',
+  'server.importUploadTooLarge': 'Este archivo ocupa más de {limit} bytes, el archivo más grande que admite una importación.',
+  'server.importUploadFull': 'Los archivos de esta importación pasarían de {limit} bytes, lo máximo que admite una importación. Quita algunos archivos, o deja que terminen los que aún están en camino, y vuelve a intentarlo.',
+  'server.importUploadChunkTooLarge': 'Esta petición lleva más de {limit} bytes. Envía el archivo en trozos más pequeños.',
+  'server.importUploadInProgress': '"{path}" aún está en camino. Continúa esa subida en lugar de empezarla de nuevo.',
+  'server.importUploadNotFound': 'Esta importación no tiene ninguna subida con el id "{upload}".',
+  'server.importUploadOffset': 'El servidor tiene {received} bytes de este archivo. Envía los bytes que vienen después.',
+  'server.importUploadPastLength': 'Estos bytes pasan del tamaño que declaró esta subida.',
+  'server.importUploadLength': 'Envía Upload-Length con el tamaño del archivo en bytes.',
+  'server.importUploadMetadata': 'Envía Upload-Metadata con el nombre del archivo, como "filename" y su nombre en base64.',
+  'server.importUploadOffsetMissing': 'Envía Upload-Offset con el número de bytes ya enviados.',
+  'server.importUploadContentType': 'Envía los bytes con Content-Type application/offset+octet-stream.',
+  'server.importUploadVersion': 'Este servidor habla la versión 1.0.0 del protocolo de subidas reanudables. Envía Tus-Resumable: 1.0.0.',
+  'server.importUploadInterrupted': 'Los bytes dejaron de llegar antes de que terminara la petición, así que no se guardó ninguno. Pide el desplazamiento y vuelve a enviarlos.',
+  'server.importZipEscapes': '"{name}" en el ZIP quedaría fuera de su carpeta, así que se dejó fuera.',
+  'server.importZipLink': '"{name}" en el ZIP es un enlace, así que se dejó fuera.',
+  'server.importZipUnusable': '"{name}" en el ZIP tiene un nombre que no se puede usar ({reason}), así que se dejó fuera.',
+  'server.importZipUnsupported': '"{name}" en el ZIP está cifrado o comprimido de una forma que Romeka S no puede descomprimir, así que se dejó fuera.',
+  'server.importZipRenamed': '"{name}" en el ZIP tiene el nombre de un archivo anterior si no se distinguen mayúsculas, así que se añadió como "{renamed}".',
+  'server.importZipBomb': 'Se rechazó el ZIP: "{name}" ocupa al descomprimirse más de 100 veces su tamaño comprimido. No se añadió nada de él.',
+  'server.importZipFull': 'Se rechazó el ZIP: sus archivos pasarían de {limit} bytes, lo máximo que admite una importación. No se añadió nada de él.',
+  'server.importZipTooMany': 'Se rechazó el ZIP: contiene {count} archivos, más de 100.000. No se añadió nada de él.',
+  'server.importZipFileTooLarge': 'Se rechazó el ZIP: "{name}" ocupa más de {limit} bytes, el archivo más grande que admite una importación. No se añadió nada de él.',
+  'server.importZipUnreadable': 'Se rechazó el ZIP: no se pudo leer ({reason}). No se añadió nada de él.',
+  'server.importZipUnpacked': 'Se descomprimió el ZIP: se añadieron {count} archivos.',
+  'server.importSweepDone': 'Se quitaron los archivos de {imports} importaciones y {uploads} subidas sin terminar.',
 };

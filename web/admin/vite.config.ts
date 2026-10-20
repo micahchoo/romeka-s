@@ -72,5 +72,11 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     // The Playwright specs under e2e/ match Vitest's default `*.spec.ts` glob.
     include: ['tests/**/*.test.{ts,tsx}'],
+    // The persistent transform cache keys a module by its own text, but an
+    // `import.meta.glob` transform also depends on which files match
+    // (`tests/i18n-sync.test.ts` globs every locale file): a new or removed
+    // file leaves the cached list stale and the test fails on files that are
+    // fine. Every run transforms from scratch instead.
+    fsModuleCache: false,
   },
 });

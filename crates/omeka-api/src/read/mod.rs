@@ -36,10 +36,11 @@ use std::sync::Arc;
 
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
+use omeka_db::DbPool;
 use omeka_db::ids::{SiteId, UserId};
+use omeka_db::with_db;
 use omeka_media::store::{FileUrls, Store};
 use omeka_plugin::{AdapterReply, AdapterRequest, Registry};
-use sqlx::SqlitePool;
 
 use crate::adapters;
 use crate::auth::Actor;
@@ -65,7 +66,7 @@ pub(crate) use response::serialize;
 
 /// One request's read surface.
 pub struct Api<'a> {
-    pool: &'a SqlitePool,
+    pool: &'a DbPool,
     base: BaseUrl,
     actor: Actor,
     catalog: Catalog,
@@ -76,13 +77,13 @@ pub struct Api<'a> {
 
 impl<'a> Api<'a> {
     /// Load the lookups a read needs and bind one request's actor.
-    pub async fn load(pool: &'a SqlitePool, base: BaseUrl, actor: Actor) -> Result<Self, ApiError> {
+    pub async fn load(pool: &'a DbPool, base: BaseUrl, actor: Actor) -> Result<Self, ApiError> {
         Self::load_with_store(pool, base, actor, None).await
     }
 
     /// Load the read surface with the file store a media delete reaches.
     pub async fn load_with_store(
-        pool: &'a SqlitePool,
+        pool: &'a DbPool,
         base: BaseUrl,
         actor: Actor,
         store: Option<Arc<dyn Store>>,
@@ -93,7 +94,7 @@ impl<'a> Api<'a> {
     /// Load the read surface with a plugin registry, so a request for a
     /// resource a plugin registered is served by that plugin's adapter.
     pub async fn load_with_plugins(
-        pool: &'a SqlitePool,
+        pool: &'a DbPool,
         base: BaseUrl,
         actor: Actor,
         plugins: Arc<Registry>,
@@ -103,7 +104,7 @@ impl<'a> Api<'a> {
 
     /// Load the read surface with both a file store and a plugin registry.
     pub async fn load_with_registry(
-        pool: &'a SqlitePool,
+        pool: &'a DbPool,
         base: BaseUrl,
         actor: Actor,
         store: Option<Arc<dyn Store>>,
@@ -414,14 +415,14 @@ impl<'a> Api<'a> {
         if owner == Some(user) {
             return Ok(true);
         }
-        let permissions = omeka_db::repos::SiteRepo::new(self.pool)
+        let permissions = with_db!(self.pool, |db| omeka_db::repos::SiteRepo::new(db)
             .list_permissions(site)
-            .await
-            .map_err(db_error)?;
+            .await)
+        .map_err(db_error)?;
         Ok(access::has_site_permission(&permissions, user, required))
     }
 
-    pub(crate) fn pool(&self) -> &SqlitePool {
+    pub(crate) fn pool(&self) -> &DbPool {
         self.pool
     }
 

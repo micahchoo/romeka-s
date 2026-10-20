@@ -24,6 +24,7 @@ use std::collections::BTreeSet;
 
 use omeka_db::ids::{ItemId, SiteId};
 use omeka_db::repos::{ItemSiteRepo, Paging, SiteFilter, SiteRepo};
+use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -125,17 +126,34 @@ pub async fn apply(
     mode: Mode,
 ) -> Result<Change, ApiError> {
     let selected: BTreeSet<ItemId> = select(api, &command.selector).await?.into_iter().collect();
-    let repo = ItemSiteRepo::new(api.pool());
-    let current: BTreeSet<ItemId> = repo
+    let current: BTreeSet<ItemId> = with_db!(api.pool(), |db| ItemSiteRepo::new(db)
         .site_items(site)
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .collect();
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .collect();
     let plan = plan(command.action, &current, &selected);
     if mode == Mode::Write {
-        repo.detach(site, &plan.detach).await.map_err(db_error)?;
-        repo.attach(site, &plan.attach).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemSiteRepo::new(db)
+            .detach(site, &plan.detach)
+            .await)
+        .map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemSiteRepo::new(db)
+            .attach(site, &plan.attach)
+            .await)
+        .map_err(db_error)?;
+        // A site joined or left is a change to the item: import undo keeps
+        // an item whose `modified` moved after the import wrote it.
+        let moved: Vec<_> = plan
+            .detach
+            .iter()
+            .chain(&plan.attach)
+            .map(|item| item.as_resource())
+            .collect();
+        with_db!(api.pool(), |db| omeka_db::repos::ResourceRepo::new(db)
+            .touch(&moved)
+            .await)
+        .map_err(db_error)?;
     }
     Ok(Change {
         matched: selected.len(),
@@ -209,16 +227,16 @@ fn query_pairs(query: &Value) -> Vec<(String, String)> {
 
 /// The sites that keep in sync with their item pool and whose pool selects this item.
 async fn synced_sites_matching(api: &Api<'_>, item: ItemId) -> Result<Vec<SiteId>, ApiError> {
-    let sites = SiteRepo::new(api.pool())
+    let sites = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list(
             &SiteFilter {
                 assign_new_items: Some(true),
                 ..SiteFilter::default()
             },
-            &Paging::default(),
+            &Paging::default()
         )
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     let mut matching = Vec::new();
     for site in sites {
         let params = Params::from_decoded(query_pairs(&site.item_pool));
@@ -240,9 +258,11 @@ async fn synced_sites_matching(api: &Api<'_>, item: ItemId) -> Result<Vec<SiteId
 /// # Errors
 /// A database error, or the read layer's error for a site's pool.
 pub async fn attach_on_create(api: &Api<'_>, item: ItemId) -> Result<(), ApiError> {
-    let repo = ItemSiteRepo::new(api.pool());
     for site in synced_sites_matching(api, item).await? {
-        repo.attach(site, &[item]).await.map_err(db_error)?;
+        with_db!(api.pool(), |db| ItemSiteRepo::new(db)
+            .attach(site, &[item])
+            .await)
+        .map_err(db_error)?;
     }
     Ok(())
 }
@@ -305,10 +325,8 @@ pub async fn handle(
     bytes: &[u8],
 ) -> Result<ApiResponse, ApiError> {
     let id = parse_id(SITE_CLASS, raw_site_id)?;
-    let Some(site) = SiteRepo::new(api.pool())
-        .get(SiteId(id))
-        .await
-        .map_err(db_error)?
+    let Some(site) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(SiteId(id)).await).map_err(db_error)?
     else {
         return Err(not_found(SITE_CLASS, raw_site_id));
     };

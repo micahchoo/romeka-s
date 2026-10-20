@@ -11,11 +11,12 @@
 //! The port is API-first, so the map travels as `o:theme_settings` on the site
 //! document and the site write accepts it.
 
+use omeka_db::DbPool;
 use omeka_db::ids::SiteId;
 use omeka_db::repos::SiteSettingRepo;
+use omeka_db::with_db;
 use omeka_site::theme::custom_css::{CssError, CssProblem, MAX_BYTES, sanitize};
 use serde_json::Value;
-use sqlx::SqlitePool;
 
 use crate::errors::ApiError;
 use crate::messages;
@@ -43,11 +44,11 @@ pub fn owns(id: &str) -> bool {
 ///
 /// # Errors
 /// [`ApiError::Internal`] when the row cannot be read.
-pub async fn load(pool: &SqlitePool, site: SiteId, theme: &str) -> Result<Option<Value>, ApiError> {
-    SiteSettingRepo::new(pool)
+pub async fn load(pool: &DbPool, site: SiteId, theme: &str) -> Result<Option<Value>, ApiError> {
+    with_db!(pool, |db| SiteSettingRepo::new(db)
         .get(site, &key(theme))
-        .await
-        .map_err(db_error)
+        .await)
+    .map_err(db_error)
 }
 
 /// Store, or with `None` remove, the settings map for a site's theme.
@@ -55,18 +56,23 @@ pub async fn load(pool: &SqlitePool, site: SiteId, theme: &str) -> Result<Option
 /// # Errors
 /// [`ApiError::Internal`] when the value cannot be written.
 pub async fn store(
-    pool: &SqlitePool,
+    pool: &DbPool,
     site: SiteId,
     theme: &str,
     value: Option<&Value>,
 ) -> Result<(), ApiError> {
-    let repo = SiteSettingRepo::new(pool);
     match value {
         None => {
-            repo.delete(site, &key(theme)).await.map_err(db_error)?;
+            with_db!(pool, |db| SiteSettingRepo::new(db)
+                .delete(site, &key(theme))
+                .await)
+            .map_err(db_error)?;
         }
         Some(value) => {
-            repo.set(site, &key(theme), value).await.map_err(db_error)?;
+            with_db!(pool, |db| SiteSettingRepo::new(db)
+                .set(site, &key(theme), value)
+                .await)
+            .map_err(db_error)?;
         }
     }
     Ok(())

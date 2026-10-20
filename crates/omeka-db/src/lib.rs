@@ -12,15 +12,16 @@
 //! - [`open_memory`] and [`open_file`] build a SQLite pool with `PRAGMA foreign_keys=ON` (per
 //!   connection), a 5 second busy timeout, and WAL journaling for file databases. [`open_mysql`]
 //!   builds a MySQL pool from a URL.
-//! - [`migrate`] applies the embedded SQLite DDL and [`migrate_mysql`] the embedded MySQL DDL;
-//!   running either twice is a no-op.
+//! - [`DbPool`] holds the pool of the engine a deployment runs, [`Location`] opens one, and
+//!   [`with_db!`] runs a repository call on it.
+//! - [`migrate`] applies the embedded DDL of the pool's engine; running it twice is a no-op.
 //! - [`rows`] holds one struct per upstream table with a `from_row` that is the storage boundary.
 //! - [`repos`] holds repositories over those rows. They are generic over [`Backend`], so one
 //!   implementation serves both engines and the dialect differences live in [`backend`]. SQL
 //!   strings live here and nowhere else in the workspace.
 //!
 //! Runtime `sqlx` queries only. No compile-time macros, no `DATABASE_URL` at build time. The MySQL
-//! driver is behind the `mysql` feature; `open_mysql`, `migrate_mysql` and the MySQL
+//! driver is behind the `mysql` feature; `open_mysql`, `DbPool::MySql` and the MySQL
 //! [`Backend`] impl exist only with it on.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
@@ -29,16 +30,19 @@ mod error;
 mod time;
 
 pub mod backend;
+pub mod fulltext;
 pub mod ids;
+mod pool;
 pub mod repos;
 pub mod rows;
 pub mod schema;
 
 pub use backend::Backend;
 pub use error::DbError;
-pub use schema::{MIGRATOR, migrate};
+pub use pool::{DbPool, Location};
 #[cfg(feature = "mysql")]
-pub use schema::{MYSQL_MIGRATOR, migrate_mysql};
+pub use schema::MYSQL_MIGRATOR;
+pub use schema::{MIGRATOR, migrate};
 
 use std::path::Path;
 use std::time::Duration;
@@ -94,7 +98,7 @@ pub async fn open_file(path: impl AsRef<Path>) -> Result<SqlitePool, DbError> {
 const MYSQL_POOL_CONNECTIONS: u32 = 5;
 
 /// Open a MySQL pool from a URL (`mysql://user:password@host:port/database`), ready for
-/// [`migrate_mysql`].
+/// [`migrate`].
 ///
 /// The URL names an existing Omeka S database or an empty one. `sqlx` reads every other option
 /// (`ssl-mode`, `timezone`, `charset`) from the query string, so the caller has the full

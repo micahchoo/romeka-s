@@ -1,0 +1,72 @@
+{
+  "copiedFrom": null,
+  "created": "2026-10-21T09:00:00+00:00",
+  "died": null,
+  "finished": null,
+  "id": 1,
+  "jobId": null,
+  "ownerId": 1,
+  "plan": {
+    "action": {
+      "action": "create",
+      "match": {
+        "item": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "itemSet": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        },
+        "media": {
+          "key": "dcterms:identifier",
+          "scope": "importSets"
+        }
+      },
+      "unmatched": "leave"
+    },
+    "decisions": [],
+    "defaults": {
+      "owner": "runner",
+      "sites": [],
+      "template": null,
+      "visibility": "private"
+    },
+    "example": null,
+    "flags": {},
+    "grouping": {
+      "caseFold": false,
+      "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+    },
+    "newTerms": [],
+    "newTypes": [],
+    "sheets": [],
+    "slots": {
+      "item": {},
+      "itemSet": {},
+      "media": {}
+    },
+    "sources": [
+      {
+        "id": "s1",
+        "kind": "folder",
+        "path": "",
+        "root": "archive"
+      }
+    ],
+    "version": 2
+  },
+  "revision": 0,
+  "sources": [
+    {
+      "id": "s1",
+      "kind": "folder",
+      "path": "",
+      "root": "archive"
+    }
+  ],
+  "status": "draft",
+  "stopRequested": false,
+  "summary": null,
+  "undoReport": null
+}

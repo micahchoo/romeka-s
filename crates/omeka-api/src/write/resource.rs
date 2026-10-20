@@ -14,6 +14,7 @@
 use omeka_db::ids::{AssetId, ClassId, PropertyId, ResourceId, TemplateId, UserId};
 use omeka_db::repos::{AssetRepo, ClassRepo, PropertyRepo, TemplateRepo, UserRepo, ValueRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -127,23 +128,28 @@ async fn require_template_values(
     template: TemplateId,
     present: &[PropertyId],
 ) -> Result<(), ApiError> {
-    let repo = TemplateRepo::new(api.pool());
-    let Some(row) = repo.get(template).await.map_err(db_error)? else {
+    let Some(row) =
+        with_db!(api.pool(), |db| TemplateRepo::new(db).get(template).await).map_err(db_error)?
+    else {
         return Ok(());
     };
     let mut messages = Vec::new();
-    for prop in repo.list_properties(template).await.map_err(db_error)? {
+    for prop in with_db!(api.pool(), |db| TemplateRepo::new(db)
+        .list_properties(template)
+        .await)
+    .map_err(db_error)?
+    {
         if !prop.is_required || present.contains(&prop.property_id) {
             continue;
         }
         let label = match prop.alternate_label.filter(|label| !label.is_empty()) {
             Some(label) => label,
-            None => PropertyRepo::new(api.pool())
+            None => with_db!(api.pool(), |db| PropertyRepo::new(db)
                 .get(prop.property_id)
-                .await
-                .map_err(db_error)?
-                .map(|property| property.label)
-                .unwrap_or_default(),
+                .await)
+            .map_err(db_error)?
+            .map(|property| property.label)
+            .unwrap_or_default(),
         };
         messages.push(crate::messages::template_requires_value(&row.label, label));
     }
@@ -161,13 +167,13 @@ async fn stored_properties(
     api: &Api<'_>,
     resource: ResourceId,
 ) -> Result<Vec<PropertyId>, ApiError> {
-    Ok(ValueRepo::new(api.pool())
+    Ok(with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(resource)
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .map(|row| row.property_id)
-        .collect())
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .map(|row| row.property_id)
+    .collect())
 }
 
 /// Copy the writable resource columns of `new` onto a stored row, leaving the
@@ -235,9 +241,7 @@ pub(crate) async fn owner_member(
         return Err(not_found(USER_CLASS, &Value::from(integer)));
     }
     let id = UserId(integer as u64);
-    if UserRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| UserRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -256,9 +260,7 @@ async fn class(api: &Api<'_>, payload: &Payload) -> Result<Option<ClassId>, ApiE
         return Err(not_found(CLASS_CLASS, raw));
     };
     let id = ClassId(id);
-    if ClassRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| ClassRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -277,9 +279,7 @@ async fn template(api: &Api<'_>, payload: &Payload) -> Result<Option<TemplateId>
         return Err(not_found(TEMPLATE_CLASS, raw));
     };
     let id = TemplateId(id);
-    if TemplateRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| TemplateRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -301,9 +301,7 @@ pub(crate) async fn asset(api: &Api<'_>, payload: &Payload) -> Result<Option<Ass
         return Err(not_found(ASSET_CLASS, raw));
     };
     let id = AssetId(id);
-    if AssetRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| AssetRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {

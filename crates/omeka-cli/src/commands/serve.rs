@@ -1,20 +1,33 @@
 //! `romeka serve`: start the HTTP server.
 //!
-//! `omeka-server` owns the router and the socket. This command opens the SQLite
-//! database, parses the base URL used in the JSON-LD links, roots the file
-//! store, and hands the server a job runner that starts `romeka job run` with
-//! the same database, store, base URL and archive root.
+//! `omeka-server` owns the router and the socket. This command opens the
+//! database (a SQLite file or a MySQL server), parses the base URL used in the
+//! JSON-LD links, roots the file store, and hands the server a job runner that
+//! starts `romeka job run` with the same database, store, base URL and archive
+//! root. It also starts the
+//! import staging sweep when it boots and then every hour, so uploaded files
+//! go even when nobody uploads.
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
+use omeka_api::import::sweep::SWEEP_JOB;
 use omeka_api::jsonld::BaseUrl;
+use omeka_db::DbPool;
+use omeka_db::Location;
 use omeka_db::ids::JobId;
+use omeka_db::repos::JobRepo;
+use omeka_db::rows::NewJob;
+use omeka_db::with_db;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 
 use crate::error::CliError;
 use crate::jobs::JobCommand;
+
+/// How often the server starts the staging sweep.
+const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
 
 /// Bind `host:port` and serve until the process stops. `store` is the file
 /// store root; `files` in the working directory when `None`, as before.
@@ -25,14 +38,15 @@ use crate::jobs::JobCommand;
 pub async fn run(
     host: &str,
     port: u16,
-    database: &str,
+    database: &Location,
     base_url: &str,
     store: Option<&Path>,
 ) -> Result<(), CliError> {
     let address: SocketAddr = format!("{host}:{port}")
         .parse()
         .map_err(|error| CliError::message(format!("invalid address {host}:{port}: {error}")))?;
-    let pool = omeka_db::open_file(database)
+    let pool = database
+        .open()
         .await
         .map_err(|error| CliError::message(format!("cannot open {database}: {error}")))?;
     let base = BaseUrl::parse(base_url)
@@ -43,15 +57,49 @@ pub async fn run(
     let store_root = absolute(store.unwrap_or(Path::new(omeka_server::FILES_ROOT)))?;
     let jobs = ProcessDispatch(JobCommand {
         program: None,
-        database: absolute(Path::new(database))?,
+        database: match database {
+            Location::File(path) => Location::File(absolute(path)?),
+            Location::Url(_) => database.clone(),
+        },
         store: Some(store_root.clone()),
         base_url: Some(base_url.to_string()),
         archive_root: config.archive_root.clone(),
     });
+    let jobs: Arc<dyn JobDispatch> = Arc::new(jobs);
+    tokio::spawn(sweep_every(pool.clone(), Arc::clone(&jobs), SWEEP_EVERY));
     let store = omeka_server::file_store(store_root)
         .map_err(|error| CliError::message(error.to_string()))?;
-    let services = Services::new(store).with_jobs(Arc::new(jobs));
+    let services = Services::new(store).with_jobs(jobs);
     Ok(omeka_server::serve_with_services(config, pool, services).await?)
+}
+
+/// Start the staging sweep job now and then every `period`. The period is a
+/// parameter so a test shortens the hour. A tick that fails is dropped: the
+/// next one tries again, and the sweep is safe to repeat.
+async fn sweep_every(pool: DbPool, jobs: Arc<dyn JobDispatch>, period: Duration) {
+    let mut ticks = tokio::time::interval(period);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        ticks.tick().await;
+        let created = with_db!(&pool, |db| JobRepo::new(db)
+            .create(&NewJob {
+                owner_id: None,
+                pid: None,
+                status: Some("starting".to_string()),
+                class: SWEEP_JOB.to_string(),
+                args: Some(serde_json::json!({})),
+                log: None,
+                started: None,
+            })
+            .await);
+        let Ok(job) = created else { continue };
+        if let Err(error) = jobs.start(job.id) {
+            let _ = with_db!(&pool, |db| JobRepo::new(db)
+                .append_log(job.id, &error.to_string())
+                .await);
+            let _ = with_db!(&pool, |db| JobRepo::new(db).finish(job.id, "error").await);
+        }
+    }
 }
 
 /// A child started from another working directory reads the same files.
@@ -129,19 +177,63 @@ mod tests {
         response
     }
 
+    struct Recorder(std::sync::Mutex<Vec<JobId>>);
+
+    impl JobDispatch for Recorder {
+        fn start(&self, job: JobId) -> Result<(), DispatchError> {
+            self.0.lock().expect("lock").push(job);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn the_sweep_starts_at_boot_and_then_on_every_period() {
+        let pool = omeka_db::open_memory().await.expect("open memory database");
+        omeka_db::migrate(&pool).await.expect("run migrations");
+        let recorder = Arc::new(Recorder(std::sync::Mutex::default()));
+        let task = tokio::spawn(sweep_every(
+            pool.clone().into(),
+            Arc::clone(&recorder) as Arc<dyn JobDispatch>,
+            Duration::from_millis(20),
+        ));
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        task.abort();
+
+        let started = recorder.0.lock().expect("lock").clone();
+        assert!(started.len() >= 3, "{} sweeps started", started.len());
+        let job = JobRepo::new(&pool)
+            .get(started[0])
+            .await
+            .expect("read job")
+            .expect("job row");
+        assert_eq!(job.class, SWEEP_JOB);
+    }
+
     #[tokio::test]
     async fn run_rejects_an_invalid_host() {
-        let error = run("not a host", 0, ":memory:", "http://localhost", None)
-            .await
-            .expect_err("invalid host");
+        let error = run(
+            "not a host",
+            0,
+            &Location::parse(":memory:"),
+            "http://localhost",
+            None,
+        )
+        .await
+        .expect_err("invalid host");
         assert!(error.to_string().contains("invalid address"), "got {error}");
     }
 
     #[tokio::test]
     async fn run_rejects_an_invalid_base_url() {
-        let error = run("127.0.0.1", 0, ":memory:", "localhost", None)
-            .await
-            .expect_err("invalid base url");
+        let error = run(
+            "127.0.0.1",
+            0,
+            &Location::parse(":memory:"),
+            "localhost",
+            None,
+        )
+        .await
+        .expect_err("invalid base url");
         assert!(
             error.to_string().contains("invalid base url"),
             "got {error}"

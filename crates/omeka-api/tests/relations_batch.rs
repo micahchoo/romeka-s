@@ -101,8 +101,9 @@ async fn counted_search(api: &Api<'_>, resource: &str, query: &str) -> (ApiRespo
 async fn items_list_query_count_is_bounded_by_the_page_size() {
     let _gate = GATE.lock().await;
     let pool = logged_pool().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let seed = seed(&pool, 40).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     let (small, small_count) = counted_search(&api, "items", "per_page=2").await;
     let (large, large_count) = counted_search(&api, "items", "per_page=20").await;
@@ -130,8 +131,9 @@ async fn items_list_query_count_is_bounded_by_the_page_size() {
 async fn every_list_query_count_is_bounded() {
     let _gate = GATE.lock().await;
     let pool = logged_pool().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let seed = seed(&pool, 20).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     for resource in ["items", "item_sets", "media", "value_annotations"] {
         let (small, small_count) = counted_search(&api, resource, "per_page=1").await;
@@ -160,8 +162,9 @@ async fn every_list_query_count_is_bounded() {
 async fn the_perf_dataset_page_runs_a_fixed_few_queries() {
     let _gate = GATE.lock().await;
     let pool = logged_pool().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let seed = seed_plain(&pool, 40).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     let (_, one) = counted_search(&api, "items", "per_page=1").await;
     let (large, twenty_five) = counted_search(&api, "items", "per_page=25").await;
@@ -193,7 +196,8 @@ async fn the_perf_dataset_page_runs_a_fixed_few_queries() {
 async fn a_listed_item_document_equals_its_single_read() {
     let _gate = GATE.lock().await;
     let (pool, seed) = open_seeded(4).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     let listed = api
         .search("items", &Params::parse("per_page=25"))
@@ -217,7 +221,8 @@ async fn a_listed_item_document_equals_its_single_read() {
 async fn a_listed_item_set_document_equals_its_single_read() {
     let _gate = GATE.lock().await;
     let (pool, seed) = open_seeded(4).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     let listed = api
         .search("item_sets", &Params::parse("per_page=25"))
@@ -239,7 +244,8 @@ async fn a_listed_item_set_document_equals_its_single_read() {
 async fn listed_media_and_annotations_equal_their_single_reads() {
     let _gate = GATE.lock().await;
     let (pool, seed) = open_seeded(4).await;
-    let api = Api::load(&pool, base(), admin(seed.user)).await.unwrap();
+    let db = omeka_db::DbPool::from(pool.clone());
+    let api = Api::load(&db, base(), admin(seed.user)).await.unwrap();
 
     let listed = api
         .search("media", &Params::parse("per_page=25"))

@@ -17,10 +17,11 @@ use support::{admin, base, open_seeded};
 #[tokio::test]
 async fn every_export_resource_answers() {
     let (pool, seed) = open_seeded(3).await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let names = export::resources();
     assert_eq!(names.len(), 18);
     for name in names {
-        export::documents(&pool, base(), admin(seed.user), &Selection::new(name))
+        export::documents(&db, base(), admin(seed.user), &Selection::new(name))
             .await
             .unwrap_or_else(|error| panic!("{name}: {error}"));
     }
@@ -29,7 +30,8 @@ async fn every_export_resource_answers() {
 #[tokio::test]
 async fn items_export_parses_into_the_wire_type() {
     let (pool, seed) = open_seeded(3).await;
-    let documents = export::documents(&pool, base(), admin(seed.user), &Selection::new("items"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let documents = export::documents(&db, base(), admin(seed.user), &Selection::new("items"))
         .await
         .expect("export items");
     assert_eq!(documents.len(), 3);
@@ -45,11 +47,12 @@ async fn items_export_parses_into_the_wire_type() {
 #[tokio::test]
 async fn an_item_set_selection_filters_the_items() {
     let (pool, seed) = open_seeded(3).await;
-    let all = export::documents(&pool, base(), admin(seed.user), &Selection::new("items"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let all = export::documents(&db, base(), admin(seed.user), &Selection::new("items"))
         .await
         .expect("all items");
     let narrowed = export::documents(
-        &pool,
+        &db,
         base(),
         admin(seed.user),
         &Selection::new("items").in_item_set(seed.item_set.0),
@@ -65,14 +68,10 @@ async fn an_item_set_selection_filters_the_items() {
 #[tokio::test]
 async fn a_resources_export_lists_every_kind() {
     let (pool, seed) = open_seeded(3).await;
-    let documents = export::documents(
-        &pool,
-        base(),
-        admin(seed.user),
-        &Selection::new("resources"),
-    )
-    .await
-    .expect("export resources");
+    let db = omeka_db::DbPool::from(pool.clone());
+    let documents = export::documents(&db, base(), admin(seed.user), &Selection::new("resources"))
+        .await
+        .expect("export resources");
     assert_eq!(documents.len(), 9);
     let mut types: Vec<String> = documents
         .iter()
@@ -90,7 +89,8 @@ async fn a_resources_export_lists_every_kind() {
 #[tokio::test]
 async fn a_resource_with_no_adapter_is_refused() {
     let (pool, seed) = open_seeded(1).await;
-    let error = export::documents(&pool, base(), admin(seed.user), &Selection::new("nonsense"))
+    let db = omeka_db::DbPool::from(pool.clone());
+    let error = export::documents(&db, base(), admin(seed.user), &Selection::new("nonsense"))
         .await
         .expect_err("no adapter registers nonsense");
     assert!(!error.to_string().is_empty());

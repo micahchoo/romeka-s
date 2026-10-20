@@ -260,10 +260,11 @@ fn id_cmp(a: &ItemRow, b: &ItemRow) -> std::cmp::Ordering {
 #[ignore = "a release-mode probe, not a behavioural test"]
 async fn list_cost_split() {
     let (pool, path) = open_probe_db().await;
+    let db = omeka_db::DbPool::from(pool.clone());
     let (set, user) = seed(&pool).await;
     let base = BaseUrl::parse("http://localhost").expect("base url");
     let actor = Actor::new(user, "global_admin");
-    let api = Api::load(&pool, base, actor.clone())
+    let api = Api::load(&db, base, actor.clone())
         .await
         .expect("probe api");
     let query = format!("item_set_id={}&per_page={PER_PAGE}", set.0);
@@ -282,7 +283,7 @@ async fn list_cost_split() {
     for _ in 0..RUNS {
         let start = Instant::now();
         let _ = Api::load(
-            &pool,
+            &db,
             BaseUrl::parse("http://localhost").expect("base url"),
             actor.clone(),
         )
@@ -410,7 +411,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::media_for(&pool, &ids)
+        let rows = super::relations::media_for(&db, &ids)
             .await
             .expect("media_for");
         assert!(rows.is_empty());
@@ -421,7 +422,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::item_sets_for(&pool, &ids)
+        let rows = super::relations::item_sets_for(&db, &ids)
             .await
             .expect("item_sets_for");
         assert_eq!(rows.len(), PER_PAGE);
@@ -432,7 +433,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::values_for(&pool, &ids)
+        let rows = super::relations::values_for(&db, &ids)
             .await
             .expect("values_for");
         assert_eq!(rows.len(), PER_PAGE);
@@ -443,7 +444,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::pointing_at(&pool, &ids)
+        let rows = super::relations::pointing_at(&db, &ids)
             .await
             .expect("pointing_at");
         assert!(rows.is_empty());
@@ -489,7 +490,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let _ = Catalog::load(&pool).await.expect("catalog");
+        let _ = Catalog::load(&db).await.expect("catalog");
         samples.push(start.elapsed());
     }
     report("catalog load (full, as served before)", median(samples));
@@ -497,7 +498,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let _ = Catalog::load_for_read(&pool).await.expect("catalog");
+        let _ = Catalog::load_for_read(&db).await.expect("catalog");
         samples.push(start.elapsed());
     }
     report("catalog load_for_read (as served now)", median(samples));

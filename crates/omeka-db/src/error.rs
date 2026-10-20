@@ -1,9 +1,9 @@
 //! The crate error type.
 
-/// Everything that can go wrong between a caller and SQLite.
+/// Everything that can go wrong between a caller and the database.
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {
-    #[error("sqlite error: {0}")]
+    #[error("database error: {0}")]
     Sqlx(#[from] sqlx::Error),
     #[error("migration error: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
@@ -20,6 +20,14 @@ pub enum DbError {
     /// A value could not be encoded for the database before the statement ran.
     #[error("binding a value: {reason}")]
     Bind { reason: String },
+    /// The operation has no counterpart on this engine, so the port refuses it rather than
+    /// running a partial version.
+    #[error("{engine} does not support {operation}: {reason}")]
+    Unsupported {
+        engine: &'static str,
+        operation: &'static str,
+        reason: &'static str,
+    },
 }
 
 impl DbError {

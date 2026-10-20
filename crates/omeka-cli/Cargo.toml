@@ -17,6 +17,13 @@ path = "src/main.rs"
 [lints]
 workspace = true
 
+[features]
+# The MySQL and MariaDB backend (`--database-url`). On by default, so the
+# `romeka` binary serves either engine; `--no-default-features` builds a
+# SQLite-only binary.
+default = ["mysql"]
+mysql = ["omeka-db/mysql"]
+
 [dependencies]
 async-trait = "0.1"
 # `bcrypt` hashes a key credential the way upstream `Entity/ApiKey::setCredential`
@@ -38,5 +45,7 @@ thiserror.workspace = true
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
 
 [dev-dependencies]
+# `tests/import_staging.rs` writes the ZIPs it uploads.
+flate2 = "1"
 axum = "0.8"
 tempfile = "3"

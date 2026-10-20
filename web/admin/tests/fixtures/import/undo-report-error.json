@@ -1,0 +1,61 @@
+{
+  "copiedFrom": null,
+  "created": "2026-10-21T09:00:00+00:00",
+  "died": null,
+  "finished": "2026-10-21T09:00:00+00:00",
+  "id": 1,
+  "jobId": 2,
+  "ownerId": 1,
+  "progress": {
+    "done": 24,
+    "secondsLeft": null,
+    "total": 24
+  },
+  "revision": 1,
+  "sources": [
+    {
+      "id": "s1",
+      "kind": "folder",
+      "path": "",
+      "root": "archive"
+    }
+  ],
+  "status": "undo_failed",
+  "stopRequested": false,
+  "summary": {
+    "failures": [],
+    "progress": {
+      "done": 24,
+      "total": 24
+    },
+    "stopped": false
+  },
+  "undoReport": {
+    "error": {
+      "detail": "The undo stopped before the end: the worker died",
+      "key": "server.importUndoStopped"
+    },
+    "forced": [],
+    "kept": [],
+    "progress": {
+      "done": 9,
+      "total": 27
+    },
+    "removed": {
+      "itemSets": 0,
+      "items": 0,
+      "media": 9,
+      "properties": 0,
+      "templates": 0
+    },
+    "restored": {
+      "itemSets": 0,
+      "items": 0,
+      "media": 0,
+      "properties": 0,
+      "templates": 0
+    },
+    "skipped": [],
+    "stopped": false
+  }
+}

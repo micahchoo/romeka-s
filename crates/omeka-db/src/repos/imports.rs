@@ -1,25 +1,33 @@
-//! `romeka_import` and `romeka_import_resource` repositories.
+//! `romeka_import`: the draft, its plan saves, and the endings of a run or an undo.
 //!
-//! An import is a draft until a run starts. At most one import holds an open undo window
-//! (`undoable`). SQLite refuses a second one with a partial unique index; MySQL has no partial
-//! index, so [`ImportRepo::start_run`] clears the others and sets this one in its serialized
-//! transaction on both engines (`import_lifecycle.rs`, which also owns when a run is dead).
-//!
-//! [`ImportResourceRepo::record`] takes the caller's executor, so a run writes the row inside the
-//! transaction that created the target: a rollback leaves neither.
+//! A draft's plan is saved with the revision the caller edited, so two editors cannot overwrite
+//! each other silently ([`PlanSave::Stale`]). The starts, the heartbeat and when a worker counts
+//! as dead live in `import_lifecycle.rs`.
 
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
 use super::import_lifecycle::{HEARTBEAT, with_member};
-use super::{bind_id, insert_id, json_text};
+use super::{
+    Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, json_text, push_paging,
+};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ImportId, JobId};
-use crate::rows::{
-    ImportKind, ImportResourceRow, ImportRow, ImportStatus, ImportTarget, NewImport,
-};
+use crate::rows::{ImportEnding, ImportRow, ImportStatus, NewImport};
 use crate::time;
+
+/// What a plan save did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanSave {
+    /// Stored; the plan's revision is now this.
+    Saved(u64),
+    /// The caller edited an older revision than this one; nothing changed.
+    Stale(u64),
+    /// The import has left the draft state; its plan is frozen.
+    NotDraft(ImportStatus),
+    Missing,
+}
 
 /// `romeka_import` rows.
 pub struct ImportRepo<'a, DB: Backend = Sqlite> {
@@ -33,7 +41,6 @@ where
     usize: ColumnIndex<DB::Row>,
     for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
-    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
@@ -42,28 +49,34 @@ where
         Self { pool }
     }
 
-    /// Store a new draft.
+    /// Store a new draft at revision 0.
     pub async fn create_draft(&self, new: &NewImport) -> Result<ImportRow, DbError> {
         let created = time::now();
         let query = sqlx::query(
-            "INSERT INTO romeka_import (owner_id, folder, plan, status, undoable, created)
-             VALUES (?, ?, ?, 'draft', 0, ?)",
+            "INSERT INTO romeka_import (owner_id, sources, plan, revision, status, copied_from, created, saved)
+             VALUES (?, ?, ?, 0, 'draft', ?, ?, ?)",
         )
-        .bind(super::bind_opt_id(new.owner_id))
-        .bind(&new.folder)
+        .bind(bind_opt_id(new.owner_id))
+        .bind(json_text(&new.sources)?)
         .bind(json_text(&new.plan)?)
+        .bind(bind_opt_id(new.copied_from))
+        .bind(time::format(created))
         .bind(time::format(created));
         let id = ImportId(insert_id(query, self.pool).await?);
         Ok(ImportRow {
             id,
             owner_id: new.owner_id,
-            folder: new.folder.clone(),
+            sources: new.sources.clone(),
             plan: new.plan.clone(),
+            ran_plan: None,
+            revision: 0,
             status: ImportStatus::Draft,
-            undoable: false,
             job_id: None,
             summary: None,
+            stop_requested: false,
+            copied_from: new.copied_from,
             created,
+            saved: created,
             finished: None,
         })
     }
@@ -76,51 +89,102 @@ where
         row.as_ref().map(ImportRow::from_db_row::<DB>).transpose()
     }
 
-    /// Every import, newest first.
-    pub async fn list(&self) -> Result<Vec<ImportRow>, DbError> {
-        let rows = sqlx::query("SELECT * FROM romeka_import ORDER BY id DESC")
-            .fetch_all(self.pool)
-            .await?;
+    /// One page of the history, newest first.
+    pub async fn page(&self, paging: &Paging) -> Result<Vec<ImportRow>, DbError> {
+        let mut statement = Statement::<DB>::new("SELECT * FROM romeka_import ORDER BY id DESC");
+        push_paging(&mut statement, paging)?;
+        let (sql, arguments) = statement.into_parts();
+        let rows = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ImportRow::from_db_row::<DB>).collect()
     }
 
-    /// The import that holds the open undo window, if any.
-    pub async fn undoable(&self) -> Result<Option<ImportRow>, DbError> {
-        let row = sqlx::query("SELECT * FROM romeka_import WHERE undoable = 1")
+    /// How many imports the history holds.
+    pub async fn count(&self) -> Result<u64, DbError> {
+        let row = sqlx::query("SELECT COUNT(*) AS n FROM romeka_import")
+            .fetch_one(self.pool)
+            .await?;
+        DB::id(&row, "n")
+    }
+
+    /// Every draft, by id: the staging sweep looks for orphan parts in these even when no
+    /// upload row is left.
+    pub async fn draft_ids(&self) -> Result<Vec<ImportId>, DbError> {
+        let rows = sqlx::query("SELECT id FROM romeka_import WHERE status = 'draft' ORDER BY id")
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter().map(|row| DB::id(row, "id")).collect()
+    }
+
+    /// Replace a draft's plan, if `revision` is the one stored. One statement, so two saves of
+    /// the same revision cannot both land.
+    pub async fn save_plan(
+        &self,
+        id: ImportId,
+        plan: &Value,
+        revision: u64,
+    ) -> Result<PlanSave, DbError> {
+        let done = sqlx::query(
+            "UPDATE romeka_import SET plan = ?, revision = revision + 1, saved = ?
+             WHERE id = ? AND status = 'draft' AND revision = ?",
+        )
+        .bind(json_text(plan)?)
+        .bind(time::format(time::now()))
+        .bind(bind_id(id))
+        .bind(bind_id(revision))
+        .execute(self.pool)
+        .await?;
+        if DB::rows_affected(&done) > 0 {
+            return Ok(PlanSave::Saved(revision + 1));
+        }
+        Ok(match self.get(id).await? {
+            None => PlanSave::Missing,
+            Some(row) if row.status != ImportStatus::Draft => PlanSave::NotDraft(row.status),
+            Some(row) => PlanSave::Stale(row.revision),
+        })
+    }
+
+    /// Delete an import that is still a draft, with everything it holds. False when it is
+    /// missing or has started.
+    pub async fn delete_draft(&self, id: ImportId) -> Result<bool, DbError> {
+        let done = sqlx::query("DELETE FROM romeka_import WHERE id = ? AND status = 'draft'")
+            .bind(bind_id(id))
+            .execute(self.pool)
+            .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Link the job that works on the import.
+    pub async fn set_job(&self, id: ImportId, job: JobId) -> Result<bool, DbError> {
+        let done = sqlx::query("UPDATE romeka_import SET job_id = ? WHERE id = ?")
+            .bind(bind_id(job))
+            .bind(bind_id(id))
+            .execute(self.pool)
+            .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Ask the running or undoing job to stop after the resource in hand. One member, no
+    /// heartbeat: only the worker proves it is alive, so a request cannot extend the life of a
+    /// dead import. False unless the import is `running` or `undoing`.
+    pub async fn request_stop(&self, id: ImportId) -> Result<bool, DbError> {
+        let done = sqlx::query(
+            "UPDATE romeka_import SET stop_requested = 1
+             WHERE id = ? AND status IN ('running', 'undoing')",
+        )
+        .bind(bind_id(id))
+        .execute(self.pool)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Whether a stop was asked for since the run started: what the worker reads after each
+    /// record. False for a missing import.
+    pub async fn stop_requested(&self, id: ImportId) -> Result<bool, DbError> {
+        let row = sqlx::query("SELECT stop_requested FROM romeka_import WHERE id = ?")
+            .bind(bind_id(id))
             .fetch_optional(self.pool)
             .await?;
-        row.as_ref().map(ImportRow::from_db_row::<DB>).transpose()
-    }
-
-    /// Replace a draft's plan. False when the import is missing or no longer a draft.
-    pub async fn update_plan(&self, id: ImportId, plan: &Value) -> Result<bool, DbError> {
-        let done =
-            sqlx::query("UPDATE romeka_import SET plan = ? WHERE id = ? AND status = 'draft'")
-                .bind(json_text(plan)?)
-                .bind(bind_id(id))
-                .execute(self.pool)
-                .await?;
-        Ok(DB::rows_affected(&done) > 0)
-    }
-
-    pub async fn set_status(&self, id: ImportId, status: ImportStatus) -> Result<bool, DbError> {
-        let done = sqlx::query("UPDATE romeka_import SET status = ? WHERE id = ?")
-            .bind(status.as_str())
-            .bind(bind_id(id))
-            .execute(self.pool)
-            .await?;
-        Ok(DB::rows_affected(&done) > 0)
-    }
-
-    /// End a run: store the final status and the finish time together.
-    pub async fn finish(&self, id: ImportId, status: ImportStatus) -> Result<bool, DbError> {
-        let done = sqlx::query("UPDATE romeka_import SET status = ?, finished = ? WHERE id = ?")
-            .bind(status.as_str())
-            .bind(time::format(time::now()))
-            .bind(bind_id(id))
-            .execute(self.pool)
-            .await?;
-        Ok(DB::rows_affected(&done) > 0)
+        row.map_or(Ok(false), |row| DB::boolean(&row, "stop_requested"))
     }
 
     /// Replace the summary. Only a working job writes it, so the write is also its heartbeat
@@ -139,115 +203,16 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
-    pub async fn set_job(&self, id: ImportId, job: JobId) -> Result<bool, DbError> {
-        let done = sqlx::query("UPDATE romeka_import SET job_id = ? WHERE id = ?")
-            .bind(bind_id(job))
-            .bind(bind_id(id))
-            .execute(self.pool)
-            .await?;
-        Ok(DB::rows_affected(&done) > 0)
-    }
-
-    /// Close this import's undo window, for example once its undo has finished.
-    pub async fn close_undo_window(&self, id: ImportId) -> Result<bool, DbError> {
-        let done = sqlx::query("UPDATE romeka_import SET undoable = 0 WHERE id = ?")
-            .bind(bind_id(id))
-            .execute(self.pool)
-            .await?;
-        Ok(DB::rows_affected(&done) > 0)
-    }
-
-    /// Delete an import that is still a draft. False when it is missing or has started.
-    pub async fn delete_draft(&self, id: ImportId) -> Result<bool, DbError> {
-        let done = sqlx::query("DELETE FROM romeka_import WHERE id = ? AND status = 'draft'")
-            .bind(bind_id(id))
-            .execute(self.pool)
-            .await?;
-        Ok(DB::rows_affected(&done) > 0)
-    }
-}
-
-/// `romeka_import_resource` rows.
-pub struct ImportResourceRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
-}
-
-impl<'a, DB: Backend> ImportResourceRepo<'a, DB>
-where
-    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
-    usize: ColumnIndex<DB::Row>,
-    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
-    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
-    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
-{
-    pub fn new(pool: &'a Pool<DB>) -> Self {
-        Self { pool }
-    }
-
-    /// Record that an import created `target`, on the caller's executor. Pass `&mut *tx` from the
-    /// transaction that creates the target, so a rollback removes both.
-    pub async fn record<'e, E>(
-        executor: E,
-        import: ImportId,
-        target: ImportTarget,
-    ) -> Result<(), DbError>
-    where
-        E: Executor<'e, Database = DB>,
-    {
-        sqlx::query(
-            "INSERT INTO romeka_import_resource (import_id, kind, target_id) VALUES (?, ?, ?)",
-        )
-        .bind(bind_id(import))
-        .bind(target.kind().as_str())
-        .bind(target.raw_id())
-        .execute(executor)
-        .await?;
-        Ok(())
-    }
-
-    /// What an import created, in the order it was recorded, optionally of one kind.
-    pub async fn list(
-        &self,
-        import: ImportId,
-        kind: Option<ImportKind>,
-    ) -> Result<Vec<ImportResourceRow>, DbError> {
-        let rows = match kind {
-            Some(kind) => {
-                sqlx::query(
-                    "SELECT * FROM romeka_import_resource WHERE import_id = ? AND kind = ?
-                     ORDER BY target_id",
-                )
-                .bind(bind_id(import))
-                .bind(kind.as_str())
-                .fetch_all(self.pool)
-                .await?
-            }
-            None => {
-                sqlx::query(
-                    "SELECT * FROM romeka_import_resource WHERE import_id = ?
-                     ORDER BY kind, target_id",
-                )
-                .bind(bind_id(import))
-                .fetch_all(self.pool)
-                .await?
-            }
-        };
-        rows.iter()
-            .map(ImportResourceRow::from_db_row::<DB>)
-            .collect()
-    }
-
-    /// Forget one recorded target, as undo does when it has deleted the thing. False when no
-    /// such row exists.
-    pub async fn delete(&self, import: ImportId, target: ImportTarget) -> Result<bool, DbError> {
+    /// End a run or an undo with its finish time. False unless the import is in the state the
+    /// ending ends, so a worker a reader already found dead cannot overwrite that record.
+    pub async fn finish(&self, id: ImportId, ending: ImportEnding) -> Result<bool, DbError> {
         let done = sqlx::query(
-            "DELETE FROM romeka_import_resource
-             WHERE import_id = ? AND kind = ? AND target_id = ?",
+            "UPDATE romeka_import SET status = ?, finished = ? WHERE id = ? AND status = ?",
         )
-        .bind(bind_id(import))
-        .bind(target.kind().as_str())
-        .bind(target.raw_id())
+        .bind(ending.status().as_str())
+        .bind(time::format(time::now()))
+        .bind(bind_id(id))
+        .bind(ending.ends().as_str())
         .execute(self.pool)
         .await?;
         Ok(DB::rows_affected(&done) > 0)

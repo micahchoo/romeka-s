@@ -10,6 +10,7 @@ use omeka_core::term_list::{self, php_trim};
 use omeka_db::ids::{CustomVocabId, ItemSetId};
 use omeka_db::repos::{CustomVocabRepo, ItemSetRepo};
 use omeka_db::rows::{CustomVocabRow, NewCustomVocab};
+use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -25,10 +26,10 @@ const RESOURCE: &str = "custom_vocabs";
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
     let input = hydrate(api, payload, None, false).await?;
     validate(api, &input, None).await?;
-    let row = CustomVocabRepo::new(api.pool())
+    let row = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .create(&input)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     api.read_member(RESOURCE, &row.id.0.to_string()).await
 }
 
@@ -52,10 +53,7 @@ pub async fn update(
         uris: input.uris,
     };
     crate::publish::guard::term_list(api, stored.id, Some(&row)).await?;
-    CustomVocabRepo::new(api.pool())
-        .update(&row)
-        .await
-        .map_err(db_error)?;
+    with_db!(api.pool(), |db| CustomVocabRepo::new(db).update(&row).await).map_err(db_error)?;
     api.read_member(RESOURCE, raw_id).await
 }
 
@@ -67,20 +65,20 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     owner_only(api, &stored, Operation::Delete)?;
     crate::publish::guard::term_list(api, stored.id, None).await?;
     let answer = api.read_member(RESOURCE, raw_id).await?;
-    CustomVocabRepo::new(api.pool())
+    with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .delete(stored.id)
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     Ok(answer)
 }
 
 async fn stored(api: &Api<'_>, raw_id: &str) -> Result<CustomVocabRow, ApiError> {
     let id = parse_id(CLASS, raw_id)?;
-    CustomVocabRepo::new(api.pool())
+    with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .get(CustomVocabId(id))
-        .await
-        .map_err(db_error)?
-        .ok_or_else(|| not_found(CLASS, raw_id))
+        .await)
+    .map_err(db_error)?
+    .ok_or_else(|| not_found(CLASS, raw_id))
 }
 
 /// `Module::onBootstrap`: an editor may update or delete a list they own
@@ -170,9 +168,7 @@ async fn item_set(api: &Api<'_>, payload: &Payload) -> Result<Option<ItemSetId>,
         return Err(ref_not_found(ITEM_SET_CLASS, raw));
     };
     let id = ItemSetId(id);
-    if ItemSetRepo::new(api.pool())
-        .get(id)
-        .await
+    if with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()
     {
@@ -196,11 +192,11 @@ async fn validate(
             .or_default()
             .push("The label cannot be empty.".to_string());
     }
-    let taken = CustomVocabRepo::new(api.pool())
+    let taken = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .find_by_label(&input.label)
-        .await
-        .map_err(db_error)?
-        .is_some_and(|row| Some(row.id) != own);
+        .await)
+    .map_err(db_error)?
+    .is_some_and(|row| Some(row.id) != own);
     if taken {
         errors
             .entry("o:label".to_string())

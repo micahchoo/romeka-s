@@ -1,98 +1,182 @@
-//! The import plan: what the admin decided, stored as JSON on the draft.
+//! The import v2 plan: the rule and the decisions, stored as JSON on the
+//! draft and sent by the admin (`docs/import-v2.md`, "The plan").
 //!
-//! [`ImportPlan::from_json`] is the parse boundary. It refuses unknown members
-//! and the states the types cannot rule out on their own (a header row of 0,
-//! an unknown tag, a new field with no letters). Inside the crate the plan is
-//! trusted. The file-name pattern is kept as text: a draft may hold a pattern
-//! the admin is still typing, and [`crate::import::pattern::FilePattern`]
-//! reports its error in the preview.
+//! [`ImportPlanV2::from_json`] is the one parse boundary. Types refuse what
+//! serde can see (unknown members, closed string sets, path and term
+//! shapes); [`check`] refuses what needs the whole plan (ids, refs,
+//! combine, delete, new types and terms). Inside the crate the plan is
+//! trusted. A check that needs the install, such as a new type whose label
+//! a template already has, is [`ImportPlanV2::refuse_existing_labels`],
+//! which the caller feeds; the plan itself holds no database or files.
 
-use std::collections::{BTreeMap, BTreeSet};
+mod action;
+mod anomalies;
+#[cfg(test)]
+mod anomalies_tests;
+mod check;
+mod flags;
+mod names;
+mod path;
+mod slots;
+mod source;
+#[cfg(test)]
+mod tests;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::tags;
+pub use action::{
+    Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
+};
+pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, UnmatchedFilesAnswer};
+pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
+pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
+pub use path::{RelPath, RelPathError};
+pub use slots::{
+    Combine, EachFile, FileFact, FolderLevel, SlotRule, SlotRules, Slots, SourceRef, TagFiles,
+    TagId, TagPart, WholePath,
+};
+pub use source::{
+    Auto, ColumnOptions, ColumnPlan, ColumnRef, Delimiter, Encoding, EncodingChoice, Join,
+    JoinNormalize, JoinOn, KindColumn, Quote, ReadOptions, RowKind, SheetPlan, SourcePlan,
+};
 
-/// The whole plan. Field names are the contract's camelCase.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+use super::decisions::Decision;
+use super::values::Visibility;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ImportPlan {
+pub struct ImportPlanV2 {
+    pub version: Version2,
+    pub sources: Vec<SourcePlan>,
+    pub grouping: Grouping,
+    /// The admin's mark-an-example state. The server keeps it and never
+    /// reads it, so its members are the admin's to define.
+    #[serde(deserialize_with = "super::nullable")]
+    pub example: Option<serde_json::Map<String, serde_json::Value>>,
+    pub sheets: Vec<SheetPlan>,
+    pub slots: Slots,
+    pub action: ActionPlan,
+    pub defaults: Defaults,
+    /// Policies the plan sets; a kind it leaves out has its default.
+    pub flags: indexmap::IndexMap<FlagKind, FlagPolicy>,
+    pub decisions: Vec<Decision>,
+    pub new_types: Vec<NewType>,
+    pub new_terms: Vec<NewTerm>,
+    /// Missing means the defaults, and the defaults are not written, so a
+    /// plan stored before this member keeps its bytes.
+    #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
+    pub anomalies: AnomalyAnswers,
+}
+
+/// The member `version: 2`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Version2;
+
+impl Serialize for Version2 {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u64(2)
+    }
+}
+
+impl<'de> Deserialize<'de> for Version2 {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match u64::deserialize(deserializer)? {
+            2 => Ok(Self),
+            other => Err(serde::de::Error::custom(format!(
+                "version {other} is not 2"
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Grouping {
+    /// Kept as text: a draft may hold a pattern the admin is still typing,
+    /// and the preview reports its error.
+    #[serde(deserialize_with = "super::nullable")]
     pub pattern: Option<String>,
-    /// The admin's mark-an-example state. The server keeps it and never reads it.
-    pub example: Option<Example>,
-    pub set_level: SetLevel,
-    /// Set choices by folder key.
-    pub sets: BTreeMap<String, SetChoice>,
-    /// The item type of the items in a set, by set key.
-    pub type_for: BTreeMap<String, TypeChoice>,
-    pub csv: Option<CsvPlan>,
-    pub meta: Vec<MetaRule>,
-    pub priority: Priority,
-    /// Grid edits: identifier, then term, then the value typed.
-    pub edits: BTreeMap<String, BTreeMap<String, String>>,
-    pub skip: BTreeSet<String>,
-    pub without_files: BTreeSet<String>,
-    pub csv_row: BTreeMap<String, CsvRowChoice>,
-    pub problem_rows: ProblemRows,
+    pub case_fold: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Example {
-    pub path: String,
-    pub labels: BTreeMap<String, Label>,
-    pub optional: Vec<Label>,
+pub struct Defaults {
+    pub visibility: Visibility,
+    pub owner: Owner,
+    pub sites: Vec<i64>,
+    #[serde(deserialize_with = "super::nullable")]
+    pub template: Option<i64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Label {
-    Identifier,
-    Part,
-    Page,
-    Set,
+/// The user who owns what the import writes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Owner {
+    /// The user who presses Run (on the CLI, `--as`).
+    Runner,
+    User(i64),
 }
 
-/// Which folders of a file's path become its item sets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum SetLevel {
-    /// The top folder.
-    Level1,
-    /// The second folder, or the top one when there is none.
-    Level2,
-    /// Both the top and the second folder.
-    Both,
-    /// The whole folder path as one set.
-    Path,
-    /// The pattern's `set` group, or the top folder when it did not match.
-    Group,
+impl Serialize for Owner {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Runner => serializer.serialize_str("runner"),
+            Self::User(id) => serializer.serialize_i64(*id),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SetChoice {
-    #[serde(rename = "use")]
-    pub use_set: bool,
-    pub name: String,
+impl<'de> Deserialize<'de> for Owner {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Wire {
+            Id(i64),
+            Name(String),
+        }
+        match Wire::deserialize(deserializer)? {
+            Wire::Id(id) => Ok(Self::User(id)),
+            Wire::Name(name) if name == "runner" => Ok(Self::Runner),
+            Wire::Name(name) => Err(serde::de::Error::custom(format!(
+                "owner {name:?} is neither \"runner\" nor a user id"
+            ))),
+        }
+    }
 }
 
-/// An existing template by id, or a new one made from a starter.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum TypeChoice {
-    Template(i64),
-    New(NewType),
-}
-
+/// A template the run creates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NewType {
-    pub starter: StarterId,
-    pub name: String,
+    pub label: String,
+    pub from: NewTypeFrom,
+    #[serde(deserialize_with = "super::nullable")]
+    pub class: Option<Term>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NewTypeFrom {
+    /// One field per term a record using the type writes.
+    Mapping(FromMapping),
+    Starter(FromStarter),
+}
+
+/// The text `mapping`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FromMapping {
+    Mapping,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FromStarter {
+    pub starter: StarterId,
+}
+
+/// The starter templates the server offers (`GET /api/romeka/starters`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum StarterId {
     Letter,
@@ -103,387 +187,165 @@ pub enum StarterId {
     Other,
 }
 
+/// A property the run creates in the `local` vocabulary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CsvPlan {
-    /// Relative to the import folder.
-    pub file: String,
-    pub delimiter: Delimiter,
-    /// The 1-based line that holds the header.
-    pub header_row: usize,
-    pub windows1252: bool,
-    pub trim: bool,
-    pub join_column: String,
-    /// Header to target.
-    pub columns: BTreeMap<String, ColumnTarget>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Delimiter {
-    #[serde(rename = ",")]
-    Comma,
-    #[serde(rename = ";")]
-    Semicolon,
-    #[serde(rename = "\t")]
-    Tab,
-}
-
-impl Delimiter {
-    pub const ALL: [Self; 3] = [Self::Comma, Self::Semicolon, Self::Tab];
-
-    #[must_use]
-    pub fn as_char(self) -> char {
-        match self {
-            Self::Comma => ',',
-            Self::Semicolon => ';',
-            Self::Tab => '\t',
-        }
-    }
-}
-
-/// A CSV column goes to an existing term or to a new local field.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ColumnTarget {
-    Term(String),
-    NewField(NewField),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct NewField {
-    pub new_field: String,
-}
-
-impl ColumnTarget {
-    /// The term the column writes. A new field is `local:` and its label in
-    /// lower camel case: "Shelf mark" is `local:shelfMark`.
-    #[must_use]
-    pub fn term(&self) -> String {
-        match self {
-            Self::Term(term) => term.clone(),
-            Self::NewField(field) => local_term(&field.new_field),
-        }
-    }
-}
-
-/// `local:` and the label in lower camel case, letters and digits of any script.
-#[must_use]
-pub fn local_term(label: &str) -> String {
-    let mut out = String::from("local:");
-    let words = label
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|word| !word.is_empty());
-    for (index, word) in words.enumerate() {
-        let lower = word.to_lowercase();
-        let mut chars = lower.chars();
-        if index > 0
-            && let Some(first) = chars.next()
-        {
-            out.extend(first.to_uppercase());
-            out.push_str(chars.as_str());
-        } else {
-            out.push_str(&lower);
-        }
-    }
-    out
-}
-
-/// One tag mapped to a field.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "MetaRuleWire", into = "MetaRuleWire")]
-pub struct MetaRule {
-    pub tag: String,
-    pub term: String,
-    pub on: MetaTarget,
-    pub from: FileChoice,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum MetaTarget {
-    Item,
-    Media,
-    Both,
-}
-
-impl MetaTarget {
-    #[must_use]
-    pub fn on_item(self) -> bool {
-        matches!(self, Self::Item | Self::Both)
-    }
-
-    #[must_use]
-    pub fn on_media(self) -> bool {
-        matches!(self, Self::Media | Self::Both)
-    }
-}
-
-/// Which files of an item give the item its value.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileChoice {
-    First,
-    /// The file whose `part` group is this text, else the first file.
-    Part(String),
-    All,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct MetaRuleWire {
-    tag: String,
-    term: String,
-    on: MetaTarget,
-    from: FromWire,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    part: Option<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum FromWire {
-    First,
-    Part,
-    All,
-}
-
-impl TryFrom<MetaRuleWire> for MetaRule {
-    type Error = String;
-
-    fn try_from(wire: MetaRuleWire) -> Result<Self, String> {
-        let from = match (wire.from, wire.part) {
-            (FromWire::First, None) => FileChoice::First,
-            (FromWire::All, None) => FileChoice::All,
-            (FromWire::Part, Some(part)) if !part.is_empty() => FileChoice::Part(part),
-            (FromWire::Part, _) => return Err("from \"part\" needs a part".to_string()),
-            (_, Some(_)) => return Err("part is only for from \"part\"".to_string()),
-        };
-        Ok(Self {
-            tag: wire.tag,
-            term: wire.term,
-            on: wire.on,
-            from,
-        })
-    }
-}
-
-impl From<MetaRule> for MetaRuleWire {
-    fn from(rule: MetaRule) -> Self {
-        let (from, part) = match rule.from {
-            FileChoice::First => (FromWire::First, None),
-            FileChoice::Part(part) => (FromWire::Part, Some(part)),
-            FileChoice::All => (FromWire::All, None),
-        };
-        Self {
-            tag: rule.tag,
-            term: rule.term,
-            on: rule.on,
-            from,
-            part,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Priority {
-    Csv,
-    Files,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum CsvRowChoice {
-    Keep,
-    Ignore,
-}
-
-/// What a run does with rows that still have problems.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ProblemRows {
-    /// Leave them out of the run.
-    Leave,
-    /// Refuse to run until they are fixed.
-    Fix,
+#[serde(deny_unknown_fields)]
+pub struct NewTerm {
+    pub label: String,
 }
 
 /// A plan the boundary refuses.
 #[derive(Debug, thiserror::Error)]
 pub enum PlanError {
-    #[error("the plan is not an import plan: {0}")]
+    #[error("the plan is not an import v2 plan: {0}")]
     Shape(#[from] serde_json::Error),
-    #[error("the CSV header row is 1-based, so 0 is not a line")]
-    HeaderRowZero,
-    #[error("{0:?} is not a tag the import reads")]
-    UnknownTag(String),
+    /// The caller answers 409 `v1Plan`.
+    #[error("the plan is a v1 plan")]
+    V1Plan,
+    #[error("the plan's version is {0}, not 2")]
+    Version(String),
+    #[error("two sources have the id {0:?}")]
+    DuplicateSource(String),
+    #[error("two sheets have the id {0:?}")]
+    DuplicateSheet(String),
+    #[error("sheet {sheet:?} is in source {missing:?}, which the plan does not have")]
+    MissingSource { sheet: String, missing: String },
+    #[error("a slot reads sheet {0:?}, which the plan does not have")]
+    MissingSheet(String),
+    #[error("a slot reads column {index} of sheet {sheet:?}, which the sheet does not map")]
+    MissingColumn { sheet: String, index: u32 },
+    #[error("sheet {sheet:?} maps column {index} twice")]
+    DuplicateColumn { sheet: String, index: u32 },
+    #[error("{kind:?} slot {slot} holds one value, so it cannot combine all")]
+    CombineAll { kind: RecordKind, slot: String },
+    #[error("a delete plan has no slot rules")]
+    SlotRulesOnDelete,
+    #[error("the new type {0:?} has no label")]
+    EmptyTypeLabel(String),
+    #[error("two new types have the label {0:?}")]
+    DuplicateNewType(String),
+    #[error("a template already has the label {0:?}")]
+    TypeExists(String),
     #[error("the new field {0:?} has no letters or digits")]
-    EmptyFieldLabel(String),
+    EmptyTermLabel(String),
+    #[error("the {slot} value map has the keys {first:?} and {second:?}, which read as one")]
+    MapKeysCollide {
+        slot: String,
+        first: String,
+        second: String,
+    },
+    #[error("decision {0} changes many records but names no entry")]
+    EmptyMany(usize),
+    #[error("decision {0} moves many entries, and a row is not a file")]
+    ManyMovesRow(usize),
+    #[error("the new fields {first:?} and {second:?} both make {term}")]
+    TermsCollide {
+        first: String,
+        second: String,
+        term: String,
+    },
 }
 
-impl ImportPlan {
-    /// The plan of a new draft: nothing chosen yet.
-    #[must_use]
-    pub fn new_draft() -> Self {
-        Self {
-            pattern: None,
-            example: None,
-            set_level: SetLevel::Level1,
-            sets: BTreeMap::new(),
-            type_for: BTreeMap::new(),
-            csv: None,
-            meta: Vec::new(),
-            priority: Priority::Csv,
-            edits: BTreeMap::new(),
-            skip: BTreeSet::new(),
-            without_files: BTreeSet::new(),
-            csv_row: BTreeMap::new(),
-            problem_rows: ProblemRows::Leave,
-        }
-    }
-
+impl ImportPlanV2 {
     /// Parse a plan sent by the admin or read from the database.
     ///
     /// # Errors
-    /// A [`PlanError`] for an unknown member, a wrong type, or a state the
-    /// types allow but the import cannot use.
-    pub fn from_json(value: &serde_json::Value) -> Result<Self, PlanError> {
-        let plan = Self::deserialize(value)?;
-        if let Some(csv) = &plan.csv {
-            if csv.header_row == 0 {
-                return Err(PlanError::HeaderRowZero);
-            }
-            for target in csv.columns.values() {
-                if let ColumnTarget::NewField(field) = target
-                    && !field.new_field.chars().any(char::is_alphanumeric)
-                {
-                    return Err(PlanError::EmptyFieldLabel(field.new_field.clone()));
-                }
-            }
+    /// [`PlanError::V1Plan`] for a v1 plan, [`PlanError::Version`] for
+    /// another version, [`PlanError::Shape`] for anything the types refuse,
+    /// and the other variants for what the contract refuses across members.
+    pub fn from_json(text: &str) -> Result<Self, PlanError> {
+        let value: serde_json::Value = serde_json::from_str(text)?;
+        match value.get("version") {
+            Some(version) if version.as_u64() == Some(2) => {}
+            Some(version) => return Err(PlanError::Version(version.to_string())),
+            // v1 plans have no version; `setLevel` is a member every v1 plan has.
+            None if value.get("setLevel").is_some() => return Err(PlanError::V1Plan),
+            None => {}
         }
-        if let Some(rule) = plan
-            .meta
-            .iter()
-            .find(|rule| tags::kind_of(&rule.tag).is_none())
-        {
-            return Err(PlanError::UnknownTag(rule.tag.clone()));
-        }
+        // Parsed again from the text so a shape error names its line and column.
+        let plan: Self = serde_json::from_str(text)?;
+        check::plan(&plan)?;
         Ok(plan)
     }
 
-    /// The plan as stored JSON.
+    /// The plan as stored JSON. Every map key is a string, so this cannot
+    /// fail; an empty string would mean serde_json broke that rule.
     #[must_use]
-    pub fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    /// The policy a flag of this kind gets, or `None` for a blocking kind.
+    #[must_use]
+    pub fn policy(&self, kind: FlagKind) -> Option<FlagPolicy> {
+        let default = kind.default_policy()?;
+        Some(self.flags.get(&kind).copied().unwrap_or(match default {
+            PolicyDefault::Is(policy) => policy,
+            PolicyDefault::ActionUnmatched => self.action.unmatched.policy(),
+        }))
+    }
+
+    /// Refuse a new type whose label, compared as a title, an existing
+    /// template already has.
+    ///
+    /// # Errors
+    /// [`PlanError::TypeExists`] with the new type's label.
+    pub fn refuse_existing_labels<'a>(
+        &self,
+        templates: impl IntoIterator<Item = &'a str>,
+    ) -> Result<(), PlanError> {
+        check::existing_labels(self, templates)
     }
 }
 
-impl Default for ImportPlan {
-    fn default() -> Self {
-        Self::new_draft()
-    }
-}
+/// The pattern that groups by the name alone: it skips the folders and the
+/// ending, so files whose names are equal but for the ending are one item.
+/// The admin's `patternOf([])` writes the same text.
+pub const NAME_ALONE: &str = r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$";
 
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-    use super::*;
-    use serde_json::json;
-
-    fn full() -> serde_json::Value {
-        json!({
-            "pattern": "^(?<identifier>[^/]+)\\.jpg$",
-            "example": { "path": "A/x.jpg", "labels": { "n0": "identifier" }, "optional": ["part"] },
-            "setLevel": "both",
-            "sets": { "Artifacts": { "use": true, "name": "Objects" } },
-            "typeFor": { "Artifacts": 3, "Photographs": { "starter": "photograph", "name": "Photo" } },
-            "csv": {
-                "file": "register.csv", "delimiter": ";", "headerRow": 2, "windows1252": true,
-                "trim": true, "joinColumn": "Accession No",
-                "columns": { "Title": "dcterms:title", "Shelf mark": { "newField": "Shelf mark" } }
+/// The plan a new draft starts with: one item per name ([`NAME_ALONE`]),
+/// private, owned by the runner, the `create` action, every kind matched on
+/// `dcterms:identifier` within this import's sets, nothing mapped and nothing
+/// decided.
+///
+/// # Errors
+/// What [`ImportPlanV2::from_json`] refuses about the sources: two with one id.
+pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError> {
+    let by_identifier = || MatchRule {
+        key: MatchKey::Term(Term::dcterms_identifier()),
+        scope: Scope::Named(NamedScope::ImportSets),
+    };
+    let plan = ImportPlanV2 {
+        version: Version2,
+        sources,
+        grouping: Grouping {
+            pattern: Some(NAME_ALONE.to_owned()),
+            case_fold: false,
+        },
+        example: None,
+        sheets: Vec::new(),
+        slots: Slots::default(),
+        action: ActionPlan {
+            action: Action::Create,
+            match_by: MatchPlan {
+                item: by_identifier(),
+                media: by_identifier(),
+                item_set: by_identifier(),
             },
-            "meta": [
-                { "tag": "DateTimeOriginal", "term": "dcterms:created", "on": "item", "from": "first" },
-                { "tag": "Artist", "term": "dcterms:creator", "on": "both", "from": "part", "part": "front" }
-            ],
-            "priority": "files",
-            "edits": { "BHC_006_AF_001": { "dcterms:title": "Lamp" } },
-            "skip": ["BHC_006_AF_002"],
-            "withoutFiles": ["BHC_006_PH_999"],
-            "csvRow": { "BHC_006_AF_003": "keep" },
-            "problemRows": "fix"
-        })
-    }
-
-    #[test]
-    fn a_full_plan_parses_and_writes_back_the_same_json() {
-        let plan = ImportPlan::from_json(&full()).expect("plan");
-        assert_eq!(plan.type_for["Artifacts"], TypeChoice::Template(3));
-        assert_eq!(plan.meta[1].from, FileChoice::Part("front".to_string()));
-        let csv = plan.csv.as_ref().expect("csv");
-        assert_eq!(csv.delimiter, Delimiter::Semicolon);
-        assert_eq!(csv.columns["Shelf mark"].term(), "local:shelfMark");
-        assert_eq!(plan.to_json(), full());
-    }
-
-    #[test]
-    fn the_new_draft_round_trips() {
-        let draft = ImportPlan::new_draft();
-        assert_eq!(
-            ImportPlan::from_json(&draft.to_json()).expect("plan"),
-            draft
-        );
-    }
-
-    #[test]
-    fn unknown_members_and_bad_states_are_refused() {
-        let mut extra = full();
-        extra["colour"] = json!("red");
-        assert!(matches!(
-            ImportPlan::from_json(&extra),
-            Err(PlanError::Shape(_))
-        ));
-
-        let mut nested = full();
-        nested["sets"]["Artifacts"]["colour"] = json!(1);
-        assert!(matches!(
-            ImportPlan::from_json(&nested),
-            Err(PlanError::Shape(_))
-        ));
-
-        let mut zero = full();
-        zero["csv"]["headerRow"] = json!(0);
-        assert!(matches!(
-            ImportPlan::from_json(&zero),
-            Err(PlanError::HeaderRowZero)
-        ));
-
-        let mut tag = full();
-        tag["meta"][0]["tag"] = json!("ShutterSpeed");
-        assert!(matches!(
-            ImportPlan::from_json(&tag),
-            Err(PlanError::UnknownTag(_))
-        ));
-
-        let mut part = full();
-        part["meta"][1]["part"] = json!(null);
-        assert!(matches!(
-            ImportPlan::from_json(&part),
-            Err(PlanError::Shape(_))
-        ));
-
-        let mut label = full();
-        label["csv"]["columns"]["Shelf mark"] = json!({ "newField": " - " });
-        assert!(matches!(
-            ImportPlan::from_json(&label),
-            Err(PlanError::EmptyFieldLabel(_))
-        ));
-    }
-
-    #[test]
-    fn a_local_term_keeps_letters_of_any_script() {
-        assert_eq!(local_term("Shelf mark"), "local:shelfMark");
-        assert_eq!(local_term("  OLD accession-no. "), "local:oldAccessionNo");
-        assert_eq!(local_term("दिनांक"), "local:दिनांक");
-    }
+            unmatched: Unmatched::Leave,
+        },
+        defaults: Defaults {
+            visibility: Visibility::Private,
+            owner: Owner::Runner,
+            sites: Vec::new(),
+            template: None,
+        },
+        flags: indexmap::IndexMap::new(),
+        decisions: Vec::new(),
+        new_types: Vec::new(),
+        new_terms: Vec::new(),
+        anomalies: AnomalyAnswers::default(),
+    };
+    check::plan(&plan)?;
+    Ok(plan)
 }

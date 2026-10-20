@@ -1,0 +1,145 @@
+{
+  "pattern": {
+    "groups": [
+      "identifier"
+    ]
+  },
+  "sheets": [
+    {
+      "error": null,
+      "file": "lists/1.csv",
+      "found": true,
+      "guess": {
+        "delimiter": ",",
+        "encoding": {
+          "confidence": 1.0,
+          "encoding": "utf-8"
+        },
+        "headerLine": 1,
+        "unsupported": null
+      },
+      "id": "list-1",
+      "lines": [
+        "Identifier,Files,Title [dcterms:title],Date [dcterms:date]",
+        "BHC_006_AF_001,,Brass lamp,1950",
+        ""
+      ],
+      "read": {
+        "blankLines": 0,
+        "cellsCount": 0,
+        "cellsSuspect": 0,
+        "cellsWithSpaces": 0,
+        "columns": [
+          {
+            "header": "Identifier",
+            "index": 0,
+            "mappable": true
+          },
+          {
+            "header": "Files",
+            "index": 1,
+            "mappable": true
+          },
+          {
+            "header": "Title [dcterms:title]",
+            "index": 2,
+            "mappable": true
+          },
+          {
+            "header": "Date [dcterms:date]",
+            "index": 3,
+            "mappable": true
+          }
+        ],
+        "delimiter": ",",
+        "delimiterGuessed": false,
+        "encoding": {
+          "confidence": 1.0,
+          "encoding": "utf-8"
+        },
+        "hash": "eb6d84b3084a29d74ad9b2c8bb1fc40492a1e485c81ef96f6c1713050d09ea2f",
+        "headerLine": 1,
+        "notes": [],
+        "rows": 1,
+        "workbook": null
+      },
+      "source": "staging"
+    },
+    {
+      "error": null,
+      "file": "lists/2.xlsx",
+      "found": true,
+      "guess": {
+        "delimiter": ",",
+        "encoding": {
+          "confidence": null,
+          "encoding": "utf-8"
+        },
+        "headerLine": 1,
+        "unsupported": null
+      },
+      "id": "list-2",
+      "lines": [
+        "Identifier\tFiles\tTitle [dcterms:title]",
+        "BHC_006_AF_001\t\tBrass lamp"
+      ],
+      "read": {
+        "blankLines": 0,
+        "cellsCount": 0,
+        "cellsSuspect": 0,
+        "cellsWithSpaces": 0,
+        "columns": [
+          {
+            "header": "Identifier",
+            "index": 0,
+            "mappable": true
+          },
+          {
+            "header": "Files",
+            "index": 1,
+            "mappable": true
+          },
+          {
+            "header": "Title [dcterms:title]",
+            "index": 2,
+            "mappable": true
+          }
+        ],
+        "delimiter": ",",
+        "delimiterGuessed": false,
+        "encoding": {
+          "confidence": null,
+          "encoding": "utf-8"
+        },
+        "hash": "47e0e6b2420a0208180eb5339063fdca4feee22cdf92566ed06129bc91b8a945",
+        "headerLine": 1,
+        "notes": [],
+        "rows": 1,
+        "workbook": {
+          "sheet": "Register",
+          "sheets": [
+            "Register",
+            "Notes"
+          ]
+        }
+      },
+      "source": "staging"
+    }
+  ],
+  "sources": [
+    {
+      "error": null,
+      "files": 0,
+      "scanned": null,
+      "sheetFiles": [],
+      "source": "s1"
+    },
+    {
+      "error": null,
+      "files": 0,
+      "scanned": null,
+      "sheetFiles": [],
+      "source": "staging"
+    }
+  ]
+}

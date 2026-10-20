@@ -1,416 +1,289 @@
-//! `romeka_import` and `romeka_import_resource`: the draft lifecycle, the single open undo
-//! window, recording inside the caller's transaction, and the cascade from an import.
+//! `romeka_import` (migration 0006): the draft, plan saves by revision, the frozen plan, the run
+//! and undo starts with one live import install-wide, the endings, and how a dead worker is
+//! recorded. Every test runs on SQLite and, with the `mysql` feature, on MySQL.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod common;
+mod import_db;
 
-use omeka_db::ids::{ImportId, ItemId, ItemSetId, JobId, PropertyId, TemplateId};
-use omeka_db::repos::{
-    DIED, HEARTBEAT, ImportRepo, ImportResourceRepo, JobRepo, StartOutcome, UserRepo,
-};
-use omeka_db::rows::{ImportKind, ImportStatus, ImportTarget, NewImport, NewJob, NewUser};
+use import_db::{draft, exec_id, new_import, on_both};
+use omeka_db::ids::{ImportId, JobId};
+use omeka_db::repos::{DIED, HEARTBEAT, ImportRepo, JobRepo, Paging, PlanSave, StartOutcome};
+use omeka_db::rows::{ImportEnding, ImportStatus, NewImport, NewJob};
 use serde_json::json;
-use sqlx::SqlitePool;
 
-async fn draft(pool: &SqlitePool, folder: &str) -> ImportId {
-    ImportRepo::new(pool)
-        .create_draft(&NewImport {
-            owner_id: None,
-            folder: folder.to_string(),
-            plan: json!({"pattern": null}),
-        })
-        .await
-        .unwrap()
-        .id
+fn job(status: &str) -> NewJob {
+    NewJob {
+        owner_id: None,
+        pid: None,
+        status: Some(status.to_string()),
+        class: "Romeka\\Job\\Import".to_string(),
+        args: None,
+        log: None,
+        started: None,
+    }
 }
 
-async fn open_windows(pool: &SqlitePool) -> Vec<i64> {
-    sqlx::query_scalar("SELECT id FROM romeka_import WHERE undoable = 1 ORDER BY id")
-        .fetch_all(pool)
-        .await
-        .unwrap()
-}
+const AGE_SAVED: &str = "UPDATE romeka_import SET saved = '2000-01-01 00:00:00' WHERE id = ?";
 
-#[tokio::test]
-async fn a_fresh_database_has_both_import_tables() {
-    let pool = common::memory().await;
-    let tables: Vec<String> = sqlx::query_scalar(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'romeka_import%'
-         ORDER BY name",
-    )
-    .fetch_all(&pool)
-    .await
-    .unwrap();
-    assert_eq!(tables, ["romeka_import", "romeka_import_resource"]);
-    common::assert_primary_key(
-        &pool,
-        "romeka_import_resource",
-        &["import_id", "kind", "target_id"],
-    )
-    .await;
-    common::assert_foreign_key(
-        &pool,
-        "romeka_import_resource",
-        "import_id",
-        "romeka_import",
-        "id",
-        "CASCADE",
-    )
-    .await;
-}
+const AGE_HEARTBEAT: &str =
+    "UPDATE romeka_import SET summary = json_set(summary, '$.heartbeat', '2000-01-01 00:00:00')
+     WHERE id = ?";
 
-#[tokio::test]
-async fn a_draft_round_trips_and_lists_newest_first() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let first = draft(&pool, "letters/1920").await;
-    let second = draft(&pool, "photos").await;
-
-    let row = imports.get(first).await.unwrap().unwrap();
-    assert_eq!(row.folder, "letters/1920");
-    assert_eq!(row.plan, json!({"pattern": null}));
-    assert_eq!(row.status, ImportStatus::Draft);
-    assert!(!row.undoable);
-    assert_eq!(row.summary, None);
-    assert_eq!(row.finished, None);
-
-    let ids: Vec<_> = imports
-        .list()
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|row| row.id)
-        .collect();
-    assert_eq!(ids, [second, first]);
+on_both!(a_draft_reads_back_as_written_with_revision_zero, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let created = imports.create_draft(&new_import("a")).await.unwrap();
+    let read = imports.get(created.id).await.unwrap().unwrap();
+    assert_eq!(read, created);
+    assert_eq!(read.status, ImportStatus::Draft);
+    assert_eq!(read.revision, 0);
+    assert_eq!(read.ran_plan, None);
+    assert_eq!(read.sources[0]["path"], "a");
     assert_eq!(imports.get(ImportId(999)).await.unwrap(), None);
-}
+});
 
-#[tokio::test]
-async fn the_plan_changes_only_while_the_import_is_a_draft() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let id = draft(&pool, "a").await;
+on_both!(
+    the_history_pages_newest_first_and_counts_every_import,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let first = draft!(pool, "a");
+        let second = draft!(pool, "b");
+        let third = draft!(pool, "c");
+        let ids = |rows: Vec<omeka_db::rows::ImportRow>| -> Vec<ImportId> {
+            rows.into_iter().map(|row| row.id).collect()
+        };
+        assert_eq!(
+            ids(imports.page(&Paging::new(2, 0)).await.unwrap()),
+            [third, second]
+        );
+        assert_eq!(
+            ids(imports.page(&Paging::new(2, 2)).await.unwrap()),
+            [first]
+        );
+        assert_eq!(imports.count().await.unwrap(), 3);
+    }
+);
 
-    assert!(
-        imports
-            .update_plan(id, &json!({"pattern": "(?P<identifier>.+)"}))
+on_both!(
+    a_copy_keeps_its_source_until_the_source_is_deleted,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let source = draft!(pool, "a");
+        let copy = imports
+            .create_draft(&NewImport {
+                copied_from: Some(source),
+                ..new_import("b")
+            })
             .await
-            .unwrap()
-    );
-    assert_eq!(
-        imports.get(id).await.unwrap().unwrap().plan,
-        json!({"pattern": "(?P<identifier>.+)"})
-    );
+            .unwrap();
+        assert_eq!(copy.copied_from, Some(source));
+        assert!(imports.delete_draft(source).await.unwrap());
+        assert_eq!(
+            imports.get(copy.id).await.unwrap().unwrap().copied_from,
+            None
+        );
+    }
+);
 
-    imports.set_status(id, ImportStatus::Running).await.unwrap();
-    assert!(!imports.update_plan(id, &json!({})).await.unwrap());
+on_both!(
+    a_plan_save_with_an_old_revision_is_stale_and_changes_nothing,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        let edited = json!({ "version": 2, "tag": "edited" });
+        assert_eq!(
+            imports.save_plan(id, &edited, 0).await.unwrap(),
+            PlanSave::Saved(1)
+        );
+        assert_eq!(
+            imports
+                .save_plan(id, &json!({ "version": 2, "tag": "late" }), 0)
+                .await
+                .unwrap(),
+            PlanSave::Stale(1)
+        );
+        let row = imports.get(id).await.unwrap().unwrap();
+        assert_eq!((row.plan, row.revision), (edited, 1));
+        assert_eq!(
+            imports
+                .save_plan(ImportId(999), &json!({}), 0)
+                .await
+                .unwrap(),
+            PlanSave::Missing
+        );
+    }
+);
+
+on_both!(
+    a_plan_save_moves_the_draft_clock_and_a_stale_one_does_not,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        let old = chrono::NaiveDate::from_ymd_opt(2000, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        exec_id!(pool, AGE_SAVED, id.0);
+        assert_eq!(imports.get(id).await.unwrap().unwrap().saved, old);
+
+        imports.save_plan(id, &json!({}), 5).await.unwrap();
+        assert_eq!(
+            imports.get(id).await.unwrap().unwrap().saved,
+            old,
+            "a stale save changes nothing"
+        );
+        imports.save_plan(id, &json!({}), 0).await.unwrap();
+        let row = imports.get(id).await.unwrap().unwrap();
+        assert!(row.saved > old, "a save sets the clock to now");
+        assert!(row.saved >= row.created);
+    }
+);
+
+on_both!(only_a_draft_saves_its_plan_or_is_deleted, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let id = draft!(pool, "a");
     assert_eq!(
-        imports.get(id).await.unwrap().unwrap().plan,
-        json!({"pattern": "(?P<identifier>.+)"})
+        imports.start_run(id, 0).await.unwrap(),
+        StartOutcome::Started
+    );
+    assert_eq!(
+        imports.save_plan(id, &json!({}), 0).await.unwrap(),
+        PlanSave::NotDraft(ImportStatus::Running)
     );
     assert!(!imports.delete_draft(id).await.unwrap());
-}
+    assert!(imports.get(id).await.unwrap().is_some());
+    assert!(!imports.delete_draft(ImportId(999)).await.unwrap());
+});
 
-#[tokio::test]
-async fn a_run_records_its_job_summary_and_finish() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let id = draft(&pool, "a").await;
-    let job = JobRepo::new(&pool)
-        .create(&NewJob {
-            owner_id: None,
-            pid: None,
-            status: Some("starting".to_string()),
-            class: "Romeka\\Job\\ImportArchive".to_string(),
-            args: Some(json!({"importId": id.0})),
-            log: None,
-            started: None,
-        })
-        .await
-        .unwrap();
+on_both!(
+    a_run_freezes_the_plan_and_a_retry_runs_the_frozen_plan,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        let plan = imports.get(id).await.unwrap().unwrap().plan;
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        let running = imports.get(id).await.unwrap().unwrap();
+        assert_eq!(running.status, ImportStatus::Running);
+        assert_eq!(running.ran_plan.as_ref(), Some(&plan));
+        assert!(running.summary.unwrap()[HEARTBEAT].is_string());
 
-    imports.set_job(id, job.id).await.unwrap();
-    imports
-        .set_summary(
-            id,
-            &json!({"items": 3, "progress": {"done": 1, "total": 3}}),
-        )
-        .await
-        .unwrap();
-    imports.finish(id, ImportStatus::Failed).await.unwrap();
+        exec_id!(
+            pool,
+            "UPDATE romeka_import SET plan = '{\"tag\":\"drifted\"}' WHERE id = ?",
+            id.0
+        );
+        assert!(imports.finish(id, ImportEnding::RunFailed).await.unwrap());
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        let retried = imports.get(id).await.unwrap().unwrap();
+        assert_eq!(
+            retried.ran_plan,
+            Some(plan),
+            "a retry keeps the frozen plan"
+        );
+        assert_eq!(retried.finished, None, "a new attempt has not finished");
 
-    let row = imports.get(id).await.unwrap().unwrap();
-    assert_eq!(row.job_id, Some(job.id));
-    assert_eq!(row.summary.unwrap()["progress"]["done"], 1);
-    assert_eq!(row.status, ImportStatus::Failed);
-    assert!(row.finished.is_some());
-}
+        assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Done)
+        );
+        assert_eq!(
+            imports.start_run(ImportId(999), 0).await.unwrap(),
+            StartOutcome::Missing
+        );
+    }
+);
 
-#[tokio::test]
-async fn deleting_the_owner_keeps_the_import() {
-    let pool = common::memory().await;
-    let owner = UserRepo::new(&pool)
-        .create(&NewUser {
-            email: "ada@example.org".to_string(),
-            name: "Ada".to_string(),
-            password_hash: None,
-            role: "global_admin".to_string(),
-            is_active: true,
-            created: None,
-        })
-        .await
-        .unwrap()
-        .id;
-    let imports = ImportRepo::new(&pool);
-    let id = imports
-        .create_draft(&NewImport {
-            owner_id: Some(owner),
-            folder: "a".to_string(),
-            plan: json!({}),
-        })
-        .await
-        .unwrap()
-        .id;
-    sqlx::query("DELETE FROM user WHERE id = ?")
-        .bind(owner.0 as i64)
-        .execute(&pool)
-        .await
-        .unwrap();
-    let row = imports.get(id).await.unwrap().unwrap();
-    assert_eq!(row.owner_id, None);
-}
+on_both!(
+    an_undo_starts_from_done_run_failed_or_undo_failed_only,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        assert_eq!(
+            imports.start_undo(id).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Draft)
+        );
+        imports.start_run(id, 0).await.unwrap();
+        assert_eq!(
+            imports.start_undo(id).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Running)
+        );
+        for ending in [ImportEnding::Done, ImportEnding::RunFailed] {
+            exec_id!(
+                pool,
+                "UPDATE romeka_import SET status = 'running' WHERE id = ?",
+                id.0
+            );
+            assert!(imports.finish(id, ending).await.unwrap());
+            assert_eq!(imports.start_undo(id).await.unwrap(), StartOutcome::Started);
+            assert_eq!(
+                imports.get(id).await.unwrap().unwrap().status,
+                ImportStatus::Undoing
+            );
+            assert!(imports.finish(id, ImportEnding::UndoFailed).await.unwrap());
+            assert_eq!(imports.start_undo(id).await.unwrap(), StartOutcome::Started);
+            assert!(imports.finish(id, ImportEnding::Undone).await.unwrap());
+            assert_eq!(
+                imports.start_undo(id).await.unwrap(),
+                StartOutcome::Refused(ImportStatus::Undone)
+            );
+        }
+    }
+);
 
-/// Mark `id` done, as its job does when the run ends.
-async fn ended(imports: &ImportRepo<'_>, id: ImportId) {
-    assert!(imports.finish(id, ImportStatus::Done).await.unwrap());
-}
+on_both!(an_ending_needs_the_state_it_ends, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let id = draft!(pool, "a");
+    assert!(!imports.finish(id, ImportEnding::Done).await.unwrap());
+    imports.start_run(id, 0).await.unwrap();
+    assert!(!imports.finish(id, ImportEnding::Undone).await.unwrap());
+    assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
+    let done = imports.get(id).await.unwrap().unwrap();
+    assert_eq!(done.status, ImportStatus::Done);
+    assert!(done.finished.is_some());
+    assert!(!imports.finish(id, ImportEnding::RunFailed).await.unwrap());
+});
 
-/// A job row in `status` for `id`, started `started` (SQLite `datetime` modifiers).
-async fn job_for(pool: &SqlitePool, id: ImportId, status: &str, started: &str) -> JobId {
-    let job = JobRepo::new(pool)
-        .create(&NewJob {
-            owner_id: None,
-            pid: None,
-            status: Some(status.to_string()),
-            class: "Romeka\\Job\\ImportArchive".to_string(),
-            args: Some(json!({"importId": id.0})),
-            log: None,
-            started: None,
-        })
-        .await
-        .unwrap()
-        .id;
-    sqlx::query("UPDATE job SET started = datetime('now', ?) WHERE id = ?")
-        .bind(started)
-        .bind(job.0 as i64)
-        .execute(pool)
-        .await
-        .unwrap();
-    assert!(ImportRepo::new(pool).set_job(id, job).await.unwrap());
-    job
-}
-
-async fn beat_at(pool: &SqlitePool, id: ImportId, modifier: &str) {
-    sqlx::query(
-        "UPDATE romeka_import SET summary = json_set(summary, '$.heartbeat', datetime('now', ?))
-         WHERE id = ?",
-    )
-    .bind(modifier)
-    .bind(id.0 as i64)
-    .execute(pool)
-    .await
-    .unwrap();
-}
-
-#[tokio::test]
-async fn start_run_moves_a_draft_and_the_one_open_window() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let first = draft(&pool, "a").await;
-    let second = draft(&pool, "b").await;
-
+on_both!(one_import_runs_or_undoes_at_a_time, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let first = draft!(pool, "a");
+    let second = draft!(pool, "b");
+    imports.start_run(first, 0).await.unwrap();
     assert_eq!(
-        imports.start_run(first).await.unwrap(),
-        StartOutcome::Started
-    );
-    let row = imports.get(first).await.unwrap().unwrap();
-    assert_eq!((row.status, row.undoable), (ImportStatus::Running, true));
-    assert!(
-        row.summary.unwrap()[HEARTBEAT].is_string(),
-        "the start is the first heartbeat"
-    );
-    assert_eq!(open_windows(&pool).await, [first.0 as i64]);
-
-    assert_eq!(
-        imports.start_run(second).await.unwrap(),
+        imports.start_run(second, 0).await.unwrap(),
         StartOutcome::Busy(first)
     );
+    imports.finish(first, ImportEnding::Done).await.unwrap();
+    imports.start_undo(first).await.unwrap();
     assert_eq!(
-        imports.start_run(first).await.unwrap(),
-        StartOutcome::Refused {
-            status: ImportStatus::Running,
-            undoable: true
-        }
+        imports.start_run(second, 0).await.unwrap(),
+        StartOutcome::Busy(first)
     );
-    ended(&imports, first).await;
+    imports.finish(first, ImportEnding::Undone).await.unwrap();
     assert_eq!(
-        imports.start_run(second).await.unwrap(),
+        imports.start_run(second, 0).await.unwrap(),
         StartOutcome::Started
     );
-    assert_eq!(open_windows(&pool).await, [second.0 as i64]);
-    assert_eq!(imports.undoable().await.unwrap().unwrap().id, second);
-    assert_eq!(
-        imports.start_run(ImportId(999)).await.unwrap(),
-        StartOutcome::Missing
-    );
+});
 
-    assert!(imports.close_undo_window(second).await.unwrap());
-    assert_eq!(imports.undoable().await.unwrap(), None);
-}
-
-#[tokio::test]
-async fn start_undo_needs_the_window_an_ended_run_and_no_live_import() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let first = draft(&pool, "a").await;
-    let second = draft(&pool, "b").await;
-    assert_eq!(
-        imports.start_undo(first).await.unwrap(),
-        StartOutcome::Refused {
-            status: ImportStatus::Draft,
-            undoable: false
-        }
-    );
-    imports.start_run(first).await.unwrap();
-    assert_eq!(
-        imports.start_undo(first).await.unwrap(),
-        StartOutcome::Refused {
-            status: ImportStatus::Running,
-            undoable: true
-        },
-        "the run has not ended"
-    );
-    ended(&imports, first).await;
-    imports.start_run(second).await.unwrap();
-    assert_eq!(
-        imports.start_undo(first).await.unwrap(),
-        StartOutcome::Refused {
-            status: ImportStatus::Done,
-            undoable: false
-        },
-        "the next run took the window"
-    );
-    assert_eq!(
-        imports.start_undo(second).await.unwrap(),
-        StartOutcome::Refused {
-            status: ImportStatus::Running,
-            undoable: true
-        }
-    );
-    imports.finish(second, ImportStatus::Failed).await.unwrap();
-    assert_eq!(
-        imports.start_undo(second).await.unwrap(),
-        StartOutcome::Started
-    );
-    assert_eq!(
-        imports.get(second).await.unwrap().unwrap().status,
-        ImportStatus::Undoing
-    );
-}
-
-#[tokio::test]
-async fn a_run_whose_heartbeat_is_two_minutes_old_is_settled_as_failed_once() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let stale = draft(&pool, "a").await;
-    let fresh = draft(&pool, "b").await;
-    imports.start_run(stale).await.unwrap();
-    let job = job_for(&pool, stale, "in_progress", "-1 hour").await;
-    beat_at(&pool, stale, "-121 seconds").await;
-    assert_eq!(imports.settle_dead().await.unwrap(), [stale]);
-    assert_eq!(
-        imports.settle_dead().await.unwrap(),
-        [],
-        "settling again does nothing"
-    );
-
-    let row = imports.get(stale).await.unwrap().unwrap();
-    assert_eq!(row.status, ImportStatus::Failed);
-    assert!(row.finished.is_some());
-    assert!(row.summary.unwrap()[DIED].is_string());
-    let job = JobRepo::new(&pool).get(job).await.unwrap().unwrap();
-    assert_eq!(job.status.as_deref(), Some("error"));
-    assert!(job.ended.is_some());
-    assert!(
-        job.log.unwrap().contains("no heartbeat since"),
-        "the log says why"
-    );
-
-    assert_eq!(
-        imports.start_run(fresh).await.unwrap(),
-        StartOutcome::Started
-    );
-    let worker = job_for(&pool, fresh, "in_progress", "-1 hour").await;
-    beat_at(&pool, fresh, "-60 seconds").await;
-    assert_eq!(imports.settle_dead().await.unwrap(), []);
-    assert!(imports.heartbeat(fresh, worker).await.unwrap());
-    assert!(
-        !imports.heartbeat(fresh, job.id).await.unwrap(),
-        "only the import's own job beats for it"
-    );
-    assert!(
-        !imports.heartbeat(stale, job.id).await.unwrap(),
-        "a dead import's worker learns it lost the claim"
-    );
-}
-
-#[tokio::test]
-async fn without_a_heartbeat_the_job_start_is_the_pulse_and_an_ended_job_is_dead() {
-    let pool = common::memory().await;
-    let imports = ImportRepo::new(&pool);
-    let old = draft(&pool, "a").await;
-    imports
-        .set_status(old, ImportStatus::Undoing)
-        .await
-        .unwrap();
-    job_for(&pool, old, "in_progress", "-3 minutes").await;
-    let ended_job = draft(&pool, "b").await;
-    imports
-        .set_status(ended_job, ImportStatus::Running)
-        .await
-        .unwrap();
-    job_for(&pool, ended_job, "error", "-1 seconds").await;
-    let young = draft(&pool, "c").await;
-    imports
-        .set_status(young, ImportStatus::Running)
-        .await
-        .unwrap();
-    job_for(&pool, young, "starting", "-10 seconds").await;
-
-    assert_eq!(imports.settle_dead().await.unwrap(), [old, ended_job]);
-    assert_eq!(
-        imports.get(young).await.unwrap().unwrap().status,
-        ImportStatus::Running
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn two_concurrent_starts_never_both_win() {
-    let (pool, path) = common::file("concurrent-starts").await;
+on_both!(two_concurrent_starts_never_both_win, |pool| {
     for round in 0..20 {
-        let first = draft(&pool, &format!("a{round}")).await;
-        let second = draft(&pool, &format!("b{round}")).await;
-        let (left, right) = tokio::join!(
-            tokio::spawn({
-                let pool = pool.clone();
-                async move { ImportRepo::new(&pool).start_run(first).await.unwrap() }
-            }),
-            tokio::spawn({
-                let pool = pool.clone();
-                async move { ImportRepo::new(&pool).start_run(second).await.unwrap() }
-            }),
-        );
+        let first = draft!(pool, &format!("a{round}"));
+        let second = draft!(pool, &format!("b{round}"));
+        let start = |id: ImportId| {
+            let pool = pool.clone();
+            tokio::spawn(
+                async move { ImportRepo::<Db>::new(&pool).start_run(id, 0).await.unwrap() },
+            )
+        };
+        let (left, right) = tokio::join!(start(first), start(second));
         let mut outcomes = [left.unwrap(), right.unwrap()];
         outcomes.sort_by_key(|outcome| matches!(outcome, StartOutcome::Busy(_)));
         assert_eq!(outcomes[0], StartOutcome::Started, "round {round}");
@@ -420,166 +293,273 @@ async fn two_concurrent_starts_never_both_win() {
         );
         let running: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM romeka_import WHERE status = 'running'")
-                .fetch_one(&pool)
+                .fetch_one(pool)
                 .await
                 .unwrap();
         assert_eq!(running, 1, "round {round}");
         sqlx::query("UPDATE romeka_import SET status = 'done' WHERE status = 'running'")
-            .execute(&pool)
+            .execute(pool)
             .await
             .unwrap();
     }
-    pool.close().await;
-    common::remove_db(&path);
-}
+});
 
-#[tokio::test]
-async fn the_partial_unique_index_refuses_a_second_open_window() {
-    let pool = common::memory().await;
-    let first = draft(&pool, "a").await;
-    let second = draft(&pool, "b").await;
-    ImportRepo::new(&pool).start_run(first).await.unwrap();
-
-    let error = sqlx::query("UPDATE romeka_import SET undoable = 1 WHERE id = ?")
-        .bind(second.0 as i64)
-        .execute(&pool)
-        .await
-        .unwrap_err();
+on_both!(a_summary_write_is_also_a_heartbeat, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let id = draft!(pool, "a");
+    imports.start_run(id, 0).await.unwrap();
     assert!(
-        error
-            .as_database_error()
-            .is_some_and(|database| database.is_unique_violation()),
-        "{error}"
+        imports
+            .set_summary(id, &json!({ "items": 2 }))
+            .await
+            .unwrap()
     );
-    assert_eq!(open_windows(&pool).await, [first.0 as i64]);
+    let summary = imports.get(id).await.unwrap().unwrap().summary.unwrap();
+    assert_eq!(summary["items"], 2);
+    assert!(summary[HEARTBEAT].is_string());
+    assert!(
+        !imports
+            .set_summary(ImportId(999), &json!({}))
+            .await
+            .unwrap()
+    );
+});
 
-    sqlx::query("UPDATE romeka_import SET undoable = 0 WHERE id = ?")
-        .bind(second.0 as i64)
-        .execute(&pool)
-        .await
-        .expect("any number of closed windows is allowed");
-}
+on_both!(
+    a_heartbeat_lands_only_for_the_import_s_own_live_job,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let jobs = JobRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        imports.start_run(id, 0).await.unwrap();
+        let worker = jobs.create(&job("in_progress")).await.unwrap().id;
+        let other = jobs.create(&job("in_progress")).await.unwrap().id;
+        assert!(imports.set_job(id, worker).await.unwrap());
+        assert_eq!(imports.get(id).await.unwrap().unwrap().job_id, Some(worker));
+        exec_id!(pool, AGE_HEARTBEAT, id.0);
+        assert!(imports.heartbeat(id, worker).await.unwrap());
+        assert!(!imports.heartbeat(id, other).await.unwrap());
+        let beat = imports.get(id).await.unwrap().unwrap().summary.unwrap()[HEARTBEAT].clone();
+        assert_ne!(beat, json!("2000-01-01 00:00:00"));
+        imports.finish(id, ImportEnding::Done).await.unwrap();
+        assert!(
+            !imports.heartbeat(id, worker).await.unwrap(),
+            "an ended import has no worker"
+        );
+        assert!(!imports.set_job(ImportId(999), worker).await.unwrap());
+    }
+);
 
-#[tokio::test]
-async fn a_status_outside_the_list_is_refused_by_the_table() {
-    let pool = common::memory().await;
-    let id = draft(&pool, "a").await;
-    let outcome = sqlx::query("UPDATE romeka_import SET status = 'paused' WHERE id = ?")
-        .bind(id.0 as i64)
-        .execute(&pool)
-        .await;
-    assert!(outcome.is_err());
-}
+on_both!(
+    a_dead_worker_is_recorded_failed_once_and_its_job_ended,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let jobs = JobRepo::<Db>::new(pool);
+        let claim = |status: &'static str, id: ImportId, job: JobId| {
+            let imports = &imports;
+            async move {
+                exec_id!(
+                    pool,
+                    &format!("UPDATE romeka_import SET status = '{status}' WHERE id = ?"),
+                    id.0
+                );
+                imports.set_job(id, job).await.unwrap();
+                imports.set_summary(id, &json!({})).await.unwrap();
+            }
+        };
+        let silent = draft!(pool, "silent");
+        let silent_job = jobs.create(&job("in_progress")).await.unwrap().id;
+        claim("running", silent, silent_job).await;
+        exec_id!(pool, AGE_HEARTBEAT, silent.0);
 
-#[tokio::test]
-async fn recording_inside_a_rolled_back_transaction_leaves_no_row() {
-    let pool = common::memory().await;
-    let import = draft(&pool, "a").await;
-    let resources = ImportResourceRepo::new(&pool);
+        let ended = draft!(pool, "ended");
+        let ended_job = jobs.create(&job("in_progress")).await.unwrap().id;
+        claim("undoing", ended, ended_job).await;
+        jobs.finish(ended_job, "error").await.unwrap();
 
-    let mut tx = pool.begin().await.unwrap();
-    ImportResourceRepo::record(&mut *tx, import, ImportTarget::Item(ItemId(7)))
-        .await
-        .unwrap();
-    tx.rollback().await.unwrap();
-    assert_eq!(resources.list(import, None).await.unwrap(), []);
+        let alive = draft!(pool, "alive");
+        let alive_job = jobs.create(&job("starting")).await.unwrap().id;
+        claim("running", alive, alive_job).await;
 
-    let mut tx = pool.begin().await.unwrap();
-    ImportResourceRepo::record(&mut *tx, import, ImportTarget::Item(ItemId(8)))
-        .await
-        .unwrap();
-    tx.commit().await.unwrap();
-    let rows = resources.list(import, None).await.unwrap();
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].target, ImportTarget::Item(ItemId(8)));
-}
+        let mut settled = imports.settle_dead().await.unwrap();
+        settled.sort();
+        assert_eq!(settled, [silent, ended]);
+        assert_eq!(imports.settle_dead().await.unwrap(), Vec::<ImportId>::new());
 
-#[tokio::test]
-async fn resources_list_by_import_and_kind_and_delete_one_at_a_time() {
-    let pool = common::memory().await;
-    let one = draft(&pool, "a").await;
-    let other = draft(&pool, "b").await;
-    let resources = ImportResourceRepo::new(&pool);
-    for target in [
-        ImportTarget::Item(ItemId(2)),
-        ImportTarget::Item(ItemId(1)),
-        ImportTarget::ItemSet(ItemSetId(3)),
-        ImportTarget::ResourceTemplate(TemplateId(4)),
-        ImportTarget::Property(PropertyId(5)),
-    ] {
-        ImportResourceRepo::record(&pool, one, target)
+        let failed = imports.get(silent).await.unwrap().unwrap();
+        assert_eq!(failed.status, ImportStatus::RunFailed);
+        assert!(failed.finished.is_some());
+        assert!(failed.summary.unwrap()[DIED].is_string());
+        let silent_row = jobs.get(silent_job).await.unwrap().unwrap();
+        assert_eq!(silent_row.status.as_deref(), Some("error"));
+        assert!(
+            silent_row
+                .log
+                .unwrap()
+                .contains("no heartbeat since 2000-01-01 00:00:00")
+        );
+        assert_eq!(
+            imports.get(ended).await.unwrap().unwrap().status,
+            ImportStatus::UndoFailed
+        );
+        assert_eq!(
+            imports.get(alive).await.unwrap().unwrap().status,
+            ImportStatus::Running
+        );
+    }
+);
+
+on_both!(a_start_settles_the_dead_import_that_blocked_it, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let dead = draft!(pool, "dead");
+    let next = draft!(pool, "next");
+    imports.start_run(dead, 0).await.unwrap();
+    exec_id!(pool, AGE_HEARTBEAT, dead.0);
+    assert_eq!(
+        imports.start_run(next, 0).await.unwrap(),
+        StartOutcome::Started
+    );
+    assert_eq!(
+        imports.get(dead).await.unwrap().unwrap().status,
+        ImportStatus::RunFailed
+    );
+    imports.finish(next, ImportEnding::Done).await.unwrap();
+    assert_eq!(
+        imports.start_run(dead, 0).await.unwrap(),
+        StartOutcome::Started
+    );
+    let retried = imports.get(dead).await.unwrap().unwrap().summary.unwrap();
+    assert!(retried.get(DIED).is_none(), "a new attempt is not dead");
+});
+
+on_both!(the_table_refuses_a_status_outside_the_v2_list, |pool| {
+    let id = draft!(pool, "a");
+    for status in ["failed", "paused"] {
+        let outcome = sqlx::query("UPDATE romeka_import SET status = ? WHERE id = ?")
+            .bind(status)
+            .bind(id.0 as i64)
+            .execute(pool)
+            .await;
+        assert!(outcome.is_err(), "{status} was stored");
+    }
+});
+
+on_both!(a_run_start_names_the_revision_the_caller_checked, |pool| {
+    let imports = ImportRepo::<Db>::new(pool);
+    let id = draft!(pool, "a");
+    assert_eq!(
+        imports
+            .save_plan(id, &json!({ "version": 2 }), 0)
+            .await
+            .unwrap(),
+        PlanSave::Saved(1)
+    );
+    assert_eq!(
+        imports.start_run(id, 0).await.unwrap(),
+        StartOutcome::Changed { revision: 1 },
+        "a save between Check and Run"
+    );
+    assert_eq!(
+        imports.get(id).await.unwrap().unwrap().status,
+        ImportStatus::Draft,
+        "a refused start changes nothing"
+    );
+    assert_eq!(
+        imports.start_run(id, 1).await.unwrap(),
+        StartOutcome::Started
+    );
+});
+
+on_both!(
+    a_done_import_runs_again_only_when_its_summary_lists_failures,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        imports.start_run(id, 0).await.unwrap();
+        imports
+            .set_summary(id, &json!({ "items": 2, "failures": [] }))
             .await
             .unwrap();
+        assert!(imports.finish(id, ImportEnding::Done).await.unwrap());
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Done),
+            "done with an empty failure list"
+        );
+
+        imports
+            .set_summary(
+                id,
+                &json!({ "failures": [{ "record": "A", "key": "k", "detail": "d" }] }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        let retried = imports.get(id).await.unwrap().unwrap();
+        assert_eq!(retried.status, ImportStatus::Running);
+        assert_eq!(retried.finished, None);
+
+        let bare = draft!(pool, "bare");
+        imports.finish(id, ImportEnding::Done).await.unwrap();
+        imports.start_run(bare, 0).await.unwrap();
+        imports.finish(bare, ImportEnding::Done).await.unwrap();
+        assert_eq!(
+            imports.start_run(bare, 0).await.unwrap(),
+            StartOutcome::Refused(ImportStatus::Done),
+            "done with no failures member"
+        );
     }
-    ImportResourceRepo::record(&pool, other, ImportTarget::Item(ItemId(9)))
-        .await
-        .unwrap();
+);
 
-    let items: Vec<_> = resources
-        .list(one, Some(ImportKind::Item))
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|row| row.target)
-        .collect();
-    assert_eq!(
-        items,
-        [ImportTarget::Item(ItemId(1)), ImportTarget::Item(ItemId(2))]
-    );
-    assert_eq!(resources.list(one, None).await.unwrap().len(), 5);
-    assert_eq!(resources.list(other, None).await.unwrap().len(), 1);
+on_both!(
+    a_stop_request_keeps_the_heartbeat_and_survives_summary_writes,
+    |pool| {
+        let imports = ImportRepo::<Db>::new(pool);
+        let id = draft!(pool, "a");
+        assert!(
+            !imports.request_stop(id).await.unwrap(),
+            "a draft does not run"
+        );
+        imports.start_run(id, 0).await.unwrap();
+        assert!(!imports.stop_requested(id).await.unwrap());
+        exec_id!(pool, AGE_HEARTBEAT, id.0);
 
-    assert!(
-        resources
-            .delete(one, ImportTarget::Item(ItemId(1)))
+        assert!(imports.request_stop(id).await.unwrap());
+        assert!(imports.stop_requested(id).await.unwrap());
+        let row = imports.get(id).await.unwrap().unwrap();
+        assert!(row.stop_requested);
+        assert_eq!(
+            row.summary.unwrap()[HEARTBEAT],
+            json!("2000-01-01 00:00:00"),
+            "a stop request is not evidence of life"
+        );
+
+        imports
+            .set_summary(id, &json!({ "items": 3 }))
             .await
-            .unwrap()
-    );
-    assert!(
-        !resources
-            .delete(one, ImportTarget::Item(ItemId(1)))
-            .await
-            .unwrap()
-    );
-    assert_eq!(
-        resources
-            .list(one, Some(ImportKind::Item))
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
-}
+            .unwrap();
+        assert!(
+            imports.stop_requested(id).await.unwrap(),
+            "the worker's whole-summary write keeps the request"
+        );
+        assert!(!imports.stop_requested(ImportId(999)).await.unwrap());
+        assert!(!imports.request_stop(ImportId(999)).await.unwrap());
 
-#[tokio::test]
-async fn recording_the_same_target_twice_is_refused() {
-    let pool = common::memory().await;
-    let import = draft(&pool, "a").await;
-    let target = ImportTarget::Item(ItemId(1));
-    ImportResourceRepo::record(&pool, import, target)
-        .await
-        .unwrap();
-    let error = ImportResourceRepo::record(&pool, import, target)
-        .await
-        .unwrap_err();
-    assert!(error.is_unique_violation());
-}
-
-#[tokio::test]
-async fn deleting_an_import_deletes_what_it_recorded() {
-    let pool = common::memory().await;
-    let doomed = draft(&pool, "a").await;
-    let kept = draft(&pool, "b").await;
-    ImportResourceRepo::record(&pool, doomed, ImportTarget::Item(ItemId(1)))
-        .await
-        .unwrap();
-    ImportResourceRepo::record(&pool, kept, ImportTarget::Item(ItemId(2)))
-        .await
-        .unwrap();
-
-    assert!(ImportRepo::new(&pool).delete_draft(doomed).await.unwrap());
-
-    let resources = ImportResourceRepo::new(&pool);
-    assert_eq!(resources.list(doomed, None).await.unwrap(), []);
-    assert_eq!(resources.list(kept, None).await.unwrap().len(), 1);
-}
+        imports.finish(id, ImportEnding::RunFailed).await.unwrap();
+        assert!(
+            !imports.request_stop(id).await.unwrap(),
+            "it no longer runs"
+        );
+        assert_eq!(
+            imports.start_run(id, 0).await.unwrap(),
+            StartOutcome::Started
+        );
+        assert!(
+            !imports.stop_requested(id).await.unwrap(),
+            "a new attempt starts without the old request"
+        );
+    }
+);

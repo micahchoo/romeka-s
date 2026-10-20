@@ -1,0 +1,7 @@
+{
+  "code": "confirm",
+  "deletes": 1,
+  "errors": {
+    "error": "This import deletes 1 items, media and item sets and cannot be undone. Confirm with that number to run it."
+  }
+}

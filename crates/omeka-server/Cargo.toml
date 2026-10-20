@@ -19,7 +19,6 @@ omeka-site = { path = "../omeka-site" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10"
-sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 thiserror = { workspace = true }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tower = { version = "0.5", features = ["util"] }
@@ -27,8 +26,15 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 [dev-dependencies]
+# Test setup only: the server reaches every table through `omeka-db`, so the
+# library itself has no `sqlx` to write a statement with.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "mysql"] }
+# `tests/common/engine.rs` runs a test on MySQL when `ROMEKA_MYSQL_URL` is set.
+omeka-db = { path = "../omeka-db", features = ["mysql"] }
 bcrypt = "0.17"
 tempfile = "3"
+# The list upload tests send a real .xlsx, written as Excel writes one.
+rust_xlsxwriter = "0.100"
 
 [lints]
 workspace = true

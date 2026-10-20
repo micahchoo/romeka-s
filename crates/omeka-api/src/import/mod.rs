@@ -1,120 +1,68 @@
-//! The archive import, read side: from a server folder and a plan to the
-//! model every Import tab shows and the run writes.
+//! Import v2 (`docs/import-v2.md`). P3-wire renames this module to `import`
+//! once its routes exist.
 //!
-//! The server is the one validator (`docs/archive-import.md`). The modules follow
-//! the domain:
+//! - [`plan`]: the stored plan and its one parse boundary, [`plan::ImportPlanV2::from_json`].
+//! - [`decisions`]: corrections keyed by an entry.
+//! - [`values`]: value types and the cell rules every reader shares.
+//! - [`archive`]: named archive roots and the folders a source reads.
+//! - [`evidence`]: the walk of a source into file entries and sheets.
+//! - [`tags`]: file tags and file facts.
+//! - [`sheet`]: the sheet reader.
+//! - [`starters`]: the starter item types `GET /api/romeka/starters` lists.
+//! - [`derive`]: the evidence, the plan and a [`catalog::Catalog`] in, the
+//!   [`model::Model`] out, through [`grouping`], [`join`], [`slots`],
+//!   `matching` and `flags`.
+//! - [`run`]: the model written, with [`ledger`], [`media_in`] and [`left`].
+//! - [`undo`]: an import taken back, with [`touched`].
+//! - [`staging`]: the files a person uploaded, [`unzip`] for a ZIP among
+//!   them, and [`sweep`], which removes them once they are no longer kept.
 //!
-//! - [`plan`]: the stored plan and its parse boundary.
-//! - [`archive`]: the archive root, safe relative paths, listings and walks.
-//! - [`pattern`]: the file-name regex and its groups.
-//! - [`csv`]: the RFC 4180 reader and the import's spreadsheet.
-//! - [`tags`]: EXIF and file facts as value sources, read lazily.
-//! - [`catalog`]: what the derive looks up in the database, and the starters.
-//! - [`grouping`]: files into items, folders into sets.
-//! - [`values`]: where a field's value comes from.
-//! - [`problems`]: what can be wrong with a cell or a row.
-//! - [`derive`]: the pure function from all of the above to the [`derive::Model`].
-//! - [`check`]: the dry run.
-//! - [`preview`]: the sections and pages the admin asks for.
-//!
-//! The write side:
-//!
-//! - [`work`]: the writes a run makes, decided before the first one.
-//! - [`media_files`]: an item's files into the store.
-//! - [`run`]: the run, one transaction per item.
-//! - [`undo`]: removing what one import made.
-//! - [`left`]: the rows a run leaves out, as a CSV file.
-//!
-//! The read side is blocking file I/O or pure; an async caller runs
-//! [`preview()`] on a blocking thread. [`run::run`] and [`undo::undo`] are
-//! async and put their file work on the blocking pool themselves.
+//! The plan types are pure data. The evidence, the derive and the run read
+//! the plan; none of them parses it again.
 
 pub mod archive;
 pub mod catalog;
+pub mod catalog_load;
 pub mod check;
-pub mod csv;
+pub mod decisions;
 pub mod derive;
+pub mod draft;
+pub mod evidence;
+mod flags;
 pub mod grouping;
-pub mod inputs;
+pub mod join;
+pub mod ledger;
 pub mod left;
-pub mod media_files;
-pub mod pattern;
+mod matching;
+pub mod media_in;
+pub mod model;
 pub mod plan;
 pub mod preview;
-pub mod problems;
 pub mod run;
+pub mod scan;
+pub mod sheet;
+pub mod slots;
+pub mod staging;
+pub mod start;
+pub mod starters;
+pub mod sweep;
 pub mod tags;
+pub mod template;
+pub mod touched;
 pub mod undo;
+pub mod unzip;
 pub mod values;
-pub mod work;
 
-#[cfg(test)]
-mod date_parts_tests;
-#[cfg(test)]
-mod existing_tests;
-#[cfg(test)]
-mod left_tests;
-#[cfg(test)]
-mod run_tests;
-#[cfg(test)]
-mod run_values_tests;
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod undo_tests;
+use serde::{Deserialize, Deserializer};
 
-use archive::{ArchiveError, ArchiveFolder};
-use omeka_db::ids::UserId;
-
-use crate::auth::Actor;
-use catalog::Catalog;
-use inputs::Inputs;
-use plan::ImportPlan;
-use preview::{Preview, PreviewContext, PreviewRequest};
-use tags::{FsTagReader, TagCache, TagReader};
-
-/// Read the folder and answer one preview request, over the request's own
-/// plan when it carries one and `stored` otherwise.
+/// A member the contract types as `T | null`: present, and possibly null.
 ///
-/// # Errors
-/// [`ArchiveError`] when the folder cannot be walked.
-pub fn preview(
-    folder: &ArchiveFolder,
-    stored: &ImportPlan,
-    catalog: &Catalog,
-    request: &PreviewRequest,
-) -> Result<Preview, ArchiveError> {
-    preview_with(folder, stored, catalog, request, &FsTagReader)
-}
-
-/// [`preview()`] with the caller's tag reader, such as a
-/// [`tags::SharedTagReader`] that lives as long as the server.
-///
-/// # Errors
-/// [`ArchiveError`] when the folder cannot be walked.
-pub fn preview_with(
-    folder: &ArchiveFolder,
-    stored: &ImportPlan,
-    catalog: &Catalog,
-    request: &PreviewRequest,
-    reader: &dyn TagReader,
-) -> Result<Preview, ArchiveError> {
-    let plan = request.plan.as_ref().unwrap_or(stored);
-    let inputs = Inputs::load(folder, plan)?;
-    let tags = TagCache::new(reader);
-    let model = derive::derive(plan, &inputs, &tags, catalog);
-    let context = PreviewContext {
-        plan,
-        inputs: &inputs,
-        model: &model,
-        tags: &tags,
-        catalog,
-    };
-    Ok(preview::build(&context, request))
-}
-
-/// The actor run and undo write as: a job writes on no one's behalf, so it
-/// reads and writes as a global administrator, as `romeka`'s jobs do.
-fn system_actor() -> Actor {
-    Actor::new(UserId(0), "global_admin")
+/// A plain `Option` field lets serde treat a missing member as null, so the
+/// boundary would accept a plan the contract does not define.
+pub(crate) fn nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
 }

@@ -23,8 +23,9 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-use omeka_db::open_file;
+use omeka_db::Location;
 use omeka_db::repos::{AssetRepo, MediaRepo};
+use omeka_db::with_db;
 use omeka_media::file_render::ThumbnailType;
 use omeka_media::store::{StorePrefix, storage_path};
 
@@ -36,8 +37,8 @@ pub const MIN_AGE: Duration = Duration::from_secs(10 * 60);
 /// Input for `romeka media sweep`.
 #[derive(Debug, Clone)]
 pub struct SweepOptions {
-    /// SQLite database file.
-    pub database: PathBuf,
+    /// The database.
+    pub database: Location,
     /// Store root. Defaults to `files` beside the database.
     pub store: Option<PathBuf>,
     /// Remove the orphans. Without it the run only reports them.
@@ -64,11 +65,12 @@ pub struct SweepReport {
 /// A [`CliError`] when the database cannot be opened or read, or the store
 /// cannot be listed. A file that cannot be removed is in the report.
 pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
-    let pool = open_file(&options.database).await?;
-    let store = crate::commands::media::open_store(&options.database, options.store.as_deref())?;
+    let pool = options.database.open().await?;
+    let store =
+        crate::commands::file_store::open_store(&options.database, options.store.as_deref())?;
 
     let mut named = BTreeSet::new();
-    for (storage_id, extension) in MediaRepo::new(&pool).stored_names().await? {
+    for (storage_id, extension) in with_db!(&pool, |db| MediaRepo::new(db).stored_names().await)? {
         named.insert(storage_path(
             StorePrefix::Original,
             &storage_id,
@@ -78,7 +80,7 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
             named.insert(omeka_media::thumbnailer::thumbnail_path(&storage_id, kind));
         }
     }
-    for (storage_id, extension) in AssetRepo::new(&pool).stored_names().await? {
+    for (storage_id, extension) in with_db!(&pool, |db| AssetRepo::new(db).stored_names().await)? {
         named.insert(storage_path(
             StorePrefix::Asset,
             &storage_id,

@@ -12,9 +12,13 @@
 //! port and a base URL, so those three come from the command line in practice;
 //! the log level and the limits come from the file and the environment.
 
+mod roots;
+
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use serde::Deserialize;
 use thiserror::Error;
@@ -65,6 +69,8 @@ pub const SMTP_TLS_ENV: &str = "ROMEKA_SMTP_TLS";
 pub const MAIL_FROM_ENV: &str = "ROMEKA_MAIL_FROM";
 /// The server folder the archive import reads. Unset or empty turns the import off.
 pub const ARCHIVE_ROOT_ENV: &str = "ROMEKA_ARCHIVE_ROOT";
+/// Import v2's named archive roots: `name=path` pairs separated by `;`.
+pub const ARCHIVE_ROOTS_ENV: &str = "ROMEKA_ARCHIVE_ROOTS";
 
 /// Everything the server needs to bind and serve.
 #[derive(Debug, Clone, PartialEq)]
@@ -76,8 +82,10 @@ pub struct Config {
     pub max_body_bytes: usize,
     pub request_timeout: Duration,
     pub mail: MailConfig,
-    /// The archive import's root folder; `None` means the import is off.
+    /// The archive import's root folder, absolute; `None` means the import is off.
     pub archive_root: Option<PathBuf>,
+    /// Import v2's roots: the named ones, then [`Self::archive_root`] as `archive`.
+    pub archive_roots: ArchiveRoots,
 }
 
 impl Default for Config {
@@ -94,6 +102,7 @@ impl Default for Config {
             request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
             mail: MailConfig::default(),
             archive_root: None,
+            archive_roots: ArchiveRoots::default(),
         }
     }
 }
@@ -123,10 +132,19 @@ impl Config {
         file: Option<&Path>,
     ) -> Result<Self, ConfigError> {
         let mut config = Self::default();
-        if let Some(path) = file {
-            config.apply_file(&read_file(path)?)?;
+        let file = file.map(read_file).transpose()?;
+        if let Some(file) = &file {
+            config.apply_file(file)?;
         }
-        config.apply_env(env)?;
+        config.apply_env(&env)?;
+        let named = match env(ARCHIVE_ROOTS_ENV) {
+            Some(value) => roots::parse(&value)?,
+            None => file
+                .and_then(|file| file.archive_roots)
+                .map(|named| roots::from_file(&named))
+                .unwrap_or_default(),
+        };
+        config.archive_roots = roots::build(named, config.archive_root.as_deref())?;
         Ok(config)
     }
 
@@ -181,7 +199,7 @@ impl Config {
             self.mail.from = from.clone();
         }
         if let Some(root) = &file.archive_root {
-            self.archive_root = archive_root(root);
+            self.archive_root = archive_root(root)?;
         }
         Ok(())
     }
@@ -225,7 +243,7 @@ impl Config {
             self.mail.from = from;
         }
         if let Some(root) = env(ARCHIVE_ROOT_ENV) {
-            self.archive_root = archive_root(&root);
+            self.archive_root = archive_root(&root)?;
         }
         Ok(())
     }
@@ -287,13 +305,20 @@ struct FileConfig {
     mail_from: Option<String>,
     #[serde(default)]
     archive_root: Option<String>,
+    #[serde(default)]
+    archive_roots: Option<BTreeMap<String, String>>,
 }
 
 /// An empty value turns the import off, so the environment can override a
 /// file that turns it on.
-fn archive_root(value: &str) -> Option<PathBuf> {
+fn archive_root(value: &str) -> Result<Option<PathBuf>, ConfigError> {
     let value = value.trim();
-    (!value.is_empty()).then(|| PathBuf::from(value))
+    if value.is_empty() {
+        return Ok(None);
+    }
+    roots::absolute(value)
+        .map(Some)
+        .map_err(|_| invalid(ARCHIVE_ROOT_ENV, value, "the path cannot be made absolute"))
 }
 
 fn read_file(path: &Path) -> Result<FileConfig, ConfigError> {

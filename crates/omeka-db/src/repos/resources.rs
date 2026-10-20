@@ -51,7 +51,7 @@ pub struct ItemSetFilter {
 
 /// `resource` rows: read, update and delete by the shared id.
 pub struct ResourceRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ResourceRepo<'a, DB>
@@ -86,6 +86,17 @@ where
     pub async fn update(&self, row: &ResourceRow) -> Result<bool, DbError> {
         let mut conn = self.pool.acquire().await?;
         update_resource_columns(&mut conn, row).await
+    }
+
+    /// Move each resource's `modified` to now: a write that changes a resource through a table
+    /// of its own (a membership, a value rewrite, a media's place) still changes the resource, and
+    /// import undo's touched test reads `modified` to see it.
+    pub async fn touch(&self, resources: &[ResourceId]) -> Result<(), DbError> {
+        if resources.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.pool.acquire().await?;
+        touch_modified::<DB>(&mut conn, resources).await
     }
 
     /// Delete a resource and the values it carries, whatever its kind.
@@ -211,12 +222,13 @@ where
     Ok(DB::rows_affected(&done) > 0)
 }
 
-const ITEM_COLUMNS: &str = "SELECT resource.*, item.primary_media_id FROM item
-     JOIN resource ON resource.id = item.id";
+/// The `item` row's columns: every `resource` column plus `item.primary_media_id`.
+pub(super) const ITEM_PROJECTION: &str = "SELECT resource.*, item.primary_media_id";
+pub(super) const ITEM_FROM: &str = " FROM item JOIN resource ON resource.id = item.id";
 
 /// `item` rows.
 pub struct ItemRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ItemRepo<'a, DB>
@@ -287,7 +299,7 @@ where
     }
 
     pub async fn get(&self, id: ItemId) -> Result<Option<ItemRow>, DbError> {
-        let sql = format!("{ITEM_COLUMNS} WHERE item.id = ?");
+        let sql = format!("{ITEM_PROJECTION}{ITEM_FROM} WHERE item.id = ?");
         let row = sqlx::query(&sql)
             .bind(bind_id(id))
             .fetch_optional(self.pool)
@@ -341,7 +353,7 @@ where
         query: &QueryFilter,
         paging: &Paging,
     ) -> Result<Vec<ItemRow>, DbError> {
-        let mut statement = Statement::<DB>::new(ITEM_COLUMNS);
+        let mut statement = Statement::<DB>::new(&format!("{ITEM_PROJECTION}{ITEM_FROM}"));
         statement.push(" WHERE 1 = 1");
         if let Some(owner_id) = filter.owner_id {
             statement.push(" AND resource.owner_id = ");
@@ -602,4 +614,26 @@ where
         let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ItemSetRow::from_db_row::<DB>).collect()
     }
+}
+
+/// `updateTimestamps` on update: each resource's `modified` moves to now.
+pub(super) async fn touch_modified<DB: Backend>(
+    conn: &mut DB::Connection,
+    resources: &[ResourceId],
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+{
+    let now = time::format(time::now());
+    for resource in resources {
+        sqlx::query("UPDATE resource SET modified = ? WHERE id = ?")
+            .bind(now.clone())
+            .bind(bind_id(*resource))
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
 }

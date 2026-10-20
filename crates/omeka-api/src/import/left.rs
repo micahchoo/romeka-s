@@ -1,122 +1,121 @@
-//! The rows an import leaves out, as a CSV file to fix and import again: the
-//! rows whose identifier an item already holds, the rows the plan skips, the
-//! rows it leaves out for their problems, and the rows whose run failed, each
-//! with its reason in the last column.
+//! `left.csv`: the entries a run left out or failed to write, each with its
+//! reason (`docs/import-v2.md`, "Lifecycle and the ledger").
 //!
-//! The caller loads the catalog with [`super::catalog::load_for_import`], so
-//! the items this import made are not `exists` rows.
-//!
-//! The rows come from the folder and the plan as they are now, so a folder
-//! that changed after the run gives today's rows. A failed row the folder no
-//! longer makes still gets a line with its identifier and reason.
+//! The file is written to the store at [`path`] when a run ends, so it no
+//! longer depends on the folder staying put. Its columns name the entry
+//! (`kind` is `file` or `row`; a row's `source` is its sheet and its `path`
+//! its row key), the record it would have made, and `#reason`. The `#`
+//! marks a note for people: a sheet column whose header starts with `#` is
+//! never mapped, so the file can be fixed and read back as a sheet.
 
-use std::collections::BTreeSet;
+use std::collections::HashMap;
 
-use super::archive::{ArchiveError, ArchiveFolder};
-use super::catalog::Catalog;
-use super::csv::render;
-use super::derive::{self, Model, Row};
-use super::inputs::Inputs;
-use super::plan::{ImportPlan, ProblemRows};
-use super::problems::KindKey;
-use super::run::Failure;
-use super::tags::{TagCache, TagReader};
-use super::values::IDENTIFIER_TERM;
+use omeka_db::ids::ImportId;
 
-/// The header of the reason column. The `#` marks it as a note for people,
-/// so `romeka import csv` ignores it and the fixed file imports as it is.
+use super::decisions::EntryRef;
+use super::ledger::{Failure, Written};
+use super::model::{LeftBy, Model, Parent, RecordId};
+
+/// The header of the reason column.
 pub const REASON: &str = "#reason";
 
-/// Read the folder and render the left-out rows of `plan`.
-///
-/// # Errors
-/// [`ArchiveError`] when the folder cannot be walked.
-pub fn left_out_csv(
-    folder: &ArchiveFolder,
-    plan: &ImportPlan,
-    catalog: &Catalog,
-    failures: &[Failure],
-    reader: &dyn TagReader,
-) -> Result<String, ArchiveError> {
-    let inputs = Inputs::load(folder, plan)?;
-    let tags = TagCache::new(reader);
-    let model = derive::derive(plan, &inputs, &tags, catalog);
-    Ok(render(&left_out_rows(&model, plan, failures)))
+/// Where the run stores the file.
+#[must_use]
+pub fn path(import: ImportId) -> String {
+    format!("imports/{}/left.csv", import.0)
 }
 
-/// The header (the identifier, the grid's terms, the reason), then one line
-/// per left-out row in the grid's order.
-fn left_out_rows(model: &Model, plan: &ImportPlan, failures: &[Failure]) -> Vec<Vec<String>> {
-    let terms: Vec<&str> = model
-        .columns
+/// The file's text: a header, then one line per entry the run did not
+/// write, in the model's entry order. A record an earlier attempt wrote is
+/// written, though a retry's derive leaves it out as `exists`.
+#[must_use]
+pub fn render(model: &Model, failures: &[Failure], written: &Written) -> String {
+    let failed: HashMap<&str, &Failure> = failures
         .iter()
-        .map(|column| column.term.as_str())
-        .filter(|term| *term != IDENTIFIER_TERM)
+        .map(|failure| (failure.record.as_str(), failure))
         .collect();
-    let mut lines = vec![
-        std::iter::once(IDENTIFIER_TERM)
-            .chain(terms.iter().copied())
-            .chain(std::iter::once(REASON))
-            .map(str::to_string)
-            .collect(),
-    ];
-    let mut listed = BTreeSet::new();
-    for row in &model.rows {
-        if let Some(reason) = reason(row, plan, failures) {
-            listed.insert(row.item.identifier.as_str());
-            let mut line = vec![row.item.identifier.clone()];
-            line.extend(terms.iter().map(|term| {
-                row.cells
-                    .iter()
-                    .find(|cell| cell.term == *term)
-                    .map(|cell| cell.value.value.clone())
-                    .unwrap_or_default()
-            }));
-            line.push(reason);
-            lines.push(line);
+    let failure_of = |record: RecordId| -> Option<&Failure> {
+        let held = model.record(record);
+        failed.get(held.origin.key().as_str()).copied().or_else(|| {
+            let Some(Parent::Record(parent)) = held.parent else {
+                return None;
+            };
+            failed
+                .get(model.record(parent).origin.key().as_str())
+                .copied()
+        })
+    };
+    let mut lines = vec![line(&["kind", "source", "path", "record", REASON])];
+    for state in &model.entries {
+        let record_key = state
+            .record
+            .map(|record| model.record(record).origin.key())
+            .unwrap_or_default();
+        if !record_key.is_empty() && written.holds(&record_key) {
+            continue;
         }
+        let reason = match (state.left, state.record) {
+            (Some(left), _) => left_reason(left),
+            (None, None) if state.unmatched => {
+                "The file name does not match the pattern.".to_string()
+            }
+            (None, None) => "No record uses this entry.".to_string(),
+            (None, Some(record)) => match failure_of(record) {
+                Some(failure) => failure.detail.clone(),
+                None => continue,
+            },
+        };
+        let (kind, source, path) = match &state.entry {
+            EntryRef::File(file) => ("file", file.source.0.as_str(), file.path.as_str()),
+            EntryRef::Row(row) => ("row", row.sheet.0.as_str(), row.key.as_str()),
+        };
+        lines.push(line(&[kind, source, path, &record_key, &reason]));
     }
-    for failure in failures {
-        if !listed.contains(failure.identifier.as_str()) {
-            let mut line = vec![failure.identifier.clone()];
-            line.extend(terms.iter().map(|_| String::new()));
-            line.push(failed(failure));
-            lines.push(line);
-        }
-    }
-    lines
+    lines.concat()
 }
 
-/// Why `row` is left out, or `None` when the run creates it.
-fn reason(row: &Row, plan: &ImportPlan, failures: &[Failure]) -> Option<String> {
-    if row.existing.is_some() {
-        return Some("exists".to_string());
+fn left_reason(left: LeftBy) -> String {
+    match left {
+        LeftBy::Decision(at) => format!("Left out by correction {}.", at + 1),
+        LeftBy::Flag(kind) => {
+            let name = serde_json::to_value(kind)
+                .ok()
+                .and_then(|value| value.as_str().map(str::to_string))
+                .unwrap_or_default();
+            format!("Left out by the check \"{name}\".")
+        }
+        LeftBy::Parent => "Its item is left out.".to_string(),
+        LeftBy::NoFiles => "Every file of this item is left out.".to_string(),
+        LeftBy::Identical => "It has the same bytes as a file the import keeps.".to_string(),
+        LeftBy::NoRow => "No row of the list joined this item.".to_string(),
     }
-    if row.skipped {
-        return Some("skipped".to_string());
-    }
-    if plan.problem_rows == ProblemRows::Leave && row.problems() > 0 {
-        let kinds: Vec<String> = row.kinds().iter().map(kind_text).collect();
-        return Some(format!("problems: {}", kinds.join(", ")));
-    }
-    failures
+}
+
+/// One CSV line, each cell quoted when it holds a comma, a quote or a line
+/// end, with CRLF as RFC 4180 has it.
+fn line(cells: &[&str]) -> String {
+    let quoted: Vec<String> = cells
         .iter()
-        .find(|failure| failure.identifier == row.item.identifier)
-        .map(failed)
+        .map(|cell| {
+            if cell.contains([',', '"', '\n', '\r']) {
+                format!("\"{}\"", cell.replace('"', "\"\""))
+            } else {
+                (*cell).to_string()
+            }
+        })
+        .collect();
+    format!("{}\r\n", quoted.join(","))
 }
 
-fn failed(failure: &Failure) -> String {
-    format!("failed: {}", failure.reason)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// `date (dcterms:date)` for a cell problem, `nofile` for a row problem.
-fn kind_text(key: &KindKey) -> String {
-    let kind = serde_json::to_value(key.kind)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .unwrap_or_default();
-    match &key.term {
-        Some(term) => format!("{kind} ({term})"),
-        None => kind,
+    #[test]
+    fn a_cell_with_a_comma_or_a_quote_is_quoted() {
+        assert_eq!(
+            line(&["a", "b,c", "say \"hi\""]),
+            "a,\"b,c\",\"say \"\"hi\"\"\"\r\n"
+        );
     }
 }

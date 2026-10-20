@@ -21,6 +21,7 @@
 use sqlx::migrate::Migrator;
 use sqlx::{Connection, SqlitePool};
 
+use crate::DbPool;
 use crate::error::DbError;
 
 /// The embedded SQLite migration set, resolved from `crates/omeka-db/migrations` at compile time.
@@ -30,12 +31,27 @@ pub static MIGRATOR: Migrator = sqlx::migrate!();
 #[cfg(feature = "mysql")]
 pub static MYSQL_MIGRATOR: Migrator = sqlx::migrate!("./migrations-mysql");
 
-/// Apply every embedded SQLite migration that has not been applied yet.
+/// Apply every embedded migration of the pool's engine that has not been applied yet. `pool` is
+/// a SQLite pool, a MySQL pool, or a [`DbPool`] holding either.
+///
+/// A version below one already recorded is applied too: a deploy may record 0007 before a later
+/// build brings 0006.
 ///
 /// # Errors
-/// A [`DbError`] for a failed migration, or [`DbError::BrokenReferences`] when the run left a
-/// row pointing at a row that does not exist.
-pub async fn migrate(pool: &SqlitePool) -> Result<(), DbError> {
+/// A [`DbError`] for a failed migration, or, on SQLite, [`DbError::BrokenReferences`] when the run
+/// left a row pointing at a row that does not exist.
+pub async fn migrate<P: Clone + Into<DbPool>>(pool: &P) -> Result<(), DbError> {
+    match pool.clone().into() {
+        DbPool::Sqlite(pool) => migrate_sqlite(&pool).await,
+        #[cfg(feature = "mysql")]
+        DbPool::MySql(pool) => {
+            MYSQL_MIGRATOR.run(&pool).await?;
+            Ok(())
+        }
+    }
+}
+
+async fn migrate_sqlite(pool: &SqlitePool) -> Result<(), DbError> {
     let mut connection = pool.acquire().await?;
     sqlx::query("PRAGMA foreign_keys = OFF")
         .execute(&mut *connection)
@@ -60,12 +76,5 @@ async fn run_unenforced(connection: &mut sqlx::SqliteConnection) -> Result<(), D
     if broken > 0 {
         return Err(DbError::BrokenReferences(broken));
     }
-    Ok(())
-}
-
-/// Apply every embedded MySQL migration that has not been applied yet.
-#[cfg(feature = "mysql")]
-pub async fn migrate_mysql(pool: &sqlx::MySqlPool) -> Result<(), DbError> {
-    MYSQL_MIGRATOR.run(pool).await?;
     Ok(())
 }

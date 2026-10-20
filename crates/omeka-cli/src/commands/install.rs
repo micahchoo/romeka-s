@@ -10,16 +10,15 @@
 //! Every step is idempotent: a second run detects the existing rows and inserts
 //! nothing. That matches re-running install against an existing database.
 
-use std::path::PathBuf;
-
-use omeka_db::repos::{PropertyRepo, TemplateRepo, UserRepo, VocabularyRepo};
+use omeka_db::Location;
+use omeka_db::migrate;
+use omeka_db::repos::{PropertyRepo, SettingRepo, TemplateRepo, UserRepo, VocabularyRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, NewUser};
-use omeka_db::{migrate, open_file};
+use omeka_db::with_db;
 
 use omeka_core::permissions::Role;
 
 use crate::error::CliError;
-use crate::store;
 use crate::vocabularies;
 
 /// `Module::VERSION` at the frozen SHA, the value the `version` setting holds.
@@ -59,7 +58,7 @@ const BASE_RESOURCE_PROPERTIES: &[(&str, &str, Option<&str>)] = &[
 /// Operator input for `romeka install`.
 #[derive(Debug, Clone)]
 pub struct InstallOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub email: String,
     pub name: String,
     pub password: String,
@@ -71,7 +70,7 @@ pub struct InstallOptions {
 /// What the install wrote.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstallReport {
-    pub database: PathBuf,
+    pub database: Location,
     pub vocabularies_inserted: usize,
     pub classes_inserted: usize,
     pub properties_inserted: usize,
@@ -91,7 +90,7 @@ pub struct InstallReport {
 /// A [`CliError`] for an uncreatable database file, a failed migration, or a
 /// missing default vocabulary the template depends on.
 pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     migrate(&pool).await?;
 
     let vocabularies = vocabularies::converge(&pool).await?;
@@ -114,22 +113,20 @@ pub async fn run(options: &InstallOptions) -> Result<InstallReport, CliError> {
     })
 }
 
-async fn install_base_resource_template(pool: &sqlx::SqlitePool) -> Result<bool, CliError> {
-    let templates = TemplateRepo::new(pool);
-    if templates
+async fn install_base_resource_template(pool: &omeka_db::DbPool) -> Result<bool, CliError> {
+    if with_db!(pool, |db| TemplateRepo::new(db)
         .find_by_label(BASE_RESOURCE_TEMPLATE)
-        .await?
-        .is_some()
+        .await)?
+    .is_some()
     {
         return Ok(false);
     }
-    let vocabulary = VocabularyRepo::new(pool)
+    let vocabulary = with_db!(pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
-        .await?
-        .ok_or_else(|| CliError::message("the dcterms vocabulary was not installed"))?;
-    let properties = PropertyRepo::new(pool);
+        .await)?
+    .ok_or_else(|| CliError::message("the dcterms vocabulary was not installed"))?;
 
-    let template = templates
+    let template = with_db!(pool, |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: None,
             resource_class_id: None,
@@ -137,7 +134,7 @@ async fn install_base_resource_template(pool: &sqlx::SqlitePool) -> Result<bool,
             description_property_id: None,
             label: BASE_RESOURCE_TEMPLATE.to_string(),
         })
-        .await?;
+        .await)?;
 
     // Upstream's `InstallDefaultTemplatesTask::installTemplate` creates this
     // template through the API, so `ResourceTemplateAdapter::hydrate` numbers the
@@ -147,13 +144,11 @@ async fn install_base_resource_template(pool: &sqlx::SqlitePool) -> Result<bool,
         BASE_RESOURCE_PROPERTIES.iter().enumerate()
     {
         let keyword = format!("{prefix}:{local_name}");
-        let property = properties
+        let property = with_db!(pool, |db| PropertyRepo::new(db)
             .find(vocabulary.id, local_name)
-            .await?
-            .ok_or_else(|| {
-                CliError::message(format!("the default property {keyword} is missing"))
-            })?;
-        templates
+            .await)?
+        .ok_or_else(|| CliError::message(format!("the default property {keyword} is missing")))?;
+        with_db!(pool, |db| TemplateRepo::new(db)
             .add_property(&NewTemplateProperty {
                 resource_template_id: template.id,
                 property_id: property.id,
@@ -165,20 +160,23 @@ async fn install_base_resource_template(pool: &sqlx::SqlitePool) -> Result<bool,
                 is_private: false,
                 default_lang: None,
             })
-            .await?;
+            .await)?;
     }
     Ok(true)
 }
 
 async fn install_admin_user(
-    pool: &sqlx::SqlitePool,
+    pool: &omeka_db::DbPool,
     options: &InstallOptions,
 ) -> Result<bool, CliError> {
-    let users = UserRepo::new(pool);
-    if users.get_by_email(&options.email).await?.is_some() {
+    if with_db!(pool, |db| UserRepo::new(db)
+        .get_by_email(&options.email)
+        .await)?
+    .is_some()
+    {
         return Ok(false);
     }
-    users
+    with_db!(pool, |db| UserRepo::new(db)
         .create(&NewUser {
             email: options.email.clone(),
             name: options.name.clone(),
@@ -187,12 +185,12 @@ async fn install_admin_user(
             is_active: true,
             created: None,
         })
-        .await?;
+        .await)?;
     Ok(true)
 }
 
 async fn install_default_settings(
-    pool: &sqlx::SqlitePool,
+    pool: &omeka_db::DbPool,
     options: &InstallOptions,
 ) -> Result<(), CliError> {
     let settings: [(&str, serde_json::Value); 8] = [
@@ -218,13 +216,15 @@ async fn install_default_settings(
         ("use_htmlpurifier", serde_json::Value::from("1")),
     ];
     for (id, value) in &settings {
-        store::write_setting(pool, id, value).await?;
+        with_db!(pool, |db| SettingRepo::new(db).set(id, value).await)?;
     }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::testing::temp_db;
     use omeka_api::password;
@@ -232,7 +232,7 @@ mod tests {
 
     fn options(database: PathBuf) -> InstallOptions {
         InstallOptions {
-            database,
+            database: database.into(),
             email: "admin@example.org".to_string(),
             name: "Admin".to_string(),
             password: "hunter2".to_string(),
@@ -322,7 +322,8 @@ mod tests {
             Some(user.password_hash.as_deref().expect("a stored hash"))
         ));
 
-        let version = store::read_setting(&db.pool, "version")
+        let version = SettingRepo::new(&db.pool)
+            .get("version")
             .await
             .unwrap()
             .expect("version setting");

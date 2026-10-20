@@ -1,0 +1,46 @@
+{
+  "histogram": [
+    {
+      "count": 1,
+      "files": "0"
+    },
+    {
+      "count": 6,
+      "files": "1"
+    },
+    {
+      "count": 0,
+      "files": "2"
+    },
+    {
+      "count": 2,
+      "files": "3"
+    },
+    {
+      "count": 0,
+      "files": "4-6"
+    },
+    {
+      "count": 1,
+      "files": "7+"
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

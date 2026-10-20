@@ -11,6 +11,9 @@ question.
 | [`operator-guide.md`](operator-guide.md) | whoever runs the process | the process, ports, the database and the file store, backup and restore, the static origin, the checks |
 | [`api.md`](api.md) | a developer integrating over HTTP | every route and method, the accepted parameters, the response and request members, the access rules, the errors |
 | [`compat.md`](compat.md) | someone deciding how far Romeka S can stand in for an Omeka S installation | what is compatible and what deliberately differs, each difference against the file that carries it |
+| [`import-v2.md`](import-v2.md) | someone changing or auditing the import | the import v2 contract: words, evidence, the derive, the plan, the actions, the undo, the routes, the units and the run log |
+| [`import-v1-assumptions.md`](import-v1-assumptions.md) | someone checking what import v2 fixed | the 88 assumptions of the v1 import, each with the test or the compat row that closes it |
+| [`archive-import.md`](archive-import.md) | history only | the v1 import contract and run log, replaced by import v2 |
 | [`gen/README.md`](gen/README.md) | whoever edits the API reference | the generator behind `api.md`, and how to rerun it |
 
 `api.md` is generated. Never edit it by hand. Run `./gen.sh` here after a change under

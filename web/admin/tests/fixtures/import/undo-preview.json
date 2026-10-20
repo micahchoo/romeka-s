@@ -1,0 +1,19 @@
+{
+  "forced": [],
+  "kept": [],
+  "remove": {
+    "itemSets": 0,
+    "items": 0,
+    "media": 0,
+    "properties": 0,
+    "templates": 0
+  },
+  "restore": {
+    "itemSets": 0,
+    "items": 0,
+    "media": 0,
+    "properties": 0,
+    "templates": 0
+  },
+  "skipped": []
+}

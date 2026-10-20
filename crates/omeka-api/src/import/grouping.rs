@@ -1,34 +1,40 @@
-//! Files into items and folders into item sets.
+//! Steps 1 and 2 of the derive: files grouped by group key, then the plan's
+//! answers to unmatched and identical files, then the `move` decisions, a
+//! `many` move as one move per file (`docs/import-v2.md`, "The derive").
+//! A decision comes last so that it wins over an answer.
 //!
-//! The pattern's `identifier` group makes files with the same text one item.
-//! The plan's set level turns each file's folders into set keys; a set is on
-//! when the plan says so, or by default when any of its files matched. An item
-//! whose every set is off is left out. An item from files at the top of the
-//! import folder has no set keys, and stays.
+//! The group key is the text of the pattern's `identifier` group, NFC, and
+//! case-folded when `grouping.caseFold` is on. It is not the record's
+//! `dcterms:identifier`: that slot is resolved later and only defaults to
+//! the group key.
 
-use std::collections::BTreeMap;
+mod identical;
+pub mod pattern;
 
-use serde::Serialize;
+use std::collections::{BTreeMap, HashMap};
 
-use super::archive::ArchiveFile;
-use super::catalog::Catalog;
-use super::pattern::{self, FilePattern, Groups};
-use super::plan::{ImportPlan, SetLevel};
+use unicode_normalization::UnicodeNormalization;
 
-/// One file of the folder with what the pattern read from it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MatchedFile {
-    pub file: ArchiveFile,
-    /// `None` when the pattern did not match.
+use super::decisions::{EntryRef, FileRef, MoveAlone, MoveTo, Moved, moves};
+use super::derive::Index;
+use super::evidence::FileEntry;
+use super::join::SheetIn;
+use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternState};
+use super::plan::{IdenticalAnswer, ImportPlanV2, SourceId, UnmatchedFilesAnswer};
+use super::values::fold_title;
+use pattern::{FilePattern, Groups, IDENTIFIER, PatternError};
+
+/// One file of the evidence index.
+pub(crate) struct File<'i> {
+    pub source: &'i SourceId,
+    pub entry: &'i FileEntry,
+    pub file: FileRef,
+    /// The pattern's groups, `None` when the pattern does not match.
     pub groups: Option<Groups>,
-    pub set_keys: Vec<String>,
-    /// The index of its item in [`Grouping::items`].
-    pub item: Option<usize>,
 }
 
-impl MatchedFile {
-    #[must_use]
-    pub fn group(&self, name: &str) -> Option<&str> {
+impl File<'_> {
+    pub(crate) fn group(&self, name: &str) -> Option<&str> {
         self.groups
             .as_ref()?
             .get(name)
@@ -36,219 +42,191 @@ impl MatchedFile {
     }
 }
 
-/// An item the files make, before the spreadsheet joins.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileItem {
-    pub identifier: String,
-    /// Indices into [`Grouping::files`], in path order.
-    pub files: Vec<usize>,
-    /// The keys of its sets that are on.
-    pub set_keys: Vec<String>,
-    /// False when every one of its sets is off.
-    pub kept: bool,
+pub(crate) struct Grouping<'i> {
+    /// Sorted by source, then path.
+    pub files: Vec<File<'i>>,
+    pub by_ref: HashMap<FileRef, usize>,
+    /// Each group's files, in path order.
+    pub groups: BTreeMap<GroupKey, Vec<usize>>,
+    /// Why a file is out of every group: a `move … leave` decision, or
+    /// `identical: keepOne`. An unmatched file is not here.
+    pub left_out: BTreeMap<usize, LeftBy>,
+    pub pattern: PatternState,
+    pub orphans: Vec<Orphan>,
 }
 
-/// One candidate item set, as the Item sets tab shows it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SetEntry {
-    pub key: String,
-    pub name: String,
-    #[serde(rename = "use")]
-    pub use_set: bool,
-    pub matched: usize,
-    pub total: usize,
-    /// The items whose first set is this one, so whose type it decides.
-    pub items: usize,
-    pub existing: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Grouping {
-    pub files: Vec<MatchedFile>,
-    pub sets: Vec<SetEntry>,
-    pub items: Vec<FileItem>,
-}
-
-/// The set keys of a file at `path` under `level`.
-fn set_keys(level: SetLevel, path: &str, groups: Option<&Groups>) -> Vec<String> {
-    let mut dirs: Vec<&str> = path.split('/').collect();
-    dirs.pop();
-    let first = dirs.first().map(|dir| (*dir).to_string());
-    let keys: Vec<String> = match level {
-        SetLevel::Level1 => first.into_iter().collect(),
-        SetLevel::Level2 => dirs
-            .get(1)
-            .map(|dir| (*dir).to_string())
-            .or(first)
-            .into_iter()
-            .collect(),
-        SetLevel::Both => dirs.iter().take(2).map(|dir| (*dir).to_string()).collect(),
-        SetLevel::Path => (!dirs.is_empty())
-            .then(|| dirs.join(" / "))
-            .into_iter()
-            .collect(),
-        SetLevel::Group => groups
-            .and_then(|groups| groups.get(pattern::SET))
-            .map(|group| group.text.clone())
-            .filter(|text| !text.is_empty())
-            .or(first)
-            .into_iter()
-            .collect(),
+pub(crate) fn group<'i>(
+    index: &'i Index,
+    plan: &ImportPlanV2,
+    sheets: &[SheetIn<'_>],
+) -> Grouping<'i> {
+    let compiled = FilePattern::compile(plan.grouping.pattern.as_deref());
+    let pattern = match &compiled {
+        Ok(pattern) => PatternState::Groups(pattern.group_names().to_vec()),
+        Err(PatternError::Missing) => PatternState::Missing,
+        Err(PatternError::Syntax(message)) => PatternState::Syntax(message.clone()),
+        Err(PatternError::NoIdentifier) => PatternState::NoIdentifier,
     };
-    keys
-}
-
-/// Match every file and gather the sets and items.
-#[must_use]
-pub fn group(
-    plan: &ImportPlan,
-    files: &[ArchiveFile],
-    pattern: Option<&FilePattern>,
-    catalog: &Catalog,
-) -> Grouping {
-    let mut matched: Vec<MatchedFile> = files
+    let mut files: Vec<File<'i>> = index
+        .sources
         .iter()
-        .map(|file| {
-            let groups = pattern.and_then(|pattern| pattern.groups(&file.path));
-            MatchedFile {
-                set_keys: set_keys(plan.set_level, &file.path, groups.as_ref()),
-                file: file.clone(),
-                groups,
-                item: None,
-            }
+        .flat_map(|source| {
+            source.walk.entries.iter().map(|entry| File {
+                source: &source.id,
+                entry,
+                file: FileRef {
+                    source: source.id.clone(),
+                    path: entry.path.clone(),
+                },
+                groups: compiled
+                    .as_ref()
+                    .ok()
+                    .and_then(|pattern| pattern.groups(entry.path.as_str())),
+            })
         })
         .collect();
-    let mut sets = sets(plan, &matched, catalog);
-    let on: Vec<&str> = sets
+    files.sort_by(|a, b| a.file.cmp(&b.file));
+    let by_ref: HashMap<FileRef, usize> = files
         .iter()
-        .filter(|set| set.use_set)
-        .map(|set| set.key.as_str())
+        .enumerate()
+        .map(|(at, file)| (file.file.clone(), at))
         .collect();
 
-    let mut items: Vec<FileItem> = Vec::new();
-    let mut by_identifier: BTreeMap<String, usize> = BTreeMap::new();
-    for (index, file) in matched.iter_mut().enumerate() {
-        let Some(identifier) = file.group(pattern::IDENTIFIER).map(str::to_string) else {
+    // With no pattern yet, no file is one a pattern does not fit.
+    let own_unmatched =
+        compiled.is_ok() && plan.anomalies.unmatched_files == UnmatchedFilesAnswer::Own;
+    let mut group_of: Vec<Option<GroupKey>> = files
+        .iter()
+        .map(|file| {
+            let Some(text) = file.group(IDENTIFIER) else {
+                return own_unmatched.then(|| GroupKey::Own(file.file.clone()));
+            };
+            let text: String = text.nfc().collect();
+            Some(GroupKey::Pattern(if plan.grouping.case_fold {
+                fold_title(&text)
+            } else {
+                text
+            }))
+        })
+        .collect();
+
+    let mut left_out = BTreeMap::new();
+    if plan.anomalies.identical == IdenticalAnswer::KeepOne {
+        for place in identical::dropped(index, &files, &by_ref, sheets, &plan.decisions) {
+            group_of[place] = None;
+            left_out.insert(place, LeftBy::Identical);
+        }
+    }
+    let mut orphans = Vec::new();
+    for Moved { decision, file, to } in moves(&plan.decisions) {
+        let orphan = |file: &FileRef, reason| Orphan {
+            decision,
+            entry: EntryRef::File(file.clone()),
+            reason,
+        };
+        let Some(&moved) = by_ref.get(file) else {
+            orphans.push(orphan(file, OrphanReason::MissingEntry));
             continue;
         };
-        let at = *by_identifier.entry(identifier.clone()).or_insert_with(|| {
-            items.push(FileItem {
-                identifier,
-                files: Vec::new(),
-                set_keys: Vec::new(),
-                kept: true,
-            });
-            items.len() - 1
-        });
-        file.item = Some(at);
-        items[at].files.push(index);
-    }
-    for item in &mut items {
-        let mut all: Vec<&str> = Vec::new();
-        for key in item
-            .files
-            .iter()
-            .flat_map(|&index| &matched[index].set_keys)
-        {
-            if !all.contains(&key.as_str()) {
-                all.push(key);
+        match to {
+            MoveTo::With(with) => {
+                let with = with.with.file();
+                let Some(&other) = by_ref.get(with) else {
+                    orphans.push(orphan(with, OrphanReason::MissingEntry));
+                    continue;
+                };
+                let Some(key) = group_of[other].clone() else {
+                    orphans.push(orphan(with, OrphanReason::NoGroup));
+                    continue;
+                };
+                group_of[moved] = Some(key);
+                left_out.remove(&moved);
+            }
+            MoveTo::Alone(MoveAlone::Own) => {
+                group_of[moved] = Some(GroupKey::Own(files[moved].file.clone()));
+                left_out.remove(&moved);
+            }
+            MoveTo::Alone(MoveAlone::Leave) => {
+                group_of[moved] = None;
+                left_out.insert(moved, LeftBy::Decision(decision));
             }
         }
-        item.set_keys = all
-            .iter()
-            .filter(|key| on.contains(key))
-            .map(|key| (*key).to_string())
-            .collect();
-        item.kept = all.is_empty() || !item.set_keys.is_empty();
     }
-    for set in &mut sets {
-        set.items = items
-            .iter()
-            .filter(|item| item.set_keys.first() == Some(&set.key))
-            .count();
+
+    let mut groups: BTreeMap<GroupKey, Vec<usize>> = BTreeMap::new();
+    for (at, key) in group_of.into_iter().enumerate() {
+        if let Some(key) = key {
+            groups.entry(key).or_default().push(at);
+        }
     }
     Grouping {
-        files: matched,
-        sets,
-        items,
+        files,
+        by_ref,
+        groups,
+        left_out,
+        pattern,
+        orphans,
     }
 }
 
-fn sets(plan: &ImportPlan, files: &[MatchedFile], catalog: &Catalog) -> Vec<SetEntry> {
-    let mut sets: Vec<SetEntry> = Vec::new();
-    for file in files {
-        for key in &file.set_keys {
-            let at = match sets.iter().position(|set| set.key == *key) {
-                Some(at) => at,
-                None => {
-                    sets.push(SetEntry {
-                        key: key.clone(),
-                        name: key.clone(),
-                        use_set: false,
-                        matched: 0,
-                        total: 0,
-                        items: 0,
-                        existing: false,
-                    });
-                    sets.len() - 1
-                }
-            };
-            sets[at].total += 1;
-            if file.groups.is_some() {
-                sets[at].matched += 1;
-            }
+/// `p2` before `p10`: runs of ASCII digits compare as numbers, the rest as
+/// text. Ties fall back to the plain order, so the order is total.
+#[must_use]
+pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let (mut x, mut y) = (a, b);
+    loop {
+        match (x.is_empty(), y.is_empty()) {
+            (true, true) => return a.cmp(b),
+            (true, false) => return std::cmp::Ordering::Less,
+            (false, true) => return std::cmp::Ordering::Greater,
+            _ => {}
         }
-    }
-    for set in &mut sets {
-        match plan.sets.get(&set.key) {
-            Some(choice) => {
-                set.use_set = choice.use_set;
-                set.name.clone_from(&choice.name);
-            }
-            None => set.use_set = set.matched > 0,
+        let digits = |text: &str| text.bytes().take_while(u8::is_ascii_digit).count();
+        let (dx, dy) = (digits(x), digits(y));
+        let order = if dx > 0 && dy > 0 {
+            let (nx, ny) = (
+                x[..dx].trim_start_matches('0'),
+                y[..dy].trim_start_matches('0'),
+            );
+            nx.len().cmp(&ny.len()).then_with(|| nx.cmp(ny))
+        } else {
+            std::cmp::Ordering::Equal
+        };
+        if order.is_ne() {
+            return order;
         }
-        set.existing = catalog.item_sets.contains_key(set.name.trim());
+        let (cx, cy) = if dx > 0 && dy > 0 {
+            (dx, dy)
+        } else {
+            let len = |text: &str| text.chars().next().map_or(0, char::len_utf8);
+            (len(x), len(y))
+        };
+        let order = if dx > 0 && dy > 0 {
+            std::cmp::Ordering::Equal
+        } else {
+            x[..cx].cmp(&y[..cy])
+        };
+        if order.is_ne() {
+            return order;
+        }
+        x = &x[cx..];
+        y = &y[cy..];
     }
-    sets
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-    use super::*;
-
-    fn groups_with_set(text: &str) -> Groups {
-        Groups::from([(
-            "set".to_string(),
-            pattern::Group {
-                text: text.to_string(),
-                utf16: (0, 0),
-            },
-        )])
-    }
+    use super::natural_cmp;
 
     #[test]
-    fn each_set_level_reads_its_folders() {
-        let path = "Photographs/1950s/BHC_006_PH_101.tif";
-        assert_eq!(set_keys(SetLevel::Level1, path, None), ["Photographs"]);
-        assert_eq!(set_keys(SetLevel::Level2, path, None), ["1950s"]);
+    fn a16_media_order_is_natural() {
+        let mut names = ["p10.tif", "p2.tif", "p1.tif", "p02a.tif", "back.jpg"];
+        names.sort_by(|a, b| natural_cmp(a, b));
         assert_eq!(
-            set_keys(SetLevel::Level2, "Artifacts/a.jpg", None),
-            ["Artifacts"]
+            names,
+            ["back.jpg", "p1.tif", "p2.tif", "p02a.tif", "p10.tif"]
         );
-        assert_eq!(
-            set_keys(SetLevel::Both, path, None),
-            ["Photographs", "1950s"]
-        );
-        assert_eq!(
-            set_keys(SetLevel::Path, path, None),
-            ["Photographs / 1950s"]
-        );
-        assert_eq!(
-            set_keys(SetLevel::Group, path, Some(&groups_with_set("PH"))),
-            ["PH"]
-        );
-        assert_eq!(set_keys(SetLevel::Group, path, None), ["Photographs"]);
-        assert!(set_keys(SetLevel::Level1, "top.jpg", None).is_empty());
+        assert!(natural_cmp("a", "a").is_eq());
+        assert!(natural_cmp("p01", "p1").is_lt(), "ties fall back to text");
     }
 }

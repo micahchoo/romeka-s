@@ -5,12 +5,15 @@
 //! the time it last wrote, kept in the summary JSON as [`HEARTBEAT`]. An import that claims to run
 //! is dead when its job row has ended, or when its newest evidence of life (the heartbeat, else its
 //! job's start) is older than [`DEAD_AFTER`]. The first reader that finds it dead records that
-//! ([`ImportRepo::settle_dead`]): job `error`, import `failed` with `finished` and the summary's
-//! [`DIED`]. After that, every reader sees stored states only.
+//! ([`ImportRepo::settle_dead`]): job `error`, import `run_failed` or `undo_failed` with
+//! `finished` and the summary's [`DIED`]. After that, every reader sees stored states only.
 //!
 //! [`ImportRepo::start_run`] and [`ImportRepo::start_undo`] are one serialized transaction each
 //! ([`Backend::begin_write`], [`Backend::for_update`]): settle the dead, check this import's state,
 //! refuse while another import runs or undoes, then move it. Two concurrent starts cannot both win.
+//! A run start names the plan revision the caller checked, and a changed revision refuses it. It
+//! freezes the plan into `ran_plan`; a retry of a failed run, or of a `done` import that lists
+//! failures, keeps the frozen one.
 
 use std::time::Duration;
 
@@ -22,7 +25,7 @@ use super::{ImportRepo, bind_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ImportId, JobId};
-use crate::rows::ImportStatus;
+use crate::rows::{ImportStatus, may_run};
 use crate::time;
 
 /// How long a running or undoing import may go without a heartbeat before it counts as dead.
@@ -49,18 +52,53 @@ pub enum StartOutcome {
     /// No import has this id.
     Missing,
     /// This import's state does not allow the start; nothing changed.
-    Refused {
-        status: ImportStatus,
-        undoable: bool,
-    },
+    Refused(ImportStatus),
     /// Another import is running or undoing with a live worker; nothing changed.
     Busy(ImportId),
+    /// A run start named another plan revision than the stored one; nothing changed.
+    Changed { revision: u64 },
+    /// An undo start for an import whose ledger records a delete, which is not undone.
+    Deleted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Start {
-    Run,
+    /// The revision the caller checked.
+    Run(u64),
     Undo,
+}
+
+impl Start {
+    fn allows(self, status: ImportStatus, summary: Option<&Value>) -> bool {
+        match self {
+            Self::Run(_) => may_run(status, summary),
+            Self::Undo => matches!(
+                status,
+                ImportStatus::Done
+                    | ImportStatus::RunFailed
+                    | ImportStatus::UndoFailed
+                    | ImportStatus::PartlyUndone
+            ),
+        }
+    }
+
+    /// The move. A draft has no `ran_plan`, so `COALESCE` freezes its plan, and a retry keeps the
+    /// plan its first run froze.
+    fn update(self) -> &'static str {
+        match self {
+            Self::Run(_) => {
+                "UPDATE romeka_import
+                 SET status = 'running', ran_plan = COALESCE(ran_plan, plan), finished = NULL,
+                     stop_requested = 0, summary = ?
+                 WHERE id = ?"
+            }
+            Self::Undo => {
+                "UPDATE romeka_import
+                 SET status = 'undoing', finished = NULL, stop_requested = 0, summary = ?
+                 WHERE id = ?"
+            }
+        }
+    }
 }
 
 /// Whether the worker of a running or undoing import is gone. `job` is its job row's status
@@ -77,6 +115,14 @@ fn heartbeat_of(summary: Option<&Value>) -> Option<NaiveDateTime> {
         .and_then(|stored| time::parse(stored).ok())
 }
 
+impl crate::rows::ImportRow {
+    /// Whether the summary's [`HEARTBEAT`] is younger than [`DEAD_AFTER`]: a worker proved it
+    /// was alive that recently. `romeka job run` refuses a second worker then.
+    pub fn heartbeat_is_live(&self) -> bool {
+        heartbeat_of(self.summary.as_ref()).is_some_and(|beat| time::now() - beat < DEAD_AFTER)
+    }
+}
+
 /// `summary` as an object with `key` set to `value`. A missing or non-object summary starts empty.
 pub(crate) fn with_member(summary: Option<Value>, key: &str, value: Value) -> Value {
     let mut members = match summary {
@@ -87,9 +133,10 @@ pub(crate) fn with_member(summary: Option<Value>, key: &str, value: Value) -> Va
     Value::Object(members)
 }
 
-/// An import that claims to run, with what its worker left behind.
+/// An import that claims to run or undo, with what its worker left behind.
 struct Claim {
     id: ImportId,
+    status: ImportStatus,
     job: Option<JobId>,
     job_status: Option<String>,
     pulse: Option<NaiveDateTime>,
@@ -100,6 +147,15 @@ impl Claim {
     fn is_dead(&self, now: NaiveDateTime) -> bool {
         is_dead(self.job_status.as_deref(), self.pulse, now)
     }
+
+    /// The state a dead claim is recorded in.
+    fn failed(&self) -> ImportStatus {
+        if self.status == ImportStatus::Undoing {
+            ImportStatus::UndoFailed
+        } else {
+            ImportStatus::RunFailed
+        }
+    }
 }
 
 impl<DB: Backend> ImportRepo<'_, DB>
@@ -109,25 +165,27 @@ where
     usize: ColumnIndex<DB::Row>,
     for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
-    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
-    /// Move a draft to `running` and give it the one open undo window, so a partial run can be
-    /// undone. Refused unless the import is a draft and no other import is live.
-    pub async fn start_run(&self, id: ImportId) -> Result<StartOutcome, DbError> {
-        self.start(id, Start::Run).await
+    /// Move a draft, a failed run, or a `done` import whose summary lists failures to `running`,
+    /// if `revision` is the plan revision the caller checked ([`StartOutcome::Changed`]
+    /// otherwise). Refused for any other state, or while another import is live.
+    pub async fn start_run(&self, id: ImportId, revision: u64) -> Result<StartOutcome, DbError> {
+        self.start(id, Start::Run(revision)).await
     }
 
-    /// Move an import that holds the open window and has ended (`done` or `failed`) to
-    /// `undoing`. Refused otherwise, or while another import is live.
+    /// Move an import that is `done`, `run_failed`, `undo_failed` or `partly_undone` to
+    /// `undoing`. Refused otherwise, for an import whose ledger records a delete (a delete is not
+    /// undone), or while another import is live.
     pub async fn start_undo(&self, id: ImportId) -> Result<StartOutcome, DbError> {
         self.start(id, Start::Undo).await
     }
 
-    /// Record every dead running or undoing import as failed, and its job as ended `error`.
-    /// The ids it settled; repeating it finds nothing more to do.
+    /// Record every dead running import as `run_failed`, every dead undoing one as
+    /// `undo_failed`, and its job as ended `error`. The ids it settled; repeating it finds
+    /// nothing more to do.
     pub async fn settle_dead(&self) -> Result<Vec<ImportId>, DbError> {
         let now = time::now();
         let claims = claims(self.pool, "").await?;
@@ -187,7 +245,8 @@ where
     for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
 {
     let rows = sqlx::query(&format!(
-        "SELECT i.id, i.job_id, i.summary, j.status AS job_status, j.started AS job_started
+        "SELECT i.id, i.status, i.job_id, i.summary, j.status AS job_status,
+                j.started AS job_started
          FROM romeka_import i LEFT JOIN job j ON j.id = i.job_id
          WHERE i.status IN ('running', 'undoing'){lock}"
     ))
@@ -199,6 +258,7 @@ where
             let pulse = heartbeat_of(summary.as_ref()).or(DB::opt_datetime(row, "job_started")?);
             Ok(Claim {
                 id: DB::id(row, "id")?,
+                status: ImportStatus::parse(&DB::text(row, "status")?)?,
                 job: DB::opt_id(row, "job_id")?,
                 job_status: DB::opt_text(row, "job_status")?,
                 pulse,
@@ -225,15 +285,15 @@ where
         if !claim.is_dead(now) {
             continue;
         }
+        let failed = claim.failed();
         let summary = with_member(claim.summary, DIED, Value::String(stamp.clone()));
-        sqlx::query(
-            "UPDATE romeka_import SET status = 'failed', finished = ?, summary = ? WHERE id = ?",
-        )
-        .bind(stamp.clone())
-        .bind(json_text(&summary)?)
-        .bind(bind_id(claim.id))
-        .execute(&mut **tx)
-        .await?;
+        sqlx::query("UPDATE romeka_import SET status = ?, finished = ?, summary = ? WHERE id = ?")
+            .bind(failed.as_str())
+            .bind(stamp.clone())
+            .bind(json_text(&summary)?)
+            .bind(bind_id(claim.id))
+            .execute(&mut **tx)
+            .await?;
         if let Some(job) = claim.job
             && claim
                 .job_status
@@ -250,7 +310,8 @@ where
                 .await?;
             sqlx::query(DB::append_job_log())
                 .bind(format!(
-                    "The job process stopped: no heartbeat since {since}. The import is failed."
+                    "The job process stopped: no heartbeat since {since}. The import is {}.",
+                    failed.as_str()
                 ))
                 .bind(bind_id(job))
                 .execute(&mut **tx)
@@ -275,7 +336,7 @@ where
 {
     let lock = DB::for_update();
     let Some(row) = sqlx::query(&format!(
-        "SELECT status, undoable, summary FROM romeka_import WHERE id = ?{lock}"
+        "SELECT status, revision, summary FROM romeka_import WHERE id = ?{lock}"
     ))
     .bind(bind_id(id))
     .fetch_optional(&mut **tx)
@@ -284,13 +345,18 @@ where
         return Ok(StartOutcome::Missing);
     };
     let status = ImportStatus::parse(&DB::text(&row, "status")?)?;
-    let undoable = DB::boolean(&row, "undoable")?;
-    let allowed = match start {
-        Start::Run => status == ImportStatus::Draft,
-        Start::Undo => undoable && matches!(status, ImportStatus::Done | ImportStatus::Failed),
-    };
-    if !allowed {
-        return Ok(StartOutcome::Refused { status, undoable });
+    let mut summary = DB::opt_json(&row, "summary")?;
+    if !start.allows(status, summary.as_ref()) {
+        return Ok(StartOutcome::Refused(status));
+    }
+    if start == Start::Undo && deleted_any(tx, id).await? {
+        return Ok(StartOutcome::Deleted);
+    }
+    if let Start::Run(checked) = start {
+        let stored: u64 = DB::id(&row, "revision")?;
+        if stored != checked {
+            return Ok(StartOutcome::Changed { revision: stored });
+        }
     }
     let busy = sqlx::query(&format!(
         "SELECT id FROM romeka_import WHERE status IN ('running', 'undoing') AND id <> ?{lock}"
@@ -301,28 +367,36 @@ where
     if let Some(busy) = busy {
         return Ok(StartOutcome::Busy(DB::id(&busy, "id")?));
     }
-    let mut summary = DB::opt_json(&row, "summary")?;
     if let Some(Value::Object(members)) = &mut summary {
         members.remove(DIED);
     }
     let summary = with_member(summary, HEARTBEAT, Value::String(time::format(now)));
-    if start == Start::Run {
-        sqlx::query("UPDATE romeka_import SET undoable = 0 WHERE undoable = 1 AND id <> ?")
-            .bind(bind_id(id))
-            .execute(&mut **tx)
-            .await?;
-    }
-    let next = match start {
-        Start::Run => ImportStatus::Running,
-        Start::Undo => ImportStatus::Undoing,
-    };
-    sqlx::query("UPDATE romeka_import SET status = ?, undoable = 1, summary = ? WHERE id = ?")
-        .bind(next.as_str().to_string())
+    sqlx::query(start.update())
         .bind(json_text(&summary)?)
         .bind(bind_id(id))
         .execute(&mut **tx)
         .await?;
     Ok(StartOutcome::Started)
+}
+
+/// Whether the import's ledger records a resource it deleted.
+async fn deleted_any<DB: Backend>(
+    tx: &mut Transaction<'static, DB>,
+    id: ImportId,
+) -> Result<bool, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+{
+    let found = sqlx::query(
+        "SELECT 1 FROM romeka_import_resource WHERE import_id = ? AND change_kind = 'deleted'
+         LIMIT 1",
+    )
+    .bind(bind_id(id))
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(found.is_some())
 }
 
 #[cfg(test)]

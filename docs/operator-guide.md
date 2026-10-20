@@ -19,20 +19,21 @@ answers 503 while storage is unreachable ([`../crates/omeka-server/src/lib.rs`](
 It serves no admin bundle and no stored media bytes. A static origin in front serves the built admin
 application at `/` and the media files under `/files/`, asking `GET /api/romeka/files/allow` first
 whether each file may be served. That is the arrangement the packaged
-deployment uses, and [`packaging/nginx.conf.template`](../packaging/nginx.conf.template) is the
+deployment uses, and [`deploy/Caddyfile`](../deploy/Caddyfile) is the
 working example. `web/admin/e2e/harness/proxy.ts` is another one, in Node.
 
 ## Flags, environment and the config file
 
 `romeka serve` takes the address, the base URL, the database and the store. Everything else comes
 from the environment or from a file: the log level, the body cap, the request timeout, the mail
-settings and the archive root.
+settings and the archive roots.
 Precedence is defaults, then the file, then the environment, then the two flags the command sets
 itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/config.rs)).
 
 | Flag | Default | Notes |
 | --- | --- | --- |
-| `-d PATH` | required | the SQLite database file |
+| `-d PATH` | one of the two is required | the SQLite database file |
+| `--database-url URL` | `ROMEKA_DATABASE_URL` | a MySQL or MariaDB database instead, `mysql://user:password@host:port/database`. See [MySQL and MariaDB](#mysql-and-mariadb) |
 | `--host` | `127.0.0.1` | loopback unless you change it |
 | `--port` | `8080` | |
 | `--base-url` | `http://<host>:<port>` | the prefix of every `@id`, of every `Link`, and the origin a cookie write must match |
@@ -41,6 +42,7 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | Variable | Default | What it sets |
 | --- | --- | --- |
 | `ROMEKA_CONFIG` | none | a config file to read after the defaults, before the environment |
+| `ROMEKA_DATABASE_URL` | none | `--database-url` for every command that takes a database. Environment only, so the password stays out of `ps` |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | `127.0.0.1`, `8123` | the address, unless `--host` / `--port` overrides it |
 | `ROMEKA_BASE_URL` | `http://localhost:8123` | unless `--base-url` overrides it |
 | `ROMEKA_LOG` | `info` | the tracing filter |
@@ -49,7 +51,8 @@ itself ([`../crates/omeka-server/src/config.rs`](../crates/omeka-server/src/conf
 | `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT` | none | an SMTP relay. With no host, mail goes to the log |
 | `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS` | none, none, `starttls` | relay credentials and transport security |
 | `ROMEKA_MAIL_FROM` | `no-reply@omeka.invalid` | the envelope sender |
-| `ROMEKA_ARCHIVE_ROOT` | none | the server folder the archive import reads (config file key `archive_root`). Unset or empty, the Import page is off |
+| `ROMEKA_ARCHIVE_ROOTS` | none | the folders the archive import reads, as `name=path` pairs separated by `;` (config file key `archive_roots`, an object). Unset or empty, the Import page offers no server folder |
+| `ROMEKA_ARCHIVE_ROOT` | none | one more root, named `archive` (config file key `archive_root`) |
 | `ROMEKA_STORE_BACKEND` | `local` | `local` keeps files under `--store`; `s3` keeps them in the bucket below. Environment only, no config file key |
 | `ROMEKA_S3_ENDPOINT` | none | the S3 service, such as `https://s3.eu-west-1.amazonaws.com` or `http://minio:9000`. Buckets are addressed path style. Required for `s3` |
 | `ROMEKA_S3_BUCKET` | none | the bucket. Required for `s3` |
@@ -93,6 +96,42 @@ square/<storage_id>.jpg
   ([`../crates/omeka-cli/src/commands/serve.rs`](../crates/omeka-cli/src/commands/serve.rs),
   [`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
 
+## MySQL and MariaDB
+
+The same binary serves a MySQL 8.0 or MariaDB 11 database. Both are tested: the server's route
+tests, the import suites, and an install, serve, upload, search, import and undo run against each.
+Create the database first, with upstream's character set; `romeka install` creates the tables in
+it, not the database itself:
+
+```sql
+CREATE DATABASE omeka CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Then name it in a URL, on every command that takes `-d`. `mariadb://` is accepted as the same
+thing. sqlx reads the connection options from the query string, such as `?ssl-mode=required`.
+
+```
+export ROMEKA_DATABASE_URL='mysql://romeka:secret@db:3306/omeka'
+romeka install --email admin@example.org --name Admin --password '...'
+romeka serve --host 0.0.0.0 --port 8123 --store /var/lib/romeka/files
+```
+
+- Prefer the variable to the flag. A flag is visible to every user of the host in `ps`; the variable
+  is not, and the server hands the URL to each job process the same way.
+- The URL's user needs `CREATE`, `ALTER`, `INDEX`, `DROP` and the row privileges on that database,
+  because `install` applies the migrations. `serve` needs only the row privileges.
+- A database server has no folder to put `files` beside, so with no `--store` every command uses
+  `files` in its working directory. Give every command the same `--store`.
+- The schema is upstream's own `schema.sql`, created `IF NOT EXISTS`, plus the Romeka tables
+  (`crates/omeka-db/migrations-mysql/`). Pointing `install` at an existing Omeka S database leaves
+  upstream's tables as they are and adds the Romeka ones.
+- `romeka backup` refuses a database server and writes nothing: back it up with the server's tools,
+  such as `mysqldump --single-transaction omeka`, and back up the store as files. `romeka restore`
+  refuses too, because its archive holds a SQLite file.
+- Search ranks with InnoDB's full-text score, which orders matches differently from SQLite, and
+  MySQL ignores words shorter than `innodb_ft_min_token_size` (3 by default)
+  ([`../crates/omeka-db/README.md`](../crates/omeka-db/README.md), "Known differences").
+
 ## Object storage
 
 With `ROMEKA_STORE_BACKEND=s3` every byte the local tree would hold goes to the bucket instead, under
@@ -133,37 +172,203 @@ up with the service's own tools (versioning, replication, `mc mirror`).
 
 ## Jobs and the archive import
 
-With `ROMEKA_ARCHIVE_ROOT` set, the admin's Import page reads folders under that root and imports
-them. The server never writes the archive folder, so it may be mounted read-only. The originals and
-thumbnails go to the store.
+The admin's Import page adds files to Omeka from two places: a folder on the server, and the
+person's own computer. This section is what you set up and watch. What a person does on the page
+is in [`user-guide.md`](user-guide.md). The rules are in [`import-v2.md`](import-v2.md).
 
-An import and its undo each run as a job: a `job` row with class `Romeka\Job\ImportArchive` or
-`Romeka\Job\UndoImport`, run by a child process the server starts and does not wait for:
+### Archive roots
+
+A root is a named folder that the server reads and never writes. It may be mounted read-only.
+Set the roots with `ROMEKA_ARCHIVE_ROOTS`, a list of `name=path` pairs separated by `;`:
 
 ```
-romeka job run <id> --database <db> --store <store> --base-url <base-url> --archive-root <root>
+ROMEKA_ARCHIVE_ROOTS='photos=/srv/photos;scans=/mnt/nas/scans'
+```
+
+- The config file key is `archive_roots`, an object of the same pairs. The variable replaces the
+  file's value.
+- `ROMEKA_ARCHIVE_ROOT` still works. It names one more root, called `archive`.
+- Each name is used once. Each path is made absolute when the process starts, so a later change of
+  the working directory cannot move a root.
+- A plan names a source by root and a path inside it. If you move a folder, the person changes the
+  path in the plan. You do not change the root.
+- The server does not follow a symbolic link to a folder. It counts the links and the files whose
+  names start with a dot, and shows the counts on Check.
+- A global administrator and a site administrator may read every root.
+
+With no root, the Import page still works for files from the person's computer. Its folder card says
+how to set a root.
+
+### The import jobs
+
+An import runs as a job: a `job` row, started in a child process the server does not wait for.
+
+| Class | What it does | Who starts it |
+| --- | --- | --- |
+| `Romeka\Job\ImportRun` | writes the items, media and item sets of an import | the Import page, `POST …/run` |
+| `Romeka\Job\ImportUndo` | undoes an import | `POST …/undo` |
+| `Romeka\Job\ImportScan` | reads a source of more than 20,000 files into the index | `POST …/scan` |
+| `Romeka\Job\ImportUnzip` | unpacks an uploaded `.zip` into the import's staging area | the last `PATCH` of the upload |
+| `Romeka\Job\ImportSweep` | removes staging files that no import needs | `romeka serve`, hourly, and an upload start |
+
+The child is this command:
+
+```
+romeka job run <id> --database <db> --store <store> --base-url <base-url> [--archive-root <root>]
 ```
 
 The child gets the server's database and store as absolute paths, so it reads and writes what the
-server serves whatever its working directory. It gets the base URL and the archive root as the
-server holds them, so set `ROMEKA_ARCHIVE_ROOT` to an absolute path. The child appends progress to
-the job's log, which the Jobs page and `GET /api/romeka/jobs/{id}/log` show, and exits when the job
-ends.
+server serves whatever its working directory. A MySQL database reaches the child as
+`ROMEKA_DATABASE_URL` in its environment, not as `--database`. It reads `ROMEKA_ARCHIVE_ROOTS` and
+`ROMEKA_CONFIG` from the environment it inherits, so keep both in the server's environment.
+`--archive-root` carries only the root named `archive`. The child appends progress to the job's log,
+which the Jobs page and `GET /api/romeka/jobs/{id}/log` show, and exits when the job ends.
 
-Do not run a stuck job by hand. Wait for the rule below to settle it, then read the import again.
+These rules hold for every import job.
 
 - One import or undo works at a time. The database checks this in one locked transaction, so two
-  server processes on one database cannot start two imports.
-- A job that ends in an error shows its import as failed. A failed import can still be undone, and
-  the undo converges: it deletes what the run recorded, one item at a time.
-- A job process that stops working (killed, crashed, or its container restarted) leaves its import
-  on `running` or `undoing`. The job writes a heartbeat every 10 seconds. Two minutes after the last
-  heartbeat, the next read of the import (the Import page or the API) records the import as `failed`
-  and its job as `error`. The job log gets a line that says the process stopped, and the import JSON
-  carries `died`. Another import or undo can start after that. No operator step marks a row by hand.
-- The last import can be undone until the next import starts. Undo deletes the imported items with
-  their files, and the new item sets, item types and fields that nothing else uses. A failed import
-  cannot run again. To remove what its run wrote, undo it before you start the next import.
+  server processes on one database cannot start two. The second start answers 409 `busy` and the
+  Import page links to the import that holds the lock.
+- A run commits one item at a time with its media. A record that fails does not stop the others. It
+  is listed in the import's summary with a reason, and the import ends `done` when any record was
+  written and `run_failed` when none was.
+- **Stop** (`POST …/stop`) asks the job to stop after the record in hand. The import ends
+  `run_failed`, or `undo_failed` for an undo, so it can be run again or undone.
+- A job that stops working (killed, crashed, or its container restarted) leaves its import on
+  `running` or `undoing`. The job writes a heartbeat every 10 seconds. Two minutes after the last
+  heartbeat, the next read of the import records it as `run_failed` or `undo_failed` and its job as
+  `error`. The import JSON carries `died`. Another import can start after that. No operator step
+  marks a row by hand.
+- To finish a stopped or dead import, use **Try again** on the Import page (`POST …/run` again). The
+  run skips every record the first try wrote. A `done` import with failures can be run again the same
+  way. Or undo it: an undo works from what the run wrote, so it also undoes a run that did not end.
+- Do not start `romeka job run <id>` by hand for a job whose import still beats. The command
+  refuses while the heartbeat is younger than two minutes.
+- A killed worker can leave the bytes of the record it held. `romeka media sweep` lists them and
+  `--delete` removes them ([`../crates/omeka-cli/README.md`](../crates/omeka-cli/README.md)).
+- `DELETE /api/jobs/{id}` answers 409 while an import that is running or undoing holds the job.
+
+An import ends in one of these states: `draft`, `running`, `done`, `run_failed`, `undoing`,
+`undone`, `partly_undone`, `undo_failed`. `partly_undone` means the undo kept something that
+someone changed or used after the import. It is not an error.
+
+Any import can be undone, not only the last one. An undo keeps a resource that was edited, linked to
+or added to since the import, and says why. An import that ran `delete` cannot be undone.
+
+### Uploaded files
+
+A person without access to the server adds files to an import from the browser. The files go to the
+store under `staging/<importId>/`, never under `/files`, so the web server does not serve them.
+Inside it, `files/<upload>` holds a finished file, `parts/<upload>.<offset>` holds the chunks of an
+upload in progress, and `meta/` holds the names a ZIP entry had before they were decoded. The upload
+is the tus 1.0 core protocol. A `PATCH` carries at most 64 MiB, and the browser sends smaller chunks.
+Only the import's owner and global administrators may upload, and only into a draft.
+
+A `.zip` is unpacked by the `ImportUnzip` job. Its log says what was left out and why. The job
+leaves out an entry whose path leaves the folder, an absolute path, a symbolic link and an
+unreadable entry. It reads a name without the UTF-8 flag as cp437. It refuses the whole ZIP, and
+keeps nothing from it, in three cases. An entry unpacks to more than 100 times its size and more
+than 10 MB. The files would pass the import's limit. The ZIP holds more than 100,000 entries.
+
+`romeka serve` starts the sweep when it boots and then every hour. An upload start also starts it
+when none started in the last hour. The sweep removes:
+
+- the staging area of an import 30 days after it is `done` or `undone`, and 30 days after the last
+  try of an import that stopped;
+- the staging area of a draft 7 days after it was last saved;
+- an upload that did not finish 24 hours after it began;
+- parts that no upload names, one hour after they were written.
+
+An import that is running or undoing keeps everything. The draft shows its date.
+
+Six global settings bound the uploads and the fetches. `GET /api/settings` answers each one, and
+`PATCH /api/settings` sets it (a whole number above zero; `null` restores the default):
+
+| Setting | Default | What it bounds |
+| --- | --- | --- |
+| `import_upload_max_file` | 2147483648 (2 GiB) | One uploaded file, one file from a ZIP, one URL an import fetches |
+| `import_upload_max_total` | 53687091200 (50 GiB) | All files of one import, uploads in progress counted |
+| `import_staging_keep_days` | 30 | Days the files stay after an import is done or undone, or after its last attempt failed |
+| `import_draft_staging_keep_days` | 7 | Days a draft's files stay after it was last saved |
+| `import_allow_private_urls` | off | When on, an import and the API may fetch from private addresses. It lifts the address check and nothing else |
+| `media_type_whitelist`, `extension_whitelist`, `disable_file_validation` | upstream's lists | The file types an upload, the API and an import accept (below) |
+
+Size the store for `import_upload_max_total` times the number of drafts in progress. The axum body
+limit (`max_body_bytes`) does not bound an upload: a `PATCH` streams its body into the store.
+
+### File types and URLs
+
+The import checks each file against the file validation settings, as an upload is checked.
+Upstream's default lists refuse `.nef`, `.heic`, `.flac`, `.svg`, `.json`, `.mkv` and `.gz`. A file
+that fails the check is flagged `not-media` and left out by default. To import those files, widen the
+lists with `PATCH /api/settings` (`media_type_whitelist`, `extension_whitelist`).
+
+A row of a list may name a URL to fetch. Every fetch, in the import and in the API, passes one
+guard. It allows `http` and `https`, and refuses a URL with a user name. It resolves the host once and
+refuses loopback, link-local (`169.254.169.254` too), private, CGNAT and unique-local addresses. It
+follows at most five redirects and checks each one. A fetch waits 60 seconds to connect and between
+chunks of the body, ends at one hour, and takes a body of at most `import_upload_max_file`. Check
+never fetches. Turn on `import_allow_private_urls` only when the server must reach its own network.
+
+### Object storage and the import
+
+With `ROMEKA_STORE_BACKEND=s3` the staging area, the stored `left.csv` (`imports/<id>/left.csv`) and
+every imported file live in the bucket. The browser's chunks go to the bucket part by part, and
+the ZIP job reads the archive by range, so the server does not hold a whole upload. Four notes:
+
+- The key pair needs `s3:ListBucket`, because the sweep and the scan list prefixes.
+- Give the bucket policy no anonymous read on `staging/*`, `imports/*` or `original/*`.
+- The thumbnails of a private item sit under the same public prefixes as the others, so their
+  plain key is as private as its 40 random hex characters. The API and the site never render it.
+- `romeka backup` copies the local store only. Back up the bucket with the service's own tools.
+
+More is in [Object storage](#object-storage).
+
+### MySQL
+
+The import tables (migration 0006) exist for SQLite and for MySQL 8 and MariaDB 11, with
+`utf8mb4_bin` on every key text column. The repositories and the importer are written against
+`omeka_db::Backend`, and the `omeka-db` tests run the import repositories on both engines. But
+`romeka serve` and the CLI open a SQLite file (`-d PATH`) and nothing else, so an install cannot run
+the importer on MySQL yet. A MySQL backup is the operator's: use `mysqldump --single-transaction`
+([`../crates/omeka-db/README.md`](../crates/omeka-db/README.md)).
+
+### Upgrading from the v1 import
+
+Migration 0006 drops the two v1 import tables and their rows, and creates six new ones. It converts
+nothing. A v1 import that you still want to undo must be undone before you upgrade. Take a backup
+first, as for any upgrade. After the upgrade the old `romeka import csv` and `romeka import media`
+commands are gone, and a v1 plan is refused with 409 `v1Plan`.
+
+## Import from the command line
+
+`romeka import run`, `undo` and `list` do what the Import page does, without a server. Stop other
+imports first: one import or undo works at a time, here as on the page.
+
+```
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org --dry-run
+romeka import run  -d <db> --store <store> --archive-root <root> --plan plan.json --as admin@example.org
+romeka import undo <id> -d <db> --store <store> --preview
+romeka import undo <id> -d <db> --store <store> [--force all]
+romeka import list -d <db> [--page N] [--per-page N]
+romeka import template -d <db> --file template.json
+```
+
+- The plan is the JSON the Import page saves. A draft's plan is the `plan` member of
+  `GET /api/romeka/imports/{id}`.
+- `--archive-root` is the folder the plan's sources read, named `archive`. Without it the roots from
+  `ROMEKA_ARCHIVE_ROOTS` apply.
+- `--dry-run` prints the Check summary and writes nothing. Run it first.
+- `--as` is the email of a global or site administrator. That user owns the import. A site
+  administrator may name only themself as an owner in the plan.
+- A delete plan needs `--confirm <count>`, the count the Check summary shows.
+- A run that is refused, or a dry run, leaves no import behind. The run's files go to `--store`, so
+  point it at the store the server serves.
+- `undo --preview` prints what the undo would do and writes nothing. `--force all` also restores or
+  deletes what someone edited since the import.
+- `romeka import template` reads a resource template from JSON.
+- `romeka import csv` and `romeka import media` no longer exist. Put the items in a list and use
+  `import run`, or use the Import page.
 
 ## Backup and restore
 
@@ -171,6 +376,9 @@ Do not run a stuck job by hand. Wait for the rule below to settle it, then read 
 romeka backup  -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --out backup.tar
 romeka restore -d /var/lib/romeka/romeka.db --store /var/lib/romeka/files --in backup.tar
 ```
+
+Both commands are for a SQLite database. On MySQL or MariaDB they refuse; see
+[MySQL and MariaDB](#mysql-and-mariadb).
 
 `backup` writes one uncompressed tar holding a consistent copy of the database, every file under the
 store, and a `manifest.json` with the commit, the row counts and a checksum per file. The database
@@ -196,10 +404,9 @@ Two things to know before you write one.
 - **`/assets/` collides.** The bundled theme links its stylesheet at `/assets/css/style.css`, and the
   admin bundle builds its own chunks under `assets/` too. One origin serving both has one URL prefix
   for two file sets: serve the SPA's files there and the public site renders unstyled, forward to the
-  process and the admin's chunks 404. The shipped nginx
-  ([`packaging/nginx.conf.template`](../packaging/nginx.conf.template)) serves the SPA's files, which
-  is the first of those two, and it forwards neither `/assets/` nor `/ready`. Until one of the two
-  paths moves, an origin that has to be correct for both needs a rule that separates them.
+  process and the admin's chunks 404. The shipped Caddyfile
+  ([`deploy/Caddyfile`](../deploy/Caddyfile)) separates them: a file the bundle ships wins, and
+  every other path under `/assets/` goes to the process. An origin you write needs the same rule.
 - **`/files/` needs the access check.** A file of a private item or media is served only to a user
   who may see it. Before it serves a file, the origin sends a `GET /api/romeka/files/allow` to the
   process with the request's `Cookie` header and the original request URI, query string included,
@@ -254,8 +461,11 @@ says what that means for a compatibility claim.
 | Sign-in appears to succeed and the next write is refused | `--base-url` names a different origin than the browser used, so the write fails the same-origin check |
 | API links point at the wrong host or port | set `--base-url` to the address clients use |
 | Media pages load but their images 404 | `serve --store` and the import's `--store` differ, or the server runs without `--store` from another directory |
-| The admin has no Import page | `ROMEKA_ARCHIVE_ROOT` is unset or empty in the server's environment |
-| An import stays on "Importing" | the job process is still working, or it stopped less than two minutes ago. Reload the page. Two minutes after the last heartbeat the import shows `failed`. Read the job's log on the Jobs page for the cause |
+| The Import page has no folder to choose | `ROMEKA_ARCHIVE_ROOTS` and `ROMEKA_ARCHIVE_ROOT` are unset or empty in the server's environment. Files from the person's computer still work |
+| The admin has no Import link | the signed-in user is not a global or site administrator |
+| An import stays on "Adding" | the job process is still working, or it stopped less than two minutes ago. Reload the page. Two minutes after the last heartbeat the import shows "Stopped before the end" (`run_failed`). Read the job's log on the Jobs page for the cause, then use Try again |
+| A second import answers "busy" | one import or undo works at a time. Wait for it, or stop it |
+| An upload answers 413 or says the import is full | `import_upload_max_file` or `import_upload_max_total` is reached. Raise it with `PATCH /api/settings` |
 | The store holds files no row names (after an import that crashed, or an undo) | run `romeka media sweep -d PATH --store DIR` to list them, then add `--delete` to remove them. Files younger than 10 minutes are skipped. See the `romeka-cli` README |
 | The admin application answers 404 for everything | the static origin is not forwarding `/api` to the process |
 | The public site renders without styling | the origin is serving the SPA's `assets` files instead of forwarding `/assets/` to the process |

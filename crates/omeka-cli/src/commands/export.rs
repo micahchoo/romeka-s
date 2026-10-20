@@ -14,22 +14,18 @@
 //! Upstream at the frozen SHA has no CSV export. `Admin/*Export*` does not
 //! exist; the only export is `Admin/ResourceTemplateController::exportAction`,
 //! which writes one resource template as JSON. So there is no upstream column
-//! set to match. This command defines one that reads back:
+//! set to match. This command defines one:
 //!
 //! - One row per item, one header cell per value column.
 //! - A cell names a property as `prefix:local_name`, the term
-//!   [`crate::terms::resolve_property`] resolves and `romeka import csv` reads.
+//!   [`crate::terms::resolve_property`] resolves.
 //! - The default column set is every property that holds a value on any
 //!   exported item: `dcterms:title` first, then the rest by term. `--columns`
 //!   names them instead, in the order given.
 //! - A property with several values on any item gets one column per value, and
-//!   the header repeats the term. `romeka import csv` reads two cells with the
-//!   same term as two values, so repetition is what makes a multi-valued item
-//!   round-trip.
+//!   the header repeats the term, so a multi-valued item keeps every value.
 //! - Values flatten to text: a literal is its `@value`, a URI its `@id`, a
-//!   resource value its display title. Re-importing stores every cell as a
-//!   literal, so a URI or resource value comes back as a literal of that text,
-//!   and a language tag is dropped.
+//!   resource value its display title. A language tag is dropped.
 //!
 //! The column set is a port decision, not an upstream one. It is recorded here
 //! and in `crates/omeka-cli/README.md`.
@@ -42,8 +38,8 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::export::{self, Selection};
 use omeka_api::wire::Value;
 use omeka_api::wire::item::Item as ItemDocument;
+use omeka_db::Location;
 use omeka_db::ids::UserId;
-use omeka_db::open_file;
 
 use crate::csv;
 use crate::error::CliError;
@@ -52,7 +48,7 @@ use crate::terms;
 /// Input for `romeka export jsonld`.
 #[derive(Debug, Clone)]
 pub struct JsonldOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub out: PathBuf,
     /// An [`export::resources`] name.
     pub resource: String,
@@ -64,7 +60,7 @@ pub struct JsonldOptions {
 /// Input for `romeka export csv`.
 #[derive(Debug, Clone)]
 pub struct CsvOptions {
-    pub database: PathBuf,
+    pub database: Location,
     pub out: PathBuf,
     pub item_set: Option<u64>,
     /// The property terms to export, in order. Empty derives the column set
@@ -127,7 +123,7 @@ pub async fn run_jsonld(options: &JsonldOptions) -> Result<JsonldReport, CliErro
     }
     let base = BaseUrl::parse(&options.base_url)
         .map_err(|error| CliError::message(format!("invalid --base-url: {error}")))?;
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     let selection = Selection {
         resource: options.resource.clone(),
         item_set: options.item_set,
@@ -148,7 +144,7 @@ pub async fn run_jsonld(options: &JsonldOptions) -> Result<JsonldReport, CliErro
 /// A [`CliError::Message`] for an unknown column term, the read layer's error,
 /// or a [`CliError::Io`] when the file cannot be written.
 pub async fn run_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
-    let pool = open_file(&options.database).await?;
+    let pool = options.database.open().await?;
     for term in &options.columns {
         terms::resolve_property(&pool, term)
             .await
@@ -277,7 +273,7 @@ struct Column {
 /// The header and its repeats.
 ///
 /// `dcterms:title` leads the derived set because it is the item's denormalised
-/// title, which `romeka import csv` reads from the first non-empty title cell.
+/// title, which is the first non-empty title cell.
 fn columns(rows: &[ItemRow], requested: &[String]) -> Vec<Column> {
     let terms = column_terms(rows, requested);
     let mut columns = Vec::new();

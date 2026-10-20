@@ -91,8 +91,8 @@ pub fn get_with_cookie(uri: &str, cookie: &str) -> Request<Body> {
 pub fn image_size(bytes: &[u8]) -> (u32, u32) {
     let tags = omeka_media::image_metadata(&mut std::io::Cursor::new(bytes));
     (
-        tags["Width"].parse().expect("a width"),
-        tags["Height"].parse().expect("a height"),
+        tags["Width"].values[0].parse().expect("a width"),
+        tags["Height"].values[0].parse().expect("a height"),
     )
 }
 

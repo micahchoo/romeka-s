@@ -1,0 +1,90 @@
+{
+  "check": {
+    "action": "create",
+    "blocking": [],
+    "canRun": true,
+    "counts": [
+      {
+        "count": 10,
+        "does": "create",
+        "kind": "item"
+      },
+      {
+        "count": 1,
+        "does": "leave",
+        "kind": "item"
+      },
+      {
+        "count": 19,
+        "does": "create",
+        "kind": "media"
+      },
+      {
+        "count": 3,
+        "does": "leave",
+        "kind": "media"
+      }
+    ],
+    "defaultOwner": 0,
+    "deletes": 0,
+    "digest": "9908b0dc5705fc0e05ae59ac20bba1d3b9459fdf950fbd1b20de7fd381e5da33",
+    "flags": {
+      "keep": 5,
+      "leave": 2
+    },
+    "newFields": [
+      {
+        "label": "Shelf mark",
+        "term": "local:shelfMark"
+      }
+    ],
+    "newSets": [
+      {
+        "isOpen": true,
+        "title": "Artifacts",
+        "visibility": "private"
+      },
+      {
+        "isOpen": true,
+        "title": "Photographs",
+        "visibility": "private"
+      },
+      {
+        "isOpen": true,
+        "title": "Bulk",
+        "visibility": "private"
+      }
+    ],
+    "newTypes": [
+      {
+        "fields": [
+          "dcterms:title",
+          "dcterms:date",
+          "dcterms:identifier",
+          "local:shelfMark"
+        ],
+        "from": "mapping",
+        "label": "Artifact"
+      }
+    ],
+    "withoutTemplate": 19
+  },
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

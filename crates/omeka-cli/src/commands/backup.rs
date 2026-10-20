@@ -1,7 +1,7 @@
 //! `romeka backup`: one archive holding a consistent database copy and the store.
 //!
-//! The database copy comes from `VACUUM INTO`, which writes a complete SQLite
-//! file from a read transaction. It sees one point in time even while the server
+//! The database copy comes from `DatabaseRepo::snapshot_into`, SQLite's
+//! `VACUUM INTO`, which writes a complete SQLite file from a read transaction. It sees one point in time even while the server
 //! writes, which a file copy of a write-ahead-log database does not: the copy
 //! would miss the frames still in the `-wal`. `VACUUM INTO` also compacts, so the
 //! archive holds no free pages.
@@ -18,7 +18,8 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
-use omeka_db::open_file;
+use omeka_db::repos::DatabaseRepo;
+use omeka_db::{Location, open_file, with_db};
 
 use crate::archive::{
     COMMIT, DATABASE_ENTRY, DatabaseEntry, FORMAT, FORMAT_VERSION, MANIFEST_ENTRY, Manifest,
@@ -37,8 +38,8 @@ const ARCHIVE_NAME: &str = "archive.tar";
 /// Input for `romeka backup`.
 #[derive(Debug, Clone)]
 pub struct BackupOptions {
-    /// SQLite database file.
-    pub database: PathBuf,
+    /// The database. A server is refused: the server's own tools back it up.
+    pub database: Location,
     /// Store root (`file_store.local.base_path`), the directory holding
     /// `original/` and the thumbnail types.
     pub store: PathBuf,
@@ -70,18 +71,35 @@ pub struct BackupReport {
 /// file the store lacks, the database cannot be exported, or the archive cannot
 /// be written. A failed run leaves no archive at `out`.
 pub async fn run(options: &BackupOptions) -> Result<BackupReport, CliError> {
-    require_file(&options.database, "database")?;
+    let database = match &options.database {
+        Location::File(path) => path,
+        Location::Url(_) => {
+            let pool = options.database.open().await?;
+            with_db!(&pool, |db| DatabaseRepo::new(db).snapshot_supported())?;
+            // A server writes a snapshot on its own host, not beside this
+            // archive, so even an engine that had one could not fill it.
+            return Err(CliError::message(format!(
+                "{} cannot be archived",
+                options.database
+            )));
+        }
+    };
+    require_file(database, "database")?;
     require_dir(&options.store, "store")?;
     let staging = Staging::new_beside(&options.out, "romeka-backup")?;
-    let report = build(options, &staging).await?;
+    let report = build(database, options, &staging).await?;
     std::fs::rename(staging.path(ARCHIVE_NAME), &options.out)?;
     staging.retire();
     Ok(report)
 }
 
-async fn build(options: &BackupOptions, staging: &Staging) -> Result<BackupReport, CliError> {
+async fn build(
+    database: &Path,
+    options: &BackupOptions,
+    staging: &Staging,
+) -> Result<BackupReport, CliError> {
     let exported = staging.path(EXPORT_NAME);
-    export_database(&options.database, &options.store, &exported).await?;
+    export_database(database, &options.store, &exported).await?;
     let counts = count_export(&exported).await?;
     let files = collect_store_files(&options.store)?;
 
@@ -138,11 +156,7 @@ async fn build(options: &BackupOptions, staging: &Staging) -> Result<BackupRepor
 async fn export_database(database: &Path, store: &Path, target: &Path) -> Result<(), CliError> {
     let pool = open_file(database).await?;
     verify_store_references(&pool, store).await?;
-    sqlx::query("VACUUM INTO ?")
-        .bind(target.to_string_lossy().as_ref())
-        .execute(&pool)
-        .await
-        .map_err(omeka_db::DbError::from)?;
+    DatabaseRepo::new(&pool).snapshot_into(target).await?;
     pool.close().await;
     Ok(())
 }
@@ -204,7 +218,7 @@ mod tests {
         let item = items.create(&NewItem::default()).await.expect("item").id();
         items.add_to_item_set(item, set).await.expect("attach");
         let title = "Round Trip Title".to_string();
-        let property = crate::terms::resolve_property(&db.pool, "dcterms:title")
+        let property = crate::terms::resolve_property(&db.db_pool, "dcterms:title")
             .await
             .expect("title property");
         ValueRepo::new(&db.pool)
@@ -275,7 +289,7 @@ mod tests {
 
     fn options(db: &TempDb, store: &Path, out: &Path) -> BackupOptions {
         BackupOptions {
-            database: db.path.clone(),
+            database: db.path.clone().into(),
             store: store.to_path_buf(),
             out: out.to_path_buf(),
         }
@@ -328,12 +342,13 @@ mod tests {
         assert_eq!(count_files(&target_store), expected);
 
         let pool = open_file(&target_db).await.expect("open restored");
+        let db = omeka_db::DbPool::from(pool.clone());
         let items = ItemRepo::new(&pool)
             .list(&ItemFilter::default(), &Paging::default())
             .await
             .expect("list items");
         assert_eq!(items.len(), 1);
-        let property = crate::terms::resolve_property(&pool, "dcterms:title")
+        let property = crate::terms::resolve_property(&db, "dcterms:title")
             .await
             .expect("title property");
         let values = ValueRepo::new(&pool)

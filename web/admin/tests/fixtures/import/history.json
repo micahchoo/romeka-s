@@ -1,0 +1,103 @@
+{
+  "items": [
+    {
+      "copiedFrom": 1,
+      "created": "2026-10-21T09:00:00+00:00",
+      "died": null,
+      "finished": null,
+      "id": 6,
+      "jobId": 3,
+      "ownerId": 1,
+      "progress": {
+        "done": 9,
+        "secondsLeft": null,
+        "total": 9
+      },
+      "revision": 0,
+      "sources": [
+        {
+          "id": "s1",
+          "kind": "folder",
+          "path": "",
+          "root": "archive"
+        }
+      ],
+      "status": "undoing",
+      "stopRequested": false,
+      "summary": {
+        "failures": [],
+        "progress": {
+          "done": 9,
+          "total": 9
+        },
+        "stopped": false
+      },
+      "undoReport": null
+    },
+    {
+      "copiedFrom": 1,
+      "created": "2026-10-21T09:00:00+00:00",
+      "died": null,
+      "finished": null,
+      "id": 5,
+      "jobId": null,
+      "ownerId": 1,
+      "revision": 0,
+      "sources": [
+        {
+          "id": "s1",
+          "kind": "folder",
+          "path": "",
+          "root": "archive"
+        }
+      ],
+      "status": "draft",
+      "stopRequested": false,
+      "summary": null,
+      "undoReport": null
+    },
+    {
+      "copiedFrom": null,
+      "created": "2026-10-21T09:00:00+00:00",
+      "died": null,
+      "finished": "2026-10-21T09:00:00+00:00",
+      "id": 1,
+      "jobId": 1,
+      "ownerId": 1,
+      "progress": {
+        "done": 8,
+        "secondsLeft": null,
+        "total": 9
+      },
+      "revision": 3,
+      "sources": [
+        {
+          "id": "s1",
+          "kind": "folder",
+          "path": "",
+          "root": "archive"
+        }
+      ],
+      "status": "run_failed",
+      "stopRequested": true,
+      "summary": {
+        "failures": [
+          {
+            "detail": "The file could not be read.",
+            "key": "importFileUnreadable",
+            "record": "group:BHC_006_AF_001"
+          }
+        ],
+        "progress": {
+          "done": 8,
+          "total": 9
+        },
+        "stopped": true
+      },
+      "undoReport": null
+    }
+  ],
+  "page": 1,
+  "perPage": 10,
+  "total": 3
+}

@@ -1,42 +1,59 @@
-//! The CSV reader and writer for `romeka import csv` and `romeka export csv`.
-//!
-//! The reader lives in `omeka_api::import::csv`, shared with the archive
-//! import. This module maps its error to [`CliError::Parse`], which names the
-//! record the input broke on.
+//! The CSV writer for `romeka export csv`.
 
-use crate::error::CliError;
-
-pub use omeka_api::import::csv::{Record, render};
-
-/// Parse comma-separated input. Blank records are dropped.
+/// Render rows as an RFC 4180 CSV document, one LF per record.
 ///
-/// # Errors
-/// A [`CliError::Parse`] for an unterminated quoted field.
-pub fn parse(input: &str) -> Result<Vec<Record>, CliError> {
-    omeka_api::import::csv::parse(input).map_err(|error| CliError::Parse {
-        line: error.line(),
-        message: "unterminated quoted field".to_string(),
-    })
+/// A field is quoted when it holds a comma, a double quote or a line ending; a
+/// double quote inside a quoted field is doubled. Every other field is written
+/// as it stands, so a plain export stays readable.
+#[must_use]
+pub fn render(rows: &[Vec<String>]) -> String {
+    let mut out = String::new();
+    for row in rows {
+        for (index, field) in row.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_field(&mut out, field);
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn write_field(out: &mut String, field: &str) {
+    if field.contains([',', '"', '\n', '\r']) {
+        out.push('"');
+        for character in field.chars() {
+            if character == '"' {
+                out.push('"');
+            }
+            out.push(character);
+        }
+        out.push('"');
+    } else {
+        out.push_str(field);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
-    fn rejects_an_unterminated_quote() {
-        let error = parse("a,b\n1,\"oops\n").expect_err("unterminated");
-        assert!(
-            matches!(error, CliError::Parse { line: 2, .. }),
-            "got {error:?}"
+    fn renders_plain_and_quoted_fields() {
+        let rows = vec![
+            vec!["dcterms:title".to_string(), "dcterms:creator".to_string()],
+            vec!["x,y".to_string(), "say \"hi\"".to_string()],
+        ];
+        assert_eq!(
+            render(&rows),
+            "dcterms:title,dcterms:creator\n\"x,y\",\"say \"\"hi\"\"\"\n"
         );
     }
 
     #[test]
-    fn renders_what_it_parses_back() {
-        let text = render(&[vec!["x,y".to_string(), "z".to_string()]]);
-        let back = parse(&text).expect("parse");
-        assert_eq!(back[0].fields, ["x,y", "z"]);
+    fn an_empty_cell_stays_an_empty_cell() {
+        let text = render(&[vec!["a".to_string(), String::new(), "c".to_string()]]);
+        assert_eq!(text, "a,,c\n");
     }
 }

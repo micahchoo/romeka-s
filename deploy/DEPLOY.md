@@ -38,12 +38,13 @@ except the first one.
 | `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT`, `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS`, `ROMEKA_MAIL_FROM` | the server | mail; with no host the messages go to the log |
 | `ROMEKA_DB`, `ROMEKA_STORE` | the entrypoint and the server | the database file and the store root, which the volumes in `compose.yaml` are mounted at. The entrypoint passes the store as `serve --store`, and the server passes it on to every job process. `ROMEKA_STORE` is always a path, never the backend |
 | `ROMEKA_STORE_BACKEND` | the server and every job | `local` (the default) or `s3`. With `s3` the files go to the bucket below, and `ROMEKA_STORE` holds nothing |
-| `ROMEKA_S3_ENDPOINT`, `ROMEKA_S3_BUCKET`, `ROMEKA_S3_REGION`, `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY`, `ROMEKA_S3_PUBLIC_BASE`, `ROMEKA_S3_URL_TTL_SECS` | the server and every job | the bucket, its key pair, an optional CDN for plain URLs, and the signed URL lifetime (default 900 seconds). [`docs/operator-guide.md`](../docs/operator-guide.md), Object storage, gives the URL rules and the bucket policy. `compose.yaml` does not pass these into the container yet; add them to its `environment` block to use a bucket |
-| `ROMEKA_ARCHIVE_DIR` | `compose.archive.yaml` | the host folder the archive import reads, mounted read-only at `/archive`; used only with that file |
-| `ROMEKA_ARCHIVE_ROOT` | the server | the archive import's root inside the container. `compose.archive.yaml` sets it to `/archive`; unset, the Import page is off |
+| `ROMEKA_S3_ENDPOINT`, `ROMEKA_S3_BUCKET`, `ROMEKA_S3_REGION`, `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY`, `ROMEKA_S3_PUBLIC_BASE`, `ROMEKA_S3_URL_TTL_SECS` | the server and every job | the bucket, its key pair, an optional CDN for plain URLs, and the signed URL lifetime (default 900 seconds). [`docs/operator-guide.md`](../docs/operator-guide.md), Object storage, gives the URL rules and the bucket policy. `compose.yaml` passes each of them from `.env` |
+| `ROMEKA_ARCHIVE_DIR` | `compose.archive.yaml` | the host folder the import reads, mounted read-only at `/archive`; used only with that file |
+| `ROMEKA_ARCHIVE_ROOTS`, `ROMEKA_ARCHIVE_ROOT` | the server and every job | the server folders an import may read. `ROMEKA_ARCHIVE_ROOTS` holds `name=path` pairs separated by `;`; `ROMEKA_ARCHIVE_ROOT` is the root named `archive`. `compose.archive.yaml` sets `ROMEKA_ARCHIVE_ROOT` to `/archive`; neither compose file passes `ROMEKA_ARCHIVE_ROOTS`, so add it to the `environment` block for more roots. With no root, the Import page still takes files and lists uploaded from the browser |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
 | `ROMEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
 | `ROMEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
+| `ROMEKA_DATABASE_URL` | the server and every job | a MySQL or MariaDB database instead of the SQLite file. This deployment does not use it yet: the entrypoint passes `-d "$ROMEKA_DB"`, which wins over the variable. `compose.yaml` carries a commented MySQL service, and [`docs/operator-guide.md`](../docs/operator-guide.md), MySQL and MariaDB, covers running on one; `romeka backup` below refuses a MySQL database |
 
 An empty value in `.env` means "not configured". The entrypoint drops the empty
 ones before it starts the server, because the server reads any value that is
@@ -336,14 +337,23 @@ server reading a newer schema is the failure that loses data.
 - Sessions live in the database, not in the container, so a restart does not
   sign anyone out.
 
-Two processes run as a rule, and a third while an import works. The server
-starts each archive import and each undo as `romeka job run <id>`, a child
-process with the same database, store, base URL and archive root, and the
-child exits when its job ends. The archive folder is mounted read-only: an
-import reads it and writes only to the store and the database.
+Two processes run as a rule, and more while an import works. The server
+starts each import job (a run, an undo, a rescan of a large folder, the unzip
+of an uploaded ZIP) as `romeka job run <id>`, a child process with the same
+database, store, base URL and archive roots, and the child exits when its job
+ends. An archive folder is mounted read-only: an import reads it and writes
+only to the store and the database.
 
-To turn the archive import on, set `ROMEKA_ARCHIVE_DIR` in `.env` and start
-with both files:
+Files uploaded from the browser go to the import's staging area,
+`staging/<importId>/` in the store (local or the bucket), never under the
+public `/files` prefix. The upload limits are the settings
+`import_upload_max_file` (2 GB) and `import_upload_max_total` (50 GB per
+import). `romeka serve` sweeps staging hourly: 30 days after an import is done
+or undone, 7 days after a draft was last saved (`import_staging_keep_days`,
+`import_draft_staging_keep_days`).
+
+To let the import read a server folder, set `ROMEKA_ARCHIVE_DIR` in `.env` and
+start with both files:
 
 ```
 docker compose -f compose.yaml -f compose.archive.yaml up -d
@@ -373,7 +383,7 @@ romeka key add -d /db/romeka.db --owner admin@example.org
 | File | What it is |
 | --- | --- |
 | `compose.yaml` | the service, the volumes, the ports and the health check |
-| `compose.archive.yaml` | the archive import: the read-only `/archive` mount and `ROMEKA_ARCHIVE_ROOT` |
+| `compose.archive.yaml` | a server folder for the import: the read-only `/archive` mount and `ROMEKA_ARCHIVE_ROOT` |
 | `Caddyfile` | TLS, the SPA, the media files behind the server's access check, and the routes Caddy forwards |
 | `.env.example` | every setting, with its default and a one-line comment |
 | `backup.sh` | procedure 4, as one command |

@@ -31,12 +31,26 @@ image = { version = "0.25", default-features = false, features = [
     "tiff",
     "webp",
 ] }
+# JPEG 2000 thumbnails (`thumbnailer/jp2.rs`): pure Rust, MIT OR Apache-2.0.
+# Without its default features it has no dependencies; it decodes at a reduced
+# resolution, so a large master costs a fraction of its pixels.
+hayro-jpeg2000 = { version = "0.4", default-features = false, features = ["std"] }
+# A JPEG over 64 MB thumbnailed with IDCT scaling (`thumbnailer/large.rs`), so
+# only an eighth of each side is ever decoded. Pure Rust, MIT OR Apache-2.0;
+# `rayon` is off.
+jpeg-decoder = { version = "0.3", default-features = false }
 # Embedded metadata (EXIF) of an image, for the archive import's tag preview.
 # Pure Rust, BSD-2-Clause.
 kamadak-exif = "0.6"
 # A TIFF's directories, read by seeking: kamadak-exif reads a TIFF whole, and
 # an archive master can be 60 MB. Already in the tree through `image`.
 tiff = "0.11"
+# EXIF, IPTC and XMP text that is not UTF-8 is read as Windows-1252
+# (`image_metadata`). Already in the tree through the sheet reader.
+encoding_rs = "0.8"
+# The XMP packet of an image, read by namespace. MIT; the version oxrdfio
+# already brings into the tree.
+quick-xml = "0.37"
 # The real HTTP client behind `HttpFetch`. Blocking, because the trait is.
 # `rustls` is the TLS provider; `gzip` is off, matching upstream's
 # `Accept-Encoding: identity` (`File/Downloader.php:57`).

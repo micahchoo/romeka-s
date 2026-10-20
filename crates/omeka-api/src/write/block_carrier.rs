@@ -22,6 +22,7 @@ use omeka_db::repos::{
     AssetRepo, ItemRepo, MediaFilter, MediaRepo, Paging, SiteRepo, SiteSettingRepo, ValueRepo,
 };
 use omeka_db::rows::{AssetRow, ItemRow, MediaRow};
+use omeka_db::with_db;
 use omeka_site::blocks::BlockLayout;
 use omeka_site::blocks::iiif_image::{IiifImage, media_info_path};
 use omeka_site::blocks::romeka::{
@@ -108,16 +109,14 @@ async fn public_media(
 ) -> Result<Vec<(MediaId, MediaRow)>, ApiError> {
     let mut found = Vec::new();
     for id in romeka::media_refs(layout, carrier) {
-        let row = MediaRepo::new(api.pool())
+        let row = with_db!(api.pool(), |db| MediaRepo::new(db)
             .get(omeka_db::ids::MediaId(id.get()))
-            .await
-            .map_err(db_error)?;
+            .await)
+        .map_err(db_error)?;
         let Some(row) = row else {
             continue;
         };
-        let item_public = ItemRepo::new(api.pool())
-            .get(row.item_id)
-            .await
+        let item_public = with_db!(api.pool(), |db| ItemRepo::new(db).get(row.item_id).await)
             .map_err(db_error)?
             .is_some_and(|item| item.resource.is_public);
         if row.resource.is_public && item_public {
@@ -187,12 +186,11 @@ async fn plain_refs(
     media: &[(MediaId, MediaRow)],
 ) -> Result<PlainRefs, ApiError> {
     let mut refs = PlainRefs::new();
-    let assets = AssetRepo::new(api.pool());
     for id in romeka::asset_refs(carrier) {
-        if let Some(row) = assets
+        if let Some(row) = with_db!(api.pool(), |db| AssetRepo::new(db)
             .get(AssetId::from(id.get()))
-            .await
-            .map_err(db_error)?
+            .await)
+        .map_err(db_error)?
         {
             refs = refs.asset(
                 id,
@@ -213,26 +211,27 @@ async fn plain_refs(
     let Some(site) = site else {
         return Ok(refs);
     };
-    let Some(site_row) = SiteRepo::new(api.pool())
-        .get(site)
-        .await
-        .map_err(db_error)?
+    let Some(site_row) =
+        with_db!(api.pool(), |db| SiteRepo::new(db).get(site).await).map_err(db_error)?
     else {
         return Ok(refs);
     };
     let Ok(site_slug) = Slug::parse(&site_row.slug) else {
         return Ok(refs);
     };
-    if let Some(Value::String(tag)) = SiteSettingRepo::new(api.pool())
+    if let Some(Value::String(tag)) = with_db!(api.pool(), |db| SiteSettingRepo::new(db)
         .get(site, "locale")
-        .await
-        .map_err(db_error)?
+        .await)
+    .map_err(db_error)?
     {
         refs = refs.locale(Locale::parse(&tag));
     }
-    let pages = SiteRepo::new(api.pool());
     for id in romeka::page_refs(carrier) {
-        let Some(row) = pages.get_page(PageId(id.get())).await.map_err(db_error)? else {
+        let Some(row) = with_db!(api.pool(), |db| SiteRepo::new(db)
+            .get_page(PageId(id.get()))
+            .await)
+        .map_err(db_error)?
+        else {
             continue;
         };
         if row.site_id != site {
@@ -261,10 +260,10 @@ async fn plain_items(
     site_slug: &Slug,
     selection: ItemSelection,
 ) -> Result<Vec<PlainItem>, ApiError> {
-    let term = SiteSettingRepo::new(api.pool())
+    let term = with_db!(api.pool(), |db| SiteSettingRepo::new(db)
         .get(site, "romeka_location_property")
-        .await
-        .map_err(db_error)?;
+        .await)
+    .map_err(db_error)?;
     api.fill_catalog().await?;
     let location = term
         .as_ref()
@@ -272,10 +271,13 @@ async fn plain_items(
         .and_then(|term| api.catalog().property_id(term));
     let rows: Vec<ItemRow> = match selection {
         ItemSelection::Picked(ids) => {
-            let repo = ItemRepo::new(api.pool());
             let mut rows = Vec::with_capacity(ids.len());
             for id in ids {
-                if let Some(row) = repo.get(ItemId(id.get())).await.map_err(db_error)? {
+                if let Some(row) = with_db!(api.pool(), |db| ItemRepo::new(db)
+                    .get(ItemId(id.get()))
+                    .await)
+                .map_err(db_error)?
+                {
                     rows.push(row);
                 }
             }
@@ -318,12 +320,12 @@ async fn plain_item(
             .unwrap_or_else(|| omeka_site::i18n::EN.untitled.to_string()),
         resource_show_url(site_slug, "item", row.id().0),
     );
-    for value in ValueRepo::new(api.pool())
+    for value in with_db!(api.pool(), |db| ValueRepo::new(db)
         .list_for_resource(row.resource.id)
-        .await
-        .map_err(db_error)?
-        .into_iter()
-        .filter(|value| value.is_public)
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .filter(|value| value.is_public)
     {
         let Some(text) = value.value.clone().or_else(|| value.uri.clone()) else {
             continue;
@@ -346,25 +348,26 @@ async fn plain_item(
 /// The image of an item's main media, its primary media or else its first
 /// public one, `None` when that media has no image to show.
 async fn main_image(api: &Api<'_>, row: &ItemRow) -> Result<Option<PlainImage>, ApiError> {
-    let repo = MediaRepo::new(api.pool());
     let primary = match row.primary_media_id {
-        Some(id) => repo.get(id).await.map_err(db_error)?,
+        Some(id) => {
+            with_db!(api.pool(), |db| MediaRepo::new(db).get(id).await).map_err(db_error)?
+        }
         None => None,
     };
     let media = match primary.filter(|media| media.resource.is_public) {
         Some(media) => Some(media),
-        None => repo
+        None => with_db!(api.pool(), |db| MediaRepo::new(db)
             .list(
                 &MediaFilter {
                     item_id: Some(row.id()),
                     ..MediaFilter::default()
                 },
-                &Paging::default(),
+                &Paging::default()
             )
-            .await
-            .map_err(db_error)?
-            .into_iter()
-            .find(|media| media.resource.is_public),
+            .await)
+        .map_err(db_error)?
+        .into_iter()
+        .find(|media| media.resource.is_public),
     };
     Ok(media.and_then(|media| {
         media_image_path(&media).map(|path| PlainImage {

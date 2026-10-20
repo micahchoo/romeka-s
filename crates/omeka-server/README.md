@@ -25,7 +25,8 @@ environment, then the arguments `romeka serve` passes.
 | `smtp_password` | `ROMEKA_SMTP_PASSWORD` | unset | SMTP password |
 | `smtp_tls` | `ROMEKA_SMTP_TLS` | `starttls` | `starttls`, `tls` or `none` |
 | `mail_from` | `ROMEKA_MAIL_FROM` | `no-reply@romeka.invalid` | Envelope sender |
-| `archive_root` | `ROMEKA_ARCHIVE_ROOT` | unset | Server folder the archive import reads; unset or empty turns the import off |
+| `archive_roots` | `ROMEKA_ARCHIVE_ROOTS` | unset | Server folders the import reads, as `name=path` pairs separated by `;` (an object in the file). The variable replaces the file's value. Each path is made absolute at load |
+| `archive_root` | `ROMEKA_ARCHIVE_ROOT` | unset | One more root, named `archive`. With no root, the folder card of the Import page is empty and uploads still work |
 
 The TLS mode implies the port when none is set: `starttls` 587, `tls` 465,
 `none` 25. `starttls` requires the upgrade before it will send; `tls` wraps the
@@ -56,6 +57,25 @@ ROMEKA_CONFIG=/etc/romeka/romeka.json romeka serve -d /data/romeka.db \
 from the command line in practice. It loads the config itself, overrides those
 three, and calls `serve_with_services` with its file store (`--store`, default
 `files` in the working directory) and a job runner.
+
+## The database
+
+The router holds one `omeka_db::DbPool`, a SQLite or a MySQL pool, and every handler crosses to a
+repository through `omeka_db::with_db!` (`crates/omeka-db/README.md`, "Where the engine is chosen").
+`build_router` and `serve` take anything that converts into a `DbPool`, so a test passes the
+SQLite pool it seeded. The library has no `sqlx` dependency of its own; only the tests do.
+
+The route tests of `api_read`, `files_allow` and every `imports_*` file seed through
+`tests/common/engine.rs`. With `ROMEKA_MYSQL_URL` naming a server and no database, each test runs
+on a fresh MySQL or MariaDB database instead of SQLite:
+
+```sh
+ROMEKA_MYSQL_URL=mysql://root:secret@127.0.0.1:13306 \
+  cargo test -p omeka-server --test api_read --test files_allow --test 'imports*'
+```
+
+A test's database is named `romeka_srv_<pid>_<n>` and is dropped by a later run once its process
+has gone, so point the variable at a throwaway server.
 
 ## Server operations
 
@@ -286,19 +306,46 @@ without `o:modified` is never refused. The check has one-second precision, the p
 
 ## Archive import
 
-The `/api/romeka/archive`, `/api/romeka/imports` and `/api/romeka/jobs/{id}/log`
-routes are Romeka additions (`src/imports.rs`); `docs/archive-import.md` holds their
-contract. The rules live in `omeka_api::import`. Only a global or site
-administrator may call them: anonymous is 401, any other role 403.
+Import v2 (`docs/import-v2.md`, "Wire") lives in `src/imports.rs` and
+`src/imports/`; the rules are in `omeka_api::import`. Only a global or site
+administrator may call these routes: anonymous is 401, any other role 403.
 
-The server starts the run and undo jobs through the `JobDispatch` trait object
-in `Services`. `romeka serve` supplies one that starts `romeka job run <id>
---database <path> --store <dir> --base-url <url> [--archive-root <dir>]` with the
-server's own values and reaps the child; a router built without one fails every
-start. A run or an undo starts through `ImportRepo::start_run`/`start_undo`, one locked
-transaction that refuses while another import is live. Every read first records
-dead imports (`ImportRepo::settle_dead`): a dead import shows `failed` with
-`died`, blocks nothing, and may be undone while it holds the window.
+| Route | Body | Response |
+| --- | --- | --- |
+| `GET /api/romeka/archive?root=&path=` | none | 200 `{roots, root, path, entries}`; 400, 404 |
+| `GET /api/romeka/imports?page=&perPage=` | none | 200 `{total, page, perPage, items}`, newest first |
+| `POST /api/romeka/imports` | `{sources}` or `{copyFrom}` | 201 the draft with its default or copied plan; 400, 404, 409 `v1Plan` |
+| `GET /api/romeka/imports/{id}` | none | 200 the import, its plan and revision; 404 |
+| `PUT /api/romeka/imports/{id}` | `{plan, revision}` | 200; 400, 409 `stale`, `notDraft`, `v1Plan`, `typeExists` |
+| `DELETE /api/romeka/imports/{id}` | none | 204; 404, 409 `notDraft` |
+| `POST /api/romeka/imports/{id}/scan` | none | 200 `{sources}`; 202 `{jobId}` past 20,000 entries; 409 `busy` |
+| `POST /api/romeka/imports/{id}/preview` | `{include, plan?, records?, entries?}` | 200 the sections asked for; 400 |
+| `POST /api/romeka/imports/{id}/run` | `{digest, confirm?}` | 200 `{jobId}`; 409 `changed`, `blocked`, `nothing`, `confirm`, `busy`, `cannotRun` |
+| `POST /api/romeka/imports/{id}/stop` | none | 202 for an import that is running or undoing (the job stops after the record in hand; a stopped undo ends `undo_failed` with `stopped: true`); 409 `notRunning` |
+| `GET /api/romeka/imports/{id}/undo/preview[?force=all]` | none | 200 `{remove, restore, kept, skipped, forced}`, read-only; 409 `cannotUndo` |
+| `POST /api/romeka/imports/{id}/undo` | `{force?}` | 200 `{jobId}`; 409 `cannotUndo`, `busy` |
+| `GET /api/romeka/imports/{id}/left.csv` | none | 200 `text/csv`; 404 before a run ends |
+| `GET /api/romeka/imports/{id}/template.csv?columns=` | none | 200 `text/csv`, the list to fill in |
+| `POST /api/romeka/imports/{id}/sheets` | multipart, one list | 200 the import with its new plan; 400, 413, 409 `notDraft` |
+| `GET /api/romeka/imports/{id}/pairs.csv` | none | 200 `text/csv`, the unpaired rows to fill in |
+| `POST /api/romeka/imports/{id}/pairs` | multipart, one filled list | 200 `{added, already, unmatched, unmatchedTotal, import}`; 400, 409 `notDraft` |
+| `OPTIONS`, `GET`, `POST /api/romeka/imports/{id}/uploads` | tus creation headers | the tus 1.0 core: `OPTIONS` names the protocol and the largest file, `GET` lists the uploads with their limits, `POST` creates one (201 and `Location`) |
+| `HEAD`, `PATCH`, `DELETE`, `OPTIONS /api/romeka/imports/{id}/uploads/{upload}` | tus headers | `HEAD` answers the stored offset, `PATCH` appends at most 64 MiB (413 past it; 409 on a wrong offset), `DELETE` removes the upload |
+| `GET /api/romeka/starters` | none | 200 the starter item types |
+| `GET /api/romeka/jobs/{id}/log` | none | 200 the job's log as text; 404 |
+
+A preview reads the evidence index, never the folder walk: `scan` writes the
+index, and `run` scans again before it compares the digest. The sheets a plan
+names are read from the folder, or from the store when they were uploaded,
+through a cache of at most 16 reads and 128 MB of sheet bytes. Run, undo, scan,
+unzip and sweep jobs start through the `JobDispatch` the process supplies; the
+run start itself is `ImportRepo::start_run`, one locked transaction that
+freezes the plan. A `PATCH` to an upload streams its body into the store and is
+not bound by `max_body_bytes`.
+
+Deleting the job of an import that is running or undoing answers 409
+(`JobRepo::delete_unless_held`), after the dead imports are recorded
+(`ImportRepo::settle_dead`).
 
 ## Tags
 

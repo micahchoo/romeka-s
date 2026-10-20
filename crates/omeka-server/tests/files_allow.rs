@@ -13,6 +13,7 @@ use axum::http::{Request, StatusCode};
 use omeka_db::ids::{ItemId, UserId};
 use omeka_db::repos::{ApiKeyRepo, AssetRepo, ItemRepo, MediaRepo, UserRepo};
 use omeka_db::rows::{NewApiKey, NewAsset, NewItem, NewMedia, NewResource, NewUser};
+use omeka_db::with_db;
 
 use common::{KEY_CREDENTIAL, KEY_IDENTITY};
 
@@ -27,10 +28,10 @@ const OWNER_SECRET: &str = "cccccccccccccccccccccccccccccc01";
 /// item owned by an author, its private media, a public item with a public
 /// media, and a public media on that private item.
 async fn files_router() -> Router {
-    let (pool, _seed) = common::seeded_pool().await;
+    let (pool, _seed) = common::seeded_engine_pool().await;
     let owner = user(&pool, OWNER_EMAIL).await;
     user(&pool, STRANGER_EMAIL).await;
-    ApiKeyRepo::new(&pool)
+    with_db!(&pool, |db| ApiKeyRepo::new(db)
         .create(&NewApiKey {
             id: OWNER_KEY.to_string(),
             owner_id: owner,
@@ -40,8 +41,8 @@ async fn files_router() -> Router {
             last_accessed: None,
             created: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     let private_item = item(&pool, owner, false).await;
     media(
         &pool,
@@ -64,7 +65,7 @@ async fn files_router() -> Router {
     let public_item = item(&pool, owner, true).await;
     media(&pool, public_item, owner, true, "publicmedia", Some("png")).await;
     media(&pool, public_item, owner, true, "bare", None).await;
-    AssetRepo::new(&pool)
+    with_db!(&pool, |db| AssetRepo::new(db)
         .create(&NewAsset {
             owner_id: Some(owner),
             name: "logo.png".to_string(),
@@ -73,13 +74,13 @@ async fn files_router() -> Router {
             extension: Some("png".to_string()),
             alt_text: None,
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
     common::router(pool)
 }
 
-async fn user(pool: &sqlx::SqlitePool, email: &str) -> UserId {
-    UserRepo::new(pool)
+async fn user(pool: &omeka_db::DbPool, email: &str) -> UserId {
+    with_db!(pool, |db| UserRepo::new(db)
         .create(&NewUser {
             email: email.to_string(),
             name: email.to_string(),
@@ -88,13 +89,13 @@ async fn user(pool: &sqlx::SqlitePool, email: &str) -> UserId {
             is_active: true,
             created: None,
         })
-        .await
-        .unwrap()
-        .id
+        .await)
+    .unwrap()
+    .id
 }
 
-async fn item(pool: &sqlx::SqlitePool, owner: UserId, is_public: bool) -> ItemId {
-    ItemRepo::new(pool)
+async fn item(pool: &omeka_db::DbPool, owner: UserId, is_public: bool) -> ItemId {
+    with_db!(pool, |db| ItemRepo::new(db)
         .create(&NewItem {
             resource: NewResource {
                 owner_id: Some(owner),
@@ -103,20 +104,20 @@ async fn item(pool: &sqlx::SqlitePool, owner: UserId, is_public: bool) -> ItemId
             },
             primary_media_id: None,
         })
-        .await
-        .unwrap()
-        .id()
+        .await)
+    .unwrap()
+    .id()
 }
 
 async fn media(
-    pool: &sqlx::SqlitePool,
+    pool: &omeka_db::DbPool,
     item: ItemId,
     owner: UserId,
     is_public: bool,
     storage_id: &str,
     extension: Option<&str>,
 ) {
-    MediaRepo::new(pool)
+    with_db!(pool, |db| MediaRepo::new(db)
         .create(&NewMedia {
             resource: NewResource {
                 owner_id: Some(owner),
@@ -132,8 +133,8 @@ async fn media(
             has_thumbnails: true,
             ..NewMedia::default()
         })
-        .await
-        .unwrap();
+        .await)
+    .unwrap();
 }
 
 fn allow(forwarded_uri: &str, cookie: Option<&str>) -> Request<Body> {
