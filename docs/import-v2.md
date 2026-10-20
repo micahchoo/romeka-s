@@ -296,6 +296,22 @@ item-set records; for media, the media of the matched item.
 - Pass-two link writes update the ledger row's `written` time, so the import's own link writes
   never count as touching its own records.
 
+
+### Wire details (settled from P3-wire, 2026-10-20)
+
+- A 409 answers the error document plus `code` (`stale`, `notDraft`, `v1Plan`, `typeExists`,
+  `changed`, `blocked`, `nothing`, `confirm`, `busy`, `cannotRun`, `cannotUndo`, `notRunning`) and
+  the members the admin needs (`revision`, `digest`, `blocking`, `deletes`, `status`, `importId`).
+  A plan the boundary refuses answers 400.
+- Run always rescans in the request; the scan route uses a job past 20,000 entries.
+- The digest depends on who checks (a site admin's catalog holds only that admin as owner).
+- History answers `{ total, page, perPage, items }`, 25 per page by default, at most 500.
+- The sheet cache holds at most 16 reads and 128 MB.
+- Walk anomalies per source live in `romeka_import_scan (import_id, source, anomalies, error,
+  token)`, not in the entry table (0006 amended before it ever left the branch).
+- Run starts with the revision Check saw (`start_run(id, revision)`), so a save between Check and
+  Run answers `changed`.
+
 ## Values
 
 A written value is `{ type, text, lang, label, isPublic }`:
@@ -637,6 +653,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-wire | unit-test-verified | 1,953 workspace tests; S1 and S20 through the routes; digest and label mutations caught; preview 10k ~100 ms, 40k ~575 ms on a loaded machine |
 | P3-writes | unit-test-verified | 319 SQLite, 379 each on MySQL 8.0.46 and MariaDB 11.8.9; 24-case apply/restore property test; 5 mutations caught |
 | P3-derive | unit-test-verified | 149 import2 tests, 16 mutations (2 survivors fixed), 10k 95-116 ms, 40k 444-528 ms on a loaded machine |
 | P3-db | unit-test-verified | 1,782 workspace tests; 346 MySQL tests each on mysql 8.0 and MariaDB 11; start race 20/20; guards removed fail their tests |
