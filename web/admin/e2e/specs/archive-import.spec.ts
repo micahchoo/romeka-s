@@ -275,4 +275,10 @@ test('a delete is refused until its count is typed', async ({ page }) => {
   for (const one of doomed) {
     expect((await api(page, 'GET', `/api/items/${String(one)}`)).status).toBe(404);
   }
+
+  // The specs after this one share the database: the rest of the first import goes too.
+  await page.goto(`/#/import/${String(first)}/advanced/run`);
+  await page.getByRole('button', { name: 'Undo this import...' }).click();
+  await page.getByRole('button', { name: 'Undo the import' }).click();
+  await expect(page.getByText('Undone.', { exact: true })).toBeVisible({ timeout: JOB_MS });
 });
