@@ -28,8 +28,6 @@ export const mr: ImportMessages = {
   'home.server.starting': 'सुरू होत आहे...',
   'home.server.top': 'मुख्य फोल्डरवर जा',
   'home.computer.title': 'या संगणकावर',
-  'home.computer.later':
-    'या संगणकावरून फाईल्स पाठवणे नंतरच्या आवृत्तीत येईल. सध्या, तुमचे Omeka चालवणाऱ्या व्यक्तीला तुमचा फोल्डर सर्व्हरवर ठेवण्यास सांगा.',
   'home.past.title': 'मागील आयात',
   'home.past.empty': 'अद्याप कोणतीही मागील आयात नाही. सुरुवात करण्यासाठी वरून एक फोल्डर निवडा.',
   'home.past.resource': 'आयात',

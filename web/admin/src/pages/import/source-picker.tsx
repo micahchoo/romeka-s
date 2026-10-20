@@ -1,8 +1,9 @@
 /**
  * "Where are your files?": a folder under one of the server's archive roots
- * (`GET /api/romeka/archive`), or this computer once uploads exist (P6). The
- * button names the folder it starts a draft over, and the draft opens on
- * "What we found".
+ * (`GET /api/romeka/archive`), or this computer. The folder button names the
+ * folder it starts a draft over, and the draft opens on "What we found"; the
+ * computer button starts a draft over the import's own staging area, and it
+ * opens on "Your files", where the files are added.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -115,6 +116,32 @@ const UseFolder = ({ listing }: { readonly listing: ArchiveListing }): ReactElem
   );
 };
 
+const ComputerStart = (): ReactElement => {
+  const { t } = useImportText();
+  const [state, setState] = useState<{ readonly busy: boolean; readonly error: Error | null }>({ busy: false, error: null });
+  const start = (): void => {
+    setState({ busy: true, error: null });
+    importApi.create({ sources: [{ id: 's1', kind: 'staging' }] }).then(
+      (created) => {
+        window.location.hash = placeHref(created.id, { mode: 'simple', screen: 'files' });
+      },
+      (error: unknown) => {
+        setState({ busy: false, error: toError(error) });
+      },
+    );
+  };
+  return (
+    <>
+      <p>
+        <button type="button" className="import-primary" disabled={state.busy} onClick={start}>
+          {state.busy ? t('home.server.starting') : t('home.computer.start')}
+        </button>
+      </p>
+      {state.error === null ? null : <ErrorNotice error={state.error} />}
+    </>
+  );
+};
+
 const ServerFolders = (): ReactElement => {
   const { t } = useImportText();
   const [at, setAt] = useState<At>({ root: undefined, path: '' });
@@ -173,7 +200,8 @@ export const SourcePicker = (): ReactElement => {
         </section>
         <section className="import-card">
           <h3>{t('home.computer.title')}</h3>
-          <p className="muted">{t('home.computer.later')}</p>
+          <p className="muted">{t('home.computer.note')}</p>
+          <ComputerStart />
         </section>
       </div>
     </section>

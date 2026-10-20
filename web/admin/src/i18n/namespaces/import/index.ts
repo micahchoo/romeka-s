@@ -33,8 +33,8 @@ export const en = {
   'home.server.starting': 'Starting...',
   'home.server.top': 'Go to the top folder',
   'home.computer.title': 'On this computer',
-  'home.computer.later':
-    'Sending files from this computer comes in a later version. For now, ask the person who runs your Omeka to put your folder on the server.',
+  'home.computer.note': 'Send files, a folder or a zip file from this computer. You add them on the next page.',
+  'home.computer.start': 'Start with files from this computer',
   'home.past.title': 'Past imports',
   'home.past.empty': 'No past imports yet. Choose a folder above to start one.',
   'home.past.resource': 'imports',

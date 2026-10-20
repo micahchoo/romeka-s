@@ -42,6 +42,7 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
   const { t } = useImportText();
   const [store] = useState(() => new PlanStore(importApi, initial));
   const snapshot = useSyncExternalStore(store.subscribe, store.snapshot);
+  const [looks, setLooks] = useState(0);
   useEffect(() => () => {
     store.close();
   }, [store]);
@@ -52,8 +53,10 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
       place,
       change: (edit) => { store.change(edit); },
       adopt: (next) => { store.adopt(next); },
+      looks,
+      looked: () => { setLooks((count) => count + 1); },
     }),
-    [snapshot, initial.id, place, store],
+    [snapshot, initial.id, place, store, looks],
   );
   const { detail } = snapshot;
   const where = whereWords(detail.plan.sources, t);

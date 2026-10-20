@@ -2,41 +2,41 @@
  * "Where are your files?" once a draft has them: how many files each folder
  * holds, as the last look counted them, and "Look at the files again" for a
  * folder that changed. A draft is made over its folder on the start page, so
- * this screen never chooses one.
+ * this screen never chooses one; files from this computer are added here, and
+ * each one that arrives is counted with the same look as the button's.
  */
-import { useState } from 'react';
 import type { ReactElement } from 'react';
-import { importApi } from '../../../api/import-routes';
 import type { SourceState } from '../../../api/import-sections';
-import type { ScanResult } from '../../../api/import-view';
 import { ErrorNotice } from '../../../app/errors';
-import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { usePreview } from '../lists/use-preview';
+import { useLookAgain } from '../look-again';
 import { placeHref } from '../screens';
+import { ComputerFiles } from '../upload/computer-files';
 import { whereWords } from '../words';
 import { useSimpleText } from './messages';
 import './simple.css';
-
-type Again = { readonly at: 'idle' } | { readonly at: 'looking' } | { readonly at: 'done'; readonly result: ScanResult } | { readonly at: 'failed'; readonly error: Error };
 
 const total = (sources: readonly SourceState[]): number => sources.reduce((sum, source) => sum + source.files, 0);
 
 export const YourFiles = (): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const [again, setAgain] = useState<Again>({ at: 'idle' });
+  const { look: again, lookAgain: look } = useLookAgain();
   const read = usePreview(['histogram'], {});
   if (draft.plan.sources.length === 0) {
     return (
-      <div className="import-note">
-        <p>
-          <b>{t('guided.files.none')}</b>
-        </p>
-        <p>
-          <a href="#/import">{t('guided.files.choose')}</a>
-        </p>
-      </div>
+      <>
+        <div className="import-note">
+          <p>
+            <b>{t('guided.files.none')}</b>
+          </p>
+          <p>
+            <a href="#/import">{t('guided.files.choose')}</a>
+          </p>
+        </div>
+        <ComputerFiles lookAgain={look} />
+      </>
     );
   }
   if (read.status === 'loading') {
@@ -46,17 +46,6 @@ export const YourFiles = (): ReactElement => {
     return <ErrorNotice error={read.error} />;
   }
   const sources = read.data.sources;
-  const look = (): void => {
-    setAgain({ at: 'looking' });
-    importApi.scan(draft.id).then(
-      (result) => {
-        setAgain({ at: 'done', result });
-      },
-      (error: unknown) => {
-        setAgain({ at: 'failed', error: toError(error) });
-      },
-    );
-  };
   const files = total(sources);
   return (
     <>
@@ -92,6 +81,7 @@ export const YourFiles = (): ReactElement => {
         </p>
       ) : null}
       {again.at === 'failed' ? <ErrorNotice error={again.error} /> : null}
+      <ComputerFiles lookAgain={look} />
     </>
   );
 };

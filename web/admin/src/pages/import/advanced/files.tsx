@@ -1,5 +1,6 @@
 /**
- * Advanced, Files: where the files come from, the marked example with a
+ * Advanced, Files: where the files come from, files added from this
+ * computer (looked at again as each arrives), the marked example with a
  * Remove for each mark, the pattern typed as a regex with what it fits, the
  * identical files, the files chart and the groups of items by their facts.
  */
@@ -8,11 +9,13 @@ import type { ReactElement } from 'react';
 import type { SourcePlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
-import { listHref } from '../lists/address';
-import { usePreview } from '../lists/use-preview';
-import { whereWords } from '../words';
 import { exampleOf, patternIsMarked, removeExample, removeMark } from '../example';
 import type { Mark } from '../example';
+import { listHref } from '../lists/address';
+import { useLookAgain } from '../look-again';
+import { usePreview } from '../lists/use-preview';
+import { ComputerFiles } from '../upload/computer-files';
+import { whereWords } from '../words';
 import { useAdvancedText } from './messages';
 import { PatternEditor } from './pattern-editor';
 import { Setting } from './setting';
@@ -119,10 +122,13 @@ export const AdvancedFiles = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const { pattern, caseFold } = draft.plan.grouping;
+  const { look, lookAgain } = useLookAgain();
   return (
     <div className="adv-section">
       <h4>{t('adv.files.sources.title')}</h4>
       <Sources />
+      <ComputerFiles lookAgain={lookAgain} />
+      {look.at === 'failed' ? <ErrorNotice error={look.error} /> : null}
       <h4>{t('adv.files.pattern.title')}</h4>
       <Example />
       <PatternEditor key={JSON.stringify([pattern, caseFold])} />

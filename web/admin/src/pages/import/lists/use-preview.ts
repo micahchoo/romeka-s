@@ -1,6 +1,7 @@
 /**
  * One preview read for a list, made again whenever the saved answers change
- * (the import's revision) or what the caller asks changes. The last answer
+ * (the import's revision), the files were looked at again, or what the
+ * caller asks changes. The last answer
  * stays on screen while the next loads, so a list never blinks.
  */
 import { useEffect, useState } from 'react';
@@ -19,7 +20,7 @@ export const usePreview = <S extends Section>(
   include: readonly S[],
   options: PreviewOptions,
 ): Read<PreviewWith<S>> => {
-  const { id, detail } = useDraft();
+  const { id, detail, looks } = useDraft();
   const [read, setRead] = useState<Read<PreviewWith<S>>>({ status: 'loading' });
   const asked = JSON.stringify([include, options]);
   useEffect(() => {
@@ -41,6 +42,6 @@ export const usePreview = <S extends Section>(
       current = false;
     };
     // `asked` holds `include` and `options`, which are new objects on every render.
-  }, [id, detail.revision, asked]);
+  }, [id, detail.revision, looks, asked]);
   return read;
 };

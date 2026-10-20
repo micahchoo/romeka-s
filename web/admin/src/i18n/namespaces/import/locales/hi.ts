@@ -28,8 +28,6 @@ export const hi: ImportMessages = {
   'home.server.starting': 'शुरू हो रहा है...',
   'home.server.top': 'शीर्ष फ़ोल्डर पर जाएँ',
   'home.computer.title': 'इस कंप्यूटर पर',
-  'home.computer.later':
-    'इस कंप्यूटर से फ़ाइलें भेजने की सुविधा बाद के संस्करण में आएगी। अभी के लिए, अपना Omeka चलाने वाले व्यक्ति से कहें कि वे आपका फ़ोल्डर सर्वर पर रख दें।',
   'home.past.title': 'पिछले आयात',
   'home.past.empty': 'अभी तक कोई पिछला आयात नहीं है। शुरू करने के लिए ऊपर से एक फ़ोल्डर चुनें।',
   'home.past.resource': 'आयात',

@@ -26,8 +26,8 @@ export const es: ImportMessages = {
   'home.server.starting': 'Empezando...',
   'home.server.top': 'Ir a la carpeta superior',
   'home.computer.title': 'En este ordenador',
-  'home.computer.later':
-    'El envío de archivos desde este ordenador llegará en una versión posterior. Por ahora, pide a la persona que administra tu Omeka que ponga tu carpeta en el servidor.',
+  'home.computer.note': 'Envía archivos, una carpeta o un archivo zip desde este ordenador. Los añades en la página siguiente.',
+  'home.computer.start': 'Empezar con archivos de este ordenador',
   'home.past.title': 'Importaciones anteriores',
   'home.past.empty': 'Todavía no hay importaciones anteriores. Elige una carpeta arriba para empezar una.',
   'home.past.resource': 'importaciones',
