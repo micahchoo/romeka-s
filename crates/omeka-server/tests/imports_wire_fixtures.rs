@@ -522,6 +522,14 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
         &refused(again, StatusCode::CONFLICT, Some("cannotRun")).await,
     );
 
+    // Keyed in the query string, as a client without a session asks.
+    out.json(
+        "undo-preview.json",
+        &ok(fixture
+            .call("GET", &at(&done["id"], "/undo/preview"), None)
+            .await)
+        .await,
+    );
     out.json(
         "undo.json",
         &ok(fixture

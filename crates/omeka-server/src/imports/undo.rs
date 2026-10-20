@@ -106,8 +106,9 @@ pub(super) async fn undo(
     )
 }
 
+/// Unknown members are let through: a client without a session sends its
+/// API key in the query string (`key_identity`, `key_credential`).
 #[derive(Deserialize, Default)]
-#[serde(deny_unknown_fields)]
 pub(super) struct PreviewQuery {
     /// `all` previews `force: "all"`.
     #[serde(default)]
