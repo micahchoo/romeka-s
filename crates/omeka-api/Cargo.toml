@@ -48,10 +48,6 @@ tokio = { version = "1", features = ["rt"] }
 oxrdfio = "0.2"
 # The term types oxrdfio's parsers yield.
 oxrdf = "0.3"
-# The importer fetches a vocabulary URL through a resolver that refuses private
-# and local addresses (`vocab_import/fetch.rs`), which needs ureq's own
-# resolver seam. The same version omeka-media already builds.
-ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen

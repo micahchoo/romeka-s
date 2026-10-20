@@ -25,6 +25,9 @@
 //! [`read_global`] answers each of the three as it applies, and a `null` write
 //! restores the default.
 //!
+//! One global key is port-only: [`IMPORT_ALLOW_PRIVATE_URLS`] lets every
+//! fetch an ingester makes reach private addresses ([`address_policy`]).
+//!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
 //! client reads as its own default.
@@ -32,6 +35,7 @@
 use omeka_db::DbError;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{SettingRepo, UserSettingRepo};
+use omeka_media::http_guard::AddressPolicy;
 use omeka_media::validation::{DEFAULT_EXTENSIONS, DEFAULT_MEDIA_TYPES, FileValidation};
 use serde_json::{Map, Value};
 use sqlx::SqlitePool;
@@ -60,6 +64,11 @@ pub const EXTENSION_WHITELIST: &str = "extension_whitelist";
 /// `SettingForm`'s switch that turns file validation off.
 pub const DISABLE_FILE_VALIDATION: &str = "disable_file_validation";
 
+/// The operator's switch that lifts the URL guard's address check, so an
+/// ingester may fetch from loopback, link-local and private ranges
+/// (docs/import-v2.md "URL sources"). Port-only; upstream fetches any URL.
+pub const IMPORT_ALLOW_PRIVATE_URLS: &str = "import_allow_private_urls";
+
 /// What a setting's value may be on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Shape {
@@ -84,11 +93,12 @@ pub const GLOBAL_SETTINGS: &[&str] = &[
     MEDIA_TYPE_WHITELIST,
     EXTENSION_WHITELIST,
     DISABLE_FILE_VALIDATION,
+    IMPORT_ALLOW_PRIVATE_URLS,
 ];
 
 fn shape(key: &str) -> Shape {
     match key {
-        HIDE_LESSONS | DISABLE_FILE_VALIDATION => Shape::Flag,
+        HIDE_LESSONS | DISABLE_FILE_VALIDATION | IMPORT_ALLOW_PRIVATE_URLS => Shape::Flag,
         LESSONS_SEEN => Shape::Names,
         MEDIA_TYPE_WHITELIST | EXTENSION_WHITELIST => Shape::AllowList,
         _ => Shape::Text,
@@ -214,6 +224,26 @@ pub async fn file_validation(repo: &SettingRepo<'_>) -> Result<FileValidation, D
     })
 }
 
+/// The address policy every fetch an ingester makes runs under: private
+/// ranges only when the operator stored [`IMPORT_ALLOW_PRIVATE_URLS`].
+///
+/// # Errors
+/// [`DbError`] when the setting row cannot be read.
+pub async fn address_policy(repo: &SettingRepo<'_>) -> Result<AddressPolicy, DbError> {
+    Ok(if allows_private_urls(repo).await? {
+        AddressPolicy::AllowPrivate
+    } else {
+        AddressPolicy::PublicOnly
+    })
+}
+
+async fn allows_private_urls(repo: &SettingRepo<'_>) -> Result<bool, DbError> {
+    Ok(repo
+        .get(IMPORT_ALLOW_PRIVATE_URLS)
+        .await?
+        .is_some_and(|value| php_truthy(&value)))
+}
+
 fn php_truthy(value: &Value) -> bool {
     match value {
         Value::Bool(flag) => *flag,
@@ -226,7 +256,8 @@ fn php_truthy(value: &Value) -> bool {
 }
 
 /// `GET /api/settings`: the global API settings as one map, for a global
-/// admin. The three file validation settings always answer, as they apply.
+/// admin. The three file validation settings and the private URL switch
+/// always answer, as they apply.
 ///
 /// # Errors
 /// [`ApiError::PermissionDenied`] for any other caller, [`ApiError::Internal`]
@@ -242,6 +273,10 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     map.insert(MEDIA_TYPE_WHITELIST.to_string(), files.media_types.into());
     map.insert(EXTENSION_WHITELIST.to_string(), files.extensions.into());
     map.insert(DISABLE_FILE_VALIDATION.to_string(), files.disabled.into());
+    map.insert(
+        IMPORT_ALLOW_PRIVATE_URLS.to_string(),
+        allows_private_urls(&repo).await.map_err(db_error)?.into(),
+    );
     Ok(ApiResponse::document(serialize(&Value::Object(map))?))
 }
 
