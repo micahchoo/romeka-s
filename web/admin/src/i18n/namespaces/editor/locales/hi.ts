@@ -481,4 +481,17 @@ export const hi: EditorMessages = {
   'history.showTheirs': 'उनका संस्करण दिखाएँ',
   'history.keepMine': 'अपना रखें',
   'history.notSaved': 'सहेजा नहीं गया: किसी और ने पहले इस पृष्ठ को सहेजा है।',
+  'region.header': 'साइट हेडर',
+  'region.footer': 'साइट फुटर',
+  'region.banner': 'साइट-व्यापी। प्रत्येक पृष्ठ पर परिवर्तन।',
+  'region.bannerLabel': 'साइट-व्यापी परिवर्तन',
+  'region.save': 'साइट-व्यापी परिवर्तन सहेजें',
+  'region.unsaved': 'सहेजा नहीं गया',
+  'region.unsavedOpen': '{region}: साइट-व्यापी परिवर्तन सहेजे नहीं गए',
+  'region.openTheme': 'थीम पेज खोलें',
+  'region.style': 'लेआउट और शैली',
+  'region.leaveConfirm': 'साइट हेडर या फुटर में बिना सहेजे परिवर्तन हैं। छोड़ें और उन्हें खो दें?',
+  'region.pageGroup': 'प्रत्येक पृष्ठ पर',
+  'region.pageHelp':
+    'हेडर और फुटर पूरे साइट के हैं। पूर्वावलोकन में एक पर क्लिक करें, या यहाँ चुनें।',
 };

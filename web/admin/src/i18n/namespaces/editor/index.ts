@@ -473,6 +473,19 @@ export const en = {
   'history.showTheirs': 'Show their version',
   'history.keepMine': 'Keep mine',
   'history.notSaved': 'Not saved: someone else saved this page first.',
+  // The site header and footer, selected in the page editor (site-regions).
+  'region.header': 'Site header',
+  'region.footer': 'Site footer',
+  'region.banner': 'Site-wide. Changes every page.',
+  'region.bannerLabel': 'Site-wide changes',
+  'region.save': 'Save site-wide changes',
+  'region.unsaved': 'Not saved',
+  'region.unsavedOpen': '{region}: site-wide changes not saved',
+  'region.openTheme': 'Open the Theme page',
+  'region.style': 'Layout and style',
+  'region.leaveConfirm': 'The site header or footer has unsaved changes. Leave and lose them?',
+  'region.pageGroup': 'On every page',
+  'region.pageHelp': 'The header and footer belong to the whole site. Click one in the preview, or choose it here.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

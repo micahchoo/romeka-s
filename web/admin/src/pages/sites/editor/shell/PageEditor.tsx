@@ -23,8 +23,10 @@ import { layoutLabel } from '../canvas/summary';
 import { Inspector } from './Inspector';
 import { KeysPopover } from './KeysPopover';
 import { PageSettings } from './PageSettings';
-import { blockOf } from './selection';
+import { blockOf, selectedKey } from './selection';
 import type { Selection, SelectionSource } from './selection';
+import type { SiteWideEdit } from './SiteRegionInspector';
+import { REGION_LABEL } from '../regions';
 import { commandFor } from './shortcuts';
 import type { EditorCommand } from './shortcuts';
 import { usePreview } from './usePreview';
@@ -63,6 +65,12 @@ const HistoryPanel = lazy(() =>
 );
 const VersionView = lazy(() =>
   import('./HistoryPanel').then((module) => ({ default: module.VersionView })),
+);
+
+/** The site region inspector carries the Theme page's controls, so it is its own
+ * chunk, loaded on the first region selection. */
+const SiteRegionInspector = lazy(() =>
+  import('./SiteRegionInspector').then((module) => ({ default: module.SiteRegionInspector })),
 );
 
 /** The refused-save dialog is its own chunk, loaded only when a save is refused. */
@@ -132,7 +140,10 @@ export const PageEditor = ({
   /** The label of the block the last edit removed, while Undo would restore it. */
   const [removed, setRemoved] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryView>({ kind: 'closed' });
-  const preview = usePreview(draft, site.slug, siteId, pageId);
+  /** The site's theme settings as last loaded or saved, and the unsaved site-wide change over them. */
+  const [storedTheme, setStoredTheme] = useState<JsonValue | null>(site.themeSettings);
+  const [siteWide, setSiteWide] = useState<SiteWideEdit | null>(null);
+  const preview = usePreview(draft, site.slug, siteId, pageId, siteWide?.settings ?? null);
   const inspector = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLDivElement | null>(null);
   const focusAfter = useRef<'inspector' | 'canvas' | null>(null);
@@ -140,7 +151,11 @@ export const PageEditor = ({
   const issues = validate(draft);
   const valid = issues.length === 0;
   const dirty = isDirty(draft);
-  const guard = useUnsavedGuard(dirty, t('editor.leaveConfirm'));
+  const siteWideDirty = siteWide?.dirty === true;
+  const guard = useUnsavedGuard(
+    dirty || siteWideDirty,
+    t(dirty ? 'editor.leaveConfirm' : 'region.leaveConfirm'),
+  );
   const saving = usePageSave({
     page,
     siteId,
@@ -180,13 +195,13 @@ export const PageEditor = ({
       next.type === 'removeBlock' ? draft.blocks.find((block) => block.key === next.blockKey) : undefined;
     setRemoved(gone === undefined ? null : layoutLabel(draft.registry, gone, t));
     if (next.type === 'addBlock') {
-      setSelection({ key: nextBlockKey(draft), from });
+      setSelection({ kind: 'block', key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
     } else if (next.type === 'insertBlocks' && next.blocks.length > 0) {
-      setSelection({ key: nextBlockKey(draft), from });
+      setSelection({ kind: 'block', key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
     } else if (next.type === 'removeBlock') {
-      if (selection?.key === next.blockKey) {
+      if (selectedKey(selection) === next.blockKey) {
         setSelection(null);
       }
       focusAfter.current = 'canvas';
@@ -244,7 +259,7 @@ export const PageEditor = ({
       return;
     }
     const key = issue.blockKey;
-    setSelection({ key, from: 'issue' });
+    setSelection({ kind: 'block', key, from: 'issue' });
     focusAfter.current = null;
     setTimeout(() => {
       const control = document.getElementById(`block-${key}-${issue.field}`);
@@ -304,6 +319,19 @@ export const PageEditor = ({
             {t('editor.dirty')}
           </span>
         ) : null}
+        {siteWide === null || !siteWideDirty || selection?.kind === 'region' ? null : (
+          <button
+            type="button"
+            className="editor-site-wide-dirty"
+            onClick={() => {
+              setSelection({ kind: 'region', region: siteWide.region, from: 'inspector' });
+              focusAfter.current = 'inspector';
+            }}
+          >
+            <span className="editor-dirty-dot" aria-hidden="true" />
+            {t('region.unsavedOpen', { region: t(REGION_LABEL[siteWide.region]) })}
+          </button>
+        )}
         {issues.length === 0 ? null : (
           <button type="button" className="editor-issues" onClick={jumpToIssue}>
             {counted(t, 'toolbarIssues', issues.length)}
@@ -382,7 +410,7 @@ export const PageEditor = ({
                 siteSettings={siteSettings}
                 selection={selection}
                 onSelect={(key) => {
-                  setSelection(key === null ? null : { key, from: 'outline' });
+                  setSelection(key === null ? null : { kind: 'block', key, from: 'outline' });
                 }}
                 dispatch={action}
               />
@@ -413,8 +441,8 @@ export const PageEditor = ({
               draft={draft}
               selection={selection}
               siteSettings={siteSettings}
-              onSelect={(key) => {
-                setSelection(key === null ? null : { key, from: 'preview' });
+              onSelect={(target) => {
+                setSelection(target === null ? null : { ...target, from: 'preview' });
               }}
               dispatch={(next) => {
                 action(next, 'preview');
@@ -441,12 +469,28 @@ export const PageEditor = ({
                   focusAfter.current = 'inspector';
                 }}
                 onSelect={(key) => {
-                  setSelection({ key, from: 'inspector' });
+                  setSelection({ kind: 'block', key, from: 'inspector' });
                   focusAfter.current = 'inspector';
                 }}
                 issues={issues}
                 siteId={siteId}
                 options={options}
+              />
+            ) : selection?.kind === 'region' ? (
+              <SiteRegionInspector
+                region={selection.region}
+                siteId={siteId}
+                stored={storedTheme}
+                edit={siteWide}
+                onEdit={setSiteWide}
+                onSaved={(settings) => {
+                  setStoredTheme(settings);
+                  setSiteWide(null);
+                }}
+                onPage={() => {
+                  deselect();
+                  focusAfter.current = 'inspector';
+                }}
               />
             ) : history.kind === 'open' && pageId !== null ? (
               <HistoryPanel
@@ -474,6 +518,10 @@ export const PageEditor = ({
                 }}
                 onOpenSaveTemplate={() => {
                   setSavingTemplate(true);
+                }}
+                onSelectRegion={(region) => {
+                  setSelection({ kind: 'region', region, from: 'inspector' });
+                  focusAfter.current = 'inspector';
                 }}
               />
             )}

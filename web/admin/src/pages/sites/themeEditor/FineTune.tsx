@@ -120,6 +120,56 @@ const ShadeInputs = ({
   );
 };
 
+/**
+ * One token's row: its control (both shades of a colour under the automatic
+ * scheme), its help line and its Reset. Fine-tune lists every token this way;
+ * the page editor's site region inspector lists the region's own.
+ */
+export const TokenField = ({
+  settingKey,
+  draft,
+  resolved,
+  onSet,
+}: {
+  readonly settingKey: string;
+  readonly draft: ThemeDraft;
+  readonly resolved: Resolved;
+  readonly onSet: (key: string, value: TokenValue | null) => void;
+}): ReactElement | null => {
+  const setting = settingFor(settingKey);
+  if (setting === undefined) {
+    return null;
+  }
+  const darkKey = resolved.scheme === 'auto' ? darkKeyOf(settingKey) : undefined;
+  return (
+    <TokenRow
+      setting={setting}
+      changed={
+        draft.overrides[settingKey] !== undefined ||
+        (darkKey !== undefined && draft.overrides[darkKey] !== undefined)
+      }
+      onReset={() => {
+        onSet(settingKey, null);
+        if (darkKey !== undefined) {
+          onSet(darkKey, null);
+        }
+      }}
+    >
+      {darkKey === undefined ? (
+        <TokenControl
+          setting={setting}
+          value={shownValue(setting, draft, resolved)}
+          onChange={(value) => {
+            onSet(settingKey, value);
+          }}
+        />
+      ) : (
+        <ShadeInputs setting={setting} darkKey={darkKey} draft={draft} resolved={resolved} onSet={onSet} />
+      )}
+    </TokenRow>
+  );
+};
+
 export const FineTune = ({
   draft,
   resolved,
@@ -140,47 +190,9 @@ export const FineTune = ({
           {group.titleKey === 'theme.colours' && resolved.scheme === 'auto' ? (
             <p className="field-note">{t('theme.shadesHelp')}</p>
           ) : null}
-          {group.keys.map((key) => {
-            const setting = settingFor(key);
-            if (setting === undefined) {
-              return null;
-            }
-            const darkKey = resolved.scheme === 'auto' ? darkKeyOf(key) : undefined;
-            return (
-              <TokenRow
-                key={key}
-                setting={setting}
-                changed={
-                  draft.overrides[key] !== undefined ||
-                  (darkKey !== undefined && draft.overrides[darkKey] !== undefined)
-                }
-                onReset={() => {
-                  onSet(key, null);
-                  if (darkKey !== undefined) {
-                    onSet(darkKey, null);
-                  }
-                }}
-              >
-                {darkKey === undefined ? (
-                  <TokenControl
-                    setting={setting}
-                    value={shownValue(setting, draft, resolved)}
-                    onChange={(value) => {
-                      onSet(key, value);
-                    }}
-                  />
-                ) : (
-                  <ShadeInputs
-                    setting={setting}
-                    darkKey={darkKey}
-                    draft={draft}
-                    resolved={resolved}
-                    onSet={onSet}
-                  />
-                )}
-              </TokenRow>
-            );
-          })}
+          {group.keys.map((key) => (
+            <TokenField key={key} settingKey={key} draft={draft} resolved={resolved} onSet={onSet} />
+          ))}
         </fieldset>
       ))}
     </details>

@@ -16,6 +16,7 @@ import { formValues } from '../layoutPaths';
 import type { EditorOptions } from '../options';
 import { layoutLabel } from '../canvas/summary';
 import { Labelled } from '../Labelled';
+import { InspectorCrumbs } from './InspectorCrumbs';
 import { romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { isJsonArray, isJsonObject, layoutDataObject } from '../values';
@@ -121,13 +122,7 @@ export const Inspector = ({
 
   return (
     <div className="block-inspector">
-      <nav className="inspector-crumbs" aria-label={t('editor.crumbs')}>
-        <button type="button" title={t('editor.crumbPageHint')} onClick={onDeselect}>
-          {t('editor.crumbPage')}
-        </button>
-        <span aria-hidden="true">›</span>
-        <span aria-current="location">{label}</span>
-      </nav>
+      <InspectorCrumbs label={label} onPage={onDeselect} />
       <h2>{t('editor.blockHeading', { label, position, count: draft.blocks.length })}</h2>
       {romka === undefined ? (
         <Labelled id={`block-layout-${block.key}`} label={t('editor.blockLayout')}>

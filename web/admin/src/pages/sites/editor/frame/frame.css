@@ -66,6 +66,21 @@
   background: color-mix(in srgb, var(--accent) 80%, #000000);
 }
 
+/* A site region is drawn in the text colour, not the accent, so it reads as a
+ * part of every page rather than as one of this page's blocks. */
+.live-outline--region {
+  border-color: var(--text);
+}
+
+.live-outline--region.live-outline--selected {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 25%, transparent);
+}
+
+.live-outline--region .live-label {
+  background: var(--text);
+  color: var(--bg);
+}
+
 .live-slot {
   position: absolute;
 }

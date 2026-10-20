@@ -23,6 +23,7 @@ const renderSettings = (page: Readonly<Record<string, unknown>> = {}, dispatch =
       options={{ pages: [], itemSets: [], classes: [] }}
       onDeleted={vi.fn()}
       onOpenSaveTemplate={vi.fn()}
+      onSelectRegion={vi.fn()}
     />,
   );
   return dispatch;
