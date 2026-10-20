@@ -1,11 +1,13 @@
 /**
- * The archive folder the import specs read, written under the run's work
- * directory before the port starts, so `ROMEKA_ARCHIVE_ROOT` points at it.
+ * The archive folders the import spec reads, written under the run's work
+ * directory before the port starts, so `ROMEKA_ARCHIVE_ROOT` points at them.
  *
- * Two top folders make two item sets. `LT_001` is a front and back pair, the
- * photographs are TIFF masters with no part in their names, `readme.txt`
- * matches no item, and the spreadsheet has a title line above its header,
- * semicolons, one cell in Windows-1252 and one empty title.
+ * `BHC_006` is a small copy of the BHC_006 archive's shape: artifacts with a
+ * front and a back, photographs with a verso, a register whose first column is
+ * each item's accession number, and a note that is no picture. `BHC_007` holds
+ * more photographs than the Pair screen pairs by hand, and a register whose
+ * numbers are not the file names, so every row of it is paired through the
+ * pairs list.
  *
  * The images are 8 by 8 and carry EXIF (Model, Artist, DateTimeOriginal).
  * They were made with Pillow and exiftool:
@@ -14,12 +16,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-/** The folder under the archive root that the specs import. */
-export const ARCHIVE_FOLDER = 'family-archive';
-export const LETTERS = 'Letters';
-export const PHOTOS = 'Photos';
-export const CSV_FILE = 'catalogue.csv';
+import { crc32 } from 'node:zlib';
 
 const JPEG_FRONT =
   '/9j/4AAQSkZJRgABAQAAAQABAAD/4QCiRXhpZgAATU0AKgAAAAgAAwEQAAIAAAALAAAAMgE7AAIAAAARAAAAPodpAAQAAAAB' +
@@ -56,46 +53,116 @@ const TIFF =
   'UDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDyg' +
   'UDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUDygUA==';
 
-/** The title each spreadsheet row gives; `PH_102` has none. */
-export const CSV_TITLES: Readonly<Record<string, string>> = {
-  LT_001: 'Letter from Anna',
-  LT_002: 'Letter from Ben',
-  PH_101: 'Harbour at dawn',
+/** The register's rows: accession number, title, date. */
+export const BHC_ROWS: readonly (readonly [string, string, string])[] = [
+  ['BHC_006_AF_001', 'Brass lamp', '1950'],
+  ['BHC_006_AF_002', 'Tin box', '1962'],
+  ['BHC_006_AF_003', 'Clay pot', '1931'],
+  ['BHC_006_PH_001', 'Harbour at dawn', '1952'],
+  ['BHC_006_PH_002', 'Street corner', '1955'],
+];
+
+export const BHC = 'BHC_006';
+export const ARTIFACTS = 'Artifacts';
+export const PHOTOGRAPHS = 'Photographs';
+export const REGISTER = 'register.csv';
+
+/** The folder of photographs paired by the pairs list, and how many it holds. */
+export const PAIRS = 'BHC_007';
+export const PAIRS_COUNT = 31;
+
+/**
+ * Each file's bytes end with its own name, after the image ends, so no two
+ * files are identical: the import asks about identical files, and this run is
+ * not about them.
+ */
+const own = (base64: string, name: string): Buffer => Buffer.concat([Buffer.from(base64, 'base64'), Buffer.from(name)]);
+const jpeg = (name: string): Buffer => own(JPEG_FRONT, name);
+
+const register = (): Buffer =>
+  Buffer.from(['Accession No,Title,Date', ...BHC_ROWS.map((row) => row.join(','))].join('\n') + '\n');
+
+/** `R001`…: numbers that name no file, so no row pairs by itself. */
+export const pairsRow = (n: number): string => `R${String(n).padStart(3, '0')}`;
+export const pairsFile = (n: number): string => `photo-${String(n)}.jpg`;
+
+const pairsRegister = (): Buffer =>
+  Buffer.from(
+    ['Number,Title', ...Array.from({ length: PAIRS_COUNT }, (_, at) => `${pairsRow(at + 1)},Photograph ${String(at + 1)}`)].join('\n') + '\n',
+  );
+
+/** The images by path under the archive root. */
+const IMAGES: Readonly<Record<string, string>> = {
+  [`${BHC}/${ARTIFACTS}/BHC_006_AF_001_front.jpg`]: JPEG_FRONT,
+  [`${BHC}/${ARTIFACTS}/BHC_006_AF_001_back.jpg`]: JPEG_BACK,
+  [`${BHC}/${ARTIFACTS}/BHC_006_AF_002_front.jpg`]: JPEG_FRONT,
+  [`${BHC}/${ARTIFACTS}/BHC_006_AF_002_back.jpg`]: JPEG_BACK,
+  [`${BHC}/${ARTIFACTS}/BHC_006_AF_003_front.jpg`]: JPEG_FRONT,
+  [`${BHC}/${PHOTOGRAPHS}/BHC_006_PH_001.tif`]: TIFF,
+  [`${BHC}/${PHOTOGRAPHS}/BHC_006_PH_001_verso.jpg`]: JPEG_BACK,
+  [`${BHC}/${PHOTOGRAPHS}/BHC_006_PH_002.tif`]: TIFF,
+  ...Object.fromEntries(Array.from({ length: PAIRS_COUNT }, (_, at) => [`${PAIRS}/${pairsFile(at + 1)}`, JPEG_FRONT])),
 };
 
-/** `Café` with `é` as the single Windows-1252 byte 0xE9, which is not UTF-8. */
-const csvBytes = (): Buffer =>
-  Buffer.concat([
-    Buffer.from(
-      'Family archive catalogue, exported 2026-10-01\n' +
-        'identifier;title;notes\n' +
-        `LT_001;${CSV_TITLES.LT_001 ?? ''};First letter\n` +
-        `LT_002;${CSV_TITLES.LT_002 ?? ''};Caf`,
-    ),
-    Buffer.from([0xe9]),
-    Buffer.from(` visit\nPH_101;${CSV_TITLES.PH_101 ?? ''};Boats\nPH_102;;Street corner\n`),
-  ]);
-
-/** The files by path inside the import folder. */
+/** The files by path under the archive root. */
 const FILES: Readonly<Record<string, () => Buffer>> = {
-  [`${LETTERS}/LT_001_back.jpg`]: () => Buffer.from(JPEG_BACK, 'base64'),
-  [`${LETTERS}/LT_001_front.jpg`]: () => Buffer.from(JPEG_FRONT, 'base64'),
-  [`${LETTERS}/LT_002_front.jpg`]: () => Buffer.from(JPEG_FRONT, 'base64'),
-  [`${LETTERS}/readme.txt`]: () => Buffer.from('Scanned in 2026.\n'),
-  [`${PHOTOS}/PH_101.tif`]: () => Buffer.from(TIFF, 'base64'),
-  [`${PHOTOS}/PH_102.tif`]: () => Buffer.from(TIFF, 'base64'),
-  [CSV_FILE]: csvBytes,
+  ...Object.fromEntries(Object.entries(IMAGES).map(([path, base64]) => [path, () => own(base64, path)])),
+  [`${BHC}/notes.txt`]: () => Buffer.from('Scanned in 2026.\n'),
+  [`${BHC}/${REGISTER}`]: register,
+  [`${PAIRS}/register.csv`]: pairsRegister,
 };
 
 /** The archive root the port is started with. */
 export const archiveRoot = (workDir: string): string => join(workDir, 'archive');
 
-/** Write the import folder under the archive root. */
+/** Write the import folders under the archive root. */
 export const writeArchive = (workDir: string): void => {
-  const folder = join(archiveRoot(workDir), ARCHIVE_FOLDER);
   for (const [path, bytes] of Object.entries(FILES)) {
-    const file = join(folder, path);
+    const file = join(archiveRoot(workDir), path);
     mkdirSync(join(file, '..'), { recursive: true });
     writeFileSync(file, bytes());
   }
 };
+
+/** A zip of `files`, stored without compression: enough for the unpack job. */
+export const zipOf = (files: Readonly<Record<string, Buffer>>): Buffer => {
+  const local: Buffer[] = [];
+  const central: Buffer[] = [];
+  let offset = 0;
+  for (const [name, data] of Object.entries(files)) {
+    const path = Buffer.from(name, 'utf8');
+    const crc = crc32(data);
+    const head = Buffer.alloc(30);
+    head.writeUInt32LE(0x04034b50, 0);
+    head.writeUInt16LE(20, 4);
+    head.writeUInt16LE(0x0800, 6);
+    head.writeUInt32LE(crc, 14);
+    head.writeUInt32LE(data.length, 18);
+    head.writeUInt32LE(data.length, 22);
+    head.writeUInt16LE(path.length, 26);
+    local.push(head, path, data);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(0x0800, 8);
+    entry.writeUInt32LE(crc, 16);
+    entry.writeUInt32LE(data.length, 20);
+    entry.writeUInt32LE(data.length, 24);
+    entry.writeUInt16LE(path.length, 28);
+    entry.writeUInt32LE(offset, 42);
+    central.push(entry, path);
+    offset += head.length + path.length + data.length;
+  }
+  const directory = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(Object.keys(files).length, 8);
+  end.writeUInt16LE(Object.keys(files).length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...local, directory, end]);
+};
+
+/** A JPEG for an upload. */
+export const uploadJpeg = jpeg;
