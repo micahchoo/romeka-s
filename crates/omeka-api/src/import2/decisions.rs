@@ -108,20 +108,208 @@ pub enum Decision {
         slot: Option<SlotName>,
         policy: FlagPolicy,
     },
+    /// One change to the records that hold each of these entries, as if it
+    /// were one decision per entry at this place in the list.
+    Many {
+        entries: Vec<EntryRef>,
+        change: Change,
+    },
+    /// A list row joined to a file's record by hand. It wins over the
+    /// sheet's join rule for that row and that file.
+    Pair { row: RowRef, file: FileRef },
+}
+
+/// A decision without its entry: what a `many` decision does to each of
+/// its entries. It is never itself `many` or `pair`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum Change {
+    Move {
+        to: MoveTo,
+    },
+    Leave {},
+    Set {
+        target: RecordKind,
+        slot: SlotName,
+        values: Vec<DecisionValue>,
+    },
+    Match {
+        target: RecordKind,
+        #[serde(deserialize_with = "super::nullable")]
+        resource: Option<i64>,
+    },
+    Flag {
+        flag: FlagKind,
+        #[serde(deserialize_with = "super::nullable")]
+        slot: Option<SlotName>,
+        policy: FlagPolicy,
+    },
+}
+
+/// What a `leave`, `set`, `match` or `flag` decision does, single or part of
+/// a `many`.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Act<'p> {
+    Leave,
+    Set {
+        target: RecordKind,
+        slot: &'p SlotName,
+        values: &'p [DecisionValue],
+    },
+    Match {
+        target: RecordKind,
+        resource: Option<i64>,
+    },
+    Flag {
+        flag: FlagKind,
+        slot: Option<&'p SlotName>,
+        policy: FlagPolicy,
+    },
 }
 
 impl Decision {
-    /// The entry the decision is keyed by.
-    #[must_use]
-    pub fn entry(&self) -> EntryRef {
+    /// What the decision does to each entry it names; `None` for `move`
+    /// and `pair`, which act before records exist.
+    pub(crate) fn act(&self) -> Option<Act<'_>> {
+        Some(match self {
+            Self::Leave { .. }
+            | Self::Many {
+                change: Change::Leave {},
+                ..
+            } => Act::Leave,
+            Self::Set {
+                target,
+                slot,
+                values,
+                ..
+            }
+            | Self::Many {
+                change:
+                    Change::Set {
+                        target,
+                        slot,
+                        values,
+                    },
+                ..
+            } => Act::Set {
+                target: *target,
+                slot,
+                values,
+            },
+            Self::Match {
+                target, resource, ..
+            }
+            | Self::Many {
+                change: Change::Match { target, resource },
+                ..
+            } => Act::Match {
+                target: *target,
+                resource: *resource,
+            },
+            Self::Flag {
+                flag, slot, policy, ..
+            }
+            | Self::Many {
+                change: Change::Flag { flag, slot, policy },
+                ..
+            } => Act::Flag {
+                flag: *flag,
+                slot: slot.as_ref(),
+                policy: *policy,
+            },
+            Self::Move { .. }
+            | Self::Pair { .. }
+            | Self::Many {
+                change: Change::Move { .. },
+                ..
+            } => return None,
+        })
+    }
+
+    fn entries(&self) -> &[EntryRef] {
         match self {
-            Self::Move { file, .. } => EntryRef::File(file.file().clone()),
             Self::Leave { entry }
             | Self::Set { entry, .. }
             | Self::Match { entry, .. }
-            | Self::Flag { entry, .. } => entry.clone(),
+            | Self::Flag { entry, .. } => std::slice::from_ref(entry),
+            Self::Many { entries, .. } => entries,
+            Self::Move { .. } | Self::Pair { .. } => &[],
         }
     }
+}
+
+/// One decision on one entry, at its decision's place in the list.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Single<'p> {
+    pub decision: usize,
+    pub entry: &'p EntryRef,
+    pub act: Act<'p>,
+}
+
+/// Every `leave`, `set`, `match` and `flag` decision as one decision per
+/// entry, in list order: a `many` expands in place, in its entries' order,
+/// so the later of two decisions on one entry still wins.
+pub(crate) fn singles(decisions: &[Decision]) -> impl Iterator<Item = Single<'_>> {
+    decisions
+        .iter()
+        .enumerate()
+        .filter_map(|(decision, choice)| Some((decision, choice.act()?, choice.entries())))
+        .flat_map(|(decision, act, entries)| {
+            entries.iter().map(move |entry| Single {
+                decision,
+                entry,
+                act,
+            })
+        })
+}
+
+/// One file's move, at its decision's place in the list.
+pub(crate) struct Moved<'p> {
+    pub decision: usize,
+    pub file: &'p FileRef,
+    pub to: &'p MoveTo,
+}
+
+/// Every `move`, a `many` move expanded in place. The boundary refuses a
+/// row in a `many` move, so only files are here.
+pub(crate) fn moves(decisions: &[Decision]) -> impl Iterator<Item = Moved<'_>> {
+    decisions.iter().enumerate().flat_map(|(decision, choice)| {
+        let (files, to): (Vec<&FileRef>, _) = match choice {
+            Decision::Move { file, to } => (vec![file.file()], Some(to)),
+            Decision::Many {
+                entries,
+                change: Change::Move { to },
+            } => (
+                entries
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        EntryRef::File(file) => Some(file),
+                        EntryRef::Row(_) => None,
+                    })
+                    .collect(),
+                Some(to),
+            ),
+            _ => (Vec::new(), None),
+        };
+        files.into_iter().filter_map(move |file| {
+            Some(Moved {
+                decision,
+                file,
+                to: to?,
+            })
+        })
+    })
+}
+
+/// Every `pair`, in list order.
+pub(crate) fn pairs(decisions: &[Decision]) -> impl Iterator<Item = (usize, &RowRef, &FileRef)> {
+    decisions
+        .iter()
+        .enumerate()
+        .filter_map(|(decision, choice)| match choice {
+            Decision::Pair { row, file } => Some((decision, row, file)),
+            _ => None,
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

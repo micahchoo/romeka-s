@@ -1,5 +1,6 @@
-//! The `leave`, `set`, `match` and `flag` decisions: which record each one
-//! targets, and which are orphans (`docs/import-v2.md`, "Decisions").
+//! The `leave`, `set`, `match` and `flag` decisions, a `many` as one per
+//! entry: which record each one targets, and which are orphans
+//! (`docs/import-v2.md`, "Decisions").
 //!
 //! A decision targets the record of its kind that holds its entry: for a
 //! file, its media record or its group's item record; for a row, the record
@@ -8,12 +9,11 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use super::super::decisions::{Decision, EntryRef, RowRef};
+use super::super::decisions::{Act, EntryRef, RowRef, Single, singles};
 use super::super::grouping::Grouping;
-use super::super::join::SheetIn;
+use super::super::join::{SheetIn, line_keys_changed};
 use super::super::model::{Anomaly, LeftBy, Orphan, OrphanReason, RecordId};
 use super::super::plan::{ImportPlanV2, RecordKind, SheetId, SlotName};
-use super::super::sheet::key_column;
 use super::super::slots::SetDecisions;
 use super::records::Draft;
 
@@ -36,19 +36,6 @@ fn rows_read(sheets: &[SheetIn<'_>]) -> HashSet<RowRef> {
         .collect()
 }
 
-/// Sheets keyed by line whose bytes changed since the plan stored a hash.
-fn line_keys_changed(sheets: &[SheetIn<'_>]) -> BTreeSet<SheetId> {
-    sheets
-        .iter()
-        .filter(|sheet| key_column(sheet.plan).is_none())
-        .filter(|sheet| match (&sheet.plan.hash, sheet.sheet) {
-            (Some(stored), Some(read)) => *stored != read.hash,
-            _ => false,
-        })
-        .map(|sheet| sheet.plan.id.clone())
-        .collect()
-}
-
 /// `entries` holds each draft's entries, by the draft's place.
 pub(crate) fn apply(
     plan: &ImportPlanV2,
@@ -59,36 +46,42 @@ pub(crate) fn apply(
     orphans: &mut Vec<Orphan>,
     anomalies: &mut Vec<Anomaly>,
 ) -> Decided {
-    let wanted: HashSet<EntryRef> = plan
-        .decisions
-        .iter()
-        .filter(|decision| !matches!(decision, Decision::Move { .. }))
-        .map(Decision::entry)
+    let wanted: HashSet<&EntryRef> = singles(&plan.decisions)
+        .map(|single| single.entry)
         .collect();
     let mut holders: HashMap<&EntryRef, Vec<RecordId>> = HashMap::new();
     if !wanted.is_empty() {
         for (at, held) in entries.iter().enumerate() {
             let id = RecordId(u32::try_from(at).unwrap_or(u32::MAX));
-            for entry in held.iter().filter(|entry| wanted.contains(*entry)) {
+            for entry in held.iter().filter(|entry| wanted.contains(entry)) {
                 holders.entry(entry).or_default().push(id);
             }
         }
     }
     let rows = rows_read(sheets);
-    let changed = line_keys_changed(sheets);
+    let changed: BTreeSet<&SheetId> = sheets
+        .iter()
+        .filter(|sheet| line_keys_changed(sheet))
+        .map(|sheet| &sheet.plan.id)
+        .collect();
     let mut decided = Decided {
         sets: HashMap::new(),
         matches: HashMap::new(),
     };
-    let mut set_by: BTreeMap<(RecordId, SlotName), Vec<(usize, EntryRef)>> = BTreeMap::new();
+    let mut set_by: BTreeMap<(RecordId, SlotName), Vec<(usize, &EntryRef)>> = BTreeMap::new();
 
-    for (decision, choice) in plan.decisions.iter().enumerate() {
-        if matches!(choice, Decision::Move { .. }) {
-            continue;
-        }
-        let entry = choice.entry();
-        let orphan = |reason| Orphan { decision, reason };
-        let present = match &entry {
+    for Single {
+        decision,
+        entry,
+        act,
+    } in singles(&plan.decisions)
+    {
+        let orphan = |reason| Orphan {
+            decision,
+            entry: entry.clone(),
+            reason,
+        };
+        let present = match entry {
             EntryRef::File(file) => grouping.by_ref.contains_key(file),
             EntryRef::Row(row) => rows.contains(row),
         };
@@ -96,63 +89,67 @@ pub(crate) fn apply(
             orphans.push(orphan(OrphanReason::MissingEntry));
             continue;
         }
-        if let EntryRef::Row(row) = &entry
+        if let EntryRef::Row(row) = entry
             && changed.contains(&row.sheet)
         {
             orphans.push(orphan(OrphanReason::LineKeyChanged));
             continue;
         }
-        let held = holders.get(&entry).map(Vec::as_slice).unwrap_or_default();
+        let held = holders.get(entry).map(Vec::as_slice).unwrap_or_default();
         let of_kind = |kind: RecordKind| {
             held.iter()
                 .copied()
                 .find(|id| drafts[id.index()].kind == kind)
         };
-        let target = match choice {
-            Decision::Leave { .. } => match &entry {
+        let target = match act {
+            Act::Leave => match entry {
                 EntryRef::File(_) => {
                     of_kind(RecordKind::Item).or_else(|| of_kind(RecordKind::Media))
                 }
                 EntryRef::Row(_) => held.first().copied(),
             },
-            Decision::Set { target, .. } | Decision::Match { target, .. } => of_kind(*target),
-            Decision::Flag { .. } | Decision::Move { .. } => continue,
+            Act::Set { target, .. } | Act::Match { target, .. } => of_kind(target),
+            Act::Flag { .. } => continue,
         };
         let Some(target) = target else {
             orphans.push(orphan(OrphanReason::WrongTarget));
             continue;
         };
-        match choice {
-            Decision::Leave { .. } => {
-                drafts[target.index()].left = Some(LeftBy::Decision(decision))
-            }
-            Decision::Set { slot, .. } => {
-                decided
+        match act {
+            Act::Leave => drafts[target.index()].left = Some(LeftBy::Decision(decision)),
+            Act::Set { slot, .. } => {
+                let by = decided
                     .sets
                     .entry(target)
                     .or_default()
                     .entry(slot.clone())
-                    .or_default()
-                    .push(decision);
+                    .or_default();
+                // A `many` on two entries of one record is one decision.
+                if by.last() != Some(&decision) {
+                    by.push(decision);
+                }
                 set_by
                     .entry((target, slot.clone()))
                     .or_default()
                     .push((decision, entry));
             }
-            Decision::Match { resource, .. } => {
-                decided.matches.insert(target, *resource);
+            Act::Match { resource, .. } => {
+                decided.matches.insert(target, resource);
             }
-            Decision::Flag { .. } | Decision::Move { .. } => {}
+            Act::Flag { .. } => {}
         }
     }
 
+    // Two decisions on two entries: a `many` on two entries of one record,
+    // or two decisions on one entry, is no overlap.
     for ((record, slot), by) in set_by {
-        let entries: BTreeSet<&EntryRef> = by.iter().map(|(_, entry)| entry).collect();
-        if entries.len() > 1 {
+        let entries: BTreeSet<&EntryRef> = by.iter().map(|(_, entry)| *entry).collect();
+        let decisions: BTreeSet<usize> = by.iter().map(|(decision, _)| *decision).collect();
+        if entries.len() > 1 && decisions.len() > 1 {
             anomalies.push(Anomaly::DecisionOverlap {
                 record,
                 slot,
-                decisions: by.iter().map(|(decision, _)| *decision).collect(),
+                decisions: decisions.into_iter().collect(),
             });
         }
     }
