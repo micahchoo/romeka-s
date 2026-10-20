@@ -15,6 +15,8 @@ import { useTranslator } from '../../../../i18n';
 import type { DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { Checked, Labelled } from '../Labelled';
 import type { EditorOptions } from '../options';
+import { REGION_LABEL, SITE_REGIONS } from '../regions';
+import type { SiteRegion } from '../regions';
 import { layoutObject } from '../values';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
@@ -35,6 +37,8 @@ export interface PageSettingsProps {
   readonly onDeleted: () => void;
   /** Open the shell's save-as-template dialog. */
   readonly onOpenSaveTemplate: () => void;
+  /** Select a site region, the keyboard's way to what a click in the preview selects. */
+  readonly onSelectRegion: (region: SiteRegion) => void;
 }
 
 export const PageSettings = ({
@@ -46,6 +50,7 @@ export const PageSettings = ({
   options,
   onDeleted,
   onOpenSaveTemplate,
+  onSelectRegion,
 }: PageSettingsProps): ReactElement => {
   const { t } = useTranslator(common, sites, editor);
   const titleIssue = issues.some((issue) => issue.blockKey === null && issue.field === 'title');
@@ -137,6 +142,23 @@ export const PageSettings = ({
       <button type="button" onClick={onOpenSaveTemplate}>
         {t('template.saveAs')}
       </button>
+      <section className="page-settings-regions" aria-labelledby="page-settings-regions">
+        <h3 id="page-settings-regions">{t('region.pageGroup')}</h3>
+        <p className="field-note">{t('region.pageHelp')}</p>
+        <p className="page-settings-region-buttons">
+          {SITE_REGIONS.map((region) => (
+            <button
+              key={region}
+              type="button"
+              onClick={() => {
+                onSelectRegion(region);
+              }}
+            >
+              {t(REGION_LABEL[region])}
+            </button>
+          ))}
+        </p>
+      </section>
     </div>
   );
 };

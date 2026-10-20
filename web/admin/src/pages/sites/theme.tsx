@@ -15,25 +15,23 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../../api/client';
-import { isRecord } from '../../api/parse';
 import type { ApiErrors, JsonValue, Site, SiteId, SitePage } from '../../api/types';
-import { encodeSiteThemeSettings } from '../../api/write';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus } from '../../app/fields';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { AssetPicker } from './editor/fields/AssetPicker';
 import { PreviewPanel } from './editor/shell/PreviewPanel';
 import type { PreviewStatus } from './editor/shell/PreviewPanel';
 import { requestPreview } from './editor/preview';
 import { ResourcePageBlocksField } from './ResourcePageBlocksField';
 import { RESOURCE_PAGE_BLOCKS_REGISTRY } from './resourcePageBlocksRegistry';
-import { resourcePageBlockDrafts, resourcePageBlocksWire } from './resourcePageBlocksSchema';
+import { resourcePageBlockDrafts } from './resourcePageBlocksSchema';
 import type { ResourcePageBlocksDraft } from './resourcePageBlocksSchema';
 import { BrandPanel, ContrastPanel } from './themeEditor/BrandPanel';
 import { FineTune } from './themeEditor/FineTune';
 import { FooterSection } from './themeEditor/FooterSection';
+import { HeaderSection } from './themeEditor/HeaderSection';
 import { PresetGallery } from './themeEditor/PresetGallery';
 import {
   applyPreset,
@@ -47,7 +45,7 @@ import {
   setOverride,
 } from './themeEditor/draft';
 import type { CssRefusal } from './themeEditor/CustomCssTab';
-import type { ContentKey, ThemeDraft } from './themeEditor/draft';
+import type { ThemeDraft } from './themeEditor/draft';
 import { THEME_REGISTRY, settingFor } from './themeEditor/registry';
 import {
   NONE_KEYS,
@@ -57,6 +55,7 @@ import {
 } from './themeEditor/previewTarget';
 import type { PreviewTarget } from './themeEditor/previewTarget';
 import { useThemeText } from './themeEditor/messages';
+import { saveThemeSettings, storedThemeSettings, themeSettingsWrite } from './themeEditor/siteTheme';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 import { SaveBar, useUnsavedTab } from './unsaved';
@@ -71,10 +70,8 @@ const CSS_MAX_BYTES = ((): number => {
   return setting?.kind === 'css' ? setting.maxBytes : 65536;
 })();
 
-const storedSettings = (site: Site): Readonly<Record<string, unknown>> => {
-  const value = site.themeSettings;
-  return isRecord(value) ? value : {};
-};
+const storedSettings = (site: Site): Readonly<Record<string, unknown>> =>
+  storedThemeSettings(site.themeSettings);
 
 /** The preview request body: the stored page plus the unsaved theme map. */
 const previewBody = (
@@ -110,56 +107,6 @@ const cssRefusals = (errors: ApiErrors | null, sourceErrors: ApiErrors | null): 
 };
 
 type Tab = 'design' | 'css';
-
-/** The header content: logo and banner, each with its help line. */
-const ContentSection = ({
-  draft,
-  onChange,
-}: {
-  readonly draft: ThemeDraft;
-  readonly onChange: (key: ContentKey, value: string) => void;
-}): ReactElement => {
-  const tt = useThemeText();
-  const help = (key: ContentKey): ReactElement | null => {
-    const setting = settingFor(key);
-    return setting === undefined ? null : <p className="field-note theme-help">{tt(setting.helpKey)}</p>;
-  };
-  return (
-    <fieldset className="theme-section">
-      <legend>{tt('theme.header')}</legend>
-      <AssetPicker
-        id="theme-setting-logo"
-        label={tt('themeSetting.logo')}
-        value={draft.content.logo}
-        onChange={(value) => {
-          onChange('logo', value);
-        }}
-      />
-      {help('logo')}
-      <AssetPicker
-        id="theme-setting-banner"
-        label={tt('themeSetting.banner')}
-        value={draft.content.banner}
-        onChange={(value) => {
-          onChange('banner', value);
-        }}
-      />
-      {help('banner')}
-      <p>
-        <label htmlFor="theme-setting-banner_text">{tt('themeSetting.bannerText')}</label>
-        <input
-          id="theme-setting-banner_text"
-          type="text"
-          value={draft.content.banner_text}
-          onChange={(event) => {
-            onChange('banner_text', event.target.value);
-          }}
-        />
-      </p>
-      {help('banner_text')}
-    </fieldset>
-  );
-};
 
 /** Export, import and reset: the theme as a file, and the way back to the preset. */
 const ThemeFileActions = ({
@@ -239,13 +186,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
   const checks = useMemo(() => contrastChecks(resolved), [resolved]);
   const problems = useMemo(() => draftProblems(draft), [draft]);
   const settings = useMemo(() => draftWire(draft), [draft]);
-  const withBlocks = useMemo(
-    () => ({
-      ...settings,
-      resource_page_blocks: resourcePageBlocksWire(RESOURCE_PAGE_BLOCKS_REGISTRY, blocks),
-    }),
-    [settings, blocks],
-  );
+  const withBlocks = useMemo(() => themeSettingsWrite(draft, blocks), [draft, blocks]);
   const blocked = problems.badHex || problems.failing > 0 || cssErrors.length > 0;
   const unsaved = useUnsavedTab(withBlocks);
 
@@ -333,7 +274,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
     }
     save(async () => {
       try {
-        await api.patchSite(siteId, encodeSiteThemeSettings(withBlocks));
+        await saveThemeSettings(siteId, withBlocks);
         unsaved.saved();
       } catch (error: unknown) {
         if (error instanceof ApiError && cssRefusals(error.errors, error.sourceErrors).length > 0) {
@@ -412,7 +353,7 @@ const ThemeEditor = ({ siteId, site }: { readonly siteId: SiteId; readonly site:
                 update((current) => setOverride(current, key, value));
               }}
             />
-            <ContentSection
+            <HeaderSection
               draft={draft}
               onChange={(key, value) => {
                 update((current) => ({ ...current, content: { ...current.content, [key]: value } }));

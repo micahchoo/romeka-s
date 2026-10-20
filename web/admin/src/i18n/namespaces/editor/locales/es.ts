@@ -511,4 +511,17 @@ export const es: EditorMessages = {
   'focal.noImage': 'Elija primero una imagen de fondo.',
   'focal.frame': 'Punto focal: {x} % a lo ancho, {y} % hacia abajo. Haga clic en la imagen o use las flechas para moverlo.',
   'focal.center': 'Centro',
+  // The site header and footer, selected in the page editor (site-regions).
+  'region.header': 'Cabecera del sitio',
+  'region.footer': 'Pie del sitio',
+  'region.banner': 'En todo el sitio. Cambia todas las páginas.',
+  'region.bannerLabel': 'Cambios en todo el sitio',
+  'region.save': 'Guardar los cambios del sitio',
+  'region.unsaved': 'Sin guardar',
+  'region.unsavedOpen': '{region}: cambios del sitio sin guardar',
+  'region.openTheme': 'Abrir la página Tema',
+  'region.style': 'Disposición y estilo',
+  'region.leaveConfirm': 'La cabecera o el pie del sitio tienen cambios sin guardar. ¿Salir y perderlos?',
+  'region.pageGroup': 'En todas las páginas',
+  'region.pageHelp': 'La cabecera y el pie pertenecen a todo el sitio. Haga clic en uno en la vista previa o elíjalo aquí.',
 };

@@ -14,7 +14,7 @@ use crate::i18n::Translator;
 use crate::nav::{NavItem, NavLink, NavNode, parse_navigation, resolve};
 use crate::theme::choices::choice;
 use crate::theme::tokens::stored_text;
-use crate::view::RenderContext;
+use crate::view::{RenderContext, SiteRegion};
 
 /// The most HTML columns a footer holds.
 pub const MAX_COLUMNS: usize = 3;
@@ -137,8 +137,10 @@ impl Footer {
     #[must_use]
     pub fn render(&self, ctx: &RenderContext<'_>, tr: Translator) -> String {
         let messages = tr.messages();
-        let mut out =
-            String::from("<footer class=\"site-footer\">\n<div class=\"footer-inner\">\n");
+        let mut out = format!(
+            "<footer class=\"site-footer\"{}>\n<div class=\"footer-inner\">\n",
+            ctx.region_marker(SiteRegion::Footer)
+        );
         out.push_str(&format!(
             "<div class=\"footer-site\"><p class=\"footer-title\">{}</p>",
             escape_html(&ctx.site.title)

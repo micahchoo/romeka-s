@@ -472,6 +472,15 @@ pub enum BlockMarkers {
     Preview,
 }
 
+/// A part of the site frame every page shares, which the admin preview marks
+/// so the editor can select it: `data-romeka-region="header"` on the banner
+/// and the header, `data-romeka-region="footer"` on the footer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SiteRegion {
+    Header,
+    Footer,
+}
+
 /// The signed-in caller of a public render: who the user bar names, and the
 /// roles that decide which edit links it offers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -571,6 +580,17 @@ impl<'a> RenderContext<'a> {
     #[must_use]
     pub(crate) fn is_preview(&self) -> bool {
         self.block_markers == BlockMarkers::Preview
+    }
+
+    /// ` data-romeka-region="…"` for one site region, or nothing when markers
+    /// are off.
+    #[must_use]
+    pub(crate) fn region_marker(&self, region: SiteRegion) -> &'static str {
+        match (self.block_markers, region) {
+            (BlockMarkers::Off, _) => "",
+            (BlockMarkers::Preview, SiteRegion::Header) => " data-romeka-region=\"header\"",
+            (BlockMarkers::Preview, SiteRegion::Footer) => " data-romeka-region=\"footer\"",
+        }
     }
 
     /// The marker value for one block, `None` when markers are off.

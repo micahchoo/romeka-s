@@ -531,4 +531,17 @@ export const mr: EditorMessages = {
   'focal.frame':
     'मध्यबिंदू: {x}% आडवे, {y}% खाली. प्रतिमेवर क्लिक करा किंवा मध्यबिंदू हलवण्यासाठी बाण की वापरा.',
   'focal.center': 'मध्यभागी',
+  'region.header': 'साइट हेडर',
+  'region.footer': 'साइट फुटर',
+  'region.banner': 'संपूर्ण साइट. प्रत्येक पृष्ठावर बदल.',
+  'region.bannerLabel': 'संपूर्ण साइट बदल',
+  'region.save': 'संपूर्ण साइट बदल जतन करा',
+  'region.unsaved': 'जतन केले नाही',
+  'region.unsavedOpen': '{region}: संपूर्ण साइट बदल जतन केले नाहीत',
+  'region.openTheme': 'थीम पृष्ठ उघडा',
+  'region.style': 'मांडणी आणि शैली',
+  'region.leaveConfirm': 'साइट हेडर किंवा फुटरमध्ये जतन न केलेले बदल आहेत. बाहेर पडा आणि ते गमावा?',
+  'region.pageGroup': 'प्रत्येक पृष्ठावर',
+  'region.pageHelp':
+    'हेडर आणि फुटर संपूर्ण साइटचे आहेत. प्रिव्ह्यूमधील एक निवडा, किंवा येथे निवडा.',
 };
