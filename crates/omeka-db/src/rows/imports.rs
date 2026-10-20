@@ -216,6 +216,8 @@ pub struct ImportRow {
     /// The import this draft was copied from, `None` once that import is deleted.
     pub copied_from: Option<ImportId>,
     pub created: NaiveDateTime,
+    /// When the plan was last saved, its creation included: a draft's clock.
+    pub saved: NaiveDateTime,
     pub finished: Option<NaiveDateTime>,
 }
 
@@ -254,6 +256,7 @@ impl ImportRow {
             stop_requested: DB::boolean(row, "stop_requested")?,
             copied_from: DB::opt_id(row, "copied_from")?,
             created: DB::datetime(row, "created")?,
+            saved: DB::datetime(row, "saved")?,
             finished: DB::opt_datetime(row, "finished")?,
         })
     }

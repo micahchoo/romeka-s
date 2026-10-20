@@ -135,6 +135,7 @@ export const hiServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिंग {key} एक स्ट्रिंग या नल होनी चाहिए।',
   'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
   'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
+  'server.settingNotCount': 'सेटिंग {key} शून्य से ऊपर एक पूर्ण संख्या या शून्य होनी चाहिए।',
   'server.publicationTermsRemoved':
     'एक प्रकाशित शब्द को हटाया या उसका नाम बदला नहीं जा सकता: {terms}। इसके बजाय इसे अप्रचलित (deprecate) करें।',
   'server.publicationNamespaceFixed':
@@ -231,4 +232,51 @@ export const hiServer: ServerCatalogue = {
   'server.importUndoMemberKept':
     'इस आइटम सेट का एक आइटम रखा जाता है, इसलिए आइटम सेट भी रखा जाता है।',
   'server.importUndoStopped': 'पूर्ववत करना अंत से पहले ही रुक गया: {reason}',
+  'server.importUploadOwnerOnly':
+    'केवल इस आयात को शुरू करने वाले व्यक्ति, या एक वैश्विक प्रशासक, इसमें फ़ाइलें जोड़ सकते हैं।',
+  'server.importUploadNotDraft':
+    'फ़ाइलें केवल आयात शुरू होने से पहले जोड़ी जा सकती हैं। अधिक फ़ाइलें जोड़ने के लिए, इस आयात की प्रतिलिपि बनाएँ।',
+  'server.importUploadPath': 'फ़ाइल का नाम "{path}" उपयोग नहीं किया जा सकता: {reason}।',
+  'server.importUploadTooLarge':
+    'यह फ़ाइल {limit} bytes से बड़ी है, जो एक आयात द्वारा ली जाने वाली सबसे बड़ी फ़ाइल है।',
+  'server.importUploadFull':
+    'इस आयात की फ़ाइलें {limit} bytes से अधिक हो जाएँगी, जो एक आयात द्वारा रखी जाने वाली अधिकतम फ़ाइल है। कुछ फ़ाइलें हटाएँ, या उनकी वर्तमान प्रक्रिया पूरी होने दें, और पुनः प्रयास करें।',
+  'server.importUploadChunkTooLarge':
+    'यह अनुरोध {limit} bytes से अधिक डेटा ले जाता है। फ़ाइल को छोटे टुकड़ों में भेजें।',
+  'server.importUploadInProgress':
+    '"{path}" अभी भी रास्ते में है। फिर से शुरू करने के बजाय उस अपलोड के साथ आगे बढ़ें।',
+  'server.importUploadNotFound': 'इस आयात में आईडी "{upload}" वाला कोई अपलोड नहीं है।',
+  'server.importUploadOffset':
+    'सर्वर ने इस फ़ाइल के {received} बाइट्स प्राप्त कर लिए हैं। उनके बाद आने वाले बाइट्स भेजें।',
+  'server.importUploadPastLength': 'ये बाइट्स इस अपलोड द्वारा घोषित आकार से अधिक हैं।',
+  'server.importUploadLength': 'फ़ाइल के आकार को बाइट्स में भेजें, इसके साथ Upload-Length भेजें।',
+  'server.importUploadMetadata':
+    'फ़ाइल का नाम "filename" के रूप में और इसके नाम को base64 में "name" के रूप में भेजें।',
+  'server.importUploadOffsetMissing':
+    'पहले से भेजे जा चुके बाइट्स की संख्या के साथ Upload-Offset भेजें।',
+  'server.importUploadContentType':
+    'Content-Type application/offset+octet-stream के साथ बाइट्स भेजें।',
+  'server.importUploadVersion':
+    'यह सर्वर रिज़्यूमेबल अपलोड प्रोटोकॉल के संस्करण 1.0.0 का समर्थन करता है। Tus-Resumable: 1.0.0 भेजें।',
+  'server.importUploadInterrupted':
+    'अनुरोध समाप्त होने से पहले बाइट्स आना बंद हो गए, इसलिए उनमें से किसी को भी सहेजा नहीं गया। ऑफसेट मांगें और उन्हें फिर से भेजें।',
+  'server.importZipEscapes':
+    '"{name}" ज़िप में अपने फ़ोल्डर के बाहर होगा, इसलिए इसे छोड़ दिया गया।',
+  'server.importZipLink': '"{name}" ज़िप में एक लिंक है, इसलिए इसे छोड़ दिया गया।',
+  'server.importZipUnusable': 'ज़िप में "{name}" का नाम उपयोग के योग्य नहीं है ({reason}), इसलिए इसे बाहर छोड़ दिया गया।',
+  'server.importZipUnsupported': 'ज़िप में "{name}" एन्क्रिप्टेड है या ऐसे ढंग से पैक किया गया है जिसे रोमका एस नहीं खोल सकता, इसलिए इसे बाहर छोड़ दिया गया।',
+  'server.importZipRenamed':
+    '"{name}" ज़िप में एक नाम है जो बड़े अक्षरों को अनदेखा करने पर पहले की फ़ाइल के नाम जैसा है, इसलिए इसे "{renamed}" के रूप में जोड़ा गया।',
+  'server.importZipBomb':
+    'ज़िप को अस्वीकार कर दिया गया: "{name}" अपने संकुचित आकार के 100 गुना से अधिक अनपैक होता है। इससे कुछ भी नहीं जोड़ा गया।',
+  'server.importZipFull':
+    'ज़िप को अस्वीकार कर दिया गया: इसकी फ़ाइलें {limit} बाइट्स से अधिक होंगी, जो एक आयात में रखी जा सकने वाली अधिकतम संख्या है। इससे कुछ भी नहीं जोड़ा गया।',
+  'server.importZipTooMany':
+    'ज़िप को अस्वीकार कर दिया गया: इसमें {count} फ़ाइलें हैं, जो 100,000 से अधिक हैं। इससे कुछ भी नहीं जोड़ा गया।',
+  'server.importZipFileTooLarge':
+    'ज़िप को अस्वीकार कर दिया गया: "{name}" {limit} बाइट्स से बड़ा है, जो एक आयात द्वारा लिया जा सकने वाला सबसे बड़ा फ़ाइल आकार है। इससे कुछ भी नहीं जोड़ा गया।',
+  'server.importZipUnreadable':
+    'ज़िप को अस्वीकार कर दिया गया: इसे पढ़ा नहीं जा सका ({reason})। इससे कुछ भी नहीं जोड़ा गया।',
+  'server.importZipUnpacked': 'ज़िप को अनपैक किया गया: {count} फ़ाइलें जोड़ी गईं।',
+  'server.importSweepDone': '{imports} आयात की फ़ाइलों को हटा दिया गया, और {uploads} अधूरे अपलोड।',
 };

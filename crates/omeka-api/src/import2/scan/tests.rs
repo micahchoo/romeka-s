@@ -137,7 +137,9 @@ async fn a_scan_is_stored_and_a_warm_load_reuses_it_until_the_next_scan() {
     let sources = [folder("s1", "a")];
     let cache = IndexCache::default();
 
-    let scanned = scan(&pool, &roots, import, &sources).await.unwrap();
+    let scanned = scan(&pool, &roots, &no_store(), import, &sources)
+        .await
+        .unwrap();
     assert_eq!(scanned.sources[0].files, 1);
     assert_eq!(
         EntryRepo::new(&pool).count(import).await.unwrap(),
@@ -155,7 +157,9 @@ async fn a_scan_is_stored_and_a_warm_load_reuses_it_until_the_next_scan() {
     assert!(Arc::ptr_eq(&first.index, &again.index), "warm");
 
     fs::write(dir.path().join("Box 1/b.jpg"), b"\xFF\xD8\xFF\xE0jpeg").unwrap();
-    scan(&pool, &roots, import, &sources).await.unwrap();
+    scan(&pool, &roots, &no_store(), import, &sources)
+        .await
+        .unwrap();
     let after = load(&pool, &cache, import, &sources).await.unwrap();
     assert!(!Arc::ptr_eq(&first.index, &after.index), "a rescan is new");
     assert_eq!(after.index.sources[0].walk.entries.len(), 2);
@@ -178,15 +182,17 @@ async fn the_scan_job_rescans_from_the_stored_plan() {
         .await
         .unwrap()
         .id;
-    let scanned = scan_import(&pool, &roots, import).await.unwrap();
+    let scanned = scan_import(&pool, &roots, &no_store(), import)
+        .await
+        .unwrap();
     assert_eq!(scanned.sources[0].files, 1);
     assert!(matches!(
-        scan_import(&pool, &roots, ImportId(99)).await,
+        scan_import(&pool, &roots, &no_store(), ImportId(99)).await,
         Err(ScanError::Missing(99))
     ));
     let v1 = draft(&pool).await;
     assert!(matches!(
-        scan_import(&pool, &roots, v1).await,
+        scan_import(&pool, &roots, &no_store(), v1).await,
         Err(ScanError::Plan(_))
     ));
 }
@@ -221,4 +227,12 @@ fn identical_files_survive_the_rows_and_an_older_row_reads_as_none() {
     let stored = index_of(older, read_back(rows), &plan).expect("a row from before the member");
     assert!(stored.index.sources[0].walk.anomalies.identical.is_empty());
     assert_eq!(stored.index.sources[0].walk.anomalies.symlinks, 1);
+}
+
+/// A store for scans whose plans have no staging source: nothing reads it.
+fn no_store() -> std::sync::Arc<dyn omeka_media::store::Store> {
+    std::sync::Arc::new(omeka_media::store::FileStore::new(
+        std::env::temp_dir().join("romeka-scan-tests-unused"),
+        "/files",
+    ))
 }

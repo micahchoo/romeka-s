@@ -53,13 +53,14 @@ where
     pub async fn create_draft(&self, new: &NewImport) -> Result<ImportRow, DbError> {
         let created = time::now();
         let query = sqlx::query(
-            "INSERT INTO romeka_import (owner_id, sources, plan, revision, status, copied_from, created)
-             VALUES (?, ?, ?, 0, 'draft', ?, ?)",
+            "INSERT INTO romeka_import (owner_id, sources, plan, revision, status, copied_from, created, saved)
+             VALUES (?, ?, ?, 0, 'draft', ?, ?, ?)",
         )
         .bind(bind_opt_id(new.owner_id))
         .bind(json_text(&new.sources)?)
         .bind(json_text(&new.plan)?)
         .bind(bind_opt_id(new.copied_from))
+        .bind(time::format(created))
         .bind(time::format(created));
         let id = ImportId(insert_id(query, self.pool).await?);
         Ok(ImportRow {
@@ -75,6 +76,7 @@ where
             stop_requested: false,
             copied_from: new.copied_from,
             created,
+            saved: created,
             finished: None,
         })
     }
@@ -104,6 +106,15 @@ where
         DB::id(&row, "n")
     }
 
+    /// Every draft, by id: the staging sweep looks for orphan parts in these even when no
+    /// upload row is left.
+    pub async fn draft_ids(&self) -> Result<Vec<ImportId>, DbError> {
+        let rows = sqlx::query("SELECT id FROM romeka_import WHERE status = 'draft' ORDER BY id")
+            .fetch_all(self.pool)
+            .await?;
+        rows.iter().map(|row| DB::id(row, "id")).collect()
+    }
+
     /// Replace a draft's plan, if `revision` is the one stored. One statement, so two saves of
     /// the same revision cannot both land.
     pub async fn save_plan(
@@ -113,10 +124,11 @@ where
         revision: u64,
     ) -> Result<PlanSave, DbError> {
         let done = sqlx::query(
-            "UPDATE romeka_import SET plan = ?, revision = revision + 1
+            "UPDATE romeka_import SET plan = ?, revision = revision + 1, saved = ?
              WHERE id = ? AND status = 'draft' AND revision = ?",
         )
         .bind(json_text(plan)?)
+        .bind(time::format(time::now()))
         .bind(bind_id(id))
         .bind(bind_id(revision))
         .execute(self.pool)

@@ -355,6 +355,8 @@ messages! {
     fn setting_not_flag(key) = "The setting {key} must be true, false or null.";
     /// A list setting whose value is not a list of strings.
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
+    /// A count setting written as anything but a whole number above zero.
+    fn setting_not_count(key) = "The setting {key} must be a whole number above zero, or null.";
 
     // Publishing term lists and vocabularies (`crate::publish`). Romeka's own rule.
 
@@ -504,6 +506,62 @@ messages! {
     const IMPORT_UNDO_MEMBER_KEPT = "An item in this item set is kept, so the item set is kept too.";
     /// Undo stopped on an error; a new undo goes on from there.
     fn import_undo_stopped(reason) = "The undo stopped before the end: {reason}";
+    /// An upload by someone who neither started the import nor is a global admin.
+    const IMPORT_UPLOAD_OWNER_ONLY = "Only the person who started this import, or a global administrator, can add files to it.";
+    /// An upload into an import that has run.
+    const IMPORT_UPLOAD_NOT_DRAFT = "Files can be added only before an import runs. To add more files, make a copy of this import.";
+    /// An upload whose file name the path rules refuse.
+    fn import_upload_path(path, reason) = "The file name \"{path}\" cannot be used: {reason}.";
+    /// An upload larger than `import_upload_max_file`.
+    fn import_upload_too_large(limit) = "This file is larger than {limit} bytes, the largest file an import takes.";
+    /// An upload that would take the import past `import_upload_max_total`.
+    fn import_upload_full(limit) = "The files of this import would pass {limit} bytes, the most one import holds. Remove some files, or let the files still on their way finish, and try again.";
+    /// One `PATCH` with more bytes than the chunk limit.
+    fn import_upload_chunk_too_large(limit) = "This request carries more than {limit} bytes. Send the file in smaller chunks.";
+    /// A new upload for a path an unfinished upload holds.
+    fn import_upload_in_progress(path) = "\"{path}\" is still on its way. Go on with that upload instead of starting it again.";
+    /// A tus request naming an upload the import does not hold.
+    fn import_upload_not_found(upload) = "This import has no upload with the id \"{upload}\".";
+    /// A `PATCH` whose `Upload-Offset` is not the stored offset.
+    fn import_upload_offset(received) = "The server has {received} bytes of this file. Send the bytes that come after them.";
+    /// A `PATCH` that would pass the declared `Upload-Length`.
+    const IMPORT_UPLOAD_PAST_LENGTH = "These bytes go past the size this upload declared.";
+    /// A `POST` without a usable `Upload-Length`.
+    const IMPORT_UPLOAD_LENGTH = "Send Upload-Length with the size of the file in bytes.";
+    /// A `POST` without a file name in `Upload-Metadata`.
+    const IMPORT_UPLOAD_METADATA = "Send Upload-Metadata with the file name, as \"filename\" and its name in base64.";
+    /// A `PATCH` without a usable `Upload-Offset`.
+    const IMPORT_UPLOAD_OFFSET_MISSING = "Send Upload-Offset with the number of bytes already sent.";
+    /// A `PATCH` whose body is not `application/offset+octet-stream`.
+    const IMPORT_UPLOAD_CONTENT_TYPE = "Send the bytes with Content-Type application/offset+octet-stream.";
+    /// A tus request without `Tus-Resumable: 1.0.0`.
+    const IMPORT_UPLOAD_VERSION = "This server speaks version 1.0.0 of the resumable upload protocol. Send Tus-Resumable: 1.0.0.";
+    /// A `PATCH` whose body stopped before the request ended; nothing of it was kept.
+    const IMPORT_UPLOAD_INTERRUPTED = "The bytes stopped arriving before the request ended, so none of them were kept. Ask for the offset and send them again.";
+    /// A ZIP entry whose path would leave its folder, or is absolute.
+    fn import_zip_escapes(name) = "\"{name}\" in the ZIP would land outside its folder, so it was left out.";
+    /// A ZIP entry that is a symbolic link.
+    fn import_zip_link(name) = "\"{name}\" in the ZIP is a link, so it was left out.";
+    /// A ZIP entry whose name the path rules refuse.
+    fn import_zip_unusable(name, reason) = "\"{name}\" in the ZIP has a name that cannot be used ({reason}), so it was left out.";
+    /// A ZIP entry that is encrypted or packed with a method the reader lacks.
+    fn import_zip_unsupported(name) = "\"{name}\" in the ZIP is encrypted or packed in a way Romeka S cannot unpack, so it was left out.";
+    /// A ZIP entry renamed because an earlier entry has its name when case is ignored.
+    fn import_zip_renamed(name, renamed) = "\"{name}\" in the ZIP has the name of an earlier file when capitals are ignored, so it was added as \"{renamed}\".";
+    /// A ZIP refused: an entry unpacks to more than 100 times its packed size and 10 MB.
+    fn import_zip_bomb(name) = "The ZIP was refused: \"{name}\" unpacks to more than 100 times its packed size. Nothing from it was added.";
+    /// A ZIP refused: its files would pass `import_upload_max_total`.
+    fn import_zip_full(limit) = "The ZIP was refused: its files would pass {limit} bytes, the most one import holds. Nothing from it was added.";
+    /// A ZIP refused: more than 100,000 entries.
+    fn import_zip_too_many(count) = "The ZIP was refused: it holds {count} files, more than 100,000. Nothing from it was added.";
+    /// A ZIP refused: an entry larger than `import_upload_max_file`.
+    fn import_zip_file_too_large(name, limit) = "The ZIP was refused: \"{name}\" is larger than {limit} bytes, the largest file an import takes. Nothing from it was added.";
+    /// A ZIP refused: its directory or an entry's bytes do not read.
+    fn import_zip_unreadable(reason) = "The ZIP was refused: it could not be read ({reason}). Nothing from it was added.";
+    /// A ZIP unpacked.
+    fn import_zip_unpacked(count) = "The ZIP was unpacked: {count} files were added.";
+    /// The staging sweep ended.
+    fn import_sweep_done(imports, uploads) = "The files of {imports} imports were removed, and {uploads} unfinished uploads.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

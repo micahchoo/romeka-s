@@ -179,6 +179,18 @@ fn reserved_class_e_is_refused() {
     assert_refused("255.255.255.254", RefusedRange::Reserved);
 }
 
+/// The documentation ranges (RFC 5737, RFC 3849) never hold a real host, so
+/// a name that resolves into one is a misconfiguration or a probe.
+#[test]
+fn documentation_ranges_are_refused() {
+    assert_refused("192.0.2.1", RefusedRange::Documentation);
+    assert_refused("198.51.100.7", RefusedRange::Documentation);
+    assert_refused("203.0.113.255", RefusedRange::Documentation);
+    assert_refused("2001:db8::1", RefusedRange::Documentation);
+    assert_refused("2001:db8:ffff::1", RefusedRange::Documentation);
+    assert_refused("::ffff:203.0.113.9", RefusedRange::Documentation);
+}
+
 /// The neighbours of each refused range stay fetchable.
 #[test]
 fn public_addresses_fall_in_no_refused_range() {
@@ -194,6 +206,13 @@ fn public_addresses_fall_in_no_refused_range() {
         "2606:4700:4700::1111",
         "1.0.0.0",
         "192.0.1.1",
+        "192.0.3.1",
+        "198.51.99.255",
+        "198.51.101.0",
+        "203.0.112.255",
+        "203.0.114.0",
+        "2001:db9::1",
+        "2001:db7:ffff::1",
         "198.17.255.255",
         "198.20.0.1",
         "223.255.255.255",
@@ -449,4 +468,41 @@ fn the_overall_cap_ends_a_fetch_that_keeps_arriving() {
         .fetch(&url)
         .expect_err("over the cap");
     assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
+}
+
+/// A fetch that gives up at the idle timeout closes its socket then, not at
+/// the overall cap: the server sees the connection end.
+#[test]
+fn a_stalled_fetch_closes_its_socket_at_the_idle_timeout() {
+    let (closed_after, receiver) = std::sync::mpsc::channel();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut request = [0u8; 2048];
+            let _ = stream.read(&mut request);
+            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nhalf");
+            let _ = stream.flush();
+            let stalled = std::time::Instant::now();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(20)))
+                .unwrap();
+            let mut rest = [0u8; 16];
+            // A closed peer reads as the end of the stream (or a reset).
+            let _ = stream.read(&mut rest);
+            let _ = closed_after.send(stalled.elapsed());
+        }
+    });
+    let error = loopback_client()
+        .with_idle_timeout(std::time::Duration::from_millis(300))
+        .fetch(&format!("http://localhost.test:{port}/"))
+        .expect_err("stalled");
+    assert_eq!(error.kind(), FetchErrorKind::Timeout, "{error}");
+    let closed = receiver
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("the server saw the socket close within 5 s");
+    assert!(
+        closed < std::time::Duration::from_secs(3),
+        "closed after {closed:?}"
+    );
 }

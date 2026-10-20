@@ -185,6 +185,7 @@ where
             .await?,
     );
     let dirs = scan::source_dirs(env.roots, &derived.plan.sources);
+    let staged = super::staging::stored_paths(pool, import).await?;
     let mut run = Run {
         pool,
         env,
@@ -194,6 +195,7 @@ where
         action,
         derived: &derived,
         dirs,
+        staged,
         written,
         ids: HashMap::new(),
         set_ids: HashMap::new(),
@@ -217,6 +219,8 @@ struct Run<'r, DB: Backend> {
     action: ImportAction,
     derived: &'r Derived,
     dirs: std::collections::BTreeMap<SourceId, SourceDir>,
+    /// Each staged file's store path, by its path in staging.
+    staged: std::collections::BTreeMap<String, String>,
     /// The ledger as it stood, plus what this run wrote.
     written: Written,
     /// What each record of this run's model wrote.
@@ -386,5 +390,31 @@ where
             return fields::matched(record);
         }
         self.written.target(&record.origin.key())
+    }
+}
+
+impl<DB: Backend> Run<'_, DB> {
+    /// Where a file of a staging source is in the store, and its size.
+    fn staged_file(&self, source: &SourceId, path: &str) -> Option<(String, u64)> {
+        let staging = self.derived.plan.sources.iter().any(
+            |plan| matches!(plan, crate::import2::plan::SourcePlan::Staging { id } if id == source),
+        );
+        if !staging {
+            return None;
+        }
+        let stored = self.staged.get(path)?.clone();
+        let size = self
+            .derived
+            .stored
+            .index
+            .sources
+            .iter()
+            .find(|indexed| indexed.id == *source)?
+            .walk
+            .entries
+            .iter()
+            .find(|entry| entry.path.as_str() == path)?
+            .size;
+        Some((stored, size))
     }
 }

@@ -91,8 +91,14 @@ pub(super) async fn scan(
                 let job = compose_job(&state, &actor, SCAN_JOB, row.id, None).await?;
                 return start_job(&state, job, StatusCode::ACCEPTED).await;
             }
-            let scanned =
-                scan::scan(&state.pool, &state.archive_roots, row.id, &plan.sources).await?;
+            let scanned = scan::scan(
+                &state.pool,
+                &state.archive_roots,
+                &state.store,
+                row.id,
+                &plan.sources,
+            )
+            .await?;
             Ok(json(StatusCode::OK, &scanned))
         }
         .await,

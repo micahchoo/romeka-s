@@ -36,6 +36,21 @@ pub struct Identical {
 /// their first path. A file that cannot be read is in no set.
 #[must_use]
 pub fn identical(dir: &Path, entries: &[FileEntry]) -> Vec<Identical> {
+    identical_with(entries, |entry, limit| {
+        let file = File::open(dir.join(entry.disk_path()))?;
+        Ok(match limit {
+            Some(limit) => Box::new(file.take(limit)),
+            None => Box::new(file),
+        })
+    })
+}
+
+/// [`identical`] over files `open` reads: its first `limit` bytes, or all of
+/// it. The staging walk opens through the store.
+pub(crate) fn identical_with<'a>(
+    entries: &[FileEntry],
+    open: impl Fn(&FileEntry, Option<u64>) -> io::Result<Box<dyn Read + 'a>>,
+) -> Vec<Identical> {
     let mut by_size: BTreeMap<u64, Vec<&FileEntry>> = BTreeMap::new();
     for entry in entries {
         by_size.entry(entry.size).or_default().push(entry);
@@ -45,7 +60,7 @@ pub fn identical(dir: &Path, entries: &[FileEntry]) -> Vec<Identical> {
         if same_size.len() < 2 {
             continue;
         }
-        let hash = |entry: &FileEntry, limit| hash_file(&dir.join(entry.disk_path()), limit).ok();
+        let hash = |entry: &FileEntry, limit| open(entry, limit).and_then(hash_reader).ok();
         let prefixed = same_size
             .iter()
             .filter_map(|entry| Some((*entry, hash(entry, Some(PREFIX))?)));
@@ -91,14 +106,8 @@ fn groups<'e>(
         .collect()
 }
 
-/// The SHA-256 of the file's first `limit` bytes, or of all of it, read in
-/// bounded chunks.
-fn hash_file(path: &Path, limit: Option<u64>) -> io::Result<[u8; 32]> {
-    let file = File::open(path)?;
-    let mut reader: Box<dyn Read> = match limit {
-        Some(limit) => Box::new(file.take(limit)),
-        None => Box::new(file),
-    };
+/// The SHA-256 of what `reader` yields, read in bounded chunks.
+fn hash_reader(mut reader: Box<dyn Read + '_>) -> io::Result<[u8; 32]> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; 64 * 1024];
     loop {

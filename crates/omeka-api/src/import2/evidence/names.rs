@@ -40,6 +40,13 @@ fn is_latin_letter(character: char) -> bool {
     matches!(character, 'À'..='ÿ' | 'Ā'..='ɏ') && character != '×' && character != '÷'
 }
 
+/// The name read as cp437, the code page of a ZIP whose names carry no UTF-8
+/// flag.
+#[must_use]
+pub fn decode_cp437(bytes: &[u8]) -> String {
+    bytes.iter().copied().map(cp437).collect()
+}
+
 /// The name read in the encoding that makes more of its high bytes Latin
 /// letters.
 #[must_use]

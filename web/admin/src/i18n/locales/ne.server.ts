@@ -132,6 +132,7 @@ export const neServer: ServerCatalogue = {
   'server.settingNotText': 'सेटिङ {key} स्ट्रिङ वा नल हुनुपर्छ।',
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
+  'server.settingNotCount': 'सेटिङ {key} शून्यभन्दा माथिको पूर्ण सङ्ख्या वा शून्य हुनुपर्छ।',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्दलाई हटाउन वा पुन: नामकरण गर्न सकिँदैन: {terms}। यसलाई यसको सट्टा डिप्रिकेट गर्नुहोस्।',
   'server.publicationNamespaceFixed':
@@ -231,4 +232,51 @@ export const neServer: ServerCatalogue = {
   'server.importUndoMemberKept':
     'यस वस्तु सेटको एउटा वस्तु सुरक्षित छ, त्यसैले वस्तु सेट पनि सुरक्षित छ।',
   'server.importUndoStopped': 'पूर्ववत गर्ने काम अन्त्य हुनुअघि नै रोकियो: {reason}',
+  'server.importUploadOwnerOnly':
+    'केवल यस आयात सुरु गर्ने व्यक्ति वा ग्लोबल एडमिनिस्ट्रेटरले मात्र यसमा फाइलहरू थप्न सक्छन्।',
+  'server.importUploadNotDraft':
+    'फाइलहरू आयात चल्नुअघि मात्र थप्न सकिन्छ। थप फाइलहरू थप्न, यस आयातको प्रतिलिपि बनाउनुहोस्।',
+  'server.importUploadPath': 'फाइलको नाम "{path}" प्रयोग गर्न सकिँदैन: {reason}।',
+  'server.importUploadTooLarge':
+    'यो फाइल {limit} बाइट्सभन्दा ठुलो छ, जुन आयातले लिने सबैभन्दा ठुलो फाइल हो।',
+  'server.importUploadFull':
+    'यस आयातका फाइलहरूले {limit} बाइट्स नाघ्नेछन्, जुन आयातले एकै पटकमा राख्न सक्ने अधिकतम फाइल हो। केही फाइलहरू हटाउनुहोस्, वा आफ्ना फाइलहरू पुगेर सकिएपछि, पुनः प्रयास गर्नुहोस्।',
+  'server.importUploadChunkTooLarge':
+    'यो अनुरोधले {limit} बाइट्सभन्दा बढी बोकेको छ। फाइललाई साना टुक्राहरूमा पठाउनुहोस्।',
+  'server.importUploadInProgress':
+    '"{path}" अझै बाटोमै छ। यसलाई पुनः सुरु गर्नुको सट्टा, त्यसै अपलोड जारी राख्नुहोस्।',
+  'server.importUploadNotFound': 'यस आयातमा "{upload}" id भएको कुनै पनि अपलोड छैन।',
+  'server.importUploadOffset':
+    'सर्भरले यस फाइलको {received} बाइट्स प्राप्त गरेको छ। तिनीहरू पछि आउने बाइट्सहरू पठाउनुहोस्।',
+  'server.importUploadPastLength': 'यी बाइट्सहरूले यस अपलोडले घोषणा गरेको आकार नाघ्छन्।',
+  'server.importUploadLength': 'फाइलको आकार बाइट्समा पठाउन Upload-Length प्रयोग गर्नुहोस्।',
+  'server.importUploadMetadata':
+    'फाइलको नाम "filename" को रूपमा र base64 मा यसको नाम "name" को रूपमा Upload-Metadata पठाउनुहोस्।',
+  'server.importUploadOffsetMissing':
+    'पहिले नै पठाइसकिएका बाइट्सको सङ्ख्याको साथ Upload-Offset पठाउनुहोस्।',
+  'server.importUploadContentType':
+    'Content-Type application/offset+octet-stream को साथ बाइट्स पठाउनुहोस्।',
+  'server.importUploadVersion':
+    'यो सर्भरले Resumable Upload प्रोटोकलको संस्करण 1.0.0 बोल्छ। Tus-Resumable: 1.0.0 पठाउनुहोस्।',
+  'server.importUploadInterrupted':
+    'बाइट्सहरू अनुरोध समाप्त हुनु अघि आइपुग्न छोड्यो, त्यसैले तीमध्ये कुनै पनि राखिएनन्। अफसेट माग्नुहोस् र तिनीहरूलाई फेरि पठाउनुहोस्।',
+  'server.importZipEscapes': '"{name}" ZIP मा यसको फोल्डर बाहिर अवतरण हुनेछ, त्यसैले यसलाई हटाइयो।',
+  'server.importZipLink': '"{name}" ZIP मा एउटा लिङ्क हो, त्यसैले यसलाई हटाइयो।',
+  'server.importZipUnusable': '"{name}" ZIP मा {reason} भएको नाम छ, त्यसैले यसलाई हटाइयो।',
+  'server.importZipUnsupported':
+    '"{name}" ZIP मा इन्क्रिप्ट गरिएको छ वा यस्तो तरिकाले प्याक गरिएको छ जुन Romeka S ले खोल्न सक्दैन, त्यसैले यसलाई हटाइयो।',
+  'server.importZipRenamed':
+    '"{name}" ZIP मा ठुला अक्षरहरूलाई बेवास्ता गर्दा पहिलेको फाइलको नाम जस्तै छ, त्यसैले यसलाई "{renamed}" को रूपमा थपियो।',
+  'server.importZipBomb':
+    'ZIP लाई अस्वीकार गरियो: "{name}" ले आफ्नो प्याक गरिएको आकारको 100 गुणाभन्दा बढी खोल्छ। यसबाट केही पनि थपिएन।',
+  'server.importZipFull':
+    'ZIP लाई अस्वीकार गरियो: यसका फाइलहरूले {limit} बाइट्स पार गर्नेछन्, जुन एक आयातले राख्न सक्ने सबैभन्दा बढी हो। यसबाट केही पनि थपिएन।',
+  'server.importZipTooMany':
+    'ZIP लाई अस्वीकार गरियो: यसमा {count} फाइलहरू छन्, जुन 100,000 भन्दा बढी छन्। यसबाट केही पनि थपिएन।',
+  'server.importZipFileTooLarge':
+    'ZIP लाई अस्वीकार गरियो: "{name}" {limit} बाइट्स भन्दा ठुलो छ, जुन सबैभन्दा ठुलो फाइल हो जसले आयात लिन्छ। यसबाट केही पनि थपिएन।',
+  'server.importZipUnreadable':
+    'ZIP लाई अस्वीकार गरियो: यसलाई पढ्न सकिएन ({reason})। यसबाट केही पनि थपिएन।',
+  'server.importZipUnpacked': 'ZIP लाई खोल्दा: {count} फाइलहरू थपिए।',
+  'server.importSweepDone': '{imports} आयातहरूका फाइलहरू हटाइयो, र {uploads} अपूर्ण अपलोडहरू।',
 };

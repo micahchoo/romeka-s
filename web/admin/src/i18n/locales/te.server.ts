@@ -137,6 +137,8 @@ export const teServer: ServerCatalogue = {
   'server.settingNotText': '{key} సెట్టింగ్ స్ట్రింగ్ లేదా నల్ ఉండాలి.',
   'server.settingNotFlag': '{key} సెట్టింగ్ ట్రూ, ఫాల్స్ లేదా నల్ ఉండాలి.',
   'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
+  'server.settingNotCount':
+    '{key} సెట్టింగ్ తప్పనిసరిగా సున్నా కంటే ఎక్కువ ఉన్న పూర్ణాంకం లేదా null అయి ఉండాలి.',
   'server.publicationTermsRemoved':
     'ఒక పబ్లిష్డ్ టర్మ్ తొలగించలేము లేదా రీనేమ్ చేయలేము: {terms}. దానికి బదులుగా డిప్రికేట్ చేయండి.',
   'server.publicationNamespaceFixed':
@@ -235,4 +237,52 @@ export const teServer: ServerCatalogue = {
   'server.importUndoMemberKept':
     'ఈ ఐటమ్ సెట్ లోని ఒక ఐటమ్ భద్రపరచబడుతుంది, కాబట్టి ఈ ఐటమ్ సెట్ కూడా భద్రపరచబడుతుంది.',
   'server.importUndoStopped': 'రద్దు చేయడం ముగిసేలోపే ఆగిపోయింది: {reason}',
+  'server.importUploadOwnerOnly':
+    'ఈ దిగుమతిని ప్రారంభించిన వ్యక్తి, లేదా గ్లోబల్ అడ్మినిస్ట్రేటర్, మాత్రమే దీనికి ఫైల్‌లను జోడించగలరు.',
+  'server.importUploadNotDraft':
+    'ఫైల్‌లను ఈ దిగుమతి నడుస్తున్నప్పుడు మాత్రమే జోడించగలరు. మరిన్ని ఫైల్‌లను జోడించడానికి, ఈ దిగుమతి యొక్క కాపీని తయారు చేయండి.',
+  'server.importUploadPath': '"{path}" ఫైల్ పేరును ఉపయోగించలేము: {reason}.',
+  'server.importUploadTooLarge':
+    'ఈ ఫైల్ {limit} బైట్ల కంటే పెద్దది, ఇది ఒక దిగుమతికి పట్టే గరిష్ట పరిమాణం.',
+  'server.importUploadFull':
+    'ఈ దిగుమతిలోని ఫైల్‌లు {limit} బైట్ల కంటే ఎక్కువ అవుతాయి, ఇది ఒక దిగుమతి గరిష్టంగా భరించగల పరిమాణం. కొన్ని ఫైల్‌లను తొలగించండి, లేదా ఇంకా దిగుమతి అవుతున్న ఫైల్‌లు పూర్తయ్యే వరకు వేచి ఉండి మళ్ళీ ప్రయత్నించండి.',
+  'server.importUploadChunkTooLarge':
+    'ఈ అభ్యర్థన {limit} బైట్ల కంటే ఎక్కువ డేటాను కలిగి ఉంది. ఫైల్‌ను చిన్న చిన్న భాగాలుగా పంపండి.',
+  'server.importUploadInProgress':
+    '"{path}" ఇంకా దిగుమతి అవుతోంది. మళ్ళీ ప్రారంభించే బదులు, ఆ ఫైల్‌ను అప్‌లోడ్ చేస్తూ కొనసాగించండి.',
+  'server.importUploadNotFound': 'ఈ దిగుమతికి "{upload}" ఐడితో ఎటువంటి అప్‌లోడ్ లేదు.',
+  'server.importUploadOffset':
+    'సర్వర్‌కు ఈ ఫైల్ నుండి {received} బైట్లు అందాయి. వాటి తర్వాత వచ్చే బైట్లను పంపండి.',
+  'server.importUploadPastLength': 'ఈ బైట్లు ఈ అప్‌లోడ్ ప్రకటించిన పరిమాణం కంటే ఎక్కువగా ఉన్నాయి.',
+  'server.importUploadLength': 'ఫైల్‌ను బైట్లలో దాని పరిమాణంతో పాటు పంపండి.',
+  'server.importUploadMetadata':
+    'ఫైల్‌ను "filename" గా మరియు బేస్64లో దాని పేరుతో "name" గా పంపండి.',
+  'server.importUploadOffsetMissing': 'అప్పటికే పంపిన బైట్ల సంఖ్యతో "Upload-Offset" పంపండి.',
+  'server.importUploadContentType': 'బైట్‌లను Content-Type application/offset+octet-stream తో పంపండి.',
+  'server.importUploadVersion':
+    'ఈ సర్వర్ రీజ్యూమబుల్ అప్‌లోడ్ ప్రోటోకॉल వెర్షన్ 1.0.0ని మాట్లాడుతుంది. Tus-Resumable: 1.0.0 పంపండి.',
+  'server.importUploadInterrupted':
+    'బైట్లు అభ్యర్థన ముగియకముందే రావడం ఆగిపోయాయి, కాబట్టి ఏవీ భద్రపరచబడలేదు. ఆఫ్‌సెట్ అడిగి, మళ్ళీ పంపండి.',
+  'server.importZipEscapes':
+    '"{name}" జిప్ ఫైల్‌లో దాని ఫోల్డర్ వెలుపల పడుతుంది, కాబట్టి దానిని వదిలివేశారు.',
+  'server.importZipLink': '"{name}" జిప్ ఫైల్‌లో ఒక లింక్, కాబట్టి దానిని వదిలివేశారు.',
+  'server.importZipUnusable':
+    '"{name}" జిప్ ఫైల్‌లో ({reason}) ఉపయోగించలేని పేరును కలిగి ఉంది, కాబట్టి దానిని వదిలివేశారు.',
+  'server.importZipUnsupported':
+    '"{name}" జిప్ ఫైల్‌లో ఉంది, ఇది Romeka S విప్పలేని విధంగా ప్యాక్ చేయబడింది, కాబట్టి దానిని వదిలివేశారు.',
+  'server.importZipRenamed':
+    '"{name}" జిప్ ఫైల్‌లో ఉంది, ఇందులో పెద్ద అక్షరాలు (capitals) విస్మరించబడినప్పుడు మునుపటి ఫైల్ పేరు ఉంటుంది, కాబట్టి దానిని "{renamed}"గా జోడించారు.',
+  'server.importZipBomb':
+    'ZIP తిరస్కరించబడింది: "{name}" ప్యాక్ చేసిన పరిమాణం కంటే 100 రెట్లు ఎక్కువ అన్‌ప్యాక్ అవుతుంది. దీని నుండి ఏమీ జోడించబడలేదు.',
+  'server.importZipFull':
+    'ZIP తిరస్కరించబడింది: దాని ఫైల్‌లు {limit} బైట్ల కంటే ఎక్కువ ఉంటాయి, ఇది ఒక ఇంపోర్ట్ గరిష్టంగా కలిగి ఉండే పరిమాణం. దీని నుండి ఏమీ జోడించబడలేదు.',
+  'server.importZipTooMany':
+    'ZIP తిరస్కరించబట్టి: ఇందులో {count} ఫైల్‌లు ఉన్నాయి, ఇవి 100,000 కంటే ఎక్కువ. దీని నుండి ఏమీ జోడించబడలేదు.',
+  'server.importZipFileTooLarge':
+    'ZIP తిరస్కరించబట్టి: "{name}" {limit} బైట్ల కంటే పెద్దది, ఇది ఒక ఇంపోర్ట్ తీసుకునే అతిపెద్ద ఫైల్. దీని నుండి ఏమీ జోడించబడలేదు.',
+  'server.importZipUnreadable':
+    'ZIP తిరస్కరించబట్టి: దీనిని చదవడం సాధ్యం కాలేదు ({reason}). దీని నుండి ఏమీ జోడించబడలేదు.',
+  'server.importZipUnpacked': 'ZIP విప్పబడింది: {count} ఫైల్‌లు జోడించబడ్డాయి.',
+  'server.importSweepDone':
+    '{imports} ఇంపోర్ట్‌ల ఫైల్‌లు తొలగించబడ్డాయి, మరియు {uploads} అసంపూర్ణ అప్‌లోడ్‌లు.',
 };

@@ -7,6 +7,8 @@
 --
 -- - `romeka_import`: one row per import. `sources`, `plan`, `ran_plan` and `summary` are JSON that
 --   `omeka-api` owns. `ran_plan` is the plan frozen at run start; `revision` counts plan saves.
+--   `saved` is when the plan was last saved (its creation counts): the draft clock of the staging
+--   sweep.
 --   The summary also holds the worker's `heartbeat` and, once a reader found it dead, `died`.
 --   `stop_requested` is its own column, not a summary member: a stop request writes it without a
 --   heartbeat, and the worker's whole-summary writes cannot drop it.
@@ -41,6 +43,7 @@ CREATE TABLE romeka_import (
     stop_requested INTEGER NOT NULL DEFAULT 0 CHECK (stop_requested IN (0, 1)),
     copied_from INTEGER,
     created TEXT NOT NULL,
+    saved TEXT NOT NULL,
     finished TEXT,
     FOREIGN KEY (owner_id) REFERENCES user (id) ON DELETE SET NULL,
     FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE SET NULL,

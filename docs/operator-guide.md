@@ -120,6 +120,27 @@ Do not run a stuck job by hand. Wait for the rule below to settle it, then read 
   their files, and the new item sets, item types and fields that nothing else uses. A failed import
   cannot run again. To remove what its run wrote, undo it before you start the next import.
 
+### Uploaded files
+
+A person without access to the server adds files to an import from the browser. The files go to
+the store under `staging/<importId>/`, never under `/files`, so the web server does not serve them.
+A `.zip` is unpacked by the `Romeka\Job\ImportUnzip` job; its log says what was left out and why.
+The `Romeka\Job\ImportSweep` job removes uploaded files that no import needs. An upload start
+starts the sweep when none started in the last hour; nothing else runs it.
+
+Four global settings bound the uploads. `GET /api/settings` answers each one, and
+`PATCH /api/settings` sets it (a whole number above zero; `null` restores the default):
+
+| Setting | Default | What it bounds |
+| --- | --- | --- |
+| `import_upload_max_file` | 2147483648 (2 GiB) | One uploaded file, one file from a ZIP, one URL an import fetches |
+| `import_upload_max_total` | 53687091200 (50 GiB) | All files of one import, uploads in progress counted |
+| `import_staging_keep_days` | 30 | Days the files stay after an import is done or undone, or after its last attempt failed |
+| `import_draft_staging_keep_days` | 7 | Days a draft's files stay after its newest upload |
+
+Size the store for `import_upload_max_total` times the number of drafts in progress. The axum body
+limit (`max_body_bytes`) does not bound an upload: a `PATCH` streams its body into the store.
+
 ## Import from the command line
 
 `romeka import run`, `undo` and `list` do what the Import page does, without a server. Stop other

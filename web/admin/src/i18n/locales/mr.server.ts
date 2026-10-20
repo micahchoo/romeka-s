@@ -136,6 +136,7 @@ export const mrServer: ServerCatalogue = {
   'server.settingNotText': '{key} हे सेटिंग स्ट्रिंग किंवा नल असणे आवश्यक आहे.',
   'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
   'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
+  'server.settingNotCount': '{key} ही शून्य पेक्षा मोठी पूर्ण संख्या किंवा null असणे आवश्यक आहे.',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्द काढता येत नाही किंवा त्याचे नाव बदलता येत नाही: {terms}. त्याऐवजी ते अप्रचलित (deprecate) करा.',
   'server.publicationNamespaceFixed':
@@ -237,4 +238,52 @@ export const mrServer: ServerCatalogue = {
   'server.importUndoMemberKept':
     'या आयटम सेटमधील एक आयटम जतन केला जातो, त्यामुळे आयटम सेट देखील जतन केला जातो.',
   'server.importUndoStopped': 'पूर्ववत करणे शेवटापूर्वीच थांबले: {reason}',
+  'server.importUploadOwnerOnly':
+    'केवळ या आयातीची सुरुवात करणाऱ्या व्यक्तीला किंवा जागतिक प्रशासकाला यात फाईल्स जोडता येतात.',
+  'server.importUploadNotDraft':
+    'फाईल्स केवळ तेव्हाच जोडल्या जाऊ शकतात जेव्हा आयात सुरू होण्यापूर्वी. अधिक फाईल्स जोडण्यासाठी, या आयातीची प्रत तयार करा.',
+  'server.importUploadPath': '"{path}" हे फाईल नाव वापरता येणार नाही: {reason}.',
+  'server.importUploadTooLarge':
+    'ही फाईल {limit} bytes पेक्षा मोठी आहे, जी आयातीसाठी लागणारी सर्वात मोठी फाईल आहे.',
+  'server.importUploadFull':
+    'या आयातीच्या फाईल्स {limit} bytes पेक्षा जास्त होतील, जी एका आयातीमध्ये सामावणाऱ्या सर्वात जास्त फाईल्स आहेत. काही फाईल्स काढून टाका, किंवा त्यांच्या येण्याची वाट पहा, आणि पुन्हा प्रयत्न करा.',
+  'server.importUploadChunkTooLarge':
+    'या विनंतीमध्ये {limit} bytes पेक्षा जास्त डेटा आहे. फाईल लहान भागांत पाठवा.',
+  'server.importUploadInProgress':
+    '"{path}" अजूनही मार्गावर आहे. पुन्हा सुरू करण्याऐवजी त्या अपलोडसह पुढे जा.',
+  'server.importUploadNotFound': 'या आयातीमध्ये "{upload}" आयडीसह कोणतीही अपलोड नाही.',
+  'server.importUploadOffset':
+    'सर्व्हरने या फाईलचे {received} bytes जतन केले आहेत. त्यांच्यानंतर येणारे bytes पाठवा.',
+  'server.importUploadPastLength': 'हे bytes या अपलोडने घोषित केलेल्या आकारापेक्षा जास्त आहेत.',
+  'server.importUploadLength': 'फाईलचा आकार bytes मध्ये कळवण्यासाठी Upload-Length पाठवा.',
+  'server.importUploadMetadata': 'फाईलचे नाव "filename" म्हणून आणि base64 मध्ये त्याचे नाव पाठवा.',
+  'server.importUploadOffsetMissing':
+    'आधीच पाठवलेल्या bytes ची संख्या दर्शवण्यासाठी Upload-Offset पाठवा.',
+  'server.importUploadContentType': 'Content-Type application/offset+octet-stream सह बाइट्स पाठवा.',
+  'server.importUploadVersion':
+    'हा सर्व्हर resumptions साठी version 1.0.0 प्रोटोकॉल बोलतो. Tus-Resumable: 1.0.0 पाठवा.',
+  'server.importUploadInterrupted':
+    'विनंती संपण्यापूर्वी bytes येणे थांबले, त्यामुळे त्यातील कोणीही जतन केले गेले नाही. Offset मागा आणि ते पुन्हा पाठवा.',
+  'server.importZipEscapes':
+    '"{name}" हा ZIP मधील फोल्डरच्या बाहेर पडला असता, म्हणून तो वगळला गेला.',
+  'server.importZipLink': '"{name}" हा ZIP मधील एक link आहे, म्हणून तो वगळला गेला.',
+  'server.importZipUnusable':
+    '"{name}" हा ZIP मधील असा एक घटक आहे ज्याचे नाव वापरता येत नाही ({reason}), म्हणून तो वगळला गेला.',
+  'server.importZipUnsupported':
+    '"{name}" हा ZIP मधील असा एक घटक आहे जो Romeka S उलगडू शकत नाही, म्हणून तो वगळला गेला.',
+  'server.importZipRenamed':
+    '"{name}" हा ZIP मधील असा एक घटक आहे ज्याचे नाव आधीच्या फाईलसारखेच आहे (अक्षरांचा आकार दुर्लक्षित केल्यास), म्हणून तो "{renamed}" म्हणून जोडला गेला.',
+  'server.importZipBomb':
+    'ZIP नाकारला गेला: "{name}" हा 100 पेक्षा जास्त वेळा त्याच्या संकुचित आकारापेक्षा जास्त उलगडतो. त्यातील काहीही जोडले गेले नाही.',
+  'server.importZipFull':
+    'ZIP नाकारला गेला: त्याच्या फाईल्स {limit} bytes पेक्षा जास्त असतील, जे एका आयात प्रक्रियेत सर्वाधिक धरले जातात. त्यातील काहीही जोडले गेले नाही.',
+  'server.importZipTooMany':
+    'ZIP नाकारला गेला: यात {count} फाईल्स आहेत, 100,000 पेक्षा जास्त. त्यातील काहीही जोडले गेले नाही.',
+  'server.importZipFileTooLarge':
+    'ZIP नाकारला गेला: "{name}" हा {limit} bytes पेक्षा मोठा आहे, जी आयात प्रक्रियेत स्वीकारली जाणारी सर्वात मोठी फाईल आहे. त्यातील काहीही जोडले गेले नाही.',
+  'server.importZipUnreadable':
+    'ZIP नाकारला गेला: तो वाचता आला नाही ({reason}). त्यातील काहीही जोडले गेले नाही.',
+  'server.importZipUnpacked': 'ZIP उलगडला गेला: {count} फाईल्स जोडल्या गेल्या.',
+  'server.importSweepDone':
+    '{imports} आयातीमधील फाईल्स काढून टाकल्या, आणि {uploads} अपूर्ण अपलोड्स.',
 };

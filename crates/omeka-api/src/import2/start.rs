@@ -118,7 +118,7 @@ where
     for<'x> Option<Vec<u8>>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
-    scan::scan(pool, roots, import, &plan.sources).await?;
+    scan::scan(pool, roots, store, import, &plan.sources).await?;
     let derived = derive_import(
         pool,
         roots,
