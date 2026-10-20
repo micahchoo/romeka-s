@@ -29,12 +29,12 @@ const BHC_PATTERN: &str = r"^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z
 fn bhc_006(site: &Site) {
     let (jpeg, tiff) = (jpeg(), tiff());
     for n in 1..=4 {
-        site.write(&format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), &jpeg);
-        site.write(&format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), &jpeg);
-        site.write(&format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), &tiff);
+        site.write_object(&format!("Artifacts/BHC_006_AF_00{n}_front.jpg"), &jpeg);
+        site.write_object(&format!("Artifacts/BHC_006_AF_00{n}_back.jpg"), &jpeg);
+        site.write_object(&format!("Photographs/1950s/BHC_006_PH_10{n}.tif"), &tiff);
     }
     for page in ["p1", "p2", "p10"] {
-        site.write(&format!("Scans/BHC_006_SC_001_{page}.tif"), &tiff);
+        site.write_object(&format!("Scans/BHC_006_SC_001_{page}.tif"), &tiff);
     }
 }
 
