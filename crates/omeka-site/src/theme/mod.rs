@@ -124,7 +124,9 @@ impl AssetKind {
         match self {
             Self::Stylesheet => format!("<link rel=\"stylesheet\" href=\"{href}\">"),
             Self::Script => format!("<script src=\"{href}\"></script>"),
-            Self::Library | Self::LibraryStylesheet | Self::Image | Self::Font | Self::Png => String::new(),
+            Self::Library | Self::LibraryStylesheet | Self::Image | Self::Font | Self::Png => {
+                String::new()
+            }
         }
     }
 }
