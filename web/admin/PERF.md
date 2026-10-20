@@ -744,6 +744,29 @@ the toolbar's unsaved note and the lazy import ride the editor shell.
 A single build on one machine. The largest lazy chunk is still `fields-*` (9018 B by `perf:check`);
 the editor shell is next at 9013 B of the 10240 B ceiling.
 
+## Decision 24: the media reference and focal point controls join the editor fields chunk (accepted)
+
+**Change.** A block setting may name a media of the site. Its control (`editor/fields/MediaRefField.tsx`)
+finds the item with the item picker and chooses one of its images; the hero's focal point control
+(`editor/fields/FocalPointField.tsx`) sets a point on that image. Both are in the `fields` chunk with
+the other field controls; the item picker stays its own chunk. 40 `editor` keys cover the new hero,
+IIIF image and control words.
+
+**Measured.** `npm run build`, then `npm run perf:check` and gzip bytes from `zlib.gzipSync` per
+emitted asset, against main `509560d` built the same way from a `git archive` copy with the same
+`node_modules`:
+
+| Asset | Before (`509560d`) | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86043 | 86049 | the two new field kinds in the registry parser |
+| `fields` chunk | 8046 | 9140 | the two controls; now the largest lazy chunk |
+| `fields` css | 1266 | 1437 | the focal frame and the disabled media choice |
+| English editor messages | 6451 | 7000 | |
+
+A single build on one machine. The `fields` chunk has 1100 B left under the 10240 B ceiling, so the
+next control that grows it should move a rarely used control (the page list, the item query) into a
+chunk of its own first.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

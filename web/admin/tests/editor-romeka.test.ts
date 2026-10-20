@@ -103,7 +103,13 @@ describe('adding a Romeka block', () => {
     const carrier = carrierOf(block);
     expect(carrier).not.toBeNull();
     expect(carrier?.block).toBe('hero');
-    expect(settingsOf(block)).toEqual({ overlay: 'medium', alignment: 'left' });
+    expect(settingsOf(block)).toEqual({
+      heading_level: 'h2',
+      background_source: 'asset',
+      height: 'medium',
+      overlay: 'medium',
+      alignment: 'left',
+    });
   });
 
   it('offers every generated field through the carrier schema', () => {
@@ -111,13 +117,21 @@ describe('adding a Romeka block', () => {
     expect(hero?.carrier).toBe('html');
     expect(hero?.fields.map((field) => field.key)).toEqual([
       'heading',
+      'heading_level',
       'subheading',
       'body',
+      'background_source',
       'background',
+      'background_media',
+      'focal_x',
+      'height',
+      'overlay_color',
       'overlay',
       'alignment',
       'cta_label',
       'cta_page',
+      'cta2_label',
+      'cta2_page',
     ]);
   });
 });

@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 126); the other
- * 78 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 128); the other
+ * 80 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */

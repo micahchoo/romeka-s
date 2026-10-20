@@ -3,7 +3,7 @@
  *
  * The draft holds only ids: an attachment's item and media, an asset field's
  * asset id. Which field names an image comes from the layout's schema, so a new
- * layout with an `attachments` or `assetRef` field gets a thumbnail with no
+ * layout with an `attachments`, `assetRef` or `mediaRef` field gets a thumbnail with no
  * code here. The canvas resolves every card's id in one read per kind, never
  * one read per card.
  */
@@ -15,6 +15,7 @@ import type { BlockDraft } from '../draft';
 import { carrierOf, romkaFor } from '../romeka';
 import { schemaFor } from '../schema';
 import { dataObject, isJsonArray, isJsonObject } from '../values';
+import { isShown } from '../fields/visibility';
 
 export type ImageKind = 'media' | 'item' | 'asset';
 
@@ -28,23 +29,30 @@ const idOf = (value: JsonValue | undefined): number | null => {
   return typeof id === 'number' && Number.isInteger(id) && id > 0 ? id : null;
 };
 
-/** The first asset id the fields hold, looking inside repeated entries too. */
-const firstAsset = (
+/**
+ * The first image the fields hold: an asset or a media reference whose control
+ * shows, so a hidden choice left behind by a switch is not the card's image.
+ * Repeated entries are looked inside too.
+ */
+const firstImage = (
   fields: readonly BlockField[],
   values: Readonly<Record<string, JsonValue>>,
-): number | null => {
+): ImageRef | null => {
   for (const field of fields) {
+    if (!isShown(field, values, fields)) {
+      continue;
+    }
     const value = values[field.key];
-    if (field.type === 'assetRef') {
+    if (field.type === 'assetRef' || field.type === 'mediaRef') {
       const id = idOf(value);
       if (id !== null) {
-        return id;
+        return { kind: field.type === 'assetRef' ? 'asset' : 'media', id };
       }
     } else if (field.type === 'repeat' && value !== undefined && isJsonArray(value)) {
       for (const entry of value) {
-        const id = isJsonObject(entry) ? firstAsset(field.fields, entry) : null;
-        if (id !== null) {
-          return id;
+        const found = isJsonObject(entry) ? firstImage(field.fields, entry) : null;
+        if (found !== null) {
+          return found;
         }
       }
     }
@@ -52,12 +60,11 @@ const firstAsset = (
   return null;
 };
 
-/** The image a block's card shows: its first attachment, else its first asset. */
+/** The image a block's card shows: its first attachment, else its first image field. */
 export const blockImage = (registry: BlockRegistry, block: BlockDraft): ImageRef | null => {
   const romka = romkaFor(registry, block);
   if (romka !== undefined) {
-    const id = firstAsset(romka.fields, carrierOf(block)?.settings ?? {});
-    return id === null ? null : { kind: 'asset', id };
+    return firstImage(romka.fields, carrierOf(block)?.settings ?? {});
   }
   const schema = schemaFor(registry, block.layout);
   if (schema === undefined) {
@@ -73,8 +80,7 @@ export const blockImage = (registry: BlockRegistry, block: BlockDraft): ImageRef
       return { kind: 'item', id: first.item };
     }
   }
-  const asset = firstAsset(schema.fields, dataObject(block));
-  return asset === null ? null : { kind: 'asset', id: asset };
+  return firstImage(schema.fields, dataObject(block));
 };
 
 export const imageKey = (ref: ImageRef): string => `${ref.kind}:${String(ref.id)}`;

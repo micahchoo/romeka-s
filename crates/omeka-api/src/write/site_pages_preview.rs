@@ -115,7 +115,7 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
             // The same carrier step a write runs, so a preview renders exactly
             // what a save would store: the plain rendering regenerated from the
             // block's own renderer, with its hash recorded.
-            let (data, layout_data) = super::site_pages::carry_block(
+            let (data, layout_data) = super::block_carrier::carry_block(
                 api,
                 Some(site),
                 &block.layout,

@@ -45,6 +45,17 @@ export const BlockForm = ({
   const data = dataObject(block);
   const layoutData = layoutDataObject(block);
   const mine = issues.filter((issue) => issue.blockKey === block.key);
+  // A `when` test may name a Romeka setting (the IIIF image's source), so the
+  // record the controls read holds those beside `o:data`.
+  const record = {
+    ...data,
+    ...Object.fromEntries(
+      schema.fields.flatMap((field) => {
+        const stored = settingPath(field.key) === null ? undefined : readPath(layoutData, field.key);
+        return stored === undefined ? [] : [[field.key, stored] as const];
+      }),
+    ),
+  };
   const idPrefix = `block-${block.key}`;
   return (
     <div className="block-form">
@@ -75,7 +86,7 @@ export const BlockForm = ({
                   : { type: 'setLayoutDataValues', blockKey: block.key, values: { [field.key]: value } },
               );
             }}
-            record={data}
+            record={record}
             siblings={schema.fields}
             onPatch={(values) => {
               for (const [key, value] of Object.entries(values)) {

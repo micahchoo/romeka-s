@@ -17,6 +17,7 @@
 
 pub mod access;
 pub mod assets;
+pub mod block_carrier;
 pub mod body;
 pub mod detached;
 pub mod files;

@@ -193,6 +193,21 @@ pub enum FieldKind {
     PageRef,
     /// A reference to an asset.
     AssetRef,
+    /// A reference to one media of the site, by id. It lives only in
+    /// `o:layout_data.romeka.settings`, and a write refuses a media a visitor
+    /// may not see, because the plain rendering that names it is public.
+    MediaRef,
+    /// A focal point on the image a sibling field names: two whole percents,
+    /// x under the field's `key` and y under `y_key`, that keep that part of
+    /// the image in view when the frame crops it.
+    FocalPoint {
+        /// The key that holds the y percent.
+        #[serde(rename = "yKey")]
+        y_key: &'static str,
+        /// The sibling image fields, an asset or a media reference, in the
+        /// order the control looks for the first one shown and set.
+        images: &'static [&'static str],
+    },
     /// A search query over the site's resources (`Omeka\Form\Element\Query`).
     ItemQuery {
         /// The sibling choice that names the resource type the query searches
@@ -397,6 +412,23 @@ pub const fn asset_ref(key: &'static str, label: &'static str, help: &'static st
     field(key, label, help, FieldKind::AssetRef)
 }
 
+/// A reference to one media of the site.
+pub const fn media_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
+    field(key, label, help, FieldKind::MediaRef)
+}
+
+/// A focal point, x under `x_key` and y under `y_key`, on the first of
+/// `images` that is shown and set.
+pub const fn focal_point(
+    x_key: &'static str,
+    y_key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    images: &'static [&'static str],
+) -> Field {
+    field(x_key, label, help, FieldKind::FocalPoint { y_key, images })
+}
+
 /// A search query over the site's items.
 pub const fn item_query(key: &'static str, label: &'static str, help: &'static str) -> Field {
     field(
@@ -596,6 +628,7 @@ impl Field {
                 [keys.top, keys.right, keys.bottom, keys.left].contains(&key)
             }
             FieldKind::Link { url_key } => self.key == key || url_key == key,
+            FieldKind::FocalPoint { y_key, .. } => self.key == key || y_key == key,
             FieldKind::MapView { zoom_key } => self.key == key || zoom_key == key,
             FieldKind::Color {
                 token_key: Some(token_key),

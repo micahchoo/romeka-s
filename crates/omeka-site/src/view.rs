@@ -316,6 +316,13 @@ pub trait ResourceProvider {
     /// Read one asset by id, `None` when it does not exist.
     fn read_asset(&self, id: AssetId) -> Option<AssetView>;
 
+    /// The image a Romeka setting shows for one media: its large rendition, or
+    /// its original when it has no renditions, with its alt text. `None` when
+    /// the media does not exist, has no image, or the visitor may not see it.
+    fn read_image(&self, _id: MediaId) -> Option<Thumbnail> {
+        None
+    }
+
     /// The `site_block_attachment` rows of a block, ordered by `position`.
     ///
     /// The item-with-metadata, media and asset blocks read their content here;

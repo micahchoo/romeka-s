@@ -94,6 +94,15 @@ export type BlockField =
     })
   | (FieldBase & { readonly type: 'pageRef' })
   | (FieldBase & { readonly type: 'assetRef' })
+  /** One media of the site, by id, stored as a Romeka setting. */
+  | (FieldBase & { readonly type: 'mediaRef' })
+  | (FieldBase & {
+      /** A point on a sibling image: x percent under `key`, y under `yKey`. */
+      readonly type: 'focalPoint';
+      readonly yKey: string;
+      /** The sibling image fields, tried in order for the first shown and set. */
+      readonly images: readonly string[];
+    })
   | (FieldBase & {
       readonly type: 'itemQuery';
       /** The sibling choice naming the resource type searched; `null` for items. */
@@ -361,6 +370,15 @@ const parseField = (value: unknown, path: Path): BlockField => {
       return { ...base, type: 'pageRef' };
     case 'assetRef':
       return { ...base, type: 'assetRef' };
+    case 'mediaRef':
+      return { ...base, type: 'mediaRef' };
+    case 'focalPoint':
+      return {
+        ...base,
+        type: 'focalPoint',
+        yKey: parseString(value.yKey, [...path, 'yKey']),
+        images: parseListOf(parseString)(value.images, [...path, 'images']),
+      };
     case 'itemQuery':
       return {
         ...base,

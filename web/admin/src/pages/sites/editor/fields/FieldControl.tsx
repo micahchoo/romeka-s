@@ -32,6 +32,7 @@ import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
 import { ManifestSourceField } from './ManifestSourceField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
+import { FocalPointControl, MediaRefControl } from './mediaControls';
 import { PageListField } from './PageListField';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
@@ -565,6 +566,10 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <AnchorControl {...common} field={common.field} />;
     case 'manifestSource':
       return <ManifestSourceControl {...common} field={common.field} />;
+    case 'mediaRef':
+      return <MediaRefControl {...common} field={common.field} />;
+    case 'focalPoint':
+      return <FocalPointControl {...common} field={common.field} />;
     case 'itemList':
       return <ItemListControl {...common} field={common.field} />;
     case 'mapView':

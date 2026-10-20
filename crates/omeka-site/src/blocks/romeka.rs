@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use omeka_core::ids::{AssetId, ItemId, PageId, SiteId};
+use omeka_core::ids::{AssetId, ItemId, MediaId, PageId, SiteId};
 use omeka_core::site::{BlockData, RomkaCarrier, SiteBlock};
 use serde_json::Value as JsonValue;
 
@@ -62,6 +62,13 @@ pub trait RomkaBlock: Sync {
         Vec::new()
     }
 
+    /// The media ids the rendering uses, so a write can leave a private one
+    /// out of the plain rendering and a page load can read the visible ones
+    /// first.
+    fn media_refs(&self, _settings: &JsonValue) -> Vec<MediaId> {
+        Vec::new()
+    }
+
     /// The items the settings select, so a caller can load them before the
     /// rich render reads them and resolve them before the plain render.
     fn items(&self, _settings: &JsonValue) -> Option<ItemSelection> {
@@ -95,12 +102,12 @@ impl ItemSelection {
     }
 }
 
-/// A resolved asset, as a plain rendering names it.
+/// A resolved image, an asset's or a media's, as a plain rendering names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PlainAsset {
+pub struct PlainImage {
     /// The file URL, relative to the origin the page is served from.
     pub url: String,
-    /// The alt text, the empty string when the asset has none.
+    /// The alt text, the empty string when the file has none.
     pub alt: String,
 }
 
@@ -111,7 +118,8 @@ pub struct PlainAsset {
 /// renderer stays a pure transform from values to HTML.
 #[derive(Debug, Clone, Default)]
 pub struct PlainRefs {
-    assets: BTreeMap<AssetId, PlainAsset>,
+    assets: BTreeMap<AssetId, PlainImage>,
+    media: BTreeMap<MediaId, PlainImage>,
     pages: BTreeMap<PageId, String>,
     items: Vec<PlainItem>,
 }
@@ -139,7 +147,20 @@ impl PlainRefs {
     pub fn asset(mut self, id: AssetId, url: impl Into<String>, alt: impl Into<String>) -> Self {
         self.assets.insert(
             id,
-            PlainAsset {
+            PlainImage {
+                url: url.into(),
+                alt: alt.into(),
+            },
+        );
+        self
+    }
+
+    /// The same map with one media image resolved.
+    #[must_use]
+    pub fn media(mut self, id: MediaId, url: impl Into<String>, alt: impl Into<String>) -> Self {
+        self.media.insert(
+            id,
+            PlainImage {
                 url: url.into(),
                 alt: alt.into(),
             },
@@ -156,8 +177,15 @@ impl PlainRefs {
 
     /// The asset named by `id`, `None` when the caller could not resolve it.
     #[must_use]
-    pub fn asset_of(&self, id: AssetId) -> Option<&PlainAsset> {
+    pub fn asset_of(&self, id: AssetId) -> Option<&PlainImage> {
         self.assets.get(&id)
+    }
+
+    /// The image of the media named by `id`, `None` when the caller could not
+    /// resolve it.
+    #[must_use]
+    pub fn media_of(&self, id: MediaId) -> Option<&PlainImage> {
+        self.media.get(&id)
     }
 
     /// The URL of the page named by `id`, `None` when the caller could not
@@ -307,6 +335,17 @@ pub fn page_refs(carrier: &RomkaCarrier) -> Vec<PageId> {
     block(carrier.block.as_str())
         .map(|definition| definition.page_refs(&carrier.settings))
         .unwrap_or_default()
+}
+
+/// The media ids a block stored under `layout` renders from its carrier: the
+/// Romeka block's when the carrier names one, else the upstream layout's own
+/// Romeka settings (the IIIF image's site media).
+#[must_use]
+pub fn media_refs(layout: &str, carrier: &RomkaCarrier) -> Vec<MediaId> {
+    match block(carrier.block.as_str()) {
+        Some(definition) => definition.media_refs(&carrier.settings),
+        None => super::layout_for(layout).media_refs(&carrier.settings),
+    }
 }
 
 /// The items a carrier's settings select, `None` for a block that selects
