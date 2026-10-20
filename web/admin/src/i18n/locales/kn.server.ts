@@ -27,7 +27,7 @@ export const knServer: ServerCatalogue = {
   'server.invalidContentType':
     'ಅಮಾನ್ಯವಾದ Content-Type ಹೆಡರ್. "application/json" ನಿರೀಕ್ಷಿಸಲಾಗುತ್ತಿದೆ, ಆದರೆ "{received}" ಬಂದಿದೆ.',
   'server.bodyNotObject': 'ವಿನಂತಿಯ ದೇಹವು ಒಂದು JSON ವಸ್ತುವಾಗಿರಬೇಕು.',
-  'server.siteItemsOneSelector': 'ಹೆಸರು "query", "items" ಅಥವಾ "item_sets" ಗಳಲ್ಲಿ ಒಂದಾಗಿರಬೇಕು.',
+  'server.siteItemsOneSelector': 'ಹೆಸರು "query", ಅಥವಾ "items", "item_sets" ಅಥವಾ ಎರಡೂ ಆಗಿರಬೇಕು',
   'server.invalidCredentials': 'ಇಮೇಲ್ ಅಥವಾ ಪಾಸ್‌ವರ್ಡ್ ಅಮಾನ್ಯವಾಗಿದೆ',
   'server.inactiveAccount': 'ಬಳಕೆದಾರರು ಸಕ್ರಿಯವಾಗಿಲ್ಲ.',
   'server.unknownKey': 'ಅಮಾನ್ಯವಾದ ಪಾಸ್‌ವರ್ಡ್ ರಚನೆಯ ಕೀ.',
@@ -47,6 +47,7 @@ export const knServer: ServerCatalogue = {
   'server.mediaItemRequired': 'ಮೀಡಿಯಾ ಒಂದು ಐಟಂಗೆ ಸೇರಿರಬೇಕು.',
   'server.jobHeldByImport':
     'ಈ ಕೆಲಸವು ಚಾಲನೆಯಲ್ಲಿರುವ ಅಥವಾ ರದ್ದುಗೊಳಿಸುತ್ತಿರುವ ಆರ್ಕೈವ್ ಇಂಪೋರ್ಟ್ಗೆ ಸೇರಿದೆ. ಇಂಪೋರ್ಟ್ ಮುಗಿದ ನಂತರ ಅದನ್ನು ಅಳಿಸಿ.',
+  'server.pageSavedSinceOpened': 'ನೀವು ಇದನ್ನು ತೆರೆದ ನಂತರ ಯಾರೋ ಈ ಪುಟವನ್ನು ಉಳಿಸಿದ್ದಾರೆ.',
   'server.noFileUploaded': 'ಯಾವುದೇ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಆಗಿಲ್ಲ',
   'server.assetMediaType':
     '"{file}" ಅನ್ನು ದೃಢೀಕರಿಸುವಲ್ಲಿ ದೋಷ. "{media}" ಮಾಧ್ಯಮ ಪ್ರಕಾರದೊಂದಿಗೆ ಫೈಲ್‌ಗಳನ್ನು ಸಂಗ್ರಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',

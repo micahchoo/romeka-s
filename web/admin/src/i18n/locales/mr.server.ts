@@ -27,7 +27,7 @@ export const mrServer: ServerCatalogue = {
   'server.invalidContentType':
     'अवैध Content-Type हेडर. "application/json" अपेक्षित आहे, {received} मिळाले.',
   'server.bodyNotObject': 'विनंतीचा मुख्य भाग (body) JSON ऑब्जेक्ट असणे आवश्यक आहे.',
-  'server.siteItemsOneSelector': '"query", "items" किंवा "item_sets" पैकी नेमके एक नाव',
+  'server.siteItemsOneSelector': 'नाव एकतर "query", किंवा "items", "item_sets" किंवा दोन्ही',
   'server.invalidCredentials': 'ईमेल किंवा पासवर्ड अवैध आहे',
   'server.inactiveAccount': 'वापरकर्ता सक्रिय नाही.',
   'server.unknownKey': 'अवैध पासवर्ड निर्मिती की.',
@@ -48,6 +48,7 @@ export const mrServer: ServerCatalogue = {
   'server.mediaItemRequired': 'मीडिया एखाद्या आयटमचा भाग असणे आवश्यक आहे.',
   'server.jobHeldByImport':
     'हे कार्य चालू असलेल्या किंवा पूर्ववत होणाऱ्या संग्रहाच्या आयातीचे आहे. आयात पूर्ण झाल्यावर तो हटवा.',
+  'server.pageSavedSinceOpened': 'तुम्ही हे पृष्ठ उघडल्यानंतर कोणीतरी ते जतन केले.',
   'server.noFileUploaded': 'कोणतीही फाईल अपलोड केली गेली नाही',
   'server.assetMediaType':
     '"{file}" चे प्रमाणीकरण करताना त्रुटी. मीडिया प्रकार "{media}" सह फाईल्स साठवता येत नाहीत.',

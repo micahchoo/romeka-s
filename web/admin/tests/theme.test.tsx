@@ -48,7 +48,7 @@ vi.mock('../src/i18n/namespaces/theme/locales/hi', async (importOriginal) => {
   await hindiTheme.gate;
   return importOriginal();
 });
-import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
+import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
 
 describe('the theme draft', () => {
   it('the generated registry lists the presets, the pairs and every token', () => {
@@ -336,6 +336,52 @@ describe('the site Theme page', () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  it('previews a sample item of the site with the draft section order', async () => {
+    const fetchMock = installFetch((url) => {
+      if (url.pathname === '/api/items') {
+        return listResponse([loadFixture('item-1.json')], 1);
+      }
+      return themeHandler(url);
+    });
+    render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Preview' }), {
+      target: { value: 'items' },
+    });
+    const items = screen.getByRole('group', { name: 'Items' });
+    fireEvent.click(within(items).getByRole('button', { name: 'Hide Values' }));
+
+    await waitFor(
+      () => {
+        const bodies = requestsFor(fetchMock, '/s/my-site/preview').map(requestBody);
+        const resource = bodies.filter((body) => 'resource_page' in body);
+        expect(resource.at(-1)?.['resource_page']).toEqual({ kind: 'items', id: 1 });
+        expect(resource.at(-1)?.['o:theme_settings']).toMatchObject({
+          resource_page_blocks: {
+            items: { main: ['mediaEmbeds', 'itemSets', 'sitePages', 'mediaList', 'linkedResources'] },
+          },
+        });
+      },
+      { timeout: 3000 },
+    );
+    expect(first(requestsFor(fetchMock, '/api/items')).url.searchParams.get('site_id')).toBe('1');
+  });
+
+  it('says so when the site has no record of the kind to preview', async () => {
+    installFetch((url) =>
+      url.pathname === '/api/item_sets' ? listResponse([], 0) : themeHandler(url),
+    );
+    render(<SitesPage param="1" rest={['1', 'theme']} />);
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Preview' }), {
+      target: { value: 'item_sets' },
+    });
+
+    expect(
+      await screen.findByText('This site has no item sets yet, so there is no item set page to show.'),
+    ).toBeInTheDocument();
   });
 
   it('shows the sanitiser errors from the preview and blocks the save', async () => {

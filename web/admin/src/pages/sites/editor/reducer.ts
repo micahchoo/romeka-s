@@ -14,7 +14,7 @@ import { addBlock, insertBlocks, moveBlock, removeBlock, setLayout } from './blo
 import { canonicalBlocks } from './groups';
 import { commit, contentOf, markSaved, redo, undo } from './history';
 import { layoutObject, readData } from './values';
-import { fromTemplateBlock } from './wire';
+import { contentFromApi, fromTemplateBlock } from './wire';
 
 const setPage = (state: PageDraft, action: ActionOf<'setPage'>): PageDraft => {
   if (action.field === 'isPublic') {
@@ -55,6 +55,12 @@ const applyTemplate = (state: PageDraft, action: ActionOf<'applyTemplate'>): Pag
   );
 };
 
+const loadPage = (state: PageDraft, action: ActionOf<'loadPage'>): PageDraft => {
+  const content = contentFromApi(action.page, state.nextKey);
+  const next = commit(state, content, state.nextKey + content.blocks.length);
+  return action.saved ? { ...next, saved: contentOf(next) } : next;
+};
+
 export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft => {
   switch (action.type) {
     case 'addBlock':
@@ -87,6 +93,8 @@ export const draftReducer = (state: PageDraft, action: DraftAction): PageDraft =
       return setPageLayoutData(state, action);
     case 'applyTemplate':
       return applyTemplate(state, action);
+    case 'loadPage':
+      return loadPage(state, action);
     case 'undo':
       return undo(state);
     case 'redo':

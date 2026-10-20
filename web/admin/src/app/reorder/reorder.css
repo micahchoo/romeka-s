@@ -1,0 +1,49 @@
+/* The shared reorder controls: a grab handle, two small step buttons and a hidden live region. */
+.reorder-handle {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+}
+
+.reorder-handle:active {
+  cursor: grabbing;
+}
+
+.reorder-handle[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.reorder-buttons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.reorder-step {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+[data-reorder-picked='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+[data-reorder-drop='true'] {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+
+.reorder-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

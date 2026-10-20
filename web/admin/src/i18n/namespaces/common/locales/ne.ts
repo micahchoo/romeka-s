@@ -96,4 +96,15 @@ export const ne: CommonMessages = {
   'tags.hint':
     'पछि कुराहरू खोज्नका लागि नि:शुल्क शब्दहरू। Enter थिच्नुहोस् वा थप्नका लागि अल्पविराम टाइप गर्नुहोस्।',
   'tags.remove': 'ट्याग “{tag}” हटाउनुहोस्',
+  'reorder.handle': '{label} सार्नुहोस्, {position}/{count}',
+  'reorder.grip': 'सार्नका लागि तान्नुहोस्, वा छान्नेका लागि Space थिच्नुहोस्',
+  'reorder.up': '{label} लाई माथि सार्नुहोस्',
+  'reorder.down': '{label} लाई तल सार्नुहोस्',
+  'reorder.upTip': 'माथि सार्नुहोस्',
+  'reorder.downTip': 'तल सार्नुहोस्',
+  'reorder.picked':
+    '{label} उठाउनुभयो। सार्नका लागि एरो कुञ्जीहरू, खसाल्नका लागि Space, रद्द गर्नका लागि Escape प्रयोग गर्नुहोस्।',
+  'reorder.moved': '{label}: {count} को {position} स्थान।',
+  'reorder.dropped': '{count} को {position} स्थानमा {label} खसाल्नुभयो।',
+  'reorder.cancelled': '{label} को चाल रद्द गरियो।',
 };

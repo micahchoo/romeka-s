@@ -117,7 +117,7 @@ test('dragging a field by its handle reorders the rows', async ({ page, diagnost
     })),
   });
   await page.goto(`/#/resource-templates/${String(id)}`);
-  const handles = page.locator('.type-field-handle');
+  const handles = page.locator('.type-field > .reorder-handle');
   await handles.nth(2).dragTo(page.locator('.type-field').first());
   await expect(page.locator('.type-field-name').first()).toHaveAttribute('placeholder', 'Date');
   await saveType(page);

@@ -3,8 +3,10 @@
  * it, what it accepts, whether it is required or private, and its help text
  * and language. Each smart default is shown and has its override in place.
  */
-import { Fragment, useEffect, useId, useRef, useState } from 'react';
-import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
+import { Fragment, useId, useState } from 'react';
+import type { ReactElement } from 'react';
+import { ReorderButtons, ReorderHandle } from '../../app/reorder/useReorderable';
+import type { Reorderable } from '../../app/reorder/useReorderable';
 import { useTermText } from '../../i18n/termComments';
 import type { DataType, Property } from '../../api/types';
 import { useLesson } from '../../app/lessons/lesson';
@@ -35,22 +37,18 @@ const choiceLabel = (type: string, dataTypes: readonly DataType[], t: ItemTypesT
     ? (dataTypes.find((dataType) => dataType.id === type)?.label ?? t('accepts.missing', { id: type }))
     : acceptLabel(type, dataTypes, t);
 
-/** The drag payload type, so a drop only accepts a field of this editor. */
-export const FIELD_DRAG = 'application/x-romeka-type-field';
-
 /** The lesson a row's standard term anchors, if any (`FieldList` picks the rows). */
 export type TermLesson = 'term' | 'local-field' | null;
 
 export interface FieldRowProps {
   readonly field: FieldDraft;
   readonly index: number;
-  readonly count: number;
+  /** The field list's reorder model, which moves this row. */
+  readonly reorder: Reorderable;
+  readonly name: string;
   readonly draft: TypeDraft;
   readonly onChange: (draft: TypeDraft) => void;
-  readonly onMove: (key: string, index: number) => void;
   readonly onRemove: (key: string) => void;
-  /** Set while this row's handle should take focus after a move. */
-  readonly focusHandle: boolean;
   readonly properties: readonly Property[];
   readonly freeProperties: readonly Property[];
   readonly dataTypes: readonly DataType[];
@@ -306,9 +304,8 @@ const FieldSettings = (props: SettingsProps): ReactElement => {
 interface RowActionsProps {
   readonly field: FieldDraft;
   readonly index: number;
-  readonly count: number;
+  readonly reorder: Reorderable;
   readonly name: string;
-  readonly onMove: (key: string, index: number) => void;
   readonly onRemove: (key: string) => void;
 }
 
@@ -316,34 +313,14 @@ interface RowActionsProps {
 const RowActions = ({
   field,
   index,
-  count,
+  reorder,
   name: shownName,
-  onMove,
   onRemove,
 }: RowActionsProps): ReactElement => {
   const t = useItemTypesText();
   return (
     <div className="type-field-actions">
-      <button
-        type="button"
-        aria-label={t('field.moveUp', { name: shownName })}
-        disabled={index === 0}
-        onClick={() => {
-          onMove(field.key, index - 1);
-        }}
-      >
-        <span aria-hidden="true">↑</span>
-      </button>
-      <button
-        type="button"
-        aria-label={t('field.moveDown', { name: shownName })}
-        disabled={index === count - 1}
-        onClick={() => {
-          onMove(field.key, index + 1);
-        }}
-      >
-        <span aria-hidden="true">↓</span>
-      </button>
+      <ReorderButtons reorder={reorder} index={index} />
       <button
         type="button"
         aria-label={t('field.remove', { name: shownName })}
@@ -360,76 +337,26 @@ const RowActions = ({
 export const FieldRow = ({
   field,
   index,
-  count,
+  reorder,
+  name: shownName,
   draft,
   onChange,
-  onMove,
   onRemove,
-  focusHandle,
   properties,
   freeProperties,
   dataTypes,
   createField,
   termLesson,
 }: FieldRowProps): ReactElement => {
-  const t = useItemTypesText();
-  const text = useTermText();
-  const handle = useRef<HTMLButtonElement>(null);
   const property = properties.find((entry) => entry.id === field.propertyId);
   const term = property?.term ?? `#${String(field.propertyId)}`;
-  const shownName =
-    field.alternateLabel ?? (property === undefined ? null : text.label(property.term, property.label)) ?? term;
   const patch = (next: Partial<Omit<FieldDraft, 'key'>>): void => {
     onChange(patchField(draft, field.key, next));
   };
 
-  useEffect(() => {
-    if (focusHandle) {
-      handle.current?.focus();
-    }
-  }, [focusHandle, index]);
-
-  const onHandleKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
-    const target =
-      event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : null;
-    if (target === null || target < 0 || target >= count) {
-      return;
-    }
-    event.preventDefault();
-    onMove(field.key, target);
-  };
-  const onDrop = (event: DragEvent<HTMLLIElement>): void => {
-    const key = event.dataTransfer.getData(FIELD_DRAG);
-    if (key !== '') {
-      event.preventDefault();
-      onMove(key, index);
-    }
-  };
-
   return (
-    <li
-      className="type-field"
-      onDragOver={(event) => {
-        if (event.dataTransfer.types.includes(FIELD_DRAG)) {
-          event.preventDefault();
-        }
-      }}
-      onDrop={onDrop}
-    >
-      <button
-        ref={handle}
-        type="button"
-        className="type-field-handle"
-        draggable
-        aria-label={t('field.moveHandle', { name: shownName, position: index + 1, count })}
-        onDragStart={(event) => {
-          event.dataTransfer.setData(FIELD_DRAG, field.key);
-          event.dataTransfer.effectAllowed = 'move';
-        }}
-        onKeyDown={onHandleKey}
-      >
-        <span aria-hidden="true">⠿</span>
-      </button>
+    <li className="type-field" {...reorder.row(index)}>
+      <ReorderHandle reorder={reorder} index={index} />
       <FieldSettings
         field={field}
         property={property}
@@ -444,9 +371,8 @@ export const FieldRow = ({
       <RowActions
         field={field}
         index={index}
-        count={count}
+        reorder={reorder}
         name={shownName}
-        onMove={onMove}
         onRemove={onRemove}
       />
     </li>

@@ -51,11 +51,6 @@ export const te: ItemTypesMessages = {
   'fields.add': 'ఒక ఫీల్డ్‌ను జోడించండి',
   'fields.addHint': 'దీనిని వివరించండి, ఉదాహరణకు “ఎన్ని పేజీలు”',
   'field.name': '{term} కోసం ఫారమ్‌లో పేరు',
-  'field.moveHandle':
-    '{name}, {position} ఫీల్డ్, {count} లో భాగం. పైకి మరియు కిందకు బాణం గుర్తు కీలను ఉపయోగించండి, లేదా లాగండి.',
-  'field.moved': '{name} ఇప్పుడు {count} లో {position} ఫీల్డ్.',
-  'field.moveUp': '{name} ని పైకి తరలించండి',
-  'field.moveDown': '{name} ని కిందకు తరలించండి',
   'field.remove': '{name} ని తొలగించండి',
   'field.changeTerm': '{name} యొక్క ప్రామాణిక పదాన్ని మార్చండి',
   'field.pickTerm': 'ఒక ప్రామాణిక పదాన్ని కనుగొనండి',
