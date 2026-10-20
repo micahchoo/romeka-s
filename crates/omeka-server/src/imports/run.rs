@@ -33,7 +33,7 @@ pub const RUN_JOB: &str = "Romeka\\Job\\ImportRun";
 pub const UNDO_JOB: &str = "Romeka\\Job\\ImportUndo";
 
 /// The plan a non-draft runs from: the one its first run froze.
-fn stored_plan(row: &ImportRow) -> Result<ImportPlanV2, ImportError> {
+pub(super) fn stored_plan(row: &ImportRow) -> Result<ImportPlanV2, ImportError> {
     let stored = row.ran_plan.as_ref().unwrap_or(&row.plan);
     ImportPlanV2::from_json(&stored.to_string()).map_err(|error| match error {
         PlanError::V1Plan => ImportError::conflict("v1Plan", messages::IMPORT_V1_PLAN),
@@ -45,7 +45,7 @@ fn is_busy(status: ImportStatus) -> bool {
     matches!(status, ImportStatus::Running | ImportStatus::Undoing)
 }
 
-async fn derive(
+pub(super) async fn derive(
     state: &AppState,
     actor: &Actor,
     import: ImportId,
@@ -55,6 +55,7 @@ async fn derive(
     Ok(derive_import(
         &state.pool,
         &state.archive_roots,
+        &state.store,
         &state.import_caches,
         import,
         Arc::new(plan),

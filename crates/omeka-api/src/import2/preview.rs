@@ -4,47 +4,62 @@
 //! [`derive_import`] gathers the derive's input: the index from the
 //! database ([`scan::load`], warm from [`IndexCache`]), the catalog
 //! ([`catalog_load::load`]), the plan's sheets from disk through
-//! [`SheetCache`], and file tags read lazily through the shared
-//! [`TagCache`]. Only a tag a slot rule names opens a file. The derive runs
-//! on the blocking pool. [`preview`] then cuts the sections from the model;
-//! it is pure except for the `tags` section, which reads the tags of at
-//! most [`TAG_SAMPLES`] files.
+//! [`SheetCache`] (a staging sheet through the [`Store`]), and file tags
+//! read lazily through the shared [`TagCache`]. Only a tag a slot rule names
+//! opens a file. The derive runs on the blocking pool. [`preview`] then cuts
+//! the sections from the model; it is pure except for the `tags` section,
+//! which reads the tags of at most [`TAG_SAMPLES`] files. A section is
+//! computed only when the request names it.
 
+mod causes;
+mod counts;
 mod evidence;
+mod facts;
+mod identical;
+mod query;
+mod sample;
 mod sheets;
+mod unpaired;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use omeka_db::Backend;
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
+use omeka_media::store::Store;
 use omeka_media::validation::FileValidation;
 use serde::{Deserialize, Serialize};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
+pub use causes::{FlagCount, FlagSample};
+pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
 pub use evidence::{ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView};
-pub use sheets::{MAX_BYTES, MAX_SHEETS, ReadSheet, SheetCache};
+pub use facts::{Bucket, BucketCount, MediaKind, PAGE, SAMPLES, ShapeFacts, ShapeGroup, Shapes};
+pub use identical::{IdenticalFiles, IdenticalView};
+pub use query::{
+    EntriesQuery, EntryView, MAX_PER_PAGE, Page, PageQuery, RecordView, RecordsQuery, SetFilter,
+    TemplateFilter, Unused,
+};
+pub use sheets::{MAX_BYTES, MAX_SHEETS, ReadSheet, SheetCache, staging_path};
+pub use unpaired::{Unpaired, UnpairedFile, UnpairedQuery, UnpairedRow};
 
 use super::archive::{ArchiveRoots, SourceDir};
+use super::catalog::Catalog;
 use super::catalog_load::{self, Owners};
 use super::check::{Check, check};
-use super::decisions::{Decision, EntryRef};
+use super::decisions::Decision;
 use super::derive::{FileTags, Sheets, derive};
 use super::evidence::FileEntry;
-use super::model::{Anomaly, EntryState, Flag, Model, OrphanReason, PatternState, Record, Subject};
-use super::plan::{
-    FlagKind, FlagPolicy, ImportPlanV2, RecordKind, SheetId, SlotName, SourceId, TagId,
-};
+use super::model::{Anomaly, Model, OrphanReason, PatternState};
+use super::plan::{ImportPlanV2, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
 use super::tags::TagCache;
-use super::values::fold_title;
+use facts::Facts;
+use query::FlagsBy;
 
 /// How many files the `tags` section reads tags from.
 pub const TAG_SAMPLES: usize = 5;
-/// A page holds at most this many entries or records.
-pub const MAX_PER_PAGE: usize = 500;
-const PER_PAGE: usize = 50;
 
 /// The caches one process shares across previews.
 #[derive(Default)]
@@ -65,6 +80,11 @@ pub enum Section {
     Anomalies,
     Orphans,
     Check,
+    Shapes,
+    Histogram,
+    Identical,
+    Unpaired,
+    Values,
 }
 
 /// `POST /api/romeka/imports/{id}/preview`.
@@ -79,76 +99,18 @@ pub struct PreviewRequest {
     pub records: Option<RecordsQuery>,
     #[serde(default)]
     pub entries: Option<EntriesQuery>,
-}
-
-/// Records of one kind, filtered, one page.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RecordsQuery {
-    /// `item` when left out.
+    /// The page of `shapes` groups.
     #[serde(default)]
-    pub kind: Option<RecordKind>,
+    pub shapes: Option<PageQuery>,
     #[serde(default)]
-    pub page: Option<usize>,
+    pub identical: Option<PageQuery>,
     #[serde(default)]
-    pub per_page: Option<usize>,
-    /// Records with a flag of this kind.
+    pub unpaired: Option<UnpairedQuery>,
     #[serde(default)]
-    pub flag: Option<FlagKind>,
-    /// With `flag`, its flags on this slot; alone, records with a value in it.
+    pub values: Option<ValuesQuery>,
+    /// Draws the sample records of `shapes` and `flags`; 0 when left out.
     #[serde(default)]
-    pub slot: Option<SlotName>,
-    /// Records with this text in any slot, compared as titles.
-    #[serde(default)]
-    pub text: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct EntriesQuery {
-    #[serde(default)]
-    pub page: Option<usize>,
-    #[serde(default)]
-    pub per_page: Option<usize>,
-    #[serde(default)]
-    pub flag: Option<FlagKind>,
-    /// Entries whose path or row key holds this text, compared as titles.
-    #[serde(default)]
-    pub text: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Page<T> {
-    pub total: usize,
-    pub page: usize,
-    pub per_page: usize,
-    pub items: Vec<T>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EntryView {
-    #[serde(flatten)]
-    pub state: EntryState,
-    pub flags: Vec<Flag>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RecordView {
-    #[serde(flatten)]
-    pub record: Record,
-    pub flags: Vec<Flag>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FlagCount {
-    pub kind: FlagKind,
-    pub slot: Option<SlotName>,
-    pub policy: Option<FlagPolicy>,
-    pub count: usize,
+    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -182,6 +144,16 @@ pub struct Preview {
     pub orphans: Option<Vec<OrphanView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub check: Option<Check>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shapes: Option<Shapes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub histogram: Option<Vec<BucketCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identical: Option<IdenticalFiles>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpaired: Option<Unpaired>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<SlotValues>>,
 }
 
 /// File tags read from disk through the shared cache.
@@ -200,6 +172,7 @@ impl FileTags for DiskTags {
 pub struct Derived {
     pub plan: Arc<ImportPlanV2>,
     pub model: Model,
+    pub catalog: Catalog,
     pub stored: StoredIndex,
     pub sheets: BTreeMap<SheetId, Arc<ReadSheet>>,
     pub tags: DiskTags,
@@ -213,13 +186,16 @@ pub enum PreviewError {
     Panicked(String),
 }
 
-/// Derive `plan` against import `import`'s stored index.
+/// Derive `plan` against import `import`'s stored index. A sheet in a
+/// staging source is read from `store`, under the import's staging area.
 ///
 /// # Errors
 /// [`PreviewError::Db`] when the index or the catalog cannot be read.
+#[allow(clippy::too_many_arguments)]
 pub async fn derive_import<DB>(
     pool: &Pool<DB>,
     roots: &ArchiveRoots,
+    store: &Arc<dyn Store>,
     caches: &Arc<Caches>,
     import: ImportId,
     plan: Arc<ImportPlanV2>,
@@ -245,13 +221,27 @@ where
     let catalog = catalog_load::load(pool, &plan, owners, files).await?;
     let roots = roots.clone();
     let caches = Arc::clone(caches);
+    let store = Arc::clone(store);
     tokio::task::spawn_blocking(move || {
         let dirs = scan::source_dirs(&roots, &plan.sources);
         let read: BTreeMap<SheetId, Arc<ReadSheet>> = plan
             .sheets
             .iter()
             .filter_map(|sheet| {
-                let read = caches.sheets.read(sheet, dirs.get(&sheet.source)?)?;
+                let read = match plan
+                    .sources
+                    .iter()
+                    .find(|source| *source.id() == sheet.source)?
+                {
+                    SourcePlan::Folder { .. } => {
+                        caches.sheets.read(sheet, dirs.get(&sheet.source)?)
+                    }
+                    SourcePlan::Staging { .. } => caches.sheets.read_stored(
+                        sheet,
+                        store.as_ref(),
+                        &staging_path(import, &sheet.file),
+                    ),
+                }?;
                 Some((sheet.id.clone(), read))
             })
             .collect();
@@ -264,6 +254,7 @@ where
         Derived {
             plan,
             model,
+            catalog,
             stored,
             sheets: read,
             tags,
@@ -278,78 +269,25 @@ where
 pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
     let model = &derived.model;
     let wants = |section| request.include.contains(&section);
-    let mut by_subject: HashMap<SubjectKey<'_>, Vec<&Flag>> = HashMap::new();
-    if wants(Section::Entries) || wants(Section::Records) {
-        for flag in &model.flags {
-            if let Some(key) = SubjectKey::of(&flag.subject) {
-                by_subject.entry(key).or_default().push(flag);
-            }
-        }
-    }
-    let flags_of = |key: SubjectKey<'_>| -> Vec<Flag> {
-        by_subject
-            .get(&key)
-            .map(|flags| flags.iter().map(|flag| (*flag).clone()).collect())
-            .unwrap_or_default()
-    };
+    let seed = request.seed.unwrap_or(0);
+    let flags = (wants(Section::Entries) || wants(Section::Records) || wants(Section::Shapes))
+        .then(|| FlagsBy::new(model));
+    let records_query = request.records.clone().unwrap_or_default();
+    let facts = (wants(Section::Shapes)
+        || (wants(Section::Records) && records_query.shape.is_some()))
+    .then(|| Facts::new(&derived.plan, &derived.stored));
+    let flags_for = |section| flags.as_ref().filter(|_| wants(section));
     Preview {
         sources: derived.stored.sources.clone(),
         pattern: model.pattern.clone(),
-        entries: wants(Section::Entries).then(|| {
-            let query = request.entries.clone().unwrap_or_default();
-            let text = query.text.as_deref().map(fold_title);
-            let matching = model.entries.iter().filter(|state| {
-                let flagged = query.flag.is_none_or(|kind| {
-                    by_subject
-                        .get(&SubjectKey::Entry(&state.entry))
-                        .is_some_and(|flags| flags.iter().any(|flag| flag.kind == kind))
-                });
-                flagged
-                    && text
-                        .as_ref()
-                        .is_none_or(|text| entry_text(&state.entry).contains(text))
-            });
-            page(matching, query.page, query.per_page, |state| EntryView {
-                state: state.clone(),
-                flags: flags_of(SubjectKey::Entry(&state.entry)),
-            })
+        entries: flags_for(Section::Entries).map(|flags| {
+            query::entries(model, &request.entries.clone().unwrap_or_default(), flags)
         }),
         sheets: wants(Section::Sheets).then(|| evidence::sheet_views(derived)),
         tags: wants(Section::Tags).then(|| evidence::tag_views(derived)),
-        records: wants(Section::Records).then(|| {
-            let query = request.records.clone().unwrap_or_default();
-            let kind = query.kind.unwrap_or(RecordKind::Item);
-            let text = query.text.as_deref().map(fold_title);
-            let matching = model.records.iter().filter(|record| {
-                let flags = by_subject.get(&SubjectKey::Record(record.id.0));
-                let flagged = match (query.flag, &query.slot) {
-                    (Some(kind), slot) => flags.is_some_and(|flags| {
-                        flags.iter().any(|flag| {
-                            flag.kind == kind
-                                && slot
-                                    .as_ref()
-                                    .is_none_or(|slot| flag.slot.as_ref() == Some(slot))
-                        })
-                    }),
-                    (None, Some(slot)) => record.slots.contains_key(slot),
-                    (None, None) => true,
-                };
-                record.kind == kind
-                    && flagged
-                    && text.as_ref().is_none_or(|text| {
-                        record
-                            .slots
-                            .values()
-                            .flatten()
-                            .any(|value| fold_title(&value.value.text).contains(text.as_str()))
-                    })
-            });
-            page(matching, query.page, query.per_page, |record| RecordView {
-                record: record.clone(),
-                flags: flags_of(SubjectKey::Record(record.id.0)),
-            })
-        }),
-        flags: wants(Section::Flags).then(|| flag_counts(&model.flags)),
+        records: flags_for(Section::Records)
+            .map(|flags| query::records(model, &records_query, flags, facts.as_ref())),
+        flags: wants(Section::Flags).then(|| causes::flag_counts(model, seed)),
         anomalies: wants(Section::Anomalies).then(|| model.anomalies.clone()),
         orphans: wants(Section::Orphans).then(|| {
             model
@@ -363,79 +301,27 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
                 .collect()
         }),
         check: wants(Section::Check).then(|| check(&derived.plan, model)),
-    }
-}
-
-/// What a flag is on, as a map key without cloning the entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum SubjectKey<'a> {
-    Entry(&'a EntryRef),
-    Record(u32),
-}
-
-impl<'a> SubjectKey<'a> {
-    fn of(subject: &'a Subject) -> Option<Self> {
-        match subject {
-            Subject::Entry(entry) => Some(Self::Entry(entry)),
-            Subject::Record(record) => Some(Self::Record(record.0)),
-            Subject::Sheet(_) | Subject::Plan => None,
-        }
-    }
-}
-
-fn entry_text(entry: &EntryRef) -> String {
-    match entry {
-        EntryRef::File(file) => fold_title(file.path.as_str()),
-        EntryRef::Row(row) => fold_title(row.key.as_str()),
-    }
-}
-
-fn page<'a, T: 'a, V>(
-    items: impl Iterator<Item = &'a T>,
-    page: Option<usize>,
-    per_page: Option<usize>,
-    view: impl Fn(&T) -> V,
-) -> Page<V> {
-    let per_page = per_page.unwrap_or(PER_PAGE).clamp(1, MAX_PER_PAGE);
-    let page = page.unwrap_or(1).max(1);
-    let mut total = 0;
-    let mut out = Vec::new();
-    let skip = (page - 1).saturating_mul(per_page);
-    for item in items {
-        if total >= skip && out.len() < per_page {
-            out.push(view(item));
-        }
-        total += 1;
-    }
-    Page {
-        total,
-        page,
-        per_page,
-        items: out,
-    }
-}
-
-fn flag_counts(flags: &[Flag]) -> Vec<FlagCount> {
-    let mut counts: Vec<FlagCount> = Vec::new();
-    for flag in flags {
-        match counts.iter_mut().find(|count| {
-            count.kind == flag.kind && count.slot == flag.slot && count.policy == flag.policy
-        }) {
-            Some(count) => count.count += 1,
-            None => counts.push(FlagCount {
-                kind: flag.kind,
-                slot: flag.slot.clone(),
-                policy: flag.policy,
-                count: 1,
+        shapes: flags_for(Section::Shapes)
+            .zip(facts.as_ref())
+            .map(|(flags, facts)| {
+                let query = request.shapes.clone().unwrap_or_default();
+                facts::shapes(model, facts, flags, &query, seed)
             }),
-        }
+        histogram: wants(Section::Histogram).then(|| facts::histogram(model)),
+        identical: wants(Section::Identical).then(|| {
+            identical::identical(
+                &derived.stored,
+                &request.identical.clone().unwrap_or_default(),
+            )
+        }),
+        unpaired: wants(Section::Unpaired)
+            .then(|| unpaired::unpaired(model, &request.unpaired.clone().unwrap_or_default())),
+        values: wants(Section::Values)
+            .then(|| counts::values(model, &request.values.clone().unwrap_or_default())),
     }
-    counts.sort_by(|a, b| {
-        (a.kind, a.slot.as_ref().map(ToString::to_string))
-            .cmp(&(b.kind, b.slot.as_ref().map(ToString::to_string)))
-    });
-    counts
 }
 
+#[cfg(test)]
+mod facts_tests;
 #[cfg(test)]
 mod tests;

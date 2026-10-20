@@ -33,6 +33,8 @@ pub(crate) enum ImportError {
     Unauthenticated,
     Forbidden,
     BadRequest(String),
+    /// 413: a file past the route's own limit.
+    TooLarge(String),
     NotFound(String),
     /// A 409 with its code and the members that explain it.
     Conflict {
@@ -77,6 +79,7 @@ impl ImportError {
                 Map::new(),
             ),
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, message, None, Map::new()),
+            Self::TooLarge(message) => (StatusCode::PAYLOAD_TOO_LARGE, message, None, Map::new()),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message, None, Map::new()),
             Self::Conflict {
                 code,
@@ -244,6 +247,10 @@ pub(crate) struct ImportView {
     stop_requested: bool,
     job_id: Option<u64>,
     copied_from: Option<u64>,
+    /// Records done, records total and seconds left, while the run writes
+    /// its progress.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    progress: Option<super::progress::Progress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     plan: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -252,8 +259,17 @@ pub(crate) struct ImportView {
 
 impl ImportView {
     pub(crate) fn of(row: ImportRow, with_plan: bool) -> Self {
+        Self::running_since(row, with_plan, None)
+    }
+
+    /// The view with seconds left in its progress, counted from `started`,
+    /// the start of the job running the import, in Unix seconds.
+    pub(crate) fn running_since(row: ImportRow, with_plan: bool, started: Option<i64>) -> Self {
+        let progress =
+            super::progress::progress(row.summary.as_ref(), started, super::progress::now());
         let split = split_summary(row.summary);
         Self {
+            progress,
             id: row.id.0,
             owner_id: row.owner_id.map(|owner| owner.0),
             status: row.status.as_str(),

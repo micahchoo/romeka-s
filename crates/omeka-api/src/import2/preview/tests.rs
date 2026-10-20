@@ -45,6 +45,7 @@ fn derived(paths: &[&str], edit: impl FnOnce(&mut serde_json::Value)) -> Derived
     Derived {
         plan,
         model,
+        catalog: Catalog::default(),
         stored,
         sheets: BTreeMap::new(),
         tags: DiskTags {

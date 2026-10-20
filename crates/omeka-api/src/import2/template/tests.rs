@@ -1,0 +1,222 @@
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
+use serde_json::json;
+
+use super::*;
+use crate::import2::catalog::Catalog;
+use crate::import2::derive::{Index, IndexedSource, NoTags, Sheets, derive};
+use crate::import2::evidence::{FileEntry, Walk};
+use crate::import2::plan::{RecordKind, default_plan};
+use crate::import2::sheet;
+
+fn catalog() -> Catalog {
+    let mut catalog = Catalog::default();
+    for (term, label) in [("dcterms:title", "Title"), ("dcterms:date", "Date")] {
+        catalog
+            .properties
+            .insert(Term::parse(term).unwrap(), label.to_string());
+    }
+    catalog
+}
+
+fn index(paths: &[&str]) -> Index {
+    Index {
+        sources: vec![IndexedSource {
+            id: SourceId("s1".into()),
+            walk: Walk {
+                entries: paths
+                    .iter()
+                    .map(|path| FileEntry {
+                        path: RelPath::parse(path).unwrap(),
+                        size: 1,
+                        modified: None,
+                        sniffed: "image/jpeg".into(),
+                        decoded: None,
+                    })
+                    .collect(),
+                ..Walk::default()
+            },
+        }],
+    }
+}
+
+fn plan() -> ImportPlanV2 {
+    let plan = default_plan(vec![SourcePlan::Folder {
+        id: SourceId("s1".into()),
+        root: "archive".into(),
+        path: RelPath::parse("").unwrap(),
+    }])
+    .unwrap();
+    let mut value = serde_json::to_value(plan).unwrap();
+    value["grouping"]["pattern"] =
+        json!(r"^(?:.*/)?(?<identifier>[A-Z]+_\d+)(?:_(?<part>[a-z]+))?\.jpg$");
+    value["slots"]["item"]["dcterms:title"] = json!({
+        "sources": [{ "from": "constant", "value": "Untitled, \"draft\"" }], "combine": "first"
+    });
+    ImportPlanV2::from_json(&value.to_string()).unwrap()
+}
+
+fn columns(texts: &[&str]) -> Vec<ListColumn> {
+    texts
+        .iter()
+        .map(|text| ListColumn::parse(text, &catalog()).unwrap())
+        .collect()
+}
+
+#[test]
+fn the_template_has_one_row_per_grouped_item_with_bom_brackets_and_values() {
+    let index = index(&[
+        "Box 1/AF_001_front.jpg",
+        "Box 1/AF_001_back.jpg",
+        "AF_002.jpg",
+    ]);
+    let plan = plan();
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let csv = template_csv(
+        &model,
+        &catalog(),
+        &columns(&[
+            "dcterms:title",
+            "dcterms:date",
+            "sets",
+            "template",
+            "visibility",
+        ]),
+    );
+    let text = String::from_utf8(csv).unwrap();
+    assert!(text.starts_with('\u{feff}'), "a byte order mark");
+    let lines: Vec<&str> = text.trim_start_matches('\u{feff}').split("\r\n").collect();
+    assert_eq!(
+        lines[0],
+        "Identifier,Files,Title [dcterms:title],Date [dcterms:date],Item sets [sets],Item type [template],Visibility [visibility]"
+    );
+    assert_eq!(
+        lines[1],
+        "AF_001,AF_001_back.jpg|AF_001_front.jpg,\"Untitled, \"\"draft\"\"\",,,,private"
+    );
+    assert_eq!(
+        lines[2],
+        "AF_002,AF_002.jpg,\"Untitled, \"\"draft\"\"\",,,,private"
+    );
+    assert_eq!(lines[3], "", "every row ends in CRLF");
+    assert_eq!(lines.len(), 4);
+}
+
+#[test]
+fn a_column_must_be_a_property_of_the_install_or_a_list_slot() {
+    assert!(ListColumn::parse("dcterms:title", &catalog()).is_ok());
+    for refused in ["dcterms:nope", "owner", "mediaOrder", "nonsense"] {
+        assert_eq!(
+            ListColumn::parse(refused, &catalog()),
+            Err(ListError::UnknownColumn(refused.into())),
+            "{refused}"
+        );
+    }
+}
+
+#[test]
+fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_records() {
+    let index = index(&["AF_001.jpg", "AF_002.jpg", "AF_003.jpg"]);
+    let mut plan = plan();
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let template = template_csv(
+        &model,
+        &catalog(),
+        &columns(&["dcterms:title", "dcterms:date"]),
+    );
+    let template = String::from_utf8(template).unwrap();
+    let header = template.split("\r\n").next().unwrap();
+    assert_eq!(
+        header,
+        "\u{feff}Identifier,Files,Title [dcterms:title],Date [dcterms:date]"
+    );
+    let filled = format!(
+        "{header},Notes\r\nAF_001,AF_001.jpg,दीपक|Lamp,1952,x\r\nAF_002,AF_002.jpg,Cup,,\r\nAF_003,AF_003.jpg,,,\r\n"
+    );
+    let read = list_read(false);
+    let sheet = sheet::read(filled.as_bytes(), &read, None).unwrap();
+    let added = add_list(
+        &mut plan,
+        RelPath::parse("lists/1.csv").unwrap(),
+        read,
+        &sheet,
+        &catalog(),
+    )
+    .unwrap();
+    assert_eq!(added.sheet, SheetId("list-1".into()));
+    assert_eq!(
+        added.mapped,
+        [2, 3],
+        "Identifier, Files and Notes stay unmapped"
+    );
+    assert!(matches!(&plan.sources[1], SourcePlan::Staging { id } if id.0 == STAGING));
+    let title = &plan.slots.item[&SlotName::parse("dcterms:title").unwrap()];
+    assert!(
+        matches!(&title.sources[0], SourceRef::Column { sheet, .. } if sheet.0 == "list-1"),
+        "the list first"
+    );
+    assert_eq!(title.sources.len(), 2, "the constant stays behind it");
+    let plan = ImportPlanV2::from_json(&plan.to_json()).expect("the boundary takes the plan");
+
+    let list_plan = &plan.sheets[0];
+    let sheets: Sheets = [(
+        list_plan.id.clone(),
+        sheet::read(
+            filled.as_bytes(),
+            &list_plan.read,
+            sheet::key_column(list_plan),
+        ),
+    )]
+    .into_iter()
+    .collect();
+    let model = derive(&index, &sheets, &plan, &catalog(), &NoTags);
+    let texts = |key: &str, term: &str| -> Vec<String> {
+        let record = model
+            .kept()
+            .find(|record| {
+                record.kind == RecordKind::Item && record.resolved.item_key.as_deref() == Some(key)
+            })
+            .unwrap();
+        record
+            .slots
+            .get(&SlotName::parse(term).unwrap())
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| value.value.text.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(
+        texts("AF_001", "dcterms:title"),
+        ["दीपक", "Lamp"],
+        "split on |"
+    );
+    assert_eq!(texts("AF_001", "dcterms:date"), ["1952"]);
+    assert_eq!(texts("AF_002", "dcterms:title"), ["Cup"]);
+    assert_eq!(
+        texts("AF_003", "dcterms:title"),
+        ["Untitled, \"draft\""],
+        "an unfilled row keeps the next source"
+    );
+}
+
+#[test]
+fn a_list_without_an_identifier_column_is_refused() {
+    let read = list_read(true);
+    let sheet = sheet::read(b"Name\tTitle [dcterms:title]\nA\tB\n", &read, None).unwrap();
+    let mut plan = plan();
+    assert_eq!(
+        add_list(
+            &mut plan,
+            RelPath::parse("lists/1.tsv").unwrap(),
+            read,
+            &sheet,
+            &catalog()
+        ),
+        Err(ListError::NoIdentifier)
+    );
+    assert_eq!(bracketed("Title [dcterms:title] "), Some("dcterms:title"));
+    assert_eq!(bracketed("Title"), None);
+}

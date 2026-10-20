@@ -190,4 +190,13 @@ export const esServer: ServerCatalogue = {
   'server.importNoLeftFile':
     'Esta importación aún no tiene una lista de archivos que quedaron fuera. Se escribe cuando termina una ejecución.',
   'server.importJobNotStarted': 'No se pudo iniciar la importación: {reason}',
+  'server.importListColumnUnknown':
+    'La lista no puede tener la columna "{column}". Elige una propiedad, los conjuntos de elementos, el tipo de elemento o la visibilidad.',
+  'server.importListOneFile': 'Envía un solo archivo de lista en el formulario.',
+  'server.importListType':
+    '"{name}" no es un archivo CSV ni TSV. Guarda la lista como CSV o TSV y vuelve a enviarla.',
+  'server.importListTooLarge': 'La lista ocupa más de 50 MB.',
+  'server.importListUnread': 'No se puede leer la lista: {reason}',
+  'server.importListNoIdentifier':
+    'La lista no tiene la columna Identifier, así que sus filas no encuentran sus elementos. Conserva la columna Identifier de la lista que descargaste.',
 };

@@ -190,3 +190,35 @@ async fn the_scan_job_rescans_from_the_stored_plan() {
         Err(ScanError::Plan(_))
     ));
 }
+
+#[test]
+fn identical_files_survive_the_rows_and_an_older_row_reads_as_none() {
+    let set = Identical {
+        size: 12,
+        sha256: "ab".repeat(32),
+        paths: vec!["a.jpg".into(), "copy/a.jpg".into()],
+    };
+    let walk = Walk {
+        entries: vec![entry("a.jpg"), entry("copy/a.jpg")],
+        anomalies: Anomalies {
+            identical: vec![set.clone()],
+            ..Anomalies::default()
+        },
+        ..Walk::default()
+    };
+    let walked = vec![Walked {
+        source: SourceId("s1".into()),
+        walk: Ok(walk),
+    }];
+    let (scans, rows) = rows(&walked, epoch());
+    let plan = [folder("s1", "a")];
+    let stored = index_of(scans_back(scans.clone()), read_back(rows.clone()), &plan).unwrap();
+    assert_eq!(stored.index.sources[0].walk.anomalies.identical, [set]);
+
+    let mut older = scans_back(scans);
+    older[0].anomalies = serde_json::json!({ "symlinks": 1, "dot": 0, "special": 0,
+        "unreadable": [], "unusableNames": [], "collisions": [] });
+    let stored = index_of(older, read_back(rows), &plan).expect("a row from before the member");
+    assert!(stored.index.sources[0].walk.anomalies.identical.is_empty());
+    assert_eq!(stored.index.sources[0].walk.anomalies.symlinks, 1);
+}

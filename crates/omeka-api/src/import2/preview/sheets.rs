@@ -1,10 +1,12 @@
-//! Sheets for the derive, read from disk per request through a small cache.
+//! Sheets for the derive, read per request through a small cache: from disk
+//! for a folder source, from the [`Store`] for the import's staging area
+//! (the lists a person uploads, `POST …/sheets`).
 //!
 //! The index lists sheets but never stores their rows, so each derive reads
 //! the plan's sheets again. [`SheetCache`] keeps the last reads, keyed by
-//! the file (canonical path, modified time, size) and the read options. A
-//! changed file, or a change of encoding, delimiter, header line or key
-//! column, is a new key. The cache is bounded twice: at most
+//! the file (canonical path, modified time, size; or storage path and
+//! modified time) and the read options. A changed file, or a change of
+//! encoding, delimiter, header line or key column, is a new key. The cache is bounded twice: at most
 //! [`MAX_SHEETS`] reads and [`MAX_BYTES`] of sheet bytes, the least
 //! recently used read going first.
 
@@ -12,8 +14,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::SystemTime;
 
+use omeka_db::ids::ImportId;
+use omeka_media::store::Store;
+
 use crate::import2::archive::{ArchiveError, SourceDir};
-use crate::import2::plan::{Encoding, SheetPlan};
+use crate::import2::plan::{Encoding, RelPath, SheetPlan};
 use crate::import2::sheet::{self, Guess, MAX_SHEET_BYTES, Sheet, SheetError};
 
 /// The most reads the cache keeps.
@@ -26,12 +31,30 @@ const HEAD_BYTES: usize = 16 * 1024;
 /// How many raw lines the Sheets section shows.
 const HEAD_LINES: usize = 20;
 
+/// Where a staging file of import `import` lies in the store. Staging is
+/// never under the public `/files` prefix (`docs/import-v2.md`, "Arrival").
+#[must_use]
+pub fn staging_path(import: ImportId, file: &RelPath) -> String {
+    format!("staging/{}/{}", import.0, file.as_str())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Key {
-    path: PathBuf,
-    modified: Option<SystemTime>,
-    size: u64,
+    file: FileKey,
     read: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum FileKey {
+    Disk {
+        path: PathBuf,
+        modified: Option<SystemTime>,
+        size: u64,
+    },
+    Stored {
+        path: String,
+        modified: SystemTime,
+    },
 }
 
 /// One sheet as read.
@@ -46,7 +69,8 @@ pub struct ReadSheet {
 
 #[derive(Default)]
 pub struct SheetCache {
-    held: Mutex<Vec<(Key, Arc<ReadSheet>)>>,
+    /// Each read with its byte count, least recently used first.
+    held: Mutex<Vec<(Key, u64, Arc<ReadSheet>)>>,
 }
 
 impl SheetCache {
@@ -67,39 +91,108 @@ impl SheetCache {
             Ok(metadata) => metadata,
             Err(error) => return Some(Arc::new(unread(SheetError::Io(error.to_string())))),
         };
+        let size = metadata.len();
         let key = Key {
-            path,
-            modified: metadata.modified().ok(),
-            size: metadata.len(),
-            read: serde_json::to_string(&(&plan.read, sheet::key_column(plan))).unwrap_or_default(),
+            file: FileKey::Disk {
+                path: path.clone(),
+                modified: metadata.modified().ok(),
+                size,
+            },
+            read: read_key(plan),
         };
         if let Some(found) = self.take(&key) {
             return Some(found);
         }
-        let read = Arc::new(read_sheet(&key, plan));
-        self.put(key, Arc::clone(&read));
+        let read = Arc::new(if size > MAX_SHEET_BYTES {
+            unread(SheetError::TooLarge(size))
+        } else {
+            match std::fs::read(&path) {
+                Ok(bytes) => read_bytes(&bytes, plan),
+                Err(error) => unread(SheetError::Io(error.to_string())),
+            }
+        });
+        self.put(key, size, Arc::clone(&read));
+        Some(read)
+    }
+
+    /// The sheet `plan` names, stored at `storage_path`. `None` when the
+    /// store holds no such file.
+    #[must_use]
+    pub fn read_stored(
+        &self,
+        plan: &SheetPlan,
+        store: &dyn Store,
+        storage_path: &str,
+    ) -> Option<Arc<ReadSheet>> {
+        let folder = storage_path
+            .rsplit_once('/')
+            .map_or("", |(folder, _)| folder);
+        let listed = match store.list(folder) {
+            Ok(listed) => listed,
+            Err(error) => return Some(Arc::new(unread(SheetError::Io(error.to_string())))),
+        };
+        let modified = listed
+            .into_iter()
+            .find(|file| file.storage_path == storage_path)?
+            .modified;
+        let key = Key {
+            file: FileKey::Stored {
+                path: storage_path.to_string(),
+                modified,
+            },
+            read: read_key(plan),
+        };
+        if let Some(found) = self.take(&key) {
+            return Some(found);
+        }
+        let (read, size) = match store.read(storage_path) {
+            Ok(bytes) if bytes.len() as u64 > MAX_SHEET_BYTES => (
+                unread(SheetError::TooLarge(bytes.len() as u64)),
+                bytes.len() as u64,
+            ),
+            Ok(bytes) => (read_bytes(&bytes, plan), bytes.len() as u64),
+            Err(error) => (unread(SheetError::Io(error.to_string())), 0),
+        };
+        let read = Arc::new(read);
+        self.put(key, size, Arc::clone(&read));
         Some(read)
     }
 
     fn take(&self, key: &Key) -> Option<Arc<ReadSheet>> {
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
-        let at = held.iter().position(|(held_key, _)| held_key == key)?;
+        let at = held.iter().position(|(held_key, _, _)| held_key == key)?;
         let entry = held.remove(at);
-        let found = Arc::clone(&entry.1);
+        let found = Arc::clone(&entry.2);
         held.push(entry);
         Some(found)
     }
 
-    fn put(&self, key: Key, read: Arc<ReadSheet>) {
+    fn put(&self, key: Key, size: u64, read: Arc<ReadSheet>) {
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
-        held.retain(|(held_key, _)| held_key.path != key.path || held_key.read != key.read);
-        held.push((key, read));
+        held.retain(|(held_key, _, _)| {
+            held_key.read != key.read || held_key.file.path() != key.file.path()
+        });
+        held.push((key, size, read));
         while held.len() > MAX_SHEETS
-            || (held.len() > 1 && held.iter().map(|(key, _)| key.size).sum::<u64>() > MAX_BYTES)
+            || (held.len() > 1 && held.iter().map(|(_, size, _)| size).sum::<u64>() > MAX_BYTES)
         {
             held.remove(0);
         }
     }
+}
+
+impl FileKey {
+    /// The file, whatever its version.
+    fn path(&self) -> &std::path::Path {
+        match self {
+            Self::Disk { path, .. } => path,
+            Self::Stored { path, .. } => std::path::Path::new(path),
+        }
+    }
+}
+
+fn read_key(plan: &SheetPlan) -> String {
+    serde_json::to_string(&(&plan.read, sheet::key_column(plan))).unwrap_or_default()
 }
 
 fn unread(error: SheetError) -> ReadSheet {
@@ -110,16 +203,9 @@ fn unread(error: SheetError) -> ReadSheet {
     }
 }
 
-fn read_sheet(key: &Key, plan: &SheetPlan) -> ReadSheet {
-    if key.size > MAX_SHEET_BYTES {
-        return unread(SheetError::TooLarge(key.size));
-    }
-    let bytes = match std::fs::read(&key.path) {
-        Ok(bytes) => bytes,
-        Err(error) => return unread(SheetError::Io(error.to_string())),
-    };
+fn read_bytes(bytes: &[u8], plan: &SheetPlan) -> ReadSheet {
     let head = &bytes[..bytes.len().min(HEAD_BYTES)];
-    let sheet = sheet::read(&bytes, &plan.read, sheet::key_column(plan));
+    let sheet = sheet::read(bytes, &plan.read, sheet::key_column(plan));
     let encoding = match &sheet {
         Ok(sheet) => Some(sheet.encoding.encoding),
         Err(_) => None,
@@ -187,6 +273,29 @@ mod tests {
     }
 
     #[test]
+    fn a_staging_sheet_is_read_from_the_store_and_kept_until_it_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = omeka_media::store::FileStore::new(dir.path(), "/files");
+        let path = staging_path(ImportId(4), &RelPath::parse("lists/1.csv").unwrap());
+        assert_eq!(path, "staging/4/lists/1.csv");
+        let cache = SheetCache::default();
+        assert!(
+            cache
+                .read_stored(&plan("lists/1.csv"), &store, &path)
+                .is_none()
+        );
+        store.put("Id,Title\nA1,दीपक\n".as_bytes(), &path).unwrap();
+        let first = cache
+            .read_stored(&plan("lists/1.csv"), &store, &path)
+            .expect("stored");
+        assert_eq!(first.sheet.as_ref().unwrap().rows[0].cells[1], "दीपक");
+        let again = cache
+            .read_stored(&plan("lists/1.csv"), &store, &path)
+            .expect("stored");
+        assert!(Arc::ptr_eq(&first, &again), "warm");
+    }
+
+    #[test]
     fn the_cache_holds_at_most_its_count_of_reads() {
         let dir = tempfile::tempdir().unwrap();
         let source = SourceDir::standalone(dir.path()).unwrap();
@@ -198,6 +307,9 @@ mod tests {
         }
         let held = cache.held.lock().unwrap();
         assert_eq!(held.len(), MAX_SHEETS);
-        assert!(held[0].0.path.ends_with("1.csv"), "the oldest went first");
+        assert!(
+            held[0].0.file.path().ends_with("1.csv"),
+            "the oldest went first"
+        );
     }
 }
