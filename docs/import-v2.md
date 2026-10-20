@@ -351,13 +351,15 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   unmatchedFiles: 'leave' | 'own', itemsWithoutRow: 'keep' | 'leave' }` (defaults `keepOne`,
   `leave`, `keep`), so they carry over to new files after a rescan. `keepOne` keeps the file a list
   row names, else the first by path.
-- **Name words**: for a marked example, the words found at each place of the names with their
+- Left-out reasons gain `identical` (a copy left out by `keepOne`) and `noRow` (an item with no list
+  row under `itemsWithoutRow: leave`). `own` applies only when the pattern compiles.
+- **Name words**: for a path given in the request (the server never reads `example`), the words found at each place of the names with their
   counts (exact text), so the person ticks the part that changes.
 - **Column matches**: for each list column, how many cells exactly equal a group key or a file
   name, so the join column is chosen by a count shown on screen.
 - Cells of the downloaded list that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`
   (one more when one is already there); the read of a stored list drops one `'` in bracketed
-  columns, so the round trip is exact and a spreadsheet never runs a formula.
+  columns and in the Identifier column (then keys the rows again), so the round trip is exact and a spreadsheet never runs a formula.
 - Downloaded-list headers for the three slots are `Item sets [sets]`, `Item type [template]`,
   `Visibility [visibility]`.
 - **Pairs list round trip** (more than 30 unpaired rows): `GET …/pairs.csv` answers the unpaired
@@ -768,6 +770,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
 | P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
+| P3-extras | unit-test-verified | 2,155 workspace tests; 9 mutations; 40k preview with every section 545-595 ms quiet, over 600 ms under load 14-17 |
 | P5-undo | unit-test-verified | 2,110 workspace tests; 393 MySQL tests each on 8.0 and MariaDB 11; S9b, S10, later import, stopped run, interrupted undo; 5 write paths fixed to move modified |
 | P3-facts | unit-test-verified | 2,135 workspace tests; S1 with groups; list round trip with a Devanagari title through the routes and a run; 40k preview with every section 534-548 ms; formula guard round-trips exactly |
 | P3-decide | unit-test-verified | 2,084 workspace tests; 9 mutations; streamed digest saves ~20 ms at 40k |
