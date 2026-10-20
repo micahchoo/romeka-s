@@ -418,3 +418,29 @@ async fn removing_the_staging_area_leaves_nothing_in_the_store() {
             .is_empty()
     );
 }
+
+#[test]
+fn a_stored_reader_seeks_inside_and_outside_its_held_chunk() {
+    use std::io::{Seek, SeekFrom};
+
+    let root = tempfile::tempdir().unwrap();
+    let store = FileStore::new(root.path(), "/files");
+    let bytes: Vec<u8> = (0..3_000_000_u32).map(|n| (n % 251) as u8).collect();
+    store.put(&bytes, "original/seek.bin").unwrap();
+    let mut reader = StoredReader::new(&store, "original/seek.bin".into(), 0..bytes.len() as u64);
+    let mut four = [0_u8; 4];
+
+    assert_eq!(reader.seek(SeekFrom::End(-4)).unwrap(), 2_999_996);
+    reader.read_exact(&mut four).unwrap();
+    assert_eq!(four, bytes[2_999_996..3_000_000]);
+
+    assert_eq!(reader.seek(SeekFrom::Start(10)).unwrap(), 10);
+    reader.read_exact(&mut four).unwrap();
+    assert_eq!(four, bytes[10..14]);
+
+    assert_eq!(reader.seek(SeekFrom::Current(-8)).unwrap(), 6);
+    reader.read_exact(&mut four).unwrap();
+    assert_eq!(four, bytes[6..10]);
+
+    assert!(reader.seek(SeekFrom::Current(-100)).is_err());
+}

@@ -456,8 +456,8 @@ messages! {
     fn import_list_column_unknown(column) = "The list cannot have the column \"{column}\". Choose a property, the item sets, the item type or the visibility.";
     /// `POST …/sheets` without exactly one file in the form.
     const IMPORT_LIST_ONE_FILE = "Send one list file in the form.";
-    /// `POST …/sheets` with a file that is not CSV or TSV.
-    fn import_list_type(name) = "\"{name}\" is not a CSV or TSV file. Save the list as CSV or TSV, then send it again.";
+    /// `POST …/sheets` with a file that is not a CSV, TSV or workbook.
+    fn import_list_type(name) = "\"{name}\" is not a .csv, .tsv, .xlsx, .xls or .ods file. Save the list as one of these, then send it again.";
     /// `POST …/sheets` with a file over 50 MB.
     const IMPORT_LIST_TOO_LARGE = "The list is larger than 50 MB.";
     /// `POST …/sheets` with a list the sheet reader refuses.

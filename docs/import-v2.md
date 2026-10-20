@@ -34,7 +34,7 @@ Each term has one meaning, in code and in prose.
   sniffed type. It is cached per import and rebuilt by a **rescan** (on request, and at run start).
 - **Entry**: one unit of evidence with a fixed identity: a **file** (`{ source, path }`, the path
   relative to the source, NFC) or a **row** (`{ sheet, key }`, see "Row keys").
-- **Sheet**: a CSV, TSV or ODS file in a source, read as rows. A sheet is never a file entry.
+- **Sheet**: a CSV, TSV, XLSX, XLS or ODS file in a source, read as rows. A sheet is never a file entry.
 - **Group key**: the text of the pattern's `identifier` group, NFC, optionally case-folded. Files
   with one group key form one *file group*.
 - **Record**: one resource the import proposes to write: an **item**, a **media**, or an **item
@@ -200,7 +200,7 @@ type SourcePlan = { id: string } & ({ kind: 'folder'; root: string; path: string
 interface SheetPlan {
   id: string; source: string; file: string; hash: string | null;
   read: { encoding: 'auto' | Encoding; delimiter: 'auto' | string; quote: '"' | "'" | 'none';
-          headerLine: number; trim: boolean };
+          headerLine: number; trim: boolean; sheetName?: string | null };  // workbook sheet; absent = first visible
   rowKind: 'item' | 'media' | 'itemSet' | { column: ColumnRef };
   join: null | { on: 'identifier' | 'fileName'; column: ColumnRef;
                  normalize: { caseFold: boolean; leadingZeros: boolean; separators: boolean } };
@@ -223,7 +223,11 @@ type SourceRef =
   | { from: 'file'; fact: 'name' | 'path' | 'size' | 'format' }   // format = the sniffed type
   | { from: 'constant'; value: string };
 type TagId = 'DateTimeOriginal' | 'Artist' | 'Copyright' | 'ImageDescription' | 'GPS' | 'Model'
-  | 'File name' | 'Folder' | 'Size' | 'Pixel dimensions' | 'Format';  // P8 adds IPTC and XMP ids
+  | 'File name' | 'Folder' | 'Size' | 'Pixel dimensions' | 'Format'
+  | 'IPTC By-line' | 'IPTC Caption-Abstract' | 'IPTC Keywords' | 'IPTC Object Name'
+  | 'IPTC Date Created' | 'IPTC City' | 'IPTC Country' | 'XMP dc:title' | 'XMP dc:description'
+  | 'XMP dc:creator' | 'XMP dc:subject' | 'XMP dc:rights' | 'XMP photoshop:DateCreated'
+  | 'XMP lr:hierarchicalSubject';   // tag kinds on the wire: exif, iptc, xmp, file
 interface ActionPlan {
   action: 'create' | 'append' | 'revise' | 'update' | 'replace' | 'delete';
   match: Record<'item' | 'media' | 'itemSet', { key: Term | 'internalId'; scope: Scope }>;
@@ -562,7 +566,7 @@ is recorded on the first read as `run_failed` or `undo_failed`.
   with more than 10 MB out, or the entry count passes 100,000.
 - **Retention.** A sweep deletes staging 30 days after an import reaches `done` or `undone`, 30 days
   after the last run attempt of a failed import, and 7 days after a draft was last saved (`romeka_import.saved`); incomplete
-  uploads and orphaned parts go after 24 hours. `romeka serve` runs the sweep hourly. The draft shows the date. Settings: `import_staging_keep_days`,
+  uploads go after 24 hours and parts no upload row names after 1 hour. `romeka serve` runs the sweep hourly. The draft shows the date. Settings: `import_staging_keep_days`,
   `import_draft_staging_keep_days`.
 - **URL sources.** The `ingester` and `mediaSource` slots drive the existing ingesters (`url`,
   `html`, `youtube`, `iiif`, `iiif_presentation`, `oembed`). Every fetch any ingester makes, in the
@@ -626,7 +630,8 @@ All need a signed-in global admin or site admin.
 | `GET /api/romeka/starters` | the server's starter list |
 | `GET /api/romeka/files/allow` | 204 or 403 |
 
-Preview sections (`include`): `entries` (paged; each with its record and flags), `sheets` (per sheet:
+Preview sections (`include`): `entries` (paged; each with its record and flags), `sheets` (per sheet, `read.workbook =
+{ sheet, sheets } | null` for a workbook, lines = header and first rows tab-joined:
 encoding guess and confidence, delimiter, header line, raw lines, counts, column list), `tags`,
 `records` (paged by kind; filter by flag kind, slot, or text in any slot), `flags` (counts per kind
 and slot), `anomalies`, `orphans`, `check` (counts per action and kind, new sets, types, fields,
@@ -645,7 +650,7 @@ measured 2026-10-20), so 0006 replaces the v1 import tables instead of convertin
 `romeka_import_resource` and `romeka_import` and creates the v2 tables. MySQL gets the same
 migration so a fresh MySQL install builds the v2 schema.
 
-- `romeka_import (id, owner_id, sources TEXT, plan TEXT, ran_plan TEXT NULL, revision INTEGER NOT
+- `romeka_import (id, owner_id, sources TEXT, plan TEXT, ran_plan TEXT NULL, saved DATETIME NOT NULL, revision INTEGER NOT
   NULL DEFAULT 0, status, job_id, summary TEXT NULL, copied_from NULL, created, finished NULL)`,
   status CHECK over the v2 statuses, FKs as v1 (`ON DELETE SET NULL` for owner, job, copied_from).
   JSON members are LONGTEXT on MySQL.

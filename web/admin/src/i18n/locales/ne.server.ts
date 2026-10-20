@@ -200,7 +200,7 @@ export const neServer: ServerCatalogue = {
     'सूचीमा "{column}" कोलम हुन सक्दैन। कुनै प्रोपर्टी, आइटम सेट, आइटम टाइप वा भिजुअलिटी छान्नुहोस्।',
   'server.importListOneFile': 'फारममा एउटा सूची फाइल पठाउनुहोस्।',
   'server.importListType':
-    '"{name}" CSV वा TSV फाइल होइन। सूचीलाई CSV वा TSV को रूपमा सुरक्षित गर्नुहोस्, त्यसपछि यसलाई फेरि पठाउनुहोस्।',
+    '"{name}" .csv, .tsv, .xlsx, .xls वा .ods फाइल होइन। यस सूचीलाई यी मध्ये कुनै एकको रूपमा सुरक्षित गर्नुहोस्, त्यसपछि यसलाई पुनः पठाउनुहोस्।',
   'server.importListTooLarge': 'सूची 50 MB भन्दा ठुलो छ।',
   'server.importListUnread': 'सूची पढ्न सकिएन: {reason}',
   'server.importListNoIdentifier':

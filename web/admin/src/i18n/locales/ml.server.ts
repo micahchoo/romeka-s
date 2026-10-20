@@ -211,7 +211,7 @@ export const mlServer: ServerCatalogue = {
     'പട്ടികയിൽ "{column}" എന്ന കോളം ഉണ്ടാകാൻ പാടില്ല. ഒരു പ്രോപ്പർട്ടി, ഐറ്റം സെറ്റുകൾ, ഐറ്റം ടൈപ്പ് അല്ലെങ്കിൽ വിസിബിലിറ്റി തിരഞ്ഞെടുക്കുക.',
   'server.importListOneFile': 'ഫോമിൽ ഒരു ലിസ്റ്റ് ഫയൽ അയയ്ക്കുക.',
   'server.importListType':
-    '"{name}" ഒരു CSV അല്ലെങ്കിൽ TSV ഫയൽ അല്ല. ലിസ്റ്റ് CSV അല്ലെങ്കിൽ TSV ആയി സേവ് ചെയ്ത് വീണ്ടും അയക്കുക.',
+    '"{name}" ഒരു .csv, .tsv, .xlsx, .xls അല്ലെങ്കിൽ .ods ഫയൽ അല്ല. ഈ പട്ടിക ഇവയിലൊന്നായി സേവ് ചെയ്ത് വീണ്ടും അയക്കുക.',
   'server.importListTooLarge': 'ലിസ്റ്റ് 50 MB-യിൽ വലുതാണ്.',
   'server.importListUnread': 'ലിസ്റ്റ് വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
   'server.importListNoIdentifier':

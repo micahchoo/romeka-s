@@ -195,7 +195,7 @@ export const esServer: ServerCatalogue = {
     'La lista no puede tener la columna "{column}". Elige una propiedad, los conjuntos de elementos, el tipo de elemento o la visibilidad.',
   'server.importListOneFile': 'Envía un solo archivo de lista en el formulario.',
   'server.importListType':
-    '"{name}" no es un archivo CSV ni TSV. Guarda la lista como CSV o TSV y vuelve a enviarla.',
+    '"{name}" no es un archivo .csv, .tsv, .xlsx, .xls ni .ods. Guarda la lista en uno de estos formatos y vuelve a enviarla.',
   'server.importListTooLarge': 'La lista ocupa más de 50 MB.',
   'server.importListUnread': 'No se puede leer la lista: {reason}',
   'server.importListNoIdentifier':

@@ -13,6 +13,7 @@ use crate::import2::plan::{
     default_plan,
 };
 use crate::import2::sheet::{self, key_column};
+use crate::import2::tags::Embedded;
 
 pub const JPEG: &str = "image/jpeg";
 pub const TIFF: &str = "image/tiff";
@@ -140,10 +141,21 @@ pub fn read_sheets(plan: &ImportPlanV2, csv: &[(&str, &[u8])]) -> Sheets {
 
 /// Tags by path.
 #[derive(Default)]
-pub struct Tags(pub HashMap<(String, TagId), String>);
+pub struct Tags(pub HashMap<(String, TagId), Embedded>);
+
+impl Tags {
+    pub fn put(&mut self, path: &str, tag: TagId, values: &[&str], windows_1252: bool) {
+        let values = values.iter().map(|text| (*text).to_string()).collect();
+        let found = Embedded {
+            values,
+            windows_1252,
+        };
+        self.0.insert((path.to_string(), tag), found);
+    }
+}
 
 impl FileTags for Tags {
-    fn tag(&self, _: &SourceId, entry: &FileEntry, tag: TagId) -> Option<String> {
+    fn tag(&self, _: &SourceId, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
         self.0.get(&(entry.path.to_string(), tag)).cloned()
     }
 }

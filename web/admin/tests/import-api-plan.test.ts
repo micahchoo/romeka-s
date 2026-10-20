@@ -96,6 +96,24 @@ describe('what the plan boundary refuses', () => {
     ).toThrow(ParseError);
   });
 
+  it('keeps the sheet a plan names, leaves an absent one absent and reads null as absent', () => {
+    const plan = parseImportPlan(rustPlan('full.json'));
+    const [first, ...others] = plan.sheets;
+    if (first === undefined) {
+      throw new Error('the Rust plan has a sheet');
+    }
+    const withName = (sheetName: unknown): unknown => ({
+      ...plan,
+      sheets: [{ ...first, read: { ...first.read, sheetName } }, ...others],
+    });
+    const named = withName('Register');
+    expect(roundTrip(named)).toEqual(JSON.parse(JSON.stringify(named)));
+    expect(parseImportPlan(named).sheets[0]?.read.sheetName).toBe('Register');
+    expect(first.read).not.toHaveProperty('sheetName');
+    expect(parseImportPlan(withName(null)).sheets[0]?.read).not.toHaveProperty('sheetName');
+    expect(() => parseImportPlan(withName(2))).toThrow(ParseError);
+  });
+
   it('keeps an absent value map absent and a given one as it was', () => {
     const plan = parseImportPlan(planOf('import-saved.json'));
     expect(plan.slots.item['sets']?.map).toEqual({ Scans: '' });

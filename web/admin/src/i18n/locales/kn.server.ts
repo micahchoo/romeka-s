@@ -206,7 +206,7 @@ export const knServer: ServerCatalogue = {
     'ಪಟ್ಟಿಯಲ್ಲಿ "{column}" ಕಾಲಮ್ ಇರಲು ಸಾಧ್ಯವಿಲ್ಲ. ಒಂದು ಪ್ರಾಪರ್ಟಿ, ಐಟಂ ಸೆಟ್‌ಗಳು, ಐಟಂ ಪ್ರಕಾರ ಅಥವಾ ವಿಸಿಬಿಲಿಟಿಯನ್ನು ಆರಿಸಿ.',
   'server.importListOneFile': 'ಫಾರ್ಮ್‌ನಲ್ಲಿ ಒಂದು ಪಟ್ಟಿ ಫೈಲ್ ಅನ್ನು ಕಳುಹಿಸಿ.',
   'server.importListType':
-    '"{name}" CSV ಅಥವಾ TSV ಫೈಲ್ ಅಲ್ಲ. ಪಟ್ಟಿಯನ್ನು CSV ಅಥವಾ TSV ಆಗಿ ಉಳಿಸಿ, ನಂತರ ಅದನ್ನು ಮತ್ತೆ ಕಳುಹಿಸಿ.',
+    '"{name}" ಎಂಬುದು .csv, .tsv, .xlsx, .xls ಅಥವಾ .ods ಫೈಲ್ ಅಲ್ಲ. ಪಟ್ಟಿಯನ್ನು ಇವುಗಳಲ್ಲಿ ಒಂದಾಗಿ ಉಳಿಸಿ, ನಂತರ ಅದನ್ನು ಮತ್ತೆ ಕಳುಹಿಸಿ.',
   'server.importListTooLarge': 'ಪಟ್ಟಿಯು 50 MB ಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ.',
   'server.importListUnread': 'ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ: {reason}',
   'server.importListNoIdentifier':

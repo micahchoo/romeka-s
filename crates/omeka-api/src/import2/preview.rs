@@ -37,7 +37,9 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 pub use causes::{FlagCount, FlagSample};
 pub use columns::{ColumnMatches, SheetMatches};
 pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
-pub use evidence::{ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView};
+pub use evidence::{
+    ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView, WorkbookView,
+};
 pub use facts::{Bucket, BucketCount, MediaKind, PAGE, SAMPLES, ShapeFacts, ShapeGroup, Shapes};
 pub use identical::{IdenticalFiles, IdenticalView};
 pub use names::{NameWords, NameWordsQuery, WordCount};
@@ -58,7 +60,7 @@ use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
 use super::plan::{ImportPlanV2, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
-use super::tags::TagCache;
+use super::tags::{Embedded, TagCache};
 use facts::Facts;
 use query::FlagsBy;
 
@@ -177,8 +179,8 @@ pub struct DiskTags {
 }
 
 impl FileTags for DiskTags {
-    fn tag(&self, source: &SourceId, entry: &FileEntry, tag: TagId) -> Option<String> {
-        self.caches.tags.value(self.dirs.get(source)?, entry, tag)
+    fn tag(&self, source: &SourceId, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        self.caches.tags.tag(self.dirs.get(source)?, entry, tag)
     }
 }
 

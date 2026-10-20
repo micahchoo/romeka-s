@@ -126,6 +126,8 @@ export interface ReadOptions {
   /** 1-based. */
   readonly headerLine: number;
   readonly trim: boolean;
+  /** The workbook sheet to read; absent reads the first. A CSV ignores it. */
+  readonly sheetName?: string;
 }
 
 /** `index` is the cell's place in the row from 0 and wins; `header` is shown and checked. */
@@ -175,6 +177,20 @@ export const TAG_IDS = [
   'ImageDescription',
   'GPS',
   'Model',
+  'IPTC By-line',
+  'IPTC Caption-Abstract',
+  'IPTC Keywords',
+  'IPTC Object Name',
+  'IPTC Date Created',
+  'IPTC City',
+  'IPTC Country',
+  'XMP dc:title',
+  'XMP dc:description',
+  'XMP dc:creator',
+  'XMP dc:subject',
+  'XMP dc:rights',
+  'XMP photoshop:DateCreated',
+  'XMP lr:hierarchicalSubject',
   'File name',
   'Folder',
   'Size',

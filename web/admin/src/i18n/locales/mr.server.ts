@@ -203,7 +203,7 @@ export const mrServer: ServerCatalogue = {
     'सूचीमध्ये "{column}" हा स्तंभ असू शकत नाही. एखादा गुणधर्म, आयटम सेट्स, आयटम प्रकार किंवा दृश्यमानता निवडा.',
   'server.importListOneFile': 'फॉर्ममध्ये एक सूची फाईल पाठवा.',
   'server.importListType':
-    '"{name}" ही CSV किंवा TSV फाईल नाही. सूची CSV किंवा TSV म्हणून जतन करा, नंतर ती पुन्हा पाठवा.',
+    '"{name}" ही .csv, .tsv, .xlsx, .xls किंवा .ods फाईल नाही. ही सूची यांपैकी एका स्वरूपात जतन करा आणि नंतर ती पुन्हा पाठवा.',
   'server.importListTooLarge': 'सूची 50 MB पेक्षा मोठी आहे.',
   'server.importListUnread': 'सूची वाचता येत नाही: {reason}',
   'server.importListNoIdentifier':

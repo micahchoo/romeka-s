@@ -1,7 +1,7 @@
 //! The bytes of the staging area: a part written per `PATCH`, the parts
 //! joined into the file, and a stored file read back a chunk at a time.
 
-use std::io::{self, Read};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -151,5 +151,29 @@ impl Read for StoredReader<'_> {
         buffer[..count].copy_from_slice(&self.held[self.taken..self.taken + count]);
         self.taken += count;
         Ok(count)
+    }
+}
+
+/// Seeking lets the image decoder re-read a stored original for its
+/// thumbnails. A seek inside the chunk already held keeps it, because the
+/// decoder makes many short seeks and each refetch is a whole chunk.
+impl Seek for StoredReader<'_> {
+    fn seek(&mut self, from: SeekFrom) -> io::Result<u64> {
+        let held_start = self.at - self.held.len() as u64;
+        let position = held_start + self.taken as u64;
+        let target = match from {
+            SeekFrom::Start(offset) => Some(offset),
+            SeekFrom::Current(delta) => position.checked_add_signed(delta),
+            SeekFrom::End(delta) => self.end.checked_add_signed(delta),
+        }
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "seek before the start"))?;
+        if target >= held_start && target <= self.at && !self.held.is_empty() {
+            self.taken = (target - held_start) as usize;
+        } else {
+            self.held.clear();
+            self.taken = 0;
+            self.at = target;
+        }
+        Ok(target)
     }
 }

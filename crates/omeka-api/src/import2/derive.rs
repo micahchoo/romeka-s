@@ -25,6 +25,7 @@ use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{FlagKind, ImportPlanV2, RecordKind, SheetId, SlotName, SourceId, TagId, Term};
 use super::sheet::{Sheet, SheetError};
 use super::slots::{self, Ctx, named};
+use super::tags::Embedded;
 use super::{grouping, grouping::natural_cmp};
 
 /// The evidence index: each source's last scan.
@@ -46,14 +47,16 @@ pub type Sheets = BTreeMap<SheetId, Result<Sheet, SheetError>>;
 /// File tags, read by the caller's cache (`tags::TagCache`). The derive
 /// asks only for the tags a slot rule names.
 pub trait FileTags {
-    fn tag(&self, source: &SourceId, entry: &FileEntry, tag: TagId) -> Option<String>;
+    /// The tag's values apart, with whether its text was read as
+    /// Windows-1252. `None` when the file has no such tag.
+    fn tag(&self, source: &SourceId, entry: &FileEntry, tag: TagId) -> Option<Embedded>;
 }
 
 /// No file has tags: for plans that read none.
 pub struct NoTags;
 
 impl FileTags for NoTags {
-    fn tag(&self, _: &SourceId, _: &FileEntry, _: TagId) -> Option<String> {
+    fn tag(&self, _: &SourceId, _: &FileEntry, _: TagId) -> Option<Embedded> {
         None
     }
 }

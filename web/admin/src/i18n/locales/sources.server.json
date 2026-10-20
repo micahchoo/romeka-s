@@ -152,7 +152,7 @@
  "server.importJobNotStarted": "The import could not start: {reason}",
  "server.importListColumnUnknown": "The list cannot have the column \"{column}\". Choose a property, the item sets, the item type or the visibility.",
  "server.importListOneFile": "Send one list file in the form.",
- "server.importListType": "\"{name}\" is not a CSV or TSV file. Save the list as CSV or TSV, then send it again.",
+ "server.importListType": "\"{name}\" is not a .csv, .tsv, .xlsx, .xls or .ods file. Save the list as one of these, then send it again.",
  "server.importListTooLarge": "The list is larger than 50 MB.",
  "server.importListUnread": "The list cannot be read: {reason}",
  "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.",

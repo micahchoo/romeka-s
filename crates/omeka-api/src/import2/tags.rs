@@ -21,46 +21,62 @@ use super::plan::{FileFact, TagId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TagKind {
-    /// Read from inside the file: EXIF, IPTC or XMP. The tag's name says
-    /// which; the wire calls all three `exif`.
+    /// Read from inside the file, from its EXIF block.
     Exif,
+    /// Read from inside the file, from its IPTC block.
+    Iptc,
+    /// Read from inside the file, from its XMP packet.
+    Xmp,
     /// A fact about the file.
     File,
 }
 
+impl TagKind {
+    /// The name the wire gives the kind.
+    #[must_use]
+    pub const fn wire(self) -> &'static str {
+        match self {
+            Self::Exif => "exif",
+            Self::Iptc => "iptc",
+            Self::Xmp => "xmp",
+            Self::File => "file",
+        }
+    }
+
+    /// Whether the tag is read from inside the file.
+    #[must_use]
+    pub const fn is_embedded(self) -> bool {
+        !matches!(self, Self::File)
+    }
+}
+
 /// The tags the Sources tab lists, in its order.
-pub const TAGS: [(TagId, TagKind); 11] = [
+pub const TAGS: [(TagId, TagKind); 25] = [
     (TagId::DateTimeOriginal, TagKind::Exif),
     (TagId::Artist, TagKind::Exif),
     (TagId::Copyright, TagKind::Exif),
     (TagId::ImageDescription, TagKind::Exif),
     (TagId::Gps, TagKind::Exif),
     (TagId::Model, TagKind::Exif),
+    (TagId::IptcByline, TagKind::Iptc),
+    (TagId::IptcCaption, TagKind::Iptc),
+    (TagId::IptcKeywords, TagKind::Iptc),
+    (TagId::IptcObjectName, TagKind::Iptc),
+    (TagId::IptcDateCreated, TagKind::Iptc),
+    (TagId::IptcCity, TagKind::Iptc),
+    (TagId::IptcCountry, TagKind::Iptc),
+    (TagId::XmpTitle, TagKind::Xmp),
+    (TagId::XmpDescription, TagKind::Xmp),
+    (TagId::XmpCreator, TagKind::Xmp),
+    (TagId::XmpSubject, TagKind::Xmp),
+    (TagId::XmpRights, TagKind::Xmp),
+    (TagId::XmpDateCreated, TagKind::Xmp),
+    (TagId::XmpHierarchicalSubject, TagKind::Xmp),
     (TagId::FileName, TagKind::File),
     (TagId::Folder, TagKind::File),
     (TagId::Size, TagKind::File),
     (TagId::PixelDimensions, TagKind::File),
     (TagId::Format, TagKind::File),
-];
-
-/// The IPTC and XMP tags. A plan can name them and the derive reads them;
-/// the Sources tab does not list them yet, because the admin refuses a tag
-/// id it does not know, so they join [`TAGS`] with the admin's own ids.
-pub const IPTC_XMP_TAGS: [TagId; 14] = [
-    TagId::IptcByline,
-    TagId::IptcCaption,
-    TagId::IptcKeywords,
-    TagId::IptcObjectName,
-    TagId::IptcDateCreated,
-    TagId::IptcCity,
-    TagId::IptcCountry,
-    TagId::XmpTitle,
-    TagId::XmpDescription,
-    TagId::XmpCreator,
-    TagId::XmpSubject,
-    TagId::XmpRights,
-    TagId::XmpDateCreated,
-    TagId::XmpHierarchicalSubject,
 ];
 
 /// The `image_metadata` key of a tag read from inside the file.
@@ -152,10 +168,18 @@ impl<R: TagReader> TagCache<R> {
 
     /// The value of `tag` for `entry`, `None` when the file has none. A
     /// tag that repeats (IPTC Keywords, an XMP bag) gives its values joined
-    /// by `; `; [`TagCache::embedded`] gives them apart.
+    /// by `; `; [`TagCache::tag`] gives them apart.
     #[must_use]
     pub fn value(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<String> {
-        let value = match tag {
+        Some(self.tag(source, entry, tag)?.values.join("; "))
+    }
+
+    /// The values of `tag` for `entry`, apart, and whether the file's text
+    /// was read as Windows-1252 (`encoding-suspect`). `None` when the file
+    /// has no such tag; a file fact has one value and is never suspect.
+    #[must_use]
+    pub fn tag(&self, source: &SourceDir, entry: &FileEntry, tag: TagId) -> Option<Embedded> {
+        let fact = match tag {
             TagId::FileName => entry.name().to_string(),
             TagId::Folder => entry.folder().to_string(),
             TagId::Size => human_size(entry.size),
@@ -165,9 +189,16 @@ impl<R: TagReader> TagCache<R> {
                 let one = |key| tags.get(key)?.values.first().cloned();
                 format!("{} × {}", one("Width")?, one("Height")?)
             }
-            _ => self.embedded(source, entry, tag)?.values.join("; "),
+            _ => {
+                let mut found = self.embedded(source, entry, tag)?;
+                found.values.retain(|value| !value.is_empty());
+                return (!found.values.is_empty()).then_some(found);
+            }
         };
-        (!value.is_empty()).then_some(value)
+        (!fact.is_empty()).then(|| Embedded {
+            values: vec![fact],
+            windows_1252: false,
+        })
     }
 
     /// The values of a tag read from inside the file, apart, and whether
@@ -289,28 +320,31 @@ mod tests {
     }
 
     #[test]
-    fn a57_the_listed_tags_are_the_contracts_eleven_and_seven_iptc_and_seven_xmp_are_readable() {
-        assert_eq!(TAGS.len(), 11);
-        let exif = TAGS.iter().filter(|(_, kind)| *kind == TagKind::Exif);
-        assert_eq!(exif.count(), 6);
-        let embedded = TAGS
-            .iter()
-            .filter(|(_, kind)| *kind == TagKind::Exif)
-            .map(|(tag, _)| *tag)
-            .chain(IPTC_XMP_TAGS);
-        for tag in embedded {
-            let key = embedded_key(tag).expect("read from inside the file");
+    fn a57_the_listed_tags_are_the_contracts_six_exif_seven_iptc_seven_xmp_and_five_facts() {
+        let of = |wanted| TAGS.iter().filter(|(_, kind)| *kind == wanted).count();
+        assert_eq!(TAGS.len(), 25);
+        assert_eq!(
+            [
+                of(TagKind::Exif),
+                of(TagKind::Iptc),
+                of(TagKind::Xmp),
+                of(TagKind::File)
+            ],
+            [6, 7, 7, 5]
+        );
+        for (tag, kind) in TAGS {
+            assert_eq!(embedded_key(tag).is_some(), kind.is_embedded(), "{tag:?}");
             let name = serde_json::to_value(tag).expect("name");
-            assert_eq!(name, key, "a tag is named as the reader keys it");
+            if let Some(key) = embedded_key(tag) {
+                assert_eq!(name, key, "a tag is named as the reader keys it");
+            }
             assert_eq!(serde_json::from_value::<TagId>(name).expect("parse"), tag);
         }
-        for (tag, kind) in TAGS {
-            assert_eq!(
-                embedded_key(tag).is_some(),
-                kind == TagKind::Exif,
-                "{tag:?}"
-            );
-        }
+        let kinds: Vec<_> = TAGS.iter().map(|(_, kind)| kind.wire()).collect();
+        assert_eq!(kinds[0], "exif");
+        assert_eq!(kinds[6], "iptc");
+        assert_eq!(kinds[13], "xmp");
+        assert_eq!(kinds[24], "file");
     }
 
     #[test]
