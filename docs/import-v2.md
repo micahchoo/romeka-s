@@ -360,6 +360,10 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   columns, so the round trip is exact and a spreadsheet never runs a formula.
 - Downloaded-list headers for the three slots are `Item sets [sets]`, `Item type [template]`,
   `Visibility [visibility]`.
+- **Pairs list round trip** (more than 30 unpaired rows): `GET …/pairs.csv` answers the unpaired
+  rows (`Row [sheet:key]`, the row's own cells, and an empty `Files` column, formula-guarded);
+  `POST …/pairs` reads it back and adds one `pair` decision per filled `Files` cell whose text
+  exactly equals a file of this import (others are reported, not guessed).
 - **Run progress** carries records done, records total and seconds left from the rate so far. No
   email: the page says the run goes on if the person leaves.
 
@@ -736,6 +740,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | 2026-10-20 | Admin UX: a guided first pass (Your files, What we found, Your list, Where they go, Check, Add) that lands in seven tabs renamed Files, List, Item sets, Item types, All items, Check, Add; the word "item" with a gloss; the server card hidden when no root is set up for the user; plain words enforced by proto2/GLOSSARY.md and glossary-check.js | user (prototype round 2) |
 | 2026-10-20 | Contract additions: `.xlsx`/`.xls` sheets (P8); a `pair` decision (row ↔ file by hand); likely copies by content hash for files of equal size (an anomaly) | user (prototype round 2) |
 | 2026-10-20 | The UX works on shapes and causes, not single items, at 50 to 40,000 items | user: "the ux breaks as soon as you have more than 50 items" |
+| 2026-10-20 | Round-4 calls: one marked example covers every part of a name (one click on the word that changes); downloaded lists show `Label [term]` headers; item type values that map to nothing get no item type and one Check question; pairing by hand one at a time up to 30 unpaired rows, above that a pairs list round trip; "worth a look" stays (under 2% or 7+ files) | user: "do as recommended on the 5" |
 | 2026-10-20 | Prototype round 4 (facts only, round trip, Simple/Advanced): first pass 38-47 decisions, flat from 800 to 40,000 items, every screen under 22 ms; anomaly answers, name words and column matches added | round-4 report |
 | 2026-10-20 | Facts only, never inferred meaning; list round trip (template.csv down, filled sheet up); Simple and Advanced modes | user: "shapes is making promises that only an llm can solve" |
 | 2026-10-20 | UX at scale: shapes and causes, paged lists, changes to many that name their records; server additions listed under "What the admin screens need at scale" | user; round-3 prototype measured flat 20/21 decisions from 50 to 40,000 items |
