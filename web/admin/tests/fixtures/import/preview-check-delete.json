@@ -1,0 +1,55 @@
+{
+  "check": {
+    "action": "delete",
+    "blocking": [],
+    "canRun": true,
+    "counts": [
+      {
+        "count": 1,
+        "does": {
+          "act": "delete"
+        },
+        "kind": "item"
+      },
+      {
+        "count": 9,
+        "does": "leave",
+        "kind": "item"
+      },
+      {
+        "count": 22,
+        "does": "leave",
+        "kind": "media"
+      }
+    ],
+    "defaultOwner": 0,
+    "deletes": 1,
+    "digest": "146541eb4c14cbc61ab8df116c282891d4a0185143244a3ef4e2df3ccff56776",
+    "flags": {
+      "keep": 1,
+      "leave": 11
+    },
+    "newFields": [],
+    "newSets": [],
+    "newTypes": [],
+    "withoutTemplate": 0
+  },
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

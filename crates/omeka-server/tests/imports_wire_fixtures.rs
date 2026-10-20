@@ -1,0 +1,490 @@
+//! The import wire as the admin's TypeScript client reads it: every route and
+//! every preview section is called once, and the answer is the fixture
+//! `web/admin/tests/fixtures/import/<name>`. The admin's tests parse these
+//! files, so a server shape the client's types do not know fails there.
+//!
+//! `UPDATE_FIXTURES=1 cargo test -p omeka-server --test imports_wire_fixtures`
+//! rewrites the files. Without it the test fails when a committed file is not
+//! what the server answers now, or when a file in the folder is not produced.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+mod common;
+mod imports_fixture;
+mod imports_wire;
+
+use std::os::unix::ffi::OsStrExt;
+
+use axum::http::StatusCode;
+use imports_fixture::{BHC_PATTERN, Fixture, JPEG, TIFF, bhc_006, fixture};
+use imports_wire::recorder::Fixtures;
+use imports_wire::scene::{
+    REGISTER, add_date, at, checked, existing_item, ok, refused, rich_plan, upload_list,
+};
+use omeka_db::ids::ImportId;
+use omeka_db::repos::ImportRepo;
+use omeka_db::rows::ImportEnding;
+use serde_json::{Value, json};
+
+#[tokio::test]
+async fn the_wire_fixtures_are_what_the_routes_answer() {
+    let mut out = Fixtures::new();
+    let fixture = fixture().await;
+    add_date(&fixture).await;
+    existing_item(&fixture).await;
+    bhc_006(fixture.archive.path());
+    fixture.write(&[
+        ("Misc/loose.jpg", JPEG),
+        ("register.csv", REGISTER.as_bytes()),
+        (".hidden", b"x"),
+    ]);
+    let bulk: Vec<(String, &[u8])> = (1..=7)
+        .map(|n| (format!("Bulk/BHC_006_BK_001_p{n}.tif"), TIFF))
+        .collect();
+    let bulk: Vec<(&str, &[u8])> = bulk
+        .iter()
+        .map(|(path, bytes)| (path.as_str(), *bytes))
+        .collect();
+    fixture.write(&bulk);
+    let root = fixture.archive.path();
+    std::fs::write(
+        root.join(std::ffi::OsStr::from_bytes(b"Misc/caf\xe9.jpg")),
+        JPEG,
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(root.join("Misc"), root.join("Linked")).unwrap();
+    // A name the plan's paths refuse. Two names that are one after NFC are left out: which
+    // one the walk reports depends on the directory order of the disk.
+    std::fs::write(root.join("Misc/back\\slash.jpg"), JPEG).unwrap();
+
+    out.json(
+        "archive.json",
+        &ok(fixture.call("GET", "/api/romeka/archive", None).await).await,
+    );
+    out.json(
+        "archive-folder.json",
+        &ok(fixture
+            .call(
+                "GET",
+                "/api/romeka/archive?root=archive&path=Artifacts",
+                None,
+            )
+            .await)
+        .await,
+    );
+
+    let draft = fixture.draft().await;
+    let id = draft["id"].clone();
+    out.json("import-draft.json", &draft);
+    let saved = ok(fixture.save(&draft, rich_plan).await).await;
+    out.json("import-saved.json", &saved);
+    out.json(
+        "import-show.json",
+        &ok(fixture.call("GET", &at(&id, ""), None).await).await,
+    );
+    out.json(
+        "scan.json",
+        &ok(fixture.call("POST", &at(&id, "/scan"), None).await).await,
+    );
+
+    let sections: [(&str, Value); 13] = [
+        ("entries", json!({ "entries": { "perPage": 50 } })),
+        ("sheets", json!({})),
+        ("tags", json!({})),
+        (
+            "records",
+            json!({ "records": { "kind": "item", "perPage": 50 } }),
+        ),
+        ("flags", json!({})),
+        ("anomalies", json!({})),
+        ("orphans", json!({})),
+        ("check", json!({})),
+        ("shapes", json!({})),
+        ("histogram", json!({})),
+        ("identical", json!({ "identical": { "perPage": 1 } })),
+        (
+            "unpaired",
+            json!({ "unpaired": { "rows": { "perPage": 2 }, "files": { "perPage": 2 } } }),
+        ),
+        ("values", json!({})),
+    ];
+    for (section, extra) in sections {
+        let mut body = json!({ "include": [section], "seed": 2 });
+        body.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let answer = ok(fixture.preview(&id, &body).await).await;
+        out.json(&format!("preview-{section}.json"), &answer);
+    }
+    let media = fixture
+        .preview(
+            &id,
+            &json!({ "include": ["records"], "records": { "kind": "media", "perPage": 2 } }),
+        )
+        .await;
+    out.json("preview-records-media.json", &ok(media).await);
+    // p3-extras adds these two sections; until then the server refuses the name.
+    for section in ["nameWords", "columnMatches"] {
+        let answer = fixture.preview(&id, &json!({ "include": [section] })).await;
+        if answer.status == StatusCode::OK {
+            out.json(&format!("preview-{}.json", kebab(section)), &answer.json());
+        }
+    }
+
+    let template = fixture
+        .call(
+            "GET",
+            &at(&id, "/template.csv?columns=dcterms:title,dcterms:date"),
+            None,
+        )
+        .await;
+    assert_eq!(template.status, StatusCode::OK, "{}", template.body);
+    out.text("template.csv", &template.body);
+    std::fs::create_dir_all(fixture.files.path().join(format!("imports/{id}"))).unwrap();
+    std::fs::write(
+        fixture.files.path().join(format!("imports/{id}/left.csv")),
+        "kind,source,path,record,#reason\nfile,s1,_scratch/notes.txt,,not-media\n",
+    )
+    .unwrap();
+    let left = fixture.call("GET", &at(&id, "/left.csv"), None).await;
+    assert_eq!(left.status, StatusCode::OK, "{}", left.body);
+    out.text("left.csv", &left.body);
+
+    // The requests the admin's types can build, which the server must take.
+    for request in out.read("requests.json").as_array().unwrap() {
+        let answer = fixture.preview(&id, request).await;
+        assert_eq!(answer.status, StatusCode::OK, "{request}: {}", answer.body);
+    }
+
+    conflicts_before_a_run(&fixture, &mut out, &draft, &id).await;
+    runs(&fixture, &mut out, &id).await;
+    out.finish();
+}
+
+fn kebab(name: &str) -> String {
+    name.chars()
+        .flat_map(|c| {
+            if c.is_uppercase() {
+                vec!['-', c.to_ascii_lowercase()]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
+}
+
+async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &Value, id: &Value) {
+    let current = ok(fixture.call("GET", &at(id, ""), None).await).await;
+    let stale = fixture
+        .call(
+            "PUT",
+            &at(id, ""),
+            Some(&json!({ "plan": current["plan"], "revision": 0 })),
+        )
+        .await;
+    out.json(
+        "conflict-stale.json",
+        &refused(stale, StatusCode::CONFLICT, Some("stale")).await,
+    );
+
+    let v1 = fixture
+        .call(
+            "PUT",
+            &at(id, ""),
+            Some(&json!({ "plan": { "setLevel": 1 }, "revision": current["revision"] })),
+        )
+        .await;
+    out.json(
+        "conflict-v1-plan.json",
+        &refused(v1, StatusCode::CONFLICT, Some("v1Plan")).await,
+    );
+
+    let exists = fixture
+        .save(&current, |plan| {
+            plan["newTypes"] = json!([{ "label": "Picture", "from": "mapping", "class": null }]);
+        })
+        .await;
+    out.json(
+        "conflict-type-exists.json",
+        &refused(exists, StatusCode::CONFLICT, Some("typeExists")).await,
+    );
+
+    let bad = fixture
+        .save(&current, |plan| plan["surprise"] = json!(true))
+        .await;
+    out.json(
+        "error-plan-refused.json",
+        &refused(bad, StatusCode::BAD_REQUEST, None).await,
+    );
+    let missing = fixture.call("GET", "/api/romeka/imports/9999", None).await;
+    out.json(
+        "error-not-found.json",
+        &refused(missing, StatusCode::NOT_FOUND, None).await,
+    );
+
+    let digest = checked(fixture, id).await["digest"].clone();
+    let wrong = fixture
+        .call(
+            "POST",
+            &at(id, "/run"),
+            Some(&json!({ "digest": "0".repeat(64) })),
+        )
+        .await;
+    out.json(
+        "conflict-changed.json",
+        &refused(wrong, StatusCode::CONFLICT, Some("changed")).await,
+    );
+
+    let mut unknown_term = current["plan"].clone();
+    unknown_term["slots"]["item"]["dcterms:nothing"] =
+        json!({ "sources": [{ "from": "constant", "value": "x" }], "combine": "first" });
+    let unknown = fixture
+        .preview(id, &json!({ "include": ["check"], "plan": unknown_term }))
+        .await;
+    let blocked_digest = ok(unknown).await["check"]["digest"].clone();
+    let blocked = fixture
+        .save(&current, |plan| {
+            plan["slots"]["item"]["dcterms:nothing"] =
+                json!({ "sources": [{ "from": "constant", "value": "x" }], "combine": "first" });
+        })
+        .await;
+    let blocked_draft = ok(blocked).await;
+    out.json(
+        "preview-check-blocked.json",
+        &ok(fixture.preview(id, &json!({ "include": ["check"] })).await).await,
+    );
+    let run = fixture
+        .call(
+            "POST",
+            &at(id, "/run"),
+            Some(&json!({ "digest": blocked_digest })),
+        )
+        .await;
+    out.json(
+        "conflict-blocked.json",
+        &refused(run, StatusCode::CONFLICT, Some("blocked")).await,
+    );
+    let restored = fixture
+        .save(&blocked_draft, |plan| {
+            plan["slots"]["item"]
+                .as_object_mut()
+                .unwrap()
+                .remove("dcterms:nothing");
+        })
+        .await;
+    ok(restored).await;
+    assert_eq!(
+        checked(fixture, id).await["digest"],
+        digest,
+        "the plan is back to the checked one"
+    );
+
+    let empty = fixture.draft().await;
+    ok(fixture.call("POST", &at(&empty["id"], "/scan"), None).await).await;
+    let nothing = fixture
+        .call(
+            "POST",
+            &at(&empty["id"], "/run"),
+            Some(&json!({ "digest": checked(fixture, &empty["id"]).await["digest"] })),
+        )
+        .await;
+    out.json(
+        "conflict-nothing.json",
+        &refused(nothing, StatusCode::CONFLICT, Some("nothing")).await,
+    );
+
+    let delete = fixture
+        .save(&empty, |plan| {
+            plan["grouping"]["pattern"] = json!(BHC_PATTERN);
+            plan["action"]["action"] = json!("delete");
+            plan["action"]["match"]["item"] =
+                json!({ "key": "dcterms:identifier", "scope": "all" });
+        })
+        .await;
+    ok(delete).await;
+    ok(fixture.call("POST", &at(&empty["id"], "/scan"), None).await).await;
+    let delete_check = checked(fixture, &empty["id"]).await;
+    assert_eq!(delete_check["deletes"], 1, "{delete_check}");
+    let confirm = fixture
+        .call(
+            "POST",
+            &at(&empty["id"], "/run"),
+            Some(&json!({ "digest": delete_check["digest"] })),
+        )
+        .await;
+    out.json(
+        "conflict-confirm.json",
+        &refused(confirm, StatusCode::CONFLICT, Some("confirm")).await,
+    );
+    out.json(
+        "preview-check-delete.json",
+        &ok(fixture
+            .preview(&empty["id"], &json!({ "include": ["check"] }))
+            .await)
+        .await,
+    );
+    assert!(draft["id"] != empty["id"]);
+
+    let not_running = fixture.call("POST", &at(&empty["id"], "/stop"), None).await;
+    out.json(
+        "conflict-not-running.json",
+        &refused(not_running, StatusCode::CONFLICT, Some("notRunning")).await,
+    );
+    let cannot_undo = fixture
+        .call("POST", &at(&empty["id"], "/undo"), Some(&json!({})))
+        .await;
+    out.json(
+        "conflict-cannot-undo.json",
+        &refused(cannot_undo, StatusCode::CONFLICT, Some("cannotUndo")).await,
+    );
+
+    let list = b"Identifier,Files,Title [dcterms:title],Date [dcterms:date]\nBHC_006_AF_001,,Brass lamp,1950\n";
+    let listed = fixture.draft().await;
+    let added = upload_list(fixture, &listed["id"], "list.csv", list).await;
+    assert_eq!(added.status, StatusCode::CREATED, "{}", added.body);
+    out.json("import-sheet-added.json", &added.json());
+    for gone in [&empty, &listed] {
+        let removed = fixture.call("DELETE", &at(&gone["id"], ""), None).await;
+        assert_eq!(removed.status, StatusCode::NO_CONTENT);
+    }
+}
+
+async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
+    let digest = checked(fixture, id).await["digest"].clone();
+    let copy = ok(fixture
+        .call(
+            "POST",
+            "/api/romeka/imports",
+            Some(&json!({ "copyFrom": id })),
+        )
+        .await)
+    .await;
+    out.json("import-copied.json", &copy);
+
+    let started = ok(fixture
+        .call("POST", &at(id, "/run"), Some(&json!({ "digest": digest })))
+        .await)
+    .await;
+    out.json("run.json", &started);
+
+    ok(fixture.call("POST", &at(&copy["id"], "/scan"), None).await).await;
+    let busy_digest = checked(fixture, &copy["id"]).await["digest"].clone();
+    let busy = fixture
+        .call(
+            "POST",
+            &at(&copy["id"], "/run"),
+            Some(&json!({ "digest": busy_digest })),
+        )
+        .await;
+    out.json(
+        "conflict-busy.json",
+        &refused(busy, StatusCode::CONFLICT, Some("busy")).await,
+    );
+
+    let notdraft = fixture
+        .call("PUT", &at(id, ""), Some(&json!({ "plan": ok(fixture.call("GET", &at(id, ""), None).await).await["plan"], "revision": 1 })))
+        .await;
+    out.json(
+        "conflict-not-draft.json",
+        &refused(notdraft, StatusCode::CONFLICT, Some("notDraft")).await,
+    );
+
+    let repo = ImportRepo::new(&fixture.pool);
+    let import = ImportId(id.as_u64().unwrap());
+    repo.set_summary(
+        import,
+        &json!({ "progress": { "done": 3, "total": 9 }, "failures": [], "stopped": false }),
+    )
+    .await
+    .unwrap();
+    out.json(
+        "import-running.json",
+        &ok(fixture.call("GET", &at(id, ""), None).await).await,
+    );
+    out.json(
+        "stop.json",
+        &ok(fixture.call("POST", &at(id, "/stop"), None).await).await,
+    );
+    out.json(
+        "import-stopping.json",
+        &ok(fixture.call("GET", &at(id, ""), None).await).await,
+    );
+
+    let failures = json!([{ "record": "group:BHC_006_AF_001", "key": "importFileUnreadable", "detail": "The file could not be read." }]);
+    repo.set_summary(
+        import,
+        &json!({ "progress": { "done": 8, "total": 9 }, "failures": failures, "stopped": true }),
+    )
+    .await
+    .unwrap();
+    repo.finish(import, ImportEnding::RunFailed).await.unwrap();
+    out.json(
+        "import-run-failed.json",
+        &ok(fixture.call("GET", &at(id, ""), None).await).await,
+    );
+
+    let done = ok(fixture
+        .call(
+            "POST",
+            "/api/romeka/imports",
+            Some(&json!({ "copyFrom": id })),
+        )
+        .await)
+    .await;
+    ok(fixture.call("POST", &at(&done["id"], "/scan"), None).await).await;
+    let done_digest = checked(fixture, &done["id"]).await["digest"].clone();
+    ok(fixture
+        .call(
+            "POST",
+            &at(&done["id"], "/run"),
+            Some(&json!({ "digest": done_digest })),
+        )
+        .await)
+    .await;
+    let done_id = ImportId(done["id"].as_u64().unwrap());
+    repo.set_summary(
+        done_id,
+        &json!({ "progress": { "done": 9, "total": 9 }, "failures": [], "stopped": false }),
+    )
+    .await
+    .unwrap();
+    repo.finish(done_id, ImportEnding::Done).await.unwrap();
+    out.json(
+        "import-done.json",
+        &ok(fixture.call("GET", &at(&done["id"], ""), None).await).await,
+    );
+    let again = fixture
+        .call(
+            "POST",
+            &at(&done["id"], "/run"),
+            Some(&json!({ "digest": done_digest })),
+        )
+        .await;
+    out.json(
+        "conflict-cannot-run.json",
+        &refused(again, StatusCode::CONFLICT, Some("cannotRun")).await,
+    );
+
+    out.json(
+        "undo.json",
+        &ok(fixture
+            .call(
+                "POST",
+                &at(&done["id"], "/undo"),
+                Some(&json!({ "force": "all" })),
+            )
+            .await)
+        .await,
+    );
+    out.json(
+        "import-undoing.json",
+        &ok(fixture.call("GET", &at(&done["id"], ""), None).await).await,
+    );
+    out.json(
+        "history.json",
+        &ok(fixture
+            .call("GET", "/api/romeka/imports?perPage=10", None)
+            .await)
+        .await,
+    );
+}

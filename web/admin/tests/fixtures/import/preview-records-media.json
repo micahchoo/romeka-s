@@ -1,0 +1,127 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "records": {
+    "items": [
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_001_front.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 1,
+        "kind": "media",
+        "matches": [],
+        "media": [],
+        "origin": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_front.jpg",
+            "source": "s1"
+          }
+        },
+        "parent": {
+          "record": 0
+        },
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": null,
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [],
+          "sites": [],
+          "template": null,
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_001_front.jpg",
+              "type": "literal"
+            }
+          ]
+        }
+      },
+      {
+        "fate": "create",
+        "files": [
+          {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          }
+        ],
+        "flags": [],
+        "id": 3,
+        "kind": "media",
+        "matches": [],
+        "media": [],
+        "origin": {
+          "file": {
+            "path": "Artifacts/BHC_006_AF_001_back.jpg",
+            "source": "s1"
+          }
+        },
+        "parent": {
+          "record": 2
+        },
+        "resolved": {
+          "class": null,
+          "ingester": null,
+          "itemKey": null,
+          "mediaOrder": null,
+          "mediaSource": null,
+          "owner": {
+            "is": "runner"
+          },
+          "sets": [],
+          "sites": [],
+          "template": null,
+          "visibility": "private"
+        },
+        "rows": [],
+        "slots": {
+          "dcterms:title": [
+            {
+              "isPublic": true,
+              "label": null,
+              "lang": null,
+              "link": null,
+              "text": "BHC_006_AF_001_back.jpg",
+              "type": "literal"
+            }
+          ]
+        }
+      }
+    ],
+    "page": 1,
+    "perPage": 2,
+    "total": 22
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}
