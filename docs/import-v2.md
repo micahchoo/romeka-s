@@ -571,6 +571,7 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | 2026-10-20 | One URL guard for every ingester fetch, import and API | the url ingester has no guard today; hosted installs |
 | 2026-10-20 | No `fix` policy: `keep`, `repair`, `leave`; four blocking plan kinds | the user's "flags, never gates"; blocking only where data would break |
 | 2026-10-20 | One destructive migration, no v1 conversion; v1 import code deleted on the branch | no install holds imports (measured); user: no users to migrate |
+| 2026-10-20 | Keep upstream's default file-validation lists (they refuse `.nef`, `.heic`, `.flac`, `.svg`, `.json`, `.mkv`, `.gz`); `not-media` on Check names the refused type and links to Settings > Security | parity; the operator widens the list, the import says how |
 | 2026-10-20 | Contract review: Sonnet adversarial pass found the identity cycle, line anchors, shared `failed`, undefined actions and security gaps; all folded in | second opinion |
 
 ## Run log
@@ -578,5 +579,6 @@ v2 server code is built in a new module, `crates/omeka-api/src/import2/`; P3-db 
 | Unit | Verdict | Evidence |
 | --- | --- | --- |
 | P0-docs | verified (claims checked against code) | import2/p0-docs |
+| P0-media | unit-test-verified | 40 sniffed formats against libmagic 5.46 on the oracle; 422 bodies match upstream; 1115 tests |
 | P3-plan | unit-test-verified | 38 import2 tests, 378 omeka-api tests, clippy clean |
 | P0-compiler | unit-test-verified | 24/24 example tests, 711 admin tests, rg check of compiled patterns, perf 85,387 B |
