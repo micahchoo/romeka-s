@@ -569,6 +569,10 @@ export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => {
       ...path,
       'disable_file_validation',
     ]),
+    importAllowPrivateUrls: asBoolean(field(object, 'import_allow_private_urls', path), [
+      ...path,
+      'import_allow_private_urls',
+    ]),
   };
 };
 

@@ -119,6 +119,11 @@ export const mr: AdminMessages = {
   'settings.restoreExtensions': 'डीफॉल्ट विस्तार पुनर्स्थापित करा',
   'settings.restoredOnSave': 'तुम्ही जतन केल्यावर डीफॉल्ट सूची पुनर्स्थापित केली जाते.',
   'settings.emptyListRefusesAll': 'रिकामी सूची प्रत्येक फाईल नाकारते.',
+  'settings.allowPrivateUrls': 'खाजगी नेटवर्कवर यूआरएलला अनुमती द्या',
+  'settings.allowPrivateUrlsInfo':
+    'मीडिया आणि आयात या सर्व्हर किंवा त्याच्या खाजगी नेटवर्ककडे निर्देश करणाऱ्या यूआरएल नाकारतात: localhost, स्थानिक नेटवर्क आणि क्लाउड मेटाडेटा पत्ते. त्यांना परवानगी देण्यासाठी हा पर्याय निवडा.',
+  'settings.allowPrivateUrlsWarning':
+    'हे चालू असताना, मीडिया जोडू शकणारी कोणतीही व्यक्ती या सर्व्हरकडून त्याच्या स्वतःच्या नेटवर्कमधून फाइल्स आणवू शकते.',
   'settings.locale': 'स्थान (Locale)',
   'settings.localeDefault': 'डीफॉल्ट',
   'systemInfo.omeka': 'Omeka S',

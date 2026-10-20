@@ -1600,7 +1600,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "ureq",
 ]
 
 [[package]]
