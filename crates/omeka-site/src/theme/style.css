@@ -1179,11 +1179,12 @@ header {
 
 /* Resource lists. Every browse view and every preview block renders through
    these rules. A card is a thumbnail slot (the image, or a tinted surface with
-   the kind's icon and type), the name, and up to three details: type, creator
-   and date. The card style token decides the structure: `cards-caption` puts
-   the text under a 4:3 thumbnail, `cards-overlay` lays it over square tiles,
-   `cards-row` gives each resource one row. On a phone the two grid styles keep
-   two cards per row. */
+   the kind's icon and type), the name, and its details: by default type and
+   date, with the creator in a row. The list carries its card style, the theme's token or a
+   preview block's own choice: `resource-cards-caption` puts the text under a
+   4:3 thumbnail, `resource-cards-overlay` lays it over square tiles,
+   `resource-cards-row` gives each resource one row. On a phone the two grid
+   styles keep two cards per row. */
 
 .resource-list {
   list-style: none;
@@ -1322,81 +1323,76 @@ header {
   display: block;
 }
 
-.cards-caption .resource-list {
+.resource-list.resource-cards-caption {
   display: grid;
   gap: var(--space-4) var(--space-3);
   grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
 }
 
-.cards-caption .resource-list .resource-thumb {
+.resource-list.resource-cards-caption .resource-thumb {
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
 }
 
-.cards-caption .resource-list .resource-thumb img {
+.resource-list.resource-cards-caption .resource-thumb img {
   transition: transform 0.4s ease;
 }
 
-.cards-caption .resource-list .resource-link:hover .resource-thumb img {
+.resource-list.resource-cards-caption .resource-link:hover .resource-thumb img {
   transform: scale(1.03);
 }
 
 /* An item set reads as a stack of cards. */
-.cards-caption .resource-list .item-set .resource-thumb {
+.resource-list.resource-cards-caption .item-set .resource-thumb {
   box-shadow: 5px -5px 0 -1px var(--color-background), 5px -5px 0 0 var(--color-border);
   overflow: visible;
 }
 
-.cards-caption .resource-list .resource-text {
+.resource-list.resource-cards-caption .resource-text {
   padding-top: var(--space-2);
 }
 
-.cards-caption .resource-list .resource-name {
+.resource-list.resource-cards-caption .resource-name {
   font-size: var(--font-size-lg);
 }
 
 /* An identifier standing in for a title is one long word; at the body's
    small size it fits a card's width instead of breaking mid-code. */
-.cards-caption .resource-list .resource-name-fallback {
+.resource-list.resource-cards-caption .resource-name-fallback {
   font-size: var(--font-size-sm);
   letter-spacing: 0.01em;
 }
 
-.cards-caption .resource-list .resource-meta-creator,
-.cards-overlay .resource-list .resource-meta-creator {
-  display: none;
-}
-
-.cards-overlay .resource-list {
+.resource-list.resource-cards-overlay {
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
 }
 
-.cards-overlay .resource-list .resource-link {
+.resource-list.resource-cards-overlay .resource-link {
   aspect-ratio: 1;
   overflow: hidden;
   position: relative;
 }
 
-.cards-overlay .resource-list .resource-thumb {
+.resource-list.resource-cards-overlay .resource-thumb {
   inset: 0;
   position: absolute;
 }
 
-.cards-overlay .resource-list .resource-thumb-empty {
+.resource-list.resource-cards-overlay .resource-thumb-empty {
   padding-bottom: 3.5rem;
 }
 
-.cards-overlay .resource-list .resource-thumb img {
+.resource-list.resource-cards-overlay .resource-thumb img {
   transition: transform 0.5s ease;
 }
 
-.cards-overlay .resource-list .resource-link:hover .resource-thumb img {
+.resource-list.resource-cards-overlay .resource-link:hover .resource-thumb img {
   transform: scale(1.04);
 }
 
-.cards-overlay .resource-list .resource-text {
+.resource-list.resource-cards-overlay .resource-text {
   bottom: 0;
   left: 0;
   padding: 2.5rem var(--space-3) var(--space-2);
@@ -1406,39 +1402,39 @@ header {
 
 /* Over a photograph the caption sits on a dark scrim in every scheme, so its
    colours are fixed keywords: no token describes a photograph. */
-.cards-overlay .resource-list .has-thumb .resource-text {
+.resource-list.resource-cards-overlay .has-thumb .resource-text {
   background: linear-gradient(to top, color-mix(in srgb, black 85%, transparent), color-mix(in srgb, black 55%, transparent) 55%, transparent);
   color: white;
 }
 
-.cards-overlay .resource-list .has-thumb .resource-meta {
+.resource-list.resource-cards-overlay .has-thumb .resource-meta {
   color: white;
 }
 
-.cards-overlay .resource-list .resource-name,
-.cards-overlay .resource-list .resource-meta {
+.resource-list.resource-cards-overlay .resource-name,
+.resource-list.resource-cards-overlay .resource-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cards-overlay .resource-list .description {
+.resource-list.resource-cards-overlay .description {
   display: none;
 }
 
-.cards-overlay .resource-list .resource-link:focus-visible {
+.resource-list.resource-cards-overlay .resource-link:focus-visible {
   outline-offset: -3px;
 }
 
-.cards-row .resource-list {
+.resource-list.resource-cards-row {
   border-top: 1px solid var(--color-border);
 }
 
-.cards-row .resource-list .resource {
+.resource-list.resource-cards-row .resource {
   border-bottom: 1px solid var(--color-border);
 }
 
-.cards-row .resource-list .resource-link {
+.resource-list.resource-cards-row .resource-link {
   align-items: center;
   display: grid;
   gap: var(--space-3);
@@ -1446,87 +1442,87 @@ header {
   padding: var(--space-2) var(--space-2) var(--space-2) 0;
 }
 
-.cards-row .resource-list .resource-link:hover {
+.resource-list.resource-cards-row .resource-link:hover {
   background: var(--color-surface);
 }
 
-.cards-row .resource-list .resource-thumb {
+.resource-list.resource-cards-row .resource-thumb {
   border-radius: var(--radius-sm);
   height: 3.5rem;
   width: 3.5rem;
 }
 
-.cards-row .resource-list .resource-thumb-empty .kind-icon {
+.resource-list.resource-cards-row .resource-thumb-empty .kind-icon {
   height: 1.5rem;
   width: 1.5rem;
 }
 
-.cards-row .resource-list .resource-kind {
+.resource-list.resource-cards-row .resource-kind {
   display: none;
 }
 
-.cards-row .resource-list .resource-text {
+.resource-list.resource-cards-row .resource-text {
   align-items: baseline;
   display: grid;
   gap: var(--space-3);
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 2.6fr);
 }
 
-.cards-row .resource-list .resource-name {
+.resource-list.resource-cards-row .resource-name {
   color: var(--color-link);
   font-family: var(--font-body);
 }
 
-.cards-row .resource-list .resource-name-fallback {
+.resource-list.resource-cards-row .resource-name-fallback {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--font-size-sm);
 }
 
-.cards-row .resource-list .resource-meta {
+.resource-list.resource-cards-row .resource-meta {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 5rem;
   margin: 0;
 }
 
-.cards-row .resource-list .resource-meta > span {
+.resource-list.resource-cards-row .resource-meta > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cards-row .resource-list .resource-meta > span + span::before {
+.resource-list.resource-cards-row .resource-meta > span + span::before {
   content: none;
 }
 
-.cards-row .resource-list .resource-meta-date {
+.resource-list.resource-cards-row .resource-meta-date {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.cards-row .resource-list .description {
+.resource-list.resource-cards-row .description {
   -webkit-line-clamp: 1;
   margin: 0 0 var(--space-2) calc(3.5rem + var(--space-3));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cards-caption .resource-list .resource-link:hover .resource-thumb img,
-  .cards-overlay .resource-list .resource-link:hover .resource-thumb img {
+  .resource-list.resource-cards-caption .resource-link:hover .resource-thumb img,
+  .resource-list.resource-cards-overlay .resource-link:hover .resource-thumb img {
     transform: none;
   }
 }
 
 @media (max-width: 47.99rem) {
-  .cards-caption .resource-list,
-  .cards-overlay .resource-list {
+  .resource-list.resource-cards-caption,
+  .resource-list.resource-cards-overlay {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cards-caption .resource-list {
+  .resource-list.resource-cards-caption {
     gap: var(--space-4) var(--space-2);
   }
 
-  .cards-caption .resource-list .resource-name {
+  .resource-list.resource-cards-caption .resource-name {
     font-size: var(--font-size-base);
   }
 
@@ -1539,35 +1535,35 @@ header {
     font-size: 0.6875rem;
   }
 
-  .cards-overlay .resource-list .resource-text {
+  .resource-list.resource-cards-overlay .resource-text {
     padding: 2rem var(--space-2) var(--space-2);
   }
 
-  .cards-overlay .resource-list .resource-meta-type {
+  .resource-list.resource-cards-overlay .resource-meta-type {
     display: none;
   }
 
-  .cards-row .resource-list .resource-text {
+  .resource-list.resource-cards-row .resource-text {
     gap: 0.125rem;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .cards-row .resource-list .resource-meta {
+  .resource-list.resource-cards-row .resource-meta {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .cards-row .resource-list .resource-meta > span {
+  .resource-list.resource-cards-row .resource-meta > span {
     display: inline;
   }
 
-  .cards-row .resource-list .resource-meta > span + span::before {
+  .resource-list.resource-cards-row .resource-meta > span + span::before {
     content: " · ";
   }
 
-  .cards-row .resource-list .resource-meta-creator {
+  .resource-list.resource-cards-row .resource-meta-creator {
     display: none;
   }
 }
@@ -2090,6 +2086,130 @@ header {
   margin-bottom: var(--space-3);
 }
 
+.preview-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-muted);
+  margin: var(--space-3) 0;
+  padding: var(--space-4) var(--space-3);
+  text-align: center;
+}
+
+/* A preview block's own column count, on a screen wide enough for it. */
+@media (min-width: 48rem) {
+  .resource-list.resource-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .resource-list.resource-columns-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* A carousel: the cards in one row that scrolls sideways and snaps to each
+   card. A phone shows most of one card, so the next one peeks in. */
+.resource-list.resource-carousel {
+  grid-auto-columns: min(16rem, 80%);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: var(--space-2);
+  scroll-snap-type: x mandatory;
+}
+
+.resource-list.resource-carousel > .resource {
+  scroll-margin-top: var(--space-5);
+  scroll-snap-align: start;
+}
+
+.resource-list.resource-carousel:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 4px;
+}
+
+@media (min-width: 48rem) {
+  .resource-list.resource-carousel.resource-columns-2 {
+    grid-auto-columns: calc((100% - var(--space-3)) / 2);
+  }
+
+  .resource-list.resource-carousel.resource-columns-3 {
+    grid-auto-columns: calc((100% - 2 * var(--space-3)) / 3);
+  }
+
+  .resource-list.resource-carousel.resource-columns-4 {
+    grid-auto-columns: calc((100% - 3 * var(--space-3)) / 4);
+  }
+
+  .resource-list.resource-carousel.resource-columns-5 {
+    grid-auto-columns: calc((100% - 4 * var(--space-3)) / 5);
+  }
+
+  .resource-list.resource-carousel.resource-columns-6 {
+    grid-auto-columns: calc((100% - 5 * var(--space-3)) / 6);
+  }
+}
+
+.resource-list.resource-carousel.resource-cards-caption {
+  column-gap: var(--space-3);
+}
+
+.preview-carousel-nav {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin: 0 0 var(--space-3);
+}
+
+.preview-carousel-prev,
+.preview-carousel-next {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-link);
+  display: inline-flex;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  text-decoration: none;
+}
+
+.preview-carousel-prev::before {
+  content: "← " / "";
+}
+
+.preview-carousel-next::after {
+  content: " →" / "";
+}
+
+.preview-carousel-prev:hover,
+.preview-carousel-next:hover {
+  background: var(--color-surface);
+}
+
+.preview-carousel-prev[aria-disabled="true"],
+.preview-carousel-next[aria-disabled="true"] {
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.resource-meta-item-set,
+.resource-meta-value {
+  overflow-wrap: anywhere;
+}
+
 /* Table of contents */
 
 .toc-block > ul > li {
@@ -2127,6 +2247,59 @@ header {
   margin: 0;
 }
 
+/* Item with metadata as cards: the image beside the name, the chosen
+   values and the citation; stacked on a phone. */
+.item-cards {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.item-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  padding: var(--space-3);
+}
+
+.item-card-thumb {
+  display: block;
+  text-decoration: none;
+}
+
+.item-card-thumb .resource-thumb {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+}
+
+.item-card-title {
+  font-size: var(--font-size-lg);
+  margin: 0 0 var(--space-2);
+}
+
+.item-card .values {
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-2);
+}
+
+.item-card-citation {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+@media (max-width: 47.99rem) {
+  .item-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .item-card-thumb .resource-thumb {
+    aspect-ratio: 4 / 3;
+  }
+}
+
 /* Assets */
 
 .assets .asset {
@@ -2138,12 +2311,91 @@ header {
   padding: var(--space-2);
 }
 
+/* An image keeps its own shape unless the block asks for a 3:2 frame that
+   the image fills (cover) or fits inside (contain). */
 .assets .asset img {
-  aspect-ratio: 3 / 2;
   border-radius: var(--radius-sm);
   display: block;
-  object-fit: cover;
+  height: auto;
   width: 100%;
+}
+
+.assets-fit-cover .asset img,
+.assets-fit-contain .asset img {
+  aspect-ratio: 3 / 2;
+}
+
+.assets-fit-cover .asset img {
+  object-fit: cover;
+}
+
+.assets-fit-contain .asset img {
+  background: var(--color-background);
+  object-fit: contain;
+}
+
+.assets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.assets-row .asset {
+  flex: 1 1 12rem;
+}
+
+.assets-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+}
+
+.assets-row .asset,
+.assets-grid .asset {
+  margin-bottom: 0;
+  max-width: none;
+}
+
+@media (max-width: 47.99rem) {
+  .assets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 48rem) {
+  .assets-grid.assets-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .assets-grid.assets-columns-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.assets .caption {
+  margin-top: var(--space-2);
+}
+
+.assets-caption-center .caption,
+.assets-caption-center .link-title {
+  text-align: center;
+}
+
+.assets-caption-end .caption,
+.assets-caption-end .link-title {
+  text-align: end;
 }
 
 .assets .link-title {
@@ -2220,6 +2472,101 @@ header {
 .list-of-pages-link-missing {
   color: var(--color-muted);
   font-style: italic;
+}
+
+/* A list of pages as cards: the page's first image, or a tinted slot, then
+   its title and the first lines of its text. */
+.page-cards > ul {
+  display: grid;
+  gap: var(--space-4) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  list-style: none;
+  margin: var(--space-3) 0;
+  padding: 0;
+}
+
+@media (min-width: 48rem) {
+  .page-cards-columns-2 > ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-3 > ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-4 > ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-5 > ul {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .page-cards-columns-6 > ul {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.page-card {
+  min-width: 0;
+}
+
+.page-card-link {
+  color: var(--color-text);
+  display: block;
+  text-decoration: none;
+}
+
+.page-card-thumb {
+  aspect-ratio: 4 / 3;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  display: block;
+  overflow: hidden;
+}
+
+.page-card-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.page-card-thumb-empty {
+  background-image: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--color-background) 45%, transparent), transparent 60%);
+}
+
+.page-card:nth-child(3n + 2) .page-card-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-accent));
+}
+
+.page-card:nth-child(3n + 3) .page-card-thumb-empty {
+  background-color: color-mix(in srgb, var(--color-surface) 93%, var(--color-link));
+}
+
+.page-card-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: var(--space-2);
+}
+
+.page-card-link:hover .page-card-title,
+.page-card-link:focus-visible .page-card-title {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.page-card-summary {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--color-muted);
+  display: -webkit-box;
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+  overflow: hidden;
 }
 
 /* Search: the sitewide form, the result sections, the result lists and the

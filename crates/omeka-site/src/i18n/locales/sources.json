@@ -54,6 +54,8 @@
  "map_place_count": "%s places",
  "map_poster": "A map of %s places. The map itself shows on the public page.",
  "map_no_places_preview": "This map has no places yet. Its items need a \"lat, lng\" value in the location field the site settings name.",
+ "no_matches": "Nothing here matches yet.",
+ "no_matches_preview": "Nothing matches this block's search. Change the search in the block's settings.",
  "search.search": "Search",
  "search.query": "Query",
  "search.submit": "Submit",

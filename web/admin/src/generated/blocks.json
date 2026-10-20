@@ -169,6 +169,104 @@
           ]
         },
         {
+          "key": "romeka.cards",
+          "label": "blockField.browsePreview.cards",
+          "help": "fieldHelp.browsePreview.cards",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.cards_theme"
+            },
+            {
+              "value": "caption",
+              "label": "blockChoice.cards_caption"
+            },
+            {
+              "value": "overlay",
+              "label": "blockChoice.cards_overlay"
+            },
+            {
+              "value": "row",
+              "label": "blockChoice.cards_row"
+            },
+            {
+              "value": "carousel",
+              "label": "blockChoice.cards_carousel"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.browsePreview.columns",
+          "help": "fieldHelp.browsePreview.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.details",
+          "label": "blockField.browsePreview.details",
+          "help": "fieldHelp.browsePreview.details",
+          "type": "choice",
+          "options": [
+            {
+              "value": "type",
+              "label": "blockChoice.detail_type"
+            },
+            {
+              "value": "creator",
+              "label": "blockChoice.detail_creator"
+            },
+            {
+              "value": "date",
+              "label": "blockChoice.detail_date"
+            },
+            {
+              "value": "item_set",
+              "label": "blockChoice.detail_item_set"
+            }
+          ],
+          "multiple": true,
+          "default": [
+            "type",
+            "creator",
+            "date"
+          ]
+        },
+        {
+          "key": "romeka.detail_property",
+          "label": "blockField.browsePreview.detail_property",
+          "help": "fieldHelp.browsePreview.detail_property",
+          "type": "property"
+        },
+        {
           "key": "heading",
           "label": "blockField.browsePreview.heading",
           "help": "fieldHelp.browsePreview.heading",
@@ -301,6 +399,29 @@
           "label": "blockField.itemWithMetadata.attachments",
           "help": "fieldHelp.itemWithMetadata.attachments",
           "type": "attachments"
+        },
+        {
+          "key": "romeka.fields",
+          "label": "blockField.itemWithMetadata.fields",
+          "help": "fieldHelp.itemWithMetadata.fields",
+          "type": "propertyList"
+        },
+        {
+          "key": "romeka.display",
+          "label": "blockField.itemWithMetadata.display",
+          "help": "fieldHelp.itemWithMetadata.display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.metadata_full"
+            },
+            {
+              "value": "card",
+              "label": "blockChoice.metadata_card"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -535,9 +656,10 @@
             },
             {
               "key": "page",
-              "label": "blockField.asset.page",
-              "help": "fieldHelp.asset.page",
-              "type": "pageRef"
+              "label": "blockField.asset.link",
+              "help": "fieldHelp.asset.link",
+              "type": "link",
+              "urlKey": "romeka.url"
             },
             {
               "key": "alt_link_title",
@@ -552,6 +674,107 @@
               "type": "text"
             }
           ]
+        },
+        {
+          "key": "romeka.fit",
+          "label": "blockField.asset.fit",
+          "help": "fieldHelp.asset.fit",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.fit_natural"
+            },
+            {
+              "value": "cover",
+              "label": "blockChoice.fit_cover"
+            },
+            {
+              "value": "contain",
+              "label": "blockChoice.fit_contain"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.arrangement",
+          "label": "blockField.asset.arrangement",
+          "help": "fieldHelp.asset.arrangement",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.arrangement_stack"
+            },
+            {
+              "value": "row",
+              "label": "blockChoice.arrangement_row"
+            },
+            {
+              "value": "grid",
+              "label": "blockChoice.arrangement_grid"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.asset.columns",
+          "help": "fieldHelp.asset.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": "",
+          "when": {
+            "field": "romeka.arrangement",
+            "test": "equals",
+            "value": "grid"
+          }
+        },
+        {
+          "key": "romeka.caption_align",
+          "label": "blockField.asset.caption_align",
+          "help": "fieldHelp.asset.caption_align",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.align_start"
+            },
+            {
+              "value": "center",
+              "label": "blockChoice.align_center"
+            },
+            {
+              "value": "end",
+              "label": "blockChoice.align_end"
+            }
+          ],
+          "default": ""
         }
       ]
     },
@@ -578,6 +801,61 @@
           "label": "blockField.listOfPages.pagelist",
           "help": "fieldHelp.listOfPages.pagelist",
           "type": "pageList"
+        },
+        {
+          "key": "romeka.display",
+          "label": "blockField.listOfPages.display",
+          "help": "fieldHelp.listOfPages.display",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.pages_links"
+            },
+            {
+              "value": "cards",
+              "label": "blockChoice.pages_cards"
+            }
+          ],
+          "default": ""
+        },
+        {
+          "key": "romeka.columns",
+          "label": "blockField.listOfPages.columns",
+          "help": "fieldHelp.listOfPages.columns",
+          "type": "choice",
+          "options": [
+            {
+              "value": "",
+              "label": "blockChoice.columns_auto"
+            },
+            {
+              "value": "2",
+              "label": "blockChoice.columns_2"
+            },
+            {
+              "value": "3",
+              "label": "blockChoice.columns_3"
+            },
+            {
+              "value": "4",
+              "label": "blockChoice.columns_4"
+            },
+            {
+              "value": "5",
+              "label": "blockChoice.columns_5"
+            },
+            {
+              "value": "6",
+              "label": "blockChoice.columns_6"
+            }
+          ],
+          "default": "",
+          "when": {
+            "field": "romeka.display",
+            "test": "equals",
+            "value": "cards"
+          }
         }
       ]
     },

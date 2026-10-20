@@ -7,14 +7,104 @@
 //! imageless items reads as a catalogue, not as one placeholder repeated. A
 //! resource with no title shows its identifier, without a file extension, in
 //! place of upstream's "[Untitled]" (a Romeka divergence, `docs/compat.md`).
-//! The card carries up to three details (type, creator, date), which each card
-//! style shows or hides.
+//! The card carries details under its name: by default the type and date,
+//! and the creator too in a row, which has room for it; a browse preview
+//! block may choose its own ([`Detail`]).
+//!
+//! A list carries its card style as a class of its own ([`list_class`]), so a
+//! block can draw its cards in another style than the theme's token.
 
 use omeka_core::resource::ResourceKind;
 
 use crate::html::escape_html;
 use crate::slug::controller_for;
+use crate::theme::choices::CardStyle;
 use crate::view::{RenderContext, ResourceView, Thumbnail, ValueRef};
+
+/// The class a resource list carries for the card style it draws. It is not
+/// the root token's class (`cards-*`), which no element may repeat.
+#[must_use]
+pub const fn list_class(style: CardStyle) -> &'static str {
+    match style {
+        CardStyle::Caption => "resource-cards-caption",
+        CardStyle::Overlay => "resource-cards-overlay",
+        CardStyle::Row => "resource-cards-row",
+    }
+}
+
+/// The opening tag of a resource list in the theme's card style.
+#[must_use]
+pub fn theme_list_open(ctx: &RenderContext<'_>) -> String {
+    format!(
+        "<ul class=\"resource-list {}\">",
+        list_class(ctx.theme_settings.tokens.structure.cards)
+    )
+}
+
+/// One detail a card shows under its name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Detail<'a> {
+    /// The class, else the first `dcterms:type`.
+    Type,
+    /// The first `dcterms:creator`.
+    Creator,
+    /// The first `dcterms:date`.
+    Date,
+    /// The first item set the resource belongs to.
+    ItemSet,
+    /// The first value of a property, by term.
+    Value(&'a str),
+}
+
+impl<'a> Detail<'a> {
+    /// The details a card in `style` shows unless a block chooses its own: a
+    /// row has room for the creator, a tile does not.
+    #[must_use]
+    pub const fn theme(style: CardStyle) -> &'static [Detail<'static>] {
+        match style {
+            CardStyle::Row => &[Detail::Type, Detail::Creator, Detail::Date],
+            CardStyle::Caption | CardStyle::Overlay => &[Detail::Type, Detail::Date],
+        }
+    }
+
+    /// The stored name of a detail a block may choose, `None` for any other.
+    #[must_use]
+    pub fn parse(name: &str) -> Option<Detail<'static>> {
+        match name {
+            "type" => Some(Detail::Type),
+            "creator" => Some(Detail::Creator),
+            "date" => Some(Detail::Date),
+            "item_set" => Some(Detail::ItemSet),
+            _ => None,
+        }
+    }
+
+    /// The `resource-meta-*` suffix the sheet styles the detail by.
+    const fn class(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Creator => "creator",
+            Self::Date => "date",
+            Self::ItemSet => "item-set",
+            Self::Value(_) => "value",
+        }
+    }
+
+    /// The detail's text on `resource`, `None` when it has none.
+    fn text(self, resource: &ResourceView) -> Option<&str> {
+        match self {
+            Self::Type => type_label(resource),
+            Self::Creator => first_value(&resource.values, "dcterms:creator"),
+            Self::Date => first_value(&resource.values, "dcterms:date"),
+            Self::ItemSet => resource
+                .item_sets
+                .first()
+                .map(|set| set.title.trim())
+                .filter(|title| !title.is_empty()),
+            Self::Value(term) => first_value(&resource.values, term),
+        }
+    }
+}
 
 /// The kind icon: an outline of a box for an item, a stack for an item set,
 /// a frame for a media file. Decorative; the kind label beside it is text.
@@ -127,24 +217,31 @@ pub fn empty_thumb(kind: ResourceKind, label: &str) -> String {
 }
 
 /// Which parts of a card show: the browse preview block lets an editor turn
-/// each off (its `components`); a browse page shows them all.
+/// each off (its `components`) and choose the details; a browse page shows
+/// them all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CardParts {
+pub struct CardParts<'a> {
     /// The thumbnail slot.
     pub thumbnail: bool,
     /// The name and the details.
     pub heading: bool,
     /// The description.
     pub body: bool,
+    /// The details under the name, in order.
+    pub details: &'a [Detail<'a>],
 }
 
-impl CardParts {
-    /// Every part.
-    pub const ALL: Self = Self {
-        thumbnail: true,
-        heading: true,
-        body: true,
-    };
+impl CardParts<'static> {
+    /// Every part, with the details of the theme's `style`.
+    #[must_use]
+    pub const fn all(style: CardStyle) -> Self {
+        Self {
+            thumbnail: true,
+            heading: true,
+            body: true,
+            details: Detail::theme(style),
+        }
+    }
 }
 
 /// One `li` of a resource list (`view/omeka/site/item/browse.phtml` and the
@@ -155,7 +252,7 @@ pub fn resource_card(
     kind: ResourceKind,
     resource: &ResourceView,
     ctx: &RenderContext<'_>,
-    parts: CardParts,
+    parts: CardParts<'_>,
 ) -> String {
     let (name, fallback) = display_name(resource, ctx);
     let type_label = type_label(resource);
@@ -174,17 +271,14 @@ pub fn resource_card(
             "no-thumb",
         ),
     };
-    let details = [
-        ("type", type_label),
-        ("creator", first_value(&resource.values, "dcterms:creator")),
-        ("date", first_value(&resource.values, "dcterms:date")),
-    ];
-    let meta: String = details
+    let meta: String = parts
+        .details
         .iter()
-        .filter_map(|(part, value)| {
-            value.map(|value| {
+        .filter_map(|detail| {
+            detail.text(resource).map(|value| {
                 format!(
-                    "<span class=\"resource-meta-{part}\">{}</span>",
+                    "<span class=\"resource-meta-{}\">{}</span>",
+                    detail.class(),
                     escape_html(value)
                 )
             })

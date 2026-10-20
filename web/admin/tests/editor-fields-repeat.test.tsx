@@ -41,10 +41,9 @@ describe('the repeat field control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [{}],
+      data: [{}],
     });
   });
 
@@ -57,10 +56,9 @@ describe('the repeat field control', () => {
     });
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [{ ...entry, alt_link_title: 'Read more' }],
+      data: [{ ...entry, alt_link_title: 'Read more' }],
     });
   });
 
@@ -72,10 +70,9 @@ describe('the repeat field control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move item 2 up' }));
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [second, first],
+      data: [second, first],
     });
   });
 
@@ -89,10 +86,9 @@ describe('the repeat field control', () => {
     fireEvent.keyDown(handle, { key: 'ArrowDown' });
 
     expect(action(dispatch)).toEqual({
-      type: 'setField',
+      type: 'setBlockData',
       blockKey: key,
-      field: 'attachments',
-      value: [second, first],
+      data: [second, first],
     });
   });
 });

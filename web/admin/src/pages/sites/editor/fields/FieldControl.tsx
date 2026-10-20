@@ -33,6 +33,7 @@ import { LinkField } from './LinkField';
 import { ManifestSourceField } from './ManifestSourceField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
 import { PageListField } from './PageListField';
+import { PropertyListField } from './PropertyListField';
 import { PageSelect } from './PageSelect';
 import { RepeatField } from './RepeatField';
 import type { RenderControl } from './RepeatField';
@@ -157,7 +158,8 @@ const ChoiceControl = ({
   const { t } = useTranslator(editor);
   const e = useEditorText();
   if (field.multiple) {
-    const selected = asList(value);
+    // A block stored without the key renders the schema default, so show that.
+    const selected = asList(value ?? field.default ?? undefined);
     return (
       <fieldset className="block-field" aria-describedby={helpId(id)}>
         <legend>{e(field.label)}</legend>
@@ -289,6 +291,7 @@ const ItemQueryControl = ({
         onChange={onChange}
         siteId={siteId}
         resource={isQueryResource(resource) ? resource : 'items'}
+        propertySort
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
         {...(options?.classes === undefined ? {} : { classes: options.classes })}
       />
@@ -511,6 +514,24 @@ const ManifestSourceControl = ({
   );
 };
 
+const PropertyListControl = ({
+  field,
+  id,
+  value,
+  onChange,
+}: ControlProps & { readonly field: FieldOf<'propertyList'> }): ReactElement => {
+  const e = useEditorText();
+  return (
+    <PropertyListField
+      id={id}
+      label={e(field.label)}
+      help={e(field.help)}
+      value={asList(value)}
+      onChange={onChange}
+    />
+  );
+};
+
 export interface FieldControlProps {
   readonly field: BlockField;
   readonly value: JsonValue | undefined;
@@ -571,6 +592,8 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
       return <MapViewControl {...common} field={common.field} />;
     case 'property':
       return <PropertyControl {...common} field={common.field} />;
+    case 'propertyList':
+      return <PropertyListControl {...common} field={common.field} />;
     case 'attachments':
       return null;
   }

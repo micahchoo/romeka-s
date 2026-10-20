@@ -72,7 +72,10 @@ impl Theme for DefaultTheme {
                 ctx,
                 ctx.page.map(|page| page.title.as_str()),
                 &page_body_class(ctx),
-                &crate::map::with_assets(page_view(ctx), ctx),
+                &crate::blocks::carousel::with_assets(
+                    crate::map::with_assets(page_view(ctx), ctx),
+                    ctx,
+                ),
             ),
             View::Browse(browse) => {
                 let mut content = browse_view(browse, ctx, tr);
@@ -587,13 +590,13 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
         &[Attr::text("class", "advanced-search")],
     ));
     out.push_str("</div>");
-    out.push_str("<ul class=\"resource-list\">");
+    out.push_str(&cards::theme_list_open(ctx));
     for resource in &browse.resources {
         out.push_str(&cards::resource_card(
             browse.kind,
             resource,
             ctx,
-            cards::CardParts::ALL,
+            cards::CardParts::all(ctx.theme_settings.tokens.structure.cards),
         ));
     }
     out.push_str("</ul>");

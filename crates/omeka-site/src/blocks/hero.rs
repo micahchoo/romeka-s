@@ -330,7 +330,7 @@ fn page_id_of(value: &JsonValue) -> Option<PageId> {
 
 /// A URL safe to put in an `href`: relative, or an absolute http, https or
 /// mailto URL. A stored `javascript:` or `data:` target renders nothing.
-fn safe_url(value: &str) -> Option<String> {
+pub(crate) fn safe_url(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return None;
