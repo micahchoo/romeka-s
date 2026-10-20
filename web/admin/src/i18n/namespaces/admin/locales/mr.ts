@@ -104,7 +104,21 @@ export const mr: AdminMessages = {
   'settings.indexFulltextSearch': 'इंडेक्स फुलटेक्स्ट सर्च',
   'settings.versionNotifications': 'आवृत्ती सूचना',
   'settings.saved': 'सेटिंग्ज अपडेट केल्या.',
-  'settings.note': 'पोर्ट केवळ स्थान (locale) जतन करते; इतर बदल जतन केले जात नाहीत.',
+  'settings.note': 'पोर्ट लोकेल आणि सुरक्षा सेटिंग्ज जतन करते; इतर बदल जतन केले जात नाहीत.',
+  'settings.security': 'सुरक्षा',
+  'settings.disableFileValidation': 'फाईल प्रमाणीकरण अक्षम करा',
+  'settings.disableFileValidationInfo':
+    'फाईल मीडिया प्रकार आणि विस्तार प्रमाणीकरण अक्षम करण्यासाठी हा पर्याय निवडा.',
+  'settings.mediaTypeWhitelist': 'अनुमत मीडिया प्रकार',
+  'settings.mediaTypeWhitelistInfo':
+    'फाईल अपलोडसाठी अनुमत मीडिया प्रकारांची स्वल्पविरामाने वेगळी केलेली यादी.',
+  'settings.restoreMediaTypes': 'डीफॉल्ट मीडिया प्रकार पुनर्स्थापित करा',
+  'settings.extensionWhitelist': 'अनुमत फाईल विस्तार',
+  'settings.extensionWhitelistInfo':
+    'फाईल अपलोडसाठी अनुमत फाईल विस्तारांची स्वल्पविरामाने वेगळी केलेली यादी.',
+  'settings.restoreExtensions': 'डीफॉल्ट विस्तार पुनर्स्थापित करा',
+  'settings.restoredOnSave': 'तुम्ही जतन केल्यावर डीफॉल्ट सूची पुनर्स्थापित केली जाते.',
+  'settings.emptyListRefusesAll': 'रिकामी सूची प्रत्येक फाईल नाकारते.',
   'settings.locale': 'स्थान (Locale)',
   'settings.localeDefault': 'डीफॉल्ट',
   'systemInfo.omeka': 'Omeka S',
