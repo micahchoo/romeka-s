@@ -212,7 +212,7 @@ export const taServer: ServerCatalogue = {
     'பட்டியலில் "{column}" என்ற நெடுவரிசை இருக்க முடியாது. ஒரு பண்பு, உருப்படித் தொகுப்பு, உருப்படி வகை அல்லது தெரிவுத்திறனைத் தேர்ந்தெடுக்கவும்.',
   'server.importListOneFile': 'ஒரு பட்டியல் கோப்பை படிவத்தில் அனுப்பவும்.',
   'server.importListType':
-    '"{name}" என்பது CSV அல்லது TSV கோப்பு அல்ல. பட்டியலை CSV அல்லது TSV ஆக சேமித்து, பின்னர் அதை மீண்டும் அனுப்பவும்.',
+    '"{name}" என்பது .csv, .tsv, .xlsx, .xls அல்லது .ods கோப்பு அல்ல. பட்டியலை இவற்றுள் ஒன்றாகச் சேமித்து, பின்னர் மீண்டும் அனுப்பவும்.',
   'server.importListTooLarge': 'பட்டியல் 50 MB-க்கும் அதிகமாக உள்ளது.',
   'server.importListUnread': 'பட்டியலை வாசிக்க முடியவில்லை: {reason}',
   'server.importListNoIdentifier':

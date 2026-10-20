@@ -47,7 +47,21 @@ export interface SheetRead {
   readonly cellsSuspect: number;
   readonly columns: readonly ColumnView[];
   readonly notes: readonly string[];
+  /** Set for a workbook: the sheet read and every sheet it holds. */
+  readonly workbook: WorkbookView | null;
 }
+
+export interface WorkbookView {
+  /** The worksheet the rows came from. */
+  readonly sheet: string;
+  /** Every worksheet in workbook order: the choices of a sheet picker. */
+  readonly sheets: readonly string[];
+}
+
+const parseWorkbookView: Parser<WorkbookView> = (raw, path = []) => {
+  const object = strict(raw, path, ['sheet', 'sheets']);
+  return { sheet: text(object, 'sheet', path), sheets: member(object, 'sheets', path, list(asString)) };
+};
 
 const parseColumnView: Parser<ColumnView> = (raw, path = []) => {
   const object = strict(raw, path, ['index', 'header', 'mappable']);
@@ -68,6 +82,7 @@ const parseSheetRead: Parser<SheetRead> = (raw, path = []) => {
     'cellsSuspect',
     'columns',
     'notes',
+    'workbook',
   ]);
   return {
     hash: text(object, 'hash', path),
@@ -82,6 +97,7 @@ const parseSheetRead: Parser<SheetRead> = (raw, path = []) => {
     cellsSuspect: count(object, 'cellsSuspect', path),
     columns: member(object, 'columns', path, list(parseColumnView)),
     notes: member(object, 'notes', path, list(asString)),
+    workbook: member(object, 'workbook', path, nullable(parseWorkbookView)),
   };
 };
 
@@ -137,10 +153,13 @@ export interface TagSample {
   readonly value: string;
 }
 
+export const TAG_KINDS = ['exif', 'iptc', 'xmp', 'file'] as const;
+export type TagKind = (typeof TAG_KINDS)[number];
+
 export interface TagView {
   readonly tag: TagId;
-  /** `exif` is read from inside the file; `file` is a fact about it. */
-  readonly kind: 'exif' | 'file';
+  /** `exif`, `iptc` and `xmp` are read from inside the file; `file` is a fact about it. */
+  readonly kind: TagKind;
   readonly samples: readonly TagSample[];
 }
 
@@ -148,7 +167,7 @@ export const parseTagView: Parser<TagView> = (raw, path = []) => {
   const object = strict(raw, path, ['tag', 'kind', 'samples']);
   return {
     tag: member(object, 'tag', path, oneOf(TAG_IDS)),
-    kind: member(object, 'kind', path, oneOf<'exif' | 'file'>(['exif', 'file'])),
+    kind: member(object, 'kind', path, oneOf(TAG_KINDS)),
     samples: member(
       object,
       'samples',

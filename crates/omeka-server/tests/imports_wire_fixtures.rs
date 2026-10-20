@@ -380,6 +380,19 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
     let added = upload_list(fixture, &listed["id"], "list.csv", list).await;
     assert_eq!(added.status, StatusCode::CREATED, "{}", added.body);
     out.json("import-sheet-added.json", &added.json());
+
+    // Beside the CSV list, so no import id moves in the other fixtures.
+    let book = upload_list(fixture, &listed["id"], "register.xlsx", &workbook()).await;
+    assert_eq!(book.status, StatusCode::CREATED, "{}", book.body);
+    let view = ok(fixture
+        .preview(&listed["id"], &json!({ "include": ["sheets"] }))
+        .await)
+    .await;
+    assert_eq!(
+        view["sheets"][1]["read"]["workbook"]["sheets"],
+        json!(["Register", "Notes"])
+    );
+    out.json("preview-sheets-workbook.json", &view);
     for gone in [&empty, &listed] {
         let removed = fixture.call("DELETE", &at(&gone["id"], ""), None).await;
         assert_eq!(removed.status, StatusCode::NO_CONTENT);
@@ -524,4 +537,23 @@ async fn runs(fixture: &Fixture, out: &mut Fixtures, id: &Value) {
             .await)
         .await,
     );
+}
+
+/// A register on its first sheet and a notes sheet after it.
+fn workbook() -> Vec<u8> {
+    let mut book = rust_xlsxwriter::Workbook::new();
+    // The file's hash is in the fixture, so its creation time is fixed.
+    let created = rust_xlsxwriter::ExcelDateTime::from_ymd(2026, 10, 21).unwrap();
+    book.set_properties(&rust_xlsxwriter::DocProperties::new().set_creation_datetime(&created));
+    let register = book.add_worksheet().set_name("Register").unwrap();
+    for (column, header) in ["Identifier", "Files", "Title [dcterms:title]"]
+        .into_iter()
+        .enumerate()
+    {
+        register.write(0, column as u16, header).unwrap();
+    }
+    register.write(1, 0, "BHC_006_AF_001").unwrap();
+    register.write(1, 2, "Brass lamp").unwrap();
+    book.add_worksheet().set_name("Notes").unwrap();
+    book.save_to_buffer().unwrap()
 }

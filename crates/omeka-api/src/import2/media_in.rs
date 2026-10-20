@@ -5,9 +5,10 @@
 //! `omeka_media::ingest::ingest_file` sniffs, validates, stores the original
 //! and makes the thumbnails. A larger file never sits in memory: it is
 //! sniffed from its first [`SNIFF_BYTES`], validated, and streamed into the
-//! store through [`Store::put_stream`] while its SHA-256 is computed. It
-//! gets no thumbnails, because the image decoder needs the whole file in
-//! memory. A URL record runs its ingester with the guarded HTTP client the
+//! store through [`Store::put_stream`] while its SHA-256 is computed. A
+//! TIFF or JPEG of that size gets its thumbnails from a second, bounded
+//! read (`ImageThumbnailer::derivatives_from_reader`); any other type gets
+//! none. A URL record runs its ingester with the guarded HTTP client the
 //! caller built from `settings::address_policy`.
 //!
 //! Everything here is blocking; the run calls it on the blocking pool. Each
@@ -15,7 +16,7 @@
 //! record's transaction does not commit.
 
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, BufReader, Read};
 use std::path::Path;
 
 use chrono::NaiveDateTime;
@@ -35,7 +36,10 @@ use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
 };
-use omeka_media::thumbnailer::ImageThumbnailer;
+use omeka_media::thumbnailer::{
+    ImageThumbnailer, LARGE_SOURCE_MEDIA_TYPES, ThumbnailOutcome, generate_thumbnails_from_reader,
+    thumbnail_path,
+};
 use omeka_media::validation::FileValidation;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -147,6 +151,31 @@ fn stream_file(
         .put_stream(&mut reader, Some(size), &original)
         .map_err(|error| ArrivalError::Store(error.to_string()))?;
     let sha256 = omeka_media::text::hex_encode(&reader.hasher.finalize());
+    let mut stored = vec![original];
+    let thumbnails = if LARGE_SOURCE_MEDIA_TYPES.contains(&media_type.as_str()) {
+        File::open(path).map_err(unreadable).and_then(|file| {
+            generate_thumbnails_from_reader(
+                store,
+                &storage_id,
+                BufReader::new(file),
+                Some(&media_type),
+            )
+            .map_err(|error| ArrivalError::Store(error.to_string()))
+        })
+    } else {
+        Ok(ThumbnailOutcome::Existing)
+    };
+    let has_thumbnails = match thumbnails {
+        Ok(outcome) => outcome == ThumbnailOutcome::Generated,
+        Err(error) => {
+            stored.extend(ThumbnailType::ALL.map(|kind| thumbnail_path(&storage_id, kind)));
+            remove(store, &stored);
+            return Err(error);
+        }
+    };
+    if has_thumbnails {
+        stored.extend(ThumbnailType::ALL.map(|kind| thumbnail_path(&storage_id, kind)));
+    }
     Ok(Arrived {
         file: Some(StoredFile {
             storage_id,
@@ -154,13 +183,13 @@ fn stream_file(
             media_type: Some(media_type),
             sha256: Some(sha256),
             size: i64::try_from(written).ok(),
-            has_thumbnails: false,
+            has_thumbnails,
         }),
         ingester: FILE_INGESTER.to_string(),
         renderer: "file".to_string(),
         data: None,
         source: Some(name.to_string()),
-        stored: vec![original],
+        stored,
     })
 }
 

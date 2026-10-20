@@ -4,7 +4,7 @@ use super::super::join::cell;
 use super::super::plan::{EachFile, FolderLevel, RecordKind, SourceRef, TagFiles};
 use super::super::tags::file_fact;
 use super::super::values::{Value, ValueType, uri_and_label};
-use super::Ctx;
+use super::{Ctx, Raw};
 use crate::import2::derive::records::Draft;
 use crate::import2::grouping::pattern::PART;
 
@@ -19,12 +19,12 @@ fn literal(text: impl Into<String>) -> Value {
 }
 
 /// The values `source` gives `draft`, empty ones dropped.
-pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Vec<Value> {
+pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Vec<Raw> {
     let files = || draft.files.iter().map(|file| &ctx.grouping.files[*file]);
-    let mut out: Vec<Value> = match source {
+    let mut out: Vec<Raw> = match source {
         SourceRef::Group { name } => files()
             .filter_map(|file| file.group(name))
-            .map(literal)
+            .map(|text| Raw::from(literal(text)))
             .collect(),
         SourceRef::Folder { level } => files()
             .filter_map(|file| {
@@ -36,7 +36,7 @@ pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Ve
                         .nth(usize::try_from(level.get() - 1).ok()?),
                 }
             })
-            .map(literal)
+            .map(|text| Raw::from(literal(text)))
             .collect(),
         SourceRef::Column { sheet, column } => draft
             .rows
@@ -50,6 +50,7 @@ pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Ve
                     text,
                 )
             })
+            .map(Raw::from)
             .collect(),
         SourceRef::Tag { tag, files: which } => {
             let chosen: Vec<_> = match (draft.kind, which) {
@@ -62,15 +63,21 @@ pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Ve
             chosen
                 .into_iter()
                 .filter_map(|file| ctx.tags.tag(file.source, file.entry, *tag))
-                .map(literal)
+                .flat_map(|found| {
+                    let suspect = found.windows_1252;
+                    found.values.into_iter().map(move |text| Raw {
+                        value: literal(text),
+                        suspect,
+                    })
+                })
                 .collect()
         }
         SourceRef::File { fact } => files()
-            .map(|file| literal(file_fact(file.entry, *fact)))
+            .map(|file| Raw::from(literal(file_fact(file.entry, *fact))))
             .collect(),
-        SourceRef::Constant { value } => vec![literal(value.clone())],
+        SourceRef::Constant { value } => vec![Raw::from(literal(value.clone()))],
     };
-    out.retain(|value| !value.text.trim().is_empty());
+    out.retain(|raw| !raw.value.text.trim().is_empty());
     out
 }
 

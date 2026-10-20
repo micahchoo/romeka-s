@@ -130,13 +130,17 @@ export const parseSource: Parser<SourcePlan> = (raw, path = []) => {
 };
 
 export const parseReadOptions: Parser<ReadOptions> = (raw, path = []) => {
-  const object = strict(raw, path, ['encoding', 'delimiter', 'quote', 'headerLine', 'trim']);
+  const object = strict(raw, path, ['encoding', 'delimiter', 'quote', 'headerLine', 'trim'], ['sheetName']);
+  // The server leaves the member out for the first sheet and reads null alike.
+  const named = object['sheetName'];
+  const sheetName = named === undefined || named === null ? undefined : asString(named, [...path, 'sheetName']);
   return {
     encoding: member(object, 'encoding', path, wordOr<'auto', Encoding>(['auto'], oneOf(ENCODINGS))),
     delimiter: member(object, 'delimiter', path, oneOf(DELIMITERS)),
     quote: member(object, 'quote', path, oneOf<Quote>(['"', "'", 'none'])),
     headerLine: member(object, 'headerLine', path, asPositive),
     trim: flag(object, 'trim', path),
+    ...(sheetName === undefined ? {} : { sheetName }),
   };
 };
 

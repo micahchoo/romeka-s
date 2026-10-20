@@ -49,6 +49,76 @@
       "tag": "Model"
     },
     {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC By-line"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC Caption-Abstract"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC Keywords"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC Object Name"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC Date Created"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC City"
+    },
+    {
+      "kind": "iptc",
+      "samples": [],
+      "tag": "IPTC Country"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP dc:title"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP dc:description"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP dc:creator"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP dc:subject"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP dc:rights"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP photoshop:DateCreated"
+    },
+    {
+      "kind": "xmp",
+      "samples": [],
+      "tag": "XMP lr:hierarchicalSubject"
+    },
+    {
       "kind": "file",
       "samples": [
         {
