@@ -3,13 +3,12 @@
 //! has (`docs/import-v2.md`, "Slot rules a worker must not guess").
 //!
 //! Each gets a ledger row under its own key ([`ledger`]), so a retry finds it
-//! instead of making it again.
+//! instead of making it again. The row commits in the transaction that makes
+//! the field, type or set, so no crash leaves one the ledger does not know.
 
 use omeka_db::Backend;
 use omeka_db::ids::{ItemSetId, PropertyId, TemplateId, UserId};
-use omeka_db::repos::{
-    ImportResourceRepo, ImportWrites, PropertyRepo, TemplateRepo, VocabularyRepo,
-};
+use omeka_db::repos::{ImportResourceRepo, ImportWrites, VocabularyRepo};
 use omeka_db::rows::{
     ImportChange, ImportTarget, NewImportFields, NewImportItemSet, NewImportResource, NewProperty,
     NewTemplate, NewTemplateProperty, NewVocabulary, ValueContent,
@@ -64,9 +63,15 @@ where
         }
     }
 
-    async fn record_made(&mut self, key: String, target: ImportTarget) -> Result<(), RunError> {
+    /// Record what `tx` made under `key` and commit both.
+    async fn record_made(
+        &mut self,
+        mut tx: sqlx::Transaction<'static, DB>,
+        key: String,
+        target: ImportTarget,
+    ) -> Result<(), RunError> {
         ImportResourceRepo::<DB>::record(
-            self.pool,
+            &mut *tx,
             self.import,
             &NewImportResource {
                 target,
@@ -75,6 +80,7 @@ where
             },
         )
         .await?;
+        tx.commit().await?;
         self.written.add(key, target);
         Ok(())
     }
@@ -99,8 +105,9 @@ where
                 .strip_prefix("local:")
                 .unwrap_or(term.as_str())
                 .to_string();
-            let row = PropertyRepo::<DB>::new(self.pool)
-                .create(&NewProperty {
+            let mut tx = self.pool.begin().await?;
+            let row = ImportWrites::<DB>::new(&mut tx)
+                .create_property(&NewProperty {
                     owner_id: self.default_owner(),
                     vocabulary_id: vocabulary,
                     local_name,
@@ -108,7 +115,7 @@ where
                     comment: None,
                 })
                 .await?;
-            self.record_made(key, ImportTarget::Property(row.id))
+            self.record_made(tx, key, ImportTarget::Property(row.id))
                 .await?;
             self.lookup.properties.insert(term, row.id);
         }
@@ -151,27 +158,27 @@ where
                 .class
                 .as_ref()
                 .and_then(|term| self.lookup.classes.get(term).copied());
-            let templates = TemplateRepo::<DB>::new(self.pool);
-            let row = templates
-                .create(&NewTemplate {
-                    owner_id: self.default_owner(),
-                    resource_class_id: class,
-                    title_property_id: title,
-                    description_property_id: None,
-                    label: new.label.clone(),
-                })
-                .await?;
             let mut position = 0;
+            let mut rows = Vec::with_capacity(fields.len());
             for field in &fields {
                 let Some(property) = property(&field.term) else {
                     continue;
                 };
                 position += 1;
-                templates
-                    .add_property(&new_field(row.id, property, field, position))
-                    .await?;
+                rows.push(new_field(property, field, position));
             }
-            self.record_made(key, ImportTarget::ResourceTemplate(row.id))
+            let new_template = NewTemplate {
+                owner_id: self.default_owner(),
+                resource_class_id: class,
+                title_property_id: title,
+                description_property_id: None,
+                label: new.label.clone(),
+            };
+            let mut tx = self.pool.begin().await?;
+            let row = ImportWrites::<DB>::new(&mut tx)
+                .create_template(&new_template, &rows)
+                .await?;
+            self.record_made(tx, key, ImportTarget::ResourceTemplate(row.id))
                 .await?;
             made.push(Some(row.id));
         }
@@ -247,18 +254,7 @@ where
             let id: ItemSetId = ImportWrites::<DB>::new(&mut tx)
                 .create_item_set(&new)
                 .await?;
-            ImportResourceRepo::<DB>::record(
-                &mut *tx,
-                self.import,
-                &NewImportResource {
-                    target: ImportTarget::ItemSet(id),
-                    record: key.clone(),
-                    change: ImportChange::Created,
-                },
-            )
-            .await?;
-            tx.commit().await?;
-            self.written.add(key, ImportTarget::ItemSet(id));
+            self.record_made(tx, key, ImportTarget::ItemSet(id)).await?;
             made.push(Some(id));
         }
         self.lookup.new_sets = made;
@@ -266,14 +262,10 @@ where
     }
 }
 
-fn new_field(
-    template: TemplateId,
-    property: PropertyId,
-    field: &NewField,
-    position: i64,
-) -> NewTemplateProperty {
+/// One field row; [`ImportWrites::create_template`] names its template.
+fn new_field(property: PropertyId, field: &NewField, position: i64) -> NewTemplateProperty {
     NewTemplateProperty {
-        resource_template_id: template,
+        resource_template_id: TemplateId(0),
         property_id: property,
         alternate_label: None,
         alternate_comment: None,

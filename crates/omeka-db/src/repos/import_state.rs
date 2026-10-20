@@ -19,6 +19,7 @@ use crate::rows::{
     BeforeImage, ImageMemberships, ImageValue, ImportResource, NewResource, ValueContent,
     resource_type,
 };
+use crate::time;
 
 impl<'t, DB: Backend> ImportWrites<'t, DB>
 where
@@ -64,6 +65,7 @@ where
             class: row.resource_class_id,
             owner: row.owner_id,
             is_public: row.is_public,
+            modified: row.modified,
             memberships,
         }))
     }
@@ -143,6 +145,13 @@ where
             _ => {}
         }
         self.settle(target).await?;
+        if let Some(modified) = image.modified {
+            sqlx::query("UPDATE resource SET modified = ? WHERE id = ?")
+                .bind(time::format(modified))
+                .bind(bind_id(target.id()))
+                .execute(&mut *self.conn)
+                .await?;
+        }
         Ok(true)
     }
 

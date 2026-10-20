@@ -57,6 +57,8 @@ pub enum StartOutcome {
     Busy(ImportId),
     /// A run start named another plan revision than the stored one; nothing changed.
     Changed { revision: u64 },
+    /// An undo start for an import whose ledger records a delete, which is not undone.
+    Deleted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,7 +74,10 @@ impl Start {
             Self::Run(_) => may_run(status, summary),
             Self::Undo => matches!(
                 status,
-                ImportStatus::Done | ImportStatus::RunFailed | ImportStatus::UndoFailed
+                ImportStatus::Done
+                    | ImportStatus::RunFailed
+                    | ImportStatus::UndoFailed
+                    | ImportStatus::PartlyUndone
             ),
         }
     }
@@ -171,8 +176,9 @@ where
         self.start(id, Start::Run(revision)).await
     }
 
-    /// Move an import that is `done`, `run_failed` or `undo_failed` to `undoing`. Refused
-    /// otherwise, or while another import is live.
+    /// Move an import that is `done`, `run_failed`, `undo_failed` or `partly_undone` to
+    /// `undoing`. Refused otherwise, for an import whose ledger records a delete (a delete is not
+    /// undone), or while another import is live.
     pub async fn start_undo(&self, id: ImportId) -> Result<StartOutcome, DbError> {
         self.start(id, Start::Undo).await
     }
@@ -343,6 +349,9 @@ where
     if !start.allows(status, summary.as_ref()) {
         return Ok(StartOutcome::Refused(status));
     }
+    if start == Start::Undo && deleted_any(tx, id).await? {
+        return Ok(StartOutcome::Deleted);
+    }
     if let Start::Run(checked) = start {
         let stored: u64 = DB::id(&row, "revision")?;
         if stored != checked {
@@ -368,6 +377,26 @@ where
         .execute(&mut **tx)
         .await?;
     Ok(StartOutcome::Started)
+}
+
+/// Whether the import's ledger records a resource it deleted.
+async fn deleted_any<DB: Backend>(
+    tx: &mut Transaction<'static, DB>,
+    id: ImportId,
+) -> Result<bool, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+{
+    let found = sqlx::query(
+        "SELECT 1 FROM romeka_import_resource WHERE import_id = ? AND change_kind = 'deleted'
+         LIMIT 1",
+    )
+    .bind(bind_id(id))
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(found.is_some())
 }
 
 #[cfg(test)]

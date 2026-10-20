@@ -4,6 +4,7 @@
 //! A record arrives already resolved: property ids, resource ids, user ids. The plan's terms,
 //! identifiers and defaults are the api layer's to settle before a record reaches this crate.
 
+use chrono::NaiveDateTime;
 use serde_json::{Map, Value, json};
 
 use crate::DbError;
@@ -11,6 +12,7 @@ use crate::ids::{
     ClassId, ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId, UserId,
 };
 use crate::rows::{ImportTarget, ValueContent};
+use crate::time;
 
 /// A resource an import writes values to: an item, a media or an item set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +239,9 @@ pub struct BeforeImage {
     pub class: Option<ClassId>,
     pub owner: Option<UserId>,
     pub is_public: bool,
+    /// The resource's `modified`, which a restore puts back, so undoing a later import does not
+    /// make the resource look edited to the undo of an earlier one.
+    pub modified: Option<NaiveDateTime>,
     pub memberships: ImageMemberships,
 }
 
@@ -248,6 +253,7 @@ impl BeforeImage {
             "class": self.class.map(|id| id.0),
             "owner": self.owner.map(|id| id.0),
             "isPublic": self.is_public,
+            "modified": self.modified.map(time::format),
         });
         let members = match &self.memberships {
             ImageMemberships::Item {
@@ -319,6 +325,11 @@ impl BeforeImage {
                 .get("isPublic")
                 .and_then(Value::as_bool)
                 .ok_or_else(|| bad("isPublic"))?,
+            modified: match object.get("modified") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(stored)) => Some(time::parse(stored).map_err(|e| bad(&e))?),
+                Some(_) => return Err(bad("modified")),
+            },
             memberships,
         })
     }
@@ -456,6 +467,7 @@ mod tests {
             class: None,
             owner: Some(UserId(4)),
             is_public: false,
+            modified: crate::time::parse("2001-02-03 04:05:06").ok(),
             memberships: ImageMemberships::ItemSet {
                 sites: vec![(SiteId(5), Some(2)), (SiteId(6), None)],
             },

@@ -7,8 +7,8 @@
 //! `omeka_api::import2::undo::undo_import` with the API's delete paths, which
 //! remove a media's files from the store. This module supplies what the run reads
 //! outside the database: the store, the archive roots, the install's file
-//! settings and URL guard, who pressed Run (the job's owner), and the site
-//! sync of a created item. [`refuse_live_hand_run`] keeps a second worker
+//! settings and URL guard, who pressed Run (the job's owner), the site
+//! sync of a created item, and the API's delete paths for a `delete` run. [`refuse_live_hand_run`] keeps a second worker
 //! off an import whose worker is still alive.
 
 use std::future::Future;
@@ -93,6 +93,8 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
     let sites = Sites {
         api: system_api::load(pool).await?,
     };
+    let api = system_api::load_with_store(pool, Arc::clone(&context.env.store)).await?;
+    let removal = ApiRemoval { api: &api };
     let caches = Arc::new(Caches::default());
     let env = RunEnv {
         store: Arc::clone(&context.env.store),
@@ -101,6 +103,7 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
         validation,
         http: HttpClient::new().with_address_policy(policy),
         sites: &sites,
+        removal: &removal,
     };
     run_import(pool, &env, import, context.job_id, runner)
         .await
@@ -134,20 +137,18 @@ impl Job for ImportUndo {
                 total(&report.restored),
                 report.skipped.len()
             ),
+            UndoEnd::PartlyUndone(report) => format!(
+                "Import {} undone but for {} kept resources: {} removed, {} restored.",
+                import.0,
+                report.kept.len(),
+                total(&report.removed),
+                total(&report.restored)
+            ),
             UndoEnd::Failed(report) => match &report.error {
                 Some(error) => {
                     format!("Import {} was not fully undone: {}", import.0, error.detail)
                 }
-                None if report.stopped => {
-                    format!("Import {} stopped undoing on request.", import.0)
-                }
-                None => format!(
-                    "Import {} undone but for {} kept resources: {} removed, {} restored.",
-                    import.0,
-                    report.kept.len(),
-                    total(&report.removed),
-                    total(&report.restored)
-                ),
+                None => format!("Import {} stopped undoing on request.", import.0),
             },
             UndoEnd::Lost => format!(
                 "Import {} is no longer undone by this job; it stopped writing.",

@@ -23,7 +23,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 use crate::import2::model::{
     Fate, Link, Model, OwnerRef, Record, RecordId, SetRef, SlotValue, TemplateRef,
 };
-use crate::import2::plan::{ImportPlanV2, Owner, RecordKind, SlotName, Term};
+use crate::import2::plan::{Action, ImportPlanV2, Owner, RecordKind, SlotName, SlotRules, Term};
 use crate::import2::values::{ValueType, Visibility};
 
 /// The install's ids for what the model names by term, and what the run
@@ -216,16 +216,6 @@ pub(super) fn values(lookup: &Lookup, record: &Record) -> Vec<ValueContent> {
     out
 }
 
-/// A named slot as a matched record writes it: mapped when the record holds
-/// a value for it, so `revise` leaves the others as stored.
-fn mapped<T>(record: &Record, slot: SlotName, value: T) -> Slot<T> {
-    if has(record, &slot) {
-        Slot::Mapped(value)
-    } else {
-        Slot::Unmapped
-    }
-}
-
 /// The run's view of a record's named slots.
 pub(super) struct Named<'a> {
     pub lookup: &'a Lookup,
@@ -296,14 +286,40 @@ impl Named<'_> {
         }
     }
 
-    /// What a matched resource gets: a named slot is mapped when the record
-    /// holds a value for it, so `revise` leaves the others as stored.
-    pub fn changed(&self, record: &Record, kind: RecordKind) -> ImportFields {
-        let rules = match kind {
+    fn rules(&self, kind: RecordKind) -> &SlotRules {
+        match kind {
             RecordKind::Item => &self.plan.slots.item,
             RecordKind::Media => &self.plan.slots.media,
             RecordKind::ItemSet => &self.plan.slots.item_set,
-        };
+        }
+    }
+
+    /// Whether `update` and `replace` write every slot the plan maps, not
+    /// only the slots with values.
+    fn whole(&self) -> bool {
+        matches!(self.plan.action.action, Action::Update | Action::Replace)
+    }
+
+    /// A named slot as a matched record writes it. It is mapped when the
+    /// record holds a value for it, so `revise` leaves the others as stored;
+    /// under `update` and `replace` also when the plan has a rule for it, so
+    /// an empty cell clears the slot.
+    fn mapped<T>(&self, record: &Record, slot: SlotName, value: T) -> Slot<T> {
+        let ruled = self.whole() && self.rules(record.kind).contains_key(&slot);
+        if ruled || has(record, &slot) {
+            Slot::Mapped(value)
+        } else {
+            Slot::Unmapped
+        }
+    }
+
+    /// What a matched resource gets. Under `update` and `replace` the owner
+    /// and the visibility are always mapped: the plan's defaults give them
+    /// when no rule does (`docs/import-v2.md`, "Write details"). A default
+    /// item type maps the item type too, as CSVImport writes its default
+    /// `o:resource_template` into every row it updates.
+    pub fn changed(&self, record: &Record, kind: RecordKind) -> ImportFields {
+        let rules = self.rules(kind);
         let mapped_terms = rules
             .keys()
             .filter_map(|slot| match slot {
@@ -314,29 +330,33 @@ impl Named<'_> {
         ImportFields {
             values: values(self.lookup, record),
             mapped_terms,
-            template: mapped(record, SlotName::Template, self.template(record)),
-            class: mapped(record, SlotName::Class, self.class(record)),
-            owner: mapped(record, SlotName::Owner, self.owner(record)),
-            is_public: mapped(
-                record,
-                SlotName::Visibility,
-                record.resolved.visibility == Visibility::Public,
-            ),
+            template: if self.whole() && self.plan.defaults.template.is_some() {
+                Slot::Mapped(self.template(record))
+            } else {
+                self.mapped(record, SlotName::Template, self.template(record))
+            },
+            class: self.mapped(record, SlotName::Class, self.class(record)),
+            owner: if self.whole() {
+                Slot::Mapped(self.owner(record))
+            } else {
+                self.mapped(record, SlotName::Owner, self.owner(record))
+            },
+            is_public: if self.whole() {
+                Slot::Mapped(record.resolved.visibility == Visibility::Public)
+            } else {
+                self.mapped(
+                    record,
+                    SlotName::Visibility,
+                    record.resolved.visibility == Visibility::Public,
+                )
+            },
         }
     }
 
     pub fn item_slots(&self, record: &Record) -> ItemSlots {
         ItemSlots {
-            item_sets: if has(record, &SlotName::Sets) {
-                Slot::Mapped(self.sets(record))
-            } else {
-                Slot::Unmapped
-            },
-            sites: if has(record, &SlotName::Sites) {
-                Slot::Mapped(Self::sites(record))
-            } else {
-                Slot::Unmapped
-            },
+            item_sets: self.mapped(record, SlotName::Sets, self.sets(record)),
+            sites: self.mapped(record, SlotName::Sites, Self::sites(record)),
         }
     }
 }

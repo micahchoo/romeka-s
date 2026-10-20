@@ -20,7 +20,7 @@
       "root": "archive"
     }
   ],
-  "status": "undo_failed",
+  "status": "partly_undone",
   "stopRequested": false,
   "summary": {
     "failures": [],
