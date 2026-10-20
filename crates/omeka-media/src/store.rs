@@ -81,6 +81,15 @@ pub struct StoredFile {
     pub size: u64,
 }
 
+/// A file found by [`FileStore::list_files`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListedFile {
+    /// The path relative to the store root, as `FileStore::storage_path` builds it.
+    pub storage_path: String,
+    /// The file's last modification time.
+    pub modified: std::time::SystemTime,
+}
+
 /// A local filesystem file store (`File/Store/Local.php`).
 #[derive(Debug, Clone)]
 pub struct FileStore {
@@ -194,6 +203,55 @@ impl FileStore {
         }
         std::fs::remove_file(&path).map_err(|source| StoreError::Io { path, source })?;
         Ok(true)
+    }
+
+    /// Every regular file under the store's own directories (`original`,
+    /// `asset` and one per thumbnail type), sorted by storage path.
+    ///
+    /// Symlinks are never followed and never listed: neither a linked
+    /// directory nor a linked file is reported, so a caller that deletes what
+    /// this returns cannot reach outside the root. Files elsewhere under the
+    /// root, and subdirectories, are not the store's and are not listed. A
+    /// directory that does not exist yet lists nothing.
+    pub fn list_files(&self) -> Result<Vec<ListedFile>, StoreError> {
+        let io = |path: &Path| {
+            let path = path.to_path_buf();
+            move |source| StoreError::Io { path, source }
+        };
+        let prefixes = [StorePrefix::Original, StorePrefix::Asset]
+            .into_iter()
+            .chain(ThumbnailType::ALL.map(StorePrefix::Thumbnail));
+        let mut listed = Vec::new();
+        for prefix in prefixes {
+            let dir = self.root.join(prefix.as_str());
+            match std::fs::symlink_metadata(&dir) {
+                Ok(meta) if meta.file_type().is_dir() => {}
+                Ok(_) => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(io(&dir)(error)),
+            }
+            for entry in std::fs::read_dir(&dir).map_err(io(&dir))? {
+                let entry = entry.map_err(io(&dir))?;
+                let Ok(name) = entry.file_name().into_string() else {
+                    continue;
+                };
+                // `DirEntry::file_type` does not follow a symlink.
+                let kind = entry.file_type().map_err(io(&entry.path()))?;
+                if !kind.is_file() {
+                    continue;
+                }
+                let modified = entry
+                    .metadata()
+                    .and_then(|meta| meta.modified())
+                    .map_err(io(&entry.path()))?;
+                listed.push(ListedFile {
+                    storage_path: format!("{}/{name}", prefix.as_str()),
+                    modified,
+                });
+            }
+        }
+        listed.sort_by(|a, b| a.storage_path.cmp(&b.storage_path));
+        Ok(listed)
     }
 
     /// Whether a storage path exists on disk.

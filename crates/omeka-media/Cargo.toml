@@ -17,14 +17,22 @@ serde_json.workspace = true
 thiserror.workspace = true
 getrandom = "0.2"
 sha2 = "0.10"
-# Decoding and resizing for the thumbnailer (`File/Thumbnailer/Gd.php`). Only
-# the four source formats GD accepts: gif, jpeg, png and webp.
+# Decoding and resizing for the thumbnailer (`File/Thumbnailer/Gd.php`): the
+# four source formats GD accepts (gif, jpeg, png, webp) plus tiff, a deliberate
+# addition for archive masters.
 image = { version = "0.25", default-features = false, features = [
     "gif",
     "jpeg",
     "png",
+    "tiff",
     "webp",
 ] }
+# Embedded metadata (EXIF) of an image, for the archive import's tag preview.
+# Pure Rust, BSD-2-Clause.
+kamadak-exif = "0.6"
+# A TIFF's directories, read by seeking: kamadak-exif reads a TIFF whole, and
+# an archive master can be 60 MB. Already in the tree through `image`.
+tiff = "0.11"
 # The real HTTP client behind `HttpFetch`. Blocking, because the trait is.
 # `rustls` is the TLS provider; `gzip` is off, matching upstream's
 # `Accept-Encoding: identity` (`File/Downloader.php:57`).
