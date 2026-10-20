@@ -48,6 +48,7 @@ export const mrServer: ServerCatalogue = {
   'server.mediaItemRequired': 'मीडिया एखाद्या आयटमचा भाग असणे आवश्यक आहे.',
   'server.jobHeldByImport':
     'हे कार्य चालू असलेल्या किंवा पूर्ववत होणाऱ्या संग्रहाच्या आयातीचे आहे. आयात पूर्ण झाल्यावर तो हटवा.',
+  'server.pageSavedSinceOpened': 'तुम्ही हे पृष्ठ उघडल्यानंतर कोणीतरी ते जतन केले.',
   'server.noFileUploaded': 'कोणतीही फाईल अपलोड केली गेली नाही',
   'server.assetMediaType':
     '"{file}" चे प्रमाणीकरण करताना त्रुटी. मीडिया प्रकार "{media}" सह फाईल्स साठवता येत नाहीत.',

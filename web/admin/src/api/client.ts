@@ -25,6 +25,8 @@ import {
   parseResourceTemplate,
   parseSite,
   parseSitePage,
+  parsePageVersionSummary,
+  parseStalePage,
   parseGlobalSettings,
   parseUser,
   parseVocabulary,
@@ -64,6 +66,8 @@ import type {
   SiteId,
   SitePage,
   SitePageWrite,
+  PageSaveResult,
+  PageVersionSummary,
   SiteCreate,
   TemplateId,
   User,
@@ -119,13 +123,22 @@ export class ApiError extends Error {
   readonly status: number;
   readonly errors: ApiErrors | null;
   readonly sourceErrors: ApiErrors | null;
+  /** The response body as JSON, for a caller that reads more than the messages. */
+  readonly body: unknown;
 
-  constructor(status: number, errors: ApiErrors | null, message: string, sourceErrors: ApiErrors | null) {
+  constructor(
+    status: number,
+    errors: ApiErrors | null,
+    message: string,
+    sourceErrors: ApiErrors | null,
+    body: unknown = null,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
     this.sourceErrors = sourceErrors;
+    this.body = body;
   }
 }
 
@@ -425,9 +438,43 @@ export class ApiClient {
     return parseSitePage(await this.writeJson('POST', '/api/site_pages', encodeSitePage(write)));
   }
 
-  async updateSitePage(id: PageId, write: SitePageWrite): Promise<SitePage> {
+  /**
+   * Save a page. `loadedModified` is the `o:modified` the editor read; when the
+   * page was saved since, the server refuses and the answer names who saved
+   * (a Romeka check). `null` sends no claim, so the save is never refused.
+   */
+  async updateSitePage(
+    id: PageId,
+    write: SitePageWrite,
+    loadedModified: string | null = null,
+  ): Promise<PageSaveResult> {
+    const body = {
+      ...encodeSitePage(write),
+      ...(loadedModified === null ? {} : { 'o:modified': loadedModified }),
+    };
+    try {
+      const raw = await this.writeJson('PUT', `/api/site_pages/${String(id)}`, body);
+      return { kind: 'saved', page: parseSitePage(raw) };
+    } catch (error: unknown) {
+      const stale = error instanceof ApiError && error.status === 409 ? parseStalePage(error.body) : null;
+      if (stale === null) {
+        throw error;
+      }
+      return stale;
+    }
+  }
+
+  /** A page's saved versions, newest first (a Romeka route). */
+  async listPageVersions(id: PageId): Promise<readonly PageVersionSummary[]> {
+    return parseListOf(parsePageVersionSummary)(
+      await this.requestJson(`/api/site_pages/${String(id)}/versions`),
+    );
+  }
+
+  /** The page document one version stored (a Romeka route). */
+  async getPageVersion(id: PageId, version: number): Promise<SitePage> {
     return parseSitePage(
-      await this.writeJson('PUT', `/api/site_pages/${String(id)}`, encodeSitePage(write)),
+      await this.requestJson(`/api/site_pages/${String(id)}/versions/${String(version)}`),
     );
   }
 
@@ -880,10 +927,11 @@ export class ApiClient {
 
   private async apiError(response: Response): Promise<ApiError> {
     const text = await response.text().catch(() => '');
-    const parsed = text === '' ? null : parseApiErrors(parseJson(text));
+    const body = text === '' ? null : parseJson(text);
+    const parsed = body === null ? null : parseApiErrors(body);
     const errors = parsed === null ? null : await localizeServerErrors(parsed);
     const message = firstErrorMessage(errors) ?? `HTTP ${String(response.status)}`;
-    return new ApiError(response.status, errors, message, parsed);
+    return new ApiError(response.status, errors, message, parsed, body);
   }
 }
 

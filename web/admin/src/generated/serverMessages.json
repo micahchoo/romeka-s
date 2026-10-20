@@ -34,6 +34,7 @@
     "server.mediaIngesterInvalid": "Media must set a valid ingester.",
     "server.mediaItemRequired": "Media must belong to an item.",
     "server.jobHeldByImport": "This job belongs to an archive import that is running or undoing. Delete it once the import has ended.",
+    "server.pageSavedSinceOpened": "Someone saved this page after you opened it.",
     "server.noFileUploaded": "No file was uploaded",
     "server.assetMediaType": "Error validating \"{file}\". Cannot store files with the media type \"{media}\".",
     "server.assetExtension": "Error validating \"{file}\". Cannot store files with the resolved extension \"{extension}\".",

@@ -276,6 +276,10 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
         "romeka_import_resource",
         &["import_id", "kind", "target_id"],
     ),
+    (
+        "romeka_site_page_version",
+        &["id", "page_id", "version", "created", "user_id", "snapshot"],
+    ),
 ];
 
 async fn columns(pool: &SqlitePool, table: &str) -> Vec<String> {

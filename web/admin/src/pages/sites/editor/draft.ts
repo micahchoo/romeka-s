@@ -11,7 +11,7 @@
 import { BLOCK_REGISTRY } from '../blockRegistry';
 import type { BlockRegistry } from '../blockSchema';
 import type { TemplateBlock, TemplateContent } from '../templates';
-import type { ItemId, JsonValue, MediaId } from '../../../api/types';
+import type { ItemId, JsonValue, MediaId, SitePage } from '../../../api/types';
 import { romkaFor, settingsOf } from './romeka';
 import { schemaFor, validateFields } from './schema';
 import { dataObject } from './values';
@@ -134,6 +134,16 @@ export type DraftAction =
   | { readonly type: 'setPageLayoutData'; readonly key: string; readonly value: JsonValue }
   | { readonly type: 'applyTemplate'; readonly template: TemplateContent }
   | { readonly type: 'insertBlocks'; readonly index: number; readonly blocks: readonly TemplateBlock[] }
+  | {
+      /**
+       * Replace the content with a stored page (a version, or the copy someone
+       * else saved) as one undoable edit. `saved` also makes it the saved
+       * baseline, because it is what the server now holds.
+       */
+      readonly type: 'loadPage';
+      readonly page: SitePage;
+      readonly saved: boolean;
+    }
   | { readonly type: 'undo' }
   | { readonly type: 'redo' }
   | { readonly type: 'markSaved' };
