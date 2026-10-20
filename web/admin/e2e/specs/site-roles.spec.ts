@@ -121,6 +121,8 @@ test('each site role sees the controls it may use, and no tab sends a refused re
   await page.goto(`${hub}/resources`);
   await expect(page.getByText('Only site managers can add or remove items.')).toBeVisible();
   await expect(page.getByRole('switch')).toBeDisabled();
+  await expect(page.getByRole('tab', { name: 'Items and sets' })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'By search' })).toHaveCount(0);
   for (const [tab, reason] of [
     ['users', 'Only site managers can change who works on this site.'],
     ['theme', 'Only site managers can change the theme.'],

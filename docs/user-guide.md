@@ -96,7 +96,8 @@ which both write the three thumbnail sizes. Values are not editable in the media
 
 A site opens on its hub. The hub lists the site's pages, says which page is the homepage, which pages
 are public and which are in the menu, and lets you set the homepage or add a page to the menu with
-one click. The tabs beside it are Navigation, Items, Users, Theme and Settings.
+one click. It also says how many items the site holds, with a link to the Items tab. The tabs beside
+it are Navigation, Items, Users, Theme and Settings.
 
 - **Pages.** Add page opens a template chooser: five built-in starting points, the site's own saved
   templates, or a blank page. The editor shows the page as the public site renders it, beside an
@@ -106,9 +107,13 @@ one click. The tabs beside it are Navigation, Items, Users, Theme and Settings.
 - **Navigation.** The menu as a tree: drag a link, or pick it and move it with the arrow keys. A link
   that the server would refuse is marked with what it lacks (a page, a URL or a label), and so is a
   second link to the same page. The menu preview shows the result.
-- **Items.** Which items the site shows. Add them by item set, by a saved search, or one by one; each
-  way shows how many items it adds before it adds them. The sync switch keeps the site in step with
-  its saved search as items change.
+- **Items.** Which items the site shows. A new site holds no items. The Items and sets tab is one
+  picker: search titles and values, filter by class or media, and pick single items or whole item
+  sets. Add items puts the picks on the site; Replace with these makes them the site's only items, and asks
+  first with the number of items that leave. By search adds the items that match a search, once. Each
+  way shows how many items it adds before it adds them. The sync switch adds new items only: when it
+  is on, an item created in one of the site's item sets joins the site (with no item sets, every new
+  item joins). Editing an item never adds it, so an item you remove stays removed.
 - **Users.** Who works on the site, with a site role: Manager, Creator or Viewer.
 - **Theme.** Pick one of five presets (Plain, Archive, Gallery, Editorial, Civic), set a brand colour
   that the palette follows, and fine-tune single colours, fonts and spacing. Under the automatic

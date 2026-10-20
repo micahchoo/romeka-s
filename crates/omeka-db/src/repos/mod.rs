@@ -50,7 +50,7 @@ pub use import_writes::{ImportWriteRepo, ImportedItem, NewImportMedia};
 pub use imports::{ImportRepo, ImportResourceRepo};
 pub use item_sites::ItemSiteRepo;
 pub use jobs::{JobFilter, JobRepo};
-pub use media::{MediaFilter, MediaRepo};
+pub use media::{MediaFileOwner, MediaFilter, MediaRepo};
 pub use modules::ModuleRepo;
 pub use passwords::PasswordCreationRepo;
 pub use publications::{NewPublicationVersion, PublicationRepo};

@@ -831,3 +831,112 @@ async fn preview_applies_draft_custom_css_and_refuses_unsafe_css() {
         "{message}"
     );
 }
+
+/// A new page before the curator types anything, as the editor sends it: no
+/// title, no slug, no blocks.
+fn blank_new_page() -> Value {
+    page_body(None, "", "", json!([]))
+}
+
+async fn preview_as_owner(app: axum::Router, body: &Value) -> Answer {
+    send(
+        app,
+        keyed_preview(
+            "/s/vis-pub/preview",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            body,
+        ),
+    )
+    .await
+}
+
+/// A draft with no title or slug yet previews under the site's own word for a
+/// resource without a title, and nothing is written. Only the save needs them.
+#[tokio::test]
+async fn preview_of_a_blank_new_page_renders_a_placeholder_title() {
+    let (pool, _seed) = visibility_pool().await;
+    let before = counts(&pool).await;
+
+    let answer = preview_as_owner(router(pool.clone()), &blank_new_page()).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    // The new page's page-title block shows it, as the saved page would.
+    assert!(
+        answer.body.contains("<h2>[Untitled]</h2>"),
+        "the placeholder title is missing: {}",
+        answer.body
+    );
+    assert_eq!(counts(&pool).await, before, "the preview wrote rows");
+}
+
+/// The placeholder is the site locale's, as every other word of the render is.
+#[tokio::test]
+async fn preview_placeholder_title_follows_the_site_locale() {
+    let (pool, seed) = visibility_pool().await;
+    omeka_db::repos::SiteSettingRepo::new(&pool)
+        .set(
+            omeka_db::ids::SiteId::from(seed.public_site),
+            "locale",
+            &json!("es"),
+        )
+        .await
+        .unwrap();
+
+    let answer = preview_as_owner(router(pool), &blank_new_page()).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(
+        answer.body.contains("<h2>[Sin título]</h2>"),
+        "the Spanish placeholder is missing: {}",
+        answer.body
+    );
+}
+
+/// Clearing the title and slug of a saved page still previews.
+#[tokio::test]
+async fn preview_of_an_edit_with_a_cleared_title_and_slug_renders() {
+    let (pool, seed) = visibility_pool().await;
+    let body = page_body(
+        Some(seed.public_page),
+        "",
+        "",
+        json!([{"o:layout": "html", "o:data": {"html": "<p>Still here</p>"}}]),
+    );
+
+    let answer = preview_as_owner(router(pool), &body).await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(answer.body.contains("<p>Still here</p>"), "{}", answer.body);
+    assert!(answer.body.contains("[Untitled]"), "{}", answer.body);
+}
+
+/// The save of the same blank body is refused as before: the preview's
+/// placeholder never reaches a write.
+#[tokio::test]
+async fn saving_a_blank_new_page_still_needs_a_title_and_slug() {
+    let (pool, seed) = visibility_pool().await;
+    let mut body = blank_new_page();
+    body["o:site"] = json!({"o:id": seed.public_site});
+
+    let answer = send(
+        router(pool),
+        keyed_preview(
+            "/api/site_pages",
+            OWNER_KEY_IDENTITY,
+            OWNER_KEY_CREDENTIAL,
+            &body,
+        ),
+    )
+    .await;
+
+    assert_eq!(
+        answer.status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "{}",
+        answer.body
+    );
+    let errors = errors(&answer);
+    assert_eq!(errors["o:title"], json!(["A page must have a title."]));
+    assert!(errors.get("o:slug").is_some(), "{errors}");
+}

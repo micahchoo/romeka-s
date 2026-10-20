@@ -121,6 +121,11 @@ export const kn: AdminMessages = {
   'settings.restoreExtensions': 'ಡೀಫಾಲ್ಟ್ ವಿಸ್ತರಣೆಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ',
   'settings.restoredOnSave': 'ನೀವು ಉಳಿಸಿದಾಗ ಡೀಫಾಲ್ಟ್ ಪಟ್ಟಿಯನ್ನು ಮರುಸ್ಥಾಪಿಸಲಾಗುತ್ತದೆ.',
   'settings.emptyListRefusesAll': 'ಖಾಲಿ ಪಟ್ಟಿಯು ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ನಿರಾಕರಿಸುತ್ತದೆ.',
+  'settings.allowPrivateUrls': 'ಖಾಸಗಿ ನೆಟ್‌ವರ್ಕ್‌ಗಳಲ್ಲಿ ಯುಆರ್‌ಎಲ್‌ಗಳನ್ನು ಅನುಮತಿಸಿ',
+  'settings.allowPrivateUrlsInfo':
+    'ಮೀಡಿಯಾ ಮತ್ತು ಇಂಪೋರ್ಟ್‌ಗಳು ಈ ಸರ್ವರ್ ಅಥವಾ ಅದರ ಖಾಸಗಿ ನೆಟ್‌ವರ್ಕ್‌ಗೆ ಸೂಚಿಸುವ URLಗಳನ್ನು ನಿರಾಕರಿಸುತ್ತವೆ: localhost, ಸ್ಥಳೀಯ ನೆಟ್‌ವರ್ಕ್ ಮತ್ತು ಕ್ಲೌಡ್ ಮೆಟಾಡೇಟಾ ವಿಳಾಸಗಳು. ಅವುಗಳನ್ನು ಅನುಮತಿಸಲು ಈ ಆಯ್ಕೆಯನ್ನು ಗುರುತಿಸಿ.',
+  'settings.allowPrivateUrlsWarning':
+    'ಇದು ಚಾಲನೆಯಲ್ಲಿರುವಾಗ, ಮೀಡಿಯಾವನ್ನು ಸೇರಿಸಬಹುದಾದ ಯಾರಾದರೂ ಈ ಸರ್ವರ್ ತನ್ನದೇ ಆದ ನೆಟ್‌ವರ್ಕ್‌ನಿಂದ ಪಡೆಯುವಂತೆ ಮಾಡಬಹುದು.',
   'settings.locale': 'ಸ್ಥಳ',
   'settings.localeDefault': 'ಡೀಫಾಲ್ಟ್',
   'systemInfo.omeka': 'Omeka S',

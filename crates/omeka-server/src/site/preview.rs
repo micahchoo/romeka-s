@@ -46,6 +46,10 @@ use crate::AppState;
 /// origin may frame the document.
 const PREVIEW_CSP: &str = "default-src 'self'; script-src 'none'; frame-ancestors 'self'";
 
+/// The slug a draft with neither a slug nor a title renders under. It is
+/// never stored: the save refuses an empty slug.
+const UNTITLED_SLUG: &str = "untitled";
+
 /// The site slug of a preview path, `None` for any other public path.
 pub(crate) fn path_site(path: &str) -> Option<String> {
     let (site, tail) = path.strip_prefix("/s/")?.split_once('/')?;
@@ -147,7 +151,11 @@ pub(crate) async fn run(
 /// `block_from_row` skips one at render time, so the rest of the page still
 /// shows. Each surviving block keeps its one-based position as its id.
 fn build_page(preview: &Preview) -> Option<SitePage> {
-    let slug = Slug::parse(&preview.slug).ok()?;
+    let slug = if preview.slug.is_empty() {
+        Slug::parse(UNTITLED_SLUG).ok()?
+    } else {
+        Slug::parse(&preview.slug).ok()?
+    };
     let mut page = SitePage::new(
         PageId::new(preview.id.map_or(0, |id| id.0)),
         SiteId::new(preview.site.0),

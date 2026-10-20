@@ -9,6 +9,7 @@
 //! | --- | --- | --- |
 //! | `POST /api/login` | `{email, password}` | 200, the session user document, `Set-Cookie` |
 //! | `POST /api/logout` | | 204, the cookie cleared and the row deleted |
+//! | `POST /logout?redirect=<path>` | | 303 back to `redirect`, the cookie cleared and the row deleted |
 //! | `GET /api/me` | | the session user document, or 401 |
 //! | `POST /api/password` | `{key, password}` | 200, the user document |
 //! | `POST /api/password/forgot` | `{email}` | 204 |
@@ -38,9 +39,9 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::{FromRequestParts, Path, Request, State};
-use axum::http::header::{COOKIE, ORIGIN, REFERER, RETRY_AFTER, SET_COOKIE};
+use axum::http::header::{COOKIE, LOCATION, ORIGIN, REFERER, RETRY_AFTER, SET_COOKIE};
 use axum::http::request::Parts;
-use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri};
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{get, post};
@@ -52,6 +53,7 @@ use omeka_api::password::PasswordRules;
 use omeka_api::read::{session_user_response, user_response};
 use omeka_api::session;
 use omeka_db::repos::SettingRepo;
+use omeka_site::blocks::browse_preview::parse_query;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -61,6 +63,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
+        .route("/logout", post(logout_form))
         .route("/api/me", get(current_user))
         .route("/api/password", post(set_password))
         .route("/api/password/forgot", post(forgot_password))
@@ -131,6 +134,44 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let mut response = no_content();
     set_cookie(&mut response, &session::clear_cookie(state.secure_cookies));
     response
+}
+
+/// The public site's Logout form (`LoginController::logoutAction`): end the
+/// session, then send the browser back to the page it came from.
+///
+/// Upstream's logout is a `GET` that lands on the login page. The port takes a
+/// `POST`, so the same-origin check in front of every write guards it and a
+/// link on another site cannot sign a reader out. `redirect` is honoured only
+/// as a path on this origin ([`return_path`]); anything else returns to `/`.
+async fn logout_form(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    if let Err(error) = login::logout(&state.pool, session_token(&headers)).await {
+        return crate::error_response(error);
+    }
+    let query = parse_query(uri.query().unwrap_or_default());
+    let target = query
+        .iter()
+        .find(|(key, _)| key == "redirect")
+        .and_then(|(_, value)| return_path(value))
+        .unwrap_or("/");
+    let mut response = Response::builder()
+        .status(StatusCode::SEE_OTHER)
+        .header(LOCATION, target)
+        .body(Body::empty())
+        .unwrap_or_else(|_| crate::empty_internal_error());
+    set_cookie(&mut response, &session::clear_cookie(state.secure_cookies));
+    response
+}
+
+/// A redirect target that stays on this origin: an absolute path, never a
+/// scheme-relative `//host`, and no backslash, which some browsers read as a
+/// slash. Only printable ASCII passes, so the value is a valid header; a path
+/// the site printed is percent-encoded already.
+fn return_path(raw: &str) -> Option<&str> {
+    let rest = raw.strip_prefix('/')?;
+    let printable = raw
+        .bytes()
+        .all(|byte| byte.is_ascii_graphic() && byte != b'\\');
+    (printable && !rest.starts_with('/')).then_some(raw)
 }
 
 /// The identity of the caller, or 401.

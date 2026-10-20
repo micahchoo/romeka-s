@@ -19,15 +19,21 @@ import { isDirty } from '../history';
 import { draftReducer } from '../reducer';
 import { fromApi, toPageWrite } from '../wire';
 import type { DraftAction, PageDraft } from '../draft';
+import { layoutLabel } from '../canvas/summary';
 import { Inspector } from './Inspector';
+import { KeysPopover } from './KeysPopover';
 import { PageSettings } from './PageSettings';
 import { blockOf } from './selection';
 import type { Selection, SelectionSource } from './selection';
+import { commandFor } from './shortcuts';
+import type { EditorCommand } from './shortcuts';
 import { usePreview } from './usePreview';
 import { useUnsavedGuard } from './useUnsavedGuard';
+import { counted } from '../messages';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
 import { editor } from '../../../../i18n/namespaces/editor';
+import './shell.css';
 
 const PageCanvas = lazy(() =>
   import('../canvas').then((module) => ({ default: module.PageCanvas })),
@@ -102,6 +108,8 @@ export const PageEditor = ({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [outlineOpen, setOutlineOpen] = useState(storedOutlineOpen);
+  /** The label of the block the last edit removed, while Undo would restore it. */
+  const [removed, setRemoved] = useState<string | null>(null);
   const preview = usePreview(draft, site.slug, siteId, pageId);
   const { state: saveState, save } = useSave();
   const inspector = useRef<HTMLDivElement | null>(null);
@@ -132,8 +140,12 @@ export const PageEditor = ({
   });
 
   /** Every edit enters here; `from` names the surface it came from, so a block
-   * it adds is revealed in the other one. */
+   * it adds is revealed in the other one. A removal offers its own Undo until
+   * the next edit, after which Undo would reverse that edit instead. */
   const action = (next: DraftAction, from: SelectionSource = 'outline'): void => {
+    const gone =
+      next.type === 'removeBlock' ? draft.blocks.find((block) => block.key === next.blockKey) : undefined;
+    setRemoved(gone === undefined ? null : layoutLabel(draft.registry, gone, t));
     if (next.type === 'addBlock') {
       setSelection({ key: nextBlockKey(draft), from });
       focusAfter.current = 'inspector';
@@ -171,13 +183,28 @@ export const PageEditor = ({
     });
   };
 
-  const saveRef = useRef(runSave);
-  saveRef.current = runSave;
+  const deselect = (): void => {
+    setSelection(null);
+  };
+
+  const commands: Readonly<Record<EditorCommand, () => void>> = {
+    save: runSave,
+    undo: () => {
+      action({ type: 'undo' });
+    },
+    redo: () => {
+      action({ type: 'redo' });
+    },
+    deselect,
+  };
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      const command = commandFor(event);
+      if (command !== null) {
         event.preventDefault();
-        saveRef.current();
+        commandsRef.current[command]();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -244,6 +271,12 @@ export const PageEditor = ({
         >
           {page === null ? t('page.add') : t('action.save')}
         </button>
+        <button type="button" onClick={commands.undo} disabled={draft.past.length === 0}>
+          {t('canvas.undo')}
+        </button>
+        <button type="button" onClick={commands.redo} disabled={draft.future.length === 0}>
+          {t('canvas.redo')}
+        </button>
         {dirty ? (
           <span className="editor-dirty" role="status">
             <span className="editor-dirty-dot" aria-hidden="true" />
@@ -252,9 +285,7 @@ export const PageEditor = ({
         ) : null}
         {issues.length === 0 ? null : (
           <button type="button" className="editor-issues" onClick={jumpToIssue}>
-            {issues.length === 1
-              ? t('editor.issueOne')
-              : t('editor.issueCount', { count: issues.length })}
+            {counted(t, 'toolbarIssues', issues.length)}
           </button>
         )}
         {pageId === null ? null : (
@@ -275,6 +306,7 @@ export const PageEditor = ({
         >
           {t('editor.outline')}
         </button>
+        <KeysPopover />
         {preview.status === 'unavailable' ? (
           <span className="field-note">{t('editor.previewUnavailable')}</span>
         ) : null}
@@ -288,6 +320,15 @@ export const PageEditor = ({
             aria-label={t('editor.outline')}
             tabIndex={-1}
             ref={canvas}
+            onClick={(event) => {
+              // A click that lands on no card and no control is a click on the page itself.
+              if (
+                event.target instanceof Element &&
+                event.target.closest('.canvas-card, button, a, input, select, textarea, [role="dialog"]') === null
+              ) {
+                deselect();
+              }
+            }}
           >
             <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
               {draft.blocks.length === 0 ? (
@@ -322,7 +363,7 @@ export const PageEditor = ({
               selection={selection}
               siteSettings={siteSettings}
               onSelect={(key) => {
-                setSelection({ key, from: 'preview' });
+                setSelection(key === null ? null : { key, from: 'preview' });
               }}
               dispatch={(next) => {
                 action(next, 'preview');
@@ -360,6 +401,10 @@ export const PageEditor = ({
                 draft={draft}
                 block={selectedBlock}
                 dispatch={action}
+                onDeselect={() => {
+                  deselect();
+                  focusAfter.current = 'inspector';
+                }}
                 issues={issues}
                 siteId={siteId}
                 options={options}
@@ -367,6 +412,16 @@ export const PageEditor = ({
             )}
           </Suspense>
         </div>
+      </div>
+      <div className="editor-toast" role="status">
+        {removed === null ? null : (
+          <>
+            <span>{t('canvas.deleted', { label: removed })}</span>
+            <button type="button" onClick={commands.undo}>
+              {t('canvas.undo')}
+            </button>
+          </>
+        )}
       </div>
       <Suspense fallback={<DialogFallback label={t('loading.page')} />}>
         {savingTemplate ? (

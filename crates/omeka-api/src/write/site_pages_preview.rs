@@ -2,10 +2,12 @@
 //! values answered instead of stored.
 //!
 //! `POST /s/:site-slug/preview` renders a page an editor has not saved yet. It
-//! must fail exactly where `PUT /api/site_pages/:id` would fail and build
+//! must fail where `PUT /api/site_pages/:id` would fail and build
 //! exactly what the write would store, so this module composes the write's own
 //! pieces ([`super::site_pages::parse_blocks`], `validate`, `slug_or_auto`,
-//! `resolve_attachments`) and hands the result to the site renderer.
+//! `resolve_attachments`) and hands the result to the site renderer. The one
+//! difference is a draft with no title or slug yet: the write refuses it, and
+//! the preview renders it under placeholders, so a new page previews at once.
 //!
 //! It lives beside `site_pages` rather than inside it because `docs/api.md` is
 //! generated from the write modules the `/api` dispatch names, and `o:id` is a
@@ -40,9 +42,9 @@ pub struct Preview {
     pub created: Option<NaiveDateTime>,
     /// The edited row's `modified`, `None` for a new page.
     pub modified: Option<NaiveDateTime>,
-    /// `o:title` as an update stores it.
+    /// `o:title` as an update stores it, empty for a draft not yet titled.
     pub title: String,
-    /// `o:slug`, or the title's automatic slug.
+    /// `o:slug`, or the title's automatic slug, empty when neither exists yet.
     pub slug: String,
     /// `o:is_public`.
     pub is_public: bool,
@@ -77,7 +79,8 @@ pub struct PreviewBlock {
 /// `o:id` and is authorized against that page's site, which must be `site`; a
 /// new page is authorized as an add-page to `site`. Title, slug and block
 /// validation are the write's own, so a body that would fail a write fails the
-/// same way here.
+/// same way here, except that an empty title or slug previews
+/// ([`validate_draft`]).
 pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<Preview, ApiError> {
     crate::write::values::collect(api, payload, &preview_control()).await?;
     let repo = SiteRepo::new(api.pool());
@@ -151,7 +154,7 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
         .trim()
         .to_string();
     let slug = slug_or_auto(payload, &title);
-    validate(api, existing.as_ref(), site, &title, &slug).await?;
+    validate_draft(api, existing.as_ref(), site, &title, &slug).await?;
 
     Ok(Preview {
         site,
@@ -166,6 +169,36 @@ pub async fn preview(api: &Api<'_>, payload: &Payload, site: SiteId) -> Result<P
         theme_settings: payload.get("o:theme_settings").map(php_json),
         blocks,
     })
+}
+
+/// The write's title and slug checks, less the two a draft fails before the
+/// curator has typed anything: an empty title and an empty slug. The renderer
+/// fills both with placeholders, and the save still refuses them.
+async fn validate_draft(
+    api: &Api<'_>,
+    existing: Option<&SitePageRow>,
+    site: SiteId,
+    title: &str,
+    slug: &str,
+) -> Result<(), ApiError> {
+    match validate(api, existing, site, title, slug).await {
+        Err(ApiError::Validation(mut errors)) => {
+            // An empty value raises only its "required" message, so removing
+            // the member removes exactly that message.
+            if title.is_empty() {
+                errors.remove("o:title");
+            }
+            if slug.is_empty() {
+                errors.remove("o:slug");
+            }
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(ApiError::Validation(errors))
+            }
+        }
+        other => other,
+    }
 }
 
 /// The members a preview body may carry: the write's control list plus

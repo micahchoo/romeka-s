@@ -140,16 +140,12 @@ describe('site browse and create', () => {
       'o:title': 'New site',
       'o:theme': 'default',
       'o:summary': null,
-      'o:item_pool': { is_public: '1' },
+      'o:item_pool': [],
       'o:is_public': true,
-      'o:assign_new_items': true,
+      'o:assign_new_items': false,
     });
-    // A new site starts with every public item: the saved search is applied once.
-    expect(requestBody(first(requestsFor(fetchMock, '/api/sites/1/items')))).toEqual({
-      action: 'add',
-      query: { is_public: '1' },
-      dry_run: false,
-    });
+    // A new site holds no items: they are chosen on its Items tab.
+    expect(requestsFor(fetchMock, '/api/sites/1/items')).toEqual([]);
     expect(window.location.hash).toBe('#/sites/1');
     window.location.hash = '';
   });

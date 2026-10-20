@@ -8,6 +8,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { expectAxeBudget } from '../harness/axe';
+import { readHarness } from '../harness/state';
 
 /** Make a site through the Add site form; answers the hub hash, e.g. `/sites/4`. */
 const createSite = async (page: Page, title: string, slug: string): Promise<string> => {
@@ -45,6 +46,12 @@ test('a new site lands on its hub, and the page actions and settings persist', a
   await expect(
     page.getByRole('navigation', { name: 'Site sections' }).getByRole('link', { name: 'Pages' }),
   ).toHaveAttribute('aria-current', 'page');
+
+  // A new site holds no items, and the hub points at the tab that adds them.
+  await expect(page.getByRole('link', { name: 'No items yet' })).toHaveAttribute(
+    'href',
+    `#${hub}/resources`,
+  );
 
   // The create links its welcome page first in the menu, which makes it the homepage.
   const welcome = pageRow(page, 'Welcome');
@@ -96,8 +103,28 @@ test('a new site opens on its welcome page at the public root', async ({ page })
   await page.goto('/s/open-site-four');
   await expect(page).toHaveURL(/\/s\/open-site-four\/page\/welcome$/);
   await expect(page.locator('.romeka-hero-heading')).toHaveText('Welcome');
+  // The starter's browse preview says the site has no items, with no admin hint.
+  await expect(page.locator('.preview-empty')).toHaveText('There are no items to show yet.');
+  await expect(page.getByText(/Items tab/)).toHaveCount(0);
   await page.getByRole('link', { name: 'Explore the collection' }).click();
   await expect(page).toHaveURL(/\/s\/open-site-four\/item$/);
+});
+
+test('the editor preview of an empty site points at the Items tab', async ({ page }) => {
+  // The preview POST is not keyed by the harness proxy, so the browser holds the key.
+  const harness = readHarness();
+  await page.addInitScript(
+    (key: { identity: string; credential: string }) => {
+      window.localStorage.setItem('romeka.apiKey', JSON.stringify(key));
+    },
+    { identity: harness.keyIdentity, credential: harness.keyCredential },
+  );
+  await createSite(page, 'Empty Preview Site', 'empty-preview-site');
+  await pageRow(page, 'Welcome').getByRole('link', { name: 'Edit' }).click();
+  const preview = page.frameLocator('iframe.live-frame-doc:not(.live-frame-doc--back)');
+  await expect(preview.locator('.preview-empty')).toHaveText(
+    'No items on this site yet. Add items on the Items tab.',
+  );
 });
 
 test('the navigation tree reorders by drag and by keyboard, and the public menu follows', async ({

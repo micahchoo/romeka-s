@@ -112,13 +112,20 @@ export const te: AdminMessages = {
   'settings.disableFileValidationInfo':
     'ఈ బాక్స్‌ను చెక్ చేసి, ఫైల్ మీడియా టైప్ మరియు ఎక్స్‌టెన్షన్ వాలిడేషన్‌ను డిసేబుల్ చేయండి.',
   'settings.mediaTypeWhitelist': 'అనుమతించబడిన మీడియా రకాలు',
-  'settings.mediaTypeWhitelistInfo': 'ఫైల్ అప్‌లోడ్స్ కోసం అనుమతించబడిన మీడియా రకాల కామాతో వేరు చేసిన జాబితా.',
+  'settings.mediaTypeWhitelistInfo':
+    'ఫైల్ అప్‌లోడ్స్ కోసం అనుమతించబడిన మీడియా రకాల కామాతో వేరు చేసిన జాబితా.',
   'settings.restoreMediaTypes': 'డిఫాల్ట్ మీడియా రకాలను పునరుద్ధరించండి',
   'settings.extensionWhitelist': 'అనుమతించబడిన ఫైల్ ఎక్స్టెన్షన్లు',
-  'settings.extensionWhitelistInfo': 'ఫైల్ అప్‌లోడ్స్ కోసం అనుమతించబడిన ఫైల్ ఎక్స్‌టెన్షన్ల కామాతో వేరు చేసిన జాబితా.',
+  'settings.extensionWhitelistInfo':
+    'ఫైల్ అప్‌లోడ్స్ కోసం అనుమతించబడిన ఫైల్ ఎక్స్‌టెన్షన్ల కామాతో వేరు చేసిన జాబితా.',
   'settings.restoreExtensions': 'డిఫాల్ట్ ఎక్స్టెన్షన్లను పునరుద్ధరించండి',
   'settings.restoredOnSave': 'మీరు సేవ్ చేసినప్పుడు డిఫాల్ట్ జాబితా పునరుద్ధరించబడుతుంది.',
   'settings.emptyListRefusesAll': 'ఖాళీ జాబితా ప్రతి ఫైల్‌ను తిరస్కరిస్తుంది.',
+  'settings.allowPrivateUrls': 'ప్రైవేట్ నెట్‌వర్క్‌లలో URLలను అనుమతించండి',
+  'settings.allowPrivateUrlsInfo':
+    'మీడియా మరియు ఇంపోర్ట్‌లు ఈ సర్వర్‌కు లేదా దాని ప్రైవేట్ నెట్‌వర్క్‌కు సూచించే URLలను నిరాకరిస్తాయి: లోకల్‌హోస్ట్, లోకల్ నెట్‌వర్క్ మరియు క్లౌడ్ మెటాడేటా అడ్రస్‌లు. వీటిని అనుమతించడానికి ఈ బాక్స్‌ను ఎంచుకోండి.',
+  'settings.allowPrivateUrlsWarning':
+    'ఇది ఆన్‌లో ఉన్నప్పుడు, మీడియాను జోడించగల ఎవరైనా ఈ సర్వర్ తన సొంత నెట్‌వర్క్ నుండి ఫైళ్లను తీసుకువచ్చేలా చేయవచ్చు.',
   'settings.locale': 'లోకేల్',
   'settings.localeDefault': 'డిఫాల్ట్',
   'systemInfo.omeka': 'Omeka S',
