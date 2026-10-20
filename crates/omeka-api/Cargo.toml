@@ -32,9 +32,6 @@ serde = { workspace = true }
 # (`o:ini`, `o:args`, `o:item_pool`, `o:layout_data`, media `data`). Without it
 # a `serde_json::Map` is a BTreeMap and would sort those keys.
 serde_json = { workspace = true, features = ["preserve_order"] }
-# The import model's digest streams its JSON into the hasher, so a 40,000-item
-# preview never holds the 70 MB serialisation (`import2::model::Model::seal`).
-sha2 = "0.10"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 thiserror = { workspace = true }
 # `write::media::prepare` runs the media ingester, which does blocking network
@@ -59,8 +56,8 @@ chardetng = "1"
 encoding_rs = "0.8"
 # The import v2 file pattern compiles with the regex crate (JS ∩ Rust subset).
 regex = "1"
-# The import v2 run hashes a file over 64 MB as it streams into the store
-# (`import2/media_in.rs`), so it never holds the file. Already in the lock.
+# SHA-256 as a stream: the import model's digest (`import2::model::Model::seal`)
+# and files over 64 MB as they go into the store (`import2/media_in.rs`).
 sha2 = "0.10"
 
 [dev-dependencies]
