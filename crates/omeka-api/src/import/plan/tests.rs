@@ -115,6 +115,34 @@ fn the_full_fixture_reaches_every_member_typed() {
 }
 
 #[test]
+fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
+    let plan = parse(FULL);
+    let structure = &plan.structure;
+    let sole = structure.sole();
+    assert_eq!(structure.all_series().count(), 1);
+    let path = RelPath::parse("Letters/1901/A1_p1.jpg").expect("path");
+    assert_eq!(
+        structure.place(&SourceId("s1".into()), &path),
+        Placement::Series {
+            at: sole,
+            path: "Letters/1901/A1_p1.jpg"
+        },
+        "the pattern matches the path relative to its source"
+    );
+    let item_rules = structure.series(sole).rules(RecordKind::Item);
+    assert_eq!(
+        structure.memberships(sole).collect::<Vec<_>>(),
+        [&item_rules[&SlotName::Sets]]
+    );
+    assert!(
+        structure
+            .lists()
+            .map(|(_, list)| list)
+            .eq(structure.series(sole).lists())
+    );
+}
+
+#[test]
 fn a_new_draft_starts_with_the_default_plan() {
     let sources = vec![
         SourcePlan::Folder {
