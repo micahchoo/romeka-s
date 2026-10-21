@@ -1,10 +1,12 @@
 //! The import routes that outlive the v1 importer: the starter table and a
 //! job's log, who may read them, and the 409 for deleting the job of an
-//! import that is running or undoing.
+//! import that is running or undoing. And the version a plan is kept in:
+//! every route that edits a plan answers and stores the version it got.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod common;
+mod imports_fixture;
 
 use std::path::Path;
 
@@ -252,4 +254,114 @@ async fn the_job_of_an_ended_or_dead_import_can_be_deleted() {
     let answer = fixture.delete_job(dead_job).await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
     assert_eq!(fixture.status(dead).await, ImportStatus::RunFailed);
+}
+
+/// Save `plan` on a fresh draft of the BHC_006 archive, scan it, add a
+/// list whose one row joins no item, then pair that row with a file: a
+/// save, a list upload and a pairs edit. Each answered plan is the one
+/// stored; the stored plans are returned in that order.
+async fn through_the_routes(
+    plan: impl FnOnce(&serde_json::Value) -> serde_json::Value,
+) -> Vec<serde_json::Value> {
+    use imports_fixture::{bhc_006, fixture};
+    let fixture = fixture().await;
+    bhc_006(fixture.archive.path());
+    let draft = fixture.draft().await;
+    let id = draft["id"].clone();
+    let plan = plan(&draft["plan"]);
+    let mut stored = Vec::new();
+    let mut keep = |answered: &serde_json::Value, row: omeka_db::rows::ImportRow| {
+        assert_eq!(*answered, row.plan, "the answered plan is the stored one");
+        stored.push(row.plan);
+    };
+
+    let saved = fixture.save(&draft, |sent| *sent = plan).await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+    keep(&saved.json()["plan"], fixture.row(&id).await);
+    let scanned = fixture
+        .call("POST", &format!("/api/romeka/imports/{id}/scan"), None)
+        .await;
+    assert_eq!(scanned.status, StatusCode::OK, "{}", scanned.body);
+
+    let list = "Identifier,Title [dcterms:title]\r\nROW-1,Brass bowl\r\n";
+    let listed = fixture.upload(&id, "list.csv", list.as_bytes()).await;
+    assert_eq!(listed.status, StatusCode::CREATED, "{}", listed.body);
+    keep(&listed.json()["plan"], fixture.row(&id).await);
+
+    let pairs = "Row [sheet:key],Identifier,Title [dcterms:title],Files\r\n\
+                 list-1:ROW-1#1,ROW-1,Brass bowl,Artifacts/BHC_006_AF_001_front.jpg\r\n";
+    let paired = fixture
+        .upload_to(&id, "pairs", "pairs.csv", pairs.as_bytes())
+        .await;
+    assert_eq!(paired.status, StatusCode::OK, "{}", paired.body);
+    assert_eq!(paired.json()["added"], 1, "{}", paired.body);
+    keep(&paired.json()["import"]["plan"], fixture.row(&id).await);
+    stored
+}
+
+/// The members of a v2 plan as `ImportPlan::to_json` writes it.
+const V2_MEMBERS: [&str; 12] = [
+    "version",
+    "sources",
+    "grouping",
+    "example",
+    "sheets",
+    "slots",
+    "action",
+    "defaults",
+    "flags",
+    "decisions",
+    "newTypes",
+    "newTerms",
+];
+
+#[tokio::test]
+async fn a_v2_draft_saved_through_the_routes_stays_v2() {
+    use omeka_api::import::plan::ImportPlan;
+    let stored = through_the_routes(|plan| {
+        let mut plan = plan.clone();
+        plan["grouping"]["pattern"] = json!(imports_fixture::BHC_PATTERN);
+        plan
+    })
+    .await;
+    for (step, plan) in ["save", "list", "pairs"].iter().zip(&stored) {
+        let mut members: Vec<&str> = plan
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        members.sort_unstable();
+        let mut v2 = V2_MEMBERS.to_vec();
+        v2.sort_unstable();
+        assert_eq!(members, v2, "{step}: a v2 plan's members, and no structure");
+        assert_eq!(plan["version"], 2, "{step}");
+        let lowered: serde_json::Value =
+            serde_json::from_str(&ImportPlan::from_json(&plan.to_string()).unwrap().to_json())
+                .unwrap();
+        assert_eq!(*plan, lowered, "{step}: the v2 plan as the lower writes it");
+    }
+    assert_eq!(stored[1]["sheets"][0]["id"], "list-1");
+    assert_eq!(stored[2]["decisions"][0]["kind"], "pair");
+}
+
+#[tokio::test]
+async fn a_v3_draft_saved_through_the_routes_stays_v3() {
+    let stored = through_the_routes(|plan| {
+        let mut series = imports_fixture::v3_series("all", "");
+        series["scope"] = json!("all");
+        series["grouping"]["pattern"] = json!(imports_fixture::BHC_PATTERN);
+        imports_fixture::v3_plan(plan, json!([series]))
+    })
+    .await;
+    for (step, plan) in ["save", "list", "pairs"].iter().zip(&stored) {
+        assert_eq!(plan["version"], 3, "{step}");
+        assert!(plan.get("structure").is_some(), "{step}");
+        assert!(plan.get("grouping").is_none(), "{step}: no v2 member");
+    }
+    assert_eq!(
+        stored[1]["structure"]["levels"][0]["lists"][0]["id"],
+        "list-1"
+    );
+    assert_eq!(stored[2]["decisions"][0]["kind"], "pair");
 }
