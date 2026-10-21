@@ -16,7 +16,8 @@ import { RoundTrip } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ListColumns } from './list-columns';
-import { cellsOf, withFileRows, withJoin, withRowKind } from './list-plan';
+import { delimiterOf, recordsOf, withFileRows, withJoin, withRowKind } from './list-plan';
+import type { ListCounts } from './list-plan';
 import { folderSheets } from './list-read';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
@@ -33,12 +34,11 @@ const encodingWords = (view: SheetView, t: ReturnType<typeof useSimpleText>['t']
 const HeaderLine = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view: SheetView }): ReactElement | null => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const first = view.lines[0];
-  const delimiter = view.read?.delimiter ?? ',';
+  const first = recordsOf(view.lines, delimiterOf(view)).find((record) => record.line === 1);
   if (first === undefined || (sheet.read.headerLine === 1 && (view.guess?.headerLine ?? 1) === 1)) {
     return null;
   }
-  const cells = cellsOf(first, delimiter === 'auto' ? ',' : delimiter).filter((cell) => cell.trim() !== '');
+  const cells = first.cells.filter((cell) => cell.trim() !== '');
   return (
     <li data-decision="headerline">
       {cells.length === 1 ? t('guided.list.line1One', { text: cells[0] ?? '' }) : t('guided.list.line1', { count: number(cells.length) })}{' '}
@@ -172,14 +172,13 @@ const RowsDescribe = ({ sheet, grain }: { readonly sheet: SheetPlan; readonly gr
 const InUse = ({
   sheet,
   view,
-  matches,
-  grain,
+  counts,
 }: {
   readonly sheet: SheetPlan;
   readonly view: SheetView | undefined;
-  readonly matches: SheetColumnMatches | undefined;
-  readonly grain: Grain | null;
+  readonly counts: ListCounts;
 }): ReactElement => {
+  const { matches, grain } = counts;
   const { t } = useSimpleText();
   const rows = view?.read?.rows ?? matches?.rows ?? 0;
   return (
@@ -192,7 +191,7 @@ const InUse = ({
       </ul>
       <Pairing sheet={sheet} matches={matches} rows={rows} />
       <RowsDescribe sheet={sheet} grain={grain} />
-      {view === undefined ? null : <ListColumns sheet={sheet} view={view} grain={grain} />}
+      {view === undefined ? null : <ListColumns sheet={sheet} view={view} counts={counts} />}
     </section>
   );
 };
@@ -207,19 +206,22 @@ const InUseLists = ({ sheets }: { readonly sheets: readonly SheetPlan[] }): Reac
   if (read.status === 'error') {
     return <ErrorNotice error={read.error} />;
   }
-  const blocks = sheets.map((sheet) => ({
-    sheet,
-    view: read.data.sheets.find((one) => one.id === sheet.id),
-    matches: read.data.columnMatches.find((one) => one.sheet === sheet.id),
-    grain: read.data.listCandidates.find((one) => one.inPlan === sheet.id)?.grain ?? null,
-  }));
-  const rows = blocks.reduce((sum, { view, matches }) => sum + (view?.read?.rows ?? matches?.rows ?? 0), 0);
+  const blocks = sheets.map((sheet) => {
+    const candidate = read.data.listCandidates.find((one) => one.inPlan === sheet.id);
+    const counts: ListCounts = {
+      grain: candidate?.grain ?? null,
+      matches: read.data.columnMatches.find((one) => one.sheet === sheet.id),
+      cells: candidate?.cells ?? [],
+    };
+    return { sheet, view: read.data.sheets.find((one) => one.id === sheet.id), counts };
+  });
+  const rows = blocks.reduce((sum, { view, counts }) => sum + (view?.read?.rows ?? counts.matches?.rows ?? 0), 0);
   const refused = read.data.flags.filter((flag) => flag.kind === 'listed-not-media').reduce((sum, flag) => sum + flag.count, 0);
   return (
     <div aria-busy={read.busy}>
       <Found unpairedRows={read.data.unpaired.rows.total} refused={refused} items={read.data.unpaired.items} rows={rows} />
-      {blocks.map(({ sheet, view, matches, grain }) => (
-        <InUse key={sheet.id} sheet={sheet} view={view} matches={matches} grain={grain} />
+      {blocks.map(({ sheet, view, counts }) => (
+        <InUse key={sheet.id} sheet={sheet} view={view} counts={counts} />
       ))}
     </div>
   );

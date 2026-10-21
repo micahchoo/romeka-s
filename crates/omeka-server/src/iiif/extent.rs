@@ -16,6 +16,8 @@
 //! file and the original may live in an object store.
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use omeka_db::ids::MediaId;
@@ -116,10 +118,7 @@ impl Extents {
     /// video original's duration and frame size. Every other kind answers the
     /// default, because it has nothing this module can measure.
     ///
-    /// The annotation service asks this once per media through `ExtentSource`,
-    /// which that unit adds; the IIIF routes read the wire's media instead and
-    /// call [`Extents::image`] and [`Extents::av`] directly.
-    #[allow(dead_code, reason = "the annotation service's ExtentSource calls it")]
+    /// The annotation service asks this once per media through `ExtentSource`.
     pub(crate) async fn of(&self, media: &MediaRow) -> Extent {
         match self.kind(media) {
             MediaKind::LocalImage => Extent {
@@ -178,6 +177,15 @@ impl Extents {
         {
             tracing::warn!(%error, media = media.0, "the extent was not recorded");
         }
+    }
+}
+
+impl omeka_api::annotation::ExtentSource for Extents {
+    fn extent<'a>(
+        &'a self,
+        media: &'a MediaRow,
+    ) -> Pin<Box<dyn Future<Output = Extent> + Send + 'a>> {
+        Box::pin(self.of(media))
     }
 }
 

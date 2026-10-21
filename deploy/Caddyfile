@@ -55,9 +55,11 @@
 	# syntax the Accept header asks for, so the proxy must not answer it itself.
 	# /logout is the public site's Logout form, a POST the server answers.
 	# /iiif-viewer is the Mirador page and /iiif/* the IIIF manifests and images.
+	# /annotations is the Web Annotation Protocol server, which the admin loads
+	# from the same origin as the app, so a cookie-authenticated write reaches it.
 	# /application/asset/* is upstream's fallback thumbnails, which the API
 	# links for a media with no thumbnail of its own.
-	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/ /iiif-viewer /iiif/* /application/asset/*
+	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/ /iiif-viewer /iiif/* /annotations /annotations/* /application/asset/*
 	handle @app {
 		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
 	}

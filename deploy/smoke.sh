@@ -112,6 +112,13 @@ case "$shell" in
 esac
 echo "spa:      the shell at / carries the app root"
 
+# The annotation routes are the server's, not the SPA's. A media that cannot
+# exist answers the server's 404 document; the SPA fallback would answer 200 with
+# the app shell.
+annotations="$(code "$base/annotations/media/999999999/")"
+[ "$annotations" = "404" ] || fail "a missing media's annotation container answered $annotations"
+echo "annotations: /annotations/media/999999999/  $annotations, the server's 404"
+
 bundle="$(printf '%s' "$shell" | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -n 1)"
 [ -n "$bundle" ] || fail "the shell names no script bundle"
 bundle_code="$(code "$base/${bundle#./}")"

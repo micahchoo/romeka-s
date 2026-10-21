@@ -40,6 +40,7 @@ use omeka_api::session;
 use mail::Mailer;
 
 mod accounts;
+mod annotations;
 mod assets;
 mod config;
 mod config_store;
@@ -207,6 +208,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .route("/api/{resource}", any(collection))
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
+        .merge(annotations::router())
         .merge(site_items::router())
         .merge(page_versions::router())
         .merge(imports::router())

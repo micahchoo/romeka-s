@@ -10,7 +10,10 @@
 //! most rows exactly, counted as `columnMatches` counts. The groups it pairs
 //! are its targets, which `grain` and `overlaps` count. `grain` also counts,
 //! for each column, in how many of the groups that several rows name those
-//! rows disagree, so the admin can suggest where each column goes.
+//! rows disagree, so the admin can suggest where each column goes. `cells`
+//! says, for every column, how many cells hold a separator, read as the
+//! plan sheet reads the list, so the admin can suggest a split; how many
+//! cells are filled is `columnMatches`'s count.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -43,6 +46,8 @@ pub struct ListCandidate {
     pub best: Option<BestColumn>,
     /// Set when `best` pairs by file name.
     pub grain: Option<Grain>,
+    /// Every column, in sheet order; empty when the list did not read.
+    pub cells: Vec<ColumnCells>,
     /// The other candidates that pair some of the same groups, most first.
     pub overlaps: Vec<Overlap>,
 }
@@ -97,6 +102,27 @@ pub struct Varies {
     pub groups: usize,
     pub of: usize,
 }
+
+/// What one column's cells hold.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnCells {
+    pub index: u32,
+    pub header: String,
+    /// Of the separators that cut a cell into several values, the one the
+    /// most cells hold; `None` when no cell holds one.
+    pub separator: Option<Separator>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Separator {
+    pub text: String,
+    pub cells: usize,
+}
+
+/// The separators counted, in the order a tie goes.
+const SEPARATORS: [char; 3] = [',', ';', '|'];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -199,6 +225,7 @@ fn candidate<'d>(
         columns: 0,
         best: None,
         grain: None,
+        cells: Vec::new(),
         overlaps: Vec::new(),
     };
     let read = derived
@@ -219,6 +246,14 @@ fn candidate<'d>(
     };
     candidate.rows = sheet.rows.len();
     candidate.columns = sheet.columns.len();
+    // The plan's column indexes are its own read's, which may differ from
+    // the automatic one by header line or worksheet.
+    let in_plan = candidate
+        .in_plan
+        .as_ref()
+        .and_then(|id| derived.sheets.get(id))
+        .and_then(|read| read.sheet.as_ref().ok());
+    candidate.cells = column_cells(in_plan.unwrap_or(sheet));
     candidate.best = best(sheet, exact, folded);
     let Some(best) = &candidate.best else {
         return (candidate, HashSet::new());
@@ -230,6 +265,33 @@ fn candidate<'d>(
     let (targets, grain) = targets(sheet, plan, best, exact, groups);
     candidate.grain = grain;
     (candidate, targets)
+}
+
+fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
+    sheet
+        .columns
+        .iter()
+        .map(|column| {
+            let separator = SEPARATORS
+                .iter()
+                .map(|separator| Separator {
+                    text: separator.to_string(),
+                    cells: sheet
+                        .rows
+                        .iter()
+                        .filter(|row| cell(row, column.index).contains(*separator))
+                        .count(),
+                })
+                .rev()
+                .max_by_key(|separator| separator.cells)
+                .filter(|separator| separator.cells > 0);
+            ColumnCells {
+                index: column.index,
+                header: column.header.clone(),
+                separator,
+            }
+        })
+        .collect()
 }
 
 /// The column and join that pair the most rows exactly; a tie goes to the

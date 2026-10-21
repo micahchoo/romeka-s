@@ -484,6 +484,14 @@ export interface Grain {
   readonly columns: readonly { readonly index: number; readonly header: string; readonly varies: Varies }[];
 }
 
+/** Which separator one column's cells hold, read as the plan sheet reads the list. */
+export interface ColumnCells {
+  readonly index: number;
+  readonly header: string;
+  /** Of `,`, `;` and `|`, the one the most cells hold, and in how many. */
+  readonly separator: { readonly text: string; readonly cells: number } | null;
+}
+
 /** Another list that pairs some of the same items. */
 export interface ListOverlap {
   readonly source: string;
@@ -503,11 +511,13 @@ export interface ListCandidate {
   readonly best: BestColumn | null;
   /** Set when `best` pairs by file name. */
   readonly grain: Grain | null;
+  /** Every column, in sheet order; none when the list did not read. */
+  readonly cells: readonly ColumnCells[];
   readonly overlaps: readonly ListOverlap[];
 }
 
 const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
-  const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'overlaps']);
+  const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'cells', 'overlaps']);
   const best = (value: unknown, at: Path): BestColumn => {
     const each = strict(value, at, ['index', 'header', 'on', 'paired', 'pairedNormalized', 'empty']);
     return {
@@ -535,6 +545,18 @@ const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
       columns: member(each, 'columns', at, list(column)),
     };
   };
+  const cells = (value: unknown, at: Path): ColumnCells => {
+    const each = strict(value, at, ['index', 'header', 'separator']);
+    const separator = (inner: unknown, where: Path): NonNullable<ColumnCells['separator']> => {
+      const both = strict(inner, where, ['text', 'cells']);
+      return { text: text(both, 'text', where), cells: count(both, 'cells', where) };
+    };
+    return {
+      index: count(each, 'index', at),
+      header: text(each, 'header', at),
+      separator: member(each, 'separator', at, nullable(separator)),
+    };
+  };
   const overlap = (value: unknown, at: Path): ListOverlap => {
     const each = strict(value, at, ['source', 'file', 'sharedTargets']);
     return { source: text(each, 'source', at), file: text(each, 'file', at), sharedTargets: count(each, 'sharedTargets', at) };
@@ -551,6 +573,7 @@ const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
     columns: count(object, 'columns', path),
     best: member(object, 'best', path, nullable(best)),
     grain: member(object, 'grain', path, nullable(grain)),
+    cells: member(object, 'cells', path, list(cells)),
     overlaps: member(object, 'overlaps', path, list(overlap)),
   };
 };

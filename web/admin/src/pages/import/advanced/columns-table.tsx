@@ -4,7 +4,8 @@
  * rule reads it, so the Field choice here and the sources under Fields are
  * one setting seen from two sides. When each row describes a file, a column
  * mapped to a field goes on the item (`slots.item`), on each file
- * (`slots.media`) or nowhere, read from where its sources are.
+ * (`slots.media`) or nowhere, read from where its sources are. A column's
+ * first field puts it where its count suggests, split as its cells suggest.
  */
 import type { ReactElement } from 'react';
 import type { ColumnRef, SheetPlan, ValueType } from '../../../api/import-plan';
@@ -12,8 +13,8 @@ import type { Grain } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { TableScroll } from '../../../app/table-scroll';
 import { useDraft } from '../draft-context';
-import { fileLevelAllowed, levelOf, suggestedLevel, variesOf, withColumnLevel } from '../simple/list-plan';
-import type { Level } from '../simple/list-plan';
+import { fileLevelAllowed, levelOf, suggestedLevel, variesOf, withColumnLevel, withCounted } from '../simple/list-plan';
+import type { Level, ListCounts } from '../simple/list-plan';
 import { fieldOptions, optionFor, slotWords, useProperties } from './field-names';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
@@ -66,7 +67,7 @@ const levelIn = (value: string): Level | null => LEVELS.find((one) => one === va
 /** Empty text is no value: `null` in the plan. */
 const textOrNull = (value: string): string | null => (value === '' ? null : value);
 
-export const ColumnsTable = ({ sheet, view, grain }: { readonly sheet: SheetPlan; readonly view: SheetView | undefined; readonly grain: Grain | null }): ReactElement => {
+export const ColumnsTable = ({ sheet, view, counts }: { readonly sheet: SheetPlan; readonly view: SheetView | undefined; readonly counts: ListCounts }): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
   const properties = useProperties();
@@ -114,7 +115,7 @@ export const ColumnsTable = ({ sheet, view, grain }: { readonly sheet: SheetPlan
                     disabled={locked}
                     onChange={(event) => {
                       const slot = optionFor(shown, event.target.value);
-                      draft.change((plan) => mapColumn(plan, sheet.id, ref, slot));
+                      draft.change((plan) => withCounted(plan, mapColumn(plan, sheet.id, ref, slot), sheet.id, ref, counts));
                     }}
                   >
                     <option value="">{t('adv.lists.columns.unmapped')}</option>
@@ -161,7 +162,7 @@ export const ColumnsTable = ({ sheet, view, grain }: { readonly sheet: SheetPlan
                 <td>
                   <input type="checkbox" aria-label={t('adv.lists.columns.privateOf', { column: name })} checked={own.private} disabled={locked} onChange={(event) => { set({ private: event.target.checked }); }} />
                 </td>
-                {perFile ? <LevelCell sheet={sheet} column={ref} name={name} grain={grain} locked={locked} number={number} /> : null}
+                {perFile ? <LevelCell sheet={sheet} column={ref} name={name} grain={counts.grain} locked={locked} number={number} /> : null}
               </tr>
             );
           })}
