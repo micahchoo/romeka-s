@@ -1,0 +1,202 @@
+item group:BHC_006_AF_001 create
+  file s1/Artifacts/BHC_006_AF_001_back.jpg
+  file s1/Artifacts/BHC_006_AF_001_front.jpg
+  media file:s1/Artifacts/BHC_006_AF_001_back.jpg
+  media file:s1/Artifacts/BHC_006_AF_001_front.jpg
+  slot sets literal "Artifacts"
+  slot itemKey literal "BHC_006_AF_001"
+  slot dcterms:identifier literal "BHC_006_AF_001"
+  set new "Artifacts"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_001
+item group:BHC_006_AF_002 create
+  file s1/Artifacts/BHC_006_AF_002_back.jpg
+  file s1/Artifacts/BHC_006_AF_002_front.jpg
+  media file:s1/Artifacts/BHC_006_AF_002_back.jpg
+  media file:s1/Artifacts/BHC_006_AF_002_front.jpg
+  slot sets literal "Artifacts"
+  slot itemKey literal "BHC_006_AF_002"
+  slot dcterms:identifier literal "BHC_006_AF_002"
+  set new "Artifacts"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_002
+item group:BHC_006_AF_003 create
+  file s1/Artifacts/BHC_006_AF_003_back.jpg
+  file s1/Artifacts/BHC_006_AF_003_front.jpg
+  media file:s1/Artifacts/BHC_006_AF_003_back.jpg
+  media file:s1/Artifacts/BHC_006_AF_003_front.jpg
+  slot sets literal "Artifacts"
+  slot itemKey literal "BHC_006_AF_003"
+  slot dcterms:identifier literal "BHC_006_AF_003"
+  set new "Artifacts"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_003
+item group:BHC_006_AF_004 create
+  file s1/Artifacts/BHC_006_AF_004_back.jpg
+  file s1/Artifacts/BHC_006_AF_004_front.jpg
+  media file:s1/Artifacts/BHC_006_AF_004_back.jpg
+  media file:s1/Artifacts/BHC_006_AF_004_front.jpg
+  slot sets literal "Artifacts"
+  slot itemKey literal "BHC_006_AF_004"
+  slot dcterms:identifier literal "BHC_006_AF_004"
+  set new "Artifacts"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_004
+item group:BHC_006_PH_101 create
+  file s1/Photographs/1950s/BHC_006_PH_101.tif
+  media file:s1/Photographs/1950s/BHC_006_PH_101.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "BHC_006_PH_101"
+  slot dcterms:identifier literal "BHC_006_PH_101"
+  set new "Photographs"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_PH_101
+item group:BHC_006_PH_102 create
+  file s1/Photographs/1950s/BHC_006_PH_102.tif
+  media file:s1/Photographs/1950s/BHC_006_PH_102.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "BHC_006_PH_102"
+  slot dcterms:identifier literal "BHC_006_PH_102"
+  set new "Photographs"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_PH_102
+item group:BHC_006_PH_103 create
+  file s1/Photographs/1950s/BHC_006_PH_103.tif
+  media file:s1/Photographs/1950s/BHC_006_PH_103.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "BHC_006_PH_103"
+  slot dcterms:identifier literal "BHC_006_PH_103"
+  set new "Photographs"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_PH_103
+item group:BHC_006_PH_104 create
+  file s1/Photographs/1950s/BHC_006_PH_104.tif
+  media file:s1/Photographs/1950s/BHC_006_PH_104.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "BHC_006_PH_104"
+  slot dcterms:identifier literal "BHC_006_PH_104"
+  set new "Photographs"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_PH_104
+item group:BHC_006_SC_001 create
+  file s1/Scans/BHC_006_SC_001_p1.tif
+  file s1/Scans/BHC_006_SC_001_p2.tif
+  file s1/Scans/BHC_006_SC_001_p10.tif
+  media file:s1/Scans/BHC_006_SC_001_p1.tif
+  media file:s1/Scans/BHC_006_SC_001_p2.tif
+  media file:s1/Scans/BHC_006_SC_001_p10.tif
+  slot sets literal "Scans"
+  slot itemKey literal "BHC_006_SC_001"
+  slot dcterms:identifier literal "BHC_006_SC_001"
+  set new "Scans"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey BHC_006_SC_001
+media file:s1/Artifacts/BHC_006_AF_001_back.jpg create
+  file s1/Artifacts/BHC_006_AF_001_back.jpg
+  parent group:BHC_006_AF_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_001_front.jpg create
+  file s1/Artifacts/BHC_006_AF_001_front.jpg
+  parent group:BHC_006_AF_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_002_back.jpg create
+  file s1/Artifacts/BHC_006_AF_002_back.jpg
+  parent group:BHC_006_AF_002
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_002_front.jpg create
+  file s1/Artifacts/BHC_006_AF_002_front.jpg
+  parent group:BHC_006_AF_002
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_003_back.jpg create
+  file s1/Artifacts/BHC_006_AF_003_back.jpg
+  parent group:BHC_006_AF_003
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_003_front.jpg create
+  file s1/Artifacts/BHC_006_AF_003_front.jpg
+  parent group:BHC_006_AF_003
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_004_back.jpg create
+  file s1/Artifacts/BHC_006_AF_004_back.jpg
+  parent group:BHC_006_AF_004
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Artifacts/BHC_006_AF_004_front.jpg create
+  file s1/Artifacts/BHC_006_AF_004_front.jpg
+  parent group:BHC_006_AF_004
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Photographs/1950s/BHC_006_PH_101.tif create
+  file s1/Photographs/1950s/BHC_006_PH_101.tif
+  parent group:BHC_006_PH_101
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Photographs/1950s/BHC_006_PH_102.tif create
+  file s1/Photographs/1950s/BHC_006_PH_102.tif
+  parent group:BHC_006_PH_102
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Photographs/1950s/BHC_006_PH_103.tif create
+  file s1/Photographs/1950s/BHC_006_PH_103.tif
+  parent group:BHC_006_PH_103
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Photographs/1950s/BHC_006_PH_104.tif create
+  file s1/Photographs/1950s/BHC_006_PH_104.tif
+  parent group:BHC_006_PH_104
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Scans/BHC_006_SC_001_p1.tif create
+  file s1/Scans/BHC_006_SC_001_p1.tif
+  parent group:BHC_006_SC_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Scans/BHC_006_SC_001_p10.tif create
+  file s1/Scans/BHC_006_SC_001_p10.tif
+  parent group:BHC_006_SC_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Scans/BHC_006_SC_001_p2.tif create
+  file s1/Scans/BHC_006_SC_001_p2.tif
+  parent group:BHC_006_SC_001
+  template existing 1
+  owner is runner
+  visibility private
+flag not-media leave 1

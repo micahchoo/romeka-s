@@ -1,0 +1,55 @@
+item row:objects/O1#1 create
+  row objects/O1#1
+  media row:images/s001.tif#1
+  media row:images/s002.tif#1
+  slot itemKey literal "O1"
+  slot dcterms:identifier literal "O1"
+  slot dcterms:title literal "Diary"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey O1
+item row:objects/O2#1 create
+  row objects/O2#1
+  media row:images/s003.tif#1
+  slot itemKey literal "O2"
+  slot dcterms:identifier literal "O2"
+  slot dcterms:title literal "Map"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey O2
+media row:images/s001.tif#1 create
+  file s1/scans/s001.tif
+  row images/s001.tif#1
+  parent row:objects/O1#1
+  slot mediaOrder literal "1"
+  slot itemKey literal "O1"
+  template existing 1
+  owner is runner
+  visibility private
+  mediaOrder 1
+  itemKey O1
+media row:images/s002.tif#1 create
+  file s1/scans/s002.tif
+  row images/s002.tif#1
+  parent row:objects/O1#1
+  slot mediaOrder literal "2"
+  slot itemKey literal "O1"
+  template existing 1
+  owner is runner
+  visibility private
+  mediaOrder 2
+  itemKey O1
+media row:images/s003.tif#1 create
+  file s1/scans/s003.tif
+  row images/s003.tif#1
+  parent row:objects/O2#1
+  slot mediaOrder literal "1"
+  slot itemKey literal "O2"
+  template existing 1
+  owner is runner
+  visibility private
+  mediaOrder 1
+  itemKey O2
+flag no-file keep 2
