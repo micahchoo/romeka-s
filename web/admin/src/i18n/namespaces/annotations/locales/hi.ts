@@ -182,7 +182,7 @@ export const hi: AnnotationsMessages = {
   'captions.dialog.replaces': 'यह {cues} {language} संकेतों को प्रतिस्थापित करता है।',
   'captions.dialog.replacesOne': 'यह {language} संकेत को प्रतिस्थापित करता है।',
   'captions.dialog.handEdited':
-    'उन {count} परिवर्तनों को यहाँ हस्तचालित रूप से किया गया था; वे परिवर्तन नष्ट हो जाएंगे।',
+    '{count} यहाँ हाथ से बदले गए थे। यह फ़ाइल उन्हें प्रतिस्थापित करती है; «रिप्लेस अनडू करें» उन्हें एक बार फिर वापस लाता है।',
   'captions.dialog.commitAdd': '{language} उपशीर्षक जोड़ें',
   'captions.dialog.commitReplace': '{cues} {language} संकेतों को बदलें',
   'captions.dialog.commitReplaceOne': '1 {language} संकेत को बदलें',

@@ -189,7 +189,7 @@ export const ml: AnnotationsMessages = {
   'captions.dialog.replaces': 'ഇത് {cues} {language} അടക്കുറിപ്പുകൾക്ക് പകരം നിൽക്കുന്നു.',
   'captions.dialog.replacesOne': 'ഇത് {language} സൂചനയെ മാറ്റിസ്ഥാപിക്കുന്നു.',
   'captions.dialog.handEdited':
-    '{count} എണ്ണം ഇവിടെ കൈകൊണ്ട് മാറ്റിയതാണ്; ആ മാറ്റങ്ങൾ നഷ്ടപ്പെടും.',
+    '{count} എണ്ണം ഇവിടെ കൈകൊണ്ട് മാറ്റപ്പെട്ടു. ഈ ഫയൽ അവയ്ക്ക് പകരമാകുന്നു; «മാറ്റുന്നത് പഴയപടിയാക്കുക» അവ തിരികെ കൊണ്ടുവരും.',
   'captions.dialog.commitAdd': '{language} ക്യാപ്ഷനുകൾ ചേർക്കുക',
   'captions.dialog.commitReplace': '{cues} {language} അടക്കുറിപ്പുകൾ പകരം നിൽക്കുക',
   'captions.dialog.commitReplaceOne': '1 {language} സൂചന മാറ്റുക',

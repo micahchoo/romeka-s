@@ -188,7 +188,7 @@ export const ta: AnnotationsMessages = {
   'captions.dialog.replaces': 'இது {cues} {language} குறிப்புகளை மாற்றுகிறது.',
   'captions.dialog.replacesOne': 'இது {language} குறிப்பை மாற்றுகிறது.',
   'captions.dialog.handEdited':
-    '{count} மாற்றங்கள் இங்கே கையால் செய்யப்பட்டுள்ளன; அந்த மாற்றங்கள் இழக்கப்படும்.',
+    '{count} இங்கே கையால் மாற்றப்பட்டன. இந்த கோப்பு அவற்றை மாற்றுகிறது; «மாற்றீட்டை ரத்து செய்க» அவற்றை மீண்டும் ஒருமுறை கொண்டு வருகிறது.',
   'captions.dialog.commitAdd': '{language} தலைப்புகளைச் சேர்க்க',
   'captions.dialog.commitReplace': '{cues} {language} குறிப்புகளை மாற்றவும்',
   'captions.dialog.commitReplaceOne': '{language} குறிப்பை மாற்றவும்',
