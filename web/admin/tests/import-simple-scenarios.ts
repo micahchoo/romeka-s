@@ -76,6 +76,8 @@ export interface ScenarioFlag {
   readonly count: number;
   readonly detail: string | null;
   readonly row?: string;
+  /** The Omeka items each flagged record matched; the records a `flag` filter returns carry them and the flag. */
+  readonly matches?: readonly number[];
 }
 
 /**

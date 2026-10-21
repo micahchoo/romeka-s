@@ -197,6 +197,7 @@ export const ta: ImportSimpleMessages = {
     'பதிலளிக்க எதுவுமில்லை. உங்கள் கோப்புகளும் உங்கள் பட்டியலும் சேர்க்கத் தயாராக உள்ளன.',
   'guided.check.example': 'உதாரணமாக, {name}.',
   'guided.check.exampleOf': 'உதாரணமாக, {name}: “{value}”.',
+  'guided.check.omekaItem': 'Omeka உருப்படி {id}',
   'guided.check.another': 'மற்றொரு உதாரணம்',
   'guided.check.showAll': 'அனைத்து {count}-ஐயும் காட்டவும்',
   'guided.check.pair': 'கையால் இணைக்கவும்',
@@ -257,8 +258,8 @@ export const ta: ImportSimpleMessages = {
   'guided.check.noFitPlainOne':
     '1 கோப்புப் பெயர் மற்றவை எவ்வாறு குழுவாக்கப்பட்டுள்ளன என்பதற்குப் பொருந்தவில்லை.',
   'guided.check.noFitOwn': 'ஒவ்வொரு கோப்பும் அதன் சொந்த உருப்படியாகிறது',
-  'guided.check.known': '{count} உருப்படிகள் ஏற்கனவே ஓமெకాలో உள்ளன.',
-  'guided.check.knownOne': '1 உருப்படி ஏற்கனவே ஓமெకాలో உள்ளது.',
+  'guided.check.known': '{count} உருப்படிகள் ஏற்கனவே ஓமெகாவில் உள்ளன.',
+  'guided.check.knownOne': '1 உருப்படி ஏற்கனவே ஓமெகாவில் உள்ளது.',
   'guided.check.knownWhy': 'ஓமெகா அதே அடையாளங்காட்டியுடன் ஒரு உருப்படியைக் கொண்டுள்ளது.',
   'guided.check.knownLeave': 'அவற்றை விட்டுவிடவும்',
   'guided.check.knownKeep': 'அவற்றை மீண்டும் சேர்க்கவும்',

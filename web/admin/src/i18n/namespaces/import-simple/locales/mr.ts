@@ -191,6 +191,7 @@ export const mr: ImportSimpleMessages = {
     'उत्तर देण्यासाठी काहीही नाही. तुमची फाईल्स आणि तुमची सूची जोडण्यासाठी तयार आहे.',
   'guided.check.example': 'उदाहरणार्थ, {name}.',
   'guided.check.exampleOf': 'उदाहरणार्थ, {name}: “{value}”.',
+  'guided.check.omekaItem': 'Omeka घटक {id}',
   'guided.check.another': 'दुसरे उदाहरण',
   'guided.check.showAll': 'सर्व {count} दाखवा',
   'guided.check.pair': 'हाताने जोडी लावा',

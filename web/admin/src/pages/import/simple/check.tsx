@@ -8,13 +8,13 @@
  * for a question the person skips, so "Use the N suggested answers" answers
  * every open question at once.
  */
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { FlagCount, FlagSample } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { listHref } from '../lists/address';
-import { fileName, recordName } from '../lists/record-words';
+import { fileName, recordName, recordTitle } from '../lists/record-words';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, UNTITLED, answerOf, checkFactsOf, isBlocking, suggestedOf, titleFlag, withAnswer, withSuggestions, wordsOf } from './causes';
@@ -58,6 +58,9 @@ const sampleWords = (sample: FlagSample): string | null => {
   return sample.detail;
 };
 
+/** Kinds whose detail is the ids of the Omeka items a record matched: the person knows the record by its code, not by those ids. */
+const MATCHED: readonly FlagCount['kind'][] = ['exists', 'many-matches'];
+
 const examplesOf = (flag: FlagCount): readonly string[] => flag.samples.map(sampleWords).filter((words): words is string => words !== null);
 
 const questionState = (cause: Cause, answered: readonly string[], answer: string, suggested: string): QuestionState => {
@@ -88,6 +91,20 @@ const RecordExample = ({ kind, at }: { readonly kind: FlagCount['kind']; readonl
   const record = read.data.records.items[0];
   if (record === undefined) {
     return null;
+  }
+  if (MATCHED.includes(kind)) {
+    const title = recordTitle(record);
+    return (
+      <>
+        {title === null ? t('guided.check.example', { name: recordName(record) }) : t('guided.check.exampleOf', { name: recordName(record), value: title })}
+        {record.matches.map((id) => (
+          <Fragment key={id}>
+            {' '}
+            <a href={`#/items/${String(id)}`}>{t('guided.check.omekaItem', { id: String(id) })}</a>
+          </Fragment>
+        ))}
+      </>
+    );
   }
   const detail = record.flags.find((flag) => flag.kind === kind)?.detail ?? null;
   return <>{detail === null ? t('guided.check.example', { name: recordName(record) }) : t('guided.check.exampleOf', { name: recordName(record), value: detail })}</>;
@@ -239,7 +256,7 @@ export const Check = (): ReactElement => {
     byKind.set(flag.kind, kept);
   }
   const causes: Cause[] = [...byKind.entries()].map(([kind, found]) => {
-    const examples = found.samples.map(sampleWords).filter((words): words is string => words !== null);
+    const examples = MATCHED.includes(kind) ? [] : found.samples.map(sampleWords).filter((words): words is string => words !== null);
     return { id: kind, count: found.count, examples, kind };
   });
   if (identical.files > 0) {
