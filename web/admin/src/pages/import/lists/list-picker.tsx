@@ -1,10 +1,11 @@
 /**
  * Every list file the scan found, the one that pairs the most rows first,
- * each with the counts that say how well it fits the files. Both modes show
- * it. The person uses any number of lists, turns one down and still sees the
- * rest, and is asked once when a list pairs the same items as one in use:
- * two catalogues of one item are allowed, and so is a newer one in place of
- * an old copy.
+ * each with the counts that say how well it fits the files. The person uses
+ * any number of lists, turns one down and still sees the rest, and is asked
+ * once when a list pairs the same items as one in use: two catalogues of one
+ * item are allowed, and so is a newer one in place of an old copy.
+ * `useListChoice` holds those edits for one list, so Advanced's picker below
+ * and Simple's "Your list" inspector make the same plan.
  */
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
@@ -20,7 +21,7 @@ import { removeSheet } from './round-trip';
 import { usePreview } from './use-preview';
 
 /** Where a list stands in the plan. A list the plan reads is in use even when its automatic read fails. */
-type ListState =
+export type ListState =
   | { readonly kind: 'inUse'; readonly sheet: SheetPlan }
   | { readonly kind: 'declined' }
   | { readonly kind: 'offered' }
@@ -29,7 +30,7 @@ type ListState =
 const sheetFor = (plan: ImportPlan, source: string, file: string): SheetPlan | undefined =>
   plan.sheets.find((sheet) => sheet.source === source && sheet.file === file);
 
-const stateOf = (plan: ImportPlan, candidate: ListCandidate): ListState => {
+export const stateOf = (plan: ImportPlan, candidate: ListCandidate): ListState => {
   const sheet = sheetFor(plan, candidate.source, candidate.file);
   if (sheet !== undefined) {
     return { kind: 'inUse', sheet };
@@ -57,12 +58,12 @@ const withDecline = (plan: ImportPlan, source: string, file: string): ImportPlan
 const withoutDecline = (plan: ImportPlan, source: string, file: string): ImportPlan =>
   withState(plan, { notLists: readState(plan).notLists.filter((entry) => !declines(entry, source, file)) });
 
-const nameOf = (file: string): { readonly name: string; readonly folder: string } => {
+export const nameOf = (file: string): { readonly name: string; readonly folder: string } => {
   const at = file.lastIndexOf('/');
   return at < 0 ? { name: file, folder: '' } : { name: file.slice(at + 1), folder: file.slice(0, at) };
 };
 
-const STATE_WORDS = {
+export const STATE_WORDS = {
   inUse: 'lists.picker.inUse',
   declined: 'lists.picker.declined',
   offered: 'lists.picker.offered',
@@ -83,15 +84,15 @@ const Facts = ({ candidate, state }: { readonly candidate: ListCandidate; readon
         · <b>{t(STATE_WORDS[state.kind])}</b>
       </p>
       {candidate.read === 'ok' ? null : <p role="alert">{t('lists.picker.unread', { message: candidate.read.error })}</p>}
-      {candidate.read === 'ok' && params === null ? <p className="muted">{t('lists.picker.noPair')}</p> : null}
+      {candidate.read === 'ok' && params === null ? <p className="muted">{t('lists.picker.none')}</p> : null}
       {best === null || params === null ? null : (
         <p>
-          {best.on === 'fileName' ? t('lists.picker.names', params) : t('lists.picker.codes', params)}
-          {best.pairedNormalized > best.paired ? <> {t('lists.picker.folded', { count: number(best.pairedNormalized - best.paired) })}</> : null}
+          {best.on === 'fileName' ? t('lists.picker.byNames', params) : t('lists.picker.byCodes', params)}
+          {best.pairedNormalized > best.paired ? <> {t('lists.picker.loose', { count: number(best.pairedNormalized - best.paired) })}</> : null}
         </p>
       )}
       {candidate.overlaps.map((overlap) => (
-        <p key={`${overlap.source}/${overlap.file}`}>{t('lists.picker.overlap', { file: overlap.file, count: number(overlap.sharedTargets) })}</p>
+        <p key={`${overlap.source}/${overlap.file}`}>{t('lists.picker.sameItems', { file: overlap.file, count: number(overlap.sharedTargets) })}</p>
       ))}
     </>
   );
@@ -102,7 +103,7 @@ const Ask = ({ other, shared, busy, answer }: { readonly other: SheetPlan; reado
   const { t, number } = useListsText();
   return (
     <div className="guided-ask">
-      <p className="guided-ask-q">{t('lists.picker.ask', { count: number(shared), file: other.file })}</p>
+      <p className="guided-ask-q">{t('lists.picker.shared', { count: number(shared), file: other.file })}</p>
       <p className="import-row-actions">
         <button type="button" className="import-primary" disabled={busy} onClick={() => { answer(null); }}>
           {t('lists.picker.both')}
@@ -124,8 +125,23 @@ type Step =
   | { readonly at: 'reading' }
   | { readonly at: 'failed'; readonly error: Error };
 
-const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement => {
-  const { t } = useListsText();
+/** One list's place in the plan, and the edits that change it. */
+export interface ListChoice {
+  readonly state: ListState;
+  readonly reading: boolean;
+  readonly asking: boolean;
+  readonly busy: boolean;
+  /** Reads the list into the plan, asking first when it pairs the same items as a list in use. */
+  readonly use: () => void;
+  /** Takes the list out, and keeps it out. */
+  readonly stop: () => void;
+  /** Says the list is not about these items. */
+  readonly decline: () => void;
+  /** The overlap question while it is asked, and the error of a read that failed. */
+  readonly notice: ReactNode;
+}
+
+export const useListChoice = (candidate: ListCandidate): ListChoice => {
   const draft = useDraft();
   const [step, setStep] = useState<Step>({ at: 'idle' });
   const state = stateOf(draft.plan, candidate);
@@ -152,10 +168,20 @@ const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement
       setStep({ at: 'asking', other: overlap.sheet, shared: overlap.shared });
     }
   };
+  const stop = (): void => {
+    if (state.kind === 'inUse') {
+      const sheet = state.sheet;
+      // A list taken out stays out: "What we found" adds the first list only while no list was ever turned down.
+      draft.change((plan) => withDecline(removeSheet(plan, sheet.id), source, file));
+    }
+  };
+  const decline = (): void => {
+    draft.change((plan) => withDecline(plan, source, file));
+  };
 
-  let actions: ReactNode = null;
+  let notice: ReactNode = null;
   if (step.at === 'asking') {
-    actions = (
+    notice = (
       <Ask
         other={step.other}
         shared={step.shared}
@@ -169,18 +195,23 @@ const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement
         }}
       />
     );
+  } else if (step.at === 'failed') {
+    notice = <ErrorNotice error={step.error} />;
+  }
+  return { state, reading: step.at === 'reading', asking: step.at === 'asking', busy, use, stop, decline, notice };
+};
+
+const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement => {
+  const { t } = useListsText();
+  const choice = useListChoice(candidate);
+  const { state, busy } = choice;
+  let actions: ReactNode = null;
+  if (choice.asking) {
+    actions = null;
   } else if (state.kind === 'inUse') {
-    const sheet = state.sheet;
     actions = (
       <p className="import-row-actions">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            // A list taken out stays out: "What we found" adds the first list only while no list was ever turned down.
-            draft.change((plan) => withDecline(removeSheet(plan, sheet.id), source, file));
-          }}
-        >
+        <button type="button" disabled={busy} onClick={choice.stop}>
           {t('lists.picker.stop')}
         </button>
       </p>
@@ -188,23 +219,22 @@ const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement
   } else if (state.kind !== 'unreadable') {
     actions = (
       <p className="import-row-actions">
-        <button type="button" className={state.kind === 'offered' ? 'import-primary' : undefined} disabled={busy} onClick={use}>
-          {step.at === 'reading' ? t('lists.picker.reading') : t('lists.picker.use')}
+        <button type="button" className={state.kind === 'offered' ? 'import-primary' : undefined} disabled={busy} onClick={choice.use}>
+          {choice.reading ? t('lists.picker.reading') : t('lists.picker.use')}
         </button>
         {state.kind === 'offered' ? (
-          <button type="button" disabled={busy} onClick={() => { draft.change((plan) => withDecline(plan, source, file)); }}>
+          <button type="button" disabled={busy} onClick={choice.decline}>
             {t('lists.picker.decline')}
           </button>
         ) : null}
       </p>
     );
   }
-
   return (
-    <li aria-label={file} data-decision="list" className="import-note">
+    <li aria-label={candidate.file} data-decision="list" className="import-note">
       <Facts candidate={candidate} state={state} />
       {actions}
-      {step.at === 'failed' ? <ErrorNotice error={step.error} /> : null}
+      {choice.notice}
     </li>
   );
 };
@@ -226,7 +256,7 @@ export const ListPicker = ({ none }: { readonly none: ReactNode }): ReactElement
   return (
     <section aria-label={t('lists.picker.title')} aria-busy={read.busy}>
       <h4>{t('lists.picker.title')}</h4>
-      <p className="muted">{t('lists.picker.lede')}</p>
+      <p className="muted">{t('lists.picker.order')}</p>
       <ul className="import-pick">
         {candidates.map((candidate) => (
           <Row key={`${candidate.source}/${candidate.file}`} candidate={candidate} />

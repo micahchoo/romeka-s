@@ -228,8 +228,7 @@ export const te: ImportListsMessages = {
   'lists.trip.andMore': 'మరియు మరో {count}',
   'lists.trip.remove': 'ఈ జాబితాను తొలగించండి',
   'lists.picker.title': 'మీ ఫోల్డర్‌లోని జాబితాలు',
-  'lists.picker.lede':
-    'మీ ఫైల్‌లలో అత్యధికంగా ఉన్న వరుసల పేర్లు గల జాబితా మొదట వస్తుంది. మీరు ఒకటి కంటే ఎక్కువ ఉపయోగించవచ్చు.',
+  'lists.picker.order': 'మీ ఫైల్‌లలో అత్యధిక భాగానికి పేరు పెట్టే జాబితా మొదట వస్తుంది.',
   'lists.picker.folder': '{folder} ఫోల్డర్‌లో',
   'lists.picker.rows': '{count} వరుసలు',
   'lists.picker.rowsOne': '1 వరుస',
@@ -237,23 +236,17 @@ export const te: ImportListsMessages = {
   'lists.picker.declined': 'తిరస్కరించబడింది',
   'lists.picker.offered': 'ఉపయోగించబడలేదు',
   'lists.picker.unreadable': 'చదవబడలేదు',
-  'lists.picker.names':
-    '“{column}” కాలమ్ ద్వారా, {rows} వరుసలలో {count} మీ ఫైల్‌లలో ఒకదాని పేరును సూచిస్తాయి.',
-  'lists.picker.codes':
-    '“{column}” కాలమ్ ద్వారా, {rows} వరుసలలో {count} మీ వస్తువులలో ఒకదాని కోడ్‌ను ఇస్తాయి.',
-  'lists.picker.folded':
-    'పెద్ద అక్షరాలు, మొదట్లో సున్నాలు మరియు _ - . విస్మరించినప్పుడు మరో {count}.',
-  'lists.picker.noPair':
-    'పెద్ద అక్షరాలు, మొదట్లో సున్నాలు మరియు _ - . విస్మరించినా కూడా, ఏ వరుసా మీ ఫైల్ లేదా వస్తువు పేరును సూచించదు.',
-  'lists.picker.overlap':
-    '{file} జత చేసే అదే వస్తువులను జత చేస్తుంది: {count}',
+  'lists.picker.byNames': '“{column}” ద్వారా, {rows} వరుసలలో {count} ఒక ఫైల్ పేరును సూచిస్తాయి.',
+  'lists.picker.byCodes': '“{column}” ద్వారా, {rows} వరుసలలో {count} ఒక వస్తువు కోడ్‌ను ఇస్తాయి.',
+  'lists.picker.loose': '+{count} పెద్ద అక్షరాలు, మొదటి సున్నాలు, _ - . విస్మరిస్తే',
+  'lists.picker.none': 'ఏ వరుసా మీ ఫైల్ లేదా వస్తువు పేరును సూచించదు.',
+  'lists.picker.sameItems': '{file} లోని అదే వస్తువులు · {count} వస్తువులు',
   'lists.picker.unread': 'ఈ జాబితాను చదవడం సాధ్యం కాలేదు: {message}',
   'lists.picker.use': 'ఈ జాబితాను ఉపయోగించండి',
   'lists.picker.reading': 'జాబితాను చదువుతోంది...',
   'lists.picker.stop': 'దీనిని ఉపయోగించడం ఆపివేయండి',
   'lists.picker.decline': 'ఈ వస్తువుల గురించి కాదు',
-  'lists.picker.ask':
-    'ఈ జాబితా {file} జత చేసే అదే వస్తువులలో {count} వస్తువులను జత చేస్తుంది. రెండింటినీ ఉపయోగించాలా, లేదా {file} స్థానంలో దీనిని ఉపయోగించాలా?',
+  'lists.picker.shared': 'ఇది {file} జత చేసే అదే వస్తువులలో {count} వస్తువులను జత చేస్తుంది.',
   'lists.picker.both': 'రెండింటినీ ఉపయోగించండి',
   'lists.picker.instead': '{file} స్థానంలో దీనిని ఉపయోగించండి',
   'lists.picker.cancel': 'దీనిని జోడించవద్దు',
