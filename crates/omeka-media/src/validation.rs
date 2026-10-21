@@ -17,15 +17,20 @@ use std::fmt;
 ///
 /// The additions are the types `media_type` answers for the formats a modern
 /// collection holds: FLAC, Matroska, AVIF, HEIC, SVG, glTF (both forms),
-/// WebVTT, SubRip, the eleven camera RAW formats, and the audio and video
+/// WebVTT, SubRip, the eleven camera RAW formats, the formats a JPEG access
+/// master makes viewable (`image/vnd.adobe.photoshop`, `image/x-photoshop`,
+/// `image/x-exr`, `image/vnd.radiance`, `application/postscript`,
+/// `application/illustrator`, `image/x-eps`), and the audio and video
 /// containers the access-copy table names (`video/3gpp`, `video/x-dv`,
 /// `video/x-flv`, `video/x-ms-vob`, `audio/amr`, `audio/x-ape`,
 /// `audio/x-monkeys-audio`). Each is a deliberate difference from upstream's
 /// default and is listed in `docs/compat.md`.
 pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
+    "application/illustrator",
     "application/msword",
     "application/ogg",
     "application/pdf",
+    "application/postscript",
     "application/rtf",
     "application/vnd.ms-access",
     "application/vnd.ms-excel",
@@ -39,9 +44,9 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/vnd.oasis.opendocument.presentation",
     "application/vnd.oasis.opendocument.spreadsheet",
     "application/vnd.oasis.opendocument.text",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/x-gzip",
     "application/x-ms-wmp",
     "application/x-msdownload",
@@ -59,8 +64,8 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "audio/x-aiff",
     "audio/x-ape",
     "audio/x-monkeys-audio",
-    "audio/x-ms-wma",
     "audio/x-ms-wax",
+    "audio/x-ms-wma",
     "audio/x-realaudio",
     "audio/x-wav",
     "image/avif",
@@ -73,10 +78,14 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "image/png",
     "image/svg+xml",
     "image/tiff",
+    "image/vnd.adobe.photoshop",
+    "image/vnd.radiance",
     "image/webp",
     "image/x-adobe-dng",
     "image/x-canon-cr2",
     "image/x-canon-cr3",
+    "image/x-eps",
+    "image/x-exr",
     "image/x-fuji-raf",
     "image/x-icon",
     "image/x-nikon-nef",
@@ -112,17 +121,19 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
 /// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), with this
 /// fork's additions (`3gp`, `amr`, `ape`, `arw`, `avif`, `cr2`, `cr3`, `dng`,
 /// `dv`, `flac`, `flv`, `glb`, `gltf`, `heic`, `mkv`, `nef`, `ogv`, `orf`,
-/// `pef`, `raf`, `rw2`, `srw`, `srt`, `svg`, `vob`, `vtt`, `x3f`).
+/// `pef`, `raf`, `rw2`, `srw`, `srt`, `svg`, `vob`, `vtt`, `x3f`, plus the
+/// page and dynamic-range formats an access master covers: `ai`, `eps`, `exr`,
+/// `hdr`, `ps`, `psd`).
 pub const DEFAULT_EXTENSIONS: &[&str] = &[
-    "3gp", "aac", "aif", "aiff", "amr", "ape", "arw", "asf", "asx", "avi", "avif", "bmp", "c",
-    "cc", "class", "cr2", "cr3", "css", "divx", "dng", "doc", "docx", "dv", "exe", "flac", "flv",
-    "gif", "glb", "gltf", "gz", "gzip", "h", "heic", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg",
-    "m4a", "m4v", "mdb", "mid", "midi", "mkv", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg",
-    "mpg", "mpp", "nef", "odb", "odc", "odf", "odg", "odp", "ods", "odt", "ogg", "ogv", "opus",
-    "orf", "pdf", "pef", "png", "pot", "pps", "ppt", "pptx", "qt", "ra", "raf", "ram", "rtf",
-    "rtx", "rw2", "srw", "srt", "svg", "swf", "tar", "tif", "tiff", "txt", "vob", "vtt", "wav",
-    "wax", "webm", "webp", "wma", "wmv", "wmx", "wri", "x3f", "xla", "xls", "xlsx", "xlt", "xlw",
-    "zip",
+    "3gp", "aac", "ai", "aif", "aiff", "amr", "ape", "arw", "asf", "asx", "avi", "avif", "bmp",
+    "c", "cc", "class", "cr2", "cr3", "css", "divx", "dng", "doc", "docx", "dv", "eps", "exe",
+    "exr", "flac", "flv", "gif", "glb", "gltf", "gz", "gzip", "h", "hdr", "heic", "ico", "j2k",
+    "jp2", "jpe", "jpeg", "jpg", "m4a", "m4v", "mdb", "mid", "midi", "mkv", "mov", "mp2", "mp3",
+    "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp", "nef", "odb", "odc", "odf", "odg", "odp", "ods",
+    "odt", "ogg", "ogv", "opus", "orf", "pdf", "pef", "png", "pot", "pps", "ppt", "pptx", "ps",
+    "psd", "qt", "ra", "raf", "ram", "rtf", "rtx", "rw2", "srt", "srw", "svg", "swf", "tar", "tif",
+    "tiff", "txt", "vob", "vtt", "wav", "wax", "webm", "webp", "wma", "wmv", "wmx", "wri", "x3f",
+    "xla", "xls", "xlsx", "xlt", "xlw", "zip",
 ];
 
 /// What a store may accept, the state `Omeka\File\Validator` is built with.
@@ -338,6 +349,13 @@ mod tests {
             ("art.avif", "image/avif", "avif"),
             ("photo.heic", "image/heic", "heic"),
             ("drawing.svg", "image/svg+xml", "svg"),
+            ("photo.psd", "image/vnd.adobe.photoshop", "psd"),
+            ("plate.exr", "image/x-exr", "exr"),
+            ("sky.hdr", "image/vnd.radiance", "hdr"),
+            ("poster.eps", "application/postscript", "eps"),
+            ("poster.eps", "image/x-eps", "eps"),
+            ("artwork.ai", "application/illustrator", "ai"),
+            ("page.ps", "application/postscript", "ps"),
             ("talk.flac", "audio/flac", "flac"),
             ("talk.opus", "audio/ogg", "opus"),
             ("clip.mkv", "video/x-matroska", "mkv"),

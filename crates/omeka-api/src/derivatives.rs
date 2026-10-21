@@ -29,6 +29,7 @@ use omeka_db::rows::{
 use omeka_db::with_db;
 use omeka_media::ThumbnailType;
 use omeka_media::access::{self, Access, AccessTarget, Queue, StoredFile};
+use omeka_media::access_master::{MasterSource, MasterWork, make_master};
 use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
 use omeka_media::store::{Store, StorePrefix, Thumbnailer, storage_path};
 use omeka_media::thumbnailer::{SOURCE_MEDIA_TYPES, thumbnails_stored};
@@ -256,7 +257,12 @@ pub async fn queue_worker(
     pool: &DbPool,
     owner_id: Option<omeka_db::ids::UserId>,
 ) -> Result<Option<JobId>, omeka_db::DbError> {
-    if with_db!(pool, |db| MediaDerivativeRepo::new(db).pending().await)? == 0 {
+    let commands = Tools::on_path().derivative_commands();
+    if with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .pending(&commands)
+        .await)?
+        == 0
+    {
         return Ok(None);
     }
     if with_db!(pool, |db| JobRepo::new(db)
@@ -441,8 +447,11 @@ pub async fn settle_next_with(
     tools: &Tools,
     job: Option<JobId>,
 ) -> Result<Option<Settled>, ApiError> {
-    let Some(row) =
-        with_db!(pool, |db| MediaDerivativeRepo::new(db).claim_next().await).map_err(db_error)?
+    let commands = tools.derivative_commands();
+    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .claim_next(&commands)
+        .await)
+    .map_err(db_error)?
     else {
         return Ok(None);
     };
@@ -452,9 +461,74 @@ pub async fn settle_next_with(
         return Ok(Some(Settled::Gone));
     };
     if row.kind == DerivativeKind::AccessCopy {
-        return settle_copy(pool, store, tools, job, &row, &media).await;
+        return settle_access(pool, store, tools, job, &row, &media).await;
     }
     settle_preview(pool, store, &row, &media).await
+}
+
+/// Settle one `access_copy` row with the worker its target belongs to: a video
+/// or audio copy is a transcode, and every other type's copy is a JPEG master.
+async fn settle_access(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    job: Option<JobId>,
+    row: &DerivativeRow,
+    media: &MediaRow,
+) -> Result<Option<Settled>, ApiError> {
+    let media_type = media.media_type.clone().unwrap_or_default();
+    match access::target_of(&media_type, media.extension.as_deref()) {
+        Some(target) => settle_copy(pool, store, tools, job, row, media, target).await,
+        None => settle_image_master(pool, store, tools, row, media).await,
+    }
+}
+
+/// Settle one image `access_copy` row: the JPEG master a PSD, a camera RAW, an
+/// odd TIFF, a HEIC or a PostScript page needs, and the three thumbnails made
+/// from it. The master runs on the blocking pool; the original is never changed.
+async fn settle_image_master(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    row: &DerivativeRow,
+    media: &MediaRow,
+) -> Result<Option<Settled>, ApiError> {
+    let source = MasterSource {
+        storage_id: media.storage_id.clone().unwrap_or_default(),
+        extension: media.extension.clone(),
+        media_type: media.media_type.clone(),
+        has_original: media.has_original,
+        size: media.size.and_then(|size| u64::try_from(size).ok()),
+    };
+    let store = Arc::clone(store);
+    let tools = tools.clone();
+    let work = tokio::task::spawn_blocking(move || make_master(store.as_ref(), &tools, &source))
+        .await
+        .map_err(|error| {
+            ApiError::internal(format!("the access master did not finish: {error}"))
+        })?;
+    let state = match &work {
+        MasterWork::Ready { .. } => DerivativeState::Ready,
+        MasterWork::Skipped { .. } => DerivativeState::None,
+        MasterWork::Failed { .. } => DerivativeState::Failed,
+    };
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .finish(
+            row.media_id,
+            row.kind,
+            state,
+            work.reason().map(str::to_string),
+            work.tool().map(str::to_string),
+        )
+        .await)
+    .map_err(db_error)?;
+    if state == DerivativeState::Ready {
+        mark_thumbnails(pool, row.media_id).await?;
+    }
+    Ok(Some(Settled::State {
+        state,
+        reason: work.reason().map(str::to_string),
+    }))
 }
 
 /// Settle one preview row: make the still and record its state.
@@ -513,17 +587,9 @@ async fn settle_copy(
     job: Option<JobId>,
     row: &DerivativeRow,
     media: &MediaRow,
+    target: AccessTarget,
 ) -> Result<Option<Settled>, ApiError> {
     let media_type = media.media_type.clone().unwrap_or_default();
-    let Some(target) = access::target_of(&media_type, media.extension.as_deref()) else {
-        // A row this worker claimed but does not make: its own worker's, not a
-        // failure. The claim already filters on `ffmpeg`, so this is a guard
-        // for a future tool, not a state a current create reaches.
-        requeue(pool, row).await?;
-        return Ok(Some(Settled::Queued {
-            reason: Some(format!("no audio or video copy for {media_type}")),
-        }));
-    };
     let storage_id = media.storage_id.clone().unwrap_or_default();
     if target == AccessTarget::Mp4 && replayed_as_original(store, tools, media, &storage_id).await {
         // D2's open item: the create-time probe may have failed on a file a

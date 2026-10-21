@@ -13,9 +13,11 @@
 # The context is the whole workspace because the Rust and SPA stages compile it.
 # packaging/Dockerfile.dockerignore keeps the context small.
 #
-# The stages in order: the SPA, the Rust binary, the ffmpeg build, the media
-# tools, Caddy with its low-port capability, and the runtime that joins them.
-# `--target media-tools` builds the tools alone (packaging/README.md says why).
+# The stages in order: the SPA, the Rust binary, the ffmpeg build, the base
+# media tools every image shares, the separate full tools image, Caddy with its
+# low-port capability, and the runtime that joins them. `--target media-tools`
+# builds the tools image alone (`packaging/README.md` says why and how a job
+# calls it).
 
 # Stage 1: the admin SPA bundle.
 FROM node:22-bookworm-slim AS web
@@ -143,33 +145,65 @@ RUN set -eux; \
     /opt/ffmpeg/bin/ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/selftest.mp4 | sort | tr '\n' ' ' | grep -qx 'aac h264 '; \
     rm /tmp/selftest.mp4
 
-# Stage 4: the media tools. This stage is also the plan's separate tools image
-# for the derivative jobs of wave U8 (`briefs/media-ui-plan.md`, open call 2):
+# Stage 4: the media tools every image shares. Each command is optional at
+# runtime (`crates/omeka-media/src/tool.rs`): an installation that drops one
+# skips that derivative with the command's name as the reason, never an error.
 #
-#     docker build -f packaging/Dockerfile --target media-tools -t romeka-s:media-tools .
-#
-# Every command is optional at runtime (`crates/omeka-media/src/tool.rs`): an
-# installation that drops one skips that derivative with the command's name as
-# the reason, never an error. Each line names what asks for it.
-FROM debian:bookworm-slim AS media-tools
+# `pdftoppm` (poppler-utils) makes a PDF's first page, and `exiftool`
+# (libimage-exiftool-perl) extracts the full-size JPEG a camera RAW file embeds,
+# so a NEF gets a JPEG access master without decoding its sensor data. Both are
+# small enough for every deployment (measured 2026-10-21, `packaging/README.md`).
+FROM debian:bookworm-slim AS media-base
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
+        ca-certificates \
         libimage-exiftool-perl \
         poppler-utils; \
-    rm -rf /var/lib/apt/lists/*
-# `pdftoppm` (poppler-utils) makes a PDF's first page; `exiftool`
-# (libimage-exiftool-perl) extracts the full-size JPEG a camera RAW file
-# embeds, so a NEF gets derivatives without decoding its sensor data.
-#
-# Wave U8 adds vips (TIFF, PSD, EXR, HEIC), libraw and ghostscript to the apt
-# line above. Measure the installed size of that addition before taking it.
+    rm -rf /var/lib/apt/lists/*; \
+    groupadd --system romeka; \
+    useradd --system --gid romeka --home-dir /data --shell /usr/sbin/nologin romeka; \
+    mkdir -p /db /data/files; \
+    chown -R romeka:romeka /db /data
 COPY --from=ffmpeg-build /opt/ffmpeg /opt/ffmpeg
 # `ffmpeg` makes a video's poster and decodes AVIF and HEIC, and its `ffprobe`
 # reads the duration and frame size a time-based IIIF canvas needs.
 ENV PATH=/opt/ffmpeg/bin:$PATH
 
-# Stage 5: Caddy with its low-port capability set. The capability is an xattr
+# Stage 5: the separate tools image the job runner calls, for the formats the
+# main image leaves out. It is the same worker binary with every access-copy
+# command installed:
+#
+#     docker build -f packaging/Dockerfile --target media-tools -t romeka-s:media-tools .
+#     docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
+#         romeka-s:media-tools media derivatives --database /db/romeka.db --store /data/files
+#
+# `vips` (`libvips-tools`, with its TIFF, HEIC, PSD and EXR loaders) makes the
+# JPEG access master for a layout the image crate refuses, `dcraw_emu`
+# (`libraw-bin`) decodes a RAW with no embedded preview, and `gs`
+# (`ghostscript`) rasterises page one of an EPS, AI or PS file. Measured, that
+# set adds 232 MB, which is why it is a second image rather than every
+# deployment's (see `packaging/README.md`).
+FROM media-base AS media-tools
+# The access-copy commands this image adds, as one list so a new one is measured
+# before it is taken (`packaging/README.md`, "The media tools"). Building with an
+# empty or shorter list is how each command's size was measured
+# (`.evidence/tool-sizes.sh` in the unit that added them):
+#
+#     docker build -f packaging/Dockerfile --target media-tools \
+#         --build-arg MEDIA_TOOLS_EXTRA=libvips-tools -t romeka-s:measure-vips .
+ARG MEDIA_TOOLS_EXTRA="ghostscript libraw-bin libvips-tools"
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ${MEDIA_TOOLS_EXTRA}; \
+    rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/romeka /usr/local/bin/romeka
+WORKDIR /data
+USER romeka
+ENTRYPOINT ["/usr/local/bin/romeka"]
+
+# Stage 6: Caddy with its low-port capability set. The capability is an xattr
 # on the binary and the runtime's COPY preserves it, so the 52 MiB binary is
 # copied into the image once. Setting it in the runtime would copy the file up
 # into a second layer of the same size.
@@ -181,9 +215,9 @@ FROM caddy:2.11-alpine AS caddy
 RUN apk add --no-cache libcap \
     && setcap cap_net_bind_service=+ep /usr/bin/caddy
 
-# Stage 6: the runtime. It starts from the tools stage, so the tool list and
-# their provenance above is the only place either is written down.
-FROM media-tools AS runtime
+# Stage 7: the runtime. It starts from the base tools stage, so the tool list
+# and their provenance above is the only place either is written down.
+FROM media-base AS runtime
 COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
 # Caddy terminates TLS on :80 and :443 and the container runs as a non-root
 # user, so the low-port capability is attached to the binary. A container that
@@ -201,11 +235,9 @@ COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        bash ca-certificates curl libcap2-bin media-types; \
+        bash curl libcap2-bin media-types; \
     rm -rf /var/lib/apt/lists/*; \
-    groupadd --system romeka; \
-    useradd --system --gid romeka --home-dir /data --shell /usr/sbin/nologin romeka; \
-    mkdir -p /db /data/files /srv/dist /srv/caddy/data /srv/caddy/config /archive; \
+    mkdir -p /srv/dist /srv/caddy/data /srv/caddy/config /archive; \
     chown -R romeka:romeka /db /data /srv
 
 COPY --from=build /out/romeka /usr/local/bin/romeka

@@ -28,6 +28,11 @@ const KINDS: readonly Kind[] = [
   { file: 'image.gif', mediaType: 'image/gif' },
   { file: 'image.webp', mediaType: 'image/webp' },
   { file: 'image.tif', mediaType: 'image/tiff' },
+  { file: 'image-cmyk.tif', mediaType: 'image/tiff' },
+  { file: 'image-deep.tif', mediaType: 'image/tiff' },
+  { file: 'image-pages.tif', mediaType: 'image/tiff' },
+  { file: 'image.psd', mediaType: 'image/vnd.adobe.photoshop' },
+  { file: 'image.eps', mediaType: 'application/postscript' },
   { file: 'image.nef', mediaType: 'image/x-nikon-nef' },
   { file: 'image.avif', mediaType: 'image/avif' },
   { file: 'image.heic', mediaType: 'image/heic' },
@@ -39,6 +44,7 @@ const KINDS: readonly Kind[] = [
   { file: 'audio.opus', mediaType: 'audio/opus' },
   { file: 'audio.flac', mediaType: 'audio/flac' },
   { file: 'audio.wav', mediaType: 'audio/x-wav' },
+  { file: 'wma.wma', mediaType: 'audio/x-ms-wma' },
   { file: 'video.mp4', mediaType: 'video/mp4' },
   { file: 'video.webm', mediaType: 'video/webm' },
   { file: 'video.mov', mediaType: 'video/quicktime' },
@@ -46,7 +52,6 @@ const KINDS: readonly Kind[] = [
   { file: 'video.ogv', mediaType: 'video/ogg' },
   { file: 'mjpeg.avi', mediaType: 'video/x-msvideo' },
   { file: 'mpeg2.mpg', mediaType: 'video/mpeg' },
-  { file: 'wma.wma', mediaType: 'audio/x-ms-wma' },
   { file: 'doc.pdf', mediaType: 'application/pdf' },
   {
     file: 'doc.docx',
@@ -64,8 +69,8 @@ const KNOWN_RED: ReadonlySet<string> = new Set([
 
 /**
  * The kind `MediaKind::of` gives each corpus file once the server has sniffed
- * it. The two image formats the thumbnailer cannot read are `other-file`, which
- * is why the server's word wins over the admin's own image table for them.
+ * it. Every image format now has a derivative or an access master, so the
+ * server's word and the admin's own image table agree, HEIC and AVIF included.
  */
 const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'image.jpg': 'local-image',
@@ -73,9 +78,14 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'image.gif': 'local-image',
   'image.webp': 'local-image',
   'image.tif': 'local-image',
+  'image-cmyk.tif': 'local-image',
+  'image-deep.tif': 'local-image',
+  'image-pages.tif': 'local-image',
+  'image.psd': 'local-image',
+  'image.eps': 'local-image',
   'image.nef': 'local-image',
-  'image.avif': 'other-file',
-  'image.heic': 'other-file',
+  'image.avif': 'local-image',
+  'image.heic': 'local-image',
   'image.svg': 'local-image',
   'hostile.svg': 'local-image',
   'audio.mp3': 'audio',
@@ -84,6 +94,7 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'audio.opus': 'audio',
   'audio.flac': 'audio',
   'audio.wav': 'audio',
+  'wma.wma': 'audio',
   'video.mp4': 'video',
   'video.webm': 'video',
   'video.mov': 'video',
@@ -91,7 +102,6 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'video.ogv': 'video',
   'mjpeg.avi': 'video',
   'mpeg2.mpg': 'video',
-  'wma.wma': 'audio',
   'doc.pdf': 'pdf',
   'doc.docx': 'document',
   'model.glb': 'model-3d',
@@ -99,9 +109,6 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'captions.vtt': 'captions',
   'captions.srt': 'captions',
 };
-
-/** The rows where the server has no image kind and its word, not the table's, decides. */
-const SERVER_ONLY: ReadonlySet<string> = new Set(['image.avif', 'image.heic']);
 
 const HELPERS: readonly (readonly [string, (media: Media) => string | null])[] = [
   ['previewImageUrl', previewImageUrl],
@@ -188,7 +195,7 @@ describe('media kind previews', () => {
     for (const kind of KINDS) {
       const fromServer = mediaKind(media(kind, SERVER_KINDS[kind.file]));
       const fromTable = mediaKind(media(kind));
-      const expected = SERVER_ONLY.has(kind.file) ? 'other' : fromTable;
+      const expected = fromTable;
       if (fromServer !== expected) {
         failures.push(`${kind.file}: server ${fromServer}, table ${expected}`);
       }

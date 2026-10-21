@@ -50,10 +50,12 @@ use crate::store::{
 use crate::tool::{MadeStill, Still, ToolError, Tools};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
-/// (`Gd::setSource`) plus `image/tiff`, `image/jp2` and `image/svg+xml`, which
-/// GD cannot read (see the module docs). Any other declared type raises
-/// `CannotCreateThumbnailException` upstream.
-pub const SOURCE_MEDIA_TYPES: [&str; 7] = [
+/// (`Gd::setSource`) plus `image/tiff`, `image/jp2`, `image/svg+xml` and
+/// `image/bmp`, which GD cannot read without an extra library (see the module
+/// docs). Any other declared type raises `CannotCreateThumbnailException`
+/// upstream.
+pub const SOURCE_MEDIA_TYPES: [&str; 8] = [
+    "image/bmp",
     "image/gif",
     "image/jpeg",
     "image/jp2",
@@ -62,6 +64,13 @@ pub const SOURCE_MEDIA_TYPES: [&str; 7] = [
     "image/tiff",
     "image/webp",
 ];
+
+/// Whether this server decodes a JPEG 2000 file's page one, which is the
+/// layout test the access table reads before it plans a `vips` master.
+#[must_use]
+pub fn jp2_decodes(bytes: &[u8]) -> bool {
+    jp2::decode(bytes).is_ok()
+}
 
 /// The source media types [`ImageThumbnailer::derivatives_from_reader`]
 /// reads with bounded memory.
@@ -699,9 +708,15 @@ mod tests {
                 .thumbnails(b"nope", Some("image/png"))
                 .is_empty()
         );
+        // BMP is a Romeka decoder addition, and a type it cannot read has no
+        // derivative.
+        assert_eq!(
+            ImageThumbnailer.thumbnails(&bytes, Some("image/bmp")).len(),
+            ThumbnailType::ALL.len()
+        );
         assert!(
             ImageThumbnailer
-                .thumbnails(&bytes, Some("image/bmp"))
+                .thumbnails(&bytes, Some("image/vnd.adobe.photoshop"))
                 .is_empty()
         );
     }

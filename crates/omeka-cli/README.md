@@ -255,10 +255,13 @@ and with which command (`pending`, `ffmpeg` for an MP4 or M4A, `vips` for a TIFF
 layout the decoder does not read, `exiftool` or libraw for a RAW file, `gs` for a
 PostScript page), or `none` with `needs <tool>, not installed`. `--retry` also
 queues a copy that failed, or one whose tool was missing when it was decided; a
-copy settled "a browser shows the original" has no tool and stays settled. The
-worker makes the audio and video copy in this process when the backfill runs it
-(a transcode of the whole queue), and the hourly sweep starts the same worker in
-its own process.
+copy settled "a browser shows the original" has no tool and stays settled. A row
+is claimed only by a worker whose install has its command, so `--retry` on an
+install with `vips` re-queues a row a smaller install settled with `needs vips,
+not installed` (the separate tools image in `packaging/README.md` runs this way).
+The worker makes the audio and video copy in this process when the backfill runs
+it (a transcode of the whole queue), and the hourly sweep starts the same worker
+in its own process.
 
 The summary line is `queued Q, retried R, waiting W, already ready A, nothing to
 do N`, one line per row after the run, and the exit code is 1 when any row ended

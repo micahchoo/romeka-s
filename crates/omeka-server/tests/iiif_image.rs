@@ -40,10 +40,11 @@ async fn info_json_describes_the_original() {
 }
 
 /// A camera RAW file's sensor data does not decode here; its embedded preview
-/// does. The canvas and the Image API name the preview-derived large
-/// derivative's upright size, and a full request answers those pixels.
+/// does. The access master is that preview at its own size and upright, so the
+/// canvas and the Image API name the source's 1200x800 turned to 800x1200, not
+/// the 533x800 the large derivative is capped at.
 #[tokio::test]
-async fn a_raw_file_serves_its_embedded_preview() {
+async fn a_raw_file_serves_its_master_at_full_size() {
     let seed = iiif_seed().await;
     let bytes = std::fs::read(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -90,14 +91,15 @@ async fn a_raw_file_serves_its_embedded_preview() {
     .json();
     assert_eq!(
         (info["width"].as_u64(), info["height"].as_u64()),
-        (Some(80), Some(120))
+        (Some(800), Some(1200)),
+        "the master is the preview turned upright, not the capped derivative"
     );
     let image = send_bytes(
         seed.app.clone(),
         get(&format!("/iiif/image/3/{media}/full/max/0/default.jpg")),
     )
     .await;
-    assert_eq!(image_size(&image.body), (80, 120));
+    assert_eq!(image_size(&image.body), (800, 1200));
 
     let manifest = send_bytes(seed.app, get(&format!("/iiif/3/item/{item}/manifest")))
         .await
@@ -105,9 +107,82 @@ async fn a_raw_file_serves_its_embedded_preview() {
     let canvas = &manifest["items"][0];
     assert_eq!(
         (canvas["width"].as_u64(), canvas["height"].as_u64()),
-        (Some(80), Some(120))
+        (Some(800), Some(1200))
     );
     assert_eq!(canvas["items"][0]["items"][0]["body"]["type"], "Image");
+    assert_eq!(
+        (
+            canvas["items"][0]["items"][0]["body"]["width"].as_u64(),
+            canvas["items"][0]["items"][0]["body"]["height"].as_u64()
+        ),
+        (Some(533), Some(800)),
+        "the painted derivative is smaller than the canvas it sits in"
+    );
+}
+
+/// A 16-bit TIFF has no decoder here, so its master comes from `vips`, at the
+/// source's own 1200x800. The canvas is that size and the large derivative that
+/// paints it is the capped 800x533.
+#[tokio::test]
+async fn a_16_bit_tiff_paints_its_master() {
+    if omeka_media::tool::Tools::on_path().vips().is_none() {
+        eprintln!("skipping: no vips on PATH");
+        return;
+    }
+    let seed = iiif_seed().await;
+    let bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/media-kinds/image-deep.tif"),
+    )
+    .expect("image-deep.tif");
+    let data = json!({
+        "o:is_public": true,
+        "o:media": [{"o:ingester": "upload", "file_index": 0, "o:is_public": true}],
+    })
+    .to_string();
+    let created = common::send(
+        seed.app.clone(),
+        common::multipart_asset_request(
+            &common::append_key("/api/items"),
+            "image-deep.tif",
+            &bytes,
+            &data,
+        ),
+    )
+    .await;
+    assert!(created.status.is_success(), "{}", created.body);
+    common::settle_derivatives(seed.pool.clone(), std::sync::Arc::new(seed.store.clone())).await;
+    let document = created.json();
+    let item = document["o:id"].as_u64().expect("the item id");
+    let media = document["o:media"][0]["o:id"]
+        .as_u64()
+        .expect("the media id");
+
+    let info = send_bytes(
+        seed.app.clone(),
+        get(&format!("/iiif/image/3/{media}/info.json")),
+    )
+    .await
+    .json();
+    assert_eq!(
+        (info["width"].as_u64(), info["height"].as_u64()),
+        (Some(1200), Some(800))
+    );
+    let image = send_bytes(
+        seed.app.clone(),
+        get(&format!("/iiif/image/3/{media}/full/max/0/default.jpg")),
+    )
+    .await;
+    assert_eq!(image_size(&image.body), (1200, 800));
+
+    let manifest = send_bytes(seed.app, get(&format!("/iiif/3/item/{item}/manifest")))
+        .await
+        .json();
+    let canvas = &manifest["items"][0];
+    assert_eq!(
+        (canvas["width"].as_u64(), canvas["height"].as_u64()),
+        (Some(1200), Some(800))
+    );
 }
 
 /// Each region and size form answers an image of the size the specification

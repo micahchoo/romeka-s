@@ -44,7 +44,7 @@ pub fn delete_media_files(store: Option<&dyn Store>, row: &MediaRow) -> Result<(
                 .map_err(ApiError::internal)?;
         }
     }
-    // Both copy targets, because the row does not name the one it planned: a
+    // Every copy target, because the row does not name the one it planned: a
     // delete removes whatever the worker made.
     if row.has_original
         && let Some(storage_id) = row.storage_id.as_deref()

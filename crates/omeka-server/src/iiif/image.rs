@@ -109,8 +109,9 @@ impl StoredFile {
 /// media representation.
 struct StoredImage {
     storage_id: String,
-    /// The file the Image API decodes: the original, or for camera RAW, whose
-    /// sensor data no decoder here reads, the preview-derived large derivative.
+    /// The file the Image API decodes: the JPEG access master when one exists,
+    /// else the original, or for a file whose original no decoder here reads (a
+    /// camera RAW, an AVIF, a HEIC), the derivative that stands in for it.
     display_path: String,
     original_url: String,
     media_type: String,
@@ -122,7 +123,7 @@ struct StoredImage {
 impl StoredImage {
     /// The image a media representation stores, `None` for a media that is
     /// not a local image with derivatives.
-    fn of(media: &Value, kind: MediaKind) -> Option<Self> {
+    fn of(media: &Value, kind: MediaKind, store: &dyn Store) -> Option<Self> {
         if kind != MediaKind::LocalImage {
             return None;
         }
@@ -133,11 +134,12 @@ impl StoredImage {
             .and_then(Value::as_str)
             .map(str::to_string);
         let media_type = file.media_type?;
-        let display_path = if omeka_media::media_type::is_raw_media_type(&media_type) {
-            format!("large/{}.jpg", file.storage_id)
-        } else {
-            file.original_path
-        };
+        let display_path = omeka_media::access::display_path(
+            store,
+            &file.storage_id,
+            file.extension.as_deref(),
+            Some(&media_type),
+        );
         Some(Self {
             storage_id: file.storage_id,
             display_path,
@@ -175,7 +177,7 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
     let kind = kind_of(media);
     let painting = match kind {
         MediaKind::LocalImage => {
-            let image = StoredImage::of(media, kind)?;
+            let image = StoredImage::of(media, kind, state.store.as_ref())?;
             let extents = &state.extents;
             let size = extents.image(&image.display_path).await?;
             let large_size = extents.image(&image.large_path()).await?;
@@ -258,7 +260,7 @@ async fn visible_image(
 ) -> Option<(StoredImage, Size)> {
     let api = super::visitor_api(state, headers).await?;
     let media = super::read(&api, "media", media).await?;
-    let image = StoredImage::of(&media, kind_of(&media))?;
+    let image = StoredImage::of(&media, kind_of(&media), state.store.as_ref())?;
     let size = state.extents.image(&image.display_path).await?;
     Some((image, size))
 }

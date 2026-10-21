@@ -6,8 +6,9 @@
 //! also counts `attempts`, so a row that fails twice is visible without the job log.
 //!
 //! An `access_copy` row is written by the create with its decision already in it. A worker claims
-//! one whose tool is `ffmpeg` (the audio and video copy); a row waiting for another tool stays
-//! queued for the worker that runs it.
+//! one whose tool is among the commands its install has (`Tools::derivative_commands`), so two
+//! workers on one queue, a main image with `exiftool` and a tools image with `vips`, each claim the
+//! rows they can make. A row waiting for a command no current worker has stays queued.
 //!
 //! A media delete cascades from `media`, so no path here removes a row.
 
@@ -101,7 +102,8 @@ where
     /// running, which is when there is nothing to retry.
     ///
     /// A preview row's tool is the command that failed, and it is cleared. An access copy's tool is
-    /// the command its plan named, which is what the worker claims it by, so it stays.
+    /// the command its plan named, which is what a worker claims it by, and it stays: a row settled
+    /// `none` because this install lacked the command is retried on the install that has it.
     pub async fn retry(&self, media: MediaId, kind: DerivativeKind) -> Result<bool, DbError> {
         let done = sqlx::query::<DB>(
             "UPDATE romeka_media_derivative
@@ -142,43 +144,50 @@ where
         rows.iter().map(DerivativeRow::from_db_row::<DB>).collect()
     }
 
-    /// The oldest queued row this worker can do, claimed for one worker. `None`
-    /// when nothing is queued.
+    /// The oldest queued row this worker can do, claimed for one worker. `None` when nothing is
+    /// queued.
     ///
-    /// A preview kind is always its own. An `access_copy` row is claimed only
-    /// when its tool is `ffmpeg`, which is the one command this worker runs
-    /// (the audio and video copies); a row waiting for `vips`, `exiftool`,
-    /// libraw or `gs` belongs to the image worker and stays queued rather than
-    /// being settled as work this worker cannot do.
+    /// A preview kind is always its own. An `access_copy` row is claimed only when its tool is one
+    /// of `commands`, the commands this install has (`Tools::derivative_commands`): `ffmpeg` for an
+    /// audio or video copy, and the still-master commands for a JPEG master. Two workers on one
+    /// queue therefore claim disjoint sets, and neither settles a row it cannot make.
     ///
-    /// The claim is the `UPDATE ... WHERE state = 'pending'`; a candidate another
-    /// worker took first leaves zero rows affected, and the next candidate is
-    /// tried.
-    pub async fn claim_next(&self) -> Result<Option<DerivativeRow>, DbError> {
-        let rows: Vec<DB::Row> = sqlx::query::<DB>(
-            "SELECT * FROM romeka_media_derivative WHERE state = 'pending'
-             AND (kind <> 'access_copy' OR tool = 'ffmpeg')
-             ORDER BY queued, media_id, kind LIMIT 8",
-        )
-        .fetch_all(self.pool)
-        .await?;
+    /// The claim is the `UPDATE ... WHERE state = 'pending'`; a candidate another worker took first
+    /// leaves zero rows affected, and the next candidate is tried.
+    pub async fn claim_next(&self, commands: &[&str]) -> Result<Option<DerivativeRow>, DbError> {
+        if commands.is_empty() {
+            return Ok(None);
+        }
+        let mut statement = super::Statement::<DB>::new("SELECT * FROM romeka_media_derivative");
+        push_claimable(&mut statement, commands)?;
+        statement.push(" ORDER BY queued, media_id, kind LIMIT 8");
+        let (sql, arguments) = statement.into_parts();
+        let rows: Vec<DB::Row> = super::fetch_rows(&sql, arguments, self.pool).await?;
         for row in &rows {
             let candidate = DerivativeRow::from_db_row::<DB>(row)?;
-            let claimed = sqlx::query::<DB>(
-                "UPDATE romeka_media_derivative
-                 SET state = 'running', started = ?, progress = 0, attempts = attempts + 1
-                 WHERE media_id = ? AND kind = ? AND state = 'pending'",
-            )
-            .bind(time::now())
-            .bind(super::bind_id(candidate.media_id))
-            .bind(candidate.kind.name())
-            .execute(self.pool)
-            .await?;
-            if DB::rows_affected(&claimed) > 0 {
-                return self.get(candidate.media_id, candidate.kind).await;
+            if let Some(claimed) = self.claim(&candidate).await? {
+                return Ok(Some(claimed));
             }
         }
         Ok(None)
+    }
+
+    /// Claim one queued row of one kind. `None` when another worker took it first.
+    async fn claim(&self, candidate: &DerivativeRow) -> Result<Option<DerivativeRow>, DbError> {
+        let claimed = sqlx::query::<DB>(
+            "UPDATE romeka_media_derivative
+             SET state = 'running', started = ?, progress = 0, attempts = attempts + 1
+             WHERE media_id = ? AND kind = ? AND state = 'pending'",
+        )
+        .bind(time::now())
+        .bind(super::bind_id(candidate.media_id))
+        .bind(candidate.kind.name())
+        .execute(self.pool)
+        .await?;
+        if DB::rows_affected(&claimed) == 0 {
+            return Ok(None);
+        }
+        self.get(candidate.media_id, candidate.kind).await
     }
 
     /// One row, or `None` when it does not exist.
@@ -250,16 +259,20 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
-    /// How many rows this worker can claim: preview rows and `ffmpeg` access
-    /// copies. A copy waiting for another tool is not counted, because starting
-    /// the worker for it would only have it leave the row alone.
-    pub async fn pending(&self) -> Result<u64, DbError> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM romeka_media_derivative
-             WHERE state = 'pending' AND (kind <> 'access_copy' OR tool = 'ffmpeg')",
-        )
-        .fetch_one(self.pool)
-        .await?;
+    /// How many rows a worker with `commands` can claim: every preview row, and an `access_copy`
+    /// row whose tool is one of them. A row waiting for a command this install does not have is not
+    /// counted, because starting the worker for it would only have it leave the row alone.
+    pub async fn pending(&self, commands: &[&str]) -> Result<u64, DbError> {
+        if commands.is_empty() {
+            return Ok(0);
+        }
+        let mut statement =
+            super::Statement::<DB>::new("SELECT count(*) FROM romeka_media_derivative");
+        push_claimable(&mut statement, commands)?;
+        let (sql, arguments) = statement.into_parts();
+        let count: i64 = sqlx::query_scalar_with::<DB, i64, _>(&sql, arguments)
+            .fetch_one(self.pool)
+            .await?;
         Ok(count.max(0) as u64)
     }
 
@@ -278,4 +291,24 @@ where
         .await?;
         Ok(DB::rows_affected(&done) > 0)
     }
+}
+
+/// The `WHERE` a derivative worker claims by: every preview row, and an
+/// `access_copy` row whose command is one of `commands`.
+fn push_claimable<'q, DB: Backend>(
+    statement: &mut super::Statement<'q, DB>,
+    commands: &[&str],
+) -> Result<(), DbError>
+where
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+{
+    statement.push(" WHERE state = 'pending' AND (kind <> 'access_copy' OR tool IN (");
+    for (index, command) in commands.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind((*command).to_string())?;
+    }
+    statement.push("))");
+    Ok(())
 }

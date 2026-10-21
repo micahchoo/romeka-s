@@ -17,9 +17,14 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 | image.gif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
 | image.webp | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
 | image.tif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image-cmyk.tif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image-deep.tif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image-pages.tif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image.psd | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image.eps | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
 | image.nef | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
-| image.avif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
-| image.heic | pass | pass | pass | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
+| image.avif | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
+| image.heic | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
 | image.svg | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
 | hostile.svg | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | pass | n/a |
 | audio.mp3 | pass | pass | **fail** | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
@@ -57,8 +62,6 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `captions.vtt` / thumbnail
 - `doc.docx` / iiif
 - `doc.docx` / thumbnail
-- `image.avif` / iiif
-- `image.heic` / iiif
 - `model.glb` / iiif
 - `model.glb` / thumbnail
 - `model.gltf` / iiif

@@ -178,7 +178,7 @@ pub const THUMBNAIL_MEDIA_TYPE: &str = "image/jpeg";
 
 /// Which part of the tree a stored file belongs to
 /// (`TempFile::storeOriginal`, `storeAsset`, `storeThumbnails`), plus Romeka's
-/// `access`, where a playable copy of an original lives.
+/// `access`, where a copy a browser can play or show lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorePrefix {
     /// `original`, the ingested file. Never changed by a derivative.
@@ -390,7 +390,7 @@ mod tests {
         }
     }
 
-    /// The five prefixes, in the order upstream's store writes them, then the
+    /// The five upstream prefixes in the order its store writes them, then the
     /// access copies this fork adds.
     #[test]
     fn all_prefixes_are_original_asset_the_thumbnail_types_and_access() {

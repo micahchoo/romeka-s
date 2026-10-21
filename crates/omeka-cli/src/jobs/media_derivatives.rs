@@ -116,8 +116,9 @@ async fn busy_import(pool: &DbPool) -> Result<Option<ImportId>, JobError> {
 }
 
 async fn pending(pool: &DbPool) -> Result<u32, JobError> {
+    let commands = omeka_media::tool::Tools::on_path().derivative_commands();
     let count = with_db!(pool, |db| omeka_db::repos::MediaDerivativeRepo::new(db)
-        .pending()
+        .pending(&commands)
         .await)?;
     Ok(u32::try_from(count).unwrap_or(u32::MAX))
 }

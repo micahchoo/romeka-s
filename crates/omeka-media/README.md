@@ -3,14 +3,14 @@
 Romeka S is a fork of Omeka S. This crate holds the media subsystem: the `Store` trait every stored byte goes through,
 its local implementation `FileStore` and the storage path rule, one ingester and one renderer per upstream class, the
 file renderers, the three thumbnail types, the `media.data` payloads, the oEmbed service, the access-copy table
-(`access`), the transcode that makes an audio or video access copy (`transcode`), and `iiif_image`, the IIIF Image API
-at level 1 over a stored image (a Romeka addition: its parse and plan are pure, the server routes it). `src/lib.rs`
-documents the module map and the one network seam (`http::HttpFetch`), and each ingester, renderer and thumbnailer
-names the upstream PHP class it mirrors.
+(`access`), the JPEG master it names (`access_master`), the transcode that makes an audio or video access copy
+(`transcode`), and `iiif_image`, the IIIF Image API at level 1 over a stored image (a Romeka addition: its parse and
+plan are pure, the server routes it). `src/lib.rs` documents the module map and the one network seam
+(`http::HttpFetch`), and each ingester, renderer and thumbnailer names the upstream PHP class it mirrors.
 
 The store has six prefixes: `original`, `asset`, the three thumbnail types, and `access`, a Romeka-only one for the
-playable copy of an original. A copy is never the original: `access/<storage id>.mp4` sits beside
-`original/<storage id>.avi`, and the original stays downloadable and checksummed.
+playable or viewable copy of an original. A copy is never the original: `access/<storage id>.mp4` or
+`access/<storage id>.jpg` sits beside `original/<storage id>.avi`, and the original stays downloadable and checksummed.
 
 ## Benchmarks
 
