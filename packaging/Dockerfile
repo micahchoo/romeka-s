@@ -40,9 +40,16 @@ COPY crates ./crates
 # name and the name the crate declares on a tree that predates the rename, and
 # installs whichever the build produced. Drop the second name and the loop once
 # the rename has landed everywhere.
+#
+# The target cache is shared by every build of this file, including builds of
+# other checkouts. Cargo trusts an artifact newer than its source's mtime, so a
+# build from an older checkout could leave a crate this tree then reuses
+# (2026-10-21: a deploy failed on fields its own omeka-db had). Touching the
+# copied sources rebuilds the workspace crates every time; dependencies stay cached.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     set -eux; \
+    find crates -type f -exec touch {} +; \
     cargo build --release --locked -p omeka-cli; \
     for bin in target/release/romeka target/release/omeka; do \
         if [ -x "$bin" ]; then install -D -m 0755 "$bin" /out/romeka; exit 0; fi; \
