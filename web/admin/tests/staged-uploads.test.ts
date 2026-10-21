@@ -7,14 +7,14 @@ import { describe, expect, it } from 'vitest';
 import { brandId, isRecord, ParseError } from '../src/api/parse';
 import { StagedUploads, createMedia, parseProbe, parseUploadLimits, probeLink, uploadLimits } from '../src/api/staged-uploads';
 import { ApiError } from '../src/api/client';
-import { TusUploads, UploadRefusedError } from '../src/app/upload/tus';
+import { TusUploads, UploadRefusedError, parseTusListing } from '../src/app/upload/tus';
 import { first, installFetch, jsonResponse, requestBody, requestsFor, route } from './stub';
 import { loadFixture } from './loadFixture';
 
 const ITEM = brandId<'ItemId'>(7);
 
 const tusWith = (fetchFn: typeof fetch): TusUploads =>
-  new TusUploads({ basePath: '/api/romeka/uploads', baseUrl: '', fetchFn });
+  new TusUploads({ basePath: '/api/romeka/uploads', baseUrl: '', fetchFn, readListing: parseTusListing });
 
 const limitsBody = { maxFileBytes: 2 * 1024 ** 3, kinds: ['audio', 'video'], extensions: ['jpg', 'mp4'], validationOff: false };
 
@@ -47,7 +47,7 @@ describe('the staged target', () => {
     expect(requestsFor(fetchMock, '/api/romeka/upload-limits')).toHaveLength(1);
   });
 
-  it('asks for this item’s uploads and sums the bytes the server holds', async () => {
+  it('reads a collection that states neither a total nor a limit, and sums the bytes', async () => {
     const fetchMock = installFetch(route({ '/api/romeka/uploads': () => jsonResponse(listing) }));
     const target = new StagedUploads(ITEM, tusWith(fetchMock));
 

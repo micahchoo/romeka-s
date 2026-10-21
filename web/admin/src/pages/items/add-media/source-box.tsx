@@ -11,7 +11,7 @@ import type { DragEvent, ReactElement } from 'react';
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, Translator } from '../../../i18n';
 import { mediaKindOfServerKind } from '../../../app/media';
-import { sizeText } from '../../../app/format';
+import { sizeText } from '../../../app/upload/size-text';
 import { fromBrowserEntry, fromDrop, fromInput } from '../../../app/upload/pick';
 import { PROBE_INGESTERS, probeLink } from '../../../api/staged-uploads';
 import type { Ingester, Probe } from '../../../api/staged-uploads';

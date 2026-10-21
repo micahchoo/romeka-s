@@ -11,7 +11,7 @@ import { ParseError, asBoolean, asString, parseMedia } from './parse';
 import { problemOf } from '../app/upload/problem';
 import type { UploadProblem } from '../app/upload/problem';
 import type { SentChunk, UploadListing, UploadTarget } from '../app/upload/target';
-import { TusUploads } from '../app/upload/tus';
+import { TusUploads, parseTusListing } from '../app/upload/tus';
 import type { UploadLimit } from '../app/upload/tus';
 
 /** The readers the probe can answer, as `omeka_api::media_add::Probe` names them. */
@@ -153,7 +153,7 @@ export class StagedUploads implements UploadTarget {
   private readonly tus: TusUploads;
   private limitsRead: Promise<LimitsState> | null = null;
 
-  constructor(itemId: ItemId, tus: TusUploads = new TusUploads({ basePath: '/api/romeka/uploads' })) {
+  constructor(itemId: ItemId, tus: TusUploads = new TusUploads({ basePath: '/api/romeka/uploads', readListing: parseTusListing })) {
     this.itemId = itemId;
     this.tus = tus;
   }
@@ -191,7 +191,7 @@ export class StagedUploads implements UploadTarget {
   }
 
   async append(upload: string, offset: number, bytes: Blob, signal?: AbortSignal): Promise<SentChunk> {
-    const chunk = await this.tus.append(upload, offset, bytes, signal);
+    const chunk = await this.tus.append(upload, offset, bytes, signal === undefined ? {} : { signal });
     // A staged upload is never unpacked: it becomes one media's original file.
     return { offset: chunk.offset, unpack: null };
   }

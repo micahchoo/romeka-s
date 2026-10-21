@@ -1,5 +1,5 @@
 /** The words the upload view shows for sizes, row states and problems. */
-import { sizeText } from '../../../app/format';
+import { sizeText } from '../../../app/upload/size-text';
 import type { ImportTranslator } from '../messages';
 import type { UploadProblem } from '../../../app/upload/problem';
 import type { UploadRow } from '../../../app/upload/session';

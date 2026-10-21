@@ -10,11 +10,12 @@
  */
 import type { UploadProblem } from '../app/upload/problem';
 import type { SentChunk, Unpack, UploadListing, UploadTarget } from '../app/upload/target';
-import { TusUploads, keyedUrl } from '../app/upload/tus';
+import { TusUploads, keyedUrl, parseJsonBody, parseStoredUpload, readApiError } from '../app/upload/tus';
 import type { TusListing } from '../app/upload/tus';
-import { ApiError, defaultBaseUrl } from './client';
+import { defaultBaseUrl } from './client';
 import type { ImportId } from './import-plan';
-import { ParseError, isRecord } from './parse';
+import { asCount, list, member, strict } from './import-read';
+import { ParseError, asString, isRecord } from './parse';
 import { localizeServerErrors } from '../i18n/serverText';
 import { closesImport, importProblemOf } from '../pages/import/upload/problem';
 
@@ -27,6 +28,28 @@ export interface ImportTargetOptions {
   readonly fetchFn?: typeof fetch;
 }
 
+/**
+ * What the import's collection answers: the rows, the bytes used and the
+ * limits. The server always sends all three, so a missing one is a contract
+ * break that throws here rather than becoming zero.
+ */
+export interface ImportListing extends TusListing {
+  readonly used: number;
+  readonly limit: { readonly file: number; readonly total: number };
+}
+
+export const parseImportListing = (raw: unknown): ImportListing => {
+  const object = strict(raw, [], ['uploads', 'used', 'limit'], ['keepUntil']);
+  const limit = strict(object['limit'], ['limit'], ['file', 'total']);
+  const keepUntil = object['keepUntil'];
+  return {
+    uploads: member(object, 'uploads', [], list(parseStoredUpload)),
+    used: member(object, 'used', [], asCount),
+    limit: { file: member(limit, 'file', ['limit'], asCount), total: member(limit, 'total', ['limit'], asCount) },
+    keepUntil: keepUntil === null || keepUntil === undefined ? null : asString(keepUntil, ['keepUntil']),
+  };
+};
+
 /** The job routes an import's uploads report through. */
 export class ImportJobs {
   private readonly baseUrl: string;
@@ -38,7 +61,7 @@ export class ImportJobs {
   }
 
   async jobStatus(jobId: number): Promise<JobStatus> {
-    const body: unknown = JSON.parse(await (await this.get(`/api/jobs/${String(jobId)}`, 'application/json')).text());
+    const body = parseJsonBody(await (await this.get(`/api/jobs/${String(jobId)}`, 'application/json')).text());
     const status = isRecord(body) ? JOB_STATUSES.find((candidate) => candidate === body['o:status']) : undefined;
     if (status === undefined) {
       throw new ParseError(['o:status'], `one of ${JOB_STATUSES.join(', ')}`);
@@ -63,7 +86,8 @@ export class ImportJobs {
       credentials: 'same-origin',
     });
     if (!response.ok) {
-      throw new ApiError(response.status, null, `HTTP ${String(response.status)}`, null);
+      // The job routes answer the same error document as the rest of `/api`.
+      throw await readApiError(response);
     }
     return response;
   }
@@ -74,12 +98,13 @@ export const importJobs = new ImportJobs();
 
 /** One import's staging area. */
 export class ImportUploads implements UploadTarget {
-  private readonly tus: TusUploads;
+  private readonly tus: TusUploads<ImportListing>;
   private readonly jobs: ImportJobs;
 
   constructor(importId: ImportId, options: ImportTargetOptions = {}, jobs?: ImportJobs) {
     this.tus = new TusUploads({
       basePath: `/api/romeka/imports/${String(importId)}/uploads`,
+      readListing: parseImportListing,
       ...(options.baseUrl === undefined ? {} : { baseUrl: options.baseUrl }),
       ...(options.fetchFn === undefined ? {} : { fetchFn: options.fetchFn }),
     });
@@ -87,9 +112,8 @@ export class ImportUploads implements UploadTarget {
   }
 
   async list(): Promise<UploadListing> {
-    const listing: TusListing = await this.tus.list();
-    const used = listing.used ?? listing.uploads.reduce((sum, upload) => sum + upload.length, 0);
-    return { uploads: listing.uploads, used, limit: listing.limit };
+    const listing = await this.tus.list();
+    return { uploads: listing.uploads, used: listing.used, limit: listing.limit };
   }
 
   create(path: string, length: number): Promise<string> {
@@ -101,8 +125,11 @@ export class ImportUploads implements UploadTarget {
   }
 
   async append(upload: string, offset: number, bytes: Blob, signal?: AbortSignal): Promise<SentChunk> {
-    const chunk = await this.tus.append(upload, offset, bytes, signal, 'Romeka-Unzip-Job');
-    const job = chunk.extension === null ? null : Number(chunk.extension);
+    const chunk = await this.tus.append(upload, offset, bytes, {
+      ...(signal === undefined ? {} : { signal }),
+      readHeader: 'Romeka-Unzip-Job',
+    });
+    const job = chunk.header === null ? null : Number(chunk.header);
     return {
       offset: chunk.offset,
       unpack: job === null || !Number.isSafeInteger(job) ? null : this.unpack(job),

@@ -8,7 +8,7 @@ import { useTranslator } from '../../../i18n';
 import type { KeyOf, Translator } from '../../../i18n';
 import { KIND_LABEL, kindOfFile, mediaKind, mediaName } from '../../../app/media';
 import { MediaKindIcon } from '../../../app/media-image';
-import { sizeText } from '../../../app/format';
+import { sizeText } from '../../../app/upload/size-text';
 import { currentUser } from '../../../api/session';
 import type { Media } from '../../../api/types';
 import type { UploadProblem } from '../../../app/upload/problem';

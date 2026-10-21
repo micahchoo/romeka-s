@@ -13,15 +13,25 @@ export type { UploadProblem };
 export const closesImport = (problem: UploadProblem): boolean =>
   problem.kind === 'importStarted' || problem.kind === 'notAllowed';
 
+/** A whole number the import's refusal body carries, or null for anything else. */
+const whole = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+
 /** The problem a thrown error states, with the import's own refusal words. */
 export const importProblemOf = (error: unknown): UploadProblem =>
   problemOf(error, (refusal) => {
-    switch (refusal.code) {
-      case 'importFull':
-        return { kind: 'importFull', limit: refusal.limit, used: refusal.used };
-      case 'notDraft':
-        return { kind: 'importStarted' };
-      default:
-        return null;
+    // `importFull` and `notDraft` are the import's wire codes, so the shared
+    // reader hands them over as `other` with their names and bodies.
+    if (refusal.code !== 'other') {
+      return null;
     }
+    if (refusal.wire === 'notDraft') {
+      return { kind: 'importStarted' };
+    }
+    if (refusal.wire === 'importFull') {
+      const limit = whole(refusal.body['limit']);
+      const used = whole(refusal.body['used']);
+      return limit === null || used === null ? null : { kind: 'importFull', limit, used };
+    }
+    return null;
   });

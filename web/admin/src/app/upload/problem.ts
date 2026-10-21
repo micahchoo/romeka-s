@@ -37,8 +37,7 @@ const sharedProblem = (refusal: UploadRefusal): UploadProblem | null => {
       return { kind: 'notAllowed' };
     case 'gone':
       return { kind: 'gone' };
-    case 'importFull':
-    case 'notDraft':
+    case 'other':
     case 'uploadInProgress':
     case 'offsetConflict':
       return null;

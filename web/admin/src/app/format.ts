@@ -1,30 +1,6 @@
 import { ApiError } from '../api/client';
 import type { Locale, Translator } from '../i18n';
 
-const SIZE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
-const sizeFormats = new Map<string, Intl.NumberFormat>();
-
-/**
- * A size in the locale's unit words. The steps are 1000, as the unit words
- * mean them: 1 GB is 1,000,000,000 bytes, the number a limit setting holds.
- */
-export const sizeText = (bytes: number, locale: Locale): string => {
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1000 && unit < SIZE_UNITS.length - 1) {
-    value /= 1000;
-    unit += 1;
-  }
-  const name = SIZE_UNITS[unit] ?? 'byte';
-  const key = `${locale}:${name}`;
-  let format = sizeFormats.get(key);
-  if (format === undefined) {
-    format = new Intl.NumberFormat(locale, { style: 'unit', unit: name, unitDisplay: unit === 0 ? 'long' : 'short', maximumFractionDigits: unit < 2 ? 0 : 1 });
-    sizeFormats.set(key, format);
-  }
-  return format.format(value);
-};
-
 /** The upstream message with its status suffix, through the catalogue. */
 export const formatError = (error: Error, translator: Translator): string =>
   error instanceof ApiError
