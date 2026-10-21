@@ -1,9 +1,10 @@
 /**
- * Check in Simple, rendered over the fake server: the title question comes
- * from the server's count of items to add with no title, whatever their item
- * type, and offers the item code for items of many files; a file the list
- * names and the install refuses is a fact with a link and no question; and
- * the unmatched files question speaks plainly when nobody marked an example.
+ * Check in Simple, rendered over the fake server, one row of its list
+ * selected at a time: the title question comes from the server's count of
+ * items to add with no title, whatever their item type, and offers the item
+ * code for items of many files; a file the list names and the install refuses
+ * is a fact with a link and no question; and the unmatched files question
+ * speaks plainly when nobody marked an example.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -55,16 +56,23 @@ afterEach(() => {
   window.location.hash = '';
 });
 
+/** Selects a row of Check's list by its name and returns the inspector the row opens, named by its count sentence. */
+const inspect = async (row: string, region: RegExp): Promise<HTMLElement> => {
+  const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+  fireEvent.click(within(questions).getByRole('option', { name: row }));
+  return screen.findByRole('region', { name: region });
+};
+
+const answers = (inspector: HTMLElement): HTMLElement => within(inspector).getByRole('group', { name: /^Answer for all/ });
+
 describe('Check: the title', () => {
   it('suggests the item code for items of three files, and choosing it saves a title from the identifier group', async () => {
     const server = simpleServer(items('3'), LISTED);
     openCheck(server);
-    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
-    const code = within(card).getByRole('radio', {
-      name: /^Use the item code as the title/,
-    });
-    expect(code.closest('label')).toHaveTextContent('suggested');
-    expect(code).toBeChecked();
+    const card = await inspect('Items with no title', /^4 items to add have no title/);
+    const code = within(answers(card)).getByRole('button', { name: /^The item code/ });
+    expect(code).toHaveAccessibleName('The item code suggested');
+    expect(code).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(within(card).getByRole('button', { name: 'Use the suggested answer' }));
     await waitFor(
       () => {
@@ -76,32 +84,24 @@ describe('Check: the title', () => {
 
   it('keeps the file name on offer, and the untitled answer truthful, for items of one file', async () => {
     openCheck(simpleServer(items('1'), LISTED));
-    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
-    expect(
-      within(card)
-        .getByRole('radio', { name: /^Add them without a title/ })
-        .closest('label'),
-    ).toHaveTextContent('suggested');
-    expect(
-      within(card).getByRole('radio', {
-        name: 'Use the file name as the title',
-      }),
-    ).toBeInTheDocument();
+    const card = await inspect('Items with no title', /^4 items to add have no title/);
+    expect(within(answers(card)).getByRole('button', { name: /^No title/ })).toHaveAccessibleName('No title suggested');
+    expect(within(answers(card)).getByRole('button', { name: 'The file name' })).toBeInTheDocument();
     expect(card).not.toHaveTextContent('Omeka shows the identifier');
   }, 20_000);
 
   it('asks once when an item type also requires the title', async () => {
     const required = { ...items('3'), flags: [{ kind: 'empty-required', slot: 'dcterms:title', count: 4, detail: null }] };
     openCheck(simpleServer(required, LISTED));
-    await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
-    expect(screen.queryByRole('article', { name: /times: A field that must have a value is empty/ })).toBeNull();
-    expect(screen.getAllByRole('article', { name: /title/ })).toHaveLength(1);
+    const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+    expect(within(questions).queryByRole('option', { name: 'A field that must have a value is empty' })).toBeNull();
+    expect(within(questions).getAllByRole('option', { name: /title/ })).toHaveLength(1);
   }, 20_000);
 
   it('asks with no list at all, where no item type requires a title', async () => {
     openCheck(simpleServer(items('3')));
-    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
-    expect(within(card).getByRole('radio', { name: /^Use the item code as the title/ })).toBeChecked();
+    const card = await inspect('Items with no title', /^4 items to add have no title/);
+    expect(within(answers(card)).getByRole('button', { name: /^The item code/ })).toHaveAttribute('aria-pressed', 'true');
   }, 20_000);
 });
 
@@ -124,12 +124,11 @@ describe('Check: a file the list names and the install refuses', () => {
         LISTED,
       ),
     );
-    const fact = await screen.findByRole('region', { name: /^3 files in your list/ }, { timeout: 5000 });
+    const fact = await inspect('A file your list names that Omeka does not take', /^3 files in your list/);
     expect(fact).toHaveTextContent('BHC006_GMT_AF_296#1 .nef');
     expect(within(fact).getByRole('link', { name: /allowed file types/ })).toHaveAttribute('href', '#/settings');
-    expect(within(fact).queryByRole('radio')).toBeNull();
     expect(within(fact).queryByRole('button')).toBeNull();
-    expect(screen.queryByRole('article', { name: /files in your list/ })).toBeNull();
+    expect(within(screen.getByRole('listbox', { name: 'Questions' })).getByRole('option', { name: 'A file your list names that Omeka does not take' })).toHaveTextContent('fact');
   }, 20_000);
 });
 
@@ -142,7 +141,8 @@ describe('Check: files that do not fit', () => {
 
   it('speaks of how the other files are grouped when nobody marked an example', async () => {
     openCheck(simpleServer(stray, LISTED));
-    expect(await screen.findByText('2 files have a name that does not fit how the other files are grouped into items.', {}, { timeout: 5000 })).toBeInTheDocument();
+    await inspect('Names that fit no item', /^2 file names/);
+    expect(screen.getByRole('heading', { name: '2 file names do not fit how the others are grouped.' })).toBeInTheDocument();
   }, 20_000);
 
   it('speaks of the marked example when one is marked', async () => {
@@ -151,7 +151,8 @@ describe('Check: files that do not fit', () => {
       marks: [{ kind: 'words', words: ['front'], sep: '_' }],
     };
     openCheck(simpleServer(stray, { ...LISTED, example }));
-    expect(await screen.findByText('2 files have a name that does not fit the example you marked.', {}, { timeout: 5000 })).toBeInTheDocument();
+    await inspect('Names that fit no item', /^2 file names/);
+    expect(screen.getByRole('heading', { name: '2 file names do not fit the example you marked.' })).toBeInTheDocument();
   }, 20_000);
 });
 

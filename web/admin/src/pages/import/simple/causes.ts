@@ -114,6 +114,8 @@ export interface Option {
 }
 
 export interface CauseWords {
+  /** The cause's short name in the list of questions. */
+  readonly name: SimpleMessageKey | `problem.${FlagKind}`;
   readonly say: SimpleMessageKey;
   readonly sayOne: SimpleMessageKey;
   readonly why: SimpleMessageKey | null;
@@ -131,12 +133,14 @@ const FILE_ROWS: Option = { value: 'fileRows', label: 'guided.check.fileRows' };
 
 const ANOMALY_WORDS: Readonly<Record<AnomalyId, CauseWords>> = {
   itemsWithoutRow: {
+    name: 'guided.check.nameNoRow',
     say: 'guided.check.noRow',
     sayOne: 'guided.check.noRowOne',
     why: 'guided.check.noRowWhy',
     options: keepLeave('guided.check.noRowKeep', 'guided.check.leave'),
   },
   identical: {
+    name: 'guided.check.nameSame',
     say: 'guided.check.same',
     sayOne: 'guided.check.sameOne',
     why: 'guided.check.sameWhy',
@@ -146,6 +150,7 @@ const ANOMALY_WORDS: Readonly<Record<AnomalyId, CauseWords>> = {
     ],
   },
   unmatchedFiles: {
+    name: 'guided.check.nameNoFit',
     say: 'guided.check.noFit',
     sayOne: 'guided.check.noFitOne',
     why: null,
@@ -158,6 +163,7 @@ const ANOMALY_WORDS: Readonly<Record<AnomalyId, CauseWords>> = {
 
 const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
   'cells-count': {
+    name: 'problem.cells-count',
     say: 'guided.check.cells',
     sayOne: 'guided.check.cellsOne',
     why: 'guided.check.cellsWhy',
@@ -166,8 +172,9 @@ const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
       { value: 'keep', label: 'guided.check.cellsKeep' },
     ],
   },
-  'no-file': { say: 'guided.check.noFile', sayOne: 'guided.check.noFileOne', why: 'guided.check.noFileWhy', options: keepLeave('guided.check.noFileKeep', 'guided.check.leave') },
+  'no-file': { name: 'problem.no-file', say: 'guided.check.noFile', sayOne: 'guided.check.noFileOne', why: 'guided.check.noFileWhy', options: keepLeave('guided.check.noFileKeep', 'guided.check.leave') },
   exists: {
+    name: 'problem.exists',
     say: 'guided.check.known',
     sayOne: 'guided.check.knownOne',
     why: 'guided.check.knownWhy',
@@ -176,19 +183,21 @@ const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
       { value: 'keep', label: 'guided.check.knownKeep' },
     ],
   },
-  'date-form': { say: 'guided.check.date', sayOne: 'guided.check.dateOne', why: 'guided.check.dateWhy', options: keepLeave('guided.check.dateKeep', 'guided.check.dateLeave') },
+  'date-form': { name: 'problem.date-form', say: 'guided.check.date', sayOne: 'guided.check.dateOne', why: 'guided.check.dateWhy', options: keepLeave('guided.check.dateKeep', 'guided.check.dateLeave') },
   // Shown only when Advanced turned the trim off, so the trim must be on offer again.
   'space-at-ends': {
+    name: 'problem.space-at-ends',
     say: 'guided.check.other',
     sayOne: 'guided.check.otherOne',
     why: null,
     options: [{ value: 'repair', label: 'guided.check.spacesRepair' }, KEEP, LEAVE],
   },
-  'unknown-type': { say: 'guided.check.type', sayOne: 'guided.check.typeOne', why: 'guided.check.typeWhy', options: [{ value: 'keep', label: 'guided.check.typeKeep' }] },
+  'unknown-type': { name: 'problem.unknown-type', say: 'guided.check.type', sayOne: 'guided.check.typeOne', why: 'guided.check.typeWhy', options: [{ value: 'keep', label: 'guided.check.typeKeep' }] },
 };
 
 /** A kind with no words of its own: its default first, so the suggestion leads. */
 const UNTITLED_WORDS: CauseWords = {
+  name: 'guided.check.nameUntitled',
   say: 'guided.check.untitled',
   sayOne: 'guided.check.untitledOne',
   why: null,
@@ -203,6 +212,7 @@ const UNTITLED_WORDS: CauseWords = {
 const rowsDescribeFiles = (plan: ImportPlan): boolean => plan.sheets.length > 0 && plan.sheets.every((sheet) => sheet.rowKind === 'media');
 
 const generic = (kind: FlagKind): CauseWords => ({
+  name: `problem.${kind}`,
   say: 'guided.check.other',
   sayOne: 'guided.check.otherOne',
   why: null,

@@ -169,14 +169,12 @@ describe('the same plan in Advanced', () => {
 describe('Check: two rows for one item', () => {
   it('offers first, and suggests, that each row describes one file, and that answer saves media rows', async () => {
     const server = open('simple/check', ONE_ITEM_A_ROW);
-    const card = await screen.findByRole('article', { name: /Two rows for one item/ }, { timeout: 5000 });
-    const options = within(card).getAllByRole('radio');
-    expect(options.map((option) => option.closest('label')?.textContent)).toEqual([
-      'Each row describes one filesuggested',
-      'Keep them as they are',
-      'Leave them out',
-    ]);
-    expect(options[0]).toBeChecked();
+    const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+    fireEvent.click(within(questions).getByRole('option', { name: 'Two rows for one item' }));
+    const card = await screen.findByRole('region', { name: /Two rows for one item/ });
+    const options = within(within(card).getByRole('group', { name: /^Answer for all/ })).getAllByRole('button');
+    expect(options.map((option) => option.textContent)).toEqual(['Each row describes one file✓ suggested', 'Keep as they are', 'Leave out']);
+    expect(options[0]).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(within(card).getByRole('button', { name: 'Use the suggested answer' }));
     await waitFor(() => {
       expect(sheet(last(server.saved))['rowKind']).toBe('media');

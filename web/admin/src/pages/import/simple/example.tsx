@@ -150,7 +150,9 @@ const Words = ({
   const more = place.total - place.items.length;
   return (
     <>
-      <p>{t('guided.example.wordsLede')}</p>
+      <p>
+        {t('guided.example.wordsLede')} {t('guided.example.wordsTick')}
+      </p>
       {place.total > WORDS_SHOWN ? <Search label={t('guided.example.findWord')} hint="" onAsk={onAsk} /> : null}
       <ul className="guided-ticks">
         {place.items.map((word) => (
@@ -264,7 +266,9 @@ const Marking = ({ path }: { readonly path: string }): ReactElement => {
         {ending === null ? null : <span className="muted">.{ending}</span>}
       </div>
       <p className="guided-ask-q">{t('guided.example.click')}</p>
-      <p className="muted">{t('guided.example.clickHint')}</p>
+      <p className="muted">
+        {t('guided.example.clickHint')} {t('guided.example.clickRest')}
+      </p>
       {body}
     </>
   );

@@ -6,7 +6,7 @@
  "lists.changes.count": "You made {count} changes.",
  "lists.changes.many": "{count} of them change many at once. Your changes stay when you add more files or change an answer.",
  "lists.changes.undoMany": "Undo the last change to many",
- "lists.chart.caption": "Files in each item. A wrong grouping shows here first: almost every item has 1 file, or one item has thousands.",
+ "lists.chart.caption": "Files in each item. A wrong grouping shows here first.",
  "lists.chart.bar": "{count} items with {files}. Show them.",
  "lists.facts.files0": "no file",
  "lists.facts.files1": "1 file",
