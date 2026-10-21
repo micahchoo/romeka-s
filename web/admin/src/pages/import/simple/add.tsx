@@ -1,14 +1,15 @@
 /**
- * "Add them": what the run writes, in plain words, from the server's check
- * (items and files, the new item sets, item types and fields, items with no
- * item type), and who can see them. A delete writes nothing and cannot be
- * undone, so it has neither the visibility nor the undo note; its start asks
- * for the count typed, as in Advanced. The start, its refusals, the progress and
- * the end are the run screen's (`run/`), the one start path both modes share;
- * this file gives it Simple's words for the check.
+ * "Add them": what the run writes, from the server's check, as label and
+ * value rows (the action, items, files, what is left out, the new item sets,
+ * item types and fields, items with no item type, titles from the item code,
+ * lists whose rows describe files) and who can see them. A delete writes
+ * nothing and cannot be undone, so it has neither the visibility nor the undo
+ * note; its start asks for the count typed, as in Advanced. The start, its
+ * refusals, the progress and the end are the run screen's (`run/`), the one
+ * start path both modes share; this file gives it Simple's rows for the check.
  */
-import { useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { Action } from '../../../api/import-plan';
 import type { Check } from '../../../api/import-sections';
 import { useDraft } from '../draft-context';
@@ -38,91 +39,98 @@ const counted = (check: Check, kind: 'item' | 'media'): number =>
 
 const left = (check: Check): number => check.counts.filter((count) => count.kind === 'item' && count.does === 'leave').reduce((sum, count) => sum + count.count, 0);
 
-const Names = ({ names, one, many }: { readonly names: readonly string[]; readonly one: SimpleMessageKey; readonly many: SimpleMessageKey }): ReactElement | null => {
+/** One row of the summary; a row with nothing to say is absent. */
+interface Fact {
+  readonly label: SimpleMessageKey;
+  readonly value: ReactNode;
+}
+
+const Names = ({ names }: { readonly names: readonly string[] }): ReactElement => {
   const { t, number } = useSimpleText();
-  if (names.length === 0) {
-    return null;
-  }
-  const shown = names.slice(0, NAMES_SHOWN).map((name) => `“${name}”`).join(', ');
   const more = names.length - NAMES_SHOWN;
   return (
-    <li>
-      {names.length === 1 ? t(one, { names: shown }) : t(many, { count: number(names.length), names: shown })}
-      {more > 0 ? ` ${t('guided.add.andMore', { count: number(more) })}` : null}
-    </li>
-  );
-};
-
-/**
- * What the plan says about titles and about lists whose rows describe one file
- * each, read from the plan, so the lines show on every visit, whoever wrote it.
- */
-const PlanLines = (): ReactElement => {
-  const { t } = useSimpleText();
-  const draft = useDraft();
-  const back = <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>;
-  return (
     <>
-      {fromCode(draft.plan.slots.item['dcterms:title']) ? (
-        <li>
-          {t('guided.add.titleCode')} {back}
-        </li>
-      ) : null}
-      {draft.plan.sheets
-        .filter((sheet) => sheet.rowKind === 'media')
-        .map((sheet) => (
-          <li key={sheet.id}>
-            {t('guided.add.fileRows', { name: sheet.file })} {back}
-          </li>
-        ))}
+      {names.slice(0, NAMES_SHOWN).map((name) => (
+        <span key={name} className="guided-chip">
+          {name}
+        </span>
+      ))}
+      {more > 0 ? <span className="muted">{t('guided.add.andMore', { count: number(more) })}</span> : null}
     </>
   );
 };
 
-/** The check in Simple's sentences, above the run screen's start. */
+/** The check in Simple's rows, above the run screen's start. */
 export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const items = counted(check, 'item');
-  const files = counted(check, 'media');
   const out = left(check);
-  return (
-    <>
-      <p className="guided-big">
-        {t('guided.add.ready', { what: t(ACTION_WORDS[check.action]) })}{' '}
-        <b>{items === 1 ? t('guided.add.itemsOne') : t('guided.add.items', { count: number(items) })}</b>
-        {', '}
-        {files === 1 ? t('guided.add.filesOne') : t('guided.add.files', { count: number(files) })}.
-      </p>
-      {check.action === 'create' ? (
-        <p className="muted">{t('guided.add.inPlace')}</p>
-      ) : (
-        <p className="import-note">
-          {t('guided.add.chosenAdvanced')} <a href={placeHref(draft.id, { mode: 'advanced', screen: 'existing' })}>{t('guided.add.changeThere')}</a>
-        </p>
-      )}
-      <ul>
-        <PlanLines />
-        {out === 0 ? null : <li>{out === 1 ? t('guided.add.leftOne') : t('guided.add.left', { count: number(out) })}</li>}
-        <Names names={check.newSets.map((set) => set.title)} one="guided.add.newSetOne" many="guided.add.newSets" />
-        <Names names={check.newTypes.map((type) => type.label)} one="guided.add.newTypeOne" many="guided.add.newTypes" />
-        <Names names={check.newFields.map((field) => field.label)} one="guided.add.newFieldOne" many="guided.add.newFields" />
-        {check.withoutTemplate === 0 ? null : (
-          <li>{check.withoutTemplate === 1 ? t('guided.add.noTypeOne') : t('guided.add.noType', { count: number(check.withoutTemplate) })}</li>
-        )}
-      </ul>
-      {check.blocking.length === 0 ? null : (
-        <p role="alert">
-          {check.blocking.length === 1 ? t('guided.add.mustFixOne') : t('guided.add.mustFix', { count: number(check.blocking.length) })}{' '}
-          <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.lookAt')}</a>
-        </p>
-      )}
-      {check.action === 'delete' ? null : (
+  const back = <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>;
+  const advanced = placeHref(draft.id, { mode: 'advanced', screen: 'existing' });
+  const fileRows = draft.plan.sheets.filter((sheet) => sheet.rowKind === 'media');
+  const facts: readonly (Fact | null)[] = [
+    {
+      label: 'guided.add.does',
+      value: (
         <>
-          <p>
-            <label data-decision="who">
-              {t('guided.add.who')}{' '}
+          {t(ACTION_WORDS[check.action])}
+          {check.action === 'create' ? (
+            <a className="muted" href={advanced}>
+              {t('guided.add.inPlace')}
+            </a>
+          ) : (
+            <span className="muted">
+              {t('guided.add.chosenAdvanced')} <a href={advanced}>{t('guided.add.changeThere')}</a>
+            </span>
+          )}
+        </>
+      ),
+    },
+    { label: 'guided.add.items', value: <b>{number(counted(check, 'item'))}</b> },
+    { label: 'guided.add.files', value: number(counted(check, 'media')) },
+    out === 0 ? null : { label: 'guided.add.left', value: number(out) },
+    check.newSets.length === 0 ? null : { label: 'guided.add.newSets', value: <Names names={check.newSets.map((set) => set.title)} /> },
+    check.newTypes.length === 0 ? null : { label: 'guided.add.newTypes', value: <Names names={check.newTypes.map((type) => type.label)} /> },
+    check.newFields.length === 0 ? null : { label: 'guided.add.newFields', value: <Names names={check.newFields.map((field) => field.label)} /> },
+    check.withoutTemplate === 0 ? null : { label: 'guided.add.noType', value: number(check.withoutTemplate) },
+    fromCode(draft.plan.slots.item['dcterms:title'])
+      ? {
+          label: 'guided.add.titles',
+          value: (
+            <>
+              {t('guided.add.titleCode')} {back}
+            </>
+          ),
+        }
+      : null,
+    fileRows.length === 0
+      ? null
+      : {
+          label: 'guided.add.fileRows',
+          value: (
+            <>
+              <Names names={fileRows.map((sheet) => sheet.file)} /> {back}
+            </>
+          ),
+        },
+  ];
+  return (
+    <div className="guided-dials">
+      <dl className="guided-kv">
+        {facts.map((fact) =>
+          fact === null ? null : (
+            <Fragment key={fact.label}>
+              <dt>{t(fact.label)}</dt>
+              <dd>{fact.value}</dd>
+            </Fragment>
+          ),
+        )}
+        {check.action === 'delete' ? null : (
+          <>
+            <dt>{t('guided.add.who')}</dt>
+            <dd data-decision="who">
               <select
+                aria-label={t('guided.add.who')}
                 value={draft.plan.defaults.visibility}
                 disabled={!draft.editable}
                 onChange={(event) => {
@@ -133,12 +141,18 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
                 <option value="private">{t('guided.add.private')}</option>
                 <option value="public">{t('guided.add.public')}</option>
               </select>
-            </label>
-          </p>
-          <p className="muted">{t('guided.add.undo')}</p>
-        </>
+            </dd>
+          </>
+        )}
+      </dl>
+      {check.blocking.length === 0 ? null : (
+        <p role="alert">
+          {check.blocking.length === 1 ? t('guided.add.mustFixOne') : t('guided.add.mustFix', { count: number(check.blocking.length) })}{' '}
+          <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.lookAt')}</a>
+        </p>
       )}
-    </>
+      {check.action === 'delete' ? null : <p className="muted">{t('guided.add.undo')}</p>}
+    </div>
   );
 };
 

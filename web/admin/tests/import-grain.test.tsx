@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord } from '../src/api/parse';
 import type { Grain } from '../src/api/import-sections';
 import { ImportPage } from '../src/pages/import/page';
+import { fact, findFact } from './fact-rows';
 import { scenario } from './import-simple-scenarios';
 import type { Scenario } from './import-simple-scenarios';
 import { simpleServer } from './import-simple-server';
@@ -201,9 +202,11 @@ describe('Add: questions nobody answered in Check', () => {
 
   it('writes each row as one file and the item code as the title, and says both with a way back to Check', async () => {
     const server = openAdd(ONE_ITEM_A_ROW);
-    const rows = await screen.findByText(`Each row of “${AF}” describes one file.`, { exact: false }, { timeout: 5000 });
+    const rows = await findFact('Rows describe files');
+    expect(rows).toHaveTextContent(AF);
     expect(within(rows).getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '#/import/1/simple/check');
-    const title = screen.getByText(/get their item code as the title/);
+    const title = fact('Titles');
+    expect(title).toHaveTextContent('From the item code');
     expect(within(title).getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '#/import/1/simple/check');
     await waitFor(() => {
       expect(sheet(last(server.saved))['rowKind']).toBe('media');
@@ -223,6 +226,6 @@ describe('Add: questions nobody answered in Check', () => {
       expect(titleOf(last(server.saved))).toEqual([{ from: 'group', name: 'identifier' }]);
     }, { timeout: 5000 });
     expect(server.saved.map((plan) => sheet(plan)['rowKind'])).not.toContain('media');
-    expect(screen.queryByText(/describes one file/)).toBeNull();
+    expect(screen.queryByText('Rows describe files')).toBeNull();
   }, 20_000);
 });

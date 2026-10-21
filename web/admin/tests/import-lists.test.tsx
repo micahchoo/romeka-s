@@ -64,7 +64,7 @@ describe.each([9, 40_000])('Every item at %i items', (size) => {
     expect(many.change).toEqual({ kind: 'leave' });
     expect(many.entries).toHaveLength(withFile);
     expect(many.entries[0]).toEqual({ file: { source: 's1', path: `Letters/item_${pad(1)}.jpg` } });
-    expect(screen.getByText(/^You made 1 change\. 1 of them change many at once\./)).toBeInTheDocument();
+    expect(screen.getByText(/^You made 1 change\. 1 of them change many\./)).toBeInTheDocument();
     expect(document.querySelectorAll('body *').length).toBeLessThan(1500);
   }, 30_000);
 });

@@ -4,9 +4,8 @@
  * between spaces, and a `{name}` placeholder counts as one.
  *
  * `LONG` names every string allowed to be longer, by key. It may only shrink.
- * It holds the help a screen keeps inside its one "What do these mean?"
- * `<details>`, and the strings of screens not yet redesigned, which the next
- * units shrink.
+ * It holds only the help a screen keeps inside its one "What do these mean?"
+ * `<details>`.
  */
 import { describe, expect, it } from 'vitest';
 import { en as lists } from '../src/i18n/namespaces/import-lists';
@@ -27,30 +26,9 @@ const LONG: ReadonlySet<string> = new Set([
   'guided.found.now',
   'guided.found.helpGroups',
   'guided.check.once',
-  // Where they go and Add: the next units shrink them.
+  // Where they go: the help inside "What do these mean?".
   'guided.where.typesGloss',
   'guided.where.valuesNote',
-  'guided.where.spellings',
-  'guided.add.inPlace',
-  // The review lists (changes, files, groups, items, pairs): the next units shrink them.
-  'lists.changes.many',
-  'lists.files.lede',
-  'lists.groups.lede',
-  'lists.groups.odd',
-  'lists.items.lede',
-  'lists.items.none',
-  'lists.pair.lede',
-  'lists.pairs.lede',
-  'lists.pairs.exact',
-  'lists.pairs.why.noItem',
-  // "Fill in a list yourself", collapsed under Your list: the next units shrink them.
-  'lists.trip.lede',
-  'lists.trip.keep',
-  'lists.trip.kinds',
-  'lists.trip.fills',
-  'lists.trip.fillsNone',
-  'lists.trip.unused',
-  'lists.trip.straysWhy',
 ]);
 
 const wordsIn = (text: string): number => text.split(/\s+/).filter((word) => word !== '').length;

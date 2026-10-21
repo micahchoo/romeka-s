@@ -1,9 +1,10 @@
 /**
- * "Where are your files?" once a draft has them: how many files each folder
- * holds, as the last look counted them, and "Look at the files again" for a
- * folder that changed. A draft is made over its folder on the start page, so
- * this screen never chooses one; files from this computer are added here, and
- * each one that arrives is counted with the same look as the button's.
+ * "Where are your files?" once a draft has them: one line with how many
+ * files its folders hold, as the last look counted them, "Look at the files
+ * again" for a folder that changed, and the next step. A draft is made over
+ * its folder on the start page, so this screen never chooses one; files from
+ * this computer are added here, and each one that arrives is counted with the
+ * same look as the button's.
  */
 import type { ReactElement } from 'react';
 import type { SourceState } from '../../../api/import-sections';
@@ -49,30 +50,27 @@ export const YourFiles = (): ReactElement => {
   const files = total(sources);
   return (
     <>
-      <div className="import-note">
-        <p>
-          <b>
-            {files === 1
-              ? t('guided.files.countOne', { where: whereWords(draft.plan.sources, t, sources) })
-              : t('guided.files.count', { count: number(files), where: whereWords(draft.plan.sources, t, sources) })}
-          </b>
-        </p>
-        {sources
-          .filter((source) => source.error !== null)
-          .map((source) => (
-            <p key={source.source} role="alert">
-              {t('guided.files.error', { message: source.error ?? '' })}
-            </p>
-          ))}
-      </div>
-      <p className="import-row-actions">
-        <a className="button-link import-primary" href={placeHref(draft.id, { mode: 'simple', screen: 'found' })}>
-          {t('guided.files.next')}
-        </a>
+      <div className="guided-facts">
+        <span>
+          {t('guided.files.files')} <b>{number(files)}</b>
+        </span>
+        <span>
+          {t('guided.files.from')} <b>{whereWords(draft.plan.sources, t, sources)}</b>
+        </span>
         <button type="button" disabled={again.at === 'looking' || again.at === 'working'} onClick={look}>
           {again.at === 'looking' || again.at === 'working' ? t('guided.files.looking') : t('guided.files.again')}
         </button>
-      </p>
+        <a className="button-link import-primary" href={placeHref(draft.id, { mode: 'simple', screen: 'found' })}>
+          {t('guided.files.next')}
+        </a>
+      </div>
+      {sources
+        .filter((source) => source.error !== null)
+        .map((source) => (
+          <p key={source.source} role="alert">
+            {t('guided.files.error', { message: source.error ?? '' })}
+          </p>
+        ))}
       {again.at === 'working' ? <p role="status">{t('guided.files.againJob')}</p> : null}
       {again.at === 'done' ? <p role="status">{t('guided.files.againDone', { count: number(total(again.sources)) })}</p> : null}
       {again.at === 'failed' ? <ErrorNotice error={again.error} /> : null}

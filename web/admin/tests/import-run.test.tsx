@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { POLL_MS } from '../src/pages/import/run/use-live-import';
+import { fact } from './fact-rows';
 import { checks, conflict, fixture, pathOf, runRoutes } from './import-run-server';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -26,13 +27,14 @@ afterEach(() => {
 const ready = async (): Promise<HTMLElement> => screen.findByRole('button', { name: 'Add 10 items to Omeka' });
 
 describe('before the start', () => {
-  it('says what adding puts into Omeka and what it leaves out, in Simple’s words for the check’s counts', async () => {
+  it('says what adding puts into Omeka and what it leaves out, as Simple’s rows for the check’s counts', async () => {
     installFetch(runRoutes(1, { reads: [fixture('import-draft.json')] }));
     render(at(1));
     expect(await ready()).toBeEnabled();
-    expect(screen.getByText(/^Ready to add them as new items:/)).toBeInTheDocument();
-    expect(screen.getByText('1 item is left out.')).toBeInTheDocument();
-    expect(screen.getByText('1 new field: “Shelf mark”.')).toBeInTheDocument();
+    expect(fact('What it does')).toHaveTextContent(/^Add new items/);
+    expect(fact('Items')).toHaveTextContent(/^10$/);
+    expect(fact('Left out')).toHaveTextContent(/^1$/);
+    expect(fact('New fields')).toHaveTextContent(/^Shelf mark$/);
     expect(screen.getAllByText('You can undo the whole import later.')).toHaveLength(1);
   });
 
@@ -69,7 +71,7 @@ describe('before the start', () => {
     render(at(1, 'advanced', 'run'));
     expect(await screen.findByRole('button', { name: 'Run the import' })).toBeEnabled();
     expect(screen.getByRole('table', { name: 'What the run writes, by record kind and action.' })).toBeInTheDocument();
-    expect(screen.queryByText(/^Ready to add them as new items:/)).toBeNull();
+    expect(screen.queryByText('What it does', { selector: 'dt' })).toBeNull();
   });
 
   it('holds Add while problems stop the start, and links to them', async () => {

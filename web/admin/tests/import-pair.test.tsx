@@ -75,7 +75,7 @@ describe('the pairs list at 40,000 items', () => {
     fireEvent.click(within(card).getByText('Show the 2 cells that made no pair'));
     expect(within(card).getByText(/register:NOWHERE#1: “nothing\.jpg”/)).toBeInTheDocument();
     expect(within(card).getByText('No row of this import has this address.')).toBeInTheDocument();
-    expect(within(card).getByText('The file is in no item of this import: its name did not fit your example.')).toBeInTheDocument();
+    expect(within(card).getByText('In no item: its name does not fit your example.')).toBeInTheDocument();
 
     fireEvent.click(within(card).getByRole('button', { name: 'Undo these pairs' }));
     await waitFor(() => {

@@ -165,21 +165,21 @@ describe('Your list', () => {
 });
 
 describe('Where they go', () => {
-  it('shows the list column that feeds the item sets as the checked choice, and “No item set” takes it out', async () => {
+  it('shows the list column that feeds the item sets as the pressed choice, and “None” takes it out', async () => {
     const column = { index: 1, header: 'Collection' };
     const slots = { item: { sets: { sources: [{ from: 'column', sheet: 'register', column }], combine: 'first' } }, media: {}, itemSet: {} };
     const server = simpleServer(scenario('meera', 9), { slots });
     installFetch(server.handler);
     render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
-    const fromList = await screen.findByRole('radio', { name: 'From your list, the column “Collection”' }, { timeout: 5000 });
-    expect(fromList).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'No item set' })).not.toBeChecked();
-    fireEvent.click(screen.getByRole('radio', { name: 'No item set' }));
+    const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
+    expect(within(dial).getByRole('button', { name: 'Column “Collection”' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dial).getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(within(dial).getByRole('button', { name: 'None' }));
     await waitFor(() => {
       expect(asRecord(asRecord(last(server.saved)['slots'], [])['item'], [])['sets']).toBeUndefined();
     }, { timeout: 3000 });
-    expect(screen.queryByRole('radio', { name: 'From your list, the column “Collection”' })).toBeNull();
-    expect(screen.getByRole('radio', { name: 'No item set' })).toBeChecked();
+    expect(within(dial).queryByRole('button', { name: 'Column “Collection”' })).toBeNull();
+    expect(within(dial).getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'true');
   }, 20_000);
 
   it('maps a value to a new item type, and another to no item type', async () => {
