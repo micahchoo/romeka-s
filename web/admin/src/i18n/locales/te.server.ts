@@ -209,6 +209,9 @@ export const teServer: ServerCatalogue = {
     '"{name}" అనేది .csv, .tsv, .xlsx, .xls లేదా .ods ఫైల్ కాదు. జాబితాను వీటిలో ఒకదానిగా సేవ్ చేసి, మళ్ళీ పంపండి.',
   'server.importListTooLarge': 'జాబితా 50 MB కంటే పెద్దది.',
   'server.importListUnread': 'జాబితాను చదవడం సాధ్యం కాలేదు: {reason}',
+  'server.importListSeriesNeeded':
+    'ఈ ప్లాన్‌లో అనేక సిరీస్‌లు ఉన్నాయి. జాబితా దేనికోసం ఉందో ఆ సిరీస్‌ను ఎంచుకోండి.',
+  'server.importListSeriesUnknown': 'ఈ ప్లాన్‌లో "{series}" సిరీస్ లేదు.',
   'server.importListNoIdentifier':
     'జాబితాలో ఐడెంటిఫైయర్ కాలమ్ లేదు, కాబట్టి దాని వరుసలు వాటి ఐటమ్స్‌ను కనుగొనలేవు. మీరు డౌన్‌లోడ్ చేసిన జాబితా యొక్క ఐడెంటిఫైయర్ కాలమ్‌ను ఉంచండి.',
   'server.importPairsColumns':

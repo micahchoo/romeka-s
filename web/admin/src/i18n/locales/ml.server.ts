@@ -215,6 +215,9 @@ export const mlServer: ServerCatalogue = {
     '"{name}" ഒരു .csv, .tsv, .xlsx, .xls അല്ലെങ്കിൽ .ods ഫയൽ അല്ല. ഈ പട്ടിക ഇവയിലൊന്നായി സേവ് ചെയ്ത് വീണ്ടും അയക്കുക.',
   'server.importListTooLarge': 'ലിസ്റ്റ് 50 MB-യിൽ വലുതാണ്.',
   'server.importListUnread': 'ലിസ്റ്റ് വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.importListSeriesNeeded':
+    'ഈ പ്ലാനിൽ നിരവധി സീരീസുകൾ ഉണ്ട്. ലിസ്റ്റ് ഏത് സീരീസിനുള്ളതാണെന്ന് തിരഞ്ഞെടുക്കുക.',
+  'server.importListSeriesUnknown': 'ഈ പ്ലാനിൽ "{series}" സീരീസ് ഇല്ല.',
   'server.importListNoIdentifier':
     'ലിസ്റ്റിൽ ഐഡന്റിഫയർ കോളം ഇല്ല, അതിനാൽ അതിലെ വരികൾക്ക് അവയുടെ ഐറ്റങ്ങൾ കണ്ടെത്താൻ കഴിയില്ല. നിങ്ങൾ ഡൗൺലോഡ് ചെയ്ത ലിസ്റ്റിന്റെ ഐഡന്റിഫയർ കോളം നിലനിർത്തുക.',
   'server.importPairsColumns':
