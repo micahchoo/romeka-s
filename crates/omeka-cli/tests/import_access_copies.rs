@@ -192,5 +192,8 @@ async fn a_video_queued_for_ffmpeg_gives_the_worker_a_job() {
         .await
         .unwrap();
 
-    assert!(job.is_some(), "the worker claims a pending ffmpeg access_copy row");
+    assert!(
+        job.is_some(),
+        "the worker claims a pending ffmpeg access_copy row"
+    );
 }
