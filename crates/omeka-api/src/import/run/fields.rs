@@ -287,11 +287,8 @@ impl Named<'_> {
     }
 
     fn rules(&self, kind: RecordKind) -> &SlotRules {
-        match kind {
-            RecordKind::Item => &self.plan.slots.item,
-            RecordKind::Media => &self.plan.slots.media,
-            RecordKind::ItemSet => &self.plan.slots.item_set,
-        }
+        let structure = &self.plan.structure;
+        structure.series(structure.sole()).rules(kind)
     }
 
     /// Whether `update` and `replace` write every slot the plan maps, not

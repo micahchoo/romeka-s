@@ -75,9 +75,9 @@ pub fn derive(
     let mut anomalies = Vec::new();
     plan_flags(plan, catalog, &mut book);
     let sheet_ins: Vec<SheetIn<'_>> = plan
-        .sheets
-        .iter()
-        .map(|sheet| SheetIn {
+        .structure
+        .lists()
+        .map(|(_, sheet)| SheetIn {
             plan: sheet,
             sheet: sheets.get(&sheet.id).and_then(|read| read.as_ref().ok()),
         })
@@ -86,8 +86,12 @@ pub fn derive(
 
     let grouping = grouping::group(index, plan, &sheet_ins);
     let mut orphans = grouping.orphans.clone();
-    let media_by_file =
-        plan.action.action == Action::Create && !plan.slots.media.contains_key(&SlotName::ItemKey);
+    let media_by_file = plan.action.action == Action::Create
+        && !plan
+            .structure
+            .series(plan.structure.sole())
+            .rules(RecordKind::Media)
+            .contains_key(&SlotName::ItemKey);
     let mut joined = join::join(
         &sheet_ins,
         &grouping,
@@ -284,8 +288,9 @@ fn plan_flags(plan: &ImportPlan, catalog: &Catalog, book: &mut FlagBook<'_>) {
             _ => None,
         });
     let named: BTreeSet<&Term> = plan
-        .slots
-        .rules()
+        .structure
+        .all_series()
+        .flat_map(|(_, series)| series.every_rule())
         .map(|(slot, _)| slot)
         .chain(decided)
         .filter_map(|slot| match slot {
