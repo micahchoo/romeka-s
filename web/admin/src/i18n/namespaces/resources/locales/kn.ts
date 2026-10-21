@@ -113,6 +113,7 @@ export const kn: ResourcesMessages = {
   'media.stage.embedOpen': '{host} ನಲ್ಲಿ ತೆರೆಯಿರಿ',
   'media.stage.embedLoad': 'ಎಂಬೆಡ್ ಅನ್ನು ಲೋಡ್ ಮಾಡಿ',
   'media.stage.embedFrame': '{host} ನಿಂದ ಎಂಬೆಡ್',
+  'media.stage.embedPlaying': '{host} ನಿಂದ ಪ್ಲೇ ಮಾಡಲಾಗುತ್ತಿದೆ',
   'media.stage.embedSnippetHeading':
     'ಈ ಮಾಧ್ಯಮವು ಸರ್ವರ್ ರೆಂಡರ್ ಮಾಡುವ HTML ಆಗಿದೆ. ನೀವು ಅದನ್ನು ತೆರೆಯುವವರೆಗೆ ಏನೂ ಲೋಡ್ ಆಗುವುದಿಲ್ಲ.',
   'media.stage.embedSnippetFrame': 'ರೆಂಡರ್ ಮಾಡಿದ HTML',

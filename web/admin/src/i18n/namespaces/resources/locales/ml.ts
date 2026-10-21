@@ -113,6 +113,7 @@ export const ml: ResourcesMessages = {
   'media.stage.embedOpen': '{host}-ൽ തുറക്കുക',
   'media.stage.embedLoad': 'എംബഡ് ലോഡ് ചെയ്യുക',
   'media.stage.embedFrame': '{host}-ൽ നിന്നുള്ള എംബഡ്',
+  'media.stage.embedPlaying': '{host}-ൽ നിന്ന് പ്ലേ ചെയ്യുന്നു',
   'media.stage.embedSnippetHeading':
     'ഈ മീഡിയം HTML ആണ്, സെർവർ ഇത് റെൻഡർ ചെയ്യുന്നു. ഇത് തുറക്കുന്നത് വരെ ഒന്നും ലോഡ് ആകില്ല.',
   'media.stage.embedSnippetFrame': 'റെൻഡർ ചെയ്ത HTML',
