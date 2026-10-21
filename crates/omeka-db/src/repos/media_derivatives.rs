@@ -5,6 +5,9 @@
 //! workers cannot both own a row and a settled row is never reopened by a late claim. The claim
 //! also counts `attempts`, so a row that fails twice is visible without the job log.
 //!
+//! An `access_copy` row is written by the create with its decision already in it, and
+//! [`MediaDerivativeRepo::claim_next`] leaves it for the access worker D3 and D4 add.
+//!
 //! A media delete cascades from `media`, so no path here removes a row.
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
@@ -40,23 +43,54 @@ where
     /// Queue one derivative. `false` when a row already exists for the pair, whatever its state:
     /// a create never overwrites the state an earlier attempt reached.
     pub async fn enqueue(&self, new: &NewDerivative) -> Result<bool, DbError> {
-        let queued = self.insert(new).await;
-        match queued {
+        self.plan(new, DerivativeState::Pending, None, None).await
+    }
+
+    /// Record one create-time decision: a row that is already `pending` for an access copy, or
+    /// already settled. A preview kind is queued with [`Self::enqueue`]. `tool` names the command
+    /// the row waits for, and `reason` the words a reader shows when there is nothing to make.
+    /// `false` when a row already exists for the pair, as [`Self::enqueue`] answers.
+    pub async fn plan(
+        &self,
+        new: &NewDerivative,
+        state: DerivativeState,
+        reason: Option<&str>,
+        tool: Option<&str>,
+    ) -> Result<bool, DbError> {
+        let queued = time::now();
+        let finished = (!matches!(state, DerivativeState::Pending | DerivativeState::Running))
+            .then_some(queued);
+        let planned = self
+            .insert(new, state, reason, tool, queued, finished)
+            .await;
+        match planned {
             Ok(()) => Ok(true),
             Err(error) if error.is_unique_violation() => Ok(false),
             Err(error) => Err(error),
         }
     }
 
-    async fn insert(&self, new: &NewDerivative) -> Result<(), DbError> {
+    async fn insert(
+        &self,
+        new: &NewDerivative,
+        state: DerivativeState,
+        reason: Option<&str>,
+        tool: Option<&str>,
+        queued: chrono::NaiveDateTime,
+        finished: Option<chrono::NaiveDateTime>,
+    ) -> Result<(), DbError> {
         sqlx::query::<DB>(
             "INSERT INTO romeka_media_derivative
                  (media_id, kind, state, reason, progress, tool, queued, started, finished, attempts)
-             VALUES (?, ?, 'pending', NULL, NULL, NULL, ?, NULL, NULL, 0)",
+             VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, ?, 0)",
         )
         .bind(super::bind_id(new.media_id))
         .bind(new.kind.name())
-        .bind(time::now())
+        .bind(state.name())
+        .bind(reason.map(str::to_string))
+        .bind(tool.map(str::to_string))
+        .bind(queued)
+        .bind(finished)
         .execute(self.pool)
         .await?;
         Ok(())
@@ -103,13 +137,18 @@ where
         rows.iter().map(DerivativeRow::from_db_row::<DB>).collect()
     }
 
-    /// The oldest queued row, claimed for one worker. `None` when nothing is queued.
+    /// The oldest queued preview row, claimed for one worker. `None` when nothing is queued.
     ///
     /// The claim is the `UPDATE ... WHERE state = 'pending'`; a candidate another worker took
     /// first leaves zero rows affected, and the next candidate is tried.
+    ///
+    /// An `access_copy` row is never claimed here. Its copy is made by the worker D3 and D4 add,
+    /// which needs a transcode rather than a still; until then the decision waits in the queue
+    /// instead of being settled as work this worker cannot do.
     pub async fn claim_next(&self) -> Result<Option<DerivativeRow>, DbError> {
         let rows: Vec<DB::Row> = sqlx::query::<DB>(
             "SELECT * FROM romeka_media_derivative WHERE state = 'pending'
+             AND kind <> 'access_copy'
              ORDER BY queued, media_id, kind LIMIT 8",
         )
         .fetch_all(self.pool)
@@ -202,10 +241,12 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
-    /// How many rows are queued.
+    /// How many preview rows are queued. An access copy is not counted: no worker in this build
+    /// claims one, so counting it would start the preview worker for work it leaves alone.
     pub async fn pending(&self) -> Result<u64, DbError> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM romeka_media_derivative WHERE state = 'pending'",
+            "SELECT count(*) FROM romeka_media_derivative
+             WHERE state = 'pending' AND kind <> 'access_copy'",
         )
         .fetch_one(self.pool)
         .await?;

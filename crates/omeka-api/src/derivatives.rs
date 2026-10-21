@@ -21,10 +21,11 @@ use omeka_db::rows::{
 };
 use omeka_db::with_db;
 use omeka_media::ThumbnailType;
+use omeka_media::access::{self, Access, Queue, StoredFile};
 use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
-use omeka_media::store::{Store, Thumbnailer};
+use omeka_media::store::{Store, StorePrefix, Thumbnailer, storage_path};
 use omeka_media::thumbnailer::SOURCE_MEDIA_TYPES;
-use omeka_media::tool::Still;
+use omeka_media::tool::{Still, Tools};
 
 use crate::errors::ApiError;
 use crate::read::db_error;
@@ -74,13 +75,49 @@ pub fn preview_kind(row: &MediaRow) -> Option<DerivativeKind> {
     })
 }
 
-/// Queue the derivatives `row` still needs. `None` when the row needs none.
+/// What one media's create queued.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Enqueued {
+    /// The preview kind this media makes, when it makes one.
+    pub preview: Option<DerivativeKind>,
+    /// The access decision this media recorded, when its type has a rule.
+    pub access: Option<AccessDecision>,
+}
+
+/// The access decision one create recorded in `romeka_media_derivative`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccessDecision {
+    pub access: Access,
+    pub state: DerivativeState,
+    /// The words a reader sees for `none`.
+    pub reason: Option<String>,
+    /// The command the copy waits for, or the one a missing install needs.
+    pub tool: Option<String>,
+}
+
+/// Queue everything one media's create needs: its preview kind and its access
+/// decision. `None`/`None` when it needs neither.
 ///
-/// The insert leaves an existing row alone, so a media whose row already reached a state keeps it.
+/// The preview insert leaves an existing row alone, so a media whose row
+/// already reached a state keeps it. The access decision is recomputed for
+/// every create because it is about the file just stored; an access row that
+/// already exists keeps its state too, so a retry starts from the queue.
 ///
 /// # Errors
-/// A database error writing the row.
+/// A database error writing a row, or a blocking task that did not finish.
 pub async fn enqueue(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    row: &MediaRow,
+) -> Result<Enqueued, ApiError> {
+    let preview = enqueue_preview(pool, row).await.map_err(db_error)?;
+    let access = enqueue_access(pool, store, row).await?;
+    Ok(Enqueued { preview, access })
+}
+
+/// Queue the preview kind `row` needs, or `None` when no decoder or tool here
+/// makes one.
+async fn enqueue_preview(
     pool: &DbPool,
     row: &MediaRow,
 ) -> Result<Option<DerivativeKind>, omeka_db::DbError> {
@@ -93,6 +130,109 @@ pub async fn enqueue(
     };
     with_db!(pool, |db| MediaDerivativeRepo::new(db).enqueue(&new).await)?;
     Ok(Some(kind))
+}
+
+/// Decide what a browser needs to show this media's original, and record it as
+/// one `access_copy` row: `none` when the original stands or the copy's tool is
+/// not installed, `pending` when the copy is queued for the worker D3 and D4
+/// add. The original is never changed.
+///
+/// The decision reads the stored file, so it runs on the blocking pool: a
+/// video's codecs come from an `ffprobe` over a bounded sample of its ends, and
+/// a TIFF's layout from its directory read.
+///
+/// # Errors
+/// A database error writing the row, or a blocking task that did not finish.
+pub async fn enqueue_access(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    row: &MediaRow,
+) -> Result<Option<AccessDecision>, ApiError> {
+    let Some(source) = access_source(row) else {
+        return Ok(None);
+    };
+    let store = Arc::clone(store);
+    let decided = tokio::task::spawn_blocking(move || decide(store.as_ref(), &source))
+        .await
+        .map_err(|error| {
+            ApiError::internal(format!("the access decision did not finish: {error}"))
+        })?;
+    let Some((access, queue)) = decided else {
+        return Ok(None);
+    };
+    let (state, reason, tool) = recorded(access, queue);
+    let new = NewDerivative {
+        media_id: row.id(),
+        kind: DerivativeKind::AccessCopy,
+    };
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .plan(&new, state, reason.as_deref(), tool.as_deref())
+        .await)
+    .map_err(db_error)?;
+    Ok(Some(AccessDecision {
+        access,
+        state,
+        reason,
+        tool,
+    }))
+}
+
+/// The row one decision records: a copy waits `pending` for its command, and
+/// anything else is settled `none` with the words a reader shows.
+fn recorded(access: Access, queue: Queue) -> (DerivativeState, Option<String>, Option<String>) {
+    match queue {
+        Queue::None { reason } => {
+            let tool = match access {
+                Access::Copy { tools, .. } => tools.first().map(|tool| tool.command().to_string()),
+                Access::Original => None,
+            };
+            (DerivativeState::None, Some(reason), tool)
+        }
+        Queue::Pending { tool } => (DerivativeState::Pending, None, Some(tool.to_string())),
+    }
+}
+
+/// The stored original a decision reads, from what the row says about it,
+/// owned so it can travel to the blocking pool.
+struct Source {
+    storage_path: String,
+    media_type: Option<String>,
+    extension: Option<String>,
+    size: Option<u64>,
+}
+
+impl Source {
+    fn file(&self) -> StoredFile<'_> {
+        StoredFile {
+            storage_path: &self.storage_path,
+            media_type: self.media_type.as_deref(),
+            extension: self.extension.as_deref(),
+            size: self.size,
+        }
+    }
+}
+
+/// The source one media row names, when it stored an original.
+fn access_source(row: &MediaRow) -> Option<Source> {
+    if !row.has_original {
+        return None;
+    }
+    let storage_id = row.storage_id.as_deref()?;
+    Some(Source {
+        storage_path: storage_path(StorePrefix::Original, storage_id, row.extension.as_deref()),
+        media_type: row.media_type.clone(),
+        extension: row.extension.clone(),
+        size: row.size.and_then(|size| u64::try_from(size).ok()),
+    })
+}
+
+/// The decision and the queue row it records, or `None` when the type has no
+/// access rule.
+fn decide(store: &dyn Store, source: &Source) -> Option<(Access, Queue)> {
+    let tools = Tools::on_path();
+    let facts = access::facts(store, tools, &source.file());
+    let access = Access::of(&facts)?;
+    Some((access, access.queue(tools)))
 }
 
 /// Queue a worker run when rows are waiting and no worker holds the queue.
@@ -201,25 +341,18 @@ pub async fn settle_next(
     let Some(media) = media else {
         return Ok(Some(Settled::Gone));
     };
-    let work = if row.kind == DerivativeKind::AccessCopy {
-        DerivativeWork::Skipped {
-            reason: "the access copy is not built yet".to_string(),
-            tool: None,
-        }
-    } else {
-        let source = PreviewSource {
-            storage_id: media.storage_id.clone().unwrap_or_default(),
-            extension: media.extension.clone(),
-            media_type: media.media_type.clone(),
-            has_original: media.has_original,
-        };
-        let store = Arc::clone(store);
-        tokio::task::spawn_blocking(move || make_preview(store.as_ref(), &source, false))
-            .await
-            .map_err(|error| {
-                ApiError::internal(format!("the derivative worker did not finish: {error}"))
-            })?
+    let source = PreviewSource {
+        storage_id: media.storage_id.clone().unwrap_or_default(),
+        extension: media.extension.clone(),
+        media_type: media.media_type.clone(),
+        has_original: media.has_original,
     };
+    let store = Arc::clone(store);
+    let work = tokio::task::spawn_blocking(move || make_preview(store.as_ref(), &source, false))
+        .await
+        .map_err(|error| {
+            ApiError::internal(format!("the derivative worker did not finish: {error}"))
+        })?;
     let state = match &work {
         DerivativeWork::Ready { .. } => DerivativeState::Ready,
         DerivativeWork::Skipped { .. } => DerivativeState::None,
@@ -436,5 +569,44 @@ mod tests {
         );
         assert_eq!(preview_kind(&media("audio/mpeg", true)), None);
         assert_eq!(preview_kind(&media("video/mp4", false)), None);
+    }
+
+    /// A copy whose command is installed waits `pending` and names the command.
+    #[test]
+    fn a_pending_copy_records_the_command_it_waits_for() {
+        let (state, reason, tool) = recorded(
+            Access::Copy {
+                target: omeka_media::access::AccessTarget::Mp4,
+                tools: &[omeka_media::tool::AccessTool::Ffmpeg],
+            },
+            Queue::Pending { tool: "ffmpeg" },
+        );
+        assert_eq!(state, DerivativeState::Pending);
+        assert!(reason.is_none());
+        assert_eq!(tool.as_deref(), Some("ffmpeg"));
+    }
+
+    /// A copy whose command is missing is settled `none`, names the command it
+    /// needs, and carries the words a reader shows.
+    #[test]
+    fn a_copy_with_no_command_records_none_and_the_reason() {
+        let access = Access::Copy {
+            target: omeka_media::access::AccessTarget::Jpeg,
+            tools: &[omeka_media::tool::AccessTool::Vips],
+        };
+        let (state, reason, tool) = recorded(access, access.queue(&Tools::none()));
+        assert_eq!(state, DerivativeState::None);
+        assert_eq!(reason.as_deref(), Some("needs vips, not installed"));
+        assert_eq!(tool.as_deref(), Some("vips"));
+    }
+
+    /// The original stands, and the row says so in the words the admin shows.
+    #[test]
+    fn an_original_records_none_with_its_words() {
+        let (state, reason, tool) =
+            recorded(Access::Original, Access::Original.queue(&Tools::none()));
+        assert_eq!(state, DerivativeState::None);
+        assert_eq!(reason.as_deref(), Some("a browser shows the original"));
+        assert!(tool.is_none());
     }
 }

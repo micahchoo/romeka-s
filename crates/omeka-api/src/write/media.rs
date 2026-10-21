@@ -464,10 +464,13 @@ pub(crate) async fn insert(
     .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
     // A media this build created outside an import gets its derivatives from
-    // the worker, not from this request.
-    crate::derivatives::enqueue(api.pool(), &row)
-        .await
-        .map_err(db_error)?;
+    // the worker, not from this request. Its access copy is decided from the
+    // file just stored and recorded as a second row, which that worker leaves
+    // alone until D3 and D4 add the one that makes it.
+    let Some(store) = api.store() else {
+        return Err(ApiError::internal("the media write reached no file store"));
+    };
+    crate::derivatives::enqueue(api.pool(), store, &row).await?;
     Ok(row)
 }
 
