@@ -76,6 +76,8 @@ ARG FFMPEG_VERSION=7.1.5
 ARG FFMPEG_SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f
 ARG DAV1D_VERSION=1.5.1
 ARG DAV1D_SHA256=401813f1f89fa8fd4295805aa5284d9aed9bc7fc1fdbe554af4292f64cbabe21
+ARG X264_COMMIT=b35605ace3ddf7c1a5d67a2eb553f034aef41d55
+ARG X264_SHA256=6eeb82934e69fd51e043bd8c5b0d152839638d1ce7aa4eea65a3fedcf83ff224
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -95,23 +97,51 @@ RUN set -eux; \
         --buildtype=release --default-library=static --libdir=lib \
         -Denable_tools=false -Denable_tests=false --prefix=/opt/dav1d; \
     ninja -C dav1d/build install
+# x264 is the H.264 encoder the playable copies use (`video_mp4_args` in
+# crates/omeka-media/src/tool.rs). FFmpeg has no native H.264 encoder, and an
+# image without it fails every video copy with "Option not found" (measured on
+# 8124, 2026-10-21). x264 is GPL-2.0-or-later, which this GPL-3.0 project may
+# link; the stable branch head is pinned by commit and archive hash.
+RUN set -eux; \
+    curl -fsSLo x264.tar.bz2 \
+        "https://code.videolan.org/videolan/x264/-/archive/${X264_COMMIT}/x264-${X264_COMMIT}.tar.bz2"; \
+    echo "${X264_SHA256}  x264.tar.bz2" | sha256sum -c -; \
+    mkdir x264; \
+    tar -xjC x264 --strip-components=1 -f x264.tar.bz2; \
+    cd x264; \
+    ./configure --prefix=/opt/x264 --enable-static --enable-pic --disable-cli; \
+    make -j"$(nproc)"; \
+    make install
 # `--disable-network` also drops every protocol but a local file and a pipe,
-# which is all the tools use. Wave U8's transcodes add their encoders to this
-# configure line (`--enable-libx264` and an x264 build; AAC is native).
+# which is all the tools use. AAC is FFmpeg's own encoder.
 RUN set -eux; \
     curl -fsSLo ffmpeg.tar.xz "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
     echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c -; \
     mkdir ffmpeg; \
     tar -xJC ffmpeg --strip-components=1 -f ffmpeg.tar.xz; \
     cd ffmpeg; \
-    PKG_CONFIG_PATH=/opt/dav1d/lib/pkgconfig ./configure \
+    PKG_CONFIG_PATH=/opt/dav1d/lib/pkgconfig:/opt/x264/lib/pkgconfig ./configure \
         --prefix=/opt/ffmpeg \
         --disable-autodetect --enable-zlib --enable-libdav1d \
+        --enable-gpl --enable-libx264 \
         --disable-doc --disable-debug --disable-shared --enable-static --enable-small \
         --disable-network --enable-protocol=file,pipe; \
     make -j"$(nproc)"; \
     install -D -m 0755 ffmpeg /opt/ffmpeg/bin/ffmpeg; \
     install -D -m 0755 ffprobe /opt/ffmpeg/bin/ffprobe
+# The image proves it can make a playable copy: the encoder arguments of
+# `video_mp4_args`, on a generated second of picture and tone. A build whose
+# ffmpeg lacks an encoder those arguments name fails here, not on a curator's file.
+RUN set -eux; \
+    /opt/ffmpeg/bin/ffmpeg -hide_banner -loglevel error \
+        -f lavfi -i testsrc=duration=1:size=320x240:rate=25 \
+        -f lavfi -i sine=duration=1 \
+        -map 0:v:0 -map 1:a \
+        -vf "scale=w='min(iw,1080)':h='min(ih,1080)':force_original_aspect_ratio=decrease" \
+        -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p \
+        -c:a aac -b:a 128k -movflags +faststart /tmp/selftest.mp4; \
+    /opt/ffmpeg/bin/ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/selftest.mp4 | sort | tr '\n' ' ' | grep -qx 'aac h264 '; \
+    rm /tmp/selftest.mp4
 
 # Stage 4: the media tools. This stage is also the plan's separate tools image
 # for the derivative jobs of wave U8 (`briefs/media-ui-plan.md`, open call 2):
