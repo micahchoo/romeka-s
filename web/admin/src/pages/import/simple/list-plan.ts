@@ -55,6 +55,18 @@ export const withJoin = (plan: ImportPlan, sheet: string, column: SheetColumnMat
   sheets: plan.sheets.map((one) => (one.id === sheet ? { ...one, join: joinOn(column) } : one)),
 });
 
+/** Whether the sheet pairs with every name fold on, which Simple turns on and off as one. */
+export const normalizedOf = (sheet: SheetPlan): boolean =>
+  sheet.join !== null && sheet.join.normalize.caseFold && sheet.join.normalize.leadingZeros && sheet.join.normalize.separators;
+
+/** Every name fold of the sheet's pairing on, or every one off; a sheet that pairs by no column stays as it is. */
+export const withNormalize = (plan: ImportPlan, sheet: string, on: boolean): ImportPlan => ({
+  ...plan,
+  sheets: plan.sheets.map((one) =>
+    one.id === sheet && one.join !== null ? { ...one, join: { ...one.join, normalize: { caseFold: on, leadingZeros: on, separators: on } } } : one,
+  ),
+});
+
 const readsColumn = (source: SourceRef, sheet: string, index: number): boolean => source.from === 'column' && source.sheet === sheet && source.column.index === index;
 
 const rulesWithout = (rules: SlotRules, sheet: string, index: number): SlotRules => {

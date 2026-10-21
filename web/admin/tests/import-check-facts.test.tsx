@@ -71,8 +71,11 @@ describe('Check, when rows describe files', () => {
 describe('Your list, when some rows name a file this Omeka refuses', () => {
   it('says how many rows name no file and how many name a refused file, apart, with the way to Check', async () => {
     open('list', bhc006({ unpairedRows: 10, flags: [{ kind: 'listed-not-media', slot: null, count: 82, detail: 'BHC006_GMT_AF_296a.NEF#1 .nef' }] }));
-    const said = await screen.findByText(/rows name no file of this import/, {}, { timeout: 5000 });
-    expect(said).toHaveTextContent('598 of 690 rows found their item. 10 rows name no file of this import. 82 rows name a file of a type this Omeka does not accept.');
-    expect(within(said).getByRole('link', { name: 'See them in Check' })).toHaveAttribute('href', '#/import/1/simple/check');
+    const facts = await screen.findByText(/^Lists in use/, { selector: 'span' }, { timeout: 5000 });
+    const said = facts.parentElement ?? facts;
+    expect(said).toHaveTextContent('Rows paired 598 / 690');
+    expect(said).toHaveTextContent('Rows naming no file 10');
+    expect(said).toHaveTextContent('Rows naming a refused file 82');
+    expect(within(said).getByRole('link', { name: 'Check' })).toHaveAttribute('href', '#/import/1/simple/check');
   }, 20_000);
 });
