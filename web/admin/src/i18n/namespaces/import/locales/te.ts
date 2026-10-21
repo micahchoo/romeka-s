@@ -200,6 +200,7 @@ export const te: ImportMessages = {
   'problem.cells-count': 'తప్పు సంఖ్యలో సెల్‌లు ఉన్న వరుస',
   'problem.no-file': 'ఈ ఇంపోర్ట్‌లోని ఏ ఫైల్ పేరునూ చెప్పని వరుస',
   'problem.not-media': 'చిత్రం, శబ్దం, సినిమా లేదా PDF కాదు',
+  'problem.listed-not-media': 'మీ జాబితా పేర్కొన్న, Omeka తీసుకోని ఫైల్',
   'problem.format-mismatch': 'దాని కంటెంట్‌కు సరిపోని పేరుతో ఉన్న ఫైల్',
   'problem.exists': 'Omeka లో ఇప్పటికే ఉంది',
   'problem.unmatched': 'Omeka లో మార్చడానికి ఐటమ్ లేదు',

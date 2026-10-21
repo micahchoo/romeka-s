@@ -59,6 +59,7 @@ export const FLAG_KINDS = [
   'cells-count',
   'no-file',
   'not-media',
+  'listed-not-media',
   'format-mismatch',
   'exists',
   'unmatched',

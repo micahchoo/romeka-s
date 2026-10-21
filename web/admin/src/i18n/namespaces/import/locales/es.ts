@@ -186,6 +186,7 @@ export const es: ImportMessages = {
   'problem.cells-count': 'Una fila con un número de celdas equivocado',
   'problem.no-file': 'Una fila que no nombra ningún archivo de esta importación',
   'problem.not-media': 'No es una imagen, un sonido, un vídeo ni un PDF',
+  'problem.listed-not-media': 'Un archivo que tu lista nombra y que Omeka no acepta',
   'problem.format-mismatch': 'Un archivo cuya terminación de nombre no encaja con su contenido',
   'problem.exists': 'Ya está en Omeka',
   'problem.unmatched': 'Ningún elemento en Omeka para cambiar',
