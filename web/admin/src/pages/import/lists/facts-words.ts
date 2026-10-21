@@ -17,7 +17,7 @@ export const BUCKET_WORDS: Readonly<Record<Bucket, ListsMessageKey>> = {
   '7+': 'lists.facts.files7',
 };
 
-const MEDIA_WORDS: Readonly<Record<MediaKind, ListsMessageKey>> = {
+export const MEDIA_WORDS: Readonly<Record<MediaKind, ListsMessageKey>> = {
   image: 'lists.facts.image',
   pdf: 'lists.facts.pdf',
   audio: 'lists.facts.audio',

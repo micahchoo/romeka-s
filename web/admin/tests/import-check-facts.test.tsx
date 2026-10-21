@@ -5,7 +5,7 @@
  * key as the example and nothing to keep; and "Your list" tells rows that
  * name no file apart from rows whose file this Omeka refuses.
  */
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ImportPage } from '../src/pages/import/page';
 import { scenario } from './import-simple-scenarios';
@@ -54,16 +54,19 @@ afterEach(() => {
 describe('Check, when rows describe files', () => {
   it('counts the items that have files but no row, not their files', async () => {
     open('check', bhc006({ unpairedFiles: 21, unpairedItems: 15 }));
-    expect(await screen.findByRole('article', { name: '15 items have files but no row in your list.' }, { timeout: 5000 })).toBeInTheDocument();
+    const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+    expect(within(questions).getByRole('option', { name: 'Items with no row' })).toHaveTextContent('15');
+    fireEvent.click(within(questions).getByRole('option', { name: 'Items with no row' }));
+    expect(await screen.findByRole('region', { name: '15 items have files but no row in your list.' })).toBeInTheDocument();
   }, 20_000);
 
   it('says a row that names no file of the import is that, with its key, and offers only to leave it out', async () => {
     open('check', bhc006({ flags: [{ kind: 'no-file', slot: null, count: 10, detail: 'BHC006_GMT_PN_049.png', row: 'BHC006_GMT_PN_049.png#1' }] }));
-    const card = await screen.findByRole('article', { name: '10 rows of your list name no file of this import.' }, { timeout: 5000 });
+    const card = await screen.findByRole('region', { name: '10 rows of your list name no file of this import.' }, { timeout: 5000 });
     expect(card).toHaveTextContent('For example, BHC006_GMT_PN_049.png');
-    const options = within(card).getAllByRole('radio');
-    expect(options.map((option) => option.closest('label')?.textContent)).toEqual(['Leave them outsuggested']);
-    expect(options[0]).toBeChecked();
+    const options = within(within(card).getByRole('group', { name: 'Answer for all 10' })).getAllByRole('button');
+    expect(options.map((option) => option.textContent)).toEqual(['Leave out✓ suggested']);
+    expect(options[0]).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByText(/No item in Omeka/)).toBeNull();
   }, 20_000);
 });

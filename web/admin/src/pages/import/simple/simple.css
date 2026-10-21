@@ -344,6 +344,72 @@ button.guided-chip[aria-pressed="true"] {
   max-width: 70ch;
 }
 
+.guided-facts > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.guided-facts > .guided-rule {
+  flex-basis: 100%;
+  color: var(--text);
+}
+
+.guided-inspect h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.guided-examples {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.guided-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The files chart as one compact row of counts. */
+.guided-dials .import-chart {
+  margin: 0 0 var(--space-3);
+}
+
+.guided-dials .import-chart ul {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+}
+
+.guided-dials .import-chart a {
+  grid-template-columns: 6.5rem 1fr 3rem;
+  min-height: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.guided-dials .import-chart-track {
+  height: 0.5rem;
+}
+
+.guided-dials .import-chart figcaption {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.guided-dials .import-bulk {
+  margin: 0;
+}
+
 /* Last, so it wins over the wide layout above. */
 @container (max-width: 720px) {
   .guided-split {
