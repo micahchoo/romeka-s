@@ -49,6 +49,16 @@ pub struct MediaAnnotationRow {
 }
 
 /// What a write stores. `body_text` and `lang` are derived by the one caller function
+/// Which rows a read covers: every row, or the notes a reader sees. A caption
+/// cue is a row (a `supplementing` annotation with a time range and a track
+/// origin), not a note; a reader's list and its counts leave the cues out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RowScope {
+    All,
+    Notes,
+}
+
+/// What a write stores. `body_text` and `lang` are derived by the one caller function
 /// (`omeka_api::annotation`), so a write cannot forget them.
 #[derive(Debug, Clone, Copy)]
 pub struct MediaAnnotationWrite<'a> {
@@ -172,9 +182,10 @@ where
         after: i64,
         limit: u32,
         motivations: Option<&[&str]>,
+        scope: RowScope,
     ) -> Result<Vec<MediaAnnotationRow>, DbError> {
         let mut statement = Statement::<DB>::new(PAGE_COLUMNS);
-        push_page(&mut statement, media, after, limit, motivations)?;
+        push_page(&mut statement, media, after, limit, motivations, scope)?;
         let (sql, arguments) = statement.into_parts();
         fetch_rows(&sql, arguments, self.pool)
             .await?
@@ -187,11 +198,13 @@ where
         &self,
         media: MediaId,
         motivations: Option<&[&str]>,
+        scope: RowScope,
     ) -> Result<u32, DbError> {
         let mut statement =
             Statement::<DB>::new("SELECT COUNT(*) FROM romeka_media_annotation WHERE media_id = ");
         statement.bind(bind_id(media))?;
         push_motivations(&mut statement, motivations)?;
+        push_scope(&mut statement, scope);
         let (sql, arguments) = statement.into_parts();
         let raw: i64 = sqlx::query_scalar_with::<DB, i64, _>(&sql, arguments)
             .fetch_one(self.pool)
@@ -205,6 +218,7 @@ where
         media: &[MediaId],
         per_media: u32,
         motivations: Option<&[&str]>,
+        scope: RowScope,
     ) -> Result<Vec<MediaAnnotationRow>, DbError> {
         if media.is_empty() {
             return Ok(Vec::new());
@@ -222,6 +236,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
+        push_scope(&mut statement, scope);
         statement.push(") ranked WHERE ranked.position <= ");
         statement.bind(i64::from(per_media))?;
         statement.push(" ORDER BY ranked.media_id, ranked.position");
@@ -237,6 +252,7 @@ where
         &self,
         media: &[MediaId],
         motivations: Option<&[&str]>,
+        scope: RowScope,
     ) -> Result<HashMap<MediaId, u32>, DbError> {
         if media.is_empty() {
             return Ok(HashMap::new());
@@ -248,6 +264,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
+        push_scope(&mut statement, scope);
         statement.push(" GROUP BY media_id");
         let (sql, arguments) = statement.into_parts();
         let rows = fetch_rows(&sql, arguments, self.pool).await?;
@@ -479,7 +496,7 @@ where
         }
         let mut statement = Statement::<DB>::new(
             "SELECT media_id, lang, COUNT(*) AS cues FROM romeka_media_annotation
-             WHERE motivation = 'supplementing' AND media_id IN (",
+             WHERE motivation = 'supplementing' AND origin = 'track' AND media_id IN (",
         );
         push_ids(&mut statement, media)?;
         statement.push(") GROUP BY media_id, lang ORDER BY media_id, lang");
@@ -586,6 +603,7 @@ fn push_page<'q, DB: Backend>(
     after: i64,
     limit: u32,
     motivations: Option<&[&'q str]>,
+    scope: RowScope,
 ) -> Result<(), DbError>
 where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
@@ -595,9 +613,18 @@ where
     statement.push(" AND a.id > ");
     statement.bind(after)?;
     push_motivations(statement, motivations)?;
+    push_scope(statement, scope);
     statement.push(" ORDER BY a.id LIMIT ");
     statement.bind(i64::from(limit) + 1)?;
     Ok(())
+}
+
+/// `origin <> 'track'` for the notes scope: a cue imported from a caption file
+/// is a row, and the list of notes is not the transcript.
+fn push_scope<DB: Backend>(statement: &mut Statement<'_, DB>, scope: RowScope) {
+    if scope == RowScope::Notes {
+        statement.push(" AND origin <> 'track'");
+    }
 }
 
 /// Append one `(?, ?)` per id, inside an `IN (` the caller opened.
@@ -766,7 +793,15 @@ mod tests {
     #[test]
     fn a_page_statement_has_no_offset() {
         let mut statement = Statement::<Sqlite>::new(PAGE_COLUMNS);
-        push_page(&mut statement, MediaId(7), 0, 3, Some(&["supplementing"])).unwrap();
+        push_page(
+            &mut statement,
+            MediaId(7),
+            0,
+            3,
+            Some(&["supplementing"]),
+            RowScope::All,
+        )
+        .unwrap();
         let sql = statement.sql();
         assert!(!sql.contains("OFFSET"), "{sql}");
         assert!(sql.contains("a.id > "), "{sql}");

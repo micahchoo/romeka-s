@@ -50,12 +50,14 @@ fn item_default_blocks_render_in_theme_order() {
         title: "A file".to_string(),
         thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
         media_kind: None,
+        notes: 0,
     });
     item.item_sets.push(ResourceRef {
         url: "/s/main/item-set/2".to_string(),
         title: "A set".to_string(),
         thumbnail: None,
         media_kind: None,
+        notes: 0,
     });
     let out = render_blocks(&item, &ctx);
     assert!(
@@ -186,6 +188,7 @@ fn linked_item_in(locale: &str) -> String {
         title: "About".to_string(),
         thumbnail: None,
         media_kind: None,
+        notes: 0,
     });
     item.linked_resources.push(LinkedResource {
         property: "Creator".to_string(),
@@ -195,6 +198,7 @@ fn linked_item_in(locale: &str) -> String {
             title: "A letter".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         },
         class_label: Some("Letter".to_string()),
     });
@@ -206,6 +210,7 @@ fn linked_item_in(locale: &str) -> String {
             title: "A note".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         },
         class_label: None,
     });
@@ -414,12 +419,14 @@ fn the_item_page_stages_the_first_file_and_strips_the_rest() {
             title: "first".to_string(),
             thumbnail: Some(Thumbnail::new("/files/square/first.jpg", "First")),
             media_kind: None,
+            notes: 0,
         },
         ResourceRef {
             url: "/s/main/media/2".to_string(),
             title: "second".to_string(),
             thumbnail: Some(Thumbnail::new("/files/square/second.jpg", "Second")),
             media_kind: None,
+            notes: 0,
         },
         ResourceRef {
             url: "/s/main/media/3".to_string(),
@@ -430,6 +437,7 @@ fn the_item_page_stages_the_first_file_and_strips_the_rest() {
                 label: "PDF",
                 icon: crate::view::MediaIcon::Pdf,
             }),
+            notes: 0,
         },
     ];
     let out = render_configured(&item, &["mediaEmbeds"], "en");
@@ -495,6 +503,7 @@ fn the_item_page_shows_no_strip_for_one_file() {
         title: "only".to_string(),
         thumbnail: Some(Thumbnail::new("/files/square/only.jpg", "Only")),
         media_kind: None,
+        notes: 0,
     }];
     let out = render_configured(&item, &["mediaEmbeds"], "en");
     assert!(

@@ -34,11 +34,13 @@ use omeka_db::ids::MediaId;
 use omeka_db::repos::MediaRepo;
 use omeka_db::repos::{
     ChangeOutcome, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow, MediaAnnotationWrite,
+    RowScope,
 };
 use omeka_db::rows::MediaRow;
-use omeka_db::with_db;
+use omeka_db::{DbPool, with_db};
 use omeka_media::kind::{Extent, KindInput, MediaKind};
 
+use crate::auth::Actor;
 use crate::read::Api;
 use crate::settings;
 
@@ -83,7 +85,9 @@ pub struct Page {
     pub next: Option<AnnotationId>,
 }
 
-/// What a public page shows without JavaScript: the total and the first N.
+/// What a public page shows without JavaScript: the total number of notes and
+/// the first N of them. Caption cues are rows but not notes; they are `tracks`,
+/// counted per language.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Summary {
     pub total: u32,
@@ -161,13 +165,29 @@ impl From<Problem> for AnnotationError {
 
 /// The annotation service for one caller. Every method checks access itself.
 pub struct Annotations<'a> {
-    api: &'a Api<'a>,
+    pool: &'a DbPool,
+    actor: &'a Actor,
     extents: &'a dyn ExtentSource,
 }
 
 impl<'a> Annotations<'a> {
     pub fn new(api: &'a Api<'a>, extents: &'a dyn ExtentSource) -> Self {
-        Self { api, extents }
+        Self {
+            pool: api.pool(),
+            actor: api.actor(),
+            extents,
+        }
+    }
+
+    /// The same service for a caller the public site resolved itself: the site
+    /// layer holds the pool and the request's actor but no [`Api`], and building
+    /// one would load a second term catalogue for every page.
+    pub fn for_reader(pool: &'a DbPool, actor: &'a Actor, extents: &'a dyn ExtentSource) -> Self {
+        Self {
+            pool,
+            actor,
+            extents,
+        }
     }
 
     /// The media as parsing and rendering need it, with the caller's rights.
@@ -176,26 +196,48 @@ impl<'a> Annotations<'a> {
         self.readable_one(media).await
     }
 
-    /// One keyset page, in id order.
+    /// One keyset page of every row, in id order: what the WAP page answers.
     pub async fn page(
         &self,
         media: MediaId,
         after: Option<AnnotationId>,
     ) -> Result<Page, AnnotationError> {
+        self.rows_page(media, after, PAGE_SIZE, RowScope::All).await
+    }
+
+    /// One keyset page of the notes a reader sees, in id order: caption cues of
+    /// a recording are rows but not notes, so a public list and its count leave
+    /// them out. `next` is the cursor of the last row on this page.
+    pub async fn notes_page(
+        &self,
+        media: MediaId,
+        after: Option<AnnotationId>,
+        limit: u32,
+    ) -> Result<Page, AnnotationError> {
+        self.rows_page(media, after, limit, RowScope::Notes).await
+    }
+
+    async fn rows_page(
+        &self,
+        media: MediaId,
+        after: Option<AnnotationId>,
+        limit: u32,
+        scope: RowScope,
+    ) -> Result<Page, AnnotationError> {
         let (media_ref, rights) = self.readable_one(media).await?;
         let motivations = access::motivations(rights);
-        let mut rows = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-            .page(media, after.map_or(0, |id| id.0), PAGE_SIZE, motivations)
+        let size = usize::try_from(limit).unwrap_or(usize::MAX);
+        let mut rows = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .page(media, after.map_or(0, |id| id.0), limit, motivations, scope)
             .await)?;
-        let next = if rows.len() > PAGE_SIZE as usize {
-            rows.get(PAGE_SIZE as usize - 1)
-                .map(|row| AnnotationId(row.id))
+        let next = if rows.len() > size {
+            rows.get(size - 1).map(|row| AnnotationId(row.id))
         } else {
             None
         };
-        rows.truncate(PAGE_SIZE as usize);
-        let total = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-            .total(media, motivations)
+        rows.truncate(size);
+        let total = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .total(media, motivations, scope)
             .await)?;
         let items = annotations(media_ref, &rows)?;
         Ok(Page {
@@ -208,8 +250,9 @@ impl<'a> Annotations<'a> {
         })
     }
 
-    /// One query for the notes of every readable media on a public page; media
-    /// the caller may not read are absent.
+    /// The notes of every readable media on a public page, in a fixed number of
+    /// queries rather than one per media; media the caller may not read are
+    /// absent.
     pub async fn summaries(
         &self,
         media: &[MediaId],
@@ -223,28 +266,24 @@ impl<'a> Annotations<'a> {
         let mut rows = Vec::new();
         let mut totals = HashMap::new();
         if !open.is_empty() {
-            rows = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-                .firsts(&open, first, None)
+            rows = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .firsts(&open, first, None, RowScope::Notes)
                 .await)?;
-            totals = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-                .counts(&open, None)
+            totals = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .counts(&open, None, RowScope::Notes)
                 .await)?;
         }
         if !hidden.is_empty() {
-            rows.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
-                db
-            )
-            .firsts(&hidden, first, Some(&["supplementing"]))
-            .await)?);
-            totals.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
-                db
-            )
-            .counts(&hidden, Some(&["supplementing"]))
-            .await)?);
+            rows.extend(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .firsts(&hidden, first, Some(&["supplementing"]), RowScope::Notes)
+                .await)?);
+            totals.extend(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .counts(&hidden, Some(&["supplementing"]), RowScope::Notes)
+                .await)?);
         }
         let ids: Vec<MediaId> = readable.iter().map(|(media, _)| media.id).collect();
         let mut tracks: HashMap<MediaId, Vec<TrackRef>> = HashMap::new();
-        for (media, lang, cues) in with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+        for (media, lang, cues) in with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .track_langs(&ids)
             .await)?
         {
@@ -282,7 +321,9 @@ impl<'a> Annotations<'a> {
         Ok(summaries)
     }
 
-    /// The note count of every readable media, under the caller's rights.
+    /// Every row's count per readable media, under the caller's rights. The
+    /// IIIF manifest asks whether a canvas carries anything at all, caption cues
+    /// included.
     pub async fn counts(
         &self,
         media: &[MediaId],
@@ -291,16 +332,14 @@ impl<'a> Annotations<'a> {
         let (open, hidden) = split(&readable);
         let mut totals = HashMap::new();
         if !open.is_empty() {
-            totals = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-                .counts(&open, None)
+            totals = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .counts(&open, None, RowScope::All)
                 .await)?;
         }
         if !hidden.is_empty() {
-            totals.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
-                db
-            )
-            .counts(&hidden, Some(&["supplementing"]))
-            .await)?);
+            totals.extend(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .counts(&hidden, Some(&["supplementing"]), RowScope::All)
+                .await)?);
         }
         for (media, _) in &readable {
             totals.entry(media.id).or_insert(0);
@@ -335,10 +374,10 @@ impl<'a> Annotations<'a> {
         let draft = wadm::parse(doc, &media_ref, iris)?;
         let stored = wadm::stored(&draft);
         let write = write_of(&draft, &stored);
-        let outcome = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+        let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .insert(
                 media,
-                self.api.actor().user(),
+                self.actor.user(),
                 key.map(IdempotencyKey::as_str),
                 &write
             )
@@ -373,7 +412,7 @@ impl<'a> Annotations<'a> {
         }
         let stored = wadm::stored(&draft);
         let write = write_of(&draft, &stored);
-        let outcome = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+        let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .replace(id.0, current.revision.value(), &write)
             .await)?;
         match outcome {
@@ -396,7 +435,7 @@ impl<'a> Annotations<'a> {
         if_match: &IfMatch,
     ) -> Result<(), AnnotationError> {
         let current = self.writable(id, if_match).await?;
-        let outcome = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+        let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .delete(id.0, current.revision.value())
             .await)?;
         match outcome {
@@ -433,11 +472,9 @@ impl<'a> Annotations<'a> {
         &self,
         id: AnnotationId,
     ) -> Result<Option<MediaAnnotationRow>, AnnotationError> {
-        Ok(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
-            db
-        )
-        .get(id.0)
-        .await)?)
+        Ok(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .get(id.0)
+            .await)?)
     }
 
     async fn readable_one(&self, media: MediaId) -> Result<(MediaRef, Rights), AnnotationError> {
@@ -454,7 +491,7 @@ impl<'a> Annotations<'a> {
         &self,
         media: &[MediaId],
     ) -> Result<Vec<(MediaRef, Rights)>, AnnotationError> {
-        let annotations_public = settings::annotations_public(self.api.pool()).await?;
+        let annotations_public = settings::annotations_public(self.pool).await?;
         let mut seen = HashSet::new();
         let mut readable = Vec::with_capacity(media.len());
         for id in media {
@@ -464,7 +501,7 @@ impl<'a> Annotations<'a> {
             let Some(row) = self.readable_row(*id).await? else {
                 continue;
             };
-            let rights = access::level(self.api, &row, annotations_public);
+            let rights = access::level(self.actor, &row, annotations_public);
             let extent = self.extents.extent(&row).await;
             readable.push((media_ref(&row, extent), rights));
         }
@@ -473,8 +510,10 @@ impl<'a> Annotations<'a> {
 
     async fn readable_row(&self, media: MediaId) -> Result<Option<MediaRow>, AnnotationError> {
         Ok(
-            with_db!(self.api.pool(), |db| MediaRepo::new(db).get(media).await)?
-                .filter(|row| self.api.sees(row.resource.is_public, row.resource.owner_id)),
+            with_db!(self.pool, |db| MediaRepo::new(db).get(media).await)?.filter(|row| {
+                self.actor
+                    .sees_resource(row.resource.is_public, row.resource.owner_id)
+            }),
         )
     }
 }

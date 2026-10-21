@@ -315,6 +315,7 @@ mod tests {
             title: "A file".to_string(),
             thumbnail: Some(crate::view::Thumbnail::new("/files/square/9.jpg", "A file")),
             media_kind: None,
+            notes: 0,
         }];
         resources.items.insert(4, item_view);
         resources.attachments.insert(
