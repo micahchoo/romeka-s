@@ -51,7 +51,7 @@ use super::archive::{ArchiveRoots, SourceDir};
 use super::catalog_load::Owners;
 use super::ledger::{Failure, Summary, Written};
 use super::model::{Fate, Model, Parent, RecordId};
-use super::plan::{Action, ImportPlanV2, PlanError, RecordKind, SourceId};
+use super::plan::{Action, ImportPlan, PlanError, RecordKind, SourceId};
 use super::preview::{Caches, Derived, PreviewError, derive_import};
 use super::undo::Removal;
 use super::{left, scan};
@@ -160,7 +160,7 @@ where
         )));
     }
     let frozen = row.ran_plan.as_ref().unwrap_or(&row.plan);
-    let plan = ImportPlanV2::from_json(&frozen.to_string())?;
+    let plan = ImportPlan::from_json(&frozen.to_string())?;
     // A delete writes no record, so the value it gets here is never read.
     let action = match plan.action.action {
         Action::Create | Action::Append | Action::Delete => ImportAction::Append,

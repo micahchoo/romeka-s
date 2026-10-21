@@ -167,7 +167,7 @@ fn a_many_change_survives_a_new_pattern_and_orphans_each_lost_entry_on_its_own()
     );
 }
 
-fn photo_plan(decisions: Json) -> crate::import::plan::ImportPlanV2 {
+fn photo_plan(decisions: Json) -> crate::import::plan::ImportPlan {
     plan(|plan| {
         plan["grouping"]["pattern"] = json!(r"^(?<identifier>[^/]+)\.jpg$");
         plan["sheets"] = json!([sheet_plan("list", &["File", "Title"])]);

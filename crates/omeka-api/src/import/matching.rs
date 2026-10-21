@@ -13,7 +13,7 @@ use super::decisions::EntryRef;
 use super::flags::FlagBook;
 use super::model::{Anomaly, Fate, LeftBy, Link, Parent, Record, RecordId, SetRef, Subject};
 use super::plan::{
-    Action, FlagKind, FlagPolicy, ImportPlanV2, MatchKey, MatchRule, NamedScope, RecordKind, Scope,
+    Action, FlagKind, FlagPolicy, ImportPlan, MatchKey, MatchRule, NamedScope, RecordKind, Scope,
     SlotName, Term,
 };
 use super::slots::named::key_form;
@@ -92,7 +92,7 @@ impl Existing {
 }
 
 pub(crate) struct Matching<'a> {
-    plan: &'a ImportPlanV2,
+    plan: &'a ImportPlan,
     items: Existing,
     media: Existing,
     sets: Existing,
@@ -101,7 +101,7 @@ pub(crate) struct Matching<'a> {
 }
 
 impl<'a> Matching<'a> {
-    pub(crate) fn new(plan: &'a ImportPlanV2, catalog: &Catalog, records: &[Record]) -> Self {
+    pub(crate) fn new(plan: &'a ImportPlan, catalog: &Catalog, records: &[Record]) -> Self {
         let rules = &plan.action.match_by;
         let item_sets: HashMap<i64, Vec<i64>> = catalog
             .items

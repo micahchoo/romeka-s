@@ -6,11 +6,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Action, Combine, ImportPlanV2, PlanError, RecordKind, SourceRef, Term};
+use super::{Action, Combine, ImportPlan, PlanError, RecordKind, SourceRef, Term};
 use crate::import::decisions::{Change, Decision, EntryRef};
 use crate::import::values::fold_title;
 
-pub(super) fn plan(plan: &ImportPlanV2) -> Result<(), PlanError> {
+pub(super) fn plan(plan: &ImportPlan) -> Result<(), PlanError> {
     ids(plan)?;
     slots(plan)?;
     new_types(plan)?;
@@ -19,7 +19,7 @@ pub(super) fn plan(plan: &ImportPlanV2) -> Result<(), PlanError> {
 }
 
 /// Only what no rescan can mend: a missing entry is an orphan, not this.
-fn decisions(plan: &ImportPlanV2) -> Result<(), PlanError> {
+fn decisions(plan: &ImportPlan) -> Result<(), PlanError> {
     for (at, decision) in plan.decisions.iter().enumerate() {
         let Decision::Many { entries, change } = decision else {
             continue;
@@ -38,7 +38,7 @@ fn decisions(plan: &ImportPlanV2) -> Result<(), PlanError> {
     Ok(())
 }
 
-fn ids(plan: &ImportPlanV2) -> Result<(), PlanError> {
+fn ids(plan: &ImportPlan) -> Result<(), PlanError> {
     let mut sources = BTreeSet::new();
     for source in &plan.sources {
         if !sources.insert(source.id()) {
@@ -69,7 +69,7 @@ fn ids(plan: &ImportPlanV2) -> Result<(), PlanError> {
     Ok(())
 }
 
-fn slots(plan: &ImportPlanV2) -> Result<(), PlanError> {
+fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
     if plan.action.action == Action::Delete && plan.slots.rules().next().is_some() {
         return Err(PlanError::SlotRulesOnDelete);
     }
@@ -117,7 +117,7 @@ fn slots(plan: &ImportPlanV2) -> Result<(), PlanError> {
     Ok(())
 }
 
-fn new_types(plan: &ImportPlanV2) -> Result<(), PlanError> {
+fn new_types(plan: &ImportPlan) -> Result<(), PlanError> {
     let mut titles = BTreeSet::new();
     for new_type in &plan.new_types {
         let title = fold_title(&new_type.label);
@@ -131,7 +131,7 @@ fn new_types(plan: &ImportPlanV2) -> Result<(), PlanError> {
     Ok(())
 }
 
-fn new_terms(plan: &ImportPlanV2) -> Result<(), PlanError> {
+fn new_terms(plan: &ImportPlan) -> Result<(), PlanError> {
     let mut made: BTreeMap<Term, &str> = BTreeMap::new();
     for new_term in &plan.new_terms {
         let Some(term) = Term::local(&new_term.label) else {
@@ -150,7 +150,7 @@ fn new_terms(plan: &ImportPlanV2) -> Result<(), PlanError> {
 }
 
 pub(super) fn existing_labels<'a>(
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     templates: impl IntoIterator<Item = &'a str>,
 ) -> Result<(), PlanError> {
     let existing: BTreeSet<String> = templates.into_iter().map(fold_title).collect();

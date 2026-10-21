@@ -1,12 +1,12 @@
 //! The import v2 plan: the rule and the decisions, stored as JSON on the
 //! draft and sent by the admin (`docs/import-v2.md`, "The plan").
 //!
-//! [`ImportPlanV2::from_json`] is the one parse boundary. Types refuse what
+//! [`ImportPlan::from_json`] is the one parse boundary. Types refuse what
 //! serde can see (unknown members, closed string sets, path and term
 //! shapes); [`check`] refuses what needs the whole plan (ids, refs,
 //! combine, delete, new types and terms). Inside the crate the plan is
 //! trusted. A check that needs the install, such as a new type whose label
-//! a template already has, is [`ImportPlanV2::refuse_existing_labels`],
+//! a template already has, is [`ImportPlan::refuse_existing_labels`],
 //! which the caller feeds; the plan itself holds no database or files.
 
 mod action;
@@ -45,7 +45,7 @@ use super::values::Visibility;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ImportPlanV2 {
+pub struct ImportPlan {
     pub version: Version2,
     pub sources: Vec<SourcePlan>,
     pub grouping: Grouping,
@@ -251,7 +251,7 @@ pub enum PlanError {
     },
 }
 
-impl ImportPlanV2 {
+impl ImportPlan {
     /// Parse a plan sent by the admin or read from the database.
     ///
     /// # Errors
@@ -317,13 +317,13 @@ pub const NAME_ALONE: &str = r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$";
 /// decided.
 ///
 /// # Errors
-/// What [`ImportPlanV2::from_json`] refuses about the sources: two with one id.
-pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError> {
+/// What [`ImportPlan::from_json`] refuses about the sources: two with one id.
+pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
     let by_identifier = || MatchRule {
         key: MatchKey::Term(Term::dcterms_identifier()),
         scope: Scope::Named(NamedScope::ImportSets),
     };
-    let plan = ImportPlanV2 {
+    let plan = ImportPlan {
         version: Version2,
         sources,
         grouping: Grouping {

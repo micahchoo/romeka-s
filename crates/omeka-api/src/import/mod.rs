@@ -1,7 +1,7 @@
 //! Import v2 (`docs/import-v2.md`). P3-wire renames this module to `import`
 //! once its routes exist.
 //!
-//! - [`plan`]: the stored plan and its one parse boundary, [`plan::ImportPlanV2::from_json`].
+//! - [`plan`]: the stored plan and its one parse boundary, [`plan::ImportPlan::from_json`].
 //! - [`decisions`]: corrections keyed by an entry.
 //! - [`values`]: value types and the cell rules every reader shares.
 //! - [`archive`]: named archive roots and the folders a source reads.

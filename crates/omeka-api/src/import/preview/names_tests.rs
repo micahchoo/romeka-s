@@ -33,7 +33,7 @@ fn derived(paths: &[&str], list: Option<&str>) -> Derived {
             })).collect::<Vec<_>>()
         }]);
     }
-    let plan = Arc::new(ImportPlanV2::from_json(&value.to_string()).unwrap());
+    let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());
     let index = Index {
         sources: vec![IndexedSource {
             id: SourceId("s1".into()),

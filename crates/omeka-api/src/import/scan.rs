@@ -33,7 +33,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 use super::archive::ArchiveRoots;
 use super::derive::{Index, IndexedSource};
 use super::evidence::{self, Anomalies, DecodedName, FileEntry, Identical, NameEncoding, Walk};
-use super::plan::{ImportPlanV2, PlanError, RelPath, SourceId, SourcePlan};
+use super::plan::{ImportPlan, PlanError, RelPath, SourceId, SourcePlan};
 
 /// A rescan of an index larger than this runs as a job, not in the request.
 pub const SCAN_IN_REQUEST: u64 = 20_000;
@@ -436,7 +436,7 @@ where
         .await?
         .ok_or(ScanError::Missing(import.0))?;
     let stored = row.ran_plan.as_ref().unwrap_or(&row.plan);
-    let plan = ImportPlanV2::from_json(&stored.to_string())?;
+    let plan = ImportPlan::from_json(&stored.to_string())?;
     scan(pool, roots, store, import, &plan.sources).await
 }
 

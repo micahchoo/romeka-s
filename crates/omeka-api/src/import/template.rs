@@ -19,7 +19,7 @@ use serde::Serialize;
 use super::catalog::Catalog;
 use super::model::{Model, Origin, Record};
 use super::plan::{
-    Auto, ColumnOptions, ColumnPlan, ColumnRef, Combine, Delimiter, EncodingChoice, ImportPlanV2,
+    Auto, ColumnOptions, ColumnPlan, ColumnRef, Combine, Delimiter, EncodingChoice, ImportPlan,
     Join, JoinNormalize, JoinOn, Quote, ReadOptions, RecordKind, RelPath, RowKind, SheetId,
     SheetPlan, SlotName, SlotRule, SourceId, SourcePlan, SourceRef, Term,
 };
@@ -268,7 +268,7 @@ pub struct ListAdded {
 /// # Errors
 /// [`ListError::NoIdentifier`] when no header is `Identifier`.
 pub fn add_list(
-    plan: &mut ImportPlanV2,
+    plan: &mut ImportPlan,
     file: RelPath,
     read: ReadOptions,
     sheet: &Sheet,
@@ -350,7 +350,7 @@ pub fn add_list(
     Ok(ListAdded { sheet: id, mapped })
 }
 
-fn staging_source(plan: &mut ImportPlanV2) -> SourceId {
+fn staging_source(plan: &mut ImportPlan) -> SourceId {
     if let Some(found) = plan
         .sources
         .iter()

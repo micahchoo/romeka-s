@@ -40,7 +40,7 @@ fn index(paths: &[&str]) -> Index {
     }
 }
 
-fn plan() -> ImportPlanV2 {
+fn plan() -> ImportPlan {
     let plan = default_plan(vec![SourcePlan::Folder {
         id: SourceId("s1".into()),
         root: "archive".into(),
@@ -53,7 +53,7 @@ fn plan() -> ImportPlanV2 {
     value["slots"]["item"]["dcterms:title"] = json!({
         "sources": [{ "from": "constant", "value": "Untitled, \"draft\"" }], "combine": "first"
     });
-    ImportPlanV2::from_json(&value.to_string()).unwrap()
+    ImportPlan::from_json(&value.to_string()).unwrap()
 }
 
 fn columns(texts: &[&str]) -> Vec<ListColumn> {
@@ -156,7 +156,7 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
         "the list first"
     );
     assert_eq!(title.sources.len(), 2, "the constant stays behind it");
-    let plan = ImportPlanV2::from_json(&plan.to_json()).expect("the boundary takes the plan");
+    let plan = ImportPlan::from_json(&plan.to_json()).expect("the boundary takes the plan");
 
     let list_plan = &plan.sheets[0];
     let sheets: Sheets = [(
@@ -221,10 +221,10 @@ fn a_list_without_an_identifier_column_is_refused() {
     assert_eq!(bracketed("Title"), None);
 }
 
-fn plan_titled(title: &str) -> ImportPlanV2 {
+fn plan_titled(title: &str) -> ImportPlan {
     let mut value = serde_json::to_value(plan()).unwrap();
     value["slots"]["item"]["dcterms:title"]["sources"][0]["value"] = json!(title);
-    ImportPlanV2::from_json(&value.to_string()).unwrap()
+    ImportPlan::from_json(&value.to_string()).unwrap()
 }
 
 fn title_cell(title: &str) -> (String, String) {
@@ -291,7 +291,7 @@ fn a_file_name_that_starts_like_a_formula_is_quoted_in_the_files_column() {
     let index = index(&["=cmd.jpg"]);
     let mut value = serde_json::to_value(plan()).unwrap();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
-    let plan = ImportPlanV2::from_json(&value.to_string()).unwrap();
+    let plan = ImportPlan::from_json(&value.to_string()).unwrap();
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
     let text = String::from_utf8(template_csv(&model, &catalog(), &[])).unwrap();
     let line = text.split("\r\n").nth(1).unwrap();
@@ -335,7 +335,7 @@ fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
     let index = index(&["-001.jpg", "=X.jpg"]);
     let mut value = serde_json::to_value(plan()).unwrap();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>[^/]+)\.jpg$");
-    let mut plan = ImportPlanV2::from_json(&value.to_string()).unwrap();
+    let mut plan = ImportPlan::from_json(&value.to_string()).unwrap();
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
     let text = String::from_utf8(template_csv(
         &model,

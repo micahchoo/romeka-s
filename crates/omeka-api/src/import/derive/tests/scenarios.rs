@@ -8,7 +8,7 @@ use crate::import::catalog::{Catalog, Template};
 use crate::import::decisions::EntryRef;
 use crate::import::derive::{Index, NoTags, Sheets, derive};
 use crate::import::model::{Fate, Link, Model, OrphanReason, Parent, SetRef, Subject, TemplateRef};
-use crate::import::plan::{FlagKind, FlagPolicy, ImportPlanV2, RecordKind};
+use crate::import::plan::{FlagKind, FlagPolicy, ImportPlan, RecordKind};
 use crate::import::values::Visibility;
 use omeka_media::validation::FileValidation;
 
@@ -45,7 +45,7 @@ fn bhc_catalog() -> Catalog {
     catalog
 }
 
-fn bhc_plan(pattern: &str, decisions: serde_json::Value) -> ImportPlanV2 {
+fn bhc_plan(pattern: &str, decisions: serde_json::Value) -> ImportPlan {
     plan(|plan| {
         plan["grouping"]["pattern"] = json!(pattern);
         plan["slots"]["item"]["sets"] = rule(json!([{ "from": "group", "name": "set" }]), "first");
@@ -57,12 +57,12 @@ fn bhc_plan(pattern: &str, decisions: serde_json::Value) -> ImportPlanV2 {
 pub struct Scenario {
     pub index: Index,
     pub sheets: Sheets,
-    pub plan: ImportPlanV2,
+    pub plan: ImportPlan,
     pub catalog: Catalog,
 }
 
 impl Scenario {
-    fn new(index: Index, sheets: Sheets, plan: ImportPlanV2) -> Self {
+    fn new(index: Index, sheets: Sheets, plan: ImportPlan) -> Self {
         Self {
             index,
             sheets,

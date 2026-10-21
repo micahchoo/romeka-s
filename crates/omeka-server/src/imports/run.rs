@@ -13,7 +13,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::Response;
 use omeka_api::auth::Actor;
-use omeka_api::import::plan::{ImportPlanV2, PlanError};
+use omeka_api::import::plan::{ImportPlan, PlanError};
 use omeka_api::import::preview::{self, Derived, PreviewRequest, derive_import};
 use omeka_api::import::run::RUN_JOB;
 use omeka_api::import::scan::{self, SCAN_IN_REQUEST, SCAN_JOB};
@@ -31,9 +31,9 @@ use super::{Answer, answer};
 use crate::AppState;
 
 /// The plan a non-draft runs from: the one its first run froze.
-pub(super) fn stored_plan(row: &ImportRow) -> Result<ImportPlanV2, ImportError> {
+pub(super) fn stored_plan(row: &ImportRow) -> Result<ImportPlan, ImportError> {
     let stored = row.ran_plan.as_ref().unwrap_or(&row.plan);
-    ImportPlanV2::from_json(&stored.to_string()).map_err(|error| match error {
+    ImportPlan::from_json(&stored.to_string()).map_err(|error| match error {
         PlanError::V1Plan => ImportError::conflict("v1Plan", messages::IMPORT_V1_PLAN),
         other => ImportError::Internal(format!("the stored plan does not parse: {other}")),
     })
@@ -47,7 +47,7 @@ pub(super) async fn derive(
     state: &AppState,
     actor: &Actor,
     import: ImportId,
-    plan: ImportPlanV2,
+    plan: ImportPlan,
 ) -> Result<Derived, ImportError> {
     let files = omeka_api::settings::file_validation(&state.pool).await?;
     Ok(with_db!(&state.pool, |db| derive_import(
@@ -121,7 +121,7 @@ pub(super) async fn preview(
             let row = load(&state, &id).await?;
             let plan = match &request.plan {
                 Some(sent) => {
-                    ImportPlanV2::from_json(&sent.to_string()).map_err(|error| match error {
+                    ImportPlan::from_json(&sent.to_string()).map_err(|error| match error {
                         PlanError::V1Plan => {
                             ImportError::conflict("v1Plan", messages::IMPORT_V1_PLAN)
                         }

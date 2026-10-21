@@ -40,7 +40,7 @@ fn derived(files: &[(&str, &str)], list: Option<&str>, edit: impl FnOnce(&mut Va
         }]);
     }
     edit(&mut value);
-    let plan = Arc::new(ImportPlanV2::from_json(&value.to_string()).unwrap());
+    let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());
     let index = Index {
         sources: vec![IndexedSource {
             id: SourceId("s1".into()),

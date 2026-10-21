@@ -24,7 +24,7 @@ use super::grouping::Grouping;
 use super::join::{SheetIn, cell};
 use super::model::{LeftBy, RecordId, SlotValue, Subject, TemplateRef};
 use super::plan::{
-    Combine, FlagKind, FlagPolicy, ImportPlanV2, NewType, NewTypeFrom, RecordKind, SlotName,
+    Combine, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind, SlotName,
     SlotRule, Term,
 };
 use super::values::{Value, ValueType, fold_title};
@@ -48,7 +48,7 @@ impl From<Value> for Raw {
 
 /// What every record's resolution reads.
 pub(crate) struct Ctx<'a, 'i> {
-    pub plan: &'a ImportPlanV2,
+    pub plan: &'a ImportPlan,
     pub catalog: &'a Catalog,
     pub grouping: &'a Grouping<'i>,
     pub sheets: &'a [SheetIn<'i>],
@@ -60,7 +60,7 @@ pub(crate) struct Ctx<'a, 'i> {
 
 impl<'a, 'i> Ctx<'a, 'i> {
     pub(crate) fn new(
-        plan: &'a ImportPlanV2,
+        plan: &'a ImportPlan,
         catalog: &'a Catalog,
         grouping: &'a Grouping<'i>,
         sheets: &'a [SheetIn<'i>],
@@ -91,7 +91,7 @@ impl<'a, 'i> Ctx<'a, 'i> {
 }
 
 pub(crate) fn rules(
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     kind: RecordKind,
 ) -> &indexmap::IndexMap<SlotName, SlotRule> {
     match kind {

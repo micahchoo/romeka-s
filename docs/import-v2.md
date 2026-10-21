@@ -201,7 +201,7 @@ camelCase, `version: 2`, parsed at the boundary, unknown members refused. A v1 p
 v1 imports stay readable as history, and `copyFrom` a v1 import answers 409 `v1Plan`.
 
 ```ts
-interface ImportPlanV2 {
+interface ImportPlan {
   version: 2;
   sources: SourcePlan[];
   grouping: { pattern: string | null; caseFold: boolean };

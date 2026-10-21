@@ -23,7 +23,7 @@ use super::archive::ArchiveRoots;
 use super::catalog_load::Owners;
 use super::check::{Check, check};
 use super::model::Flag;
-use super::plan::{Action, ImportPlanV2};
+use super::plan::{Action, ImportPlan};
 use super::preview::{Caches, Derived, PreviewError, derive_import};
 use super::scan::{self, ScanError};
 
@@ -101,7 +101,7 @@ pub async fn assess<DB>(
     files: FileValidation,
     owners: Owners,
     import: ImportId,
-    plan: ImportPlanV2,
+    plan: ImportPlan,
 ) -> Result<Assessed, AssessError>
 where
     DB: Backend,

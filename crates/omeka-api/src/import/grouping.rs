@@ -20,7 +20,7 @@ use super::derive::Index;
 use super::evidence::FileEntry;
 use super::join::SheetIn;
 use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternState};
-use super::plan::{IdenticalAnswer, ImportPlanV2, SourceId, UnmatchedFilesAnswer};
+use super::plan::{IdenticalAnswer, ImportPlan, SourceId, UnmatchedFilesAnswer};
 use super::values::fold_title;
 use pattern::{FilePattern, Groups, IDENTIFIER, PatternError};
 
@@ -57,7 +57,7 @@ pub(crate) struct Grouping<'i> {
 
 pub(crate) fn group<'i>(
     index: &'i Index,
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     sheets: &[SheetIn<'_>],
 ) -> Grouping<'i> {
     let compiled = FilePattern::compile(plan.grouping.pattern.as_deref());
