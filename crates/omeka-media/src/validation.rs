@@ -17,8 +17,8 @@ use std::fmt;
 ///
 /// The additions are the types `media_type` answers for the formats a modern
 /// collection holds: FLAC, Matroska, AVIF, HEIC, SVG, glTF (both forms),
-/// WebVTT and SubRip. Each is a deliberate difference from upstream's default
-/// and is listed in `docs/compat.md`.
+/// WebVTT, SubRip and the eleven camera RAW formats. Each is a deliberate
+/// difference from upstream's default and is listed in `docs/compat.md`.
 pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/msword",
     "application/ogg",
@@ -68,7 +68,18 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "image/svg+xml",
     "image/tiff",
     "image/webp",
+    "image/x-adobe-dng",
+    "image/x-canon-cr2",
+    "image/x-canon-cr3",
+    "image/x-fuji-raf",
     "image/x-icon",
+    "image/x-nikon-nef",
+    "image/x-olympus-orf",
+    "image/x-panasonic-rw2",
+    "image/x-pentax-pef",
+    "image/x-samsung-srw",
+    "image/x-sigma-x3f",
+    "image/x-sony-arw",
     "model/gltf+json",
     "model/gltf-binary",
     "text/css",
@@ -88,16 +99,18 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
 ];
 
 /// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), with this
-/// fork's additions (`avif`, `flac`, `glb`, `gltf`, `heic`, `mkv`, `ogv`,
-/// `srt`, `svg`, `vtt`).
+/// fork's additions (`arw`, `avif`, `cr2`, `cr3`, `dng`, `flac`, `glb`, `gltf`,
+/// `heic`, `mkv`, `nef`, `ogv`, `orf`, `pef`, `raf`, `rw2`, `srw`, `srt`, `svg`,
+/// `vtt`, `x3f`).
 pub const DEFAULT_EXTENSIONS: &[&str] = &[
-    "aac", "aif", "aiff", "asf", "asx", "avi", "avif", "bmp", "c", "cc", "class", "css", "divx",
-    "doc", "docx", "exe", "flac", "gif", "glb", "gltf", "gz", "gzip", "h", "heic", "ico", "j2k",
-    "jp2", "jpe", "jpeg", "jpg", "m4a", "m4v", "mdb", "mid", "midi", "mkv", "mov", "mp2", "mp3",
-    "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp", "odb", "odc", "odf", "odg", "odp", "ods", "odt",
-    "ogg", "ogv", "opus", "pdf", "png", "pot", "pps", "ppt", "pptx", "qt", "ra", "ram", "rtf",
-    "rtx", "srt", "svg", "swf", "tar", "tif", "tiff", "txt", "vtt", "wav", "wax", "webm", "webp",
-    "wma", "wmv", "wmx", "wri", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
+    "aac", "aif", "aiff", "arw", "asf", "asx", "avi", "avif", "bmp", "c", "cc", "class", "cr2",
+    "cr3", "css", "divx", "dng", "doc", "docx", "exe", "flac", "gif", "glb", "gltf", "gz", "gzip",
+    "h", "heic", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg", "m4a", "m4v", "mdb", "mid", "midi",
+    "mkv", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp", "nef", "odb", "odc",
+    "odf", "odg", "odp", "ods", "odt", "ogg", "ogv", "opus", "orf", "pdf", "pef", "png", "pot",
+    "pps", "ppt", "pptx", "qt", "ra", "raf", "ram", "rtf", "rtx", "rw2", "srw", "srt", "svg",
+    "swf", "tar", "tif", "tiff", "txt", "vtt", "wav", "wax", "webm", "webp", "wma", "wmv", "wmx",
+    "wri", "x3f", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
 ];
 
 /// What a store may accept, the state `Omeka\File\Validator` is built with.
@@ -303,6 +316,17 @@ mod tests {
             ("scene.gltf", "model/gltf+json", "gltf"),
             ("talk.vtt", "text/vtt", "vtt"),
             ("talk.srt", "application/x-subrip", "srt"),
+            ("photo.nef", "image/x-nikon-nef", "nef"),
+            ("photo.cr2", "image/x-canon-cr2", "cr2"),
+            ("photo.cr3", "image/x-canon-cr3", "cr3"),
+            ("photo.arw", "image/x-sony-arw", "arw"),
+            ("photo.dng", "image/x-adobe-dng", "dng"),
+            ("photo.orf", "image/x-olympus-orf", "orf"),
+            ("photo.rw2", "image/x-panasonic-rw2", "rw2"),
+            ("photo.raf", "image/x-fuji-raf", "raf"),
+            ("photo.pef", "image/x-pentax-pef", "pef"),
+            ("photo.srw", "image/x-samsung-srw", "srw"),
+            ("photo.x3f", "image/x-sigma-x3f", "x3f"),
         ] {
             assert!(
                 defaults

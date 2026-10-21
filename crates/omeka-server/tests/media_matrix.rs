@@ -164,6 +164,13 @@ const FIXTURES: &[Fixture] = &[
         upright: false,
     },
     Fixture {
+        file: "image.nef",
+        media_type: "image/x-nikon-nef",
+        kind: Kind::Image,
+        captions: false,
+        upright: true,
+    },
+    Fixture {
         file: "image.avif",
         media_type: "image/avif",
         kind: Kind::Image,
@@ -347,14 +354,19 @@ struct Notes {
 
 #[tokio::test]
 async fn the_media_kind_matrix_matches_the_known_red_list() {
-    // A poster needs ffmpeg and a PDF page needs pdftoppm. The runtime image
-    // installs both (`packaging/Dockerfile`); a host without them cannot say
-    // whether these cells pass, so it stops before judging any of them.
+    // A poster needs ffmpeg, a PDF page needs pdftoppm, and a RAW preview
+    // needs exiftool. The runtime image installs all three
+    // (`packaging/Dockerfile`); a host without them cannot say whether these
+    // cells pass, so it stops before judging any of them.
     let tools = omeka_media::tool::Tools::on_path();
-    for (tool, path) in [("ffmpeg", tools.ffmpeg()), ("pdftoppm", tools.pdftoppm())] {
+    for (tool, path) in [
+        ("ffmpeg", tools.ffmpeg()),
+        ("pdftoppm", tools.pdftoppm()),
+        ("exiftool", tools.exiftool()),
+    ] {
         assert!(
             path.is_some(),
-            "the matrix needs {tool} on PATH; install ffmpeg and poppler-utils"
+            "the matrix needs {tool} on PATH; install ffmpeg, poppler-utils and exiftool"
         );
     }
     let dir = tempfile::tempdir().expect("tempdir");

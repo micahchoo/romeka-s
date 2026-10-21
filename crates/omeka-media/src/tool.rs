@@ -1,12 +1,14 @@
 //! The external commands a still derivative needs: `ffmpeg` for a video's
-//! poster and for an AVIF or HEIC frame, `pdftoppm` for a PDF's first page, and
-//! `ffprobe` for the duration and frame size a time-based canvas needs.
+//! poster and for an AVIF or HEIC frame, `pdftoppm` for a PDF's first page,
+//! `ffprobe` for the duration and frame size a time-based canvas needs, and
+//! `exiftool` for the JPEG preview a camera RAW file embeds.
 //!
 //! The image crate decodes the types GD decodes, plus TIFF, JPEG 2000 and SVG.
-//! It has no video, PDF, AVIF or HEIC decoder, so those get their still from a
-//! command. The commands are optional at runtime: the shipped image carries
-//! both (`packaging/Dockerfile`), and an installation without them skips the
-//! derivative with a typed [`ToolError`] rather than failing the ingest.
+//! It has no video, PDF, AVIF, HEIC or RAW decoder, so those get their still
+//! from a command. The commands are optional at runtime: the shipped image
+//! carries all four (`packaging/Dockerfile`), and an installation without them
+//! skips the derivative with a typed [`ToolError`] rather than failing the
+//! ingest.
 //!
 //! One lookup per process ([`Tools::on_path`]), one bounded run per still. No
 //! run passes through a shell, every run has a timeout and a cap on what it may
@@ -27,6 +29,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use thiserror::Error;
+
+use image::metadata::Orientation;
 
 /// How long one command may run before it is killed.
 pub const TIMEOUT: Duration = Duration::from_secs(30);
@@ -65,6 +69,17 @@ pub enum ToolError {
     Failed(&'static str, String),
 }
 
+/// A still a command made, and the orientation its container states for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MadeStill {
+    /// The encoded still.
+    pub bytes: Vec<u8>,
+    /// The turn the container's EXIF tag asks for, when the still carries no
+    /// tag of its own. A RAW's embedded preview is stored as the sensor saw
+    /// it, and the RAW file's `Orientation` says how it goes upright.
+    pub orientation: Option<Orientation>,
+}
+
 /// What a media type asks for: a first frame, a frame ten percent in, or a
 /// PDF's first page. `None` from [`Still::of`] means no command makes one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +90,8 @@ pub enum Still {
     Poster,
     /// The first page of a PDF.
     Page,
+    /// The full-size JPEG a camera RAW file embeds.
+    RawPreview,
 }
 
 impl Still {
@@ -85,6 +102,9 @@ impl Still {
             "image/avif" | "image/heic" => Some(Self::Frame),
             "application/pdf" => Some(Self::Page),
             media_type if media_type.starts_with("video/") => Some(Self::Poster),
+            media_type if crate::media_type::is_raw_media_type(media_type) => {
+                Some(Self::RawPreview)
+            }
             _ => None,
         }
     }
@@ -94,11 +114,12 @@ impl Still {
     /// # Errors
     /// A [`ToolError`] when the command is absent, runs past the timeout, or
     /// fails.
-    pub fn make(self, tools: &Tools, source: &Path) -> Result<Vec<u8>, ToolError> {
+    pub fn make(self, tools: &Tools, source: &Path) -> Result<MadeStill, ToolError> {
         let still = match self {
-            Self::Frame => tools.frame(source, None),
-            Self::Poster => tools.poster(source),
-            Self::Page => tools.page(source),
+            Self::Frame => tools.frame(source, None).map(MadeStill::unoriented),
+            Self::Poster => tools.poster(source).map(MadeStill::unoriented),
+            Self::Page => tools.page(source).map(MadeStill::unoriented),
+            Self::RawPreview => tools.raw_preview(source),
         };
         if let Err(error) = &still {
             tracing::warn!(
@@ -117,7 +138,8 @@ impl Still {
     /// The file carries the media type's extension, because `ffmpeg`'s format
     /// probe leans on it: the Debian 12 build reads an `.avif` file and cannot
     /// read the same bytes named without an extension, where it guesses the
-    /// `mov` demuxer and looks for a `moov` atom.
+    /// `mov` demuxer and looks for a `moov` atom. `exiftool` reads a RAW by
+    /// its maker's type, which the extension names.
     ///
     /// # Errors
     /// As [`Still::make`], plus a [`ToolError::Failed`] when the temporary file
@@ -127,7 +149,7 @@ impl Still {
         tools: &Tools,
         original: &[u8],
         media_type: &str,
-    ) -> Result<Vec<u8>, ToolError> {
+    ) -> Result<MadeStill, ToolError> {
         let dir = tempfile::tempdir().map_err(|error| {
             ToolError::Failed(self.command(), format!("no temporary folder: {error}"))
         })?;
@@ -148,6 +170,18 @@ impl Still {
         match self {
             Self::Frame | Self::Poster => "ffmpeg",
             Self::Page => "pdftoppm",
+            Self::RawPreview => "exiftool",
+        }
+    }
+}
+
+impl MadeStill {
+    /// A still whose own pixels are already upright, as `ffmpeg` and
+    /// `pdftoppm` write them.
+    fn unoriented(bytes: Vec<u8>) -> Self {
+        Self {
+            bytes,
+            orientation: None,
         }
     }
 }
@@ -155,12 +189,14 @@ impl Still {
 /// The commands this process may run, found once.
 ///
 /// A test, or a caller that turns derivatives off, builds one with [`Tools::none`]
-/// and names a command with [`Tools::with_ffmpeg`] or [`Tools::with_pdftoppm`].
+/// and names a command with [`Tools::with_ffmpeg`], [`Tools::with_pdftoppm`] or
+/// [`Tools::with_exiftool`].
 #[derive(Debug, Clone)]
 pub struct Tools {
     ffmpeg: Option<PathBuf>,
     ffprobe: Option<PathBuf>,
     pdftoppm: Option<PathBuf>,
+    exiftool: Option<PathBuf>,
     timeout: Duration,
 }
 
@@ -173,6 +209,7 @@ impl Tools {
             ffmpeg: find_on_path("ffmpeg"),
             ffprobe: find_on_path("ffprobe"),
             pdftoppm: find_on_path("pdftoppm"),
+            exiftool: find_on_path("exiftool"),
             timeout: TIMEOUT,
         })
     }
@@ -184,6 +221,7 @@ impl Tools {
             ffmpeg: None,
             ffprobe: None,
             pdftoppm: None,
+            exiftool: None,
             timeout: TIMEOUT,
         }
     }
@@ -216,6 +254,13 @@ impl Tools {
         self
     }
 
+    /// Name the `exiftool` to run, instead of the one on `PATH`.
+    #[must_use]
+    pub fn with_exiftool(mut self, path: impl Into<PathBuf>) -> Self {
+        self.exiftool = Some(path.into());
+        self
+    }
+
     /// The `ffmpeg` this process found, when it found one.
     #[must_use]
     pub fn ffmpeg(&self) -> Option<&Path> {
@@ -232,6 +277,12 @@ impl Tools {
     #[must_use]
     pub fn pdftoppm(&self) -> Option<&Path> {
         self.pdftoppm.as_deref()
+    }
+
+    /// The `exiftool` this process found, when it found one.
+    #[must_use]
+    pub fn exiftool(&self) -> Option<&Path> {
+        self.exiftool.as_deref()
     }
 
     /// The timeout a command runs under.
@@ -378,6 +429,73 @@ impl Tools {
             ));
         }
         Ok(bytes)
+    }
+
+    /// The full-size JPEG a camera RAW file embeds, and the orientation its
+    /// container states for those pixels. `JpgFromRaw` is the full-size
+    /// preview a maker writes beside the sensor data; `PreviewImage` is the
+    /// smaller one. A file with neither is a typed failure, not an empty
+    /// still.
+    fn raw_preview(&self, source: &Path) -> Result<MadeStill, ToolError> {
+        let exiftool = self.program(self.exiftool.as_deref(), "exiftool")?;
+        let bytes = match self.binary_tag(exiftool, source, "JpgFromRaw") {
+            Ok(bytes) => bytes,
+            Err(_) => self
+                .binary_tag(exiftool, source, "PreviewImage")
+                .map_err(|_| {
+                    ToolError::Failed(
+                        "exiftool",
+                        "the file has no embedded JPEG preview".to_string(),
+                    )
+                })?,
+        };
+        Ok(MadeStill {
+            bytes,
+            orientation: self.orientation(exiftool, source),
+        })
+    }
+
+    /// One binary tag `exiftool` prints to standard output.
+    fn binary_tag(&self, exiftool: &Path, source: &Path, tag: &str) -> Result<Vec<u8>, ToolError> {
+        let argument = format!("-{tag}");
+        let args: Vec<&OsStr> = vec![
+            OsStr::new("-q"),
+            OsStr::new("-q"),
+            OsStr::new("-b"),
+            OsStr::new(&argument),
+            source.as_os_str(),
+        ];
+        let output = capture(exiftool, "exiftool", &args, self.timeout, STILL_LIMIT)?;
+        if !output.status.success() {
+            return Err(ToolError::Failed("exiftool", reason(&output.stderr)));
+        }
+        if output.stdout.is_empty() {
+            return Err(ToolError::Failed("exiftool", format!("no {tag}")));
+        }
+        Ok(output.stdout)
+    }
+
+    /// The numeric EXIF orientation the container states, when it states one
+    /// that turns the pixels.
+    fn orientation(&self, exiftool: &Path, source: &Path) -> Option<Orientation> {
+        let args: Vec<&OsStr> = vec![
+            OsStr::new("-q"),
+            OsStr::new("-q"),
+            OsStr::new("-s3"),
+            OsStr::new("-n"),
+            OsStr::new("-Orientation#"),
+            source.as_os_str(),
+        ];
+        let output = capture(exiftool, "exiftool", &args, PROBE_TIMEOUT, STDERR_LIMIT).ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let value: u8 = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .parse()
+            .ok()?;
+        Orientation::from_exif(value)
+            .filter(|orientation| *orientation != Orientation::NoTransforms)
     }
 
     /// The duration `ffmpeg` reports in its input header, when it reports one.
@@ -655,9 +773,60 @@ mod tests {
         assert_eq!(
             Still::Frame
                 .make(&tools, &dir.path().join("image.heic"))
-                .expect("still"),
+                .expect("still")
+                .bytes,
             b"still-bytes"
         );
+    }
+
+    /// A RAW's full-size preview is preferred, the smaller one is the fallback,
+    /// and the container's orientation is read beside it.
+    #[test]
+    fn a_raw_preview_prefers_jpgfromraw_and_reads_the_orientation() {
+        let _guard = scripted();
+        let dir = dir();
+        let exiftool = script(
+            dir.path(),
+            "exiftool",
+            "case \"$*\" in \
+             *-Orientation#*) printf '6\\n';; \
+             *-JpgFromRaw*) printf 'full-preview';; \
+             *-PreviewImage*) printf 'small-preview';; \
+             *) exit 9;; esac",
+        );
+        let tools = Tools::none().with_exiftool(&exiftool);
+        let made = Still::RawPreview
+            .make(&tools, &dir.path().join("photo.nef"))
+            .expect("a preview");
+        assert_eq!(made.bytes, b"full-preview");
+        assert_eq!(made.orientation, Some(Orientation::Rotate90));
+
+        let fallback = script(
+            dir.path(),
+            "exiftool-fallback",
+            "case \"$*\" in \
+             *-Orientation#*) printf '1\\n';; \
+             *-JpgFromRaw*) : ;; \
+             *-PreviewImage*) printf 'small-preview';; \
+             *) exit 9;; esac",
+        );
+        let tools = Tools::none().with_exiftool(&fallback);
+        let made = Still::RawPreview
+            .make(&tools, &dir.path().join("photo.nef"))
+            .expect("a preview");
+        assert_eq!(made.bytes, b"small-preview");
+        assert_eq!(made.orientation, None);
+    }
+
+    /// Without `exiftool`, a RAW preview is the same typed reason as any other
+    /// missing tool.
+    #[test]
+    fn a_missing_exiftool_is_a_typed_reason() {
+        let dir = dir();
+        let error = Still::RawPreview
+            .make(&Tools::none(), &dir.path().join("photo.nef"))
+            .expect_err("no exiftool");
+        assert_eq!(error, ToolError::ToolMissing("exiftool"));
     }
 
     /// A video's poster is taken ten percent in, which needs the duration from
@@ -709,6 +878,8 @@ mod tests {
         assert_eq!(Still::of("application/pdf"), Some(Still::Page));
         assert_eq!(Still::of("image/avif"), Some(Still::Frame));
         assert_eq!(Still::of("image/heic"), Some(Still::Frame));
+        assert_eq!(Still::of("image/x-nikon-nef"), Some(Still::RawPreview));
+        assert_eq!(Still::of("image/x-adobe-dng"), Some(Still::RawPreview));
         assert_eq!(Still::of("image/jpeg"), None);
         assert_eq!(Still::of("text/vtt"), None);
     }
