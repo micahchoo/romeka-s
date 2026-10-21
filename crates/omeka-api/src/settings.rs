@@ -29,7 +29,8 @@
 //! fetch an ingester makes reach private addresses ([`address_policy`]), and
 //! four counts bound an import's uploads and how long its files stay
 //! ([`upload_settings`]). Each count answers its default when no row holds
-//! it, and a `null` write restores the default.
+//! it, and a `null` write restores the default. A sixth, [`ANNOTATIONS_PUBLIC`],
+//! is the annotation off switch: absent or `true` means on.
 //!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
@@ -94,6 +95,12 @@ pub const IMPORT_STAGING_KEEP_DAYS: &str = "import_staging_keep_days";
 /// Days a draft's uploaded files stay after the draft was last worked on.
 pub const IMPORT_DRAFT_STAGING_KEEP_DAYS: &str = "import_draft_staging_keep_days";
 
+/// Whether visitors who may not update a media see its notes. Absent or `true`
+/// means on, so a site that never saved the setting shows its notes. A stored
+/// `false` hides notes but keeps captions, on every projection (the WAP
+/// container, the manifest, the public page and search).
+pub const ANNOTATIONS_PUBLIC: &str = "romeka_annotations_public";
+
 /// The defaults of the four upload counts: 2 GiB, 50 GiB, 30 days, 7 days.
 pub const UPLOAD_DEFAULTS: UploadSettings = UploadSettings {
     max_file: 2 * 1024 * 1024 * 1024,
@@ -118,6 +125,8 @@ enum Shape {
     Text,
     /// `true` or `false`; `false` removes the row, because it is the default.
     Flag,
+    /// A switch whose default is on: `true` removes the row, `false` stores it.
+    OptOut,
     /// A list of strings; an empty list removes the row.
     Names,
     /// A list of strings, stored even when empty, because an empty allow
@@ -143,11 +152,13 @@ pub const GLOBAL_SETTINGS: &[&str] = &[
     IMPORT_UPLOAD_MAX_TOTAL,
     IMPORT_STAGING_KEEP_DAYS,
     IMPORT_DRAFT_STAGING_KEEP_DAYS,
+    ANNOTATIONS_PUBLIC,
 ];
 
 fn shape(key: &str) -> Shape {
     match key {
         HIDE_LESSONS | DISABLE_FILE_VALIDATION | IMPORT_ALLOW_PRIVATE_URLS => Shape::Flag,
+        ANNOTATIONS_PUBLIC => Shape::OptOut,
         LESSONS_SEEN => Shape::Names,
         MEDIA_TYPE_WHITELIST | EXTENSION_WHITELIST => Shape::AllowList,
         IMPORT_UPLOAD_MAX_FILE
@@ -333,6 +344,18 @@ pub async fn address_policy(pool: &DbPool) -> Result<AddressPolicy, DbError> {
     })
 }
 
+/// Whether visitors without the media-update grant may read notes: every value
+/// except a stored `false` means on, so a site that never saved the setting
+/// shows its notes ([`ANNOTATIONS_PUBLIC`]).
+///
+/// # Errors
+/// [`DbError`] when the setting row cannot be read.
+pub async fn annotations_public(pool: &DbPool) -> Result<bool, DbError> {
+    Ok(setting(pool, ANNOTATIONS_PUBLIC)
+        .await?
+        .is_none_or(|value| php_truthy(&value)))
+}
+
 /// The upload limits and the staging retention: each count as stored, else
 /// its [`UPLOAD_DEFAULTS`] value. A stored value that is not a whole number
 /// above zero reads as the default, so a hand-edited row cannot switch a
@@ -395,8 +418,8 @@ fn php_truthy(value: &Value) -> bool {
 }
 
 /// `GET /api/settings`: the global API settings as one map, for a global
-/// admin. The three file validation settings and the private URL switch
-/// always answer, as they apply.
+/// admin. The three file validation settings, the private URL switch and the
+/// annotation switch always answer, as they apply.
 ///
 /// # Errors
 /// [`ApiError::PermissionDenied`] for any other caller, [`ApiError::Internal`]
@@ -421,6 +444,10 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     map.insert(
         IMPORT_ALLOW_PRIVATE_URLS.to_string(),
         allows_private_urls(pool).await.map_err(db_error)?.into(),
+    );
+    map.insert(
+        ANNOTATIONS_PUBLIC.to_string(),
+        annotations_public(pool).await.map_err(db_error)?.into(),
     );
     let uploads = upload_settings(pool).await.map_err(db_error)?;
     for (key, value) in [
@@ -494,10 +521,14 @@ fn parse_map(
             (_, Value::Null) => None,
             (Shape::Text, Value::String(text)) if text.is_empty() => None,
             (Shape::Flag, Value::Bool(false)) => None,
+            (Shape::OptOut, Value::Bool(true)) => None,
             (Shape::Names, Value::Array(names)) if names.is_empty() => None,
             (Shape::Text, Value::String(_)) | (Shape::Flag, Value::Bool(true)) => {
                 Some(stored.clone())
             }
+            // The switch's off value is the one a row must keep, because its
+            // absent state is on.
+            (Shape::OptOut, Value::Bool(false)) => Some(stored.clone()),
             (Shape::Names, Value::Array(names)) if names.iter().all(Value::is_string) => {
                 Some(stored.clone())
             }
@@ -510,7 +541,9 @@ fn parse_map(
                 Some(stored.clone())
             }
             (Shape::Text, _) => return Err(invalid(messages::setting_not_text(key))),
-            (Shape::Flag, _) => return Err(invalid(messages::setting_not_flag(key))),
+            (Shape::Flag | Shape::OptOut, _) => {
+                return Err(invalid(messages::setting_not_flag(key)));
+            }
             (Shape::Names | Shape::AllowList, _) => {
                 return Err(invalid(messages::setting_not_names(key)));
             }
@@ -642,6 +675,32 @@ mod tests {
             "a stored string of digits reads"
         );
         assert_eq!(count_of(&json!(0)), None, "zero reads as the default");
+    }
+
+    #[test]
+    fn the_annotation_switch_stores_only_its_off_value() {
+        let parse = |value: Value| {
+            parse_map(
+                "settings",
+                GLOBAL_SETTINGS,
+                &json!({ ANNOTATIONS_PUBLIC: value }),
+            )
+        };
+        assert_eq!(
+            parse(json!(false)).unwrap(),
+            vec![(ANNOTATIONS_PUBLIC, Some(json!(false)))],
+            "off is a stored row, because the absent state is on"
+        );
+        assert_eq!(
+            parse(json!(true)).unwrap(),
+            vec![(ANNOTATIONS_PUBLIC, None)],
+            "on is the default, so the row goes"
+        );
+        assert_eq!(
+            parse(Value::Null).unwrap(),
+            vec![(ANNOTATIONS_PUBLIC, None)]
+        );
+        assert!(parse(json!("false")).is_err());
     }
 
     #[test]
