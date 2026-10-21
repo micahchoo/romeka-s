@@ -20,7 +20,7 @@ import { usePreview } from '../lists/use-preview';
 import { PER_PAGE } from '../paged-list';
 import { fold } from './list-plan';
 import { useSimpleText } from './messages';
-import { folderName, setChoiceOf, typeAnswerOf, typeFromOf, withSets, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
+import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSets, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
 import './simple.css';
 
@@ -32,12 +32,14 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
   const read = usePreview(['values'], { values: { perPage: CHIPS_SHOWN } });
   const current = setChoiceOf(draft.plan);
   const name = folderName(draft.plan);
+  const column = setColumnOf(draft.plan);
   const existing = catalog?.itemSets ?? [];
   const choices: readonly { readonly id: SetChoice; readonly label: string }[] = [
     { id: 'leaf', label: t('guided.where.setLeaf') },
     { id: 'top', label: t('guided.where.setTop') },
     { id: 'one', label: t('guided.where.setOne', { name }) },
     ...(existing.length === 0 ? [] : [{ id: 'old' as const, label: t('guided.where.setOld') }]),
+    ...(column === null ? [] : [{ id: 'column' as const, label: t('guided.where.setColumn', { header: column }) }]),
     { id: 'none', label: t('guided.where.setNone') },
   ];
   const sets = read.status === 'ready' ? read.data.values.find((one) => one.slot === 'sets')?.values : undefined;

@@ -89,7 +89,8 @@ describe('Your list', () => {
     await waitFor(() => {
       expect(sheetsOf(last(server.saved))).toHaveLength(0);
     }, { timeout: 3000 });
-    expect(asRecord(last(server.saved)['example'], [])['notLists']).toEqual(['register.csv']);
+    expect(asRecord(last(server.saved)['simple'], [])['notLists']).toEqual([{ source: 's1', file: 'register.csv' }]);
+    expect(last(server.saved)['example']).toBeNull();
     expect(await screen.findByRole('button', { name: 'No, it is not about these items', pressed: true })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes, use it', pressed: false })).toBeEnabled();
 
@@ -102,6 +103,23 @@ describe('Your list', () => {
 });
 
 describe('Where they go', () => {
+  it('shows the list column that feeds the item sets as the checked choice, and “No item set” takes it out', async () => {
+    const column = { index: 1, header: 'Collection' };
+    const slots = { item: { sets: { sources: [{ from: 'column', sheet: 'register', column }], combine: 'first' } }, media: {}, itemSet: {} };
+    const server = simpleServer(scenario('meera', 9), { slots });
+    installFetch(server.handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
+    const fromList = await screen.findByRole('radio', { name: 'From your list, the column “Collection”' }, { timeout: 5000 });
+    expect(fromList).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'No item set' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'No item set' }));
+    await waitFor(() => {
+      expect(asRecord(asRecord(last(server.saved)['slots'], [])['item'], [])['sets']).toBeUndefined();
+    }, { timeout: 3000 });
+    expect(screen.queryByRole('radio', { name: 'From your list, the column “Collection”' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'No item set' })).toBeChecked();
+  }, 20_000);
+
   it('maps a value to a new item type, and another to no item type', async () => {
     const server = await opened();
     go('list');
@@ -118,6 +136,33 @@ describe('Where they go', () => {
     }, { timeout: 3000 });
     expect(last(server.saved)['newTypes']).toEqual([{ label: 'letter', from: 'mapping', class: null }]);
   }, 20_000);
+});
+
+describe('Simple and Advanced read one plan', () => {
+  const NOTICE = 'An example is kept, but not in a form this screen can show.';
+
+  it('Simple’s answers do not make Advanced report a kept example, and they are still there on a reload', async () => {
+    const server = await opened();
+    go('list');
+    fireEvent.click(await screen.findByRole('button', { name: 'No, it is not about these items' }, { timeout: 5000 }));
+    await waitFor(() => {
+      expect(asRecord(last(server.saved)['simple'], [])['notLists']).toHaveLength(1);
+    }, { timeout: 3000 });
+    go('check');
+    fireEvent.click(await screen.findByRole('button', { name: /^Use the \d+ suggested answers|^Use the suggested answer/ }, { timeout: 5000 }));
+    await waitFor(() => {
+      expect(asRecord(last(server.saved)['simple'], [])['answered']).not.toEqual([]);
+    }, { timeout: 3000 });
+    expect(last(server.saved)['example']).toBeNull();
+
+    window.location.hash = '#/import/1/advanced/files';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(await screen.findByText('None. Files are one item only when their names are equal except for the extension.', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.queryByText(NOTICE)).toBeNull();
+
+    go('list');
+    expect(await screen.findByRole('button', { name: 'No, it is not about these items', pressed: true }, { timeout: 5000 })).toBeInTheDocument();
+  }, 30_000);
 });
 
 describe('Check', () => {
