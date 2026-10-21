@@ -170,9 +170,10 @@ async fn the_media_page_lists_every_cue_with_its_time() {
         body.contains("<span class=\"transcript-time\">1:02</span>"),
         "{body}"
     );
-    // The script ships with the page, and the reload lands on the player.
+    // The page ships the one notes and transcript script, and the reload lands
+    // on the player.
     assert!(
-        body.contains("<script src=\"/assets/js/transcript.js"),
+        body.contains("<script src=\"/assets/js/annotations.js?v="),
         "{body}"
     );
     assert!(body.contains("id=\"player\""), "{body}");
@@ -311,7 +312,6 @@ async fn a_video_without_captions_has_no_transcript() {
 
     let body = page(&app, media, "").await;
     assert!(!body.contains("data-transcript"), "{body}");
-    assert!(!body.contains("js/transcript.js"), "{body}");
     assert!(!body.contains("transcript-facts"), "{body}");
 }
 
@@ -351,6 +351,43 @@ async fn a_hand_written_caption_note_is_a_line_too() {
         ),
         "{body}"
     );
+}
+
+/// A file with notes and captions draws both surfaces, names one player and
+/// loads the one shared script once.
+#[tokio::test]
+async fn notes_and_a_transcript_share_one_player_and_one_script() {
+    let (pool, seed) = site_pool().await;
+    let (app, media) = captioned_video(&pool, &seed).await;
+    let canvas = format!(
+        "http://localhost/iiif/3/item/{}/canvas/{}",
+        seed.item.0, media.0
+    );
+    let request = Request::builder()
+        .method("POST")
+        .uri(append_key(&format!("/annotations/media/{}/", media.0)))
+        .header("content-type", "application/ld+json")
+        .body(Body::from(timed_note(
+            &canvas,
+            "The ship sinks here.",
+            "30",
+            "31",
+        )))
+        .unwrap();
+    let answer = send(app.clone(), request).await;
+    assert_eq!(answer.status, StatusCode::CREATED, "{}", answer.body);
+
+    let body = page(&app, media, "").await;
+    // Both surfaces are on the page: the notes figure with its list, and the
+    // transcript under the player.
+    assert!(body.contains("class=\"annotated-media"), "{body}");
+    assert!(body.contains("class=\"annotation-list\""), "{body}");
+    assert!(body.contains("The ship sinks here."), "{body}");
+    assert!(body.contains("data-transcript"), "{body}");
+    assert!(body.contains("A red square, then a blue bar."), "{body}");
+    // One script, one player: the figure and the transcript agree on both.
+    assert_eq!(body.matches("js/annotations.js").count(), 1, "{body}");
+    assert_eq!(body.matches("id=\"player\"").count(), 1, "{body}");
 }
 
 /// A file the caller may not see has no page, so it has no transcript either.

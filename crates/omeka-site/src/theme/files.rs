@@ -85,9 +85,9 @@ const OWN: [ThemeAsset; 53] = [
         content: crate::model_reader::SCRIPT.as_bytes(),
     },
     ThemeAsset {
-        path: crate::transcript::SCRIPT_PATH,
+        path: "js/annotations.js",
         kind: AssetKind::Library,
-        content: crate::transcript::SCRIPT.as_bytes(),
+        content: crate::annotation::SCRIPT.as_bytes(),
     },
     vendored!(Library, "leaflet/leaflet.js"),
     vendored!(LibraryStylesheet, "leaflet/leaflet.css"),

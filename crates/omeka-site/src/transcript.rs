@@ -7,22 +7,13 @@
 //! lives behind the same `mediaRender` block as the file it transcribes.
 //!
 //! Every cue of the language is in the page. Find-in-page therefore searches
-//! the words a visitor heard, a reader with no script follows a cue by reloading
-//! its `?t=` link, and [`SCRIPT`] only adds what a static page cannot do: seek
-//! without a reload, follow the playing line, and draw an `<audio>` element's
-//! captions, which a browser never draws itself.
+//! the words a visitor heard, and a reader with no script follows a cue by
+//! reloading its `?t=` link. The theme's `annotations.js` wires the section, so
+//! the page has one seek and one mark of the playing line for its notes and its
+//! transcript alike.
 
 use crate::html::escape_html;
 use crate::i18n::{Messages, sprintf, sprintf1};
-
-/// The script that keeps the playing line in view and draws the audio band.
-///
-/// Served from the theme's assets, so it is a file the browser caches and the
-/// document holds no inline code.
-pub const SCRIPT: &str = include_str!("transcript.js");
-
-/// Where [`SCRIPT`] sits under the theme's asset base.
-pub const SCRIPT_PATH: &str = "js/transcript.js";
 
 /// One caption track of one language.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,12 +125,7 @@ pub fn cue_text(body_json: &str) -> String {
 /// The transcript section: the facts line, the language links, the "Follow
 /// along" toggle the script reveals, and every cue as a `?t=` link.
 #[must_use]
-pub fn section(
-    transcript: &Transcript,
-    path: &str,
-    asset_base: &str,
-    messages: &Messages,
-) -> String {
+pub fn section(transcript: &Transcript, path: &str, messages: &Messages) -> String {
     let mut out = String::from("<section class=\"transcript\" id=\"transcript\" data-transcript>");
     out.push_str(&facts(transcript, messages));
     out.push_str("<details class=\"transcript-details\" open>");
@@ -161,7 +147,6 @@ pub fn section(
         out.push_str(&line(cue, &transcript.current, path));
     }
     out.push_str("</ol></details>");
-    out.push_str(&crate::theme::library_script(asset_base, SCRIPT_PATH));
     out.push_str("</section>");
     out
 }
@@ -274,25 +259,9 @@ fn line(cue: &Cue, language: &Option<String>, path: &str) -> String {
         start = cue.start_ms,
         end = cue.end_ms,
         href = escape_html(&format!("{path}?{query}#player")),
-        time = escape_html(&cue_time(cue.start_ms)),
+        time = escape_html(&crate::annotation::clock(cue.start_ms)),
         text = escape_html(&cue.text),
     )
-}
-
-/// A cue's time as a position, never rounded up: `0:00` and `1:02`, and
-/// `1:02:03` past an hour. [`duration_label`](crate::theme::cards::duration_label)
-/// rounds a run time, which is right for a length and wrong for a place in a
-/// file.
-fn cue_time(milliseconds: u64) -> String {
-    let total = milliseconds / 1000;
-    let hours = total / 3600;
-    let minutes = total / 60 % 60;
-    let seconds = total % 60;
-    if hours > 0 {
-        format!("{hours}:{minutes:02}:{seconds:02}")
-    } else {
-        format!("{minutes}:{seconds:02}")
-    }
 }
 
 /// The seconds a `?t=` link states: whole seconds when the cue begins on one,
@@ -350,7 +319,7 @@ mod tests {
 
     #[test]
     fn every_cue_is_a_link_to_its_moment() {
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<li class=\"transcript-line\" id=\"cue-12\" data-start-ms=\"62000\" data-end-ms=\"70000\">"
@@ -375,7 +344,7 @@ mod tests {
 
     #[test]
     fn the_heading_names_the_language_and_the_line_count() {
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<summary class=\"transcript-heading\">Transcript · English · 2 lines</summary>"
@@ -388,7 +357,7 @@ mod tests {
     fn one_cue_reads_as_one_line() {
         let mut one = transcript();
         one.cues.truncate(1);
-        let html = section(&one, "/s/museum/media/7", "/assets", &EN);
+        let html = section(&one, "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<summary class=\"transcript-heading\">Transcript · English · 1 line</summary>"
@@ -399,7 +368,7 @@ mod tests {
 
     #[test]
     fn the_facts_line_names_every_language_and_points_at_the_list() {
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<p class=\"transcript-facts\">Captions: English, Français. Transcript below.</p>"
@@ -410,7 +379,7 @@ mod tests {
 
     #[test]
     fn the_language_links_mark_the_one_showing() {
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<a class=\"transcript-language\" href=\"/s/museum/media/7?transcript=en#transcript\" \
@@ -431,22 +400,18 @@ mod tests {
     fn one_language_renders_no_switcher() {
         let mut one = transcript();
         one.languages.truncate(1);
-        let html = section(&one, "/s/museum/media/7", "/assets", &EN);
+        let html = section(&one, "/s/museum/media/7", &EN);
         assert!(!html.contains("transcript-languages"), "{html}");
     }
 
     #[test]
     fn a_checked_follow_toggle_is_in_the_page_for_the_script_to_reveal() {
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<label class=\"transcript-follow\" data-transcript-follow hidden>\
                  <input type=\"checkbox\" checked> Follow along</label>"
             ),
-            "{html}"
-        );
-        assert!(
-            html.contains("<script src=\"/assets/js/transcript.js"),
             "{html}"
         );
     }
@@ -459,7 +424,7 @@ mod tests {
             band(&audio),
             "<p class=\"transcript-band\" data-transcript-band hidden aria-hidden=\"true\"></p>"
         );
-        let html = section(&audio, "/s/museum/media/7", "/assets", &EN);
+        let html = section(&audio, "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<p class=\"transcript-facts\">Captions show in the transcript below.</p>"
@@ -473,7 +438,7 @@ mod tests {
     #[test]
     fn a_video_gets_no_band() {
         assert_eq!(band(&transcript()), "");
-        let html = section(&transcript(), "/s/museum/media/7", "/assets", &EN);
+        let html = section(&transcript(), "/s/museum/media/7", &EN);
         assert!(!html.contains("transcript-band"), "{html}");
     }
 
@@ -485,7 +450,7 @@ mod tests {
             language(Some("en"), "English", 2),
         ];
         untagged.current = None;
-        let html = section(&untagged, "/s/museum/media/7", "/assets", &EN);
+        let html = section(&untagged, "/s/museum/media/7", &EN);
         assert!(
             html.contains(
                 "<summary class=\"transcript-heading\">Transcript · Captions · 2 lines</summary>"
@@ -504,12 +469,21 @@ mod tests {
 
     #[test]
     fn a_cue_time_is_a_position_and_never_rounds_up() {
-        assert_eq!(cue_time(0), "0:00");
-        assert_eq!(cue_time(200), "0:00");
-        assert_eq!(cue_time(62_000), "1:02");
-        assert_eq!(cue_time(3_599_999), "59:59");
-        assert_eq!(cue_time(3_600_000), "1:00:00");
-        assert_eq!(cue_time(3_723_000), "1:02:03");
+        let mut early = transcript();
+        early.cues[0].start_ms = 200;
+        let html = section(&early, "/s/museum/media/7", &EN);
+        assert!(
+            html.contains("<span class=\"transcript-time\">0:00</span>"),
+            "{html}"
+        );
+        assert!(
+            !html.contains("<span class=\"transcript-time\">0:01</span>"),
+            "{html}"
+        );
+        assert!(
+            html.contains("<span class=\"transcript-time\">1:02</span>"),
+            "{html}"
+        );
     }
 
     #[test]

@@ -77,3 +77,346 @@
   background: var(--surface-muted, #eef2f7);
   font-size: 0.8125rem;
 }
+
+/* Dials: a list beside the inspector of its selected row, one column when narrow. */
+
+.guided-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.guided-facts b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.guided-dials {
+  container-type: inline-size;
+}
+
+.guided-split {
+  display: grid;
+  grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.guided-rows {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guided-rows [role="option"] {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.guided-rows [aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.guided-row-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.guided-file {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.guided-inspector {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.guided-inspect > h4 {
+  margin-top: 0;
+}
+
+.guided-kv {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: 0 0 var(--space-3);
+}
+
+.guided-kv dt {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.guided-kv dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.guided-meter {
+  display: inline-grid;
+  grid-template-columns: 5.5rem auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.guided-bar {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.guided-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--success, #1e7a4a);
+}
+
+.guided-bar > .is-low {
+  background: var(--warning, #9a5b00);
+}
+
+.guided-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+button.guided-chip {
+  cursor: pointer;
+}
+
+button.guided-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.guided-chip.is-ok {
+  border-color: transparent;
+  background: #e3f3ea;
+  color: var(--success, #1e7a4a);
+}
+
+.guided-chip.is-warn {
+  border-color: transparent;
+  background: #fbf0dc;
+  color: var(--warning, #9a5b00);
+}
+
+.guided-seg {
+  display: inline-flex;
+}
+
+.guided-seg button {
+  position: relative;
+  padding: 2px var(--space-2);
+  border-radius: 0;
+  font-size: 0.8125rem;
+}
+
+.guided-seg button:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.guided-seg button:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.guided-seg button + button {
+  border-left: 0;
+}
+
+.guided-seg button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.guided-tick {
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.guided-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.guided-tgl {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}
+
+.guided-columns th,
+.guided-columns td {
+  vertical-align: middle;
+}
+
+.guided-columns thead th {
+  white-space: nowrap;
+}
+
+.guided-columns tbody th {
+  font-weight: 400;
+}
+
+.guided-columns select {
+  max-width: 10rem;
+}
+
+.guided-on {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.guided-first {
+  display: block;
+  max-width: 11rem;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+}
+
+.guided-columns tr.is-off .guided-col-name {
+  color: var(--text-muted);
+}
+
+.guided-help,
+.guided-trip {
+  margin: var(--space-3) 0;
+}
+
+.guided-help > summary,
+.guided-trip > summary {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.guided-help p {
+  max-width: 70ch;
+}
+
+.guided-facts > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.guided-facts > .guided-rule {
+  flex-basis: 100%;
+  color: var(--text);
+}
+
+.guided-inspect h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.guided-examples {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.guided-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The files chart as one compact row of counts. */
+.guided-dials .import-chart {
+  margin: 0 0 var(--space-3);
+}
+
+.guided-dials .import-chart ul {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+}
+
+.guided-dials .import-chart a {
+  grid-template-columns: 6.5rem 1fr 3rem;
+  min-height: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.guided-dials .import-chart-track {
+  height: 0.5rem;
+}
+
+.guided-dials .import-chart figcaption {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.guided-dials .import-bulk {
+  margin: 0;
+}
+
+/* Last, so it wins over the wide layout above. */
+@container (max-width: 720px) {
+  .guided-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guided-kv {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

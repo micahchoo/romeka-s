@@ -18,7 +18,7 @@ export const ml: ImportListsMessages = {
     'ഇവയിൽ {count} എണ്ണം ഒരേസമയം പല ഐറ്റങ്ങൾ മാറ്റുന്നു. നിങ്ങൾ കൂടുതൽ ഫയലുകൾ ചേർക്കുമ്പോഴോ ഉത്തരം മാറ്റുമ്പോഴോ നിങ്ങളുടെ മാറ്റങ്ങൾ നിലനിൽക്കും.',
   'lists.changes.undoMany': 'പലതിലും വരുത്തിയ അവസാന മാറ്റം അൺഡൂ ചെയ്യുക',
   'lists.chart.caption':
-    'ഓരോ ഐറ്റത്തിലെയും ഫയലുകൾ. തെറ്റായ ഗ്രൂപ്പിംഗ് ആദ്യം ഇവിടെ കാണിക്കുന്നു: മിക്കവാറും എല്ലാ ഐറ്റങ്ങളിലും 1 ഫയൽ ഉണ്ടാകും, അല്ലെങ്കിൽ ഒരു ഐറ്റത്തിൽ ആയിരക്കണക്കിന് ഉണ്ടാകും.',
+    'ഓരോ ഇനത്തിലെയും ഫയലുകൾ. തെറ്റായ ഒരു ഗ്രൂപ്പിംഗ് ഇവിടെ ആദ്യം കാണിക്കുന്നു.',
   'lists.chart.bar': '{count} ഐറ്റങ്ങൾ {files}-ഓടെ. അവ കാണിക്കുക.',
   'lists.facts.files0': 'ഫയൽ ഇല്ല',
   'lists.facts.files1': '1 ഫയൽ',
@@ -229,8 +229,7 @@ export const ml: ImportListsMessages = {
   'lists.trip.andMore': 'കൂടാതെ {count} കൂടുതൽ',
   'lists.trip.remove': 'ഈ പട്ടിക നീക്കം ചെയ്യുക',
   'lists.picker.title': 'നിങ്ങളുടെ ഫോൾഡറിലെ പട്ടികകൾ',
-  'lists.picker.lede':
-    'നിങ്ങളുടെ ഫയലുകളിൽ ഏറ്റവും കൂടുതൽ ഉൾപ്പെടുന്ന പട്ടിക ആദ്യം വരുന്നു. നിങ്ങൾക്ക് ഒന്നിലധികം ഉപയോഗിക്കാം.',
+  'lists.picker.order': 'നിങ്ങളുടെ ഫയലുകളിൽ ഏറ്റവും കൂടുതൽ ഉൾപ്പെടുന്ന പട്ടിക ആദ്യം വരുന്നു.',
   'lists.picker.folder': '{folder} എന്ന ഫോൾഡറിൽ',
   'lists.picker.rows': '{count} വരികൾ',
   'lists.picker.rowsOne': '1 വരി',
@@ -238,23 +237,17 @@ export const ml: ImportListsMessages = {
   'lists.picker.declined': 'നിരസിക്കപ്പെട്ടു',
   'lists.picker.offered': 'ഉപയോഗിച്ചിട്ടില്ല',
   'lists.picker.unreadable': 'വായിച്ചിട്ടില്ല',
-  'lists.picker.names':
-    '“{column}” എന്ന കോളത്തിലൂടെ, {rows}-ൽ {count} എണ്ണം നിങ്ങളുടെ ഫയലുകളിൽ ഒന്നാണ്.',
-  'lists.picker.codes':
-    '“{column}” എന്ന കോളത്തിലൂടെ, {rows}-ൽ {count} എണ്ണം നിങ്ങളുടെ ഇനങ്ങളിൽ ഒന്നിന്റെ കോഡ് നൽകുന്നു.',
-  'lists.picker.folded':
-    'വലിയ അക്ഷരങ്ങൾ, തുടക്കത്തിലെ പൂജ്യങ്ങൾ, _ - . എന്നിവ അവഗണിച്ചാൽ {count} കൂടുതൽ.',
-  'lists.picker.noPair':
-    'വലിയ അക്ഷരങ്ങൾ, തുടക്കത്തിലെ പൂജ്യങ്ങൾ, _ - . എന്നിവ അവഗണിച്ചാലും, ഒരു വരിയും നിങ്ങളുടെ ഫയലിന്റെയോ ഇനത്തിന്റെയോ പേര് നൽകുന്നില്ല.',
-  'lists.picker.overlap':
-    '{file} ജോടിയാക്കുന്ന അതേ ഇനങ്ങൾ ജോടിയാക്കുന്നു: {count}',
+  'lists.picker.byNames': '“{column}” വഴി, {rows}-ൽ {count} വരികൾ ഒരു ഫയലിന്റെ പേര് നൽകുന്നു.',
+  'lists.picker.byCodes': '“{column}” വഴി, {rows}-ൽ {count} വരികൾ ഒരു ഇനത്തിന്റെ കോഡ് നൽകുന്നു.',
+  'lists.picker.loose': '+{count} വലിയ അക്ഷരങ്ങൾ, തുടക്കത്തിലെ പൂജ്യങ്ങൾ, _ - . എന്നിവ അവഗണിച്ചാൽ',
+  'lists.picker.none': 'ഒരു വരിയും നിങ്ങളുടെ ഫയലിന്റെയോ ഇനത്തിന്റെയോ പേര് നൽകുന്നില്ല.',
+  'lists.picker.sameItems': '{file}-ലെ അതേ ഇനങ്ങൾ · {count} ഇനങ്ങൾ',
   'lists.picker.unread': 'ഈ പട്ടിക വായിക്കാൻ കഴിഞ്ഞില്ല: {message}',
   'lists.picker.use': 'ഈ പട്ടിക ഉപയോഗിക്കുക',
   'lists.picker.reading': 'പട്ടിക വായിക്കുന്നു...',
   'lists.picker.stop': 'ഇത് ഉപയോഗിക്കുന്നത് നിർത്തുക',
   'lists.picker.decline': 'ഈ ഇനങ്ങളെക്കുറിച്ച് അല്ല',
-  'lists.picker.ask':
-    'ഈ പട്ടിക {file} ജോടിയാക്കുന്ന അതേ ഇനങ്ങളിൽ {count} എണ്ണം ജോടിയാക്കുന്നു. രണ്ടും ഉപയോഗിക്കണോ, അതോ {file}-ന് പകരം ഇത് ഉപയോഗിക്കണോ?',
+  'lists.picker.shared': 'ഇത് {file}-ലെ അതേ ഇനങ്ങളിൽ {count} എണ്ണം ജോടിയാക്കുന്നു.',
   'lists.picker.both': 'രണ്ടും ഉപയോഗിക്കുക',
   'lists.picker.instead': '{file}-ന് പകരം ഇത് ഉപയോഗിക്കുക',
   'lists.picker.cancel': 'ഇത് ചേർക്കരുത്',

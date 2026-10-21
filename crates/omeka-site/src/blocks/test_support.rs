@@ -154,6 +154,7 @@ pub(crate) fn resource_ref(title: &str, url: &str) -> ResourceRef {
         title: title.to_string(),
         thumbnail: None,
         media_kind: None,
+        notes: 0,
     }
 }
 

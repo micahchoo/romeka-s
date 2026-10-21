@@ -101,8 +101,11 @@ const open = (screenName: string): ReturnType<typeof simpleServer> => {
 };
 
 const block = async (): Promise<HTMLElement> => screen.findByRole('region', { name: AF }, { timeout: 5000 });
+/** The row headed by `column`; Simple writes the column's first value under its name. */
+const headerOf = (element: HTMLElement, column: string): HTMLElement =>
+  within(element).getByRole('rowheader', { name: (name) => name === column || name.startsWith(`${column} `) });
 const rowOf = (element: HTMLElement, column: string): HTMLElement => {
-  const row = within(element).getByRole('rowheader', { name: column }).closest('tr');
+  const row = headerOf(element, column).closest('tr');
   if (row === null) {
     throw new Error(`no row for ${column}`);
   }
@@ -126,7 +129,7 @@ describe('the first value of each column', () => {
     open('simple/list');
     const af = await block();
     await goesInto(af, 'Keywords');
-    const first = (column: string): string => within(rowOf(af, column)).getAllByRole('cell')[0]?.textContent ?? '';
+    const first = (column: string): string => headerOf(af, column).textContent.slice(column.length).trim();
     expect(first('Sl No')).toBe('');
     expect(first('Keywords')).toBe('Coral, Natural History, Fossil');
     expect(first('Year Of Digitization')).toBe('2017');
@@ -139,9 +142,9 @@ describe('several values in one cell, in Simple', () => {
     const server = open('simple/list');
     const af = await block();
     await choose(await goesInto(af, 'Keywords'), 'field:dcterms:description');
-    const split = await within(rowOf(af, 'Keywords')).findByRole('checkbox', { name: 'Several values in one cell, separated by “,”' }, { timeout: 3000 });
+    const split = await within(rowOf(af, 'Keywords')).findByRole('checkbox', { name: /^split at “,”/ }, { timeout: 3000 });
     expect(split).toBeChecked();
-    expect(rowOf(af, 'Keywords')).toHaveTextContent('In 610 of 690 cells.');
+    expect(rowOf(af, 'Keywords')).toHaveTextContent('610/690');
     await waitFor(() => {
       expect(splitOf(last(server.saved), KEYWORDS)).toBe(',');
     }, { timeout: 3000 });
@@ -149,7 +152,7 @@ describe('several values in one cell, in Simple', () => {
     await waitFor(() => {
       expect(splitOf(last(server.saved), KEYWORDS)).toBeNull();
     }, { timeout: 3000 });
-    expect(within(rowOf(af, 'Keywords')).getByRole('checkbox', { name: 'Several values in one cell, separated by “,”' })).not.toBeChecked();
+    expect(within(rowOf(af, 'Keywords')).getByRole('checkbox', { name: /^split at “,”/ })).not.toBeChecked();
   }, 20_000);
 
   it('offers the split but leaves it off for a column where few cells hold a comma', async () => {
@@ -157,9 +160,9 @@ describe('several values in one cell, in Simple', () => {
     const af = await block();
     expect(within(rowOf(af, 'Digitized by')).queryByRole('checkbox')).toBeNull();
     await choose(await goesInto(af, 'Digitized by'), 'field:dcterms:description');
-    const split = await within(rowOf(af, 'Digitized by')).findByRole('checkbox', { name: 'Several values in one cell, separated by “,”' }, { timeout: 3000 });
+    const split = await within(rowOf(af, 'Digitized by')).findByRole('checkbox', { name: /^split at “,”/ }, { timeout: 3000 });
     expect(split).not.toBeChecked();
-    expect(rowOf(af, 'Digitized by')).toHaveTextContent('In 40 of 690 cells.');
+    expect(rowOf(af, 'Digitized by')).toHaveTextContent('40/690');
     await waitFor(() => {
       expect(sourcesOf(last(server.saved), 'item', 'dcterms:description')).toEqual([fromColumn(DIGITIZED)]);
     }, { timeout: 3000 });
@@ -190,7 +193,7 @@ describe('a list whose header is on line 2, under a title, with an empty first c
     await goesInto(list, 'Keywords');
     expect(within(list).getByText(/^Line 1 has 1 cell: “Register of BHC006”\./)).toBeInTheDocument();
     expect(within(list).getByRole('spinbutton', { name: 'Column names are on line' })).toHaveValue(2);
-    const first = (column: string): string => within(rowOf(list, column)).getAllByRole('cell')[0]?.textContent ?? '';
+    const first = (column: string): string => headerOf(list, column).textContent.slice(column.length).trim();
     expect(first('Sl No')).toBe('');
     expect(first('Keywords')).toBe('Coral, Natural History, Fossil');
     expect(first('Year Of Digitization')).toBe('2017');
@@ -221,8 +224,13 @@ describe('a list read for the first time, its columns mapped by name', () => {
     const server = simpleServer(named(file));
     installFetch(server.handler);
     render(<ImportPage param="1" rest={['1', mode, screenName]} />);
-    const offer = await screen.findByRole('listitem', { name: file }, { timeout: 5000 });
-    fireEvent.click(within(offer).getByRole('button', { name: 'Use this list' }));
+    if (mode === 'simple') {
+      fireEvent.click(await screen.findByRole('option', { name: file }, { timeout: 5000 }));
+      fireEvent.click(within(await screen.findByRole('region', { name: file })).getByRole('checkbox', { name: 'use this list' }));
+    } else {
+      const offer = await screen.findByRole('listitem', { name: file }, { timeout: 5000 });
+      fireEvent.click(within(offer).getByRole('button', { name: 'Use this list' }));
+    }
     await waitFor(() => {
       expect(Array.isArray(last(server.saved)['sheets']) ? last(server.saved)['sheets'] : []).toHaveLength(1);
     }, { timeout: 5000 });
@@ -278,7 +286,7 @@ describe('a column’s first field, on a list whose rows describe files: the fie
     const { plan, af } = await placed(screenName, 'Keywords', 'dcterms:subject');
     expect(sourcesOf(plan, 'item', 'dcterms:subject')).toEqual([fromColumn(KEYWORDS)]);
     expect(sourcesOf(plan, 'media', 'dcterms:subject')).toBeUndefined();
-    expect(rowOf(af, 'Keywords')).toHaveTextContent('Varies in 42 of 251 items.');
+    expect(rowOf(af, 'Keywords')).toHaveTextContent(screenName.startsWith('advanced') ? 'Varies in 42 of 251 items.' : 'differs in 42/251');
   }, 20_000);
 
   it.each(['simple/list', 'advanced/lists'])('%s: a column mapped to Identifier goes on each file', async (screenName) => {

@@ -282,9 +282,22 @@ fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
             }
         }
         out.push_str(&format!(
-            "<span class=\"media-file-name\">{}</span></a></li>",
+            "<span class=\"media-file-name\">{}</span></a>",
             escape_html(&entry.title)
         ));
+        // A cropped tile never carries the overlay: it names the note count and
+        // opens the media page, where the notes are drawn on the whole file.
+        if entry.notes > 0 {
+            out.push_str(&format!(
+                "<a class=\"media-file-notes\" href=\"{}\">{}</a>",
+                escape_html(&entry.url),
+                escape_html(&sprintf1(
+                    ctx.translator().messages().notes_count,
+                    &entry.notes.to_string()
+                ))
+            ));
+        }
+        out.push_str("</li>");
     }
     out.push_str("</ul></div>");
     out
@@ -297,23 +310,30 @@ fn media_render(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
         .first()
         .and_then(|media| media.embed.clone())
         .unwrap_or_default();
-    // A recording's transcript follows the player it drives and comes before
-    // the record's values, so a reader meets its words next to its sound. It is
-    // not a configured block: a site that shows the file shows its transcript.
-    // The band, when there is one, sits immediately under the player.
-    match &resource.transcript {
-        Some(transcript) => format!(
-            "{file}{}{}",
-            crate::transcript::band(transcript),
-            crate::transcript::section(
-                transcript,
-                &ctx.current_path,
-                &ctx.asset_base,
-                ctx.translator().messages(),
-            )
-        ),
-        None => file,
+    let Some(transcript) = &resource.transcript else {
+        return file;
+    };
+    // The notes figure loads `annotations.js` itself, so a file that carries
+    // notes already has the one script the page needs. A second tag would run
+    // the same file twice.
+    let scripted = file.contains("js/annotations.js");
+    let mut out = file;
+    out.push_str(crate::transcript::band(transcript));
+    // The transcript follows the player it drives and comes before the record's
+    // values, so a reader meets its words next to its sound. It is not a
+    // configured block: a site that shows the file shows its transcript.
+    out.push_str(&crate::transcript::section(
+        transcript,
+        &ctx.current_path,
+        ctx.translator().messages(),
+    ));
+    if !scripted {
+        out.push_str(&crate::theme::library_script(
+            &ctx.asset_base,
+            "js/annotations.js",
+        ));
     }
+    out
 }
 
 /// `resource-class.phtml`: the class label, nothing when there is no class.

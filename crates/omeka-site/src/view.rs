@@ -198,6 +198,9 @@ pub struct ResourceRef {
     /// The kind of the file behind this link, for the item page's file strip.
     /// `None` for a link that is not one media.
     pub media_kind: Option<MediaKindCue>,
+    /// How many notes a reader can see on this file. A cropped tile draws no
+    /// overlay, so it names the count instead; zero draws nothing.
+    pub notes: u32,
 }
 
 /// A media file's place among the files of its item.

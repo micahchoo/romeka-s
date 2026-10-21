@@ -94,15 +94,16 @@ const answeredOneFile = async (): Promise<Record<string, unknown>> => {
   const server = open('simple/list', ONE_ITEM_A_ROW);
   const af = await block();
   const question = await within(af).findByRole('group', { name: 'Each row describes' }, { timeout: 5000 });
-  expect(question).toHaveTextContent('367 rows name another file of an item that a row already names; the rows look like they describe one file each.');
-  const oneFile = within(question).getByRole('radio', { name: /^one file/ });
-  expect(oneFile.closest('label')).toHaveTextContent('suggested');
-  expect(within(question).getByRole('radio', { name: 'one item' })).toBeChecked();
-  expect(within(question).getByRole('radio', { name: 'one item' }).closest('label')).not.toHaveTextContent('suggested');
+  expect(af).toHaveTextContent('367 rows name another file of an item');
+  const oneFile = within(question).getByRole('button', { name: 'File suggested' });
+  expect(within(question).getByRole('button', { name: 'Item' })).toHaveAttribute('aria-pressed', 'true');
+  expect(oneFile).toHaveAttribute('aria-pressed', 'false');
   fireEvent.click(oneFile);
   await waitFor(() => {
     expect(sheet(last(server.saved))['rowKind']).toBe('media');
   }, { timeout: 3000 });
+  expect(oneFile).toHaveAttribute('aria-pressed', 'true');
+  expect(af).not.toHaveTextContent('rows name another file');
   return last(server.saved);
 };
 
@@ -119,13 +120,12 @@ describe('each row describes one file, in Simple', () => {
     expect(sourcesOf(plan, 'item', 'dcterms:date')).toEqual([fromColumn(2)]);
     const af = await block();
     const keywords = await waitFor(() => levelGroup(af, 'Keywords'), { timeout: 3000 });
-    expect(within(keywords).getByRole('radio', { name: /^The item/ })).toBeChecked();
-    expect(within(keywords).getByRole('radio', { name: /^The item/ }).closest('label')).toHaveTextContent('suggested');
-    expect(within(keywords).getByRole('radio', { name: /^Each file/ }).closest('label')).not.toHaveTextContent('suggested');
-    expect(keywords.closest('td')).toHaveTextContent('Varies in 43 of 274 items.');
+    expect(within(keywords).getByRole('button', { name: 'Item suggested' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(keywords).getByRole('button', { name: 'Each file' })).toHaveAttribute('aria-pressed', 'false');
+    expect(keywords.closest('tr')).toHaveTextContent('differs in 43/274');
     const year = levelGroup(af, 'Year Of Digitization');
-    expect(within(year).getByRole('radio', { name: /^The item/ })).toBeChecked();
-    expect(year.closest('td')).toHaveTextContent('Varies in 0 of 274 items.');
+    expect(within(year).getByRole('button', { name: 'Item suggested' })).toHaveAttribute('aria-pressed', 'true');
+    expect(year.closest('tr')).toHaveTextContent('differs in 0/274');
   }, 20_000);
 
   it('moves Keywords to each file when the person says so', async () => {
@@ -133,7 +133,7 @@ describe('each row describes one file, in Simple', () => {
     cleanup();
     const server = open('simple/list', plan);
     const keywords = await waitFor(async () => levelGroup(await block(), 'Keywords'), { timeout: 5000 });
-    fireEvent.click(within(keywords).getByRole('radio', { name: /^Each file/ }));
+    fireEvent.click(within(keywords).getByRole('button', { name: 'Each file' }));
     await waitFor(() => {
       expect(sourcesOf(last(server.saved), 'media', 'dcterms:subject')).toEqual([fromColumn(1)]);
     }, { timeout: 3000 });
@@ -162,21 +162,19 @@ describe('the same plan in Advanced', () => {
 
     open('simple/list', edited);
     const yearInSimple = await waitFor(async () => levelGroup(await block(), 'Year Of Digitization'), { timeout: 5000 });
-    expect(within(yearInSimple).getByRole('radio', { name: /^Each file/ })).toBeChecked();
+    expect(within(yearInSimple).getByRole('button', { name: 'Each file' })).toHaveAttribute('aria-pressed', 'true');
   }, 30_000);
 });
 
 describe('Check: two rows for one item', () => {
   it('offers first, and suggests, that each row describes one file, and that answer saves media rows', async () => {
     const server = open('simple/check', ONE_ITEM_A_ROW);
-    const card = await screen.findByRole('article', { name: /Two rows for one item/ }, { timeout: 5000 });
-    const options = within(card).getAllByRole('radio');
-    expect(options.map((option) => option.closest('label')?.textContent)).toEqual([
-      'Each row describes one filesuggested',
-      'Keep them as they are',
-      'Leave them out',
-    ]);
-    expect(options[0]).toBeChecked();
+    const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+    fireEvent.click(within(questions).getByRole('option', { name: 'Two rows for one item' }));
+    const card = await screen.findByRole('region', { name: /Two rows for one item/ });
+    const options = within(within(card).getByRole('group', { name: /^Answer for all/ })).getAllByRole('button');
+    expect(options.map((option) => option.textContent)).toEqual(['Each row describes one file✓ suggested', 'Keep as they are', 'Leave out']);
+    expect(options[0]).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(within(card).getByRole('button', { name: 'Use the suggested answer' }));
     await waitFor(() => {
       expect(sheet(last(server.saved))['rowKind']).toBe('media');

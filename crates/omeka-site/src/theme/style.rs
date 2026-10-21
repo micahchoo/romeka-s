@@ -98,6 +98,7 @@ mod tests {
             title: "A file".to_string(),
             thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
             media_kind: None,
+            notes: 0,
         }];
         attached.primary_media = Some(media());
         attached.parent_item = Some(resource_ref("An attached item", "/s/main/item/7"));

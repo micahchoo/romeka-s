@@ -171,6 +171,7 @@ fn media_view_matches_upstream_media_show() {
         title: "An item".to_string(),
         thumbnail: None,
         media_kind: None,
+        notes: 0,
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
     assert!(
@@ -202,12 +203,14 @@ fn media_view_places_the_file_among_its_items_files() {
             title: "Before".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         }),
         next: Some(ResourceRef {
             url: "/s/main/media/4".to_string(),
             title: "After".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         }),
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
@@ -382,6 +385,7 @@ fn media_and_browse_links_render_in_the_site_locale() {
         title: "An item".to_string(),
         thumbnail: None,
         media_kind: None,
+        notes: 0,
     });
     media.media_position = Some(MediaPosition {
         number: 3,
@@ -391,12 +395,14 @@ fn media_and_browse_links_render_in_the_site_locale() {
             title: "Before".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         }),
         next: Some(ResourceRef {
             url: "/s/main/media/4".to_string(),
             title: "After".to_string(),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         }),
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);

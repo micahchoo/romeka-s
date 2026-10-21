@@ -234,6 +234,38 @@ pub struct Messages {
     pub no_matches: &'static str,
     /// The same empty browse preview in the admin preview, with the fix.
     pub no_matches_preview: &'static str,
+    /// A media page's notes heading for one note. A Romeka string.
+    pub notes_one: &'static str,
+    /// The notes heading and the item page's chip, `%s` the note count.
+    pub notes_count: &'static str,
+    /// One note's place when it names a region.
+    pub notes_region: &'static str,
+    /// One note's place when it covers a picture.
+    pub notes_whole_image: &'static str,
+    /// One note's place when it covers a recording.
+    pub notes_whole_recording: &'static str,
+    /// One note's place when it covers any other file.
+    pub notes_whole_file: &'static str,
+    /// The checkbox over an annotated picture.
+    pub notes_show: &'static str,
+    /// The image notes' facts line, `%s` the count, the regions and the whole
+    /// picture.
+    pub notes_facts: &'static str,
+    /// The recording notes' facts line, `%s` the count, the moments and the
+    /// whole recording.
+    pub notes_facts_time: &'static str,
+    /// The link to the next page of notes, `%s` the count it holds.
+    pub notes_next: &'static str,
+    /// The item page's link to every note, `%s` the total.
+    pub notes_all: &'static str,
+    /// One note's citable link.
+    pub notes_link: &'static str,
+    /// A time note's range, `%s` the start and the end.
+    pub notes_range: &'static str,
+    /// A time note's link label, `%s` the start and the end.
+    pub notes_play: &'static str,
+    /// The line a cited note's page shows when that note is gone.
+    pub notes_missing: &'static str,
 }
 
 /// The English catalogue, the source language.
@@ -339,6 +371,21 @@ pub static EN: Messages = Messages {
     no_matches: "Nothing here matches yet.",
     no_matches_preview: "Nothing matches this block's search. Change the search in the block's \
                          settings.",
+    notes_one: "1 note",
+    notes_count: "%s notes",
+    notes_region: "Region",
+    notes_whole_image: "Whole image",
+    notes_whole_recording: "Whole recording",
+    notes_whole_file: "Whole file",
+    notes_show: "Show notes on the picture",
+    notes_facts: "%s notes · %s on regions · %s on the whole image",
+    notes_facts_time: "%s notes · %s on moments · %s on the whole recording",
+    notes_next: "Next %s notes",
+    notes_all: "All %s notes",
+    notes_link: "Link",
+    notes_range: "%s to %s",
+    notes_play: "Play %s to %s",
+    notes_missing: "The note this link points to is no longer here.",
 };
 
 /// The Spanish catalogue. Terms match `application/language/es.po` where the
@@ -453,6 +500,21 @@ pub static ES: Messages = Messages {
     no_matches: "Todavía no hay nada que coincida.",
     no_matches_preview: "Nada coincide con la búsqueda de este bloque. Cambia la búsqueda en los \
                          ajustes del bloque.",
+    notes_one: "1 nota",
+    notes_count: "%s notas",
+    notes_region: "Región",
+    notes_whole_image: "Imagen completa",
+    notes_whole_recording: "Grabación completa",
+    notes_whole_file: "Archivo completo",
+    notes_show: "Mostrar las notas sobre la imagen",
+    notes_facts: "%s notas · %s en regiones · %s en la imagen completa",
+    notes_facts_time: "%s notas · %s en momentos · %s en la grabación completa",
+    notes_next: "Siguientes %s notas",
+    notes_all: "Las %s notas",
+    notes_link: "Enlace",
+    notes_range: "%s a %s",
+    notes_play: "Reproducir de %s a %s",
+    notes_missing: "La nota a la que apunta este enlace ya no está aquí.",
 };
 
 #[cfg(test)]
