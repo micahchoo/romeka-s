@@ -174,6 +174,19 @@ pub enum Accepts {
     Any,
 }
 
+impl Accepts {
+    /// Whether a slot that accepts this much shows an asset of `kind`. A site
+    /// may hold any file the media allow list takes, so a slot that takes an
+    /// image renders nothing for another kind rather than a broken `<img>`.
+    #[must_use]
+    pub fn admits(self, kind: crate::view::AssetKind) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Image | Self::ImageService => kind.is_image(),
+        }
+    }
+}
+
 /// The control a field renders as, and the values it accepts. The `type` tag
 /// and any options sit beside the field's `key` and `label`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

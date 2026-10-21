@@ -362,13 +362,14 @@ fn render_nav_items(items: &[NavItem], ctx: &RenderContext<'_>, depth: usize, ou
 }
 
 /// The logo the header links home, when the site's token names an asset the
-/// caller can resolve. A missing or unreadable asset renders no logo rather
-/// than a broken image.
+/// caller can resolve. A logo takes an image, so an asset of another kind
+/// renders no logo, as does a missing or unreadable one: never a broken image.
 fn logo_markup(ctx: &RenderContext<'_>) -> String {
     let Some(url) = ctx
         .theme_settings
         .logo
         .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .filter(|asset| asset.is_image())
         .and_then(|asset| asset.url)
     else {
         return String::new();
@@ -381,12 +382,14 @@ fn logo_markup(ctx: &RenderContext<'_>) -> String {
     )
 }
 
-/// The site-wide banner: the stored image, the stored text, or both.
+/// The site-wide banner: the stored image, the stored text, or both. A banner
+/// takes an image, so an asset of another kind shows the text alone.
 fn banner_markup(ctx: &RenderContext<'_>) -> String {
     let image = ctx
         .theme_settings
         .banner
         .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .filter(|asset| asset.is_image())
         .and_then(|asset| asset.url);
     let text = ctx.theme_settings.banner_text.as_deref();
     if image.is_none() && text.is_none() {

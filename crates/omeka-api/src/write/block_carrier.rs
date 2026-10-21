@@ -195,6 +195,12 @@ async fn plain_refs(
             .await)
         .map_err(db_error)?
         {
+            // Every Romka block that names an asset shows it as an image, so a
+            // stored file of another kind is left out of the plain rendering
+            // rather than named by an `<img>` that cannot draw it.
+            if !omeka_site::view::AssetKind::of_media_type(&row.media_type).is_image() {
+                continue;
+            }
             refs = refs.asset(
                 id,
                 format!("/files/{}", asset_file_path(&row)),

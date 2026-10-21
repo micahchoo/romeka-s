@@ -325,7 +325,12 @@ fn rich_pictures(pictures: &Pictures, ctx: &RenderContext<'_>) -> Vec<Picture> {
         Pictures::Assets(records) => records
             .iter()
             .filter_map(|record| {
+                // The asset field declares what it accepts, so a stored file
+                // of another kind renders no picture at all.
                 let asset = ctx.resources.read_asset(record.asset)?;
+                if !Accepts::Image.admits(asset.kind) {
+                    return None;
+                }
                 let alt = asset
                     .thumbnail
                     .as_ref()
