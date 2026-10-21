@@ -836,7 +836,9 @@ async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+    // The access row alone: a worker claims the oldest row, and a poster
+    // queued a second earlier would be the one this single settle takes.
+    omeka_api::derivatives::enqueue_access(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
     let access = |media: MediaId| {
@@ -1260,7 +1262,9 @@ async fn an_undo_during_a_copy_removes_the_copy_it_wrote() {
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+    // The access row alone: a worker claims the oldest row, and a poster
+    // queued a second earlier would be the one this single settle takes.
+    omeka_api::derivatives::enqueue_access(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
 
@@ -1434,7 +1438,9 @@ async fn a_document_copy_settles_after_its_first_page_exists() {
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+    // The access row alone: a worker claims the oldest row, and a poster
+    // queued a second earlier would be the one this single settle takes.
+    omeka_api::derivatives::enqueue_access(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
 
