@@ -291,6 +291,7 @@ pub async fn site_with(store: impl FnOnce(&Path) -> Arc<dyn Store>) -> Site {
         store: store.clone(),
         base_url: base,
         archive_roots: roots,
+        jobs: None,
     };
     let jobs = Arc::new(InProcess {
         pool: pool.clone().into(),

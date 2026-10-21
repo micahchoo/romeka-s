@@ -36,6 +36,7 @@ const media = (preview: MediaPreview | null, kind: 'image' | 'video' = 'video'):
   altText: null,
   originalUrl: 'http://localhost/files/original/7.mp4',
   preview,
+  access: null,
   thumbnailUrls: {},
 });
 

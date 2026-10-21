@@ -244,9 +244,12 @@ neither `media` nor `media.data` changes.
   worker's oldest-first claim.
 - An `access_copy` row is written with its decision already in it: `none` when a browser shows the
   original, `pending` with the command a later worker runs, or `none` with the command a missing
-  install needs. No worker in this build claims one (`MediaDerivativeRepo::claim_next` and
-  `pending` leave `access_copy` out of the preview queue), so the row waits for the worker that
-  makes the copy rather than being settled as work the preview worker cannot do.
+  install needs. A worker claims one whose `tool` is `ffmpeg` (the audio and video copy) and leaves a
+  row waiting for `vips`, `exiftool`, libraw or `gs` to the image worker, so a copy is never settled
+  as work the worker cannot do. `pending` counts the same rows, so a queued copy with no worker that
+  can make it does not start one on every sweep.
+- A stopped copy goes back to `pending` (`requeue`), and `retry` keeps an access row's `tool`, which
+  is the command its plan named rather than the one a failed attempt ran.
 - A media the archive import made has no row here. Its document derives the state from what the
   store holds (`media.has_thumbnails` or the three files), so a row written by a build before this
   table reads the same way, and `romeka media derivatives` queues the ones that are missing.
