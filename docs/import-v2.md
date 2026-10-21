@@ -380,6 +380,8 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   unmatchedFiles: 'leave' | 'own', itemsWithoutRow: 'keep' | 'leave' }` (defaults `keepOne`,
   `leave`, `keep`), so they carry over to new files after a rescan. `keepOne` keeps the file a list
   row names, else the first by path.
+- **Simple's screen state** lives in the plan as `simple`, an object the server keeps and never
+  reads; absent is not written. The marked example stays in `example`.
 - Left-out reasons gain `identical` (a copy left out by `keepOne`) and `noRow` (an item with no list
   row under `itemsWithoutRow: leave`). `own` applies only when the pattern compiles.
 - **Name words**: for a path given in the request (the server never reads `example`), the words found at each place of the names with their
@@ -495,6 +497,7 @@ ones that would write broken data or have no defined result.
 | `cells-count` | row | leave | no |
 | `no-file` | item record | keep | no |
 | `not-media` | file | leave | no |
+| `listed-not-media` (a file a list row names that the install refuses; detail is the row key and the extension) | file | leave (only policy: the run's ingest refuses it again) | no |
 | `format-mismatch` | file | keep | no |
 | `exists` | record | leave | no |
 | `unmatched` | record | `action.unmatched` | no |

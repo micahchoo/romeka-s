@@ -20,6 +20,8 @@ pub enum PolicyDefault {
     Is(FlagPolicy),
     /// `unmatched` follows the plan's `action.unmatched`.
     ActionUnmatched,
+    /// The kind's only policy: no plan policy or decision changes it.
+    Only(FlagPolicy),
 }
 
 /// What a flag is about: the table's "On" column.
@@ -47,6 +49,8 @@ pub enum FlagKind {
     CellsCount,
     NoFile,
     NotMedia,
+    /// A file a list row names that the install refuses.
+    ListedNotMedia,
     FormatMismatch,
     Exists,
     Unmatched,
@@ -64,7 +68,7 @@ pub enum FlagKind {
 
 impl FlagKind {
     /// Every kind, in the table's order.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::EmptyRequired,
         Self::DateForm,
         Self::SpaceAtEnds,
@@ -73,6 +77,7 @@ impl FlagKind {
         Self::CellsCount,
         Self::NoFile,
         Self::NotMedia,
+        Self::ListedNotMedia,
         Self::FormatMismatch,
         Self::Exists,
         Self::Unmatched,
@@ -108,7 +113,7 @@ impl FlagKind {
             Self::NameEncoding => FlagOn::Entry,
             Self::CellsCount | Self::UnknownKind | Self::DuplicateRow => FlagOn::Row,
             Self::NoFile => FlagOn::ItemRecord,
-            Self::NotMedia | Self::FormatMismatch => FlagOn::File,
+            Self::NotMedia | Self::ListedNotMedia | Self::FormatMismatch => FlagOn::File,
             Self::Exists | Self::Unmatched | Self::ManyMatches | Self::UnknownType => {
                 FlagOn::Record
             }
@@ -140,6 +145,8 @@ impl FlagKind {
             | Self::UnknownKind
             | Self::DuplicateRow => Leave,
             Self::Unmatched => return Some(PolicyDefault::ActionUnmatched),
+            // Keeping it cannot work: ingest checks the file again.
+            Self::ListedNotMedia => return Some(PolicyDefault::Only(Leave)),
             Self::UnknownTerm
             | Self::TemplateMissing
             | Self::TypeExists
@@ -155,7 +162,7 @@ mod tests {
     use FlagPolicy::{Keep, Leave, Repair};
 
     /// The contract's table, row by row: kind, default, blocking.
-    const TABLE: [(&str, Option<PolicyDefault>); 21] = [
+    const TABLE: [(&str, Option<PolicyDefault>); 22] = [
         ("empty-required", Some(PolicyDefault::Is(Keep))),
         ("date-form", Some(PolicyDefault::Is(Keep))),
         ("space-at-ends", Some(PolicyDefault::Is(Repair))),
@@ -164,6 +171,7 @@ mod tests {
         ("cells-count", Some(PolicyDefault::Is(Leave))),
         ("no-file", Some(PolicyDefault::Is(Keep))),
         ("not-media", Some(PolicyDefault::Is(Leave))),
+        ("listed-not-media", Some(PolicyDefault::Only(Leave))),
         ("format-mismatch", Some(PolicyDefault::Is(Keep))),
         ("exists", Some(PolicyDefault::Is(Leave))),
         ("unmatched", Some(PolicyDefault::ActionUnmatched)),
@@ -184,8 +192,8 @@ mod tests {
     fn every_kind_is_on_what_the_table_says() {
         use FlagOn::{Entry, File, ItemRecord, Plan, Record, Row, Sheet, Value};
         let on = [
-            Value, Value, Value, Value, Entry, Row, ItemRecord, File, File, Record, Record, Record,
-            Value, Value, Record, Row, Row, Plan, Plan, Plan, Sheet,
+            Value, Value, Value, Value, Entry, Row, ItemRecord, File, File, File, Record, Record,
+            Record, Value, Value, Record, Row, Row, Plan, Plan, Plan, Sheet,
         ];
         for (kind, on) in FlagKind::ALL.into_iter().zip(on) {
             assert_eq!(kind.on(), on, "{kind:?}");

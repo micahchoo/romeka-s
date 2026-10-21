@@ -47,9 +47,10 @@ fn group_key_and_identifier_are_different_things() {
         .iter()
         .find(|record| record.origin == Origin::Group(GroupKey::Pattern("B2".into())))
         .expect("B2");
-    assert!(
-        texts(unjoined, "dcterms:identifier").is_empty(),
-        "the rule's column gives an unjoined item nothing"
+    assert_eq!(
+        texts(unjoined, "dcterms:identifier"),
+        ["B2"],
+        "an item the rule's column gives nothing keeps its group key"
     );
 }
 

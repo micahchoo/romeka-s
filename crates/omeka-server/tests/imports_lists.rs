@@ -80,17 +80,17 @@ async fn s1_shapes_histogram_and_values_through_the_routes() {
         [
             (
                 json!({ "files": "1", "folders": ["Photographs"], "media": ["image"],
-                        "pattern": true, "row": false, "parts": [], "pages": null }),
+                        "origin": "pattern", "row": false, "parts": [], "pages": null }),
                 4
             ),
             (
                 json!({ "files": "2", "folders": ["Artifacts"], "media": ["image"],
-                        "pattern": true, "row": false, "parts": ["back", "front"], "pages": null }),
+                        "origin": "pattern", "row": false, "parts": ["back", "front"], "pages": null }),
                 4
             ),
             (
                 json!({ "files": "3", "folders": ["Scans"], "media": ["image"],
-                        "pattern": true, "row": false, "parts": ["p1", "p10", "p2"], "pages": null }),
+                        "origin": "pattern", "row": false, "parts": ["p1", "p10", "p2"], "pages": null }),
                 1
             ),
         ]

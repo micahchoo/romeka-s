@@ -5,7 +5,7 @@
 //! never interprets them.
 //!
 //! Filters mirror `MediaAdapter::buildQuery`: `item_id`, `media_type`, `ingester`, `renderer`, plus
-//! the parent adapter's `owner_id` and `is_public`.
+//! the parent adapter's `owner_id` and `is_public`. The port adds `kinds`, the `romeka_kind` filter.
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
@@ -23,6 +23,9 @@ pub struct MediaFilter {
     pub ingester: Option<String>,
     pub renderer: Option<String>,
     pub media_type: Option<String>,
+    /// `romeka_kind`: media of one of these port kind names
+    /// (`MediaKind::name`). `None` adds no filter; an empty list matches no row.
+    pub kinds: Option<super::query::MediaKindFilter>,
     pub owner_id: Option<UserId>,
     pub resource_class_id: Option<ClassId>,
     pub resource_template_id: Option<TemplateId>,
@@ -287,6 +290,9 @@ where
         if let Some(media_type) = &filter.media_type {
             statement.push(" AND media.media_type = ");
             statement.bind(media_type)?;
+        }
+        if let Some(kinds) = &filter.kinds {
+            super::query::push_media_kind(&mut statement, kinds)?;
         }
         if let Some(owner_id) = filter.owner_id {
             statement.push(" AND resource.owner_id = ");

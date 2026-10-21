@@ -178,6 +178,53 @@ fn media_view_matches_upstream_media_show() {
         ),
         "{document}"
     );
+    assert!(
+        document.contains("<div class=\"annotation-list\"></div>"),
+        "the notes list has its place on the media page: {document}"
+    );
+}
+
+/// The media view says which file of the item this is, and links the file
+/// before and the one after it. A file alone in its item says neither, because
+/// "File 1 of 1" tells a reader nothing.
+#[test]
+fn media_view_places_the_file_among_its_items_files() {
+    let site = site();
+    let resources = TestResources::default();
+    let ctx = context(&site, &resources);
+    let mut media = item(9, "A file", "/s/main/media/9");
+    media.media_position = Some(MediaPosition {
+        number: 3,
+        total: 5,
+        previous: Some(ResourceRef {
+            url: "/s/main/media/2".to_string(),
+            title: "Before".to_string(),
+            thumbnail: None,
+        }),
+        next: Some(ResourceRef {
+            url: "/s/main/media/4".to_string(),
+            title: "After".to_string(),
+            thumbnail: None,
+        }),
+    });
+    let document = DefaultTheme.render(&View::Media(&media), &ctx);
+    assert!(
+        document.contains(
+            "<span class=\"media-position-count\">File 3 of 5</span>\
+             <a class=\"media-previous\" rel=\"prev\" href=\"/s/main/media/2\">Previous</a>\
+             <a class=\"media-next\" rel=\"next\" href=\"/s/main/media/4\">Next</a>"
+        ),
+        "{document}"
+    );
+
+    media.media_position = Some(MediaPosition {
+        number: 1,
+        total: 1,
+        previous: None,
+        next: None,
+    });
+    let document = DefaultTheme.render(&View::Media(&media), &ctx);
+    assert!(!document.contains("media-position"), "{document}");
 }
 
 /// The browse view prints the pagination and the advanced-search link only
@@ -332,10 +379,32 @@ fn media_and_browse_links_render_in_the_site_locale() {
         title: "An item".to_string(),
         thumbnail: None,
     });
+    media.media_position = Some(MediaPosition {
+        number: 3,
+        total: 5,
+        previous: Some(ResourceRef {
+            url: "/s/main/media/2".to_string(),
+            title: "Before".to_string(),
+            thumbnail: None,
+        }),
+        next: Some(ResourceRef {
+            url: "/s/main/media/4".to_string(),
+            title: "After".to_string(),
+            thumbnail: None,
+        }),
+    });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
     assert!(
         document.contains(
             "<p class=\"media-parent-item\">Parte de <a href=\"/s/main/item/4\">An item</a></p>"
+        ),
+        "{document}"
+    );
+    assert!(
+        document.contains(
+            "<span class=\"media-position-count\">Archivo 3 de 5</span>\
+             <a class=\"media-previous\" rel=\"prev\" href=\"/s/main/media/2\">Anterior</a>\
+             <a class=\"media-next\" rel=\"next\" href=\"/s/main/media/4\">Siguiente</a>"
         ),
         "{document}"
     );

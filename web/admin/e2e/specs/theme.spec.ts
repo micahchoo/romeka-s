@@ -220,17 +220,15 @@ test('the resource page sections reorder by keyboard, hide, show and preview on 
     'Values',
     'Item sets',
     'Site pages',
-    'Media list',
     'Linked resources',
   ]);
 
   // Hide puts a section in the hidden list; Show brings it back at the end.
-  await items.getByRole('button', { name: 'Hide Media list' }).click();
+  await items.getByRole('button', { name: 'Hide Media embeds' }).click();
   const hidden = items.getByRole('list', { name: 'Hidden sections of Items pages' });
-  await expect(hidden.getByText('Media list')).toBeVisible();
-  await hidden.getByRole('button', { name: 'Show Media list' }).click();
-  await expect(shownSections(page, 'Items').last()).toHaveText('Media list');
-  await items.getByRole('button', { name: 'Hide Media list' }).click();
+  await expect(hidden.getByText('Media embeds')).toBeVisible();
+  await hidden.getByRole('button', { name: 'Show Media embeds' }).click();
+  await expect(shownSections(page, 'Items').last()).toHaveText('Media embeds');
   await items.getByRole('button', { name: 'Hide Media embeds' }).click();
 
   // Space picks Item sets up, the arrow moves it, Space drops it.
@@ -247,16 +245,14 @@ test('the resource page sections reorder by keyboard, hide, show and preview on 
   await page.getByRole('combobox', { name: 'Preview' }).selectOption('items');
   const frame = previewFrame(page);
   await expect(frame.locator('dl.item-sets')).toBeVisible({ timeout: 10_000 });
-  const [sets, values, embeds, list] = await order(frame, [
+  const [sets, values, embeds] = await order(frame, [
     'dl.item-sets',
     'dl.values',
     '.media-embeds',
-    'dl.media-list',
   ]);
   expect(sets, 'item sets render').toBeGreaterThan(-1);
   expect(values, 'values follow the item sets').toBeGreaterThan(sets ?? 0);
   expect(embeds, 'the hidden media embeds stay out').toBe(-1);
-  expect(list, 'the hidden media list stays out').toBe(-1);
 
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
@@ -267,5 +263,5 @@ test('the resource page sections reorder by keyboard, hide, show and preview on 
   await expect(shownSections(page, 'Items')).toHaveText(['Item sets', 'Values', 'Site pages', 'Linked resources']);
   await expect(
     page.getByRole('group', { name: 'Items' }).getByRole('list', { name: 'Hidden sections of Items pages' }),
-  ).toContainText('Media list');
+  ).toContainText('Media embeds');
 });

@@ -19,9 +19,9 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [],
-            "pattern": true,
             "row": false
           },
           "odd": false,
@@ -260,9 +260,9 @@
             "files": "0",
             "folders": [],
             "media": [],
+            "origin": "row",
             "pages": null,
             "parts": [],
-            "pattern": false,
             "row": true
           },
           "odd": false,
@@ -381,11 +381,11 @@
             "media": [
               "image"
             ],
+            "origin": "own",
             "pages": null,
             "parts": [
               "back"
             ],
-            "pattern": false,
             "row": false
           },
           "odd": false,
@@ -510,11 +510,11 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [
               "front"
             ],
-            "pattern": true,
             "row": false
           },
           "odd": false,
@@ -636,11 +636,11 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [
               "front"
             ],
-            "pattern": true,
             "row": true
           },
           "odd": false,
@@ -779,9 +779,9 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [],
-            "pattern": true,
             "row": true
           },
           "odd": false,
@@ -936,12 +936,12 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [
               "back",
               "front"
             ],
-            "pattern": true,
             "row": true
           },
           "odd": false,
@@ -1101,12 +1101,12 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [
               "back",
               "front"
             ],
-            "pattern": true,
             "row": false
           },
           "odd": false,
@@ -1265,6 +1265,7 @@
             "media": [
               "image"
             ],
+            "origin": "pattern",
             "pages": null,
             "parts": [
               "p1",
@@ -1275,7 +1276,6 @@
               "p6",
               "p7"
             ],
-            "pattern": true,
             "row": false
           },
           "odd": true,

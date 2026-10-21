@@ -147,7 +147,12 @@ pub fn derive(
             .iter()
             .flat_map(|media| made.drafts[media.index()].files.clone())
             .collect();
+        let child_rows = media
+            .iter()
+            .flat_map(|media| made.drafts[media.index()].rows.clone())
+            .collect();
         made.drafts[id.index()].files = files;
+        made.drafts[id.index()].child_rows = child_rows;
         made.drafts[id.index()].media = media;
     }
     // Item sets before items: a `sets` value can name an item-set record.

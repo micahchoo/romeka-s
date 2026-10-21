@@ -24,7 +24,7 @@ const SHAPE: ShapeFacts = {
   files: '2',
   folders: ['Artifacts'],
   media: ['image'],
-  pattern: true,
+  origin: 'pattern',
   row: true,
   parts: ['back', 'front'],
   pages: null,

@@ -4,8 +4,9 @@
 //! A flag's policy is the latest `flag` decision on an entry of what it is
 //! about (filtered by slot when the decision names one), else the plan's
 //! policy for the kind, else the table's default. A blocking kind has no
-//! policy. The caller acts on the policy [`FlagBook::raise`] returns, so the
-//! flag listed and the effect applied cannot disagree.
+//! policy, and a kind with only one policy takes it whatever is decided.
+//! The caller acts on the policy [`FlagBook::raise`] returns, so the flag
+//! listed and the effect applied cannot disagree.
 
 use std::collections::HashMap;
 
@@ -13,7 +14,7 @@ use encoding_rs::WINDOWS_1252;
 
 use super::decisions::{Act, EntryRef, singles};
 use super::model::{Flag, Subject};
-use super::plan::{FlagKind, FlagPolicy, ImportPlanV2, SlotName};
+use super::plan::{FlagKind, FlagPolicy, ImportPlanV2, PolicyDefault, SlotName};
 
 struct Choice {
     decision: usize,
@@ -57,6 +58,9 @@ impl<'p> FlagBook<'p> {
         entries: &[EntryRef],
     ) -> Option<FlagPolicy> {
         let planned = self.plan.policy(kind)?;
+        if let Some(PolicyDefault::Only(policy)) = kind.default_policy() {
+            return Some(policy);
+        }
         let chosen = entries
             .iter()
             .filter_map(|entry| self.by_entry.get(entry))

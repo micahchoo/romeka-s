@@ -200,6 +200,7 @@ export const ne: ImportMessages = {
   'problem.cells-count': 'गलत सङ्ख्याका कोठा भएको एउटा पङ्क्ति',
   'problem.no-file': 'एउटा पङ्क्ति जसले यस आयातको कुनै पनि फाइलको नाम दिँदैन',
   'problem.not-media': 'चित्र, ध्वनि, चलचित्र वा PDF होइन',
+  'problem.listed-not-media': 'तपाईंको सूचीले नाम दिएको, Omeka ले स्वीकार नगर्ने फाइल',
   'problem.format-mismatch': 'नामको अन्त्य सामग्रीसँग मेल नखाने फाइल',
   'problem.exists': 'Omeka मा पहिले नै',
   'problem.unmatched': 'Omeka मा परिवर्तन गर्नका लागि कुनै वस्तु छैन',
