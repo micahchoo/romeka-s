@@ -13,10 +13,12 @@
 //! is idempotent.
 //!
 //! The formats that reach the decoder are the four GD decodes (gif, jpeg, png,
-//! webp), tiff and JPEG 2000. TIFF and JPEG 2000 are deliberate additions for
-//! archive masters: GD has neither decoder, so upstream makes no thumbnail for
-//! a `.tif` or a `.jp2` unless ImageMagick is configured. Anything else is a
-//! typed [`ThumbnailSkip`], never a panic.
+//! webp), tiff, JPEG 2000 and SVG. TIFF, JPEG 2000 and SVG are deliberate
+//! additions for modern masters: GD has neither decoder, so upstream makes no
+//! thumbnail for a `.tif`, `.jp2` or `.svg` unless ImageMagick is configured.
+//! An SVG is drawn by `resvg` at its own size, capped at the large derivative
+//! ([`crate::svg::rasterized`]). Anything else is a typed [`ThumbnailSkip`],
+//! never a panic.
 //!
 //! An original over 64 MB is never held whole: [`ImageThumbnailer::
 //! derivatives_from_reader`] makes a reduced copy of a TIFF or a JPEG with
@@ -39,14 +41,15 @@ use crate::store::{
 };
 
 /// The source media types the thumbnailer decodes: the four GD decodes
-/// (`Gd::setSource`) plus `image/tiff` and `image/jp2`, which GD cannot read
-/// (see the module docs). Any other declared type raises
+/// (`Gd::setSource`) plus `image/tiff`, `image/jp2` and `image/svg+xml`, which
+/// GD cannot read (see the module docs). Any other declared type raises
 /// `CannotCreateThumbnailException` upstream.
-pub const SOURCE_MEDIA_TYPES: [&str; 6] = [
+pub const SOURCE_MEDIA_TYPES: [&str; 7] = [
     "image/gif",
     "image/jpeg",
     "image/jp2",
     "image/png",
+    "image/svg+xml",
     "image/tiff",
     "image/webp",
 ];
@@ -108,10 +111,11 @@ impl ImageThumbnailer {
         if !SOURCE_MEDIA_TYPES.contains(&media_type) {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         }
-        let source = if media_type == "image/jp2" {
-            jp2::decode(original)?
-        } else {
-            decode_oriented(original)?
+        let source = match media_type {
+            "image/jp2" => jp2::decode(original)?,
+            "image/svg+xml" => crate::svg::rasterized(original, ThumbnailType::Large.constraint())
+                .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?,
+            _ => decode_oriented(original)?,
         };
         derivatives(&source)
     }
@@ -609,6 +613,46 @@ mod tests {
             derivatives
                 .iter()
                 .all(|(_, b)| b.starts_with(&[0xFF, 0xD8]))
+        );
+    }
+
+    /// An SVG original is drawn by `resvg` and gets the three JPEG
+    /// derivatives, at the drawing's own size up to the large constraint.
+    #[test]
+    fn an_svg_original_gets_three_thumbnails() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500">
+            <rect width="1000" height="500" fill="#c0392b"/>
+        </svg>"##;
+        assert_eq!(crate::media_type::detected_media_type(svg), "image/svg+xml");
+        let derivatives = ImageThumbnailer
+            .derivative_bytes(svg, Some("image/svg+xml"))
+            .expect("thumbnails");
+        let sizes: Vec<_> = derivatives
+            .iter()
+            .map(|(kind, bytes)| (*kind, dimensions(bytes)))
+            .collect();
+        assert_eq!(
+            sizes,
+            [
+                (ThumbnailType::Large, (800, 400)),
+                (ThumbnailType::Medium, (400, 200)),
+                (ThumbnailType::Square, (200, 200)),
+            ]
+        );
+        assert!(
+            derivatives
+                .iter()
+                .all(|(_, b)| b.starts_with(&[0xFF, 0xD8]))
+        );
+    }
+
+    /// An SVG whose bytes do not parse is a typed skip, not a panic.
+    #[test]
+    fn an_unreadable_svg_is_a_typed_skip() {
+        let result = ImageThumbnailer.derivative_bytes(b"<svg", Some("image/svg+xml"));
+        assert!(
+            matches!(result, Err(ThumbnailSkip::Decode(_))),
+            "{result:?}"
         );
     }
 }

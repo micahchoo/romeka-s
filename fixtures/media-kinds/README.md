@@ -23,14 +23,14 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 | `audio.mp3` | MP3 audio page. |
 | `audio.m4a` | AAC in MP4; libmagic names it `audio/x-m4a`, the server's alias makes it `audio/mp4`. |
 | `audio.ogg` | Vorbis in Ogg. |
-| `audio.opus` | Opus in Ogg; libmagic names the container `audio/ogg`, `infer` and the port name the codec `audio/opus`. |
-| `audio.flac` | FLAC audio, outside the default allow list. |
+| `audio.opus` | Opus in Ogg; libmagic names the container `audio/ogg`, and the port reads the codec's answer as that container. |
+| `audio.flac` | FLAC audio, outside upstream's default allow list. |
 | `audio.wav` | PCM WAV. |
 | `video.mp4` | H.264 and AAC video, the file a captions track is attached to. |
 | `video.webm` | VP9 and Opus video. |
 | `video.mov` | H.264 and AAC in QuickTime. |
-| `video.mkv` | H.264 and AAC in Matroska, outside the default allow list. |
-| `video.ogv` | Theora and Vorbis in Ogg; the media type is allowed but the extension is not. |
+| `video.mkv` | H.264 and AAC in Matroska, outside upstream's default allow list. |
+| `video.ogv` | Theora and Vorbis in Ogg. The bytes read as the Ogg container, `audio/ogg`; the extension names the video type, `video/ogg`. |
 | `doc.pdf` | Two-page PDF. |
 | `doc.docx` | Word document. |
 | `model.glb` | Binary glTF with an embedded buffer. |

@@ -90,10 +90,11 @@
 
 			# The media's stored o:media_type is the answer, not the
 			# extension: .webm alone cannot say video from audio, and .mov and
-			# .glb had no type at all without /etc/mime.types. The server also
-			# answers the types its byte detector cannot tell apart (vtt, srt,
-			# gltf, glb). An empty value removes the header, and file_server
-			# then falls back to the extension for a row that stored no type.
+			# .glb had no type at all without /etc/mime.types. The ingest has
+			# already named the formats a byte read cannot (WebVTT, SubRip,
+			# glTF, GLB, Ogg Theora), so the row is the one authority. An empty
+			# value removes the header, and file_server then falls back to the
+			# extension for a row that stored no type.
 			header Content-Type "{http.request.header.X-Romeka-Content-Type}"
 			header Content-Disposition "{http.request.header.X-Romeka-Content-Disposition}"
 
@@ -111,9 +112,15 @@
 			}
 			header @public_original Cache-Control "public, max-age=31536000, immutable"
 
-			# An uploaded HTML, SVG or XML file runs no script on this origin.
+			# A stored file that a browser would run as a document (HTML, SVG,
+			# XML) is inert when opened directly: no script, no subresource, a
+			# sandboxed document. The stored SVG is already filtered at ingest;
+			# this is the second line. It is scoped to these types because a
+			# sandbox on a PDF or media file opened in its own tab is not proven
+			# to leave the browser's viewer working, so a new active type must be
+			# added to this matcher.
 			@active path *.html *.htm *.svg *.xml
-			header @active Content-Security-Policy sandbox
+			header @active Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
 
 			uri strip_prefix /files
 			root * {$ROMEKA_STORE}
