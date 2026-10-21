@@ -60,9 +60,9 @@ fn derived(files: &[&str], rows: &str, row_kind: &str) -> Derived {
         }],
     };
     let sheets: Sheets = plan
-        .sheets
-        .iter()
-        .map(|sheet_plan| {
+        .structure
+        .lists()
+        .map(|(_, sheet_plan)| {
             let read = sheet::read(
                 format!("File\n{rows}").as_bytes(),
                 &sheet_plan.read,

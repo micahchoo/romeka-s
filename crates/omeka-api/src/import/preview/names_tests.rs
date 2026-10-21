@@ -53,9 +53,9 @@ fn derived(paths: &[&str], list: Option<&str>) -> Derived {
         }],
     };
     let read: BTreeMap<SheetId, Arc<ReadSheet>> = plan
-        .sheets
-        .iter()
-        .map(|sheet_plan| {
+        .structure
+        .lists()
+        .map(|(_, sheet_plan)| {
             let bytes = list.unwrap().as_bytes();
             let read = ReadSheet {
                 sheet: sheet::read(bytes, &sheet_plan.read, sheet::key_column(sheet_plan)),

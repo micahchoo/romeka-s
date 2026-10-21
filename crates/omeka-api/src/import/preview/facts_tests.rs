@@ -60,9 +60,9 @@ fn derived(files: &[(&str, &str)], list: Option<&str>, edit: impl FnOnce(&mut Va
         }],
     };
     let sheets: Sheets = plan
-        .sheets
-        .iter()
-        .map(|sheet_plan| {
+        .structure
+        .lists()
+        .map(|(_, sheet_plan)| {
             let bytes = list.unwrap().as_bytes();
             (
                 sheet_plan.id.clone(),

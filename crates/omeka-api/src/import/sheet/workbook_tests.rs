@@ -328,13 +328,23 @@ fn sheet_name_is_an_optional_string_at_the_boundary() {
         ImportPlan::from_json(&plan.to_string())
     };
     let plain = ImportPlan::from_json(&full.to_string()).unwrap();
-    assert_eq!(plain.sheets[0].read.sheet_name, None);
+    let first = |plan: &ImportPlan| {
+        plan.structure
+            .lists()
+            .next()
+            .unwrap()
+            .1
+            .read
+            .sheet_name
+            .clone()
+    };
+    assert_eq!(first(&plain), None);
     assert!(
         !plain.to_json().contains("sheetName"),
         "unchanged on the wire"
     );
     let named = with(serde_json::json!("Register")).unwrap();
-    assert_eq!(named.sheets[0].read.sheet_name.as_deref(), Some("Register"));
+    assert_eq!(first(&named).as_deref(), Some("Register"));
     assert!(named.to_json().contains(r#""sheetName":"Register""#));
     assert_eq!(with(serde_json::Value::Null).unwrap(), plain);
     assert!(matches!(

@@ -97,12 +97,13 @@ fn every_plan_the_admin_is_served_is_stored_byte_for_byte() {
 fn the_full_fixture_reaches_every_member_typed() {
     let plan = parse(FULL);
     assert_eq!(plan.sources[0].id(), &SourceId("s1".into()));
+    let series = plan.structure.series(plan.structure.sole());
     assert_eq!(
-        plan.sheets[1].read.encoding,
+        series.lists()[1].read.encoding,
         EncodingChoice::Is(Encoding::Utf16Le)
     );
-    assert_eq!(plan.sheets[1].read.delimiter.as_char(), Some('\t'));
-    assert!(plan.slots.item.contains_key(&SlotName::Sets));
+    assert_eq!(series.lists()[1].read.delimiter.as_char(), Some('\t'));
+    assert!(series.rules(RecordKind::Item).contains_key(&SlotName::Sets));
     assert_eq!(plan.action.match_by.media.key, MatchKey::InternalId);
     assert_eq!(plan.defaults.owner, Owner::User(4));
     assert_eq!(plan.decisions.len(), 10);
@@ -531,7 +532,12 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     let plan = edited(|plan| {
         plan["slots"]["item"]["template"]["map"] = json!({ "AF": "Artifact", "PH": "" });
     });
-    let map = &plan.slots.item[&SlotName::Template].map;
+    fn item_rules(plan: &ImportPlan) -> &SlotRules {
+        plan.structure
+            .series(plan.structure.sole())
+            .rules(RecordKind::Item)
+    }
+    let map = &item_rules(&plan)[&SlotName::Template].map;
     assert_eq!(map.get("AF").map(String::as_str), Some("Artifact"));
     assert_eq!(map.get("PH").map(String::as_str), Some(""));
     let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
@@ -542,7 +548,7 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     );
     assert_eq!(parse(&plan.to_json()), plan);
     let without = parse(FULL);
-    assert!(without.slots.item[&SlotName::Template].map.is_empty());
+    assert!(item_rules(&without)[&SlotName::Template].map.is_empty());
 }
 
 #[test]

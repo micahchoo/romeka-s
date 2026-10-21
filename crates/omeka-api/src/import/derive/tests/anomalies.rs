@@ -96,7 +96,7 @@ fn unmapped_columns_header_notes_changed_sheets_and_unread_sheets_are_anomalies(
     });
     let mut sheets = read_sheets(&plan, &[("r", b"Id,Note,#private,Note\n1,a,b,c\n")]);
     sheets.insert(
-        plan.sheets[2].id.clone(),
+        list(&plan, 2).id.clone(),
         Err(SheetError::EncodingUnsupported("Shift_JIS")),
     );
     let model = run(&index(&[]), &sheets, &plan);
@@ -307,7 +307,7 @@ fn every_kind() -> Vec<Model> {
     let mut sheets: Sheets = BTreeMap::new();
     let plan = plan_with("update");
     sheets.insert(
-        plan.sheets[0].id.clone(),
+        list(&plan, 0).id.clone(),
         Err(SheetError::EncodingUnsupported("ISCII")),
     );
     let mut many_plan = plan.clone();

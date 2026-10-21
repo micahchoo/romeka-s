@@ -9,8 +9,8 @@ use crate::import::derive::{FileTags, Index, IndexedSource, NoTags, Sheets, deri
 use crate::import::evidence::{FileEntry, Walk};
 use crate::import::model::{Flag, Model, Record};
 use crate::import::plan::{
-    FlagKind, ImportPlan, RecordKind, RelPath, SlotName, SourceId, SourcePlan, TagId, Term,
-    default_plan,
+    FlagKind, ImportPlan, RecordKind, RelPath, SheetPlan, SlotName, SourceId, SourcePlan, TagId,
+    Term, default_plan,
 };
 use crate::import::sheet::{self, key_column};
 use crate::import::tags::Embedded;
@@ -123,13 +123,18 @@ pub fn rule(sources: Json, combine: &str) -> Json {
     json!({ "sources": sources, "combine": combine })
 }
 
+/// The plan's list at this place in plan order.
+pub fn list(plan: &ImportPlan, at: usize) -> &SheetPlan {
+    plan.structure.lists().nth(at).expect("a list there").1
+}
+
 pub fn read_sheets(plan: &ImportPlan, csv: &[(&str, &[u8])]) -> Sheets {
     csv.iter()
         .map(|(id, bytes)| {
-            let sheet_plan = plan
-                .sheets
-                .iter()
-                .find(|sheet| sheet.id.0 == *id)
+            let (_, sheet_plan) = plan
+                .structure
+                .lists()
+                .find(|(_, sheet)| sheet.id.0 == *id)
                 .expect("sheet in plan");
             (
                 sheet_plan.id.clone(),
