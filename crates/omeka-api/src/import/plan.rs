@@ -66,6 +66,11 @@ pub struct ImportPlanV2 {
     /// plan stored before this member keeps its bytes.
     #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
     pub anomalies: AnomalyAnswers,
+    /// The admin's Simple-screen state (the answers a person gave). Kept and
+    /// never read, like `example`; absent is not written, so a stored plan
+    /// keeps its bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub simple: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// The member `version: 2`.
@@ -348,6 +353,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError>
         new_types: Vec::new(),
         new_terms: Vec::new(),
         anomalies: AnomalyAnswers::default(),
+        simple: None,
     };
     check::plan(&plan)?;
     Ok(plan)

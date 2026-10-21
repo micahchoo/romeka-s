@@ -514,3 +514,26 @@ fn two_value_map_keys_that_fold_to_one_title_are_refused() {
         "{error:?}"
     );
 }
+
+#[test]
+fn the_simple_screen_state_is_kept_and_an_absent_one_is_not_written() {
+    let mut value: Value = serde_json::from_str(DEFAULT).expect("fixture json");
+    assert!(
+        value.get("simple").is_none(),
+        "the recorded fixture has none"
+    );
+    value["simple"] =
+        json!({ "answered": ["identical"], "notLists": [{ "source": "s1", "file": "a.csv" }] });
+    let plan = parse(&value.to_string());
+    assert_eq!(
+        plan.simple.as_ref().map(|state| state["answered"].clone()),
+        Some(json!(["identical"]))
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(&plan.to_json()).expect("json"),
+        value
+    );
+    let without = parse(DEFAULT);
+    assert!(without.simple.is_none());
+    assert!(!without.to_json().contains("simple"));
+}

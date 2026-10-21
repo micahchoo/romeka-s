@@ -41,10 +41,12 @@ export const factsWords = (facts: ShapeFacts, plan: ImportPlan, t: ListsTranslat
   if (facts.pages !== null && facts.pages.length > 0) {
     parts.push(t('lists.facts.pages', { count: String(facts.pages.length) }));
   }
-  if (plan.grouping.pattern !== null && !facts.pattern) {
-    parts.push(t('lists.facts.noFit'));
+  if (facts.origin === 'own') {
+    parts.push(t('lists.facts.own'));
   }
-  if (plan.sheets.length > 0) {
+  if (facts.origin === 'row') {
+    parts.push(t('lists.facts.rowNoFile'));
+  } else if (plan.sheets.length > 0) {
     parts.push(facts.row ? t('lists.facts.row') : t('lists.facts.noRow'));
   }
   return parts.join(', ');

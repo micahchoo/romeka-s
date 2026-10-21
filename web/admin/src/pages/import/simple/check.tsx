@@ -54,7 +54,7 @@ const RecordExample = ({ kind, at }: { readonly kind: FlagCount['kind']; readonl
 const Card = ({ cause, shown, onAnother }: { readonly cause: Cause; readonly shown: number; readonly onAnother: () => void }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const words = wordsOf(cause.id);
+  const words = wordsOf(cause.id, draft.plan);
   const answered = readState(draft.plan).answered.includes(cause.id);
   const answer = answerOf(draft.plan, cause.id);
   const suggested = suggestedOf(draft.plan, cause.id);

@@ -16,7 +16,7 @@ import { useDraft } from '../draft-context';
 import { RoundTrip, removeSheet } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { readState, withState } from './example-state';
+import { declines, readState, withState } from './example-state';
 import { ListColumns } from './list-columns';
 import { cellsOf, withJoin } from './list-plan';
 import { folderSheet, listEdit, listFiles } from './list-read';
@@ -31,7 +31,7 @@ const Offer = ({ source, file, declined }: { readonly source: string; readonly f
     setState({ busy: true, error: null });
     listEdit(draft.id, draft.plan, { source, file })
       .then((edit) => {
-        draft.change((plan) => edit(withState(plan, { notLists: readState(plan).notLists.filter((one) => one !== file) })));
+        draft.change((plan) => edit(withState(plan, { notLists: readState(plan).notLists.filter((one) => !declines(one, source, file)) })));
         setState({ busy: false, error: null });
       })
       .catch((error: unknown) => {
@@ -50,7 +50,7 @@ const Offer = ({ source, file, declined }: { readonly source: string; readonly f
           aria-pressed={declined}
           disabled={!draft.editable || state.busy || declined}
           onClick={() => {
-            draft.change((plan) => withState(plan, { notLists: [...readState(plan).notLists, file] }));
+            draft.change((plan) => withState(plan, { notLists: [...readState(plan).notLists, { source, file }] }));
           }}
         >
           {t('guided.list.no')}
@@ -184,7 +184,7 @@ const InUse = ({ sheet }: { readonly sheet: SheetPlan }): ReactElement => {
             aria-pressed="false"
             disabled={!draft.editable}
             onClick={() => {
-              draft.change((plan) => withState(removeSheet(plan, sheet.id), { notLists: [...readState(plan).notLists, sheet.file] }));
+              draft.change((plan) => withState(removeSheet(plan, sheet.id), { notLists: [...readState(plan).notLists, { source: sheet.source, file: sheet.file }] }));
             }}
           >
             {t('guided.list.no')}
@@ -225,7 +225,7 @@ export const YourList = (): ReactElement => {
           <p className="muted">{t('guided.list.what')}</p>
         </div>
       ) : null}
-      {sheet === undefined ? offers.slice(0, 1).map((offer) => <Offer key={`${offer.source}/${offer.file}`} source={offer.source} file={offer.file} declined={notLists.includes(offer.file)} />) : null}
+      {sheet === undefined ? offers.slice(0, 1).map((offer) => <Offer key={`${offer.source}/${offer.file}`} source={offer.source} file={offer.file} declined={notLists.some((entry) => declines(entry, offer.source, offer.file))} />) : null}
       <RoundTrip />
     </>
   );

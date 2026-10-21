@@ -130,20 +130,20 @@ fn shapes_group_items_by_exact_facts_with_counts_and_samples() {
         .map(|group| (&group["facts"], group["count"].as_u64().unwrap()))
         .collect();
     let two_sides_no_row = json!({ "files": "2", "folders": ["Artifacts"], "media": ["image"],
-        "pattern": true, "row": false, "parts": ["back", "front"], "pages": null });
+        "origin": "pattern", "row": false, "parts": ["back", "front"], "pages": null });
     assert_eq!(facts[0], (&two_sides_no_row, 3), "largest first: {facts:?}");
     let expected = [
-        json!({ "files": "0", "folders": [], "media": [], "pattern": false, "row": true,
+        json!({ "files": "0", "folders": [], "media": [], "origin": "row", "row": true,
                 "parts": [], "pages": null }),
-        json!({ "files": "1", "folders": ["Artifacts"], "media": ["image"], "pattern": true,
+        json!({ "files": "1", "folders": ["Artifacts"], "media": ["image"], "origin": "pattern",
                 "row": false, "parts": ["back"], "pages": null }),
-        json!({ "files": "1", "folders": ["Photos"], "media": ["image"], "pattern": true,
+        json!({ "files": "1", "folders": ["Photos"], "media": ["image"], "origin": "pattern",
                 "row": false, "parts": [], "pages": null }),
-        json!({ "files": "1", "folders": ["Photos"], "media": ["image"], "pattern": true,
+        json!({ "files": "1", "folders": ["Photos"], "media": ["image"], "origin": "pattern",
                 "row": true, "parts": [], "pages": null }),
-        json!({ "files": "2", "folders": ["Artifacts"], "media": ["image"], "pattern": true,
+        json!({ "files": "2", "folders": ["Artifacts"], "media": ["image"], "origin": "pattern",
                 "row": true, "parts": ["back", "front"], "pages": null }),
-        json!({ "files": "3", "folders": ["Scans"], "media": ["pdf"], "pattern": true,
+        json!({ "files": "3", "folders": ["Scans"], "media": ["pdf"], "origin": "pattern",
                 "row": false, "parts": ["p1", "p2", "p3"], "pages": null }),
     ];
     for shape in &expected {
@@ -228,6 +228,50 @@ fn the_pattern_page_group_is_a_fact_when_the_person_marked_it() {
         groups(&found)
             .iter()
             .all(|group| group["facts"]["parts"].is_null())
+    );
+}
+
+#[test]
+fn a_shape_names_why_an_item_exists_by_origin() {
+    let derived = derived(
+        &[("A1.jpg", JPEG), ("B2.jpg", JPEG), ("C3.jpg", JPEG)],
+        Some("Id,Title\nA1,Lamp\nZ9,No file\n"),
+        |plan| {
+            plan["decisions"] = json!([
+                { "kind": "move", "file": { "file": { "source": "s1", "path": "C3.jpg" } }, "to": "own" }
+            ]);
+        },
+    );
+    let found = answer(&derived, json!({ "include": ["shapes"] }));
+    let origin_of = |files: &str, row: bool| -> Vec<Value> {
+        groups(&found)
+            .iter()
+            .map(|group| &group["facts"])
+            .filter(|facts| facts["files"] == files && facts["row"] == row)
+            .map(|facts| facts["origin"].clone())
+            .collect()
+    };
+    assert_eq!(
+        origin_of("1", true),
+        [json!("pattern")],
+        "A1 grouped by the pattern, with a row"
+    );
+    assert!(
+        groups(&found)
+            .iter()
+            .any(|g| g["facts"]["files"] == "0" && g["facts"]["origin"] == "row"),
+        "a list row with no file: {found}"
+    );
+    assert!(
+        groups(&found).iter().any(|g| g["facts"]["files"] == "1"
+            && g["facts"]["row"] == false
+            && g["facts"]["origin"] == "own"),
+        "a file made an item of its own: {found}"
+    );
+    assert!(
+        groups(&found)
+            .iter()
+            .all(|g| g["facts"].get("pattern").is_none())
     );
 }
 

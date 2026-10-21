@@ -335,6 +335,8 @@ export interface ImportPlan {
   readonly newTerms: readonly NewTerm[];
   /** Absent until the person answers one; the server then reads the defaults. */
   readonly anomalies?: AnomalyAnswers;
+  /** Admin state: what Simple's screens keep. The server keeps it and never reads it; absent until Simple saves one. */
+  readonly simple?: Readonly<Record<string, JsonValue>>;
 }
 
 export const importIdFromParam = (param: string): ImportId | null => {
