@@ -198,7 +198,9 @@ describe('the asset upload describes what it stored', () => {
       }
       return box;
     });
-    expect(description).toHaveFocus();
+    // The field and the focus come from one render, but the focus is an effect
+    // that runs after it, so the field can be found before it has the caret.
+    await waitFor(() => expect(description).toHaveFocus());
     fireEvent.change(description, { target: { value: 'The exhibition catalogue' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save description' }));
 
