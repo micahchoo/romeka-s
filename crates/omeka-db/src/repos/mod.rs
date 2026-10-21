@@ -34,6 +34,8 @@ mod imports;
 mod item_sites;
 mod jobs;
 mod media;
+mod media_annotations;
+mod media_extents;
 mod modules;
 mod page_versions;
 mod passwords;
@@ -68,6 +70,11 @@ pub use imports::{ImportRepo, PlanSave};
 pub use item_sites::ItemSiteRepo;
 pub use jobs::{JobFilter, JobRepo};
 pub use media::{MediaFileOwner, MediaFilter, MediaRepo};
+pub use media_annotations::{
+    ChangeOutcome, Cue, FtsQuery, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
+    MediaAnnotationWrite, SearchScope, TrackOutcome,
+};
+pub use media_extents::{ExtentRow, MediaExtentRepo};
 pub use modules::ModuleRepo;
 pub use page_versions::{KEPT_VERSIONS, PageVersionRepo, Snapshot};
 pub use passwords::PasswordCreationRepo;

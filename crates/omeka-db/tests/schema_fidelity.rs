@@ -331,6 +331,39 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
         "romeka_site_page_version",
         &["id", "page_id", "version", "created", "user_id", "snapshot"],
     ),
+    (
+        "romeka_media_annotation",
+        &[
+            "id",
+            "media_id",
+            "owner_id",
+            "revision",
+            "created",
+            "modified",
+            "motivation",
+            "origin",
+            "lang",
+            "selector_kind",
+            "selector",
+            "t_start_ms",
+            "t_end_ms",
+            "body_json",
+            "body_text",
+            "extensions",
+            "client_key",
+        ],
+    ),
+    (
+        "romeka_media_extent",
+        &[
+            "media_id",
+            "storage_path",
+            "probed",
+            "duration_ms",
+            "width",
+            "height",
+        ],
+    ),
 ];
 
 async fn columns(pool: &SqlitePool, table: &str) -> Vec<String> {
@@ -370,6 +403,8 @@ async fn no_table_beyond_the_upstream_set_and_the_port_infrastructure() {
     found.retain(|name| name != "_sqlx_migrations");
     found.retain(|name| name != "fulltext_search_fts");
     found.retain(|name| !name.starts_with("fulltext_search_fts_"));
+    found.retain(|name| name != "romeka_media_annotation_fts");
+    found.retain(|name| !name.starts_with("romeka_media_annotation_fts_"));
     let mut expected: Vec<String> = TABLES
         .iter()
         .chain(ROMEKA_TABLES)

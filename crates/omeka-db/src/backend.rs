@@ -199,6 +199,24 @@ pub trait Backend: Database {
     /// The score as the port reports it, where higher is a better match.
     fn fulltext_score(raw: f64) -> f64;
 
+    /// The `FROM` clause a media-annotation text search appends to its table.
+    ///
+    /// SQLite matches the FTS5 mirror and joins it back by rowid; MySQL's `FULLTEXT` index is a
+    /// property of the table itself, so it adds nothing.
+    fn annotation_search_join() -> &'static str {
+        ""
+    }
+
+    /// The text-match predicate of a media-annotation search, and the values it binds in order.
+    ///
+    /// Each word is already stripped of FTS5 and boolean-mode operators by
+    /// [`crate::repos::FtsQuery`]. The predicate holds one `?` per value, in the same order; the
+    /// caller writes the placeholders through [`crate::repos::Statement::bind`]. MySQL does not
+    /// index a word shorter than `innodb_ft_min_token_size` (three by default), so a short word is
+    /// matched with `LIKE`; both halves are joined with `OR`, which is the any-word membership FTS5
+    /// gives.
+    fn annotation_match(words: &[&str]) -> (String, Vec<String>);
+
     /// The statement that writes a consistent copy of the whole database to the file path it
     /// binds, or why this engine has none.
     ///
@@ -392,6 +410,22 @@ impl Backend for sqlx::Sqlite {
         -raw
     }
 
+    fn annotation_search_join() -> &'static str {
+        " JOIN romeka_media_annotation_fts ON romeka_media_annotation_fts.rowid = a.id"
+    }
+
+    fn annotation_match(words: &[&str]) -> (String, Vec<String>) {
+        let expression = words
+            .iter()
+            .map(|word| format!("\"{word}\""))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        (
+            "romeka_media_annotation_fts MATCH ?".to_string(),
+            vec![expression],
+        )
+    }
+
     fn snapshot_into() -> Result<&'static str, &'static str> {
         Ok("VACUUM INTO ?")
     }
@@ -559,6 +593,27 @@ impl Backend for sqlx::MySql {
 
     fn fulltext_score(raw: f64) -> f64 {
         raw
+    }
+
+    fn annotation_match(words: &[&str]) -> (String, Vec<String>) {
+        let mut predicate = String::from("(0 = 1");
+        let mut values = Vec::new();
+        let long: Vec<String> = words
+            .iter()
+            .filter(|word| word.chars().count() >= 3)
+            .map(|word| format!("\"{word}\""))
+            .collect();
+        if !long.is_empty() {
+            predicate.push_str(" OR MATCH(a.body_text) AGAINST (? IN BOOLEAN MODE)");
+            values.push(long.join(" "));
+        }
+        for word in words.iter().filter(|word| word.chars().count() < 3) {
+            predicate.push_str(" OR a.body_text LIKE ?");
+            predicate.push_str(Self::like_escape());
+            values.push(format!("%{word}%"));
+        }
+        predicate.push(')');
+        (predicate, values)
     }
 
     fn snapshot_into() -> Result<&'static str, &'static str> {
