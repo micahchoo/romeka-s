@@ -192,6 +192,8 @@ pub enum LeftBy {
     Identical,
     /// An item no list row joined (`anomalies.itemsWithoutRow: leave`).
     NoRow,
+    /// A file in no series' scope: outside the structure.
+    Outside,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -281,7 +283,8 @@ pub enum Anomaly {
         slot: SlotName,
         decisions: Vec<usize>,
     },
-    /// Entries no record uses, less those a decision left out.
+    /// Entries no record uses, less those a decision or the structure left
+    /// out.
     UnusedEntries { entries: Vec<EntryRef> },
     /// What the walk of a source skipped or decoded.
     Walk {
@@ -329,6 +332,9 @@ pub enum OrphanReason {
     LineKeyChanged,
     /// A `move` with a file that is in no group.
     NoGroup,
+    /// A `move` that gives a group of its own to a file in no series'
+    /// scope, which no series' slot rules describe.
+    Outside,
 }
 
 /// Why the file pattern groups nothing.
