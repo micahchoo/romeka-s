@@ -290,4 +290,22 @@ export const knServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP ಅನ್ನು ಬಿಡಲಾಯಿತು: {count} ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಲಾಯಿತು.',
   'server.importSweepDone':
     '{imports} ಇಂಪೋರ್ಟ್‌ಗಳ ಫೈಲ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಲಾಯಿತು, ಮತ್ತು {uploads} ಅಪೂರ್ಣ ಇಂಪೋರ್ಟ್‌ಗಳು.',
+  'server.mediaUploadNotFound':
+    'ಈ ಖಾತೆಯಲ್ಲಿ "{upload}" ಐಡಿ ಹೊಂದಿರುವ ಯಾವುದೇ ಸಿದ್ಧಪಡಿಸಿದ ಅಪ್‌ಲೋಡ್ ಇಲ್ಲ.',
+  'server.mediaUploadBusy':
+    'ಈ ಅಪ್‌ಲೋಡ್ "{upload}" ಅನ್ನು ಈಗ ಸೇರಿಸಲಾಗುತ್ತಿದೆ. ಅದು ಮುಗಿಯುವವರೆಗೆ ಕಾಯಿರಿ ಮತ್ತು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'server.mediaUploadIncomplete':
+    'ಈ ಅಪ್‌ಲೋಡ್ {length} ಬೈಟ್‌ಗಳಲ್ಲಿ {received} ಅನ್ನು ಹೊಂದಿದೆ. ಅದನ್ನು ಸೇರಿಸುವ ಮೊದಲು ಉಳಿದದ್ದನ್ನು ಕಳುಹಿಸಿ.',
+  'server.mediaUploadIngester':
+    'ಸ್ಟೇಜ್ ಮಾಡಿದ ಅಪ್‌ಲೋಡ್ ಅನ್ನು ಅಪ್‌ಲೋಡ್ ಇಂಗೆಸ್ಟರ್‌ನೊಂದಿಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ.',
+  'server.mediaUploadInline':
+    'ಸ್ಟೇಜ್ ಮಾಡಿದ ಅಪ್‌ಲೋಡ್ ಅನ್ನು ಅದರದೇ ಆದ ಮೀಡಿಯಾ ಕ್ರಿಯೇಟ್‌ನೊಂದಿಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ, ಐಟಂನ ಒಳಗೆ ಅಲ್ಲ.',
+  'server.uploadTooLarge':
+    'ಈ ಫೈಲ್ {limit} ಬೈಟ್‌ಗಳಿಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ, ಇದು ಮೀಡಿಯಾ ಅಪ್‌ಲೋಡ್ ತೆಗೆದುಕೊಳ್ಳುವ ಅತಿದೊಡ್ಡ ಫೈಲ್ ಆಗಿದೆ.',
+  'server.mediaLinkInvalid': '"{url}" ಲಿಂಕ್ http ಅಥವಾ https ವಿಳಾಸವಲ್ಲ.',
+  'server.mediaLinkUnreadable': '"{url}" ಲಿಂಕ್ ಅನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {reason}',
+  'server.mediaLinkStatus': '"{url}" ಲಿಂಕ್ {status} {reason} ಉತ್ತರಿಸಿದೆ.',
+  'server.uploadItem': 'ಅಪ್‌ಲೋಡ್‌ನ ಐಟಂ ಐಡಿ ಅಸ್ತಿತ್ವದಲ್ಲಿರುವ ಐಟಂ ಅನ್ನು ಹೆಸರಿಸಬೇಕು.',
+  'server.mediaUploadSweepDone':
+    '{count} ಸ್ಟೇಜ್ ಮಾಡಿದ ಅಪ್‌ಲೋಡ್‌ಗಳು ತಮ್ಮ ಉಳಿಸಿಕೊಂಡ ಸಮಯವನ್ನು ಮೀರಿವೆ ಮತ್ತು ತೆಗೆದುಹಾಕಲಾಗಿದೆ.',
 };

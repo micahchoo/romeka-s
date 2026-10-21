@@ -296,4 +296,20 @@ export const mlServer: ServerCatalogue = {
   'server.importZipUnpacked': 'സിപ്പ് അൺപാക്ക് ചെയ്തു: {count} ഫയലുകൾ ചേർത്തു.',
   'server.importSweepDone':
     '{imports} ഇംപോർട്ടുകളിലെ ഫയലുകൾ നീക്കം ചെയ്തു, {uploads} പൂർത്തിയാകാത്ത അപ്‌ലോഡുകൾ.',
+  'server.mediaUploadNotFound': 'ഈ അക്കൗണ്ടിൽ "{upload}" ഐഡിയുള്ള സ്റ്റേജ്ഡ് അപ്‌ലോഡ് ഇല്ല.',
+  'server.mediaUploadBusy':
+    'ഈ അപ്‌ലോഡ് "{upload}" ഇപ്പോൾ ചേർക്കുന്നു. അത് കഴിഞ്ഞ ശേഷം വീണ്ടും ശ്രമിക്കുക.',
+  'server.mediaUploadIncomplete':
+    'ഈ അപ്‌ലോഡിൽ അതിന്റെ {length} ബൈറ്റുകളിൽ {received} ഉണ്ട്. ഇത് ചേർക്കുന്നതിന് മുമ്പ് ബാക്കി ഭാഗം അയക്കുക.',
+  'server.mediaUploadIngester': 'സ്റ്റേജ്ഡ് അപ്‌ലോഡ് അപ്‌ലോഡ് ഇൻഗെസ്റ്റർ ചേർക്കുന്നു.',
+  'server.mediaUploadInline':
+    'ഒരു സ്റ്റേജ്ഡ് അപ്‌ലോഡ് അതിന്റെ സ്വന്തം മീഡിയ ക്രിയേറ്റ് ചേർക്കുന്നു, ഒരു ഐറ്റത്തിന് ഉള്ളിലല്ല.',
+  'server.uploadTooLarge':
+    'ഈ ഫയൽ അതിന്റെ {limit} ബൈറ്റുകളേക്കാൾ വലുതാണ്, ഒരു മീഡിയ അപ്‌ലോഡിൽ എടുക്കുന്ന ഏറ്റവും വലിയ ഫയൽ ഇതാണ്.',
+  'server.mediaLinkInvalid': '"{url}" എന്ന ലിങ്ക് http അല്ലെങ്കിൽ https വിലാസമല്ല.',
+  'server.mediaLinkUnreadable': '"{url}" എന്ന ലിങ്ക് വായിക്കാൻ കഴിഞ്ഞില്ല: {reason}',
+  'server.mediaLinkStatus': '"{url}" എന്ന ലിങ്ക് {status} {reason} മറുപടി നൽകി.',
+  'server.uploadItem': 'ഒരു അപ്‌ലോഡിന്റെ ഐറ്റം ഐഡി നിലവിലുള്ള ഒരു ഐറ്റത്തിന്റെ പേര് ആയിരിക്കണം.',
+  'server.mediaUploadSweepDone':
+    '{count} സ്റ്റേജ്ഡ് അപ്‌ലോഡുകൾ അവയുടെ സമയം കഴിഞ്ഞപ്പോൾ നീക്കം ചെയ്തു.',
 };

@@ -48,6 +48,7 @@ export type ServerMediaKind =
   | 'audio'
   | 'video'
   | 'pdf'
+  | 'document'
   | 'model-3d'
   | 'captions'
   | 'embed'
@@ -60,6 +61,7 @@ export const SERVER_MEDIA_KINDS: readonly ServerMediaKind[] = [
   'audio',
   'video',
   'pdf',
+  'document',
   'model-3d',
   'captions',
   'embed',

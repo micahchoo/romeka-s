@@ -304,7 +304,7 @@ test('Copy puts the manifest URL on the clipboard and says so', async ({ page, d
   await expectClean(diagnostics, 'copy');
 });
 
-test('a kind with no canvas offers no viewer link', async ({ page }) => {
+test('a kind with no canvas offers no viewer link', async ({ page, diagnostics }) => {
   const media = await upload(
     page.request,
     'doc.docx',
@@ -320,8 +320,31 @@ test('a kind with no canvas offers no viewer link', async ({ page }) => {
   // The file still saves under its own name; only the viewer and manifest are
   // absent, because there is no canvas to open.
   await expect(page.locator('.media-download a')).toHaveCount(1);
-  // No expectClean: the document's renderer asks for the fallback picture at
-  // /assets/thumbnails/default.png, which this server serves at
-  // /application/asset/thumbnails/default.png, so the page already 404s that
-  // image. Recorded as an open issue, not this unit's route.
+  // An office document is a document, not a file with no kind.
+  await expect(page.locator('.media-download')).toContainText('Document');
+  await expectClean(diagnostics, 'a kind with no canvas');
+});
+
+test('a narrow window shows the PDF card instead of the browser reader', async ({
+  page,
+  diagnostics,
+}) => {
+  const media = await upload(page.request, 'doc.pdf', 'application/pdf');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(mediaPage(media));
+
+  // The reader is an 80vh box a narrow column cannot use, so the page shows the
+  // card and the download line. A hidden reader must leave no gap behind it.
+  await expect(page.locator('.pdf-object')).toBeHidden();
+  const card = page.locator('.pdf-reader-page > .pdf-card');
+  await expect(card).toBeVisible();
+
+  const cardBox = await card.boundingBox();
+  const downloadBox = await page.locator('.media-download').boundingBox();
+  if (cardBox === null || downloadBox === null) {
+    throw new Error('the card and the download line have no box at 375 px');
+  }
+  const gap = downloadBox.y - (cardBox.y + cardBox.height);
+  expect(gap).toBeLessThan(40);
+  await expectClean(diagnostics, 'narrow pdf');
 });

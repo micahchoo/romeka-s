@@ -305,7 +305,9 @@ describe('replacing captions', () => {
     expect(await screen.findByText('This file has 220 cues, 0:00 to 42:10.')).toBeDefined();
     expect(screen.getByText('It replaces the 214 English cues.')).toBeDefined();
     expect(
-      screen.getByText('3 of those were changed here by hand; those changes will be lost.'),
+      screen.getByText(
+        '3 of those were changed here by hand. This file replaces them; Undo replace brings them back once.',
+      ),
     ).toBeDefined();
     const commit = commitButton();
     expect(commit.textContent).toBe('Replace 214 English cues');

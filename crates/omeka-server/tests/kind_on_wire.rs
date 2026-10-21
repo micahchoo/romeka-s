@@ -114,7 +114,9 @@ async fn store_media(
             source: Some(name.to_string()),
             media_type: media_type.map(str::to_string),
             storage_id: Some(format!("kind-{}", item.id().0)),
-            extension: None,
+            extension: name
+                .rsplit_once('.')
+                .map(|(_, extension)| extension.to_string()),
             sha256: None,
             size: Some(1),
             has_original: true,
@@ -133,12 +135,14 @@ fn kind_of(
     ingester: &str,
     renderer: &str,
     media_type: Option<&str>,
+    extension: Option<&str>,
     thumbnails: bool,
 ) -> MediaKind {
     MediaKind::of(&KindInput {
         renderer,
         ingester,
         media_type,
+        extension,
         has_thumbnails: thumbnails,
     })
 }
@@ -184,11 +188,12 @@ async fn store_corpus(pool: &DbPool, seed: &Seed) -> Vec<Stored> {
             thumbnails,
         )
         .await;
+        let kind = kind_of("upload", "file", Some(&media_type), extension, thumbnails);
         stored.push(Stored {
             file,
             item,
             media,
-            kind: kind_of("upload", "file", Some(&media_type), thumbnails),
+            kind,
         });
     }
     stored
@@ -196,7 +201,7 @@ async fn store_corpus(pool: &DbPool, seed: &Seed) -> Vec<Stored> {
 
 /// The seeded fixture's own media: a JPEG whose thumbnails exist.
 fn seeded_kind() -> MediaKind {
-    kind_of("upload", "file", Some("image/jpeg"), true)
+    kind_of("upload", "file", Some("image/jpeg"), Some("jpg"), true)
 }
 
 #[tokio::test]
@@ -239,7 +244,7 @@ async fn every_corpus_file_carries_its_kind_and_the_filters_find_exactly_it() {
             .or_default()
             .insert(row.item);
     }
-    for name in "local-image|iiif-image|audio|video|pdf|model-3d|captions|embed|iiif-presentation|other-file"
+    for name in "local-image|iiif-image|audio|video|pdf|document|model-3d|captions|embed|iiif-presentation|other-file"
         .split('|')
     {
         let media = list(&app, &format!("/api/media?per_page=1000&romeka_kind={name}")).await;
@@ -263,7 +268,7 @@ async fn each_variant_is_named_and_both_filters_answer_it() {
     let app = router(pool.clone());
 
     // A row that produces each variant, in the table's own order.
-    let rows: [VariantRow; 10] = [
+    let rows: [VariantRow; 12] = [
         (
             "local-image.jpg",
             "upload",
@@ -303,6 +308,24 @@ async fn each_variant_is_named_and_both_filters_answer_it() {
             Some("application/pdf"),
             false,
             MediaKind::Pdf { first_page: false },
+        ),
+        (
+            "report.docx",
+            "upload",
+            "file",
+            Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            false,
+            MediaKind::Document,
+        ),
+        (
+            // An OpenDocument file's bytes read as a zip, so its extension is
+            // the only fact that names the document.
+            "report.odt",
+            "upload",
+            "file",
+            Some("application/zip"),
+            false,
+            MediaKind::Document,
         ),
         (
             "model.glb",

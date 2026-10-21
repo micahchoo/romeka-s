@@ -51,6 +51,7 @@ mod settings;
 mod sites;
 mod templates;
 mod terms;
+mod user_uploads;
 mod users;
 mod values;
 mod vocabularies;
@@ -91,6 +92,7 @@ pub use settings::{SettingRepo, SiteSettingRepo, UserSettingRepo};
 pub use sites::{SiteFilter, SiteRepo};
 pub use templates::TemplateRepo;
 pub use terms::{ClassTerm, PropertyTerm, TermRepo, TermScope};
+pub use user_uploads::UserUploadRepo;
 pub use users::{ApiKeyRepo, UserFilter, UserRepo};
 pub use values::ValueRepo;
 pub use vocabularies::{

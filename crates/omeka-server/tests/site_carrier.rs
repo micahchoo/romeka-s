@@ -119,6 +119,55 @@ async fn a_write_regenerates_the_plain_rendering_and_sets_the_hash() {
     );
 }
 
+/// A hero background that is an asset the media allow list lets in but no
+/// browser draws (a PDF, stored before the picker greyed it) is left out of the
+/// plain rendering: upstream would print an `<img>` it cannot show. The
+/// reference stays in the settings, so the choice is not lost.
+#[tokio::test]
+async fn a_non_image_asset_is_not_written_into_the_plain_rendering() {
+    let (pool, seed) = seeded_pool().await;
+    let app = router(pool.clone());
+    let asset = AssetRepo::new(&pool)
+        .create(&NewAsset {
+            owner_id: None,
+            name: "The annual report".to_string(),
+            media_type: "application/pdf".to_string(),
+            storage_id: "def456".to_string(),
+            extension: Some("pdf".to_string()),
+            alt_text: None,
+        })
+        .await
+        .unwrap()
+        .id
+        .0;
+    let created = send(
+        app.clone(),
+        json_request(
+            "POST",
+            &append_key("/api/site_pages"),
+            &hero_body(
+                seed.site,
+                json!({ "heading": "Welcome", "background": asset }),
+                None,
+                None,
+            ),
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let block = &created.json()["o:block"][0];
+    assert_eq!(block["o:data"]["html"], "<h2>Welcome</h2>");
+    assert_eq!(
+        block["o:layout_data"]["romeka"]["settings"]["background"],
+        asset
+    );
+
+    let page = send(app, get("/s/museum/page/hero", false)).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.body);
+    assert!(page.body.contains("romeka-hero-no-image"), "{}", page.body);
+    assert!(!page.body.contains("def456"), "{}", page.body);
+}
+
 /// A carrier version 1 hash was the raw-byte hash. It vouches for its html, so
 /// the write is not an outside edit, and the write migrates the carrier to the
 /// current version with the canonical hash.

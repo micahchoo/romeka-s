@@ -112,6 +112,8 @@ mod tests {
                 title: "A logo".to_string(),
                 url: Some("/files/original/3.png".to_string()),
                 thumbnail: Some(Thumbnail::new("/files/square/3.jpg", "A logo")),
+                kind: crate::view::AssetKind::Image,
+                size: None,
             },
         );
         resources.sites = vec![SiteView {

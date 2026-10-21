@@ -206,5 +206,16 @@
  "server.importZipFileTooLarge": "The ZIP was refused: \"{name}\" is larger than {limit} bytes, the largest file an import takes. Nothing from it was added.",
  "server.importZipUnreadable": "The ZIP was refused: it could not be read ({reason}). Nothing from it was added.",
  "server.importZipUnpacked": "The ZIP was unpacked: {count} files were added.",
- "server.importSweepDone": "The files of {imports} imports were removed, and {uploads} unfinished uploads."
+ "server.importSweepDone": "The files of {imports} imports were removed, and {uploads} unfinished uploads.",
+ "server.mediaUploadNotFound": "This account has no staged upload with the id \"{upload}\".",
+ "server.mediaUploadBusy": "This upload \"{upload}\" is being added right now. Wait for that to finish and try again.",
+ "server.mediaUploadIncomplete": "This upload holds {received} of its {length} bytes. Send the rest before you add it.",
+ "server.mediaUploadIngester": "A staged upload is added with the upload ingester.",
+ "server.mediaUploadInline": "A staged upload is added with its own media create, not inside an item.",
+ "server.uploadTooLarge": "This file is larger than {limit} bytes, the largest file a media upload takes.",
+ "server.mediaLinkInvalid": "The link \"{url}\" is not an http or https address.",
+ "server.mediaLinkUnreadable": "The link \"{url}\" could not be read: {reason}",
+ "server.mediaLinkStatus": "The link \"{url}\" answered {status} {reason}.",
+ "server.uploadItem": "An upload's item id must name an item that exists.",
+ "server.mediaUploadSweepDone": "{count} staged uploads passed their kept time and were removed."
 }

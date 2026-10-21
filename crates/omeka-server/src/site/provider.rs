@@ -34,15 +34,15 @@ use omeka_site::blocks::{browse_preview, list_of_pages};
 use omeka_site::settings::SiteSettings;
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::view::{
-    AssetView, AttachmentRef, BrowseQuery, MediaRef, PageCard, ResourcePage, ResourceProvider,
-    ResourceView, SiteQuery, SiteSearch, SiteSort, Thumbnail,
+    AssetKind, AssetView, AttachmentRef, BrowseQuery, MediaRef, PageCard, ResourcePage,
+    ResourceProvider, ResourceView, SiteQuery, SiteSearch, SiteSort, Thumbnail,
 };
 
 use omeka_api::write::block_carrier::media_image_path;
 use omeka_api::write::site_pages::ResolvedAttachment;
 use omeka_media::store::{Download, FileKind};
 
-use super::load::{Loader, media_options, thumbnail_for_asset};
+use super::load::{Loader, asset_storage_path, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
 
 /// The searches a page's blocks will run, keyed for the synchronous lookup, and
@@ -358,6 +358,21 @@ async fn load_asset(
         .await)?;
     if let Some(row) = row {
         let thumbnail = thumbnail_for_asset(loader.files(), &row);
+        let kind = AssetKind::of_media_type(&row.media_type);
+        // Only the asset block's file link prints a size, and it prints it for
+        // a file that is not a picture. A picture therefore costs no store
+        // read. The read is blocking (a `HeadObject` on an object store), so it
+        // runs off the async workers, as the IIIF extent reads do.
+        let size = if kind.is_image() {
+            None
+        } else {
+            let files = loader.files().clone();
+            let path = asset_storage_path(&row);
+            tokio::task::spawn_blocking(move || files.size(&path))
+                .await
+                .ok()
+                .flatten()
+        };
         loaded.assets.push((
             id,
             AssetView {
@@ -365,6 +380,8 @@ async fn load_asset(
                 title: row.name.clone(),
                 url: Some(thumbnail.url.clone()),
                 thumbnail: Some(thumbnail),
+                kind,
+                size,
             },
         ));
     }

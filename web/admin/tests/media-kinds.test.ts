@@ -87,7 +87,7 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'video.mkv': 'video',
   'video.ogv': 'video',
   'doc.pdf': 'pdf',
-  'doc.docx': 'other-file',
+  'doc.docx': 'document',
   'model.glb': 'model-3d',
   'model.gltf': 'model-3d',
   'captions.vtt': 'captions',

@@ -143,8 +143,8 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
             .expect("list migrations");
     assert_eq!(
         applied,
-        [1, 2, 3, 5, 6, 7, 8, 10],
-        "each MySQL migration file applied once; 0004 is SQLite only and 0009 is another branch's"
+        [1, 2, 3, 5, 6, 7, 8, 9, 10],
+        "each MySQL migration file applied once; 0004 is SQLite only"
     );
 
     db.cleanup().await;

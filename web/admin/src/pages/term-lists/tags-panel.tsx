@@ -89,9 +89,9 @@ export const TagsPanel = ({ onPromoted }: { readonly onPromoted: () => void }): 
     });
   };
 
-  const body = (): ReactElement => {
+  const body = (): ReactElement | null => {
     if (state.status === 'loading') {
-      return <p role="status">{t('loading.form')}</p>;
+      return null;
     }
     if (state.status === 'error') {
       return <ErrorNotice error={state.error} />;
@@ -182,7 +182,9 @@ export const TagsPanel = ({ onPromoted }: { readonly onPromoted: () => void }): 
     <aside className="tags-panel" aria-labelledby="tags-panel-title">
       <h2 id="tags-panel-title">{tl('tags.title')}</h2>
       <p className="field-hint">{tl('tags.intro')}</p>
-      <p role="status">{notice}</p>
+      <p role="status">
+        {notice !== '' ? notice : state.status === 'loading' ? t('loading.form') : ''}
+      </p>
       {body()}
     </aside>
   );

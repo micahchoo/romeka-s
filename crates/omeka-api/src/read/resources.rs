@@ -919,6 +919,7 @@ fn media_kind(api: &Api<'_>, row: &MediaRow) -> MediaKind {
         renderer: &row.renderer,
         ingester: &row.ingester,
         media_type: row.media_type.as_deref(),
+        extension: row.extension.as_deref(),
         has_thumbnails: has_thumbnails(api, row),
     })
 }

@@ -176,7 +176,7 @@ export const es: AnnotationsMessages = {
   'captions.dialog.replaces': 'Sustituye las {cues} entradas en {language}.',
   'captions.dialog.replacesOne': 'Sustituye la entrada en {language}.',
   'captions.dialog.handEdited':
-    '{count} de ellas se cambiaron aquí a mano; esos cambios se perderán.',
+    '{count} de ellas se cambiaron aquí a mano. Este archivo las sustituye; Deshacer la sustitución las recupera una vez.',
   'captions.dialog.commitAdd': 'Añadir subtítulos en {language}',
   'captions.dialog.commitReplace': 'Sustituir {cues} entradas en {language}',
   'captions.dialog.commitReplaceOne': 'Sustituir 1 entrada en {language}',

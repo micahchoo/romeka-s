@@ -123,6 +123,15 @@ pub fn router_with_store(pool: impl Into<DbPool>, store: FileStore) -> Router {
     )
 }
 
+/// Build the application around any store, for a test that wraps one to count
+/// or gate what a render asks it.
+pub fn router_with_any_store(
+    pool: impl Into<DbPool>,
+    store: std::sync::Arc<dyn omeka_media::store::Store>,
+) -> Router {
+    omeka_server::build_router_with_store(pool, BaseUrl::parse("http://localhost").unwrap(), store)
+}
+
 /// Seed the default-install-like rows every read test asserts against.
 pub async fn seed(pool: &DbPool) -> Seed {
     let user = with_db!(pool, |db| UserRepo::new(db)

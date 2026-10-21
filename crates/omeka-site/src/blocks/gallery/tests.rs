@@ -209,6 +209,8 @@ fn rich_renders_assets() {
             title: "room.jpg".to_string(),
             url: Some("/files/asset/room.jpg".to_string()),
             thumbnail: Some(Thumbnail::new("/files/asset/room.jpg", "")),
+            kind: crate::view::AssetKind::Image,
+            size: None,
         },
     );
     let ctx = context(&site, &resources);
@@ -221,6 +223,31 @@ fn rich_renders_assets() {
         "{rich}"
     );
     assert!(!rich.contains("figcaption"), "{rich}");
+}
+
+/// A PDF among the gallery's assets draws no picture: the slot accepts images,
+/// so the file is skipped rather than shown as a broken `<img>`.
+#[test]
+fn a_non_image_asset_draws_nothing() {
+    let site = site();
+    let mut resources = TestResources::default();
+    resources.assets.insert(
+        9,
+        AssetView {
+            id: AssetId::new(9),
+            title: "report.pdf".to_string(),
+            url: Some("/files/asset/report.pdf".to_string()),
+            thumbnail: Some(Thumbnail::new("/files/asset/report.pdf", "")),
+            kind: crate::view::AssetKind::Pdf,
+            size: Some(4096),
+        },
+    );
+    let ctx = context(&site, &resources);
+    let rich = Gallery.render(
+        &json!({"source": "assets", "assets": [{"asset": 9, "caption": "Report"}]}),
+        &ctx,
+    );
+    assert_eq!(rich, "");
 }
 
 /// With no image to show, the public page shows nothing and the editor

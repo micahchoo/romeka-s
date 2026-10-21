@@ -183,7 +183,7 @@ export const ne: AnnotationsMessages = {
   'captions.dialog.replaces': 'यसले {cues} {language} सङ्केतहरूलाई प्रतिस्थापन गर्छ।',
   'captions.dialog.replacesOne': 'यसले {language} को 1 वटा सङ्केतलाई प्रतिस्थापन गर्छ।',
   'captions.dialog.handEdited':
-    'ती परिवर्तनहरूमध्ये {count} यहाँ म्यानुअल रूपमा गरिएका थिए; ती परिवर्तनहरू हराउनेछन्।',
+    '{count} मध्ये यहाँ म्यानुअल रूपमा परिवर्तन गरिएका छन्। यो फाइलले तिनलाई प्रतिस्थापन गर्छ; «प्रतिस्थापन पूर्ववत (Undo)» ले तिनलाई एक पटक फेरि ल्याउँछ।',
   'captions.dialog.commitAdd': '{language} क्याप्सन थप्नुहोस्',
   'captions.dialog.commitReplace': '{cues} {language} सङ्केतहरू प्रतिस्थापन गर्नुहोस्',
   'captions.dialog.commitReplaceOne': '{language} को 1 वटा सङ्केत प्रतिस्थापन गर्नुहोस्',

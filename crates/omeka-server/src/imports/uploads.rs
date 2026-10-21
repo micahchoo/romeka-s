@@ -19,9 +19,8 @@
 //! An upload start dispatches the sweep job when none was dispatched in the
 //! last hour; `romeka serve` also starts it every hour.
 
-use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use axum::body::Body;
@@ -40,12 +39,10 @@ use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
-use super::uploads_body::{BodyReader, metadata_value};
 use super::wire::{ImportError, admin, load};
 use crate::AppState;
+use crate::tus::{self, BodyReader, metadata_value};
 
-const TUS_VERSION: &str = "1.0.0";
-const OFFSET_TYPE: &str = "application/offset+octet-stream";
 /// The header that names the unzip job a finished `.zip` started.
 pub(crate) const UNZIP_HEADER: &str = "romeka-unzip-job";
 /// The most bytes one `PATCH` may carry. A chunk is a part in the store, so
@@ -90,7 +87,7 @@ impl Refusal {
             body.insert("code".to_string(), Value::from(code));
         }
         body.extend(self.members);
-        let mut answer = tus(Response::builder().status(self.status))
+        let mut answer = tus::header(Response::builder().status(self.status))
             .header(header::CONTENT_TYPE, crate::JSONLD_CONTENT_TYPE);
         if let Some(offset) = self.offset {
             answer = answer.header("upload-offset", offset);
@@ -108,15 +105,11 @@ fn done(answer: Answer) -> Response {
     answer.unwrap_or_else(|response| *response)
 }
 
-fn tus(builder: axum::http::response::Builder) -> axum::http::response::Builder {
-    builder.header("tus-resumable", TUS_VERSION)
-}
-
 fn shared(error: ImportError) -> Box<Response> {
     let mut response = error.into_response();
     response
         .headers_mut()
-        .insert("tus-resumable", HeaderValue::from_static(TUS_VERSION));
+        .insert("tus-resumable", HeaderValue::from_static(tus::VERSION));
     Box::new(response)
 }
 
@@ -225,30 +218,18 @@ async fn uploader(
 
 /// Refuse a tus request that does not speak 1.0.0 (412, as the protocol says).
 fn speaks_tus(headers: &HeaderMap) -> Result<(), Box<Response>> {
-    if headers
-        .get("tus-resumable")
-        .and_then(|value| value.to_str().ok())
-        == Some(TUS_VERSION)
-    {
+    if tus::speaks(headers) {
         return Ok(());
     }
     Err(Box::new(
-        tus(Response::builder().status(StatusCode::PRECONDITION_FAILED))
-            .header("tus-version", TUS_VERSION)
+        tus::header(Response::builder().status(StatusCode::PRECONDITION_FAILED))
+            .header("tus-version", tus::VERSION)
             .header(header::CONTENT_TYPE, crate::JSONLD_CONTENT_TYPE)
             .body(Body::from(
                 json!({ "errors": { "error": messages::IMPORT_UPLOAD_VERSION } }).to_string(),
             ))
             .unwrap_or_else(|_| crate::empty_internal_error()),
     ))
-}
-
-fn number(headers: &HeaderMap, name: &str) -> Option<u64> {
-    let text = headers.get(name)?.to_str().ok()?.trim();
-    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    text.parse().ok()
 }
 
 async fn limits(state: &AppState) -> Result<omeka_api::settings::UploadSettings, Box<Response>> {
@@ -268,12 +249,14 @@ pub(super) async fn options(
         async {
             uploader(&state, &id, &uri, &headers, false).await?;
             let settings = limits(&state).await?;
-            Ok(tus(Response::builder().status(StatusCode::NO_CONTENT))
-                .header("tus-version", TUS_VERSION)
-                .header("tus-max-size", settings.max_file)
-                .header("tus-extension", "creation,termination")
-                .body(Body::empty())
-                .unwrap_or_else(|_| crate::empty_internal_error()))
+            Ok(
+                tus::header(Response::builder().status(StatusCode::NO_CONTENT))
+                    .header("tus-version", tus::VERSION)
+                    .header("tus-max-size", settings.max_file)
+                    .header("tus-extension", "creation,termination")
+                    .body(Body::empty())
+                    .unwrap_or_else(|_| crate::empty_internal_error()),
+            )
         }
         .await,
     )
@@ -332,7 +315,7 @@ pub(super) async fn list(
                 "limit": { "file": settings.max_file, "total": settings.max_total },
                 "keepUntil": keep_until,
             });
-            Ok(tus(Response::builder().status(StatusCode::OK))
+            Ok(tus::header(Response::builder().status(StatusCode::OK))
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(body.to_string()))
                 .unwrap_or_else(|_| crate::empty_internal_error()))
@@ -355,7 +338,7 @@ pub(super) async fn create(
         async {
             speaks_tus(&headers)?;
             let (actor, row) = uploader(&state, &id, &uri, &headers, true).await?;
-            let Some(length) = number(&headers, "upload-length") else {
+            let Some(length) = tus::number(&headers, "upload-length") else {
                 return Err(Refusal::new(
                     StatusCode::BAD_REQUEST,
                     Some("uploadLength"),
@@ -390,7 +373,7 @@ pub(super) async fn create(
             .map_err(staging_refusal)?;
             maybe_sweep(&state, &actor).await;
             let location = format!("/api/romeka/imports/{}/uploads/{}", row.id.0, made.id);
-            Ok(tus(Response::builder().status(StatusCode::CREATED))
+            Ok(tus::header(Response::builder().status(StatusCode::CREATED))
                 .header(header::LOCATION, location)
                 .header("upload-offset", 0)
                 .header(header::CONTENT_TYPE, "application/json")
@@ -399,23 +382,6 @@ pub(super) async fn create(
         }
         .await,
     )
-}
-
-/// The locks that keep two requests for one upload apart. An entry goes
-/// when its upload completes or is removed.
-static LOCKS: LazyLock<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-fn lock_of(key: &str) -> Arc<tokio::sync::Mutex<()>> {
-    let mut locks = LOCKS.lock().unwrap_or_else(PoisonError::into_inner);
-    Arc::clone(locks.entry(key.to_string()).or_default())
-}
-
-fn forget_lock(key: &str) {
-    LOCKS
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .remove(key);
 }
 
 /// `HEAD /{upload}`: the stored offset.
@@ -434,12 +400,14 @@ pub(super) async fn head(
                 .await)
             .map_err(|error| shared(error.into()))?;
             let Some(found) = found else {
-                return Ok(tus(Response::builder().status(StatusCode::NOT_FOUND))
-                    .header(header::CACHE_CONTROL, "no-store")
-                    .body(Body::empty())
-                    .unwrap_or_else(|_| crate::empty_internal_error()));
+                return Ok(
+                    tus::header(Response::builder().status(StatusCode::NOT_FOUND))
+                        .header(header::CACHE_CONTROL, "no-store")
+                        .body(Body::empty())
+                        .unwrap_or_else(|_| crate::empty_internal_error()),
+                );
             };
-            Ok(tus(Response::builder().status(StatusCode::OK))
+            Ok(tus::header(Response::builder().status(StatusCode::OK))
                 .header("upload-offset", found.received)
                 .header("upload-length", found.length)
                 .header(header::CACHE_CONTROL, "no-store")
@@ -462,11 +430,7 @@ pub(super) async fn patch(
         async {
             speaks_tus(&headers)?;
             let (actor, row) = uploader(&state, &id, &uri, &headers, true).await?;
-            let content_type = headers
-                .get(header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .map(|value| value.split(';').next().unwrap_or_default().trim());
-            if content_type != Some(OFFSET_TYPE) {
+            if !tus::is_offset_type(&headers) {
                 return Err(Refusal::new(
                     StatusCode::UNSUPPORTED_MEDIA_TYPE,
                     None,
@@ -474,7 +438,7 @@ pub(super) async fn patch(
                 )
                 .refused());
             }
-            let Some(offset) = number(&headers, "upload-offset") else {
+            let Some(offset) = tus::number(&headers, "upload-offset") else {
                 return Err(Refusal::new(
                     StatusCode::BAD_REQUEST,
                     Some("uploadOffset"),
@@ -482,11 +446,11 @@ pub(super) async fn patch(
                 )
                 .refused());
             };
-            if number(&headers, "content-length").is_some_and(|sent| sent > MAX_CHUNK) {
+            if tus::number(&headers, "content-length").is_some_and(|sent| sent > MAX_CHUNK) {
                 return Err(chunk_too_large());
             }
-            let key = format!("{}/{upload}", row.id.0);
-            let lock = lock_of(&key);
+            let key = format!("import/{}/{upload}", row.id.0);
+            let lock = tus::lock_of(&key);
             let held = lock.lock().await;
             let reader = BodyReader::spawn(body, MAX_CHUNK);
             let over = reader.over();
@@ -503,7 +467,7 @@ pub(super) async fn patch(
             let appended = match appended {
                 Ok(appended) => appended,
                 Err(StagingError::Missing) => {
-                    forget_lock(&key);
+                    tus::forget_lock(&key);
                     return Err(Refusal::new(
                         StatusCode::NOT_FOUND,
                         None,
@@ -516,10 +480,10 @@ pub(super) async fn patch(
                 }
                 Err(error) => return Err(staging_refusal(error)),
             };
-            let mut answer = tus(Response::builder().status(StatusCode::NO_CONTENT))
+            let mut answer = tus::header(Response::builder().status(StatusCode::NO_CONTENT))
                 .header("upload-offset", appended.received);
             if let Some(complete) = appended.completed {
-                forget_lock(&key);
+                tus::forget_lock(&key);
                 if is_zip(&complete.path) {
                     let job = start_job(
                         &state,
@@ -550,8 +514,8 @@ pub(super) async fn delete(
         async {
             speaks_tus(&headers)?;
             let (_, row) = uploader(&state, &id, &uri, &headers, true).await?;
-            let key = format!("{}/{upload}", row.id.0);
-            let lock = lock_of(&key);
+            let key = format!("import/{}/{upload}", row.id.0);
+            let lock = tus::lock_of(&key);
             let held = lock.lock().await;
             let removed = with_db!(&state.pool, |db| staging::remove(
                 db,
@@ -561,11 +525,13 @@ pub(super) async fn delete(
             )
             .await);
             drop(held);
-            forget_lock(&key);
+            tus::forget_lock(&key);
             match removed {
-                Ok(true) => Ok(tus(Response::builder().status(StatusCode::NO_CONTENT))
-                    .body(Body::empty())
-                    .unwrap_or_else(|_| crate::empty_internal_error())),
+                Ok(true) => Ok(
+                    tus::header(Response::builder().status(StatusCode::NO_CONTENT))
+                        .body(Body::empty())
+                        .unwrap_or_else(|_| crate::empty_internal_error()),
+                ),
                 Ok(false) => Err(Refusal::new(
                     StatusCode::NOT_FOUND,
                     None,

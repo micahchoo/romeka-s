@@ -150,6 +150,9 @@ pub(crate) fn block_inline_styles(block: &SiteBlock, ctx: &RenderContext<'_>) ->
     }
     if let Some(id) = data.background_image_asset
         && let Some(asset) = ctx.resources.read_asset(id)
+        // A block background takes an image; a stored file of another kind
+        // paints nothing rather than a broken background.
+        && asset.is_image()
         && let Some(url) = asset.url.as_deref()
     {
         styles.push(format!("background-image: url(\"{}\")", escape_css(url)));
@@ -395,6 +398,8 @@ mod tests {
                 title: "A background".to_string(),
                 url: Some("/files/original/4.jpg".to_string()),
                 thumbnail: Some(Thumbnail::new("/files/square/4.jpg", "A background")),
+                kind: crate::view::AssetKind::Image,
+                size: None,
             },
         );
         let ctx = context(&site, &resources);
@@ -409,6 +414,32 @@ mod tests {
         );
 
         let ctx = context(&site, &crate::view::NoResources);
+        assert!(block_inline_styles(&block, &ctx).is_empty());
+    }
+
+    /// A block background takes an image, so a stored file of another kind
+    /// paints no background rather than a broken one.
+    #[test]
+    fn a_non_image_asset_paints_no_background() {
+        let site = site();
+        let mut resources = TestResources::default();
+        resources.assets.insert(
+            4,
+            AssetView {
+                id: AssetId::new(4),
+                title: "report.pdf".to_string(),
+                url: Some("/files/asset/report.pdf".to_string()),
+                thumbnail: Some(Thumbnail::new("/files/asset/report.pdf", "")),
+                kind: crate::view::AssetKind::Pdf,
+                size: Some(4096),
+            },
+        );
+        let ctx = context(&site, &resources);
+        let block = block_with_layout(
+            "html",
+            json!({"html": "<p>x</p>"}),
+            json!({"background_image_asset": "4"}),
+        );
         assert!(block_inline_styles(&block, &ctx).is_empty());
     }
 }

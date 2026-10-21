@@ -289,4 +289,21 @@ export const mrServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP उलगडला गेला: {count} फाईल्स जोडल्या गेल्या.',
   'server.importSweepDone':
     '{imports} आयातीमधील फाईल्स काढून टाकल्या, आणि {uploads} अपूर्ण अपलोड्स.',
+  'server.mediaUploadNotFound':
+    'या खात्यात "{upload}" आयडीसह कोणतेही टप्प्याटप्प्याने केलेले अपलोड नाही.',
+  'server.mediaUploadBusy':
+    'हे अपलोड "{upload}" आता जोडले जात आहे. ते पूर्ण होण्याची प्रतीक्षा करा आणि पुन्हा प्रयत्न करा.',
+  'server.mediaUploadIncomplete':
+    'या अपलोडमध्ये त्याच्या {length} बाइट्सपैकी {received} बाइट्स आहेत. ते जोडण्यापूर्वी उर्वरित भाग पाठवा.',
+  'server.mediaUploadIngester': 'टप्प्याटप्प्याने केलेले अपलोड अपलोड इनगेस्टरसह जोडले जाते.',
+  'server.mediaUploadInline':
+    'टप्प्याटप्प्याने केलेले अपलोड त्याच्या स्वतःच्या मीडिया क्रिएशनसह जोडले जाते, आयटमच्या आत नाही.',
+  'server.uploadTooLarge':
+    'ही फाईल {limit} बाइट्सपेक्षा मोठी आहे, जी मीडिया अपलोडद्वारे स्वीकारली जाणारी सर्वात मोठी फाईल आहे.',
+  'server.mediaLinkInvalid': '"{url}" हा दुवा http किंवा https पत्ता नाही.',
+  'server.mediaLinkUnreadable': '"{url}" हा दुवा वाचता आला नाही: {reason}',
+  'server.mediaLinkStatus': '"{url}" या दुव्याने {status} {reason} दिले.',
+  'server.uploadItem': 'अपलोड केलेल्या आयटमची आयडी अशा आयटमचे नाव असावी जी अस्तित्वात आहे.',
+  'server.mediaUploadSweepDone':
+    '{count} टप्प्याटप्प्याने केलेले अपलोड्स त्यांच्या ठेवलेल्या वेळेनुसार काढले गेले.',
 };

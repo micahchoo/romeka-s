@@ -14,6 +14,55 @@ use crate::uri::HttpUri;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Youtube;
 
+/// Why a URL is not one the YouTube ingester reads, with the message the
+/// ingester reports (`Ingester/Youtube.php:49`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum YoutubeUrl {
+    /// Not an absolute http(s) URL.
+    Invalid,
+    /// `www.youtube.com` with a path other than `/watch`.
+    NotWatch,
+    /// A `watch` URL with no `v` parameter.
+    NoVideoId,
+    /// A host YouTube does not serve.
+    NotYoutube,
+}
+
+impl YoutubeUrl {
+    /// The message the ingester adds under `o:source`.
+    #[must_use]
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::Invalid => "Invalid YouTube URL specified",
+            Self::NotWatch => "Invalid YouTube URL specified, missing \"/watch\" path",
+            Self::NoVideoId => "Invalid YouTube URL specified, missing \"v\" parameter",
+            Self::NotYoutube => "Invalid YouTube URL specified, not a YouTube URL",
+        }
+    }
+}
+
+/// The video id a URL names, reading `www.youtube.com/watch?v=` and
+/// `youtu.be/<id>` as the ingester does. The link probe asks this without
+/// ingesting anything, so the two agree on what a YouTube URL is.
+///
+/// # Errors
+/// A [`YoutubeUrl`] naming why the URL is not one.
+pub fn video_id(raw: &str) -> Result<String, YoutubeUrl> {
+    let uri = HttpUri::parse(raw).ok_or(YoutubeUrl::Invalid)?;
+    match uri.host() {
+        "www.youtube.com" => {
+            if uri.path() != "/watch" {
+                return Err(YoutubeUrl::NotWatch);
+            }
+            uri.query_value("v")
+                .map(str::to_string)
+                .ok_or(YoutubeUrl::NoVideoId)
+        }
+        "youtu.be" => Ok(uri.path().strip_prefix('/').unwrap_or("").to_string()),
+        _ => Err(YoutubeUrl::NotYoutube),
+    }
+}
+
 impl Ingester for Youtube {
     fn name(&self) -> &str {
         "youtube"
@@ -42,36 +91,10 @@ impl Ingester for Youtube {
             errors.add("o:source", "No YouTube URL specified");
             return;
         };
-        let Some(uri) = HttpUri::parse(raw) else {
-            errors.add("o:source", "Invalid YouTube URL specified");
-            return;
-        };
-        let youtube_id = match uri.host() {
-            "www.youtube.com" => {
-                if uri.path() != "/watch" {
-                    errors.add(
-                        "o:source",
-                        "Invalid YouTube URL specified, missing \"/watch\" path",
-                    );
-                    return;
-                }
-                match uri.query_value("v") {
-                    Some(id) => id.to_string(),
-                    None => {
-                        errors.add(
-                            "o:source",
-                            "Invalid YouTube URL specified, missing \"v\" parameter",
-                        );
-                        return;
-                    }
-                }
-            }
-            "youtu.be" => uri.path().strip_prefix('/').unwrap_or("").to_string(),
-            _ => {
-                errors.add(
-                    "o:source",
-                    "Invalid YouTube URL specified, not a YouTube URL",
-                );
+        let youtube_id = match video_id(raw) {
+            Ok(id) => id,
+            Err(error) => {
+                errors.add("o:source", error.message());
                 return;
             }
         };
@@ -239,6 +262,20 @@ mod tests {
         assert_eq!(
             errors.messages_for("o:source"),
             vec!["No YouTube URL specified"]
+        );
+    }
+
+    /// The probe reads the same id the ingester does, from both URL forms.
+    #[test]
+    fn video_id_reads_the_two_url_forms() {
+        assert_eq!(
+            video_id("https://www.youtube.com/watch?v=abc123"),
+            Ok("abc123".to_string())
+        );
+        assert_eq!(video_id("https://youtu.be/xyz"), Ok("xyz".to_string()));
+        assert_eq!(
+            video_id("https://vimeo.com/123"),
+            Err(YoutubeUrl::NotYoutube)
         );
     }
 }

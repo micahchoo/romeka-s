@@ -384,7 +384,7 @@ test('a PDF file page draws the browser reader and keeps the card for a phone', 
 });
 
 test.describe('on a phone', () => {
-  // Pixel 5: a coarse pointer under 40rem, which is where the card rule starts.
+  // Pixel 5: a phone under 40rem, which is where the card rule starts.
   test.use({ viewport: { width: 393, height: 851 }, deviceScaleFactor: 2.75, isMobile: true, hasTouch: true });
 
   test('a PDF file page shows the card instead of the reader', async ({ page }) => {

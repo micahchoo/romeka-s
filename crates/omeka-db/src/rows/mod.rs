@@ -23,6 +23,7 @@ mod rewrites;
 mod sites;
 mod system;
 mod templates;
+mod user_uploads;
 mod users;
 mod values;
 mod vocabularies;
@@ -58,6 +59,7 @@ pub use system::{
     NewAsset, NewJob, SessionRow, SettingRow,
 };
 pub use templates::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
+pub use user_uploads::{NewUserUpload, UserUploadRow};
 pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,
     UserSettingRow,

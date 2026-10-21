@@ -2,9 +2,13 @@
 //! with the install's retention settings and the clock of now. It takes no
 //! args.
 //!
-//! The hourly tick also starts one derivative worker when rows are queued, so a
-//! pending preview does not wait for the next media create. The worker runs in
-//! this process (`Runner`) because the sweep job has the store open and a
+//! The same hourly tick also sweeps the per-user staged uploads
+//! (`omeka_api::uploads`, migration 0009), after the import sweep and its log
+//! line, because the import session requires that order.
+//!
+//! Last, it starts one derivative worker when rows are queued, so a pending
+//! preview does not wait for the next media create. The worker runs in this
+//! process (`Runner`) because the sweep job has the store open and a
 //! `romeka job run` child would have to name it again. Nothing starts while an
 //! archive import is running or undoing: the derivative worker's own yield rule
 //! applies here first, and the next tick tries again.
@@ -36,9 +40,22 @@ impl Job for ImportSweep {
             Retention::from(settings),
         )
         .await)?;
+        // The import sweep's log is written first, so a failed user-upload sweep
+        // below cannot lose the record of work the import sweep already did.
         context
             .log(&messages::import_sweep_done(swept.imports, swept.uploads))
             .await?;
+        let uploads = with_db!(context.pool, |db| omeka_api::uploads::sweep(
+            db,
+            &context.env.store,
+            chrono::Utc::now().naive_utc(),
+        )
+        .await)?;
+        if uploads > 0 {
+            context
+                .log(&messages::media_upload_sweep_done(uploads))
+                .await?;
+        }
         start_derivatives(context).await
     }
 }
