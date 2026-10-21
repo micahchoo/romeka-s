@@ -43,6 +43,7 @@ pub mod resource_page;
 pub mod resource_page_schema;
 pub mod search;
 pub mod settings;
+pub mod share;
 pub mod slug;
 pub mod theme;
 pub mod transcript;

@@ -17,6 +17,7 @@
 //! checks a page write's body, renders it in memory and writes nothing.
 
 mod dispatch;
+mod download;
 mod load;
 mod pages;
 mod preview;
@@ -56,6 +57,8 @@ pub(crate) enum Outcome {
     Html(String),
     /// A 302 to the given location.
     Redirect(String),
+    /// A file the server answers itself, already built with its headers.
+    File(Response),
     /// A 404 document rendered inside a site that resolved.
     NotFound(String),
 }
@@ -72,6 +75,9 @@ pub(crate) enum SiteError {
     /// A storage failure, answered with the generic 500 document.
     #[error(transparent)]
     Internal(#[from] omeka_db::DbError),
+    /// A file store failure while answering a download.
+    #[error(transparent)]
+    Storage(#[from] omeka_media::store::StoreError),
 }
 
 async fn handle(
@@ -106,6 +112,7 @@ fn outcome_response(outcome: Outcome) -> Response {
     match outcome {
         Outcome::Html(html) => html_response(StatusCode::OK, html),
         Outcome::NotFound(html) => html_response(StatusCode::NOT_FOUND, html),
+        Outcome::File(response) => response,
         Outcome::Redirect(location) => match HeaderValue::from_str(&location) {
             Ok(value) => Response::builder()
                 .status(StatusCode::FOUND)
@@ -138,7 +145,7 @@ fn method_not_allowed() -> Response {
 fn error_response(uri: &Uri, error: SiteError) -> Response {
     match error {
         SiteError::NotFound => html_response(StatusCode::NOT_FOUND, render_not_found(uri.path())),
-        SiteError::Internal(_) => crate::empty_internal_error(),
+        SiteError::Internal(_) | SiteError::Storage(_) => crate::empty_internal_error(),
     }
 }
 

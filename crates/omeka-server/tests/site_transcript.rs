@@ -179,8 +179,14 @@ async fn the_media_page_lists_every_cue_with_its_time() {
     assert!(body.contains("id=\"player\""), "{body}");
     // One language is no choice, so there is no switcher.
     assert!(!body.contains("transcript-languages"), "{body}");
-    // No live region: a screen reader is never interrupted per cue.
-    assert!(!body.contains("aria-live"), "{body}");
+    // No live region in the transcript: a screen reader is never interrupted
+    // per cue. The share block's copy status is elsewhere on the page.
+    let transcript = body
+        .split("<section class=\"transcript\"")
+        .nth(1)
+        .and_then(|rest| rest.split("</section>").next())
+        .unwrap_or_default();
+    assert!(!transcript.contains("aria-live"), "{transcript}");
 }
 
 /// A language link shows that language's cues, and only those.
