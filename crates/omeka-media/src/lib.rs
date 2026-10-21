@@ -29,6 +29,9 @@
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
 //! - [`kind`]: the per-kind table: what an annotation may point at, what the
 //!   IIIF canvas paints, and the size and duration a canvas needs.
+//! - [`tool`]: the external commands a still derivative needs (`ffmpeg` for a
+//!   video poster and an AVIF or HEIC frame, `pdftoppm` for a PDF's first
+//!   page), optional at runtime and bounded in time and output.
 //!
 //! # The one network seam
 //!
@@ -65,6 +68,7 @@ pub mod svg;
 pub mod testing;
 pub mod text;
 pub mod thumbnailer;
+pub mod tool;
 pub mod uri;
 pub mod validation;
 

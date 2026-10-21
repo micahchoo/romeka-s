@@ -168,16 +168,22 @@ fn a_partial_tree_is_completed() {
 }
 
 /// `Gd::setSource`: a declared type outside gif, jpeg, png and webp is a typed
-/// skip, and nothing is written.
+/// skip, and nothing is written. A PDF is not one of them any more: it asks for
+/// `pdftoppm`, so its skip names that tool.
 #[test]
 fn an_unsupported_type_is_a_typed_skip() {
     let temp = TempStore::new("unsupported");
-    let outcome = generate_thumbnails(&temp.store, "skipme", &png(20, 20), Some("application/pdf"))
-        .expect("generate");
+    let outcome = generate_thumbnails(
+        &temp.store,
+        "skipme",
+        &png(20, 20),
+        Some("application/msword"),
+    )
+    .expect("generate");
     assert_eq!(
         outcome,
         ThumbnailOutcome::Skipped(ThumbnailSkip::UnsupportedType(
-            "application/pdf".to_string()
+            "application/msword".to_string()
         ))
     );
     assert!(!temp.store.exists("large/skipme.jpg").unwrap());

@@ -17,17 +17,25 @@
 //! additions for modern masters: GD has neither decoder, so upstream makes no
 //! thumbnail for a `.tif`, `.jp2` or `.svg` unless ImageMagick is configured.
 //! An SVG is drawn by `resvg` at its own size, capped at the large derivative
-//! ([`crate::svg::rasterized`]). Anything else is a typed [`ThumbnailSkip`],
+//! ([`crate::svg::rasterized`]). A video, a PDF, an AVIF and a HEIC have no
+//! decoder here either; their still comes from `ffmpeg` or `pdftoppm` through
+//! [`crate::tool`], and an installation without those tools skips the
+//! derivative with a typed reason. Anything else is a typed [`ThumbnailSkip`],
 //! never a panic.
 //!
 //! An original over 64 MB is never held whole: [`ImageThumbnailer::
 //! derivatives_from_reader`] makes a reduced copy of a TIFF or a JPEG with
 //! bounded memory (`large`), then the derivatives from the copy.
+//!
+//! Whichever way the still is made, the three strategies below run on the same
+//! decoded image, so a video's poster and a PDF's first page get the large,
+//! medium and square derivatives an image gets.
 
 mod jp2;
 mod large;
 
 use std::io::{Cursor, Read, Seek};
+use std::path::Path;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
@@ -39,6 +47,7 @@ use crate::file_render::ThumbnailType;
 use crate::store::{
     Store, StoreError, StorePrefix, THUMBNAIL_MEDIA_TYPE, Thumbnailer, storage_path,
 };
+use crate::tool::{Still, ToolError, Tools};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
 /// (`Gd::setSource`) plus `image/tiff`, `image/jp2` and `image/svg+xml`, which
@@ -69,6 +78,9 @@ pub enum ThumbnailSkip {
     /// The source is a listed type but its bytes did not decode.
     #[error("the source did not decode as an image: {0}")]
     Decode(String),
+    /// The external tool that makes this type's still did not make it.
+    #[error("cannot make a still: {0}")]
+    Still(#[from] ToolError),
     /// A resized image did not encode as JPEG.
     #[error("the thumbnail did not encode as JPEG: {0}")]
     Encode(String),
@@ -108,6 +120,9 @@ impl ImageThumbnailer {
         media_type: Option<&str>,
     ) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
         let media_type = media_type.unwrap_or_default();
+        if Still::of(media_type).is_some() {
+            return self.still_derivatives(original, media_type, Tools::on_path());
+        }
         if !SOURCE_MEDIA_TYPES.contains(&media_type) {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         }
@@ -118,6 +133,47 @@ impl ImageThumbnailer {
             _ => decode_oriented(original)?,
         };
         derivatives(&source)
+    }
+
+    /// The three derivatives of a still an external tool makes from `original`:
+    /// a video's poster, a PDF's first page, an AVIF or HEIC frame. The still
+    /// the type asks for is [`Still::of`], and a type it names none for is a
+    /// [`ThumbnailSkip::UnsupportedType`].
+    ///
+    /// # Errors
+    /// A [`ThumbnailSkip::Still`] when the tool is absent, times out or fails,
+    /// and a [`ThumbnailSkip::Decode`] when what it wrote is not an image.
+    pub fn still_derivatives(
+        &self,
+        original: &[u8],
+        media_type: &str,
+        tools: &Tools,
+    ) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+        let Some(still) = Still::of(media_type) else {
+            return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
+        };
+        let bytes = still.make_from_bytes(tools, original, media_type)?;
+        derivatives_of_still(&bytes)
+    }
+
+    /// [`ImageThumbnailer::still_derivatives`] for a still made from a file the
+    /// caller already has, such as one streamed out of the store. The file
+    /// carries the media type's extension, because `ffmpeg`'s format probe
+    /// leans on it.
+    ///
+    /// # Errors
+    /// As [`ImageThumbnailer::still_derivatives`].
+    pub fn still_derivatives_from_path(
+        &self,
+        path: &Path,
+        media_type: &str,
+        tools: &Tools,
+    ) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+        let Some(still) = Still::of(media_type) else {
+            return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
+        };
+        let bytes = still.make(tools, path)?;
+        derivatives_of_still(&bytes)
     }
 
     /// The three derivatives of an original read from `reader` and never
@@ -159,6 +215,14 @@ fn decode_oriented(bytes: &[u8]) -> Result<DynamicImage, ThumbnailSkip> {
         .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
     image.apply_orientation(orientation);
     Ok(image)
+}
+
+/// The three derivatives of a still written by an external tool. `ffmpeg`
+/// already turns a frame upright, and `pdftoppm` writes an upright page, so
+/// this decodes without applying an EXIF tag that is not there.
+fn derivatives_of_still(bytes: &[u8]) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+    let source = decode_oriented(bytes)?;
+    derivatives(&source)
 }
 
 /// The three derivatives of a decoded image, one per [`ThumbnailType::ALL`].
@@ -215,14 +279,7 @@ pub fn generate_thumbnails(
         Ok(derivatives) => derivatives,
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
-    for (kind, bytes) in derivatives {
-        store.put(
-            &bytes,
-            &thumbnail_path(storage_id, kind),
-            Some(THUMBNAIL_MEDIA_TYPE),
-        )?;
-    }
-    Ok(ThumbnailOutcome::Generated)
+    store_derivatives(store, storage_id, derivatives)
 }
 
 /// [`generate_thumbnails`] for an original read from `reader` and never held
@@ -243,6 +300,45 @@ pub fn generate_thumbnails_from_reader<R: Read + Seek>(
         Ok(derivatives) => derivatives,
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
+    store_derivatives(store, storage_id, derivatives)
+}
+
+/// [`generate_thumbnails`] for an original the external tool reads from `path`
+/// ([`ImageThumbnailer::still_derivatives_from_path`]). The caller writes the
+/// file, so a 2 GB video never passes through memory here.
+///
+/// # Errors
+/// A [`StoreError`] when a thumbnail cannot be written. A media type no
+/// external tool makes a still of answers [`ThumbnailOutcome::Skipped`].
+pub fn generate_thumbnails_from_path(
+    store: &dyn Store,
+    storage_id: &str,
+    path: &Path,
+    media_type: Option<&str>,
+) -> Result<ThumbnailOutcome, StoreError> {
+    if thumbnails_stored(store, storage_id)? {
+        return Ok(ThumbnailOutcome::Existing);
+    }
+    let media_type = media_type.unwrap_or_default();
+    if Still::of(media_type).is_none() {
+        return Ok(ThumbnailOutcome::Skipped(ThumbnailSkip::UnsupportedType(
+            media_type.to_string(),
+        )));
+    }
+    let derivatives =
+        match ImageThumbnailer.still_derivatives_from_path(path, media_type, Tools::on_path()) {
+            Ok(derivatives) => derivatives,
+            Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
+        };
+    store_derivatives(store, storage_id, derivatives)
+}
+
+/// Write the three derivatives, each to a unique sibling renamed into place.
+fn store_derivatives(
+    store: &dyn Store,
+    storage_id: &str,
+    derivatives: Vec<(ThumbnailType, Vec<u8>)>,
+) -> Result<ThumbnailOutcome, StoreError> {
     for (kind, bytes) in derivatives {
         store.put(
             &bytes,
@@ -500,15 +596,16 @@ mod tests {
         assert_eq!(square, (200, 200));
     }
 
-    /// The thumbnailer accepts gif, jpeg, png, tiff and webp, and rejects every other
-    /// declared type with a typed skip.
+    /// The thumbnailer accepts gif, jpeg, png, tiff and webp, and rejects every
+    /// other declared type with a typed skip. A PDF is not among them: no
+    /// tool ran here, so its skip names the missing tool.
     #[test]
     fn unsupported_media_types_are_a_typed_skip() {
         let bytes = image_bytes(10, 10);
         assert_eq!(
-            ImageThumbnailer.derivative_bytes(&bytes, Some("application/pdf")),
+            ImageThumbnailer.derivative_bytes(&bytes, Some("application/msword")),
             Err(ThumbnailSkip::UnsupportedType(
-                "application/pdf".to_string()
+                "application/msword".to_string()
             ))
         );
         assert_eq!(
