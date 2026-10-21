@@ -110,6 +110,31 @@ pub struct Messages {
     /// The item page's strip heading, `%s` the item's file count. A Romeka
     /// string.
     pub files_count: &'static str,
+    /// The transcript section's own name, also its list's accessible name. A
+    /// Romeka string.
+    pub transcript: &'static str,
+    /// The transcript's heading, `%s` the language's own name and `%s` its line
+    /// count. A Romeka string.
+    pub transcript_heading: &'static str,
+    /// One cue's count, `%s` the number, for a single-cue track. A Romeka
+    /// string.
+    pub transcript_line: &'static str,
+    /// The count for a track with more than one cue. A Romeka string.
+    pub transcript_lines: &'static str,
+    /// The accessible name of the transcript's language links. A Romeka string.
+    pub transcript_languages: &'static str,
+    /// The transcript's checkbox that keeps the playing line in view. A Romeka
+    /// string.
+    pub transcript_follow: &'static str,
+    /// The line under a video's player, `%s` the languages with captions. A
+    /// Romeka string.
+    pub transcript_captions: &'static str,
+    /// The second sentence of that line, for a player that draws captions. A
+    /// Romeka string.
+    pub transcript_below: &'static str,
+    /// The same line for audio, whose element draws no captions. A Romeka
+    /// string.
+    pub transcript_in_transcript: &'static str,
     /// A 3D file page's button, `%s` the viewer library's download size. A
     /// Romeka string.
     pub model_turn: &'static str,
@@ -291,6 +316,15 @@ pub static EN: Messages = Messages {
     previous: "Previous",
     file_of: "File %s of %s",
     files_count: "%s files",
+    transcript: "Transcript",
+    transcript_heading: "Transcript · %s · %s",
+    transcript_line: "%s line",
+    transcript_lines: "%s lines",
+    transcript_languages: "Transcript languages",
+    transcript_follow: "Follow along",
+    transcript_captions: "Captions: %s.",
+    transcript_below: "Transcript below.",
+    transcript_in_transcript: "Captions show in the transcript below.",
     model_turn: "Turn the model (loads the 3D viewer, %s)",
     model_no_javascript: "Turning the model needs JavaScript. Download it to open in a 3D \
                           program.",
@@ -410,6 +444,15 @@ pub static ES: Messages = Messages {
     previous: "Anterior",
     file_of: "Archivo %s de %s",
     files_count: "%s archivos",
+    transcript: "Transcripción",
+    transcript_heading: "Transcripción · %s · %s",
+    transcript_line: "%s línea",
+    transcript_lines: "%s líneas",
+    transcript_languages: "Idiomas de la transcripción",
+    transcript_follow: "Seguir la reproducción",
+    transcript_captions: "Subtítulos: %s.",
+    transcript_below: "La transcripción está abajo.",
+    transcript_in_transcript: "Los subtítulos aparecen en la transcripción de abajo.",
     model_turn: "Girar el modelo (carga el visor 3D, %s)",
     model_no_javascript: "Para girar el modelo hace falta JavaScript. Descárgalo y ábrelo en un \
                           programa 3D.",

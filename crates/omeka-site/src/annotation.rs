@@ -144,6 +144,9 @@ pub struct TrackLink {
     /// track carries no language.
     pub label: String,
     pub default: bool,
+    /// How many cues the language holds, for the page's language links and its
+    /// facts line.
+    pub cues: u32,
 }
 
 /// `embed` unchanged when there are no notes to show. Otherwise the figure, the
@@ -500,8 +503,9 @@ fn whole_words(surface: Surface, messages: &Messages) -> &'static str {
     }
 }
 
-/// `1:02`, or `1:02:03` past an hour.
-fn clock(ms: u64) -> String {
+/// `1:02`, or `1:02:03` past an hour. A cue's time and a note's time read
+/// alike, and both truncate: a moment at 0.2 s is `0:00`, never `0:01`.
+pub(crate) fn clock(ms: u64) -> String {
     let seconds = ms / 1000;
     let (hours, minutes, seconds) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
     if hours > 0 {
@@ -533,8 +537,11 @@ fn player_tag(embed: &str) -> Option<usize> {
 }
 
 /// The embed with `id="player"` on its media element, so `?t=…#player` lands on
-/// the player. The page holds one annotated file, so one such id exists.
-fn player_embed(embed: &str) -> String {
+/// the player. A page holds one player it names, and an element that already
+/// carries an id is left alone, so the notes figure and the file's own page can
+/// both ask.
+#[must_use]
+pub fn player_embed(embed: &str) -> String {
     let Some(name_end) = player_tag(embed) else {
         return embed.to_string();
     };
@@ -591,6 +598,7 @@ pub fn tracks(
                         None => no_language.to_string(),
                     },
                     default: index == chosen,
+                    cues,
                     lang,
                 },
                 cues,
@@ -1079,7 +1087,7 @@ mod tests {
         assert_eq!(clock(3_723_000), "1:02:03");
     }
 
-    fn link(lang: Option<&str>, label: &str, default: bool) -> TrackLink {
+    fn link(lang: Option<&str>, label: &str, default: bool, cues: u32) -> TrackLink {
         TrackLink {
             src: match lang {
                 Some(tag) => format!("/annotations/media/7/captions.vtt?lang={tag}"),
@@ -1088,6 +1096,7 @@ mod tests {
             lang: lang.map(str::to_string),
             label: label.to_string(),
             default,
+            cues,
         }
     }
 
@@ -1100,8 +1109,8 @@ mod tests {
             "/annotations/media/7/captions.vtt",
             "Captions",
         );
-        assert_eq!(got[0], link(Some("fr"), "Français", true));
-        assert_eq!(got[1], link(Some("en"), "English", false));
+        assert_eq!(got[0], link(Some("fr"), "Français", true, 214));
+        assert_eq!(got[1], link(Some("en"), "English", false, 9));
     }
 
     #[test]
@@ -1113,8 +1122,8 @@ mod tests {
             "/annotations/media/7/captions.vtt",
             "Captions",
         );
-        assert_eq!(got[0], link(Some("fr"), "Français", true));
-        assert_eq!(got[1], link(Some("en"), "English", false));
+        assert_eq!(got[0], link(Some("fr"), "Français", true, 214));
+        assert_eq!(got[1], link(Some("en"), "English", false, 9));
     }
 
     #[test]
@@ -1156,7 +1165,7 @@ mod tests {
 
     #[test]
     fn the_tracks_land_inside_the_video_element() {
-        let tracks = [link(Some("en"), "English", true)];
+        let tracks = [link(Some("en"), "English", true, 1)];
         let html = with_tracks(
             "<video src=\"/v.mp4\" controls><a href=\"/v.mp4\">v</a></video>",
             &tracks,
@@ -1169,7 +1178,7 @@ mod tests {
 
     #[test]
     fn an_audio_element_takes_tracks_and_an_embed_without_a_player_is_unchanged() {
-        let tracks = [link(Some("en"), "English", true)];
+        let tracks = [link(Some("en"), "English", true, 1)];
         assert!(with_tracks("<audio src=\"/a.mp3\" controls></audio>", &tracks).contains("<track"));
         let image = "<img src=\"/i.jpg\">";
         assert_eq!(with_tracks(image, &tracks), image);
