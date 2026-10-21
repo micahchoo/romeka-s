@@ -8,7 +8,7 @@
  * (its `seen` decisions), so the pass the test drives meets the same
  * questions; the item counts are made up and only have to add up.
  */
-import type { Bucket, MediaKind } from '../src/api/import-sections';
+import type { Bucket, Grain, MediaKind } from '../src/api/import-sections';
 
 export interface ScenarioGroup {
   readonly files: Bucket;
@@ -77,6 +77,10 @@ export interface ScenarioList {
   readonly normalized: number;
   readonly overlaps?: readonly { readonly file: string; readonly sharedTargets: number }[];
   readonly error?: string;
+  /** Its header line; `File` and `Title` when absent. */
+  readonly columns?: readonly string[];
+  /** What `listCandidates` says its rows describe; none when absent. */
+  readonly grain?: Grain;
 }
 
 const big = (size: number, small: number, large: number): number => (size > 9 ? large : small);

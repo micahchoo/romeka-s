@@ -5,6 +5,7 @@
  * answer has one home in the plan whichever mode gave it.
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
+import { itemOnly, levelOf } from '../simple/list-plan';
 import type {
   Action,
   ColumnOptions,
@@ -70,35 +71,50 @@ export const entriesOf = (rules: SlotRules): readonly (readonly [SlotName, SlotR
 
 const rulesFrom = (entries: readonly (readonly [SlotName, SlotRule])[]): SlotRules => Object.fromEntries(entries);
 
-/** The item field a list column feeds, or `null` when it feeds none. */
+/** The field a list column feeds, on the item or on each file, or `null` when it feeds none. */
 export const columnTarget = (plan: ImportPlan, sheet: string, column: ColumnRef): SlotName | null =>
-  entriesOf(rulesOf(plan, 'item')).find(([, rule]) => rule.sources.some((source) => readsColumn(source, sheet, column)))?.[0] ?? null;
+  [...entriesOf(rulesOf(plan, 'item')), ...entriesOf(rulesOf(plan, 'media'))].find(([, rule]) => rule.sources.some((source) => readsColumn(source, sheet, column)))?.[0] ??
+  null;
+
+const withoutColumn = (rules: SlotRules, sheet: string, column: ColumnRef): SlotRules =>
+  rulesFrom(
+    entriesOf(rules).flatMap(([name, rule]) => {
+      const sources = rule.sources.filter((source) => !readsColumn(source, sheet, column));
+      if (sources.length === rule.sources.length) {
+        return [[name, rule] as const];
+      }
+      return sources.length === 0 && rule.map === undefined ? [] : [[name, { ...rule, sources }] as const];
+    }),
+  );
 
 /**
- * The column feeding `slot` alone among the item fields, ahead of the slot's
- * other sources, as a filled list's columns are. A rule the column was the
- * only source of, with no value map, goes with it: a rule left with no
- * source would clear the field on `update`.
+ * The column feeding `slot` alone, ahead of the slot's other sources, as a
+ * filled list's columns are, at the level it had: a column on each file
+ * stays on each file, unless `slot` is an item's alone. A rule the column
+ * was the only source of, with no value map, goes with it: a rule left with
+ * no source would clear the field on `update`.
  */
 export const mapColumn = (plan: ImportPlan, sheet: string, column: ColumnRef, slot: SlotName | null): ImportPlan => {
-  const kept = entriesOf(rulesOf(plan, 'item')).flatMap(([name, rule]) => {
-    const sources = rule.sources.filter((source) => !readsColumn(source, sheet, column));
-    if (sources.length === rule.sources.length) {
-      return [[name, rule] as const];
-    }
-    return sources.length === 0 && rule.map === undefined ? [] : [[name, { ...rule, sources }] as const];
-  });
-  const rules = rulesFrom(kept);
+  const onFiles = levelOf(plan, sheet, column.index) === 'file' && (slot === null || !itemOnly(slot));
+  const cleared = withRules(withRules(plan, 'item', withoutColumn(rulesOf(plan, 'item'), sheet, column)), 'media', withoutColumn(rulesOf(plan, 'media'), sheet, column));
   if (slot === null) {
-    return withRules(plan, 'item', rules);
+    return cleared;
   }
+  const kind = onFiles ? 'media' : 'item';
+  const rules = rulesOf(cleared, kind);
   const source: SourceRef = { from: 'column', sheet, column };
   const rule = rules[slot];
-  return withRules(plan, 'item', {
+  return withRules(cleared, kind, {
     ...rules,
     [slot]: rule === undefined ? { sources: [source], combine: 'first' } : { ...rule, sources: [source, ...rule.sources] },
   });
 };
+
+/** Each row's kind read from `column`, whose cells name it. */
+export const setRowKindColumn = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan => onSheet(plan, sheet, (one) => ({ ...one, rowKind: { column } }));
+
+/** For media rows that do not join by file name: the column naming their item. */
+export const setItemKey = (plan: ImportPlan, sheet: string, column: ColumnRef | null): ImportPlan => onSheet(plan, sheet, (one) => ({ ...one, itemKey: column }));
 
 export const DEFAULT_COLUMN_OPTIONS: ColumnOptions = { split: null, type: 'literal', lang: null, private: false };
 
