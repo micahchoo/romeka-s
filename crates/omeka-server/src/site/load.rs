@@ -57,8 +57,8 @@ use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
 use omeka_media::kind::{CanvasBody, KindInput, MediaKind};
 use omeka_media::render::{
-    MediaView, ModelReader, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
-    human_size,
+    MediaStart, MediaView, ModelReader, RenderEnv, RenderOptions, RendererRegistry,
+    View as MediaRendererView, human_size,
 };
 use omeka_media::store::{FileKind, FileUrls, download_name};
 
@@ -476,7 +476,7 @@ impl<'a> Loader<'a> {
         match row {
             LoadedRow::Item(row) => self.item_resource_view(row).await,
             LoadedRow::ItemSet(row) => self.item_set_resource_view(row).await,
-            LoadedRow::Media(row) => self.media_resource_view(row).await,
+            LoadedRow::Media(row) => self.media_resource_view(row, None).await,
         }
     }
 
@@ -703,9 +703,12 @@ impl<'a> Loader<'a> {
     }
 
     /// A public media as the media view shows it, with its parent item named.
+    /// `start` is the moment a `?t=` link asks the player to open at; a probed
+    /// run time holds it inside the file.
     pub(crate) async fn media_resource_view(
         &self,
         row: &MediaRow,
+        start: Option<MediaStart>,
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let title = media_display_title(row, self.messages());
@@ -715,6 +718,7 @@ impl<'a> Loader<'a> {
         if is_recording(kind) {
             view.duration_ms = self.media_duration(row).await?;
         }
+        let start = start.map(|start| start.clamped_to(view.duration_ms));
         let alt = title;
         let item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
         let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
@@ -746,6 +750,7 @@ impl<'a> Loader<'a> {
                 item_is_public,
                 &RenderOptions {
                     reader: true,
+                    start,
                     ..RenderOptions::default()
                 },
             )

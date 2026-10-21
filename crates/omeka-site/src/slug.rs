@@ -158,6 +158,22 @@ pub fn resource_show_url(site: &Slug, controller: &str, id: u64) -> String {
     format!("/s/{site}/{controller}/{id}")
 }
 
+/// A media page's URL with `?t=` added to the query it already carries, so a
+/// transcript line, a time note or a cited note opens the player there. The
+/// page reads the member in seconds and writes a media fragment on the source.
+#[must_use]
+pub fn media_start_url(page_url: &str, start_seconds: u64) -> String {
+    let (base, fragment) = page_url
+        .split_once('#')
+        .map_or((page_url, ""), |(base, fragment)| (base, fragment));
+    let separator = if base.contains('?') { '&' } else { '?' };
+    if fragment.is_empty() {
+        format!("{base}{separator}t={start_seconds}")
+    } else {
+        format!("{base}{separator}t={start_seconds}#{fragment}")
+    }
+}
+
 /// `site/item-set`, the item-set browse by id (`/s/:site-slug/item-set/:id`).
 #[must_use]
 pub fn item_set_url(site: &Slug, item_set_id: u64) -> String {
@@ -333,6 +349,20 @@ mod tests {
         );
         assert_eq!(resource_show_url(&site, "item", 5), "/s/main/item/5");
         assert_eq!(item_set_url(&site, 3), "/s/main/item-set/3");
+    }
+
+    /// A link that cues a recording is the media page with `?t=` added to the
+    /// query it already carries, and a fragment stays last.
+    #[test]
+    fn a_start_link_adds_the_time_to_the_media_page() {
+        assert_eq!(
+            media_start_url("/s/main/media/4127", 62),
+            "/s/main/media/4127?t=62"
+        );
+        assert_eq!(
+            media_start_url("/s/main/media/4127?note=9#note-9", 62),
+            "/s/main/media/4127?note=9&t=62#note-9"
+        );
     }
 
     /// The controller segment per resource kind (`Entity/*` -> site routes).
