@@ -25,6 +25,8 @@ mod slots;
 mod source;
 mod structure;
 #[cfg(test)]
+mod structure_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(doctest)]
 mod tests {

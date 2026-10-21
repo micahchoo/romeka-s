@@ -1,0 +1,208 @@
+{
+  "version": 3,
+  "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "BHC006" }],
+  "structure": {
+    "levels": [
+      {
+        "kind": "set",
+        "id": "project",
+        "set": { "title": "Citizen Curators", "description": null },
+        "levels": [
+          {
+            "kind": "series",
+            "id": "af",
+            "set": { "title": "Artifacts", "description": null },
+            "scope": [{ "source": "s1", "folder": "Artifacts" }],
+            "grouping": {
+              "pattern": "^(?<identifier>BHC_?006_GMT_AF_\\d+)(?<part>[a-z]{1,2})?(?: ?\\(\\d\\))?\\.(?i:jpe?g|tiff?|nef|png)$",
+              "caseFold": false
+            },
+            "example": null,
+            "lists": [
+              {
+                "id": "af", "source": "s1", "file": "BHC006_GMT_AF.xlsx", "hash": null,
+                "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+                "rowKind": "media",
+                "join": {
+                  "on": "fileName",
+                  "column": { "index": 1, "header": "Identifier" },
+                  "normalize": { "caseFold": true, "leadingZeros": true, "separators": true }
+                },
+                "itemKey": null,
+                "columns": [
+                  { "column": { "index": 5, "header": "Year Of Digitization" },
+                    "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+                  { "column": { "index": 6, "header": "Digitized by" },
+                    "options": { "split": ",", "type": "literal", "lang": null, "private": false } },
+                  { "column": { "index": 7, "header": "Keywords" },
+                    "options": { "split": ",", "type": "literal", "lang": null, "private": false } }
+                ]
+              }
+            ],
+            "slots": {
+              "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" },
+                "dcterms:subject": {
+                  "sources": [{ "from": "column", "sheet": "af", "column": { "index": 7, "header": "Keywords" } }],
+                  "combine": "all"
+                },
+                "dcterms:dateSubmitted": {
+                  "sources": [{ "from": "column", "sheet": "af", "column": { "index": 5, "header": "Year Of Digitization" } }],
+                  "combine": "all"
+                }
+              },
+              "media": {
+                "dcterms:contributor": {
+                  "sources": [{ "from": "column", "sheet": "af", "column": { "index": 6, "header": "Digitized by" } }],
+                  "combine": "all"
+                }
+              },
+              "itemSet": {}
+            }
+          },
+          {
+            "kind": "series",
+            "id": "pn",
+            "set": { "title": "Photo Narratives (PN)", "description": null },
+            "scope": [{ "source": "s1", "folder": "Photo Narratives (PN)" }],
+            "grouping": {
+              "pattern": "^(?<identifier>BHC006_GMT_PN_\\d+)(?<part>[a-z]{1,2})?(?: ?\\(\\d\\))?\\.(?i:jpe?g|tiff?|png)$",
+              "caseFold": false
+            },
+            "example": null,
+            "lists": [
+              {
+                "id": "pn", "source": "s1", "file": "BHC006_GMT_PN.xlsx", "hash": null,
+                "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+                "rowKind": "media",
+                "join": {
+                  "on": "fileName",
+                  "column": { "index": 1, "header": "Identifier" },
+                  "normalize": { "caseFold": true, "leadingZeros": true, "separators": true }
+                },
+                "itemKey": null,
+                "columns": [
+                  { "column": { "index": 5, "header": "Year Of Digitization" },
+                    "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+                  { "column": { "index": 6, "header": "Digitized by" },
+                    "options": { "split": ",", "type": "literal", "lang": null, "private": false } },
+                  { "column": { "index": 7, "header": "Keywords" },
+                    "options": { "split": ",", "type": "literal", "lang": null, "private": false } }
+                ]
+              }
+            ],
+            "slots": {
+              "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" },
+                "dcterms:subject": {
+                  "sources": [{ "from": "column", "sheet": "pn", "column": { "index": 7, "header": "Keywords" } }],
+                  "combine": "all"
+                },
+                "dcterms:dateSubmitted": {
+                  "sources": [{ "from": "column", "sheet": "pn", "column": { "index": 5, "header": "Year Of Digitization" } }],
+                  "combine": "all"
+                }
+              },
+              "media": {
+                "dcterms:contributor": {
+                  "sources": [{ "from": "column", "sheet": "pn", "column": { "index": 6, "header": "Digitized by" } }],
+                  "combine": "all"
+                }
+              },
+              "itemSet": {}
+            }
+          },
+          {
+            "kind": "series",
+            "id": "d",
+            "set": { "title": "Documents (D)", "description": null },
+            "scope": [{ "source": "s1", "folder": "Documents (D)" }],
+            "grouping": {
+              "pattern": "^(?<identifier>BHC006_KHAN_Donor\\d{8}_D\\d+)\\.(?i:jpe?g)$",
+              "caseFold": false
+            },
+            "example": null,
+            "lists": [
+              {
+                "id": "d", "source": "s1", "file": "BHC006_GMT_D.xlsx", "hash": null,
+                "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+                "rowKind": "media",
+                "join": {
+                  "on": "fileName",
+                  "column": { "index": 1, "header": "Identifier" },
+                  "normalize": { "caseFold": true, "leadingZeros": true, "separators": true }
+                },
+                "itemKey": null,
+                "columns": [
+                  { "column": { "index": 7, "header": "Keywords" },
+                    "options": { "split": ",", "type": "literal", "lang": null, "private": false } }
+                ]
+              }
+            ],
+            "slots": {
+              "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" },
+                "dcterms:subject": {
+                  "sources": [{ "from": "column", "sheet": "d", "column": { "index": 7, "header": "Keywords" } }],
+                  "combine": "all"
+                }
+              },
+              "media": {},
+              "itemSet": {}
+            }
+          },
+          {
+            "kind": "series",
+            "id": "v",
+            "set": { "title": "Video (V)", "description": null },
+            "scope": [{ "source": "s1", "folder": "Video (V)" }],
+            "grouping": {
+              "pattern": "^(?<identifier>BHC006_KHAN_Donor\\d{8}_(?:V|AI)\\d+)\\.(?i:avi|mp3)$",
+              "caseFold": false
+            },
+            "example": null,
+            "lists": [],
+            "slots": {
+              "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" }
+              },
+              "media": {},
+              "itemSet": {}
+            }
+          },
+          {
+            "kind": "series",
+            "id": "ai",
+            "set": { "title": "Audio Interviews (AI)", "description": null },
+            "scope": [{ "source": "s1", "folder": "Audio Interviews (AI)" }],
+            "grouping": { "pattern": "^(?<identifier>REC\\d+)\\.(?i:mp3)$", "caseFold": false },
+            "example": null,
+            "lists": [],
+            "slots": {
+              "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" }
+              },
+              "media": {},
+              "itemSet": {}
+            }
+          }
+        ]
+      }
+    ],
+    "freeSets": []
+  },
+  "action": {
+    "action": "create",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "importSets" },
+      "media": { "key": "dcterms:identifier", "scope": "importSets" },
+      "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+  "flags": {},
+  "decisions": [],
+  "newTypes": [],
+  "newTerms": []
+}
