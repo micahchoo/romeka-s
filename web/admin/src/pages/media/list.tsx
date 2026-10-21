@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { listMedia } from '../../api/media';
 import type { Media, ServerMediaKind } from '../../api/types';
 import { ListPage } from '../../app/list';
 import { MediaImage, MediaKindBadge, MediaPreviewState } from '../../app/media-image';
@@ -113,7 +114,7 @@ export const MediaList = (): ReactElement => {
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
         load={(page) =>
-          api.listMedia({
+          listMedia(api, {
             page,
             perPage: PER_PAGE,
             sortBy: 'id',

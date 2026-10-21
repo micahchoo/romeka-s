@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { getVocabulary } from '../../api/vocabularies';
 import type { ClassId, ResourceClass, Vocabulary } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
@@ -16,7 +17,7 @@ interface Loaded {
 /** The class names its vocabulary by id, so the label takes a second read. */
 const load = async (classId: ClassId): Promise<Loaded> => {
   const resourceClass = await api.getResourceClass(classId);
-  const vocabulary = await api.getVocabulary(resourceClass.vocabulary.id);
+  const vocabulary = await getVocabulary(api, resourceClass.vocabulary.id);
   return { resourceClass, vocabulary };
 };
 

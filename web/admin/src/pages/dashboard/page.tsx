@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { listVocabularies } from '../../api/vocabularies';
 import type { Site } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
@@ -20,7 +21,7 @@ const load = async (): Promise<DashboardView> => {
   const [items, itemSets, vocabularies, templates, sites] = await Promise.all([
     api.listItems({ perPage: 1 }),
     api.listItemSets({ perPage: 1 }),
-    api.listVocabularies({ perPage: 1 }),
+    listVocabularies(api, { perPage: 1 }),
     api.listResourceTemplates({ perPage: 1 }),
     api.listSites({ perPage: 25, sortBy: 'id', sortOrder: 'asc' }),
   ]);

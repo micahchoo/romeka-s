@@ -20,6 +20,13 @@ const loadAssetPicker = () => import("./AssetPicker");
 const loadFocalPoint = () => import("./focalPointControl");
 
 /**
+ * The site's role colours, which a colour field loads for its swatches: the
+ * theme resolver is too large for this chunk (PERF.md, Decision 10).
+ */
+export const loadPalette = (): Promise<typeof import("./sitePalette")> =>
+  import("./sitePalette");
+
+/**
  * Load every control chunk now. A test that renders a form awaits this first:
  * a chunk still loading when a test file ends makes vitest fail the whole run.
  */
@@ -29,6 +36,7 @@ export const loadControls = async (): Promise<void> => {
     loadManifestSource(),
     loadAssetPicker(),
     loadFocalPoint(),
+    loadPalette(),
   ]);
 };
 

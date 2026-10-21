@@ -13,6 +13,7 @@ import type { JsonValue } from '../../../../api/types';
 import type { ColorToken } from '../../blockSchema';
 import { useEditorText } from '../messages';
 import { Help, helpId } from '../Labelled';
+import { loadPalette } from './LazyControls';
 import './controls.css';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -40,7 +41,7 @@ const usePalette = (
       return;
     }
     let live = true;
-    void import('./sitePalette').then((module) => {
+    void loadPalette().then((module) => {
       if (live) {
         setPalette(module.sitePalette(themeSettings));
       }

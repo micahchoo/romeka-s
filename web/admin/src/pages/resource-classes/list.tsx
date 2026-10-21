@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { listVocabularies } from '../../api/vocabularies';
 import type { ApiPage, ClassId, ResourceClass } from '../../api/types';
 import { vocabularyLabels } from '../../app/labels';
 import type { TermName } from '../../app/labels';
@@ -24,7 +25,7 @@ interface ClassRow {
 const load = async (page: number): Promise<ApiPage<ClassRow>> => {
   const [classes, vocabularies, usage] = await Promise.all([
     api.listResourceClasses({ page, perPage: PER_PAGE, sortBy: 'id', sortOrder: 'asc' }),
-    api.listVocabularies({ perPage: 100 }),
+    listVocabularies(api, { perPage: 100 }),
     loadTemplateUsage(),
   ]);
   const labels = vocabularyLabels(vocabularies.items);

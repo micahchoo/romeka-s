@@ -5,7 +5,8 @@
  * for a server that predates the field.
  */
 import { describe, expect, it } from 'vitest';
-import { brandId, parseMedia } from '../src/api/parse';
+import { parseMedia } from '../src/api/media';
+import { brandId } from '../src/api/parse';
 import type { Media, ServerMediaKind } from '../src/api/types';
 import { mediaKind } from '../src/app/media';
 

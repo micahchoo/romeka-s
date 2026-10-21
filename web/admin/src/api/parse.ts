@@ -19,16 +19,11 @@ import type {
   Job,
   JsonValue,
   LessonSettings,
-  Media,
-  MediaAccess,
-  MediaId,
-  MediaPreview,
   Module,
   PageId,
   Path,
   Parser,
   PasswordLink,
-  ServerMediaKind,
   SiteItemsChange,
   Property,
   PropertyId,
@@ -55,15 +50,9 @@ import type {
   User,
   UserId,
   Value,
-  Vocabulary,
-  VocabularyDiff,
   VocabularyId,
   VocabularyMember,
-  VocabularyMemberDiff,
-  VocabularyTerm,
-  VocabularyTextChange,
 } from './types';
-import { SERVER_MEDIA_KINDS } from './types';
 
 /** The id parser a resource-entity core uses to brand its numeric `o:id`. */
 type Brand<IdT extends number> = (id: number) => IdT;
@@ -229,7 +218,11 @@ export const nullableField = <T>(
 };
 
 /** A field upstream omits when it has no value. */
-const optionalString = (object: Record<string, unknown>, key: string, path: Path): string | null => {
+export const optionalString = (
+  object: Record<string, unknown>,
+  key: string,
+  path: Path,
+): string | null => {
   const value = object[key];
   if (value === undefined || value === null) {
     return null;
@@ -250,75 +243,7 @@ const optionalJsonValue = (
   return asJsonValue(value, [...path, key]);
 };
 
-/** The preview states the port's `o-module-romeka:preview` may name. */
-const PREVIEW_STATES = ['pending', 'ready', 'failed', 'none'] as const;
-
-const isPreviewState = (value: string): value is MediaPreview['state'] =>
-  PREVIEW_STATES.some((state) => state === value);
-
-/**
- * The port's derivative state from `o-module-romeka:preview`. A missing member
- * reads as `null` (an older server), and so does a state this build does not
- * know, so a newer server's state never fails the whole document.
- */
-const parsePreview = (object: Record<string, unknown>, path: Path): MediaPreview | null => {
-  const value = object['o-module-romeka:preview'];
-  if (value === undefined || value === null) {
-    return null;
-  }
-  const fieldPath = [...path, 'o-module-romeka:preview'];
-  const record = asRecord(value, fieldPath);
-  const state = asString(field(record, 'state', fieldPath), [...fieldPath, 'state']);
-  if (!isPreviewState(state)) {
-    return null;
-  }
-  const number = record['progress'];
-  return {
-    state,
-    reason: optionalString(record, 'reason', fieldPath),
-    progress:
-      number === undefined || number === null ? null : asNumber(number, [...fieldPath, 'progress']),
-  };
-};
-
-/**
- * The port's playable-copy state from `o-module-romeka:access`. A missing
- * member reads as `null` (an older server), and so does a state this build does
- * not know, so a newer server never fails the whole document.
- */
-const parseAccess = (object: Record<string, unknown>, path: Path): MediaAccess | null => {
-  const value = object['o-module-romeka:access'];
-  if (value === undefined || value === null) {
-    return null;
-  }
-  const fieldPath = [...path, 'o-module-romeka:access'];
-  const record = asRecord(value, fieldPath);
-  const state = asString(field(record, 'state', fieldPath), [...fieldPath, 'state']);
-  if (!isPreviewState(state)) {
-    return null;
-  }
-  const number = record['progress'];
-  return {
-    state,
-    reason: optionalString(record, 'reason', fieldPath),
-    progress:
-      number === undefined || number === null ? null : asNumber(number, [...fieldPath, 'progress']),
-    url: optionalString(record, 'url', fieldPath),
-    mediaType: optionalString(record, 'media_type', fieldPath),
-  };
-};
-
-/**
- * The port's kind name from `o:kind`. A name this build does not know reads as
- * absent, so a newer server's kind falls back to the admin's table instead of
- * failing the whole document.
- */
-const parseServerKind = (object: Record<string, unknown>, path: Path): ServerMediaKind | null => {
-  const value = optionalString(object, 'o:kind', path);
-  return SERVER_MEDIA_KINDS.find((kind) => kind === value) ?? null;
-};
-
-const parseTypes = (object: Record<string, unknown>, path: Path): readonly string[] => {  const value = field(object, '@type', path);
+export const parseTypes = (object: Record<string, unknown>, path: Path): readonly string[] => {  const value = field(object, '@type', path);
   if (typeof value === 'string') {
     return [value];
   }
@@ -386,7 +311,7 @@ export const asJsonValue = (value: unknown, path: Path): JsonValue => {
   throw new ParseError(path, 'a JSON value');
 };
 
-const parseThumbnailUrls = (value: unknown, path: Path): ThumbnailUrls => {
+export const parseThumbnailUrls = (value: unknown, path: Path): ThumbnailUrls => {
   // A resource with no thumbnail files sends the empty PHP array (`[]`), which
   // JSON keeps as a list. A non-empty list is a shape upstream does not send.
   if (isUnknownArray(value)) {
@@ -518,7 +443,7 @@ export const assertDetached = (raw: unknown, path: Path = []): void => {
   }
 };
 
-const parseEntityCore = <IdT extends number>(
+export const parseEntityCore = <IdT extends number>(
   object: Record<string, unknown>,
   path: Path,
   brand: Brand<IdT>,
@@ -569,53 +494,6 @@ export const parseItem: Parser<Item> = (raw, path = []) => {
       [...path, 'o:site'],
     ),
   };
-};
-
-export const parseMedia: Parser<Media> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  return {
-    ...parseEntityCore(object, path, brandId<'MediaId'>),
-    ingester: asString(field(object, 'o:ingester', path), [...path, 'o:ingester']),
-    renderer: asString(field(object, 'o:renderer', path), [...path, 'o:renderer']),
-    kind: parseServerKind(object, path),
-    item: nullableField(object, 'o:item', path, (value, fieldPath) =>
-      asRef(value, fieldPath, brandId<'ItemId'>),
-    ),
-    source: nullableField(object, 'o:source', path, asString),
-    mediaType: nullableField(object, 'o:media_type', path, asString),
-    sha256: nullableField(object, 'o:sha256', path, asString),
-    size: nullableField(object, 'o:size', path, asNumber),
-    filename: nullableField(object, 'o:filename', path, asString),
-    lang: nullableField(object, 'o:lang', path, asString),
-    altText: nullableField(object, 'o:alt_text', path, asString),
-    originalUrl: nullableField(object, 'o:original_url', path, asString),
-    preview: parsePreview(object, path),
-    access: parseAccess(object, path),
-    thumbnailUrls: parseThumbnailUrls(field(object, 'o:thumbnail_urls', path), [
-      ...path,
-      'o:thumbnail_urls',
-    ]),
-  };
-};
-
-/**
- * The provider player URL `GET /api/romeka/media/{id}/player` names, or `null`.
- *
- * The route's whole answer is the URL or nothing, and only an `https` URL can
- * be framed: anything else degrades to `null`, which the stage reads as "frame
- * the server's render instead".
- */
-export const parseMediaPlayer: Parser<string | null> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  const url = nullableField(object, 'url', path, asString);
-  if (url === null) {
-    return null;
-  }
-  try {
-    return new URL(url).protocol === 'https:' ? url : null;
-  } catch {
-    return null;
-  }
 };
 
 export const parseUser: Parser<User> = (raw, path = []) => {
@@ -710,7 +588,7 @@ export const parseSiteItemsChange: Parser<SiteItemsChange> = (raw, path = []) =>
   };
 };
 
-const parseVocabularyMember = (
+export const parseVocabularyMember = (
   object: Record<string, unknown>,
   path: Path,
 ): VocabularyMember => ({
@@ -740,70 +618,6 @@ export const parseProperty: Parser<Property> = (raw, path = []) => {
   return {
     ...parseVocabularyMember(object, path),
     id: brandId<'PropertyId'>(asIdNumber(field(object, 'o:id', path), [...path, 'o:id'])),
-  };
-};
-
-export const parseVocabulary: Parser<Vocabulary> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  return {
-    id: brandId<'VocabularyId'>(asIdNumber(field(object, 'o:id', path), [...path, 'o:id'])),
-    apiUrl: asString(field(object, '@id', path), [...path, '@id']),
-    types: parseTypes(object, path),
-    namespaceUri: asString(field(object, 'o:namespace_uri', path), [...path, 'o:namespace_uri']),
-    prefix: asString(field(object, 'o:prefix', path), [...path, 'o:prefix']),
-    label: asString(field(object, 'o:label', path), [...path, 'o:label']),
-    comment: nullableField(object, 'o:comment', path, asString),
-    owner: nullableField(object, 'o:owner', path, asRefUser),
-  };
-};
-
-const parseVocabularyTerm: Parser<VocabularyTerm> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  return {
-    localName: asString(field(object, 'o:local_name', path), [...path, 'o:local_name']),
-    label: asString(field(object, 'o:label', path), [...path, 'o:label']),
-    comment: nullableField(object, 'o:comment', path, asString),
-  };
-};
-
-const parseTextChange =
-  <T>(parse: (value: unknown, path: Path) => T): Parser<VocabularyTextChange<T>> =>
-  (raw, path = []) => {
-    const object = asRecord(raw, path);
-    return {
-      localName: asString(field(object, 'o:local_name', path), [...path, 'o:local_name']),
-      from: parse(field(object, 'from', path), [...path, 'from']),
-      to: parse(field(object, 'to', path), [...path, 'to']),
-    };
-  };
-
-const asNullableString = (value: unknown, path: Path): string | null =>
-  value === null ? null : asString(value, path);
-
-const parseMemberDiff: Parser<VocabularyMemberDiff> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  const list = <T>(key: string, parse: Parser<T>): readonly T[] =>
-    parseListOf(parse)(field(object, key, path), [...path, key]);
-  return {
-    added: list('new', parseVocabularyTerm),
-    label: list('label', parseTextChange(asString)),
-    comment: list('comment', parseTextChange(asNullableString)),
-    removed: list('removed', (entry, at = []) => {
-      const kept = asRecord(entry, at);
-      return {
-        localName: asString(field(kept, 'o:local_name', at), [...at, 'o:local_name']),
-        label: asString(field(kept, 'o:label', at), [...at, 'o:label']),
-      };
-    }),
-  };
-};
-
-/** The answer of `POST /api/vocabularies/{id}/diff`. */
-export const parseVocabularyDiff: Parser<VocabularyDiff> = (raw, path = []) => {
-  const object = asRecord(raw, path);
-  return {
-    classes: parseMemberDiff(field(object, 'classes', path), [...path, 'classes']),
-    properties: parseMemberDiff(field(object, 'properties', path), [...path, 'properties']),
   };
 };
 
@@ -1081,12 +895,6 @@ export const parseApiResource: Parser<ApiResource> = (raw, path = []) => {
 export function itemIdFromParam(text: string): ItemId | null {
   const value = positiveInt(text);
   return value === null ? null : brandId<'ItemId'>(value);
-}
-
-/** Parses a media id out of a URL fragment such as `#/media/12`. */
-export function mediaIdFromParam(text: string): MediaId | null {
-  const value = positiveInt(text);
-  return value === null ? null : brandId<'MediaId'>(value);
 }
 
 /** Parses an item set id out of a URL fragment such as `#/item-sets/12`. */

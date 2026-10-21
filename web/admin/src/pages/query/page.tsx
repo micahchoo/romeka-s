@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { listMedia } from '../../api/media';
 import type { ApiPage } from '../../api/types';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
@@ -49,7 +50,7 @@ const loadRows = async (spec: QuerySpec, page: number): Promise<ApiPage<PreviewR
         title: item.title ?? '',
       }));
     case 'media':
-      return mapPage(await api.listMedia(query), (media) => ({
+      return mapPage(await listMedia(api, query), (media) => ({
         id: media.id,
         title: media.title ?? '',
       }));
