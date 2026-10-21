@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80" onload="alert('onload')">
+  <script>alert('script')</script>
+  <rect width="120" height="80" fill="#f4f0e8"/>
+  <a href="javascript:alert('href')"><rect width="47" height="39" fill="#c0392b"/></a>
+  <foreignObject x="60" y="10" width="50" height="30"><div xmlns="http://www.w3.org/1999/xhtml">foreign</div></foreignObject>
+</svg>
