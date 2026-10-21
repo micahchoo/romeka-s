@@ -102,6 +102,8 @@ const sheetList = (scenario: Scenario): ScenarioList => {
 
 const LIST_COLUMNS = ['File', 'Title'];
 
+const columnsOf = (list: ScenarioList): readonly string[] => list.columns ?? LIST_COLUMNS;
+
 /** A list's `listCandidates` entry, its `inPlan` the asked plan's sheet that reads it. */
 const candidateOf = (scenario: Scenario, list: ScenarioList, sheets: readonly Record<string, unknown>[]): Record<string, unknown> => {
   const best = scenario.lists === undefined ? scenario.sheet.columns.findIndex((column) => Math.max(column.groupKeys, column.fileNames) === list.paired) : 0;
@@ -114,9 +116,9 @@ const candidateOf = (scenario: Scenario, list: ScenarioList, sheets: readonly Re
     inPlan: sheets.find((sheet) => sheet['source'] === 's1' && sheet['file'] === list.file)?.['id'] ?? null,
     read: list.error === undefined ? 'ok' : { error: list.error },
     rows: list.error === undefined ? list.rows : 0,
-    columns: scenario.lists === undefined ? scenario.sheet.columns.length : LIST_COLUMNS.length,
+    columns: scenario.lists === undefined ? scenario.sheet.columns.length : columnsOf(list).length,
     best: list.error !== undefined || list.normalized === 0 ? null : { index: best, header, on, paired: list.paired, pairedNormalized: list.normalized, empty: 0 },
-    grain: null,
+    grain: list.grain ?? null,
     overlaps: (list.overlaps ?? []).map((overlap) => ({ source: 's1', ...overlap })),
   };
 };
@@ -165,7 +167,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
       const read = isRecord(sheet['read']) ? sheet['read'] : {};
       const line = typeof read['headerLine'] === 'number' ? read['headerLine'] : 1;
       const list = scenario.lists?.find((one) => one.file === sheet['file']);
-      const lines = list === undefined ? scenario.sheet.lines : [LIST_COLUMNS.join(','), `${list.file},A`];
+      const lines = list === undefined ? scenario.sheet.lines : [columnsOf(list).join(','), [list.file, ...columnsOf(list).slice(1).map(() => 'A')].join(',')];
       const header = (lines[line - 1] ?? '').split(',');
       const listed = fixture('preview-sheets.json')['sheets'];
       const fixtureSheet = asRecord(Array.isArray(listed) ? listed[0] : null, []);
@@ -268,7 +270,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
             return {
               sheet: sheet['id'],
               rows: list.rows,
-              columns: LIST_COLUMNS.map((header, index) => ({ index, header, groupKeys: 0, fileNames: index === 0 ? list.paired : 0, empty: 0 })),
+              columns: columnsOf(list).map((header, index) => ({ index, header, groupKeys: 0, fileNames: index === 0 ? list.paired : 0, empty: 0 })),
             };
           }
           const right = read['headerLine'] === scenario.sheet.headerLine;

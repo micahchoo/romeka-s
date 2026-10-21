@@ -2,14 +2,15 @@
  * Advanced, Lists: the list files of the folder to choose from, as Simple
  * shows them; then for each list of the import, how it is read, which column
  * pairs its rows with items (chosen by exact counts) and how equal two keys
- * must be, the rows and items left unpaired, and its columns with field,
- * split, type, language and private. Then the list round trip.
+ * must be, what each row describes, the rows and items left unpaired, and
+ * its columns with field, split, type, language, private and, for rows that
+ * describe files, where their values go. Then the list round trip.
  */
 import { lazy, Suspense, useId } from 'react';
 import type { ReactElement } from 'react';
 import { DELIMITERS, ENCODINGS } from '../../../api/import-plan';
 import type { ColumnRef, Delimiter, Encoding, Join, Quote, ReadOptions, SheetPlan } from '../../../api/import-plan';
-import type { SheetColumnMatches } from '../../../api/import-sections';
+import type { Grain, SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
@@ -19,7 +20,8 @@ import { placeHref } from '../screens';
 import { ColumnsTable } from './columns-table';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
-import { NO_NORMALIZE, setJoin, setJoinColumn, setRead } from './plan-edits';
+import { withRowKind } from '../simple/list-plan';
+import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
 import './advanced.css';
 
@@ -237,10 +239,103 @@ const Joining = ({ sheet, matches }: { readonly sheet: SheetPlan; readonly match
   );
 };
 
+const ROW_KINDS: readonly (readonly [string, AdvancedMessageKey])[] = [
+  ['item', 'adv.lists.rowKind.item'],
+  ['media', 'adv.lists.rowKind.media'],
+  ['itemSet', 'adv.lists.rowKind.itemSet'],
+  ['column', 'adv.lists.rowKind.column'],
+];
+
+const columnIn = (columns: readonly ColumnRef[], value: string): ColumnRef | null => columns.find((one) => String(one.index) === value) ?? null;
+
+const RowKind = ({ sheet, matches }: { readonly sheet: SheetPlan; readonly matches: SheetColumnMatches | undefined }): ReactElement => {
+  const { t } = useAdvancedText();
+  const draft = useDraft();
+  const columns: readonly ColumnRef[] = matches?.columns.map(({ index, header }) => ({ index, header })) ?? [];
+  const kind = typeof sheet.rowKind === 'string' ? sheet.rowKind : 'column';
+  const kindColumn = typeof sheet.rowKind === 'string' ? null : sheet.rowKind.column;
+  const first = columns.find((column) => column.index !== sheet.join?.column.index) ?? columns[0];
+  return (
+    <>
+      <Setting label={t('adv.lists.rowKind.label')} plain={t('adv.lists.rowKind.plain')}>
+        {(described) => (
+          <select
+            aria-label={t('adv.lists.rowKind.label')}
+            aria-describedby={described}
+            value={kind}
+            disabled={!draft.editable}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === 'item' || value === 'media' || value === 'itemSet') {
+                draft.change((plan) => withRowKind(plan, sheet.id, value));
+              } else if (first !== undefined) {
+                draft.change((plan) => setRowKindColumn(plan, sheet.id, first));
+              }
+            }}
+          >
+            {ROW_KINDS.map(([value, words]) => (
+              <option key={value} value={value} disabled={value === 'column' && first === undefined}>
+                {t(words)}
+              </option>
+            ))}
+          </select>
+        )}
+      </Setting>
+      {kindColumn === null ? null : (
+        <Setting label={t('adv.lists.rowKind.columnLabel')} plain={t('adv.lists.rowKind.columnPlain')}>
+          {(described) => (
+            <select
+              aria-label={t('adv.lists.rowKind.columnLabel')}
+              aria-describedby={described}
+              value={String(kindColumn.index)}
+              disabled={!draft.editable}
+              onChange={(event) => {
+                const column = columnIn(columns, event.target.value);
+                if (column !== null) {
+                  draft.change((plan) => setRowKindColumn(plan, sheet.id, column));
+                }
+              }}
+            >
+              {(columns.some((one) => one.index === kindColumn.index) ? columns : [kindColumn, ...columns]).map((column) => (
+                <option key={column.index} value={String(column.index)}>
+                  {column.header}
+                </option>
+              ))}
+            </select>
+          )}
+        </Setting>
+      )}
+      {kind !== 'media' ? null : (
+        <Setting label={t('adv.lists.itemKey.label')} plain={t('adv.lists.itemKey.plain')}>
+          {(described) => (
+            <select
+              aria-label={t('adv.lists.itemKey.label')}
+              aria-describedby={described}
+              value={sheet.itemKey === null ? '' : String(sheet.itemKey.index)}
+              disabled={!draft.editable}
+              onChange={(event) => {
+                const column = columnIn(columns, event.target.value);
+                draft.change((plan) => setItemKey(plan, sheet.id, column));
+              }}
+            >
+              <option value="">{t('adv.lists.itemKey.none')}</option>
+              {columns.map((column) => (
+                <option key={column.index} value={String(column.index)}>
+                  {column.header}
+                </option>
+              ))}
+            </select>
+          )}
+        </Setting>
+      )}
+    </>
+  );
+};
+
 export const AdvancedLists = (): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
-  const read = usePreview(['sheets', 'columnMatches', 'unpaired'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
+  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
@@ -250,6 +345,7 @@ export const AdvancedLists = (): ReactElement => {
       {draft.plan.sheets.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);
         const matches = data?.columnMatches.find((one) => one.sheet === sheet.id);
+        const grain: Grain | null = data?.listCandidates.find((one) => one.inPlan === sheet.id)?.grain ?? null;
         return (
           <section key={sheet.id} className="adv-sheet" aria-label={sheet.file}>
             <h4>
@@ -262,8 +358,9 @@ export const AdvancedLists = (): ReactElement => {
             <Reading sheet={sheet} view={view} />
             <h5>{t('adv.lists.join.title')}</h5>
             <Joining sheet={sheet} matches={matches} />
+            <RowKind sheet={sheet} matches={matches} />
             <h5>{t('adv.lists.columns.title')}</h5>
-            <ColumnsTable sheet={sheet} view={view} />
+            <ColumnsTable sheet={sheet} view={view} grain={grain} />
           </section>
         );
       })}

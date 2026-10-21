@@ -161,6 +161,15 @@ describe('Add: a title question nobody answered', () => {
     expect(server.saved).toHaveLength(saves);
   }, 20_000);
 
+  it('says the title comes from the item code on a later visit too, and saves nothing', async () => {
+    const slots = { item: { 'dcterms:title': { sources: [{ from: 'group', name: 'identifier' }], combine: 'first' } }, media: {}, itemSet: {} };
+    const server = simpleServer(items('3'), { ...LISTED, slots, simple: { answered: ['empty-required'] } });
+    openAdd(server);
+    await screen.findByText(/get their item code as the title/, {}, { timeout: 5000 });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(server.saved.map(titleSources).filter((sources) => Array.isArray(sources) && sources.length > 0)).toEqual([]);
+  }, 20_000);
+
   it('writes no title rule for a person who answered "without a title"', async () => {
     const answered = { simple: { answered: ['empty-required'] } };
     const server = simpleServer(items('3'), { ...LISTED, ...answered });

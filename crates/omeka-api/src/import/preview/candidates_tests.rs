@@ -152,8 +152,11 @@ fn every_list_is_ranked_by_the_rows_it_pairs_with_its_grain_and_its_rivals() {
                 "paired": 8, "pairedNormalized": 8, "empty": 0 })
     );
     assert_eq!(
-        full["grain"],
-        json!({ "groupsWithManyRows": 4, "rowsNamingOtherFilesOfAGroup": 4 }),
+        (
+            &full["grain"]["groupsWithManyRows"],
+            &full["grain"]["rowsNamingOtherFilesOfAGroup"]
+        ),
+        (&json!(4), &json!(4)),
         "two rows for each of the four items, each naming its other view"
     );
     assert_eq!(
@@ -169,8 +172,11 @@ fn every_list_is_ranked_by_the_rows_it_pairs_with_its_grain_and_its_rivals() {
         "case and zero padding pair two more rows when folded"
     );
     assert_eq!(
-        stale["grain"],
-        json!({ "groupsWithManyRows": 0, "rowsNamingOtherFilesOfAGroup": 0 })
+        (
+            &stale["grain"]["groupsWithManyRows"],
+            &stale["grain"]["rowsNamingOtherFilesOfAGroup"]
+        ),
+        (&json!(0), &json!(0))
     );
     assert_eq!(
         stale["overlaps"],
@@ -225,5 +231,80 @@ fn a_list_that_does_not_read_says_why_and_the_others_still_come_back() {
     assert_eq!(
         (broken["rows"].as_u64(), broken["best"].is_null()),
         (Some(0), true)
+    );
+}
+
+/// One row per file. A1 to A3 have two rows each and A4 one. `Year` is the
+/// same in both rows of every item; `Keywords` differs in A1, and in A3 only
+/// by order and spaces.
+const PER_FILE: &str = "File,Year,Keywords\n\
+A1a.jpg,2017,Front View\nA1b.jpg,2017,Back View\n\
+A2a.jpg,2018,Lamp\nA2b.jpg,2018,Lamp\n\
+A3a.jpg,2017,\"Bowl, Front\"\nA3b.jpg, 2017 ,\"Front ,Bowl\"\n\
+A4a.jpg,2024,Pot\n";
+
+fn varies(candidate: &Value) -> Vec<(String, Value)> {
+    candidate["grain"]["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|column| {
+            (
+                column["header"].as_str().unwrap().to_string(),
+                column["varies"].clone(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn grain_counts_in_how_many_items_each_column_varies_among_the_items_several_rows_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let derived = derived(
+        &dir,
+        &[
+            ("in-use.csv", PER_FILE.as_bytes()),
+            ("unused.csv", PER_FILE.as_bytes()),
+        ],
+        |plan| {
+            plan["sheets"] = json!([{
+                "id": "register", "source": "s1", "file": "in-use.csv", "hash": null,
+                "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"",
+                          "headerLine": 1, "trim": true },
+                "rowKind": "media",
+                "join": { "on": "fileName", "column": { "index": 0, "header": "File" },
+                          "normalize": { "caseFold": false, "leadingZeros": false, "separators": false } },
+                "itemKey": null,
+                "columns": [{ "column": { "index": 2, "header": "Keywords" },
+                              "options": { "split": ",", "type": "literal", "lang": null, "private": false } }]
+            }]);
+        },
+    );
+    let found = candidates(&derived);
+    let in_use = found
+        .iter()
+        .find(|one| one["file"] == "in-use.csv")
+        .unwrap();
+    let unused = found
+        .iter()
+        .find(|one| one["file"] == "unused.csv")
+        .unwrap();
+    let of = |groups: u64| json!({ "groups": groups, "of": 3 });
+
+    assert_eq!(in_use["grain"]["groupsWithManyRows"], 3);
+    assert_eq!(
+        varies(in_use),
+        [
+            ("File".to_string(), of(3)),
+            ("Year".to_string(), of(0)),
+            ("Keywords".to_string(), of(1)),
+        ],
+        "each row names its own file; the year is the item's; the keywords \
+         differ in A1 only, as the plan splits them at commas"
+    );
+    assert_eq!(
+        varies(unused)[2],
+        ("Keywords".to_string(), of(2)),
+        "a list no plan sheet reads has no split, so A3's cells differ as written"
     );
 }

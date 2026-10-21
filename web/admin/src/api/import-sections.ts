@@ -459,10 +459,18 @@ export interface BestColumn {
   readonly empty: number;
 }
 
+/** Of the `of` items that more than one row names, the `groups` whose rows hold different values in a column. */
+export interface Varies {
+  readonly groups: number;
+  readonly of: number;
+}
+
 /** The evidence that a list's rows describe files: several rows meet one item. */
 export interface Grain {
   readonly groupsWithManyRows: number;
   readonly rowsNamingOtherFilesOfAGroup: number;
+  /** Every column of the list, with how often its values differ inside one item. */
+  readonly columns: readonly { readonly index: number; readonly header: string; readonly varies: Varies }[];
 }
 
 /** Another list that pairs some of the same items. */
@@ -501,10 +509,19 @@ const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
     };
   };
   const grain = (value: unknown, at: Path): Grain => {
-    const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup']);
+    const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup', 'columns']);
+    const column = (raw: unknown, place: Path): Grain['columns'][number] => {
+      const one = strict(raw, place, ['index', 'header', 'varies']);
+      const varies = (inner: unknown, where: Path): Varies => {
+        const both = strict(inner, where, ['groups', 'of']);
+        return { groups: count(both, 'groups', where), of: count(both, 'of', where) };
+      };
+      return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, varies) };
+    };
     return {
       groupsWithManyRows: count(each, 'groupsWithManyRows', at),
       rowsNamingOtherFilesOfAGroup: count(each, 'rowsNamingOtherFilesOfAGroup', at),
+      columns: member(each, 'columns', at, list(column)),
     };
   };
   const overlap = (value: unknown, at: Path): ListOverlap => {
