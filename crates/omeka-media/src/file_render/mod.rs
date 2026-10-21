@@ -111,6 +111,15 @@ impl LinkType {
     }
 }
 
+/// The one sentence a player stands in for while its copy is being made, or
+/// after the copy failed. The site layer supplies the words.
+pub(crate) fn access_wait(text: &str) -> String {
+    format!(
+        "<p class=\"media-access-wait\">{}</p>",
+        crate::text::escape_html(text)
+    )
+}
+
 /// A file renderer (`Media/FileRenderer/RendererInterface.php`).
 pub trait FileRenderer {
     /// The registry name, e.g. `thumbnail`.

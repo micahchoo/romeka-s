@@ -11,7 +11,7 @@
 import type { KeyOf } from '../i18n';
 import type { resources } from '../i18n/namespaces/resources';
 import { SERVER_MEDIA_KINDS } from '../api/types';
-import type { Asset, Media, ServerMediaKind, ThumbnailType } from '../api/types';
+import type { Asset, Media, ServerMediaKind, ThumbnailType, User } from '../api/types';
 
 /** Order a browse cell prefers. Upstream shows the square thumbnail. */
 const CELL_ORDER: readonly ThumbnailType[] = ['square', 'medium', 'large'];
@@ -408,3 +408,18 @@ export const originalFileUrl = (media: Media): string | null => nonEmpty(media.o
 /** The file a media preview links to: the original, else the best thumbnail. */
 export const previewLinkUrl = (media: Media): string | null =>
   nonEmpty(media.originalUrl) ?? thumbnailUrl(media, CELL_ORDER);
+
+/**
+ * Whether this reader may change the media, the same rule the API's update and
+ * delete apply: an editor, reviewer or administrator may change any row, and an
+ * author only a row they own. A smaller role may only read.
+ */
+export const mayEditMedia = (media: Media, user: User | null): boolean => {
+  if (user === null) {
+    return false;
+  }
+  if (['global_admin', 'site_admin', 'editor', 'reviewer'].includes(user.role)) {
+    return true;
+  }
+  return user.role === 'author' && media.owner?.id === user.id;
+};

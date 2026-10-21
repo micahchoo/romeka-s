@@ -1,0 +1,51 @@
+# The office document worker, added to compose.yaml: LibreOffice makes the PDF
+# copy a reader needs for a DOC, DOCX, ODT, RTF, XLS, XLSX, ODS, PPT, PPTX or
+# ODP. The server image has no LibreOffice (packaging/README.md, "The office
+# document tools"), so the server settles those copies `needs soffice, not
+# installed`, and this worker puts them back in the queue and makes them.
+#
+#     cd deploy && docker compose -f compose.yaml -f compose.office.yaml up -d
+#
+# The worker is the same CLI against the same database and store. Each pass
+# re-decides every media, so it runs hourly: a document added since the last
+# pass waits up to an hour for its copy. `--retry` also puts back a copy that
+# failed, so a document LibreOffice cannot read is tried again on each pass.
+# The image also carries vips, libraw and ghostscript, so the RAW, 16-bit TIFF
+# and PostScript copies the server cannot make are made here too.
+
+services:
+  office-worker:
+    build:
+      context: ..
+      dockerfile: packaging/Dockerfile
+      target: office-tools
+    image: ${ROMEKA_OFFICE_IMAGE:-romeka-s:office-local}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while :; do
+          romeka media derivatives --retry --database "$$ROMEKA_DB" --store "$$ROMEKA_STORE" || true
+          sleep "$${ROMEKA_OFFICE_INTERVAL_SECS:-3600}"
+        done
+    environment:
+      ROMEKA_DB: ${ROMEKA_DB:-/db/romeka.db}
+      ROMEKA_STORE: ${ROMEKA_STORE:-/data/files}
+      ROMEKA_OFFICE_INTERVAL_SECS: ${ROMEKA_OFFICE_INTERVAL_SECS:-3600}
+      # A bucket store reaches the worker the same way it reaches the server.
+      ROMEKA_STORE_BACKEND: ${ROMEKA_STORE_BACKEND:-}
+      ROMEKA_S3_ENDPOINT: ${ROMEKA_S3_ENDPOINT:-}
+      ROMEKA_S3_BUCKET: ${ROMEKA_S3_BUCKET:-}
+      ROMEKA_S3_REGION: ${ROMEKA_S3_REGION:-}
+      ROMEKA_S3_ACCESS_KEY: ${ROMEKA_S3_ACCESS_KEY:-}
+      ROMEKA_S3_SECRET_KEY: ${ROMEKA_S3_SECRET_KEY:-}
+    volumes:
+      - romeka-db:/db
+      - romeka-files:/data
+    # LibreOffice writes its per-run profile under /tmp; nothing else is written
+    # outside the two volumes.
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      - romeka
+    restart: unless-stopped

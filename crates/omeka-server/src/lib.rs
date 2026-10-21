@@ -54,6 +54,7 @@ mod logging;
 pub mod mail;
 mod mail_config;
 mod media_add;
+mod media_derivatives;
 mod media_render;
 mod page_versions;
 mod publish;
@@ -214,6 +215,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(accounts::router())
         .merge(annotations::router())
         .merge(media_render::router())
+        .merge(media_derivatives::router())
         .merge(site_items::router())
         .merge(page_versions::router())
         .merge(imports::router())

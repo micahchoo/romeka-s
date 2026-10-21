@@ -1,18 +1,20 @@
 import type { ReactElement } from 'react';
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { deleteMedia, getMedia } from '../../api/media';
+import { deleteMedia, getMedia, retryMediaAccess } from '../../api/media';
 import type { Media, MediaId, ThumbnailType } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { formatBytes, formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
-import { mediaName, originalFileUrl } from '../../app/media';
+import { mayEditMedia, mediaName, originalFileUrl } from '../../app/media';
 import { MediaPreviewState } from '../../app/media-image';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
+import { useSession } from '../../app/auth';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../i18n';
+import { MediaAccessLine } from './access';
 import { MediaEditForm } from './form';
 import type { TrackSummary } from './annotations/client';
 import type { NotesFocus } from './annotations/link';
@@ -73,6 +75,14 @@ const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
   kind === 'original' ? originalFileUrl(media) : (media.thumbnailUrls[kind] ?? null);
 
 /**
+ * How often the page reads the media again while a copy is being made. A
+ * transcode runs for minutes, and the worker writes its percentage at most
+ * every three seconds, so a shorter interval would only repeat the same read.
+ * Nothing polls once the copy settles.
+ */
+const ACCESS_POLL_MS = 5000;
+
+/**
  * `Admin/MediaController::showAction`: one media, its stage, the metadata the
  * API carries, the file derivatives, and its values.
  */
@@ -86,12 +96,48 @@ export const MediaDetail = ({
 }): ReactElement => {
   const translator = useTranslator(common, resources);
   const { t, locale } = translator;
+  const user = useSession();
   const state = useAsync(() => getMedia(api, mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);
   // One player for the page: the stage renders it, the notes panel seeks it.
   const [player, setPlayer] = useState<HTMLMediaElement | null>(null);
   // The caption languages, which the notes panel reads and the player offers.
   const [tracks, setTracks] = useState<readonly TrackSummary[]>([]);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const accessState =
+    edited?.access?.state ?? (state.status === 'ready' ? state.data.access?.state : null);
+
+  // A copy in flight is the one thing this page reads again on its own. The
+  // read replaces the document, so a percentage, a settled copy, or a failure
+  // reaches the line above the stage without a reload.
+  useEffect(() => {
+    if (accessState !== 'pending') {
+      return;
+    }
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async (): Promise<void> => {
+      try {
+        const next = await getMedia(api, mediaId);
+        if (live) {
+          setEdited(next);
+        }
+      } catch {
+        // A read that fails leaves the line as it is; the next poll tries again.
+      }
+      if (live) {
+        timer = setTimeout(() => void poll(), ACCESS_POLL_MS);
+      }
+    };
+    timer = setTimeout(() => void poll(), ACCESS_POLL_MS);
+    return () => {
+      live = false;
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    };
+  }, [accessState, mediaId]);
 
   if (state.status === 'loading') {
     return <p role="status">{t('loading.media')}</p>;
@@ -110,6 +156,26 @@ export const MediaDetail = ({
     <section>
       <h2>{mediaName(media) ?? t('common.untitled')}</h2>
       <MediaPreviewState media={media} />
+      <MediaAccessLine
+        media={media}
+        canRetry={mayEditMedia(media, user)}
+        onRetry={() => {
+          setRetrying(true);
+          setRetryError(null);
+          void retryMediaAccess(api, mediaId)
+            .then((next) => {
+              setEdited(next);
+            })
+            .catch((error: unknown) => {
+              setRetryError(error instanceof Error ? error.message : String(error));
+            })
+            .finally(() => {
+              setRetrying(false);
+            });
+        }}
+        retrying={retrying}
+        retryError={retryError}
+      />
 
       {/* The stage is the media; the notes panel sits beside it from 1100px. */}
       <div className="media-detail-body">

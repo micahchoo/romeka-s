@@ -49,7 +49,12 @@ pub fn delete_media_files(store: Option<&dyn Store>, row: &MediaRow) -> Result<(
     if row.has_original
         && let Some(storage_id) = row.storage_id.as_deref()
     {
-        for target in [AccessTarget::Mp4, AccessTarget::M4a, AccessTarget::Jpeg] {
+        for target in [
+            AccessTarget::Mp4,
+            AccessTarget::M4a,
+            AccessTarget::Jpeg,
+            AccessTarget::Pdf,
+        ] {
             store
                 .delete(&copy_path(storage_id, target))
                 .map_err(ApiError::internal)?;

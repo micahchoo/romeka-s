@@ -182,3 +182,14 @@ export const updateMedia = async (
 
 export const deleteMedia = async (api: ApiClient, id: MediaId): Promise<void> =>
   api.deleteJson(`/api/media/${String(id)}`);
+
+/**
+ * `POST /api/romeka/media/{id}/derivatives/retry`: queue the media's access
+ * copy again after its tool failed, and answer the media document with the
+ * copy `pending`. The server refuses a reader who may not edit the media, and
+ * a media nothing failed on.
+ */
+export const retryMediaAccess = async (api: ApiClient, id: MediaId): Promise<Media> =>
+  parseMedia(
+    await api.writeJson('POST', `/api/romeka/media/${String(id)}/derivatives/retry`, {}),
+  );
