@@ -19,8 +19,10 @@ mod names;
 mod path;
 mod slots;
 mod source;
+mod structure;
 #[cfg(test)]
 mod tests;
+mod v2;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -39,22 +41,19 @@ pub use source::{
     Auto, ColumnOptions, ColumnPlan, ColumnRef, Delimiter, Encoding, EncodingChoice, Join,
     JoinNormalize, JoinOn, KindColumn, Quote, ReadOptions, RowKind, SheetPlan, SourcePlan,
 };
+pub use structure::{Placement, Series, SeriesIx, SetSource, Structure};
 
 use super::decisions::Decision;
 use super::values::Visibility;
 
+/// The plan the engine reads. Its JSON is the v2 members ([`v2::PlanV2`]);
+/// its pattern, lists and slot rules sit in [`Structure`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(from = "v2::PlanV2", into = "v2::PlanV2")]
 pub struct ImportPlan {
     pub version: Version2,
     pub sources: Vec<SourcePlan>,
-    pub grouping: Grouping,
-    /// The admin's mark-an-example state. The server keeps it and never
-    /// reads it, so its members are the admin's to define.
-    #[serde(deserialize_with = "super::nullable")]
-    pub example: Option<serde_json::Map<String, serde_json::Value>>,
-    pub sheets: Vec<SheetPlan>,
-    pub slots: Slots,
+    pub structure: Structure,
     pub action: ActionPlan,
     pub defaults: Defaults,
     /// Policies the plan sets; a kind it leaves out has its default.
@@ -62,15 +61,26 @@ pub struct ImportPlan {
     pub decisions: Vec<Decision>,
     pub new_types: Vec<NewType>,
     pub new_terms: Vec<NewTerm>,
-    /// Missing means the defaults, and the defaults are not written, so a
-    /// plan stored before this member keeps its bytes.
-    #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
     pub anomalies: AnomalyAnswers,
     /// The admin's Simple-screen state (the answers a person gave). Kept and
-    /// never read, like `example`; absent is not written, so a stored plan
-    /// keeps its bytes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// never read, like the series' example.
     pub simple: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+/// Lets the readers of the flat v2 members compile while they move to
+/// [`Structure`]; the last step of the move deletes it.
+impl std::ops::Deref for ImportPlan {
+    type Target = Series;
+
+    fn deref(&self) -> &Series {
+        &self.structure.series
+    }
+}
+
+impl std::ops::DerefMut for ImportPlan {
+    fn deref_mut(&mut self) -> &mut Series {
+        &mut self.structure.series
+    }
 }
 
 /// The member `version: 2`.
@@ -326,13 +336,17 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
     let plan = ImportPlan {
         version: Version2,
         sources,
-        grouping: Grouping {
-            pattern: Some(NAME_ALONE.to_owned()),
-            case_fold: false,
+        structure: Structure {
+            series: Series {
+                grouping: Grouping {
+                    pattern: Some(NAME_ALONE.to_owned()),
+                    case_fold: false,
+                },
+                example: None,
+                sheets: Vec::new(),
+                slots: Slots::default(),
+            },
         },
-        example: None,
-        sheets: Vec::new(),
-        slots: Slots::default(),
         action: ActionPlan {
             action: Action::Create,
             match_by: MatchPlan {

@@ -385,15 +385,10 @@ fn the_digest_is_stable_across_runs_and_input_order_and_moves_with_any_change() 
         "input order does not count"
     );
 
-    let changed_value = crate::import::plan::ImportPlan {
-        slots: {
-            let mut slots = plan.slots.clone();
-            slots.item[0].sources =
-                vec![crate::import::plan::SourceRef::Constant { value: "x".into() }];
-            slots
-        },
-        ..plan.clone()
-    };
+    let mut changed_value = plan.clone();
+    let sole = changed_value.structure.sole();
+    changed_value.structure.rules_mut(sole, RecordKind::Item)[0].sources =
+        vec![crate::import::plan::SourceRef::Constant { value: "x".into() }];
     let digests = [
         run(&index(&files[..3]), &Sheets::new(), &plan).digest,
         run(&index(&files), &Sheets::new(), &changed_value).digest,

@@ -42,6 +42,57 @@ fn every_fixture_round_trips_to_the_same_json() {
     }
 }
 
+/// Every `plan` and `ranPlan` member under `value`.
+fn stored_plans<'v>(value: &'v Value, out: &mut Vec<&'v Value>) {
+    match value {
+        Value::Object(members) => {
+            for (key, member) in members {
+                if matches!(key.as_str(), "plan" | "ranPlan") && member.get("version").is_some() {
+                    out.push(member);
+                } else {
+                    stored_plans(member, out);
+                }
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| stored_plans(item, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn every_plan_the_admin_is_served_is_stored_byte_for_byte() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/admin/tests/fixtures/import");
+    let mut seen = 0;
+    for entry in std::fs::read_dir(&dir).expect("the admin's import fixtures") {
+        let path = entry.expect("fixture entry").path();
+        if path.extension().is_none_or(|ending| ending != "json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).expect("fixture text");
+        let value: Value = serde_json::from_str(&text).expect("fixture json");
+        let mut plans = Vec::new();
+        stored_plans(&value, &mut plans);
+        for served in plans {
+            let stored = parse(&served.to_string()).to_json();
+            let at = path.display();
+            assert_eq!(
+                parse(&stored).to_json(),
+                stored,
+                "{at}: the stored text is kept"
+            );
+            let written: Value = serde_json::from_str(&stored).expect("stored json");
+            assert_eq!(&written, served, "{at}: the same members");
+            seen += 1;
+        }
+    }
+    assert!(
+        seen >= 17,
+        "only {seen} stored plans found in {}",
+        dir.display()
+    );
+}
+
 #[test]
 fn the_full_fixture_reaches_every_member_typed() {
     let plan = parse(FULL);
