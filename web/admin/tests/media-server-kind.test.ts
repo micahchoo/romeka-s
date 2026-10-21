@@ -46,6 +46,7 @@ const WORDS: readonly (readonly [ServerMediaKind, string])[] = [
   ['audio', 'audio'],
   ['video', 'video'],
   ['pdf', 'pdf'],
+  ['document', 'document'],
   ['model-3d', 'model'],
   ['captions', 'captions'],
   ['embed', 'embed'],
@@ -144,6 +145,6 @@ describe('the o:kind field at the API boundary', () => {
   });
 
   it('keeps a name this build does not know null instead of failing the document', () => {
-    expect(parseMedia(raw({ 'o:kind': 'document' })).kind).toBeNull();
+    expect(parseMedia(raw({ 'o:kind': 'video-reel' })).kind).toBeNull();
   });
 });

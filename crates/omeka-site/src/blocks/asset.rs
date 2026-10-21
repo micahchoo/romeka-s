@@ -194,10 +194,10 @@ fn render_attachments(
     out.push_str("\">");
     for (index, attachment) in attachments.iter().enumerate() {
         out.push_str("<div class=\"asset\">");
-        let image = attachment
-            .id
-            .and_then(|id| ctx.resources.read_asset(id))
+        let asset = attachment.id.and_then(|id| ctx.resources.read_asset(id));
+        let image = asset
             .as_ref()
+            .filter(|asset| asset.is_image())
             .and_then(thumbnail_markup)
             .unwrap_or_default();
         let alt_title = attachment
@@ -220,17 +220,24 @@ fn render_attachments(
                 .flatten()
                 .map(|url| (alt_title, url)),
         };
-        match target {
-            Some((title, url)) => {
-                let title = title.map_or_else(String::new, |title| {
-                    format!("<span class=\"link-title\">{}</span>", escape_html(title))
-                });
-                out.push_str(&format!(
-                    "<a href=\"{}\">{image}{title}</a>",
-                    escape_html(&url),
-                ));
+        // A file that is not a picture is a link to the file itself, so a slot
+        // link around it would nest two anchors. The slot's page and URL are
+        // left out for that slot.
+        if let Some(file) = asset.as_ref().filter(|asset| !asset.is_image()) {
+            out.push_str(&file_markup(file, ctx));
+        } else {
+            match target {
+                Some((title, url)) => {
+                    let title = title.map_or_else(String::new, |title| {
+                        format!("<span class=\"link-title\">{}</span>", escape_html(title))
+                    });
+                    out.push_str(&format!(
+                        "<a href=\"{}\">{image}{title}</a>",
+                        escape_html(&url),
+                    ));
+                }
+                None => out.push_str(&image),
             }
-            None => out.push_str(&image),
         }
         if let Some(caption) = attachment.caption.as_deref().filter(|c| !c.is_empty()) {
             out.push_str(&format!(
@@ -253,12 +260,51 @@ fn thumbnail_markup(asset: &AssetView) -> Option<String> {
     ))
 }
 
+/// A file that is not a picture: a link to it named by its alt text or the
+/// asset's name, with the kind in words and the size beside that.
+fn file_markup(asset: &AssetView, ctx: &RenderContext<'_>) -> String {
+    let Some(url) = asset.file_url() else {
+        return String::new();
+    };
+    let mut facts = asset.kind.label(ctx.translator().messages()).to_string();
+    if let Some(size) = asset.size {
+        facts.push_str(", ");
+        facts.push_str(&file_size(size));
+    }
+    format!(
+        "<a class=\"asset-file\" href=\"{}\">{}<span class=\"asset-facts\">{}</span></a>",
+        escape_html(url),
+        escape_html(asset.name()),
+        escape_html(&facts)
+    )
+}
+
+/// A file's size as the block prints it: whole bytes below a kilobyte, then
+/// the decimal unit a file manager shows, one decimal below ten units.
+fn file_size(bytes: u64) -> String {
+    const UNITS: [&str; 4] = ["kB", "MB", "GB", "TB"];
+    if bytes < 1000 {
+        return format!("{bytes} B");
+    }
+    let mut value = bytes as f64 / 1000.0;
+    let mut unit = 0;
+    while value >= 999.95 && unit + 1 < UNITS.len() {
+        value /= 1000.0;
+        unit += 1;
+    }
+    if value < 9.95 {
+        format!("{value:.1} {}", UNITS[unit])
+    } else {
+        format!("{value:.0} {}", UNITS[unit])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::blocks::test_support::{TestResources, block, context, site};
     use crate::nav::PageRef;
-    use crate::view::NoResources;
+    use crate::view::{AssetKind, NoResources};
     use omeka_core::ids::{AssetId, PageId};
     use omeka_core::site::Slug;
     use serde_json::json;
@@ -285,6 +331,8 @@ mod tests {
                 title: "Logo".to_string(),
                 url: None,
                 thumbnail: Some(Thumbnail::new("/files/square/4.jpg", "Logo")),
+                kind: AssetKind::Image,
+                size: None,
             },
         );
         let mut ctx = context(&site, &resources);
@@ -312,6 +360,8 @@ mod tests {
                 title: "Logo".to_string(),
                 url: None,
                 thumbnail: Some(Thumbnail::new("/files/square/4.jpg", "Logo")),
+                kind: AssetKind::Image,
+                size: None,
             },
         );
         let mut ctx = context(&site, &resources);
@@ -356,9 +406,69 @@ mod tests {
                 title: "Logo".to_string(),
                 url: None,
                 thumbnail: Some(Thumbnail::new("/files/asset/4.png", "Logo")),
+                kind: AssetKind::Image,
+                size: None,
             },
         );
         resources
+    }
+
+    /// An asset that is not a picture: the slot links the file by its name,
+    /// the kind in words and the size, with no `<img>` and no slot page link
+    /// nested inside the file link. A file with alt text is named by it.
+    #[test]
+    fn a_non_image_asset_renders_as_a_link() {
+        let site = site();
+        let mut resources = TestResources::default();
+        resources.assets.insert(
+            4,
+            AssetView {
+                id: AssetId::new(4),
+                title: "report.pdf".to_string(),
+                url: Some("/files/asset/4.pdf".to_string()),
+                thumbnail: Some(Thumbnail::new("/files/asset/4.pdf", "")),
+                kind: AssetKind::Pdf,
+                size: Some(2_400_000),
+            },
+        );
+        resources.assets.insert(
+            5,
+            AssetView {
+                id: AssetId::new(5),
+                title: "minutes.docx".to_string(),
+                url: Some("/files/asset/5.docx".to_string()),
+                thumbnail: Some(Thumbnail::new("/files/asset/5.docx", "The minutes")),
+                kind: AssetKind::File,
+                size: None,
+            },
+        );
+        let mut ctx = context(&site, &resources);
+        ctx.pages = pages();
+        let stored = block(
+            "asset",
+            json!([
+                {"id": 4, "page": 7, "caption": "The annual report"},
+                {"id": 5}
+            ]),
+        );
+        assert_eq!(
+            Asset.render(&stored, &ctx),
+            "<div class=\"assets\">\
+             <div class=\"asset\"><a class=\"asset-file\" href=\"/files/asset/4.pdf\">report.pdf<span class=\"asset-facts\">PDF, 2.4 MB</span></a><div class=\"caption\">The annual report</div></div>\
+             <div class=\"asset\"><a class=\"asset-file\" href=\"/files/asset/5.docx\">The minutes<span class=\"asset-facts\">File</span></a></div>\
+             </div>"
+        );
+    }
+
+    /// A size reads in the unit a reader expects, with one decimal below ten.
+    #[test]
+    fn a_size_reads_in_its_largest_whole_unit() {
+        assert_eq!(file_size(812), "812 B");
+        assert_eq!(file_size(4_200), "4.2 kB");
+        assert_eq!(file_size(12_000), "12 kB");
+        assert_eq!(file_size(1_300_000), "1.3 MB");
+        assert_eq!(file_size(999_999), "1.0 MB");
+        assert_eq!(file_size(2_400_000_000), "2.4 GB");
     }
 
     /// A block with Romeka settings under its layout data.

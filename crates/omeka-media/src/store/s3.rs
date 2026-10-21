@@ -350,6 +350,18 @@ impl Store for S3Store {
         }
     }
 
+    /// `HeadObject`'s `Content-Length`, so a page that links an object prints
+    /// its size without fetching it.
+    fn size(&self, storage_path: &str) -> Result<Option<u64>, StoreError> {
+        let key = checked_path(storage_path)?;
+        let sent = self.head(key)?;
+        match sent.status {
+            200 => Ok(sent.content_length),
+            404 => Ok(None),
+            _ => Err(sent.failure(key, "HeadObject")),
+        }
+    }
+
     /// `ListObjectsV2` with `/` as the delimiter, so nested folders come back
     /// as common prefixes and are left out, page after page.
     fn list(&self, prefix: &str) -> Result<Vec<ListedFile>, StoreError> {

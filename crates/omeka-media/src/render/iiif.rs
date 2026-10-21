@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(
             html,
             concat!(
-                "        <div class=\"openseadragon\" id=\"iiif-1\" data-prefix-url=\"/application/asset/vendor/openseadragon/images/\" ",
+                "        <div class=\"openseadragon\" id=\"iiif-1\" data-prefix-url=\"/assets/vendor/openseadragon/images/\" ",
                 "data-tile-sources=\"{&quot;@context&quot;:&quot;http://iiif.io/api/image/2/context.json&quot;,&quot;@id&quot;:&quot;https://example.org/iiif/1&quot;,&quot;height&quot;:800,&quot;width&quot;:1000}\" ",
                 "style=\"height: 400px;\"></div>\n",
                 "        <script>\n",
@@ -146,7 +146,7 @@ mod tests {
     fn iiif_renderer_uses_the_asset_base_path() {
         let registry = FileRendererRegistry::with_defaults();
         let env = RenderEnv {
-            asset_base_path: "/romeka/application/asset".to_string(),
+            asset_base_path: "/theme/assets".to_string(),
             ..RenderEnv::default()
         };
         let html = Iiif.render(
@@ -155,9 +155,7 @@ mod tests {
             &RenderOptions::default(),
         );
         assert!(
-            html.contains(
-                "data-prefix-url=\"/romeka/application/asset/vendor/openseadragon/images/\""
-            ),
+            html.contains("data-prefix-url=\"/theme/assets/vendor/openseadragon/images/\""),
             "{html}"
         );
     }

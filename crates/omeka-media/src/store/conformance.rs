@@ -58,15 +58,18 @@ pub fn typed_put_keeps_the_bytes(store: &dyn Store) {
     assert_eq!(ok(store.read(path), "read"), b"streamed");
 }
 
-/// `exists` follows `put` and `delete`; deleting a missing file answers
-/// `false`, as upstream's `Local::delete` treats it as success.
+/// `exists` and `size` follow `put` and `delete`; deleting a missing file
+/// answers `false`, as upstream's `Local::delete` treats it as success.
 pub fn exists_and_delete_report_presence(store: &dyn Store) {
     let path = "conformance-delete/a.bin";
     assert!(!ok(store.exists(path), "exists before put"));
+    assert_eq!(ok(store.size(path), "size before put"), None);
     ok(store.put(b"x", path, None), "put");
     assert!(ok(store.exists(path), "exists after put"));
+    assert_eq!(ok(store.size(path), "size after put"), Some(1));
     assert!(ok(store.delete(path), "delete"));
     assert!(!ok(store.exists(path), "exists after delete"));
+    assert_eq!(ok(store.size(path), "size after delete"), None);
     assert!(!ok(store.delete(path), "second delete"));
 }
 

@@ -117,6 +117,14 @@ pub fn kind_names(values: Vec<String>) -> Option<omeka_db::repos::MediaKindFilte
             .iter()
             .map(|media_type| (*media_type).to_string())
             .collect(),
+        office_document_types: omeka_media::kind::OFFICE_DOCUMENT_MEDIA_TYPES
+            .iter()
+            .map(|media_type| (*media_type).to_string())
+            .collect(),
+        office_document_extensions: omeka_media::kind::OFFICE_DOCUMENT_EXTENSIONS
+            .iter()
+            .map(|extension| (*extension).to_string())
+            .collect(),
     })
 }
 

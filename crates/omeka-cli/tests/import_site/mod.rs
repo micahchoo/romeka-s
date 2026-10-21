@@ -187,6 +187,9 @@ impl Store for GatedStore {
     fn exists(&self, path: &str) -> Result<bool, StoreError> {
         self.inner.exists(path)
     }
+    fn size(&self, path: &str) -> Result<Option<u64>, StoreError> {
+        self.inner.size(path)
+    }
     fn list(&self, prefix: &str) -> Result<Vec<ListedFile>, StoreError> {
         self.inner.list(prefix)
     }

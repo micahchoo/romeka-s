@@ -269,6 +269,14 @@ impl FileUrls {
         ))
     }
 
+    /// The number of bytes stored at `storage_path`, `None` when nothing is.
+    /// The site prints it beside a file it links, so an asset that cannot be
+    /// read is reported as unknown rather than failing the page.
+    #[must_use]
+    pub fn size(&self, storage_path: &str) -> Option<u64> {
+        self.store.size(storage_path).ok().flatten()
+    }
+
     fn resolve(&self, url: String) -> String {
         if url.starts_with('/') {
             format!("{}{url}", self.origin)
