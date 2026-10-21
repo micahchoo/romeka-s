@@ -3,15 +3,10 @@
 //! compared with the outcomes their v2 plans pinned
 //! (`outcome_pins/<shape>.txt`, never rewritten here).
 //!
-//! Two differences are allowed, each named where it is applied:
-//!
-//! - Record keys. A plan of several series keys a group item
-//!   `group:<series>/<key>`, where v2 wrote `group:<key>`. The full keys must
-//!   be unique; the `<series>/` part is then dropped from the v3 side.
-//! - Set memberships, until U5. The engine refuses set levels and a
-//!   series' own set, so a fixture that has them runs without them, and
-//!   both sides are compared with their `slot sets` and `set` lines
-//!   removed. U5 deletes this allowance.
+//! One difference is allowed, record keys. A plan of several series keys a
+//! group item `group:<series>/<key>`, where v2 wrote `group:<key>`. The full
+//! keys must be unique; the `<series>/` part is then dropped from the v3
+//! side.
 //!
 //! The run reads the shape from the draft's own source, so the v3 plan
 //! takes the draft's `sources`, as the v2 plan does.
@@ -31,38 +26,10 @@ const ORAL_HISTORY: &str =
 const BORN_DIGITAL: &str =
     include_str!("../../../omeka-api/src/import/fixtures/v3/born_digital.json");
 
-/// Whether a fixture needs what U5 builds: set levels or a series' set.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Sets {
-    Kept,
-    /// The set-memberships allowance. U5 deletes it.
-    DroppedUntilU5,
-}
-
-/// The levels without their sets: each set level is replaced by the
-/// levels under it, and each series loses its own set.
-fn without_sets(levels: &[Value]) -> Vec<Value> {
-    levels
-        .iter()
-        .flat_map(|level| match level["kind"].as_str() {
-            Some("set") => without_sets(level["levels"].as_array().unwrap()),
-            _ => {
-                let mut series = level.clone();
-                series["set"] = Value::Null;
-                vec![series]
-            }
-        })
-        .collect()
-}
-
-fn plan_for(fixture_text: &'static str, sets: Sets) -> impl FnOnce(&mut Value) {
+fn plan_for(fixture_text: &'static str) -> impl FnOnce(&mut Value) {
     move |draft_plan: &mut Value| {
         let mut plan: Value = serde_json::from_str(fixture_text).unwrap();
         plan["sources"] = draft_plan["sources"].clone();
-        if sets == Sets::DroppedUntilU5 {
-            let levels = plan["structure"]["levels"].as_array().unwrap().clone();
-            plan["structure"]["levels"] = Value::Array(without_sets(&levels));
-        }
         *draft_plan = plan;
     }
 }
@@ -90,14 +57,6 @@ fn strip_series(records: &mut [Value]) -> usize {
     rewrote
 }
 
-/// The set-memberships allowance on one side's text.
-fn without_set_lines(text: &str) -> String {
-    text.lines()
-        .filter(|line| !line.starts_with("  slot sets ") && !line.starts_with("  set "))
-        .map(|line| format!("{line}\n"))
-        .collect()
-}
-
 /// What a v3 plan made of a shape.
 struct Made {
     text: String,
@@ -107,9 +66,9 @@ struct Made {
     outside: BTreeSet<String>,
 }
 
-async fn v3_outcome(shape: &Shape, slots: &[&str], fixture_text: &'static str, sets: Sets) -> Made {
+async fn v3_outcome(shape: &Shape, slots: &[&str], fixture_text: &'static str) -> Made {
     let fixture = fixture().await;
-    let preview = run(&fixture, shape, slots, plan_for(fixture_text, sets)).await;
+    let preview = run(&fixture, shape, slots, plan_for(fixture_text)).await;
     let outside = preview["entries"]
         .as_array()
         .unwrap()
@@ -130,13 +89,7 @@ async fn v3_outcome(shape: &Shape, slots: &[&str], fixture_text: &'static str, s
 #[tokio::test]
 async fn v3_plans_match_the_frozen_outcomes() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/import_shapes/outcome_pins");
-    let bhc = v3_outcome(
-        &bhc006::shape(),
-        &bhc006::SLOTS,
-        BHC006,
-        Sets::DroppedUntilU5,
-    )
-    .await;
+    let bhc = v3_outcome(&bhc006::shape(), &bhc006::SLOTS, BHC006).await;
     assert!(bhc.series_keys > 0, "BHC006's five series name their keys");
     let extras = bhc006::shape()
         .files
@@ -146,32 +99,21 @@ async fn v3_plans_match_the_frozen_outcomes() {
     for path in extras {
         assert!(bhc.outside.contains(&path), "{path} is in no scope");
     }
-    let oral = v3_outcome(
-        &oral_history::shape(),
-        &oral_history::SLOTS,
-        ORAL_HISTORY,
-        Sets::DroppedUntilU5,
-    )
-    .await;
-    let born = v3_outcome(&born_digital::shape(), &[], BORN_DIGITAL, Sets::Kept).await;
+    let oral = v3_outcome(&oral_history::shape(), &oral_history::SLOTS, ORAL_HISTORY).await;
+    let born = v3_outcome(&born_digital::shape(), &[], BORN_DIGITAL).await;
     for one_series in [&oral, &born] {
         assert_eq!(one_series.series_keys, 0, "one series keeps group:<key>");
     }
 
     let mut failures = Vec::new();
-    let shapes = [
-        ("bhc006", bhc, Sets::DroppedUntilU5),
-        ("oral_history", oral, Sets::DroppedUntilU5),
-        ("born_digital", born, Sets::Kept),
-    ];
-    for (name, made, sets) in shapes {
+    for (name, made) in [
+        ("bhc006", bhc),
+        ("oral_history", oral),
+        ("born_digital", born),
+    ] {
         let pinned = std::fs::read_to_string(dir.join(format!("{name}.txt"))).unwrap();
-        let (pinned, actual) = match sets {
-            Sets::Kept => (pinned, made.text),
-            Sets::DroppedUntilU5 => (without_set_lines(&pinned), without_set_lines(&made.text)),
-        };
-        if pinned != actual {
-            failures.push(format!("{name}: {}", text::block_diff(&pinned, &actual)));
+        if pinned != made.text {
+            failures.push(format!("{name}: {}", text::block_diff(&pinned, &made.text)));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
