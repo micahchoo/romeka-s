@@ -399,3 +399,7 @@ pub(crate) fn from_mapping(plan: &ImportPlan, new_type: usize) -> bool {
         .get(new_type)
         .is_some_and(|new_type| matches!(new_type.from, NewTypeFrom::Mapping(_)))
 }
+
+#[cfg(test)]
+#[path = "named_tests.rs"]
+mod tests;
