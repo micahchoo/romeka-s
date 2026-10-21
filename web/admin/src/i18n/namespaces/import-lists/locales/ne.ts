@@ -227,4 +227,32 @@ export const ne: ImportListsMessages = {
     'तिनीहरूको पहिचानकर्ता यस आयातको होइन। के पहिलो स्तम्भ परिवर्तन गरिएको थियो?',
   'lists.trip.andMore': 'र {count} थप',
   'lists.trip.remove': 'यो सूची हटाउनुहोस्',
+  'lists.picker.title': 'तपाईँको फोल्डरमा रहेका सूचीहरू',
+  'lists.picker.lede':
+    'तपाईँको फाइलहरूमा सबैभन्दा बढी नाम भएका सूचीको पङ्क्तिहरू पहिलो आउँछन्। तपाईँ एकभन्दा बढी प्रयोग गर्न सक्नुहुन्छ।',
+  'lists.picker.folder': '{folder} फोल्डरमा',
+  'lists.picker.rows': '{count} पङ्क्तिहरू',
+  'lists.picker.rowsOne': '1 पङ्क्ति',
+  'lists.picker.inUse': 'प्रयोगमा',
+  'lists.picker.declined': 'अस्वीकृत',
+  'lists.picker.offered': 'प्रयोग नभएको',
+  'lists.picker.unreadable': 'नपढिएको',
+  'lists.picker.names':
+    '“{column}” स्तम्भअनुसार, {rows} पङ्क्तिमध्ये {count} पङ्क्तिले तपाईँको कुनै फाइलको नाम दिन्छन्।',
+  'lists.picker.codes':
+    '“{column}” स्तम्भअनुसार, {rows} पङ्क्तिमध्ये {count} पङ्क्तिले तपाईँको कुनै वस्तुको कोड दिन्छन्।',
+  'lists.picker.folded': 'ठुला अक्षर, सुरुमा शून्य र _ - . लाई बेवास्ता गर्दा {count} थप।',
+  'lists.picker.noPair':
+    'ठुला अक्षर, सुरुका शून्य र _ - . लाई बेवास्ता गर्दा पनि कुनै पङ्क्तिले तपाईँको फाइल वा वस्तुको नाम दिँदैन।',
+  'lists.picker.overlap': '{file} सँग समान वस्तुहरू जोड्दछ: {count}',
+  'lists.picker.unread': 'यो सूची पढ्न सकिएन: {message}',
+  'lists.picker.use': 'यो सूची प्रयोग गर्नुहोस्',
+  'lists.picker.reading': 'सूची पढ्दै...',
+  'lists.picker.stop': 'यसको प्रयोग बन्द गर्नुहोस्',
+  'lists.picker.decline': 'यी वस्तुहरूका बारेमा होइन',
+  'lists.picker.ask':
+    'यो सूचीले {file} सँग समान {count} वस्तुहरू जोड्दछ। दुवै प्रयोग गर्नुहोस्, वा {file} को सट्टामा यो प्रयोग गर्नुहोस्?',
+  'lists.picker.both': 'दुवै प्रयोग गर्नुहोस्',
+  'lists.picker.instead': '{file} को सट्टामा यो प्रयोग गर्नुहोस्',
+  'lists.picker.cancel': 'यसलाई नथप्नुहोस्',
 };

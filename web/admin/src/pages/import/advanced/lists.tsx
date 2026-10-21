@@ -1,5 +1,6 @@
 /**
- * Advanced, Lists: for each list of the import, how it is read, which column
+ * Advanced, Lists: the list files of the folder to choose from, as Simple
+ * shows them; then for each list of the import, how it is read, which column
  * pairs its rows with items (chosen by exact counts) and how equal two keys
  * must be, the rows and items left unpaired, and its columns with field,
  * split, type, language and private. Then the list round trip.
@@ -12,6 +13,7 @@ import type { SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
+import { ListPicker } from '../lists/list-picker';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ColumnsTable } from './columns-table';
@@ -243,6 +245,7 @@ export const AdvancedLists = (): ReactElement => {
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
+      <ListPicker none={null} />
       {draft.plan.sheets.length === 0 ? <p className="import-note">{t('adv.lists.none')}</p> : null}
       {draft.plan.sheets.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);

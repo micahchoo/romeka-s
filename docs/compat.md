@@ -117,6 +117,7 @@ a gap that was discovered.
 | One import or undo works at a time, install-wide. A second `run` or `undo` answers 409 `busy` and names the import that holds the lock; the check and the start are one locked transaction. | [`crates/omeka-db/src/repos/import_lifecycle.rs`](../crates/omeka-db/src/repos/import_lifecycle.rs) |
 | Media annotations are rows in the Romeka-only table `romeka_media_annotation`, with the text index `romeka_media_annotation_fts` on SQLite (MySQL: `FULLTEXT`). Upstream has no such table and never reads it. A note is not a `value`, not a `value_annotation`, and never lives in `media.data`. | [`crates/omeka-db/SCHEMA-NOTES.md`](../crates/omeka-db/SCHEMA-NOTES.md) |
 | Audio and video duration and frame size live in the Romeka-only table `romeka_media_extent`, written from ffprobe's answer, never in `media.data`. | [`crates/omeka-db/SCHEMA-NOTES.md`](../crates/omeka-db/SCHEMA-NOTES.md) |
+| The port-only global setting `romeka_annotations_public` (absent or `true` means on) hides notes but not captions from a caller who may not update the media: the WAP reads, the public page, the manifest's annotation references and search all keep only `supplementing` rows for that caller. A caller holding the media-update grant sees every note on every route. Upstream has neither the setting nor the routes. | [`crates/omeka-api/src/settings.rs`](../crates/omeka-api/src/settings.rs), [`annotation/access.rs`](../crates/omeka-api/src/annotation/access.rs) |
 
 ## Site pages: the one-way rule
 

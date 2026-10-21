@@ -38,8 +38,7 @@ const MOVED: ReadonlyMap<string, readonly [AdminPageId, string]> = new Map([
 ]);
 
 export const parseHash = (hash: string): RouteMatch | null => {
-  const trimmed = hash.startsWith('#') ? hash.slice(1) : hash;
-  const segments = trimmed.split('/').filter((segment) => segment !== '');
+  const { segments } = splitHash(hash);
   const slug = segments[0];
   if (slug === undefined) {
     return { page: DEFAULT_PAGE, param: null, rest: [] };
