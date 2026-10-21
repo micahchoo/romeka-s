@@ -17,6 +17,9 @@ pub fn ledger_key(origin: &Value) -> String {
     let file = |file: &Value| format!("{}/{}", text(&file["source"]), text(&file["path"]));
     if let Some(group) = origin.get("group") {
         match group.get("pattern") {
+            Some(key) if key.is_object() => {
+                format!("group:{}/{}", text(&key["series"]), text(&key["text"]))
+            }
             Some(key) => format!("group:{}", text(key)),
             None => format!("own:{}", file(&group["own"])),
         }
@@ -187,7 +190,7 @@ fn blocks(text: &str) -> BTreeMap<String, Vec<&str>> {
     blocks
 }
 
-fn block_diff(pinned: &str, actual: &str) -> String {
+pub fn block_diff(pinned: &str, actual: &str) -> String {
     const SHOWN: usize = 20;
     let (before, after) = (blocks(pinned), blocks(actual));
     let mut heads: Vec<&String> = before.keys().chain(after.keys()).collect();

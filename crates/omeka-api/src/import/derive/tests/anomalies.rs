@@ -386,8 +386,12 @@ fn the_digest_is_stable_across_runs_and_input_order_and_moves_with_any_change() 
     );
 
     let mut changed_value = plan.clone();
-    let sole = changed_value.structure.sole();
-    changed_value.structure.rules_mut(sole, RecordKind::Item)[0].sources =
+    let (only, _) = changed_value
+        .structure
+        .all_series()
+        .next()
+        .expect("a series");
+    changed_value.structure.rules_mut(only, RecordKind::Item)[0].sources =
         vec![crate::import::plan::SourceRef::Constant { value: "x".into() }];
     let digests = [
         run(&index(&files[..3]), &Sheets::new(), &plan).digest,

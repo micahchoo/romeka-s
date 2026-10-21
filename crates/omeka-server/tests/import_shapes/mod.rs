@@ -8,6 +8,7 @@ pub mod bhc006;
 pub mod born_digital;
 pub mod oral_history;
 pub mod outcome_pins;
+pub mod v3_outcomes;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

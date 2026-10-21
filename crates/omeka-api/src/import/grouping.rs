@@ -19,7 +19,7 @@ use super::decisions::{EntryRef, FileRef, MoveAlone, MoveTo, Moved, moves};
 use super::derive::Index;
 use super::evidence::FileEntry;
 use super::join::SheetIn;
-use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternState};
+use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternKeys, PatternState};
 use super::plan::{
     IdenticalAnswer, ImportPlan, Placement, SeriesIx, SourceId, UnmatchedFilesAnswer,
 };
@@ -31,7 +31,10 @@ pub(crate) struct File<'i> {
     pub source: &'i SourceId,
     pub entry: &'i FileEntry,
     pub file: FileRef,
-    /// The pattern's groups, `None` when the pattern does not match.
+    /// The series that takes the file, or the series of the group a `move`
+    /// put it in. `None` for a file outside the structure.
+    pub series: Option<SeriesIx>,
+    /// Its series' pattern's groups, `None` when the pattern does not match.
     pub groups: Option<Groups>,
 }
 
@@ -44,14 +47,20 @@ impl File<'_> {
     }
 }
 
+/// One group: the series that made it, and its files in path order.
+pub(crate) struct Group {
+    pub series: SeriesIx,
+    pub files: Vec<usize>,
+}
+
 pub(crate) struct Grouping<'i> {
     /// Sorted by source, then path.
     pub files: Vec<File<'i>>,
     pub by_ref: HashMap<FileRef, usize>,
-    /// Each group's files, in path order.
-    pub groups: BTreeMap<GroupKey, Vec<usize>>,
-    /// Why a file is out of every group: a `move … leave` decision, or
-    /// `identical: keepOne`. An unmatched file is not here.
+    pub groups: BTreeMap<GroupKey, Group>,
+    /// Why a file is out of every group: outside the structure, a
+    /// `move … leave` decision, or `identical: keepOne`. An unmatched file
+    /// is not here.
     pub left_out: BTreeMap<usize, LeftBy>,
     pub pattern: PatternState,
     pub orphans: Vec<Orphan>,
@@ -83,19 +92,26 @@ pub(crate) fn group<'i>(
         .sources
         .iter()
         .flat_map(|source| {
-            source.walk.entries.iter().map(|entry| File {
-                source: &source.id,
-                entry,
-                file: FileRef {
-                    source: source.id.clone(),
-                    path: entry.path.clone(),
-                },
-                groups: match structure.place(&source.id, &entry.path) {
-                    Placement::Series { at, path } => compiled_at(at)
-                        .and_then(|compiled| compiled.as_ref().ok())
-                        .and_then(|pattern| pattern.groups(path)),
-                    Placement::Outside => None,
-                },
+            source.walk.entries.iter().map(|entry| {
+                let (series, groups) = match structure.place(&source.id, &entry.path) {
+                    Placement::Series { at, path } => (
+                        Some(at),
+                        compiled_at(at)
+                            .and_then(|compiled| compiled.as_ref().ok())
+                            .and_then(|pattern| pattern.groups(path)),
+                    ),
+                    Placement::Outside => (None, None),
+                };
+                File {
+                    source: &source.id,
+                    entry,
+                    file: FileRef {
+                        source: source.id.clone(),
+                        path: entry.path.clone(),
+                    },
+                    series,
+                    groups,
+                }
             })
         })
         .collect();
@@ -107,28 +123,32 @@ pub(crate) fn group<'i>(
         .collect();
 
     let own_unmatched = plan.anomalies.unmatched_files == UnmatchedFilesAnswer::Own;
+    let keys = PatternKeys::new(structure);
     let mut group_of: Vec<Option<GroupKey>> = files
         .iter()
         .map(|file| {
-            let Placement::Series { at, .. } = structure.place(file.source, &file.entry.path)
-            else {
-                return None;
-            };
+            let at = file.series?;
             let Some(text) = file.group(IDENTIFIER) else {
                 // With no pattern yet, no file is one a pattern does not fit.
                 let fits = compiled_at(at).is_some_and(Result::is_ok);
                 return (own_unmatched && fits).then(|| GroupKey::Own(file.file.clone()));
             };
             let text: String = text.nfc().collect();
-            Some(GroupKey::Pattern(if structure.series(at).case_fold() {
+            let text = if structure.series(at).case_fold() {
                 fold_title(&text)
             } else {
                 text
-            }))
+            };
+            Some(GroupKey::Pattern(keys.key(at, text)))
         })
         .collect();
 
-    let mut left_out = BTreeMap::new();
+    let mut left_out: BTreeMap<usize, LeftBy> = files
+        .iter()
+        .enumerate()
+        .filter(|(_, file)| file.series.is_none())
+        .map(|(at, _)| (at, LeftBy::Outside))
+        .collect();
     if plan.anomalies.identical == IdenticalAnswer::KeepOne {
         for place in identical::dropped(index, &files, &by_ref, sheets, &plan.decisions) {
             group_of[place] = None;
@@ -158,9 +178,14 @@ pub(crate) fn group<'i>(
                     continue;
                 };
                 group_of[moved] = Some(key);
+                files[moved].series = files[other].series;
                 left_out.remove(&moved);
             }
             MoveTo::Alone(MoveAlone::Own) => {
+                if files[moved].series.is_none() {
+                    orphans.push(orphan(file, OrphanReason::Outside));
+                    continue;
+                }
                 group_of[moved] = Some(GroupKey::Own(files[moved].file.clone()));
                 left_out.remove(&moved);
             }
@@ -171,10 +196,18 @@ pub(crate) fn group<'i>(
         }
     }
 
-    let mut groups: BTreeMap<GroupKey, Vec<usize>> = BTreeMap::new();
+    let mut groups: BTreeMap<GroupKey, Group> = BTreeMap::new();
     for (at, key) in group_of.into_iter().enumerate() {
-        if let Some(key) = key {
-            groups.entry(key).or_default().push(at);
+        // A file in a group is in the group's series.
+        if let (Some(key), Some(series)) = (key, files[at].series) {
+            groups
+                .entry(key)
+                .or_insert_with(|| Group {
+                    series,
+                    files: Vec::new(),
+                })
+                .files
+                .push(at);
         }
     }
     Grouping {

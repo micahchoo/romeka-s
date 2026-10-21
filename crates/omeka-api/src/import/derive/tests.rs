@@ -11,6 +11,7 @@ mod matching;
 mod outcome_pins;
 mod perf;
 mod scenarios;
+mod series;
 mod slots;
 mod steps;
 mod support;

@@ -165,9 +165,13 @@ pub(super) fn no_series_sets(structure: &Structure) -> Result<(), PlanError> {
     Ok(())
 }
 
-/// The rules the tree adds: level ids, scopes, and the set sources.
+/// The rules the tree adds: a series at all, level ids, scopes, and the
+/// set sources.
 fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
     let structure = &plan.structure;
+    if structure.all_series().next().is_none() {
+        return Err(PlanError::NoSeries);
+    }
     let mut ids = BTreeSet::new();
     let level_ids = structure
         .set_levels()
@@ -236,22 +240,15 @@ fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
 }
 
 /// The temporary rule: a plan the engine cannot run yet is refused in the
-/// person's terms. U4 deletes the series and scope cases, U5 the set cases.
+/// person's terms. U5 deletes it with the set cases.
 fn not_yet(plan: &ImportPlan) -> Result<(), PlanError> {
     let structure = &plan.structure;
-    let count = structure.all_series().count();
-    if count != 1 {
-        return Err(PlanError::NotYet(NotYet::SeveralSeries(count)));
-    }
     if let Some(set) = structure.set_levels().first() {
         return Err(PlanError::NotYet(NotYet::SetLevel(set.id.0.clone())));
     }
     for (_, series) in structure.all_series() {
         if series.set.is_some() {
             return Err(PlanError::NotYet(NotYet::SeriesSet(series.id.0.clone())));
-        }
-        if !matches!(series.scope, SeriesScope::All(_)) {
-            return Err(PlanError::NotYet(NotYet::Scope(series.id.0.clone())));
         }
     }
     if !structure.free_sets.is_empty() {

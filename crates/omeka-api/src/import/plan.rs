@@ -269,6 +269,8 @@ pub enum PlanError {
     Version(String),
     #[error("the plan cannot be written as version 2: {0}")]
     NotV2(&'static str),
+    #[error("the plan has no series, so it imports nothing")]
+    NoSeries,
     #[error("two levels have the id {0:?}")]
     DuplicateLevel(String),
     #[error("series {second:?} takes the same files as series {first:?}")]
@@ -281,7 +283,7 @@ pub enum PlanError {
     SeriesSets(String),
     #[error("a set named by title has an empty title ({0})")]
     EmptySetTitle(String),
-    /// The temporary rule: what the engine cannot run until U4 and U5.
+    /// The temporary rule: what the engine cannot run until U5.
     #[error("this server cannot run this plan yet: {0}")]
     NotYet(NotYet),
     #[error("two sources have the id {0:?}")]
@@ -327,20 +329,17 @@ pub enum PlanError {
 }
 
 /// What a plan the types accept asks of the engine that it does not do yet.
-/// Each is a rule U4 (scopes and series) or U5 (sets) deletes.
+/// Each is a rule U5 (sets) deletes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotYet {
-    SeveralSeries(usize),
     SetLevel(String),
     SeriesSet(String),
-    Scope(String),
     FreeSets,
 }
 
 impl std::fmt::Display for NotYet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SeveralSeries(n) => write!(f, "it reads one series only, and this plan has {n}"),
             Self::SetLevel(id) => write!(
                 f,
                 "it does not read set levels yet, and this plan has the set level {id:?}"
@@ -348,10 +347,6 @@ impl std::fmt::Display for NotYet {
             Self::SeriesSet(id) => write!(
                 f,
                 "it does not read a series' own set yet, and series {id:?} has one"
-            ),
-            Self::Scope(id) => write!(
-                f,
-                "it reads only a series that takes every file, and series {id:?} takes some folders"
             ),
             Self::FreeSets => write!(f, "it reads free sets only as a version 2 plan's sets rule"),
         }

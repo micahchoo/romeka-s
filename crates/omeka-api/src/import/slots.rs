@@ -24,8 +24,8 @@ use super::grouping::Grouping;
 use super::join::{SheetIn, cell};
 use super::model::{LeftBy, RecordId, SlotValue, Subject, TemplateRef};
 use super::plan::{
-    Combine, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind, SlotName,
-    SlotRule, SlotRules, Term,
+    Combine, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind, SeriesIx,
+    SlotName, SlotRule, SlotRules, Term,
 };
 use super::values::{Value, ValueType, fold_title};
 
@@ -55,7 +55,7 @@ pub(crate) struct Ctx<'a, 'i> {
     pub tags: &'a dyn FileTags,
     /// Each rule's value map with its keys folded as titles; the first key
     /// wins when two fold alike.
-    maps: HashMap<(RecordKind, SlotName), HashMap<String, String>>,
+    maps: HashMap<(SeriesIx, RecordKind, SlotName), HashMap<String, String>>,
 }
 
 impl<'a, 'i> Ctx<'a, 'i> {
@@ -67,8 +67,13 @@ impl<'a, 'i> Ctx<'a, 'i> {
         tags: &'a dyn FileTags,
     ) -> Self {
         let mut maps = HashMap::new();
-        for kind in [RecordKind::Item, RecordKind::Media, RecordKind::ItemSet] {
-            for (slot, rule) in rules(plan, kind) {
+        let kinds = [RecordKind::Item, RecordKind::Media, RecordKind::ItemSet];
+        let every = plan
+            .structure
+            .all_series()
+            .flat_map(|(at, series)| kinds.map(|kind| (at, kind, series.rules(kind))));
+        for (at, kind, rules) in every {
+            for (slot, rule) in rules {
                 if rule.map.is_empty() {
                     continue;
                 }
@@ -76,7 +81,7 @@ impl<'a, 'i> Ctx<'a, 'i> {
                 for (key, to) in &rule.map {
                     folded.entry(fold_title(key)).or_insert_with(|| to.clone());
                 }
-                maps.insert((kind, slot.clone()), folded);
+                maps.insert((at, kind, slot.clone()), folded);
             }
         }
         Self {
@@ -90,8 +95,9 @@ impl<'a, 'i> Ctx<'a, 'i> {
     }
 }
 
-pub(crate) fn rules(plan: &ImportPlan, kind: RecordKind) -> &SlotRules {
-    plan.structure.series(plan.structure.sole()).rules(kind)
+/// The slot rules a record of this series and kind follows.
+pub(crate) fn rules(plan: &ImportPlan, series: SeriesIx, kind: RecordKind) -> &SlotRules {
+    plan.structure.series(series).rules(kind)
 }
 
 /// The `set` decisions that target each record, by slot, in plan order.
@@ -106,7 +112,7 @@ pub(crate) fn resolve(
     decided: &SetDecisions,
     book: &mut FlagBook<'_>,
 ) -> BTreeMap<SlotName, Vec<SlotValue>> {
-    let rules = rules(ctx.plan, draft.kind);
+    let rules = rules(ctx.plan, draft.series, draft.kind);
     let identifier = SlotName::Term(Term::dcterms_identifier());
     let decided = decided.get(&id);
     let mut names: Vec<SlotName> = rules.keys().cloned().collect();
@@ -226,7 +232,7 @@ fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule)
             break;
         }
     }
-    let Some(map) = ctx.maps.get(&(draft.kind, slot.clone())) else {
+    let Some(map) = ctx.maps.get(&(draft.series, draft.kind, slot.clone())) else {
         return values;
     };
     // A value mapped to "" is then empty, and the checks drop it.
