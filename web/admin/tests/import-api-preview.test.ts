@@ -10,6 +10,9 @@ import { TAG_IDS } from '../src/api/import-plan';
 import { en as importMessages } from '../src/i18n/namespaces/import';
 import { SECTIONS, hasSections, parsePreview } from '../src/api/import-sections';
 import { ParseError, asRecord } from '../src/api/parse';
+import { en as listsMessages } from '../src/i18n/namespaces/import-lists';
+import { MEDIA_WORDS } from '../src/pages/import/lists/facts-words';
+import { shapeFromKey, shapeKey } from '../src/pages/import/lists/shape-filter';
 import { loadFixture } from './loadFixture';
 
 const kebab = (name: string): string => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
@@ -183,6 +186,17 @@ describe('what the sections say', () => {
     const odd = shapes.groups.items.find((group) => group.odd);
     expect(odd?.facts.files).toBe('7+');
     expect(odd?.samples.length).toBeLessThanOrEqual(3);
+  });
+
+  it('a group of office documents parses, has its own word, and goes back as a filter', () => {
+    const raw = asRecord(loadFixture('import/preview-shapes.json'), []);
+    const [group] = parsePreview(['shapes'])(raw).shapes.groups.items;
+    const documents = { ...group, facts: { ...group?.facts, media: ['pdf', 'document'] } };
+    const changed = { ...raw, shapes: { ...asRecord(raw['shapes'], []), groups: { total: 1, page: 1, perPage: 50, items: [documents] } } };
+    const facts = parsePreview(['shapes'])(changed).shapes.groups.items[0]?.facts;
+    expect(facts?.media).toEqual(['pdf', 'document']);
+    expect(listsMessages[MEDIA_WORDS.document]).toBe('documents');
+    expect(facts === undefined ? null : shapeFromKey(shapeKey(facts))).toEqual(facts);
   });
 
   it('a record fate that acts, a flag on a sheet and a left-by flag parse', () => {
