@@ -197,17 +197,20 @@ the anomaly `decision-overlap` lists them.
 
 ## The plan (stored JSON, sent by the admin)
 
-camelCase, `version: 2`, parsed at the boundary, unknown members refused. A v1 plan is not parsed:
-v1 imports stay readable as history, and `copyFrom` a v1 import answers 409 `v1Plan`.
+camelCase, parsed at the boundary, unknown members refused. The server reads `version: 2` and
+`version: 3`. A v1 plan is not parsed: v1 imports stay readable as history, and `copyFrom` a v1
+import answers 409 `v1Plan`.
+
+A v3 plan holds the archive as a tree. A **series** is a leaf: the files under its folders, grouped
+into items by its own pattern, described by its own lists and slot rules. A **set level** puts
+every item of every series under it into one item set. A **free set** takes every item of the
+import. Omeka item sets are flat, so the tree orders the sets on screen and never nests them.
 
 ```ts
-interface ImportPlan {
-  version: 2;
+interface ImportPlan {               // v3
+  version: 3;
   sources: SourcePlan[];
-  grouping: { pattern: string | null; caseFold: boolean };
-  example: Example | null;                // admin state, never read by the server
-  sheets: SheetPlan[];
-  slots: { item: SlotRules; media: SlotRules; itemSet: SlotRules };
+  structure: { levels: Level[]; freeSets: SetSource[] };
   action: ActionPlan;
   defaults: { visibility: 'private' | 'public'; owner: 'runner' | number; sites: number[];
               template: number | null };
@@ -215,7 +218,22 @@ interface ImportPlan {
   decisions: Decision[];
   newTypes: NewType[];
   newTerms: Array<{ label: string }>;
+  anomalies?: AnomalyAnswers;
+  simple?: Record<string, unknown>;   // admin state, keyed by level id, never read
 }
+type Level =
+  | { kind: 'set'; id: string; set: SetSource; levels: Level[] }
+  | { kind: 'series'; id: string; set: SetSource | null;
+      scope: 'all' | Array<{ source: string; folder: string }>;   // folder '' = the whole source
+      grouping: { pattern: string | null; caseFold: boolean };
+      example: Example | null;          // admin state, never read by the server
+      lists: SheetPlan[];               // sheet ids stay unique across the plan
+      slots: Slots };                   // never an item.sets rule
+type SetSource =
+  | { id: number }                                      // the install's set #id
+  | { title: string; description: string | null }       // the set with this title, made when missing
+  | { each: { sources: SourceRef[]; combine: 'first' | 'all'; map?: Record<string, string>;
+              names: 'title' | 'id' | 'key' | 'text' } };   // one set per value
 type SourcePlan = { id: string } & ({ kind: 'folder'; root: string; path: string } | { kind: 'staging' });
 interface SheetPlan {
   id: string; source: string; file: string; hash: string | null;
@@ -233,6 +251,7 @@ type Encoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'iso-8859-1
 type ValueType = 'literal' | 'uri' | { resource: 'identifier' | 'internalId' } | { dataType: string };
 type SlotName = 'sets' | 'template' | 'class' | 'owner' | 'visibility' | 'sites' | 'mediaOrder'
   | 'ingester' | 'mediaSource' | 'itemKey' | Term;
+type Slots = { item: SlotRules; media: SlotRules; itemSet: SlotRules };
 type SlotRules = Partial<Record<SlotName, { sources: SourceRef[]; combine: 'first' | 'all';
                                             map: Record<string, string> }>>;   // value map, below
 type SourceRef =
@@ -258,10 +277,67 @@ type FlagPolicy = 'keep' | 'repair' | 'leave';
 interface NewType { label: string; from: 'mapping' | { starter: StarterId }; class: string | null }
 ```
 
+A v2 plan has `grouping`, `example`, `sheets` and `slots` at the top, where v3 has `structure`.
+Every other member is the same.
+
+**Which files a series takes.** A file goes to the series whose scope folder is the longest prefix
+of its path in its source. A folder is a prefix of whole names only: `Letters` takes
+`Letters/a.jpg` and not `LettersX/a.jpg`. `all` is the shortest prefix. The series pattern matches
+the path inside the scope folder, so a pattern never repeats its folder. A folder level in a
+source ref (`{ from: 'folder', level: 1 }`) still counts from the source.
+
+**Outside.** A file in no series' scope is outside the structure. It makes no record, and the
+preview lists it as left out with the reason `outside`. It raises no file flag (`name-encoding`,
+`not-media`, `listed-not-media`, `format-mismatch`): its one reason is `outside`. A `move … own`
+decision on an outside file is an orphan with the reason `outside`, because no series' rules could
+describe it. A `move … with` puts it into the target group's series.
+
+**An item's sets**, in order: the set of each set level above its series, top first; the set of
+its series; the free sets. A source given twice counts once. A `set` decision on `sets` replaces
+the whole list. What a value names comes from its shape, never from its text:
+
+- `title` finds the set whose title compares equal (trim, NFC, case fold). With none, the run makes
+  it, with the source's description. With two, it flags `many-matches`. It never reads a title as
+  an id, so a new set titled "2018" can be made.
+- `id` is the install's set with that id. An id that names no set flags `unknown-set`, default
+  `keep`: the item is made without that set. With `leave`, the item is left out.
+- `key` is the item key of one of this import's item-set rows. A key no row has also flags
+  `unknown-set`.
+- `text` is v2's reading: an id that exists, then a record key, then a title. Only the lift writes
+  it.
+- A `set` decision's value names a set by its type: an internal-id value is an id, a literal is a
+  title.
+
+**The lift.** A v2 plan is lifted on every read into one series with id `all`, set `null` and scope
+`all`, so it groups and joins exactly as v2 did. Its `slots.item.sets` rule becomes the one free
+set, with `names: 'text'`. Retry and undo of a v2 import run on the lift.
+
+**The version kept.** The server stores the version it received, and every route that edits a plan
+(save, a list upload, a pairs edit) answers in that version. So a v2 admin always gets a v2 plan
+back. A record key of a group item is `group:<key>` with one series and `group:<series>/<key>` with
+several.
+
+**The list round trip in a plan of several series.** `template.csv` and the list upload take
+`?series=<level id>`. A plan of one series may leave it out. With several series and none named,
+both answer 400 with code `seriesNeeded`. A name no series has answers 400 with code
+`unknownSeries`. Both carry `series`, the plan's series ids. The template lists that series' items
+only, and the list joins only that series' groups. In a v3 plan a list's `[sets]` column makes one
+more free set with `names: 'title'`; it gives nothing to an item of another series. In a v2 plan
+the column joins the one sets rule, read as `text`.
+
+**On the preview wire**, a member that names a series appears only in a plan of several series, as
+a record key does, so a v2 admin reads the answer it knows. `pattern` is the first series' state.
+`patterns` is each series' `{ series, pattern }`. A record view has `series`, and a list candidate
+has the `series` that holds its sheet. A `sets` value that names an install set by id has that
+set's title as its `label`.
+
 The boundary refuses: duplicate source or sheet ids; refs to missing sources, sheets or columns;
 `combine: all` on a single-valued slot; slot rules on a `delete` plan; duplicate `newTypes` labels
 or labels of existing templates; `newTerms` that collide; path members with `..`, a NUL, a `\`, or
-a leading `/`, before or after percent-decoding.
+a leading `/`, before or after percent-decoding. For v3 it also refuses: two levels with one id; a
+plan with no series; two series with one scope folder, or two with scope `all`; a scope folder in
+a source the plan does not have; a series slot rule that reads another series' list; a series
+`item.sets` rule; a `title` that is empty after trim. A free set may read any series' list.
 
 `importSets` means: for items, the sets this import's records name; for item sets, this import's
 item-set records; for media, the media of the matched item.
@@ -424,7 +500,7 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
 A person can describe items in a spreadsheet they fill in themselves:
 
 - `GET /api/romeka/imports/{id}/template.csv?columns=<term>,<term>…` answers one row per item
-  record, in record order: `Identifier`, `Files` (the record's file names, `|`-separated), then one
+  record (of the `?series=` series in a plan of several, "The plan"), in record order: `Identifier`, `Files` (the record's file names, `|`-separated), then one
   column per chosen property, prefilled with the record's current values (`|` between values).
   Headers read `Label [prefix:local]` (e.g. `Title [dcterms:title]`) so the upload maps itself.
   UTF-8 with a BOM, so Excel opens Devanagari correctly. Columns the person may choose: any
