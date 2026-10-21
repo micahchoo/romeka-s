@@ -43,9 +43,6 @@ pub use source::{
 use super::decisions::Decision;
 use super::values::Visibility;
 
-/// The rename's bridge: callers move folder by folder, then this goes.
-pub type ImportPlanV2 = ImportPlan;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ImportPlan {
