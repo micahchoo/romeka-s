@@ -74,7 +74,7 @@ const factsOf = (group: ScenarioGroup, marks: number, listed: boolean): Record<s
   files: group.files,
   folders: [group.folder],
   media: [group.media],
-  pattern: true,
+  origin: 'pattern',
   row: listed && group.row,
   // Every mark writes the one `part` group (`pages/import/example.ts`), so page numbers are parts too.
   parts: marks > 0 ? [...(group.parts ?? []), ...(group.pages ?? [])] : null,

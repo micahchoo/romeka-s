@@ -139,6 +139,7 @@ export const kn: ImportSimpleMessages = {
   'guided.where.setOne': 'ಎಲ್ಲದಕ್ಕೂ ಒಂದು ಹೊಸ ಐಟಂ ಸೆಟ್, ಇದನ್ನು "{name}" ಎಂದು ಹೆಸರಿಸಲಾಗಿದೆ',
   'guided.where.setOld': 'ಒಮೆಕಾದಲ್ಲಿರುವ ಐಟಂ ಸೆಟ್',
   'guided.where.setWhich': 'ಯಾವುದು',
+  'guided.where.setColumn': 'ನಿಮ್ಮ ಪಟ್ಟಿಯಿಂದ, “{header}” ಕಾಲಮ್',
   'guided.where.setNone': 'ಯಾವುದೇ ಐಟಂ ಸೆಟ್ ಇಲ್ಲ',
   'guided.where.setsNone': 'ಐಟಂಗಳು ಯಾವುದೇ ಐಟಂ ಸೆಟ್‌ನಲ್ಲಿ ಇಲ್ಲ.',
   'guided.where.setsMake': 'ಇದು {count} ಐಟಂ ಸೆಟ್‌ಗಳನ್ನು ಮಾಡುತ್ತದೆ:',
@@ -218,6 +219,10 @@ export const kn: ImportSimpleMessages = {
   'guided.check.sameBoth': 'ಎರಡನ್ನೂ ಇರಿಸಿ',
   'guided.check.noFit': '{count} ಫೈಲ್‌ಗಳು ನೀವು ಗುರುತಿಸಿದ ಉದಾಹರಣೆಗೆ ಹೊಂದಿಕೆಯಾಗದ ಹೆಸರನ್ನು ಹೊಂದಿವೆ.',
   'guided.check.noFitOne': '1 ಫೈಲ್ ನೀವು ಗುರುತಿಸಿದ ಉದಾಹರಣೆಗೆ ಹೊಂದಿಕೆಯಾಗದ ಹೆಸರನ್ನು ಹೊಂದಿದೆ.',
+  'guided.check.noFitPlain':
+    '{count} ಫೈಲ್‌ಗಳು ಇತರ ಫೈಲ್‌ಗಳು ಐಟಂಗಳಾಗಿ ಹೇಗೆ ಗುಂಪು ಮಾಡಲ್ಪಟ್ಟಿವೆ ಎಂಬುದಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗದ ಹೆಸರನ್ನು ಹೊಂದಿವೆ.',
+  'guided.check.noFitPlainOne':
+    '1 ಫೈಲ್ ಇತರ ಫೈಲ್‌ಗಳು ಐಟಂಗಳಾಗಿ ಹೇಗೆ ಗುಂಪು ಮಾಡಲ್ಪಟ್ಟಿವೆ ಎಂಬುದಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗದ ಹೆಸರನ್ನು ಹೊಂದಿದೆ.',
   'guided.check.noFitOwn': 'ಪ್ರತಿಯೊಂದನ್ನು ಅದರದ್ದೇ ಆದ ಐಟಂ ಆಗಿ ಮಾಡಿ',
   'guided.check.known': '{count} ಐಟಂಗಳು ಈಗಾಗಲೇ ಓಮೇಕಾದಲ್ಲಿ ಇವೆ.',
   'guided.check.knownOne': '1 ಐಟಂ ಈಗಾಗಲೇ ಓಮೇಕಾದಲ್ಲಿ ಇದೆ.',

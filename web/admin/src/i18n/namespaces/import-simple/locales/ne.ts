@@ -137,6 +137,7 @@ export const ne: ImportSimpleMessages = {
   'guided.where.setOne': 'सबैका लागि एउटा नयाँ वस्तु समूह, जसको नाम “{name}” राखिएको छ',
   'guided.where.setOld': 'ओमेकाको एउटा वस्तु समूह',
   'guided.where.setWhich': 'कुन चाहिँ',
+  'guided.where.setColumn': 'तपाईँको सूचीबाट, “{header}” स्तम्भ',
   'guided.where.setNone': 'कुनै वस्तु समूह छैन',
   'guided.where.setsNone': 'वस्तुहरू कुनै पनि वस्तु समूहमा छैनन्।',
   'guided.where.setsMake': 'यसले {count} वस्तु समूहहरू बनाउँछ:',
@@ -214,6 +215,10 @@ export const ne: ImportSimpleMessages = {
   'guided.check.sameBoth': 'दुवै राख्नुहोस्',
   'guided.check.noFit': '{count} फाइलहरूको नाम तपाईँले चिन्ह लगाउनुभएको उदाहरणसँग मेल खाँदैन।',
   'guided.check.noFitOne': '1 फाइलको नाम तपाईँले चिन्ह लगाउनुभएको उदाहरणसँग मेल खाँदैन।',
+  'guided.check.noFitPlain':
+    '{count} फाइलहरूको नाम अन्य फाइलहरूलाई वस्तुहरूमा कसरी समूहबद्ध गरिएको छ भन्ने कुरासँग मेल खाँदैन।',
+  'guided.check.noFitPlainOne':
+    '1 फाइलको नाम अन्य फाइलहरूलाई वस्तुहरूमा कसरी समूहबद्ध गरिएको छ भन्ने कुरासँग मेल खाँदैन।',
   'guided.check.noFitOwn': 'प्रत्येकलाई आफ्नै वस्तु बनाउनुहोस्',
   'guided.check.known': '{count} वस्तुहरू पहिले नै ओमेका (Omeka) मा छन्।',
   'guided.check.knownOne': '1 वस्तु पहिले नै ओमेका (Omeka) मा छ।',
