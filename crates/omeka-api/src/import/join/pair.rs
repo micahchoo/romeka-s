@@ -36,7 +36,7 @@ pub(super) fn paired(
     let group_of: HashMap<usize, &GroupKey> = grouping
         .groups
         .iter()
-        .flat_map(|(key, files)| files.iter().map(move |file| (*file, key)))
+        .flat_map(|(key, group)| group.files.iter().map(move |file| (*file, key)))
         .collect();
     let mut rows_by_key: Vec<Option<HashMap<&RowKey, usize>>> =
         sheets.iter().map(|_| None).collect();
@@ -94,6 +94,11 @@ pub(super) fn paired(
         };
         if kind == RecordKind::ItemSet {
             orphan(row_entry(), OrphanReason::WrongTarget);
+            continue;
+        }
+        // A list joins only its own series' files.
+        if grouping.files[at_file].series != Some(sheets[at_sheet].series) {
+            orphan(EntryRef::File(file.clone()), OrphanReason::WrongTarget);
             continue;
         }
         let found = Found::File(at_file, group_of.get(&at_file).map(|key| (*key).clone()));

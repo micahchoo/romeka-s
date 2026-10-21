@@ -10,7 +10,10 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use super::decisions::{EntryRef, FileRef, RowRef};
-use super::plan::{FlagKind, FlagPolicy, Owner, RecordKind, SheetId, SlotName, SourceId, Term};
+use super::plan::{
+    FlagKind, FlagPolicy, LevelId, Owner, RecordKind, SeriesIx, SheetId, SlotName, SourceId,
+    Structure, Term,
+};
 use super::values::{Value, Visibility};
 
 /// A record's place in [`Model::records`].
@@ -30,8 +33,8 @@ impl RecordId {
 #[serde(rename_all = "camelCase")]
 pub enum GroupKey {
     /// The pattern's `identifier` group text, NFC, case-folded when the
-    /// plan says so.
-    Pattern(String),
+    /// series says so.
+    Pattern(PatternKey),
     /// A file a `move` decision gave a group of its own. Its path is the
     /// key text, but it never merges with a pattern group of that text.
     Own(FileRef),
@@ -42,9 +45,61 @@ impl GroupKey {
     #[must_use]
     pub fn text(&self) -> &str {
         match self {
-            Self::Pattern(text) => text,
+            Self::Pattern(key) => &key.text,
             Self::Own(file) => file.path.as_str(),
         }
+    }
+}
+
+/// A pattern group's key. Two series can make the same text, so in a plan
+/// of several series the key also names its series. In a plan of one it
+/// does not, and the record key stays what v2 wrote (`Origin::key`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PatternKey {
+    series: Option<LevelId>,
+    text: String,
+}
+
+/// The series part of each series' pattern keys, read once per derive.
+pub(crate) struct PatternKeys(Vec<Option<LevelId>>);
+
+impl PatternKeys {
+    #[must_use]
+    pub(crate) fn new(structure: &Structure) -> Self {
+        let ids: Vec<&LevelId> = structure
+            .all_series()
+            .map(|(_, series)| series.id())
+            .collect();
+        let several = ids.len() > 1;
+        Self(
+            ids.into_iter()
+                .map(|id| several.then(|| id.clone()))
+                .collect(),
+        )
+    }
+
+    /// The key of `text` grouped by the series `at`.
+    #[must_use]
+    pub(crate) fn key(&self, at: SeriesIx, text: String) -> PatternKey {
+        PatternKey {
+            series: self.0[at.index()].clone(),
+            text,
+        }
+    }
+}
+
+/// The text alone in a plan of one series, as v2 wrote it; with the
+/// series as `{ "series", "text" }` in a plan of several.
+impl Serialize for PatternKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let Some(series) = &self.series else {
+            return serializer.serialize_str(&self.text);
+        };
+        let mut key = serializer.serialize_struct("PatternKey", 2)?;
+        key.serialize_field("series", series)?;
+        key.serialize_field("text", &self.text)?;
+        key.end()
     }
 }
 
@@ -62,11 +117,15 @@ pub enum Origin {
 }
 
 impl Origin {
-    /// The ledger's record key.
+    /// The ledger's record key: `group:<key>` in a plan of one series,
+    /// `group:<series>/<key>` in a plan of several.
     #[must_use]
     pub fn key(&self) -> String {
         match self {
-            Self::Group(GroupKey::Pattern(text)) => format!("group:{text}"),
+            Self::Group(GroupKey::Pattern(PatternKey { series, text })) => match series {
+                Some(series) => format!("group:{}/{text}", series.0),
+                None => format!("group:{text}"),
+            },
             Self::Group(GroupKey::Own(file)) => format!("own:{}/{}", file.source.0, file.path),
             Self::File(file) => format!("file:{}/{}", file.source.0, file.path),
             Self::Row(row) => format!("row:{}/{}", row.sheet.0, row.key.as_str()),
@@ -79,6 +138,10 @@ impl Origin {
 pub struct Record {
     pub id: RecordId,
     pub kind: RecordKind,
+    /// The series whose slot rules the record follows. Its origin and rows
+    /// fix it, so the digest leaves it out.
+    #[serde(skip)]
+    pub series: SeriesIx,
     pub origin: Origin,
     /// An item's kept files in media order, or a media record's file.
     pub files: Vec<FileRef>,

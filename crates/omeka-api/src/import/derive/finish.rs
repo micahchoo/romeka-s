@@ -247,7 +247,7 @@ fn entry_states(
             entry: EntryRef::File(file.file.clone()),
             record: file_record[at],
             left: file_left[at].or_else(|| fate_left(file_record[at])),
-            unmatched: file.groups.is_none(),
+            unmatched: file.series.is_some() && file.groups.is_none(),
             example: file.entry.sniffed != "application/octet-stream",
         })
         .collect();

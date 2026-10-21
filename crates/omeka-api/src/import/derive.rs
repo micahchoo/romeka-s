@@ -77,8 +77,9 @@ pub fn derive(
     let sheet_ins: Vec<SheetIn<'_>> = plan
         .structure
         .lists()
-        .map(|(_, sheet)| SheetIn {
+        .map(|(series, sheet)| SheetIn {
             plan: sheet,
+            series,
             sheet: sheets.get(&sheet.id).and_then(|read| read.as_ref().ok()),
         })
         .collect();
@@ -86,12 +87,14 @@ pub fn derive(
 
     let grouping = grouping::group(index, plan, &sheet_ins);
     let mut orphans = grouping.orphans.clone();
-    let media_by_file = plan.action.action == Action::Create
-        && !plan
-            .structure
-            .series(plan.structure.sole())
-            .rules(RecordKind::Media)
-            .contains_key(&SlotName::ItemKey);
+    let media_by_file = |series| {
+        plan.action.action == Action::Create
+            && !plan
+                .structure
+                .series(series)
+                .rules(RecordKind::Media)
+                .contains_key(&SlotName::ItemKey)
+    };
     let mut joined = join::join(
         &sheet_ins,
         &grouping,
@@ -221,6 +224,7 @@ pub fn derive(
         records.push(Record {
             id,
             kind: draft.kind,
+            series: draft.series,
             origin: draft.origin.clone(),
             files: draft
                 .files

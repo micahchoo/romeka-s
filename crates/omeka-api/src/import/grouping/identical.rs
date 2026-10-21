@@ -1,6 +1,6 @@
 //! `anomalies.identical: keepOne`: of each set of files with the same bytes,
 //! the file a list row names stays, else the first by path, and the others
-//! leave every group.
+//! leave every group. A file outside the structure is in no such set.
 
 use std::collections::{HashMap, HashSet};
 
@@ -38,6 +38,7 @@ pub(super) fn dropped(
                 .paths
                 .iter()
                 .filter_map(|path| at.get(&(&source.id, path.as_str())).copied())
+                .filter(|place| files[*place].series.is_some())
                 .collect();
             places.sort_unstable();
             let keep = places

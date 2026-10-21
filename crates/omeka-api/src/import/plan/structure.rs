@@ -2,9 +2,8 @@
 //! the engine reads which series takes a file and which pattern, lists and
 //! slot rules that series has. The engine never walks [`Level`].
 //!
-//! Every plan the boundary passes has one series that takes every file
-//! until scopes and set levels are read (U4, U5). Its pattern matches each
-//! path relative to its source, as in v2.
+//! A lifted v2 plan is one series that takes every file, so its pattern
+//! matches each path relative to its source, as in v2.
 
 use serde::{Deserialize, Serialize};
 
@@ -110,6 +109,14 @@ pub struct FolderScope {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SeriesIx(usize);
 
+impl SeriesIx {
+    /// Its place among the plan's series, for an index built once.
+    #[must_use]
+    pub fn index(self) -> usize {
+        self.0
+    }
+}
+
 /// Where a file goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Placement<'p> {
@@ -212,14 +219,43 @@ impl Structure {
         }
     }
 
-    /// The series that takes this file, and the path the pattern matches.
-    /// Every plan the boundary passes has one series that takes every file
-    /// until U4 reads scopes.
+    /// The series that takes this file, and the path its pattern matches:
+    /// the series whose scope folder is the longest prefix of the file's
+    /// path in its source, with `all` the shortest prefix. The path is
+    /// relative to that folder. `Outside` for a file in no scope.
     #[must_use]
-    pub fn place<'p>(&self, _source: &SourceId, path: &'p RelPath) -> Placement<'p> {
-        Placement::Series {
-            at: self.sole(),
-            path: path.as_str(),
+    pub fn place<'p>(&self, source: &SourceId, path: &'p RelPath) -> Placement<'p> {
+        let path = path.as_str();
+        // `None` is `all`, shorter than every folder, the whole source too.
+        let mut best: Option<(Option<usize>, usize, &'p str)> = None;
+        let mut offer = |prefix: Option<usize>, ix: usize, within: &'p str| {
+            if best.is_none_or(|(longest, _, _)| prefix > longest) {
+                best = Some((prefix, ix, within));
+            }
+        };
+        walk(&self.levels, &mut |_, ix, series| match &series.scope {
+            SeriesScope::All(_) => offer(None, ix, path),
+            SeriesScope::Folders(folders) => {
+                for scope in folders.iter().filter(|scope| scope.source == *source) {
+                    let folder = scope.folder.as_str();
+                    let within = if folder.is_empty() {
+                        Some(path)
+                    } else {
+                        path.strip_prefix(folder)
+                            .and_then(|rest| rest.strip_prefix('/'))
+                    };
+                    if let Some(within) = within {
+                        offer(Some(folder.len()), ix, within);
+                    }
+                }
+            }
+        });
+        match best {
+            Some((_, ix, path)) => Placement::Series {
+                at: SeriesIx(ix),
+                path,
+            },
+            None => Placement::Outside,
         }
     }
 
@@ -242,14 +278,6 @@ impl Structure {
             all.push((SeriesIx(ix), series));
         });
         all.into_iter()
-    }
-
-    /// The series of a plan that holds one. Every plan the boundary passes
-    /// holds one until U4; each caller reads a record's rules and must then
-    /// read the record's own series instead.
-    #[must_use]
-    pub fn sole(&self) -> SeriesIx {
-        SeriesIx(0)
     }
 
     /// Every list with the series that holds it, in plan order.
@@ -369,6 +397,12 @@ fn text_set(rule: SlotRule) -> SetSource {
 }
 
 impl Series {
+    /// Unique among the plan's levels.
+    #[must_use]
+    pub fn id(&self) -> &LevelId {
+        &self.id
+    }
+
     /// The pattern as the plan holds it: text a draft may still be typing.
     #[must_use]
     pub fn pattern(&self) -> Option<&str> {
