@@ -474,7 +474,7 @@ export const parseImportPlan: Parser<ImportPlan> = (raw, path = []) => {
     raw,
     path,
     ['version', 'sources', 'grouping', 'example', 'sheets', 'slots', 'action', 'defaults', 'flags', 'decisions', 'newTypes', 'newTerms'],
-    ['anomalies'],
+    ['anomalies', 'simple'],
   );
   if (member(object, 'version', path, asNumber) !== 2) {
     throw new ParseError([...path, 'version'], 'version 2');
@@ -497,8 +497,8 @@ export const parseImportPlan: Parser<ImportPlan> = (raw, path = []) => {
     newTypes: member(object, 'newTypes', path, list(parseNewType)),
     newTerms: member(object, 'newTerms', path, list((value, at) => ({ label: text(strict(value, at, ['label']), 'label', at) }))),
   };
-  return object['anomalies'] === undefined
-    ? plan
-    : { ...plan, anomalies: member(object, 'anomalies', path, parseAnomalyAnswers) };
+  const withAnomalies: ImportPlan =
+    object['anomalies'] === undefined ? plan : { ...plan, anomalies: member(object, 'anomalies', path, parseAnomalyAnswers) };
+  return object['simple'] === undefined ? withAnomalies : { ...withAnomalies, simple: member(object, 'simple', path, parseExample) };
 };
 

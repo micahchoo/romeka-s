@@ -131,25 +131,37 @@ pub(crate) fn resolve(
         .filter(|slot| **slot == identifier)
         .chain(names.iter().filter(|slot| **slot != identifier));
     for slot in ordered {
-        let raw: Vec<Raw> = if let Some(decisions) = decided.and_then(|decided| decided.get(slot)) {
-            decisions
+        let plain = |slots: &BTreeMap<SlotName, Vec<SlotValue>>| -> Vec<Raw> {
+            let plain = if *slot == identifier {
+                draft.identifier.iter().map(|text| literal(text)).collect()
+            } else {
+                default_item_key(ctx, draft, slots, &identifier)
+            };
+            plain.into_iter().map(Raw::from).collect()
+        };
+        let decisions = decided.and_then(|decided| decided.get(slot));
+        let rule = rules.get(slot).filter(|_| decisions.is_none());
+        let raw: Vec<Raw> = match (decisions, rule) {
+            (Some(decisions), _) => decisions
                 .last()
                 .map(|at| decision_values(&ctx.plan.decisions[*at]))
                 .unwrap_or_default()
                 .into_iter()
                 .map(Raw::from)
-                .collect()
-        } else if let Some(rule) = rules.get(slot) {
-            from_rule(ctx, draft, slot, rule)
-        } else {
-            let plain = if *slot == identifier {
-                draft.identifier.iter().map(|text| literal(text)).collect()
-            } else {
-                default_item_key(ctx, draft, &slots, &identifier)
-            };
-            plain.into_iter().map(Raw::from).collect()
+                .collect(),
+            (None, Some(rule)) => from_rule(ctx, draft, slot, rule),
+            (None, None) => plain(&slots),
         };
-        let values = check(raw, slot, id, entries, book);
+        let mut values = check(raw, slot, id, entries, book);
+        // An item whose identifier or item-key rule gives nothing keeps its
+        // group key, as it would with no rule.
+        if values.is_empty()
+            && rule.is_some()
+            && draft.kind == RecordKind::Item
+            && (*slot == identifier || *slot == SlotName::ItemKey)
+        {
+            values = check(plain(&slots), slot, id, entries, book);
+        }
         if !values.is_empty() {
             slots.insert(slot.clone(), values);
         }

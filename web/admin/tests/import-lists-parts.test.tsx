@@ -51,7 +51,7 @@ describe('the groups, the chart and the identical files', () => {
       const shapes = requestsFor(fetchMock, `${PATH}/preview`).map(requestBody).filter((body) => JSON.stringify(body['include']) === '["shapes"]');
       expect(shapes.map((body) => body['seed'])).toEqual([0, 1]);
     });
-    const facts = { files: '1', folders: ['Photographs'], media: ['image'], pages: null, parts: [], pattern: true, row: false };
+    const facts = { files: '1', folders: ['Photographs'], media: ['image'], pages: null, parts: [], origin: 'pattern', row: false };
     const all = within(group).getByRole('link', { name: 'Show all 2' }).getAttribute('href') ?? '';
     expect(all.startsWith('#/import/1/simple/all-items/')).toBe(true);
     const named: unknown = JSON.parse(decodeURIComponent(all.split('/').pop() ?? ''));
@@ -74,6 +74,21 @@ describe('the groups, the chart and the identical files', () => {
     );
     expect(screen.getByText('2 files are byte for byte the same as another file.')).toBeInTheDocument();
     expect(screen.getByText(/Misc\/café\.jpg, Misc\/loose\.jpg/)).toBeInTheDocument();
+  }, 20_000);
+});
+
+describe('the words of a group that the pattern did not make', () => {
+  it('say why each such item exists: a list row with no file, or a file made an item of its own', async () => {
+    installFetch(listsServer(9).handler);
+    render(at('found'));
+    await screen.findAllByRole('link', { name: /^Show all/ });
+    const texts = Array.from(document.querySelectorAll('article.import-group'), (card) => card.textContent);
+    const row = texts.filter((text) => text.includes('a row in your list that has no file'));
+    const own = texts.filter((text) => text.includes('a file you made an item of its own'));
+    expect(row).toHaveLength(1);
+    expect(row[0]).toMatch(/^\d+ items? (has|have) no file, a row in your list that has no file\./);
+    expect(own).toHaveLength(1);
+    expect(texts.filter((text) => text.includes('does not fit') || text.includes('example you marked'))).toEqual([]);
   }, 20_000);
 });
 

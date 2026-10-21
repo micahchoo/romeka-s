@@ -206,6 +206,7 @@ export const ta: ImportMessages = {
   'problem.cells-count': 'தவறான எண்ணிக்கையிலான செல்களைக் கொண்ட ஒரு வரிசை',
   'problem.no-file': 'இந்த இறக்குமதியின் எந்தக் கோப்பின் பெயரையும் குறிப்பிடாத வரிசை',
   'problem.not-media': 'படம், ஒலி, திரைப்படம் அல்லது PDF அல்லாத ஒன்று',
+  'problem.listed-not-media': 'Omeka ஏற்காத உங்கள் பட்டியலில் உள்ள கோப்பு',
   'problem.format-mismatch': 'பெயரின் முடிவு உள்ளடக்கத்துடன் பொருந்தாத கோப்பு',
   'problem.exists': 'ஏற்கனவே Omeka-வில் உள்ளது',
   'problem.unmatched': 'Omeka-வில் மாற்ற வேண்டிய உருப்படி எதுவும் இல்லை',

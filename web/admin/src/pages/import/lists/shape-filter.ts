@@ -4,7 +4,7 @@
  * is not a group's facts, so a hand-edited address narrows nothing rather than
  * sending the server a shape it refuses.
  */
-import { BUCKETS, MEDIA_KINDS } from '../../../api/import-sections';
+import { BUCKETS, ITEM_ORIGINS, MEDIA_KINDS } from '../../../api/import-sections';
 import type { Bucket, MediaKind, ShapeFacts } from '../../../api/import-sections';
 import { isRecord } from '../../../api/parse';
 
@@ -39,17 +39,18 @@ export const shapeFromKey = (key: string): ShapeFacts | null => {
   const kinds = media(raw['media']);
   const parts = raw['parts'] === null ? null : strings(raw['parts']);
   const pages = raw['pages'] === null ? null : strings(raw['pages']);
-  const { pattern, row } = raw;
+  const origin = ITEM_ORIGINS.find((one) => one === raw['origin']);
+  const { row } = raw;
   if (
     files === null ||
     folders === null ||
     kinds === null ||
-    typeof pattern !== 'boolean' ||
+    origin === undefined ||
     typeof row !== 'boolean' ||
     (raw['parts'] !== null && parts === null) ||
     (raw['pages'] !== null && pages === null)
   ) {
     return null;
   }
-  return { files, folders, media: kinds, pattern, row, parts, pages };
+  return { files, folders, media: kinds, origin, row, parts, pages };
 };

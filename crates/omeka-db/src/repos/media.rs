@@ -25,7 +25,7 @@ pub struct MediaFilter {
     pub media_type: Option<String>,
     /// `romeka_kind`: media of one of these port kind names
     /// (`MediaKind::name`). `None` adds no filter; an empty list matches no row.
-    pub kinds: Option<Vec<String>>,
+    pub kinds: Option<super::query::MediaKindFilter>,
     pub owner_id: Option<UserId>,
     pub resource_class_id: Option<ClassId>,
     pub resource_template_id: Option<TemplateId>,

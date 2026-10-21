@@ -66,6 +66,11 @@ pub struct ImportPlanV2 {
     /// plan stored before this member keeps its bytes.
     #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
     pub anomalies: AnomalyAnswers,
+    /// The admin's Simple-screen state (the answers a person gave). Kept and
+    /// never read, like `example`; absent is not written, so a stored plan
+    /// keeps its bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub simple: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// The member `version: 2`.
@@ -278,11 +283,14 @@ impl ImportPlanV2 {
     /// The policy a flag of this kind gets, or `None` for a blocking kind.
     #[must_use]
     pub fn policy(&self, kind: FlagKind) -> Option<FlagPolicy> {
-        let default = kind.default_policy()?;
-        Some(self.flags.get(&kind).copied().unwrap_or(match default {
-            PolicyDefault::Is(policy) => policy,
-            PolicyDefault::ActionUnmatched => self.action.unmatched.policy(),
-        }))
+        let planned = self.flags.get(&kind).copied();
+        Some(match kind.default_policy()? {
+            PolicyDefault::Only(policy) => policy,
+            PolicyDefault::Is(policy) => planned.unwrap_or(policy),
+            PolicyDefault::ActionUnmatched => {
+                planned.unwrap_or_else(|| self.action.unmatched.policy())
+            }
+        })
     }
 
     /// Refuse a new type whose label, compared as a title, an existing
@@ -345,6 +353,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlanV2, PlanError>
         new_types: Vec::new(),
         new_terms: Vec::new(),
         anomalies: AnomalyAnswers::default(),
+        simple: None,
     };
     check::plan(&plan)?;
     Ok(plan)

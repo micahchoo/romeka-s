@@ -8,6 +8,7 @@
  */
 import type { AnomalyAnswers, FlagKind, FlagPolicy, ImportPlan, SlotRule } from '../../../api/import-plan';
 import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
+import { exampleOf } from '../example';
 import type { SimpleMessageKey } from './messages';
 
 export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
@@ -19,6 +20,7 @@ export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
   'cells-count': 'leave',
   'no-file': 'keep',
   'not-media': 'leave',
+  'listed-not-media': 'leave',
   'format-mismatch': 'keep',
   exists: 'leave',
   unmatched: 'leave',
@@ -155,7 +157,13 @@ export const isBlocking = (id: CauseId): boolean => BLOCKING_FLAG_KINDS.some((ki
 
 const isAnomaly = (id: CauseId): id is AnomalyId => id === 'identical' || id === 'unmatchedFiles' || id === 'itemsWithoutRow';
 
-export const wordsOf = (id: CauseId): CauseWords => (isAnomaly(id) ? ANOMALY_WORDS[id] : (FLAG_WORDS[id] ?? generic(id)));
+/** The words of a cause; unmatched files only mention the marked example when the person marked one. */
+export const wordsOf = (id: CauseId, plan: ImportPlan): CauseWords => {
+  if (id === 'unmatchedFiles' && (exampleOf(plan)?.marks.length ?? 0) === 0) {
+    return { ...ANOMALY_WORDS.unmatchedFiles, say: 'guided.check.noFitPlain', sayOne: 'guided.check.noFitPlainOne' };
+  }
+  return isAnomaly(id) ? ANOMALY_WORDS[id] : (FLAG_WORDS[id] ?? generic(id));
+};
 
 const TITLE = 'dcterms:title';
 const fromName = (rule: SlotRule | undefined): boolean => rule?.sources.some((source) => source.from === 'file' && source.fact === 'name') === true;
