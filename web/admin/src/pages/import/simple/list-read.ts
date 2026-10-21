@@ -1,14 +1,12 @@
 /**
- * Reading a list file of the folder into the plan, as "Yes, use it" does. A
- * list in the folder is used from the start, as the suggested answer to "Is
- * it about these items?", so the groups on "What we found" can already say
- * which items have a row; "No" takes it out and keeps it out.
+ * Reading a list file of the folder into the plan, as "Use this list" does.
+ * The list that pairs the most rows is used from the start, as the suggested
+ * answer, so the groups on "What we found" can already say which items have
+ * a row; "Not about these items" keeps a list out.
  */
 import type { ImportId, ImportPlan, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
-import type { SourceState } from '../../../api/import-sections';
 import { loadProperties } from '../lists/catalog';
-import { declines, readState } from './example-state';
 import { sheetOf, withRead } from './list-plan';
 
 export interface ListFile {
@@ -16,23 +14,9 @@ export interface ListFile {
   readonly file: string;
 }
 
-/** The plan's list from a folder, which "Your list" talks about. */
-export const folderSheet = (plan: ImportPlan): SheetPlan | undefined =>
-  plan.sheets.find((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
-
-/** The list files of the folders that the plan does not read. */
-export const listFiles = (plan: ImportPlan, sources: readonly SourceState[]): readonly ListFile[] =>
-  sources.flatMap((source) =>
-    source.sheetFiles
-      .filter((file) => !plan.sheets.some((sheet) => sheet.source === source.source && sheet.file === file))
-      .map((file) => ({ source: source.source, file })),
-  );
-
-/** Those the person did not turn down. */
-export const offered = (plan: ImportPlan, sources: readonly SourceState[]): readonly ListFile[] => {
-  const { notLists } = readState(plan);
-  return listFiles(plan, sources).filter((list) => !notLists.some((entry) => declines(entry, list.source, list.file)));
-};
+/** The plan's lists from a folder, which "Your list" talks about. */
+export const folderSheets = (plan: ImportPlan): readonly SheetPlan[] =>
+  plan.sheets.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
 
 /**
  * The edit that adds `list` to a plan: read once with automatic options, and

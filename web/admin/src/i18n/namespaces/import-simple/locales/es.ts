@@ -79,11 +79,6 @@ export const es: ImportSimpleMessages = {
   'guided.list.none': 'No encontramos ninguna lista en tu carpeta.',
   'guided.list.what':
     'Una lista es una hoja de cálculo con una fila para cada elemento: su título, su fecha y todo lo que sepas. Puedes rellenar una abajo.',
-  'guided.list.found': 'Encontramos una lista en tu carpeta: {file}. ¿Trata de estos elementos?',
-  'guided.list.yes': 'Sí, usarla',
-  'guided.list.no': 'No, no trata de estos elementos',
-  'guided.list.reading': 'Leyendo la lista...',
-  'guided.list.foundRows': 'Encontramos una lista en tu carpeta: {file}, con {count} filas. ¿Trata de estos elementos?',
   'guided.list.utf8': 'Es texto UTF-8.',
   'guided.list.notUtf8': 'Sus bytes no son UTF-8. Se leen como texto {kind}. Si las letras se ven mal, cámbialo en el modo avanzado.',
   'guided.list.line1': 'La línea 1 tiene {count} celdas.',

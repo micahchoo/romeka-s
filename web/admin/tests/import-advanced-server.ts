@@ -178,6 +178,7 @@ export const advancedServer = (items: number): AdvancedServer => {
           values: 'preview-values.json',
           shapes: 'preview-shapes.json',
           records: 'preview-records.json',
+          listCandidates: 'preview-list-candidates.json',
         }[section];
         if (name !== undefined) {
           answer[section] = sectionOf(name, section);
