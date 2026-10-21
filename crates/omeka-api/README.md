@@ -314,9 +314,9 @@ request. It stores the original, queues a `romeka_media_derivative` row
 the server starts one `Romeka\Job\MediaDerivatives` worker
 (`jobs::start_derivatives`), which settles the row `ready`, `failed` or `none`.
 The same create records the file's access decision as a second row, kind
-`access_copy`: `none` when a browser shows the original, `pending` when a copy
-is needed and its tool is installed, or `none` with `needs <tool>, not
-installed`. That row names the copy a later worker makes: an H.264/AAC MP4 or an
+`access_copy`: `none` when the original is what the reader gets (a browser
+plays or draws it, or the image server reads it), `pending` when a copy is
+needed and its tool is installed, or `none` with `needs <tool>, not installed`. That row names the copy a later worker makes: an H.264/AAC MP4 or an
 AAC M4A, which the audio and video worker claims and transcodes
 (`omeka_media::transcode`), a PDF made from an office document by LibreOffice,
 which the same worker claims too, or a JPEG access master, which the image

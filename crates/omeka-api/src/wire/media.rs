@@ -88,6 +88,9 @@ impl MediaPreview {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaAccess {
     pub state: PreviewState,
+    /// The words a reader sees for `none` or `failed`. For a `none` row that
+    /// keeps the original, they name what reads it: a browser, or the image
+    /// server that reads a TIFF or JPEG 2000 whose pixels only it decodes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

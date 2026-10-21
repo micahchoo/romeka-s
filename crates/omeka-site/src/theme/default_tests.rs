@@ -874,6 +874,7 @@ fn a_kind_with_no_canvas_shows_no_viewer_link() {
     });
     media.download = Some(DownloadLink {
         url: "/s/main/media/9/download".to_string(),
+        format: Some("TXT".to_string()),
         size: Some(2_411_724),
     });
     media.share = Some(ShareView::page(
@@ -889,7 +890,7 @@ fn a_kind_with_no_canvas_shows_no_viewer_link() {
     assert!(
         document.contains(
             "<p class=\"media-download\"><a href=\"/s/main/media/9/download\">\
-             Download the original · File · 2.3 MB</a></p>"
+             Download the original (TXT, 2.3 MB)</a></p>"
         ),
         "{document}"
     );

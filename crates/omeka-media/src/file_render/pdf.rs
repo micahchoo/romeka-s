@@ -15,6 +15,7 @@
 //! Before the copy is ready the page keeps today's card, which is the thumbnail
 //! renderer's.
 
+use crate::file_render::access_wait;
 use crate::file_render::thumbnail::Thumbnail;
 use crate::file_render::{FileRenderer, ThumbnailType};
 use crate::render::{MediaView, RenderOptions, human_size};
@@ -33,9 +34,15 @@ impl FileRenderer for Pdf {
     /// `options.reader` is what tells the two apart: an item page or a block
     /// shows one card per file, never a reader per file.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
-        if !is_pdf(media) && media.access_url.is_none() {
-            // An office document with no PDF copy yet: the page it had before
-            // this renderer answered for it, a picture linked to the original.
+        if !is_pdf(media) && media.access_url().is_none() {
+            // An office document with no PDF copy yet: the page states the
+            // wait, or keeps the picture linked to the original on a page that
+            // shows several files.
+            if options.reader
+                && let Some(text) = options.access_wait.as_deref()
+            {
+                return access_wait(text);
+            }
             return Thumbnail.render(media, options);
         }
         let card = card(media);
@@ -72,7 +79,7 @@ fn reader_source(media: &MediaView) -> Option<&str> {
     if is_pdf(media) {
         media.original_url.as_deref()
     } else {
-        media.access_url.as_deref()
+        media.access_url()
     }
 }
 

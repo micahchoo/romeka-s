@@ -1,6 +1,6 @@
 //! The audio file renderer (`Media/FileRenderer/AudioRenderer.php`).
 
-use crate::file_render::FileRenderer;
+use crate::file_render::{FileRenderer, access_wait};
 use crate::render::{MediaView, RenderOptions, media_fragment};
 use crate::text::{escape_html, hyperlink};
 
@@ -23,7 +23,17 @@ impl FileRenderer for Audio {
     /// original.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
         let original = media.original_url.clone().unwrap_or_default();
-        let playable = media.player_url().unwrap_or_default().to_string();
+        let playable = match media.player_url() {
+            Some(url) => url.to_string(),
+            None => {
+                // A copy is queued or failed, and the original is a file this
+                // browser cannot play: state the wait instead of a dead player.
+                return options
+                    .access_wait
+                    .as_deref()
+                    .map_or_else(String::new, access_wait);
+            }
+        };
         let source = media_fragment(&playable, options.start);
         let mut attrs = vec![format!("src=\"{}\"", escape_html(&source))];
         if options.autoplay.unwrap_or(false) {

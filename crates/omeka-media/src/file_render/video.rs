@@ -1,6 +1,6 @@
 //! The video file renderer (`Media/FileRenderer/VideoRenderer.php`).
 
-use crate::file_render::{FileRenderer, ThumbnailType};
+use crate::file_render::{FileRenderer, ThumbnailType, access_wait};
 use crate::render::{MediaView, RenderOptions, media_fragment};
 use crate::text::{escape_html, hyperlink};
 
@@ -31,7 +31,17 @@ impl FileRenderer for Video {
     /// still names the original, which stays downloadable.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
         let original = media.original_url.clone().unwrap_or_default();
-        let playable = media.player_url().unwrap_or_default().to_string();
+        let playable = match media.player_url() {
+            Some(url) => url.to_string(),
+            None => {
+                // A copy is queued or failed, and the original is a file this
+                // browser cannot play: state the wait instead of a dead player.
+                return options
+                    .access_wait
+                    .as_deref()
+                    .map_or_else(String::new, access_wait);
+            }
+        };
         let source = media_fragment(&playable, options.start);
         let mut attrs = vec![format!("src=\"{}\"", escape_html(&source))];
         if let Some(width) = &options.width {
@@ -69,7 +79,7 @@ impl FileRenderer for Video {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::MediaStart;
+    use crate::render::{AccessCopyState, MediaStart};
     use crate::testing::{media_row, media_view_from};
 
     fn video_media() -> MediaView {
@@ -148,6 +158,29 @@ mod tests {
             Video.render(&video_media(), &options),
             "<video src=\"/files/original/abc123.mp4#t=62\" preload=\"metadata\" controls><a href=\"/files/original/abc123.mp4\">abc123.mp4</a></video>"
         );
+    }
+
+    /// While the copy is being made, the player stands in for a file the
+    /// browser cannot play: the page states the wait instead of a dead player.
+    /// The same holds after the copy failed.
+    #[test]
+    fn a_pending_or_failed_copy_states_the_wait_instead_of_a_player() {
+        let mut media = media_row(1, "upload", "file");
+        media.storage_id = Some("abc123".into());
+        media.extension = Some("avi".into());
+        media.media_type = Some("video/x-msvideo".into());
+        media.has_original = true;
+        let wait = RenderOptions {
+            access_wait: Some("A copy this browser can play is being made.".to_string()),
+            ..RenderOptions::default()
+        };
+        for state in [AccessCopyState::Pending, AccessCopyState::Failed] {
+            let html = Video.render(&media_view_from(&media).with_access_state(state), &wait);
+            assert_eq!(
+                html,
+                "<p class=\"media-access-wait\">A copy this browser can play is being made.</p>"
+            );
+        }
     }
 
     /// A video a browser cannot play is sourced from its access copy, with the

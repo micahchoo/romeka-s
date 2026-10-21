@@ -132,6 +132,59 @@ test('a video no browser opens plays its access copy, and the file stays the ori
   await expectClean(diagnostics, 'access-copy video stage');
 });
 
+test('an AVI states the copy being made, then plays the copy it made', async ({
+  page,
+  diagnostics,
+}) => {
+  test.setTimeout(120_000);
+  const media = await uploadItem(page.request, 'mjpeg.avi', 'video/x-msvideo');
+  await expect
+    .poll(
+      async () => {
+        const answer = await page.request.get(`/api/media/${String(media)}`);
+        const document: unknown = await answer.json();
+        const access = record(document, 'media')['o-module-romeka:access'];
+        return isRecord(access) ? access['state'] : null;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('ready');
+
+  // The copy is ready by the time the test can open the page, so the first
+  // document read is answered as the page would read it while the worker is
+  // still going. The next read is the page's own poll, which sees the ready
+  // copy; that is the transition an editor waits through.
+  let first = true;
+  await page.route(`**/api/media/${String(media)}`, async (route) => {
+    const response = await route.fetch();
+    if (!first) {
+      await route.fulfill({ response });
+      return;
+    }
+    first = false;
+    const document: unknown = await response.json();
+    const patched = {
+      ...record(document, 'media'),
+      'o-module-romeka:access': { state: 'pending', progress: 40 },
+    };
+    await route.fulfill({ response, json: patched });
+  });
+
+  await page.goto(`/#/media/${String(media)}`);
+  const line = page.locator('.media-access-state');
+  await expect(line).toHaveText('Making a playable copy, 40%');
+  const player = page.locator('video.media-stage-player');
+  await expect(player).toBeVisible({ timeout: 20_000 });
+  const source = await player.getAttribute('src');
+  expect(source, String(source)).toContain('/files/access/');
+  await expect(line).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^Original: AVI, / })).toHaveAttribute(
+    'href',
+    /\/files\/original\/.*\.avi$/,
+  );
+  await expectClean(diagnostics, 'access copy pending then playing');
+});
+
 test('a PDF shows its first page, and the viewer only after the press', async ({
   page,
   diagnostics,
@@ -205,8 +258,7 @@ test('a document shows its PDF copy, and the document itself stays the download'
   await page.goto(`/#/media/${String(media)}`);
 
   const stage = page.locator('.media-stage');
-  await expect(stage).toContainText('Document');
-  await expect(stage).toContainText('DOCX');
+  await expect(stage).toContainText('Original: DOCX');
   const firstPage = stage.locator('img');
   await expect(firstPage).toHaveCount(1);
   const pageSource = await firstPage.getAttribute('src');
