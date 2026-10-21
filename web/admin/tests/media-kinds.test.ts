@@ -52,6 +52,18 @@ const KINDS: readonly Kind[] = [
     file: 'doc.docx',
     mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   },
+  {
+    file: 'doc.xlsx',
+    mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  },
+  {
+    file: 'doc.pptx',
+    mediaType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  },
+  {
+    file: 'doc.odt',
+    mediaType: 'application/vnd.oasis.opendocument.text',
+  },
   { file: 'model.glb', mediaType: 'model/gltf-binary' },
   { file: 'model.gltf', mediaType: 'model/gltf+json' },
   { file: 'captions.vtt', mediaType: 'text/vtt' },
@@ -94,6 +106,9 @@ const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
   'wma.wma': 'audio',
   'doc.pdf': 'pdf',
   'doc.docx': 'document',
+  'doc.xlsx': 'document',
+  'doc.pptx': 'document',
+  'doc.odt': 'document',
   'model.glb': 'model-3d',
   'model.gltf': 'model-3d',
   'captions.vtt': 'captions',

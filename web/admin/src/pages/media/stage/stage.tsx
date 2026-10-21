@@ -234,8 +234,8 @@ const PdfStage = ({
   const { t } = translator;
   const name = view.file.name ?? '';
   const open = (
-    <a href={view.fileUrl} target="_blank" rel="noreferrer">
-      {t('media.stage.pdfOpen')}
+    <a href={view.file.url ?? view.fileUrl} target="_blank" rel="noreferrer">
+      {view.copy ? t('media.stage.downloadFile') : t('media.stage.pdfOpen')}
     </a>
   );
   return (

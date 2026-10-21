@@ -256,9 +256,9 @@ layout the decoder does not read, `exiftool` or libraw for a RAW file, `gs` for 
 PostScript page), or `none` with `needs <tool>, not installed`. `--retry` also
 queues a copy that failed, or one whose tool was missing when it was decided; a
 copy settled "a browser shows the original" has no tool and stays settled. The
-worker makes the audio and video copy in this process when the backfill runs it
-(a transcode of the whole queue), and the hourly sweep starts the same worker in
-its own process.
+worker makes the audio, video and office document copy in this process when the
+backfill runs it (a transcode or a conversion of the whole queue), and the hourly
+sweep starts the same worker in its own process.
 
 The summary line is `queued Q, retried R, waiting W, already ready A, nothing to
 do N`, one line per row after the run, and the exit code is 1 when any row ended

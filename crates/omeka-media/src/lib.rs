@@ -19,8 +19,9 @@
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`derivative`]: the still one stored original makes and the three
 //!   thumbnails from it, which the background worker runs.
-//! - [`transcode`]: the playable copy one stored original makes, an H.264/AAC
-//!   MP4 or an AAC M4A, on its own thread with progress and a stop.
+//! - [`transcode`]: the access copy one stored original makes, an H.264/AAC
+//!   MP4, an AAC M4A or an office document's PDF, on its own thread with a
+//!   stop (and progress for the two ffmpeg copies).
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff, webp, JPEG 2000 and SVG and stores the three
 //!   derivatives.
@@ -41,8 +42,8 @@
 //!   the duration and frame size a time-based canvas needs, and the container
 //!   and codecs an access rule reads.
 //! - [`tool`]: the external commands a still or an access copy needs (`ffmpeg`,
-//!   `pdftoppm`, `ffprobe`, `exiftool`, libraw, `vips`, `gs`), optional at
-//!   runtime and bounded in time and output.
+//!   `pdftoppm`, `ffprobe`, `exiftool`, libraw, `vips`, `gs`, `soffice`),
+//!   optional at runtime and bounded in time and output.
 //! - [`sample`]: the first and last megabyte of a stored original at their true
 //!   offsets, so a header read never copies a large file whole.
 //!

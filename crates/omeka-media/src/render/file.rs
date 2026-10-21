@@ -87,8 +87,8 @@ mod tests {
     fn file_renderer_falls_back_to_the_thumbnail() {
         let registry = FileRendererRegistry::with_defaults();
         let mut media = media_row(1, "upload", "file");
-        media.media_type = Some("application/msword".into());
-        media.extension = Some("doc".into());
+        media.media_type = Some("application/zip".into());
+        media.extension = Some("zip".into());
         media.storage_id = Some("abc123".into());
         media.has_thumbnails = true;
         let media = media_view_from(&media);

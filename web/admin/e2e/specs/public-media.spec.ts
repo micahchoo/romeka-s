@@ -140,6 +140,25 @@ const copied = async (request: APIRequestContext, media: number): Promise<void> 
   }
 };
 
+/**
+ * Wait until the access copy is ready and its first page is the preview. The
+ * worker settles the copy first and makes the thumbnail from it a moment later,
+ * so a page read between the two has nothing to paint on its canvas yet.
+ */
+const copiedPage = async (request: APIRequestContext, media: number): Promise<void> => {
+  await copied(request, media);
+  await expect
+    .poll(
+      async () => {
+        const document: unknown = await (await request.get(`/api/media/${String(media)}`)).json();
+        const preview = record(document, 'media')['o-module-romeka:preview'];
+        return isRecord(preview) ? preview['state'] : null;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('ready');
+};
+
 test('a video no browser opens plays its access copy, and the original stays linked', async ({
   page,
   diagnostics,
@@ -344,11 +363,7 @@ test('Copy puts the manifest URL on the clipboard and says so', async ({ page, d
 });
 
 test('a kind with no canvas offers no viewer link', async ({ page, diagnostics }) => {
-  const media = await upload(
-    page.request,
-    'doc.docx',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  );
+  const media = await upload(page.request, 'model.glb', 'model/gltf-binary');
   await page.goto(mediaPage(media));
 
   const block = page.locator('section.use-elsewhere');
@@ -359,9 +374,60 @@ test('a kind with no canvas offers no viewer link', async ({ page, diagnostics }
   // The file still saves under its own name; only the viewer and manifest are
   // absent, because there is no canvas to open.
   await expect(page.locator('.media-download a')).toHaveCount(1);
-  // An office document is a document, not a file with no kind.
-  await expect(page.locator('.media-download')).toContainText('Document');
+  await expect(page.locator('.media-download')).toContainText('3D model');
   await expectClean(diagnostics, 'a kind with no canvas');
+});
+
+test('an office document opens its PDF copy, and its canvas paints the first page', async ({
+  page,
+  diagnostics,
+}) => {
+  test.setTimeout(120_000);
+  const media = await upload(
+    page.request,
+    'doc.docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  );
+  await copiedPage(page.request, media);
+  await page.goto(mediaPage(media));
+
+  // The file's page draws the browser's reader over the copy, and the card
+  // links the document itself.
+  const reader = page.locator('.pdf-reader-page .pdf-object');
+  await expect(reader).toHaveCount(1);
+  const data = await reader.getAttribute('data');
+  expect(data, String(data)).toMatch(/\/files\/access\/[0-9a-f]+\.pdf$/);
+  await expect(page.locator('.pdf-reader-page a.pdf-card').first()).toHaveAttribute(
+    'href',
+    /\/files\/original\/[0-9a-f]+\.docx$/,
+  );
+  await expect(page.locator('.media-download a')).toHaveAttribute(
+    'href',
+    /\/media\/[0-9]+\/download$/,
+  );
+
+  // The document paints a canvas of the copy's first page, and the original
+  // document is the canvas's rendering. The canvas's exact body is asserted by
+  // `crates/omeka-server/tests/office_access.rs`.
+  const manifestHref = await page
+    .locator('section.use-elsewhere .iiif-manifest')
+    .getAttribute('href');
+  expect(manifestHref).not.toBeNull();
+  const manifest = await page.request.get(String(manifestHref));
+  expect(manifest.status()).toBe(200);
+  const text = await manifest.text();
+  expect(text).toContain(`/canvas/${String(media)}`);
+  expect(text).toContain('/files/original/');
+  expect(text).toContain('.docx');
+  if (process.env.DOCUMENT_EVIDENCE === '1') {
+    mkdirSync(join(REPO_ROOT, '.evidence'), { recursive: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'document-public-page-1280.png'),
+      fullPage: true,
+    });
+  }
+  await expectClean(diagnostics, 'document page');
 });
 
 test('a narrow window shows the PDF card instead of the browser reader', async ({

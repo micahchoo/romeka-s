@@ -146,10 +146,10 @@ where
     /// when nothing is queued.
     ///
     /// A preview kind is always its own. An `access_copy` row is claimed only
-    /// when its tool is `ffmpeg`, which is the one command this worker runs
-    /// (the audio and video copies); a row waiting for `vips`, `exiftool`,
-    /// libraw or `gs` belongs to the image worker and stays queued rather than
-    /// being settled as work this worker cannot do.
+    /// when its tool is one this worker runs: `ffmpeg` (the audio and video
+    /// copies) or `soffice` (a document's PDF copy). A row waiting for `vips`,
+    /// `exiftool`, libraw or `gs` belongs to a worker that runs that tool and
+    /// stays queued rather than being settled as work this one cannot do.
     ///
     /// The claim is the `UPDATE ... WHERE state = 'pending'`; a candidate another
     /// worker took first leaves zero rows affected, and the next candidate is
@@ -157,7 +157,7 @@ where
     pub async fn claim_next(&self) -> Result<Option<DerivativeRow>, DbError> {
         let rows: Vec<DB::Row> = sqlx::query::<DB>(
             "SELECT * FROM romeka_media_derivative WHERE state = 'pending'
-             AND (kind <> 'access_copy' OR tool = 'ffmpeg')
+             AND (kind <> 'access_copy' OR tool IN ('ffmpeg', 'soffice'))
              ORDER BY queued, media_id, kind LIMIT 8",
         )
         .fetch_all(self.pool)
@@ -250,13 +250,14 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
-    /// How many rows this worker can claim: preview rows and `ffmpeg` access
-    /// copies. A copy waiting for another tool is not counted, because starting
-    /// the worker for it would only have it leave the row alone.
+    /// How many rows this worker can claim: preview rows, `ffmpeg` access copies
+    /// and an office document's `soffice` copy. A copy waiting for another tool
+    /// is not counted, because starting the worker for it would only have it
+    /// leave the row alone.
     pub async fn pending(&self) -> Result<u64, DbError> {
         let count: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM romeka_media_derivative
-             WHERE state = 'pending' AND (kind <> 'access_copy' OR tool = 'ffmpeg')",
+             WHERE state = 'pending' AND (kind <> 'access_copy' OR tool IN ('ffmpeg', 'soffice'))",
         )
         .fetch_one(self.pool)
         .await?;

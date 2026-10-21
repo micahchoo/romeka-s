@@ -216,6 +216,42 @@ describe('a media the stage can show', () => {
     }
   });
 
+  it('opens a document’s PDF copy in the reader and keeps the document as the download', () => {
+    const copy = 'http://localhost/files/access/7.pdf';
+    render(
+      <MediaStage
+        media={media({
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          filename: 'notes.docx',
+          thumbnails: { large: LARGE },
+          access: {
+            state: 'ready',
+            reason: null,
+            progress: null,
+            url: copy,
+            mediaType: 'application/pdf',
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', LARGE);
+    expect(screen.getByText('Document')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Read the PDF here' }));
+
+    const viewer = document.querySelector('object');
+    expect(viewer).not.toBeNull();
+    expect(viewer).toHaveAttribute('type', 'application/pdf');
+    expect(viewer).toHaveAttribute('data', copy);
+    // The document, never the PDF copy, is what the page downloads.
+    const downloads = screen.getAllByRole('link', { name: 'Download the file' });
+    expect(downloads.length).toBeGreaterThan(0);
+    for (const link of downloads) {
+      expect(link).toHaveAttribute('href', ORIGINAL);
+    }
+    expect(screen.queryByRole('link', { name: 'Open the PDF' })).toBeNull();
+  });
+
   it('shows a caption file as its first 40 lines of text', async () => {
     const lines = Array.from({ length: 60 }, (_value, index) => `line ${String(index + 1)}`);
     installFetch(

@@ -244,7 +244,8 @@ neither `media` nor `media.data` changes.
   worker's oldest-first claim.
 - An `access_copy` row is written with its decision already in it: `none` when a browser shows the
   original, `pending` with the command a later worker runs, or `none` with the command a missing
-  install needs. A worker claims one whose `tool` is `ffmpeg` (the audio and video copy) and leaves a
+  install needs. A worker claims one whose `tool` is `ffmpeg` (the audio and video copy) or
+  `soffice` (an office document's PDF copy) and leaves a
   row waiting for `vips`, `exiftool`, libraw or `gs` to the image worker, so a copy is never settled
   as work the worker cannot do. `pending` counts the same rows, so a queued copy with no worker that
   can make it does not start one on every sweep.

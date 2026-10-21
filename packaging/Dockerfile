@@ -14,8 +14,10 @@
 # packaging/Dockerfile.dockerignore keeps the context small.
 #
 # The stages in order: the SPA, the Rust binary, the ffmpeg build, the media
-# tools, Caddy with its low-port capability, and the runtime that joins them.
-# `--target media-tools` builds the tools alone (packaging/README.md says why).
+# tools, the office document tools, Caddy with its low-port capability, and the
+# runtime that joins them. `--target media-tools` builds the tools alone and
+# `--target office-tools` adds LibreOffice to them (packaging/README.md says
+# why, with the measured size).
 
 # Stage 1: the admin SPA bundle.
 FROM node:22-bookworm-slim AS web
@@ -138,6 +140,37 @@ COPY --from=ffmpeg-build /opt/ffmpeg /opt/ffmpeg
 # `ffmpeg` makes a video's poster and decodes AVIF and HEIC, and its `ffprobe`
 # reads the duration and frame size a time-based IIIF canvas needs.
 ENV PATH=/opt/ffmpeg/bin:$PATH
+
+# Stage 4b: LibreOffice, the office document tools. This is deliberately not
+# part of the runtime image: measured 2026-10-21, the three -nogui packages and
+# their fonts add 401 MB on top of the 209 MB tools stage, where the whole
+# runtime image is 343 MB. An install that wants a PDF access copy of a .docx
+# runs the job runner from this image against the same database and store:
+#
+#     docker build -f packaging/Dockerfile --target office-tools -t romeka-s:office-tools .
+#     docker run --rm -v romeka-db:/db -v romeka-files:/data/files \
+#         romeka-s:office-tools romeka media derivatives --retry
+#
+# The `-nogui` packages are LibreOffice's headless builds; there is no X
+# server in this image and `soffice --headless` needs none. DejaVu and
+# Liberation are the fonts a document names; without them a PDF substitutes a
+# different face and its line breaks move.
+FROM media-tools AS office-tools
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        libreoffice-writer-nogui \
+        libreoffice-calc-nogui \
+        libreoffice-impress-nogui \
+        fonts-dejavu \
+        fonts-liberation; \
+    rm -rf /var/lib/apt/lists/*
+# The job runner is this image's entry point: the CLI, pointed at the server's
+# database and store, makes the copies the server queued and left for it.
+COPY --from=build /out/romeka /usr/local/bin/romeka
+ENV ROMEKA_DB=/db/romeka.db \
+    ROMEKA_STORE=/data/files
+WORKDIR /data
 
 # Stage 5: Caddy with its low-port capability set. The capability is an xattr
 # on the binary and the runtime's COPY preserves it, so the 52 MiB binary is

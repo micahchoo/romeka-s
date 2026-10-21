@@ -1,25 +1,27 @@
 //! The playable copy a browser needs when it cannot open the original.
 //!
 //! One access-copy row of kind `access_copy` names a target and a tool
-//! (`crate::access`). This module does the audio and video half: an H.264/AAC
-//! MP4 for a video and an AAC M4A for audio, made by `ffmpeg` with
-//! [`crate::tool::video_mp4_args`] or [`crate::tool::audio_m4a_args`]. The
-//! image access master is the image unit's, and a target this module does not
-//! run is a typed skip.
+//! (`crate::access`). This module does the audio, video and office document
+//! half: an H.264/AAC MP4 for a video and an AAC M4A for audio, made by
+//! `ffmpeg` with [`crate::tool::video_mp4_args`] or
+//! [`crate::tool::audio_m4a_args`], and a PDF for an office document, made by
+//! LibreOffice with [`crate::tool::office_pdf_args`]. The image access master is
+//! the image unit's, and a target this module does not run is a typed skip.
 //!
 //! The original is never changed. It is streamed out of the store in
-//! [`crate::derivative::COPY_CHUNK`] pieces to a temporary file, which `ffmpeg`
-//! opens, and the copy is written back through [`crate::store::Store`] under the
-//! `access/` prefix. So an object store and a 2 GB video cost the same memory as
-//! a local JPEG, and a reader who may not see the original is refused the copy
-//! the same way.
+//! [`crate::derivative::COPY_CHUNK`] pieces to a temporary file, which the
+//! command opens, and the copy is written back through [`crate::store::Store`]
+//! under the `access/` prefix. So an object store and a 2 GB video cost the same
+//! memory as a local JPEG, and a reader who may not see the original is refused
+//! the copy the same way.
 //!
 //! The work runs on its own thread, [`Transcode`]: a transcode lasts minutes,
 //! the caller is an async worker that must keep checking for a stop request and
 //! a starting import, and `ffmpeg` reports its progress on standard output while
 //! it runs. The caller polls [`Transcode::try_progress`] and asks for a stop
 //! with [`Transcode::request_stop`]; the command is killed within
-//! [`crate::tool::TRANSCODE_POLL`] and the partial copy is removed.
+//! [`crate::tool::TRANSCODE_POLL`] and the partial copy is removed. LibreOffice
+//! reports no progress, so a PDF copy reports none.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -32,7 +34,7 @@ use crate::access::{AccessTarget, copy_path};
 use crate::av_probe;
 use crate::derivative::copy_to;
 use crate::store::{Store, StorePrefix, storage_path};
-use crate::tool::{self, AccessTool, ToolError, Tools, audio_m4a_args, video_mp4_args};
+use crate::tool::{self, ToolError, Tools, audio_m4a_args, video_mp4_args};
 
 /// The facts of one stored original a copy is made from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +66,10 @@ pub enum TranscodeWork {
         tool: Option<&'static str>,
     },
     /// The caller asked the running copy to stop; nothing was stored.
-    Stopped,
+    Stopped {
+        /// The command that was stopped.
+        tool: &'static str,
+    },
 }
 
 impl TranscodeWork {
@@ -72,7 +77,7 @@ impl TranscodeWork {
     #[must_use]
     pub fn reason(&self) -> Option<&str> {
         match self {
-            Self::Ready { .. } | Self::Stopped => None,
+            Self::Ready { .. } | Self::Stopped { .. } => None,
             Self::Skipped { reason, .. } | Self::Failed { reason, .. } => Some(reason),
         }
     }
@@ -83,7 +88,7 @@ impl TranscodeWork {
         match self {
             Self::Ready { tool, .. } => Some(*tool),
             Self::Skipped { tool, .. } | Self::Failed { tool, .. } => *tool,
-            Self::Stopped => Some("ffmpeg"),
+            Self::Stopped { tool } => Some(*tool),
         }
     }
 }
@@ -154,7 +159,7 @@ impl Transcode {
     }
 }
 
-/// The thread's work: copy out, transcode, store the copy.
+/// The thread's work: copy out, convert, store the copy.
 fn run(
     store: &dyn Store,
     tools: &Tools,
@@ -163,19 +168,20 @@ fn run(
     stop: &AtomicBool,
     progress: &Sender<u8>,
 ) -> TranscodeWork {
-    let tool = Some(AccessTool::Ffmpeg.command());
+    let command = command_of(target);
+    let tool = Some(command);
     if target == AccessTarget::Jpeg {
         return TranscodeWork::Skipped {
             reason: "the image access master is not this worker's".to_string(),
             tool: None,
         };
     }
-    let Some(media_type) = source.media_type.as_deref() else {
+    if source.media_type.is_none() {
         return TranscodeWork::Failed {
             reason: "the row stored no media type".to_string(),
             tool,
         };
-    };
+    }
     if !source.has_original {
         return TranscodeWork::Failed {
             reason: "the row stored no original".to_string(),
@@ -194,7 +200,8 @@ fn run(
         };
     };
     // The input keeps its extension, and the output the target's, because
-    // `ffmpeg` leans on both to pick a demuxer and a muxer.
+    // `ffmpeg` leans on both to pick a demuxer and a muxer and LibreOffice
+    // leans on the input's to pick an import filter.
     let extension = source
         .extension
         .as_deref()
@@ -218,6 +225,9 @@ fn run(
         };
     }
     drop(file);
+    if target == AccessTarget::Pdf {
+        return office_copy(store, tools, source, &input, dir.path(), stop, command);
+    }
     let duration = av_probe::probe_with(tools, &input)
         .and_then(|extent| extent.duration_ms)
         .map(Duration::from_millis);
@@ -235,9 +245,50 @@ fn run(
     match tools.transcode(&args, duration, stop, &mut report) {
         Ok(tool::TranscodeEnd::Stopped) => {
             remove(store, &copy_path(&source.storage_id, target));
-            TranscodeWork::Stopped
+            TranscodeWork::Stopped { tool: command }
         }
-        Ok(tool::TranscodeEnd::Finished) => store_copy(store, &output, source, target, media_type),
+        Ok(tool::TranscodeEnd::Finished) => store_copy(store, &output, source, target, command),
+        Err(ToolError::ToolMissing(name)) => TranscodeWork::Skipped {
+            reason: format!("toolMissing: {name}"),
+            tool: Some(name),
+        },
+        Err(error) => TranscodeWork::Failed {
+            reason: error.to_string(),
+            tool,
+        },
+    }
+}
+
+/// The command that makes one target's copy.
+const fn command_of(target: AccessTarget) -> &'static str {
+    match target {
+        AccessTarget::Pdf => "soffice",
+        AccessTarget::Mp4 | AccessTarget::M4a | AccessTarget::Jpeg => "ffmpeg",
+    }
+}
+
+/// The office document half: LibreOffice writes a PDF beside the input, which
+/// is then stored as the copy.
+fn office_copy(
+    store: &dyn Store,
+    tools: &Tools,
+    source: &TranscodeSource,
+    input: &Path,
+    outdir: &Path,
+    stop: &AtomicBool,
+    command: &'static str,
+) -> TranscodeWork {
+    let tool = Some(command);
+    let output = input.with_extension(AccessTarget::Pdf.suffix());
+    let args = tool::office_pdf_args(input, outdir);
+    match tools.office_pdf(&args, stop) {
+        Ok(tool::TranscodeEnd::Stopped) => {
+            remove(store, &copy_path(&source.storage_id, AccessTarget::Pdf));
+            TranscodeWork::Stopped { tool: command }
+        }
+        Ok(tool::TranscodeEnd::Finished) => {
+            store_copy(store, &output, source, AccessTarget::Pdf, command)
+        }
         Err(ToolError::ToolMissing(name)) => TranscodeWork::Skipped {
             reason: format!("toolMissing: {name}"),
             tool: Some(name),
@@ -255,13 +306,13 @@ fn store_copy(
     output: &Path,
     source: &TranscodeSource,
     target: AccessTarget,
-    media_type: &str,
+    command: &'static str,
 ) -> TranscodeWork {
-    let tool = Some(AccessTool::Ffmpeg.command());
+    let tool = Some(command);
     let path = copy_path(&source.storage_id, target);
     let Ok(file) = std::fs::File::open(output) else {
         return TranscodeWork::Failed {
-            reason: format!("the {media_type} copy was not written"),
+            reason: format!("the {command} command wrote no {}", target.suffix()),
             tool,
         };
     };
@@ -276,14 +327,14 @@ fn store_copy(
     };
     if size == 0 {
         return TranscodeWork::Failed {
-            reason: "ffmpeg wrote an empty copy".to_string(),
+            reason: format!("the {command} command wrote an empty copy"),
             tool,
         };
     }
     let mut reader = std::io::BufReader::new(file);
     match store.put_stream(&mut reader, Some(size), &path, Some(target.media_type())) {
         Ok(bytes) => TranscodeWork::Ready {
-            tool: "ffmpeg",
+            tool: command,
             bytes,
         },
         Err(error) => TranscodeWork::Failed {
@@ -301,22 +352,29 @@ fn remove(store: &dyn Store, path: &str) {
     }
 }
 
-/// The poster a copy makes when the original's own still did not: the copy is
-/// streamed out of the store and its frame becomes the three thumbnails.
+/// The three thumbnails a copy makes when the original's own still did not: the
+/// copy is streamed out of the store and its frame, or its first page for a PDF,
+/// becomes the thumbnails.
 ///
 /// `true` when this run wrote them. A tool that cannot read the copy, or a
 /// store that cannot hand it over, answers `false`: the media keeps whatever
-/// preview state it had, and the copy still plays.
+/// preview state it had, and the copy still plays or reads.
 #[must_use]
-pub fn poster_from_copy(store: &dyn Store, storage_id: &str, copy: &str) -> bool {
+pub fn thumbnails_from_copy(
+    store: &dyn Store,
+    storage_id: &str,
+    copy: &str,
+    target: AccessTarget,
+) -> bool {
+    let suffix = format!(".{}", target.suffix());
     let Ok(dir) = tempfile::Builder::new()
         .prefix("romeka-poster")
-        .suffix(".mp4")
+        .suffix(&suffix)
         .tempdir()
     else {
         return false;
     };
-    let input = dir.path().join("copy.mp4");
+    let input = dir.path().join(format!("copy{}", suffix));
     let Ok(mut file) = std::fs::File::create(&input) else {
         return false;
     };
@@ -328,12 +386,12 @@ pub fn poster_from_copy(store: &dyn Store, storage_id: &str, copy: &str) -> bool
         store,
         storage_id,
         &input,
-        Some("video/mp4"),
+        Some(target.media_type()),
     ) {
         Ok(crate::thumbnailer::ThumbnailOutcome::Generated) => true,
         Ok(_) => false,
         Err(error) => {
-            tracing::warn!(%error, storage_id, "no poster from the access copy");
+            tracing::warn!(%error, storage_id, "no thumbnail from the access copy");
             false
         }
     }
@@ -445,7 +503,12 @@ mod tests {
         // The copy's frame is the poster a media whose original yielded none
         // gets: the three thumbnails are made from it.
         assert!(
-            poster_from_copy(&FileStore::new(dir.path(), "/files"), storage_id, &copy),
+            thumbnails_from_copy(
+                &FileStore::new(dir.path(), "/files"),
+                storage_id,
+                &copy,
+                AccessTarget::Mp4
+            ),
             "the copy makes a poster"
         );
         for kind in crate::file_render::ThumbnailType::ALL {
@@ -487,10 +550,131 @@ mod tests {
         .expect("a worker");
         run.request_stop();
         let work = run.finish();
-        assert_eq!(work, TranscodeWork::Stopped);
+        assert_eq!(work, TranscodeWork::Stopped { tool: "ffmpeg" });
         assert!(
             !dir.path()
                 .join(copy_path(storage_id, AccessTarget::Mp4))
+                .exists(),
+            "nothing is stored"
+        );
+    }
+
+    /// A Word document becomes a PDF copy under `access/`, the original is
+    /// untouched, and the copy's first page is the three thumbnails: the
+    /// reader and the preview an office file never had.
+    #[test]
+    fn an_office_document_becomes_a_pdf_copy() {
+        if Tools::on_path().soffice().is_none() {
+            eprintln!("skipping: no soffice on PATH");
+            return;
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(dir.path(), "/files");
+        let bytes = std::fs::read(corpus("doc.docx")).expect("the fixture");
+        let storage_id = "doc-docx";
+        let original = storage_path(StorePrefix::Original, storage_id, Some("docx"));
+        store
+            .put(
+                &bytes,
+                &original,
+                Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            )
+            .expect("store");
+        let run = Transcode::start(
+            Arc::new(store),
+            Tools::on_path().clone(),
+            TranscodeSource {
+                storage_id: storage_id.to_string(),
+                extension: Some("docx".to_string()),
+                media_type: Some(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        .to_string(),
+                ),
+                has_original: true,
+            },
+            AccessTarget::Pdf,
+        )
+        .expect("a worker");
+        let (work, progress) = poll(run);
+        match &work {
+            TranscodeWork::Ready { tool, bytes } => {
+                assert_eq!(*tool, "soffice");
+                assert!(*bytes > 1024, "the copy is a real file");
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(
+            progress.is_empty(),
+            "LibreOffice reports no progress: {progress:?}"
+        );
+        let copy = copy_path(storage_id, AccessTarget::Pdf);
+        assert_eq!(copy, "access/doc-docx.pdf");
+        let stored = std::fs::read(dir.path().join(&copy)).expect("the copy");
+        assert!(
+            stored.starts_with(b"%PDF-"),
+            "the copy is a PDF, not the document"
+        );
+        assert_eq!(
+            std::fs::read(dir.path().join(&original)).expect("the original"),
+            bytes,
+            "the original is never changed"
+        );
+
+        if Tools::on_path().pdftoppm().is_none() {
+            eprintln!("skipping the thumbnails: no pdftoppm on PATH");
+            return;
+        }
+        assert!(
+            thumbnails_from_copy(
+                &FileStore::new(dir.path(), "/files"),
+                storage_id,
+                &copy,
+                AccessTarget::Pdf
+            ),
+            "the copy's first page makes the thumbnails"
+        );
+        for kind in crate::file_render::ThumbnailType::ALL {
+            let thumb = crate::thumbnailer::thumbnail_path(storage_id, kind);
+            assert!(dir.path().join(&thumb).is_file(), "{thumb} was not written");
+        }
+    }
+
+    /// Without LibreOffice a document's PDF copy is skipped with the reason D2's
+    /// table uses, and the original stays readable as a download.
+    #[test]
+    fn a_missing_soffice_is_a_typed_skip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(dir.path(), "/files");
+        let bytes = std::fs::read(corpus("doc.docx")).expect("the fixture");
+        let storage_id = "no-soffice";
+        store
+            .put(
+                &bytes,
+                &storage_path(StorePrefix::Original, storage_id, Some("docx")),
+                Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            )
+            .expect("store");
+        let run = Transcode::start(
+            Arc::new(store),
+            Tools::none(),
+            TranscodeSource {
+                storage_id: storage_id.to_string(),
+                extension: Some("docx".to_string()),
+                media_type: Some(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        .to_string(),
+                ),
+                has_original: true,
+            },
+            AccessTarget::Pdf,
+        )
+        .expect("a worker");
+        let work = run.finish();
+        assert_eq!(work.reason(), Some("toolMissing: soffice"), "{work:?}");
+        assert_eq!(work.tool(), Some("soffice"));
+        assert!(
+            !dir.path()
+                .join(copy_path(storage_id, AccessTarget::Pdf))
                 .exists(),
             "nothing is stored"
         );

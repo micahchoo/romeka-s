@@ -80,11 +80,12 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
             named.insert(omeka_media::thumbnailer::thumbnail_path(&storage_id, kind));
         }
         // An access copy is named by the media it belongs to, not by a column,
-        // so both targets are named and whichever the worker wrote is kept.
+        // so every target is named and whichever the worker wrote is kept.
         for target in [
             omeka_media::access::AccessTarget::Mp4,
             omeka_media::access::AccessTarget::M4a,
             omeka_media::access::AccessTarget::Jpeg,
+            omeka_media::access::AccessTarget::Pdf,
         ] {
             named.insert(omeka_media::access::copy_path(&storage_id, target));
         }

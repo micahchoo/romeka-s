@@ -71,14 +71,15 @@ pub(crate) enum Painting {
     Local(LocalImage),
     /// A media ingested from a IIIF image service: its stored `info.json`.
     Remote(Value),
-    /// A still derivative with no service, such as a PDF's first page.
+    /// A still derivative with no service: a PDF's first page, or an office
+    /// document's PDF copy's first page.
     Still {
         /// The derivative's URL, the painted body.
         url: String,
         /// The derivative's size, which is also the canvas size.
         size: Size,
-        /// The document itself, linked through `rendering`.
-        pdf_url: String,
+        /// The document the page was read from, linked through `rendering`.
+        original: Original,
     },
     /// An audio file. `original` is set when the body is an access copy.
     Sound {
@@ -311,7 +312,11 @@ fn painted(painting: &Painting) -> Option<Painted> {
                 rendering: None,
             })
         }
-        Painting::Still { url, size, pdf_url } => Some(Painted {
+        Painting::Still {
+            url,
+            size,
+            original,
+        } => Some(Painted {
             canvas_size: *size,
             duration_s: None,
             body: json!({
@@ -323,10 +328,10 @@ fn painted(painting: &Painting) -> Option<Painted> {
             }),
             thumbnail: None,
             rendering: Some(json!([{
-                "id": pdf_url,
+                "id": original.url,
                 "type": "Text",
                 "label": {"en": ["Original file"]},
-                "format": "application/pdf",
+                "format": original.media_type,
             }])),
         }),
         Painting::Sound {

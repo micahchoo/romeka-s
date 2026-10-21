@@ -7,10 +7,11 @@
 //! the IIIF canvas read it when the original is not something a browser shows.
 //!
 //! [`Access::of`] is the table. It answers for video by container and codec,
-//! for audio by codec (and the size of a WAV), and for images by type and a
-//! test of a TIFF's layout. `None` means this wave has no access rule for the
-//! type, which is true of office documents, models and caption files: they get
-//! no row rather than a guess.
+//! for audio by codec (and the size of a WAV), for images by type and a test of
+//! a TIFF's layout, and for an office document, which gets a PDF copy through
+//! LibreOffice so the reader and the first page can show it. `None` means this
+//! wave has no access rule for the type, which is true of models and caption
+//! files: they get no row rather than a guess.
 //!
 //! The facts come from [`facts`], which reads a stored original through
 //! [`crate::sample`] and runs `ffprobe` for the codecs. The decision is made
@@ -28,6 +29,7 @@
 //! the thumbnails exist.
 
 use crate::av_probe::{self, Streams};
+use crate::kind::{OFFICE_DOCUMENT_EXTENSIONS, OFFICE_DOCUMENT_MEDIA_TYPES};
 use crate::media_type::{RAW_MEDIA_TYPES, extension_for_media_type, is_raw_media_type};
 use crate::sample;
 use crate::store::Store;
@@ -105,6 +107,8 @@ pub enum AccessTarget {
     M4a,
     /// A high-resolution JPEG access master.
     Jpeg,
+    /// An office document as a PDF.
+    Pdf,
 }
 
 impl AccessTarget {
@@ -115,6 +119,7 @@ impl AccessTarget {
             Self::Mp4 => "mp4",
             Self::M4a => "m4a",
             Self::Jpeg => "jpg",
+            Self::Pdf => "pdf",
         }
     }
 
@@ -125,6 +130,7 @@ impl AccessTarget {
             Self::Mp4 => "video/mp4",
             Self::M4a => "audio/mp4",
             Self::Jpeg => "image/jpeg",
+            Self::Pdf => "application/pdf",
         }
     }
 
@@ -139,14 +145,17 @@ impl AccessTarget {
             Self::Jpeg => {
                 "a browser cannot show this image as stored; a JPEG access master shows it"
             }
+            Self::Pdf => {
+                "a browser cannot read this document as stored; a PDF copy shows it in the reader"
+            }
         }
     }
 }
 
-/// The copy a stored media type gets from the audio or video worker, from the
-/// type alone: video becomes an MP4 and audio an M4A, and every other type is
-/// the image unit's. This is the target the `access_copy` row was queued for,
-/// which the row itself does not store.
+/// The copy a stored media type gets from the audio, video or document worker,
+/// from the type alone: video becomes an MP4, audio an M4A and an office
+/// document a PDF, and every other type is the image unit's. This is the target
+/// the `access_copy` row was queued for, which the row itself does not store.
 #[must_use]
 pub fn target_of(media_type: &str, extension: Option<&str>) -> Option<AccessTarget> {
     if media_type == "application/ogg" {
@@ -156,6 +165,9 @@ pub fn target_of(media_type: &str, extension: Option<&str>) -> Option<AccessTarg
         } else {
             AccessTarget::M4a
         });
+    }
+    if is_office_document(Some(media_type), extension) {
+        return Some(AccessTarget::Pdf);
     }
     if media_type.starts_with("video/") {
         return Some(AccessTarget::Mp4);
@@ -215,6 +227,9 @@ impl Access {
         }
         if media_type == "application/pdf" {
             return Some(Self::Original);
+        }
+        if is_office_document(Some(media_type), facts.extension.as_deref()) {
+            return Some(Self::copy(AccessTarget::Pdf, &[AccessTool::Soffice]));
         }
         Self::image(facts, media_type)
     }
@@ -457,6 +472,13 @@ fn is_tiff(media_type: &str, extension: Option<&str>) -> bool {
     media_type == "image/tiff" || names_any(&["tif", "tiff"], extension)
 }
 
+/// Whether a stored type or its extension names an office document, which is
+/// the one kind whose access copy is a PDF.
+fn is_office_document(media_type: Option<&str>, extension: Option<&str>) -> bool {
+    media_type.is_some_and(|media_type| names(&OFFICE_DOCUMENT_MEDIA_TYPES, media_type))
+        || names_any(&OFFICE_DOCUMENT_EXTENSIONS, extension)
+}
+
 /// Whether a stored extension names a camera RAW file.
 fn names_raw_extension(extension: Option<&str>) -> bool {
     let Some(extension) = extension else {
@@ -509,6 +531,10 @@ mod tests {
         target: AccessTarget::Jpeg,
         tools: &[AccessTool::Ghostscript],
     };
+    const DOCX_PDF: Access = Access::Copy {
+        target: AccessTarget::Pdf,
+        tools: &[AccessTool::Soffice],
+    };
 
     fn corpus(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -527,7 +553,7 @@ mod tests {
     /// The corpus, and what each file needs. The decision on a video or audio
     /// file comes from the codecs `ffprobe` reports, so those rows are skipped
     /// when the command is absent.
-    const CORPUS: [(&str, &str, &str, Option<Access>); 30] = [
+    const CORPUS: [(&str, &str, &str, Option<Access>); 33] = [
         ("image.jpg", "image/jpeg", "jpg", Some(Access::Original)),
         ("image.png", "image/png", "png", Some(Access::Original)),
         ("image.gif", "image/gif", "gif", Some(Access::Original)),
@@ -563,7 +589,30 @@ mod tests {
         ("mpeg2.mpg", "video/mpeg", "mpg", Some(MP4)),
         ("wma.wma", "audio/x-ms-wma", "wma", Some(M4A)),
         ("doc.pdf", "application/pdf", "pdf", Some(Access::Original)),
-        ("doc.docx", "DOCX", "docx", None),
+        (
+            "doc.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "docx",
+            Some(DOCX_PDF),
+        ),
+        (
+            "doc.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xlsx",
+            Some(DOCX_PDF),
+        ),
+        (
+            "doc.pptx",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "pptx",
+            Some(DOCX_PDF),
+        ),
+        (
+            "doc.odt",
+            "application/vnd.oasis.opendocument.text",
+            "odt",
+            Some(DOCX_PDF),
+        ),
         ("model.glb", "model/gltf-binary", "glb", None),
         ("model.gltf", "model/gltf+json", "gltf", None),
         ("captions.vtt", "text/vtt", "vtt", None),
@@ -774,16 +823,11 @@ mod tests {
         );
     }
 
-    /// This wave has no access rule for a document, a model or a caption file,
-    /// so it writes no row rather than a guess.
+    /// This wave has no access rule for a model or a caption file, so it writes
+    /// no row rather than a guess.
     #[test]
     fn a_kind_with_no_rule_has_no_decision() {
         for (media_type, extension) in [
-            ("application/msword", "doc"),
-            (
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "docx",
-            ),
             ("model/gltf-binary", "glb"),
             ("text/vtt", "vtt"),
             ("application/x-subrip", "srt"),
@@ -792,6 +836,31 @@ mod tests {
                 Access::of(&Facts::new(Some(media_type), Some(extension), None)),
                 None,
                 "{media_type}"
+            );
+        }
+    }
+
+    /// Every office document gets a PDF copy through LibreOffice, by its type
+    /// and, for a row that stored only a zip type, by its extension.
+    #[test]
+    fn every_office_document_gets_a_pdf_copy() {
+        for media_type in OFFICE_DOCUMENT_MEDIA_TYPES {
+            assert_eq!(
+                Access::of(&Facts::new(Some(media_type), None, None)),
+                Some(DOCX_PDF),
+                "{media_type}"
+            );
+        }
+        for extension in OFFICE_DOCUMENT_EXTENSIONS {
+            assert_eq!(
+                Access::of(&Facts::new(Some("application/zip"), Some(extension), None)),
+                Some(DOCX_PDF),
+                "{extension}"
+            );
+            assert_eq!(
+                target_of("application/zip", Some(extension)),
+                Some(AccessTarget::Pdf),
+                "{extension}"
             );
         }
     }
@@ -810,7 +879,8 @@ mod tests {
             .with_exiftool(present("exiftool"))
             .with_libraw(present("dcraw_emu"))
             .with_vips(present("vips"))
-            .with_ghostscript(present("gs"));
+            .with_ghostscript(present("gs"))
+            .with_soffice(present("soffice"));
         assert_eq!(
             Access::Original.queue(&all),
             Queue::None {
@@ -822,6 +892,7 @@ mod tests {
         assert_eq!(VIPS_JPEG.queue(&all), Queue::Pending { tool: "vips" });
         assert_eq!(GS_JPEG.queue(&all), Queue::Pending { tool: "gs" });
         assert_eq!(RAW_JPEG.queue(&all), Queue::Pending { tool: "exiftool" });
+        assert_eq!(DOCX_PDF.queue(&all), Queue::Pending { tool: "soffice" });
 
         let none = Tools::none();
         assert_eq!(
@@ -841,6 +912,13 @@ mod tests {
             Queue::None {
                 reason: "needs ffmpeg, not installed".to_string()
             }
+        );
+        assert_eq!(
+            DOCX_PDF.queue(&none),
+            Queue::None {
+                reason: "needs soffice, not installed".to_string()
+            },
+            "a document keeps its card and says what it needs"
         );
         let raw_only = Tools::none().with_libraw(present("dcraw_emu"));
         assert_eq!(
@@ -1228,9 +1306,18 @@ mod tests {
         );
         assert_eq!(target_of("image/tiff", Some("tif")), None);
         assert_eq!(target_of("application/pdf", Some("pdf")), None);
+        assert_eq!(
+            target_of(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                Some("docx")
+            ),
+            Some(AccessTarget::Pdf)
+        );
         assert_eq!(copy_path("abc123", AccessTarget::Mp4), "access/abc123.mp4");
         assert_eq!(copy_path("abc123", AccessTarget::M4a), "access/abc123.m4a");
+        assert_eq!(copy_path("abc123", AccessTarget::Pdf), "access/abc123.pdf");
         assert_eq!(AccessTarget::Mp4.media_type(), "video/mp4");
         assert_eq!(AccessTarget::M4a.media_type(), "audio/mp4");
+        assert_eq!(AccessTarget::Pdf.media_type(), "application/pdf");
     }
 }

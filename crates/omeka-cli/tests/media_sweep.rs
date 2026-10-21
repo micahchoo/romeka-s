@@ -105,7 +105,13 @@ async fn fixture() -> Fixture {
         put(&store, &format!("{kind}/kept.jpg"), old);
     }
     put(&store, "asset/logo.png", old);
+    // The copies a media's access rows name: one of each kind a worker may have
+    // written, including a document's PDF copy.
+    put(&store, "access/kept.pdf", old);
+    put(&store, "access/kept.mp4", old);
     put(&store, "original/lost.png", old);
+    // An access copy whose media is gone is an orphan like any other file.
+    put(&store, "access/orphan.pdf", old);
     for kind in ["large", "medium", "square"] {
         put(&store, &format!("{kind}/lost.jpg"), old);
     }
@@ -141,7 +147,12 @@ async fn the_dry_run_lists_exactly_the_old_orphans_and_removes_nothing() {
     let report = f.sweep(false).await;
     assert_eq!(
         sorted(report.orphans),
-        ["large/lost.jpg", "original/lost.png", "square/lost.jpg"]
+        [
+            "access/orphan.pdf",
+            "large/lost.jpg",
+            "original/lost.png",
+            "square/lost.jpg",
+        ]
     );
     assert_eq!(report.young, 1);
     assert!(f.exists("original/lost.png"));
@@ -153,10 +164,20 @@ async fn delete_removes_exactly_the_old_orphans_and_a_second_run_removes_nothing
     let report = f.sweep(true).await;
     assert_eq!(
         sorted(report.orphans),
-        ["large/lost.jpg", "original/lost.png", "square/lost.jpg"]
+        [
+            "access/orphan.pdf",
+            "large/lost.jpg",
+            "original/lost.png",
+            "square/lost.jpg",
+        ]
     );
     assert!(report.failed.is_empty());
-    for gone in ["original/lost.png", "large/lost.jpg", "square/lost.jpg"] {
+    for gone in [
+        "access/orphan.pdf",
+        "original/lost.png",
+        "large/lost.jpg",
+        "square/lost.jpg",
+    ] {
         assert!(!f.exists(gone), "{gone} should be gone");
     }
     for kept in [
@@ -166,6 +187,8 @@ async fn delete_removes_exactly_the_old_orphans_and_a_second_run_removes_nothing
         "asset/logo.png",
         "original/fresh.png",
         "original/link.png",
+        "access/kept.pdf",
+        "access/kept.mp4",
     ] {
         assert!(f.exists(kept), "{kept} should remain");
     }

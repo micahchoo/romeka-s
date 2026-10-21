@@ -33,7 +33,10 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 | `video.mkv` | H.264 and AAC in Matroska, outside upstream's default allow list. |
 | `video.ogv` | Theora and Vorbis in Ogg. The bytes read as the Ogg container, `audio/ogg`; the extension names the video type, `video/ogg`. |
 | `doc.pdf` | Two-page PDF. |
-| `doc.docx` | Word document. |
+| `doc.docx` | Word document: the office corpus row the access copy's PDF, its first-page thumbnail, the reader and the IIIF canvas are read through. |
+| `doc.xlsx` | Excel workbook. |
+| `doc.pptx` | PowerPoint presentation, one 10x7.5 inch slide. |
+| `doc.odt` | OpenDocument text, the zip container a byte read cannot name. |
 | `model.glb` | Binary glTF with an embedded buffer. |
 | `model.gltf` | JSON glTF with a base64 data-URI buffer. |
 | `captions.vtt` | WebVTT captions. |
@@ -48,5 +51,5 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 
 The tools are `ffmpeg`, ImageMagick 7 (`magick`), `exiftool`, `heif-enc`,
 `resvg` is not needed because the SVGs are written directly, and `python3` for
-the PDF, DOCX, GLB and glTF containers. The script strips container metadata and
+the PDF, DOCX, XLSX, PPTX, ODT, GLB and glTF containers. The script strips container metadata and
 passes `-bitexact` to ffmpeg where the muxer honours it.

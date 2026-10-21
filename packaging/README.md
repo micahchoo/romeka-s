@@ -5,11 +5,13 @@ that terminates TLS and serves the admin SPA and the media bytes.
 
 ## Files
 
-- `Dockerfile` builds six stages. `web` builds the SPA, `build` builds the
+- `Dockerfile` builds seven stages. `web` builds the SPA, `build` builds the
   release binary of the `omeka-cli` package, `ffmpeg-build` compiles ffmpeg and
-  ffprobe, `media-tools` installs the external media commands, `caddy` sets the
-  low-port capability on the origin binary, and `runtime` joins them. Build it
-  from the repository root: `docker build -f packaging/Dockerfile -t romeka-s:local .`
+  ffprobe, `media-tools` installs the external media commands, `office-tools`
+  adds LibreOffice and the job runner to those commands as a separate image,
+  `caddy` sets the low-port capability on the origin binary, and `runtime` joins
+  the SPA, the binary, the media tools and Caddy. Build it from the repository
+  root: `docker build -f packaging/Dockerfile -t romeka-s:local .`
 - `Dockerfile.dockerignore` is the build context filter.
 - `entrypoint.sh` installs an absent database, starts the server on loopback and
   Caddy on 80 and 443, and stops the container when either process exits.
@@ -42,6 +44,40 @@ docker build -f packaging/Dockerfile --target media-tools -t romeka-s:media-tool
 That image holds the commands and nothing else. Wave U8 adds vips, libraw and
 ghostscript to the `apt-get install` line in that stage; measure the addition
 before taking it.
+
+## The office document tools
+
+An office document gets a PDF access copy through LibreOffice
+(`crates/omeka-media/src/access.rs`, `D6` of `briefs/media-ui-plan.md`).
+`soffice` is optional at runtime like the other tools: where it is absent the
+row records `needs soffice, not installed` and the media keeps its card.
+
+It is a separate image, not part of `runtime`, because of its size. Measured
+2026-10-21 on amd64 with Debian 12's packages:
+
+| Layer | Size |
+| --- | --- |
+| `libreoffice-writer-nogui` 7.4.7, `libreoffice-calc-nogui`, `libreoffice-impress-nogui` and everything they pull | 391 MB |
+| `fonts-dejavu` (2.37) and `fonts-liberation` (1.07.4) | 10 MB |
+| **added to the tools image** | **401 MB** |
+| the tools image with them, plus the CLI | 676 MB |
+| the tools image without them (`--target media-tools`) | 209 MB |
+| the runtime image, which is unchanged | 343 MB |
+
+The `-nogui` packages are LibreOffice's headless builds and need no X server.
+The fonts are what a document names; without them the PDF substitutes another
+face and the line breaks move. Build and run it against the server's database
+and store:
+
+```
+docker build -f packaging/Dockerfile --target office-tools -t romeka-s:office-tools .
+docker run --rm -v romeka-db:/db -v romeka-files:/data/files \
+    romeka-s:office-tools romeka media derivatives --retry
+```
+
+`--retry` puts back the rows that recorded `needs soffice, not installed` when
+the server planned them. The image carries the same CLI as the runtime, so it
+is the job runner in that container; the server itself never needs LibreOffice.
 
 ## The ffmpeg build
 

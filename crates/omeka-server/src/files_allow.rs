@@ -219,11 +219,13 @@ fn forwarded_name(forwarded: &str) -> &str {
 }
 
 /// The type an access copy with `extension` answers with. A copy is only an
-/// MP4 or an M4A in this build; any other suffix is no copy the store wrote.
+/// MP4, an M4A or a document's PDF in this build; any other suffix is no copy
+/// the store wrote.
 fn access_media_type(extension: Option<&str>) -> Option<String> {
     match extension? {
         "mp4" => Some("video/mp4".to_string()),
         "m4a" => Some("audio/mp4".to_string()),
+        "pdf" => Some("application/pdf".to_string()),
         _ => None,
     }
 }
@@ -387,6 +389,10 @@ mod tests {
         );
         assert_eq!(access_media_type(Some("mp4")).as_deref(), Some("video/mp4"));
         assert_eq!(access_media_type(Some("m4a")).as_deref(), Some("audio/mp4"));
+        assert_eq!(
+            access_media_type(Some("pdf")).as_deref(),
+            Some("application/pdf")
+        );
         assert_eq!(access_media_type(Some("avi")), None);
         assert_eq!(access_media_type(None), None);
     }

@@ -318,7 +318,8 @@ The same create records the file's access decision as a second row, kind
 is needed and its tool is installed, or `none` with `needs <tool>, not
 installed`. That row names the copy a later worker makes: an H.264/AAC MP4 or an
 AAC M4A, which the same worker claims and transcodes (`omeka_media::transcode`),
-or a JPEG access master, which the image worker claims when it lands. A media
+a PDF made from an office document by LibreOffice, which the same worker claims
+too, or a JPEG access master, which the image worker claims when it lands. A media
 document also carries `o-module-romeka:access`: the row's state, its progress
 while the copy runs, and the copy's URL and type once it is ready.
 A media the import made carries no row and reads its state from what the store
