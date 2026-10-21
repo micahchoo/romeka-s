@@ -20,7 +20,7 @@ import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { patternOf } from '../example';
 import { readState, typedElsewhere, withMarks, withState } from './example-state';
-import { folderSheet, listEdit, offered } from './list-read';
+import { folderSheets, listEdit } from './list-read';
 import { marksWords } from './mark-words';
 import { useSimpleText } from './messages';
 import './simple.css';
@@ -112,8 +112,9 @@ export const WhatWeFound = (): ReactElement => {
   const listing = useRef(false);
   const [listError, setListError] = useState<Error | null>(null);
   // Only before the person answered about any list, and once the pattern is set: the pairing counts depend on it.
-  const untouched = !unset && folderSheet(draft.plan) === undefined && readState(draft.plan).notLists.length === 0;
-  const offer = read.status === 'ready' && untouched ? offered(draft.plan, read.data.sources)[0] : undefined;
+  const untouched = !unset && folderSheets(draft.plan).length === 0 && readState(draft.plan).notLists.length === 0;
+  const candidates = usePreview(['listCandidates'], {}, untouched);
+  const offer = candidates.status === 'ready' && untouched ? candidates.data.listCandidates.find((candidate) => (candidate.best?.paired ?? 0) > 0) : undefined;
   useEffect(() => {
     if (offer === undefined || listing.current || !draft.editable) {
       return;

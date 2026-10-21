@@ -61,6 +61,22 @@ export interface Scenario {
   readonly leave: readonly string[] | null;
   /** The prototype's first pass at this size (`SCALE.md`). */
   readonly proto: { readonly decisions: number; readonly clicks: number };
+  /** Every list file of the folder, in place of `sheet` alone, each read with its own counts. */
+  readonly lists?: readonly ScenarioList[];
+}
+
+/**
+ * A list file of the folder as `listCandidates` counts it: its `File` column
+ * names `paired` files exactly and `normalized` with every name fold on.
+ * One with an `error` did not read.
+ */
+export interface ScenarioList {
+  readonly file: string;
+  readonly rows: number;
+  readonly paired: number;
+  readonly normalized: number;
+  readonly overlaps?: readonly { readonly file: string; readonly sharedTargets: number }[];
+  readonly error?: string;
 }
 
 const big = (size: number, small: number, large: number): number => (size > 9 ? large : small);
