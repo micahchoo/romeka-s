@@ -317,7 +317,7 @@ every imported file live in the bucket. The browser's chunks go to the bucket pa
 the ZIP job reads the archive by range, so the server does not hold a whole upload. Four notes:
 
 - The key pair needs `s3:ListBucket`, because the sweep and the scan list prefixes.
-- Give the bucket policy no anonymous read on `staging/*`, `imports/*` or `original/*`.
+- Give the bucket policy no anonymous read on `staging/*`, `imports/*`, `original/*` or `caption-undo/*` (the caption edition an undo brings back, which can hold a private media's text).
 - The thumbnails of a private item sit under the same public prefixes as the others, so their
   plain key is as private as its 40 random hex characters. The API and the site never render it.
 - `romeka backup` copies the local store only. Back up the bucket with the service's own tools.

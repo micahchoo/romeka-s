@@ -10,11 +10,14 @@ use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::Response;
-use omeka_api::annotation::{Annotations, Iris, TrackFormat, TrackImport, TrackSummary};
+use omeka_api::annotation::{
+    Annotations, Iris, KeptSummary, TrackFormat, TrackImport, TrackSummary, TrackUndo, iso,
+};
 use omeka_api::read::Params;
 use omeka_db::ids::MediaId;
-use serde_json::json;
+use serde_json::{Value, json};
 
+use super::kept::KeptFiles;
 use super::{if_none_match, page_tag, wap_error};
 use crate::AppState;
 use crate::annotations::wap;
@@ -22,6 +25,7 @@ use crate::annotations::wap;
 /// The methods the caption routes admit.
 const TRACKS_ALLOW: &str = "GET, HEAD, POST, DELETE, OPTIONS";
 const CAPTIONS_ALLOW: &str = "GET, HEAD, OPTIONS";
+const UNDO_ALLOW: &str = "POST, OPTIONS";
 /// A `text/vtt` answer, in UTF-8.
 const VTT_TYPE: &str = "text/vtt; charset=utf-8";
 
@@ -64,6 +68,39 @@ pub(super) async fn captions(
     }
 }
 
+/// `POST` an undo of the last replace of one language (G6).
+pub(super) async fn undo(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
+    match method {
+        Method::OPTIONS => wap::preflight(UNDO_ALLOW),
+        Method::POST => undo_post(&state, &id, &uri, &headers).await,
+        _ => wap::method_not_allowed(UNDO_ALLOW),
+    }
+}
+
+async fn undo_post(state: &AppState, id: &str, uri: &Uri, headers: &HeaderMap) -> Response {
+    let Some(media) = wap::media_id(id) else {
+        return wap::not_found();
+    };
+    let iris = Iris::new(state.base.as_str());
+    let params = Params::parse(uri.query().unwrap_or(""));
+    let api = match wap::caller(state, uri, headers).await {
+        Ok(api) => api,
+        Err(response) => return *response,
+    };
+    let kept = KeptFiles::new(std::sync::Arc::clone(&state.store));
+    let annotations = Annotations::keeping(&api, state.extents.as_ref(), &kept);
+    match annotations.undo_track(media, params.get("lang")).await {
+        Ok(undone) => json_document(StatusCode::OK, &undo_document(&undone)),
+        Err(error) => wap_error(error, &iris),
+    }
+}
+
 async fn track_post(
     state: &AppState,
     id: &str,
@@ -87,7 +124,8 @@ async fn track_post(
         Ok(api) => api,
         Err(response) => return *response,
     };
-    let annotations = Annotations::new(&api, state.extents.as_ref());
+    let kept = KeptFiles::new(std::sync::Arc::clone(&state.store));
+    let annotations = Annotations::keeping(&api, state.extents.as_ref(), &kept);
     if params.bool("dry_run").unwrap_or(false) {
         match annotations.preview_track(media, lang, body, format).await {
             Ok(preview) => json_document(
@@ -125,7 +163,8 @@ async fn track_list(
         Ok(api) => api,
         Err(response) => return *response,
     };
-    let annotations = Annotations::new(&api, state.extents.as_ref());
+    let kept = KeptFiles::new(std::sync::Arc::clone(&state.store));
+    let annotations = Annotations::keeping(&api, state.extents.as_ref(), &kept);
     match annotations.tracks(media).await {
         Ok(tracks) => {
             let listed: Vec<_> = tracks.iter().map(summary_document).collect();
@@ -146,7 +185,8 @@ async fn track_delete(state: &AppState, id: &str, uri: &Uri, headers: &HeaderMap
         Ok(api) => api,
         Err(response) => return *response,
     };
-    let annotations = Annotations::new(&api, state.extents.as_ref());
+    let kept = KeptFiles::new(std::sync::Arc::clone(&state.store));
+    let annotations = Annotations::keeping(&api, state.extents.as_ref(), &kept);
     match annotations.remove_track(media, params.get("lang")).await {
         Ok(()) => match Response::builder()
             .status(StatusCode::NO_CONTENT)
@@ -225,12 +265,30 @@ fn imported(iris: &Iris, media: MediaId, import: &TrackImport) -> Response {
     response
 }
 
-fn summary_document(summary: &TrackSummary) -> serde_json::Value {
+fn summary_document(summary: &TrackSummary) -> Value {
     json!({
         "lang": summary.lang.clone().unwrap_or_default(),
         "cues": summary.cues,
-        "imported": summary.imported.map(|at| at.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+        "imported": summary.imported.map(iso),
         "handEdited": summary.hand_edited,
+        "undo": summary.undo.map(kept_document),
+    })
+}
+
+/// The edition an undo would bring back: its size and when it was imported.
+fn kept_document(kept: KeptSummary) -> Value {
+    json!({
+        "cues": kept.cues,
+        "imported": kept.imported.map(iso),
+    })
+}
+
+/// The answer to an undo: the edition now live again.
+fn undo_document(undone: &TrackUndo) -> Value {
+    json!({
+        "lang": undone.lang,
+        "cues": undone.cues,
+        "imported": undone.imported.map(iso),
     })
 }
 

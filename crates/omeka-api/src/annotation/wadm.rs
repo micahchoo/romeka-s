@@ -134,6 +134,20 @@ pub(crate) fn bodies_of_row(body_json: &str) -> Result<Vec<Body>, DbError> {
     bodies_of(Some(&value)).map_err(|problem| row_error("body_json", &problem.to_string()))
 }
 
+/// The text of one stored row's bodies, joined the way a track renders: what a
+/// cue says, with a link body contributing nothing.
+pub(crate) fn text_of_body(body_json: &str) -> Result<String, AnnotationError> {
+    let bodies = bodies_of_row(body_json)?;
+    Ok(bodies
+        .iter()
+        .filter_map(|body| match body {
+            Body::Text { value, .. } => Some(value.as_str()),
+            Body::Link { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
 /// The W3C JSON of one stored annotation, without `@context` (the envelope
 /// adds it).
 #[must_use]
@@ -689,6 +703,8 @@ fn seconds(milliseconds: u64) -> String {
     }
 }
 
-fn iso(at: chrono::NaiveDateTime) -> String {
+/// A stored clock as the wire writes it: seconds, UTC.
+#[must_use]
+pub fn iso(at: chrono::NaiveDateTime) -> String {
     at.format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }

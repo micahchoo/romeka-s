@@ -16,6 +16,7 @@ mod access;
 mod model;
 mod search;
 pub mod tracks;
+mod undo;
 mod wadm;
 
 pub use access::search_scope;
@@ -24,7 +25,11 @@ pub use model::{
     Problem, Revision, Selector, TextFormat,
 };
 pub use tracks::{TrackError, TrackFormat};
-pub use wadm::{Iris, render};
+pub use undo::{
+    KeptCue, KeptEdition, KeptEditions, KeptSummary, NoKeptEditions, TrackUndo, decode, encode,
+    none as no_kept, storage_path,
+};
+pub use wadm::{Iris, iso, render};
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -36,7 +41,7 @@ use omeka_db::ids::MediaId;
 use omeka_db::repos::MediaRepo;
 use omeka_db::repos::{
     ChangeOutcome, Cue, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
-    MediaAnnotationWrite, TrackOutcome,
+    MediaAnnotationWrite, RestoredCue, TrackOutcome, UndoOutcome,
 };
 use omeka_db::rows::MediaRow;
 use omeka_db::{DbPool, with_db};
@@ -142,6 +147,8 @@ pub struct TrackSummary {
     pub imported: Option<NaiveDateTime>,
     /// Track rows changed after their import (`revision > 1`).
     pub hand_edited: u32,
+    /// The edition a replace kept, when one undo would bring it back (G6).
+    pub undo: Option<KeptSummary>,
 }
 
 /// What a caption file would change, in milliseconds, before it is stored (G5).
@@ -210,6 +217,12 @@ pub enum AnnotationError {
     /// the status its kind earns (413 for a bound, 400 for the grammar).
     #[error(transparent)]
     Track(#[from] TrackError),
+    /// An undo of a replace with no kept edition to bring back, or with a live
+    /// edition the kept one did not replace.
+    #[error(
+        "There is no caption edition to bring back. An undo works once, until the next import of these captions."
+    )]
+    NothingToUndo,
     #[error(transparent)]
     Db(#[from] DbError),
 }
@@ -225,14 +238,32 @@ pub struct Annotations<'a> {
     pool: &'a DbPool,
     actor: &'a Actor,
     extents: &'a dyn ExtentSource,
+    kept: &'a dyn KeptEditions,
 }
 
 impl<'a> Annotations<'a> {
+    /// A service that keeps no caption edition, so no undo is on offer. The
+    /// readers want this; the caption routes pass [`Self::keeping`].
     pub fn new(api: &'a Api<'a>, extents: &'a dyn ExtentSource) -> Self {
         Self {
             pool: api.pool(),
             actor: api.actor(),
             extents,
+            kept: undo::none(),
+        }
+    }
+
+    /// A service that keeps one caption edition per language for an undo.
+    pub fn keeping(
+        api: &'a Api<'a>,
+        extents: &'a dyn ExtentSource,
+        kept: &'a dyn KeptEditions,
+    ) -> Self {
+        Self {
+            pool: api.pool(),
+            actor: api.actor(),
+            extents,
+            kept,
         }
     }
 
@@ -244,6 +275,7 @@ impl<'a> Annotations<'a> {
             pool,
             actor,
             extents,
+            kept: undo::none(),
         }
     }
 
@@ -531,6 +563,10 @@ impl<'a> Annotations<'a> {
 
     /// Replace the track rows of `media` in `lang` with the cues of `body`
     /// (contract 6.5). The server is the only cue parser.
+    ///
+    /// The rows this import replaces are kept as the edition [`Self::undo_track`]
+    /// brings back (G6). They are kept after the rows commit: a store that
+    /// cannot write them costs the undo, never the import.
     pub async fn import_track(
         &self,
         media: MediaId,
@@ -564,9 +600,9 @@ impl<'a> Annotations<'a> {
         let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .replace_track(media, lang.as_deref(), &rows)
             .await)?;
-        let replaced = match outcome {
-            TrackOutcome::Replaced { removed, .. } => removed > 0,
-            TrackOutcome::Unchanged { .. } => false,
+        let (replaced, kept, live_max) = match outcome {
+            TrackOutcome::Replaced { kept, live_max, .. } => (!kept.is_empty(), kept, live_max),
+            TrackOutcome::Unchanged { .. } => (false, Vec::new(), 0),
         };
         let stored = self.cue_rows(media, lang.as_deref()).await?;
         let ids = if stored.len() > PAGE_SIZE as usize {
@@ -578,12 +614,84 @@ impl<'a> Annotations<'a> {
                 .map(|row| row.id)
                 .collect()
         };
+        if replaced {
+            self.keep_edition(media, lang.as_deref(), &kept, live_max)
+                .await;
+        }
         Ok(TrackImport {
             lang,
             cues: u32::try_from(cues.len()).unwrap_or(u32::MAX),
             replaced,
             ids,
         })
+    }
+
+    /// Keep the rows an import replaced as the edition one undo brings back, or
+    /// drop the previous edition when the language held no track row.
+    async fn keep_edition(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+        kept: &[MediaAnnotationRow],
+        replaced_by: i64,
+    ) {
+        match KeptEdition::of(media, lang, replaced_by, kept) {
+            Some(edition) if !edition.cues.is_empty() => {
+                self.kept.keep(media, lang, &edition).await;
+            }
+            _ => self.kept.forget(media, lang).await,
+        }
+    }
+
+    /// Bring back the edition the last import of `lang` replaced, in one
+    /// transaction, and drop it so a second undo finds nothing (G6).
+    pub async fn undo_track(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+    ) -> Result<TrackUndo, AnnotationError> {
+        let (_, rights) = self.readable_one(media).await?;
+        if rights != Rights::ReadWrite {
+            return Err(AnnotationError::Forbidden);
+        }
+        let lang = language(lang)?;
+        let Some(edition) = self.kept.kept(media, lang.as_deref()).await else {
+            return Err(AnnotationError::NothingToUndo);
+        };
+        let texts: Vec<String> = edition
+            .cues
+            .iter()
+            .map(|cue| undo::cue_text(&cue.body_json))
+            .collect::<Result<_, _>>()?;
+        let restored: Vec<RestoredCue<'_>> = edition
+            .cues
+            .iter()
+            .zip(&texts)
+            .map(|(cue, body_text)| RestoredCue {
+                id: cue.id,
+                revision: cue.revision,
+                created: cue.created,
+                modified: cue.modified,
+                start_ms: cue.start_ms,
+                end_ms: cue.end_ms,
+                body_json: &cue.body_json,
+                body_text,
+            })
+            .collect();
+        let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .restore_track(media, lang.as_deref(), &restored, edition.replaced_by)
+            .await)?;
+        match outcome {
+            UndoOutcome::Restored { cues } => {
+                self.kept.forget(media, lang.as_deref()).await;
+                Ok(TrackUndo {
+                    lang,
+                    cues,
+                    imported: edition.imported,
+                })
+            }
+            UndoOutcome::Nothing => Err(AnnotationError::NothingToUndo),
+        }
     }
 
     /// What [`Self::import_track`] would change, with no row written (G5).
@@ -635,7 +743,8 @@ impl<'a> Annotations<'a> {
         })
     }
 
-    /// The caption languages of `media` and their cue counts (G3).
+    /// The caption languages of `media` and their cue counts (G3), each with the
+    /// edition an undo would bring back (G6).
     pub async fn tracks(&self, media: MediaId) -> Result<Vec<TrackSummary>, AnnotationError> {
         self.readable_one(media).await?;
         let langs = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
@@ -644,20 +753,26 @@ impl<'a> Annotations<'a> {
         let mut summaries = Vec::with_capacity(langs.len());
         for (_, lang, cues) in langs {
             let rows = self.cue_rows(media, lang.as_deref()).await?;
-            let imported = rows
-                .iter()
-                .filter(|row| row.origin == "track")
-                .map(|row| row.created)
-                .max();
-            let hand_edited = rows
-                .iter()
-                .filter(|row| row.origin == "track" && row.revision > 1)
-                .count();
+            let track: Vec<&MediaAnnotationRow> =
+                rows.iter().filter(|row| row.origin == "track").collect();
+            let imported = track.iter().map(|row| row.created).max();
+            let hand_edited = track.iter().filter(|row| row.revision > 1).count();
+            let live_max = track.iter().map(|row| row.id).max().unwrap_or(0);
+            let undo = self
+                .kept
+                .kept(media, lang.as_deref())
+                .await
+                .filter(|edition| edition.replaced_by == live_max)
+                .map(|edition| KeptSummary {
+                    cues: count(edition.cues.len()),
+                    imported: edition.imported,
+                });
             summaries.push(TrackSummary {
                 lang,
                 cues,
                 imported,
-                hand_edited: u32::try_from(hand_edited).unwrap_or(u32::MAX),
+                hand_edited: count(hand_edited),
+                undo,
             });
         }
         Ok(summaries)
@@ -665,7 +780,8 @@ impl<'a> Annotations<'a> {
 
     /// Remove the track rows of one language (G4). Hand-written notes, a
     /// hand-written `supplementing` note included, stay; `NotFound` when the
-    /// language holds no track row.
+    /// language holds no track row. A removal is not undoable: the kept edition
+    /// goes with it.
     pub async fn remove_track(
         &self,
         media: MediaId,
@@ -680,7 +796,10 @@ impl<'a> Annotations<'a> {
             .replace_track(media, lang.as_deref(), &[])
             .await)?;
         match outcome {
-            TrackOutcome::Replaced { .. } => Ok(()),
+            TrackOutcome::Replaced { .. } => {
+                self.kept.forget(media, lang.as_deref()).await;
+                Ok(())
+            }
             TrackOutcome::Unchanged { .. } => Err(AnnotationError::NotFound),
         }
     }
@@ -908,15 +1027,12 @@ fn cue_body(text: &str, lang: Option<&str>) -> String {
 
 /// The text of one stored row, from its canonical body JSON.
 fn row_text(row: &MediaAnnotationRow) -> Result<String, AnnotationError> {
-    let bodies = wadm::bodies_of_row(&row.body_json)?;
-    Ok(bodies
-        .iter()
-        .filter_map(|body| match body {
-            Body::Text { value, .. } => Some(value.as_str()),
-            Body::Link { .. } => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n"))
+    wadm::text_of_body(&row.body_json)
+}
+
+/// A count as the wire carries it.
+fn count(items: usize) -> u32 {
+    u32::try_from(items).unwrap_or(u32::MAX)
 }
 
 /// Whether `candidate` is the better default between two equally long tracks:
