@@ -313,6 +313,11 @@ request. It stores the original, queues a `romeka_media_derivative` row
 (`derivatives::enqueue`) and answers with `o-module-romeka:preview` `pending`;
 the server starts one `Romeka\Job\MediaDerivatives` worker
 (`jobs::start_derivatives`), which settles the row `ready`, `failed` or `none`.
+The same create records the file's access decision as a second row, kind
+`access_copy`: `none` when a browser shows the original, `pending` when a copy
+is needed and its tool is installed, or `none` with `needs <tool>, not
+installed`. That row names the copy a later worker makes (an H.264/AAC MP4, an
+AAC M4A, a JPEG access master) and is never claimed by the preview worker.
 A media the import made carries no row and reads its state from what the store
 holds, so every media document answers the member the same way. A read that
 needs the derivatives (the IIIF canvas, a test) settles the queue first.

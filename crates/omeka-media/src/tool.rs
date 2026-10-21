@@ -3,6 +3,14 @@
 //! `ffprobe` for the duration and frame size a time-based canvas needs, and
 //! `exiftool` for the JPEG preview a camera RAW file embeds.
 //!
+//! The same seam carries the commands an access copy needs, which D3 and D4
+//! run: `ffmpeg` for the H.264/AAC MP4 and the AAC M4A, `exiftool` for a RAW's
+//! embedded preview, `dcraw_emu` (libraw) for a RAW decode, `vips` for the
+//! TIFF, PSD, EXR, HDR and HEIC layouts the image crate does not read, and `gs`
+//! (ghostscript) for the first page of an EPS, AI or PS file. [`AccessTool`]
+//! names them, and each argument list is a function below. None of those runs
+//! here: this module only knows how to find the command and how to ask it.
+//!
 //! The image crate decodes the types GD decodes, plus TIFF, JPEG 2000 and SVG.
 //! It has no video, PDF, AVIF, HEIC or RAW decoder, so those get their still
 //! from a command. The commands are optional at runtime: the shipped image
@@ -20,7 +28,7 @@
 //! [`Still`] is the table of what each media type asks for. A caller asks
 //! `Still::of(media_type)` and calls `make`; it never builds an argument list.
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -186,6 +194,204 @@ impl MadeStill {
     }
 }
 
+/// The longest side an access copy's video is scaled to. A 1080p television is
+/// the largest screen a collection streams to, and a transcode that keeps the
+/// source's 4K would cost more disk than the original.
+pub const ACCESS_SIDE: u32 = 1080;
+
+/// The H.264 quality an access copy uses.
+pub const ACCESS_CRF: u8 = 23;
+
+/// The AAC bitrate of a video or audio access copy, in kbit/s.
+pub const ACCESS_AUDIO_KBPS: u16 = 128;
+
+/// The JPEG quality of an image access master.
+pub const ACCESS_JPEG_QUALITY: u8 = 90;
+
+/// The resolution an EPS, AI or PS page is rasterised at.
+const POSTSCRIPT_DPI: u32 = 150;
+
+/// The external command an access copy comes from. Each is optional at
+/// runtime, like `ffmpeg` and `pdftoppm`: a command this install does not have
+/// is a typed skip, never an error, and the media keeps its original.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AccessTool {
+    /// H.264/AAC MP4 from a video, AAC M4A from audio.
+    Ffmpeg,
+    /// The full-size JPEG a camera RAW file embeds.
+    ExifTool,
+    /// The sensor data of a camera RAW file, through `dcraw_emu` or `dcraw`.
+    LibRaw,
+    /// The TIFF, PSD, EXR, HDR and HEIC layouts the image crate does not read.
+    Vips,
+    /// The first page of an EPS, AI or PS file.
+    Ghostscript,
+}
+
+impl AccessTool {
+    /// Every tool, in the order the access table prefers them.
+    pub const ALL: [Self; 5] = [
+        Self::Ffmpeg,
+        Self::ExifTool,
+        Self::LibRaw,
+        Self::Vips,
+        Self::Ghostscript,
+    ];
+
+    /// The command name this tool is preferred under, as a reason reports it.
+    /// A RAW decode may be found as `dcraw`, which
+    /// [`Tools::libraw_name`] reports instead.
+    #[must_use]
+    pub const fn command(self) -> &'static str {
+        match self {
+            Self::Ffmpeg => "ffmpeg",
+            Self::ExifTool => "exiftool",
+            Self::LibRaw => "dcraw_emu",
+            Self::Vips => "vips",
+            Self::Ghostscript => "gs",
+        }
+    }
+
+    /// The name of the command this install found, or `None` when it has none.
+    #[must_use]
+    pub fn found(self, tools: &Tools) -> Option<&'static str> {
+        tools.access_program(self).ok().map(|_| match self {
+            Self::LibRaw => tools.libraw_name(),
+            other => other.command(),
+        })
+    }
+}
+
+/// The arguments an H.264/AAC MP4 access copy runs, at most [`ACCESS_SIDE`]
+/// pixels a side, with its index at the front so a player can seek before the
+/// download finishes.
+#[must_use]
+pub fn video_mp4_args(source: &Path, output: &Path) -> Vec<OsString> {
+    let scale = format!(
+        "scale=w='min(iw,{ACCESS_SIDE})':h='min(ih,{ACCESS_SIDE})':force_original_aspect_ratio=decrease"
+    );
+    let crf = ACCESS_CRF.to_string();
+    let bitrate = format!("{ACCESS_AUDIO_KBPS}k");
+    into_args([
+        OsStr::new("-nostdin"),
+        OsStr::new("-y"),
+        OsStr::new("-v"),
+        OsStr::new("error"),
+        OsStr::new("-i"),
+        source.as_os_str(),
+        OsStr::new("-map"),
+        OsStr::new("0:v:0"),
+        OsStr::new("-map"),
+        OsStr::new("0:a?"),
+        OsStr::new("-vf"),
+        OsStr::new(&scale),
+        OsStr::new("-c:v"),
+        OsStr::new("libx264"),
+        OsStr::new("-preset"),
+        OsStr::new("medium"),
+        OsStr::new("-crf"),
+        OsStr::new(&crf),
+        OsStr::new("-pix_fmt"),
+        OsStr::new("yuv420p"),
+        OsStr::new("-c:a"),
+        OsStr::new("aac"),
+        OsStr::new("-b:a"),
+        OsStr::new(&bitrate),
+        OsStr::new("-movflags"),
+        OsStr::new("+faststart"),
+        output.as_os_str(),
+    ])
+}
+
+/// The arguments an AAC M4A access copy runs, at the same bitrate and with the
+/// same fast-start index.
+#[must_use]
+pub fn audio_m4a_args(source: &Path, output: &Path) -> Vec<OsString> {
+    let bitrate = format!("{ACCESS_AUDIO_KBPS}k");
+    into_args([
+        OsStr::new("-nostdin"),
+        OsStr::new("-y"),
+        OsStr::new("-v"),
+        OsStr::new("error"),
+        OsStr::new("-i"),
+        source.as_os_str(),
+        OsStr::new("-vn"),
+        OsStr::new("-c:a"),
+        OsStr::new("aac"),
+        OsStr::new("-b:a"),
+        OsStr::new(&bitrate),
+        OsStr::new("-movflags"),
+        OsStr::new("+faststart"),
+        output.as_os_str(),
+    ])
+}
+
+/// The arguments that make a JPEG access master from `source`, or `None` when
+/// `tool` cannot make one.
+///
+/// `exiftool` and `dcraw_emu` write their image to standard output, so the
+/// caller captures it. `dcraw_emu` writes a TIFF: `vips copy` encodes the JPEG
+/// from it, so D4's RAW decode is two runs. An EPS, AI or PS file's first page
+/// is rasterised, the way a PDF's first page is, and a multi-page TIFF, PSD or
+/// JP2 gives its first page, which is each loader's default.
+#[must_use]
+pub fn image_jpeg_args(tool: AccessTool, source: &Path, output: &Path) -> Option<Vec<OsString>> {
+    match tool {
+        AccessTool::ExifTool => Some(into_args([
+            OsStr::new("-q"),
+            OsStr::new("-q"),
+            OsStr::new("-b"),
+            OsStr::new("-JpgFromRaw"),
+            source.as_os_str(),
+        ])),
+        AccessTool::LibRaw => Some(into_args([
+            OsStr::new("-q"),
+            OsStr::new("3"),
+            OsStr::new("-w"),
+            OsStr::new("-o"),
+            OsStr::new("1"),
+            OsStr::new("-T"),
+            OsStr::new("-c"),
+            source.as_os_str(),
+        ])),
+        AccessTool::Vips => {
+            let quality = ACCESS_JPEG_QUALITY.to_string();
+            let mut target = output.as_os_str().to_owned();
+            target.push(format!("[Q={quality}]"));
+            Some(into_args([
+                OsStr::new("copy"),
+                source.as_os_str(),
+                target.as_os_str(),
+            ]))
+        }
+        AccessTool::Ghostscript => {
+            let mut destination = OsString::from("-sOutputFile=");
+            destination.push(output);
+            let quality = format!("-dJPEGQ={ACCESS_JPEG_QUALITY}");
+            let dpi = format!("-r{POSTSCRIPT_DPI}");
+            Some(into_args([
+                OsStr::new("-q"),
+                OsStr::new("-dNOPAUSE"),
+                OsStr::new("-dBATCH"),
+                OsStr::new("-dSAFER"),
+                OsStr::new("-sDEVICE=jpeg"),
+                OsStr::new(&quality),
+                OsStr::new(&dpi),
+                OsStr::new("-dFirstPage=1"),
+                OsStr::new("-dLastPage=1"),
+                destination.as_os_str(),
+                source.as_os_str(),
+            ]))
+        }
+        AccessTool::Ffmpeg => None,
+    }
+}
+
+/// Collect a borrowed argument slice into the owned list a command takes.
+fn into_args<const N: usize>(arguments: [&OsStr; N]) -> Vec<OsString> {
+    arguments.into_iter().map(OsStr::to_owned).collect()
+}
+
 /// The commands this process may run, found once.
 ///
 /// A test, or a caller that turns derivatives off, builds one with [`Tools::none`]
@@ -197,6 +403,13 @@ pub struct Tools {
     ffprobe: Option<PathBuf>,
     pdftoppm: Option<PathBuf>,
     exiftool: Option<PathBuf>,
+    /// The libraw decoder, found as `dcraw_emu` or, when that is absent, as
+    /// `dcraw`.
+    libraw: Option<PathBuf>,
+    /// The name [`Tools::libraw`] was found under.
+    libraw_name: &'static str,
+    vips: Option<PathBuf>,
+    ghostscript: Option<PathBuf>,
     timeout: Duration,
 }
 
@@ -205,12 +418,25 @@ impl Tools {
     #[must_use]
     pub fn on_path() -> &'static Self {
         static FOUND: OnceLock<Tools> = OnceLock::new();
-        FOUND.get_or_init(|| Self {
-            ffmpeg: find_on_path("ffmpeg"),
-            ffprobe: find_on_path("ffprobe"),
-            pdftoppm: find_on_path("pdftoppm"),
-            exiftool: find_on_path("exiftool"),
-            timeout: TIMEOUT,
+        FOUND.get_or_init(|| {
+            let (libraw, libraw_name) = match find_on_path("dcraw_emu") {
+                Some(path) => (Some(path), "dcraw_emu"),
+                None => match find_on_path("dcraw") {
+                    Some(path) => (Some(path), "dcraw"),
+                    None => (None, "dcraw_emu"),
+                },
+            };
+            Self {
+                ffmpeg: find_on_path("ffmpeg"),
+                ffprobe: find_on_path("ffprobe"),
+                pdftoppm: find_on_path("pdftoppm"),
+                exiftool: find_on_path("exiftool"),
+                libraw,
+                libraw_name,
+                vips: find_on_path("vips"),
+                ghostscript: find_on_path("gs"),
+                timeout: TIMEOUT,
+            }
         })
     }
 
@@ -222,6 +448,10 @@ impl Tools {
             ffprobe: None,
             pdftoppm: None,
             exiftool: None,
+            libraw: None,
+            libraw_name: "dcraw_emu",
+            vips: None,
+            ghostscript: None,
             timeout: TIMEOUT,
         }
     }
@@ -261,6 +491,29 @@ impl Tools {
         self
     }
 
+    /// Name the libraw decoder to run, instead of the one on `PATH`. It is
+    /// reported under the `dcraw_emu` name.
+    #[must_use]
+    pub fn with_libraw(mut self, path: impl Into<PathBuf>) -> Self {
+        self.libraw = Some(path.into());
+        self.libraw_name = "dcraw_emu";
+        self
+    }
+
+    /// Name the `vips` to run, instead of the one on `PATH`.
+    #[must_use]
+    pub fn with_vips(mut self, path: impl Into<PathBuf>) -> Self {
+        self.vips = Some(path.into());
+        self
+    }
+
+    /// Name the ghostscript (`gs`) to run, instead of the one on `PATH`.
+    #[must_use]
+    pub fn with_ghostscript(mut self, path: impl Into<PathBuf>) -> Self {
+        self.ghostscript = Some(path.into());
+        self
+    }
+
     /// The `ffmpeg` this process found, when it found one.
     #[must_use]
     pub fn ffmpeg(&self) -> Option<&Path> {
@@ -285,6 +538,46 @@ impl Tools {
         self.exiftool.as_deref()
     }
 
+    /// The libraw decoder this process found, when it found one.
+    #[must_use]
+    pub fn libraw(&self) -> Option<&Path> {
+        self.libraw.as_deref()
+    }
+
+    /// The name the libraw decoder was found under, `dcraw_emu` when none.
+    #[must_use]
+    pub fn libraw_name(&self) -> &'static str {
+        self.libraw_name
+    }
+
+    /// The `vips` this process found, when it found one.
+    #[must_use]
+    pub fn vips(&self) -> Option<&Path> {
+        self.vips.as_deref()
+    }
+
+    /// The ghostscript (`gs`) this process found, when it found one.
+    #[must_use]
+    pub fn ghostscript(&self) -> Option<&Path> {
+        self.ghostscript.as_deref()
+    }
+
+    /// The command that would run `tool`, or the typed skip when this install
+    /// does not have it. An access worker runs its copy through this and
+    /// reports [`ToolError::ToolMissing`] the way a still does.
+    ///
+    /// # Errors
+    /// [`ToolError::ToolMissing`] when the command is not on this install.
+    pub fn access_program(&self, tool: AccessTool) -> Result<&Path, ToolError> {
+        match tool {
+            AccessTool::Ffmpeg => self.program(self.ffmpeg.as_deref(), "ffmpeg"),
+            AccessTool::ExifTool => self.program(self.exiftool.as_deref(), "exiftool"),
+            AccessTool::LibRaw => self.program(self.libraw.as_deref(), self.libraw_name),
+            AccessTool::Vips => self.program(self.vips.as_deref(), "vips"),
+            AccessTool::Ghostscript => self.program(self.ghostscript.as_deref(), "gs"),
+        }
+    }
+
     /// The timeout a command runs under.
     #[must_use]
     pub fn timeout(&self) -> Duration {
@@ -304,6 +597,32 @@ impl Tools {
             OsStr::new("error"),
             OsStr::new("-show_entries"),
             OsStr::new("format=duration:stream=codec_type,width,height"),
+            OsStr::new("-of"),
+            OsStr::new("json"),
+            source.as_os_str(),
+        ];
+        let timeout = self.timeout.min(PROBE_TIMEOUT);
+        let output = capture(ffprobe, "ffprobe", &args, timeout, PROBE_LIMIT)?;
+        if !output.status.success() {
+            return Err(ToolError::Failed("ffprobe", reason(&output.stderr)));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    }
+
+    /// `ffprobe`'s JSON answer for an original's container and stream codecs:
+    /// what an access decision reads. A separate answer from
+    /// [`Tools::probe_json`], because a canvas needs the duration and frame
+    /// size and an access rule needs neither.
+    ///
+    /// # Errors
+    /// As [`Tools::probe_json`].
+    pub fn probe_codecs_json(&self, source: &Path) -> Result<String, ToolError> {
+        let ffprobe = self.program(self.ffprobe.as_deref(), "ffprobe")?;
+        let args: Vec<&OsStr> = vec![
+            OsStr::new("-v"),
+            OsStr::new("error"),
+            OsStr::new("-show_entries"),
+            OsStr::new("format=format_name:stream=codec_type,codec_name"),
             OsStr::new("-of"),
             OsStr::new("json"),
             source.as_os_str(),
@@ -958,5 +1277,185 @@ mod tests {
         );
         assert_eq!(parse_duration("  Duration: N/A, start: 0.000000"), None);
         assert_eq!(parse_duration("no header"), None);
+    }
+
+    /// An access tool the install has reports the name it runs under; one it
+    /// does not have is the typed skip D3 and D4 turn into a reason.
+    #[test]
+    fn an_access_tool_is_found_or_a_typed_skip() {
+        let _guard = scripted();
+        let dir = dir();
+        let tools = Tools::none().with_vips(script(dir.path(), "vips", "exit 0"));
+        assert_eq!(AccessTool::Vips.found(&tools), Some("vips"));
+        assert!(tools.access_program(AccessTool::Vips).is_ok());
+        assert_eq!(AccessTool::Vips.found(&Tools::none()), None);
+        assert_eq!(
+            Tools::none()
+                .access_program(AccessTool::Vips)
+                .expect_err("no vips"),
+            ToolError::ToolMissing("vips")
+        );
+        assert_eq!(
+            Tools::none()
+                .access_program(AccessTool::LibRaw)
+                .expect_err("no libraw"),
+            ToolError::ToolMissing("dcraw_emu")
+        );
+        assert_eq!(
+            Tools::none()
+                .access_program(AccessTool::Ghostscript)
+                .expect_err("no gs"),
+            ToolError::ToolMissing("gs")
+        );
+
+        let libraw = Tools::none().with_libraw(script(dir.path(), "dcraw_emu", "exit 0"));
+        assert_eq!(AccessTool::LibRaw.found(&libraw), Some("dcraw_emu"));
+        assert_eq!(libraw.libraw_name(), "dcraw_emu");
+
+        let ghostscript = Tools::none().with_ghostscript(script(dir.path(), "gs", "exit 0"));
+        assert_eq!(AccessTool::Ghostscript.found(&ghostscript), Some("gs"));
+    }
+
+    /// The video copy is H.264 and AAC in an MP4 whose index comes first, with
+    /// the source's own size kept and each side capped at 1080.
+    #[test]
+    fn the_video_copy_is_h264_aac_and_at_most_1080p() {
+        let args = text(&video_mp4_args(
+            Path::new("reel.avi"),
+            Path::new("copy.mp4"),
+        ));
+        assert_eq!(
+            args,
+            [
+                "-nostdin",
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                "reel.avi",
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a?",
+                "-vf",
+                "scale=w='min(iw,1080)':h='min(ih,1080)':force_original_aspect_ratio=decrease",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                "23",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-movflags",
+                "+faststart",
+                "copy.mp4",
+            ]
+        );
+    }
+
+    /// The audio copy drops the video stream and keeps the same bitrate.
+    #[test]
+    fn the_audio_copy_is_aac_in_an_m4a() {
+        let args = text(&audio_m4a_args(
+            Path::new("talk.wma"),
+            Path::new("copy.m4a"),
+        ));
+        assert_eq!(
+            args,
+            [
+                "-nostdin",
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                "talk.wma",
+                "-vn",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-movflags",
+                "+faststart",
+                "copy.m4a",
+            ]
+        );
+    }
+
+    /// Each image tool's argument list, and the tool that makes no image.
+    #[test]
+    fn the_image_master_asks_each_tool_its_own_way() {
+        let source = Path::new("master.psd");
+        let output = Path::new("copy.jpg");
+        assert_eq!(
+            text(&image_jpeg_args(AccessTool::Vips, source, output).expect("vips")),
+            ["copy", "master.psd", "copy.jpg[Q=90]"]
+        );
+        assert_eq!(
+            text(
+                &image_jpeg_args(AccessTool::ExifTool, Path::new("photo.nef"), output)
+                    .expect("exif")
+            ),
+            ["-q", "-q", "-b", "-JpgFromRaw", "photo.nef"],
+            "the embedded preview goes to standard output"
+        );
+        assert_eq!(
+            text(
+                &image_jpeg_args(AccessTool::LibRaw, Path::new("photo.nef"), output).expect("raw")
+            ),
+            ["-q", "3", "-w", "-o", "1", "-T", "-c", "photo.nef"],
+            "libraw decodes to a TIFF on standard output, which vips then encodes"
+        );
+        let page = text(
+            &image_jpeg_args(AccessTool::Ghostscript, Path::new("poster.eps"), output).expect("gs"),
+        );
+        assert_eq!(page[0], "-q");
+        assert!(page.contains(&"-sDEVICE=jpeg".to_string()), "{page:?}");
+        assert!(page.contains(&"-r150".to_string()), "{page:?}");
+        assert!(
+            page.contains(&"-sOutputFile=copy.jpg".to_string()),
+            "{page:?}"
+        );
+        assert_eq!(page.last().map(String::as_str), Some("poster.eps"));
+        assert_eq!(image_jpeg_args(AccessTool::Ffmpeg, source, output), None);
+    }
+
+    /// The access probe asks for the container and the stream codecs, not the
+    /// duration a canvas needs.
+    #[test]
+    fn the_codec_probe_asks_for_the_container_and_codecs() {
+        let _guard = scripted();
+        let dir = dir();
+        let log = dir.path().join("args");
+        let ffprobe = script(
+            dir.path(),
+            "ffprobe",
+            &format!(
+                "printf '%s\\n' \"$@\" > {log}\n\
+                 printf '%s' '{{\"streams\":[],\"format\":{{\"format_name\":\"ogg\"}}}}'",
+                log = log.display()
+            ),
+        );
+        let tools = Tools::none().with_ffprobe(ffprobe);
+        let json = tools
+            .probe_codecs_json(&dir.path().join("clip.ogv"))
+            .expect("a probe");
+        assert!(json.contains("ogg"), "{json}");
+        let recorded = std::fs::read_to_string(&log).expect("args");
+        assert!(
+            recorded.contains("format=format_name:stream=codec_type,codec_name"),
+            "{recorded}"
+        );
+    }
+
+    /// The owned argument list as text, for comparison.
+    fn text(args: &[OsString]) -> Vec<String> {
+        args.iter()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect()
     }
 }
