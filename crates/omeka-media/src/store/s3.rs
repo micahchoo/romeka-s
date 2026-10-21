@@ -29,7 +29,7 @@ use rusty_s3::{Bucket, Credentials, UrlStyle};
 use url::Url;
 
 use super::s3_http::{Http, Sent};
-use super::{Access, ListedFile, Store, StoreError, checked_path};
+use super::{Access, Download, ListedFile, Store, StoreError, checked_path};
 
 /// The smallest part S3 accepts, except the last: 5 MiB. A stream shorter than
 /// one part goes up as one `PutObject`.
@@ -148,7 +148,7 @@ impl S3Store {
             .bucket
             .create_bucket(&self.credentials)
             .sign(REQUEST_TTL);
-        let sent = self.http.put(&name, "CreateBucket", &url, &[])?;
+        let sent = self.http.put(&name, "CreateBucket", &url, &[], None)?;
         if sent.status == 409 && sent.error_code() == "BucketAlreadyOwnedByYou" {
             return Ok(());
         }
@@ -166,7 +166,7 @@ impl S3Store {
             .bucket
             .upload_part(Some(&self.credentials), key, number, upload_id)
             .sign(REQUEST_TTL);
-        let sent = self.http.put(key, "UploadPart", &url, bytes)?;
+        let sent = self.http.put(key, "UploadPart", &url, bytes, None)?;
         sent.expect(key, "UploadPart", &[200])?;
         sent.etag
             .ok_or_else(|| StoreError::remote(key, "UploadPart answered no ETag"))
@@ -208,6 +208,7 @@ impl S3Store {
             "CompleteMultipartUpload",
             &url,
             action.body().as_bytes(),
+            None,
         )?;
         sent.expect(key, "CompleteMultipartUpload", &[200])?;
         // S3 can answer 200 and report the failure in the body.
@@ -230,14 +231,19 @@ impl S3Store {
 }
 
 impl Store for S3Store {
-    fn put(&self, bytes: &[u8], storage_path: &str) -> Result<(), StoreError> {
+    fn put(
+        &self,
+        bytes: &[u8],
+        storage_path: &str,
+        media_type: Option<&str>,
+    ) -> Result<(), StoreError> {
         let key = checked_path(storage_path)?;
         let url = self
             .bucket
             .put_object(Some(&self.credentials), key)
             .sign(REQUEST_TTL);
         self.http
-            .put(key, "PutObject", &url, bytes)?
+            .put(key, "PutObject", &url, bytes, media_type)?
             .expect(key, "PutObject", &[200])
     }
 
@@ -249,19 +255,22 @@ impl Store for S3Store {
         reader: &mut dyn Read,
         size_hint: Option<u64>,
         storage_path: &str,
+        media_type: Option<&str>,
     ) -> Result<u64, StoreError> {
         let key = checked_path(storage_path)?;
         let mut buffer = vec![0; part_bytes(size_hint)];
         let first = fill(reader, &mut buffer).map_err(|error| StoreError::reader(key, error))?;
         if first < buffer.len() {
-            self.put(&buffer[..first], key)?;
+            self.put(&buffer[..first], key, media_type)?;
             return Ok(first as u64);
         }
         let url = self
             .bucket
             .create_multipart_upload(Some(&self.credentials), key)
             .sign(REQUEST_TTL);
-        let sent = self.http.post(key, "CreateMultipartUpload", &url, &[])?;
+        let sent = self
+            .http
+            .post(key, "CreateMultipartUpload", &url, &[], media_type)?;
         sent.expect(key, "CreateMultipartUpload", &[200])?;
         let created =
             CreateMultipartUpload::parse_response(&sent.body_text()).map_err(|error| {
@@ -383,6 +392,23 @@ impl Store for S3Store {
     /// in the bucket, which answers only when the bucket policy lets anyone
     /// read that prefix. A signed URL always names the endpoint.
     fn url(&self, storage_path: &str, access: Access) -> String {
+        self.url_with(storage_path, access, None)
+    }
+
+    /// A signed original carries the media's type and name as `GetObject`
+    /// response overrides, so the bucket answers with them instead of the
+    /// `binary/octet-stream` it stored before puts set a type.
+    fn download_url(&self, storage_path: &str, access: Access, download: &Download) -> String {
+        self.url_with(storage_path, access, Some(download))
+    }
+
+    fn url_ttl(&self) -> Duration {
+        self.url_ttl
+    }
+}
+
+impl S3Store {
+    fn url_with(&self, storage_path: &str, access: Access, download: Option<&Download>) -> String {
         match access {
             Access::Public => match &self.public_base {
                 Some(base) => {
@@ -398,16 +424,26 @@ impl Store for S3Store {
                     .map(Into::into)
                     .unwrap_or_default(),
             },
-            Access::Signed { ttl } => self
-                .bucket
-                .get_object(Some(&self.credentials), storage_path)
-                .sign(ttl)
-                .into(),
+            Access::Signed { ttl } => {
+                let mut action = self
+                    .bucket
+                    .get_object(Some(&self.credentials), storage_path);
+                let disposition = download.map(Download::disposition);
+                if let Some(download) = download {
+                    if let Some(media_type) = download.served_type() {
+                        action
+                            .query_mut()
+                            .insert("response-content-type", media_type);
+                    }
+                    if let Some(disposition) = disposition.as_deref() {
+                        action
+                            .query_mut()
+                            .insert("response-content-disposition", disposition);
+                    }
+                }
+                action.sign(ttl).into()
+            }
         }
-    }
-
-    fn url_ttl(&self) -> Duration {
-        self.url_ttl
     }
 }
 

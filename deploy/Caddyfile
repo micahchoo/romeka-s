@@ -78,18 +78,38 @@
 			# Set before the check, so a refusal carries it too.
 			header X-Content-Type-Options nosniff
 
-			# Only the server's answer may mark a request private.
+			# Only the server's answer may mark a request private or name its
+			# type and download name.
 			request_header -X-Romeka-Private
+			request_header -X-Romeka-Content-Type
+			request_header -X-Romeka-Content-Disposition
 			forward_auth {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT} {
 				uri /api/romeka/files/allow
-				copy_headers X-Romeka-Private
+				copy_headers X-Romeka-Private X-Romeka-Content-Type X-Romeka-Content-Disposition
 			}
+
+			# The media's stored o:media_type is the answer, not the
+			# extension: .webm alone cannot say video from audio, and .mov and
+			# .glb had no type at all without /etc/mime.types. The server also
+			# answers the types its byte detector cannot tell apart (vtt, srt,
+			# gltf, glb). An empty value removes the header, and file_server
+			# then falls back to the extension for a row that stored no type.
+			header Content-Type "{http.request.header.X-Romeka-Content-Type}"
+			header Content-Disposition "{http.request.header.X-Romeka-Content-Disposition}"
 
 			# A private file must not sit in a shared cache, and one user's copy
 			# must not answer another user's request.
 			@private header X-Romeka-Private 1
 			header @private Cache-Control private
 			header @private +Vary Cookie
+
+			# An original's name is its content id, which no later write
+			# reuses, so a public one may sit in any cache for a year.
+			@public_original {
+				path /files/original/*
+				not header X-Romeka-Private 1
+			}
+			header @public_original Cache-Control "public, max-age=31536000, immutable"
 
 			# An uploaded HTML, SVG or XML file runs no script on this origin.
 			@active path *.html *.htm *.svg *.xml

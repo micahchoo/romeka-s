@@ -123,6 +123,14 @@ async fn the_api_signs_originals_and_private_thumbnails_and_leaves_public_thumbn
     let original = media["o:original_url"].as_str().unwrap();
     assert!(is_signed(original, "original/eeeeeeee.jpg"), "{original}");
     assert!(original.contains("X-Amz-Expires=900"), "{original}");
+    assert!(
+        original.contains("response-content-type=image%2Fjpeg"),
+        "the bucket answers with the stored type: {original}"
+    );
+    assert!(
+        original.contains("response-content-disposition=inline%3B%20filename%3D%22eeeeeeee.jpg%22"),
+        "and with the source's name: {original}"
+    );
     for kind in ["large", "medium", "square"] {
         let path = format!("{kind}/eeeeeeee.jpg");
         let url = media["o:thumbnail_urls"][kind].as_str().unwrap();

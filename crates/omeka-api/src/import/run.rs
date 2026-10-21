@@ -350,7 +350,7 @@ where
         let text = left::render(self.model(), &self.summary.failures, &self.written);
         let store = Arc::clone(&self.env.store);
         let path = left::path(self.import);
-        tokio::task::spawn_blocking(move || store.put(text.as_bytes(), &path))
+        tokio::task::spawn_blocking(move || store.put(text.as_bytes(), &path, None))
             .await
             .map_err(|error| RunError::State(error.to_string()))?
             .map_err(|error| RunError::State(format!("left.csv was not stored: {error}")))?;

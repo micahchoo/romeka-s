@@ -45,6 +45,8 @@ async fn a_storage_id_names_its_media_and_both_visibilities() {
             renderer: "file".to_string(),
             storage_id: Some("abc123".to_string()),
             extension: Some("jpg".to_string()),
+            media_type: Some("image/jpeg".to_string()),
+            source: Some("My Photo.jpg".to_string()),
             ..NewMedia::default()
         })
         .await
@@ -56,6 +58,8 @@ async fn a_storage_id_names_its_media_and_both_visibilities() {
         Some(MediaFileOwner {
             media_id: media.id(),
             extension: Some("jpg".to_string()),
+            media_type: Some("image/jpeg".to_string()),
+            source: Some("My Photo.jpg".to_string()),
             media_is_public: true,
             media_owner_id: None,
             item_is_public: false,
@@ -96,6 +100,8 @@ async fn a_storage_id_names_its_media_on_mysql() {
             renderer: "file".to_string(),
             storage_id: Some("abc123".to_string()),
             extension: None,
+            media_type: Some("video/webm".to_string()),
+            source: Some("clip.webm".to_string()),
             ..NewMedia::default()
         })
         .await
@@ -105,6 +111,8 @@ async fn a_storage_id_names_its_media_on_mysql() {
     let expected = Some(MediaFileOwner {
         media_id: media.id(),
         extension: None,
+        media_type: Some("video/webm".to_string()),
+        source: Some("clip.webm".to_string()),
         media_is_public: false,
         media_owner_id: None,
         item_is_public: true,

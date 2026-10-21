@@ -349,7 +349,7 @@ mod tests {
             "f".repeat(40),
             0
         );
-        site.store.put(b"zz", &ghost).unwrap();
+        site.store.put(b"zz", &ghost, None).unwrap();
         let now = chrono::Utc::now().naive_utc();
 
         let early = sweep(&site.pool, &site.store, now, RETENTION)

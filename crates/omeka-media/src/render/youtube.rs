@@ -1,7 +1,8 @@
 //! The YouTube media renderer (`Media/Renderer/Youtube.php`).
 //!
 //! Builds the embed URL from the stored video id and the `start`/`end` members,
-//! and emits the iframe upstream emits.
+//! and emits the iframe upstream emits, with two departures: the embed goes
+//! through `youtube-nocookie.com`, and the frame loads lazily.
 
 use crate::data::MediaData;
 use crate::render::{MediaView, RenderOptions, Renderer, View};
@@ -44,12 +45,15 @@ impl Renderer for Youtube {
         if let Some(end) = &data.end {
             query.push(("end".to_string(), end.clone()));
         }
-        let embed = HttpUri::parse(&format!("https://www.youtube.com/embed/{}", data.id))
-            .map(|uri| uri.with_query(&query))
-            .unwrap_or_default();
+        let embed = HttpUri::parse(&format!(
+            "https://www.youtube-nocookie.com/embed/{}",
+            data.id
+        ))
+        .map(|uri| uri.with_query(&query))
+        .unwrap_or_default();
 
         format!(
-            "<iframe width=\"{}\" height=\"{}\" src=\"{}\" title=\"{}\" frameborder=\"0\"{}></iframe>",
+            "<iframe width=\"{}\" height=\"{}\" src=\"{}\" title=\"{}\" frameborder=\"0\" loading=\"lazy\"{}></iframe>",
             escape_html(&width),
             escape_html(&height),
             escape_html(&embed),
@@ -78,9 +82,11 @@ mod tests {
         }))
     }
 
-    /// `Renderer/Youtube.php:44`: the default iframe, no query.
+    /// `Renderer/Youtube.php:44` with two departures this fork makes: the embed
+    /// goes through `youtube-nocookie.com`, and the frame is lazy so a page
+    /// with many videos defers the ones below the fold.
     #[test]
-    fn youtube_renderer_matches_upstream_defaults() {
+    fn youtube_renderer_embeds_the_nocookie_host_and_loads_lazily() {
         let registry = FileRendererRegistry::with_defaults();
         let view = View {
             file_renderers: &registry,
@@ -88,7 +94,7 @@ mod tests {
         let html = Youtube.render(&view, &youtube_media(None, None), &RenderOptions::default());
         assert_eq!(
             html,
-            "<iframe width=\"420\" height=\"315\" src=\"https://www.youtube.com/embed/abc123\" title=\"[Untitled]\" frameborder=\"0\" allowfullscreen></iframe>"
+            "<iframe width=\"420\" height=\"315\" src=\"https://www.youtube-nocookie.com/embed/abc123\" title=\"[Untitled]\" frameborder=\"0\" loading=\"lazy\" allowfullscreen></iframe>"
         );
     }
 
@@ -109,7 +115,7 @@ mod tests {
         let html = Youtube.render(&view, &youtube_media(Some("30"), Some("60")), &options);
         assert_eq!(
             html,
-            "<iframe width=\"640\" height=\"480\" src=\"https://www.youtube.com/embed/abc123?start=30&amp;end=60\" title=\"[Untitled]\" frameborder=\"0\"></iframe>"
+            "<iframe width=\"640\" height=\"480\" src=\"https://www.youtube-nocookie.com/embed/abc123?start=30&amp;end=60\" title=\"[Untitled]\" frameborder=\"0\" loading=\"lazy\"></iframe>"
         );
     }
 

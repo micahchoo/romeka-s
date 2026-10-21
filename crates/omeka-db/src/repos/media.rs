@@ -41,6 +41,10 @@ pub struct MediaFileOwner {
     pub media_id: MediaId,
     /// `media.extension`, the suffix of the original's storage path.
     pub extension: Option<String>,
+    /// `media.media_type`, the type the file answers with.
+    pub media_type: Option<String>,
+    /// `media.source`, the name a download is saved under.
+    pub source: Option<String>,
     pub media_is_public: bool,
     pub media_owner_id: Option<UserId>,
     pub item_is_public: bool,
@@ -221,7 +225,7 @@ where
     /// column's collation, as the unique key does.
     pub async fn file_owner(&self, storage_id: &str) -> Result<Option<MediaFileOwner>, DbError> {
         let row = sqlx::query(
-            "SELECT media.id, media.extension,
+            "SELECT media.id, media.extension, media.media_type, media.source,
                  media_resource.is_public AS media_is_public,
                  media_resource.owner_id AS media_owner_id,
                  item_resource.is_public AS item_is_public,
@@ -238,6 +242,8 @@ where
             Ok(MediaFileOwner {
                 media_id: DB::id(&row, "id")?,
                 extension: DB::opt_text(&row, "extension")?,
+                media_type: DB::opt_text(&row, "media_type")?,
+                source: DB::opt_text(&row, "source")?,
                 media_is_public: DB::boolean(&row, "media_is_public")?,
                 media_owner_id: DB::opt_id(&row, "media_owner_id")?,
                 item_is_public: DB::boolean(&row, "item_is_public")?,

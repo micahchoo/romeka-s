@@ -104,9 +104,12 @@ export const kn: AdminMessages = {
   'settings.defaultPrivateItemSets': 'ಡಿಫಾಲ್ಟ್ ಆಗಿ ಖಾಸಗಿ ಐಟಂ ಸೆಟ್‌ಗಳು',
   'settings.indexFulltextSearch': 'ಪೂರ್ಣಪಠ್ಯ ಹುಡುಕಾಟ ಸೂಚ್ಯಂಕ',
   'settings.versionNotifications': 'ಆವೃತ್ತಿ ಅಧಿಸೂಚನೆಗಳು',
+  'settings.mediaAltTextProperty': 'ಮೀಡಿಯಾ ಆಲ್ಟ್ ಟೆಕ್ಸ್ಟ್ ಪ್ರಾಪರ್ಟಿ',
+  'settings.mediaAltTextPropertyInfo':
+    'ಯಾವುದೇ alt text ಸೆಟ್ ಮಾಡದಿದ್ದಾಗ media ಅನ್ನು ವಿವರಿಸುವ ಮೊದಲ ಮೌಲ್ಯವನ್ನು ಹೊಂದಿರುವ property. ಇದನ್ನು ಖಾಲಿ ಬಿಡಿ ಮತ್ತು alt text ಇಲ್ಲದ media ಗೆ ಯಾವುದೂ ಇರುವುದಿಲ್ಲ.',
   'settings.saved': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ.',
   'settings.note':
-    'ಪೋರ್ಟ್ ಸ್ಥಳ ಮತ್ತು ಭದ್ರತಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸುತ್ತದೆ; ಇತರ ಬದಲಾವಣೆಗಳು ಉಳಿಯುವುದಿಲ್ಲ.',
+    'ಪೋರ್ಟ್ ಸ್ಥಳೀಯತೆ, ಮೀಡಿಯಾ ಆಲ್ಟ್ ಟೆಕ್ಸ್ಟ್ ಪ್ರಾಪರ್ಟಿ ಮತ್ತು ಭದ್ರತಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸುತ್ತದೆ; ಇತರ ಬದಲಾವಣೆಗಳು ಉಳಿಯುವುದಿಲ್ಲ.',
   'settings.security': 'ಭದ್ರತೆ',
   'settings.disableFileValidation': 'ಫೈಲ್ ಮೌಲ್ಯೀಕರಣವನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ',
   'settings.disableFileValidationInfo':

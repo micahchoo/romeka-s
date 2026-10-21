@@ -60,6 +60,9 @@ pub async fn carry_block(
     let Some(carrier) = layout_data.get("romeka").and_then(RomkaCarrier::parse) else {
         return Ok((data, Some(layout_data)));
     };
+    // The plain rendering resolves property terms (a media's alt text among
+    // them), which a read-shaped catalog has not loaded.
+    api.fill_catalog().await?;
     let media = public_media(api, layout, &carrier).await?;
     if layout == IiifImage.name() {
         let names_media = !romeka::media_refs(layout, &carrier).is_empty();
@@ -204,7 +207,10 @@ async fn plain_refs(
             refs = refs.media(
                 *id,
                 format!("/files/{path}"),
-                row.alt_text.clone().unwrap_or_default(),
+                crate::settings::media_alt_text(api.pool(), api.catalog(), row)
+                    .await
+                    .map_err(db_error)?
+                    .unwrap_or_default(),
             );
         }
     }
@@ -369,11 +375,18 @@ async fn main_image(api: &Api<'_>, row: &ItemRow) -> Result<Option<PlainImage>, 
         .into_iter()
         .find(|media| media.resource.is_public),
     };
-    Ok(media.and_then(|media| {
-        media_image_path(&media).map(|path| PlainImage {
-            url: format!("/files/{path}"),
-            alt: media.alt_text.clone().unwrap_or_default(),
-        })
+    let Some(media) = media else {
+        return Ok(None);
+    };
+    let Some(path) = media_image_path(&media) else {
+        return Ok(None);
+    };
+    Ok(Some(PlainImage {
+        url: format!("/files/{path}"),
+        alt: crate::settings::media_alt_text(api.pool(), api.catalog(), &media)
+            .await
+            .map_err(db_error)?
+            .unwrap_or_default(),
     }))
 }
 

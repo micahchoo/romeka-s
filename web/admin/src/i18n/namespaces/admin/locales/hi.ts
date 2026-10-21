@@ -104,8 +104,12 @@ export const hi: AdminMessages = {
   'settings.defaultPrivateItemSets': 'डिफ़ॉल्ट रूप से निजी आइटम सेट',
   'settings.indexFulltextSearch': 'पूर्णपाठ खोज सूचकांक',
   'settings.versionNotifications': 'संस्करण अधिसूचना',
+  'settings.mediaAltTextProperty': 'मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी',
+  'settings.mediaAltTextPropertyInfo':
+    'वह प्रॉपर्टी जिसकी पहली वैल्यू मीडिया का वर्णन करती है जब कोई ऑल्ट टेक्स्ट सेट नहीं होता है। इसे खाली छोड़ दें और बिना ऑल्ट टेक्स्ट वाली मीडिया में कोई नहीं होता है।',
   'settings.saved': 'सेटिंग्स अपडेट की गईं।',
-  'settings.note': 'पोर्ट लोकेल और सुरक्षा सेटिंग्स को सहेजता है; अन्य परिवर्तन सहेजे नहीं जाते।',
+  'settings.note':
+    'पोर्ट लोक्यूल, मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी और सिक्योरिटी सेटिंग्स को सहेजता है; अन्य परिवर्तन सुरक्षित नहीं रखे जाते हैं।',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फ़ाइल सत्यापन अक्षम करें',
   'settings.disableFileValidationInfo':

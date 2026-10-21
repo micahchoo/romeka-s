@@ -290,6 +290,16 @@ async fn item_browse_lists_the_site_items() {
         "{}",
         answer.body
     );
+    // The card repeats the item's name as visible text, so the image beside it
+    // is decorative: an empty alt keeps a screen reader from reading the title
+    // twice.
+    assert!(
+        answer.body.contains(
+            "<span class=\"resource-thumb\"><img src=\"http://localhost/files/medium/4b1e5b9e0f9f4f5a8f6b2c3d4e5f6a7b8c9d0e1f.jpg\" alt=\"\" loading=\"lazy\"></span>"
+        ),
+        "{}",
+        answer.body
+    );
 }
 
 /// `view/omeka/site/item-set/browse.phtml`: the public item-set list.

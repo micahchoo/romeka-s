@@ -58,8 +58,10 @@ impl Http {
         action: &str,
         url: &Url,
         body: &[u8],
+        media_type: Option<&str>,
     ) -> Result<Sent, StoreError> {
-        read(key, action, self.agent.put(url.as_str()).send(body))
+        let request = self.agent.put(url.as_str());
+        read(key, action, send(request, body, media_type))
     }
 
     pub(super) fn post(
@@ -68,8 +70,10 @@ impl Http {
         action: &str,
         url: &Url,
         body: &[u8],
+        media_type: Option<&str>,
     ) -> Result<Sent, StoreError> {
-        read(key, action, self.agent.post(url.as_str()).send(body))
+        let request = self.agent.post(url.as_str());
+        read(key, action, send(request, body, media_type))
     }
 
     pub(super) fn get(
@@ -130,6 +134,17 @@ impl Sent {
     }
 }
 
+/// Send a body with its type, when the object store should record one.
+fn send(
+    request: ureq::RequestBuilder<ureq::typestate::WithBody>,
+    body: &[u8],
+    media_type: Option<&str>,
+) -> Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+    match media_type {
+        Some(media_type) => request.content_type(media_type).send(body),
+        None => request.send(body),
+    }
+}
 fn read(
     key: &str,
     action: &str,

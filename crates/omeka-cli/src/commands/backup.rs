@@ -250,12 +250,12 @@ mod tests {
         let storage_id = omeka_media::store::new_storage_id().expect("storage id");
         let extension = name.rsplit_once('.').map(|(_, extension)| extension);
         let path = storage_path(StorePrefix::Original, &storage_id, extension);
-        file_store.put(bytes, &path).expect("store bytes");
+        file_store.put(bytes, &path, None).expect("store bytes");
         let thumbnails = bytes.starts_with(&[0x89, b'P', b'N', b'G']);
         if thumbnails {
             for kind in ThumbnailType::ALL {
                 file_store
-                    .put(b"thumb", &thumbnail_path(&storage_id, kind))
+                    .put(b"thumb", &thumbnail_path(&storage_id, kind), None)
                     .expect("store thumbnail");
             }
         }
@@ -502,6 +502,7 @@ mod tests {
             .put(
                 b"raw",
                 &storage_path(StorePrefix::Original, &storage_id, None),
+                None,
             )
             .expect("store bytes");
         MediaRepo::new(&db.pool)

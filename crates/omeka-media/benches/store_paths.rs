@@ -68,7 +68,7 @@ fn store_paths(c: &mut Criterion) {
     assert_eq!(extension_from_source_name("no_extension"), None);
     assert_eq!(new_storage_id().unwrap().len(), 40);
     assert_eq!(sha256_hex(b"abc").len(), 64);
-    assert!(store.put(&payload, "original/guard.jpg").is_ok());
+    assert!(store.put(&payload, "original/guard.jpg", None).is_ok());
     assert_eq!(store.read("original/guard.jpg").unwrap(), payload);
     assert!(store.exists("original/guard.jpg").unwrap());
     assert!(!store.exists("original/absent.jpg").unwrap());
@@ -137,14 +137,16 @@ fn store_paths(c: &mut Criterion) {
                 )
             },
             |path| {
-                let result = store.put(black_box(&payload), &path);
+                let result = store.put(black_box(&payload), &path, None);
                 black_box(result)
             },
             BatchSize::SmallInput,
         )
     });
     group.bench_function("read/1KiB", |b| {
-        store.put(&payload, "original/read-target.jpg").unwrap();
+        store
+            .put(&payload, "original/read-target.jpg", None)
+            .unwrap();
         b.iter(|| store.read(black_box("original/read-target.jpg")))
     });
     group.bench_function("exists/present", |b| {
@@ -157,7 +159,7 @@ fn store_paths(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let path = format!("original/d{}.jpg", serial.fetch_add(1, Ordering::Relaxed));
-                store.put(&payload, &path).unwrap();
+                store.put(&payload, &path, None).unwrap();
                 path
             },
             |path| {

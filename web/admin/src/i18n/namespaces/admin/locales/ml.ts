@@ -104,9 +104,12 @@ export const ml: AdminMessages = {
   'settings.defaultPrivateItemSets': 'ഡിഫോൾട്ട് പ്രൈവറ്റ് ഐറ്റം സെറ്റുകൾ',
   'settings.indexFulltextSearch': 'ഇൻഡക്സ് ഫുൾ ടെക്സ്റ്റ് സെർച്ച്',
   'settings.versionNotifications': 'പതിപ്പ് അറിയിപ്പുകൾ',
+  'settings.mediaAltTextProperty': 'മീഡിയ ആൾട്ട് ടെക്സ്റ്റ് പ്രോപ്പർട്ടി',
+  'settings.mediaAltTextPropertyInfo':
+    'ആൾട്ട് ടെക്സ്റ്റ് സെറ്റ് ചെയ്യാത്തപ്പോൾ ഒരു മീഡിയയെ വിവരിക്കുന്ന ആദ്യ മൂല്യം. ഇത് ശൂന്യമായി വിടുക, ആൾട്ട് ടെക്സ്റ്റ് ഇല്ലാത്ത ഒരു മീഡിയയ്ക്ക് ആൾട്ട് ടെക്സ്റ്റ് ഇല്ല.',
   'settings.saved': 'ക്രമീകരണങ്ങൾ പുതുക്കി.',
   'settings.note':
-    'പോർട്ട് ലൊക്കേലും സുരക്ഷാ ക്രമീകരണങ്ങളും സേവ് ചെയ്യുന്നു; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
+    'പോർട്ട് ലൊക്കേൽ, മീഡിയ ആൾട്ട് ടെക്സ്റ്റ് പ്രോപ്പർട്ടി, സെക്യൂരിറ്റി സെറ്റിംഗ്സ് എന്നിവ സേവ് ചെയ്യുന്നു; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
   'settings.security': 'സുരക്ഷ',
   'settings.disableFileValidation': 'ഫയൽ വാലിഡേഷൻ ഡിസേബിൾ ചെയ്യുക',
   'settings.disableFileValidationInfo':

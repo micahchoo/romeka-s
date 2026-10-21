@@ -14,7 +14,7 @@ use omeka_db::repos::{
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_db::with_db;
-use omeka_media::store::FileKind;
+use omeka_media::store::{Download, FileKind};
 use omeka_media::thumbnailer::thumbnails_stored;
 
 use super::paging::{Limit, Window, ordered_page, sorted_page};
@@ -556,8 +556,8 @@ pub(crate) fn media_doc(
     let thumbnail_urls = media_thumbnail_urls(api, shown);
     let original_url = if row.has_original {
         filename.as_ref().map(|name| {
-            api.files()
-                .url(&format!("original/{name}"), FileKind::Original)
+            let download = Download::of(row.media_type.as_deref(), row.source.as_deref(), name);
+            api.files().original(&format!("original/{name}"), &download)
         })
     } else {
         None
