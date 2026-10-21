@@ -79,6 +79,7 @@ enum Cell {
     Thumbnail,
     Api,
     SiteMediaPage,
+    SiteNotes,
     SiteItemCard,
     Iiif,
     IiifNotes,
@@ -86,12 +87,13 @@ enum Cell {
     Captions,
 }
 
-const CELLS: [Cell; 10] = [
+const CELLS: &[Cell] = &[
     Cell::Ingest,
     Cell::Annotate,
     Cell::Thumbnail,
     Cell::Api,
     Cell::SiteMediaPage,
+    Cell::SiteNotes,
     Cell::SiteItemCard,
     Cell::Iiif,
     Cell::IiifNotes,
@@ -107,6 +109,7 @@ impl Cell {
             Self::Thumbnail => "thumbnail",
             Self::Api => "api",
             Self::SiteMediaPage => "site-media-page",
+            Self::SiteNotes => "site-notes",
             Self::SiteItemCard => "site-item-card",
             Self::Iiif => "iiif",
             Self::IiifNotes => "iiif-notes",
@@ -877,6 +880,7 @@ fn judge(
         Cell::Thumbnail => Some(thumbnail(fixture, seen, store)),
         Cell::Api => Some(api_cell(seen)),
         Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
+        Cell::SiteNotes => Some(site_notes(fixture, seen)),
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
         Cell::Iiif => Some(iiif(fixture, seen)),
         Cell::IiifNotes => iiif_notes(seen),
@@ -1147,6 +1151,55 @@ fn has_file_link(page: &str, doc: &Value) -> bool {
         .any(|tag| {
             tag.contains("href=\"") && tag.contains("/files/original/") && tag.contains(filename)
         })
+}
+
+/// The public media page lists every note a visitor may see, and a picture
+/// whose canvas size the server knows draws the notes' regions over a canvas of
+/// that size. The list is the keyboard and screen-reader path, so it stands on
+/// its own for every kind.
+fn site_notes(fixture: &Fixture, seen: &Observed) -> bool {
+    let Some(page) = &seen.page else {
+        return false;
+    };
+    let Some(list) = page
+        .split("<section class=\"annotation-list\"")
+        .nth(1)
+        .and_then(|rest| rest.split("</section>").next())
+    else {
+        return false;
+    };
+    let Some(notes) = &seen.notes else {
+        return false;
+    };
+    if notes.accepted == 0 || !list.contains("The whole file") {
+        return false;
+    }
+    if notes.accepted > 1 && !list.contains("A second note") {
+        return false;
+    }
+    if !matches!(fixture.kind, Kind::Image | Kind::Svg) {
+        return true;
+    }
+    let (Some(manifest), Some(media)) = (&seen.manifest, seen.media) else {
+        return true;
+    };
+    let canvas = manifest["items"].as_array().and_then(|items| {
+        items.iter().find(|canvas| {
+            canvas["id"]
+                .as_str()
+                .is_some_and(|id| id.ends_with(&format!("/canvas/{media}")))
+        })
+    });
+    let size =
+        canvas.and_then(|canvas| Some((canvas["width"].as_u64()?, canvas["height"].as_u64()?)));
+    // No canvas size means no overlay: the page says "Region" in the list and
+    // the visitor opens the IIIF viewer (the design's unknown-canvas state).
+    let Some((width, height)) = size else {
+        return true;
+    };
+    page.contains(&format!(
+        "class=\"annotation-overlay\" viewBox=\"0 0 {width} {height}\""
+    ))
 }
 
 /// The item's card in the public browse. The card carries the server's kind

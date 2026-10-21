@@ -282,9 +282,22 @@ fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
             }
         }
         out.push_str(&format!(
-            "<span class=\"media-file-name\">{}</span></a></li>",
+            "<span class=\"media-file-name\">{}</span></a>",
             escape_html(&entry.title)
         ));
+        // A cropped tile never carries the overlay: it names the note count and
+        // opens the media page, where the notes are drawn on the whole file.
+        if entry.notes > 0 {
+            out.push_str(&format!(
+                "<a class=\"media-file-notes\" href=\"{}\">{}</a>",
+                escape_html(&entry.url),
+                escape_html(&sprintf1(
+                    ctx.translator().messages().notes_count,
+                    &entry.notes.to_string()
+                ))
+            ));
+        }
+        out.push_str("</li>");
     }
     out.push_str("</ul></div>");
     out

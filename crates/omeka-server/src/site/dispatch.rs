@@ -77,6 +77,7 @@ pub(crate) async fn dispatch(
         &data.site,
         &access,
         &data.settings,
+        state.extents.as_ref(),
     );
     let common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
 
@@ -274,11 +275,18 @@ impl<'a> Common<'a> {
 
     /// A media as its own page shows it. The request's query may cue the
     /// player; the loader holds the start inside the file's probed duration.
+    /// `?notes_after=` pages the notes and `?note=` opens the page that holds a
+    /// cited note.
     async fn media_resource_view(&self, row: &MediaRow) -> Result<ResourceView, SiteError> {
-        let view = self
+        let mut view = self
             .loader
             .media_resource_view(row, self.media_start())
             .await?;
+        let after = query_i64(&self.query, "notes_after");
+        let cited = query_i64(&self.query, "note");
+        if let Some(notes) = self.loader.media_notes(row, after, cited).await? {
+            self.loader.annotate_first(&mut view, &notes);
+        }
         Ok(view)
     }
 
@@ -408,6 +416,7 @@ pub(crate) async fn render_preview(
         &data.site,
         &access,
         &data.settings,
+        state.extents.as_ref(),
     );
     // The body's tokens win over the stored ones for this render only; nothing
     // is written.
@@ -500,6 +509,7 @@ pub(crate) async fn render_resource_preview(
         &data.site,
         &access,
         &data.settings,
+        state.extents.as_ref(),
     );
     let mut common = Common::load(state, uri, &data, &loader, actor, &data.theme_settings).await?;
     // The request's query carries the caller's credentials, not a page query,
@@ -619,6 +629,16 @@ fn query_usize(query: &[(String, String)], key: &str) -> Option<usize> {
         .iter()
         .find(|(name, _)| name == key)
         .and_then(|(_, value)| value.parse().ok())
+}
+
+/// A non-negative integer member of the query, `None` when it is absent or not
+/// one. An id is a row id, so a negative or broken value names nothing.
+fn query_i64(query: &[(String, String)], key: &str) -> Option<i64> {
+    query
+        .iter()
+        .find(|(name, _)| name == key)
+        .and_then(|(_, value)| value.parse::<i64>().ok())
+        .filter(|value| *value >= 0)
 }
 
 /// `Catalog::load` reports a database failure as `ApiError`; the site layer's
