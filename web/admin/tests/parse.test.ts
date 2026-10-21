@@ -178,6 +178,26 @@ describe('parseMedia', () => {
     );
   });
 
+  it('media_html_content_members_are_not_read_as_values', () => {
+    // `Module::filterHtmlMediaJsonLd` adds `o-cnt:chars` and
+    // `o-cnt:characterEncoding` to an html media beside the values, as strings.
+    const body = loadFixture('media-page.json');
+    if (!isUnknownArray(body)) {
+      throw new Error('expected media-page.json to be an array');
+    }
+    const entry = body[1];
+    if (!isRecord(entry)) {
+      throw new Error('expected the html media to be an object');
+    }
+    entry['o-cnt:chars'] = 'A note in HTML';
+    entry['o-cnt:characterEncoding'] = 'UTF-8';
+
+    const media = parseMedia(entry);
+    expect(media.ingester).toBe('html');
+    expect(media.renderer).toBe('html');
+    expect(media.source).toBeNull();
+  });
+
   it('media_rejects_a_non_empty_thumbnail_url_list', () => {
     const body = loadFixture('media-951.json');
     if (!isRecord(body)) {

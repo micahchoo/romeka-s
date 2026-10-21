@@ -95,16 +95,18 @@ describe('media detail', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Public')).toBeInTheDocument();
     expect(screen.getByText('image/jpeg')).toBeInTheDocument();
-    expect(screen.getByText('file')).toBeInTheDocument();
-    expect(screen.getByText('upload')).toBeInTheDocument();
+    // The renderer and ingester read as words, not as module names.
+    expect(screen.getByText('The file itself')).toBeInTheDocument();
+    expect(screen.getByText('Upload')).toBeInTheDocument();
     expect(screen.getByText('e82cef00da75e9c5661a9ee66155ef419cf89988.jpg')).toBeInTheDocument();
-    expect(screen.getByText('5,989,397 bytes')).toBeInTheDocument();
+    // Once in the stage's facts line, once in the metadata table.
+    expect(screen.getAllByText('5,989,397 bytes')).toHaveLength(2);
     // Both dates read the same in this capture, so both rows match.
     expect(screen.getAllByText('Oct 17, 2026, 7:55 AM')).toHaveLength(2);
     expect(screen.getByText('No values.')).toBeInTheDocument();
 
     expect(screen.getByRole('link', { name: '#31' })).toHaveAttribute('href', '#/items/31');
-    expect(screen.getByRole('link', { name: 'original' })).toHaveAttribute('href', ORIGINAL);
+    expect(screen.getByRole('link', { name: 'Original' })).toHaveAttribute('href', ORIGINAL);
 
     expect(first(urlsFor(fetchMock, '/api/media/951')).pathname).toBe('/api/media/951');
   });

@@ -67,9 +67,10 @@ test('a media row opens its show page with the large thumbnail and the original'
   await page.getByRole('link', { name: MEDIA_FILE }).click();
   await expect(page).toHaveURL(/#\/media\/\d+$/);
 
-  const hero = page.locator('img.media-hero');
+  // The stage's picture, which is the large derivative (see the media stage spec).
+  const hero = page.locator('img.media-stage-image');
   await expect(hero).toBeVisible();
-  const src = await srcOf(hero, 'the media show page has no hero src');
+  const src = await srcOf(hero, 'the media show page has no stage src');
   expect(src.startsWith(`${readHarness().baseUrl}/files/large/`)).toBe(true);
 
   // The bytes are a real image, not just a 200 from a file store. The large
