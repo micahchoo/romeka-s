@@ -42,7 +42,7 @@ const VIEWER_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self
      frame-ancestors 'self'; base-uri 'none'; form-action 'none'";
 
 /// The media type of a Presentation 3 document.
-const PRESENTATION_TYPE: &str =
+pub(crate) const PRESENTATION_TYPE: &str =
     "application/ld+json;profile=\"http://iiif.io/api/presentation/3/context.json\"";
 
 /// The IIIF routes, mounted into [`crate::build_router`].
