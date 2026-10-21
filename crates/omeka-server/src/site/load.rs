@@ -48,6 +48,7 @@ use omeka_site::view::{
 
 use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
+use omeka_media::kind::{CanvasBody, KindInput, MediaKind};
 use omeka_media::render::{
     MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
 };
@@ -1266,14 +1267,13 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
-            if view.iiif_manifest.is_none()
-                && crate::iiif::paints_canvas(
-                    &entry.renderer,
-                    &entry.ingester,
-                    entry.media_type.as_deref(),
-                    entry.has_thumbnails,
-                )
-            {
+            let kind = MediaKind::of(&KindInput {
+                renderer: &entry.renderer,
+                ingester: &entry.ingester,
+                media_type: entry.media_type.as_deref(),
+                has_thumbnails: entry.has_thumbnails,
+            });
+            if view.iiif_manifest.is_none() && kind.canvas_body() == Some(CanvasBody::Image) {
                 view.iiif_manifest = Some(format!(
                     "{}/iiif/3/item/{}/manifest",
                     self.base.as_str(),

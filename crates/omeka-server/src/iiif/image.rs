@@ -14,6 +14,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::Response;
 use omeka_media::iiif_image::{self, ImageRequest, Plan};
+use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::store::Store;
 use serde_json::Value;
 
@@ -22,6 +23,21 @@ use crate::AppState;
 
 /// The media type of an Image API 3 `info.json`.
 const INFO_TYPE: &str = "application/ld+json;profile=\"http://iiif.io/api/image/3/context.json\"";
+
+/// The kind of one media representation, through the crate's one kind table.
+fn kind_of(media: &Value) -> MediaKind {
+    let text = |key: &str| media.get(key).and_then(Value::as_str).unwrap_or("");
+    MediaKind::of(&KindInput {
+        renderer: text("o:renderer"),
+        ingester: text("o:ingester"),
+        media_type: media.get("o:media_type").and_then(Value::as_str),
+        has_thumbnails: media
+            .get("o:thumbnail_urls")
+            .and_then(|urls| urls.get("large"))
+            .and_then(Value::as_str)
+            .is_some(),
+    })
+}
 
 /// A stored image this server can serve through the Image API, read from a
 /// media representation.
@@ -37,8 +53,11 @@ struct StoredImage {
 
 impl StoredImage {
     /// The image a media representation stores, `None` for a media that is
-    /// not a file the decoder reads or that has no derivatives.
-    fn of(media: &Value) -> Option<Self> {
+    /// not a local image with derivatives.
+    fn of(media: &Value, kind: MediaKind) -> Option<Self> {
+        if kind != MediaKind::LocalImage {
+            return None;
+        }
         let text = |key: &str| media.get(key).and_then(Value::as_str);
         let thumbnail = |kind: &str| {
             media
@@ -49,10 +68,6 @@ impl StoredImage {
         };
         let media_type = text("o:media_type")?;
         let large = thumbnail("large");
-        // An empty ingester asks only whether this is a stored image.
-        if !super::paints_canvas(text("o:renderer")?, "", Some(media_type), large.is_some()) {
-            return None;
-        }
         let filename = text("o:filename")?;
         Some(Self {
             storage_id: filename
@@ -87,23 +102,25 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
         })
         .unwrap_or("[Untitled]")
         .to_string();
-    let painting = if let Some(image) = StoredImage::of(media) {
-        let dimensions = &state.iiif_dimensions;
-        let size = dimensions.of(&state.store, &image.original_path).await?;
-        let large_size = dimensions.of(&state.store, &image.large_path()).await?;
-        Painting::Local(LocalImage {
-            original_url: image.original_url,
-            media_type: image.media_type,
-            size,
-            large_url: image.large_url,
-            large_size,
-            square_url: image.square_url,
-            service: service_id(state, id),
-        })
-    } else if media.get("o:ingester").and_then(Value::as_str) == Some("iiif") {
-        Painting::Remote(media.get("data")?.clone())
-    } else {
-        return None;
+    let kind = kind_of(media);
+    let painting = match kind {
+        MediaKind::LocalImage => {
+            let image = StoredImage::of(media, kind)?;
+            let dimensions = &state.iiif_dimensions;
+            let size = dimensions.of(&state.store, &image.original_path).await?;
+            let large_size = dimensions.of(&state.store, &image.large_path()).await?;
+            Painting::Local(LocalImage {
+                original_url: image.original_url,
+                media_type: image.media_type,
+                size,
+                large_url: image.large_url,
+                large_size,
+                square_url: image.square_url,
+                service: service_id(state, id),
+            })
+        }
+        MediaKind::IiifImage => Painting::Remote(media.get("data")?.clone()),
+        _ => return None,
     };
     Some(CanvasMedia {
         id,
@@ -124,7 +141,8 @@ async fn visible_image(
     media: u64,
 ) -> Option<(StoredImage, Size)> {
     let api = super::visitor_api(state, headers).await?;
-    let image = StoredImage::of(&super::read(&api, "media", media).await?)?;
+    let media = super::read(&api, "media", media).await?;
+    let image = StoredImage::of(&media, kind_of(&media))?;
     let size = state
         .iiif_dimensions
         .of(&state.store, &image.original_path)
