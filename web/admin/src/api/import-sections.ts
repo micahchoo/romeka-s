@@ -26,7 +26,7 @@ import { ACTIONS, FLAG_KINDS, FLAG_POLICIES, RECORD_KINDS } from './import-plan'
 import { parseSheetView, parseTagView } from './import-sheet-views';
 import type { SheetView, TagView } from './import-sheet-views';
 import { asSlotName, asTerm, parseFileRef, parseRowRef } from './import-plan-read';
-import type { Action, FileRef, FlagKind, FlagPolicy, RecordKind, RowRef, SlotName, Term } from './import-plan';
+import type { Action, FileRef, FlagKind, FlagPolicy, Join, RecordKind, RowRef, SlotName, Term } from './import-plan';
 import { ParseError, asString } from './parse';
 import type { Parser, Path } from './types';
 import type { StarterId } from './starters';
@@ -443,6 +443,86 @@ const parseColumnMatches: Parser<readonly SheetColumnMatches[]> = (raw, path = [
   return list(sheet)(raw, path);
 };
 
+/** The column and join that pair the most rows of a list exactly. */
+export interface BestColumn {
+  readonly index: number;
+  readonly header: string;
+  readonly on: Join['on'];
+  /** Cells that exactly equal a group key (`identifier`) or a file's name or path (`fileName`). */
+  readonly paired: number;
+  /** The same, with every name fold on. */
+  readonly pairedNormalized: number;
+  readonly empty: number;
+}
+
+/** The evidence that a list's rows describe files: several rows meet one item. */
+export interface Grain {
+  readonly groupsWithManyRows: number;
+  readonly rowsNamingOtherFilesOfAGroup: number;
+}
+
+/** Another list that pairs some of the same items. */
+export interface ListOverlap {
+  readonly source: string;
+  readonly file: string;
+  readonly sharedTargets: number;
+}
+
+/** A list file the scan found, and how well it fits the files. */
+export interface ListCandidate {
+  readonly source: string;
+  readonly file: string;
+  /** The plan sheet that reads this file. */
+  readonly inPlan: string | null;
+  readonly read: 'ok' | { readonly error: string };
+  readonly rows: number;
+  readonly columns: number;
+  readonly best: BestColumn | null;
+  /** Set when `best` pairs by file name. */
+  readonly grain: Grain | null;
+  readonly overlaps: readonly ListOverlap[];
+}
+
+const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
+  const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'overlaps']);
+  const best = (value: unknown, at: Path): BestColumn => {
+    const each = strict(value, at, ['index', 'header', 'on', 'paired', 'pairedNormalized', 'empty']);
+    return {
+      index: count(each, 'index', at),
+      header: text(each, 'header', at),
+      on: member(each, 'on', at, oneOf<Join['on']>(['identifier', 'fileName'])),
+      paired: count(each, 'paired', at),
+      pairedNormalized: count(each, 'pairedNormalized', at),
+      empty: count(each, 'empty', at),
+    };
+  };
+  const grain = (value: unknown, at: Path): Grain => {
+    const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup']);
+    return {
+      groupsWithManyRows: count(each, 'groupsWithManyRows', at),
+      rowsNamingOtherFilesOfAGroup: count(each, 'rowsNamingOtherFilesOfAGroup', at),
+    };
+  };
+  const overlap = (value: unknown, at: Path): ListOverlap => {
+    const each = strict(value, at, ['source', 'file', 'sharedTargets']);
+    return { source: text(each, 'source', at), file: text(each, 'file', at), sharedTargets: count(each, 'sharedTargets', at) };
+  };
+  const read = wordOr(['ok'] as const, (value, at): { readonly error: string } => ({
+    error: text(strict(value, at, ['error']), 'error', at),
+  }));
+  return {
+    source: text(object, 'source', path),
+    file: text(object, 'file', path),
+    inPlan: member(object, 'inPlan', path, maybeText),
+    read: member(object, 'read', path, read),
+    rows: count(object, 'rows', path),
+    columns: count(object, 'columns', path),
+    best: member(object, 'best', path, nullable(best)),
+    grain: member(object, 'grain', path, nullable(grain)),
+    overlaps: member(object, 'overlaps', path, list(overlap)),
+  };
+};
+
 export interface SectionShapes {
   readonly entries: Paged<EntryView>;
   readonly sheets: readonly SheetView[];
@@ -459,6 +539,7 @@ export interface SectionShapes {
   readonly values: readonly SlotValues[];
   readonly nameWords: NameWords;
   readonly columnMatches: readonly SheetColumnMatches[];
+  readonly listCandidates: readonly ListCandidate[];
 }
 
 export type Section = keyof SectionShapes;
@@ -482,6 +563,7 @@ const PARSERS: { readonly [S in Section]: (value: unknown, path: Path) => Sectio
   values: list(parseSlotValues),
   nameWords: parseNameWords,
   columnMatches: parseColumnMatches,
+  listCandidates: list(parseListCandidate),
 };
 
 export const SECTIONS: readonly Section[] = Object.keys(PARSERS).filter(

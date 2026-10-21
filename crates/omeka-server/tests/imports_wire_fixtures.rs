@@ -143,6 +143,10 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
         .preview(&id, &json!({ "include": ["columnMatches"] }))
         .await;
     out.json("preview-column-matches.json", &ok(matches).await);
+    let candidates = fixture
+        .preview(&id, &json!({ "include": ["listCandidates"] }))
+        .await;
+    out.json("preview-list-candidates.json", &ok(candidates).await);
     anomaly_answers(&fixture, &mut out, &id).await;
 
     let template = fixture
