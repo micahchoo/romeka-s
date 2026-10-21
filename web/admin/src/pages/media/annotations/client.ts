@@ -120,7 +120,8 @@ const firstMessage = (errors: ApiErrors | null): string | null => {
 };
 
 /** The server's error document, in the user's language, as the API client does it. */
-const refusal = async (response: Response): Promise<ApiError> => {
+/** A non-OK answer as an `ApiError`, with the server's own messages localized. */
+export const refusal = async (response: Response): Promise<ApiError> => {
   const body = await readBody(response).catch(() => null);
   const parsed = body === null ? null : parseApiErrors(body);
   const errors = parsed === null ? null : await localizeServerErrors(parsed);

@@ -240,7 +240,10 @@ test('Preview plays a video in place, steps to the PDF, and lands ready to add',
   await shot(page, 'preview-annotate');
 });
 
-test('reads one notes container per file, in one wave', async ({ page, baseURL }) => {
+test('reads one counts answer and one container only for a file with notes', async ({
+  page,
+  baseURL,
+}) => {
   const item = await createItem(page.request, 'E2E notes cost item');
   const media: number[] = [];
   for (let index = 0; index < 6; index += 1) {
@@ -249,8 +252,10 @@ test('reads one notes container per file, in one wave', async ({ page, baseURL }
     );
   }
   await signIn(page, baseURL);
-  // One public note per file, so every file has a group to draw.
-  for (const id of media) {
+  // Two of the six files have a note: the first file has none, so its summary
+  // is drawn from the counts read alone, without a container.
+  const annotated = [media[1], media[4]].filter((id): id is number => id !== undefined);
+  for (const id of annotated) {
     const container = await page.request.get(`/annotations/media/${String(id)}/`, {
       headers: { accept: 'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"' },
     });
@@ -273,36 +278,35 @@ test('reads one notes container per file, in one wave', async ({ page, baseURL }
     expect(answer.status(), await answer.text()).toBe(201);
   }
 
+  const counts: string[] = [];
   const containers: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/annotations/media/')) {
-      containers.push(new URL(request.url()).pathname);
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/annotations/item/') && path.endsWith('/counts')) {
+      counts.push(path);
+    }
+    if (path.startsWith('/annotations/media/')) {
+      containers.push(path);
     }
   });
   const started = Date.now();
   await page.goto(`/#/items/${String(item)}`);
-  await expect(page.locator('.item-notes-file')).toHaveCount(media.length);
+  await expect(page.locator('.item-notes-file')).toHaveCount(annotated.length);
   const elapsed = Date.now() - started;
-  // The wave itself, from the first container request to the last answer, which
-  // the whole-page wall clock above cannot separate from the SPA and the reads.
-  const wave = await page.evaluate(() => {
-    const entries = performance
-      .getEntriesByType('resource')
-      .filter((entry) => entry.name.includes('/annotations/media/'));
-    const starts = entries.map((entry) => entry.startTime);
-    const ends = entries.map((entry) => entry.startTime + entry.duration);
-    return entries.length === 0
-      ? null
-      : Math.max(...ends) - Math.min(...starts);
-  });
   console.log(
-    `notes read: ${String(containers.length)} container requests for ${String(media.length)} files, ` +
-      `${String(elapsed)} ms to the last group, ${String(wave === null ? 'n/a' : Math.round(wave))} ms from the first request to the last answer`,
+    `notes read: ${String(counts.length)} counts request and ${String(containers.length)} container requests ` +
+      `for ${String(media.length)} files, ${String(annotated.length)} with notes, ${String(elapsed)} ms to the last group`,
   );
-  expect(containers).toHaveLength(media.length);
-  expect(new Set(containers).size).toBe(media.length);
-  // The cards and the grouped list agree, from the one read.
-  await expect(page.locator('.media-card .media-card-notes')).toHaveCount(media.length);
+
+  expect(counts).toHaveLength(1);
+  expect(containers).toHaveLength(annotated.length);
+  expect(new Set(containers).size).toBe(annotated.length);
+  for (const id of annotated) {
+    expect(containers, `file ${String(id)}`).toContain(`/annotations/media/${String(id)}/`);
+  }
+  // The cards and the grouped list agree, from the counts read.
+  await expect(page.locator('.media-card .media-card-notes')).toHaveCount(annotated.length);
+  await page.screenshot({ path: join(SHOTS, 'note-counts-item.png'), fullPage: true });
 });
 
 test('a time note link seeks the recording to its start', async ({ page, baseURL }) => {

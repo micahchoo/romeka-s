@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { ItemsPage } from '../src/pages/items/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse } from './stub';
+import { installFetch, jsonResponse, listResponse, urlsFor } from './stub';
 
 const BASE = 'http://localhost';
 
@@ -94,8 +94,8 @@ const MEDIA = [
   mediaOf(2, 'scan.pdf', 'application/pdf'),
 ];
 
-const serve = (): void => {
-  installFetch((url, init) => {
+const serve = () => {
+  return installFetch((url, init) => {
     const path = url.pathname;
     if (path === '/api/items/1') {
       return jsonResponse(loadFixture('item-1.json'));
@@ -123,6 +123,15 @@ const serve = (): void => {
     }
     if (path === '/api/sites') {
       return jsonResponse(loadFixture('sites-page.json'));
+    }
+    if (path === '/annotations/item/1/counts') {
+      return jsonResponse({
+        media: {
+          '951': { count: 2, writable: true },
+          '952': { count: 1, writable: false },
+          '953': { count: 0, writable: true },
+        },
+      });
     }
     if (path === '/annotations/media/951/') {
       return containerOf(
@@ -177,6 +186,26 @@ afterEach(() => {
 });
 
 describe('an item page and its files’ notes', () => {
+  it('names each file’s count from one counts read and reads only a file with notes', async () => {
+    const fetchMock = serve();
+    render(<ItemsPage param="1" />);
+    const first = await card(0);
+    await waitFor(() => {
+      expect(within(first).getByText('2 notes')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(document.querySelectorAll('.item-notes-file').length).toBe(2);
+    });
+
+    expect(urlsFor(fetchMock, '/annotations/item/1/counts')).toHaveLength(1);
+    const containers = fetchMock.mock.calls
+      .map(([input]) => (typeof input === 'string' ? input : input instanceof URL ? input.href : input.url))
+      .filter((url) => url.includes('/annotations/media/'));
+    expect(containers.some((url) => url.includes('/annotations/media/953/'))).toBe(false);
+    expect(containers.filter((url) => url.includes('/annotations/media/951/'))).toHaveLength(1);
+    expect(containers.filter((url) => url.includes('/annotations/media/952/'))).toHaveLength(1);
+  });
+
   it('names each file’s count and offers the action its rights allow', async () => {
     render(<ItemsPage param="1" />);
     const first = await card(0);
