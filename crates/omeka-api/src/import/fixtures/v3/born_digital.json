@@ -1,0 +1,42 @@
+{
+  "version": 3,
+  "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }],
+  "structure": {
+    "levels": [
+      {
+        "kind": "series",
+        "id": "drive",
+        "set": null,
+        "scope": "all",
+        "grouping": {
+          "pattern": "^(?<identifier>(?:[^/]*/)*(?<title>[^/~][^/]*?))(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [],
+        "slots": {
+          "item": {
+            "dcterms:title": { "sources": [{ "from": "group", "name": "title" }], "combine": "first" }
+          },
+          "media": {},
+          "itemSet": {}
+        }
+      }
+    ],
+    "freeSets": []
+  },
+  "action": {
+    "action": "create",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "importSets" },
+      "media": { "key": "dcterms:identifier", "scope": "importSets" },
+      "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+  "flags": {},
+  "decisions": [],
+  "newTypes": [],
+  "newTerms": []
+}

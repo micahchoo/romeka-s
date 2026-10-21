@@ -1,0 +1,434 @@
+#![allow(clippy::expect_used)]
+
+use serde_json::{Value, json};
+
+use super::*;
+
+const FULL: &str = include_str!("../fixtures/full.json");
+const DEFAULT: &str = include_str!("../fixtures/default.json");
+const DELETE: &str = include_str!("../fixtures/delete.json");
+
+const BHC006: &str = include_str!("../fixtures/v3/bhc006.json");
+const ORAL_HISTORY: &str = include_str!("../fixtures/v3/oral_history.json");
+const BORN_DIGITAL: &str = include_str!("../fixtures/v3/born_digital.json");
+const ARCHIVE_AS_FOUND: &str = include_str!("../fixtures/v3/archive_as_found.json");
+
+fn compact(text: &str) -> String {
+    serde_json::from_str::<Value>(text)
+        .expect("fixture json")
+        .to_string()
+}
+
+fn parse(text: &str) -> ImportPlan {
+    ImportPlan::from_json(text).unwrap_or_else(|error| panic!("{error}: {text}"))
+}
+
+/// The plan written as v3, whatever it came in as.
+fn as_v3(plan: &ImportPlan) -> Value {
+    let mut plan = plan.clone();
+    plan.version = PlanVersion::V3;
+    serde_json::from_str(&plan.to_json()).expect("v3 json")
+}
+
+/// Every v2 plan the repo holds: the plan fixtures, every plan the admin's
+/// recorded fixtures were served, and the plan a new draft starts with.
+fn every_v2_plan() -> Vec<(String, String)> {
+    let mut plans: Vec<(String, String)> =
+        [("full", FULL), ("default", DEFAULT), ("delete", DELETE)]
+            .into_iter()
+            .map(|(name, text)| (name.to_owned(), compact(text)))
+            .collect();
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/admin/tests/fixtures/import");
+    for entry in std::fs::read_dir(&dir).expect("the admin's import fixtures") {
+        let path = entry.expect("fixture entry").path();
+        if path.extension().is_none_or(|ending| ending != "json") {
+            continue;
+        }
+        let value: Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).expect("fixture text"))
+                .expect("fixture json");
+        let mut stack = vec![&value];
+        while let Some(value) = stack.pop() {
+            match value {
+                Value::Object(members) => {
+                    for (key, member) in members {
+                        if matches!(key.as_str(), "plan" | "ranPlan")
+                            && member.get("version") == Some(&json!(2))
+                        {
+                            // The recording sorts members; the database
+                            // holds the text the server wrote.
+                            let stored = parse(&member.to_string()).to_json();
+                            let name = format!("{} {key}", path.display());
+                            let written: Value = serde_json::from_str(&stored).expect("json");
+                            assert_eq!(&written, member, "{name}: the same members");
+                            plans.push((name, stored));
+                        } else {
+                            stack.push(member);
+                        }
+                    }
+                }
+                Value::Array(items) => stack.extend(items),
+                _ => {}
+            }
+        }
+    }
+    let draft = default_plan(vec![SourcePlan::Staging {
+        id: SourceId("staging".into()),
+    }])
+    .expect("default plan");
+    plans.push(("default_plan".to_owned(), draft.to_json()));
+    plans
+}
+
+#[test]
+fn lift_then_lower_is_identity() {
+    let plans = every_v2_plan();
+    assert!(plans.len() >= 20, "only {} v2 plans found", plans.len());
+    for (name, text) in plans {
+        let plan = parse(&text);
+        assert_eq!(plan.version, PlanVersion::V2, "{name}");
+        assert_eq!(plan.to_json(), text, "{name}: lowered byte for byte");
+
+        let v2: Value = serde_json::from_str(&text).expect("v2 json");
+        let v3 = as_v3(&plan);
+        assert_eq!(v3["version"], 3, "{name}");
+        let levels = v3["structure"]["levels"].as_array().expect("levels");
+        assert_eq!(levels.len(), 1, "{name}: one series");
+        let series = &levels[0];
+        assert_eq!(
+            (
+                &series["kind"],
+                &series["id"],
+                &series["set"],
+                &series["scope"]
+            ),
+            (&json!("series"), &json!("all"), &Value::Null, &json!("all")),
+            "{name}: the series all, with no set, takes every file"
+        );
+        assert_eq!(series["grouping"], v2["grouping"], "{name}");
+        assert_eq!(series["lists"], v2["sheets"], "{name}");
+        let mut slots = v2["slots"].clone();
+        let sets = slots["item"]
+            .as_object_mut()
+            .and_then(|item| item.shift_remove("sets"));
+        assert_eq!(series["slots"], slots, "{name}: slots without item.sets");
+        let free_sets = &v3["structure"]["freeSets"];
+        match sets {
+            None => assert_eq!(free_sets, &json!([]), "{name}"),
+            Some(mut rule) => {
+                rule["names"] = json!("text");
+                assert_eq!(free_sets, &json!([{ "each": rule }]), "{name}");
+            }
+        }
+
+        let mut through_v3 = parse(&v3.to_string());
+        assert_eq!(through_v3.version, PlanVersion::V3, "{name}");
+        through_v3.version = PlanVersion::V2;
+        let lowered: Value = serde_json::from_str(&through_v3.to_json()).expect("json");
+        assert_eq!(
+            lowered, v2,
+            "{name}: lowered from the v3 wire, the same members (a sets rule ends its kind)"
+        );
+    }
+}
+
+#[test]
+fn the_design_examples_parse() {
+    for (name, text) in [
+        ("bhc006", BHC006),
+        ("oral_history", ORAL_HISTORY),
+        ("born_digital", BORN_DIGITAL),
+        ("archive_as_found", ARCHIVE_AS_FOUND),
+    ] {
+        if let Err(error) = serde_json::from_str::<v3::PlanV3>(text) {
+            panic!("{name}: {error}");
+        }
+    }
+
+    for text in [BORN_DIGITAL, ARCHIVE_AS_FOUND] {
+        let plan = parse(text);
+        assert_eq!(plan.version, PlanVersion::V3);
+        assert_eq!(plan.to_json(), compact(text), "written back byte for byte");
+    }
+
+    let not_yet = |text: &str| match ImportPlan::from_json(text) {
+        Err(PlanError::NotYet(why)) => why,
+        other => panic!("not refused by the temporary rule alone: {other:?}"),
+    };
+    assert_eq!(not_yet(BHC006), NotYet::SeveralSeries(5));
+    assert_eq!(
+        not_yet(ORAL_HISTORY),
+        NotYet::SeriesSet("interviews".into())
+    );
+}
+
+#[test]
+fn the_archive_as_found_is_the_lift_of_the_default_plan() {
+    let lifted = parse(DEFAULT);
+    let v3 = parse(ARCHIVE_AS_FOUND);
+    assert_eq!(
+        ImportPlan {
+            version: PlanVersion::V3,
+            ..lifted.clone()
+        },
+        v3
+    );
+    assert_eq!(as_v3(&lifted).to_string(), compact(ARCHIVE_AS_FOUND));
+}
+
+/// The archive-as-found fixture, changed by `edit`, through the boundary.
+fn refused(edit: impl FnOnce(&mut Value)) -> PlanError {
+    let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("fixture json");
+    edit(&mut value);
+    match ImportPlan::from_json(&value.to_string()) {
+        Ok(_) => panic!("accepted: {value}"),
+        Err(error) => error,
+    }
+}
+
+fn series(id: &str, scope: Value) -> Value {
+    let mut series: Value =
+        serde_json::from_str::<Value>(ARCHIVE_AS_FOUND).expect("json")["structure"]["levels"][0]
+            .clone();
+    series["id"] = json!(id);
+    series["scope"] = scope;
+    series
+}
+
+fn folder(source: &str, folder: &str) -> Value {
+    json!([{ "source": source, "folder": folder }])
+}
+
+#[test]
+fn unknown_members_are_refused_at_every_depth_of_the_tree() {
+    let at = |pointer: &'static str| {
+        refused(|plan| {
+            plan.pointer_mut(pointer).expect(pointer)["colour"] = json!(1);
+        })
+    };
+    for pointer in [
+        "",
+        "/structure",
+        "/structure/levels/0",
+        "/structure/levels/0/slots",
+    ] {
+        let error = at(pointer);
+        assert!(
+            matches!(&error, PlanError::ShapeV3(shape) if shape.to_string().contains("colour")),
+            "{pointer}: {error:?}"
+        );
+    }
+    let in_a_set = refused(|plan| {
+        plan["structure"]["levels"] = json!([{
+            "kind": "set", "id": "p", "set": { "title": "P", "description": null, "colour": 1 },
+            "levels": []
+        }]);
+    });
+    assert!(matches!(in_a_set, PlanError::ShapeV3(_)), "{in_a_set:?}");
+    let in_each = refused(|plan| {
+        plan["structure"]["freeSets"] = json!([{ "each": {
+            "sources": [], "combine": "first", "names": "title", "colour": 1
+        } }]);
+    });
+    assert!(matches!(in_each, PlanError::ShapeV3(_)), "{in_each:?}");
+    let other_kind = refused(|plan| plan["structure"]["levels"][0]["kind"] = json!("file"));
+    assert!(
+        matches!(other_kind, PlanError::ShapeV3(_)),
+        "{other_kind:?}"
+    );
+}
+
+#[test]
+fn a_plan_with_the_other_versions_members_is_refused() {
+    let v3_with_v2_members = {
+        let mut value: Value = serde_json::from_str(FULL).expect("json");
+        value["version"] = json!(3);
+        ImportPlan::from_json(&value.to_string()).expect_err("refused")
+    };
+    assert!(
+        matches!(&v3_with_v2_members, PlanError::ShapeV3(shape) if shape.to_string().contains("grouping")),
+        "{v3_with_v2_members:?}"
+    );
+    let v2_with_v3_members = refused(|plan| plan["version"] = json!(2));
+    assert!(
+        matches!(&v2_with_v3_members, PlanError::Shape(shape) if shape.to_string().contains("structure")),
+        "{v2_with_v3_members:?}"
+    );
+}
+
+#[test]
+fn two_levels_with_one_id_are_refused() {
+    let two_series = refused(|plan| {
+        plan["structure"]["levels"] = json!([
+            series("a", folder("s1", "A")),
+            series("a", folder("s1", "B")),
+        ]);
+    });
+    assert!(
+        matches!(&two_series, PlanError::DuplicateLevel(id) if id == "a"),
+        "{two_series:?}"
+    );
+    let set_and_series = refused(|plan| {
+        plan["structure"]["levels"] = json!([{
+            "kind": "set", "id": "a", "set": { "title": "A", "description": null },
+            "levels": [series("a", json!("all"))]
+        }]);
+    });
+    assert!(
+        matches!(&set_and_series, PlanError::DuplicateLevel(id) if id == "a"),
+        "{set_and_series:?}"
+    );
+}
+
+#[test]
+fn two_series_that_take_the_same_files_are_refused() {
+    let both_all = refused(|plan| {
+        plan["structure"]["levels"] = json!([series("a", json!("all")), series("b", json!("all"))]);
+    });
+    assert!(
+        matches!(&both_all, PlanError::DuplicateScope { first, second } if first == "a" && second == "b"),
+        "{both_all:?}"
+    );
+    let one_folder = refused(|plan| {
+        plan["structure"]["levels"] = json!([
+            series("a", folder("s1", "Letters")),
+            series("b", folder("s1", "Letters")),
+        ]);
+    });
+    assert!(
+        matches!(one_folder, PlanError::DuplicateScope { .. }),
+        "{one_folder:?}"
+    );
+}
+
+#[test]
+fn a_scope_in_a_missing_source_is_refused() {
+    let error = refused(|plan| {
+        plan["structure"]["levels"][0]["scope"] = folder("s9", "Letters");
+    });
+    assert!(
+        matches!(&error, PlanError::ScopeSource { series, missing } if series == "all" && missing == "s9"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_series_slot_that_reads_another_series_list_is_refused() {
+    let list = json!({
+        "id": "register", "source": "s1", "file": "register.csv", "hash": null,
+        "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+        "rowKind": "item", "join": null, "itemKey": null,
+        "columns": [{ "column": { "index": 0, "header": "Title" },
+            "options": { "split": null, "type": "literal", "lang": null, "private": false } }]
+    });
+    let error = refused(|plan| {
+        let mut a = series("a", folder("s1", "A"));
+        a["lists"] = json!([list]);
+        let mut b = series("b", folder("s1", "B"));
+        b["slots"]["item"]["dcterms:title"] = json!({
+            "sources": [{ "from": "column", "sheet": "register", "column": { "index": 0, "header": "Title" } }],
+            "combine": "first"
+        });
+        plan["structure"]["levels"] = json!([a, b]);
+    });
+    assert!(
+        matches!(&error, PlanError::ForeignList { series, sheet } if series == "b" && sheet == "register"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_series_slot_rule_for_sets_is_refused() {
+    let error = refused(|plan| {
+        plan["structure"]["levels"][0]["slots"]["item"]["sets"] =
+            json!({ "sources": [{ "from": "folder", "level": 1 }], "combine": "first" });
+    });
+    assert!(
+        matches!(&error, PlanError::SeriesSets(id) if id == "all"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_set_named_by_an_empty_title_is_refused() {
+    let error = refused(|plan| {
+        plan["structure"]["freeSets"] = json!([{ "title": "  ", "description": null }]);
+    });
+    assert!(matches!(error, PlanError::EmptySetTitle(_)), "{error:?}");
+}
+
+#[test]
+fn the_temporary_rule_names_what_the_server_cannot_run_yet() {
+    let cases = [
+        (
+            json!({ "levels": [{ "kind": "set", "id": "p", "set": { "id": 4 },
+                "levels": [series("all", json!("all"))] }], "freeSets": [] }),
+            NotYet::SetLevel("p".into()),
+        ),
+        (
+            json!({ "levels": [series("all", folder("s1", "Letters"))], "freeSets": [] }),
+            NotYet::Scope("all".into()),
+        ),
+        (
+            json!({ "levels": [series("all", json!("all"))],
+                "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
+            NotYet::FreeSets,
+        ),
+        (
+            json!({ "levels": [series("all", json!("all"))], "freeSets": [{ "each": {
+                "sources": [{ "from": "constant", "value": "2018" }], "combine": "first", "names": "title"
+            } }] }),
+            NotYet::FreeSets,
+        ),
+    ];
+    for (structure, why) in cases {
+        let error = refused(|plan| plan["structure"] = structure.clone());
+        assert!(
+            matches!(&error, PlanError::NotYet(got) if *got == why),
+            "{structure}: {error:?}"
+        );
+    }
+    let mut set = series("all", json!("all"));
+    set["set"] = json!({ "id": 4 });
+    let error = refused(|plan| plan["structure"]["levels"] = json!([set]));
+    assert_eq!(
+        error.to_string(),
+        "this server cannot run this plan yet: it does not read a series' own set yet, \
+         and series \"all\" has one"
+    );
+}
+
+#[test]
+fn the_lower_refuses_what_v2_cannot_say() {
+    let drive = parse(BORN_DIGITAL);
+    let mut as_v2 = drive.clone();
+    as_v2.version = PlanVersion::V2;
+    assert!(matches!(
+        v2::PlanV2::try_from(as_v2.clone()),
+        Err(PlanError::NotV2(why)) if why.contains("\"all\"")
+    ));
+    assert_eq!(
+        as_v2.to_json(),
+        drive.to_json(),
+        "a v2 plan the lower refuses is written as v3, not cut"
+    );
+
+    let refusals = [
+        json!({ "levels": [], "freeSets": [] }),
+        json!({ "levels": [{ "kind": "set", "id": "p", "set": { "id": 4 }, "levels": [] }], "freeSets": [] }),
+        json!({ "levels": [series("all", folder("s1", ""))], "freeSets": [] }),
+        json!({ "levels": [series("all", json!("all"))],
+            "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
+    ];
+    for structure in refusals {
+        let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
+        value["structure"] = structure.clone();
+        let wire: v3::PlanV3 = serde_json::from_value(value).expect("v3 wire");
+        let plan = ImportPlan::try_from(wire).expect("no series sets");
+        assert!(
+            matches!(v2::PlanV2::try_from(plan), Err(PlanError::NotV2(_))),
+            "{structure}"
+        );
+    }
+}

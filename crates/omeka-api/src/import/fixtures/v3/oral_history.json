@@ -1,0 +1,94 @@
+{
+  "version": 3,
+  "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }],
+  "structure": {
+    "levels": [
+      {
+        "kind": "series",
+        "id": "interviews",
+        "set": { "title": "Interviews", "description": null },
+        "scope": [{ "source": "s1", "folder": "Interviews" }],
+        "grouping": {
+          "pattern": "^(?<identifier>OH-\\d{4}-\\d{3}) [^/]+/(?<part>[^/]+)$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [
+          {
+            "id": "interviews", "source": "s1", "file": "interviews.xlsx", "hash": null,
+            "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+            "rowKind": "item",
+            "join": {
+              "on": "identifier",
+              "column": { "index": 0, "header": "Code" },
+              "normalize": { "caseFold": true, "leadingZeros": false, "separators": false }
+            },
+            "itemKey": null,
+            "columns": [
+              { "column": { "index": 1, "header": "Title" },
+                "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+              { "column": { "index": 2, "header": "Narrator" },
+                "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+              { "column": { "index": 3, "header": "Interviewer" },
+                "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+              { "column": { "index": 4, "header": "Date" },
+                "options": { "split": null, "type": "literal", "lang": null, "private": false } },
+              { "column": { "index": 5, "header": "Language" },
+                "options": { "split": null, "type": "literal", "lang": null, "private": false } }
+            ]
+          }
+        ],
+        "slots": {
+          "item": {
+            "dcterms:title": {
+              "sources": [{ "from": "column", "sheet": "interviews", "column": { "index": 1, "header": "Title" } }],
+              "combine": "first"
+            },
+            "dcterms:creator": {
+              "sources": [{ "from": "column", "sheet": "interviews", "column": { "index": 2, "header": "Narrator" } }],
+              "combine": "first"
+            },
+            "dcterms:contributor": {
+              "sources": [{ "from": "column", "sheet": "interviews", "column": { "index": 3, "header": "Interviewer" } }],
+              "combine": "first"
+            },
+            "dcterms:date": {
+              "sources": [{ "from": "column", "sheet": "interviews", "column": { "index": 4, "header": "Date" } }],
+              "combine": "first"
+            },
+            "dcterms:language": {
+              "sources": [{ "from": "column", "sheet": "interviews", "column": { "index": 5, "header": "Language" } }],
+              "combine": "first"
+            }
+          },
+          "media": {
+            "mediaOrder": {
+              "sources": [{ "from": "group", "name": "part" }],
+              "combine": "first",
+              "map": {
+                "part1.mp3": "1", "part2.mp3": "2", "part3.mp3": "3",
+                "transcript.pdf": "4", "photo.jpg": "5"
+              }
+            }
+          },
+          "itemSet": {}
+        }
+      }
+    ],
+    "freeSets": []
+  },
+  "action": {
+    "action": "create",
+    "match": {
+      "item": { "key": "dcterms:identifier", "scope": "importSets" },
+      "media": { "key": "dcterms:identifier", "scope": "importSets" },
+      "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+  "flags": {},
+  "decisions": [],
+  "newTypes": [],
+  "newTerms": []
+}

@@ -6,7 +6,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Action, Combine, ImportPlan, PlanError, RecordKind, SourceRef, Term};
+use super::structure::{SeriesScope, Structure};
+use super::{
+    Action, Combine, ImportPlan, NotYet, PlanError, RecordKind, RelPath, SeriesIx, SetSource,
+    SheetId, SlotName, SourceId, SourceRef, Term,
+};
 use crate::import::decisions::{Change, Decision, EntryRef};
 use crate::import::values::fold_title;
 
@@ -15,7 +19,9 @@ pub(super) fn plan(plan: &ImportPlan) -> Result<(), PlanError> {
     slots(plan)?;
     new_types(plan)?;
     new_terms(plan)?;
-    decisions(plan)
+    decisions(plan)?;
+    tree(plan)?;
+    not_yet(plan)
 }
 
 /// Only what no rescan can mend: a missing entry is an orphan, not this.
@@ -93,31 +99,163 @@ fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
             }
         }
     }
-    for (slot, rule) in every_rule() {
-        let mut keys: BTreeMap<String, &str> = BTreeMap::new();
-        for key in rule.map.keys() {
-            if let Some(first) = keys.insert(fold_title(key), key) {
-                return Err(PlanError::MapKeysCollide {
-                    slot: slot.to_string(),
-                    first: first.to_string(),
-                    second: key.clone(),
+    for (at, series) in plan.structure.all_series() {
+        for (slot, rule) in series.every_rule() {
+            map_keys(&slot.to_string(), &rule.map)?;
+            for (owner, sheet) in column_refs(plan, &rule.sources)? {
+                if owner != at {
+                    return Err(PlanError::ForeignList {
+                        series: series.id.0.clone(),
+                        sheet: sheet.0.clone(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn map_keys(slot: &str, map: &indexmap::IndexMap<String, String>) -> Result<(), PlanError> {
+    let mut keys: BTreeMap<String, &str> = BTreeMap::new();
+    for key in map.keys() {
+        if let Some(first) = keys.insert(fold_title(key), key) {
+            return Err(PlanError::MapKeysCollide {
+                slot: slot.to_string(),
+                first: first.to_string(),
+                second: key.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Each list the column refs read, with the series that holds it; refused
+/// when a list or its column is missing.
+fn column_refs<'p>(
+    plan: &ImportPlan,
+    sources: &'p [SourceRef],
+) -> Result<Vec<(SeriesIx, &'p SheetId)>, PlanError> {
+    let mut owners = Vec::new();
+    for source in sources {
+        let SourceRef::Column { sheet, column } = source else {
+            continue;
+        };
+        let Some((owner, read)) = plan.structure.list(sheet) else {
+            return Err(PlanError::MissingSheet(sheet.0.clone()));
+        };
+        if read.column(column.index).is_none() {
+            return Err(PlanError::MissingColumn {
+                sheet: sheet.0.clone(),
+                index: column.index,
+            });
+        }
+        owners.push((owner, sheet));
+    }
+    Ok(owners)
+}
+
+/// A series' slots hold no `item.sets` rule on the wire. Checked before
+/// [`Structure::fold`] puts the one `text` free set there.
+pub(super) fn no_series_sets(structure: &Structure) -> Result<(), PlanError> {
+    for (_, series) in structure.all_series() {
+        if series.slots.item.contains_key(&SlotName::Sets) {
+            return Err(PlanError::SeriesSets(series.id.0.clone()));
+        }
+    }
+    Ok(())
+}
+
+/// The rules the tree adds: level ids, scopes, and the set sources.
+fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
+    let structure = &plan.structure;
+    let mut ids = BTreeSet::new();
+    let level_ids = structure
+        .set_levels()
+        .into_iter()
+        .map(|set| &set.id)
+        .chain(structure.all_series().map(|(_, series)| &series.id));
+    for id in level_ids {
+        if !ids.insert(id) {
+            return Err(PlanError::DuplicateLevel(id.0.clone()));
+        }
+    }
+
+    let sources: BTreeSet<_> = plan.sources.iter().map(|source| source.id()).collect();
+    let mut scopes = BTreeMap::new();
+    for (_, series) in structure.all_series() {
+        let taken: Vec<Option<(&SourceId, &RelPath)>> = match &series.scope {
+            SeriesScope::All(_) => vec![None],
+            SeriesScope::Folders(folders) => folders
+                .iter()
+                .map(|scope| Some((&scope.source, &scope.folder)))
+                .collect(),
+        };
+        for scope in taken {
+            if let Some((source, _)) = scope
+                && !sources.contains(source)
+            {
+                return Err(PlanError::ScopeSource {
+                    series: series.id.0.clone(),
+                    missing: source.0.clone(),
+                });
+            }
+            if let Some(first) = scopes.insert(scope, &series.id) {
+                return Err(PlanError::DuplicateScope {
+                    first: first.0.clone(),
+                    second: series.id.0.clone(),
                 });
             }
         }
-        for source in &rule.sources {
-            let SourceRef::Column { sheet, column } = source else {
-                continue;
-            };
-            let Some((_, read)) = plan.structure.list(sheet) else {
-                return Err(PlanError::MissingSheet(sheet.0.clone()));
-            };
-            if read.column(column.index).is_none() {
-                return Err(PlanError::MissingColumn {
-                    sheet: sheet.0.clone(),
-                    index: column.index,
-                });
+    }
+
+    let level_sets = structure
+        .set_levels()
+        .into_iter()
+        .map(|set| (set.id.0.clone(), &set.set));
+    let series_sets = structure
+        .all_series()
+        .filter_map(|(_, series)| Some((series.id.0.clone(), series.set.as_ref()?)));
+    let free_sets = structure
+        .free_sets
+        .iter()
+        .enumerate()
+        .map(|(at, set)| (format!("free set {}", at + 1), set));
+    for (place, set) in level_sets.chain(series_sets).chain(free_sets) {
+        match set {
+            SetSource::Title(title) if title.title.trim().is_empty() => {
+                return Err(PlanError::EmptySetTitle(place));
             }
+            SetSource::Each(each) => {
+                map_keys("sets", &each.each.map)?;
+                column_refs(plan, &each.each.sources)?;
+            }
+            SetSource::Id(_) | SetSource::Title(_) => {}
         }
+    }
+    Ok(())
+}
+
+/// The temporary rule: a plan the engine cannot run yet is refused in the
+/// person's terms. U4 deletes the series and scope cases, U5 the set cases.
+fn not_yet(plan: &ImportPlan) -> Result<(), PlanError> {
+    let structure = &plan.structure;
+    let count = structure.all_series().count();
+    if count != 1 {
+        return Err(PlanError::NotYet(NotYet::SeveralSeries(count)));
+    }
+    if let Some(set) = structure.set_levels().first() {
+        return Err(PlanError::NotYet(NotYet::SetLevel(set.id.0.clone())));
+    }
+    for (_, series) in structure.all_series() {
+        if series.set.is_some() {
+            return Err(PlanError::NotYet(NotYet::SeriesSet(series.id.0.clone())));
+        }
+        if !matches!(series.scope, SeriesScope::All(_)) {
+            return Err(PlanError::NotYet(NotYet::Scope(series.id.0.clone())));
+        }
+    }
+    if !structure.free_sets.is_empty() {
+        return Err(PlanError::NotYet(NotYet::FreeSets));
     }
     Ok(())
 }

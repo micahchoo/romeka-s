@@ -1,30 +1,114 @@
-//! The archive's tree: the one way the engine reads which series takes a
-//! file and which pattern, lists and slot rules that series has.
+//! The archive's tree: set levels, series and free sets, and the one way
+//! the engine reads which series takes a file and which pattern, lists and
+//! slot rules that series has. The engine never walks [`Level`].
 //!
-//! A v2 plan is one series that takes every file: its pattern matches each
-//! path relative to its source, as in v2, and its `slots.item.sets` rule is
-//! its one membership.
+//! Every plan the boundary passes has one series that takes every file
+//! until scopes and set levels are read (U4, U5). Its pattern matches each
+//! path relative to its source, as in v2.
 
+use serde::{Deserialize, Serialize};
+
+use super::sets::{EachSet, EachValue, SetNames, SetSource};
 use super::{
     Grouping, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule, SlotRules, Slots,
     SourceId,
 };
 
-/// How a series names the item sets of its items. Today the v2
-/// `slots.item.sets` rule; a caller names this type, not [`SlotRule`], so the
-/// typed set source can replace it without the caller changing.
-pub type SetSource = SlotRule;
-
-/// The tree of a plan. Its members are private to `plan/`, so the engine
-/// reads them only through these calls.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The archive's tree as the person confirmed it. Its members are private
+/// to `plan/`, so the engine reads them only through these calls.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Structure {
-    pub(super) series: Series,
+    /// The top levels, in the order the screen shows them.
+    pub(super) levels: Vec<Level>,
+    /// Sets every item of the import is also put in, after its tree sets.
+    /// A set source here names no level and has no place in the tree.
+    pub(super) free_sets: Vec<SetSource>,
 }
 
-/// A series' place in its plan. Only [`Structure`] makes one.
+/// One node of the tree.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a plan holds a handful of levels, read far more often than moved"
+)]
+pub enum Level {
+    Set(SetLevel),
+    Series(Series),
+}
+
+/// A node that puts every item of every series under it into its set.
+/// Omeka item sets are flat: the tree orders the sets on screen, it does not
+/// nest them in the install.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SetLevel {
+    pub(super) id: LevelId,
+    pub(super) set: SetSource,
+    /// May be empty while a draft is built; a set level with no items under
+    /// it makes no set.
+    pub(super) levels: Vec<Level>,
+}
+
+/// A leaf: the files in its scope, grouped into items by its own pattern,
+/// described by its own lists and slot rules.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Series {
+    pub(super) id: LevelId,
+    /// The set this series' items join, or none.
+    #[serde(deserialize_with = "crate::import::nullable")]
+    pub(super) set: Option<SetSource>,
+    pub(super) scope: SeriesScope,
+    /// The pattern matches each file's path relative to the scope folder
+    /// that holds it.
+    pub(super) grouping: Grouping,
+    /// The admin's mark-an-example state, kept and never read.
+    #[serde(deserialize_with = "crate::import::nullable")]
+    pub(super) example: Option<serde_json::Map<String, serde_json::Value>>,
+    /// A list joins only this series' groups. Sheet ids stay unique across
+    /// the whole plan.
+    pub(super) lists: Vec<SheetPlan>,
+    /// On the wire, without `item.sets`: memberships are levels and free
+    /// sets. In memory, see [`Structure::fold`].
+    pub(super) slots: Slots,
+}
+
+/// A level's id: unique in the plan. `simple` keys on it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct LevelId(pub String);
+
+/// Which files a series takes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SeriesScope {
+    /// Every file of every source (`"all"`).
+    All(AllFiles),
+    /// The files under these folders.
+    Folders(Vec<FolderScope>),
+}
+
+/// The text `all`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AllFiles {
+    All,
+}
+
+/// A folder under a plan source. `folder: ""` is the whole source.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FolderScope {
+    pub source: SourceId,
+    pub folder: RelPath,
+}
+
+/// A series' place in its plan: its place among the series, depth first.
+/// Only [`Structure`] makes one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SeriesIx(());
+pub struct SeriesIx(usize);
 
 /// Where a file goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,48 +119,143 @@ pub enum Placement<'p> {
     Outside,
 }
 
-/// One series: its pattern, its lists and its slot rules.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Series {
-    pub(super) grouping: Grouping,
-    /// The admin's mark-an-example state, kept and never read.
-    pub(super) example: Option<serde_json::Map<String, serde_json::Value>>,
-    pub(super) lists: Vec<SheetPlan>,
-    pub(super) slots: Slots,
-}
+/// The id of the one series a v2 plan is.
+pub(super) const LIFTED: &str = "all";
 
 impl Structure {
+    /// The tree a v2 plan is: one series `all` with no set, taking every
+    /// file. Its `item.sets` rule stays in `slots` ([`Self::fold`]).
+    pub(super) fn lifted(
+        grouping: Grouping,
+        example: Option<serde_json::Map<String, serde_json::Value>>,
+        lists: Vec<SheetPlan>,
+        slots: Slots,
+    ) -> Self {
+        Self {
+            levels: vec![Level::Series(Series {
+                id: LevelId(LIFTED.to_owned()),
+                set: None,
+                scope: SeriesScope::All(AllFiles::All),
+                grouping,
+                example,
+                lists,
+                slots,
+            })],
+            free_sets: Vec::new(),
+        }
+    }
+
+    /// The one series of a tree a v2 plan can say, or why the tree is not
+    /// one: the exact reverse of [`Self::lifted`].
+    pub(super) fn into_lifted(self) -> Result<Series, &'static str> {
+        if !self.free_sets.is_empty() {
+            return Err("it has free sets other than the version 2 sets rule");
+        }
+        let mut levels = self.levels.into_iter();
+        let (Some(level), None) = (levels.next(), levels.next()) else {
+            return Err("it has more than one top level, or none");
+        };
+        let Level::Series(series) = level else {
+            return Err("it has a set level");
+        };
+        if series.id.0 != LIFTED {
+            return Err("its series is not the series \"all\"");
+        }
+        if series.set.is_some() {
+            return Err("its series has a set");
+        }
+        if series.scope != SeriesScope::All(AllFiles::All) {
+            return Err("its series takes some folders, not every file");
+        }
+        Ok(series)
+    }
+
+    /// Until U5 reads typed set sources, the engine reads an item's sets
+    /// from its series' `item.sets` rule, as v2 wrote it. So a tree of one
+    /// series that takes every file, with no set, keeps its one `text`
+    /// free set there; [`Self::unfold`] puts it back for the v3 wire. A v2
+    /// plan is already in this form, so the lift and the lower move no rule.
+    pub(super) fn fold(&mut self) {
+        let [Level::Series(series)] = self.levels.as_mut_slice() else {
+            return;
+        };
+        let [SetSource::Each(EachValue { each })] = self.free_sets.as_slice() else {
+            return;
+        };
+        if each.names != SetNames::Text
+            || series.set.is_some()
+            || series.scope != SeriesScope::All(AllFiles::All)
+            || series.slots.item.contains_key(&SlotName::Sets)
+        {
+            return;
+        }
+        let each = each.clone();
+        self.free_sets.clear();
+        series.slots.item.insert(
+            SlotName::Sets,
+            SlotRule {
+                sources: each.sources,
+                combine: each.combine,
+                map: each.map,
+            },
+        );
+    }
+
+    /// The reverse of [`Self::fold`]: the series' `item.sets` rule as the
+    /// first free set, read as v2 read it.
+    pub(super) fn unfold(&mut self) {
+        let [Level::Series(series)] = self.levels.as_mut_slice() else {
+            return;
+        };
+        if let Some(rule) = series.slots.item.shift_remove(&SlotName::Sets) {
+            self.free_sets.insert(0, text_set(rule));
+        }
+    }
+
     /// The series that takes this file, and the path the pattern matches.
+    /// Every plan the boundary passes has one series that takes every file
+    /// until U4 reads scopes.
     #[must_use]
     pub fn place<'p>(&self, _source: &SourceId, path: &'p RelPath) -> Placement<'p> {
         Placement::Series {
-            at: SeriesIx(()),
+            at: self.sole(),
             path: path.as_str(),
         }
     }
 
     /// The series by its index.
     #[must_use]
-    pub fn series(&self, _at: SeriesIx) -> &Series {
-        &self.series
+    pub fn series(&self, at: SeriesIx) -> &Series {
+        let mut found = None;
+        walk(&self.levels, &mut |_, ix, series| {
+            if ix == at.0 {
+                found = Some(series);
+            }
+        });
+        found.unwrap_or_else(|| unreachable!("a SeriesIx names a series of its own structure"))
     }
 
-    /// Every series, in plan order.
+    /// Every series, in plan order (depth first).
     pub fn all_series(&self) -> impl Iterator<Item = (SeriesIx, &Series)> {
-        std::iter::once((SeriesIx(()), &self.series))
+        let mut all = Vec::new();
+        walk(&self.levels, &mut |_, ix, series| {
+            all.push((SeriesIx(ix), series));
+        });
+        all.into_iter()
     }
 
-    /// The series of a plan that holds one. Every plan holds one until a
-    /// plan can scope its series; each caller reads a record's rules and
-    /// must then read the record's own series instead.
+    /// The series of a plan that holds one. Every plan the boundary passes
+    /// holds one until U4; each caller reads a record's rules and must then
+    /// read the record's own series instead.
     #[must_use]
     pub fn sole(&self) -> SeriesIx {
-        SeriesIx(())
+        SeriesIx(0)
     }
 
     /// Every list with the series that holds it, in plan order.
     pub fn lists(&self) -> impl Iterator<Item = (SeriesIx, &SheetPlan)> {
-        self.series.lists.iter().map(|list| (SeriesIx(()), list))
+        self.all_series()
+            .flat_map(|(at, series)| series.lists.iter().map(move |list| (at, list)))
     }
 
     /// The list with this id, with the series that holds it.
@@ -86,25 +265,107 @@ impl Structure {
     }
 
     /// The set sources of an item of this series, in the order its sets
-    /// are added.
-    pub fn memberships(&self, _at: SeriesIx) -> impl Iterator<Item = &SetSource> {
-        self.series.slots.item.get(&SlotName::Sets).into_iter()
+    /// are added: the set levels above it, top first, then its own set,
+    /// then the free sets.
+    #[must_use]
+    pub fn memberships(&self, at: SeriesIx) -> Vec<SetSource> {
+        let mut sources = Vec::new();
+        walk(&self.levels, &mut |above, ix, series| {
+            if ix == at.0 {
+                sources.extend(above.iter().map(|set| (*set).clone()));
+                sources.extend(series.set.clone());
+                sources.extend(self.free_sets.iter().cloned());
+                let folded = series.slots.item.get(&SlotName::Sets);
+                sources.extend(folded.cloned().map(text_set));
+            }
+        });
+        sources
     }
 
     /// Add a list to the series, after its other lists.
-    pub fn push_list(&mut self, _at: SeriesIx, list: SheetPlan) {
-        self.series.lists.push(list);
+    pub fn push_list(&mut self, at: SeriesIx, list: SheetPlan) {
+        self.series_mut(at).lists.push(list);
     }
 
     /// The series' slot rules for one record kind, to edit.
-    pub fn rules_mut(&mut self, _at: SeriesIx, kind: RecordKind) -> &mut SlotRules {
-        let slots = &mut self.series.slots;
+    pub fn rules_mut(&mut self, at: SeriesIx, kind: RecordKind) -> &mut SlotRules {
+        let slots = &mut self.series_mut(at).slots;
         match kind {
             RecordKind::Item => &mut slots.item,
             RecordKind::Media => &mut slots.media,
             RecordKind::ItemSet => &mut slots.item_set,
         }
     }
+
+    fn series_mut(&mut self, at: SeriesIx) -> &mut Series {
+        let mut all = Vec::new();
+        leaves_mut(&mut self.levels, &mut all);
+        all.into_iter()
+            .nth(at.0)
+            .unwrap_or_else(|| unreachable!("a SeriesIx names a series of its own structure"))
+    }
+
+    /// Every set level, depth first.
+    pub(super) fn set_levels(&self) -> Vec<&SetLevel> {
+        fn visit<'s>(levels: &'s [Level], out: &mut Vec<&'s SetLevel>) {
+            for level in levels {
+                if let Level::Set(set) = level {
+                    out.push(set);
+                    visit(&set.levels, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        visit(&self.levels, &mut out);
+        out
+    }
+}
+
+/// Visit every series, depth first, with the sets of the set levels above
+/// it, top first, and its index.
+fn walk<'s>(levels: &'s [Level], visit: &mut impl FnMut(&[&'s SetSource], usize, &'s Series)) {
+    fn go<'s>(
+        levels: &'s [Level],
+        above: &mut Vec<&'s SetSource>,
+        next: &mut usize,
+        visit: &mut impl FnMut(&[&'s SetSource], usize, &'s Series),
+    ) {
+        for level in levels {
+            match level {
+                Level::Series(series) => {
+                    visit(above, *next, series);
+                    *next += 1;
+                }
+                Level::Set(set) => {
+                    above.push(&set.set);
+                    go(&set.levels, above, next, visit);
+                    above.pop();
+                }
+            }
+        }
+    }
+    go(levels, &mut Vec::new(), &mut 0, visit);
+}
+
+fn leaves_mut<'s>(levels: &'s mut [Level], out: &mut Vec<&'s mut Series>) {
+    for level in levels {
+        match level {
+            Level::Series(series) => out.push(series),
+            Level::Set(set) => leaves_mut(&mut set.levels, out),
+        }
+    }
+}
+
+/// A v2 `item.sets` rule as the free set that reads it as v2 did.
+fn text_set(rule: SlotRule) -> SetSource {
+    SetSource::Each(EachValue {
+        each: EachSet {
+            sources: rule.sources,
+            combine: rule.combine,
+            map: rule.map,
+            names: SetNames::Text,
+        },
+    })
 }
 
 impl Series {
