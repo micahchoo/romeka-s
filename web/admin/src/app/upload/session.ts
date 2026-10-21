@@ -1,19 +1,21 @@
 /**
- * The files a person adds to one import from this computer, and the queue
- * that sends them: a few at a time, in chunks, resumable from the offset the
- * server holds.
+ * The files a person adds to one destination from this computer, and the
+ * queue that sends them: a few at a time, in chunks, resumable from the offset
+ * the server holds.
  *
  * Each file is a row whose `phase` is the one thing it is doing. The bytes,
  * the server's upload id and the abort handle stay out of the snapshot, so a
  * view renders rows without reaching into the transfer. No React here: the
  * view subscribes (`useSyncExternalStore`), and a test drives it directly.
+ *
+ * What a destination decides (its routes, its limits, its refusal words,
+ * whether it unpacks a zip) is behind `UploadTarget`.
  */
-import type { ImportId } from '../../../api/import-plan';
-import { refusalOf } from '../../../api/import-uploads';
-import type { StoredUpload, UploadApi } from '../../../api/import-uploads';
-import type { Picked } from './pick';
-import { closesImport, problemOf } from './problem';
 import type { UploadProblem } from './problem';
+import type { Picked } from './pick';
+import type { StoredUpload, UploadLimit } from './tus';
+import { refusalOf } from './tus';
+import type { SentChunk, Unpack, UploadTarget } from './target';
 
 export type Phase =
   | { readonly kind: 'waiting' }
@@ -41,20 +43,19 @@ export interface UploadSnapshot {
   readonly rows: readonly UploadRow[];
   /** Files on the server whole: those from earlier visits and the rows done here. */
   readonly stored: { readonly count: number; readonly bytes: number };
-  readonly limit: { readonly file: number; readonly total: number } | null;
+  readonly limit: UploadLimit | null;
   readonly used: number;
   /** Dot files and dot folders left out of what was added. */
   readonly skipped: number;
   /** Files added again whose path and size a stored file already has. */
   readonly alreadyHere: number;
-  /** Set when no file can be added to this import any more. */
+  /** Set when no file can be added to this destination any more. */
   readonly closed: UploadProblem | null;
   readonly loadProblem: UploadProblem | null;
 }
 
 export interface UploadSessionOptions {
-  readonly api: UploadApi;
-  readonly importId: ImportId;
+  readonly target: UploadTarget;
   /** Files sent at once. */
   readonly concurrency?: number;
   readonly chunkSize?: number;
@@ -81,8 +82,7 @@ const sleep = (ms: number): Promise<void> =>
   });
 
 export class UploadSession {
-  private readonly api: UploadApi;
-  private readonly importId: ImportId;
+  private readonly target: UploadTarget;
   private readonly concurrency: number;
   private readonly chunkSize: number;
   private readonly retries: number;
@@ -107,8 +107,7 @@ export class UploadSession {
   };
 
   constructor(options: UploadSessionOptions) {
-    this.api = options.api;
-    this.importId = options.importId;
+    this.target = options.target;
     this.concurrency = options.concurrency ?? 3;
     this.chunkSize = options.chunkSize ?? 8 * MIB;
     this.retries = options.retries ?? 4;
@@ -124,6 +123,9 @@ export class UploadSession {
   };
 
   readonly snapshot = (): UploadSnapshot => this.state;
+
+  /** The server's id for a row's bytes, once it started receiving them. */
+  readonly uploadOf = (key: string): string | null => this.held.get(key)?.upload ?? null;
 
   /** Reads what the server already holds: limits, whole files, and unfinished ones to resume. */
   load(): Promise<void> {
@@ -220,11 +222,12 @@ export class UploadSession {
       return;
     }
     try {
-      await this.api.remove(this.importId, upload);
+      await this.target.remove(upload);
     } catch (error) {
-      if (refusalOf(error)?.code !== 'gone') {
+      const problem = this.target.problemOf(error);
+      if (problem.kind !== 'gone') {
         const rows = [...this.state.rows];
-        rows.splice(index, 0, { ...row, phase: { kind: 'failed', problem: problemOf(error) } });
+        rows.splice(index, 0, { ...row, phase: { kind: 'failed', problem } });
         this.held.set(key, { file: held?.file ?? null, upload, controller: null });
         this.set({ rows });
         return;
@@ -261,7 +264,10 @@ export class UploadSession {
 
   private async read(): Promise<void> {
     try {
-      const listing = await this.api.list(this.importId);
+      const [listing, stated] = await Promise.all([
+        this.target.list(),
+        this.target.limits === undefined ? Promise.resolve(null) : this.target.limits(),
+      ]);
       const known = new Set([...this.held.values()].map((held) => held.upload));
       const rows = [...this.state.rows];
       this.earlier = new Map();
@@ -276,10 +282,11 @@ export class UploadSession {
           rows.push({ key: stored.path, path: stored.path, size: stored.length, sent: stored.received, phase: { kind: 'needsFile' } });
         }
       }
-      this.set({ loaded: true, rows, limit: listing.limit, used: listing.used, loadProblem: null });
+      const limit = listing.limit ?? stated;
+      this.set({ loaded: true, rows, limit, used: listing.used, loadProblem: null });
     } catch (error) {
-      const problem = problemOf(error);
-      this.set({ loaded: true, loadProblem: problem, closed: closesImport(problem) ? problem : this.state.closed });
+      const problem = this.target.problemOf(error);
+      this.set({ loaded: true, loadProblem: problem, closed: this.target.closes(problem) ? problem : this.state.closed });
     }
   }
 
@@ -340,8 +347,8 @@ export class UploadSession {
       if (!live()) {
         return;
       }
-      const problem = problemOf(error);
-      if (closesImport(problem)) {
+      const problem = this.target.problemOf(error);
+      if (this.target.closes(problem)) {
         this.close(problem);
       } else {
         this.patch(key, (row) => ({ ...row, phase: { kind: 'failed', problem } }));
@@ -354,14 +361,14 @@ export class UploadSession {
     }
   }
 
-  /** Sends the file from the server's offset to its end; the unzip job, when the server starts one. */
-  private async transfer(key: string, held: Held, signal: AbortSignal): Promise<number | null> {
+  /** Sends the file from the server's offset to its end; the unpack job, when the server starts one. */
+  private async transfer(key: string, held: Held, signal: AbortSignal): Promise<Unpack | null> {
     const file = held.file;
     if (file === null) {
       throw new Error(`no bytes for ${key}`);
     }
     let offset = await this.open(key, held, file);
-    let job: number | null = null;
+    let job: Unpack | null = null;
     let failures = 0;
     let resync = false;
     for (;;) {
@@ -374,13 +381,14 @@ export class UploadSession {
         if (offset >= file.size) {
           return job;
         }
-        const chunk = await this.api.append(this.importId, this.uploadOf(held), offset, file.slice(offset, offset + this.chunkSize), signal);
+        const chunk: SentChunk = await this.target.append(this.uploadId(held), offset, file.slice(offset, offset + this.chunkSize), signal);
         offset = chunk.offset;
-        job = chunk.unzipJob ?? job;
+        job = chunk.unpack ?? job;
         failures = 0;
         this.setSent(key, offset);
       } catch (error) {
-        const recoverable = refusalOf(error)?.code === 'offsetConflict' || error instanceof TypeError;
+        const refusal = refusalOf(error);
+        const recoverable = refusal?.code === 'offsetConflict' || error instanceof TypeError;
         if (signal.aborted || !recoverable || failures >= this.retries) {
           throw error;
         }
@@ -397,12 +405,12 @@ export class UploadSession {
   private async open(key: string, held: Held, file: File): Promise<number> {
     if (held.upload !== null) {
       try {
-        const head = await this.api.offset(this.importId, held.upload);
+        const head = await this.target.offset(held.upload);
         if (head.length === file.size) {
           return head.offset;
         }
         // The same path, other bytes: the unfinished upload is not this file's.
-        await this.api.remove(this.importId, held.upload);
+        await this.target.remove(held.upload);
       } catch (error) {
         if (refusalOf(error)?.code !== 'gone') {
           throw error;
@@ -411,7 +419,7 @@ export class UploadSession {
       this.forget(key);
     }
     try {
-      held.upload = await this.api.create(this.importId, key, file.size);
+      held.upload = await this.target.create(key, file.size, file.type === '' ? null : file.type);
       this.set({ used: this.state.used + file.size });
       return 0;
     } catch (error) {
@@ -420,24 +428,24 @@ export class UploadSession {
         throw error;
       }
       held.upload = refusal.upload;
-      const head = await this.api.offset(this.importId, refusal.upload);
+      const head = await this.target.offset(refusal.upload);
       if (head.length !== file.size) {
-        await this.api.remove(this.importId, refusal.upload);
-        held.upload = await this.api.create(this.importId, key, file.size);
+        await this.target.remove(refusal.upload);
+        held.upload = await this.target.create(key, file.size, file.type === '' ? null : file.type);
         return 0;
       }
       return head.offset;
     }
   }
 
-  private async unpack(key: string, job: number, live: () => boolean): Promise<void> {
+  private async unpack(key: string, job: Unpack, live: () => boolean): Promise<void> {
     for (;;) {
       await this.wait(POLL_MS);
       if (!live()) {
         return;
       }
-      const status = await this.api.jobStatus(job);
-      if (status === 'completed') {
+      const state = await job.check();
+      if (state.kind === 'done') {
         // Read the unpacked files before the row says done, so the counts arrive with it.
         this.held.delete(key);
         await this.load();
@@ -445,19 +453,18 @@ export class UploadSession {
         this.onFilesChanged();
         return;
       }
-      if (status === 'error' || status === 'stopped') {
-        const reason = await this.api.jobReason(job);
-        this.patch(key, (row) => ({ ...row, phase: { kind: 'failed', problem: { kind: 'zipRefused', reason } } }));
+      if (state.kind === 'failed') {
+        this.patch(key, (row) => ({ ...row, phase: { kind: 'failed', problem: state.problem } }));
         return;
       }
     }
   }
 
   private async serverOffset(held: Held): Promise<number> {
-    return (await this.api.offset(this.importId, this.uploadOf(held))).offset;
+    return (await this.target.offset(this.uploadId(held))).offset;
   }
 
-  private uploadOf(held: Held): string {
+  private uploadId(held: Held): string {
     if (held.upload === null) {
       throw new Error('a transfer without an upload');
     }

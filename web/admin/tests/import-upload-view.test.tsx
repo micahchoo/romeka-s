@@ -6,8 +6,9 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { UploadApi } from '../src/api/import-uploads';
+import { importTarget } from '../src/api/import-uploads';
 import { brandId } from '../src/api/parse';
+import type { UploadTarget } from '../src/app/upload/target';
 import { UploadFiles } from '../src/pages/import/upload/upload-files';
 
 const ID = brandId<'ImportId'>(2);
@@ -20,7 +21,7 @@ interface Options {
 }
 
 /** A one-upload-at-a-time tus server: enough for what the view shows. */
-const serverApi = (options: Options = {}): { readonly api: UploadApi; readonly methods: string[] } => {
+const serverApi = (options: Options = {}): { readonly api: UploadTarget; readonly methods: string[] } => {
   const methods: string[] = [];
   let offset = 0;
   const fetchFn: typeof fetch = async (input, init) => {
@@ -53,7 +54,7 @@ const serverApi = (options: Options = {}): { readonly api: UploadApi; readonly m
     }
     return new Response(null, { status: 204 });
   };
-  return { api: new UploadApi({ baseUrl: '', fetchFn }), methods };
+  return { api: importTarget(ID, { baseUrl: '', fetchFn }), methods };
 };
 
 const choose = (container: HTMLElement, files: readonly File[]): void => {

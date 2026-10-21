@@ -525,6 +525,43 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.item-media-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+
+.item-media-note {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.item-media-empty {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+
+/* A drag over the window outlines the section that takes the drop. */
+.item-media-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: var(--space-2);
+}
+
+.item-media-drop-note {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+/* The card a media create just added: a short outline, then nothing. */
+.media-card-new {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .media-card-meta {
   display: flex;
   flex-wrap: wrap;

@@ -10,6 +10,7 @@
  */
 import type { KeyOf } from '../i18n';
 import type { resources } from '../i18n/namespaces/resources';
+import { SERVER_MEDIA_KINDS } from '../api/types';
 import type { Asset, Media, ServerMediaKind, ThumbnailType } from '../api/types';
 
 /** Order a browse cell prefers. Upstream shows the square thumbnail. */
@@ -292,6 +293,18 @@ export const kindOfFile = (name: string, type: string | null): MediaKind => {
       ? null
       : (type.split(';')[0]?.trim().toLowerCase() ?? null);
   return kindOfFacts(bare, extensionOf(name));
+};
+
+const isServerKind = (kind: string): kind is ServerMediaKind =>
+  SERVER_MEDIA_KINDS.some((known) => known === kind);
+
+/** The admin's word for a server kind; `null` for the catch-all or a newer server's kind. */
+export const mediaKindOfServerKind = (kind: string): MediaKind | null => {
+  if (!isServerKind(kind)) {
+    return null;
+  }
+  const word = SERVER_KIND_WORDS[kind];
+  return word === 'by-type' ? null : word;
 };
 
 /**

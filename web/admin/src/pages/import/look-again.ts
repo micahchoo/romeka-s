@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { importApi } from '../../api/import-routes';
 import type { SourceState } from '../../api/import-sections';
-import { uploadApi } from '../../api/import-uploads';
+import { importJobs } from '../../api/import-uploads';
 import { toError } from '../../app/useAsync';
 import { useDraft } from './draft-context';
 import { POLL_MS } from './run/use-live-import';
@@ -53,13 +53,13 @@ export const useLookAgain = (): { readonly look: Look; readonly lookAgain: () =>
       if (!mounted.current) {
         return [];
       }
-      const status = await uploadApi.jobStatus(jobId);
+      const status = await importJobs.jobStatus(jobId);
       if (status === 'completed') {
         adoptNow.current(await importApi.get(id));
         return (await importApi.preview(id, [])).sources;
       }
       if (status === 'error' || status === 'stopped') {
-        throw new Error(await uploadApi.jobReason(jobId));
+        throw new Error(await importJobs.jobReason(jobId));
       }
     }
   };

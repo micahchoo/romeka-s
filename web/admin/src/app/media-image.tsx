@@ -68,7 +68,7 @@ const ICONS: Readonly<Record<MediaKind, ReactNode>> = {
   ),
 };
 
-const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => (
+export const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => (
   <svg
     className="media-kind-icon"
     viewBox="0 0 24 24"
