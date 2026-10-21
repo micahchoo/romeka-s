@@ -371,7 +371,7 @@ export const AdvancedLists = (): ReactElement => {
           {() => (
             <p>
               {countWords(data.unpaired.rows.total, ['adv.lists.unpaired.rowsNone', 'adv.lists.unpaired.rowsOne', 'adv.lists.unpaired.rows'], t, number)}{' '}
-              {countWords(data.unpaired.files.total, ['adv.lists.unpaired.itemsNone', 'adv.lists.unpaired.itemsOne', 'adv.lists.unpaired.items'], t, number)}{' '}
+              {countWords(data.unpaired.items, ['adv.lists.unpaired.itemsNone', 'adv.lists.unpaired.itemsOne', 'adv.lists.unpaired.items'], t, number)}{' '}
               <a href={placeHref(draft.id, { mode: 'advanced', screen: 'pair' })}>{t('adv.lists.unpaired.pair')}</a>
             </p>
           )}

@@ -50,6 +50,7 @@ export const ta: ImportSimpleMessages = {
   'guided.found.showThem': 'அவற்றைக் காட்டு',
   'guided.found.everyFile': 'ஒவ்வொரு கோப்பையும் காட்டு',
   'guided.mark.number': '{text} க்கு பதிலாக எந்த எண்ணையும் பயன்படுத்தவும்',
+  'guided.mark.letters': '{text} க்கு பதிலாக எந்த எழுத்துக்களும்',
   'guided.mark.and': '; மற்றும் ',
   'guided.example.choose':
     'ஒரு பொருளுக்கு ஒன்றுக்கும் மேற்பட்ட கோப்புகள் உள்ள நிலையில், அந்தப் பொருளின் ஒரு கோப்பைத் தேர்ந்தெடுக்கவும்.',
@@ -71,6 +72,8 @@ export const ta: ImportSimpleMessages = {
   'guided.example.onlyThis': '{text} மட்டுமே',
   'guided.example.anyNumber': '{text} இல் உள்ளது போல, எந்த எண்ணும் இருக்கலாம்',
   'guided.example.hasDigits': '(இதில் எண்கள் உள்ளன)',
+  'guided.example.anyLetters': '{text} இல் உள்ளது போல, எந்த எழுத்துக்களும்',
+  'guided.example.afterNumber': '(அவை ஒரு எண்ணிற்குப் பிறகு வருகின்றன)',
   'guided.example.wordsLede':
     'இந்தச் சொற்கள், இந்த ஒரு பகுதியைப் போன்ற பல பகுதிகளைக் கொண்ட பெயர்களில், ஒவ்வொரு பகுதியிலும் எத்தனை கோப்புகள் உள்ளன என்பதைக் கொண்டு, ஒரு உருப்படியின் மற்றொரு கோப்பைக் குறிக்கின்றன.',
   'guided.example.findWord': 'ஒரு சொல்லைக் கண்டறியவும்',
@@ -102,8 +105,11 @@ export const ta: ImportSimpleMessages = {
   'guided.list.codeGloss':
     'ஒரு உருப்படியின் குறியீடு என்பது அதன் கோப்புப் பெயரின் ஒரு பகுதியாகும், இது அதன் அனைத்துக் கோப்புகளுக்கும் பொதுவானது.',
   'guided.list.paired': '{rows} வரிசைகளில் {count} தங்களின் உருப்படியைக் கண்டறிந்தன.',
-  'guided.list.noFile': '{count} வரிசைகள் கோப்புப் பெயரைப் பெயரிடவில்லை.',
-  'guided.list.noFileOne': '1 வரிசை கோப்புப் பெயரைப் பெயரிடவில்லை.',
+  'guided.list.noImportFile': '{count} வரிசைகள் இந்த இறக்குமதியின் எந்தக் கோப்பின் பெயரையும் குறிப்பிடவில்லை.',
+  'guided.list.noImportFileOne': '1 வரிசை இந்த இறக்குமதியின் எந்தக் கோப்பின் பெயரையும் குறிப்பிடவில்லை.',
+  'guided.list.refused': '{count} வரிசைகள் இந்த Omeka ஏற்காத வகைக் கோப்பின் பெயரைக் குறிப்பிடுகின்றன.',
+  'guided.list.refusedOne': '1 வரிசை இந்த Omeka ஏற்காத வகைக் கோப்பின் பெயரைக் குறிப்பிடுகிறது.',
+  'guided.list.refusedCheck': 'அவற்றை “சரிபார்க்கவும்” என்பதில் பார்க்கவும்',
   'guided.list.noRow': '{count} உருப்படிகளுக்கு வரிசை இல்லை.',
   'guided.list.noRowOne': '1 உருப்படிக்கு வரிசை இல்லை.',
   'guided.list.pair': 'அவற்றை கையால் இணைக்கவும்',
@@ -259,8 +265,8 @@ export const ta: ImportSimpleMessages = {
     'ஓமெகா 1950, 1950-08 அல்லது 1950-08-15 என எழுதப்பட்ட தேதிகளை வரிசைப்படுத்துகிறது. இது மற்ற உரைகளை அப்படியே வைத்திருக்கும், ஆனால் தேடல் மூலம் அதைக் கண்டறிய முடியாது.',
   'guided.check.dateKeep': 'அவற்றை அப்படியே எழுதவும்',
   'guided.check.dateLeave': 'இந்தத் தேதிகளைத் தவிர்க்கவும்',
-  'guided.check.noTitle': '{count} உருப்படிகளில் உங்கள் பட்டியலில் தலைப்பு இல்லை.',
-  'guided.check.noTitleOne': '1 உருப்படியில் உங்கள் பட்டியலில் தலைப்பு இல்லை.',
+  'guided.check.untitled': 'சேர்க்க வேண்டிய {count} உருப்படிகளுக்குத் தலைப்பு இல்லை.',
+  'guided.check.untitledOne': 'சேர்க்க வேண்டிய 1 உருப்படிக்குத் தலைப்பு இல்லை.',
   'guided.check.noTitleKeep':
     'தலைப்பு இல்லாமல் அவற்றைச் சேர்க்கவும். நிர்வாகி அவற்றை “தலைப்பு இல்லை” எனப் பட்டியலிடுகிறார்',
   'guided.check.noTitleCode': 'உருப்படியின் குறியீட்டைத் தலைப்பாகப் பயன்படுத்தவும்',

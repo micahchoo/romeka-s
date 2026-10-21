@@ -170,6 +170,7 @@ fn media_view_matches_upstream_media_show() {
         url: "/s/main/item/4".to_string(),
         title: "An item".to_string(),
         thumbnail: None,
+        media_kind: None,
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
     assert!(
@@ -200,11 +201,13 @@ fn media_view_places_the_file_among_its_items_files() {
             url: "/s/main/media/2".to_string(),
             title: "Before".to_string(),
             thumbnail: None,
+            media_kind: None,
         }),
         next: Some(ResourceRef {
             url: "/s/main/media/4".to_string(),
             title: "After".to_string(),
             thumbnail: None,
+            media_kind: None,
         }),
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
@@ -378,6 +381,7 @@ fn media_and_browse_links_render_in_the_site_locale() {
         url: "/s/main/item/4".to_string(),
         title: "An item".to_string(),
         thumbnail: None,
+        media_kind: None,
     });
     media.media_position = Some(MediaPosition {
         number: 3,
@@ -386,11 +390,13 @@ fn media_and_browse_links_render_in_the_site_locale() {
             url: "/s/main/media/2".to_string(),
             title: "Before".to_string(),
             thumbnail: None,
+            media_kind: None,
         }),
         next: Some(ResourceRef {
             url: "/s/main/media/4".to_string(),
             title: "After".to_string(),
             thumbnail: None,
+            media_kind: None,
         }),
     });
     let document = DefaultTheme.render(&View::Media(&media), &ctx);
@@ -576,7 +582,7 @@ fn an_untitled_imageless_item_still_reads_as_a_record() {
     );
     assert!(
         document.contains(
-            "<span class=\"resource-kind\">Photo Narrative</span></span>\
+            "<span class=\"resource-kind\">No file</span></span>\
              <span class=\"resource-text\"><span class=\"resource-name resource-name-fallback\">BHC006_<wbr>GMT_<wbr>PN_<wbr>215</span>\
              <span class=\"resource-meta\"><span class=\"resource-meta-type\">Photo Narrative</span>\
              <span class=\"resource-meta-creator\">Citizen Curators</span>\

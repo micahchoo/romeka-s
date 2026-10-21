@@ -51,10 +51,14 @@ export interface Scenario {
   readonly mapping: readonly (readonly [string, string])[];
   readonly typeFrom: 'list' | 'top';
   readonly typeValues: readonly (readonly [string, number])[];
-  readonly flags: readonly { readonly kind: string; readonly slot: string | null; readonly count: number; readonly detail: string | null }[];
+  readonly flags: readonly ScenarioFlag[];
   readonly identical: number;
   readonly unpairedRows: number;
   readonly unpairedFiles: number;
+  /** The items the unpaired files are in; one a file when absent. */
+  readonly unpairedItems?: number;
+  /** Items to add with no title while no rule gives the item code or the file name as one; none when absent. */
+  readonly untitled?: number;
   /** Files whose names the pattern does not fit; none when absent. */
   readonly unmatchedFiles?: number;
   /** A group the drive leaves out on "What we found", by words its facts sentence holds. */
@@ -63,6 +67,15 @@ export interface Scenario {
   readonly proto: { readonly decisions: number; readonly clicks: number };
   /** Every list file of the folder, in place of `sheet` alone, each read with its own counts. */
   readonly lists?: readonly ScenarioList[];
+}
+
+/** A flag kind the server counts; its sample's subject is a record unless it names a list row. */
+export interface ScenarioFlag {
+  readonly kind: string;
+  readonly slot: string | null;
+  readonly count: number;
+  readonly detail: string | null;
+  readonly row?: string;
 }
 
 /**
@@ -163,7 +176,6 @@ const meera = (size: number): Scenario => {
             { kind: 'cells-count', slot: null, count: 3, detail: 'letter 99 front.jpg,"unclosed' },
             { kind: 'no-file', slot: null, count: 7, detail: null },
             { kind: 'date-form', slot: 'dcterms:date', count: 120, detail: 'c. 1890' },
-            { kind: 'empty-required', slot: 'dcterms:title', count: 15, detail: null },
             { kind: 'unknown-type', slot: 'template', count: 9100, detail: 'Kesari' },
           ]
         : [
@@ -173,6 +185,7 @@ const meera = (size: number): Scenario => {
     identical: n(2, 40),
     unpairedRows: n(1, 7),
     unpairedFiles: n(2, 4000),
+    ...(size > 9 ? { untitled: 15 } : {}),
     leave: null,
     proto: size > 9 ? { decisions: 47, clicks: 24 } : { decisions: 25, clicks: 18 },
   };
@@ -235,13 +248,13 @@ const bhc = (size: number): Scenario => {
       { kind: 'no-file', slot: null, count: n(1, 30), detail: null },
       { kind: 'exists', slot: null, count: n(1, 12), detail: null },
       { kind: 'date-form', slot: 'dcterms:date', count: n(1, 60), detail: 'circa 1950s?' },
-      { kind: 'empty-required', slot: 'dcterms:title', count: n(2, 300), detail: null },
       { kind: 'unknown-type', slot: 'template', count: n(9, 39000), detail: 'Artifacts' },
       { kind: 'not-media', slot: null, count: 1, detail: 'application/CDFV2' },
     ],
     identical: n(0, 12),
     unpairedRows: n(1, 30),
     unpairedFiles: n(3, 500),
+    untitled: n(2, 300),
     leave: ['1 file, all pictures', 'no row in your list', '“Artifacts”'],
     proto: size > 9 ? { decisions: 38, clicks: 22 } : { decisions: 29, clicks: 16 },
   };

@@ -41,6 +41,42 @@ impl Thumbnail {
     }
 }
 
+/// The glyph the theme draws for a media kind, in a card's empty slot or on
+/// its corner badge. The drawings are the theme's; the kind itself comes from
+/// the server as [`MediaKindCue::kind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MediaIcon {
+    /// A still picture.
+    Image,
+    /// A recording or a sound file.
+    Audio,
+    /// A moving picture.
+    Video,
+    /// A PDF document.
+    Pdf,
+    /// A 3D model.
+    Model,
+    /// A caption file.
+    Captions,
+    /// An embed or a remote IIIF presentation.
+    Embed,
+    /// A file the kind table does not name.
+    File,
+}
+
+/// One media's kind as a card or the item page's file strip shows it: the
+/// server's kind name, the kind in words, and the glyph. The server builds it
+/// from `MediaKind`, so the site never tests a media type itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MediaKindCue {
+    /// `MediaKind::name()`: `local-image`, `audio`, `pdf`.
+    pub kind: &'static str,
+    /// The kind in words: "Audio", "PDF", "3D model".
+    pub label: &'static str,
+    /// The glyph the theme draws for it.
+    pub icon: MediaIcon,
+}
+
 /// A resource as one of the site's resource-backed templates shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResourceView {
@@ -65,6 +101,16 @@ pub struct ResourceView {
     pub values: Vec<ValueRef>,
     /// The medium thumbnail, `None` when the resource has no thumbnail.
     pub thumbnail: Option<Thumbnail>,
+    /// The kind of the resource's first visible file, `None` when it has none.
+    /// A card draws its icon and name in words, never a generic placeholder.
+    pub media_kind: Option<MediaKindCue>,
+    /// How many files the resource shows the caller: an item's visible media,
+    /// zero for an item set or a media. A card prints it when it is above one.
+    pub file_count: usize,
+    /// The first visible file's duration in milliseconds, from
+    /// `romeka_media_extent`; `None` when no extent row exists or the kind is
+    /// not a recording.
+    pub duration_ms: Option<u64>,
     /// The resource's media with their rendered markup, for the `mediaEmbeds`
     /// resource page block (`$item->media()` then `$media->render()`).
     pub media_embeds: Vec<MediaRef>,
@@ -118,6 +164,9 @@ impl ResourceView {
             description: None,
             values: Vec::new(),
             thumbnail: None,
+            media_kind: None,
+            file_count: 0,
+            duration_ms: None,
             media_embeds: Vec::new(),
             item_sets: Vec::new(),
             media: Vec::new(),
@@ -141,6 +190,9 @@ pub struct ResourceRef {
     pub title: String,
     /// The square thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
+    /// The kind of the file behind this link, for the item page's file strip.
+    /// `None` for a link that is not one media.
+    pub media_kind: Option<MediaKindCue>,
 }
 
 /// A media file's place among the files of its item.

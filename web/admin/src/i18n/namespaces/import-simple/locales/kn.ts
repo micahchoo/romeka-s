@@ -50,6 +50,7 @@ export const kn: ImportSimpleMessages = {
   'guided.found.showThem': 'ಅವುಗಳನ್ನು ತೋರಿಸಿ',
   'guided.found.everyFile': 'ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ನೋಡಿ',
   'guided.mark.number': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಸಂಖ್ಯೆಯನ್ನು ಬಳಸಿ',
+  'guided.mark.letters': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
   'guided.mark.and': '; ಮತ್ತು ',
   'guided.example.choose':
     'ಒಂದು ಐಟಂ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಫೈಲ್‌ಗಳನ್ನು ಹೊಂದಿರುವಾಗ, ಆ ಐಟಂನ ಒಂದು ಫೈಲ್ ಅನ್ನು ಆರಿಸಿ.',
@@ -70,6 +71,8 @@ export const kn: ImportSimpleMessages = {
   'guided.example.onlyThis': 'ಕೇವಲ {text}',
   'guided.example.anyNumber': 'ಯಾವುದೇ ಸಂಖ್ಯೆ, ಉದಾಹರಣೆಗೆ {text}',
   'guided.example.hasDigits': '(ಇದರಲ್ಲಿ ಅಂಕಿಗಳಿವೆ)',
+  'guided.example.anyLetters': '{text} ನಂತೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
+  'guided.example.afterNumber': '(ಅವು ಸಂಖ್ಯೆಯ ನಂತರ ಬರುತ್ತವೆ)',
   'guided.example.wordsLede':
     'ಈ ಪದಗಳು ಈ ಒಂದು ಭಾಗದಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ, ಪ್ರತಿ ಫೈಲ್‌ಗೆ ಎಷ್ಟು ಫೈಲ್‌ಗಳಿವೆಯೋ ಅಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ ಒಂದೇ ಸ್ಥಾನದಲ್ಲಿರುತ್ತವೆ. ಒಂದು ಐಟಂನ ಮತ್ತೊಂದು ಫೈಲ್ ಅನ್ನು ಸೂಚಿಸುವ ಪದಗಳನ್ನು ಗುರುತು ಮಾಡಿ.',
   'guided.example.findWord': 'ಒಂದು ಪದವನ್ನು ಹುಡುಕಿ',
@@ -101,8 +104,11 @@ export const kn: ImportSimpleMessages = {
   'guided.list.codeGloss':
     'ಐಟಂನ ಕೋಡ್ ಅದರ ಫೈಲ್ ಹೆಸರುಗಳ ಭಾಗವಾಗಿದ್ದು, ಅದು ಅದರ ಎಲ್ಲಾ ಫೈಲ್‌ಗಳಿಗೆ ಒಂದೇ ಆಗಿರುತ್ತದೆ.',
   'guided.list.paired': '{rows} ಸಾಲುಗಳಲ್ಲಿ {count} ತಮ್ಮ ಐಟಂ ಅನ್ನು ಕಂಡುಕೊಂಡಿವೆ.',
-  'guided.list.noFile': '{count} ಸಾಲುಗಳು ಯಾವುದೇ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುವುದಿಲ್ಲ.',
-  'guided.list.noFileOne': '1 ಸಾಲು ಯಾವುದೇ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುವುದಿಲ್ಲ.',
+  'guided.list.noImportFile': '{count} ಸಾಲುಗಳು ಈ ಆಮದಿನ ಯಾವುದೇ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುವುದಿಲ್ಲ.',
+  'guided.list.noImportFileOne': '1 ಸಾಲು ಈ ಆಮದಿನ ಯಾವುದೇ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುವುದಿಲ್ಲ.',
+  'guided.list.refused': '{count} ಸಾಲುಗಳು ಈ ಒಮೇಕಾ ಸ್ವೀಕರಿಸದ ವಿಧದ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುತ್ತವೆ.',
+  'guided.list.refusedOne': '1 ಸಾಲು ಈ ಒಮೇಕಾ ಸ್ವೀಕರಿಸದ ವಿಧದ ಫೈಲ್ ಅನ್ನು ಹೆಸರಿಸುತ್ತದೆ.',
+  'guided.list.refusedCheck': 'ಅವುಗಳನ್ನು “ಪರಿಶೀಲಿಸಿ” ಯಲ್ಲಿ ನೋಡಿ',
   'guided.list.noRow': '{count} ಐಟಂಗಳು ಯಾವುದೇ ಸಾಲನ್ನು ಹೊಂದಿಲ್ಲ.',
   'guided.list.noRowOne': '1 ಐಟಂ ಯಾವುದೇ ಸಾಲನ್ನು ಹೊಂದಿಲ್ಲ.',
   'guided.list.pair': 'ಅವುಗಳನ್ನು ಕೈಯಿಂದ ಜೋಡಿಸಿ',
@@ -252,8 +258,8 @@ export const kn: ImportSimpleMessages = {
     'ಓಮೇಕಾ 1950, 1950-08 ಅಥವಾ 1950-08-15 ಎಂದು ಬರೆಯಲಾದ ದಿನಾಂಕಗಳನ್ನು ವಿಂಗಡಿಸುತ್ತದೆ. ಇದು ಇತರ ಪಠ್ಯವನ್ನು ಹಾಗೆಯೇ ಇರಿಸುತ್ತದೆ, ಆದರೆ ದಿನಾಂಕದ ಮೂಲಕ ಹುಡುಕಾಟವು ಅದನ್ನು ಕಂಡುಹಿಡಿಯುವುದಿಲ್ಲ.',
   'guided.check.dateKeep': 'ಅವುಗಳನ್ನು ಬರೆದಂತೆಯೇ ಇರಿಸಿ',
   'guided.check.dateLeave': 'ಈ ದಿನಾಂಕಗಳನ್ನು ಬಿಟ್ಟುಬಿಡಿ',
-  'guided.check.noTitle': '{count} ವಸ್ತುಗಳು ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಶೀರ್ಷಿಕೆಯನ್ನು ಹೊಂದಿಲ್ಲ.',
-  'guided.check.noTitleOne': '1 ವಸ್ತುವಿಗೆ ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಶೀರ್ಷಿಕೆ ಇಲ್ಲ.',
+  'guided.check.untitled': 'ಸೇರಿಸಬೇಕಾದ {count} ವಸ್ತುಗಳಿಗೆ ಶೀರ್ಷಿಕೆ ಇಲ್ಲ.',
+  'guided.check.untitledOne': 'ಸೇರಿಸಬೇಕಾದ 1 ವಸ್ತುವಿಗೆ ಶೀರ್ಷಿಕೆ ಇಲ್ಲ.',
   'guided.check.noTitleKeep':
     'ಶೀರ್ಷಿಕೆಯಿಲ್ಲದೆ ಅವುಗಳನ್ನು ಸೇರಿಸಿ. ಆಡಳಿತವು ಅವುಗಳನ್ನು “ಶೀರ್ಷಿಕೆ ಇಲ್ಲ” ಎಂದು ಪಟ್ಟಿ ಮಾಡುತ್ತದೆ',
   'guided.check.noTitleCode': 'ಐಟಂ ಕೋಡ್ ಅನ್ನು ಶೀರ್ಷಿಕೆಯಾಗಿ ಬಳಸಿ',

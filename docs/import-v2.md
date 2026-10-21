@@ -34,7 +34,7 @@ decisions: corrections that survive the next derive. The goal is upstream CSV Im
    (P10, assumption A86).
 3. Every row A01–A88 has its "Closed by" cell filled: a test name, or a `docs/compat.md` row that
    records an accepted limit and its reason.
-   *Status 2026-10-20: not met for two rows.* 82 rows name a test, four (A04, A73, A76, A81) name
+   *Status 2026-10-20: not met for two rows.* 83 rows name a test, three (A73, A76, A81) name
    a compat row, and two (A07, A86) say `open` and why.
 4. Gates pass: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, admin `typecheck`, `lint`, `test`, `build`, `e2e`, `perf:check`. New
@@ -362,8 +362,10 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
 - **Cause samples**: `flags` adds, per kind and slot, a count and three sample records.
 - **Identical files**: files of equal size and equal SHA-256 (hashed only when sizes collide), an
   anomaly with a count and the pairs. No name heuristics.
-- **Unpaired lists**: list rows with no file and files with no row, each paged and sorted by name,
-  so the person pairs them by hand (`pair` decision) with a searchable picker.
+- **Unpaired lists**: list rows that name no file of the import (a row whose file the install
+  refuses is its `listed-not-media` flag's) and files whose item has no row of its own or on its
+  media, each paged and sorted by name, with `items`, the number of items those files are in, so
+  the person pairs them by hand (`pair` decision) with a searchable picker.
 - **Values with counts** for text slots that name things (template, sets, class): each distinct
   value after trim, NFC and case fold, with its record count. Equal-after-fold values are one value
   ("Letter" and "letter"); anything else ("Letters", "पत्र") is a separate value the person can map
@@ -503,7 +505,7 @@ ones that would write broken data or have no defined result.
 | `encoding-suspect` (U+FFFD, or text that round-trips as 1252 mojibake) | value | keep | no |
 | `name-encoding` | entry | keep | no |
 | `cells-count` | row | leave | no |
-| `no-file` | item record | keep | no |
+| `no-file` | item record, or a media row (create import, `fileName` join, no item key, names no file: no record is made) | keep | no |
 | `not-media` | file | leave | no |
 | `listed-not-media` (a file a list row names that the install refuses; detail is the row key and the extension) | file | leave (only policy: the run's ingest refuses it again) | no |
 | `format-mismatch` | file | keep | no |
@@ -681,7 +683,7 @@ Preview sections (`include`): `entries` (paged; each with its record and flags),
 encoding guess and confidence, delimiter, header line, raw lines, counts, column list), `tags`,
 `records` (paged by kind; filter by flag kind, slot, or text in any slot), `flags` (counts per kind
 and slot), `anomalies`, `orphans`, `check` (counts per action and kind, new sets, types, fields,
-flags by policy, blocking reasons, `canRun`, `digest`). The review-at-scale sections are `shapes`,
+flags by policy, blocking reasons, `itemsWithoutTitle`, `canRun`, `digest`). The review-at-scale sections are `shapes`,
 `histogram`, `identical`, `unpaired`, `values`, `nameWords`, `columnMatches` and `listCandidates` (see "What the
 admin screens need at scale"). A request may carry `seed` (it draws the sample records) and a
 `plan` to preview without saving it.

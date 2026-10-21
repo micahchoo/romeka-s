@@ -168,6 +168,8 @@ export interface Check {
   readonly blocking: readonly Flag[];
   readonly withoutTemplate: number;
   readonly defaultOwner: number;
+  /** Items the run creates with no title, whatever their item type requires. */
+  readonly itemsWithoutTitle: number;
   /** The run needs this as `confirm`. */
   readonly deletes: number;
   readonly canRun: boolean;
@@ -221,6 +223,7 @@ const parseCheck: Parser<Check> = (raw, path = []) => {
     'blocking',
     'withoutTemplate',
     'defaultOwner',
+    'itemsWithoutTitle',
     'deletes',
     'canRun',
     'digest',
@@ -243,6 +246,7 @@ const parseCheck: Parser<Check> = (raw, path = []) => {
     blocking: member(object, 'blocking', path, list(parseFlag)),
     withoutTemplate: count(object, 'withoutTemplate', path),
     defaultOwner: count(object, 'defaultOwner', path),
+    itemsWithoutTitle: count(object, 'itemsWithoutTitle', path),
     deletes: count(object, 'deletes', path),
     canRun: member(object, 'canRun', path, asFlag),
     digest: text(object, 'digest', path),
@@ -324,7 +328,8 @@ const parseIdentical: Parser<IdenticalFiles> = (raw, path = []) => {
 
 export interface UnpairedRow {
   readonly row: RowRef;
-  readonly record: RecordId;
+  /** The item the row made; none for a row that describes a file. */
+  readonly record: RecordId | null;
   readonly title: string | null;
 }
 
@@ -333,19 +338,25 @@ export interface UnpairedFile {
   readonly record: RecordId;
 }
 
-/** List rows with no file, and items with files and no list row, each sorted by name. */
+/**
+ * List rows that name no file of the import, and files whose item has no
+ * list row, each sorted by name; a row naming a file the install refuses is
+ * the `listed-not-media` flag's, not one of these.
+ */
 export interface Unpaired {
   readonly rows: Paged<UnpairedRow>;
   readonly files: Paged<UnpairedFile>;
+  /** How many items the unpaired files are in. */
+  readonly items: number;
 }
 
 const parseUnpaired: Parser<Unpaired> = (raw, path = []) => {
-  const object = strict(raw, path, ['rows', 'files']);
+  const object = strict(raw, path, ['rows', 'files', 'items']);
   const row = (value: unknown, at: Path): UnpairedRow => {
     const each = strict(value, at, ['row', 'record', 'title']);
     return {
       row: member(each, 'row', at, parseRowRef),
-      record: member(each, 'record', at, asRecordId),
+      record: member(each, 'record', at, nullable(asRecordId)),
       title: member(each, 'title', at, maybeText),
     };
   };
@@ -353,7 +364,7 @@ const parseUnpaired: Parser<Unpaired> = (raw, path = []) => {
     const each = strict(value, at, ['file', 'record']);
     return { file: member(each, 'file', at, parseFileRef), record: member(each, 'record', at, asRecordId) };
   };
-  return { rows: member(object, 'rows', path, parsePaged(row)), files: member(object, 'files', path, parsePaged(file)) };
+  return { rows: member(object, 'rows', path, parsePaged(row)), files: member(object, 'files', path, parsePaged(file)), items: count(object, 'items', path) };
 };
 
 export interface ValueCount {
