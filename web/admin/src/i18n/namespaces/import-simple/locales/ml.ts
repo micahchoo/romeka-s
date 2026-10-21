@@ -50,6 +50,7 @@ export const ml: ImportSimpleMessages = {
   'guided.found.showThem': 'അവ കാണിക്കുക',
   'guided.found.everyFile': 'എല്ലാ ഫയലുകളും കാണുക',
   'guided.mark.number': '{text}-ന് പകരം ഏത് സംഖ്യയും',
+  'guided.mark.letters': '{text}-ന് പകരം ഏത് അക്ഷരങ്ങളും',
   'guided.mark.and': '; കൂടാതെ ',
   'guided.example.choose': 'ഒന്നിലധികം ഫയലുകളുള്ള ഒരു ഇനത്തിന്റെ ഒരു ഫയൽ തിരഞ്ഞെടുക്കുക.',
   'guided.example.findFile': 'ഒരു ഫയൽ നാമം കണ്ടെത്തുക',
@@ -68,6 +69,8 @@ export const ml: ImportSimpleMessages = {
   'guided.example.onlyThis': '{text} മാത്രം',
   'guided.example.anyNumber': '{text} പോലെ, ഏത് നമ്പറും',
   'guided.example.hasDigits': '(അക്കങ്ങൾ ഉണ്ട്)',
+  'guided.example.anyLetters': '{text} പോലെ, ഏത് അക്ഷരങ്ങളും',
+  'guided.example.afterNumber': '(അവ ഒരു സംഖ്യയ്ക്ക് തൊട്ടുപിന്നാലെ വരുന്നു)',
   'guided.example.wordsLede':
     'ഈ വാക്കുകൾ ഈ ഒരു ഭാഗത്ത് ഇനത്തിന്റെ എത്ര ഫയലുകൾ ഉണ്ടോ അത്രയും ഭാഗങ്ങളിൽ ഉണ്ട്. ഒരു ഇനത്തിന്റെ മറ്റൊരു ഫയൽ എന്ന് അർത്ഥമുള്ളവ ടിക്ക് ചെയ്യുക.',
   'guided.example.findWord': 'ഒരു വാക്ക് കണ്ടെത്തുക',

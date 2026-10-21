@@ -49,6 +49,7 @@ export const te: ImportAdvancedMessages = {
   'adv.files.example.file': 'గుర్తించినది',
   'adv.files.example.words': 'కేవలం {words} పదాలు',
   'adv.files.example.number': '“{text}” స్థానంలో ఏదైనా సంఖ్య',
+  'adv.files.example.letters': '“{text}” స్థానంలో ఏవైనా అక్షరాలు',
   'adv.files.example.remove': 'తొలగించు',
   'adv.files.example.removeOne': 'గుర్తును తొలగించు: {mark}',
   'adv.files.example.writes':

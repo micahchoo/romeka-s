@@ -49,6 +49,7 @@ export const te: ImportSimpleMessages = {
   'guided.found.showThem': 'వాటిని చూపించు',
   'guided.found.everyFile': 'ప్రతి ఫైల్‌ను చూడండి',
   'guided.mark.number': '{text} స్థానంలో ఏదైనా సంఖ్యను ఉంచండి',
+  'guided.mark.letters': '{text} స్థానంలో ఏవైనా అక్షరాలు',
   'guided.mark.and': '; మరియు ',
   'guided.example.choose':
     'ఒక వస్తువు ఒకటి కంటే ఎక్కువ ఫైల్‌లను కలిగి ఉన్నప్పుడు, ఒక ఫైల్‌ను ఎంచుకోండి.',
@@ -68,6 +69,8 @@ export const te: ImportSimpleMessages = {
   'guided.example.onlyThis': 'కేవలం {text}',
   'guided.example.anyNumber': 'ఏదైనా సంఖ్య, ఉదాహరణకు {text}',
   'guided.example.hasDigits': '(దీనికి అంకెలు ఉన్నాయి)',
+  'guided.example.anyLetters': 'ఏవైనా అక్షరాలు, ఉదాహరణకు {text}',
+  'guided.example.afterNumber': '(ఇవి ఒక సంఖ్య తర్వాత వస్తాయి)',
   'guided.example.wordsLede':
     'ఈ పదాలు ఈ ఒకటనే భాగాలుగా ఉన్న పేర్లలో, ప్రతి ఫైల్‌కు ఎన్ని ఉన్నాయో అదే స్థానంలో ఉన్నాయి. ఒక ఫైల్ యొక్క మరొక ఫైల్‌ను సూచించే పదాలను టిక్ చేయండి.',
   'guided.example.findWord': 'ఒక పదాన్ని వెతకండి',

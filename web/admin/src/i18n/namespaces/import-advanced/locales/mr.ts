@@ -49,6 +49,7 @@ export const mr: ImportAdvancedMessages = {
   'adv.files.example.file': 'चिन्हांकित केले',
   'adv.files.example.words': 'फक्त {words} शब्द',
   'adv.files.example.number': '“{text}” च्या जागी कोणतीही संख्या',
+  'adv.files.example.letters': '“{text}” च्या जागी कोणतीही अक्षरे',
   'adv.files.example.remove': 'काढून टाका',
   'adv.files.example.removeOne': 'चिन्ह काढून टाका: {mark}',
   'adv.files.example.writes':

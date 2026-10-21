@@ -9,7 +9,7 @@ mod import_db;
 use import_db::{draft, on_both};
 use omeka_db::repos::{
     ImportResourceRepo, ImportTouchRepo, ItemRepo, ItemSetRepo, MediaRepo, Presence, PropertyRepo,
-    ResourceRepo, TemplateRepo, ValueRepo, VocabularyRepo,
+    PropertyUsers, ResourceRepo, TemplateRepo, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
     ImportChange, ImportTarget, NewImportResource, NewItem, NewItemSet, NewMedia, NewProperty,
@@ -129,9 +129,19 @@ on_both!(the_touch_reads_answer_one_fact_each, |pool| {
     assert_eq!(members.len(), 1);
     assert_eq!(members[0].resource, linker.resource.id);
     assert_eq!(reads.media_of(target.id()).await.unwrap(), [media.id()]);
-    assert!(reads.template_in_use(template.id).await.unwrap());
-    assert!(reads.property_in_use(relation.id).await.unwrap());
-    assert!(!reads.property_in_use(unused.id).await.unwrap());
+    assert!(!reads.template_users(template.id).await.unwrap().is_empty());
+    assert!(
+        !reads
+            .property_users(relation.id)
+            .await
+            .unwrap()
+            .resources
+            .is_empty()
+    );
+    assert_eq!(
+        reads.property_users(unused.id).await.unwrap(),
+        PropertyUsers::default()
+    );
 
     let first = draft!(pool, "a");
     let later = draft!(pool, "b");

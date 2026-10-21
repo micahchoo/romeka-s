@@ -44,6 +44,7 @@ export const es: ImportSimpleMessages = {
   'guided.found.showThem': 'Mostrarlos',
   'guided.found.everyFile': 'Ver todos los archivos',
   'guided.mark.number': 'cualquier número en lugar de {text}',
+  'guided.mark.letters': 'letras cualesquiera en lugar de {text}',
   'guided.mark.and': '; y ',
   'guided.example.choose': 'Elige un archivo de un elemento que tenga más de un archivo.',
   'guided.example.findFile': 'Buscar un nombre de archivo',
@@ -62,6 +63,8 @@ export const es: ImportSimpleMessages = {
   'guided.example.onlyThis': 'Solo {text}',
   'guided.example.anyNumber': 'Cualquier número, como en {text}',
   'guided.example.hasDigits': '(tiene cifras)',
+  'guided.example.anyLetters': 'Letras cualesquiera, como en {text}',
+  'guided.example.afterNumber': '(van justo después de un número)',
   'guided.example.wordsLede':
     'Estas palabras están en el mismo lugar en los nombres con tantas partes como este, con cuántos archivos tienen cada una. Marca las que significan otro archivo de un mismo elemento.',
   'guided.example.findWord': 'Buscar una palabra',

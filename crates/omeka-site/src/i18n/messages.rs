@@ -121,6 +121,25 @@ pub struct Messages {
     /// A 3D file page's line when the viewer library cannot load. A Romeka
     /// string.
     pub model_failed: &'static str,
+    /// A media card's word for an image.
+    pub kind_image: &'static str,
+    /// A media card's word for a sound file.
+    pub kind_audio: &'static str,
+    /// A media card's word for a video.
+    pub kind_video: &'static str,
+    /// A media card's word for a PDF.
+    pub kind_pdf: &'static str,
+    /// A media card's word for a 3D model.
+    pub kind_model_3d: &'static str,
+    /// A media card's word for a caption file.
+    pub kind_captions: &'static str,
+    /// A media card's word for an embed or a remote IIIF presentation.
+    pub kind_embed: &'static str,
+    /// A media card's word for a file no other kind names.
+    pub kind_other_file: &'static str,
+    /// A card's label for an item with no file. The type stands there for an
+    /// item set, which has no files. A Romeka string.
+    pub no_file: &'static str,
     /// The footer's link list, as its `nav` label.
     pub footer_links: &'static str,
     /// The footer's licence line when the site keeps every right.
@@ -246,6 +265,15 @@ pub static EN: Messages = Messages {
     model_loading: "Loading the 3D viewer…",
     model_failed: "This browser cannot show the model. Download it and open it in a 3D \
                    program.",
+    kind_image: "Image",
+    kind_audio: "Audio",
+    kind_video: "Video",
+    kind_pdf: "PDF",
+    kind_model_3d: "3D model",
+    kind_captions: "Captions",
+    kind_embed: "Embed",
+    kind_other_file: "File",
+    no_file: "No file",
     footer_links: "Footer links",
     all_rights_reserved: "All rights reserved",
     search_placeholder: "Search the collection",
@@ -341,6 +369,15 @@ pub static ES: Messages = Messages {
     model_loading: "Cargando el visor 3D…",
     model_failed: "Este navegador no puede mostrar el modelo. Descárgalo y ábrelo en un programa \
                    3D.",
+    kind_image: "Imagen",
+    kind_audio: "Audio",
+    kind_video: "Vídeo",
+    kind_pdf: "PDF",
+    kind_model_3d: "Modelo 3D",
+    kind_captions: "Subtítulos",
+    kind_embed: "Incrustado",
+    kind_other_file: "Archivo",
+    no_file: "Sin archivo",
     footer_links: "Enlaces del pie de página",
     all_rights_reserved: "Todos los derechos reservados",
     search_placeholder: "Buscar en la colección",

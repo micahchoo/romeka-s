@@ -1,32 +1,42 @@
 /**
- * A file name in parts, split the way the server splits it for its name
- * words (`preview/names.rs`): on `_`, `-`, `.` and space. The person clicks
+ * A file name in parts: split on `_`, `-`, `.` and space, as the server
+ * splits it for its name words (`preview/names.rs`), and also where a run of
+ * digits meets a run of letters (`010a`, `p12v`), which the server does not
+ * split. Such a glued part has no separator before it. The person clicks
  * one part of a name; the mark covers that part and every part after it up
  * to the ending, because the shared pattern (`../example.ts`) reads the
  * marked place at the end of the name.
  */
 import type { Mark } from '../example';
 
-/** One part of a name and the separator before it (`''` for the first). */
+/** One part of a name and the separator before it (`''` for the first and for a glued part). */
 export interface NamePart {
   readonly text: string;
   readonly sep: string;
 }
 
 const SEPARATORS = '_-. ';
+const DIGIT = /^\p{Nd}$/u;
+const LETTER = /^\p{L}$/u;
 
 export const splitName = (name: string): readonly NamePart[] => {
   const parts: NamePart[] = [];
   let sep = '';
   let text = '';
+  let last = '';
   for (const char of name) {
     if (SEPARATORS.includes(char)) {
       parts.push({ text, sep });
       sep = char;
       text = '';
+    } else if (DIGIT.test(last) && LETTER.test(char)) {
+      parts.push({ text, sep });
+      sep = '';
+      text = char;
     } else {
       text += char;
     }
+    last = char;
   }
   parts.push({ text, sep });
   return parts;
@@ -60,7 +70,5 @@ export const markOf = (path: string, from: number, answer: { readonly kind: Mark
   if (from < 1 || first === undefined) {
     throw new RangeError(`part ${String(from)} cannot be marked in ${path}`);
   }
-  return answer.kind === 'number'
-    ? { kind: 'number', text: markedText(path, from), sep: first.sep }
-    : { kind: 'words', words: answer.words, sep: first.sep };
+  return answer.kind === 'words' ? { kind: 'words', words: answer.words, sep: first.sep } : { kind: answer.kind, text: markedText(path, from), sep: first.sep };
 };

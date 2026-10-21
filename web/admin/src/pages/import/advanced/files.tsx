@@ -59,10 +59,16 @@ const Sources = (): ReactElement => {
   );
 };
 
-const markWords = (mark: Mark, t: ReturnType<typeof useAdvancedText>['t']): string =>
-  mark.kind === 'number'
-    ? t('adv.files.example.number', { text: mark.text })
-    : t('adv.files.example.words', { words: mark.words.map((word) => `“${word}”`).join(', ') });
+const markWords = (mark: Mark, t: ReturnType<typeof useAdvancedText>['t']): string => {
+  switch (mark.kind) {
+    case 'number':
+      return t('adv.files.example.number', { text: mark.text });
+    case 'letters':
+      return t('adv.files.example.letters', { text: mark.text });
+    case 'words':
+      return t('adv.files.example.words', { words: mark.words.map((word) => `“${word}”`).join(', ') });
+  }
+};
 
 const Example = (): ReactElement => {
   const { t } = useAdvancedText();
