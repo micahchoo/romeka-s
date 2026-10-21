@@ -45,7 +45,9 @@ use crate::file_render::ThumbnailType;
 
 pub use file::FileStore;
 pub use s3::{S3Config, S3ConfigError, S3Store};
-pub use urls::{Download, FileKind, FileUrls, content_disposition, download_name};
+pub use urls::{
+    Download, FileKind, FileUrls, attachment_disposition, content_disposition, download_name,
+};
 
 /// How long a signed URL stays valid when the store sets nothing else: four
 /// hours, the default of `ROMEKA_S3_URL_TTL_SECS`.
@@ -121,6 +123,14 @@ pub trait Store: Send + Sync + std::fmt::Debug {
     /// # Errors
     /// [`StoreError`] when the path is illegal or the store cannot answer.
     fn exists(&self, storage_path: &str) -> Result<bool, StoreError>;
+
+    /// The number of bytes stored at `storage_path`, `None` when nothing is.
+    /// A site page prints the size of a file it links, so this reads the
+    /// object's metadata and never its body.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the path is illegal or the store cannot answer.
+    fn size(&self, storage_path: &str) -> Result<Option<u64>, StoreError>;
 
     /// The files directly inside the folder `prefix` (such as `original`),
     /// sorted by storage path. Files of nested folders are not listed, and a

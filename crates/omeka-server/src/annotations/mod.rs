@@ -13,6 +13,7 @@
 //! rows a caption import wrote), which a WAP client does not ask for and the
 //! admin editor cannot work without. `docs/compat.md` records the difference.
 
+mod kept;
 mod tracks;
 mod wap;
 
@@ -58,6 +59,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/annotations/media/{id}/", any(wap::container))
         .route("/annotations/media/{id}/page", any(wap::page))
         .route("/annotations/media/{id}/tracks", any(tracks::tracks))
+        .route("/annotations/media/{id}/tracks/undo", any(tracks::undo))
         .route(
             "/annotations/media/{id}/captions.vtt",
             any(tracks::captions),
@@ -143,6 +145,10 @@ pub(crate) fn wap_error(error: AnnotationError, iris: &Iris) -> Response {
         AnnotationError::KeyReused => error_document(
             StatusCode::UNPROCESSABLE_ENTITY,
             &AnnotationError::KeyReused.to_string(),
+        ),
+        AnnotationError::NothingToUndo => error_document(
+            StatusCode::CONFLICT,
+            &AnnotationError::NothingToUndo.to_string(),
         ),
         AnnotationError::Track(error) => {
             let status = match error {

@@ -147,6 +147,13 @@ export const es: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 entrada de un archivo de subtítulos.',
   'captions.handEdited':
     '{count} de estas entradas se cambiaron aquí a mano. La próxima importación de este idioma las sustituye.',
+  'captions.undoReplace': 'Deshacer la sustitución',
+  'captions.undoLine': 'Recuperar las {cues} entradas en {language} del {when}.',
+  'captions.undoLineOne': 'Recuperar la entrada en {language} del {when}.',
+  'captions.undoLineUndated': 'Recuperar las {cues} entradas en {language}.',
+  'captions.undoLineUndatedOne': 'Recuperar la entrada en {language}.',
+  'captions.undone': 'Subtítulos en {language}: {cues} entradas recuperadas.',
+  'captions.undoneOne': 'Subtítulos en {language}: 1 entrada recuperada.',
   'captions.removeConfirm':
     '¿Quitar las {cues} entradas en {language}? Los visitantes ya no verán los subtítulos en {language}. Sus notas propias se conservan.',
   'captions.removeDo': 'Quitar los subtítulos en {language}',
@@ -169,7 +176,7 @@ export const es: AnnotationsMessages = {
   'captions.dialog.replaces': 'Sustituye las {cues} entradas en {language}.',
   'captions.dialog.replacesOne': 'Sustituye la entrada en {language}.',
   'captions.dialog.handEdited':
-    '{count} de ellas se cambiaron aquí a mano; esos cambios se perderán.',
+    '{count} de ellas se cambiaron aquí a mano. Este archivo las sustituye; Deshacer la sustitución las recupera una vez.',
   'captions.dialog.commitAdd': 'Añadir subtítulos en {language}',
   'captions.dialog.commitReplace': 'Sustituir {cues} entradas en {language}',
   'captions.dialog.commitReplaceOne': 'Sustituir 1 entrada en {language}',

@@ -109,7 +109,10 @@ One create is excluded, with its upstream source:
 takes a `boundary` `Content-Type`, parses the `data` field as JSON and the
 `file` field as the upload, and stores the bytes under the `asset` prefix
 (`AssetAdapter::hydrate`). A JSON body, or a multipart body with no `file`
-field, answers `{"errors":{"file":["No file was uploaded"]}}`.
+field, answers `{"errors":{"file":["No file was uploaded"]}}`. The file is
+checked against the media file-validation settings, with the same sniffing a
+media upload runs, and an SVG is filtered before it is stored; upstream's own
+four-image list is the deliberate difference `docs/compat.md` records.
 
 A `POST /api/media` create runs the ingester `o:ingester` names, through
 `omeka-media`'s registry, so `MediaAdapter::hydrate` and the ingester together

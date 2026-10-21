@@ -1,30 +1,37 @@
 //! `POST`, `PUT`, `PATCH` and `DELETE` for `assets`.
 //!
 //! `AssetAdapter::hydrate` on create reads the uploaded file out of
-//! `$request->getFileData()`, validates it against `api_assets.allowed_media_types`
-//! and `api_assets.allowed_extensions`, and stores it under the `asset` prefix
-//! (`AssetAdapter.php:64-105`, `File/TempFile.php:246`); on an update it writes
-//! `o:name` and `o:alt_text` and nothing else. The file identity columns
+//! `$request->getFileData()`, validates it, and stores it under the `asset`
+//! prefix (`AssetAdapter.php:64-105`, `File/TempFile.php:246`); on an update it
+//! writes `o:name` and `o:alt_text` and nothing else. The file identity columns
 //! (`o:media_type`, `o:storage_id`, `o:extension`) are fixed when the upload
 //! stores the file, and the owner is hydrated on create only.
 //!
 //! The port receives the upload through the multipart boundary as an
 //! [`UploadedFile`]; a create with no `file` field answers the upstream
 //! `{"errors":{"file":["No file was uploaded"]}}`. The media type comes from
-//! the bytes (`omeka_media::media_type::detected_media_type`, the port's
-//! `finfo`) and the extension from the client file name, then the media-type
-//! map. The check is `omeka_media::validation`, the same validator media use,
-//! built with the asset lists instead of the settings.
+//! the bytes and the source name's extension
+//! (`omeka_media::media_type::detected_media_type_of`, the port's `finfo`).
+//!
+//! Upstream builds the validator from its own four-image lists
+//! (`api_assets.allowed_media_types`, `api_assets.allowed_extensions`). This
+//! fork accepts what the media allow list accepts: the three file-validation
+//! settings (`media_type_whitelist`, `extension_whitelist`,
+//! `disable_file_validation`), read by [`crate::settings::file_validation`],
+//! the same validator and the same sniffing a media upload runs. An SVG is a
+//! document, so it is filtered by [`omeka_media::svg::sanitize`] before it is
+//! stored and only the safe bytes are written, as the media ingest does
+//! (`docs/compat.md`, "Assets accept any allowed file").
 
 use omeka_db::ids::AssetId;
 use omeka_db::repos::AssetRepo;
 use omeka_db::rows::{AssetRow, NewAsset};
 use omeka_db::with_db;
-use omeka_media::media_type::{detected_media_type, extension_for_media_type};
+use omeka_media::media_type::{detected_media_type_of, extension_for_media_type};
 use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
 };
-use omeka_media::validation::{FileRefusal, FileValidation};
+use omeka_media::validation::FileRefusal;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
@@ -38,12 +45,10 @@ use crate::write::vocab_member;
 
 const ASSET_CLASS: &str = "Omeka\\Entity\\Asset";
 
-/// `api_assets.allowed_media_types` (`application/config/module.config.php:45`).
-const ALLOWED_MEDIA_TYPES: [&str; 4] = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-/// `api_assets.allowed_extensions` (`application/config/module.config.php:51`).
-const ALLOWED_EXTENSIONS: [&str; 5] = ["jpeg", "jpg", "png", "gif", "webp"];
-
-/// Create an asset from an uploaded file (`AssetAdapter::hydrate` on create).
+/// What an uploaded asset's file may be is the operator's
+/// `media_type_whitelist` and `extension_whitelist`, not a list here (see the
+/// module docs). A file the list refuses answers the same `file` errors a
+/// media upload does.
 pub async fn create(
     api: &Api<'_>,
     payload: &Payload,
@@ -53,13 +58,13 @@ pub async fn create(
         return Err(errors("file", vec![messages::NO_FILE_UPLOADED.to_string()]));
     };
     let source_name = file.filename.clone().unwrap_or_default();
-    let media_type = detected_media_type(&file.bytes);
-    let extension = extension_from_source_name(&source_name)
-        .or_else(|| extension_for_media_type(&media_type).map(str::to_string));
-    let validation = FileValidation::Allow {
-        media_types: ALLOWED_MEDIA_TYPES.map(str::to_string).to_vec(),
-        extensions: ALLOWED_EXTENSIONS.map(str::to_string).to_vec(),
-    };
+    let source_extension = extension_from_source_name(&source_name);
+    let media_type = detected_media_type_of(&file.bytes, source_extension.as_deref());
+    let extension =
+        source_extension.or_else(|| extension_for_media_type(&media_type).map(str::to_string));
+    let validation = crate::settings::file_validation(api.pool())
+        .await
+        .map_err(db_error)?;
     let invalid: Vec<String> = validation
         .refusals(&source_name, &media_type, extension.as_deref())
         .iter()
@@ -68,6 +73,16 @@ pub async fn create(
     if !invalid.is_empty() {
         return Err(errors("file", invalid));
     }
+    // An SVG is a document: only the bytes the filter wrote are stored, so no
+    // reader reaches the script the upload carried. A file the filter cannot
+    // read is refused rather than stored unfiltered, as the media ingest
+    // refuses it.
+    let bytes = if media_type == "image/svg+xml" {
+        omeka_media::svg::sanitize(&file.bytes)
+            .map_err(|error| errors("file", vec![error.to_string()]))?
+    } else {
+        file.bytes
+    };
 
     // `hydrateOwner`, then the name: `$request->getValue('o:name', $fileData['file']['name'])`.
     let owner_id = resource::owner_member(api, payload, true, None).await?;
@@ -93,7 +108,7 @@ pub async fn create(
     let storage_id = new_storage_id().map_err(ApiError::internal)?;
     let path = storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
     store
-        .put(&file.bytes, &path, Some(&media_type))
+        .put(&bytes, &path, Some(&media_type))
         .map_err(ApiError::internal)?;
     let row = with_db!(api.pool(), |db| AssetRepo::new(db)
         .create(&NewAsset {

@@ -1,6 +1,10 @@
 use super::*;
 use crate::blocks::test_support::{TestResources, context, item, literal_value, site};
-use crate::view::ResourceRef;
+use crate::share::{ShareTarget, ShareView};
+use crate::view::{
+    DownloadLink, MediaIcon, MediaKindCue, MediaRef, ResourceRef, ResourceView, Thumbnail,
+};
+use omeka_core::ids::ResourceId;
 use omeka_core::resource::ResourceKind;
 
 /// The layout writes the document frame from `view/layout/layout.phtml`:
@@ -500,6 +504,8 @@ fn layout_renders_the_logo_and_banner_assets() {
             title: "A logo".to_string(),
             url: Some("/files/original/3.png".to_string()),
             thumbnail: None,
+            kind: crate::view::AssetKind::Image,
+            size: None,
         },
     );
     let mut ctx = context(&site, &resources);
@@ -523,6 +529,41 @@ fn layout_renders_the_logo_and_banner_assets() {
     assert!(!document.contains("site-banner-image"), "{document}");
     assert!(
         document.contains("<p class=\"site-banner-text\">Open daily &lt;10am&gt;</p>"),
+        "{document}"
+    );
+}
+
+/// A logo and a banner take images, so an asset of another kind shows
+/// neither: the header keeps no logo and the banner keeps its text, never a
+/// broken `<img>`.
+#[test]
+fn a_non_image_logo_and_banner_render_nothing() {
+    let site = site();
+    let mut resources = TestResources::default();
+    for id in [3, 4] {
+        resources.assets.insert(
+            id,
+            crate::view::AssetView {
+                id: omeka_core::ids::AssetId::new(id),
+                title: "report.pdf".to_string(),
+                url: Some("/files/asset/report.pdf".to_string()),
+                thumbnail: None,
+                kind: crate::view::AssetKind::Pdf,
+                size: Some(4096),
+            },
+        );
+    }
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "logo": 3,
+        "banner": 4,
+        "banner_text": "Open daily"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(!document.contains("site-logo"), "{document}");
+    assert!(!document.contains("site-banner-image"), "{document}");
+    assert!(
+        document.contains("<p class=\"site-banner-text\">Open daily</p>"),
         "{document}"
     );
 }
@@ -736,4 +777,170 @@ fn layout_renders_custom_css_after_the_theme_sheet() {
     let hostile = DefaultTheme.render(&View::Index, &ctx);
     assert!(!hostile.contains("custom-css"), "{hostile}");
     assert!(!hostile.contains("<script>alert(1)"), "{hostile}");
+}
+
+/// The media page's head names the media manifest and the picture a link
+/// preview shows, and its "Use elsewhere" block carries the drag-and-drop
+/// convention (`{m}?manifest={m}`) beside a copy button. The manifest URL is
+/// also in a read-only input, so a reader without a script can select it.
+#[test]
+fn the_media_page_shares_its_manifest_and_picture() {
+    let site = site();
+    let resources = TestResources::default();
+    let ctx = context(&site, &resources);
+    let manifest = "https://example.org/iiif/3/media/9/manifest";
+    let mut media = ResourceView::new(
+        ResourceId::new(9),
+        ResourceKind::Media,
+        "/s/main/media/9",
+        "A file",
+    );
+    media.thumbnail = Some(Thumbnail::new("https://example.org/files/square/9.jpg", ""));
+    media.share = Some(ShareView::page(
+        ShareTarget::Media,
+        "A file",
+        "https://example.org/s/main/media/9",
+        Some("https://example.org/files/square/9.jpg".to_string()),
+        Some(manifest.to_string()),
+        Some("https://example.org/iiif-viewer?url=manifest".to_string()),
+    ));
+
+    let document = DefaultTheme.render(&View::Media(&media), &ctx);
+    assert!(
+        document.contains(&format!(
+            "<link rel=\"alternate\" type=\"application/ld+json;profile=\
+             &quot;http://iiif.io/api/presentation/3/context.json&quot;\" href=\"{manifest}\">"
+        )),
+        "{document}"
+    );
+    assert!(
+        document.contains("<meta property=\"og:title\" content=\"A file\">"),
+        "{document}"
+    );
+    assert!(
+        document.contains(
+            "<meta property=\"og:image\" content=\"https://example.org/files/square/9.jpg\">"
+        ),
+        "{document}"
+    );
+    assert!(
+        document.contains(&format!(
+            "<a class=\"iiif-manifest\" href=\"{manifest}?manifest={manifest}\" \
+             title=\"Drag into a IIIF viewer\">"
+        )),
+        "{document}"
+    );
+    assert!(
+        document.contains(&format!(
+            "<input class=\"manifest-url\" type=\"text\" readonly value=\"{manifest}\" \
+             aria-label=\"Manifest URL\">"
+        )),
+        "{document}"
+    );
+    assert!(document.contains(">Copy</button>"), "{document}");
+    assert!(
+        document.contains(
+            "<a href=\"https://example.org/iiif-viewer?url=manifest\">\
+                           View in the IIIF viewer</a>"
+        ),
+        "{document}"
+    );
+    assert!(
+        document.contains(
+            "Cite this file <a href=\"https://example.org/s/main/media/9\">\
+             https://example.org/s/main/media/9</a>"
+        ),
+        "{document}"
+    );
+}
+
+/// A kind with no canvas offers no viewer and no manifest link. The page still
+/// cites the file and saves its original.
+#[test]
+fn a_kind_with_no_canvas_shows_no_viewer_link() {
+    let site = site();
+    let resources = TestResources::default();
+    let ctx = context(&site, &resources);
+    let mut media = ResourceView::new(
+        ResourceId::new(9),
+        ResourceKind::Media,
+        "/s/main/media/9",
+        "notes.txt",
+    );
+    media.media_kind = Some(MediaKindCue {
+        kind: "other-file",
+        label: "File",
+        icon: MediaIcon::File,
+    });
+    media.download = Some(DownloadLink {
+        url: "/s/main/media/9/download".to_string(),
+        size: Some(2_411_724),
+    });
+    media.share = Some(ShareView::page(
+        ShareTarget::Media,
+        "notes.txt",
+        "https://example.org/s/main/media/9",
+        None,
+        None,
+        None,
+    ));
+
+    let document = DefaultTheme.render(&View::Media(&media), &ctx);
+    assert!(
+        document.contains(
+            "<p class=\"media-download\"><a href=\"/s/main/media/9/download\">\
+             Download the original · File · 2.3 MB</a></p>"
+        ),
+        "{document}"
+    );
+    assert!(!document.contains("use-elsewhere-viewer"), "{document}");
+    assert!(!document.contains("iiif-manifest"), "{document}");
+    assert!(!document.contains("rel=\"alternate\""), "{document}");
+    assert!(
+        document.contains(
+            "Cite this file <a href=\"https://example.org/s/main/media/9\">\
+             https://example.org/s/main/media/9</a>"
+        ),
+        "{document}"
+    );
+}
+
+/// The item page shares the item manifest under "Use elsewhere", after the
+/// file, and its head names the item's picture.
+#[test]
+fn the_item_page_shares_its_manifest() {
+    let site = site();
+    let resources = TestResources::default();
+    let ctx = context(&site, &resources);
+    let manifest = "https://example.org/iiif/3/item/7/manifest";
+    let mut item = item(7, "An item", "/s/main/item/7");
+    item.thumbnail = Some(Thumbnail::new("https://example.org/files/square/7.jpg", ""));
+    item.iiif_manifest = Some(manifest.to_string());
+    item.media_embeds.push(MediaRef {
+        url: "/s/main/media/9".to_string(),
+        original_url: None,
+        title: "A file".to_string(),
+        media_type: Some("image/jpeg".to_string()),
+        thumbnail: None,
+        embed: Some("<img src=\"/files/large/9.jpg\" alt=\"\">".to_string()),
+    });
+    item.share = Some(ShareView::page(
+        ShareTarget::Item,
+        "An item",
+        "https://example.org/s/main/item/7",
+        Some("https://example.org/files/square/7.jpg".to_string()),
+        Some(manifest.to_string()),
+        Some("https://example.org/iiif-viewer?url=manifest".to_string()),
+    ));
+
+    let document = DefaultTheme.render(&View::Item(&item), &ctx);
+    assert!(
+        document.contains(&format!("href=\"{manifest}\">")),
+        "{document}"
+    );
+    assert!(document.contains(">Use elsewhere</h2>"), "{document}");
+    assert!(
+        document.contains("Cite this item <a href=\"https://example.org/s/main/item/7\">"),
+        "{document}"
+    );
 }

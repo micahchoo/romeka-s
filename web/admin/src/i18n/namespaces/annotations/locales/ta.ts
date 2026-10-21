@@ -159,6 +159,13 @@ export const ta: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 குறிப்பு தலைப்பு கோப்பிலிருந்து.',
   'captions.handEdited':
     '{count} குறிப்புகள் இங்கே கையால் மாற்றப்பட்டன. இந்த மொழியின் அடுத்த இறக்குமதி அவற்றை மாற்றீடு செய்யும்.',
+  'captions.undoReplace': 'மாற்றீட்டை ரத்து செய்க',
+  'captions.undoLine': '{when} காலத்திலிருந்து {cues} {language} குறிப்புகளை மீண்டும் கொண்டு வருக.',
+  'captions.undoLineOne': '{when} காலத்திலிருந்து 1 {language} குறிப்பை மீண்டும் கொண்டு வருக.',
+  'captions.undoLineUndated': '{cues} {language} குறிப்புகளை மீண்டும் கொண்டு வருக.',
+  'captions.undoLineUndatedOne': '1 {language} குறிப்பை மீண்டும் கொண்டு வருக.',
+  'captions.undone': '{language} தலைப்புகள்: {cues} குறிப்புகள் மீண்டும் கொண்டு வரப்பட்டன.',
+  'captions.undoneOne': '{language} தலைப்புகள்: 1 குறிப்பு மீண்டும் கொண்டு வரப்பட்டது.',
   'captions.removeConfirm':
     '{language} குறிப்புகள் {cues} நீக்கப்பட வேண்டுமா? பார்வையாளர்கள் {language} தலைப்புகளை இனி பார்க்க மாட்டார்கள். உங்கள் சொந்த குறிப்புகள் இருக்கும்.',
   'captions.removeDo': '{language} தலைப்புகளை நீக்கவும்',
@@ -181,7 +188,7 @@ export const ta: AnnotationsMessages = {
   'captions.dialog.replaces': 'இது {cues} {language} குறிப்புகளை மாற்றுகிறது.',
   'captions.dialog.replacesOne': 'இது {language} குறிப்பை மாற்றுகிறது.',
   'captions.dialog.handEdited':
-    '{count} மாற்றங்கள் இங்கே கையால் செய்யப்பட்டுள்ளன; அந்த மாற்றங்கள் இழக்கப்படும்.',
+    '{count} இங்கே கையால் மாற்றப்பட்டன. இந்த கோப்பு அவற்றை மாற்றுகிறது; «மாற்றீட்டை ரத்து செய்க» அவற்றை மீண்டும் ஒருமுறை கொண்டு வருகிறது.',
   'captions.dialog.commitAdd': '{language} தலைப்புகளைச் சேர்க்க',
   'captions.dialog.commitReplace': '{cues} {language} குறிப்புகளை மாற்றவும்',
   'captions.dialog.commitReplaceOne': '{language} குறிப்பை மாற்றவும்',

@@ -302,13 +302,27 @@ async fn the_item_page_links_the_viewer_and_the_manifest() {
     let page = String::from_utf8(page.body).unwrap();
     let manifest = format!("http://localhost/iiif/3/item/{}/manifest", seed.item);
     assert!(
-        page.contains(&format!("<a class=\"iiif-manifest\" href=\"{manifest}\">")),
+        page.contains(&format!(
+            "<a class=\"iiif-manifest\" href=\"{manifest}?manifest={manifest}\""
+        )),
         "{page}"
     );
     assert!(page.contains("IIIF manifest</a>"), "{page}");
     assert!(
         page.contains(&format!(
-            "<a href=\"/iiif-viewer?url={}&amp;mirador_config=",
+            "<link rel=\"alternate\" type=\"application/ld+json;profile=\
+             &quot;http://iiif.io/api/presentation/3/context.json&quot;\" href=\"{manifest}\">"
+        )),
+        "{page}"
+    );
+    assert!(
+        page.contains("<meta property=\"og:title\" content=\"Harbour chart\">"),
+        "{page}"
+    );
+    assert!(page.contains("<meta property=\"og:image\""), "{page}");
+    assert!(
+        page.contains(&format!(
+            "<li class=\"use-elsewhere-viewer\"><a href=\"http://localhost/iiif-viewer?url={}&amp;mirador_config=",
             urlencoding(&manifest)
         )),
         "{page}"
@@ -319,7 +333,9 @@ async fn the_item_page_links_the_viewer_and_the_manifest() {
         get(&format!("/s/{}/item/{}", seed.site, seed.bare_item)),
     )
     .await;
-    assert!(!String::from_utf8(bare.body).unwrap().contains("iiif-links"));
+    let bare = String::from_utf8(bare.body).unwrap();
+    assert!(!bare.contains("use-elsewhere-viewer"), "{bare}");
+    assert!(!bare.contains("iiif-manifest"), "{bare}");
 }
 
 fn urlencoding(text: &str) -> String {

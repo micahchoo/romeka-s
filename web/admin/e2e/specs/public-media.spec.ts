@@ -244,3 +244,86 @@ test('an audio page draws the playing line in a band, because its player draws n
 
   await expectClean(diagnostics, 'transcript audio band');
 });
+
+test('the media page saves the original under its own name', async ({ page, diagnostics }) => {
+  const media = await upload(page.request, 'doc.pdf', 'application/pdf');
+  await page.goto(mediaPage(media));
+
+  const link = page.locator('.media-download a');
+  await expect(link).toHaveText('Download the original · PDF · 853 B');
+  const download = page.waitForEvent('download');
+  await link.click();
+  const saved = await download;
+  expect(saved.suggestedFilename()).toBe('doc.pdf');
+  // A download aborts the navigation the click started; that abort is the
+  // browser's normal answer, not a failed request.
+  diagnostics.reset();
+  await expectClean(diagnostics, 'download');
+});
+
+test('Copy puts the manifest URL on the clipboard and says so', async ({ page, diagnostics }) => {
+  const media = await upload(page.request, 'image.jpg', 'image/jpeg');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(mediaPage(media));
+
+  const block = page.locator('section.use-elsewhere');
+  await expect(block.getByRole('heading', { name: 'Use elsewhere' })).toBeVisible();
+  const manifest = await block.locator('.iiif-manifest').getAttribute('href');
+  expect(manifest).not.toBeNull();
+  const bare = String(manifest).split('?manifest=')[0] ?? '';
+  expect(bare).not.toBe('');
+  expect(String(manifest)).toBe(`${bare}?manifest=${bare}`);
+  // A tool given the page URL finds the manifest in the head.
+  await expect(page.locator('head link[rel="alternate"]')).toHaveAttribute('href', bare);
+
+  await block.locator('.copy-manifest').click();
+  await expect(block.locator('.copy-manifest')).toHaveText('Copied');
+  await expect(block.locator('.copy-status')).toHaveText('Manifest link copied');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(bare);
+  await expectClean(diagnostics, 'copy');
+});
+
+test('a kind with no canvas offers no viewer link', async ({ page, diagnostics }) => {
+  const media = await upload(
+    page.request,
+    'doc.docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  );
+  await page.goto(mediaPage(media));
+
+  const block = page.locator('section.use-elsewhere');
+  await expect(block).toHaveCount(1);
+  await expect(block.locator('.use-elsewhere-viewer')).toHaveCount(0);
+  await expect(block.locator('.iiif-manifest')).toHaveCount(0);
+  await expect(page.locator('head link[rel="alternate"]')).toHaveCount(0);
+  // The file still saves under its own name; only the viewer and manifest are
+  // absent, because there is no canvas to open.
+  await expect(page.locator('.media-download a')).toHaveCount(1);
+  // An office document is a document, not a file with no kind.
+  await expect(page.locator('.media-download')).toContainText('Document');
+  await expectClean(diagnostics, 'a kind with no canvas');
+});
+
+test('a narrow window shows the PDF card instead of the browser reader', async ({
+  page,
+  diagnostics,
+}) => {
+  const media = await upload(page.request, 'doc.pdf', 'application/pdf');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(mediaPage(media));
+
+  // The reader is an 80vh box a narrow column cannot use, so the page shows the
+  // card and the download line. A hidden reader must leave no gap behind it.
+  await expect(page.locator('.pdf-object')).toBeHidden();
+  const card = page.locator('.pdf-reader-page > .pdf-card');
+  await expect(card).toBeVisible();
+
+  const cardBox = await card.boundingBox();
+  const downloadBox = await page.locator('.media-download').boundingBox();
+  if (cardBox === null || downloadBox === null) {
+    throw new Error('the card and the download line have no box at 375 px');
+  }
+  const gap = downloadBox.y - (cardBox.y + cardBox.height);
+  expect(gap).toBeLessThan(40);
+  await expectClean(diagnostics, 'narrow pdf');
+});

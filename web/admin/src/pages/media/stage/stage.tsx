@@ -18,7 +18,7 @@ import type { KeyOf, MessageKey, Translator } from '../../../i18n';
 import { useTranslator } from '../../../i18n';
 import { resources } from '../../../i18n/namespaces/resources';
 import { recallPosition, rememberPosition } from './play-position';
-import { ManifestCard, ThirdPartyCard } from './third-party';
+import { EmbedCard, ManifestCard, ThirdPartyCard } from './third-party';
 import { stageView } from './view';
 import type { FileFacts, StageView } from './view';
 import './stage.css';
@@ -389,6 +389,8 @@ const StageBody = ({
       return <TextStage view={view} translator={translator} />;
     case 'outside':
       return <ThirdPartyCard url={view.url} host={view.host} />;
+    case 'frame':
+      return <EmbedCard mediaId={mediaId} url={view.url} host={view.host} />;
     case 'manifest':
       return <ManifestCard url={view.url} host={view.host} viewerUrl={view.viewerUrl} />;
     case 'file':

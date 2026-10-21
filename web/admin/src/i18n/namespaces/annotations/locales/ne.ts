@@ -154,6 +154,13 @@ export const ne: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 cue क्याप्सन फाइलबाट।',
   'captions.handEdited':
     'यी मध्ये {count} वटा cues यहाँ हातले परिवर्तन गरिएका छन्। यस भाषाको अर्को आयातले तिनीहरूलाई प्रतिस्थापन गर्नेछ।',
+  'captions.undoReplace': 'प्रतिस्थापन पूर्ववत (Undo)',
+  'captions.undoLine': '{cues} {language} सङ्केतहरूलाई {when} बाट पुनः ल्याउनुहोस्।',
+  'captions.undoLineOne': '{when} बाट 1 {language} सङ्केत पुनः ल्याउनुहोस्।',
+  'captions.undoLineUndated': '{cues} {language} सङ्केतहरू पुनः ल्याउनुहोस्।',
+  'captions.undoLineUndatedOne': '1 {language} सङ्केत पुनः ल्याउनुहोस्।',
+  'captions.undone': '{language} क्याप्सनहरू: {cues} सङ्केतहरू पुनः ल्याइयो।',
+  'captions.undoneOne': '{language} क्याप्सनहरू: 1 सङ्केत पुनः ल्याइयो।',
   'captions.removeConfirm':
     '{cues} {language} cues हटाउने? आगन्तुकहरूले अब {language} क्याप्सनहरू देख्ने छैनन्। आफ्ना नोटहरू सुरक्षित रहन्छन्।',
   'captions.removeDo': '{language} क्याप्सनहरू हटाउने',
@@ -176,7 +183,7 @@ export const ne: AnnotationsMessages = {
   'captions.dialog.replaces': 'यसले {cues} {language} सङ्केतहरूलाई प्रतिस्थापन गर्छ।',
   'captions.dialog.replacesOne': 'यसले {language} को 1 वटा सङ्केतलाई प्रतिस्थापन गर्छ।',
   'captions.dialog.handEdited':
-    'ती परिवर्तनहरूमध्ये {count} यहाँ म्यानुअल रूपमा गरिएका थिए; ती परिवर्तनहरू हराउनेछन्।',
+    '{count} मध्ये यहाँ म्यानुअल रूपमा परिवर्तन गरिएका छन्। यो फाइलले तिनलाई प्रतिस्थापन गर्छ; «प्रतिस्थापन पूर्ववत (Undo)» ले तिनलाई एक पटक फेरि ल्याउँछ।',
   'captions.dialog.commitAdd': '{language} क्याप्सन थप्नुहोस्',
   'captions.dialog.commitReplace': '{cues} {language} सङ्केतहरू प्रतिस्थापन गर्नुहोस्',
   'captions.dialog.commitReplaceOne': '{language} को 1 वटा सङ्केत प्रतिस्थापन गर्नुहोस्',

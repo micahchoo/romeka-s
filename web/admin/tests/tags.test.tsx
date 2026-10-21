@@ -9,7 +9,7 @@ import { isRecord, isUnknownArray } from '../src/api/parse';
 import { ItemsPage } from '../src/pages/items/page';
 import { TermListsPage } from '../src/pages/term-lists/page';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
+import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, requestUrl } from './stub';
 import type { CapturedRequest } from './stub';
 
 const record = (value: unknown): Record<string, unknown> => {
@@ -218,6 +218,48 @@ describe('Tags panel', () => {
     const sent = posts(fetchMock, '/api/tags/promote');
     expect(sent).toHaveLength(2);
     expect(requestBody(sent.at(-1) ?? first(sent)).dry_run).toBe(false);
+  });
+
+  it('announces_one_status_while_the_panel_loads_and_after_a_promotion', async () => {
+    const routes = listPageRoutes(() =>
+      jsonResponse(census([['emigration', 14], ['wartime', 5]])),
+    );
+    const pending: Array<(response: Response) => void> = [];
+    const fetchMock = installFetch(routes);
+    fetchMock.mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.pathname === '/api/tags') {
+        return new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        });
+      }
+      return Promise.resolve(routes(url, init));
+    });
+
+    render(<TermListsPage />);
+    const panel = await screen.findByRole('complementary', { name: 'Tags' });
+    expect(within(panel).getAllByRole('status').map((node) => node.textContent)).toEqual([
+      'Loading form...',
+    ]);
+
+    pending[0]?.(jsonResponse(census([['emigration', 14], ['wartime', 5]])));
+    fireEvent.click(await within(panel).findByRole('checkbox', { name: /emigration/ }));
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /wartime/ }));
+    fireEvent.change(within(panel).getByLabelText('List name'), { target: { value: 'Topics' } });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Promote to list' }));
+    const preview = await within(panel).findByRole('region', { name: 'Promote to “Topics”' });
+    fireEvent.click(within(preview).getByRole('button', { name: 'Promote to list' }));
+
+    // The reload keeps the result in the panel's one live region.
+    await waitFor(() => {
+      expect(pending).toHaveLength(2);
+    });
+    expect(within(panel).getAllByRole('status')).toHaveLength(1);
+    expect(within(panel).getByRole('status').textContent).toBe(
+      'Promoted to “Topics”. Resources changed: 19.',
+    );
+    pending[1]?.(jsonResponse(census([['emigration', 14], ['wartime', 5]])));
+    await within(panel).findByRole('checkbox', { name: /emigration/ });
   });
 
   it('offers_to_merge_alike_tags_and_previews_the_count', async () => {

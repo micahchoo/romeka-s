@@ -154,6 +154,7 @@ describe('media page', () => {
     const photo = screen.getByRole('row', { name: /photo\.jpg/ });
     expect(within(photo).getAllByRole('cell')[1]).toHaveTextContent('Image');
     expect(screen.getByRole('option', { name: 'IIIF manifest' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Document' })).toBeInTheDocument();
     expect(screen.queryByText('local-image')).toBeNull();
 
     const select = screen.getByLabelText('Kind');
@@ -173,6 +174,13 @@ describe('media page', () => {
       expect(urlsFor(fetchMock, '/api/media').at(-1)?.searchParams.getAll('romeka_kind')).toEqual([
         'local-image',
         'iiif-image',
+      ]);
+    });
+
+    fireEvent.change(select, { target: { value: 'document' } });
+    await waitFor(() => {
+      expect(urlsFor(fetchMock, '/api/media').at(-1)?.searchParams.getAll('romeka_kind')).toEqual([
+        'document',
       ]);
     });
   });

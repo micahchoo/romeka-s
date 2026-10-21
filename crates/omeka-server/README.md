@@ -419,6 +419,28 @@ answer carries `Vary: Accept` and `Access-Control-Allow-Origin: *`, because the
 point of publishing is that other sites read it. The prefix is forwarded by
 `deploy/Caddyfile` and the e2e harness proxy.
 
+## The embed frame
+
+`GET /api/romeka/media/:id/render` is a Romeka addition (`src/media_render.rs`).
+It answers the server's own render of one oEmbed or HTML media as a complete
+HTML document, which the admin media stage puts in a sandboxed frame: the editor
+sees what the site shows, and the admin never decides for itself what provider
+markup is safe. Upstream's admin calls `$media->render()` inside its own page and
+has no route for it.
+
+| Method | Path | Response |
+| --- | --- | --- |
+| GET | `/api/romeka/media/:id/render` | 200 `text/html; charset=utf-8`; 404; 415 |
+
+Only an oEmbed or HTML media answers; any other kind is a 415 whose error
+document names the media's renderer. A media the caller cannot see, an id that
+names no media, and an id that is not a number are a 404, as on the media read.
+The document carries the media's title, one `<base href>` on the server root and
+the purified render. Every answer carries a CSP whose only sources are this
+origin and the `http` and `https` origins the fragment's own `img` and `iframe`
+sources name, `X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`,
+`Cache-Control: private, no-cache` and `Vary: Cookie`, and none sets a cookie.
+
 ## Live preview
 
 `POST /s/:site-slug/preview` is a Romeka addition with no upstream counterpart

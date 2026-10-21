@@ -10,17 +10,24 @@ mod common;
 
 use axum::http::{StatusCode, header};
 use common::{
-    get, header as header_value, request, router, seed_system, seeded_pool, send, site_pool,
+    append_key, get, header as header_value, multipart_asset_request, request, router,
+    router_with_any_store, router_with_store, seed_system, seeded_pool, send, site_pool,
 };
 use omeka_db::ids::{SiteId, UserId};
 use omeka_db::repos::{
-    ExtentRow, ItemRepo, MediaExtentRepo, MediaRepo, PropertyRepo, SiteBlockAttachmentRepo,
-    SiteRepo, SiteSettingRepo, ValueRepo,
+    AssetRepo, ExtentRow, ItemRepo, MediaExtentRepo, MediaRepo, PropertyRepo,
+    SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo, ValueRepo,
 };
 use omeka_db::rows::{
-    NewItem, NewMedia, NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment,
-    NewSitePage, NewValue,
+    NewAsset, NewItem, NewMedia, NewProperty, NewResource, NewSite, NewSiteBlock,
+    NewSiteBlockAttachment, NewSitePage, NewValue,
 };
+use omeka_media::store::{Access, FileStore, ListedFile, Store, StoreError};
+use std::io::Read;
+use std::ops::Range;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 /// The storage id `common::seed_system` gives the seeded asset.
 const ASSET_STORAGE_ID: &str = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
@@ -1260,6 +1267,203 @@ async fn asset_block_renders_the_stored_asset() {
     );
 }
 
+/// An asset block over a file that is not a picture: the slot links the file
+/// by its name, the kind in words and the size the store reports, and prints
+/// no `<img>`.
+#[tokio::test]
+async fn asset_block_links_a_non_image_asset() {
+    let (pool, seed) = site_pool().await;
+    let dir = tempfile::tempdir().unwrap();
+    let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
+    let app = router_with_store(pool.clone(), store);
+
+    let pdf = format!("%PDF-1.4\n{}", "x".repeat(4991));
+    assert_eq!(pdf.len(), 5000);
+    let created = send(
+        app.clone(),
+        multipart_asset_request(
+            &append_key("/api/assets"),
+            "report.pdf",
+            pdf.as_bytes(),
+            r#"{"o:name":"The annual report","o:alt_text":"The annual report"}"#,
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let document = created.json();
+    let id = document["o:id"].as_u64().unwrap();
+    let filename = document["o:filename"].as_str().unwrap().to_string();
+
+    add_block_page(
+        &pool,
+        &seed,
+        "report",
+        "asset",
+        serde_json::json!([{"id": id, "page": "", "alt_link_title": "", "caption": "Read it"}]),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(app, get("/s/museum/page/report", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer.body.contains(&format!(
+            "<div class=\"assets\"><div class=\"asset\"><a class=\"asset-file\" href=\"http://localhost/files/asset/{filename}\">The annual report<span class=\"asset-facts\">PDF, 5.0 kB</span></a><div class=\"caption\">Read it</div></div></div>"
+        )),
+        "{}",
+        answer.body
+    );
+}
+
+/// A store that counts how many times a render asks it for a file's size, so a
+/// test can prove a page costs the reads it should.
+#[derive(Debug)]
+struct CountingStore {
+    inner: FileStore,
+    sizes: AtomicUsize,
+}
+
+impl CountingStore {
+    fn new(inner: FileStore) -> Self {
+        Self {
+            inner,
+            sizes: AtomicUsize::new(0),
+        }
+    }
+
+    fn size_reads(&self) -> usize {
+        self.sizes.load(Ordering::SeqCst)
+    }
+}
+
+impl Store for CountingStore {
+    fn put(&self, bytes: &[u8], path: &str, media_type: Option<&str>) -> Result<(), StoreError> {
+        self.inner.put(bytes, path, media_type)
+    }
+
+    fn put_stream(
+        &self,
+        reader: &mut dyn Read,
+        size_hint: Option<u64>,
+        path: &str,
+        media_type: Option<&str>,
+    ) -> Result<u64, StoreError> {
+        self.inner.put_stream(reader, size_hint, path, media_type)
+    }
+
+    fn read(&self, path: &str) -> Result<Vec<u8>, StoreError> {
+        self.inner.read(path)
+    }
+
+    fn read_range(&self, path: &str, range: Range<u64>) -> Result<Vec<u8>, StoreError> {
+        self.inner.read_range(path, range)
+    }
+
+    fn delete(&self, path: &str) -> Result<bool, StoreError> {
+        self.inner.delete(path)
+    }
+
+    fn exists(&self, path: &str) -> Result<bool, StoreError> {
+        self.inner.exists(path)
+    }
+
+    fn size(&self, path: &str) -> Result<Option<u64>, StoreError> {
+        self.sizes.fetch_add(1, Ordering::SeqCst);
+        self.inner.size(path)
+    }
+
+    fn list(&self, prefix: &str) -> Result<Vec<ListedFile>, StoreError> {
+        self.inner.list(prefix)
+    }
+
+    fn url(&self, path: &str, access: Access) -> String {
+        self.inner.url(path, access)
+    }
+
+    fn url_ttl(&self) -> Duration {
+        self.inner.url_ttl()
+    }
+}
+
+/// A picture costs the store no read for its size. Only the asset block's file
+/// link prints one, so an image asset page never asks.
+#[tokio::test]
+async fn an_image_asset_page_reads_no_size() {
+    let (pool, seed) = site_pool().await;
+    let system = seed_system(&pool, &seed).await;
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(CountingStore::new(FileStore::new(
+        dir.path(),
+        omeka_server::FILES_URI,
+    )));
+    let app = router_with_any_store(pool.clone(), store.clone());
+    add_block_page(
+        &pool,
+        &seed,
+        "brand",
+        "asset",
+        serde_json::json!([
+            {"id": system.asset, "page": "", "alt_link_title": "", "caption": "Our mark"}
+        ]),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(app, get("/s/museum/page/brand", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer
+            .body
+            .contains(&format!("/files/asset/{ASSET_STORAGE_ID}.png")),
+        "{}",
+        answer.body
+    );
+    assert_eq!(store.size_reads(), 0, "an image read the store for a size");
+}
+
+/// The file link needs the size, and one page asks the store once.
+#[tokio::test]
+async fn a_file_asset_page_reads_its_size_once() {
+    let (pool, seed) = site_pool().await;
+    let pdf = AssetRepo::new(&pool)
+        .create(&NewAsset {
+            owner_id: None,
+            name: "The annual report".to_string(),
+            media_type: "application/pdf".to_string(),
+            storage_id: "def456".to_string(),
+            extension: Some("pdf".to_string()),
+            alt_text: None,
+        })
+        .await
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(CountingStore::new(FileStore::new(
+        dir.path(),
+        omeka_server::FILES_URI,
+    )));
+    let app = router_with_any_store(pool.clone(), store.clone());
+    add_block_page(
+        &pool,
+        &seed,
+        "report",
+        "asset",
+        serde_json::json!([{"id": pdf.id.0, "page": "", "alt_link_title": "", "caption": ""}]),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(app, get("/s/museum/page/report", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer
+            .body
+            .contains("<span class=\"asset-facts\">PDF</span>"),
+        "{}",
+        answer.body
+    );
+    assert_eq!(store.size_reads(), 1, "the file link asked once");
+}
+
 /// `AbstractLayout::getBlockInlineStyles`: a block whose `layout_data` names a
 /// background asset renders the asset URL as `background-image: url(...)`.
 #[tokio::test]
@@ -1324,6 +1528,59 @@ async fn list_of_sites_shows_the_site_thumbnail_asset() {
         answer.body.contains(&format!(
             "<div class=\"site-thumbnail\"><img src=\"http://localhost/files/asset/{ASSET_STORAGE_ID}.png\" alt=\"\" class=\"site-thumbnail-image\"></div>"
         )),
+        "{}",
+        answer.body
+    );
+}
+
+/// A site thumbnail is drawn as an image, so a site whose `thumbnail_id` names
+/// a file of another kind shows its empty slot rather than a broken `<img>`.
+#[tokio::test]
+async fn a_non_image_site_thumbnail_draws_nothing() {
+    let (pool, seed) = site_pool().await;
+    let pdf = AssetRepo::new(&pool)
+        .create(&NewAsset {
+            owner_id: None,
+            name: "The annual report".to_string(),
+            media_type: "application/pdf".to_string(),
+            storage_id: "def456".to_string(),
+            extension: Some("pdf".to_string()),
+            alt_text: None,
+        })
+        .await
+        .unwrap();
+    SiteRepo::new(&pool)
+        .create(&NewSite {
+            slug: "gallery".to_string(),
+            theme: "default".to_string(),
+            title: "Gallery".to_string(),
+            thumbnail_id: Some(pdf.id),
+            is_public: true,
+            ..NewSite::default()
+        })
+        .await
+        .unwrap();
+    add_block_page(
+        &pool,
+        &seed,
+        "sites",
+        "listOfSites",
+        serde_json::json!({"summaries": false, "thumbnails": true}),
+        serde_json::Value::Null,
+    )
+    .await;
+
+    let answer = send(router(pool), get("/s/museum/page/sites", false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        !answer.body.contains("site-thumbnail-image"),
+        "a PDF drew a thumbnail: {}",
+        answer.body
+    );
+    assert!(
+        answer
+            .body
+            .contains("<a href=\"/s/gallery\" class=\"site-link\">Gallery</a>"),
         "{}",
         answer.body
     );

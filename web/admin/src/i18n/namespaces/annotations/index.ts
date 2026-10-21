@@ -148,6 +148,13 @@ export const en = {
   'captions.rowUndated': '{cues} cues from a caption file.',
   'captions.rowUndatedOne': '1 cue from a caption file.',
   'captions.handEdited': '{count} of these cues were changed here by hand. The next import of this language replaces them.',
+  'captions.undoReplace': 'Undo replace',
+  'captions.undoLine': 'Bring back the {cues} {language} cues from {when}.',
+  'captions.undoLineOne': 'Bring back the 1 {language} cue from {when}.',
+  'captions.undoLineUndated': 'Bring back the {cues} {language} cues.',
+  'captions.undoLineUndatedOne': 'Bring back the 1 {language} cue.',
+  'captions.undone': '{language} captions: {cues} cues brought back.',
+  'captions.undoneOne': '{language} captions: 1 cue brought back.',
   'captions.removeConfirm':
     'Remove the {cues} {language} cues? Visitors will no longer see {language} captions. Your own notes stay.',
   'captions.removeDo': 'Remove {language} captions',
@@ -170,7 +177,7 @@ export const en = {
   'captions.dialog.replaces': 'It replaces the {cues} {language} cues.',
   'captions.dialog.replacesOne': 'It replaces the 1 {language} cue.',
   'captions.dialog.handEdited':
-    '{count} of those were changed here by hand; those changes will be lost.',
+    '{count} of those were changed here by hand. This file replaces them; Undo replace brings them back once.',
   'captions.dialog.commitAdd': 'Add {language} captions',
   'captions.dialog.commitReplace': 'Replace {cues} {language} cues',
   'captions.dialog.commitReplaceOne': 'Replace 1 {language} cue',

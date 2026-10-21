@@ -153,6 +153,13 @@ export const mr: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 cue कॅप्शन फाईलमधून.',
   'captions.handEdited':
     '{count} या cues मध्ये येथे हाताने बदल करण्यात आले. या भाषेचे पुढील आयात त्यांना बदलून टाकेल.',
+  'captions.undoReplace': 'बदल पूर्ववत करा',
+  'captions.undoLine': '{when} मधून {cues} {language} चे संकेत पुन्हा आणा.',
+  'captions.undoLineOne': '{when} मधून 1 {language} संकेत पुन्हा आणा.',
+  'captions.undoLineUndated': '{cues} {language} संकेत पुन्हा आणा.',
+  'captions.undoLineUndatedOne': '1 {language} संकेत पुन्हा आणा.',
+  'captions.undone': '{language} कॅप्शन्स: {cues} संकेत पुन्हा आणले.',
+  'captions.undoneOne': '{language} कॅप्शन्स: 1 संकेत पुन्हा आणला.',
   'captions.removeConfirm':
     '{cues} {language} cues काढून टाका? अभ्यागत आता {language} कॅप्शन्स पाहणार नाहीत. स्वतःच्या नोंदी राहतील.',
   'captions.removeDo': '{language} कॅप्शन्स काढून टाका',
@@ -174,7 +181,8 @@ export const mr: AnnotationsMessages = {
   'captions.dialog.summaryOne': 'या फाईलमध्ये 1 क्यू आहे, {start} ते {end}.',
   'captions.dialog.replaces': 'हे {cues} {language} क्लूज बदलून टाकते.',
   'captions.dialog.replacesOne': 'हे {language} संकेत बदलून टाकते.',
-  'captions.dialog.handEdited': '{count} यातील बदल येथे हाताने केले गेले; ते बदल नष्ट होतील.',
+  'captions.dialog.handEdited':
+    'त्यापैकी {count} बदल येथे हाताने केले गेले. हे फाईल त्यांना बदलून टाकते; «बदल पूर्ववत करा» त्यांना एकदा परत आणते.',
   'captions.dialog.commitAdd': '{language} कॅप्शन्स जोडा',
   'captions.dialog.commitReplace': '{cues} {language} क्लूज बदला',
   'captions.dialog.commitReplaceOne': '1 {language} संकेत बदला',

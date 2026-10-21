@@ -51,17 +51,18 @@ use omeka_site::nav::PageRef;
 use omeka_site::resource_page::link_pretty;
 use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
+use omeka_site::share::{ShareLink, ShareTarget, ShareView};
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::transcript::{Cue, Language, Transcript};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaIcon, MediaKindCue, MediaPosition, MediaRef,
-    PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView,
-    Thumbnail, ValueRef,
+    AssetKind, BrowseQuery, BrowseView, DownloadLink, LinkedResource, MediaIcon, MediaKindCue,
+    MediaPosition, MediaRef, PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery,
+    SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 
 use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
-use omeka_media::kind::{CanvasBody, KindInput, MediaKind};
+use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::render::{
     MediaStart, MediaView, ModelReader, RenderEnv, RenderOptions, RendererRegistry,
     View as MediaRendererView, human_size,
@@ -256,7 +257,7 @@ impl Access<'_> {
 impl<'a> Loader<'a> {
     /// The catalogue of the site's locale, for the placeholders a loaded view
     /// carries.
-    fn messages(&self) -> &'static Messages {
+    pub(crate) fn messages(&self) -> &'static Messages {
         self.settings.locale().translator().messages()
     }
 
@@ -312,6 +313,11 @@ impl<'a> Loader<'a> {
     /// The stored files' URLs.
     pub(crate) fn files(&self) -> &'a FileUrls {
         self.files
+    }
+
+    /// The WAP container a media's notes are read from.
+    pub(crate) fn notes_container(&self, id: db::MediaId) -> String {
+        Iris::new(self.base.as_str()).container(id)
     }
 
     /// Whether an item is public, for the file URLs of a media shown without
@@ -589,6 +595,14 @@ impl<'a> Loader<'a> {
             );
         }
         self.add_item_lists(row, &mut view).await?;
+        let share = self.share_view(
+            ShareTarget::Item,
+            &view.title,
+            &view.url,
+            view.thumbnail.as_ref(),
+            view.iiif_manifest.clone(),
+        );
+        view.share = Some(share);
         Ok(view)
     }
 
@@ -619,6 +633,7 @@ impl<'a> Loader<'a> {
             renderer: &row.renderer,
             ingester: &row.ingester,
             media_type: row.media_type.as_deref(),
+            extension: row.extension.as_deref(),
             has_thumbnails: row.has_thumbnails,
         });
         let tracks = self.caption_tracks(row, kind).await?;
@@ -792,7 +807,68 @@ impl<'a> Loader<'a> {
             )
             .await?,
         );
+        // The media manifest exists only for a kind that paints a canvas. The
+        // page head links it and the "Use elsewhere" block opens it, so a
+        // model or a document links neither.
+        view.iiif_manifest = kind
+            .canvas_body()
+            .map(|_| Iris::new(self.base.as_str()).media_manifest(row.id()));
+        let mut share = self.share_view(
+            ShareTarget::Media,
+            &view.title,
+            &view.url,
+            view.thumbnail.as_ref(),
+            view.iiif_manifest.clone(),
+        );
+        share.captions = self.share_captions(row, kind).await?;
+        view.share = Some(share);
+        view.download = download_link(row, &view.url);
         Ok(view)
+    }
+
+    /// The one-line share block an item or a media page carries. The viewer
+    /// URL is built here because the loader holds the site's viewer settings.
+    fn share_view(
+        &self,
+        target: ShareTarget,
+        title: &str,
+        url: &str,
+        image: Option<&Thumbnail>,
+        manifest: Option<String>,
+    ) -> ShareView {
+        let viewer = manifest.as_ref().map(|manifest| {
+            omeka_site::iiif_viewer::viewer_src(
+                &format!("{}/iiif-viewer", self.base.as_str()),
+                manifest,
+                self.settings,
+            )
+        });
+        ShareView::page(
+            target,
+            title,
+            format!("{}{url}", self.base.as_str()),
+            image.map(|image| image.url.clone()),
+            manifest,
+            viewer,
+        )
+    }
+
+    /// A recording's captions files, one link per language with cues.
+    async fn share_captions(
+        &self,
+        row: &MediaRow,
+        kind: MediaKind,
+    ) -> Result<Vec<ShareLink>, DbError> {
+        if !is_recording(kind) {
+            return Ok(Vec::new());
+        }
+        let tracks = self.caption_tracks(row, kind).await?;
+        Ok(tracks
+            .iter()
+            .map(|track| {
+                omeka_site::share::captions_link(self.messages(), &track.label, track.src.clone())
+            })
+            .collect())
     }
 
     /// The caption languages of a recording, as the `<track>` elements the
@@ -1349,10 +1425,13 @@ impl<'a> Loader<'a> {
 
     /// The thumbnail a resource or site shows when its `thumbnail_id` names an
     /// asset: the asset's own file URL and alt text
-    /// (`AbstractRepresentation::thumbnailDisplayUrl`).
+    /// (`AbstractRepresentation::thumbnailDisplayUrl`). A thumbnail is drawn as
+    /// an image, so an asset of another kind answers none: the card falls back
+    /// to its empty slot rather than a broken `<img>`.
     async fn asset_thumbnail(&self, id: db::AssetId) -> Result<Option<Thumbnail>, DbError> {
         Ok(with_db!(self.pool, |db| AssetRepo::new(db).get(id).await)?
             .as_ref()
+            .filter(|row| AssetKind::of_media_type(&row.media_type).is_image())
             .map(|row| thumbnail_for_asset(self.files, row)))
     }
 
@@ -1648,7 +1727,9 @@ impl<'a> Loader<'a> {
         };
         for entry in &visible {
             let kind = media_kind(entry);
-            if view.iiif_manifest.is_none() && kind.canvas_body() == Some(CanvasBody::Image) {
+            // A kind that paints a canvas gives the item a manifest to share;
+            // a PDF without a first page, a model or an embed gives none.
+            if view.iiif_manifest.is_none() && kind.canvas_body().is_some() {
                 view.iiif_manifest = Some(format!(
                     "{}/iiif/3/item/{}/manifest",
                     self.base.as_str(),
@@ -2014,6 +2095,19 @@ pub(crate) fn display_title(row: &ResourceRow, messages: &Messages) -> String {
         .unwrap_or_else(|| messages.untitled.to_string())
 }
 
+/// A media's original as the media page offers it: the site's download route
+/// and the stored byte count. `None` when the media stores no original, as an
+/// embed or a remote IIIF image does not.
+fn download_link(row: &MediaRow, media_url: &str) -> Option<DownloadLink> {
+    if !row.has_original || row.storage_id.is_none() {
+        return None;
+    }
+    Some(DownloadLink {
+        url: format!("{media_url}/download"),
+        size: row.size.and_then(|size| u64::try_from(size).ok()),
+    })
+}
+
 /// The port's kind for a media row, from the same table the API's `o:kind` and
 /// the IIIF canvas read.
 fn media_kind(row: &MediaRow) -> MediaKind {
@@ -2021,6 +2115,7 @@ fn media_kind(row: &MediaRow) -> MediaKind {
         renderer: &row.renderer,
         ingester: &row.ingester,
         media_type: row.media_type.as_deref(),
+        extension: row.extension.as_deref(),
         has_thumbnails: row.has_thumbnails,
     })
 }
@@ -2034,6 +2129,7 @@ fn media_kind_cue(kind: MediaKind, messages: &Messages) -> MediaKindCue {
         MediaKind::Audio => (messages.kind_audio, MediaIcon::Audio),
         MediaKind::Video => (messages.kind_video, MediaIcon::Video),
         MediaKind::Pdf { .. } => (messages.kind_pdf, MediaIcon::Pdf),
+        MediaKind::Document => (messages.kind_document, MediaIcon::File),
         MediaKind::Model3d => (messages.kind_model_3d, MediaIcon::Model),
         MediaKind::Captions => (messages.kind_captions, MediaIcon::Captions),
         MediaKind::Embed | MediaKind::IiifPresentation => (messages.kind_embed, MediaIcon::Embed),
@@ -2209,7 +2305,7 @@ pub(crate) fn media_display_title(row: &MediaRow, messages: &Messages) -> String
 /// media subsystem does not use (owner, class, template, thumbnail, language)
 /// are left at their defaults. `alt_text` is the resolved alt text, which the
 /// caller reads through [`omeka_api::settings::media_alt_text`].
-fn media_core(row: &MediaRow, alt_text: Option<String>) -> Media {
+pub(crate) fn media_core(row: &MediaRow, alt_text: Option<String>) -> Media {
     let mut media = Media::new(
         MediaId::new(row.id().0),
         ItemId::new(row.item_id.0),
@@ -2415,11 +2511,16 @@ pub(crate) fn thumbnail_for_asset(files: &FileUrls, row: &AssetRow) -> Thumbnail
 
 /// `AssetRepresentation::assetUrl`: the stored file under `asset/<filename>`.
 fn asset_url(files: &FileUrls, row: &AssetRow) -> String {
-    let filename = match row.extension.as_deref() {
-        Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
-        _ => row.storage_id.clone(),
-    };
-    files.url(&format!("asset/{filename}"), FileKind::Asset)
+    files.url(&asset_storage_path(row), FileKind::Asset)
+}
+
+/// The storage path of an asset's file: `asset/<storage id>.<extension>`,
+/// where the extension is the row's when it has one.
+pub(crate) fn asset_storage_path(row: &AssetRow) -> String {
+    match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => format!("asset/{}.{extension}", row.storage_id),
+        _ => format!("asset/{}", row.storage_id),
+    }
 }
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {

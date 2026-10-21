@@ -229,6 +229,16 @@ fn layout(
     } else {
         ""
     };
+    // The item and media pages name the manifest a tool finds when it is given
+    // the page URL, and the two members a link preview reads.
+    let share = match view {
+        View::Item(resource) | View::Media(resource) => resource
+            .share
+            .as_ref()
+            .map(crate::share::head)
+            .unwrap_or_default(),
+        _ => String::new(),
+    };
     let user_bar = user_bar::render(view, ctx, tr);
     format!(
         "<!DOCTYPE html>\n<html lang=\"{lang}\" class=\"{root_classes}\">\n<head>\n\
@@ -237,6 +247,7 @@ fn layout(
          <title>{title}</title>\n\
          {robots}\
          {favicon}\
+         {share}\
          {font_preloads}\
          <style>\n{font_faces}{tokens}</style>\n\
          {theme_assets}\
@@ -286,6 +297,7 @@ fn layout(
         user_bar = user_bar,
         robots = robots,
         favicon = favicon,
+        share = share,
         search_form = search::search_form(ctx, tr.search_labels()),
     )
 }
@@ -350,13 +362,14 @@ fn render_nav_items(items: &[NavItem], ctx: &RenderContext<'_>, depth: usize, ou
 }
 
 /// The logo the header links home, when the site's token names an asset the
-/// caller can resolve. A missing or unreadable asset renders no logo rather
-/// than a broken image.
+/// caller can resolve. A logo takes an image, so an asset of another kind
+/// renders no logo, as does a missing or unreadable one: never a broken image.
 fn logo_markup(ctx: &RenderContext<'_>) -> String {
     let Some(url) = ctx
         .theme_settings
         .logo
         .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .filter(|asset| asset.is_image())
         .and_then(|asset| asset.url)
     else {
         return String::new();
@@ -369,12 +382,14 @@ fn logo_markup(ctx: &RenderContext<'_>) -> String {
     )
 }
 
-/// The site-wide banner: the stored image, the stored text, or both.
+/// The site-wide banner: the stored image, the stored text, or both. A banner
+/// takes an image, so an asset of another kind shows the text alone.
 fn banner_markup(ctx: &RenderContext<'_>) -> String {
     let image = ctx
         .theme_settings
         .banner
         .and_then(|id| ctx.resources.read_asset(omeka_core::ids::AssetId::new(id)))
+        .filter(|asset| asset.is_image())
         .and_then(|asset| asset.url);
     let text = ctx.theme_settings.banner_text.as_deref();
     if image.is_none() && text.is_none() {
@@ -623,41 +638,16 @@ fn browse_view(browse: &BrowseView, ctx: &RenderContext<'_>, tr: Translator) -> 
 /// `view/omeka/site/item/show.phtml`: the heading, the `Item` label and the
 /// configured resource page blocks. The heading is the port's resource header
 /// ([`cards::resource_header`]): the kind and type over the display name. A
-/// breadcrumb leads back to the item browse, and the IIIF links follow the
-/// header.
+/// breadcrumb leads back to the item browse. The "Use elsewhere" block is
+/// placed with the resource blocks, after the file it describes.
 fn item_view(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let browse = format!("/s/{}/item", ctx.site.slug);
     format!(
-        "<nav class=\"breadcrumbs\">{} / <span>{}</span></nav>{}{}{}",
+        "<nav class=\"breadcrumbs\">{} / <span>{}</span></nav>{}{}",
         hyperlink(ctx.translator().messages().items, Some(&browse), &[]),
         escape_html(&cards::display_name(item, ctx).0),
         cards::resource_header(item, ctx),
-        iiif_links(item, ctx),
         render_blocks(item, ctx)
-    )
-}
-
-/// The IIIF logo, after `iiif.io`'s mark: three bars and a red last stroke.
-/// Decorative, because the link text names the manifest.
-const IIIF_LOGO: &str = "<svg class=\"iiif-logo\" viewBox=\"0 0 24 21\" width=\"18\" height=\"16\" \
-     aria-hidden=\"true\" focusable=\"false\"><path fill=\"#2873AB\" d=\"M0 4h3v17H0zM5 4h3v17H5zM10 4h3v17h-3z\"/>\
-     <path fill=\"#ED1D33\" d=\"M15 4h9v3h-6v4h5v3h-5v7h-3z\"/>\
-     <path fill=\"#2873AB\" d=\"M0 0h3v3H0zM5 0h3v3H5zM10 0h3v3h-3z\"/></svg>";
-
-/// A Romeka addition to the item page: a link that opens the item in the IIIF
-/// viewer, under the site's viewer settings, and a link to its manifest.
-fn iiif_links(item: &ResourceView, ctx: &RenderContext<'_>) -> String {
-    let Some(manifest) = &item.iiif_manifest else {
-        return String::new();
-    };
-    let messages = ctx.translator().messages();
-    let viewer = crate::iiif_viewer::viewer_src(&ctx.iiif_viewer_url, manifest, &ctx.settings);
-    format!(
-        "<p class=\"iiif-links\"><a href=\"{}\">{}</a> <a class=\"iiif-manifest\" href=\"{}\">{IIIF_LOGO}{}</a></p>",
-        escape_html(&viewer),
-        escape_html(messages.iiif_view_in_viewer),
-        escape_html(manifest),
-        escape_html(messages.iiif_manifest)
     )
 }
 

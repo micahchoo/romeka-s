@@ -151,6 +151,13 @@ export const te: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 cue క్యాప్షన్ ఫైల్ నుండి.',
   'captions.handEdited':
     'ఈ భాషలో ఈ {count} cues చేతితో ఇక్కడ మార్చబడ్డాయి. తదుపరి దిగుమతి వీటిని భర్తీ చేస్తుంది.',
+  'captions.undoReplace': 'భర్తీని వెనక్కి తీసుకో',
+  'captions.undoLine': '{when} నుండి {cues} {language} సంకేతాలను తిరిగి తీసుకురండి.',
+  'captions.undoLineOne': '{when} నుండి 1 {language} సంకేతాన్ని తిరిగి తీసుకురండి.',
+  'captions.undoLineUndated': '{cues} {language} సంకేతాలను తిరిగి తీసుకురండి.',
+  'captions.undoLineUndatedOne': '1 {language} సంకేతాన్ని తిరిగి తీసుకురండి.',
+  'captions.undone': '{language} శీర్షికలు: {cues} సంకేతాలు తిరిగి వచ్చాయి.',
+  'captions.undoneOne': '{language} శీర్షికలు: 1 సంకేతం తిరిగి వచ్చింది.',
   'captions.removeConfirm':
     '{cues} {language} cues తొలగించాలా? సందర్శకులు ఇకపై {language} క్యాప్షన్‌లను చూడలేరు. మీ స్వంత గమనికలు ఉంటాయి.',
   'captions.removeDo': '{language} క్యాప్షన్‌లను తొలగించండి',
@@ -172,7 +179,8 @@ export const te: AnnotationsMessages = {
   'captions.dialog.summaryOne': 'ఈ ఫైల్‌లో 1 క్యూ ఉంది, {start} నుండి {end} వరకు.',
   'captions.dialog.replaces': 'ఇది {cues} {language} క్యూలను భర్తీ చేస్తుంది.',
   'captions.dialog.replacesOne': 'ఇది {language} క్యూను భర్తీ చేస్తుంది.',
-  'captions.dialog.handEdited': '{count} ఇక్కడ చేతితో మార్చబడ్డాయి; ఆ మార్పులు పోతాయి.',
+  'captions.dialog.handEdited':
+    '{count} ఇక్కడ చేతితో మార్చబడ్డాయి. ఈ ఫైల్ వాటిని భర్తీ చేస్తుంది; «భర్తీని వెనక్కి తీసుకో» వాటిని తిరిగి తెస్తుంది.',
   'captions.dialog.commitAdd': '{language} క్యాప్షన్లను జోడించండి',
   'captions.dialog.commitReplace': '{cues} {language} క్యూలను మార్చండి',
   'captions.dialog.commitReplaceOne': '1 {language} క్యూని భర్తీ చేయండి',
