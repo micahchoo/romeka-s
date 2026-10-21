@@ -31,11 +31,18 @@
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
 //! - [`kind`]: the per-kind table: what an annotation may point at, what the
 //!   IIIF canvas paints, and the size and duration a canvas needs.
+//! - [`access`]: the access-copy table: whether a current browser shows a stored
+//!   original as it is, and when it does not, which copy and which optional
+//!   tool make it. D3 and D4 run those copies; this module never changes the
+//!   original.
 //! - [`av_probe`]: `ffprobe`'s answer for an audio or video original, which is
-//!   the duration and frame size a time-based canvas needs.
-//! - [`tool`]: the external commands a still derivative needs (`ffmpeg` for a
-//!   video poster and an AVIF or HEIC frame, `pdftoppm` for a PDF's first
-//!   page) and the probe, optional at runtime and bounded in time and output.
+//!   the duration and frame size a time-based canvas needs, and the container
+//!   and codecs an access rule reads.
+//! - [`tool`]: the external commands a still or an access copy needs (`ffmpeg`,
+//!   `pdftoppm`, `ffprobe`, `exiftool`, libraw, `vips`, `gs`), optional at
+//!   runtime and bounded in time and output.
+//! - [`sample`]: the first and last megabyte of a stored original at their true
+//!   offsets, so a header read never copies a large file whole.
 //!
 //! # The one network seam
 //!
@@ -55,6 +62,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod access;
 pub mod av_probe;
 pub mod data;
 pub mod derivative;
@@ -69,6 +77,7 @@ pub mod kind;
 pub mod media_type;
 pub mod oembed;
 pub mod render;
+pub mod sample;
 pub mod store;
 pub mod svg;
 pub mod testing;

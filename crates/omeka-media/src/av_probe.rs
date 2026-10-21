@@ -15,6 +15,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::kind::Extent;
+use crate::sample;
 use crate::store::Store;
 use crate::tool::Tools;
 
@@ -25,6 +26,21 @@ const CHUNK: u64 = 8 * 1024 * 1024;
 /// The largest original this copies out, the same 2 GiB the HTTP client will
 /// fetch. A bigger file is not probed; its canvas is left out.
 const MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// The container and the first codec of each stream type: what an access rule
+/// reads of an audio or video original. Every member is `None` when the probe
+/// could not answer, which the access table treats as a file whose streams it
+/// does not know.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Streams {
+    /// `ffprobe`'s first `format_name`: `mov` for an MP4 or a QuickTime file,
+    /// `matroska` for a WebM or an MKV, `ogg`, `avi`, `asf`, `mpeg`, `flv`.
+    pub format: Option<String>,
+    /// The first video stream's `codec_name`, such as `h264` or `hevc`.
+    pub video: Option<String>,
+    /// The first audio stream's `codec_name`, such as `aac` or `wmav2`.
+    pub audio: Option<String>,
+}
 
 /// The extent of the file at `path`, probed with the tools this process found
 /// on `PATH`. `None` when `ffprobe` is missing, fails, or reports no positive
@@ -64,6 +80,70 @@ pub fn probe_stored(
         .ok()?;
     copy(store, storage_path, file.as_file_mut()).ok()?;
     probe_with(tools, file.path())
+}
+
+/// The container and stream codecs of the stored original at `storage_path`,
+/// read from a bounded sample of its ends: see [`crate::sample`]. A file an
+/// object store holds is never copied whole to answer this, because a video's
+/// metadata sits at one end and a create pays this cost.
+///
+/// Every member is `None` when the file cannot be read, is larger than
+/// [`MAX_BYTES`], or the probe fails, so a caller's rule decides what an
+/// unknown codec means.
+#[must_use]
+pub fn probe_streams(
+    store: &dyn Store,
+    tools: &Tools,
+    storage_path: &str,
+    extension: Option<&str>,
+    size: Option<u64>,
+) -> Streams {
+    if size.is_some_and(|size| size > MAX_BYTES) {
+        return Streams::default();
+    }
+    let Ok(file) = sample::stored(store, storage_path, size, extension) else {
+        return Streams::default();
+    };
+    match tools.probe_codecs_json(file.path()) {
+        Ok(answer) => parse_streams(&answer),
+        Err(_) => Streams::default(),
+    }
+}
+
+/// The streams in one `ffprobe` answer. The first codec of each stream type is
+/// the one a browser's player is given.
+fn parse_streams(answer: &str) -> Streams {
+    let Ok(answer) = serde_json::from_str::<Value>(answer) else {
+        return Streams::default();
+    };
+    let format = answer
+        .get("format")
+        .and_then(|format| format.get("format_name"))
+        .and_then(Value::as_str)
+        .and_then(|names| names.split(',').next())
+        .filter(|name| !name.is_empty())
+        .map(str::to_string);
+    let mut streams = Streams {
+        format,
+        video: None,
+        audio: None,
+    };
+    for stream in answer
+        .get("streams")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(codec) = stream.get("codec_name").and_then(Value::as_str) else {
+            continue;
+        };
+        match stream.get("codec_type").and_then(Value::as_str) {
+            Some("video") if streams.video.is_none() => streams.video = Some(codec.to_string()),
+            Some("audio") if streams.audio.is_none() => streams.audio = Some(codec.to_string()),
+            _ => {}
+        }
+    }
+    streams
 }
 
 /// Copy a stored original into `out` in [`CHUNK`] pieces, so a large video is
@@ -265,5 +345,79 @@ mod tests {
         assert_eq!(parse(r#"{"streams":[],"format":{"duration":"0.0"}}"#), None);
         assert_eq!(parse(r#"{"streams":[],"format":{"duration":"N/A"}}"#), None);
         assert_eq!(parse("not json"), None);
+    }
+
+    /// The first name of the container list and the first codec of each stream
+    /// type are what an access rule reads.
+    #[test]
+    fn the_streams_name_the_container_and_the_first_codecs() {
+        let answer = r#"{"streams":[
+            {"codec_type":"video","codec_name":"hevc"},
+            {"codec_type":"video","codec_name":"mjpeg"},
+            {"codec_type":"audio","codec_name":"aac"},
+            {"codec_type":"audio","codec_name":"wmav2"},
+            {"codec_type":"data"}
+        ],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}"#;
+        assert_eq!(
+            parse_streams(answer),
+            Streams {
+                format: Some("mov".to_string()),
+                video: Some("hevc".to_string()),
+                audio: Some("aac".to_string()),
+            }
+        );
+        assert_eq!(parse_streams("not json"), Streams::default());
+        assert_eq!(
+            parse_streams(r#"{"streams":[],"format":{}}"#),
+            Streams::default()
+        );
+    }
+
+    /// A stored corpus video is probed through a sample of its ends and names
+    /// its container and both codecs, without a local path from the store.
+    #[test]
+    fn a_stored_video_names_its_container_and_codecs() {
+        if Tools::on_path().ffprobe().is_none() {
+            eprintln!("skipping: no ffprobe on PATH");
+            return;
+        }
+        let dir = dir();
+        let store = crate::store::FileStore::new(dir.path(), "/files");
+        let bytes = std::fs::read(corpus("video.mov")).expect("the fixture");
+        store
+            .put(&bytes, "original/mov.mov", Some("video/quicktime"))
+            .expect("store");
+        assert_eq!(
+            probe_streams(
+                &store,
+                Tools::on_path(),
+                "original/mov.mov",
+                Some("mov"),
+                Some(bytes.len() as u64),
+            ),
+            Streams {
+                format: Some("mov".to_string()),
+                video: Some("h264".to_string()),
+                audio: Some("aac".to_string()),
+            }
+        );
+    }
+
+    /// A file the store does not hold answers no streams, which leaves the
+    /// decision to the media type.
+    #[test]
+    fn a_missing_original_has_no_streams() {
+        let dir = dir();
+        let store = crate::store::FileStore::new(dir.path(), "/files");
+        assert_eq!(
+            probe_streams(
+                &store,
+                Tools::on_path(),
+                "original/gone.mov",
+                Some("mov"),
+                None
+            ),
+            Streams::default()
+        );
     }
 }
