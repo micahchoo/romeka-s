@@ -14,6 +14,7 @@ pub mod adapters;
 pub mod annotation;
 pub mod auth;
 pub mod auth_cache;
+pub mod derivatives;
 pub mod errors;
 pub mod import;
 pub mod jsonld;

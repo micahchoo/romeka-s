@@ -6,7 +6,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { brandId } from '../src/api/parse';
-import type { Media, ServerMediaKind } from '../src/api/types';
+import type { Media, MediaPreview, ServerMediaKind } from '../src/api/types';
 import { MediaStage } from '../src/pages/media/stage/stage';
 import { recallPosition, rememberPosition } from '../src/pages/media/stage/play-position';
 import { installFetch } from './stub';
@@ -25,6 +25,7 @@ interface MediaFields {
   readonly originalUrl?: string | null;
   readonly altText?: string | null;
   readonly thumbnails?: Readonly<Record<string, string>>;
+  readonly preview?: MediaPreview | null;
 }
 
 const media = (fields: MediaFields = {}): Media => ({
@@ -53,6 +54,7 @@ const media = (fields: MediaFields = {}): Media => ({
   lang: null,
   altText: fields.altText === undefined ? null : fields.altText,
   originalUrl: fields.originalUrl === undefined ? ORIGINAL : fields.originalUrl,
+  preview: fields.preview ?? null,
   thumbnailUrls: fields.thumbnails ?? {},
 });
 

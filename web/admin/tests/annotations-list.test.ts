@@ -47,6 +47,7 @@ const media: Media = {
   lang: 'en',
   altText: null,
   originalUrl: `${BASE}/files/original/7.pdf`,
+  preview: null,
   thumbnailUrls: {},
 };
 

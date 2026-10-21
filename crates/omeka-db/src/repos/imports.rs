@@ -115,6 +115,18 @@ where
         rows.iter().map(|row| DB::id(row, "id")).collect()
     }
 
+    /// The import a run or an undo is working, if any. The derivative worker reads this to keep
+    /// off the machine while an import holds it.
+    pub async fn busy_id(&self) -> Result<Option<ImportId>, DbError> {
+        let row = sqlx::query(
+            "SELECT id FROM romeka_import WHERE status IN ('running', 'undoing')
+             ORDER BY id LIMIT 1",
+        )
+        .fetch_optional(self.pool)
+        .await?;
+        row.as_ref().map(|row| DB::id(row, "id")).transpose()
+    }
+
     /// Replace a draft's plan, if `revision` is the one stored. One statement, so two saves of
     /// the same revision cannot both land.
     pub async fn save_plan(

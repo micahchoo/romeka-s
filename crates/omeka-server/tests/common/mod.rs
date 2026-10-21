@@ -25,7 +25,7 @@ use omeka_db::rows::{
     NewValue, NewVocabulary,
 };
 use omeka_db::{DbPool, migrate, open_memory, with_db};
-use omeka_media::store::FileStore;
+use omeka_media::store::{FileStore, Store};
 use omeka_server::build_router;
 use sqlx::SqlitePool;
 use tower::ServiceExt;
@@ -98,6 +98,20 @@ pub async fn seeded_engine_pool() -> (DbPool, Seed) {
 
 pub fn router(pool: impl Into<DbPool>) -> Router {
     build_router(pool, BaseUrl::parse("http://localhost").unwrap())
+}
+
+/// Make the derivatives a create deferred, as `Romeka\Job\MediaDerivatives`
+/// would.
+///
+/// A media created outside an import answers `pending`: the request stores the
+/// original and queues the work. A test that reads a derivative right after the
+/// create settles the queue first, which is the one thing a worker would have
+/// done in between.
+pub async fn settle_derivatives(pool: impl Into<DbPool>, store: std::sync::Arc<dyn Store>) {
+    let pool = pool.into();
+    omeka_api::derivatives::drain(&pool, &store)
+        .await
+        .expect("drain the derivative queue");
 }
 
 /// Build a router whose media deletes reach `store`.

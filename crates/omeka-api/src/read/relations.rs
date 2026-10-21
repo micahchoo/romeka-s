@@ -20,8 +20,8 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use omeka_db::DbPool;
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId};
-use omeka_db::repos::RelationRepo;
-use omeka_db::rows::{AssetRow, MediaRow, ResourceRow, ValueRow, resource_type};
+use omeka_db::repos::{MediaDerivativeRepo, RelationRepo};
+use omeka_db::rows::{AssetRow, DerivativeRow, MediaRow, ResourceRow, ValueRow, resource_type};
 use omeka_db::with_db;
 
 use super::values::MAX_ANNOTATION_DEPTH;
@@ -60,6 +60,9 @@ pub(crate) struct Relations {
     /// Whether each item that owns a media the page shows outside its own
     /// item is public, for the media's file URLs.
     owners: HashMap<u64, bool>,
+    /// What each page media's derivatives are doing, for
+    /// `o-module-romeka:preview`, keyed by media id.
+    derivatives: HashMap<u64, Vec<DerivativeRow>>,
 }
 
 impl Relations {
@@ -182,6 +185,41 @@ impl Relations {
         self.assets = thumbnail_assets_for(api.pool(), ids).await?;
         self.template_properties = template_properties_for(api.pool(), templates).await?;
         Ok(())
+    }
+
+    /// Load the derivative rows a page of media documents reports.
+    ///
+    /// One query over the page's ids. A page of items, item sets or annotations
+    /// never loads them, because their documents carry media references and not
+    /// media documents.
+    pub(crate) async fn load_derivatives<I>(
+        &mut self,
+        api: &Api<'_>,
+        media: I,
+    ) -> Result<(), ApiError>
+    where
+        I: IntoIterator<Item = MediaId>,
+    {
+        let ids: Vec<MediaId> = media.into_iter().collect();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let rows = with_db!(api.pool(), |db| MediaDerivativeRepo::new(db)
+            .for_media_ids(&ids)
+            .await)
+        .map_err(db_error)?;
+        for row in rows {
+            self.derivatives
+                .entry(row.media_id.0)
+                .or_default()
+                .push(row);
+        }
+        Ok(())
+    }
+
+    /// The derivative rows of one media, in kind order.
+    pub(crate) fn derivatives(&self, media: MediaId) -> &[DerivativeRow] {
+        self.derivatives.get(&media.0).map_or(&[], Vec::as_slice)
     }
 
     /// The values on a resource, in upstream's id order.

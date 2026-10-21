@@ -79,17 +79,27 @@ def paren_end(text: str, open_index: int) -> int:
 
 
 def doc_above(text: str, index: int) -> str:
-    """The `///` lines directly above `index`, joined by spaces."""
+    """The `///` lines directly above `index`, joined by spaces.
+
+    An attribute may span several lines (`#[serde(` then one parameter per line),
+    and its continuation lines do not start with `#[`. The scan tracks the
+    attribute's brackets so a doc comment above a multi-line attribute is still
+    read.
+    """
     lines = text[:index].splitlines()
     collected: list[str] = []
+    attribute_depth = 0
     for line in reversed(lines):
         stripped = line.strip()
+        if attribute_depth > 0:
+            attribute_depth += stripped.count("[") - stripped.count("]")
+            attribute_depth = max(attribute_depth, 0)
+            continue
         if stripped.startswith("///"):
             collected.append(stripped[3:].strip())
         elif stripped.startswith("#["):
-            continue
-        elif stripped == "":
-            break
+            attribute_depth = stripped.count("[") - stripped.count("]")
+            attribute_depth = max(attribute_depth, 0)
         else:
             break
     return " ".join(reversed(collected))

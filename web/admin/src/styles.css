@@ -449,6 +449,23 @@ dd {
   white-space: nowrap;
 }
 
+/* A preview the worker is still making, or could not make. It is one quiet
+ * line wherever the thumbnail would be, so a row never looks empty while the
+ * derivative is on its way. */
+.media-preview-state {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.media-preview-state.is-failed {
+  color: var(--danger);
+}
+
+.media-image-state {
+  text-align: center;
+}
+
 .media-title-cell {
   display: inline-flex;
   flex-wrap: wrap;

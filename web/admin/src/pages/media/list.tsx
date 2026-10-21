@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Media, ServerMediaKind } from '../../api/types';
 import { ListPage } from '../../app/list';
-import { MediaImage, MediaKindBadge } from '../../app/media-image';
+import { MediaImage, MediaKindBadge, MediaPreviewState } from '../../app/media-image';
 import { KIND_LABEL, mediaName, previewImageUrl } from '../../app/media';
 import type { MediaKind } from '../../app/media';
 import { useTranslator } from '../../i18n';
@@ -141,6 +141,7 @@ export const MediaList = (): ReactElement => {
               <span className="media-title-cell">
                 <a href={`#/media/${String(media.id)}`}>{mediaName(media) ?? t('common.untitled')}</a>
                 <MediaKindBadge media={media} />
+                <MediaPreviewState media={media} />
               </span>
             ),
           },

@@ -35,6 +35,7 @@ mod item_sites;
 mod jobs;
 mod media;
 mod media_annotations;
+mod media_derivatives;
 mod media_extents;
 mod modules;
 mod page_versions;
@@ -75,6 +76,7 @@ pub use media_annotations::{
     ChangeOutcome, Cue, FtsQuery, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
     MediaAnnotationWrite, RestoredCue, SearchScope, TrackOutcome, UndoOutcome,
 };
+pub use media_derivatives::MediaDerivativeRepo;
 pub use media_extents::{ExtentRow, MediaExtentRepo};
 pub use modules::ModuleRepo;
 pub use page_versions::{KEPT_VERSIONS, PageVersionRepo, Snapshot};

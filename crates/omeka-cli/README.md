@@ -31,6 +31,7 @@ romeka export jsonld   -d PATH --out PATH [--resource NAME] [--item-set ID]
                               [--base-url URL]
 romeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
                               [--columns TERM,TERM]
+romeka media derivatives -d PATH [--store DIR] [--media ID] [--retry]
 romeka media thumbnails -d PATH [--store DIR] [--force]
 romeka media sweep -d PATH [--store DIR] [--delete]
 romeka backup      -d PATH --store DIR --out FILE
@@ -221,6 +222,36 @@ generated. `--force` removes the three files first and rebuilds them. The
 `--store DIR` root defaults to `files` beside the database, the same rule every
 command with a `--store` uses.
 
+It stays for the inline pass: one row at a time in this process, with a report
+per row. `romeka media derivatives` below is the queue version.
+
+## Media derivatives
+
+`romeka media derivatives` queues the derivative every media is missing and then
+runs `Romeka\Job\MediaDerivatives` once in this process.
+
+```
+romeka media derivatives -d PATH [--store DIR] [--media ID] [--retry]
+```
+
+A media created through the API answers `o-module-romeka:preview` `pending`, and
+the server starts one worker that makes its thumbnails, poster or PDF page. This
+command is the operator's way to do that for rows the worker never saw: a store
+written before the queue existed, a create whose worker could not start, or a
+row a tool failed on (`--retry`). It queues only media whose type a decoder or a
+tool here can read, and reads nothing back itself.
+
+The worker streams an original out of the store in 8 MiB pieces into a temporary
+file when the still comes from `ffmpeg` or `pdftoppm`, so a media staged in an
+object store has a poster or a first page even though the import could not make
+one (it has no local path to hand the tool). A tool that is not installed leaves
+the row `none` with `toolMissing: <command>`; a command that ran and failed
+leaves it `failed` with the command's reason.
+
+The summary line is `queued Q, retried R, waiting W, already ready A, nothing to
+do N`, one line per row after the run, and the exit code is 1 when any row ended
+failed. `--media ID` narrows the run to one media.
+
 ## Media sweep
 
 `romeka media sweep` finds store files that no row names. An import stores an
@@ -369,7 +400,21 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   left out in the job log. A refused ZIP ends the job `error` with the reason as
   the last log line.
 - `Romeka\Job\ImportSweep`: no arguments. It removes the staging files no import
-  needs. `romeka serve` starts it at boot and then every hour.
+  needs, then starts one `MediaDerivatives` worker when derivative rows are
+  queued and none is active (not while an import runs or undoes). `romeka serve`
+  starts it at boot and then every hour, so a pending preview never waits for
+  the next media create.
+- `Romeka\Job\MediaDerivatives` (Romeka's own): no arguments. It drains the
+  `romeka_media_derivative` queue, one row at a time, and settles each `ready`,
+  `failed` or `none`. One worker runs per install: the server composes a new job
+  only when a row is queued and no worker of this class is starting, running or
+  stopping. A worker that finds an archive import running or undoing starts
+  nothing, logs one `waiting:` line, and polls until the import ends (or for an
+  hour, when it ends with its rows still queued); it checks for a stop request
+  between rows. The work is `omeka_api::derivatives::settle_next`, the same
+  function a test and the backfill drain. The server starts one on a create and
+  the hourly `ImportSweep` starts one when the queue has work, so the two
+  together are the queue's timer.
 
 `romeka job run <id>` takes `--store` (default `files` beside the database),
 `--base-url` (default `http://localhost`) and `--archive-root` (the root named
