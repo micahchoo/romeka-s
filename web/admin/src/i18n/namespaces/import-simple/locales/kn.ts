@@ -50,6 +50,7 @@ export const kn: ImportSimpleMessages = {
   'guided.found.showThem': 'ಅವುಗಳನ್ನು ತೋರಿಸಿ',
   'guided.found.everyFile': 'ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ನೋಡಿ',
   'guided.mark.number': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಸಂಖ್ಯೆಯನ್ನು ಬಳಸಿ',
+  'guided.mark.letters': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
   'guided.mark.and': '; ಮತ್ತು ',
   'guided.example.choose':
     'ಒಂದು ಐಟಂ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಫೈಲ್‌ಗಳನ್ನು ಹೊಂದಿರುವಾಗ, ಆ ಐಟಂನ ಒಂದು ಫೈಲ್ ಅನ್ನು ಆರಿಸಿ.',
@@ -70,6 +71,8 @@ export const kn: ImportSimpleMessages = {
   'guided.example.onlyThis': 'ಕೇವಲ {text}',
   'guided.example.anyNumber': 'ಯಾವುದೇ ಸಂಖ್ಯೆ, ಉದಾಹರಣೆಗೆ {text}',
   'guided.example.hasDigits': '(ಇದರಲ್ಲಿ ಅಂಕಿಗಳಿವೆ)',
+  'guided.example.anyLetters': '{text} ನಂತೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
+  'guided.example.afterNumber': '(ಅವು ಸಂಖ್ಯೆಯ ನಂತರ ಬರುತ್ತವೆ)',
   'guided.example.wordsLede':
     'ಈ ಪದಗಳು ಈ ಒಂದು ಭಾಗದಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ, ಪ್ರತಿ ಫೈಲ್‌ಗೆ ಎಷ್ಟು ಫೈಲ್‌ಗಳಿವೆಯೋ ಅಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ ಒಂದೇ ಸ್ಥಾನದಲ್ಲಿರುತ್ತವೆ. ಒಂದು ಐಟಂನ ಮತ್ತೊಂದು ಫೈಲ್ ಅನ್ನು ಸೂಚಿಸುವ ಪದಗಳನ್ನು ಗುರುತು ಮಾಡಿ.',
   'guided.example.findWord': 'ಒಂದು ಪದವನ್ನು ಹುಡುಕಿ',

@@ -55,6 +55,7 @@ export const en = {
   'guided.found.showThem': 'Show them',
   'guided.found.everyFile': 'See every file',
   'guided.mark.number': 'any number in place of {text}',
+  'guided.mark.letters': 'any letters in place of {text}',
   'guided.mark.and': '; and ',
   // Show us one example.
   'guided.example.choose': 'Choose one file of an item that has more than one file.',
@@ -74,6 +75,8 @@ export const en = {
   'guided.example.onlyThis': 'Only {text}',
   'guided.example.anyNumber': 'Any number, as in {text}',
   'guided.example.hasDigits': '(it has digits)',
+  'guided.example.anyLetters': 'Any letters, as in {text}',
+  'guided.example.afterNumber': '(they come right after a number)',
   'guided.example.wordsLede':
     'These words are in the same place in names with as many parts as this one, with how many files have each. Tick the ones that mean another file of one item.',
   'guided.example.findWord': 'Find a word',

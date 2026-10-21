@@ -2,7 +2,7 @@
 
 The affordance read of 2026-10-20 found these assumptions in the v1 import. Import v2 closes each row: a test names its id, or docs/compat.md records it as an accepted limit. Severity says what a person saw when an archive broke the assumption.
 
-Summary of 2026-10-20: 88 rows. Closed by test 82, accepted limit 4 (A04, A73, A76, A81), open 2 (A07, A86).
+Summary of 2026-10-20: 88 rows. Closed by test 83, accepted limit 3 (A73, A76, A81), open 2 (A07, A86).
 
 A test path is relative to the repository root, followed by `::` and the test's name. For a Rust file the name is a function; for a TypeScript file it is the text of the `it` call. An accepted limit names the row of `docs/compat.md` that states it and gives its reason. An open row says what is missing.
 
@@ -13,7 +13,7 @@ A test path is relative to the repository root, followed by `::` and the test's 
 | A01 | Name parts use ASCII letters, so an example in another script does not match its own path | `example.ts:65` | पत्र_001_आगे.jpg, José_001.jpg, Kraków_001.jpg, LT_௧௨.jpg | blocked | ran | `crates/omeka-api/src/import/derive/tests/scenarios.rs::s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself` |
 | A02 | A run of digits keeps the example's width | `example.ts:65` | L_7, L_12, L_130; LT_999 vs LT_1000; 1950-03-12 vs 1950-3-12 | visible | ran | `web/admin/tests/import-simple-pattern.test.ts::reads any number in place of "page 001", beside a word mark` |
 | A03 | Delimiters are only _ - . and space | `example.ts:33` | BHC006(1).jpg, Smith, John 1901.jpg, full-width ＿, a danda | blocked | ran | `crates/omeka-api/src/import/derive/tests/scenarios.rs::s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself`; `web/admin/tests/import-advanced.test.tsx::counts what a typed pattern fits before it is used, shows its groups on a real name, then uses it` |
-| A04 | Parts split only at a delimiter, never at a change of case or digit | `example.ts:46` | BHC006front.jpg / BHC006back.jpg become two items | silent | ran | accepted limit: `docs/compat.md`, the row that starts "Simple name parts" |
+| A04 | Parts split only at a delimiter, never at a change of case or digit | `example.ts:46` | BHC006front.jpg / BHC006back.jpg become two items | silent | ran | `web/admin/tests/import-simple-pattern.test.ts::reads any letters after the number: the views of one object are one item`; `web/admin/tests/import-example-parts.test.tsx::shows 010 and a as two parts, and marking a as any letters saves that mark` |
 | A05 | Each part keeps one letter case | `example.ts:69` | _Front, _FRONT, lt_001_front | visible | ran | `crates/omeka-api/src/import/derive/tests/steps.rs::a14_case_fold_makes_case_variants_one_group`; `web/admin/tests/import-simple-pattern.test.ts::reads the ticked words in the marked place as the part that changes` |
 | A06 | Every name has the same number of delimiters and words | `example.ts:96` | 1924-01-02 Mary Smith to Jones.pdf; O’Brien; double spaces | visible | ran | `crates/omeka-api/src/import/derive/tests/steps.rs::a17_files_the_pattern_does_not_match_are_unmatched_entries`; `crates/omeka-api/src/import/derive/tests/answers.rs::own_makes_each_unmatched_file_an_item_of_its_own` |
 | A07 | Every file has an extension, or none does, like the example | `example.ts:40` | extension-less files; scan.001.tar.gz gives identifier scan.001.tar | visible | ran | `crates/omeka-api/src/import/derive/tests/steps.rs::a07_the_default_pattern_takes_one_extension_or_none` |

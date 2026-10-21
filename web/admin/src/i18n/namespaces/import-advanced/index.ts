@@ -55,6 +55,7 @@ export const en = {
   'adv.files.example.file': 'Marked on',
   'adv.files.example.words': 'Only the words {words}',
   'adv.files.example.number': 'Any number in place of “{text}”',
+  'adv.files.example.letters': 'Any letters in place of “{text}”',
   'adv.files.example.remove': 'Remove',
   'adv.files.example.removeOne': 'Remove the mark: {mark}',
   'adv.files.example.writes': 'The pattern is the one these marks write. Removing a mark writes it again.',

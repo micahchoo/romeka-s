@@ -48,6 +48,7 @@ export const ne: ImportAdvancedMessages = {
   'adv.files.example.file': 'चिन्ह लगाइएको',
   'adv.files.example.words': 'केवल {words} शब्दहरू',
   'adv.files.example.number': '“{text}” को स्थानमा कुनै पनि सङ्ख्या',
+  'adv.files.example.letters': '“{text}” को स्थानमा कुनै पनि अक्षरहरू',
   'adv.files.example.remove': 'हटाउनुहोस्',
   'adv.files.example.removeOne': 'चिन्ह हटाउनुहोस्: {mark}',
   'adv.files.example.writes': 'ढाँचा यी चिन्हहरूले लेख्छन्। चिन्ह हटाउँदा यसलाई पुनः लेख्छ।',

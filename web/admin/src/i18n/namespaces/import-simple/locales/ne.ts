@@ -51,6 +51,7 @@ export const ne: ImportSimpleMessages = {
   'guided.found.showThem': 'तिनीहरूलाई देखाउनुहोस्',
   'guided.found.everyFile': 'हरेक फाइल हेर्नुहोस्',
   'guided.mark.number': '{text} को सट्टा कुनै पनि सङ्ख्या',
+  'guided.mark.letters': '{text} को स्थानमा कुनै पनि अक्षरहरू',
   'guided.mark.and': '; र ',
   'guided.example.choose': 'एउटा वस्तुको एकभन्दा बढी फाइल भएको अवस्थामा, एउटा फाइल छान्नुहोस्।',
   'guided.example.findFile': 'फाइलको नाम खोज्नुहोस्',
@@ -69,6 +70,8 @@ export const ne: ImportSimpleMessages = {
   'guided.example.onlyThis': 'केवल {text}',
   'guided.example.anyNumber': 'कुनै पनि सङ्ख्या, जस्तै {text}',
   'guided.example.hasDigits': '(यसमा अङ्कहरू छन्)',
+  'guided.example.anyLetters': '{text} मा जस्तै कुनै पनि अक्षरहरू',
+  'guided.example.afterNumber': '(तिनीहरू सङ्ख्याको ठीक पछि आउँछन्)',
   'guided.example.wordsLede':
     'यी शब्दहरू यस जति नै भाग भएका नामहरूमा, प्रत्येक फाइलमा कतिवटा छन् भन्ने आधारमा, एउटा वस्तुको अर्को फाइलको अर्थ हुने शब्दहरू जस्तै एउटै ठाउँमा छन्। अर्को वस्तुको अर्को फाइलको अर्थ हुने शब्दहरू टिक गर्नुहोस्।',
   'guided.example.findWord': 'एउटा शब्द खोज्नुहोस्',
