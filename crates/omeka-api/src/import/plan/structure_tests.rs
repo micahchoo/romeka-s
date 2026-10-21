@@ -156,7 +156,7 @@ fn the_design_examples_parse() {
         Err(PlanError::NotYet(why)) => why,
         other => panic!("not refused by the temporary rule alone: {other:?}"),
     };
-    assert_eq!(not_yet(BHC006), NotYet::SeveralSeries(5));
+    assert_eq!(not_yet(BHC006), NotYet::SetLevel("project".into()));
     assert_eq!(
         not_yet(ORAL_HISTORY),
         NotYet::SeriesSet("interviews".into())
@@ -367,10 +367,6 @@ fn the_temporary_rule_names_what_the_server_cannot_run_yet() {
             NotYet::SetLevel("p".into()),
         ),
         (
-            json!({ "levels": [series("all", folder("s1", "Letters"))], "freeSets": [] }),
-            NotYet::Scope("all".into()),
-        ),
-        (
             json!({ "levels": [series("all", json!("all"))],
                 "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
             NotYet::FreeSets,
@@ -431,4 +427,67 @@ fn the_lower_refuses_what_v2_cannot_say() {
             "{structure}"
         );
     }
+}
+
+#[test]
+fn a_plan_with_no_series_is_refused() {
+    let set_alone = json!({ "kind": "set", "id": "p", "set": { "id": 4 }, "levels": [] });
+    for levels in [json!([]), json!([set_alone])] {
+        let error = refused(|plan| plan["structure"]["levels"] = levels.clone());
+        assert!(matches!(error, PlanError::NoSeries), "{levels}: {error:?}");
+    }
+}
+
+#[test]
+fn a_file_goes_to_the_series_whose_folder_is_the_longest_prefix() {
+    let levels = json!([
+        series("all", json!("all")),
+        series("letters", folder("s1", "Letters")),
+        series("drafts", folder("s1", "Letters/Drafts")),
+        series("staged", folder("staging", "")),
+    ]);
+    let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
+    value["structure"]["levels"] = levels;
+    let plan = parse(&value.to_string());
+    let structure = &plan.structure;
+    let place = |source: &str, path: &str| {
+        let path = RelPath::parse(path).expect("path");
+        match structure.place(&SourceId(source.into()), &path) {
+            Placement::Series { at, path } => {
+                Some((structure.series(at).id().0.clone(), path.to_string()))
+            }
+            Placement::Outside => None,
+        }
+    };
+    let placed = |series: &str, path: &str| Some((series.to_string(), path.to_string()));
+    assert_eq!(
+        place("s1", "Letters/1901/a.jpg"),
+        placed("letters", "1901/a.jpg"),
+        "the pattern matches the path relative to the scope folder"
+    );
+    assert_eq!(
+        place("s1", "Letters/Drafts/b.jpg"),
+        placed("drafts", "b.jpg"),
+        "the longer folder wins"
+    );
+    assert_eq!(
+        place("s1", "LettersX/c.jpg"),
+        placed("all", "LettersX/c.jpg"),
+        "a folder is a prefix of whole names only; `all` takes the rest"
+    );
+    assert_eq!(
+        place("staging", "list.csv"),
+        placed("staged", "list.csv"),
+        "the whole source is a longer prefix than `all`"
+    );
+
+    let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
+    value["structure"]["levels"] = json!([series("letters", folder("s1", "Letters"))]);
+    let plan = parse(&value.to_string());
+    let path = RelPath::parse("Extras/d.jpg").expect("path");
+    assert_eq!(
+        plan.structure.place(&SourceId("s1".into()), &path),
+        Placement::Outside,
+        "a file in no scope is outside the structure"
+    );
 }

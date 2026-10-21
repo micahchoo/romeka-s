@@ -179,9 +179,9 @@ impl Structure {
 
     /// Until U5 reads typed set sources, the engine reads an item's sets
     /// from its series' `item.sets` rule, as v2 wrote it. So a tree of one
-    /// series that takes every file, with no set, keeps its one `text`
-    /// free set there; [`Self::unfold`] puts it back for the v3 wire. A v2
-    /// plan is already in this form, so the lift and the lower move no rule.
+    /// series with no set keeps its one `text` free set there;
+    /// [`Self::unfold`] puts it back for the v3 wire. A v2 plan is already
+    /// in this form, so the lift and the lower move no rule.
     pub(super) fn fold(&mut self) {
         let [Level::Series(series)] = self.levels.as_mut_slice() else {
             return;
@@ -191,7 +191,6 @@ impl Structure {
         };
         if each.names != SetNames::Text
             || series.set.is_some()
-            || series.scope != SeriesScope::All(AllFiles::All)
             || series.slots.item.contains_key(&SlotName::Sets)
         {
             return;
