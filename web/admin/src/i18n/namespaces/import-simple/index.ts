@@ -92,11 +92,6 @@ export const en = {
   'guided.list.none': 'We found no list in your folder.',
   'guided.list.what':
     'A list is a spreadsheet with one row for each item: its title, its date, and anything else you know. You can fill one in below.',
-  'guided.list.found': 'We found a list in your folder: {file}. Is it about these items?',
-  'guided.list.yes': 'Yes, use it',
-  'guided.list.no': 'No, it is not about these items',
-  'guided.list.reading': 'Reading the list...',
-  'guided.list.foundRows': 'We found a list in your folder: {file}, with {count} rows. Is it about these items?',
   'guided.list.utf8': 'It is UTF-8 text.',
   'guided.list.notUtf8': 'Its bytes are not UTF-8. They read as {kind} text. If letters look wrong, change it in Advanced.',
   'guided.list.line1': 'Line 1 has {count} cells.',

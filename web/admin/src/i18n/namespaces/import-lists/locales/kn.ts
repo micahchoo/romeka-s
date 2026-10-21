@@ -225,4 +225,33 @@ export const kn: ImportListsMessages = {
   'lists.trip.straysWhy': 'ಅವುಗಳ Identifier ಈ ಇಂಪೋರ್ಟ್‌ನದಲ್ಲ. ಮೊದಲ ಕಾಲಮ್ ಅನ್ನು ಬದಲಾಯಿಸಲಾಗಿದೆಯೇ?',
   'lists.trip.andMore': 'ಮತ್ತು {count} ಹೆಚ್ಚು',
   'lists.trip.remove': 'ಈ ಪಟ್ಟಿಯನ್ನು ತೆಗೆದುಹಾಕಿ',
+  'lists.picker.title': 'ನಿಮ್ಮ ಫೋಲ್ಡರ್‌ನಲ್ಲಿರುವ ಪಟ್ಟಿಗಳು',
+  'lists.picker.lede':
+    'ನಿಮ್ಮ ಫೈಲ್‌ಗಳಲ್ಲಿ ಹೆಚ್ಚಿನದನ್ನು ಹೆಸರಿಸುವ ಸಾಲುಗಳನ್ನು ಹೊಂದಿರುವ ಪಟ್ಟಿಯು ಮೊದಲು ಬರುತ್ತದೆ. ನೀವು ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಬಳಸಬಹುದು.',
+  'lists.picker.folder': '{folder} ಫೋಲ್ಡರ್‌ನಲ್ಲಿ',
+  'lists.picker.rows': '{count} ಸಾಲುಗಳು',
+  'lists.picker.rowsOne': '1 ಸಾಲು',
+  'lists.picker.inUse': 'ಬಳಕೆಯಲ್ಲಿರುವ',
+  'lists.picker.declined': 'ತಿರಸ್ಕರಿಸಲ್ಪಟ್ಟಿದೆ',
+  'lists.picker.offered': 'ಬಳಸಲಾಗಿಲ್ಲ',
+  'lists.picker.unreadable': 'ಓದಿಲ್ಲ',
+  'lists.picker.names':
+    '“{column}” ಕಾಲಮ್‌ನಿಂದ, {rows} ಸಾಲುಗಳಲ್ಲಿ {count} ಸಾಲುಗಳು ನಿಮ್ಮ ಫೈಲ್‌ಗಳಲ್ಲಿ ಒಂದರ ಹೆಸರನ್ನು ಹೇಳುತ್ತವೆ.',
+  'lists.picker.codes':
+    '“{column}” ಕಾಲಮ್‌ನಿಂದ, {rows} ಸಾಲುಗಳಲ್ಲಿ {count} ಸಾಲುಗಳು ನಿಮ್ಮ ವಸ್ತುಗಳಲ್ಲಿ ಒಂದರ ಕೋಡ್ ಅನ್ನು ನೀಡುತ್ತವೆ.',
+  'lists.picker.folded':
+    'ದೊಡ್ಡಕ್ಷರಗಳು, ಆರಂಭದಲ್ಲಿ ಸೊನ್ನೆಗಳು ಮತ್ತು _ - . ಅನ್ನು ನಿರ್ಲಕ್ಷಿಸಿದಾಗ {count} ಹೆಚ್ಚು.',
+  'lists.picker.noPair':
+    'ದೊಡ್ಡಕ್ಷರಗಳು, ಆರಂಭದಲ್ಲಿ ಸೊನ್ನೆಗಳು ಮತ್ತು _ - . ಅನ್ನು ನಿರ್ಲಕ್ಷಿಸಿದಾಗಲೂ, ಯಾವ ಸಾಲೂ ನಿಮ್ಮ ಫೈಲ್ ಅಥವಾ ವಸ್ತುವಿನ ಹೆಸರನ್ನು ಹೇಳುವುದಿಲ್ಲ.',
+  'lists.picker.overlap': '{file} ನಂತೆಯೇ ಅದೇ ವಸ್ತುಗಳನ್ನು {count} ಜೋಡಿ ಮಾಡುತ್ತದೆ',
+  'lists.picker.unread': 'ಈ ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',
+  'lists.picker.use': 'ಈ ಪಟ್ಟಿಯನ್ನು ಬಳಸಿ',
+  'lists.picker.reading': 'ಪಟ್ಟಿಯನ್ನು ಓದುತ್ತಿದೆ...',
+  'lists.picker.stop': 'ಇದನ್ನು ಬಳಸುವುದನ್ನು ನಿಲ್ಲಿಸಿ',
+  'lists.picker.decline': 'ಈ ವಸ್ತುಗಳ ಬಗ್ಗೆ ಅಲ್ಲ',
+  'lists.picker.ask':
+    'ಈ ಪಟ್ಟಿಯು {file} ನಂತೆಯೇ ಅದೇ ವಸ್ತುಗಳ {count} ಜೋಡಿಗಳನ್ನು ಮಾಡುತ್ತದೆ. ಎರಡನ್ನೂ ಬಳಸಿ, ಅಥವಾ {file} ಬದಲಿಗೆ ಈ ಒಂದನ್ನು ಬಳಸಿ?',
+  'lists.picker.both': 'ಎರಡನ್ನೂ ಬಳಸಿ',
+  'lists.picker.instead': '{file} ಬದಲಿಗೆ ಈ ಒಂದನ್ನು ಬಳಸಿ',
+  'lists.picker.cancel': 'ಇದನ್ನು ಸೇರಿಸಬೇಡಿ',
 };
