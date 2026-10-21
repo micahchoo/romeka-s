@@ -17,6 +17,7 @@ import {
   parseJob,
   parseListOf,
   parseMedia,
+  parseMediaPlayer,
   parseModule,
   parsePasswordLink,
   parseSiteItemsChange,
@@ -313,6 +314,15 @@ export class ApiClient {
   async getMedia(id: MediaId): Promise<Media> {
     const raw = await this.requestJson(`/api/media/${String(id)}`);
     return parseMedia(raw);
+  }
+
+  /**
+   * The provider's own player URL for an embed media, or `null` when the
+   * server's render is not one allow-listed frame (`/api/romeka/media/{id}/player`).
+   */
+  async getMediaPlayer(id: MediaId): Promise<string | null> {
+    const raw = await this.requestJson(`/api/romeka/media/${String(id)}/player`);
+    return parseMediaPlayer(raw);
   }
 
   async getItemSet(id: ItemSetId): Promise<ItemSet> {

@@ -5,14 +5,21 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { Mock } from 'vitest';
 import { brandId } from '../src/api/parse';
 import type { Media, MediaPreview, ServerMediaKind } from '../src/api/types';
 import { MediaStage } from '../src/pages/media/stage/stage';
 import { recallPosition, rememberPosition } from '../src/pages/media/stage/play-position';
-import { installFetch } from './stub';
+import { installFetch, jsonResponse, route, urlsFor } from './stub';
 
 const ORIGINAL = 'http://localhost/files/original/7.bin';
 const LARGE = 'http://localhost/files/large/7.jpg';
+/** The media every card test stages: media 7. */
+const PLAYER = '/api/romeka/media/7/player';
+
+/** The player route's answer: the provider URL the server names, or none. */
+const stubPlayer = (url: string | null): Mock<typeof fetch> =>
+  installFetch(route({ [PLAYER]: () => jsonResponse({ url }) }));
 
 interface MediaFields {
   readonly kind?: ServerMediaKind | null;
@@ -266,7 +273,8 @@ describe('a media the stage cannot show', () => {
     );
   });
 
-  it('frames the server render of an HTML media only after the press', () => {
+  it('frames the server render of an HTML media only after the press', async () => {
+    stubPlayer(null);
     render(
       <MediaStage
         media={media({
@@ -288,8 +296,10 @@ describe('a media the stage cannot show', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
 
+    await waitFor(() => {
+      expect(document.querySelector('iframe')).not.toBeNull();
+    });
     const frame = document.querySelector('iframe');
-    expect(frame).not.toBeNull();
     expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
     expect(frame?.getAttribute('sandbox')).not.toContain('allow-same-origin');
@@ -297,8 +307,9 @@ describe('a media the stage cannot show', () => {
     expect(screen.queryByRole('button', { name: 'Load the embed' })).toBeNull();
   });
 
-  it('names the host of an oEmbed media, keeps the link, and frames its render on the press', () => {
+  it('names the host of an oEmbed media, keeps the link, and frames its render on the press', async () => {
     const source = 'https://www.youtube.com/watch?v=abc123';
+    stubPlayer(null);
     render(
       <MediaStage
         media={media({
@@ -322,6 +333,9 @@ describe('a media the stage cannot show', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
 
+    await waitFor(() => {
+      expect(document.querySelector('iframe')).not.toBeNull();
+    });
     const frame = document.querySelector('iframe');
     expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
@@ -330,6 +344,74 @@ describe('a media the stage cannot show', () => {
       'href',
       source,
     );
+  });
+
+  it("frames the provider's own player directly when the server names one", async () => {
+    const source = 'https://vimeo.com/76979871';
+    const player = 'https://player.vimeo.com/video/76979871?h=abc';
+    const fetchMock = stubPlayer(player);
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'oembed',
+          ingester: 'oembed',
+          type: null,
+          filename: null,
+          originalUrl: null,
+          source,
+        })}
+      />,
+    );
+
+    // The facade holds: the card contacts its own server only on the press.
+    expect(urlsFor(fetchMock, PLAYER)).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('iframe')).not.toBeNull();
+    });
+    const frame = document.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', player);
+    expect(frame).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-same-origin allow-presentation allow-popups',
+    );
+    expect(frame).toHaveAttribute('allow', 'fullscreen; picture-in-picture');
+    expect(frame).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    expect(frame).toHaveAccessibleName('The embed from vimeo.com');
+    expect(urlsFor(fetchMock, PLAYER)).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Open on vimeo.com' })).toHaveAttribute(
+      'href',
+      source,
+    );
+  });
+
+  it('keeps the strict frame when the answer is not an https player', async () => {
+    stubPlayer('http://player.vimeo.com/video/76979871');
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'oembed',
+          ingester: 'oembed',
+          type: null,
+          filename: null,
+          originalUrl: null,
+          source: 'https://vimeo.com/76979871',
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('iframe')).not.toBeNull();
+    });
+    const frame = document.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
   });
 
   it('says an outside page with no address has no stored file, instead of an empty box', () => {
