@@ -45,6 +45,7 @@ export const es: ImportAdvancedMessages = {
   'adv.files.example.file': 'Marcado en',
   'adv.files.example.words': 'Solo las palabras {words}',
   'adv.files.example.number': 'Cualquier número en lugar de «{text}»',
+  'adv.files.example.letters': 'Letras cualesquiera en lugar de «{text}»',
   'adv.files.example.remove': 'Quitar',
   'adv.files.example.removeOne': 'Quitar la marca: {mark}',
   'adv.files.example.writes': 'El patrón es el que escriben estas marcas. Quitar una marca lo vuelve a escribir.',
