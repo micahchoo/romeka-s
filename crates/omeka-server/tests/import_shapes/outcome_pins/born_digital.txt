@@ -1,0 +1,148 @@
+item group:Desktop/Screen Shot 2019-11-02 at 09.01.10 create
+  file s1/Desktop/Screen Shot 2019-11-02 at 09.01.10.png
+  media file:s1/Desktop/Screen Shot 2019-11-02 at 09.01.10.png
+  slot itemKey literal "Desktop/Screen Shot 2019-11-02 at 09.01.10"
+  slot dcterms:identifier literal "Desktop/Screen Shot 2019-11-02 at 09.01.10"
+  slot dcterms:title literal "Screen Shot 2019-11-02 at 09.01.10"
+  owner is runner
+  visibility private
+  itemKey Desktop/Screen Shot 2019-11-02 at 09.01.10
+item group:Desktop/Screenshot 2021-03-04 at 10.15.22 create
+  file s1/Desktop/Screenshot 2021-03-04 at 10.15.22.png
+  media file:s1/Desktop/Screenshot 2021-03-04 at 10.15.22.png
+  slot itemKey literal "Desktop/Screenshot 2021-03-04 at 10.15.22"
+  slot dcterms:identifier literal "Desktop/Screenshot 2021-03-04 at 10.15.22"
+  slot dcterms:title literal "Screenshot 2021-03-04 at 10.15.22"
+  owner is runner
+  visibility private
+  itemKey Desktop/Screenshot 2021-03-04 at 10.15.22
+item group:Documents/Letters/letter to council create
+  file s1/Documents/Letters/letter to council.docx
+  media file:s1/Documents/Letters/letter to council.docx
+  slot itemKey literal "Documents/Letters/letter to council"
+  slot dcterms:identifier literal "Documents/Letters/letter to council"
+  slot dcterms:title literal "letter to council"
+  owner is runner
+  visibility private
+  itemKey Documents/Letters/letter to council
+item group:Documents/Letters/reply from council create
+  file s1/Documents/Letters/reply from council.pdf
+  media file:s1/Documents/Letters/reply from council.pdf
+  slot itemKey literal "Documents/Letters/reply from council"
+  slot dcterms:identifier literal "Documents/Letters/reply from council"
+  slot dcterms:title literal "reply from council"
+  owner is runner
+  visibility private
+  itemKey Documents/Letters/reply from council
+item group:Documents/notes create
+  file s1/Documents/notes.txt
+  media file:s1/Documents/notes.txt
+  slot itemKey literal "Documents/notes"
+  slot dcterms:identifier literal "Documents/notes"
+  slot dcterms:title literal "notes"
+  owner is runner
+  visibility private
+  itemKey Documents/notes
+item group:Pictures/Camera Uploads/IMG_0001 create
+  file s1/Pictures/Camera Uploads/IMG_0001.JPG
+  media file:s1/Pictures/Camera Uploads/IMG_0001.JPG
+  slot itemKey literal "Pictures/Camera Uploads/IMG_0001"
+  slot dcterms:identifier literal "Pictures/Camera Uploads/IMG_0001"
+  slot dcterms:title literal "IMG_0001"
+  owner is runner
+  visibility private
+  itemKey Pictures/Camera Uploads/IMG_0001
+item group:Pictures/Camera Uploads/IMG_0002 create
+  file s1/Pictures/Camera Uploads/IMG_0002.JPG
+  media file:s1/Pictures/Camera Uploads/IMG_0002.JPG
+  slot itemKey literal "Pictures/Camera Uploads/IMG_0002"
+  slot dcterms:identifier literal "Pictures/Camera Uploads/IMG_0002"
+  slot dcterms:title literal "IMG_0002"
+  owner is runner
+  visibility private
+  itemKey Pictures/Camera Uploads/IMG_0002
+item group:Pictures/Nikon/2018-07 Hampi/DSC_0002 create
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.JPG
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.NEF
+  media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.JPG
+  media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.NEF
+  slot itemKey literal "Pictures/Nikon/2018-07 Hampi/DSC_0002"
+  slot dcterms:identifier literal "Pictures/Nikon/2018-07 Hampi/DSC_0002"
+  slot dcterms:title literal "DSC_0002"
+  owner is runner
+  visibility private
+  itemKey Pictures/Nikon/2018-07 Hampi/DSC_0002
+item group:Pictures/Nikon/2018-07 Hampi/DSC_0003 create
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0003.NEF
+  media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0003.NEF
+  slot itemKey literal "Pictures/Nikon/2018-07 Hampi/DSC_0003"
+  slot dcterms:identifier literal "Pictures/Nikon/2018-07 Hampi/DSC_0003"
+  slot dcterms:title literal "DSC_0003"
+  owner is runner
+  visibility private
+  itemKey Pictures/Nikon/2018-07 Hampi/DSC_0003
+item group:Pictures/Old Phone/IMG_0001 create
+  file s1/Pictures/Old Phone/IMG_0001.JPG
+  media file:s1/Pictures/Old Phone/IMG_0001.JPG
+  slot itemKey literal "Pictures/Old Phone/IMG_0001"
+  slot dcterms:identifier literal "Pictures/Old Phone/IMG_0001"
+  slot dcterms:title literal "IMG_0001"
+  owner is runner
+  visibility private
+  itemKey Pictures/Old Phone/IMG_0001
+media file:s1/Desktop/Screen Shot 2019-11-02 at 09.01.10.png create
+  file s1/Desktop/Screen Shot 2019-11-02 at 09.01.10.png
+  parent group:Desktop/Screen Shot 2019-11-02 at 09.01.10
+  owner is runner
+  visibility private
+media file:s1/Desktop/Screenshot 2021-03-04 at 10.15.22.png create
+  file s1/Desktop/Screenshot 2021-03-04 at 10.15.22.png
+  parent group:Desktop/Screenshot 2021-03-04 at 10.15.22
+  owner is runner
+  visibility private
+media file:s1/Documents/Letters/letter to council.docx create
+  file s1/Documents/Letters/letter to council.docx
+  parent group:Documents/Letters/letter to council
+  owner is runner
+  visibility private
+media file:s1/Documents/Letters/reply from council.pdf create
+  file s1/Documents/Letters/reply from council.pdf
+  parent group:Documents/Letters/reply from council
+  owner is runner
+  visibility private
+media file:s1/Documents/notes.txt create
+  file s1/Documents/notes.txt
+  parent group:Documents/notes
+  owner is runner
+  visibility private
+media file:s1/Pictures/Camera Uploads/IMG_0001.JPG create
+  file s1/Pictures/Camera Uploads/IMG_0001.JPG
+  parent group:Pictures/Camera Uploads/IMG_0001
+  owner is runner
+  visibility private
+media file:s1/Pictures/Camera Uploads/IMG_0002.JPG create
+  file s1/Pictures/Camera Uploads/IMG_0002.JPG
+  parent group:Pictures/Camera Uploads/IMG_0002
+  owner is runner
+  visibility private
+media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.JPG create
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.JPG
+  parent group:Pictures/Nikon/2018-07 Hampi/DSC_0002
+  owner is runner
+  visibility private
+media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.NEF create
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0002.NEF
+  parent group:Pictures/Nikon/2018-07 Hampi/DSC_0002
+  owner is runner
+  visibility private
+media file:s1/Pictures/Nikon/2018-07 Hampi/DSC_0003.NEF create
+  file s1/Pictures/Nikon/2018-07 Hampi/DSC_0003.NEF
+  parent group:Pictures/Nikon/2018-07 Hampi/DSC_0003
+  owner is runner
+  visibility private
+media file:s1/Pictures/Old Phone/IMG_0001.JPG create
+  file s1/Pictures/Old Phone/IMG_0001.JPG
+  parent group:Pictures/Old Phone/IMG_0001
+  owner is runner
+  visibility private
+flag not-media leave 4

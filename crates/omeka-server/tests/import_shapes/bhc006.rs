@@ -253,7 +253,7 @@ pub fn plan_for_bhc006(plan: &mut Value) {
     plan["slots"]["media"]["dcterms:contributor"] = from_columns(DIGITIZED_BY);
 }
 
-const SLOTS: [&str; 4] = [
+pub const SLOTS: [&str; 4] = [
     "dcterms:identifier",
     "dcterms:subject",
     "dcterms:dateSubmitted",

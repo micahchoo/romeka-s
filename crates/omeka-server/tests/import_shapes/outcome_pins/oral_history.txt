@@ -1,0 +1,182 @@
+item group:OH-2019-001 create
+  file s1/Interviews/OH-2019-001 Patel/part1.mp3
+  file s1/Interviews/OH-2019-001 Patel/part2.mp3
+  file s1/Interviews/OH-2019-001 Patel/transcript.pdf
+  file s1/Interviews/OH-2019-001 Patel/photo.jpg
+  row interviews/OH-2019-001#1
+  media file:s1/Interviews/OH-2019-001 Patel/part1.mp3
+  media file:s1/Interviews/OH-2019-001 Patel/part2.mp3
+  media file:s1/Interviews/OH-2019-001 Patel/transcript.pdf
+  media file:s1/Interviews/OH-2019-001 Patel/photo.jpg
+  slot sets literal "Interviews"
+  slot itemKey literal "OH-2019-001"
+  slot dcterms:contributor literal "R. Interviewer"
+  slot dcterms:creator literal "A. Patel"
+  slot dcterms:date literal "2019-03-02"
+  slot dcterms:identifier literal "OH-2019-001"
+  slot dcterms:language literal "en"
+  slot dcterms:title literal "Growing up by the mill"
+  set new "Interviews"
+  owner is runner
+  visibility private
+  itemKey OH-2019-001
+item group:OH-2019-002 create
+  file s1/Interviews/OH-2019-002 Okafor/part1.mp3
+  file s1/Interviews/OH-2019-002 Okafor/transcript.pdf
+  row interviews/OH-2019-002#1
+  media file:s1/Interviews/OH-2019-002 Okafor/part1.mp3
+  media file:s1/Interviews/OH-2019-002 Okafor/transcript.pdf
+  slot sets literal "Interviews"
+  slot itemKey literal "OH-2019-002"
+  slot dcterms:contributor literal "R. Interviewer"
+  slot dcterms:creator literal "C. Okafor"
+  slot dcterms:date literal "2019-03-09"
+  slot dcterms:identifier literal "OH-2019-002"
+  slot dcterms:language literal "en"
+  slot dcterms:title literal "The night market"
+  set new "Interviews"
+  owner is runner
+  visibility private
+  itemKey OH-2019-002
+item group:OH-2019-003 create
+  file s1/Interviews/OH-2019-003 Lindqvist/part1.mp3
+  file s1/Interviews/OH-2019-003 Lindqvist/part2.mp3
+  file s1/Interviews/OH-2019-003 Lindqvist/part3.mp3
+  file s1/Interviews/OH-2019-003 Lindqvist/transcript.pdf
+  row interviews/oh-2019-003#1
+  media file:s1/Interviews/OH-2019-003 Lindqvist/part1.mp3
+  media file:s1/Interviews/OH-2019-003 Lindqvist/part2.mp3
+  media file:s1/Interviews/OH-2019-003 Lindqvist/part3.mp3
+  media file:s1/Interviews/OH-2019-003 Lindqvist/transcript.pdf
+  slot sets literal "Interviews"
+  slot itemKey literal "OH-2019-003"
+  slot dcterms:contributor literal "R. Interviewer"
+  slot dcterms:creator literal "E. Lindqvist"
+  slot dcterms:date literal "2019-04-13"
+  slot dcterms:identifier literal "OH-2019-003"
+  slot dcterms:language literal "sv"
+  slot dcterms:title literal "Fishing the outer islands"
+  set new "Interviews"
+  owner is runner
+  visibility private
+  itemKey OH-2019-003
+item group:OH-2019-004 create
+  file s1/Interviews/OH-2019-004 Smith/part1.mp3
+  file s1/Interviews/OH-2019-004 Smith/part2.mp3
+  file s1/Interviews/OH-2019-004 Smith/transcript.pdf
+  file s1/Interviews/OH-2019-004 Smith/photo.jpg
+  row interviews/OH-2019-004#1
+  media file:s1/Interviews/OH-2019-004 Smith/part1.mp3
+  media file:s1/Interviews/OH-2019-004 Smith/part2.mp3
+  media file:s1/Interviews/OH-2019-004 Smith/transcript.pdf
+  media file:s1/Interviews/OH-2019-004 Smith/photo.jpg
+  slot sets literal "Interviews"
+  slot itemKey literal "OH-2019-004"
+  slot dcterms:contributor literal "R. Interviewer"
+  slot dcterms:creator literal "J. Smith"
+  slot dcterms:date literal "2019-05-01"
+  slot dcterms:identifier literal "OH-2019-004"
+  slot dcterms:language literal "en"
+  slot dcterms:title literal "Forty years at the depot"
+  set new "Interviews"
+  owner is runner
+  visibility private
+  itemKey OH-2019-004
+media file:s1/Interviews/OH-2019-001 Patel/part1.mp3 create
+  file s1/Interviews/OH-2019-001 Patel/part1.mp3
+  parent group:OH-2019-001
+  slot mediaOrder literal "1"
+  owner is runner
+  visibility private
+  mediaOrder 1
+media file:s1/Interviews/OH-2019-001 Patel/part2.mp3 create
+  file s1/Interviews/OH-2019-001 Patel/part2.mp3
+  parent group:OH-2019-001
+  slot mediaOrder literal "2"
+  owner is runner
+  visibility private
+  mediaOrder 2
+media file:s1/Interviews/OH-2019-001 Patel/photo.jpg create
+  file s1/Interviews/OH-2019-001 Patel/photo.jpg
+  parent group:OH-2019-001
+  slot mediaOrder literal "5"
+  owner is runner
+  visibility private
+  mediaOrder 5
+media file:s1/Interviews/OH-2019-001 Patel/transcript.pdf create
+  file s1/Interviews/OH-2019-001 Patel/transcript.pdf
+  parent group:OH-2019-001
+  slot mediaOrder literal "4"
+  owner is runner
+  visibility private
+  mediaOrder 4
+media file:s1/Interviews/OH-2019-002 Okafor/part1.mp3 create
+  file s1/Interviews/OH-2019-002 Okafor/part1.mp3
+  parent group:OH-2019-002
+  slot mediaOrder literal "1"
+  owner is runner
+  visibility private
+  mediaOrder 1
+media file:s1/Interviews/OH-2019-002 Okafor/transcript.pdf create
+  file s1/Interviews/OH-2019-002 Okafor/transcript.pdf
+  parent group:OH-2019-002
+  slot mediaOrder literal "4"
+  owner is runner
+  visibility private
+  mediaOrder 4
+media file:s1/Interviews/OH-2019-003 Lindqvist/part1.mp3 create
+  file s1/Interviews/OH-2019-003 Lindqvist/part1.mp3
+  parent group:OH-2019-003
+  slot mediaOrder literal "1"
+  owner is runner
+  visibility private
+  mediaOrder 1
+media file:s1/Interviews/OH-2019-003 Lindqvist/part2.mp3 create
+  file s1/Interviews/OH-2019-003 Lindqvist/part2.mp3
+  parent group:OH-2019-003
+  slot mediaOrder literal "2"
+  owner is runner
+  visibility private
+  mediaOrder 2
+media file:s1/Interviews/OH-2019-003 Lindqvist/part3.mp3 create
+  file s1/Interviews/OH-2019-003 Lindqvist/part3.mp3
+  parent group:OH-2019-003
+  slot mediaOrder literal "3"
+  owner is runner
+  visibility private
+  mediaOrder 3
+media file:s1/Interviews/OH-2019-003 Lindqvist/transcript.pdf create
+  file s1/Interviews/OH-2019-003 Lindqvist/transcript.pdf
+  parent group:OH-2019-003
+  slot mediaOrder literal "4"
+  owner is runner
+  visibility private
+  mediaOrder 4
+media file:s1/Interviews/OH-2019-004 Smith/part1.mp3 create
+  file s1/Interviews/OH-2019-004 Smith/part1.mp3
+  parent group:OH-2019-004
+  slot mediaOrder literal "1"
+  owner is runner
+  visibility private
+  mediaOrder 1
+media file:s1/Interviews/OH-2019-004 Smith/part2.mp3 create
+  file s1/Interviews/OH-2019-004 Smith/part2.mp3
+  parent group:OH-2019-004
+  slot mediaOrder literal "2"
+  owner is runner
+  visibility private
+  mediaOrder 2
+media file:s1/Interviews/OH-2019-004 Smith/photo.jpg create
+  file s1/Interviews/OH-2019-004 Smith/photo.jpg
+  parent group:OH-2019-004
+  slot mediaOrder literal "5"
+  owner is runner
+  visibility private
+  mediaOrder 5
+media file:s1/Interviews/OH-2019-004 Smith/transcript.pdf create
+  file s1/Interviews/OH-2019-004 Smith/transcript.pdf
+  parent group:OH-2019-004
+  slot mediaOrder literal "4"
+  owner is runner
+  visibility private
+  mediaOrder 4

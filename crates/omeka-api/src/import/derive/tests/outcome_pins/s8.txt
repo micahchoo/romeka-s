@@ -1,0 +1,46 @@
+item row:mixed/#2 create
+  row mixed/#2
+  media row:mixed/L1#1
+  slot sets literal "SET1"
+  slot itemKey literal "L1"
+  slot dcterms:identifier literal "L1"
+  slot dcterms:title literal "First letter"
+  set row:mixed/#1
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey L1
+item row:mixed/#3 create
+  row mixed/#3
+  slot sets literal "SET1"
+  slot itemKey literal "L2"
+  slot dcterms:identifier literal "L2"
+  slot dcterms:relation resource identifier "L1" -> row:mixed/#2
+  slot dcterms:title literal "Reply"
+  set row:mixed/#1
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey L2
+itemSet row:mixed/#1 create
+  row mixed/#1
+  slot itemKey literal "SET1"
+  slot dcterms:identifier literal "SET1"
+  slot dcterms:title literal "Letters"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey SET1
+media row:mixed/L1#1 create
+  row mixed/L1#1
+  parent row:mixed/#2
+  slot ingester literal "url"
+  slot mediaSource literal "https://example.org/1.jpg"
+  slot itemKey literal "L1"
+  template existing 1
+  owner is runner
+  visibility private
+  ingester url
+  mediaSource https://example.org/1.jpg
+  itemKey L1
+flag no-file keep 2

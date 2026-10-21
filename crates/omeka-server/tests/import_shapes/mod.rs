@@ -7,6 +7,7 @@
 pub mod bhc006;
 pub mod born_digital;
 pub mod oral_history;
+pub mod outcome_pins;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -212,7 +213,8 @@ async fn add_terms(fixture: &Fixture, slots: &[&str]) {
 }
 
 /// Make a draft on the shape, save the plan `plan_for` edits, scan, and read
-/// every page of the preview. `slots` names the terms the plan writes.
+/// every page of the preview, with every record of each kind and the flag
+/// counts. `slots` names the terms the plan writes.
 pub async fn run(
     fixture: &Fixture,
     shape: &Shape,
@@ -233,11 +235,15 @@ pub async fn run(
     assert_eq!(first.status, 200, "{}", first.body);
     let check = first.json()["check"].clone();
     assert_eq!(check["blocking"], json!([]), "the plan cannot run");
+    let flags = fixture.preview(&id, &json!({ "include": ["flags"] })).await;
+    assert_eq!(flags.status, 200, "{}", flags.body);
     json!({
         "check": check,
         "entries": pages(fixture, &id, "entries", json!({})).await,
         "items": pages(fixture, &id, "records", json!({ "kind": "item" })).await,
         "media": pages(fixture, &id, "records", json!({ "kind": "media" })).await,
+        "itemSets": pages(fixture, &id, "records", json!({ "kind": "itemSet" })).await,
+        "flags": flags.json()["flags"].clone(),
     })
 }
 
