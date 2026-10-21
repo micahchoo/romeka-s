@@ -100,7 +100,7 @@ pub struct QueryFilter {
     pub has_media: Option<bool>,
     /// `has_media_kind`: items with a media of one of these port kind names
     /// (`MediaKind::name`). `None` adds no filter; an empty list matches no item.
-    pub has_media_kind: Option<Vec<String>>,
+    pub has_media_kind: Option<MediaKindFilter>,
     /// `site_attachments_only`: items attached to a block on a page of the
     /// `site_id` site (`ItemAdapter::buildQuery`). Only meaningful with
     /// `site_id`.
@@ -305,6 +305,14 @@ impl QueryFilter {
     }
 }
 
+/// A filter on the port's media kind: the kind names to keep, and the media types the
+/// thumbnailer draws from, which decide `local-image` as `MediaKind::of` does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaKindFilter {
+    pub names: Vec<String>,
+    pub local_image_types: Vec<String>,
+}
+
 /// `romeka_kind` and `has_media_kind`: the port's media kind as the wire names
 /// it, rendered as a `CASE` over the `media` columns.
 ///
@@ -316,11 +324,12 @@ impl QueryFilter {
 /// names it, so the mirror cannot drift unseen.
 pub(crate) fn push_media_kind<'q, DB: Backend>(
     statement: &mut Statement<'q, DB>,
-    names: &[String],
+    filter: &MediaKindFilter,
 ) -> Result<(), DbError>
 where
     for<'x> String: Encode<'x, DB> + Type<DB>,
 {
+    let names = &filter.names;
     if names.is_empty() {
         statement.push(" AND 1 = 0");
         return Ok(());
@@ -331,8 +340,20 @@ where
            WHEN media.ingester = 'iiif_presentation' THEN 'iiif-presentation'
            WHEN media.renderer IN ('youtube', 'oembed', 'html') THEN 'embed'
            WHEN media.renderer = 'file' AND media.has_thumbnails = 1
-             AND media.media_type IN ('image/gif', 'image/jpeg', 'image/jp2',
-               'image/png', 'image/tiff', 'image/webp') THEN 'local-image'
+             AND media.media_type IN (",
+    );
+    // The thumbnailer's source types, bound from the caller, so a new image format changes one list.
+    if filter.local_image_types.is_empty() {
+        statement.push("NULL");
+    }
+    for (index, media_type) in filter.local_image_types.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind(media_type.clone())?;
+    }
+    statement.push(
+        ") THEN 'local-image'
            WHEN media.renderer = 'file' AND media.media_type = 'application/pdf' THEN 'pdf'
            WHEN media.renderer = 'file'
              AND media.media_type IN ('model/gltf-binary', 'model/gltf+json') THEN 'model-3d'
