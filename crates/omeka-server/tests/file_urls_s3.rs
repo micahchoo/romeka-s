@@ -201,6 +201,9 @@ async fn the_api_signs_originals_and_private_thumbnails_and_leaves_public_thumbn
 async fn the_site_renders_signed_urls_only_to_a_viewer_who_may_see_the_resource() {
     let scene = scene().await;
 
+    // The item page shows its first visible file whole: the public media's large
+    // thumbnail is a plain URL, the private media's does not reach the page, and
+    // the file itself opens its media page rather than the signed original.
     let page = send(
         scene.app.clone(),
         get(&format!("/s/vis-pub/item/{}", scene.item.0), false),
@@ -209,15 +212,29 @@ async fn the_site_renders_signed_urls_only_to_a_viewer_who_may_see_the_resource(
     assert_eq!(page.status, 200);
     assert!(
         page.body
-            .contains(&format!("src=\"{BUCKET_URL}/square/eeeeeeee.jpg\"")),
+            .contains(&format!("src=\"{BUCKET_URL}/large/eeeeeeee.jpg\"")),
         "a public thumbnail is plain"
     );
     assert!(
         page.body
+            .contains(&format!("/s/vis-pub/media/{}", scene.media_public.0)),
+        "the file opens its media page"
+    );
+    assert!(!page.body.contains("ffffffff"), "a private media stays out");
+
+    // The media page links the original, which is always signed.
+    let media_page = send(
+        scene.app.clone(),
+        get(&format!("/s/vis-pub/media/{}", scene.media_public.0), false),
+    )
+    .await;
+    assert_eq!(media_page.status, 200);
+    assert!(
+        media_page
+            .body
             .contains(&format!("{BUCKET_URL}/original/eeeeeeee.jpg?X-Amz-")),
         "a public original is signed"
     );
-    assert!(!page.body.contains("ffffffff"), "a private media stays out");
 
     let path = format!("/s/vis-pub/item/{}", scene.private_item.0);
     let anonymous = send(scene.app.clone(), get(&path, false)).await;
@@ -230,13 +247,13 @@ async fn the_site_renders_signed_urls_only_to_a_viewer_who_may_see_the_resource(
     assert!(
         owned
             .body
-            .contains(&format!("{BUCKET_URL}/square/dddddddd.jpg?X-Amz-")),
+            .contains(&format!("{BUCKET_URL}/large/dddddddd.jpg?X-Amz-")),
         "a private item's thumbnail is signed for its owner"
     );
     assert!(
         !owned
             .body
-            .contains(&format!("{BUCKET_URL}/square/dddddddd.jpg\"")),
+            .contains(&format!("{BUCKET_URL}/large/dddddddd.jpg\"")),
         "and never plain"
     );
 }
