@@ -32,10 +32,10 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 | video.mov | pass | pass | pass | pass | pass | pass | n/a |
 | video.mkv | pass | pass | pass | pass | pass | pass | n/a |
 | video.ogv | pass | pass | pass | pass | pass | pass | n/a |
-| doc.pdf | pass | pass | pass | **fail** | pass | pass | n/a |
+| doc.pdf | pass | pass | pass | pass | pass | pass | n/a |
 | doc.docx | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| model.glb | pass | **fail** | pass | **fail** | pass | **fail** | n/a |
-| model.gltf | pass | **fail** | pass | **fail** | pass | **fail** | n/a |
+| model.glb | pass | **fail** | pass | pass | pass | **fail** | n/a |
+| model.gltf | pass | **fail** | pass | pass | pass | **fail** | n/a |
 | captions.vtt | pass | **fail** | pass | pass | pass | **fail** | n/a |
 | captions.srt | pass | **fail** | pass | pass | pass | **fail** | n/a |
 
@@ -53,13 +53,10 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `captions.vtt` / thumbnail
 - `doc.docx` / iiif
 - `doc.docx` / thumbnail
-- `doc.pdf` / site-media-page
 - `image.avif` / iiif
 - `image.heic` / iiif
 - `model.glb` / iiif
-- `model.glb` / site-media-page
 - `model.glb` / thumbnail
 - `model.gltf` / iiif
-- `model.gltf` / site-media-page
 - `model.gltf` / thumbnail
 - `video.mp4` / site-media-page

@@ -51,14 +51,11 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("captions.vtt", "thumbnail"),
     ("doc.docx", "iiif"),
     ("doc.docx", "thumbnail"),
-    ("doc.pdf", "site-media-page"),
     ("image.avif", "iiif"),
     ("image.heic", "iiif"),
     ("model.glb", "iiif"),
-    ("model.glb", "site-media-page"),
     ("model.glb", "thumbnail"),
     ("model.gltf", "iiif"),
-    ("model.gltf", "site-media-page"),
     ("model.gltf", "thumbnail"),
     ("video.mp4", "site-media-page"),
 ];
@@ -321,6 +318,7 @@ struct Observed {
     /// What the Web Annotation Protocol answered for this media.
     notes: Option<Notes>,
     page: Option<String>,
+    item_page: Option<String>,
     manifest: Option<Value>,
     original: Option<Vec<u8>>,
     bytes: Vec<u8>,
@@ -645,6 +643,7 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         media_doc: None,
         notes: None,
         page: None,
+        item_page: None,
         manifest: None,
         original: None,
         bytes,
@@ -661,6 +660,11 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         return observed;
     };
     attach(app, seed, item_id).await;
+    observed.item_page = Some(
+        send(app.clone(), get(&format!("{SITE}/item/{item_id}"), false))
+            .await
+            .body,
+    );
     if fixture.captions {
         attach_captions(app, item_id).await;
     }
@@ -957,12 +961,38 @@ fn site_media_page(fixture: &Fixture, seen: &Observed, css: &str) -> bool {
                     .any(|tag| tag.contains("src=\"") && tag.contains(".vtt"));
             video && track
         }
-        Kind::Pdf => has_pdf_object(page),
+        Kind::Pdf => {
+            // The file's own page draws the browser's reader and the card; an
+            // item page draws one card per file and no reader at all.
+            has_pdf_object(page)
+                && page.contains("class=\"pdf-card\"")
+                && seen
+                    .item_page
+                    .as_deref()
+                    .is_some_and(|item| !has_pdf_object(item))
+        }
         Kind::Document | Kind::Captions => has_file_link(page, doc),
-        Kind::Model => page.contains("<model-viewer"),
+        Kind::Model => has_model_reader(page),
     };
     let crop = matches!(fixture.kind, Kind::Image | Kind::Svg) && cover_crop(css);
-    element && !crop
+    // Only a page that shows a 3D file carries the viewer's facade, so a page
+    // of images, recordings or documents never names it.
+    let model_only = matches!(fixture.kind, Kind::Model)
+        || !(page.contains("<model-viewer") || page.contains("/assets/js/model.js"));
+    element && !crop && model_only
+}
+
+/// The model page offers the vendored viewer behind a button that states the
+/// download, and the element's source waits for that press. The facade is the
+/// theme's script; the library is named on the button's root, not loaded.
+fn has_model_reader(page: &str) -> bool {
+    page.contains("<script src=\"/assets/js/model.js?v=")
+        && page.contains("<model-viewer")
+        && page.contains("data-library=\"/assets/vendor/model-viewer/model-viewer-umd.min.js?v=")
+        && page.contains("data-src=\"")
+        && page.contains("/files/original/")
+        && page.contains("class=\"model-turn\"")
+        && !page.contains("<script src=\"/assets/vendor/model-viewer/")
 }
 
 /// An `<img>` of the media itself, with a non-empty alt.

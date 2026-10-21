@@ -229,6 +229,50 @@ pub struct RenderOptions {
     pub allowfullscreen: Option<bool>,
     /// `title`, for the IIIF viewer iframe.
     pub title: Option<String>,
+    /// Whether the embed is the file's own page, where a browser's document
+    /// reader may draw. An item page or a block shows the file's card instead,
+    /// so a page of files never loads one reader per file.
+    pub reader: bool,
+    /// The 3D viewer a `model` file renderer offers on the reader's press, with
+    /// the words the site renders it in. `None` on a surface that has no
+    /// viewer: the renderer then links the file instead of offering a button.
+    pub model_reader: Option<ModelReader>,
+}
+
+/// The deferred 3D viewer: where the vendored library is served from, and the
+/// words the facade says before and during the download. The site layer owns
+/// the library's URL and the translated text; the renderer owns the markup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelReader {
+    /// The library's URL on this origin, versioned by its bytes.
+    pub library_url: String,
+    /// The button's label, which states the library's download size.
+    pub turn: String,
+    /// The button's label once pressed, while the library loads.
+    pub loading: String,
+    /// The line shown when the library cannot load.
+    pub failed: String,
+    /// The line a reader without JavaScript sees.
+    pub no_javascript: String,
+}
+
+/// A byte count as a page states it: `812 B`, `140 KB`, `2.3 MB`, `1.2 GB`.
+/// One decimal from a megabyte up, none below it, 1024 bytes to the next unit.
+#[must_use]
+pub fn human_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    let value = bytes as f64;
+    if bytes >= GB {
+        format!("{:.1} GB", value / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", value / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.0} KB", value / KB as f64)
+    } else {
+        format!("{bytes} B")
+    }
 }
 
 /// The registries a renderer may reach, the port's shape for `$view`.
@@ -391,5 +435,16 @@ mod tests {
             "/item/1",
             "/media/1",
         )
+    }
+
+    /// A page states a download's size in whole bytes, whole kilobytes, or one
+    /// decimal above, so "140 KB" is what the reader pays.
+    #[test]
+    fn a_size_is_stated_in_the_unit_a_reader_reads() {
+        assert_eq!(human_size(0), "0 B");
+        assert_eq!(human_size(812), "812 B");
+        assert_eq!(human_size(143_378), "140 KB");
+        assert_eq!(human_size(2_411_724), "2.3 MB");
+        assert_eq!(human_size(1_288_490_188), "1.2 GB");
     }
 }
