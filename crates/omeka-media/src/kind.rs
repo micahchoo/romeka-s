@@ -8,25 +8,42 @@
 //! type or the renderer name itself.
 
 /// The stored types whose derivatives are a still image for display: every
-/// type the thumbnailer decodes, plus the camera RAW formats, whose embedded
-/// preview makes the derivatives. This is the one list [`MediaKind::of_file`]
+/// type the thumbnailer decodes, plus the types a JPEG access master makes
+/// displayable (the camera RAW formats, PSD, the dynamic-range formats, HEIC
+/// and the PostScript page formats). This is the one list [`MediaKind::of_file`]
 /// and the SQL mirror in `omeka-db` both read.
-pub const DISPLAY_IMAGE_MEDIA_TYPES: [&str; 18] = [
+///
+/// Membership is not enough on its own: a row is a local image only once
+/// `has_thumbnails` says the files exist, so a PSD on an install without `vips`
+/// stays an other file and a type is never promised a canvas this install
+/// cannot paint.
+pub const DISPLAY_IMAGE_MEDIA_TYPES: [&str; 29] = [
+    "application/illustrator",
+    "application/postscript",
+    "image/avif",
+    "image/bmp",
     "image/gif",
-    "image/jpeg",
+    "image/heic",
+    "image/heif",
     "image/jp2",
+    "image/jpeg",
     "image/png",
     "image/svg+xml",
     "image/tiff",
+    "image/vnd.adobe.photoshop",
+    "image/vnd.radiance",
     "image/webp",
     "image/x-adobe-dng",
     "image/x-canon-cr2",
     "image/x-canon-cr3",
+    "image/x-eps",
+    "image/x-exr",
     "image/x-fuji-raf",
     "image/x-nikon-nef",
     "image/x-olympus-orf",
     "image/x-panasonic-rw2",
     "image/x-pentax-pef",
+    "image/x-photoshop",
     "image/x-samsung-srw",
     "image/x-sigma-x3f",
     "image/x-sony-arw",
@@ -405,6 +422,55 @@ mod tests {
         };
         assert_eq!(raw(true), MediaKind::LocalImage);
         assert_eq!(raw(false), MediaKind::OtherFile);
+    }
+
+    /// A HEIC, an AVIF and a BMP are local images only once a tool has made
+    /// their derivatives. Before that they are other files: a type is never
+    /// promised a canvas this install cannot paint.
+    #[test]
+    fn an_avif_heic_or_bmp_is_a_local_image_only_with_derivatives() {
+        for (media_type, extension) in [
+            ("image/avif", "avif"),
+            ("image/heic", "heic"),
+            ("image/bmp", "bmp"),
+        ] {
+            let kind = |has_thumbnails| {
+                MediaKind::of(&KindInput {
+                    renderer: "file",
+                    ingester: "upload",
+                    media_type: Some(media_type),
+                    extension: Some(extension),
+                    has_thumbnails,
+                })
+            };
+            assert_eq!(kind(true), MediaKind::LocalImage, "{media_type}");
+            assert_eq!(kind(false), MediaKind::OtherFile, "{media_type}");
+            assert!(
+                DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type),
+                "{media_type}"
+            );
+        }
+    }
+
+    /// Every type a JPEG access master makes displayable is a display image, so
+    /// its media gets a canvas once the master and the derivatives exist.
+    #[test]
+    fn an_access_master_type_is_a_display_image() {
+        for media_type in [
+            "application/illustrator",
+            "application/postscript",
+            "image/heif",
+            "image/vnd.adobe.photoshop",
+            "image/vnd.radiance",
+            "image/x-eps",
+            "image/x-exr",
+            "image/x-photoshop",
+        ] {
+            assert!(
+                DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type),
+                "{media_type}"
+            );
+        }
     }
 
     /// An office document is its own kind, by the type the sniffer recorded or,

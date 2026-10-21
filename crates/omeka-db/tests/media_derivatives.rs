@@ -74,7 +74,7 @@ async fn a_claim_takes_the_row_once_and_counts_the_attempt() {
 }
 
 #[tokio::test]
-async fn an_access_copy_waits_for_the_worker_that_makes_it() {
+async fn an_access_copy_counts_for_the_worker_that_makes_it() {
     let pool = common::memory().await;
     let id = media(&pool, "queue-access").await;
     let repo = MediaDerivativeRepo::new(&pool);
@@ -93,12 +93,15 @@ async fn an_access_copy_waits_for_the_worker_that_makes_it() {
     );
     assert_eq!(
         repo.pending().await.unwrap(),
-        0,
-        "the preview worker counts only its own work"
+        1,
+        "a copy its worker can make starts that worker"
     );
     assert!(
-        repo.claim_next().await.unwrap().is_none(),
-        "an access copy is not a still the preview worker can make"
+        repo.claim_next_image_master(&["vips"])
+            .await
+            .unwrap()
+            .is_none(),
+        "an ffmpeg copy is the audio and video worker's"
     );
     let row = repo
         .get(id, DerivativeKind::AccessCopy)
@@ -109,11 +112,68 @@ async fn an_access_copy_waits_for_the_worker_that_makes_it() {
     assert_eq!(row.tool.as_deref(), Some("ffmpeg"));
     assert!(row.finished.is_none());
 
-    // A preview row queued behind it is still claimed first.
+    // A copy with no command starts no worker, and a JPEG master is the image
+    // worker's to claim.
+    let jpeg = media(&pool, "queue-master").await;
+    repo.plan(
+        &NewDerivative {
+            media_id: jpeg,
+            kind: DerivativeKind::AccessCopy,
+        },
+        DerivativeState::Pending,
+        None,
+        Some("vips"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(repo.pending().await.unwrap(), 2);
+    let master = repo
+        .claim_next_image_master(&["vips"])
+        .await
+        .unwrap()
+        .expect("the JPEG master");
+    assert_eq!(master.media_id, jpeg);
+    assert_eq!(master.tool.as_deref(), Some("vips"));
+
+    // A preview row queued behind them is still claimed first.
     repo.enqueue(&poster(id)).await.unwrap();
-    assert_eq!(repo.pending().await.unwrap(), 1);
     let claimed = repo.claim_next().await.unwrap().expect("the poster");
     assert_eq!(claimed.kind, DerivativeKind::Poster);
+}
+
+/// A copy settled `none` because this install lacked its command keeps the command when it is
+/// retried, so the install that has it claims the row.
+#[tokio::test]
+async fn a_retried_access_copy_keeps_the_command_its_plan_named() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-retry-master").await;
+    let repo = MediaDerivativeRepo::new(&pool);
+    repo.plan(
+        &NewDerivative {
+            media_id: id,
+            kind: DerivativeKind::AccessCopy,
+        },
+        DerivativeState::None,
+        Some("needs vips, not installed"),
+        Some("vips"),
+    )
+    .await
+    .unwrap();
+    assert!(repo.retry(id, DerivativeKind::AccessCopy).await.unwrap());
+    let row = repo
+        .get(id, DerivativeKind::AccessCopy)
+        .await
+        .unwrap()
+        .expect("the row");
+    assert_eq!(row.state, DerivativeState::Pending);
+    assert_eq!(row.tool.as_deref(), Some("vips"));
+    assert!(row.reason.is_none());
+    let claimed = repo
+        .claim_next_image_master(&["vips"])
+        .await
+        .unwrap()
+        .expect("the tools image claims it");
+    assert_eq!(claimed.media_id, id);
 }
 
 #[tokio::test]

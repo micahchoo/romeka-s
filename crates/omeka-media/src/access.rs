@@ -8,9 +8,9 @@
 //!
 //! [`Access::of`] is the table. It answers for video by container and codec,
 //! for audio by codec (and the size of a WAV), and for images by type and a
-//! test of a TIFF's layout. `None` means this wave has no access rule for the
-//! type, which is true of office documents, models and caption files: they get
-//! no row rather than a guess.
+//! test of a TIFF's or a JPEG 2000 file's layout. `None` means this wave has no
+//! access rule for the type, which is true of office documents, models and
+//! caption files: they get no row rather than a guess.
 //!
 //! The facts come from [`facts`], which reads a stored original through
 //! [`crate::sample`] and runs `ffprobe` for the codecs. The decision is made
@@ -18,8 +18,15 @@
 //! `access_copy` row in `romeka_media_derivative` (see
 //! `omeka_api::derivatives`): `none` with the words a reader sees, or
 //! `pending` with the tool that will make the copy. The worker that runs those
-//! tools lands with D3 (audio and video) and D4 (images), which read
-//! [`Access::Copy`] and [`crate::tool`]'s argument lists.
+//! tools reads [`Access::Copy`] and [`crate::tool`]'s argument lists:
+//! `omeka_media::access_master` makes the JPEG master and the three thumbnails
+//! from it, and the audio and video worker makes the MP4 and the M4A. The
+//! original is never changed.
+//!
+//! [`display_path`] is the other half of the same decision: the file a canvas
+//! and the Image API decode is the JPEG master when one exists, so a 6016x4016
+//! camera RAW's canvas is 6016x4016 rather than the 800 pixel derivative that
+//! stood in before the master existed.
 //!
 //! "A browser shows the original" covers the image path as well: a JPEG, PNG,
 //! GIF, WebP, AVIF or SVG is shown by the browser, and a TIFF or JPEG 2000 is
@@ -30,8 +37,8 @@
 use crate::av_probe::{self, Streams};
 use crate::media_type::{RAW_MEDIA_TYPES, extension_for_media_type, is_raw_media_type};
 use crate::sample;
-use crate::store::Store;
-use crate::tool::{AccessTool, Tools};
+use crate::store::{Store, StorePrefix, storage_path};
+use crate::tool::{AccessTool, Still, Tools};
 
 /// The words a reader sees when the original needs no copy.
 pub const ORIGINAL_REASON: &str = "a browser shows the original";
@@ -40,6 +47,10 @@ pub const ORIGINAL_REASON: &str = "a browser shows the original";
 /// stereo: a reader waits on a download that long, and the same audio as AAC
 /// is a tenth of it.
 pub const LARGE_WAV_BYTES: u64 = 32 * 1024 * 1024;
+
+/// The largest JPEG 2000 file the layout test reads whole. A bigger one is
+/// promised to the decoder.
+const JP2_TEST_BYTES: u64 = 64 * 1024 * 1024;
 
 /// Video containers no current browser opens, whatever streams they hold. An
 /// H.264 track in an AVI still needs an MP4, because the player refuses the
@@ -86,6 +97,9 @@ const PHOTOSHOP_TYPES: [&str; 2] = ["image/vnd.adobe.photoshop", "image/x-photos
 const PHOTOSHOP_EXTENSIONS: [&str; 1] = ["psd"];
 const DYNAMIC_RANGE_EXTENSIONS: [&str; 2] = ["exr", "hdr"];
 const POSTSCRIPT_EXTENSIONS: [&str; 3] = ["ai", "eps", "ps"];
+/// The extensions that name a JPEG 2000 file, for a byte read that named the
+/// container something else.
+const JP2_EXTENSIONS: [&str; 2] = ["jp2", "j2k"];
 
 /// PostScript's stored types: an EPS, an Illustrator file and a plain PS page.
 const POSTSCRIPT_TYPES: [&str; 3] = [
@@ -116,6 +130,16 @@ impl AccessTarget {
         }
     }
 
+    /// The media type a stored copy answers with.
+    #[must_use]
+    pub const fn media_type(self) -> &'static str {
+        match self {
+            Self::Mp4 => "video/mp4",
+            Self::M4a => "audio/mp4",
+            Self::Jpeg => "image/jpeg",
+        }
+    }
+
     /// The reason in words a reader sees, naming what the copy is.
     #[must_use]
     pub const fn reason(self) -> &'static str {
@@ -129,6 +153,55 @@ impl AccessTarget {
             }
         }
     }
+}
+
+/// Where an access copy is stored: `access/<storage id>.<suffix>`, its own
+/// prefix so it is never mistaken for the original.
+#[must_use]
+pub fn copy_path(storage_id: &str, target: AccessTarget) -> String {
+    crate::store::storage_path(StorePrefix::Access, storage_id, Some(target.suffix()))
+}
+
+/// The stored file a browser-facing surface decodes for one media: the JPEG
+/// access master when the store holds one, else the file this server read
+/// before a master existed. A camera RAW, an AVIF and a HEIC original do not
+/// decode here, so the large derivative stands in; every other image is read
+/// from its original.
+///
+/// The canvas and the Image API both call this, so a canvas and the pixels it
+/// paints are one space.
+#[must_use]
+pub fn display_path(
+    store: &dyn Store,
+    storage_id: &str,
+    extension: Option<&str>,
+    media_type: Option<&str>,
+) -> String {
+    // The table decides whether a master can exist at all, so a JPEG or a PNG
+    // costs no store read. A TIFF whose layout decodes is probed once and falls
+    // back to its original.
+    let expected = media_type.is_some_and(|media_type| {
+        matches!(
+            Access::of(&Facts::new(Some(media_type), extension, None)),
+            Some(Access::Copy {
+                target: AccessTarget::Jpeg,
+                ..
+            })
+        )
+    });
+    if expected {
+        let master = copy_path(storage_id, AccessTarget::Jpeg);
+        if store.exists(&master).unwrap_or(false) {
+            return master;
+        }
+    }
+    if media_type.is_some_and(|media_type| Still::of(media_type).is_some()) {
+        return crate::thumbnailer::thumbnail_path(
+            storage_id,
+            crate::file_render::ThumbnailType::Large,
+        );
+    }
+    storage_path(StorePrefix::Original, storage_id, extension)
 }
 
 /// What a stored original needs for a browser to show it.
@@ -271,6 +344,12 @@ impl Access {
         if names(&POSTSCRIPT_TYPES, media_type) || names_any(&POSTSCRIPT_EXTENSIONS, extension) {
             return Some(Self::copy(AccessTarget::Jpeg, &[AccessTool::Ghostscript]));
         }
+        if media_type == "image/jp2" || names_any(&JP2_EXTENSIONS, extension) {
+            return Some(match facts.jp2 {
+                Some(Jp2Test::Decodes) => Self::Original,
+                _ => Self::copy(AccessTarget::Jpeg, &[AccessTool::Vips]),
+            });
+        }
         if media_type == "image/tiff" {
             return Some(match facts.tiff {
                 Some(TiffTest::Decodes) => Self::Original,
@@ -304,6 +383,17 @@ pub enum TiffTest {
     Rejects(&'static str),
 }
 
+/// What a JPEG 2000 file says about whether this server reads its pixels. The
+/// header and codestream decide: a colour space the decoder here refuses, or a
+/// codestream it cannot parse, is a case for `vips`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Jp2Test {
+    /// The decoder the thumbnails use reads page one.
+    Decodes,
+    /// A file the decoder here does not read, and why.
+    Rejects(&'static str),
+}
+
 /// The facts of one stored original that decide its access copy. A field the
 /// caller did not read stays `None`, and the table then decides from the type.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -315,6 +405,9 @@ pub struct Facts {
     pub streams: Streams,
     /// The layout of a TIFF, when the file is one.
     pub tiff: Option<TiffTest>,
+    /// Whether this server reads a JPEG 2000 file's pixels, when the file is
+    /// one.
+    pub jp2: Option<Jp2Test>,
 }
 
 impl Facts {
@@ -327,6 +420,7 @@ impl Facts {
             size,
             streams: Streams::default(),
             tiff: None,
+            jp2: None,
         }
     }
 }
@@ -360,7 +454,28 @@ pub fn facts(store: &dyn Store, tools: &Tools, file: &StoredFile<'_>) -> Facts {
     if is_tiff(media_type, facts.extension.as_deref()) {
         facts.tiff = Some(tiff_test(store, file));
     }
+    if media_type == "image/jp2" || names_any(&JP2_EXTENSIONS, facts.extension.as_deref()) {
+        facts.jp2 = Some(jp2_test(store, file));
+    }
     facts
+}
+
+/// Whether this server reads a JPEG 2000 file's pixels. The whole file is read,
+/// because a codestream has no header the decoder can answer from alone; a file
+/// over [`JP2_TEST_BYTES`] is promised to the decoder, which reads it whole when
+/// it makes the thumbnails anyway.
+fn jp2_test(store: &dyn Store, file: &StoredFile<'_>) -> Jp2Test {
+    if file.size.is_some_and(|size| size > JP2_TEST_BYTES) {
+        return Jp2Test::Decodes;
+    }
+    let Ok(bytes) = store.read(file.storage_path) else {
+        return Jp2Test::Rejects("unreadable");
+    };
+    if crate::thumbnailer::jp2_decodes(&bytes) {
+        Jp2Test::Decodes
+    } else {
+        Jp2Test::Rejects("the decoder refused it")
+    }
 }
 
 /// Whether this server reads a TIFF's pixels: the directory's colour type, bit
@@ -800,6 +915,76 @@ mod tests {
             Queue::Pending { tool: "dcraw_emu" },
             "the second tool makes the copy when the first is absent"
         );
+    }
+
+    /// The JPEG access master is the file a surface decodes once it exists. A
+    /// camera RAW, an AVIF and a HEIC original do not decode here, so before a
+    /// master exists their large derivative stands in; every other image is
+    /// read from its original.
+    #[test]
+    fn the_master_stands_in_for_an_original_that_does_not_decode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(dir.path(), "/files");
+        let display = |media_type: &str| display_path(&store, "abc", Some("bin"), Some(media_type));
+        assert_eq!(display("image/nef"), "original/abc.bin");
+        assert_eq!(display("image/jpeg"), "original/abc.bin");
+        assert_eq!(display("image/x-nikon-nef"), "large/abc.jpg");
+        assert_eq!(display("image/avif"), "large/abc.jpg");
+
+        store
+            .put(b"jpeg", &copy_path("abc", AccessTarget::Jpeg), None)
+            .expect("store");
+        for media_type in ["image/x-nikon-nef", "image/heic"] {
+            assert_eq!(display(media_type), "access/abc.jpg", "{media_type}");
+        }
+        // AVIF's original is what a browser shows, so the table plans no master
+        // and the Image API reads the derivative the still made.
+        assert_eq!(display("image/avif"), "large/abc.jpg");
+    }
+
+    /// A JPEG 2000 file this server decodes is the original; one it refuses (a
+    /// CMYK codestream) gets a `vips` master, which is the edge case the plan
+    /// names.
+    #[test]
+    fn a_jp2_the_decoder_refuses_gets_a_master() {
+        let tools = Tools::on_path();
+        let Some(vips) = tools.vips() else {
+            eprintln!("skipping: no vips on PATH");
+            return;
+        };
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(dir.path(), "/files");
+        let decode_to_jp2 = |source: &str, name: &str| {
+            let out = dir.path().join(name);
+            let status = std::process::Command::new(vips)
+                .args(["copy"])
+                .arg(corpus(source))
+                .arg(&out)
+                .status()
+                .expect("vips runs");
+            assert!(status.success(), "vips wrote {name}");
+            let bytes = std::fs::read(&out).expect("the jp2");
+            let path = format!("original/{name}");
+            store.put(&bytes, &path, Some("image/jp2")).expect("store");
+            facts(
+                &store,
+                tools,
+                &StoredFile {
+                    storage_path: &path,
+                    media_type: Some("image/jp2"),
+                    extension: Some("jp2"),
+                    size: Some(bytes.len() as u64),
+                },
+            )
+        };
+
+        let plain = decode_to_jp2("image.png", "plain.jp2");
+        assert_eq!(plain.jp2, Some(Jp2Test::Decodes));
+        assert_eq!(Access::of(&plain), Some(Access::Original));
+
+        let cmyk = decode_to_jp2("image-cmyk.tif", "cmyk.jp2");
+        assert_eq!(cmyk.jp2, Some(Jp2Test::Rejects("the decoder refused it")));
+        assert_eq!(Access::of(&cmyk), Some(VIPS_JPEG));
     }
 
     /// A TIFF the decoder cannot read gets a copy: a CMYK one, a 16-bit one and

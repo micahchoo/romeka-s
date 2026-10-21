@@ -254,8 +254,9 @@ original (`none`, "a browser shows the original"), or which copy a later worker
 makes and with which command (`pending`, `ffmpeg` for an MP4 or M4A, `vips` for a
 TIFF layout the decoder does not read, `exiftool` or libraw for a RAW file,
 `gs` for a PostScript page), or `none` with `needs <tool>, not installed`. The
-row names a copy the worker in this build does not make, so the preview worker
-leaves it in the queue.
+row is claimed by the worker that has its command, so `--retry` on an install
+with `vips` re-queues a row a smaller install settled with `needs vips, not
+installed` (the separate tools image in `packaging/README.md` runs this way).
 
 The summary line is `queued Q, retried R, waiting W, already ready A, nothing to
 do N`, one line per row after the run, and the exit code is 1 when any row ended

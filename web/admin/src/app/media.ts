@@ -95,12 +95,14 @@ const TYPE_FAMILIES: readonly (readonly [string, MediaKind])[] = [
 
 /** Extensions a type too generic to say (octet-stream, text/plain) still names. */
 const KIND_EXTENSIONS: Readonly<Record<string, MediaKind>> = {
+  ai: 'image',
   arw: 'image',
   avif: 'image',
   bmp: 'image',
   cr2: 'image',
   cr3: 'image',
   dng: 'image',
+  eps: 'image',
   gif: 'image',
   heic: 'image',
   jp2: 'image',
@@ -110,6 +112,7 @@ const KIND_EXTENSIONS: Readonly<Record<string, MediaKind>> = {
   orf: 'image',
   pef: 'image',
   png: 'image',
+  ps: 'image',
   raf: 'image',
   rw2: 'image',
   srw: 'image',

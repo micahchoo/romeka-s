@@ -7,9 +7,15 @@
 //! `o-module-romeka:preview: {"state": "pending"}`. The worker (`Romeka\Job\MediaDerivatives`)
 //! claims the row, makes the still, and settles it ready, failed or none.
 //!
-//! This module owns the three decisions the create path, the worker and the CLI backfill must
-//! agree on: which kind of derivative a media needs, when to queue one, and what a media document
-//! shows for it.
+//! The worker makes two kinds of access copy. An `access_copy` row whose tool is a still-master tool
+//! (`exiftool`, `dcraw_emu`, `vips`, `gs`) is a JPEG master at the source's own size, with the three
+//! thumbnails made from it ([`settle_next_image_master`]); an `ffmpeg` row is an audio or video
+//! transcode. The row's tool says which, and each worker claims only its own, so neither settles
+//! work it cannot do.
+//!
+//! This module owns the decisions the create path, the worker and the CLI backfill must agree on:
+//! which kind of derivative a media needs, when to queue one, and what a media document shows for
+//! it.
 
 use std::sync::Arc;
 
@@ -22,6 +28,7 @@ use omeka_db::rows::{
 use omeka_db::with_db;
 use omeka_media::ThumbnailType;
 use omeka_media::access::{self, Access, Queue, StoredFile};
+use omeka_media::access_master::{MasterSource, MasterWork, make_master};
 use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
 use omeka_media::store::{Store, StorePrefix, Thumbnailer, storage_path};
 use omeka_media::thumbnailer::SOURCE_MEDIA_TYPES;
@@ -332,7 +339,7 @@ pub async fn settle_next(
     let Some(row) =
         with_db!(pool, |db| MediaDerivativeRepo::new(db).claim_next().await).map_err(db_error)?
     else {
-        return Ok(None);
+        return settle_next_image_master(pool, store).await;
     };
     let media = with_db!(pool, |db| omeka_db::repos::MediaRepo::new(db)
         .get(row.media_id)
@@ -357,6 +364,75 @@ pub async fn settle_next(
         DerivativeWork::Ready { .. } => DerivativeState::Ready,
         DerivativeWork::Skipped { .. } => DerivativeState::None,
         DerivativeWork::Failed { .. } => DerivativeState::Failed,
+    };
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .finish(
+            row.media_id,
+            row.kind,
+            state,
+            work.reason().map(str::to_string),
+            work.tool().map(str::to_string),
+        )
+        .await)
+    .map_err(db_error)?;
+    if state == DerivativeState::Ready {
+        mark_thumbnails(pool, row.media_id).await?;
+    }
+    Ok(Some(Settled::State {
+        state,
+        reason: work.reason().map(str::to_string),
+    }))
+}
+
+/// Claim and settle one queued image access copy: the JPEG master a PSD, a
+/// camera RAW, a 16-bit TIFF, a HEIC or a PostScript page needs, and the three
+/// thumbnails made from it. `Ok(None)` when no such row waits.
+///
+/// The row's own tool names only the command the create found; the chain is
+/// read again here, so an install that lost that command falls through to the
+/// next one. The audio and video worker (D3) claims the `ffmpeg` rows, and this
+/// one never touches them.
+///
+/// # Errors
+/// A database failure, or a blocking task that did not finish. A command that
+/// refused is the row's `failed` state, not an error here.
+pub async fn settle_next_image_master(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+) -> Result<Option<Settled>, ApiError> {
+    let names = Tools::on_path().image_master_names();
+    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .claim_next_image_master(&names)
+        .await)
+    .map_err(db_error)?
+    else {
+        return Ok(None);
+    };
+    let media = with_db!(pool, |db| omeka_db::repos::MediaRepo::new(db)
+        .get(row.media_id)
+        .await)
+    .map_err(db_error)?;
+    let Some(media) = media else {
+        return Ok(Some(Settled::Gone));
+    };
+    let source = MasterSource {
+        storage_id: media.storage_id.clone().unwrap_or_default(),
+        extension: media.extension.clone(),
+        media_type: media.media_type.clone(),
+        has_original: media.has_original,
+        size: media.size.and_then(|size| u64::try_from(size).ok()),
+    };
+    let store = Arc::clone(store);
+    let work =
+        tokio::task::spawn_blocking(move || make_master(store.as_ref(), Tools::on_path(), &source))
+            .await
+            .map_err(|error| {
+                ApiError::internal(format!("the access master did not finish: {error}"))
+            })?;
+    let state = match &work {
+        MasterWork::Ready { .. } => DerivativeState::Ready,
+        MasterWork::Skipped { .. } => DerivativeState::None,
+        MasterWork::Failed { .. } => DerivativeState::Failed,
     };
     with_db!(pool, |db| MediaDerivativeRepo::new(db)
         .finish(

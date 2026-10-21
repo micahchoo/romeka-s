@@ -79,6 +79,15 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
         for kind in ThumbnailType::ALL {
             named.insert(omeka_media::thumbnailer::thumbnail_path(&storage_id, kind));
         }
+        // An access copy is named by the media it belongs to, not by a column,
+        // so every target is named and whichever the worker wrote is kept.
+        for target in [
+            omeka_media::access::AccessTarget::Mp4,
+            omeka_media::access::AccessTarget::M4a,
+            omeka_media::access::AccessTarget::Jpeg,
+        ] {
+            named.insert(omeka_media::access::copy_path(&storage_id, target));
+        }
     }
     for (storage_id, extension) in with_db!(&pool, |db| AssetRepo::new(db).stored_names().await)? {
         named.insert(storage_path(

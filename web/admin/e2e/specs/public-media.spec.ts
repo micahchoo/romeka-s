@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import type { APIRequestContext } from '@playwright/test';
 
 import { expect, expectClean, test } from '../fixtures';
-import { isArray, numberField, record } from '../harness/json';
+import { isArray, numberField, record, stringField } from '../harness/json';
 import { SITE_SLUG } from '../harness/seed';
 import { REPO_ROOT, readHarness } from '../harness/state';
 
@@ -347,4 +347,40 @@ test('a narrow window shows the PDF card instead of the browser reader', async (
   const gap = downloadBox.y - (cardBox.y + cardBox.height);
   expect(gap).toBeLessThan(40);
   await expectClean(diagnostics, 'narrow pdf');
+});
+
+/** A Photoshop document has no decoder in the image crate. The JPEG access
+ * master `vips` makes gives it a picture, a canvas and the viewer link, where
+ * the same file used to be a file with no kind. */
+test('a Photoshop document shows its access master', async ({ page, diagnostics }) => {
+  const media = await upload(page.request, 'image.psd', 'image/vnd.adobe.photoshop');
+  const document: unknown = await (await page.request.get(`/api/media/${String(media)}`)).json();
+  const filename = stringField(record(document, 'media'), 'o:filename', 'media');
+  // `o:thumbnail_urls` is `[]` until the worker has made the derivative, as
+  // upstream's empty PHP array is, so the path is built from the stored name.
+  const large = `/files/large/${filename.replace(/\.[^.]+$/, '')}.jpg`;
+  // The create queued the master; wait for the derivative the page draws.
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    const answer = await page.request.get(large);
+    if (answer.status() === 200) {
+      break;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`media ${String(media)} has no large derivative`);
+    }
+    await new Promise((done) => setTimeout(done, 100));
+  }
+
+  await page.goto(mediaPage(media));
+  const picture = page.locator('.media-page img').first();
+  await expect(picture).toHaveAttribute('src', /\/files\/large\/.+\.jpg$/);
+  // A picture has a canvas, so the page offers the viewer and the manifest.
+  await expect(page.locator('.use-elsewhere .use-elsewhere-viewer')).toHaveCount(1);
+  mkdirSync(join(REPO_ROOT, '.evidence'), { recursive: true });
+  await page.screenshot({
+    path: join(REPO_ROOT, '.evidence', 'after-psd-media-page.png'),
+    fullPage: true,
+  });
+  await expectClean(diagnostics, 'a PSD master');
 });

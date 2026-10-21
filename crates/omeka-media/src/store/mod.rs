@@ -177,25 +177,30 @@ pub enum Access {
 pub const THUMBNAIL_MEDIA_TYPE: &str = "image/jpeg";
 
 /// Which part of the tree a stored file belongs to
-/// (`TempFile::storeOriginal`, `storeAsset`, `storeThumbnails`).
+/// (`TempFile::storeOriginal`, `storeAsset`, `storeThumbnails`), plus Romeka's
+/// `access`, where a copy a browser can play or show lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorePrefix {
-    /// `original`, the ingested file.
+    /// `original`, the ingested file. Never changed by a derivative.
     Original,
     /// `asset`, an uploaded asset such as a site logo.
     Asset,
     /// A thumbnail type, stored under its own prefix.
     Thumbnail(ThumbnailType),
+    /// `access`, a derivative a browser plays or shows when it cannot open the
+    /// original (`crate::access`). Romeka-only: upstream stores no copy.
+    Access,
 }
 
 impl StorePrefix {
     /// Every prefix a media or asset row's files live under.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Original,
         Self::Asset,
         Self::Thumbnail(ThumbnailType::ALL[0]),
         Self::Thumbnail(ThumbnailType::ALL[1]),
         Self::Thumbnail(ThumbnailType::ALL[2]),
+        Self::Access,
     ];
 
     /// The path segment upstream passes to `TempFile::store`.
@@ -205,6 +210,7 @@ impl StorePrefix {
             Self::Original => "original",
             Self::Asset => "asset",
             Self::Thumbnail(kind) => kind.as_str(),
+            Self::Access => "access",
         }
     }
 }
@@ -384,14 +390,18 @@ mod tests {
         }
     }
 
-    /// The five prefixes, in the order upstream's store writes them.
+    /// The upstream prefixes in the order its store writes them, and Romeka's
+    /// `access` after them.
     #[test]
-    fn all_prefixes_are_original_asset_and_the_thumbnail_types() {
+    fn all_prefixes_are_original_asset_the_thumbnail_types_and_access() {
         let names: Vec<&str> = StorePrefix::ALL
             .iter()
             .map(|prefix| prefix.as_str())
             .collect();
-        assert_eq!(names, ["original", "asset", "large", "medium", "square"]);
+        assert_eq!(
+            names,
+            ["original", "asset", "large", "medium", "square", "access"]
+        );
     }
 
     /// `TempFile::getStorageId`: 40 lowercase hex characters.

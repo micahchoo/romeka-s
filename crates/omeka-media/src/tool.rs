@@ -351,7 +351,11 @@ pub fn image_jpeg_args(tool: AccessTool, source: &Path, output: &Path) -> Option
             OsStr::new("-o"),
             OsStr::new("1"),
             OsStr::new("-T"),
-            OsStr::new("-c"),
+            // libraw's `-c` is an exposure threshold, not dcraw's stdout
+            // switch; `-Z -` is how `dcraw_emu` writes the decoded TIFF to
+            // standard output.
+            OsStr::new("-Z"),
+            OsStr::new("-"),
             source.as_os_str(),
         ])),
         AccessTool::Vips => {
@@ -584,6 +588,32 @@ impl Tools {
         self.timeout
     }
 
+    /// Run an access tool with `args`, bounded in time, and answer what it
+    /// wrote to standard output. A command that writes its image to a file
+    /// answers nothing here; its caller reads the file.
+    ///
+    /// # Errors
+    /// A [`ToolError`] when the command is absent, runs past the timeout, exits
+    /// non-zero, or writes more than `limit` bytes.
+    pub fn run_access(
+        &self,
+        tool: AccessTool,
+        args: &[OsString],
+        limit: usize,
+    ) -> Result<Vec<u8>, ToolError> {
+        let program = self.access_program(tool)?;
+        let name = match tool {
+            AccessTool::LibRaw => self.libraw_name,
+            other => other.command(),
+        };
+        let borrowed: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
+        let output = capture(program, name, &borrowed, self.timeout, limit)?;
+        if !output.status.success() {
+            return Err(ToolError::Failed(name, reason(&output.stderr)));
+        }
+        Ok(output.stdout)
+    }
+
     /// `ffprobe`'s JSON answer for the file at `source`: the container's
     /// duration and each stream's type and frame size.
     ///
@@ -794,8 +824,23 @@ impl Tools {
         Ok(output.stdout)
     }
 
-    /// The numeric EXIF orientation the container states, when it states one
-    /// that turns the pixels.
+    /// The image master commands this install has, as a queued row names them.
+    /// The claim is filtered by this list, so two workers on one queue (a main
+    /// image with `exiftool` and a tools image with `vips`) each claim the rows
+    /// they can make and neither settles the other's as a skip.
+    #[must_use]
+    pub fn image_master_names(&self) -> Vec<&'static str> {
+        AccessTool::ALL
+            .into_iter()
+            .filter(|tool| *tool != AccessTool::Ffmpeg)
+            .filter_map(|tool| tool.found(self))
+            .collect()
+    }
+
+    /// The numeric EXIF orientation a file's container states, when it states
+    /// one that turns the pixels. A camera writes its pixels as the sensor saw
+    /// them and this tag says how they go upright; an embedded preview usually
+    /// carries no tag of its own, so its container's value is the one to apply.
     fn orientation(&self, exiftool: &Path, source: &Path) -> Option<Orientation> {
         let args: Vec<&OsStr> = vec![
             OsStr::new("-q"),
@@ -1316,6 +1361,25 @@ mod tests {
         assert_eq!(AccessTool::Ghostscript.found(&ghostscript), Some("gs"));
     }
 
+    /// An image worker claims only the commands this install has, so a tools
+    /// image and a main image can share one queue.
+    #[test]
+    fn the_image_master_commands_are_the_ones_installed() {
+        let _guard = scripted();
+        let dir = dir();
+        assert!(
+            Tools::none().image_master_names().is_empty(),
+            "an install with no master command claims nothing"
+        );
+        let tools = Tools::none()
+            .with_exiftool(script(dir.path(), "exiftool", "exit 0"))
+            .with_vips(script(dir.path(), "vips", "exit 0"));
+        let names = tools.image_master_names();
+        assert!(names.contains(&"exiftool"), "{names:?}");
+        assert!(names.contains(&"vips"), "{names:?}");
+        assert!(!names.contains(&"ffmpeg"), "{names:?}");
+    }
+
     /// The video copy is H.264 and AAC in an MP4 whose index comes first, with
     /// the source's own size kept and each side capped at 1080.
     #[test]
@@ -1407,7 +1471,7 @@ mod tests {
             text(
                 &image_jpeg_args(AccessTool::LibRaw, Path::new("photo.nef"), output).expect("raw")
             ),
-            ["-q", "3", "-w", "-o", "1", "-T", "-c", "photo.nef"],
+            ["-q", "3", "-w", "-o", "1", "-T", "-Z", "-", "photo.nef"],
             "libraw decodes to a TIFF on standard output, which vips then encodes"
         );
         let page = text(

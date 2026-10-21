@@ -63,6 +63,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod access;
+pub mod access_master;
 pub mod av_probe;
 pub mod data;
 pub mod derivative;

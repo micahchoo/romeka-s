@@ -59,6 +59,13 @@ enum StoredFile<'a> {
         storage_id: &'a str,
         extension: Option<&'a str>,
     },
+    /// `access/<storage id>.<suffix>`, a copy a browser plays or shows when it
+    /// cannot open the original. It belongs to the media its storage id names
+    /// and is served with the type its suffix states.
+    Access {
+        storage_id: &'a str,
+        extension: Option<&'a str>,
+    },
 }
 
 /// What a 204 tells the origin about the file.
@@ -138,6 +145,12 @@ async fn verdict(
         } => media_owner(state, storage_id)
             .await?
             .filter(|_| extension == Some(THUMBNAIL_EXTENSION)),
+        StoredFile::Access {
+            storage_id,
+            extension,
+        } => media_owner(state, storage_id)
+            .await?
+            .filter(|_| access_media_type(extension).is_some()),
         StoredFile::Asset {
             storage_id,
             extension,
@@ -169,12 +182,16 @@ async fn verdict(
         )
     });
     let served = match *file {
-        StoredFile::Thumbnail { .. } => Some(THUMBNAIL_MEDIA_TYPE),
-        _ => download.as_ref().and_then(Download::served_type),
+        StoredFile::Thumbnail { .. } => Some(THUMBNAIL_MEDIA_TYPE.to_string()),
+        StoredFile::Access { extension, .. } => access_media_type(extension),
+        _ => download
+            .as_ref()
+            .and_then(Download::served_type)
+            .map(str::to_string),
     };
     let answer = Answer {
         private: !(owner.media_is_public && owner.item_is_public),
-        content_type: header_media_type(served),
+        content_type: header_media_type(served.as_deref()),
         disposition: download.as_ref().map(Download::disposition),
     };
     if !answer.private {
@@ -190,6 +207,17 @@ async fn verdict(
     } else {
         Verdict::Refused
     })
+}
+
+/// The type an access copy with `extension` answers with. A copy is a JPEG
+/// master, an MP4 or an M4A; any other suffix is no copy the store wrote.
+fn access_media_type(extension: Option<&str>) -> Option<String> {
+    match extension? {
+        "jpg" => Some("image/jpeg".to_string()),
+        "mp4" => Some("video/mp4".to_string()),
+        "m4a" => Some("audio/mp4".to_string()),
+        _ => None,
+    }
 }
 
 /// The name in the forwarded path, after its last `/`, which is the stored
@@ -265,6 +293,10 @@ impl<'a> StoredFile<'a> {
                 extension,
             },
             StorePrefix::Thumbnail(_) => Self::Thumbnail {
+                storage_id,
+                extension,
+            },
+            StorePrefix::Access => Self::Access {
                 storage_id,
                 extension,
             },

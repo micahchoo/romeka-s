@@ -317,10 +317,13 @@ The same create records the file's access decision as a second row, kind
 `access_copy`: `none` when a browser shows the original, `pending` when a copy
 is needed and its tool is installed, or `none` with `needs <tool>, not
 installed`. That row names the copy a later worker makes (an H.264/AAC MP4, an
-AAC M4A, a JPEG access master) and is never claimed by the preview worker.
-A media the import made carries no row and reads its state from what the store
-holds, so every media document answers the member the same way. A read that
-needs the derivatives (the IIIF canvas, a test) settles the queue first.
+AAC M4A, a JPEG access master) and is never claimed by the preview worker: the
+image worker claims a master row whose command it has and settles it ready with
+the master and its three thumbnails, and the audio and video worker claims an
+`ffmpeg` one. A media the import made carries no row and reads its state from
+what the store holds, so every media document answers the member the same way.
+A read that needs the derivatives (the IIIF canvas, a test) settles the queue
+first.
 
 Accepted members, per resource (a member with no value keeps the stored one on
 `PATCH`, and resets to the upstream default on `PUT`). A `PATCH` whose body
