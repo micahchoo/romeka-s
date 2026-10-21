@@ -129,3 +129,47 @@ fn a_plan_of_one_series_keeps_the_v2_record_key() {
         .collect();
     assert_eq!(keys, ["group:A1"]);
 }
+
+#[test]
+fn a_file_outside_every_scope_raises_no_file_flags_and_the_same_file_inside_does() {
+    use crate::import::catalog::Catalog;
+    use crate::import::derive::{NoTags, Sheets, derive};
+    use crate::import::evidence::{DecodedName, NameEncoding};
+    use crate::import::plan::FlagKind;
+    use omeka_media::validation::FileValidation;
+
+    let catalog = Catalog {
+        files: FileValidation::Allow {
+            media_types: [JPEG.to_string()].into(),
+            extensions: ["jpg".to_string()].into(),
+        },
+        ..super::support::catalog()
+    };
+    let mut index = index(&[("Letters/A1.jpg", JPEG), ("Extras/Z.db", BINARY)]);
+    index.sources[0].walk.entries[1].decoded = Some(DecodedName {
+        encoding: NameEncoding::Latin1,
+        raw: b"Z.db".to_vec(),
+    });
+    let raised = |folders: Json| {
+        let mut letters = series("letters", "Letters", "register");
+        letters["scope"] = folders;
+        let plan = plan_of(json!([letters]));
+        let model = derive(&index, &Sheets::new(), &plan, &catalog, &NoTags);
+        let mut kinds: Vec<FlagKind> = model.flags.iter().map(|flag| flag.kind).collect();
+        kinds.sort();
+        kinds
+    };
+    assert_eq!(
+        raised(json!([{ "source": "s1", "folder": "Letters" }])),
+        [],
+        "Extras/Z.db is outside: no not-media, no name-encoding"
+    );
+    assert_eq!(
+        raised(json!([
+            { "source": "s1", "folder": "Letters" },
+            { "source": "s1", "folder": "Extras" }
+        ])),
+        [FlagKind::NameEncoding, FlagKind::NotMedia],
+        "inside a scope the same file raises both"
+    );
+}
