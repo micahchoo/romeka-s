@@ -1,6 +1,6 @@
 //! Step 4 of the derive: records from file groups and rows, after the file
 //! flags that can leave a file out (`name-encoding`, `not-media`,
-//! `format-mismatch`).
+//! `listed-not-media`, `format-mismatch`).
 
 use super::super::catalog::{self, Catalog, extension};
 use super::super::decisions::EntryRef;
@@ -17,6 +17,9 @@ pub(crate) struct Draft {
     /// An item's kept files, a media record's file: indices into the files.
     pub files: Vec<usize>,
     pub rows: Vec<RowAt>,
+    /// An item's media's rows, in media order: what its column rules read
+    /// after its own rows. Media attached later by item key add none.
+    pub child_rows: Vec<RowAt>,
     pub parent: Option<RecordId>,
     pub media: Vec<RecordId>,
     pub left: Option<LeftBy>,
@@ -31,6 +34,7 @@ impl Draft {
             origin,
             files: Vec::new(),
             rows: Vec::new(),
+            child_rows: Vec::new(),
             parent: None,
             media: Vec::new(),
             left: None,
@@ -59,6 +63,8 @@ pub(crate) struct Made {
 /// Raise each file's flags; a `leave` policy takes the file out.
 fn file_flags(
     grouping: &Grouping<'_>,
+    joined: &Joined,
+    sheets: &[SheetIn<'_>],
     catalog: &Catalog,
     book: &mut FlagBook<'_>,
 ) -> Vec<Option<LeftBy>> {
@@ -77,6 +83,14 @@ fn file_flags(
         let name = file.entry.name();
         if let Some(refused) = catalog::refusal(&catalog.files, name, &file.entry.sniffed) {
             found.push((FlagKind::NotMedia, refused));
+            if let Some(row) = joined.named.get(&at) {
+                let key = row.entry(sheets).key;
+                let detail = match extension(name) {
+                    Some(extension) => format!("{} .{extension}", key.as_str()),
+                    None => key.as_str().to_string(),
+                };
+                found.push((FlagKind::ListedNotMedia, detail));
+            }
         }
         let mismatch = extension(name).and_then(|extension| {
             let expected = expected_types(&extension)?;
@@ -111,7 +125,7 @@ pub(crate) fn make(
     without_row: ItemsWithoutRowAnswer,
     book: &mut FlagBook<'_>,
 ) -> Made {
-    let file_left = file_flags(grouping, catalog, book);
+    let file_left = file_flags(grouping, joined, sheets, catalog, book);
     let leave_rowless = without_row == ItemsWithoutRowAnswer::Leave && joins_items(sheets);
     let mut file_record = vec![None; grouping.files.len()];
     let mut drafts: Vec<Draft> = Vec::new();

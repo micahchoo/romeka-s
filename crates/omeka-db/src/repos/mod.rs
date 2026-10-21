@@ -79,7 +79,7 @@ pub use modules::ModuleRepo;
 pub use page_versions::{KEPT_VERSIONS, PageVersionRepo, Snapshot};
 pub use passwords::PasswordCreationRepo;
 pub use publications::{NewPublicationVersion, PublicationRepo};
-pub use query::{Joiner, MatchKind, MediaVisibility, QueryFilter, ValueQuery};
+pub use query::{Joiner, MatchKind, MediaKindFilter, MediaVisibility, QueryFilter, ValueQuery};
 pub use relations::RelationRepo;
 pub use resource_reads::{ItemPage, ItemWindow};
 pub use resources::{ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, ResourceRepo};

@@ -66,6 +66,9 @@ pub(crate) struct Joined {
     pub lone_items: Vec<RowAt>,
     pub media_rows: Vec<MediaRow>,
     pub set_rows: Vec<RowAt>,
+    /// Each file a joined row names by its `fileName` cell or a `pair`,
+    /// with the first row that names it.
+    pub named: BTreeMap<usize, RowAt>,
     /// Rows a flag's `leave` policy took out.
     pub skipped: BTreeMap<RowAt, FlagKind>,
     /// `pair` decisions whose row or file is gone or cannot join.
@@ -250,6 +253,9 @@ pub(crate) fn join(
             }
             if let Some(target) = &target {
                 taken.insert(target.clone());
+            }
+            if let Some(Found::File(file, _)) = found {
+                joined.named.entry(*file).or_insert(at);
             }
             match (kind, target) {
                 (RecordKind::Media, Some(Target::File(file))) => {

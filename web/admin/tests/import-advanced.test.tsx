@@ -230,6 +230,9 @@ describe('Advanced, Problems', () => {
     expect(date.closest('tr')).toHaveTextContent('A date not in a form Omeka can sort');
     fireEvent.change(date, { target: { value: 'leave' } });
     expect(within(screen.getByRole('combobox', { name: 'Policy for space-at-ends' })).getAllByRole('option').map((one) => one.textContent)).toEqual(['keep', 'repair', 'leave']);
+    const listed = screen.getByRole('combobox', { name: 'Policy for listed-not-media' });
+    expect(within(listed).getAllByRole('option').map((one) => one.textContent)).toEqual(['leave']);
+    expect(listed).toHaveValue('leave');
     fireEvent.change(screen.getByRole('combobox', { name: 'Policy for unmatched' }), { target: { value: 'keep' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Identical files' }), { target: { value: 'keepAll' } });
 

@@ -202,6 +202,7 @@ export const kn: ImportMessages = {
   'problem.cells-count': 'ತಪ್ಪು ಸಂಖ್ಯೆಯ ಸೆಲ್‌ಗಳನ್ನು ಹೊಂದಿರುವ ಸಾಲು',
   'problem.no-file': 'ಈ ಇಂಪೋರ್ಟ್‌ನ ಯಾವುದೇ ಫೈಲ್‌ನ ಹೆಸರು ಇಲ್ಲದ ಸಾಲು',
   'problem.not-media': 'ಚಿತ್ರ, ಧ್ವನಿ, ಚಲನಚಿತ್ರ ಅಥವಾ ಪಿಡಿಎಫ್ ಅಲ್ಲ',
+  'problem.listed-not-media': 'ನಿಮ್ಮ ಪಟ್ಟಿ ಹೆಸರಿಸುವ, Omeka ಸ್ವೀಕರಿಸದ ಫೈಲ್',
   'problem.format-mismatch': 'ಹೆಸರಿನ ಅಂತ್ಯ ವಿಷಯಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗದ ಫೈಲ್',
   'problem.exists': 'ಈಗಾಗಲೇ Omeka ನಲ್ಲಿದೆ',
   'problem.unmatched': 'Omeka ನಲ್ಲಿ ಬದಲಾಯಿಸಲು ಯಾವುದೇ ಐಟಂ ಇಲ್ಲ',

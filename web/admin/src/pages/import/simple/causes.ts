@@ -20,6 +20,7 @@ export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
   'cells-count': 'leave',
   'no-file': 'keep',
   'not-media': 'leave',
+  'listed-not-media': 'leave',
   'format-mismatch': 'keep',
   exists: 'leave',
   unmatched: 'leave',

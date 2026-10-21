@@ -1,6 +1,6 @@
 //! What one source ref yields for one record, before the slot's checks.
 
-use super::super::join::cell;
+use super::super::join::{RowAt, cell};
 use super::super::plan::{EachFile, FolderLevel, RecordKind, SourceRef, TagFiles};
 use super::super::tags::file_fact;
 use super::super::values::{Value, ValueType, uri_and_label};
@@ -38,20 +38,28 @@ pub(super) fn values(ctx: &Ctx<'_, '_>, draft: &Draft, source: &SourceRef) -> Ve
             })
             .map(|text| Raw::from(literal(text)))
             .collect(),
-        SourceRef::Column { sheet, column } => draft
-            .rows
-            .iter()
-            .filter(|row| &ctx.sheets[row.sheet].plan.id == sheet)
-            .flat_map(|row| {
-                let plan = ctx.sheets[row.sheet].plan;
-                let text = cell(row.row(ctx.sheets), column.index);
-                column_values(
-                    plan.column(column.index).map(|column| &column.options),
-                    text,
-                )
-            })
-            .map(Raw::from)
-            .collect(),
+        SourceRef::Column { sheet, column } => {
+            let of_sheet = |row: &&RowAt| &ctx.sheets[row.sheet].plan.id == sheet;
+            let own: Vec<&RowAt> = draft.rows.iter().filter(of_sheet).collect();
+            // A record with its own row in the sheet is described by it; the
+            // rows of its media speak only for an item the sheet has no row for.
+            let rows = if own.is_empty() {
+                draft.child_rows.iter().filter(of_sheet).collect()
+            } else {
+                own
+            };
+            rows.into_iter()
+                .flat_map(|row| {
+                    let plan = ctx.sheets[row.sheet].plan;
+                    let text = cell(row.row(ctx.sheets), column.index);
+                    column_values(
+                        plan.column(column.index).map(|column| &column.options),
+                        text,
+                    )
+                })
+                .map(Raw::from)
+                .collect()
+        }
         SourceRef::Tag { tag, files: which } => {
             let chosen: Vec<_> = match (draft.kind, which) {
                 (RecordKind::Item, TagFiles::Each(EachFile::First)) => files().take(1).collect(),

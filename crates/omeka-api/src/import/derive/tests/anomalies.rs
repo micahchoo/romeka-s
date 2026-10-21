@@ -313,6 +313,13 @@ fn every_kind() -> Vec<Model> {
     let mut many_plan = plan.clone();
     many_plan.defaults.template = Some(99);
     models.push(derive(&index, &sheets, &many_plan, &many, &NoTags));
+    let listed = super::support::plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["sheets"] = json!([sheet_plan("f", &["File"])]);
+        plan["sheets"][0]["join"] = join_on("fileName", 0, "File", false, false, false);
+    });
+    let sheets = read_sheets(&listed, &[("f", b"File\nZ.db\n")]);
+    models.push(derive(&index, &sheets, &listed, &catalog, &NoTags));
     models
 }
 
@@ -323,13 +330,14 @@ fn every_flag_kind_in_the_table_is_raised_with_its_default_policy() {
         ("create", &models[0]),
         ("update", &models[1]),
         ("update", &models[2]),
+        ("create", &models[3]),
     ];
     let mut seen = std::collections::BTreeSet::new();
     for (action, model) in plans {
         for flag in &model.flags {
             seen.insert(flag.kind);
             let expected = flag.kind.default_policy().map(|default| match default {
-                PolicyDefault::Is(policy) => policy,
+                PolicyDefault::Is(policy) | PolicyDefault::Only(policy) => policy,
                 PolicyDefault::ActionUnmatched => FlagPolicy::Leave,
             });
             assert_eq!(flag.policy, expected, "{action}: {:?}", flag.kind);
