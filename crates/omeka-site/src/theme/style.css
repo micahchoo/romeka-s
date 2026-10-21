@@ -2245,6 +2245,269 @@ a.pdf-card:focus-visible {
   display: none;
 }
 
+/* Notes over a file, and the list under it. The frame is exactly the picture's
+   box, which is what makes the server's percentages land on the pixels they
+   name; the picture shows whole, never cropped, wherever it carries an
+   overlay. */
+.annotated-media {
+  margin: 0;
+}
+
+.annotated-toggle {
+  align-items: center;
+  display: flex;
+  font-size: var(--font-size-sm);
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+}
+
+.annotated-toggle input {
+  height: 1rem;
+  margin: 0;
+  width: 1rem;
+}
+
+.annotated-frame {
+  margin: 0;
+  position: relative;
+}
+
+.annotated-media.annotated-image .annotated-frame {
+  margin: 0 auto;
+  max-width: 100%;
+  width: fit-content;
+}
+
+.media-embeds .annotated-media .media-render > img,
+.media-embeds .annotated-media .media-render > a > img {
+  display: block;
+  height: auto;
+  margin: 0;
+  max-height: 70vh;
+  max-width: 100%;
+  width: auto;
+}
+
+.media-page .annotated-media .media-render > img,
+.media-page .annotated-media .media-render > a > img {
+  display: block;
+  height: auto;
+  margin: 0;
+  max-height: 80vh;
+  max-width: 100%;
+  width: auto;
+}
+
+/* The overlay holds shapes only. The light halo under the dark line reads on a
+   white scan and on a dark photograph alike, and both strokes stay two pixels
+   however the picture scales. */
+.annotation-overlay {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.annotation-region rect,
+.annotation-region polygon {
+  fill: transparent;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-halo {
+  stroke: var(--color-surface);
+  stroke-width: 4;
+}
+
+.region-line {
+  stroke: var(--color-text);
+  stroke-width: 2;
+}
+
+.annotation-region:hover :is(rect, polygon),
+.annotation-region.is-active :is(rect, polygon) {
+  fill: color-mix(in srgb, var(--color-link) 15%, transparent);
+}
+
+.annotation-region.is-active .region-line,
+.annotation-region:target .region-line {
+  stroke-dasharray: 6 3;
+}
+
+.annotation-region:target :is(rect, polygon) {
+  fill: color-mix(in srgb, var(--color-link) 25%, transparent);
+}
+
+/* A numbered marker sits on the region's corner at a server-computed
+   percentage. It does not shrink with the picture and is out of the tab order;
+   the list beside it is the keyboard path. */
+.note-marker {
+  align-items: center;
+  background: var(--color-brand);
+  border-radius: 50%;
+  color: var(--color-on-brand);
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  position: absolute;
+  text-decoration: none;
+  transform: translate(-50%, -50%);
+  width: 28px;
+}
+
+.note-marker:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+@media (pointer: coarse) {
+  .note-marker {
+    height: 44px;
+    width: 44px;
+  }
+}
+
+.annotated-media:has(.notes-toggle:not(:checked)) :is(.annotation-overlay, .note-marker) {
+  display: none;
+}
+
+/* A recording's note rail: one mark per moment note at its start, so the
+   density reads before the visitor reads the list. The marks are decorative;
+   the list is the path. */
+.note-rail {
+  background: var(--color-border);
+  border-radius: 999px;
+  height: 6px;
+  margin: 0 0 var(--space-2);
+  position: relative;
+}
+
+.note-rail-mark {
+  background: var(--color-brand);
+  border-radius: 2px;
+  display: block;
+  height: 16px;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+}
+
+.note-rail-mark.is-active {
+  background: var(--color-link);
+}
+
+.note-rail-mark.is-playing {
+  background: var(--color-accent);
+}
+
+/* The list: the notes in place order, each with its number, its place, its
+   text and a citable link. */
+.annotation-list {
+  margin: var(--space-3) 0;
+}
+
+.annotation-heading {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--space-1);
+  text-transform: uppercase;
+}
+
+.annotation-facts {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-2);
+}
+
+.annotation-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.annotation-item {
+  border-left: 4px solid transparent;
+  padding: var(--space-1) var(--space-2);
+}
+
+.annotation-item + .annotation-item {
+  border-top: 1px solid var(--color-border);
+}
+
+.annotation-item:target,
+.annotation-item.is-active {
+  background: color-mix(in srgb, var(--color-link) 8%, transparent);
+  border-left-color: var(--color-link);
+}
+
+.annotation-item:target .note-number::after,
+.annotation-item.is-active .note-number::after {
+  content: "\25B8";
+  margin-left: 0.25rem;
+}
+
+.note-number {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin-right: var(--space-1);
+}
+
+.note-place {
+  color: var(--color-link);
+  margin-right: var(--space-1);
+}
+
+.note-text {
+  overflow-wrap: anywhere;
+}
+
+.note-link {
+  color: var(--color-link);
+  font-size: var(--font-size-sm);
+  margin-left: var(--space-1);
+}
+
+.notes-next,
+.notes-more {
+  color: var(--color-link);
+  display: inline-block;
+  margin-top: var(--space-2);
+}
+
+.annotation-item.is-playing {
+  border-left-color: var(--color-accent);
+}
+
+.annotation-missing {
+  background: var(--color-surface);
+  border-left: 4px solid var(--color-accent);
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* The item page's strip names a file's notes, because a cropped tile never
+   carries the overlay. */
+.media-file-notes {
+  color: var(--color-link);
+  display: block;
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-marker,
+  .annotation-region :is(rect, polygon) {
+    transition: none;
+  }
+}
+
 /* Breadcrumbs, the page sub-menu and the page pagination */
 
 .breadcrumbs {

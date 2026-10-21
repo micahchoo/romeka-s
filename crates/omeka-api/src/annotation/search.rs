@@ -28,8 +28,11 @@ impl Annotations<'_> {
         after: Option<AnnotationId>,
         limit: u32,
     ) -> Result<(Vec<Annotation>, Option<AnnotationId>), AnnotationError> {
-        let Some(item_row) = with_db!(self.api.pool(), |db| ItemRepo::new(db).get(item).await)?
-            .filter(|row| self.api.sees(row.resource.is_public, row.resource.owner_id))
+        let Some(item_row) =
+            with_db!(self.pool, |db| ItemRepo::new(db).get(item).await)?.filter(|row| {
+                self.actor
+                    .sees_resource(row.resource.is_public, row.resource.owner_id)
+            })
         else {
             return Err(AnnotationError::NotFound);
         };
@@ -38,11 +41,11 @@ impl Annotations<'_> {
         };
         let limit = limit.clamp(1, super::PAGE_SIZE);
         let scope = super::search_scope(
-            self.api.actor(),
+            self.actor,
             item_row.resource.owner_id,
-            settings::annotations_public(self.api.pool()).await?,
+            settings::annotations_public(self.pool).await?,
         );
-        let mut rows = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+        let mut rows = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
             .search(&scope, item, &query, after.map_or(0, |id| id.0), limit)
             .await)?;
         let next = if rows.len() > limit as usize {

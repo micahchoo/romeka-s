@@ -34,6 +34,10 @@ const go = (screenName: string): void => {
 
 const last = (saved: readonly Record<string, unknown>[]): Record<string, unknown> => saved[saved.length - 1] ?? {};
 
+/** The "use this list" box of the folder's one list, which "Your list" selects first. */
+const useBox = async (): Promise<HTMLElement> =>
+  within(await screen.findByRole('region', { name: 'register.csv' }, { timeout: 5000 })).getByRole('checkbox', { name: 'use this list' });
+
 const sheetsOf = (plan: Record<string, unknown>): readonly unknown[] => (Array.isArray(plan['sheets']) ? plan['sheets'] : []);
 
 /** Opens "What we found", which sets the pattern and reads the folder's list, and waits for both to be saved. */
@@ -81,19 +85,19 @@ describe('What we found', () => {
 });
 
 describe('Your list', () => {
-  it('uses the folder’s list as the suggested answer, and “Stop using it” takes it out and keeps it out', async () => {
+  it('uses the folder’s list as the suggested answer, and turning “use this list” off takes it out and keeps it out', async () => {
     const server = await opened();
     expect(String(asRecord(last(server.saved)['grouping'], [])['pattern'])).toContain('(?<identifier>');
     go('list');
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop using it' }, { timeout: 5000 }));
+    fireEvent.click(await useBox());
     await waitFor(() => {
       expect(sheetsOf(last(server.saved))).toHaveLength(0);
     }, { timeout: 3000 });
     expect(asRecord(last(server.saved)['simple'], [])['notLists']).toEqual([{ source: 's1', file: 'register.csv' }]);
     expect(last(server.saved)['example']).toBeNull();
-    const list = await screen.findByRole('listitem', { name: 'register.csv' });
-    expect(list).toHaveTextContent('Turned down');
-    expect(within(list).getByRole('button', { name: 'Use this list' })).toBeEnabled();
+    expect(await screen.findByRole('option', { name: 'register.csv' })).toHaveTextContent('Turned down');
+    expect(await useBox()).not.toBeChecked();
+    expect(await useBox()).toBeEnabled();
 
     const saves = server.saved.length;
     go('found');
@@ -145,7 +149,7 @@ describe('Simple and Advanced read one plan', () => {
   it('Simple’s answers do not make Advanced report a kept example, and they are still there on a reload', async () => {
     const server = await opened();
     go('list');
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop using it' }, { timeout: 5000 }));
+    fireEvent.click(await useBox());
     await waitFor(() => {
       expect(asRecord(last(server.saved)['simple'], [])['notLists']).toHaveLength(1);
     }, { timeout: 3000 });
@@ -162,7 +166,7 @@ describe('Simple and Advanced read one plan', () => {
     expect(screen.queryByText(NOTICE)).toBeNull();
 
     go('list');
-    expect(await screen.findByRole('listitem', { name: 'register.csv' }, { timeout: 5000 })).toHaveTextContent('Turned down');
+    expect(await screen.findByRole('option', { name: 'register.csv' }, { timeout: 5000 })).toHaveTextContent('Turned down');
   }, 30_000);
 });
 

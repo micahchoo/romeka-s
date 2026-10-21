@@ -109,6 +109,9 @@ flat_catalogue! {
         button_empty_preview, quote_empty_preview, accordion_empty_preview,
         timeline_undated, timeline_empty_preview,
         no_matches, no_matches_preview,
+        notes_one, notes_count, notes_region, notes_whole_image, notes_whole_recording,
+        notes_whole_file, notes_show, notes_facts, notes_facts_time, notes_next, notes_all,
+        notes_link, notes_range, notes_play, notes_missing,
     ],
     search: [
         search, query, submit, sort, select_sort_by, select_sort_order, ascending, descending,

@@ -16,13 +16,12 @@ use omeka_db::rows::MediaRow;
 
 use super::Rights;
 use crate::auth::Actor;
-use crate::read::Api;
 use crate::routes::Operation;
 use crate::write::access;
 
 /// What an actor may do with one media's annotations.
-pub(crate) fn level(api: &Api<'_>, media: &MediaRow, annotations_public: bool) -> Rights {
-    if can_write(api.actor(), media.resource.owner_id) {
+pub(crate) fn level(actor: &Actor, media: &MediaRow, annotations_public: bool) -> Rights {
+    if can_write(actor, media.resource.owner_id) {
         Rights::ReadWrite
     } else if annotations_public {
         Rights::Read

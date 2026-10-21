@@ -13,14 +13,18 @@
 //! rows a caption import wrote), which a WAP client does not ask for and the
 //! admin editor cannot work without. `docs/compat.md` records the difference.
 
+mod tracks;
 mod wap;
 
 use axum::Router;
 use axum::response::Response;
 use axum::routing::any;
-use omeka_api::annotation::{Annotation, AnnotationError, Iris, MediaRef, Origin, Page};
+use omeka_api::annotation::{
+    Annotation, AnnotationError, Iris, MediaRef, Origin, OriginFilter, Page, TrackError,
+};
 use omeka_api::errors::ErrorDocument;
 use omeka_api::messages;
+use omeka_api::read::Params;
 use omeka_media::kind::{Extent, Surface};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
@@ -53,7 +57,22 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/annotations/media/{id}/", any(wap::container))
         .route("/annotations/media/{id}/page", any(wap::page))
+        .route("/annotations/media/{id}/tracks", any(tracks::tracks))
+        .route(
+            "/annotations/media/{id}/captions.vtt",
+            any(tracks::captions),
+        )
         .route("/annotations/{id}", any(wap::annotation))
+}
+
+/// The origin filter a page or container asks for. `author` is the notes
+/// view; `all` adds a caption import's rows.
+pub(crate) fn origins(uri: &axum::http::Uri) -> Option<OriginFilter> {
+    match Params::parse(uri.query().unwrap_or("")).get("origin") {
+        None | Some("") | Some("author") => Some(OriginFilter::Author),
+        Some("all") => Some(OriginFilter::All),
+        Some(_) => None,
+    }
 }
 
 /// A JSON document answer, with the headers every `/annotations` answer carries.
@@ -125,6 +144,13 @@ pub(crate) fn wap_error(error: AnnotationError, iris: &Iris) -> Response {
             StatusCode::UNPROCESSABLE_ENTITY,
             &AnnotationError::KeyReused.to_string(),
         ),
+        AnnotationError::Track(error) => {
+            let status = match error {
+                TrackError::TooLarge | TrackError::TooManyCues => StatusCode::PAYLOAD_TOO_LARGE,
+                _ => StatusCode::BAD_REQUEST,
+            };
+            error_document(status, &error.to_string())
+        }
         AnnotationError::Db(error) => {
             tracing::error!(%error, "an annotation route failed on storage");
             error_document(StatusCode::INTERNAL_SERVER_ERROR, messages::INTERNAL_ERROR)
@@ -161,11 +187,26 @@ pub(crate) fn annotation_document(annotation: &Annotation, iris: &Iris) -> Value
     value
 }
 
+/// The page's IRI, with the origin filter when it is not the notes default, so
+/// `next` cannot silently drop a caller back to authored rows.
+fn page_iri(
+    iris: &Iris,
+    page: &Page,
+    after: Option<omeka_api::annotation::AnnotationId>,
+) -> String {
+    let mut iri = iris.page(page.media.id, after);
+    if page.origins == OriginFilter::All {
+        iri.push(if after.is_some() { '&' } else { '?' });
+        iri.push_str("origin=all");
+    }
+    iri
+}
+
 /// A page document: the WAP page and the IIIF `AnnotationPage` in one, 6.3.
 pub(crate) fn page_document(page: &Page, iris: &Iris, iri_items: bool) -> Value {
     let mut map = Map::new();
     map.insert("@context".into(), json!([PROFILE, PRESENTATION]));
-    map.insert("id".into(), json!(iris.page(page.media.id, page.after)));
+    map.insert("id".into(), json!(page_iri(iris, page, page.after)));
     map.insert("type".into(), json!("AnnotationPage"));
     map.insert(
         "partOf".into(),
@@ -191,7 +232,7 @@ pub(crate) fn page_document(page: &Page, iris: &Iris, iri_items: bool) -> Value 
         .collect();
     map.insert("items".into(), Value::Array(items));
     if let Some(next) = page.next {
-        map.insert("next".into(), json!(iris.page(page.media.id, Some(next))));
+        map.insert("next".into(), json!(page_iri(iris, page, Some(next))));
     }
     Value::Object(map)
 }
@@ -226,7 +267,7 @@ pub(crate) fn container_document(
     map.insert(
         "first".into(),
         if minimal {
-            json!(iris.page(page.media.id, None))
+            json!(page_iri(iris, page, None))
         } else {
             page_document(page, iris, iri_items)
         },
