@@ -963,3 +963,57 @@ request on the server. The next step is a server-side change in
 `crates/omeka-api/src/auth.rs`, which is outside this unit and outside
 `web/admin`. On the frontend the initial payload is 88411 B gzip (Decision 6) and the rest of
 the parse on the paint path is React, which Decision 3 measures.
+
+## Decision 31: the document parsers and the write encoders load with their routes (accepted, ends Decision 29's raise)
+
+**Measured, before.** `npm run build` then `npm run perf:check` on this branch: initial js 87043 B
+gzip against the 88064 B ceiling Decision 29 set. Decision 29 recorded 87041 B for the same code;
+the 2 B is gzip noise between builds.
+
+**Change.** Three moves, each of which takes a module out of the shell without adding a request to a
+route's first paint:
+
+- `src/api/media.ts` owns the media document (`parseMedia`), the player URL, `mediaIdFromParam` and
+  the five media calls. The media routes and the editor's media fields import it, so it arrives with
+  their chunk. `src/api/parse.ts` no longer names a media field, and `client.ts` has no media
+  method.
+- `src/api/vocabularies.ts` owns the vocabulary document, the diff parser and the eight vocabulary
+  calls. The vocabularies, properties, resource classes and resource templates routes import it.
+  Classes, properties and templates keep their calls in `client.ts`, because every form's option
+  lists read them and they share `parseVocabularyMember`.
+- `client.ts` fetches `src/api/write.ts` with the first save (`writeEncoders()`), not with the
+  shell. The sites pages import the encoders themselves, so the module arrives with their route as
+  it did before, from the entry instead of from the route. Every other form fetches it once, after
+  the curator has filled the form and pressed save.
+
+Both new modules follow the pattern `src/api/term-lists.ts` set: a resource family whose pages are
+lazy keeps its parser and its calls in its own module, and the shared parse helpers stay in
+`parse.ts`.
+
+**Measured, after each move.** The same tree, `npm run build` then `npm run perf:check`, gzip bytes:
+
+| Step | initial js | Cut |
+| --- | --- | --- |
+| before | 87043 | |
+| `src/api/media.ts` | 86538 | 505 |
+| `write.ts` behind `writeEncoders()` | 85435 | 1103 |
+| `src/api/vocabularies.ts` | 85088 | 347 |
+
+These are single builds on one machine. The total is 1955 B, 2.2% of the 87043 B. The split between
+the steps is what each build reported; a gzip difference of a few bytes between two builds of the
+same code is noise, so the 505 B is the least certain of the three.
+
+**First paint.** The media and vocabulary modules ride the chunk of the route that imports them, so
+no route waits on a new request. The shell's first paint drops 1955 B of parsing.
+
+**Limitation.** A form outside the sites route fetches the 1695 B encoder chunk on its first save,
+between the press and the `POST`. Only the first save of a session pays it; the sites routes fetch
+it with their own chunk. The budget spec's create round trip is a median of five runs, so its median
+does not include that one request. The same run on this tree passed every timing budget: create
+round trip median 10.3 ms of 400 ms, first contentful paint 76.0 ms of 250 ms.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 88064 to 87552, the measured 85088 plus 2464 B.
+That is 104 B more room than Decision 20 left (2360 B) and 96 B less than the 2.5 KB this unit was
+asked to leave. The per-chunk ceilings do not move; the largest lazy chunk is 9804 B.
+
+

@@ -14,7 +14,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { largeImageUrl, mediaKind, previewImageUrl } from '../src/app/media';
-import { parseMedia } from '../src/api/parse';
+import { parseMedia } from '../src/api/media';
 import type { Media, ServerMediaKind } from '../src/api/types';
 
 interface Kind {

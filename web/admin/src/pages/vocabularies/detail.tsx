@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
+import { getVocabulary, deleteVocabulary } from '../../api/vocabularies';
 import type { Property, ResourceClass, Vocabulary, VocabularyId } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
@@ -108,7 +109,7 @@ const MemberTable = <MemberT extends VocabularyMemberRow>({
 
 const load = async (vocabularyId: VocabularyId): Promise<Loaded> => {
   const [vocabulary, properties, classes] = await Promise.all([
-    api.getVocabulary(vocabularyId),
+    getVocabulary(api, vocabularyId),
     api.listProperties({
       vocabulary_id: vocabularyId,
       perPage: MEMBERS_PER_PAGE,
@@ -229,7 +230,7 @@ export const VocabularyDetail = ({
             label={t('vocabularies.deleteLabel')}
             rowName={vocabulary.label}
             onConfirm={async () => {
-              await api.deleteVocabulary(vocabulary.id);
+              await deleteVocabulary(api, vocabulary.id);
               window.location.hash = standardsHref('vocabularies');
             }}
           />

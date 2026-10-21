@@ -7,7 +7,8 @@
 import { api } from './client';
 import type { ItemId, Media } from './types';
 import { asCount, list, member, strict } from './import-read';
-import { ParseError, asBoolean, asString, parseMedia } from './parse';
+import { parseMedia } from './media';
+import { ParseError, asBoolean, asString } from './parse';
 import { problemOf } from '../app/upload/problem';
 import type { UploadProblem } from '../app/upload/problem';
 import type { SentChunk, UploadListing, UploadTarget } from '../app/upload/target';

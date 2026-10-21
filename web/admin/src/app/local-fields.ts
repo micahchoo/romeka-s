@@ -8,6 +8,7 @@
  * Omeka S reads them like any other vocabulary.
  */
 import { api } from '../api/client';
+import { listVocabularies, createVocabulary } from '../api/vocabularies';
 import type { Property, Vocabulary } from '../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from './all-pages';
 
@@ -38,12 +39,12 @@ export const localNameFor = (name: string): string => {
 
 const localVocabulary = async (): Promise<Vocabulary> => {
   const vocabularies = await allPages((page) =>
-    api.listVocabularies({ page, perPage: ALL_PAGES_PER_PAGE }),
+    listVocabularies(api, { page, perPage: ALL_PAGES_PER_PAGE }),
   );
   const found = vocabularies.find((vocabulary) => vocabulary.prefix === LOCAL_PREFIX);
   return (
     found ??
-    api.createVocabulary({
+    createVocabulary(api, {
       namespaceUri: localNamespace(window.location.origin),
       prefix: LOCAL_PREFIX,
       label: 'Local fields',

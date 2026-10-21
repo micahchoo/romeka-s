@@ -6,7 +6,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiClient } from '../src/api/client';
-import { mediaIdFromParam } from '../src/api/parse';
+import { getMedia, mediaIdFromParam } from '../src/api/media';
 import { MediaPage } from '../src/pages/media/page';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, route, urlsFor } from './stub';
@@ -120,6 +120,15 @@ describe('media detail', () => {
 });
 
 describe('media route', () => {
+  it('media_id_param_accepts_positive_integers_only', () => {
+    expect(mediaIdFromParam('951')).toBe(951);
+    expect(mediaIdFromParam('0')).toBeNull();
+    expect(mediaIdFromParam('-3')).toBeNull();
+    expect(mediaIdFromParam('1.5')).toBeNull();
+    expect(mediaIdFromParam('abc')).toBeNull();
+    expect(mediaIdFromParam('')).toBeNull();
+  });
+
   it('media_route_rejects_a_non_numeric_id_without_fetching', () => {
     const fetchMock = installFetch(() => {
       throw new Error('unexpected fetch');
@@ -140,7 +149,7 @@ describe('media client', () => {
     }
 
     const client = new ApiClient({ baseUrl: 'http://localhost:8124' });
-    const media = await client.getMedia(mediaId);
+    const media = await getMedia(client, mediaId);
 
     expect(media.id).toBe(951);
     const requested = first(urlsFor(fetchMock, '/api/media/951'));

@@ -4,7 +4,7 @@
  * in place, and Back closes the viewer because the hash it opened from has no
  * preview in it.
  */
-import { mediaIdFromParam } from '../../../api/parse';
+import { mediaIdFromParam } from '../../../api/media';
 import type { ItemId, MediaId } from '../../../api/types';
 
 export const itemHref = (itemId: ItemId): string => `#/items/${String(itemId)}`;
