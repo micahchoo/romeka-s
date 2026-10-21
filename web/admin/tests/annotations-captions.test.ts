@@ -55,6 +55,7 @@ interface TrackFacts {
   readonly cues: number;
   readonly imported: string | null;
   readonly handEdited: number;
+  readonly undo?: { readonly cues: number; readonly imported: string | null } | null;
 }
 
 const trackBody = (track: TrackFacts): Record<string, unknown> => ({
@@ -62,6 +63,7 @@ const trackBody = (track: TrackFacts): Record<string, unknown> => ({
   cues: track.cues,
   imported: track.imported,
   handEdited: track.handEdited,
+  undo: track.undo ?? null,
 });
 
 const containerOf = (writable = true): Response =>
@@ -341,6 +343,91 @@ describe('replacing captions', () => {
     fireEvent.click(commitButton());
 
     await screen.findByText('No change. The file matches the current English captions.');
+  });
+});
+
+describe('undoing a replace', () => {
+  const undoPath = `${TRACKS_PATH}/undo`;
+
+  it('says what comes back and brings it back with one click', async () => {
+    let tracks: readonly TrackFacts[] = [
+      {
+        lang: 'en',
+        cues: 220,
+        imported: '2026-10-21T08:00:00Z',
+        handEdited: 0,
+        undo: { cues: 214, imported: '2026-10-20T09:12:44Z' },
+      },
+    ];
+    const fetchMock = installFetch((url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url.pathname === CONTAINER_PATH) {
+        return containerOf();
+      }
+      if (url.pathname === TRACKS_PATH && method === 'GET') {
+        return jsonResponse(tracks.map(trackBody));
+      }
+      if (url.pathname === undoPath && method === 'POST') {
+        tracks = [{ lang: 'en', cues: 214, imported: '2026-10-20T09:12:44Z', handEdited: 0 }];
+        return jsonResponse({ lang: 'en', cues: 214, imported: '2026-10-20T09:12:44Z' });
+      }
+      return jsonResponse({ errors: { error: `${method} ${url.pathname}` } }, { status: 500 });
+    });
+
+    render(createElement(MediaNotes, { media, onTracks: () => undefined }));
+    await screen.findByText(/220 cues from a caption file/);
+    expect(
+      screen.getByText(/Bring back the 214 English cues from Oct 20, 2026/),
+    ).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo replace' }));
+
+    await screen.findByText('English captions: 214 cues brought back.');
+    expect(screen.getByText(/214 cues from a caption file/)).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Undo replace' })).toBeNull();
+
+    const posts = requestsFor(fetchMock, undoPath);
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.init?.method).toBe('POST');
+    expect(posts[0]?.url.searchParams.get('lang')).toBe('en');
+  });
+
+  it('shows the server’s sentence when there is nothing left to bring back', async () => {
+    const tracks: readonly TrackFacts[] = [
+      {
+        lang: 'en',
+        cues: 220,
+        imported: '2026-10-21T08:00:00Z',
+        handEdited: 0,
+        undo: { cues: 214, imported: '2026-10-20T09:12:44Z' },
+      },
+    ];
+    installFetch((url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url.pathname === CONTAINER_PATH) {
+        return containerOf();
+      }
+      if (url.pathname === TRACKS_PATH && method === 'GET') {
+        return jsonResponse(tracks.map(trackBody));
+      }
+      return jsonResponse(
+        {
+          errors: {
+            error:
+              'There is no caption edition to bring back. An undo works once, until the next import of these captions.',
+          },
+        },
+        { status: 409 },
+      );
+    });
+
+    render(createElement(MediaNotes, { media, onTracks: () => undefined }));
+    await screen.findByText(/220 cues from a caption file/);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo replace' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('There is no caption edition to bring back.');
+    expect(alert.textContent).toContain('(HTTP 409)');
   });
 });
 

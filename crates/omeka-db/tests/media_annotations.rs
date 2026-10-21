@@ -10,7 +10,8 @@ mod import_db;
 use import_db::on_both;
 use omeka_db::repos::{
     ChangeOutcome, Cue, ExtentRow, FtsQuery, InsertOutcome, ItemRepo, MediaAnnotationRepo,
-    MediaAnnotationWrite, MediaExtentRepo, MediaRepo, SearchScope, TrackOutcome,
+    MediaAnnotationRow, MediaAnnotationWrite, MediaExtentRepo, MediaRepo, RestoredCue, SearchScope,
+    TrackOutcome, UndoOutcome,
 };
 use omeka_db::rows::{NewItem, NewMedia, NewResource};
 
@@ -39,6 +40,20 @@ fn cue<'a>(start: i64, end: i64, body_json: &'a str, text: &'a str) -> Cue<'a> {
         start_ms: start,
         end_ms: end,
         body_json,
+        body_text: text,
+    }
+}
+
+/// A kept row as a restore takes it, with the text the schema derives.
+fn restored<'a>(row: &'a MediaAnnotationRow, text: &'a str) -> RestoredCue<'a> {
+    RestoredCue {
+        id: row.id,
+        revision: row.revision,
+        created: row.created,
+        modified: row.modified,
+        start_ms: row.t_start_ms.unwrap_or_default(),
+        end_ms: row.t_end_ms.unwrap_or_default(),
+        body_json: &row.body_json,
         body_text: text,
     }
 }
@@ -260,12 +275,9 @@ on_both!(equal_cues_are_unchanged, |pool| {
     ];
 
     let imported = repo.replace_track(media, Some("en"), &cues).await.unwrap();
-    assert_eq!(
-        imported,
-        TrackOutcome::Replaced {
-            removed: 0,
-            inserted: 2
-        }
+    assert!(
+        matches!(imported, TrackOutcome::Replaced { inserted: 2, .. }),
+        "{imported:?}"
     );
     let before = repo.cues(media, Some("en")).await.unwrap();
 
@@ -297,16 +309,175 @@ on_both!(a_caption_import_keeps_hand_written_notes, |pool| {
         .replace_track(media, Some("en"), &[cue(0, 1000, &one, "First cue")])
         .await
         .unwrap();
-    assert_eq!(
-        replaced,
-        TrackOutcome::Replaced {
-            removed: 0,
-            inserted: 1
-        }
+    assert!(
+        matches!(replaced, TrackOutcome::Replaced { inserted: 1, .. }),
+        "{replaced:?}"
     );
     let cues = repo.cues(media, Some("en")).await.unwrap();
     assert_eq!(cues.len(), 2, "the hand-written cue is still there");
     assert_eq!(repo.total(media, None).await.unwrap(), 3);
+});
+
+on_both!(
+    an_undo_puts_the_kept_edition_back_under_its_own_ids,
+    |pool| {
+        let (_, media) = item_and_media!(pool, true, true);
+        let repo = MediaAnnotationRepo::<Db>::new(pool);
+        let red = textual("A red square");
+        let blue = textual("A blue square");
+        repo.replace_track(media, Some("en"), &[cue(0, 400, &red, "A red square")])
+            .await
+            .unwrap();
+        let kept = repo.cues(media, Some("en")).await.unwrap();
+
+        let replaced = repo
+            .replace_track(
+                media,
+                Some("en"),
+                &[
+                    cue(0, 400, &blue, "A blue square"),
+                    cue(400, 900, &blue, "A blue bar"),
+                ],
+            )
+            .await
+            .unwrap();
+        let TrackOutcome::Replaced {
+            kept: removed,
+            live_max,
+            ..
+        } = replaced
+        else {
+            panic!("a different file is a replace, got {replaced:?}");
+        };
+        assert_eq!(removed.len(), 1, "the import hands back what it deleted");
+        let restored = repo
+            .restore_track(
+                media,
+                Some("en"),
+                &[restored(&removed[0], "A red square")],
+                live_max,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(restored, UndoOutcome::Restored { cues: 1 });
+        let live = repo.cues(media, Some("en")).await.unwrap();
+        assert_eq!(live.len(), 1, "the newer edition is gone");
+        assert_eq!(live[0].id, kept[0].id, "the cue keeps its id");
+        assert!(
+            live[0].body_json.contains("A red square"),
+            "{}",
+            live[0].body_json
+        );
+        assert_eq!(live[0].created, kept[0].created, "and its import time");
+    }
+);
+
+on_both!(an_undo_restores_nothing_after_a_newer_import, |pool| {
+    let (_, media) = item_and_media!(pool, true, true);
+    let repo = MediaAnnotationRepo::<Db>::new(pool);
+    let first = textual("First edition");
+    let second = textual("Second edition");
+    let third = textual("Third edition");
+    repo.replace_track(media, Some("en"), &[cue(0, 400, &first, "First edition")])
+        .await
+        .unwrap();
+    let replaced = repo
+        .replace_track(media, Some("en"), &[cue(0, 400, &second, "Second edition")])
+        .await
+        .unwrap();
+    let TrackOutcome::Replaced {
+        kept: removed,
+        live_max,
+        ..
+    } = replaced
+    else {
+        panic!("a different file is a replace, got {replaced:?}");
+    };
+    repo.replace_track(media, Some("en"), &[cue(0, 400, &third, "Third edition")])
+        .await
+        .unwrap();
+
+    let restored = repo
+        .restore_track(
+            media,
+            Some("en"),
+            &[restored(&removed[0], "Second edition")],
+            live_max,
+        )
+        .await
+        .unwrap();
+    assert_eq!(restored, UndoOutcome::Nothing);
+    let live = repo.cues(media, Some("en")).await.unwrap();
+    assert_eq!(live.len(), 1);
+    assert!(
+        live[0].body_json.contains("Third edition"),
+        "the live edition stands: {}",
+        live[0].body_json
+    );
+});
+
+on_both!(an_undo_keeps_a_note_that_holds_one_of_its_ids, |pool| {
+    let (_, media) = item_and_media!(pool, true, true);
+    let repo = MediaAnnotationRepo::<Db>::new(pool);
+    let red = textual("A red square");
+    let blue = textual("A blue square");
+    repo.replace_track(media, Some("en"), &[cue(0, 400, &red, "A red square")])
+        .await
+        .unwrap();
+    let kept = repo.cues(media, Some("en")).await.unwrap();
+    let replaced = repo
+        .replace_track(media, Some("en"), &[cue(0, 400, &blue, "A blue square")])
+        .await
+        .unwrap();
+    let TrackOutcome::Replaced {
+        kept: removed,
+        live_max,
+        ..
+    } = replaced
+    else {
+        panic!("a different file is a replace, got {replaced:?}");
+    };
+    // A row takes the id the deleted cue had, as a restored dump can arrange.
+    let taken = textual("A note that took the id");
+    sqlx::query::<Db>(
+        "INSERT INTO romeka_media_annotation
+             (id, media_id, revision, created, modified, motivation, origin, lang, selector_kind,
+              selector, t_start_ms, t_end_ms, body_json, body_text)
+         VALUES (?, ?, 1, '2026-10-20 00:00:00', '2026-10-20 00:00:00', 'commenting', 'author',
+                 NULL, 'whole', NULL, NULL, NULL, ?, 'A note that took the id')",
+    )
+    .bind(kept[0].id)
+    .bind(i64::try_from(media.0).unwrap())
+    .bind(&taken)
+    .execute(pool)
+    .await
+    .unwrap();
+
+    let restored = repo
+        .restore_track(
+            media,
+            Some("en"),
+            &[restored(&removed[0], "A red square")],
+            live_max,
+        )
+        .await
+        .unwrap();
+    assert_eq!(restored, UndoOutcome::Restored { cues: 1 });
+    let live = repo.cues(media, Some("en")).await.unwrap();
+    assert!(
+        live[0].body_json.contains("A red square"),
+        "{}",
+        live[0].body_json
+    );
+    assert_ne!(
+        live[0].id, kept[0].id,
+        "the cue yields the id another row holds"
+    );
+    assert!(
+        repo.get(kept[0].id).await.unwrap().is_some(),
+        "the note that holds the id is untouched"
+    );
 });
 
 on_both!(track_langs_counts_each_language, |pool| {
