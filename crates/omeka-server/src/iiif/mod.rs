@@ -1,11 +1,17 @@
 //! The IIIF routes: the viewer page, the Presentation 3 documents for the
-//! site's own items and item sets, and the Image API over their stored images.
+//! site's own items and item sets, the Image API over their stored images, and
+//! the Content Search 2.0 service over their notes.
 //!
 //! - `GET /iiif-viewer?url=&mirador_config=` is upstream's viewer route
 //!   (`routes.config.php:370-379`), rendered by [`omeka_site::iiif_viewer`].
-//! - `GET /iiif/3/item/<id>/manifest` and `GET /iiif/3/item-set/<id>/collection`
-//!   ([`manifest`]) and `GET /iiif/image/3/<media>/...` ([`image`]) are Romeka
-//!   additions; upstream needs the IIIF Server module for them.
+//! - `GET /iiif/3/item/<id>/manifest`, `GET /iiif/3/media/<id>/manifest` and
+//!   `GET /iiif/3/item-set/<id>/collection` ([`manifest`]),
+//!   `GET /iiif/image/3/<media>/...` ([`image`]) and
+//!   `GET /iiif/search/2/item/<id>?q=` ([`search`]) are Romeka additions;
+//!   upstream needs the IIIF Server module for them.
+//!
+//! A canvas references its media's annotation page only when the caller may
+//! read at least one note on that media, which the annotation service decides.
 //!
 //! Every document is read through the API as the caller of a public page
 //! reads it: the session cookie or no one, never a key in the query, so a
@@ -17,6 +23,7 @@
 mod extent;
 mod image;
 mod manifest;
+mod search;
 
 use axum::Router;
 use axum::body::Body;
@@ -24,8 +31,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::Response;
 use axum::routing::get;
+use omeka_api::annotation::{Annotations, Iris};
 use omeka_api::auth::Actor;
 use omeka_api::read::{Api, Params};
+use omeka_db::ids::{ItemId, MediaId};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -50,7 +59,9 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/iiif-viewer", get(viewer))
         .route("/iiif/3/item/{id}/manifest", get(item_manifest))
+        .route("/iiif/3/media/{id}/manifest", get(media_manifest))
         .route("/iiif/3/item-set/{id}/collection", get(item_set_collection))
+        .route("/iiif/search/2/item/{id}", get(search::item_search))
         .route("/iiif/image/3/{media}/info.json", get(image::info))
         .route(
             "/iiif/image/3/{media}/{region}/{size}/{rotation}/{file}",
@@ -100,8 +111,87 @@ async fn item_manifest(
             media.push(canvas);
         }
     }
-    let manifest_id = format!("{}/iiif/3/item/{id}/manifest", state.base.as_str());
-    document(&manifest::item_manifest(&manifest_id, &item, &media))
+    let iris = Iris::new(state.base.as_str());
+    if let Err(response) = attach_pages(&state, &api, &iris, &mut media).await {
+        return *response;
+    }
+    let manifest_id = iris.item_manifest(ItemId(id));
+    document(&manifest::item_manifest(
+        &manifest_id,
+        &item,
+        &media,
+        &iris.search(ItemId(id)),
+    ))
+}
+
+/// `GET /iiif/3/media/<id>/manifest`: the item manifest's canvas for one media,
+/// alone. A kind with no canvas, or a remote service with no size, is a 404.
+async fn media_manifest(
+    State(state): State<AppState>,
+    Path(id): Path<u64>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(api) = visitor_api(&state, &headers).await else {
+        return crate::empty_internal_error();
+    };
+    let Some(media) = read(&api, "media", id).await else {
+        return not_found();
+    };
+    let Some(item_id) = media
+        .get("o:item")
+        .and_then(|item| item.get("o:id"))
+        .and_then(Value::as_u64)
+    else {
+        return not_found();
+    };
+    let Some(item) = read(&api, "items", item_id).await else {
+        return not_found();
+    };
+    let Some(canvas) = image::canvas_media(&state, &media)
+        .await
+        .filter(manifest::paints)
+    else {
+        return not_found();
+    };
+    let iris = Iris::new(state.base.as_str());
+    let mut canvas = canvas;
+    if let Err(response) =
+        attach_pages(&state, &api, &iris, std::slice::from_mut(&mut canvas)).await
+    {
+        return *response;
+    }
+    let manifest_id = iris.media_manifest(MediaId(id));
+    let item_manifest_id = iris.item_manifest(ItemId(item_id));
+    document(&manifest::media_manifest(
+        &manifest_id,
+        &item_manifest_id,
+        &item,
+        &canvas,
+    ))
+}
+
+/// Reference each media's annotation page from its canvas when the caller may
+/// read at least one note on that media. A media with none keeps its manifest
+/// byte for byte as it was before annotations existed.
+async fn attach_pages(
+    state: &AppState,
+    api: &Api<'_>,
+    iris: &Iris,
+    media: &mut [manifest::CanvasMedia],
+) -> Result<(), Box<Response>> {
+    let ids: Vec<MediaId> = media.iter().map(|canvas| MediaId(canvas.id)).collect();
+    let annotations = Annotations::new(api, state.extents.as_ref());
+    let counts = annotations.counts(&ids).await.map_err(|error| {
+        tracing::error!(%error, "a manifest could not count the notes of its media");
+        Box::new(crate::empty_internal_error())
+    })?;
+    for canvas in media {
+        let media_id = MediaId(canvas.id);
+        if counts.get(&media_id).copied().unwrap_or(0) > 0 {
+            canvas.annotation_page = Some(iris.page(media_id, None));
+        }
+    }
+    Ok(())
 }
 
 /// `GET /iiif/3/item-set/<id>/collection`: one manifest per item the caller
