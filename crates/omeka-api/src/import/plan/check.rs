@@ -6,10 +6,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::structure::{SeriesScope, Structure};
+use super::structure::SeriesScope;
 use super::{
-    Action, Combine, ImportPlan, NotYet, PlanError, RecordKind, RelPath, SeriesIx, SetSource,
-    SheetId, SlotName, SourceId, SourceRef, Term,
+    Action, Combine, ImportPlan, PlanError, RecordKind, RelPath, SeriesIx, SetSource, SheetId,
+    SlotName, SourceId, SourceRef, Term,
 };
 use crate::import::decisions::{Change, Decision, EntryRef};
 use crate::import::values::fold_title;
@@ -20,8 +20,7 @@ pub(super) fn plan(plan: &ImportPlan) -> Result<(), PlanError> {
     new_types(plan)?;
     new_terms(plan)?;
     decisions(plan)?;
-    tree(plan)?;
-    not_yet(plan)
+    tree(plan)
 }
 
 /// Only what no rescan can mend: a missing entry is an orphan, not this.
@@ -154,17 +153,6 @@ fn column_refs<'p>(
     Ok(owners)
 }
 
-/// A series' slots hold no `item.sets` rule on the wire. Checked before
-/// [`Structure::fold`] puts the one `text` free set there.
-pub(super) fn no_series_sets(structure: &Structure) -> Result<(), PlanError> {
-    for (_, series) in structure.all_series() {
-        if series.slots.item.contains_key(&SlotName::Sets) {
-            return Err(PlanError::SeriesSets(series.id.0.clone()));
-        }
-    }
-    Ok(())
-}
-
 /// The rules the tree adds: a series at all, level ids, scopes, and the
 /// set sources.
 fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
@@ -187,6 +175,10 @@ fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
     let sources: BTreeSet<_> = plan.sources.iter().map(|source| source.id()).collect();
     let mut scopes = BTreeMap::new();
     for (_, series) in structure.all_series() {
+        // The lift moves a v2 `item.sets` rule to the free sets.
+        if series.slots.item.contains_key(&SlotName::Sets) {
+            return Err(PlanError::SeriesSets(series.id.0.clone()));
+        }
         let taken: Vec<Option<(&SourceId, &RelPath)>> = match &series.scope {
             SeriesScope::All(_) => vec![None],
             SeriesScope::Folders(folders) => folders
@@ -235,24 +227,6 @@ fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
             }
             SetSource::Id(_) | SetSource::Title(_) => {}
         }
-    }
-    Ok(())
-}
-
-/// The temporary rule: a plan the engine cannot run yet is refused in the
-/// person's terms. U5 deletes it with the set cases.
-fn not_yet(plan: &ImportPlan) -> Result<(), PlanError> {
-    let structure = &plan.structure;
-    if let Some(set) = structure.set_levels().first() {
-        return Err(PlanError::NotYet(NotYet::SetLevel(set.id.0.clone())));
-    }
-    for (_, series) in structure.all_series() {
-        if series.set.is_some() {
-            return Err(PlanError::NotYet(NotYet::SeriesSet(series.id.0.clone())));
-        }
-    }
-    if !structure.free_sets.is_empty() {
-        return Err(PlanError::NotYet(NotYet::FreeSets));
     }
     Ok(())
 }

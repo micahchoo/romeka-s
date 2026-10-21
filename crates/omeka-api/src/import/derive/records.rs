@@ -66,7 +66,8 @@ pub(crate) struct Made {
     pub file_record: Vec<Option<RecordId>>,
 }
 
-/// Raise each file's flags; a `leave` policy takes the file out.
+/// Raise each file's flags; a `leave` policy takes the file out. A file in
+/// no series' scope raises none: the person put it outside on purpose.
 fn file_flags(
     grouping: &Grouping<'_>,
     joined: &Joined,
@@ -81,6 +82,9 @@ fn file_flags(
         .map(|(at, _)| grouping.left_out.get(&at).copied())
         .collect();
     for (at, file) in grouping.files.iter().enumerate() {
+        if left[at] == Some(LeftBy::Outside) {
+            continue;
+        }
         let entry = [EntryRef::File(file.file.clone())];
         let mut found = Vec::new();
         if let Some(decoded) = &file.entry.decoded {

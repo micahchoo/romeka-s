@@ -11,9 +11,54 @@ use super::super::flags::FlagBook;
 use super::super::model::{
     LeftBy, NewSet, OwnerRef, RecordId, Resolved, SetRef, SlotValue, Subject, TemplateRef,
 };
-use super::super::plan::{FlagKind, FlagPolicy, ImportPlan, NewTypeFrom, Owner, SlotName, Term};
-use super::super::values::{Visibility, fold_title};
+use super::super::plan::{
+    FlagKind, FlagPolicy, ImportPlan, NewTypeFrom, Owner, SetNames, SlotName, Term,
+};
+use super::super::values::{ResourceBy, ValueType, Visibility, fold_title};
 use super::Ctx;
+
+/// One `sets` value of a record, as its checks left it, and how it names
+/// its set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SetName {
+    pub text: String,
+    pub reading: Reading,
+}
+
+/// How a `sets` value names its set: the set source's shape, never the
+/// text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Reading {
+    /// The set with this title, made with the description when missing.
+    Title { description: Option<String> },
+    /// The install's set with this id.
+    Id,
+    /// The item key of one of this import's item-set records.
+    Key,
+    /// v2's reading: an id that exists, else a record key, else a title.
+    Text,
+}
+
+impl Reading {
+    pub(crate) fn of_names(names: SetNames) -> Self {
+        match names {
+            SetNames::Title => Self::Title { description: None },
+            SetNames::Id => Self::Id,
+            SetNames::Key => Self::Key,
+            SetNames::Text => Self::Text,
+        }
+    }
+
+    /// A `set` decision's value names a set by its type: an internal id is
+    /// an id, a literal a title. Any other type keeps v2's reading.
+    pub(crate) fn of_decision(value_type: &ValueType) -> Self {
+        match value_type {
+            ValueType::Literal => Self::Title { description: None },
+            ValueType::Resource(ResourceBy::InternalId) => Self::Id,
+            _ => Self::Text,
+        }
+    }
+}
 
 /// What a `sets` value can name: the install's sets, this import's
 /// item-set records, and the new sets values have made so far.
@@ -66,6 +111,104 @@ impl SetBook {
             new_sets: Vec::new(),
         }
     }
+
+    /// The set one `sets` value names, made when it is a title no set has;
+    /// `None` when it names no set. `leave` takes a flag whose policy
+    /// leaves the record out.
+    fn find(
+        &mut self,
+        named: &SetName,
+        visibility: Visibility,
+        id: RecordId,
+        entries: &[EntryRef],
+        book: &mut FlagBook<'_>,
+        leave: &mut impl FnMut(FlagKind),
+    ) -> Option<SetRef> {
+        let text = named.text.as_str();
+        let mut raise = |book: &mut FlagBook<'_>, kind| {
+            let policy = book.raise(
+                kind,
+                Subject::Record(id),
+                Some(SlotName::Sets),
+                Some(text.to_string()),
+                entries,
+            );
+            if policy == Some(FlagPolicy::Leave) {
+                leave(kind);
+            }
+        };
+        let by_id = || {
+            text.trim()
+                .parse::<i64>()
+                .ok()
+                .filter(|set| self.ids.contains(set))
+                .map(SetRef::Existing)
+        };
+        let by_key = || {
+            self.by_key
+                .get(&key_form(text))
+                .copied()
+                .map(SetRef::Record)
+        };
+        match &named.reading {
+            Reading::Id => {
+                let found = by_id();
+                if found.is_none() {
+                    raise(book, FlagKind::UnknownSet);
+                }
+                found
+            }
+            Reading::Key => {
+                let found = by_key();
+                if found.is_none() {
+                    raise(book, FlagKind::UnknownSet);
+                }
+                found
+            }
+            Reading::Title { description } => Some(
+                self.by_title(text, &mut |kind| raise(book, kind))
+                    .unwrap_or_else(|| self.made(text, description.as_ref(), visibility)),
+            ),
+            Reading::Text => {
+                let found = by_id().or_else(by_key);
+                let found = found.or_else(|| self.by_title(text, &mut |kind| raise(book, kind)));
+                Some(found.unwrap_or_else(|| self.made(text, None, visibility)))
+            }
+        }
+    }
+
+    /// The set whose title compares equal; the first, flagged
+    /// `many-matches`, when several have it.
+    fn by_title(&self, text: &str, raise: &mut impl FnMut(FlagKind)) -> Option<SetRef> {
+        match self.by_title.get(&fold_title(text)).map(Vec::as_slice) {
+            Some([one]) => Some(*one),
+            Some([first, ..]) => {
+                raise(FlagKind::ManyMatches);
+                Some(*first)
+            }
+            _ => None,
+        }
+    }
+
+    /// The new set with this title, made once per title. A description
+    /// given by a later value fills one the first value left empty.
+    fn made(&mut self, text: &str, description: Option<&String>, visibility: Visibility) -> SetRef {
+        let title = fold_title(text);
+        let index = *self.new_by_title.entry(title).or_insert_with(|| {
+            self.new_sets.push(NewSet {
+                title: text.trim().to_string(),
+                description: None,
+                visibility,
+                is_open: true,
+            });
+            self.new_sets.len() - 1
+        });
+        let new = &mut self.new_sets[index];
+        if new.description.is_none() {
+            new.description = description.cloned();
+        }
+        SetRef::New(index)
+    }
 }
 
 fn texts(slots: &BTreeMap<SlotName, Vec<SlotValue>>, slot: &SlotName) -> Vec<String> {
@@ -89,6 +232,7 @@ pub(crate) fn resolve(
     ctx: &Ctx<'_, '_>,
     id: RecordId,
     slots: &BTreeMap<SlotName, Vec<SlotValue>>,
+    set_names: &[SetName],
     entries: &[EntryRef],
     sets: &mut SetBook,
     book: &mut FlagBook<'_>,
@@ -105,51 +249,10 @@ pub(crate) fn resolve(
         .unwrap_or(plan.defaults.visibility);
 
     let mut set_refs: Vec<SetRef> = Vec::new();
-    for text in texts(slots, &SlotName::Sets) {
-        let found = text
-            .trim()
-            .parse::<i64>()
-            .ok()
-            .filter(|set| sets.ids.contains(set))
-            .map(SetRef::Existing)
-            .or_else(|| {
-                sets.by_key
-                    .get(&key_form(&text))
-                    .copied()
-                    .map(SetRef::Record)
-            });
-        let found =
-            found.or_else(
-                || match sets.by_title.get(&fold_title(&text)).map(Vec::as_slice) {
-                    Some([one]) => Some(*one),
-                    Some([first, ..]) => {
-                        let policy = book.raise(
-                            FlagKind::ManyMatches,
-                            Subject::Record(id),
-                            Some(SlotName::Sets),
-                            Some(text.clone()),
-                            entries,
-                        );
-                        if policy == Some(FlagPolicy::Leave) {
-                            leave(FlagKind::ManyMatches);
-                        }
-                        Some(*first)
-                    }
-                    _ => None,
-                },
-            );
-        let set = found.unwrap_or_else(|| {
-            let title = fold_title(&text);
-            let index = *sets.new_by_title.entry(title).or_insert_with(|| {
-                sets.new_sets.push(NewSet {
-                    title: text.trim().to_string(),
-                    visibility,
-                    is_open: true,
-                });
-                sets.new_sets.len() - 1
-            });
-            SetRef::New(index)
-        });
+    for named in set_names {
+        let Some(set) = sets.find(named, visibility, id, entries, book, &mut leave) else {
+            continue;
+        };
         if !set_refs.contains(&set) {
             set_refs.push(set);
         }
@@ -296,3 +399,7 @@ pub(crate) fn from_mapping(plan: &ImportPlan, new_type: usize) -> bool {
         .get(new_type)
         .is_some_and(|new_type| matches!(new_type.from, NewTypeFrom::Mapping(_)))
 }
+
+#[cfg(test)]
+#[path = "named_tests.rs"]
+mod tests;

@@ -11,7 +11,7 @@ mod decide;
 mod finish;
 pub(crate) mod records;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -143,9 +143,10 @@ pub fn derive(
     );
     let mut resolved_slots: Vec<BTreeMap<SlotName, Vec<SlotValue>>> =
         vec![BTreeMap::new(); made.drafts.len()];
+    let mut set_names: Vec<Vec<named::SetName>> = vec![Vec::new(); made.drafts.len()];
     // Media first: an item's tag rule reads its first file in media order.
     for id in &media_ids {
-        resolved_slots[id.index()] = slots::resolve(
+        (resolved_slots[id.index()], set_names[id.index()]) = slots::resolve(
             &ctx,
             &made.drafts[id.index()],
             *id,
@@ -174,7 +175,7 @@ pub fn derive(
     }
     // Item sets before items: a `sets` value can name an item-set record.
     for id in set_ids.iter().chain(&item_ids) {
-        resolved_slots[id.index()] = slots::resolve(
+        (resolved_slots[id.index()], set_names[id.index()]) = slots::resolve(
             &ctx,
             &made.drafts[id.index()],
             *id,
@@ -209,8 +210,15 @@ pub fn derive(
     for (at, draft) in made.drafts.iter().enumerate() {
         let id = ids[at];
         let mut slots = std::mem::take(&mut resolved_slots[at]);
-        let (resolved, named_left) =
-            named::resolve(&ctx, id, &slots, &entries[at], &mut set_book, &mut book);
+        let (resolved, named_left) = named::resolve(
+            &ctx,
+            id,
+            &slots,
+            &set_names[at],
+            &entries[at],
+            &mut set_book,
+            &mut book,
+        );
         let fields_left = slots::check_fields(
             &ctx,
             id,

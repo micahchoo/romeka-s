@@ -299,6 +299,10 @@ pub struct EntryState {
 pub struct NewSet {
     /// As the first record wrote it.
     pub title: String,
+    /// Written as `dcterms:description` when the run makes the set. Not
+    /// written when there is none, so a plan without one keeps its digest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub visibility: Visibility,
     pub is_open: bool,
 }

@@ -208,6 +208,7 @@ export const mr: ImportMessages = {
   'problem.many-values': 'जिथे Omeka एकच मूल्य ठेवते तिथे एकापेक्षा जास्त मूल्ये',
   'problem.link-missing': 'अस्तित्वात नसलेल्या आयटमची लिंक',
   'problem.unknown-type': 'Omeka मध्ये नसलेला आयटम प्रकार',
+  'problem.unknown-set': 'तिथे नसलेला आयटम संच',
   'problem.unknown-kind': 'आयटम, मीडिया किंवा आयटम संच नसलेली ओळ',
   'problem.duplicate-row': 'एका आयटमसाठी दोन ओळी',
   'problem.unknown-term': 'Omeka मध्ये नसलेल्या क्षेत्रासाठी स्तंभ',

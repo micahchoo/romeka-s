@@ -34,6 +34,7 @@ export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
   'many-values': 'keep',
   'link-missing': 'keep',
   'unknown-type': 'keep',
+  'unknown-set': 'keep',
   'unknown-kind': 'leave',
   'duplicate-row': 'leave',
   'unknown-term': 'leave',

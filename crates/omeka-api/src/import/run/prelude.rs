@@ -223,11 +223,16 @@ where
     }
 
     /// Each set records name by a title no set has: open, with the
-    /// visibility of the first record that named it, titled as written.
+    /// visibility of the first record that named it, titled as written,
+    /// and described when its set source has a description.
     async fn new_sets(&mut self) -> Result<(), RunError> {
-        let title = Term::parse("dcterms:title")
-            .map_err(|error| RunError::State(format!("dcterms:title: {error}")))?;
-        let title = self.lookup.properties.get(&title).copied();
+        let property = |text: &str| {
+            Term::parse(text)
+                .map(|term| self.lookup.properties.get(&term).copied())
+                .map_err(|error| RunError::State(format!("{text}: {error}")))
+        };
+        let title = property("dcterms:title")?;
+        let description = property("dcterms:description")?;
         let mut made = Vec::with_capacity(self.derived.model.new_sets.len());
         for set in &self.derived.model.new_sets {
             let key = set_key(&set.title);
@@ -235,9 +240,11 @@ where
                 made.push(Some(id));
                 continue;
             }
+            let described = description.zip(set.description.clone());
             let values = title
                 .map(|property: PropertyId| ValueContent::literal(property, set.title.clone()))
                 .into_iter()
+                .chain(described.map(|(property, text)| ValueContent::literal(property, text)))
                 .collect();
             let new = NewImportItemSet {
                 fields: NewImportFields {

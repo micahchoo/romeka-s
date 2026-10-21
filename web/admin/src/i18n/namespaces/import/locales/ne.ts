@@ -208,6 +208,7 @@ export const ne: ImportMessages = {
   'problem.many-values': 'Omeka ले एउटा मात्र राख्ने ठाउँमा एकभन्दा बढी मान',
   'problem.link-missing': 'त्यहाँ नभएको एउटा वस्तुको लिङ्क',
   'problem.unknown-type': 'Omeka मा नभएको एउटा वस्तुको प्रकार',
+  'problem.unknown-set': 'एउटा यस्तो वस्तु समूह जो त्यहाँ छैन',
   'problem.unknown-kind': 'वस्तु, मिडिया वा वस्तु समूह नभएको पङ्क्ति',
   'problem.duplicate-row': 'एउटा वस्तुका लागि दुईवटा पङ्क्तिहरू',
   'problem.unknown-term': 'Omeka मा नभएको क्षेत्रको लागि एउटा स्तम्भ',

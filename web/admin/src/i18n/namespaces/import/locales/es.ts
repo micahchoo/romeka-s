@@ -194,6 +194,7 @@ export const es: ImportMessages = {
   'problem.many-values': 'Más de un valor donde Omeka guarda uno',
   'problem.link-missing': 'Un enlace a un elemento que no está',
   'problem.unknown-type': 'Un tipo de elemento que Omeka no tiene',
+  'problem.unknown-set': 'Una colección que no está',
   'problem.unknown-kind': 'Una fila que no es un elemento, un medio ni una colección',
   'problem.duplicate-row': 'Dos filas para un elemento',
   'problem.unknown-term': 'Una columna para un campo que Omeka no tiene',

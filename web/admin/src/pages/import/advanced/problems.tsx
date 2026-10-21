@@ -33,6 +33,7 @@ const DEFAULT_POLICY: Readonly<Partial<Record<FlagKind, FlagPolicy>>> = {
   'many-values': 'keep',
   'link-missing': 'keep',
   'unknown-type': 'keep',
+  'unknown-set': 'keep',
   'unknown-kind': 'leave',
   'duplicate-row': 'leave',
 };

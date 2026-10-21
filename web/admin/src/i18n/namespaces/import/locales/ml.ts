@@ -209,6 +209,7 @@ export const ml: ImportMessages = {
   'problem.many-values': 'Omeka ഒരു മൂല്യം മാത്രം സൂക്ഷിക്കുന്നിടത്ത് ഒന്നിലധികം മൂല്യങ്ങൾ',
   'problem.link-missing': 'ഇല്ലാത്ത ഒരു ഐറ്റത്തിലേക്കുള്ള ലിങ്ക്',
   'problem.unknown-type': 'Omeka-യിൽ ഇല്ലാത്ത ഒരു ഐറ്റം ടൈപ്പ്',
+  'problem.unknown-set': 'അവിടെ ഇല്ലാത്ത ഒരു ഐറ്റം സെറ്റ്',
   'problem.unknown-kind': 'ഒരു ഐറ്റമോ, മാധ്യമമോ, ഐറ്റം സെറ്റോ അല്ലാത്ത ഒരു വരി',
   'problem.duplicate-row': 'ഒരു ഐറ്റത്തിന് രണ്ട് വരികൾ',
   'problem.unknown-term': 'Omeka-യിൽ ഇല്ലാത്ത ഒരു ഫീൽഡിനായി ഒരു കോളം',

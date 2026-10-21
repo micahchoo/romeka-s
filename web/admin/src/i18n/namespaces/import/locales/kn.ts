@@ -210,6 +210,7 @@ export const kn: ImportMessages = {
   'problem.many-values': 'Omeka ಒಂದೇ ಮೌಲ್ಯ ಇರಿಸುವ ಸ್ಥಳದಲ್ಲಿ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಮೌಲ್ಯಗಳು',
   'problem.link-missing': 'ಅಲ್ಲಿಲ್ಲದ ಐಟಂಗೆ ಲಿಂಕ್',
   'problem.unknown-type': 'Omeka ಹೊಂದಿರದ ಐಟಂ ಪ್ರಕಾರ',
+  'problem.unknown-set': 'ಅಲ್ಲಿ ಇಲ್ಲದ ಒಂದು ಐಟಂ ಸೆಟ್',
   'problem.unknown-kind': 'ಐಟಂ, ಮೀಡಿಯಾ ಅಥವಾ ಐಟಂ ಸೆಟ್ ಅಲ್ಲದ ಸಾಲು',
   'problem.duplicate-row': 'ಒಂದು ಐಟಂಗೆ ಎರಡು ಸಾಲುಗಳು',
   'problem.unknown-term': 'Omeka ನಲ್ಲಿ ಇಲ್ಲದ ಫೀಲ್ಡ್‌ಗಾಗಿ ಕಾಲಮ್',

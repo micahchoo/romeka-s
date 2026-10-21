@@ -103,7 +103,12 @@ fn the_full_fixture_reaches_every_member_typed() {
         EncodingChoice::Is(Encoding::Utf16Le)
     );
     assert_eq!(series.lists()[1].read.delimiter.as_char(), Some('\t'));
-    assert!(series.rules(RecordKind::Item).contains_key(&SlotName::Sets));
+    assert_eq!(
+        plan.structure
+            .memberships(plan.structure.all_series().next().expect("a series").0)
+            .len(),
+        1
+    );
     assert_eq!(plan.action.match_by.media.key, MatchKey::InternalId);
     assert_eq!(plan.defaults.owner, Owner::User(4));
     assert_eq!(plan.decisions.len(), 10);
@@ -129,18 +134,21 @@ fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
         },
         "the pattern matches the path relative to its source"
     );
-    let sets = &structure.series(only).rules(RecordKind::Item)[&SlotName::Sets];
+    let v2: Value = serde_json::from_str(FULL).expect("json");
+    let mut rule = v2["slots"]["item"]["sets"].clone();
+    rule["names"] = json!("text");
+    let each: EachSet = serde_json::from_value(rule).expect("an each set");
     assert_eq!(
         structure.memberships(only),
-        [SetSource::Each(EachValue {
-            each: EachSet {
-                sources: sets.sources.clone(),
-                combine: sets.combine,
-                map: sets.map.clone(),
-                names: SetNames::Text,
-            }
-        })],
+        [&SetSource::Each(EachValue { each })],
         "the sets rule is one free set, read as v2 read it"
+    );
+    assert!(
+        !structure
+            .series(only)
+            .rules(RecordKind::Item)
+            .contains_key(&SlotName::Sets),
+        "and no slot rule"
     );
     assert!(
         structure

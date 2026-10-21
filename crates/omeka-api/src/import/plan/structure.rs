@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use super::sets::{EachSet, EachValue, SetNames, SetSource};
 use super::{
-    Grouping, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule, SlotRules, Slots,
-    SourceId,
+    Combine, Grouping, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule, SlotRules,
+    Slots, SourceId,
 };
 
 /// The archive's tree as the person confirmed it. Its members are private
@@ -23,6 +23,11 @@ pub struct Structure {
     /// Sets every item of the import is also put in, after its tree sets.
     /// A set source here names no level and has no place in the tree.
     pub(super) free_sets: Vec<SetSource>,
+    /// Where a lifted v2 plan's `item.sets` rule stood among its item
+    /// rules, so the lower writes the plan back byte for byte. Not on the
+    /// v3 wire.
+    #[serde(skip)]
+    pub(super) v2_sets_at: Option<usize>,
 }
 
 /// One node of the tree.
@@ -69,8 +74,7 @@ pub struct Series {
     /// A list joins only this series' groups. Sheet ids stay unique across
     /// the whole plan.
     pub(super) lists: Vec<SheetPlan>,
-    /// On the wire, without `item.sets`: memberships are levels and free
-    /// sets. In memory, see [`Structure::fold`].
+    /// Without `item.sets`: memberships are levels and free sets.
     pub(super) slots: Slots,
 }
 
@@ -131,13 +135,28 @@ pub(super) const LIFTED: &str = "all";
 
 impl Structure {
     /// The tree a v2 plan is: one series `all` with no set, taking every
-    /// file. Its `item.sets` rule stays in `slots` ([`Self::fold`]).
+    /// file. Its `item.sets` rule is the one free set, read as v2 read it.
     pub(super) fn lifted(
         grouping: Grouping,
         example: Option<serde_json::Map<String, serde_json::Value>>,
         lists: Vec<SheetPlan>,
-        slots: Slots,
+        mut slots: Slots,
     ) -> Self {
+        let sets = slots.item.shift_remove_full(&SlotName::Sets);
+        let v2_sets_at = sets.as_ref().map(|(at, _, _)| *at);
+        let free_sets = sets
+            .map(|(_, _, rule)| {
+                SetSource::Each(EachValue {
+                    each: EachSet {
+                        sources: rule.sources,
+                        combine: rule.combine,
+                        map: rule.map,
+                        names: SetNames::Text,
+                    },
+                })
+            })
+            .into_iter()
+            .collect();
         Self {
             levels: vec![Level::Series(Series {
                 id: LevelId(LIFTED.to_owned()),
@@ -148,21 +167,32 @@ impl Structure {
                 lists,
                 slots,
             })],
-            free_sets: Vec::new(),
+            free_sets,
+            v2_sets_at,
         }
     }
 
-    /// The one series of a tree a v2 plan can say, or why the tree is not
-    /// one: the exact reverse of [`Self::lifted`].
+    /// The one series of a tree a v2 plan can say, with its free set back
+    /// as its `item.sets` rule, or why the tree is not one: the exact
+    /// reverse of [`Self::lifted`]. A rule a v3 plan gave ends its kind.
     pub(super) fn into_lifted(self) -> Result<Series, &'static str> {
-        if !self.free_sets.is_empty() {
-            return Err("it has free sets other than the version 2 sets rule");
-        }
+        let mut free_sets = self.free_sets.into_iter();
+        let rule = match (free_sets.next(), free_sets.next()) {
+            (None, _) => None,
+            (Some(SetSource::Each(EachValue { each })), None) if each.names == SetNames::Text => {
+                Some(SlotRule {
+                    sources: each.sources,
+                    combine: each.combine,
+                    map: each.map,
+                })
+            }
+            _ => return Err("it has free sets other than the version 2 sets rule"),
+        };
         let mut levels = self.levels.into_iter();
         let (Some(level), None) = (levels.next(), levels.next()) else {
             return Err("it has more than one top level, or none");
         };
-        let Level::Series(series) = level else {
+        let Level::Series(mut series) = level else {
             return Err("it has a set level");
         };
         if series.id.0 != LIFTED {
@@ -174,48 +204,12 @@ impl Structure {
         if series.scope != SeriesScope::All(AllFiles::All) {
             return Err("its series takes some folders, not every file");
         }
+        if let Some(rule) = rule {
+            let item = &mut series.slots.item;
+            let at = self.v2_sets_at.unwrap_or(item.len()).min(item.len());
+            item.shift_insert(at, SlotName::Sets, rule);
+        }
         Ok(series)
-    }
-
-    /// Until U5 reads typed set sources, the engine reads an item's sets
-    /// from its series' `item.sets` rule, as v2 wrote it. So a tree of one
-    /// series with no set keeps its one `text` free set there;
-    /// [`Self::unfold`] puts it back for the v3 wire. A v2 plan is already
-    /// in this form, so the lift and the lower move no rule.
-    pub(super) fn fold(&mut self) {
-        let [Level::Series(series)] = self.levels.as_mut_slice() else {
-            return;
-        };
-        let [SetSource::Each(EachValue { each })] = self.free_sets.as_slice() else {
-            return;
-        };
-        if each.names != SetNames::Text
-            || series.set.is_some()
-            || series.slots.item.contains_key(&SlotName::Sets)
-        {
-            return;
-        }
-        let each = each.clone();
-        self.free_sets.clear();
-        series.slots.item.insert(
-            SlotName::Sets,
-            SlotRule {
-                sources: each.sources,
-                combine: each.combine,
-                map: each.map,
-            },
-        );
-    }
-
-    /// The reverse of [`Self::fold`]: the series' `item.sets` rule as the
-    /// first free set, read as v2 read it.
-    pub(super) fn unfold(&mut self) {
-        let [Level::Series(series)] = self.levels.as_mut_slice() else {
-            return;
-        };
-        if let Some(rule) = series.slots.item.shift_remove(&SlotName::Sets) {
-            self.free_sets.insert(0, text_set(rule));
-        }
     }
 
     /// The series that takes this file, and the path its pattern matches:
@@ -293,20 +287,49 @@ impl Structure {
 
     /// The set sources of an item of this series, in the order its sets
     /// are added: the set levels above it, top first, then its own set,
-    /// then the free sets.
+    /// then the free sets. A source given twice counts once.
     #[must_use]
-    pub fn memberships(&self, at: SeriesIx) -> Vec<SetSource> {
-        let mut sources = Vec::new();
+    pub fn memberships(&self, at: SeriesIx) -> Vec<&SetSource> {
+        let mut sources: Vec<&SetSource> = Vec::new();
         walk(&self.levels, &mut |above, ix, series| {
             if ix == at.0 {
-                sources.extend(above.iter().map(|set| (*set).clone()));
-                sources.extend(series.set.clone());
-                sources.extend(self.free_sets.iter().cloned());
-                let folded = series.slots.item.get(&SlotName::Sets);
-                sources.extend(folded.cloned().map(text_set));
+                let all = above
+                    .iter()
+                    .copied()
+                    .chain(series.set.as_ref())
+                    .chain(&self.free_sets);
+                for source in all {
+                    if !sources.contains(&source) {
+                        sources.push(source);
+                    }
+                }
             }
         });
         sources
+    }
+
+    /// The free set a list's `sets` column joins: the first one read as v2
+    /// read sets, made when there is none, so a lifted v2 plan keeps its
+    /// one sets rule.
+    pub fn text_sets_mut(&mut self) -> &mut EachSet {
+        let at = self.free_sets.iter().position(|set| {
+            matches!(set, SetSource::Each(EachValue { each }) if each.names == SetNames::Text)
+        });
+        let at = at.unwrap_or_else(|| {
+            self.free_sets.push(SetSource::Each(EachValue {
+                each: EachSet {
+                    sources: Vec::new(),
+                    combine: Combine::First,
+                    map: indexmap::IndexMap::new(),
+                    names: SetNames::Text,
+                },
+            }));
+            self.free_sets.len() - 1
+        });
+        match &mut self.free_sets[at] {
+            SetSource::Each(EachValue { each }) => each,
+            _ => unreachable!("the position found or made is a text set"),
+        }
     }
 
     /// Add a list to the series, after its other lists.
@@ -381,18 +404,6 @@ fn leaves_mut<'s>(levels: &'s mut [Level], out: &mut Vec<&'s mut Series>) {
             Level::Set(set) => leaves_mut(&mut set.levels, out),
         }
     }
-}
-
-/// A v2 `item.sets` rule as the free set that reads it as v2 did.
-fn text_set(rule: SlotRule) -> SetSource {
-    SetSource::Each(EachValue {
-        each: EachSet {
-            sources: rule.sources,
-            combine: rule.combine,
-            map: rule.map,
-            names: SetNames::Text,
-        },
-    })
 }
 
 impl Series {

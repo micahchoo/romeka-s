@@ -24,10 +24,11 @@ use super::grouping::Grouping;
 use super::join::{SheetIn, cell};
 use super::model::{LeftBy, RecordId, SlotValue, Subject, TemplateRef};
 use super::plan::{
-    Combine, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind, SeriesIx,
-    SlotName, SlotRule, SlotRules, Term,
+    Combine, EachValue, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind,
+    SeriesIx, SetSource, SlotName, SlotRules, SourceRef, Term,
 };
-use super::values::{Value, ValueType, fold_title};
+use super::values::{ResourceBy, Value, ValueType, fold_title};
+use named::{Reading, SetName};
 
 /// A value before the checks, and whether its source read the text as
 /// Windows-1252 (an IPTC or XMP tag that was not UTF-8). That read is
@@ -56,6 +57,17 @@ pub(crate) struct Ctx<'a, 'i> {
     /// Each rule's value map with its keys folded as titles; the first key
     /// wins when two fold alike.
     maps: HashMap<(SeriesIx, RecordKind, SlotName), HashMap<String, String>>,
+    /// Each series' set sources (`Structure::memberships`), by its index,
+    /// with an `each` source's value map folded as `maps` are.
+    memberships: Vec<Vec<(&'a SetSource, HashMap<String, String>)>>,
+}
+
+fn folded(map: &indexmap::IndexMap<String, String>) -> HashMap<String, String> {
+    let mut folded = HashMap::new();
+    for (key, to) in map {
+        folded.entry(fold_title(key)).or_insert_with(|| to.clone());
+    }
+    folded
 }
 
 impl<'a, 'i> Ctx<'a, 'i> {
@@ -74,16 +86,24 @@ impl<'a, 'i> Ctx<'a, 'i> {
             .flat_map(|(at, series)| kinds.map(|kind| (at, kind, series.rules(kind))));
         for (at, kind, rules) in every {
             for (slot, rule) in rules {
-                if rule.map.is_empty() {
-                    continue;
+                if !rule.map.is_empty() {
+                    maps.insert((at, kind, slot.clone()), folded(&rule.map));
                 }
-                let mut folded = HashMap::new();
-                for (key, to) in &rule.map {
-                    folded.entry(fold_title(key)).or_insert_with(|| to.clone());
-                }
-                maps.insert((at, kind, slot.clone()), folded);
             }
         }
+        let memberships = plan
+            .structure
+            .all_series()
+            .map(|(at, _)| {
+                let sources = plan.structure.memberships(at).into_iter();
+                sources
+                    .map(|source| match source {
+                        SetSource::Each(EachValue { each }) => (source, folded(&each.map)),
+                        _ => (source, HashMap::new()),
+                    })
+                    .collect()
+            })
+            .collect();
         Self {
             plan,
             catalog,
@@ -91,6 +111,7 @@ impl<'a, 'i> Ctx<'a, 'i> {
             sheets,
             tags,
             maps,
+            memberships,
         }
     }
 }
@@ -103,7 +124,8 @@ pub(crate) fn rules(plan: &ImportPlan, series: SeriesIx, kind: RecordKind) -> &S
 /// The `set` decisions that target each record, by slot, in plan order.
 pub(crate) type SetDecisions = HashMap<RecordId, BTreeMap<SlotName, Vec<usize>>>;
 
-/// A record's slots from its rules, its defaults and its `set` decisions.
+/// A record's slots from its rules, its memberships, its defaults and its
+/// `set` decisions, and what each of its `sets` values names.
 pub(crate) fn resolve(
     ctx: &Ctx<'_, '_>,
     draft: &Draft,
@@ -111,19 +133,24 @@ pub(crate) fn resolve(
     entries: &[EntryRef],
     decided: &SetDecisions,
     book: &mut FlagBook<'_>,
-) -> BTreeMap<SlotName, Vec<SlotValue>> {
+) -> (BTreeMap<SlotName, Vec<SlotValue>>, Vec<SetName>) {
     let rules = rules(ctx.plan, draft.series, draft.kind);
+    let memberships = &ctx.memberships[draft.series.index()];
     let identifier = SlotName::Term(Term::dcterms_identifier());
     let decided = decided.get(&id);
     let mut names: Vec<SlotName> = rules.keys().cloned().collect();
     names.extend(decided.into_iter().flat_map(BTreeMap::keys).cloned());
     if draft.kind == RecordKind::Item {
         names.push(identifier.clone());
+        if !memberships.is_empty() {
+            names.push(SlotName::Sets);
+        }
     }
     names.push(SlotName::ItemKey);
     let names: BTreeSet<SlotName> = names.into_iter().collect();
 
     let mut slots = BTreeMap::new();
+    let mut set_names = Vec::new();
     // The identifier comes first: the item key defaults to it.
     let ordered = names
         .iter()
@@ -139,6 +166,34 @@ pub(crate) fn resolve(
             plain.into_iter().map(Raw::from).collect()
         };
         let decisions = decided.and_then(|decided| decided.get(slot));
+        if *slot == SlotName::Sets {
+            let raw: Vec<(Raw, Reading)> = match decisions {
+                Some(decisions) => decisions
+                    .last()
+                    .map(|at| decision_values(&ctx.plan.decisions[*at]))
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|value| {
+                        let reading = Reading::of_decision(&value.value_type);
+                        (Raw::from(value), reading)
+                    })
+                    .collect(),
+                None if draft.kind == RecordKind::Item => from_memberships(ctx, draft, memberships),
+                None => rules.get(slot).map_or_else(Vec::new, |rule| {
+                    let map = ctx.maps.get(&(draft.series, draft.kind, slot.clone()));
+                    from_sources(ctx, draft, &rule.sources, rule.combine, map)
+                        .into_iter()
+                        .map(|raw| (raw, Reading::Text))
+                        .collect()
+                }),
+            };
+            let values;
+            (values, set_names) = check_sets(raw, id, entries, book);
+            if !values.is_empty() {
+                slots.insert(slot.clone(), values);
+            }
+            continue;
+        }
         let rule = rules.get(slot).filter(|_| decisions.is_none());
         let raw: Vec<Raw> = match (decisions, rule) {
             (Some(decisions), _) => decisions
@@ -148,7 +203,13 @@ pub(crate) fn resolve(
                 .into_iter()
                 .map(Raw::from)
                 .collect(),
-            (None, Some(rule)) => from_rule(ctx, draft, slot, rule),
+            (None, Some(rule)) => from_sources(
+                ctx,
+                draft,
+                &rule.sources,
+                rule.combine,
+                ctx.maps.get(&(draft.series, draft.kind, slot.clone())),
+            ),
             (None, None) => plain(&slots),
         };
         let mut values = check(raw, slot, id, entries, book);
@@ -165,7 +226,71 @@ pub(crate) fn resolve(
             slots.insert(slot.clone(), values);
         }
     }
-    slots
+    (slots, set_names)
+}
+
+/// The `sets` values an item's memberships give, each with how it names
+/// its set. A column ref of a list of another series gives nothing, since
+/// the item has no row of that list.
+fn from_memberships(
+    ctx: &Ctx<'_, '_>,
+    draft: &Draft,
+    memberships: &[(&SetSource, HashMap<String, String>)],
+) -> Vec<(Raw, Reading)> {
+    let mut out = Vec::new();
+    for (source, map) in memberships {
+        match source {
+            SetSource::Title(title) => out.push((
+                Raw::from(literal(&title.title)),
+                Reading::Title {
+                    description: title.description.clone(),
+                },
+            )),
+            SetSource::Id(set) => out.push((
+                Raw::from(Value {
+                    value_type: ValueType::Resource(ResourceBy::InternalId),
+                    ..literal(&set.id.to_string())
+                }),
+                Reading::Id,
+            )),
+            SetSource::Each(EachValue { each }) => {
+                let map = (!map.is_empty()).then_some(map);
+                let reading = Reading::of_names(each.names);
+                let values = from_sources(ctx, draft, &each.sources, each.combine, map);
+                out.extend(values.into_iter().map(|raw| (raw, reading.clone())));
+            }
+        }
+    }
+    out
+}
+
+/// The checks of [`check`], value by value, so each `sets` value keeps how
+/// it names its set; a value equal to an earlier one counts once.
+fn check_sets(
+    raw: Vec<(Raw, Reading)>,
+    id: RecordId,
+    entries: &[EntryRef],
+    book: &mut FlagBook<'_>,
+) -> (Vec<SlotValue>, Vec<SetName>) {
+    let mut values: Vec<SlotValue> = Vec::with_capacity(raw.len());
+    let mut names = Vec::with_capacity(raw.len());
+    for (raw, reading) in raw {
+        for value in check(vec![raw], &SlotName::Sets, id, entries, book) {
+            let duplicate = values.iter().any(|seen| {
+                seen.value.value_type == value.value.value_type
+                    && seen.value.text == value.value.text
+                    && seen.value.lang == value.value.lang
+            });
+            if !duplicate {
+                names.push(SetName {
+                    text: value.value.text.clone(),
+                    reading: reading.clone(),
+                });
+                values.push(value);
+            }
+        }
+    }
+    (values, names)
 }
 
 fn literal(text: &str) -> Value {
@@ -220,19 +345,25 @@ fn decision_values(decision: &Decision) -> Vec<Value> {
         .collect()
 }
 
-fn from_rule(ctx: &Ctx<'_, '_>, draft: &Draft, slot: &SlotName, rule: &SlotRule) -> Vec<Raw> {
+fn from_sources(
+    ctx: &Ctx<'_, '_>,
+    draft: &Draft,
+    sources: &[SourceRef],
+    combine: Combine,
+    map: Option<&HashMap<String, String>>,
+) -> Vec<Raw> {
     let mut values = Vec::new();
-    for source in &rule.sources {
+    for source in sources {
         let found = sources::values(ctx, draft, source);
         if found.is_empty() {
             continue;
         }
         values.extend(found);
-        if rule.combine == Combine::First {
+        if combine == Combine::First {
             break;
         }
     }
-    let Some(map) = ctx.maps.get(&(draft.series, draft.kind, slot.clone())) else {
+    let Some(map) = map else {
         return values;
     };
     // A value mapped to "" is then empty, and the checks drop it.

@@ -58,6 +58,9 @@ pub enum FlagKind {
     ManyValues,
     LinkMissing,
     UnknownType,
+    /// A `sets` value that names a set by id, or a row by key, that is not
+    /// there.
+    UnknownSet,
     UnknownKind,
     DuplicateRow,
     UnknownTerm,
@@ -68,7 +71,7 @@ pub enum FlagKind {
 
 impl FlagKind {
     /// Every kind, in the table's order.
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 23] = [
         Self::EmptyRequired,
         Self::DateForm,
         Self::SpaceAtEnds,
@@ -85,6 +88,7 @@ impl FlagKind {
         Self::ManyValues,
         Self::LinkMissing,
         Self::UnknownType,
+        Self::UnknownSet,
         Self::UnknownKind,
         Self::DuplicateRow,
         Self::UnknownTerm,
@@ -114,9 +118,11 @@ impl FlagKind {
             Self::CellsCount | Self::UnknownKind | Self::DuplicateRow => FlagOn::Row,
             Self::NoFile => FlagOn::ItemRecord,
             Self::NotMedia | Self::ListedNotMedia | Self::FormatMismatch => FlagOn::File,
-            Self::Exists | Self::Unmatched | Self::ManyMatches | Self::UnknownType => {
-                FlagOn::Record
-            }
+            Self::Exists
+            | Self::Unmatched
+            | Self::ManyMatches
+            | Self::UnknownType
+            | Self::UnknownSet => FlagOn::Record,
             Self::UnknownTerm | Self::TemplateMissing | Self::TypeExists => FlagOn::Plan,
             Self::EncodingUnsupported => FlagOn::Sheet,
         }
@@ -136,7 +142,8 @@ impl FlagKind {
             | Self::FormatMismatch
             | Self::ManyValues
             | Self::LinkMissing
-            | Self::UnknownType => Keep,
+            | Self::UnknownType
+            | Self::UnknownSet => Keep,
             Self::SpaceAtEnds => Repair,
             Self::CellsCount
             | Self::NotMedia
@@ -162,7 +169,7 @@ mod tests {
     use FlagPolicy::{Keep, Leave, Repair};
 
     /// The contract's table, row by row: kind, default, blocking.
-    const TABLE: [(&str, Option<PolicyDefault>); 22] = [
+    const TABLE: [(&str, Option<PolicyDefault>); 23] = [
         ("empty-required", Some(PolicyDefault::Is(Keep))),
         ("date-form", Some(PolicyDefault::Is(Keep))),
         ("space-at-ends", Some(PolicyDefault::Is(Repair))),
@@ -179,6 +186,7 @@ mod tests {
         ("many-values", Some(PolicyDefault::Is(Keep))),
         ("link-missing", Some(PolicyDefault::Is(Keep))),
         ("unknown-type", Some(PolicyDefault::Is(Keep))),
+        ("unknown-set", Some(PolicyDefault::Is(Keep))),
         ("unknown-kind", Some(PolicyDefault::Is(Leave))),
         ("duplicate-row", Some(PolicyDefault::Is(Leave))),
         ("unknown-term", None),
@@ -193,7 +201,7 @@ mod tests {
         use FlagOn::{Entry, File, ItemRecord, Plan, Record, Row, Sheet, Value};
         let on = [
             Value, Value, Value, Value, Entry, Row, ItemRecord, File, File, File, Record, Record,
-            Record, Value, Value, Record, Row, Row, Plan, Plan, Plan, Sheet,
+            Record, Value, Value, Record, Record, Row, Row, Plan, Plan, Plan, Sheet,
         ];
         for (kind, on) in FlagKind::ALL.into_iter().zip(on) {
             assert_eq!(kind.on(), on, "{kind:?}");
