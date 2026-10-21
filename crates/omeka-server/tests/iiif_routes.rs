@@ -382,7 +382,8 @@ fn corpus(name: &str) -> Vec<u8> {
 
 /// Upload one corpus file as a public item's file media, and answer the item's
 /// id and the media representation.
-async fn upload(app: &axum::Router, name: &str) -> (u64, Value) {
+async fn upload(stored: &Stored, name: &str) -> (u64, Value) {
+    let app = &stored.app;
     let data = json!({
         "o:is_public": true,
         "dcterms:title": [{"type": "literal", "@value": name}],
@@ -405,6 +406,13 @@ async fn upload(app: &axum::Router, name: &str) -> (u64, Value) {
         "{}",
         String::from_utf8_lossy(&answer.body)
     );
+    // The create deferred the derivatives, and every canvas below reads one,
+    // so settle the queue as the worker would before reading the media back.
+    common::settle_derivatives(
+        stored.pool.clone(),
+        std::sync::Arc::new(stored.store.clone()),
+    )
+    .await;
     let created = answer.json();
     let item = created["o:id"].as_u64().expect("an item");
     let media = created["o:media"][0]["o:id"].as_u64().expect("a media");
@@ -479,7 +487,7 @@ async fn record(
 #[tokio::test]
 async fn an_audio_media_has_a_sound_canvas_with_the_duration_that_was_recorded() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "audio.mp3").await;
+    let (item, media) = upload(&stored, "audio.mp3").await;
     let media_id = media["o:id"].as_u64().expect("a media");
     record(&stored, media_id, &original(&media), 12_345, None).await;
 
@@ -511,7 +519,7 @@ async fn an_audio_media_has_a_sound_canvas_with_the_duration_that_was_recorded()
 #[tokio::test]
 async fn a_video_media_has_a_video_canvas_at_its_frame_size() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "video.mp4").await;
+    let (item, media) = upload(&stored, "video.mp4").await;
     let media_id = media["o:id"].as_u64().expect("a media");
     record(&stored, media_id, &original(&media), 7_500, Some((96, 64))).await;
 
@@ -545,7 +553,7 @@ async fn a_video_media_has_a_video_canvas_at_its_frame_size() {
 #[tokio::test]
 async fn an_extent_row_for_another_path_is_probed_again() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "audio.mp3").await;
+    let (item, media) = upload(&stored, "audio.mp3").await;
     let media_id = media["o:id"].as_u64().expect("a media");
     record(&stored, media_id, "original/gone.mp3", 999_000, None).await;
 
@@ -583,7 +591,7 @@ async fn an_extent_row_for_another_path_is_probed_again() {
 #[tokio::test]
 async fn a_media_with_no_probe_answer_gets_no_canvas() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "audio.mp3").await;
+    let (item, media) = upload(&stored, "audio.mp3").await;
     stored
         .store
         .delete(&original(&media))
@@ -599,7 +607,7 @@ async fn a_media_with_no_probe_answer_gets_no_canvas() {
 #[tokio::test]
 async fn an_exif_oriented_image_paints_upright_pixels() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "image.jpg").await;
+    let (item, media) = upload(&stored, "image.jpg").await;
     let media_id = media["o:id"].as_u64().expect("a media");
 
     let manifest = manifest(&stored.app, item).await;
@@ -634,7 +642,7 @@ async fn an_exif_oriented_image_paints_upright_pixels() {
 #[tokio::test]
 async fn an_svg_gets_a_canvas_at_its_drawn_size() {
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "image.svg").await;
+    let (item, media) = upload(&stored, "image.svg").await;
     let media_id = media["o:id"].as_u64().expect("a media");
 
     let manifest = manifest(&stored.app, item).await;
@@ -669,7 +677,7 @@ async fn a_pdf_paints_its_first_page() {
         return;
     }
     let stored = stored().await;
-    let (item, media) = upload(&stored.app, "doc.pdf").await;
+    let (item, media) = upload(&stored, "doc.pdf").await;
     let media_id = media["o:id"].as_u64().expect("a media");
     let page = media["o:thumbnail_urls"]["large"]
         .as_str()

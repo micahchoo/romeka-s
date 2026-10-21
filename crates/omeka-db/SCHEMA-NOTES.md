@@ -228,6 +228,24 @@ Neither is an upstream table, and `media.data` and `value` stay upstream's.
   original that was probed, so a row whose path no longer matches the media's is stale and is probed
   again; `duration_ms`, `width` and `height` are each either positive or `NULL`.
 
+`0010_media_derivative.sql` adds `romeka_media_derivative`, the queue behind the media document's
+`o-module-romeka:preview` member. Upstream makes its derivatives inside the create and keeps the only
+record in `media.has_thumbnails`; Romeka makes them in a job and records what the job is doing, so
+neither `media` nor `media.data` changes.
+
+- One row per media and kind (`thumbnail`, `poster`, `pdf_page`, and `access_copy` for a later
+  unit), primary key `(media_id, kind)`, cascading from `media`. `state` is `pending`, `running`,
+  `ready`, `failed` or `none`; `none` means the kind does not apply or its tool is not installed.
+  `reason` is the typed skip or failure a reader shows (`toolMissing: pdftoppm`,
+  `unsupportedType: application/msword`, or the command's own message). `progress` is 0-100 while a
+  long derivative runs, `tool` names the command, and `attempts` counts claims. `CHECK`s require
+  `started` for `running` and `finished` for every settled state, so a half-written row cannot claim
+  to be done. `ix_romeka_media_derivative_pending` serves the worker's oldest-first claim.
+- A media the archive import made has no row here. Its document derives the state from what the
+  store holds (`media.has_thumbnails` or the three files), so a row written by a build before this
+  table reads the same way, and `romeka media derivatives` queues the ones that are missing.
+- `0009` belongs to another branch (staged uploads). The gap is safe for the reason 0007 states.
+
 The MySQL directory has no `0004`: that migration only makes SQLite's term columns case-sensitive.
 
 ## Not translated

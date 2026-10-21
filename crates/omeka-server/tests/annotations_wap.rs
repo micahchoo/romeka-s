@@ -763,8 +763,10 @@ async fn an_images_surface_names_its_upright_size_and_image_service() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), "/files");
     let (pool, seed) = seeded_pool().await;
-    let app = router_with_store(pool, store);
+    let app = router_with_store(pool.clone(), store.clone());
     let media = upload_image(&app, &seed).await;
+    // The create deferred the derivatives; this test reads one, so make it.
+    common::settle_derivatives(pool.clone(), std::sync::Arc::new(store)).await;
 
     let answer = send(app, get(&container(media), true)).await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);

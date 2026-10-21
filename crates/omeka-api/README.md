@@ -308,6 +308,15 @@ row whose three thumbnail files are present emits `o:thumbnail_urls` even when
 its `has_thumbnails` column is false, and falls back to the column alone when no
 store is bound.
 
+A media created outside an archive import does not make its derivatives in the
+request. It stores the original, queues a `romeka_media_derivative` row
+(`derivatives::enqueue`) and answers with `o-module-romeka:preview` `pending`;
+the server starts one `Romeka\Job\MediaDerivatives` worker
+(`jobs::start_derivatives`), which settles the row `ready`, `failed` or `none`.
+A media the import made carries no row and reads its state from what the store
+holds, so every media document answers the member the same way. A read that
+needs the derivatives (the IIIF canvas, a test) settles the queue first.
+
 Accepted members, per resource (a member with no value keeps the stored one on
 `PATCH`, and resets to the upstream default on `PUT`). A `PATCH` whose body
 names no value object keeps every stored value (`ValueHydrator` line 162); one

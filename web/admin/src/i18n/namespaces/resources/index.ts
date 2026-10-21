@@ -89,6 +89,10 @@ export const en = {
   'media.browse.import': 'Import',
   'media.filter.label': 'Kind',
   'media.filter.all': 'All kinds',
+  // A preview the server is still making, or could not make.
+  'media.preview.pending': 'Making preview',
+  'media.preview.failed': 'The preview could not be made.',
+  'media.preview.failedWithReason': 'The preview could not be made: {reason}',
   // The stage: one control per kind, and the facts beside it.
   'media.stage.noPreview': 'No preview.',
   'media.stage.noFile': 'This media has no stored file.',

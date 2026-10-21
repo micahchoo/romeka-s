@@ -19,6 +19,7 @@ mod dispatcher;
 mod env;
 mod import_run;
 mod index_fulltext_search;
+mod media_derivatives;
 mod query;
 mod runner;
 mod status;
@@ -29,9 +30,10 @@ mod update_site_items;
 pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
 pub use dispatcher::{DATABASE_URL_ENV, Dispatcher, JobCommand, JobContext, compose_job};
-pub use env::JobEnv;
+pub use env::{DEFAULT_BASE_URL, JobEnv};
 pub use import_run::{ImportRun, ImportScan, ImportUndo, refuse_live_hand_run};
 pub use index_fulltext_search::IndexFulltextSearch;
+pub use media_derivatives::{MediaDerivatives, YIELD_LIMIT, YIELD_POLL};
 pub use query::BatchQuery;
 pub use runner::Runner;
 pub use status::JobStatus;
@@ -78,6 +80,7 @@ static INDEX_FULLTEXT_SEARCH: IndexFulltextSearch = IndexFulltextSearch;
 static IMPORT_RUN: ImportRun = ImportRun;
 static IMPORT_SCAN: ImportScan = ImportScan;
 static IMPORT_UNDO: ImportUndo = ImportUndo;
+static MEDIA_DERIVATIVES: MediaDerivatives = MediaDerivatives;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
 static IMPORT_UNZIP: ImportUnzip = ImportUnzip;
 static IMPORT_SWEEP: ImportSweep = ImportSweep;
@@ -97,6 +100,7 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         omeka_api::import::undo::UNDO_JOB => Some(&IMPORT_UNDO),
         omeka_api::import::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
         omeka_api::import::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
+        omeka_api::derivatives::DERIVATIVES_JOB => Some(&MEDIA_DERIVATIVES),
         _ => None,
     }
 }
