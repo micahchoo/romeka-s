@@ -861,11 +861,12 @@ async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
     let ffmpeg = dir.path().join("ffmpeg");
     std::fs::write(
         &ffmpeg,
+        // `exec`, so the stop kills the process holding the output pipes, as
+        // it does a real ffmpeg. A `sleep` child of the shell kept them open
+        // after the kill, and the stop waited for it.
         "#!/bin/sh\n\
-         for last in \"$@\"; do out=$last; done\n\
          printf 'out_time_us=1000000\\nprogress=continue\\n'\n\
-         sleep 10\n\
-         printf 'x' > \"$out\"\n",
+         exec sleep 60\n",
     )
     .expect("the stand-in ffmpeg");
     #[cfg(unix)]
@@ -899,8 +900,10 @@ async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
         if row.state == DerivativeState::Running && row.progress.is_some_and(|p| p > 0) {
             break row;
         }
+        // Generous, because the bound is wall-clock: a full workspace run
+        // takes many seconds to start the stand-in.
         assert!(
-            started.elapsed() < Duration::from_secs(20),
+            started.elapsed() < Duration::from_secs(120),
             "the copy did not start: {row:?}"
         );
         tokio::time::sleep(Duration::from_millis(50)).await;
