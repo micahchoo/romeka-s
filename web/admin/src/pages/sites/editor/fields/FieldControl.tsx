@@ -22,7 +22,6 @@ import type { BlockField } from '../../blockSchema';
 import type { BlockKey, ValidationIssue } from '../draft';
 import type { EditorOptions } from '../options';
 import { Checked, Help, Labelled, helpId } from '../Labelled';
-import { AssetPicker } from './AssetPicker';
 import { WithHelp, asList, asText } from './controlBase';
 import type { ControlProps, FieldOf } from './controlBase';
 import { ColorField } from './ColorField';
@@ -31,8 +30,13 @@ import { HtmlEditor } from './HtmlEditor';
 import { ItemQueryField, isQueryResource } from './ItemQueryField';
 import { LinkField } from './LinkField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
-import { LazyContentControl, LazyManifestSourceField } from './LazyControls';
-import { FocalPointControl, MediaRefControl } from './mediaControls';
+import {
+  LazyAssetPicker,
+  LazyContentControl,
+  LazyFocalPointControl,
+  LazyManifestSourceField,
+} from './LazyControls';
+import { MediaRefControl } from './mediaControls';
 import { LazyPageListField } from './LazyPageListField';
 import { PropertyListControl } from './propertyListControl';
 import { PageSelect } from './PageSelect';
@@ -253,12 +257,13 @@ const AssetRefControl = ({
   const e = useEditorText();
   return (
     <>
-      <AssetPicker
+      <LazyAssetPicker
         id={id}
         label={e(field.label)}
         description={e(field.help)}
         value={asText(value)}
-        required={field.required}
+        accepts={field.accepts}
+        decorative={field.decorative}
         onChange={onChange}
       />
       {error}
@@ -568,7 +573,7 @@ const control = (common: ControlProps & FieldControlProps): ReactElement | null 
     case 'mediaRef':
       return <MediaRefControl {...common} field={common.field} />;
     case 'focalPoint':
-      return <FocalPointControl {...common} field={common.field} />;
+      return <LazyFocalPointControl {...common} field={common.field} />;
     case 'itemList':
       return <ItemListControl {...common} field={common.field} />;
     case 'itemRef':

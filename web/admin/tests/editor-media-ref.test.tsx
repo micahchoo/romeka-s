@@ -224,10 +224,10 @@ const heroDraft = (settings: Readonly<Record<string, unknown>>): PageDraft =>
   ]);
 
 describe('the hero background from a media of this site', () => {
-  it('swaps the asset picker for the media control when the source changes', () => {
+  it('swaps the asset picker for the media control when the source changes', async () => {
     installFetch(archive());
     render(<HeroForm initial={heroDraft({})} />);
-    expect(screen.getByText('Background image')).toBeInTheDocument();
+    expect(await screen.findByText('Background image')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Background from'), { target: { value: 'media' } });
     expect(screen.queryByText('Background image')).toBeNull();
     expect(screen.getByText('Background media')).toBeInTheDocument();

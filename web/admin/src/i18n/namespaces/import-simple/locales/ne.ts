@@ -189,6 +189,7 @@ export const ne: ImportSimpleMessages = {
     'उत्तर दिनका लागि केही छैन। तपाईँका फाइलहरू र तपाईँको सूची थप्नका लागि तयार छन्।',
   'guided.check.example': 'उदाहरणका लागि, {name}।',
   'guided.check.exampleOf': 'उदाहरणका लागि, {name}: “{value}”।',
+  'guided.check.omekaItem': 'Omeka वस्तु {id}',
   'guided.check.another': 'अर्को उदाहरण',
   'guided.check.showAll': 'सबै {count} देखाउनुहोस्',
   'guided.check.pair': 'हातले जोडी बनाउनुहोस्',

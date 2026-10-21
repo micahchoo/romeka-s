@@ -1277,6 +1277,92 @@ fieldset.block-field {
   font-size: 13px;
 }
 
+/* The asset upload control: a button-styled label, an input a keyboard can
+ * still reach, the drop state, and the description a content slot asks for. */
+.asset-upload {
+  min-width: 0;
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  border: 1px dashed transparent;
+  border-radius: var(--radius);
+}
+
+.asset-upload.is-dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.asset-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.asset-upload-trigger {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.asset-upload-row:has(input[type="file"]:focus-visible) .asset-upload-trigger {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.asset-upload input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.asset-describe {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.asset-describe textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.asset-kind-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.asset-kind-tile {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.asset-kind-tile.media-image-empty {
+  aspect-ratio: auto;
+  padding: 2px;
+}
+
+.asset-preview-kind {
+  width: 8rem;
+  height: 8rem;
+  object-fit: cover;
+}
+
+.asset-preview-kind.media-image-empty {
+  aspect-ratio: auto;
+}
+
 /* One attachment, repeat entry or page node is one card, like a value row. */
 .attachment-rows,
 .repeat-rows,

@@ -87,7 +87,7 @@ describe('the asset picker', () => {
   it('lists the assets and writes the chosen id into the entry', async () => {
     const { dispatch, key } = renderAsset(entry(), listHandler(() => jsonResponse(firstAsset())));
 
-    expect(screen.getByText('[No asset]')).toBeInTheDocument();
+    expect(await screen.findByText('[No asset]')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Choose asset' }));
     fireEvent.click(await screen.findByRole('button', { name: 'omeka-logo.png' }));
 
@@ -120,7 +120,7 @@ describe('the asset picker', () => {
     const { dispatch, fetchMock, key } = renderAsset(entry(), listHandler(() => jsonResponse(created)));
     const file = new File(['bytes'], 'new.png', { type: 'image/png' });
 
-    fireEvent.change(screen.getByLabelText('Upload'), { target: { files: [file] } });
+    fireEvent.change(await screen.findByLabelText('Upload'), { target: { files: [file] } });
 
     const request: CapturedRequest = await waitFor(() => {
       const sent = requestsFor(fetchMock, '/api/assets').filter(
@@ -157,7 +157,7 @@ describe('the asset picker', () => {
     );
     const file = new File(['bytes'], 'note.txt', { type: 'text/plain' });
 
-    fireEvent.change(screen.getByLabelText('Upload'), { target: { files: [file] } });
+    fireEvent.change(await screen.findByLabelText('Upload'), { target: { files: [file] } });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The upload failed. No file was uploaded (HTTP 422)',

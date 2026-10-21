@@ -190,6 +190,7 @@ export const te: ImportSimpleMessages = {
     'సమాధానం ఇవ్వడానికి ఏమీ లేదు. మీ ఫైళ్లు మరియు మీ జాబితా జోడించడానికి సిద్ధంగా ఉన్నాయి.',
   'guided.check.example': 'ఉదాహరణకు, {name}.',
   'guided.check.exampleOf': 'ఉదాహరణకు, {name}: “{value}”.',
+  'guided.check.omekaItem': 'Omeka అంశం {id}',
   'guided.check.another': 'మరొక ఉదాహరణ',
   'guided.check.showAll': 'అన్ని {count}లను చూపండి',
   'guided.check.pair': 'చేతితో జత చేయండి',
