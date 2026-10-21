@@ -565,6 +565,12 @@ export const es: EditorMessages = {
   'mediaRef.fallback': 'Medio {id}',
   'mediaRef.remove': 'Quitar',
   'mediaRef.changeItem': 'Elegir otro elemento',
+  'mediaRef.mediaInItem': 'Medios de este elemento:',
+  'mediaRef.notImage': 'no es una imagen',
+  'mediaRef.notZoomable': 'este archivo no se puede ampliar aquí',
+  'mediaRef.misfit': 'Los visitantes no ven nada aquí: este campo acepta imágenes, y {kind} no lo es.',
+  'mediaRef.misfitZoom':
+    'Los visitantes no ven nada aquí: este campo acepta una imagen que este archivo pueda ampliar, y {kind} no lo es.',
   'focal.noImage': 'Elija primero una imagen de fondo.',
   'focal.notAPicture': 'Este medio no tiene imagen para fijar un punto focal.',
   'focal.frame': 'Punto focal: {x} % a lo ancho, {y} % hacia abajo. Haga clic en la imagen o use las flechas para moverlo.',

@@ -3,10 +3,11 @@
  * media source and the hero's background, with the hero's focal point set on
  * the chosen image.
  */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useReducer } from 'react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
+import { isRecord } from '../src/api/parse';
 import { BLOCK_REGISTRY } from '../src/pages/sites/blockRegistry';
 import type { BlockDraft, PageDraft } from '../src/pages/sites/editor/draft';
 import { RomkaForm } from '../src/pages/sites/editor/fields/RomkaForm';
@@ -15,7 +16,7 @@ import { carrierOf } from '../src/pages/sites/editor/romeka';
 import { at, load, rawBlock } from './editor-draft-helpers';
 import { BlockFormHarness, SITE_ID } from './editor-fields-helpers';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse } from './stub';
+import { installFetch, jsonResponse, listResponse, urlsFor } from './stub';
 
 const item = loadFixture('item-1.json');
 const media = loadFixture('media-951.json');
@@ -46,8 +47,18 @@ const archive =
     return jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
   };
 
-/** The one row of a one-row fixture page, which the stub can hand back as a read. */
-const firstOf = (rows: unknown): unknown => (Array.isArray(rows) ? rows[0] : null);
+/** The row of a fixture page whose id the path names, or `null` for another path. */
+const rowAt = (rows: unknown, pathname: string): Record<string, unknown> | null => {
+  const id = /^\/api\/media\/(\d+)$/.exec(pathname)?.[1];
+  if (id === undefined) {
+    return null;
+  }
+  const list = Array.isArray(rows) ? rows : [];
+  return (
+    list.find((row): row is Record<string, unknown> => isRecord(row) && String(row['o:id']) === id) ??
+    null
+  );
+};
 
 /** The archive with an item whose media are the kinds fixture's rows. */
 const archiveOfKinds =
@@ -65,11 +76,9 @@ const archiveOfKinds =
     if (url.pathname === '/api/items/1' || url.pathname === '/api/items/31') {
       return jsonResponse(withVisibility(item, true));
     }
-    if (url.pathname === '/api/media/961') {
-      return jsonResponse(firstOf(rows));
-    }
-    if (url.pathname === '/api/media/960') {
-      return jsonResponse(firstOf(rows));
+    const row = rowAt(rows, url.pathname);
+    if (row !== null) {
+      return jsonResponse(row);
     }
     return jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
   };
@@ -80,6 +89,20 @@ const kindRows = (onlyAudio = false): readonly unknown[] => {
   const list = Array.isArray(rows) ? rows : [];
   return onlyAudio ? list.filter((_, index) => index === 1) : list;
 };
+
+/** The kinds fixture's rows with its audio row read as a video, so a film is one of them. */
+const rowsWithVideo = (): readonly unknown[] =>
+  kindRows().map((row) =>
+    isRecord(row) && row['o:media_type'] === 'audio/mpeg'
+      ? {
+          ...row,
+          'o:media_type': 'video/mp4',
+          'o:source': 'clip.mp4',
+          'o:filename': 'clip.mp4',
+          'o:original_url': 'http://localhost/files/original/clip.mp4',
+        }
+      : row,
+  );
 
 const renderIiif = (): (() => BlockDraft) => {
   let latest: BlockDraft | null = null;
@@ -137,29 +160,38 @@ describe('the IIIF image from a media of this site', () => {
     expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
   });
 
-  it('offers only the item media that are images', async () => {
-    installFetch(archiveOfKinds(kindRows(), kindRows().length));
+  it('lists the media it cannot zoom disabled, with the reason', async () => {
+    const fetchMock = installFetch(archiveOfKinds(kindRows(), kindRows().length));
     const block = renderIiif();
     fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
     fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
 
-    expect(await screen.findByRole('radio', { name: 'photo.jpg' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(1);
-    expect(screen.queryByRole('radio', { name: /tone\.mp3/ })).toBeNull();
-    expect(screen.queryByRole('radio', { name: /report\.pdf/ })).toBeNull();
+    expect(await screen.findByRole('radio', { name: 'photo.jpg' })).toBeEnabled();
+    // The reason is visible text in the tile, so a screen reader hears it too.
+    expect(
+      screen.getByRole('radio', { name: /tone\.mp3.*this archive cannot zoom it/ }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('radio', { name: /report\.pdf.*this archive cannot zoom it/ }),
+    ).toBeDisabled();
     // The one image is public, so the control chooses it at once.
     expect(await screen.findByRole('radio', { checked: true })).toBeInTheDocument();
     expect(carrierOf(block())?.settings).toEqual({ source: 'media', media: 960 });
+    // The field asks the archive only for items that hold an image.
+    expect(
+      urlsFor(fetchMock, '/api/items').map((url) => url.searchParams.getAll('has_media_kind')),
+    ).toContainEqual(['local-image', 'iiif-image']);
   });
 
-  it('says the item has no image when its only media is an audio file', async () => {
+  it('keeps an item whose only media is an audio file listed, and refuses it', async () => {
     installFetch(archiveOfKinds(kindRows(true), 1));
     const block = renderIiif();
     fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
     fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
 
-    expect(await screen.findByText('This item has no image.')).toBeInTheDocument();
-    expect(screen.queryByRole('radio')).toBeNull();
+    expect(await screen.findByRole('radio', { name: /tone\.mp3/ })).toBeDisabled();
+    // Hiding it would say the item has no image, which reads as a fault.
+    expect(screen.queryByText('This item has no image.')).toBeNull();
     expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
   });
 });
@@ -259,5 +291,42 @@ describe('the hero background from a media of this site', () => {
   it('asks for an image first when the hero has none', () => {
     render(<HeroForm initial={heroDraft({})} />);
     expect(screen.getByText('Choose a background image first.')).toBeInTheDocument();
+  });
+
+  it("lists the item's image enabled and its video and PDF disabled with the reason", async () => {
+    installFetch(archiveOfKinds(rowsWithVideo(), 3));
+    render(<HeroForm initial={heroDraft({ background_source: 'media' })} />);
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
+
+    // The item holds one image, so the control chooses it at once.
+    await waitFor(() => {
+      expect(heroSettings()).toMatchObject({ background_media: 960 });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another item' }));
+    const choices = screen.getByRole('group', { name: 'Choose one of its images' });
+    expect(await within(choices).findByRole('radio', { name: 'photo.jpg' })).toBeEnabled();
+    expect(
+      within(choices).getByRole('radio', { name: /clip\.mp4.*not an image/ }),
+    ).toBeDisabled();
+    expect(
+      within(choices).getByRole('radio', { name: /report\.pdf.*not an image/ }),
+    ).toBeDisabled();
+    // One line counts what the item holds, so the greyed tiles explain themselves.
+    expect(screen.getByText('Media in this item:')).toBeInTheDocument();
+    expect(screen.getByText('1 Image')).toBeInTheDocument();
+    expect(screen.getByText('1 Video')).toBeInTheDocument();
+    expect(screen.getByText('1 PDF')).toBeInTheDocument();
+  });
+
+  it('keeps a stored video in a hero, says what visitors see, and saves it unchanged', async () => {
+    installFetch(archiveOfKinds(rowsWithVideo(), 3));
+    render(<HeroForm initial={heroDraft({ background_source: 'media', background_media: 961 })} />);
+
+    expect(
+      await screen.findByText(
+        'Visitors see nothing here: this field takes images, and Video is not one.',
+      ),
+    ).toBeInTheDocument();
+    expect(heroSettings()).toMatchObject({ background_media: 961 });
   });
 });

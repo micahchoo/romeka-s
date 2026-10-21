@@ -600,6 +600,13 @@ export const ml: EditorMessages = {
   'mediaRef.fallback': 'മീഡിയ {id}',
   'mediaRef.remove': 'നീക്കം ചെയ്യുക',
   'mediaRef.changeItem': 'മറ്റൊരു ഇനം തിരഞ്ഞെടുക്കുക',
+  'mediaRef.mediaInItem': 'ഈ ഇനത്തിൽ മീഡിയ:',
+  'mediaRef.notImage': 'ഇതൊരു ചിത്രമല്ല',
+  'mediaRef.notZoomable': 'ഈ ആർക്കൈവ് ഇത് സൂം ചെയ്യാൻ കഴിയില്ല',
+  'mediaRef.misfit':
+    'സന്ദർശകർ ഇവിടെ ഒന്നും കാണില്ല: ഈ ഫീൽഡ് ചിത്രങ്ങൾ എടുക്കുന്നു, കൂടാതെ {kind} അതിൽ ഒന്നല്ല.',
+  'mediaRef.misfitZoom':
+    'സന്ദർശകർ ഇവിടെ ഒന്നും കാണില്ല: ഈ ഫീൽഡ് ഒരു ചിത്രം എടുക്കുന്നു, കൂടാതെ {kind} അതിൽ ഒന്നല്ല.',
   'focal.noImage': 'ആദ്യം ഒരു പശ്ചാത്തല ചിത്രം തിരഞ്ഞെടുക്കുക.',
   'focal.notAPicture': 'ഈ മീഡിയയ്ക്ക് ഫോക്കൽ പോയിന്റ് സെറ്റ് ചെയ്യാൻ ചിത്രമില്ല.',
   'focal.frame':

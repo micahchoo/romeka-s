@@ -280,3 +280,31 @@
 .media-ref-field > .attachment-item > button {
   margin-left: auto;
 }
+
+/* A kind placeholder in a picker tile keeps the tile's own box: the icon
+ * alone fits, and the tile's name carries the words. */
+.media-choice > label .media-image-empty {
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+}
+
+.media-choice > label .media-image-empty .media-kind-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Why a tile cannot be chosen, in the tile: touch readers get the reason
+ * from the text, not from a hover title. */
+.media-ref-reason {
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+/* The item's media counted by kind, as the field's one fact line. */
+.media-ref-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}

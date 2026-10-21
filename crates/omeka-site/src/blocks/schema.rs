@@ -157,6 +157,23 @@ pub enum FieldDefault {
     TextList(&'static [&'static str]),
 }
 
+/// What a [`FieldKind::AssetRef`] or [`FieldKind::MediaRef`] shows to visitors,
+/// in the words the form states under the control and the choices its picker
+/// offers. The schema is the one place that knows a block's own rule, so the
+/// admin never guesses it from the block's name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Accepts {
+    /// An image a browser draws.
+    Image,
+    /// An image this archive can serve through the Image API, which is what a
+    /// IIIF viewer zooms: a local image with derivatives, not an outside IIIF
+    /// image and not a file this archive cannot read.
+    ImageService,
+    /// Any media or asset, drawn as its own kind.
+    Any,
+}
+
 /// The control a field renders as, and the values it accepts. The `type` tag
 /// and any options sit beside the field's `key` and `label`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -191,12 +208,27 @@ pub enum FieldKind {
     },
     /// A reference to a page of the site.
     PageRef,
-    /// A reference to an asset.
-    AssetRef,
-    /// A reference to one media of the site, by id. It lives only in
-    /// `o:layout_data.romeka.settings`, and a write refuses a media a visitor
-    /// may not see, because the plain rendering that names it is public.
-    MediaRef,
+    /// A reference to an asset, and what it must be to show.
+    AssetRef {
+        /// What the slot shows.
+        accepts: Accepts,
+        /// Whether the asset is behind the block rather than read by a visitor,
+        /// so it takes no description (a CSS background).
+        #[serde(skip_serializing_if = "is_false")]
+        decorative: bool,
+    },
+    /// A reference to one media of the site, by id, and what it must be to
+    /// show. It lives only in `o:layout_data.romeka.settings`, and a write
+    /// refuses a media a visitor may not see, because the plain rendering that
+    /// names it is public.
+    MediaRef {
+        /// What the slot shows.
+        accepts: Accepts,
+        /// Whether the media is behind the block rather than read by a
+        /// visitor, so it takes no description (a CSS background).
+        #[serde(skip_serializing_if = "is_false")]
+        decorative: bool,
+    },
     /// A focal point on the image a sibling field names: two whole percents,
     /// x under the field's `key` and y under `y_key`, that keep that part of
     /// the image in view when the frame crops it.
@@ -436,14 +468,40 @@ pub const fn page_ref(key: &'static str, label: &'static str, help: &'static str
     field(key, label, help, FieldKind::PageRef)
 }
 
-/// A reference to an asset.
-pub const fn asset_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
-    field(key, label, help, FieldKind::AssetRef)
+/// A reference to an asset that `accepts` shows.
+pub const fn asset_ref(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    accepts: Accepts,
+) -> Field {
+    field(
+        key,
+        label,
+        help,
+        FieldKind::AssetRef {
+            accepts,
+            decorative: false,
+        },
+    )
 }
 
-/// A reference to one media of the site.
-pub const fn media_ref(key: &'static str, label: &'static str, help: &'static str) -> Field {
-    field(key, label, help, FieldKind::MediaRef)
+/// A reference to one media of the site that `accepts` shows.
+pub const fn media_ref(
+    key: &'static str,
+    label: &'static str,
+    help: &'static str,
+    accepts: Accepts,
+) -> Field {
+    field(
+        key,
+        label,
+        help,
+        FieldKind::MediaRef {
+            accepts,
+            decorative: false,
+        },
+    )
 }
 
 /// A focal point, x under `x_key` and y under `y_key`, on the first of
@@ -658,6 +716,29 @@ impl Field {
                 ..self
             },
             _ => panic!("only a text field has a placeholder"),
+        }
+    }
+
+    /// Marks the reference decorative: a background a visitor reads nothing
+    /// from, so no description is asked for. Only an asset or media reference
+    /// has one, so any other kind fails the build.
+    pub const fn decorative(self) -> Self {
+        match self.kind {
+            FieldKind::AssetRef { accepts, .. } => Self {
+                kind: FieldKind::AssetRef {
+                    accepts,
+                    decorative: true,
+                },
+                ..self
+            },
+            FieldKind::MediaRef { accepts, .. } => Self {
+                kind: FieldKind::MediaRef {
+                    accepts,
+                    decorative: true,
+                },
+                ..self
+            },
+            _ => panic!("only an asset or media reference is decorative"),
         }
     }
 

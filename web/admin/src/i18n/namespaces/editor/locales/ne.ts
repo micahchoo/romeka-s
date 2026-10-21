@@ -586,6 +586,13 @@ export const ne: EditorMessages = {
   'mediaRef.fallback': 'मिडिया {id}',
   'mediaRef.remove': 'हटाउनुहोस्',
   'mediaRef.changeItem': 'अर्को वस्तु छान्नुहोस्',
+  'mediaRef.mediaInItem': 'यस वस्तुमा मिडिया:',
+  'mediaRef.notImage': 'छवि होइन',
+  'mediaRef.notZoomable': 'यो आर्काइभले यसलाई जुम गर्न सक्दैन',
+  'mediaRef.misfit':
+    'यहाँ आगन्तुकहरूले केही देख्दैनन्: यो क्षेत्रले छविहरू लिन्छ, र {kind} ती मध्ये एक होइन।',
+  'mediaRef.misfitZoom':
+    'यहाँ आगन्तुकहरूले केही देख्दैनन्: यो क्षेत्रले एउटा छवि लिन्छ जसलाई यो अभिलेखले जुम गर्न सक्छ, र {kind} ती मध्ये एक होइन।',
   'focal.noImage': 'पहिले पृष्ठभूमि छवि छान्नुहोस्।',
   'focal.notAPicture': 'यस मिडियामा सेट गर्नका लागि कुनै छवि छैन।',
   'focal.frame':

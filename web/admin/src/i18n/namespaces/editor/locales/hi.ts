@@ -584,6 +584,13 @@ export const hi: EditorMessages = {
   'mediaRef.fallback': 'मीडिया {id}',
   'mediaRef.remove': 'हटाएँ',
   'mediaRef.changeItem': 'एक अन्य वस्तु चुनें',
+  'mediaRef.mediaInItem': 'इस मद में मीडिया:',
+  'mediaRef.notImage': 'छवि नहीं है',
+  'mediaRef.notZoomable': 'इस संग्रह को ज़ूम नहीं किया जा सकता',
+  'mediaRef.misfit':
+    'आगंतुक यहाँ कुछ नहीं देखते: यह क्षेत्र चित्र लेता है, और {kind} उनमें से एक नहीं है।',
+  'mediaRef.misfitZoom':
+    'आगंतुक यहाँ कुछ नहीं देखते: यह क्षेत्र एक छवि लेता है जिसे यह संग्रह ज़ूम कर सकता है, और {kind} उनमें से एक नहीं है।',
   'focal.noImage': 'पहले एक बैकग्राउंड इमेज चुनें।',
   'focal.notAPicture': 'इस मीडिया में सेट करने के लिए कोई छवि नहीं है।',
   'focal.frame':
