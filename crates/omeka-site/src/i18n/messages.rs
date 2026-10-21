@@ -100,6 +100,16 @@ pub struct Messages {
     pub no_title_recorded: &'static str,
     /// The panel an item page shows when the item has no media.
     pub no_media_attached: &'static str,
+    /// The media page's link to the file before it in the item. A Romeka
+    /// string, added with "File 3 of 12"; upstream has no such link. Its
+    /// neighbour uses [`Messages::next`].
+    pub previous: &'static str,
+    /// The media page's place among its item's files, `%s` the one-based
+    /// position and `%s` the file count. A Romeka string.
+    pub file_of: &'static str,
+    /// The item page's strip heading, `%s` the item's file count. A Romeka
+    /// string.
+    pub files_count: &'static str,
     /// The footer's link list, as its `nav` label.
     pub footer_links: &'static str,
     /// The footer's licence line when the site keeps every right.
@@ -216,6 +226,9 @@ pub static EN: Messages = Messages {
     pager_count: "%s results · page %s of %s",
     no_title_recorded: "No title recorded",
     no_media_attached: "No media attached",
+    previous: "Previous",
+    file_of: "File %s of %s",
+    files_count: "%s files",
     footer_links: "Footer links",
     all_rights_reserved: "All rights reserved",
     search_placeholder: "Search the collection",
@@ -301,6 +314,10 @@ pub static ES: Messages = Messages {
     pager_count: "%s resultados · página %s de %s",
     no_title_recorded: "Sin título registrado",
     no_media_attached: "Sin medios adjuntos",
+    // `es.po:1569`, `es.po:4648`.
+    previous: "Anterior",
+    file_of: "Archivo %s de %s",
+    files_count: "%s archivos",
     footer_links: "Enlaces del pie de página",
     all_rights_reserved: "Todos los derechos reservados",
     search_placeholder: "Buscar en la colección",

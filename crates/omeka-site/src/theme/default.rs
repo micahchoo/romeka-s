@@ -37,13 +37,15 @@
 
 use crate::blocks;
 use crate::html::{Attr, escape_html, hyperlink, pagination};
-use crate::i18n::{Translator, sprintf1};
+use crate::i18n::{Translator, sprintf, sprintf1};
 use crate::nav::{NavItem, find_item_by_page, nav_path, render_menu};
 use crate::resource_page::render_blocks;
 use crate::slug::{controller_for, resource_action_url, site_url};
 use crate::theme::{Theme, ThemeInfo};
 use crate::theme::{cards, fonts, search, user_bar};
-use crate::view::{BrowseView, ErrorView, RenderContext, ResourceView, SiteRegion, View};
+use crate::view::{
+    BrowseView, ErrorView, MediaPosition, RenderContext, ResourceView, SiteRegion, View,
+};
 
 /// The bundled theme's manifest: the id `site.theme` stores, the design tokens
 /// it reads, and the files it ships.
@@ -680,11 +682,51 @@ fn media_view(media: &ResourceView, ctx: &RenderContext<'_>) -> String {
             )
         ));
     }
+    // A Romeka addition: where this file sits among the item's files, and the
+    // two neighbours. Upstream's media page names the item and stops there.
+    if let Some(position) = media
+        .media_position
+        .as_ref()
+        .filter(|position| position.total > 1)
+    {
+        out.push_str(&position_line(position, ctx));
+    }
     // The media renderer's markup has no wrapper of its own, so the page wraps
     // the file and its values together and the sheet lays them side by side.
     out.push_str("<div class=\"media-page\">");
     out.push_str(&render_blocks(media, ctx));
+    // The place the notes list takes (contract unit 9). It carries no text of
+    // its own, so an unannotated file renders nothing here.
+    out.push_str("<div class=\"annotation-list\"></div>");
     out.push_str("</div>");
+    out
+}
+
+/// `File 3 of 12` and the links to the file before and after it, in the site's
+/// locale. Plain words, no arrows: a screen reader reads "Previous" once.
+fn position_line(position: &MediaPosition, ctx: &RenderContext<'_>) -> String {
+    let messages = ctx.translator().messages();
+    let number = position.number.to_string();
+    let total = position.total.to_string();
+    let mut out = format!(
+        "<p class=\"media-position\"><span class=\"media-position-count\">{}</span>",
+        escape_html(&sprintf(messages.file_of, &[&number, &total]))
+    );
+    if let Some(previous) = &position.previous {
+        out.push_str(&format!(
+            "<a class=\"media-previous\" rel=\"prev\" href=\"{}\">{}</a>",
+            escape_html(&previous.url),
+            escape_html(messages.previous)
+        ));
+    }
+    if let Some(next) = &position.next {
+        out.push_str(&format!(
+            "<a class=\"media-next\" rel=\"next\" href=\"{}\">{}</a>",
+            escape_html(&next.url),
+            escape_html(messages.next)
+        ));
+    }
+    out.push_str("</p>");
     out
 }
 
