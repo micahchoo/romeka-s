@@ -323,7 +323,15 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
             : [],
         );
         const page = pageOf(query);
-        const slice = hits.slice((page.page - 1) * page.perPage, page.page * page.perPage).map((hit) => record(hit.at, hit.group));
+        const flagged = scenario.flags.find((flag) => flag.kind === query['flag'] && flag.matches !== undefined);
+        const slice = hits
+          .slice((page.page - 1) * page.perPage, page.page * page.perPage)
+          .map((hit) => record(hit.at, hit.group))
+          .map((one) =>
+            flagged?.matches === undefined
+              ? one
+              : { ...one, matches: flagged.matches, flags: [{ kind: flagged.kind, subject: { record: one['id'] }, slot: null, policy: 'leave', detail: flagged.detail }] },
+          );
         answer['records'] = { total: hits.length, page: page.page, perPage: page.perPage, items: slice };
       } else if (section === 'check') {
         const check = asRecord(fixture('preview-check.json')['check'], []);

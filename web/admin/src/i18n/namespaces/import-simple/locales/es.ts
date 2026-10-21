@@ -178,6 +178,7 @@ export const es: ImportSimpleMessages = {
   'guided.check.nothing': 'Nada que responder. Tus archivos y tu lista están listos para añadir.',
   'guided.check.example': 'Por ejemplo, {name}.',
   'guided.check.exampleOf': 'Por ejemplo, {name}: «{value}».',
+  'guided.check.omekaItem': 'Elemento {id} de Omeka',
   'guided.check.another': 'Otro ejemplo',
   'guided.check.showAll': 'Mostrar los {count}',
   'guided.check.pair': 'Emparejar a mano',
