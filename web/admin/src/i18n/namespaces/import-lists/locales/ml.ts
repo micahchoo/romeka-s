@@ -31,6 +31,7 @@ export const ml: ImportListsMessages = {
   'lists.facts.pdf': 'പി.ഡി.എഫ്.കൾ',
   'lists.facts.audio': 'ശബ്ദങ്ങൾ',
   'lists.facts.video': 'സിനിമകൾ',
+  'lists.facts.document': 'രേഖകൾ',
   'lists.facts.other': 'മറ്റ് ഫയലുകൾ',
   'lists.facts.parts': 'നിങ്ങൾ അടയാളപ്പെടുത്തിയ ഭാഗത്തെ {parts} വാക്കുകൾ ഉൾക്കൊള്ളുന്ന',
   'lists.facts.pages': '{count} പേജ് നമ്പറുകൾ',

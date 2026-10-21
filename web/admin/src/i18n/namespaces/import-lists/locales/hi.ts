@@ -30,6 +30,7 @@ export const hi: ImportListsMessages = {
   'lists.facts.pdf': 'PDF',
   'lists.facts.audio': 'ध्वनि',
   'lists.facts.video': 'फ़िल्में',
+  'lists.facts.document': 'दस्तावेज़',
   'lists.facts.other': 'अन्य फ़ाइलें',
   'lists.facts.parts': 'आपके चिह्नित भाग में {parts} शब्दों के साथ',
   'lists.facts.pages': '{count} पृष्ठ संख्याएँ',
