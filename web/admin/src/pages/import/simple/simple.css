@@ -410,6 +410,16 @@ button.guided-chip[aria-pressed="true"] {
   margin: 0;
 }
 
+/* Dials that stand one above the other: Where they go's item sets and item types. */
+.guided-stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.guided-kv dd > input[type="text"] {
+  min-width: 12rem;
+}
+
 /* Last, so it wins over the wide layout above. */
 @container (max-width: 720px) {
   .guided-split {

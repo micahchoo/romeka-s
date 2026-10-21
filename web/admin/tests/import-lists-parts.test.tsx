@@ -57,7 +57,7 @@ describe('the groups, the chart and the identical files', () => {
     const named: unknown = JSON.parse(decodeURIComponent(all.split('/').pop() ?? ''));
     const key = asRecord(named, [])['group'];
     expect(typeof key === 'string' ? JSON.parse(key) : null).toEqual(facts);
-    expect(screen.getByText('Worth a look: fewer than 2 in 100 of your items, or 7 or more files.')).toBeInTheDocument();
+    expect(screen.getByText('Worth a look: under 2 in 100 items, or 7+ files.')).toBeInTheDocument();
 
     fireEvent.click(within(group).getByRole('button', { name: 'Leave them out' }));
     fireEvent.click(await within(group).findByRole('button', { name: /^Change these/ }));
@@ -115,8 +115,8 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
     expect(await screen.findByText(`Read ${total.toLocaleString('en')} rows from filled.csv.`)).toBeInTheDocument();
     const said = screen.getByText(`Read ${total.toLocaleString('en')} rows from filled.csv.`).closest('p');
     expect(said).toHaveTextContent(`${size.toLocaleString('en')} belong to items of this import. 7 do not.`);
-    expect(screen.getByText('It fills the columns “Title [dcterms:title]”, “Date [dcterms:date]”. Its values come first, before your other lists and the file names.')).toBeInTheDocument();
-    expect(screen.getByText('We did not use “Notes”: these names have no field in square brackets.')).toBeInTheDocument();
+    expect(screen.getByText('Fills “Title [dcterms:title]”, “Date [dcterms:date]”; its values win over other lists and file names.')).toBeInTheDocument();
+    expect(screen.getByText('Not used: “Notes”. These names have no [field].')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Show the 7 rows that belong to no item'));
     expect(screen.getByText('nobody_1#1')).toBeInTheDocument();
     expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);

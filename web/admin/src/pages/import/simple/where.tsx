@@ -1,10 +1,15 @@
 /**
- * "Where should they go in Omeka?": the item set each item goes into, from the
- * folders or one for everything, and the item type of each, from nowhere, a
- * list's column or the top folder. A value is set to an item type only when
- * an item type in Omeka has the same name; every other value says it is not
- * chosen, and the person maps it (the item type rule's value map). Values
- * written differently are different values: the screen says so.
+ * "Where should they go in Omeka?" as two dials. Item sets: one segmented
+ * choice (per folder, per top folder, one new set named in place, one already
+ * in Omeka, a list's column, none) and what it makes, each set with its
+ * items. Item types: one select for where they come from, then a compact
+ * table of each value and its item type. A value is set to an item type only
+ * when an item type in Omeka has the same name; every other value says it is
+ * not chosen, and the person maps it (the item type rule's value map).
+ *
+ * The values are a table, not a list beside an inspector: each value's whole
+ * decision is one select, so an inspector would add a click and show nothing
+ * more.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -19,6 +24,8 @@ import type { Catalog } from '../lists/catalog';
 import { usePreview } from '../lists/use-preview';
 import { PER_PAGE } from '../paged-list';
 import { fold } from './list-plan';
+import { Segmented } from './master-detail';
+import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
 import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSets, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
@@ -26,78 +33,119 @@ import './simple.css';
 
 const CHIPS_SHOWN = 16;
 
-const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactElement => {
+/** What the item set choice makes: the count, then each set with its items. */
+const SetsMade = (): ReactElement | null => {
   const { t, number } = useSimpleText();
-  const draft = useDraft();
   const read = usePreview(['values'], { values: { perPage: CHIPS_SHOWN } });
-  const current = setChoiceOf(draft.plan);
-  const name = folderName(draft.plan);
-  const column = setColumnOf(draft.plan);
-  const existing = catalog?.itemSets ?? [];
-  const choices: readonly { readonly id: SetChoice; readonly label: string }[] = [
-    { id: 'leaf', label: t('guided.where.setLeaf') },
-    { id: 'top', label: t('guided.where.setTop') },
-    { id: 'one', label: t('guided.where.setOne', { name }) },
-    ...(existing.length === 0 ? [] : [{ id: 'old' as const, label: t('guided.where.setOld') }]),
-    ...(column === null ? [] : [{ id: 'column' as const, label: t('guided.where.setColumn', { header: column }) }]),
-    { id: 'none', label: t('guided.where.setNone') },
-  ];
   const sets = read.status === 'ready' ? read.data.values.find((one) => one.slot === 'sets')?.values : undefined;
+  if (read.status === 'error') {
+    return (
+      <>
+        <dt>{t('guided.where.makes')}</dt>
+        <dd>
+          <ErrorNotice error={read.error} />
+        </dd>
+      </>
+    );
+  }
+  if (read.status !== 'ready' || sets === undefined) {
+    return null;
+  }
   return (
     <>
-      <h4>{t('guided.where.setsTitle')}</h4>
-      <p>
-        {t('guided.where.setsAsk')} <span className="muted">{t('guided.where.setsGloss')}</span>
-      </p>
-      <fieldset className="guided-opts" data-decision="sets" aria-label={t('guided.where.setsTitle')}>
-        {choices.map((choice) => (
-          <label key={choice.id}>
-            <input
-              type="radio"
-              name="item-sets"
-              checked={current.choice === choice.id}
-              disabled={!draft.editable}
-              onChange={() => {
-                const first = existing[0];
-                draft.change((plan) => withSets(plan, choice.id, choice.id === 'old' ? (first === undefined ? null : String(first.id)) : null));
-              }}
-            />
-            <span>{choice.label}</span>
-          </label>
+      <dt>{t('guided.where.makes')}</dt>
+      <dd aria-busy={read.busy}>
+        {sets.total === 0 ? t('guided.where.setsNone') : sets.total === 1 ? t('guided.where.setsMakeOne') : t('guided.where.setsMake', { count: number(sets.total) })}{' '}
+        {sets.items.map((set) => (
+          <span key={set.text} className="guided-chip">
+            {set.text} · {number(set.count)}
+          </span>
         ))}
-      </fieldset>
-      {current.choice === 'old' ? (
-        <label>
-          {t('guided.where.setWhich')}{' '}
-          <select
-            value={current.set ?? ''}
-            disabled={!draft.editable}
-            onChange={(event) => {
-              const set = event.target.value;
-              draft.change((plan) => withSets(plan, 'old', set));
-            }}
-          >
-            {existing.slice(0, 200).map((set) => (
-              <option key={set.id} value={String(set.id)}>
-                {set.title ?? `#${String(set.id)}`}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
-      {sets === undefined ? null : (
-        <p aria-busy={read.status === 'ready' && read.busy}>
-          {sets.total === 0 ? t('guided.where.setsNone') : sets.total === 1 ? t('guided.where.setsMakeOne') : t('guided.where.setsMake', { count: number(sets.total) })}{' '}
-          {sets.items.map((set) => (
-            <span key={set.text} className="import-chip">
-              {set.text} · {number(set.count)}
-            </span>
-          ))}
-          {sets.total > sets.items.length ? <span className="muted"> {t('guided.where.andMore', { count: number(sets.total - sets.items.length) })}</span> : null}
-        </p>
-      )}
+        {sets.total > sets.items.length ? <span className="muted">{t('guided.where.andMore', { count: number(sets.total - sets.items.length) })}</span> : null}
+      </dd>
     </>
+  );
+};
+
+/**
+ * The new set's name, saved as it is typed. A blank name is never saved: the
+ * field keeps what was typed and the plan keeps the last name.
+ */
+const SetName = ({ saved }: { readonly saved: string }): ReactElement => {
+  const { t } = useSimpleText();
+  const draft = useDraft();
+  const [typed, setTyped] = useState<string | null>(null);
+  return (
+    <input
+      type="text"
+      aria-label={t('guided.where.setName')}
+      value={typed ?? saved}
+      disabled={!draft.editable}
+      onChange={(event) => {
+        const text = event.target.value;
+        setTyped(text);
+        if (text.trim() !== '') {
+          draft.change((plan) => withSets(plan, 'one', text.trim()));
+        }
+      }}
+    />
+  );
+};
+
+const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactElement => {
+  const { t } = useSimpleText();
+  const draft = useDraft();
+  const current = setChoiceOf(draft.plan);
+  const column = setColumnOf(draft.plan);
+  const existing = catalog?.itemSets ?? [];
+  const segment = (value: SetChoice, label: string): Segment<SetChoice> => ({ value, label, suggested: false });
+  const choices: readonly Segment<SetChoice>[] = [
+    segment('leaf', t('guided.where.setLeaf')),
+    segment('top', t('guided.where.setTop')),
+    segment('one', t('guided.where.setOne')),
+    ...(existing.length === 0 ? [] : [segment('old', t('guided.where.setOld'))]),
+    ...(column === null ? [] : [segment('column', t('guided.where.setColumn', { header: column }))]),
+    segment('none', t('guided.where.setNone')),
+  ];
+  return (
+    <section className="guided-inspector guided-inspect" aria-label={t('guided.where.setsTitle')}>
+      <h4>{t('guided.where.setsTitle')}</h4>
+      <dl className="guided-kv">
+        <dt>{t('guided.where.from')}</dt>
+        <dd data-decision="sets">
+          <Segmented
+            label={t('guided.where.setsTitle')}
+            segments={choices}
+            value={current.choice}
+            disabled={!draft.editable}
+            suggestedWord={t('guided.check.suggested')}
+            onChange={(choice) => {
+              const first = existing[0];
+              draft.change((plan) => withSets(plan, choice, choice === 'old' ? (first === undefined ? null : String(first.id)) : null));
+            }}
+          />
+          {current.choice === 'one' ? <SetName saved={current.set ?? folderName(draft.plan)} /> : null}
+          {current.choice === 'old' ? (
+            <select
+              aria-label={t('guided.where.setWhich')}
+              value={current.set ?? ''}
+              disabled={!draft.editable}
+              onChange={(event) => {
+                const set = event.target.value;
+                draft.change((plan) => withSets(plan, 'old', set));
+              }}
+            >
+              {existing.slice(0, 200).map((set) => (
+                <option key={set.id} value={String(set.id)}>
+                  {set.title ?? `#${String(set.id)}`}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </dd>
+        <SetsMade />
+      </dl>
+    </section>
   );
 };
 
@@ -122,12 +170,11 @@ const TypeValues = ({ templates }: { readonly templates: readonly ResourceTempla
   const newLabels = draft.plan.newTypes.map((type) => type.label);
   return (
     <>
-      <p>{values.total === 1 ? t('guided.where.valuesOne') : t('guided.where.values', { count: number(values.total) })} {t('guided.where.valuesNote')}</p>
       <TableScroll label={t('guided.where.typesTable')}>
-        <table aria-busy={read.busy}>
+        <table className="guided-columns" aria-busy={read.busy}>
           <thead>
             <tr>
-              <th scope="col">{t('guided.where.colValue')}</th>
+              <th scope="col">{values.total === 1 ? t('guided.where.valuesOne') : t('guided.where.values', { count: number(values.total) })}</th>
               <th scope="col" className="num">{t('guided.where.colItems')}</th>
               <th scope="col">{t('guided.where.colType')}</th>
             </tr>
@@ -188,36 +235,49 @@ const ItemTypes = ({ catalog }: { readonly catalog: Catalog | null }): ReactElem
   const { t } = useSimpleText();
   const draft = useDraft();
   const from = typeFromOf(draft.plan);
-  const columns = draft.plan.sheets.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, column: column.column })));
+  const columns = draft.plan.sheets.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, file: sheet.file, column: column.column })));
+  const several = draft.plan.sheets.length > 1;
   return (
-    <>
+    <section className="guided-inspector guided-inspect" aria-label={t('guided.where.typesTitle')}>
       <h4>{t('guided.where.typesTitle')}</h4>
-      <p>
-        {t('guided.where.typesAsk')} <span className="muted">{t('guided.where.typesGloss')}</span>
-      </p>
-      <label data-decision="type-from">
-        {t('guided.where.typeFrom')}{' '}
-        <select
-          value={fromKey(from)}
-          disabled={!draft.editable}
-          onChange={(event) => {
-            const value = event.target.value;
-            const column = columns.find((one) => `column:${one.sheet}:${String(one.column.index)}` === value);
-            const next: TypeFrom = column !== undefined ? { from: 'column', sheet: column.sheet, index: column.column.index } : value === 'top' ? { from: 'top' } : { from: 'none' };
-            draft.change((plan) => withTypeFrom(plan, next));
-          }}
-        >
-          <option value="none">{t('guided.where.fromNone')}</option>
-          {columns.map((one) => (
-            <option key={`${one.sheet}:${String(one.column.index)}`} value={`column:${one.sheet}:${String(one.column.index)}`}>
-              {t('guided.where.fromColumn', { column: one.column.header })}
-            </option>
-          ))}
-          <option value="top">{t('guided.where.fromTop')}</option>
-        </select>
-      </label>
+      <dl className="guided-kv">
+        <dt>{t('guided.where.from')}</dt>
+        <dd data-decision="type-from">
+          <select
+            aria-label={t('guided.where.typeFrom')}
+            value={fromKey(from)}
+            disabled={!draft.editable}
+            onChange={(event) => {
+              const value = event.target.value;
+              const column = columns.find((one) => `column:${one.sheet}:${String(one.column.index)}` === value);
+              const next: TypeFrom = column !== undefined ? { from: 'column', sheet: column.sheet, index: column.column.index } : value === 'top' ? { from: 'top' } : { from: 'none' };
+              draft.change((plan) => withTypeFrom(plan, next));
+            }}
+          >
+            <option value="none">{t('guided.where.fromNone')}</option>
+            {columns.map((one) => (
+              <option key={`${one.sheet}:${String(one.column.index)}`} value={`column:${one.sheet}:${String(one.column.index)}`}>
+                {several ? t('guided.where.fromColumnOf', { column: one.column.header, file: one.file }) : t('guided.where.fromColumn', { column: one.column.header })}
+              </option>
+            ))}
+            <option value="top">{t('guided.where.fromTop')}</option>
+          </select>
+        </dd>
+      </dl>
       {from.from === 'none' ? null : <TypeValues templates={catalog?.templates ?? []} />}
-    </>
+    </section>
+  );
+};
+
+const Help = (): ReactElement => {
+  const { t } = useSimpleText();
+  return (
+    <details className="guided-help">
+      <summary>{t('guided.list.help')}</summary>
+      <p>{t('guided.where.setsGloss')}</p>
+      <p>{t('guided.where.typesGloss')}</p>
+      <p>{t('guided.where.valuesNote')}</p>
+    </details>
   );
 };
 
@@ -225,12 +285,12 @@ export const WhereTheyGo = (): ReactElement => {
   const catalog = useAsync(loadCatalog, []);
   const ready = catalog.status === 'ready' ? catalog.data : null;
   return (
-    <>
+    <div className="guided-dials guided-stack">
       {catalog.status === 'error' ? <ErrorNotice error={catalog.error} /> : null}
       <ItemSets catalog={ready} />
-      <hr />
       <ItemTypes catalog={ready} />
-    </>
+      <Help />
+    </div>
   );
 };
 

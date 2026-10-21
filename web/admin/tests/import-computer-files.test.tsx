@@ -85,7 +85,7 @@ describe.each([
       expect(calls.slice(scanAt + 1)).toContain(`POST ${PATH}/preview`);
     });
     if (mode === 'simple') {
-      expect(await screen.findByText(/Files from this computer\.$/)).toBeInTheDocument();
+      expect(await screen.findByText(/Files from this computer$/, { selector: 'b' })).toBeInTheDocument();
     }
   });
 });

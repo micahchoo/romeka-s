@@ -158,7 +158,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
 
   const from = await screen.findByRole('combobox', { name: 'The item type comes from' }, { timeout: 5000 });
   if (at.typeFrom === 'top') {
-    await drive.choose(from, 'The top folder of each file');
+    await drive.choose(from, 'Top folder');
   }
   expect(await screen.findByRole('region', { name: 'Item type for each value' }, { timeout: 5000 })).toBeInTheDocument();
   drive.look();
