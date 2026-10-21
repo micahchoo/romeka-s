@@ -618,3 +618,58 @@ async fn a_run_writes_the_values_of_an_uploaded_list_from_the_staging_area() {
     titles.sort();
     assert_eq!(titles, ["-5", "Cup", "दीपक"]);
 }
+
+/// A v3 plan of one series over the archive root, its items in the set
+/// level "Citizen Curators" (described) and its series' set "Demo" (not).
+fn described_sets(plan: &mut Value) {
+    let v3: Value = serde_json::from_str(include_str!(
+        "../../omeka-api/src/import/fixtures/v3/born_digital.json"
+    ))
+    .unwrap();
+    let mut series = v3["structure"]["levels"][0].clone();
+    series["grouping"]["pattern"] = json!(BHC_PATTERN);
+    series["slots"]["item"] = json!({});
+    series["set"] = json!({ "title": "Demo", "description": null });
+    let sources = plan["sources"].clone();
+    *plan = v3;
+    plan["sources"] = sources;
+    plan["structure"]["levels"] = json!([{
+        "kind": "set", "id": "project",
+        "set": { "title": "Citizen Curators", "description": "Made with the community" },
+        "levels": [series]
+    }]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_set_named_by_title_is_written_with_its_description() {
+    let site = site().await;
+    bhc_006(&site);
+    let id = site.draft(described_sets).await;
+
+    let row = site.run(id).await;
+
+    assert_eq!(row.status, ImportStatus::Done, "{}", summary(&row));
+    let sets = site.item_sets().await;
+    let mut titles: Vec<_> = sets
+        .iter()
+        .map(|set| set.resource.title.clone().unwrap_or_default())
+        .collect();
+    titles.sort();
+    assert_eq!(titles, ["Citizen Curators", "Demo"]);
+    let description = property(&site, "dcterms:description").await;
+    for set in &sets {
+        let values = ValueRepo::new(&site.pool)
+            .list_for_property(set.resource.id, description)
+            .await
+            .unwrap();
+        let texts: Vec<_> = values
+            .iter()
+            .filter_map(|value| value.value.clone())
+            .collect();
+        let expected: &[&str] = match set.resource.title.as_deref() {
+            Some("Citizen Curators") => &["Made with the community"],
+            _ => &[],
+        };
+        assert_eq!(texts, expected, "{:?}", set.resource.title);
+    }
+}
