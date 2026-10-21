@@ -50,7 +50,7 @@ impl From<PlanV2> for ImportPlan {
                 series: Series {
                     grouping: wire.grouping,
                     example: wire.example,
-                    sheets: wire.sheets,
+                    lists: wire.sheets,
                     slots: wire.slots,
                 },
             },
@@ -71,7 +71,7 @@ impl From<ImportPlan> for PlanV2 {
         let Series {
             grouping,
             example,
-            sheets,
+            lists,
             slots,
         } = plan.structure.series;
         Self {
@@ -79,7 +79,7 @@ impl From<ImportPlan> for PlanV2 {
             sources: plan.sources,
             grouping,
             example,
-            sheets,
+            sheets: lists,
             slots,
             action: plan.action,
             defaults: plan.defaults,

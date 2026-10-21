@@ -38,11 +38,11 @@ pub enum Placement<'p> {
 /// One series: its pattern, its lists and its slot rules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Series {
-    pub grouping: Grouping,
+    pub(super) grouping: Grouping,
     /// The admin's mark-an-example state, kept and never read.
-    pub example: Option<serde_json::Map<String, serde_json::Value>>,
-    pub sheets: Vec<SheetPlan>,
-    pub slots: Slots,
+    pub(super) example: Option<serde_json::Map<String, serde_json::Value>>,
+    pub(super) lists: Vec<SheetPlan>,
+    pub(super) slots: Slots,
 }
 
 impl Structure {
@@ -76,7 +76,7 @@ impl Structure {
 
     /// Every list with the series that holds it, in plan order.
     pub fn lists(&self) -> impl Iterator<Item = (SeriesIx, &SheetPlan)> {
-        self.series.sheets.iter().map(|list| (SeriesIx(()), list))
+        self.series.lists.iter().map(|list| (SeriesIx(()), list))
     }
 
     /// The list with this id, with the series that holds it.
@@ -93,7 +93,7 @@ impl Structure {
 
     /// Add a list to the series, after its other lists.
     pub fn push_list(&mut self, _at: SeriesIx, list: SheetPlan) {
-        self.series.sheets.push(list);
+        self.series.lists.push(list);
     }
 
     /// The series' slot rules for one record kind, to edit.
@@ -123,7 +123,7 @@ impl Series {
     /// The lists that describe this series.
     #[must_use]
     pub fn lists(&self) -> &[SheetPlan] {
-        &self.sheets
+        &self.lists
     }
 
     /// The slot rules for one record kind.

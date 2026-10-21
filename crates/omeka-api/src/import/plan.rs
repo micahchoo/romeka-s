@@ -22,6 +22,35 @@ mod source;
 mod structure;
 #[cfg(test)]
 mod tests;
+#[cfg(doctest)]
+mod tests {
+    /// The engine reads the plan's pattern, lists and slot rules only
+    /// through [`Structure`](super::Structure): the members sit in private
+    /// fields, so a read from outside `plan/` does not compile.
+    ///
+    /// ```compile_fail,E0616
+    /// fn read(plan: &omeka_api::import::plan::ImportPlan) -> usize {
+    ///     plan.structure.series.lists.len()
+    /// }
+    /// ```
+    ///
+    /// The v2 member is not on the plan at all:
+    ///
+    /// ```compile_fail,E0609
+    /// fn read(plan: &omeka_api::import::plan::ImportPlan) -> usize {
+    ///     plan.sheets.len()
+    /// }
+    /// ```
+    ///
+    /// The calls are how the engine reads them:
+    ///
+    /// ```
+    /// fn read(plan: &omeka_api::import::plan::ImportPlan) -> usize {
+    ///     plan.structure.lists().count()
+    /// }
+    /// ```
+    fn engine_reads_the_plan_through_the_structure() {}
+}
 mod v2;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -65,22 +94,6 @@ pub struct ImportPlan {
     /// The admin's Simple-screen state (the answers a person gave). Kept and
     /// never read, like the series' example.
     pub simple: Option<serde_json::Map<String, serde_json::Value>>,
-}
-
-/// Lets the readers of the flat v2 members compile while they move to
-/// [`Structure`]; the last step of the move deletes it.
-impl std::ops::Deref for ImportPlan {
-    type Target = Series;
-
-    fn deref(&self) -> &Series {
-        &self.structure.series
-    }
-}
-
-impl std::ops::DerefMut for ImportPlan {
-    fn deref_mut(&mut self) -> &mut Series {
-        &mut self.structure.series
-    }
 }
 
 /// The member `version: 2`.
@@ -343,7 +356,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
                     case_fold: false,
                 },
                 example: None,
-                sheets: Vec::new(),
+                lists: Vec::new(),
                 slots: Slots::default(),
             },
         },
