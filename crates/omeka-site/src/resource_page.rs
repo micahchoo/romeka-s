@@ -238,6 +238,7 @@ fn media_embeds(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     }
     out.push_str("<div class=\"annotation-list\"></div>");
     out.push_str(&media_strip(resource, ctx));
+    out.push_str(&share_block(resource, ctx));
     out.push_str("</div>");
     out
 }
@@ -303,37 +304,88 @@ fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     out
 }
 
-/// `media-render.phtml`: the media's own renderer markup.
+/// `media-render.phtml`: the media's own renderer markup, the line that saves
+/// the original, and the ways to take the file elsewhere.
 fn media_render(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
-    let file = resource
+    let mut out = resource
         .media_embeds
         .first()
         .and_then(|media| media.embed.clone())
         .unwrap_or_default();
-    let Some(transcript) = &resource.transcript else {
-        return file;
-    };
-    // The notes figure loads `annotations.js` itself, so a file that carries
-    // notes already has the one script the page needs. A second tag would run
-    // the same file twice.
-    let scripted = file.contains("js/annotations.js");
-    let mut out = file;
-    out.push_str(crate::transcript::band(transcript));
-    // The transcript follows the player it drives and comes before the record's
-    // values, so a reader meets its words next to its sound. It is not a
-    // configured block: a site that shows the file shows its transcript.
-    out.push_str(&crate::transcript::section(
-        transcript,
-        &ctx.current_path,
-        ctx.translator().messages(),
-    ));
-    if !scripted {
-        out.push_str(&crate::theme::library_script(
-            &ctx.asset_base,
-            "js/annotations.js",
+    out.push_str(&download_line(resource, ctx));
+    if let Some(transcript) = &resource.transcript {
+        // The notes figure loads `annotations.js` itself, so a file that
+        // carries notes already has the one script the page needs. A second
+        // tag would run the same file twice.
+        let scripted = out.contains("js/annotations.js");
+        out.push_str(crate::transcript::band(transcript));
+        // The transcript follows the player it drives and comes before the
+        // record's values, so a reader meets its words next to its sound. It
+        // is not a configured block: a site that shows the file shows its
+        // transcript.
+        out.push_str(&crate::transcript::section(
+            transcript,
+            &ctx.current_path,
+            ctx.translator().messages(),
         ));
+        if !scripted {
+            out.push_str(&crate::theme::library_script(
+                &ctx.asset_base,
+                "js/annotations.js",
+            ));
+        }
     }
+    out.push_str(&share_block(resource, ctx));
     out
+}
+
+/// The line under a media's file: "Download the original · PDF · 2.3 MB". The
+/// kind and the size come from the server, so the line states the wait before
+/// the click.
+fn download_line(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    let Some(download) = &resource.download else {
+        return String::new();
+    };
+    let mut facts = String::new();
+    if let Some(kind) = &resource.media_kind {
+        facts.push_str(" · ");
+        facts.push_str(kind.label);
+    }
+    if let Some(size) = download.size {
+        facts.push_str(" · ");
+        facts.push_str(&human_size(size));
+    }
+    format!(
+        "<p class=\"media-download\"><a href=\"{}\">{}{}</a></p>",
+        escape_html(&download.url),
+        escape_html(ctx.translator().messages().download_original),
+        escape_html(&facts)
+    )
+}
+
+/// The "Use elsewhere" block, after the file it describes and before the
+/// record's values.
+fn share_block(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    resource.share.as_ref().map_or_else(String::new, |share| {
+        crate::share::block(share, ctx.translator().messages(), &ctx.asset_base)
+    })
+}
+
+/// A byte count a reader scans: "853 B", "2.3 MB", "1.1 GB".
+fn human_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    let value = bytes as f64;
+    if bytes >= GB {
+        format!("{:.1} GB", value / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", value / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.0} KB", value / KB as f64)
+    } else {
+        format!("{bytes} B")
+    }
 }
 
 /// `resource-class.phtml`: the class label, nothing when there is no class.

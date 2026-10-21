@@ -180,6 +180,34 @@ pub struct Messages {
     pub iiif_view_in_viewer: &'static str,
     /// The item page's link to the item's IIIF manifest. A Romeka string.
     pub iiif_manifest: &'static str,
+    /// The item and media pages' block of ways to take the file elsewhere. A
+    /// Romeka string.
+    pub use_elsewhere: &'static str,
+    /// The block's one-line explanation of IIIF, for a newcomer.
+    pub use_elsewhere_hint: &'static str,
+    /// The manifest link's title: the drag-and-drop convention a IIIF client
+    /// reads.
+    pub drag_manifest: &'static str,
+    /// The button that puts the manifest URL on the clipboard.
+    pub copy: &'static str,
+    /// The button once the URL is copied.
+    pub copied: &'static str,
+    /// The live status beside the button once the URL is copied.
+    pub manifest_copied: &'static str,
+    /// The status when the clipboard refuses; the input is selected instead.
+    pub copy_manual: &'static str,
+    /// The read-only input's accessible name.
+    pub manifest_url: &'static str,
+    /// A captions link, `%s` the language's own name.
+    pub captions_file: &'static str,
+    /// The link to a media's notes as a WAP container.
+    pub notes_as_data: &'static str,
+    /// The cite line on an item page.
+    pub cite_this_item: &'static str,
+    /// The cite line on a media page.
+    pub cite_this_file: &'static str,
+    /// The line under a media's file that saves the original.
+    pub download_original: &'static str,
     /// A browse preview of items on a site that holds no items, in the admin
     /// preview. A port addition: upstream prints an empty list.
     pub no_site_items_preview: &'static str,
@@ -346,6 +374,19 @@ pub static EN: Messages = Messages {
     iiif_poster: "IIIF viewer: %s. It opens on the public page.",
     iiif_view_in_viewer: "View in the IIIF viewer",
     iiif_manifest: "IIIF manifest",
+    use_elsewhere: "Use elsewhere",
+    use_elsewhere_hint: "IIIF is a standard way to view and compare images in other tools.",
+    drag_manifest: "Drag into a IIIF viewer",
+    copy: "Copy",
+    copied: "Copied",
+    manifest_copied: "Manifest link copied",
+    copy_manual: "Select the link above and copy it",
+    manifest_url: "Manifest URL",
+    captions_file: "Captions file (%s)",
+    notes_as_data: "Notes as data",
+    cite_this_item: "Cite this item",
+    cite_this_file: "Cite this file",
+    download_original: "Download the original",
     no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
     no_site_items: "There are no items to show yet.",
     map: "Map",
@@ -474,6 +515,19 @@ pub static ES: Messages = Messages {
     iiif_poster: "Visor IIIF: %s. Se abre en la página pública.",
     iiif_view_in_viewer: "Ver en el visor IIIF",
     iiif_manifest: "Manifiesto IIIF",
+    use_elsewhere: "Usar en otro sitio",
+    use_elsewhere_hint: "IIIF es una forma estándar de ver y comparar imágenes en otras herramientas.",
+    drag_manifest: "Arrastrar a un visor IIIF",
+    copy: "Copiar",
+    copied: "Copiado",
+    manifest_copied: "Enlace del manifiesto copiado",
+    copy_manual: "Seleccione el enlace de arriba y cópielo",
+    manifest_url: "URL del manifiesto",
+    captions_file: "Archivo de subtítulos (%s)",
+    notes_as_data: "Notas como datos",
+    cite_this_item: "Citar esta ficha",
+    cite_this_file: "Citar este archivo",
+    download_original: "Descargar el original",
     // The admin's words, because only the admin preview shows it.
     no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
     no_site_items: "Todavía no hay fichas que mostrar.",

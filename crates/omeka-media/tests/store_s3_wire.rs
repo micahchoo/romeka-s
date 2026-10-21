@@ -187,3 +187,35 @@ fn a_signed_download_asks_the_bucket_to_answer_with_the_type_and_name() {
     let url = urls.original("original/abc.webm", &download);
     assert!(url.contains("response-content-type=video%2Fwebm"), "{url}");
 }
+
+#[test]
+fn a_signed_attachment_asks_the_bucket_to_save_the_file() {
+    let wire = Wire::start(Vec::new());
+    let store = wire.store();
+    let download = Download::attachment(
+        Some("application/pdf"),
+        Some("C:\\Users\\a\\scan 1.pdf"),
+        "abc.pdf",
+    );
+    let url = store.download_url(
+        "original/abc.pdf",
+        Access::Signed {
+            ttl: Duration::from_secs(3600),
+        },
+        &download,
+    );
+    // The query is URL-encoded once more than the header, so read the value
+    // the bucket would decode.
+    let parsed = url::Url::parse(&url).expect("a URL");
+    let disposition = parsed
+        .query_pairs()
+        .find(|(name, _)| name == "response-content-disposition")
+        .map(|(_, value)| value.into_owned())
+        .expect("the signed disposition");
+    assert_eq!(disposition, download.disposition());
+    assert!(
+        url.contains("response-content-type=application%2Fpdf"),
+        "{url}"
+    );
+    assert!(url.contains("X-Amz-Signature="), "{url}");
+}

@@ -53,6 +53,7 @@ mod limits;
 mod logging;
 pub mod mail;
 mod mail_config;
+mod media_render;
 mod page_versions;
 mod publish;
 mod serve;
@@ -209,6 +210,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .route("/api/{resource}/{id}", any(member))
         .merge(accounts::router())
         .merge(annotations::router())
+        .merge(media_render::router())
         .merge(site_items::router())
         .merge(page_versions::router())
         .merge(imports::router())

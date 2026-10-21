@@ -99,6 +99,11 @@ export const ml: ResourcesMessages = {
   'media.stage.embedHeading':
     'ഈ മീഡിയം {host}-ലെ ഒരു പേജാണ്. നിങ്ങൾ അത് തുറക്കുന്നത് വരെ ഇതിൽ നിന്ന് ഒന്നും ലോഡ് ചെയ്യില്ല.',
   'media.stage.embedOpen': '{host}-ൽ തുറക്കുക',
+  'media.stage.embedLoad': 'എംബഡ് ലോഡ് ചെയ്യുക',
+  'media.stage.embedFrame': '{host}-ൽ നിന്നുള്ള എംബഡ്',
+  'media.stage.embedSnippetHeading':
+    'ഈ മീഡിയം HTML ആണ്, സെർവർ ഇത് റെൻഡർ ചെയ്യുന്നു. ഇത് തുറക്കുന്നത് വരെ ഒന്നും ലോഡ് ആകില്ല.',
+  'media.stage.embedSnippetFrame': 'റെൻഡർ ചെയ്ത HTML',
   'media.stage.manifestHeading': 'ഈ മീഡിയം {host}-ൽ നിന്നുള്ള ഒരു IIIF മാനിഫെസ്റ്റ് ആണ്.',
   'media.stage.manifestOpen': 'IIIF വ്യൂവറിൽ തുറക്കുക',
   'media.stage.manifestSource': 'മാനീഫെസ്റ്റ് തുറക്കുക',

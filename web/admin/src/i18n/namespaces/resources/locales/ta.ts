@@ -100,6 +100,11 @@ export const ta: ResourcesMessages = {
   'media.stage.embedHeading':
     'இந்த ஊடகம் {host}-இல் உள்ள ஒரு பக்கமாகும். நீங்கள் அதைத் திறக்கும் வரை இதிலிருந்து எதுவும் ஏற்றப்படாது.',
   'media.stage.embedOpen': '{host}-இல் திறக்கவும்',
+  'media.stage.embedLoad': 'உட்பொதிவை ஏற்றவும்',
+  'media.stage.embedFrame': '{host}-லிருந்து உட்பொதிவு',
+  'media.stage.embedSnippetHeading':
+    'இந்த ஊடகம் HTML ஆகும், இதை சர்வர் ரெண்டர் செய்கிறது. நீங்கள் அதைத் திறக்கும் வரை எதுவும் ஏற்றப்படாது.',
+  'media.stage.embedSnippetFrame': 'ரெண்டர் செய்யப்பட்ட HTML',
   'media.stage.manifestHeading': 'இந்த ஊடகம் {host}-லிருந்து பெறப்பட்ட IIIF மேனிஃபெஸ்ட் ஆகும்.',
   'media.stage.manifestOpen': 'IIIF பார்வையாளரில் திறக்கவும்',
   'media.stage.manifestSource': 'மேனிஃபெஸ்ட்டைத் திறக்கவும்',
