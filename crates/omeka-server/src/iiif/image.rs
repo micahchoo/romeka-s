@@ -3,9 +3,11 @@
 //!
 //! The pixel work is [`omeka_media::iiif_image`]; this module reads the media
 //! as a visitor may see it, finds its file, and keeps each answer in the store
-//! under `iiif/<storage id>/<request path>`. A second request for the same path
-//! is a read of those bytes, with no decode. A media's answers are not deleted
-//! with the media; see the unit report.
+//! under `iiif/v2/<storage id>/<request path>`. A second request for the same
+//! path is a read of those bytes, with no decode. The version segment keeps an
+//! answer rendered before the cache learned EXIF orientation and SVG from
+//! outliving the change. A media's answers are not deleted with the media; see
+//! the unit report.
 
 use std::sync::Arc;
 
@@ -13,6 +15,7 @@ use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::Response;
+use omeka_db::ids::MediaId;
 use omeka_media::iiif_image::{self, ImageRequest, Plan};
 use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::store::Store;
@@ -39,6 +42,47 @@ fn kind_of(media: &Value) -> MediaKind {
     })
 }
 
+/// The stored file behind a media representation: the names a canvas, an
+/// extent read and the Image API all build paths from.
+struct StoredFile {
+    /// The filename's stem, which every derivative is named after.
+    storage_id: String,
+    /// The filename's extension, which `ffprobe` reads to pick a demuxer.
+    extension: Option<String>,
+    original_path: String,
+    original_url: Option<String>,
+    media_type: Option<String>,
+    large_url: Option<String>,
+}
+
+impl StoredFile {
+    /// The file a media representation stores, `None` for a media with no
+    /// stored original.
+    fn of(media: &Value) -> Option<Self> {
+        let text = |key: &str| media.get(key).and_then(Value::as_str);
+        let filename = text("o:filename")?;
+        let (storage_id, extension) = match filename.rsplit_once('.') {
+            Some((stem, extension)) => (stem.to_string(), Some(extension.to_string())),
+            None => (filename.to_string(), None),
+        };
+        let url = |kind: &str| {
+            media
+                .get("o:thumbnail_urls")
+                .and_then(|urls| urls.get(kind))
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        };
+        Some(Self {
+            storage_id,
+            extension,
+            original_path: format!("original/{filename}"),
+            original_url: text("o:original_url").map(str::to_string),
+            media_type: text("o:media_type").map(str::to_string),
+            large_url: url("large"),
+        })
+    }
+}
+
 /// A stored image this server can serve through the Image API, read from a
 /// media representation.
 struct StoredImage {
@@ -58,27 +102,19 @@ impl StoredImage {
         if kind != MediaKind::LocalImage {
             return None;
         }
-        let text = |key: &str| media.get(key).and_then(Value::as_str);
-        let thumbnail = |kind: &str| {
-            media
-                .get("o:thumbnail_urls")
-                .and_then(|urls| urls.get(kind))
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        };
-        let media_type = text("o:media_type")?;
-        let large = thumbnail("large");
-        let filename = text("o:filename")?;
+        let file = StoredFile::of(media)?;
+        let square_url = media
+            .get("o:thumbnail_urls")
+            .and_then(|urls| urls.get("square"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
         Some(Self {
-            storage_id: filename
-                .rsplit_once('.')
-                .map_or(filename, |(stem, _)| stem)
-                .to_string(),
-            original_path: format!("original/{filename}"),
-            original_url: text("o:original_url")?.to_string(),
-            media_type: media_type.to_string(),
-            large_url: large?,
-            square_url: thumbnail("square"),
+            storage_id: file.storage_id,
+            original_path: file.original_path,
+            original_url: file.original_url?,
+            media_type: file.media_type?,
+            large_url: file.large_url?,
+            square_url,
             is_public: media.get("o:is_public").and_then(Value::as_bool) == Some(true),
         })
     }
@@ -90,6 +126,10 @@ impl StoredImage {
 
 /// The canvas a media representation becomes, `None` for a media no canvas
 /// can paint.
+///
+/// A time-based canvas needs a duration, so an audio or video media whose
+/// extent is unknown gets none; its notes still work through the annotation
+/// service.
 pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<CanvasMedia> {
     let id = media.get("o:id").and_then(Value::as_u64)?;
     let label = ["o:title", "o:source"]
@@ -106,9 +146,9 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
     let painting = match kind {
         MediaKind::LocalImage => {
             let image = StoredImage::of(media, kind)?;
-            let dimensions = &state.iiif_dimensions;
-            let size = dimensions.of(&state.store, &image.original_path).await?;
-            let large_size = dimensions.of(&state.store, &image.large_path()).await?;
+            let extents = &state.extents;
+            let size = extents.image(&image.original_path).await?;
+            let large_size = extents.image(&image.large_path()).await?;
             Painting::Local(LocalImage {
                 original_url: image.original_url,
                 media_type: image.media_type,
@@ -120,6 +160,40 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
             })
         }
         MediaKind::IiifImage => Painting::Remote(media.get("data")?.clone()),
+        MediaKind::Pdf { first_page: true } => {
+            let file = StoredFile::of(media)?;
+            let page = format!("large/{}.jpg", file.storage_id);
+            let size = state.extents.image(&page).await?;
+            Painting::Still {
+                url: file.large_url?,
+                size,
+                pdf_url: file.original_url?,
+            }
+        }
+        MediaKind::Audio | MediaKind::Video => {
+            let file = StoredFile::of(media)?;
+            let extent = state
+                .extents
+                .av(MediaId(id), &file.original_path, file.extension.as_deref())
+                .await;
+            let duration_s = extent.duration_ms? as f64 / 1000.0;
+            let url = file.original_url?;
+            let media_type = file.media_type?;
+            match kind {
+                MediaKind::Audio => Painting::Sound {
+                    url,
+                    media_type,
+                    duration_s,
+                },
+                _ => Painting::Video {
+                    url,
+                    media_type,
+                    duration_s,
+                    size: extent.size,
+                    poster: file.large_url,
+                },
+            }
+        }
         _ => return None,
     };
     Some(CanvasMedia {
@@ -143,10 +217,7 @@ async fn visible_image(
     let api = super::visitor_api(state, headers).await?;
     let media = super::read(&api, "media", media).await?;
     let image = StoredImage::of(&media, kind_of(&media))?;
-    let size = state
-        .iiif_dimensions
-        .of(&state.store, &image.original_path)
-        .await?;
+    let size = state.extents.image(&image.original_path).await?;
     Some((image, size))
 }
 
@@ -180,8 +251,10 @@ pub(super) async fn image(
         Ok(plan) => plan,
         Err(error) => return bad_request(&error.to_string()),
     };
+    // A version segment, so an answer rendered before this cache learned
+    // EXIF orientation (or SVG) is never served in place of a fresh one.
     let cached = format!(
-        "iiif/{}/{region}/{size}/{rotation}/{file}",
+        "iiif/v2/{}/{region}/{size}/{rotation}/{file}",
         image.storage_id
     );
     let store = Arc::clone(&state.store);

@@ -64,6 +64,19 @@ pub fn sanitize(bytes: &[u8]) -> Result<Vec<u8>, SvgError> {
     Ok(safe)
 }
 
+/// The pixel size [`rasterized`] draws a document at, its long side at most
+/// `max_side`: the size a IIIF canvas reports, so the canvas and the Image
+/// API's pixels agree.
+///
+/// # Errors
+/// [`SvgError::Malformed`] when the document does not parse, and
+/// [`SvgError::NothingDrawable`] when it has no finite, positive size.
+pub fn size(bytes: &[u8], max_side: u32) -> Result<(u32, u32), SvgError> {
+    let tree = parse(bytes)?;
+    let (pixel_width, pixel_height, _) = drawn_size(tree.size(), max_side)?;
+    Ok((pixel_width, pixel_height))
+}
+
 /// The sanitized SVG drawn as pixels, its long side at most `max_side`.
 ///
 /// An image smaller than `max_side` keeps its own pixel size, as the
@@ -75,16 +88,8 @@ pub fn sanitize(bytes: &[u8]) -> Result<Vec<u8>, SvgError> {
 /// [`SvgError::NothingDrawable`] when it has no size, and
 /// [`SvgError::Render`] when no pixmap can be made.
 pub fn rasterized(bytes: &[u8], max_side: u32) -> Result<image::DynamicImage, SvgError> {
-    let tree = resvg::usvg::Tree::from_data(bytes, &resvg::usvg::Options::default())
-        .map_err(|error| SvgError::Malformed(error.to_string()))?;
-    let size = tree.size();
-    let (width, height) = (size.width(), size.height());
-    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
-        return Err(SvgError::NothingDrawable);
-    }
-    let scale = (max_side as f32 / width.max(height)).min(1.0);
-    let pixel_width = pixel_size(width * scale)?;
-    let pixel_height = pixel_size(height * scale)?;
+    let tree = parse(bytes)?;
+    let (pixel_width, pixel_height, scale) = drawn_size(tree.size(), max_side)?;
     let mut pixmap = resvg::tiny_skia::Pixmap::new(pixel_width, pixel_height)
         .ok_or_else(|| SvgError::Render(format!("no {pixel_width} by {pixel_height} pixmap")))?;
     resvg::render(
@@ -100,6 +105,26 @@ pub fn rasterized(bytes: &[u8], max_side: u32) -> Result<image::DynamicImage, Sv
     let image = image::RgbaImage::from_raw(pixel_width, pixel_height, rgba)
         .ok_or_else(|| SvgError::Render("the pixmap was not RGBA".to_string()))?;
     Ok(image::DynamicImage::ImageRgba8(image))
+}
+
+fn parse(bytes: &[u8]) -> Result<resvg::usvg::Tree, SvgError> {
+    resvg::usvg::Tree::from_data(bytes, &resvg::usvg::Options::default())
+        .map_err(|error| SvgError::Malformed(error.to_string()))
+}
+
+/// The pixmap's size and the scale the document is drawn at. A document
+/// smaller than `max_side` keeps its own size.
+fn drawn_size(size: resvg::usvg::Size, max_side: u32) -> Result<(u32, u32, f32), SvgError> {
+    let (width, height) = (size.width(), size.height());
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return Err(SvgError::NothingDrawable);
+    }
+    let scale = (max_side as f32 / width.max(height)).min(1.0);
+    Ok((
+        pixel_size(width * scale)?,
+        pixel_size(height * scale)?,
+        scale,
+    ))
 }
 
 /// A side length as whole pixels, at least one, never past `u32::MAX`.
@@ -267,6 +292,7 @@ mod tests {
         );
         let image = rasterized(small.as_bytes(), 800).expect("a raster");
         assert_eq!((image.width(), image.height()), (120, 80));
+        assert_eq!(size(small.as_bytes(), 800).expect("a size"), (120, 80));
 
         let large = format!(
             "<svg xmlns=\"{ROOT}\" width=\"1600\" height=\"900\">\
@@ -274,7 +300,23 @@ mod tests {
         );
         let image = rasterized(large.as_bytes(), 800).expect("a raster");
         assert_eq!((image.width(), image.height()), (800, 450));
+        assert_eq!(size(large.as_bytes(), 800).expect("a size"), (800, 450));
         let pixel = image.to_rgba8().get_pixel(400, 225).0;
         assert!(pixel[0] > 150 && pixel[1] < 100, "{pixel:?}");
+    }
+
+    /// A document with no `width`/`height` takes its size from `viewBox`, and
+    /// one with neither is sized from its content.
+    #[test]
+    fn a_view_box_names_the_size_of_a_drawing_without_one() {
+        let view_box = format!(
+            "<svg xmlns=\"{ROOT}\" viewBox=\"0 0 120 80\">\
+             <rect width=\"120\" height=\"80\"/></svg>"
+        );
+        assert_eq!(size(view_box.as_bytes(), 800).expect("a size"), (120, 80));
+
+        let bare = format!("<svg xmlns=\"{ROOT}\"><rect width=\"10\" height=\"10\"/></svg>");
+        assert_eq!(size(bare.as_bytes(), 800), Ok((10, 10)));
+        assert!(size(b"not an svg", 800).is_err());
     }
 }

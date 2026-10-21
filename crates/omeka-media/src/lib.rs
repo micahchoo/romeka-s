@@ -29,9 +29,11 @@
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
 //! - [`kind`]: the per-kind table: what an annotation may point at, what the
 //!   IIIF canvas paints, and the size and duration a canvas needs.
+//! - [`av_probe`]: `ffprobe`'s answer for an audio or video original, which is
+//!   the duration and frame size a time-based canvas needs.
 //! - [`tool`]: the external commands a still derivative needs (`ffmpeg` for a
 //!   video poster and an AVIF or HEIC frame, `pdftoppm` for a PDF's first
-//!   page), optional at runtime and bounded in time and output.
+//!   page) and the probe, optional at runtime and bounded in time and output.
 //!
 //! # The one network seam
 //!
@@ -51,6 +53,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod av_probe;
 pub mod data;
 pub mod file_render;
 pub mod http;

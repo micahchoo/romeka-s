@@ -173,18 +173,18 @@ impl MediaKind {
 
     /// What this kind's canvas paints, or `None` when it has no canvas.
     ///
-    /// This is the phase-one table: the two image kinds paint a canvas, which
-    /// is exactly what `iiif::paints_canvas` accepted before this module
-    /// existed. The AV and still canvases belong to the extents unit, which
-    /// turns them on here for [`Self::Audio`], [`Self::Video`] and
-    /// [`Self::Pdf`].
+    /// A canvas needs something to paint, so an audio or video canvas is
+    /// emitted only when its extent (a duration) is known; `canvas_body` says
+    /// what the body would be, not that one can be made. A PDF paints its
+    /// first page once the derivative exists.
     #[must_use]
     pub fn canvas_body(self) -> Option<CanvasBody> {
         match self {
             Self::LocalImage | Self::IiifImage => Some(CanvasBody::Image),
-            Self::Audio
-            | Self::Video
-            | Self::Pdf { .. }
+            Self::Pdf { first_page: true } => Some(CanvasBody::Still),
+            Self::Audio => Some(CanvasBody::Sound),
+            Self::Video => Some(CanvasBody::Video),
+            Self::Pdf { first_page: false }
             | Self::Model3d
             | Self::Captions
             | Self::Embed

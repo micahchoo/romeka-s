@@ -21,8 +21,10 @@
 use std::io::Cursor;
 
 use image::DynamicImage;
+use image::ImageDecoder as _;
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
+use image::metadata::Orientation;
 use serde_json::{Value, json};
 use thiserror::Error;
 
@@ -287,14 +289,85 @@ pub enum RenderError {
     Encode(String),
 }
 
-/// Decode a stored image. Callers run this on a blocking thread: a large
-/// original takes a noticeable time to decode.
+/// Decode a stored image, upright as its EXIF orientation says. An SVG is
+/// rasterised at its own size, capped at [`MAX_EDGE`], which is the size its
+/// canvas reports.
+///
+/// A camera writes the pixels in the sensor's orientation and an EXIF tag
+/// saying how to turn them; every derivative this server makes is upright
+/// (`thumbnailer::decode_oriented`), so the Image API's pixels are too, and a
+/// canvas and its image are one space.
+///
+/// Callers run this on a blocking thread: a large original takes a noticeable
+/// time to decode.
 ///
 /// # Errors
 /// [`RenderError::Decode`] when the bytes are not an image.
 pub fn decode(bytes: &[u8]) -> Result<DynamicImage, RenderError> {
-    image::load_from_memory(bytes).map_err(|error| RenderError::Decode(error.to_string()))
+    if is_svg(bytes) {
+        return crate::svg::rasterized(bytes, MAX_EDGE)
+            .map_err(|error| RenderError::Decode(error.to_string()));
+    }
+    let mut decoder = reader(bytes)?;
+    // A malformed or absent EXIF block leaves the pixels as stored.
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let mut source = DynamicImage::from_decoder(decoder)
+        .map_err(|error| RenderError::Decode(error.to_string()))?;
+    source.apply_orientation(orientation);
+    Ok(source)
 }
+
+/// The pixel size [`decode`] answers for `bytes`, `None` when they are not an
+/// image: the stored size turned upright by its EXIF orientation, or an SVG's
+/// drawn size. A canvas reports this size, so its space and the Image API's
+/// pixels are the same one.
+#[must_use]
+pub fn source_size(bytes: &[u8]) -> Option<(u32, u32)> {
+    if is_svg(bytes) {
+        return crate::svg::size(bytes, MAX_EDGE).ok();
+    }
+    let mut decoder = reader(bytes).ok()?;
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let (width, height) = decoder.dimensions();
+    let quarter_turn = matches!(
+        orientation,
+        Orientation::Rotate90
+            | Orientation::Rotate270
+            | Orientation::Rotate90FlipH
+            | Orientation::Rotate270FlipH
+    );
+    Some(if quarter_turn {
+        (height, width)
+    } else {
+        (width, height)
+    })
+}
+
+/// The decoder for `bytes`, guessed by content.
+fn reader(bytes: &[u8]) -> Result<impl image::ImageDecoder + '_, RenderError> {
+    image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|error| RenderError::Decode(error.to_string()))?
+        .into_decoder()
+        .map_err(|error| RenderError::Decode(error.to_string()))
+}
+
+/// Whether the bytes are an SVG document rather than a raster.
+fn is_svg(bytes: &[u8]) -> bool {
+    let text = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
+    let text = text.trim_ascii_start();
+    text.starts_with(b"<svg") || (text.starts_with(b"<?xml") && find_svg(text))
+}
+
+/// Whether an XML prolog is followed by an SVG root, within the first
+/// [`PROLOG_BYTES`] where a document's prolog lives.
+fn find_svg(bytes: &[u8]) -> bool {
+    let head = &bytes[..bytes.len().min(PROLOG_BYTES)];
+    head.windows(4).any(|window| window == b"<svg")
+}
+
+/// How far into an SVG the root element is looked for.
+const PROLOG_BYTES: usize = 4 * 1024;
 
 /// Crop, scale and encode one planned answer from a decoded image.
 ///
@@ -459,5 +532,29 @@ mod tests {
         assert_eq!(info["profile"], "level1");
         assert_eq!(info["width"], 2000);
         assert_eq!(info["tiles"][0]["scaleFactors"], json!([1, 2, 4]));
+    }
+
+    fn corpus(name: &str) -> Vec<u8> {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/media-kinds")
+            .join(name);
+        std::fs::read(&path).unwrap_or_else(|error| panic!("{name}: {error}"))
+    }
+
+    /// A JPEG whose EXIF Orientation is 6 decodes upright: the stored 120 by
+    /// 80 landscape becomes the 80 by 120 portrait the canvas reports and the
+    /// derivative is made in.
+    #[test]
+    fn an_exif_oriented_jpeg_decodes_upright() {
+        let source = decode(&corpus("image.jpg")).expect("a jpeg");
+        assert_eq!((source.width(), source.height()), (80, 120));
+    }
+
+    /// An SVG decodes at the size its canvas reports, which is the raster the
+    /// thumbnailer made.
+    #[test]
+    fn an_svg_decodes_at_its_own_size() {
+        let source = decode(&corpus("image.svg")).expect("an svg");
+        assert_eq!((source.width(), source.height()), (120, 80));
     }
 }

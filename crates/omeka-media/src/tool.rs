@@ -1,5 +1,6 @@
 //! The external commands a still derivative needs: `ffmpeg` for a video's
-//! poster and for an AVIF or HEIC frame, `pdftoppm` for a PDF's first page.
+//! poster and for an AVIF or HEIC frame, `pdftoppm` for a PDF's first page, and
+//! `ffprobe` for the duration and frame size a time-based canvas needs.
 //!
 //! The image crate decodes the types GD decodes, plus TIFF, JPEG 2000 and SVG.
 //! It has no video, PDF, AVIF or HEIC decoder, so those get their still from a
@@ -30,8 +31,14 @@ use thiserror::Error;
 /// How long one command may run before it is killed.
 pub const TIMEOUT: Duration = Duration::from_secs(30);
 
+/// How long `ffprobe` may run: it reads headers, not pixels.
+pub const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// The longest still a command may write to standard output or to a file.
 const STILL_LIMIT: usize = 32 * 1024 * 1024;
+
+/// The largest `ffprobe` answer kept, in bytes.
+const PROBE_LIMIT: usize = 1024 * 1024;
 
 /// The most of a command's diagnostic output that is kept for the reason.
 const STDERR_LIMIT: usize = 8 * 1024;
@@ -152,6 +159,7 @@ impl Still {
 #[derive(Debug, Clone)]
 pub struct Tools {
     ffmpeg: Option<PathBuf>,
+    ffprobe: Option<PathBuf>,
     pdftoppm: Option<PathBuf>,
     timeout: Duration,
 }
@@ -163,6 +171,7 @@ impl Tools {
         static FOUND: OnceLock<Tools> = OnceLock::new();
         FOUND.get_or_init(|| Self {
             ffmpeg: find_on_path("ffmpeg"),
+            ffprobe: find_on_path("ffprobe"),
             pdftoppm: find_on_path("pdftoppm"),
             timeout: TIMEOUT,
         })
@@ -173,6 +182,7 @@ impl Tools {
     pub fn none() -> Self {
         Self {
             ffmpeg: None,
+            ffprobe: None,
             pdftoppm: None,
             timeout: TIMEOUT,
         }
@@ -199,10 +209,23 @@ impl Tools {
         self
     }
 
+    /// Name the `ffprobe` to run, instead of the one on `PATH`.
+    #[must_use]
+    pub fn with_ffprobe(mut self, path: impl Into<PathBuf>) -> Self {
+        self.ffprobe = Some(path.into());
+        self
+    }
+
     /// The `ffmpeg` this process found, when it found one.
     #[must_use]
     pub fn ffmpeg(&self) -> Option<&Path> {
         self.ffmpeg.as_deref()
+    }
+
+    /// The `ffprobe` this process found, when it found one.
+    #[must_use]
+    pub fn ffprobe(&self) -> Option<&Path> {
+        self.ffprobe.as_deref()
     }
 
     /// The `pdftoppm` this process found, when it found one.
@@ -215,6 +238,31 @@ impl Tools {
     #[must_use]
     pub fn timeout(&self) -> Duration {
         self.timeout
+    }
+
+    /// `ffprobe`'s JSON answer for the file at `source`: the container's
+    /// duration and each stream's type and frame size.
+    ///
+    /// # Errors
+    /// As [`Still::make`]: the tool is absent, runs past [`PROBE_TIMEOUT`], or
+    /// fails.
+    pub fn probe_json(&self, source: &Path) -> Result<String, ToolError> {
+        let ffprobe = self.program(self.ffprobe.as_deref(), "ffprobe")?;
+        let args: Vec<&OsStr> = vec![
+            OsStr::new("-v"),
+            OsStr::new("error"),
+            OsStr::new("-show_entries"),
+            OsStr::new("format=duration:stream=codec_type,width,height"),
+            OsStr::new("-of"),
+            OsStr::new("json"),
+            source.as_os_str(),
+        ];
+        let timeout = self.timeout.min(PROBE_TIMEOUT);
+        let output = capture(ffprobe, "ffprobe", &args, timeout, PROBE_LIMIT)?;
+        if !output.status.success() {
+            return Err(ToolError::Failed("ffprobe", reason(&output.stderr)));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
 
     /// A video's poster: a frame about ten percent in, so a recording that
@@ -279,7 +327,7 @@ impl Tools {
             OsStr::new("png"),
             OsStr::new("-"),
         ]);
-        let output = capture(ffmpeg, "ffmpeg", &args, self.timeout)?;
+        let output = capture(ffmpeg, "ffmpeg", &args, self.timeout, STILL_LIMIT)?;
         successful("ffmpeg", output)
     }
 
@@ -303,7 +351,7 @@ impl Tools {
             source.as_os_str(),
             root.as_os_str(),
         ];
-        let output = capture(pdftoppm, "pdftoppm", &args, self.timeout)?;
+        let output = capture(pdftoppm, "pdftoppm", &args, self.timeout, STILL_LIMIT)?;
         if !output.status.success() {
             return Err(ToolError::Failed("pdftoppm", reason(&output.stderr)));
         }
@@ -340,7 +388,7 @@ impl Tools {
             OsStr::new("-i"),
             source.as_os_str(),
         ];
-        let output = capture(ffmpeg, "ffmpeg", &args, self.timeout).ok()?;
+        let output = capture(ffmpeg, "ffmpeg", &args, self.timeout, STILL_LIMIT).ok()?;
         parse_duration(&String::from_utf8_lossy(&output.stderr))
     }
 
@@ -411,6 +459,7 @@ fn capture(
     name: &'static str,
     args: &[&OsStr],
     timeout: Duration,
+    stdout_limit: usize,
 ) -> Result<Captured, ToolError> {
     let mut child = Command::new(program)
         .args(args)
@@ -422,7 +471,7 @@ fn capture(
             std::io::ErrorKind::NotFound => ToolError::ToolMissing(name),
             _ => ToolError::Failed(name, error.to_string()),
         })?;
-    let stdout = read_apart(child.stdout.take(), STILL_LIMIT);
+    let stdout = read_apart(child.stdout.take(), stdout_limit);
     let stderr = read_apart(child.stderr.take(), STDERR_LIMIT);
     let status = wait(&mut child, name, timeout)?;
     Ok(Captured {
@@ -662,6 +711,71 @@ mod tests {
         assert_eq!(Still::of("image/heic"), Some(Still::Frame));
         assert_eq!(Still::of("image/jpeg"), None);
         assert_eq!(Still::of("text/vtt"), None);
+    }
+
+    /// Without `ffprobe`, a probe is the same typed reason as a missing still
+    /// command, and nothing runs.
+    #[test]
+    fn a_missing_ffprobe_is_a_typed_reason() {
+        let dir = dir();
+        let error = Tools::none()
+            .probe_json(&dir.path().join("clip.mp4"))
+            .expect_err("no ffprobe");
+        assert_eq!(error, ToolError::ToolMissing("ffprobe"));
+    }
+
+    /// The probe asks for the duration and the streams' types and frame sizes,
+    /// in JSON, and answers what the command wrote.
+    #[test]
+    fn the_probe_asks_for_the_duration_and_the_frame_size() {
+        let _guard = scripted();
+        let dir = dir();
+        let log = dir.path().join("args");
+        let ffprobe = script(
+            dir.path(),
+            "ffprobe",
+            &format!(
+                "printf '%s\\n' \"$@\" > {log}\n\
+                 printf '%s' '{{\"streams\":[{{\"codec_type\":\"audio\"}}],\
+                 \"format\":{{\"duration\":\"0.350000\"}}}}'",
+                log = log.display()
+            ),
+        );
+        let tools = Tools::none().with_ffprobe(&ffprobe);
+        let json = tools
+            .probe_json(&dir.path().join("clip.mp4"))
+            .expect("a probe");
+        assert_eq!(
+            json,
+            r#"{"streams":[{"codec_type":"audio"}],"format":{"duration":"0.350000"}}"#
+        );
+        let recorded = std::fs::read_to_string(&log).expect("args");
+        assert!(
+            recorded.contains("format=duration:stream=codec_type,width,height"),
+            "{recorded}"
+        );
+        assert!(recorded.contains("json"), "{recorded}");
+        assert!(recorded.contains("clip.mp4"), "{recorded}");
+    }
+
+    /// A probe past the timeout is killed like any other command.
+    #[test]
+    fn a_slow_probe_times_out() {
+        let _guard = scripted();
+        let dir = dir();
+        let slow = script(dir.path(), "ffprobe", "sleep 5");
+        let tools = Tools::none()
+            .with_ffprobe(&slow)
+            .with_timeout(Duration::from_millis(120));
+        let started = Instant::now();
+        let error = tools
+            .probe_json(&dir.path().join("clip.mp4"))
+            .expect_err("too slow");
+        assert_eq!(
+            error,
+            ToolError::Timeout("ffprobe", Duration::from_millis(120))
+        );
+        assert!(started.elapsed() < Duration::from_secs(3), "killed early");
     }
 
     /// The header clock is read, and `N/A` is not a duration.

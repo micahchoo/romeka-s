@@ -36,17 +36,11 @@ const SITE: &str = "/s/museum";
 /// The cells the current server fails, as `(corpus file, cell)`. Remove a pair
 /// when a unit turns that cell green.
 const KNOWN_RED: &[(&str, &str)] = &[
-    ("audio.flac", "iiif"),
     ("audio.flac", "thumbnail"),
-    ("audio.m4a", "iiif"),
     ("audio.m4a", "thumbnail"),
-    ("audio.mp3", "iiif"),
     ("audio.mp3", "thumbnail"),
-    ("audio.ogg", "iiif"),
     ("audio.ogg", "thumbnail"),
-    ("audio.opus", "iiif"),
     ("audio.opus", "thumbnail"),
-    ("audio.wav", "iiif"),
     ("audio.wav", "thumbnail"),
     ("captions.srt", "iiif"),
     ("captions.srt", "thumbnail"),
@@ -54,24 +48,16 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("captions.vtt", "thumbnail"),
     ("doc.docx", "iiif"),
     ("doc.docx", "thumbnail"),
-    ("doc.pdf", "iiif"),
     ("doc.pdf", "site-media-page"),
-    ("hostile.svg", "iiif"),
     ("image.avif", "iiif"),
     ("image.heic", "iiif"),
-    ("image.svg", "iiif"),
     ("model.glb", "iiif"),
     ("model.glb", "site-media-page"),
     ("model.glb", "thumbnail"),
     ("model.gltf", "iiif"),
     ("model.gltf", "site-media-page"),
     ("model.gltf", "thumbnail"),
-    ("video.mkv", "iiif"),
-    ("video.mov", "iiif"),
-    ("video.mp4", "iiif"),
     ("video.mp4", "site-media-page"),
-    ("video.ogv", "iiif"),
-    ("video.webm", "iiif"),
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
