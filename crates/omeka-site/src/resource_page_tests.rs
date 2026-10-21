@@ -49,11 +49,13 @@ fn item_default_blocks_render_in_theme_order() {
         url: "/s/main/media/9".to_string(),
         title: "A file".to_string(),
         thumbnail: Some(Thumbnail::new("/files/square/9.jpg", "A file")),
+        media_kind: None,
     });
     item.item_sets.push(ResourceRef {
         url: "/s/main/item-set/2".to_string(),
         title: "A set".to_string(),
         thumbnail: None,
+        media_kind: None,
     });
     let out = render_blocks(&item, &ctx);
     assert!(
@@ -183,6 +185,7 @@ fn linked_item_in(locale: &str) -> String {
         url: "/s/main/page/about".to_string(),
         title: "About".to_string(),
         thumbnail: None,
+        media_kind: None,
     });
     item.linked_resources.push(LinkedResource {
         property: "Creator".to_string(),
@@ -191,6 +194,7 @@ fn linked_item_in(locale: &str) -> String {
             url: "/s/main/item/3".to_string(),
             title: "A letter".to_string(),
             thumbnail: None,
+            media_kind: None,
         },
         class_label: Some("Letter".to_string()),
     });
@@ -201,6 +205,7 @@ fn linked_item_in(locale: &str) -> String {
             url: "/s/main/item/4".to_string(),
             title: "A note".to_string(),
             thumbnail: None,
+            media_kind: None,
         },
         class_label: None,
     });
@@ -408,16 +413,23 @@ fn the_item_page_stages_the_first_file_and_strips_the_rest() {
             url: "/s/main/media/1".to_string(),
             title: "first".to_string(),
             thumbnail: Some(Thumbnail::new("/files/square/first.jpg", "First")),
+            media_kind: None,
         },
         ResourceRef {
             url: "/s/main/media/2".to_string(),
             title: "second".to_string(),
             thumbnail: Some(Thumbnail::new("/files/square/second.jpg", "Second")),
+            media_kind: None,
         },
         ResourceRef {
             url: "/s/main/media/3".to_string(),
             title: "third".to_string(),
             thumbnail: None,
+            media_kind: Some(crate::view::MediaKindCue {
+                kind: "pdf",
+                label: "PDF",
+                icon: crate::view::MediaIcon::Pdf,
+            }),
         },
     ];
     let out = render_configured(&item, &["mediaEmbeds"], "en");
@@ -455,6 +467,10 @@ fn the_item_page_stages_the_first_file_and_strips_the_rest() {
         "a file with no thumbnail gets a kind placeholder: {out}"
     );
     assert!(
+        out.contains("<span class=\"resource-kind\">PDF</span>"),
+        "the placeholder names the file's kind: {out}"
+    );
+    assert!(
         out.contains("<span class=\"media-file-name\">third</span>"),
         "each strip entry is named: {out}"
     );
@@ -478,6 +494,7 @@ fn the_item_page_shows_no_strip_for_one_file() {
         url: "/s/main/media/1".to_string(),
         title: "only".to_string(),
         thumbnail: Some(Thumbnail::new("/files/square/only.jpg", "Only")),
+        media_kind: None,
     }];
     let out = render_configured(&item, &["mediaEmbeds"], "en");
     assert!(

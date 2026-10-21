@@ -50,6 +50,7 @@ export const ta: ImportSimpleMessages = {
   'guided.found.showThem': 'அவற்றைக் காட்டு',
   'guided.found.everyFile': 'ஒவ்வொரு கோப்பையும் காட்டு',
   'guided.mark.number': '{text} க்கு பதிலாக எந்த எண்ணையும் பயன்படுத்தவும்',
+  'guided.mark.letters': '{text} க்கு பதிலாக எந்த எழுத்துக்களும்',
   'guided.mark.and': '; மற்றும் ',
   'guided.example.choose':
     'ஒரு பொருளுக்கு ஒன்றுக்கும் மேற்பட்ட கோப்புகள் உள்ள நிலையில், அந்தப் பொருளின் ஒரு கோப்பைத் தேர்ந்தெடுக்கவும்.',
@@ -71,6 +72,8 @@ export const ta: ImportSimpleMessages = {
   'guided.example.onlyThis': '{text} மட்டுமே',
   'guided.example.anyNumber': '{text} இல் உள்ளது போல, எந்த எண்ணும் இருக்கலாம்',
   'guided.example.hasDigits': '(இதில் எண்கள் உள்ளன)',
+  'guided.example.anyLetters': '{text} இல் உள்ளது போல, எந்த எழுத்துக்களும்',
+  'guided.example.afterNumber': '(அவை ஒரு எண்ணிற்குப் பிறகு வருகின்றன)',
   'guided.example.wordsLede':
     'இந்தச் சொற்கள், இந்த ஒரு பகுதியைப் போன்ற பல பகுதிகளைக் கொண்ட பெயர்களில், ஒவ்வொரு பகுதியிலும் எத்தனை கோப்புகள் உள்ளன என்பதைக் கொண்டு, ஒரு உருப்படியின் மற்றொரு கோப்பைக் குறிக்கின்றன.',
   'guided.example.findWord': 'ஒரு சொல்லைக் கண்டறியவும்',

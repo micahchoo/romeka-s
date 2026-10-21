@@ -3,7 +3,8 @@
  * than one, clicks the part of its name that changes (one click marks it and
  * every part after it, so "page" marks "page 001"), and says what may stand there: only the words they tick,
  * from the words the server found in the same place of the other names, or
- * any number. Before "Use this", the screen counts what the files would make
+ * any number, or, for letters glued to a number (the "a" of "010a"), any
+ * letters. Before "Use this", the screen counts what the files would make
  * with the mark, so a wrong mark shows as one huge item before it costs
  * anything.
  */
@@ -26,6 +27,7 @@ import './simple.css';
 const PICK_READ = 24;
 const PICK_SHOWN = 8;
 const WORDS_SHOWN = 12;
+const ONLY_LETTERS = /^[\p{L}\p{M}]+$/u;
 
 const goFound = (id: Parameters<typeof placeHref>[0]): void => {
   window.location.hash = placeHref(id, { mode: 'simple', screen: 'found' });
@@ -190,12 +192,16 @@ const Marking = ({ path }: { readonly path: string }): ReactElement => {
   let body: ReactElement | null = null;
   if (selection !== null) {
     const text = markedText(path, selection);
-    const single = selection === parts.length - 1;
+    const glued = parts[selection]?.sep === '';
+    // The server's places split only at separators, so a glued part is not one of them.
+    const single = !glued && parts.slice(selection + 1).every((part) => part.sep === '');
+    const place = parts.slice(1, selection + 1).filter((part) => part.sep !== '').length;
     const digits = /\d/u.test(text);
-    const chosenKind = kind ?? (digits ? 'number' : 'words');
+    const letters = glued && ONLY_LETTERS.test(text);
+    const chosenKind = kind ?? (digits ? 'number' : letters ? 'letters' : 'words');
     const words = ticked ?? [text];
-    const place = read.status === 'ready' && single ? read.data.nameWords.places[selection] : undefined;
-    const ready = chosenKind === 'number' || words.length > 0;
+    const placeWords = read.status === 'ready' && single ? read.data.nameWords.places[place] : undefined;
+    const ready = chosenKind !== 'words' || words.length > 0;
     body = (
       <>
         <fieldset className="guided-opts">
@@ -212,10 +218,18 @@ const Marking = ({ path }: { readonly path: string }): ReactElement => {
               </span>
             </label>
           ) : null}
+          {letters ? (
+            <label>
+              <input type="radio" name="mark-kind" checked={chosenKind === 'letters'} onChange={() => { setKind('letters'); }} />
+              <span>
+                {t('guided.example.anyLetters', { text: `“${text}”` })} <span className="muted">{t('guided.example.afterNumber')}</span>
+              </span>
+            </label>
+          ) : null}
         </fieldset>
-        {chosenKind === 'words' && place !== undefined ? (
+        {chosenKind === 'words' && placeWords !== undefined ? (
           <Words
-            place={place}
+            place={placeWords}
             ticked={words}
             onAsk={setWordText}
             onTick={(word, on) => {
@@ -234,7 +248,7 @@ const Marking = ({ path }: { readonly path: string }): ReactElement => {
       <div className="guided-chips" role="group" aria-label={t('guided.example.partsOf', { name })}>
         {parts.map((part, index) => (
           <span key={index}>
-            {index === 0 ? null : <span className="guided-sep" aria-hidden="true">{part.sep === ' ' ? '␣' : part.sep}</span>}
+            {part.sep === '' ? null : <span className="guided-sep" aria-hidden="true">{part.sep === ' ' ? '␣' : part.sep}</span>}
             <button
               type="button"
               aria-pressed={selection !== null && index >= selection}

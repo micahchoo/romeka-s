@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
-import { numberField, record } from '../harness/json';
+import { isArray, numberField, record } from '../harness/json';
 import { MEDIA_FILE, SITE_SLUG } from '../harness/seed';
 import { readHarness, REPO_ROOT } from '../harness/state';
 
@@ -255,4 +255,44 @@ test('a PDF first page is the media list thumbnail', async ({ page, diagnostics 
   expect(pageImage.status()).toBe(200);
   expect(pageImage.headers()['content-type']).toBe('image/jpeg');
   await expectClean(diagnostics, 'PDF first page');
+});
+
+test('a public item card names the kind of its first file', async ({ page, diagnostics }) => {
+  const audio = await uploadItem(page.request, 'audio.mp3', 'audio/mpeg');
+  const sites: unknown = await (await page.request.get(`/api/sites?slug=${SITE_SLUG}`)).json();
+  const site = numberField(record(isArray(sites) ? sites[0] : sites, 'site'), 'o:id', 'site');
+  const bareAnswer = await page.request.post('/api/items', {
+    data: { 'o:is_public': true },
+  });
+  expect(bareAnswer.status(), await bareAnswer.text()).toBe(200);
+  const bare = numberField(record(await bareAnswer.json(), 'item'), 'o:id', 'item');
+  const attached = await page.request.post(`/api/sites/${String(site)}/items`, {
+    data: { action: 'add', items: [audio, bare] },
+  });
+  expect(attached.status(), await attached.text()).toBe(200);
+
+  await page.goto(`/s/${SITE_SLUG}/item`);
+  if (process.env.KIND_CARDS_EVIDENCE === '1') {
+    const prefix = process.env.KIND_CARDS_EVIDENCE_PREFIX ?? 'cards';
+    const evidence = (name: string): string => join(REPO_ROOT, '.evidence', name);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({ path: evidence(`${prefix}-1280.png`), fullPage: true });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.screenshot({ path: evidence(`${prefix}-375.png`), fullPage: true });
+  }
+  // A sound file has no picture, so its slot names the kind and carries the
+  // server's kind for the matrix and for a style hook.
+  const audioCard = page.locator('li.item[data-media-kind="audio"]');
+  await expect(audioCard).toHaveCount(1);
+  await expect(audioCard.locator('.resource-kind')).toHaveText('Audio');
+  await expect(audioCard.locator('img')).toHaveCount(0);
+
+  // An item with no file differs from a sound file: it says "No file" and
+  // carries no media kind at all.
+  const bareCard = page.locator('li.item', { hasText: 'No file' });
+  await expect(bareCard).toHaveCount(1);
+  await expect(bareCard.locator('.resource-kind')).toHaveText('No file');
+  expect(await bareCard.getAttribute('data-media-kind')).toBeNull();
+
+  await expectClean(diagnostics, 'kind cards');
 });

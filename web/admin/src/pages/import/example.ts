@@ -6,8 +6,9 @@
  * typed by hand stays when a mark is removed.
  *
  * A mark is the words the person ticked at one place of the name, or the
- * place's text with each run of digits read as any number. `sep` is the
- * character before the place.
+ * place's text with each run of digits read as any number, or with each run
+ * of letters read as any letters. `sep` is the character before the place:
+ * `''` when the place is glued to a number before it (`010a`).
  *
  * Both modes read and write this one example. Simple keeps its answers in
  * `plan.simple` (`simple/example-state.ts`). A draft saved before that
@@ -19,7 +20,7 @@ import type { JsonValue } from '../../api/types';
 
 export type Mark =
   | { readonly kind: 'words'; readonly words: readonly string[]; readonly sep: string }
-  | { readonly kind: 'number'; readonly text: string; readonly sep: string };
+  | { readonly kind: 'number' | 'letters'; readonly text: string; readonly sep: string };
 
 export interface MarkedExample {
   /** The marked file's path in its source. */
@@ -37,7 +38,7 @@ const markOf = (raw: unknown): Mark | null => {
   if (!isText(sep)) {
     return null;
   }
-  if (kind === 'number' && isText(raw['text'])) {
+  if ((kind === 'number' || kind === 'letters') && isText(raw['text'])) {
     return { kind, text: raw['text'], sep };
   }
   const words = raw['words'];
@@ -67,8 +68,19 @@ export const exampleOf = (plan: ImportPlan): MarkedExample | null => {
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const partOf = (mark: Mark): string =>
-  mark.kind === 'number' ? escape(mark.text).replace(/\d+/g, '\\d+') : mark.words.map(escape).join('|');
+const LETTER = '[\\p{L}\\p{M}]';
+const LETTERS = `${LETTER}+`;
+
+const partOf = (mark: Mark): string => {
+  switch (mark.kind) {
+    case 'number':
+      return escape(mark.text).replace(/\d+/g, '\\d+');
+    case 'letters':
+      return escape(mark.text).replace(new RegExp(LETTERS, 'gu'), LETTERS);
+    case 'words':
+      return mark.words.map(escape).join('|');
+  }
+};
 
 /**
  * The pattern matches a file's whole path in its source, so it skips the
@@ -79,14 +91,34 @@ const partOf = (mark: Mark): string =>
 const FOLDERS = '^(?:[^/]*/)*';
 const EXTENSION = '(?:\\.[^./]*)?$';
 
+/**
+ * With a glued mark, the identifier must end in a digit for the part to
+ * follow it with no separator. Neither the server's `regex` crate nor the
+ * shared groups allow a lookbehind or a second `part` group, so the
+ * identifier tries an ending in a digit first, and else ends in any
+ * character but a dot and the whole run of letters after it: no letter is
+ * left for a glued part ("Rebecca" stays whole), and the run never starts at
+ * the extension.
+ */
+const GLUED_IDENTIFIER = `[^/]*?\\d|[^/]*?[^/.]${LETTER}*`;
+
+/** The separator before the marked place; optional when a mark is glued. */
+const sepOf = (marks: readonly Mark[]): string => {
+  const seps = [...new Set(marks.map((mark) => mark.sep).filter((sep) => sep !== ''))];
+  if (seps.length === 0) {
+    return '';
+  }
+  const sep = seps.length === 1 ? escape(seps[0] ?? '') : `[${seps.map(escape).join('')}]`;
+  return marks.some((mark) => mark.sep === '') ? `(?:${sep})?` : sep;
+};
+
 /** The pattern the marks write; with no mark, the one that groups by the name alone. */
 export const patternOf = (marks: readonly Mark[]): string => {
   if (marks.length === 0) {
     return `${FOLDERS}(?<identifier>[^/]+?)${EXTENSION}`;
   }
-  const seps = [...new Set(marks.map((mark) => mark.sep))];
-  const sep = seps.length === 1 ? escape(seps[0] ?? '') : `[${seps.map(escape).join('')}]`;
-  return `${FOLDERS}(?<identifier>[^/]+?)(?:${sep}(?<part>${marks.map(partOf).join('|')}))?${EXTENSION}`;
+  const identifier = marks.some((mark) => mark.sep === '') ? GLUED_IDENTIFIER : '[^/]+?';
+  return `${FOLDERS}(?<identifier>${identifier})(?:${sepOf(marks)}(?<part>${marks.map(partOf).join('|')}))?${EXTENSION}`;
 };
 
 /** Whether the plan's pattern is still the one its marks write. */
@@ -116,7 +148,7 @@ export const exampleKept = (plan: ImportPlan): boolean =>
   plan.example !== null && Object.keys(plan.example).some((key) => !LEGACY_KEYS.some((legacy) => legacy === key));
 
 const marksJson = (marks: readonly Mark[]): JsonValue =>
-  marks.map((mark) => (mark.kind === 'number' ? { kind: mark.kind, text: mark.text, sep: mark.sep } : { kind: mark.kind, words: [...mark.words], sep: mark.sep }));
+  marks.map((mark) => (mark.kind === 'words' ? { kind: mark.kind, words: [...mark.words], sep: mark.sep } : { kind: mark.kind, text: mark.text, sep: mark.sep }));
 
 /**
  * The plan with this example: the path and the marks, nothing else. With no

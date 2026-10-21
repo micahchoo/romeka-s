@@ -48,6 +48,7 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.example.file': 'चिह्नित पर',
   'adv.files.example.words': 'केवल {words}',
   'adv.files.example.number': '“{text}” की जगह कोई भी संख्या',
+  'adv.files.example.letters': '“{text}” के स्थान पर कोई भी अक्षर',
   'adv.files.example.remove': 'हटाएँ',
   'adv.files.example.removeOne': 'निशान हटाएँ: {mark}',
   'adv.files.example.writes':

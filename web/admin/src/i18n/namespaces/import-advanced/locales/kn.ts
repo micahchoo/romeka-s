@@ -49,6 +49,7 @@ export const kn: ImportAdvancedMessages = {
   'adv.files.example.file': 'ಗುರುತಿಸಲಾಗಿದೆ',
   'adv.files.example.words': 'ಕೇವಲ {words} ಪದಗಳು',
   'adv.files.example.number': '“{text}” ಬದಲಿಗೆ ಯಾವುದೇ ಸಂಖ್ಯೆ',
+  'adv.files.example.letters': '“{text}” ಬದಲಿಗೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
   'adv.files.example.remove': 'ತೆಗೆದುಹಾಕಿ',
   'adv.files.example.removeOne': 'ಗುರುತನ್ನು ತೆಗೆದುಹಾಕಿ: {mark}',
   'adv.files.example.writes':

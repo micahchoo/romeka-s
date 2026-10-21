@@ -50,6 +50,7 @@ export const mr: ImportSimpleMessages = {
   'guided.found.showThem': 'त्यांना दाखवा',
   'guided.found.everyFile': 'प्रत्येक फाईल पहा',
   'guided.mark.number': '{text} च्या जागी कोणतीही संख्या वापरा',
+  'guided.mark.letters': '{text} च्या जागी कोणतीही अक्षरे',
   'guided.mark.and': '; आणि ',
   'guided.example.choose': 'एकापेक्षा जास्त फाईल्स असलेल्या घटकाची एक फाईल निवडा.',
   'guided.example.findFile': 'फाईलचे नाव शोधा',
@@ -68,6 +69,8 @@ export const mr: ImportSimpleMessages = {
   'guided.example.onlyThis': 'केवळ {text}',
   'guided.example.anyNumber': 'कोणताही क्रमांक, जसे की {text}',
   'guided.example.hasDigits': '(यात अंक आहेत)',
+  'guided.example.anyLetters': '{text} प्रमाणेच, कोणतीही अक्षरे',
+  'guided.example.afterNumber': '(ते संख्येनंतर लगेच येतात)',
   'guided.example.wordsLede':
     'या शब्दांची मांडणी या शब्दांप्रमाणेच आहे, ज्यामध्ये या शब्दांइतकेच भाग आहेत, आणि प्रत्येक फाईलमध्ये किती फाईल्स आहेत. प्रत्येक शब्दासाठी, दुसऱ्या शब्दाचा अर्थ असलेला फाईलचा भाग टिक करा.',
   'guided.example.findWord': 'एक शब्द शोधा',

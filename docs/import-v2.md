@@ -34,7 +34,7 @@ decisions: corrections that survive the next derive. The goal is upstream CSV Im
    (P10, assumption A86).
 3. Every row A01–A88 has its "Closed by" cell filled: a test name, or a `docs/compat.md` row that
    records an accepted limit and its reason.
-   *Status 2026-10-20: not met for two rows.* 82 rows name a test, four (A04, A73, A76, A81) name
+   *Status 2026-10-20: not met for two rows.* 83 rows name a test, three (A73, A76, A81) name
    a compat row, and two (A07, A86) say `open` and why.
 4. Gates pass: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, admin `typecheck`, `lint`, `test`, `build`, `e2e`, `perf:check`. New

@@ -50,6 +50,7 @@ export const hi: ImportSimpleMessages = {
   'guided.found.showThem': 'उन्हें दिखाएं',
   'guided.found.everyFile': 'प्रत्येक फ़ाइल देखें',
   'guided.mark.number': '{text} के स्थान पर कोई भी संख्या',
+  'guided.mark.letters': '{text} के स्थान पर कोई भी अक्षर',
   'guided.mark.and': '; और ',
   'guided.example.choose': 'एक आइटम से एक फ़ाइल चुनें जिसमें एक से अधिक फ़ाइलें हों।',
   'guided.example.findFile': 'फ़ाइल का नाम खोजें',
@@ -68,6 +69,8 @@ export const hi: ImportSimpleMessages = {
   'guided.example.onlyThis': 'केवल {text}',
   'guided.example.anyNumber': 'कोई भी संख्या, जैसे {text}',
   'guided.example.hasDigits': '(इसमें अंक हैं)',
+  'guided.example.anyLetters': '{text} की तरह, कोई भी अक्षर',
+  'guided.example.afterNumber': '(वे एक संख्या के ठीक बाद आते हैं)',
   'guided.example.wordsLede':
     'ये शब्द नामों में उसी स्थान पर हैं, जिसमें इस नाम के जितने ही भाग हैं, और प्रत्येक भाग में कितनी फ़ाइलें हैं। उन शब्दों को टिक करें जिनका अर्थ एक आइटम की दूसरी फ़ाइल है।',
   'guided.example.findWord': 'शब्द खोजें',
