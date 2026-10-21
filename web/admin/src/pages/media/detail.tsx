@@ -20,6 +20,11 @@ const MediaStage = lazy(() =>
   import('./stage/stage').then((module) => ({ default: module.MediaStage })),
 );
 
+/** The notes panel is a second lazy chunk: its list, form and conflict view. */
+const MediaNotes = lazy(() =>
+  import('./annotations/panel').then((module) => ({ default: module.MediaNotes })),
+);
+
 type DerivativeKind = 'original' | ThumbnailType;
 
 const DERIVATIVE_KINDS: readonly DerivativeKind[] = ['original', 'large', 'medium', 'square'];
@@ -90,10 +95,13 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
     <section>
       <h2>{mediaName(media) ?? t('common.untitled')}</h2>
 
-      {/* The stage is the media; the notes panel (A-3) mounts beside it here. */}
+      {/* The stage is the media; the notes panel sits beside it from 1100px. */}
       <div className="media-detail-body">
         <Suspense fallback={<p role="status">{t('loading.media')}</p>}>
           <MediaStage media={media} />
+        </Suspense>
+        <Suspense fallback={<p role="status">{t('media.loadingNotes')}</p>}>
+          <MediaNotes key={media.id} media={media} />
         </Suspense>
       </div>
 

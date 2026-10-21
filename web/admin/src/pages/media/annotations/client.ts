@@ -304,6 +304,21 @@ export class NotesClient {
     }
   }
 
+  /**
+   * One note with its current strong ETag. The panel reads the note an editor
+   * opens, so a colleague who saves after that read moves the revision past
+   * the one this editor holds: their next `PUT` or `DELETE` is refused with 412
+   * rather than quietly overwriting the colleague.
+   */
+  async read(note: Note): Promise<Note> {
+    const current = await this.reread(note.iri);
+    return {
+      ...fromW3C(current.body, new Set()),
+      etag: current.etag,
+      fromTrack: note.fromTrack,
+    };
+  }
+
   /** The caption languages of the media and their cue counts (G3). */
   async tracks(mediaId: MediaId): Promise<readonly TrackSummary[]> {
     const response = await this.fetchFn(this.url(`/annotations/media/${String(mediaId)}/tracks`), {

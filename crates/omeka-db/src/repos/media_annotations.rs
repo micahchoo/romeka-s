@@ -139,6 +139,7 @@ const ROW_COLUMNS: &str = "a.id, a.media_id, a.owner_id, a.revision, a.created, 
 /// `romeka_media_annotation` rows.
 pub struct MediaAnnotationRepo<'a, DB: Backend = Sqlite> {
     pool: &'a Pool<DB>,
+    authored: bool,
 }
 
 impl<'a, DB: Backend> MediaAnnotationRepo<'a, DB>
@@ -159,7 +160,21 @@ where
     for<'x> f64: Decode<'x, DB> + Type<DB>,
 {
     pub fn new(pool: &'a Pool<DB>) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            authored: false,
+        }
+    }
+
+    /// Leave a caption import's rows out of [`Self::page`], [`Self::total`],
+    /// [`Self::firsts`] and [`Self::counts`].
+    ///
+    /// The notes views show what a person wrote; captions are a projection of
+    /// their own, read through [`Self::cues`] and [`Self::track_langs`].
+    #[must_use]
+    pub fn authored(mut self) -> Self {
+        self.authored = true;
+        self
     }
 
     /// Keyset page in id order: rows with id > `after`, at most `limit + 1`.
@@ -174,7 +189,14 @@ where
         motivations: Option<&[&str]>,
     ) -> Result<Vec<MediaAnnotationRow>, DbError> {
         let mut statement = Statement::<DB>::new(PAGE_COLUMNS);
-        push_page(&mut statement, media, after, limit, motivations)?;
+        push_page(
+            &mut statement,
+            media,
+            after,
+            limit,
+            motivations,
+            self.authored,
+        )?;
         let (sql, arguments) = statement.into_parts();
         fetch_rows(&sql, arguments, self.pool)
             .await?
@@ -192,6 +214,7 @@ where
             Statement::<DB>::new("SELECT COUNT(*) FROM romeka_media_annotation WHERE media_id = ");
         statement.bind(bind_id(media))?;
         push_motivations(&mut statement, motivations)?;
+        push_authored(&mut statement, self.authored, "");
         let (sql, arguments) = statement.into_parts();
         let raw: i64 = sqlx::query_scalar_with::<DB, i64, _>(&sql, arguments)
             .fetch_one(self.pool)
@@ -222,6 +245,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
+        push_authored(&mut statement, self.authored, "a.");
         statement.push(") ranked WHERE ranked.position <= ");
         statement.bind(i64::from(per_media))?;
         statement.push(" ORDER BY ranked.media_id, ranked.position");
@@ -248,6 +272,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
+        push_authored(&mut statement, self.authored, "");
         statement.push(" GROUP BY media_id");
         let (sql, arguments) = statement.into_parts();
         let rows = fetch_rows(&sql, arguments, self.pool).await?;
@@ -586,6 +611,7 @@ fn push_page<'q, DB: Backend>(
     after: i64,
     limit: u32,
     motivations: Option<&[&'q str]>,
+    authored: bool,
 ) -> Result<(), DbError>
 where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
@@ -595,9 +621,17 @@ where
     statement.push(" AND a.id > ");
     statement.bind(after)?;
     push_motivations(statement, motivations)?;
+    push_authored(statement, authored, "a.");
     statement.push(" ORDER BY a.id LIMIT ");
     statement.bind(i64::from(limit) + 1)?;
     Ok(())
+}
+
+/// `origin = 'author'`, or nothing, under the alias the query uses.
+fn push_authored<DB: Backend>(statement: &mut Statement<'_, DB>, authored: bool, alias: &str) {
+    if authored {
+        statement.push(&format!(" AND {alias}origin = 'author'"));
+    }
 }
 
 /// Append one `(?, ?)` per id, inside an `IN (` the caller opened.
@@ -766,7 +800,15 @@ mod tests {
     #[test]
     fn a_page_statement_has_no_offset() {
         let mut statement = Statement::<Sqlite>::new(PAGE_COLUMNS);
-        push_page(&mut statement, MediaId(7), 0, 3, Some(&["supplementing"])).unwrap();
+        push_page(
+            &mut statement,
+            MediaId(7),
+            0,
+            3,
+            Some(&["supplementing"]),
+            false,
+        )
+        .unwrap();
         let sql = statement.sql();
         assert!(!sql.contains("OFFSET"), "{sql}");
         assert!(sql.contains("a.id > "), "{sql}");

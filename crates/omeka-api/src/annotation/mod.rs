@@ -23,25 +23,29 @@ pub use model::{
     Annotation, AnnotationId, Body, Draft, Extensions, IfMatch, MediaRef, Motivation, Origin,
     Problem, Revision, Selector, TextFormat,
 };
+pub use tracks::{TrackError, TrackFormat};
 pub use wadm::{Iris, render};
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 
+use chrono::NaiveDateTime;
 use omeka_db::DbError;
 use omeka_db::ids::MediaId;
 use omeka_db::repos::MediaRepo;
 use omeka_db::repos::{
-    ChangeOutcome, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow, MediaAnnotationWrite,
+    ChangeOutcome, Cue, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
+    MediaAnnotationWrite, TrackOutcome,
 };
 use omeka_db::rows::MediaRow;
 use omeka_db::with_db;
-use omeka_media::kind::{Extent, KindInput, MediaKind};
+use omeka_media::kind::{Extent, KindInput, MediaKind, Surface};
 
 use crate::read::Api;
 use crate::settings;
 
+use tracks::{ExistingCue, ParsedCue};
 use wadm::Stored;
 
 /// The most annotations one page of a container holds.
@@ -81,6 +85,8 @@ pub struct Page {
     pub after: Option<AnnotationId>,
     /// `Some` when another page exists.
     pub next: Option<AnnotationId>,
+    /// Which rows this page lists; its `next` link keeps the filter.
+    pub origins: OriginFilter,
 }
 
 /// What a public page shows without JavaScript: the total and the first N.
@@ -97,6 +103,56 @@ pub struct Summary {
 pub struct TrackRef {
     pub lang: Option<String>,
     pub cues: u32,
+}
+
+/// Which rows a notes view reads.
+///
+/// The notes container leaves a caption import's rows out by default: a video
+/// with two five thousand cue tracks would otherwise load ten thousand rows
+/// into a note list. `All` is for a caller that asks for every row explicitly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OriginFilter {
+    /// What a person wrote.
+    #[default]
+    Author,
+    /// Every row, captions included.
+    All,
+}
+
+/// The answer to a caption import (contract 6.5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrackImport {
+    pub lang: Option<String>,
+    pub cues: u32,
+    /// The import replaced existing track rows of the language.
+    pub replaced: bool,
+    /// The ids of the language's track rows, for `Romeka-Track-Ids`. Not on the
+    /// wire.
+    pub ids: Vec<i64>,
+}
+
+/// One caption language as the editor's list shows it (G3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrackSummary {
+    pub lang: Option<String>,
+    pub cues: u32,
+    /// When the language's track rows were imported; `None` when it holds only
+    /// hand-written `supplementing` notes.
+    pub imported: Option<NaiveDateTime>,
+    /// Track rows changed after their import (`revision > 1`).
+    pub hand_edited: u32,
+}
+
+/// What a caption file would change, in milliseconds, before it is stored (G5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TrackPreview {
+    pub cues: u32,
+    pub start_ms: u64,
+    pub end_ms: u64,
+    /// The existing track rows the import would replace.
+    pub replaces: u32,
+    /// Hand-edited rows whose words the import would change or drop.
+    pub hand_edited: u32,
 }
 
 /// The answer to a create: a new row, or the row a retried key names.
@@ -149,6 +205,10 @@ pub enum AnnotationError {
     PreconditionRequired,
     #[error("the idempotency key was used with a different draft")]
     KeyReused,
+    /// A caption file the parser refused, with the parser's own sentence and
+    /// the status its kind earns (413 for a bound, 400 for the grammar).
+    #[error(transparent)]
+    Track(#[from] TrackError),
     #[error(transparent)]
     Db(#[from] DbError),
 }
@@ -176,17 +236,33 @@ impl<'a> Annotations<'a> {
         self.readable_one(media).await
     }
 
-    /// One keyset page, in id order.
+    /// One keyset page, in id order, every row of the media.
     pub async fn page(
         &self,
         media: MediaId,
         after: Option<AnnotationId>,
     ) -> Result<Page, AnnotationError> {
+        self.page_of(media, after, OriginFilter::All).await
+    }
+
+    /// One keyset page under an origin filter. The notes container asks for
+    /// [`OriginFilter::Author`] so its list is notes, not captions.
+    pub async fn page_of(
+        &self,
+        media: MediaId,
+        after: Option<AnnotationId>,
+        origins: OriginFilter,
+    ) -> Result<Page, AnnotationError> {
         let (media_ref, rights) = self.readable_one(media).await?;
         let motivations = access::motivations(rights);
-        let mut rows = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-            .page(media, after.map_or(0, |id| id.0), PAGE_SIZE, motivations)
-            .await)?;
+        let mut rows = with_db!(self.api.pool(), |db| {
+            let repo = match origins {
+                OriginFilter::Author => MediaAnnotationRepo::new(db).authored(),
+                OriginFilter::All => MediaAnnotationRepo::new(db),
+            };
+            repo.page(media, after.map_or(0, |id| id.0), PAGE_SIZE, motivations)
+                .await
+        })?;
         let next = if rows.len() > PAGE_SIZE as usize {
             rows.get(PAGE_SIZE as usize - 1)
                 .map(|row| AnnotationId(row.id))
@@ -194,9 +270,13 @@ impl<'a> Annotations<'a> {
             None
         };
         rows.truncate(PAGE_SIZE as usize);
-        let total = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
-            .total(media, motivations)
-            .await)?;
+        let total = with_db!(self.api.pool(), |db| {
+            let repo = match origins {
+                OriginFilter::Author => MediaAnnotationRepo::new(db).authored(),
+                OriginFilter::All => MediaAnnotationRepo::new(db),
+            };
+            repo.total(media, motivations).await
+        })?;
         let items = annotations(media_ref, &rows)?;
         Ok(Page {
             media: media_ref,
@@ -205,6 +285,7 @@ impl<'a> Annotations<'a> {
             items,
             after,
             next,
+            origins,
         })
     }
 
@@ -224,9 +305,11 @@ impl<'a> Annotations<'a> {
         let mut totals = HashMap::new();
         if !open.is_empty() {
             rows = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+                .authored()
                 .firsts(&open, first, None)
                 .await)?;
             totals = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+                .authored()
                 .counts(&open, None)
                 .await)?;
         }
@@ -234,11 +317,13 @@ impl<'a> Annotations<'a> {
             rows.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
                 db
             )
+            .authored()
             .firsts(&hidden, first, Some(&["supplementing"]))
             .await)?);
             totals.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
                 db
             )
+            .authored()
             .counts(&hidden, Some(&["supplementing"]))
             .await)?);
         }
@@ -292,6 +377,7 @@ impl<'a> Annotations<'a> {
         let mut totals = HashMap::new();
         if !open.is_empty() {
             totals = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+                .authored()
                 .counts(&open, None)
                 .await)?;
         }
@@ -299,6 +385,7 @@ impl<'a> Annotations<'a> {
             totals.extend(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
                 db
             )
+            .authored()
             .counts(&hidden, Some(&["supplementing"]))
             .await)?);
         }
@@ -408,6 +495,228 @@ impl<'a> Annotations<'a> {
         }
     }
 
+    /// Replace the track rows of `media` in `lang` with the cues of `body`
+    /// (contract 6.5). The server is the only cue parser.
+    pub async fn import_track(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+        body: &[u8],
+        format: TrackFormat,
+    ) -> Result<TrackImport, AnnotationError> {
+        let (media_ref, rights) = self.readable_one(media).await?;
+        if rights != Rights::ReadWrite {
+            return Err(AnnotationError::Forbidden);
+        }
+        if media_ref.kind.surface() != Surface::Time {
+            return Err(Problem::NoTimeline.into());
+        }
+        let lang = language(lang)?;
+        let cues = parse_cues(body, format)?;
+        let bodies: Vec<String> = cues
+            .iter()
+            .map(|cue| cue_body(&cue.text, lang.as_deref()))
+            .collect();
+        let rows: Vec<Cue<'_>> = cues
+            .iter()
+            .zip(&bodies)
+            .map(|(cue, body_json)| Cue {
+                start_ms: i64::try_from(cue.start_ms).unwrap_or(i64::MAX),
+                end_ms: i64::try_from(cue.end_ms).unwrap_or(i64::MAX),
+                body_json,
+                body_text: &cue.text,
+            })
+            .collect();
+        let outcome = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+            .replace_track(media, lang.as_deref(), &rows)
+            .await)?;
+        let replaced = match outcome {
+            TrackOutcome::Replaced { removed, .. } => removed > 0,
+            TrackOutcome::Unchanged { .. } => false,
+        };
+        let stored = self.cue_rows(media, lang.as_deref()).await?;
+        let ids = if stored.len() > PAGE_SIZE as usize {
+            Vec::new()
+        } else {
+            stored
+                .iter()
+                .filter(|row| row.origin == "track")
+                .map(|row| row.id)
+                .collect()
+        };
+        Ok(TrackImport {
+            lang,
+            cues: u32::try_from(cues.len()).unwrap_or(u32::MAX),
+            replaced,
+            ids,
+        })
+    }
+
+    /// What [`Self::import_track`] would change, with no row written (G5).
+    ///
+    /// Both halves read the same parser, so a preview cannot disagree with the
+    /// commit it previews.
+    pub async fn preview_track(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+        body: &[u8],
+        format: TrackFormat,
+    ) -> Result<TrackPreview, AnnotationError> {
+        let (media_ref, rights) = self.readable_one(media).await?;
+        if rights != Rights::ReadWrite {
+            return Err(AnnotationError::Forbidden);
+        }
+        if media_ref.kind.surface() != Surface::Time {
+            return Err(Problem::NoTimeline.into());
+        }
+        let lang = language(lang)?;
+        let cues = parse_cues(body, format)?;
+        let rows = self.cue_rows(media, lang.as_deref()).await?;
+        let mut existing_rows: Vec<(u64, u64, String, bool)> = Vec::new();
+        for row in rows.iter().filter(|row| row.origin == "track") {
+            existing_rows.push((
+                u64::try_from(row.t_start_ms.unwrap_or_default()).unwrap_or_default(),
+                u64::try_from(row.t_end_ms.unwrap_or_default()).unwrap_or_default(),
+                row_text(row)?,
+                row.revision > 1,
+            ));
+        }
+        let existing: Vec<ExistingCue<'_>> = existing_rows
+            .iter()
+            .map(|(start_ms, end_ms, text, hand_edited)| ExistingCue {
+                start_ms: *start_ms,
+                end_ms: *end_ms,
+                text,
+                hand_edited: *hand_edited,
+            })
+            .collect();
+        let diff = tracks::diff(&existing, &cues);
+        Ok(TrackPreview {
+            cues: diff.cues,
+            start_ms: diff.start_ms,
+            end_ms: diff.end_ms,
+            replaces: diff.replaces,
+            hand_edited: diff.hand_edited_lost,
+        })
+    }
+
+    /// The caption languages of `media` and their cue counts (G3).
+    pub async fn tracks(&self, media: MediaId) -> Result<Vec<TrackSummary>, AnnotationError> {
+        self.readable_one(media).await?;
+        let langs = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+            .track_langs(&[media])
+            .await)?;
+        let mut summaries = Vec::with_capacity(langs.len());
+        for (_, lang, cues) in langs {
+            let rows = self.cue_rows(media, lang.as_deref()).await?;
+            let imported = rows
+                .iter()
+                .filter(|row| row.origin == "track")
+                .map(|row| row.created)
+                .max();
+            let hand_edited = rows
+                .iter()
+                .filter(|row| row.origin == "track" && row.revision > 1)
+                .count();
+            summaries.push(TrackSummary {
+                lang,
+                cues,
+                imported,
+                hand_edited: u32::try_from(hand_edited).unwrap_or(u32::MAX),
+            });
+        }
+        Ok(summaries)
+    }
+
+    /// Remove the track rows of one language (G4). Hand-written notes, a
+    /// hand-written `supplementing` note included, stay; `NotFound` when the
+    /// language holds no track row.
+    pub async fn remove_track(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+    ) -> Result<(), AnnotationError> {
+        let (_, rights) = self.readable_one(media).await?;
+        if rights != Rights::ReadWrite {
+            return Err(AnnotationError::Forbidden);
+        }
+        let lang = language(lang)?;
+        let outcome = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+            .replace_track(media, lang.as_deref(), &[])
+            .await)?;
+        match outcome {
+            TrackOutcome::Replaced { .. } => Ok(()),
+            TrackOutcome::Unchanged { .. } => Err(AnnotationError::NotFound),
+        }
+    }
+
+    /// Every visible `supplementing` row of `media` in `lang`, as WebVTT
+    /// (contract 6.5). Without a language, the one with the most cues.
+    pub async fn captions_vtt(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+    ) -> Result<Option<String>, AnnotationError> {
+        self.readable_one(media).await?;
+        let lang = match language(lang)? {
+            Some(lang) => Some(lang),
+            None => self.default_lang(media).await?,
+        };
+        let rows = self.cue_rows(media, lang.as_deref()).await?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let mut timed: Vec<(u64, u64, String)> = Vec::with_capacity(rows.len());
+        for row in &rows {
+            timed.push((
+                u64::try_from(row.t_start_ms.unwrap_or_default()).unwrap_or_default(),
+                u64::try_from(row.t_end_ms.unwrap_or_default()).unwrap_or_default(),
+                row_text(row)?,
+            ));
+        }
+        let cues: Vec<(u64, u64, &str)> = timed
+            .iter()
+            .map(|(start, end, text)| (*start, *end, text.as_str()))
+            .collect();
+        Ok(Some(tracks::render_vtt(&cues)))
+    }
+
+    /// The language with the most cues; a named language beats an untagged one
+    /// at an equal count, and the alphabetically first tag breaks a tie.
+    async fn default_lang(&self, media: MediaId) -> Result<Option<String>, AnnotationError> {
+        let langs = with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(db)
+            .track_langs(&[media])
+            .await)?;
+        let mut best: Option<(Option<String>, u32)> = None;
+        for (_, lang, cues) in langs {
+            let wins = match &best {
+                None => true,
+                Some((current, count)) => {
+                    cues > *count
+                        || (cues == *count && named_first(lang.as_deref(), current.as_deref()))
+                }
+            };
+            if wins {
+                best = Some((lang, cues));
+            }
+        }
+        Ok(best.and_then(|(lang, _)| lang))
+    }
+
+    /// Every `supplementing` row of `media` in `lang`, in time order.
+    async fn cue_rows(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+    ) -> Result<Vec<MediaAnnotationRow>, AnnotationError> {
+        Ok(with_db!(self.api.pool(), |db| MediaAnnotationRepo::new(
+            db
+        )
+        .cues(media, lang)
+        .await)?)
+    }
+
     /// The current row, once the caller's write right and `If-Match` hold.
     async fn writable(
         &self,
@@ -514,6 +823,78 @@ fn annotations(
     rows.iter()
         .map(|row| Annotation::from_row(media, row).map_err(AnnotationError::from))
         .collect()
+}
+
+/// A caption language tag, or none for an absent or empty value.
+///
+/// The shape is the one the `<track srclang>` and the `lang` column accept:
+/// ASCII letters, digits and hyphens, starting with a letter.
+fn language(raw: Option<&str>) -> Result<Option<String>, Problem> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    let tag = raw.trim();
+    if tag.is_empty() {
+        return Ok(None);
+    }
+    let shaped = tag.len() <= 35
+        && tag.starts_with(char::is_alphabetic)
+        && !tag.ends_with('-')
+        && !tag.contains("--")
+        && tag
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-');
+    if shaped {
+        Ok(Some(tag.to_string()))
+    } else {
+        Err(Problem::BadLanguage)
+    }
+}
+
+/// The cue parser, with its bounds. A body over the size limit is answered
+/// before the text decode, so a hostile binary file gets the bound it earned.
+fn parse_cues(body: &[u8], format: TrackFormat) -> Result<Vec<ParsedCue>, AnnotationError> {
+    if body.len() > tracks::MAX_BYTES {
+        return Err(TrackError::TooLarge.into());
+    }
+    let text = std::str::from_utf8(body).map_err(|_| TrackError::NotText)?;
+    Ok(tracks::parse(text, format)?)
+}
+
+/// One cue's canonical body: a plain `TextualBody`, the language when it has one.
+fn cue_body(text: &str, lang: Option<&str>) -> String {
+    let mut body = serde_json::json!({
+        "type": "TextualBody",
+        "value": text,
+        "format": "text/plain",
+    });
+    if let Some(lang) = lang {
+        body["language"] = serde_json::json!(lang);
+    }
+    serde_json::Value::Array(vec![body]).to_string()
+}
+
+/// The text of one stored row, from its canonical body JSON.
+fn row_text(row: &MediaAnnotationRow) -> Result<String, AnnotationError> {
+    let bodies = wadm::bodies_of_row(&row.body_json)?;
+    Ok(bodies
+        .iter()
+        .filter_map(|body| match body {
+            Body::Text { value, .. } => Some(value.as_str()),
+            Body::Link { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
+/// Whether `candidate` is the better default between two equally long tracks:
+/// a named language before an untagged one, then the smaller tag.
+fn named_first(candidate: Option<&str>, current: Option<&str>) -> bool {
+    match (candidate, current) {
+        (Some(candidate), Some(current)) => candidate < current,
+        (Some(_), None) => true,
+        (None, _) => false,
+    }
 }
 
 /// The readable media split by the switch: captions only, or everything.
