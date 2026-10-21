@@ -65,12 +65,15 @@ async fn container_get(
         return not_found();
     };
     let iris = Iris::new(state.base.as_str());
+    let Some(origins) = super::origins(uri) else {
+        return super::error_document(StatusCode::BAD_REQUEST, messages::BAD_REQUEST);
+    };
     let api = match caller(state, uri, headers).await {
         Ok(api) => api,
         Err(response) => return *response,
     };
     let annotations = Annotations::new(&api, state.extents.as_ref());
-    let page = match annotations.page(media, None).await {
+    let page = match annotations.page_of(media, None, origins).await {
         Ok(page) => page,
         Err(error) => return wap_error(error, &iris),
     };
@@ -179,12 +182,15 @@ async fn page_get(
         return super::error_document(StatusCode::BAD_REQUEST, messages::BAD_REQUEST);
     };
     let iris = Iris::new(state.base.as_str());
+    let Some(origins) = super::origins(uri) else {
+        return super::error_document(StatusCode::BAD_REQUEST, messages::BAD_REQUEST);
+    };
     let api = match caller(state, uri, headers).await {
         Ok(api) => api,
         Err(response) => return *response,
     };
     let annotations = Annotations::new(&api, state.extents.as_ref());
-    let page = match annotations.page(media, after).await {
+    let page = match annotations.page_of(media, after, origins).await {
         Ok(page) => page,
         Err(error) => return wap_error(error, &iris),
     };
@@ -359,7 +365,7 @@ fn if_match_required() -> Response {
 }
 
 /// The caller of the request: session cookie, else the `/api` key pair.
-async fn caller<'a>(
+pub(super) async fn caller<'a>(
     state: &'a AppState,
     uri: &Uri,
     headers: &HeaderMap,
@@ -378,7 +384,7 @@ async fn media_title(state: &AppState, media: MediaId) -> Option<String> {
         .and_then(|row| row.resource.title)
 }
 
-fn preflight(allow: &'static str) -> Response {
+pub(super) fn preflight(allow: &'static str) -> Response {
     let response = Response::builder()
         .status(StatusCode::NO_CONTENT)
         .header(header::ALLOW, allow)
@@ -392,18 +398,18 @@ fn preflight(allow: &'static str) -> Response {
     }
 }
 
-fn method_not_allowed(allow: &'static str) -> Response {
+pub(super) fn method_not_allowed(allow: &'static str) -> Response {
     let mut response =
         super::error_document(StatusCode::METHOD_NOT_ALLOWED, messages::METHOD_NOT_ALLOWED);
     set(response.headers_mut(), header::ALLOW, allow);
     response
 }
 
-fn not_found() -> Response {
+pub(super) fn not_found() -> Response {
     super::error_document(StatusCode::NOT_FOUND, messages::NOT_FOUND)
 }
 
-fn not_modified(tag: &str) -> Response {
+pub(super) fn not_modified(tag: &str) -> Response {
     let response = Response::builder()
         .status(StatusCode::NOT_MODIFIED)
         .header(header::ETAG, tag)
@@ -460,7 +466,7 @@ fn accepts_iiif(headers: &HeaderMap) -> bool {
         .is_some_and(|value| value.contains("iiif.io/api/presentation"))
 }
 
-fn media_id(raw: &str) -> Option<MediaId> {
+pub(super) fn media_id(raw: &str) -> Option<MediaId> {
     raw.trim()
         .parse::<u64>()
         .ok()
@@ -486,7 +492,7 @@ fn set(headers: &mut HeaderMap, name: HeaderName, value: &str) {
     }
 }
 
-fn without_body(mut response: Response, head: bool) -> Response {
+pub(super) fn without_body(mut response: Response, head: bool) -> Response {
     if head {
         *response.body_mut() = Body::empty();
     }

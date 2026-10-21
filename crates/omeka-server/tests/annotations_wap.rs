@@ -493,7 +493,19 @@ async fn a_caption_row_is_named_by_the_track_header() {
         .await
         .expect("two caption rows");
 
-    let answer = send(app, get(&container(seed.media.0), true)).await;
+    let notes = send(app.clone(), get(&container(seed.media.0), true)).await;
+    assert_eq!(notes.status, StatusCode::OK);
+    assert_eq!(
+        notes.json()["total"],
+        0,
+        "the notes container leaves caption cues out"
+    );
+
+    let answer = send(
+        app,
+        get(&format!("{}?origin=all", container(seed.media.0)), true),
+    )
+    .await;
     assert_eq!(answer.status, StatusCode::OK);
     let ids = header(&answer, "romeka-track-ids").unwrap();
     let ids: Vec<u64> = ids.split(' ').map(|id| id.parse().unwrap()).collect();

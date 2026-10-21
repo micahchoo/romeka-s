@@ -416,3 +416,66 @@ test('a public item card names the kind of its first file', async ({ page, diagn
 
   await expectClean(diagnostics, 'kind cards');
 });
+
+test('a video with captions offers each language as a WebVTT track', async ({ page, diagnostics }) => {
+  const item = await uploadItem(page.request, 'video.mp4', 'video/mp4');
+  const media = await mediaIdOf(page.request, item);
+  for (const [name, lang, type] of [
+    ['captions.vtt', 'en', 'text/vtt'],
+    ['captions.srt', 'fr', 'application/x-subrip'],
+  ] as const) {
+    const answer = await page.request.post(
+      `/annotations/media/${String(media)}/tracks?lang=${lang}`,
+      { headers: { 'content-type': type }, data: corpus(name) },
+    );
+    expect(answer.status(), await answer.text()).toBe(200);
+  }
+
+  await page.goto(`/s/${SITE_SLUG}/media/${String(media)}`);
+  const video = page.locator('.media-render video').first();
+  await expect(video).toBeVisible();
+  const tracks = video.locator('track');
+  await expect(tracks).toHaveCount(2);
+
+  // The site locale is English, so English is the track the browser turns on,
+  // and the label is the language's own name, not the site's word for it.
+  const english = tracks.first();
+  expect(await english.getAttribute('label')).toBe('English');
+  expect(await english.getAttribute('srclang')).toBe('en');
+  expect(await english.getAttribute('default')).not.toBeNull();
+  expect(await tracks.nth(1).getAttribute('label')).toBe('Français');
+  expect(await tracks.nth(1).getAttribute('srclang')).toBe('fr');
+
+  // Every source is WebVTT the browser can read, whatever file it came from.
+  for (const track of [english, tracks.nth(1)]) {
+    const src = await track.getAttribute('src');
+    expect(src).toContain('.vtt');
+    const answer = await page.request.get(src ?? '');
+    expect(answer.status()).toBe(200);
+    expect(answer.headers()['content-type']).toMatch(/^text\/vtt/);
+    expect(await answer.text()).toContain('WEBVTT');
+    expect(await answer.text()).toContain('A red square, then a blue bar.');
+  }
+
+  if (process.env.CAPTION_EVIDENCE === '1') {
+    await video.evaluate(async (element: HTMLVideoElement) => {
+      const captions = element.textTracks[0];
+      if (captions !== undefined) {
+        captions.mode = 'showing';
+      }
+      element.currentTime = 0.2;
+      await new Promise((done) => {
+        setTimeout(done, 400);
+      });
+    });
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'captions-media-page.png'),
+      fullPage: true,
+    });
+    await video.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'captions-on-frame.png'),
+    });
+  }
+
+  await expectClean(diagnostics, 'captions');
+});

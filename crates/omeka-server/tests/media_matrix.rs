@@ -19,10 +19,11 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use axum::Router;
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use common::{
-    Answer, Seed, append_key, get, json_request, multipart_asset_request, router_with_store,
-    seeded_pool, send,
+    Answer, Seed, append_key, get, header, json_request, multipart_asset_request,
+    router_with_store, seeded_pool, send,
 };
 use omeka_db::DbPool;
 use omeka_db::repos::{ExtentRow, MediaExtentRepo};
@@ -57,7 +58,6 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("model.glb", "thumbnail"),
     ("model.gltf", "iiif"),
     ("model.gltf", "thumbnail"),
-    ("video.mp4", "site-media-page"),
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -82,9 +82,10 @@ enum Cell {
     SiteItemCard,
     Iiif,
     Safe,
+    Captions,
 }
 
-const CELLS: [Cell; 8] = [
+const CELLS: [Cell; 9] = [
     Cell::Ingest,
     Cell::Annotate,
     Cell::Thumbnail,
@@ -93,6 +94,7 @@ const CELLS: [Cell; 8] = [
     Cell::SiteItemCard,
     Cell::Iiif,
     Cell::Safe,
+    Cell::Captions,
 ];
 
 impl Cell {
@@ -106,6 +108,7 @@ impl Cell {
             Self::SiteItemCard => "site-item-card",
             Self::Iiif => "iiif",
             Self::Safe => "safe",
+            Self::Captions => "captions",
         }
     }
 }
@@ -322,6 +325,8 @@ struct Observed {
     manifest: Option<Value>,
     original: Option<Vec<u8>>,
     bytes: Vec<u8>,
+    /// The answer to each `<track src>` the media page holds.
+    tracks: Vec<Answer>,
 }
 
 struct Row {
@@ -647,6 +652,7 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         manifest: None,
         original: None,
         bytes,
+        tracks: Vec::new(),
     };
     if !answer.status.is_success() {
         return observed;
@@ -665,8 +671,10 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
             .await
             .body,
     );
-    if fixture.captions {
-        attach_captions(app, item_id).await;
+    if fixture.captions
+        && let Some(video) = media
+    {
+        attach_captions(app, item_id, video).await;
     }
     if let Some(media_id) = media {
         // Before the manifest and the page are read, so a later cell sees the
@@ -679,11 +687,13 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
                 .await
                 .json(),
         );
-        observed.page = Some(
-            send(app.clone(), get(&format!("{SITE}/media/{media_id}"), false))
-                .await
-                .body,
-        );
+        let page = send(app.clone(), get(&format!("{SITE}/media/{media_id}"), false))
+            .await
+            .body;
+        if fixture.captions {
+            observed.tracks = track_answers(app, &page).await;
+        }
+        observed.page = Some(page);
     }
     observed.manifest = Some(
         send(
@@ -716,10 +726,9 @@ async fn attach(app: &Router, seed: &Seed, item: u64) {
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
 }
 
-/// Attach `captions.vtt` to the item as a second media. The captions are
-/// expected to be refused with the rest of the default allow list, so the cell
-/// reads that refusal rather than asserting the write.
-async fn attach_captions(app: &Router, item: u64) {
+/// Attach `captions.vtt` to the item as a second media, then post both caption
+/// files to the video's tracks route: the curator's two steps.
+async fn attach_captions(app: &Router, item: u64, video: u64) {
     let captions = read_fixture("captions.vtt");
     let data = json!({
         "o:ingester": "upload",
@@ -737,6 +746,73 @@ async fn attach_captions(app: &Router, item: u64) {
         multipart_asset_request(&append_key("/api/media"), "captions.vtt", &captions, &data),
     )
     .await;
+    for (file, lang, content_type) in [
+        ("captions.vtt", "en", "text/vtt"),
+        ("captions.srt", "fr", "application/x-subrip"),
+    ] {
+        let answer = send(
+            app.clone(),
+            caption_request(video, lang, &read_fixture(file), content_type),
+        )
+        .await;
+        assert_eq!(
+            answer.status,
+            StatusCode::OK,
+            "{file} for {lang}: {}",
+            answer.body
+        );
+    }
+}
+
+/// One caption file posted to a media's tracks route, with the seeded key pair.
+fn caption_request(media: u64, lang: &str, body: &[u8], content_type: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(append_key(&format!(
+            "/annotations/media/{media}/tracks?lang={lang}"
+        )))
+        .header("content-type", content_type)
+        .body(Body::from(body.to_vec()))
+        .unwrap()
+}
+
+/// GET every `<track src>` the media page holds, under this run's origin.
+async fn track_answers(app: &Router, page: &str) -> Vec<Answer> {
+    let mut answers = Vec::new();
+    for part in page.split("<track").skip(1) {
+        let Some(src) = part
+            .split("src=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+        else {
+            continue;
+        };
+        let path = src.strip_prefix("http://localhost").unwrap_or(src);
+        answers.push(send(app.clone(), get(path, false)).await);
+    }
+    answers
+}
+
+/// The video page offers both languages as WebVTT the browser can read.
+fn captions(seen: &Observed) -> bool {
+    let Some(page) = &seen.page else {
+        return false;
+    };
+    let sources: Vec<&str> = page
+        .split("<track")
+        .skip(1)
+        .filter_map(|part| part.split("src=\"").nth(1))
+        .filter_map(|rest| rest.split('"').next())
+        .collect();
+    sources.len() == 2
+        && sources.iter().all(|src| src.contains(".vtt"))
+        && seen.tracks.len() == 2
+        && seen.tracks.iter().all(|answer| {
+            answer.status == StatusCode::OK
+                && header(answer, "content-type").is_some_and(|kind| kind.starts_with("text/vtt"))
+                && answer.body.starts_with("WEBVTT")
+                && answer.body.contains("A red square, then a blue bar.")
+        })
 }
 
 /// The theme's own sheet, read from the href the page links.
@@ -782,6 +858,7 @@ fn judge(
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
         Cell::Iiif => Some(iiif(fixture, seen)),
         Cell::Safe => (fixture.file == "hostile.svg").then(|| safe(seen)),
+        Cell::Captions => (fixture.file == "video.mp4").then(|| captions(seen)),
     }
 }
 

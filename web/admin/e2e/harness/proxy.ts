@@ -65,12 +65,21 @@ const portPaths = (pathname: string): boolean =>
   pathname.startsWith('/s/') ||
   pathname === '/vocab' ||
   pathname.startsWith('/vocab/') ||
+  pathname === '/annotations' ||
+  pathname.startsWith('/annotations/') ||
   pathname === '/iiif-viewer' ||
   pathname.startsWith('/iiif/') ||
   pathname.startsWith('/application/');
 
 const apiPaths = (pathname: string): boolean =>
   pathname === '/api' || pathname.startsWith('/api/');
+
+/** Paths that leave for the port with the harness's admin key pair: the SPA's
+ * own API and the Web Annotation routes, which the admin writes through. */
+const keyedPaths = (pathname: string): boolean =>
+  apiPaths(pathname) ||
+  pathname === '/annotations' ||
+  pathname.startsWith('/annotations/');
 
 /** The file a pathname names inside a static root, or `null` when it escapes. */
 const fileFor = (root: string, pathname: string): string | null => {
@@ -125,7 +134,7 @@ const forward = (
   res: ServerResponse,
   options: ProxyOptions,
 ): void => {
-  if (apiPaths(url.pathname)) {
+  if (keyedPaths(url.pathname)) {
     url.searchParams.set('key_identity', options.identity);
     url.searchParams.set('key_credential', options.credential);
   }

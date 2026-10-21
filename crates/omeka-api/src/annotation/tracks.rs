@@ -38,6 +38,8 @@ pub enum TrackError {
     TooManyCues,
     #[error("The file does not begin with WEBVTT.")]
     NoHeader,
+    #[error("The caption file is not UTF-8 text.")]
+    NotText,
     #[error("Line {line} is not a cue time.")]
     NotACueTime { line: usize },
     #[error("Line {line} ends before it begins.")]
