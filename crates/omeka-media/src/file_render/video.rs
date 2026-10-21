@@ -25,9 +25,14 @@ impl FileRenderer for Video {
     ///
     /// A third: `options.start` becomes the media fragment `#t=62` on `src`, so
     /// a `?t=` link opens at that moment with no script.
+    ///
+    /// A fourth: when an access copy is ready its URL is the source, because the
+    /// original is a container a browser cannot open. The link inside the player
+    /// still names the original, which stays downloadable.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
         let original = media.original_url.clone().unwrap_or_default();
-        let source = media_fragment(&original, options.start);
+        let playable = media.player_url().unwrap_or_default().to_string();
+        let source = media_fragment(&playable, options.start);
         let mut attrs = vec![format!("src=\"{}\"", escape_html(&source))];
         if let Some(width) = &options.width {
             attrs.push(format!("width=\"{}\"", escape_html(width)));
@@ -142,6 +147,27 @@ mod tests {
         assert_eq!(
             Video.render(&video_media(), &options),
             "<video src=\"/files/original/abc123.mp4#t=62\" preload=\"metadata\" controls><a href=\"/files/original/abc123.mp4\">abc123.mp4</a></video>"
+        );
+    }
+
+    /// A video a browser cannot play is sourced from its access copy, with the
+    /// start fragment on the copy, and the link still names the original.
+    #[test]
+    fn an_access_copy_is_the_video_source() {
+        let mut media = media_row(1, "upload", "file");
+        media.storage_id = Some("abc123".into());
+        media.extension = Some("avi".into());
+        media.media_type = Some("video/x-msvideo".into());
+        media.has_original = true;
+        let view =
+            media_view_from(&media).with_access(Some("/files/access/abc123.mp4".to_string()));
+        let options = RenderOptions {
+            start: Some(MediaStart::from_millis(2_500)),
+            ..RenderOptions::default()
+        };
+        assert_eq!(
+            Video.render(&view, &options),
+            "<video src=\"/files/access/abc123.mp4#t=2.5\" preload=\"metadata\" controls><a href=\"/files/original/abc123.avi\">abc123.avi</a></video>"
         );
     }
 }

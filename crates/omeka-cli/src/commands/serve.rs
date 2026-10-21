@@ -17,14 +17,13 @@ use omeka_api::import::sweep::SWEEP_JOB;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::Location;
-use omeka_db::ids::JobId;
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
 use omeka_db::with_db;
-use omeka_server::{Config, DispatchError, JobDispatch, Services};
+use omeka_server::{Config, JobDispatch, Services};
 
 use crate::error::CliError;
-use crate::jobs::JobCommand;
+use crate::jobs::{JobCommand, ProcessDispatch};
 
 /// How often the server starts the staging sweep.
 const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
@@ -103,29 +102,16 @@ async fn sweep_every(pool: DbPool, jobs: Arc<dyn JobDispatch>, period: Duration)
 }
 
 /// A child started from another working directory reads the same files.
-fn absolute(path: &Path) -> Result<PathBuf, CliError> {
+pub(crate) fn absolute(path: &Path) -> Result<PathBuf, CliError> {
     std::path::absolute(path)
         .map_err(|error| CliError::message(format!("cannot resolve {}: {error}", path.display())))
-}
-
-/// Starts each job in a new `romeka job run` process and reaps it when it
-/// exits, so a long-lived server leaves no zombie processes.
-struct ProcessDispatch(JobCommand);
-
-impl JobDispatch for ProcessDispatch {
-    fn start(&self, job: JobId) -> Result<(), DispatchError> {
-        let mut child = self
-            .0
-            .spawn(job)
-            .map_err(|error| DispatchError(error.to_string()))?;
-        std::thread::spawn(move || child.wait());
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use omeka_db::ids::JobId;
+    use omeka_server::DispatchError;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     #[tokio::test]

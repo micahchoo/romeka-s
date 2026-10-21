@@ -607,6 +607,13 @@ pub(crate) fn media_doc(
             relations.derivatives(row.id()),
             has_thumbnails(api, row),
         )),
+        access: crate::derivatives::access_copy(
+            relations.derivatives(row.id()),
+            row.storage_id.as_deref(),
+            row.media_type.as_deref(),
+            row.extension.as_deref(),
+        )
+        .map(|copy| crate::wire::media::MediaAccess::of(&copy, api.files())),
         thumbnail_urls,
         // `MediaRepresentation::mediaData` returns the `data` column, which
         // Doctrine 2's `JsonArrayType` hydrates as `[]` when the column is NULL,

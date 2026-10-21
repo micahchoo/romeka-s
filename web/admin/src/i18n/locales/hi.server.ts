@@ -284,6 +284,8 @@ export const hiServer: ServerCatalogue = {
     'ज़िप को अस्वीकार कर दिया गया: इसे पढ़ा नहीं जा सका ({reason})। इससे कुछ भी नहीं जोड़ा गया।',
   'server.importZipUnpacked': 'ज़िप को अनपैक किया गया: {count} फ़ाइलें जोड़ी गईं।',
   'server.importSweepDone': '{imports} आयात की फ़ाइलों को हटा दिया गया, और {uploads} अधूरे अपलोड।',
+  'server.importAccessFailed': 'मीडिया {media} के लिए कोई प्लेएबल कॉपी कतारबद्ध नहीं थी: {reason}',
+  'server.importAccessUnread': 'इस आयात के लिए कोई प्लेएबल कॉपी कतारबद्ध नहीं थी: {reason}',
   'server.mediaUploadNotFound': 'इस खाते में "{upload}" आईडी के साथ कोई स्टेज्ड अपलोड नहीं है।',
   'server.mediaUploadBusy':
     'यह अपलोड "{upload}" अभी जोड़ा जा रहा है। प्रतीक्षा करें और पुनः प्रयास करें।',

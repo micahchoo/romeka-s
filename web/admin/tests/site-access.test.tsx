@@ -7,7 +7,7 @@
  * The signed-in user comes from the session store the shell's probe fills.
  */
 import { render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { isRecord, parseSite, parseUser } from '../src/api/parse';
 import { setSession } from '../src/api/session';
 import type { Site, User } from '../src/api/types';
@@ -64,6 +64,14 @@ const sorted = (capabilities: ReadonlySet<SiteCapability>): SiteCapability[] =>
 
 afterEach(() => {
   setSession(null);
+});
+
+
+// The page loads this module lazily. A test that leaves before the import settles
+// tears the environment down under it, and vitest then fails the whole run, so the
+// module is loaded once here and every lazy() resolves from the module cache.
+beforeAll(async () => {
+  await import('../src/pages/sites/theme');
 });
 
 describe('site access', () => {

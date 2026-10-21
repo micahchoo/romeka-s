@@ -180,7 +180,7 @@ const AudioStage = ({
     <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
-      <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
+      <a href={view.file.url ?? view.url}>{translator.t('media.stage.downloadFile')}</a>
     </p>
   </audio>
 );
@@ -217,7 +217,7 @@ const VideoStage = ({
     <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
-      <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
+      <a href={view.file.url ?? view.url}>{translator.t('media.stage.downloadFile')}</a>
     </p>
   </video>
 );
@@ -390,7 +390,14 @@ const StageBody = ({
     case 'outside':
       return <ThirdPartyCard url={view.url} host={view.host} />;
     case 'frame':
-      return <EmbedCard mediaId={mediaId} url={view.url} host={view.host} />;
+      return (
+        <EmbedCard
+          mediaId={mediaId}
+          url={view.url}
+          host={view.host}
+          fallback={view.fallback}
+        />
+      );
     case 'manifest':
       return <ManifestCard url={view.url} host={view.host} viewerUrl={view.viewerUrl} />;
     case 'file':

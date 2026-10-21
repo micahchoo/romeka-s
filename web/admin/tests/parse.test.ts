@@ -178,6 +178,39 @@ describe('parseMedia', () => {
     );
   });
 
+  it('media_access_copy_member_parses_its_url_and_state', () => {
+    // `o-module-romeka:access` is the port's member; that the term is not read
+    // as a property value is the contract (an older server sends none).
+    const body = loadFixture('media-page.json');
+    if (!isUnknownArray(body)) {
+      throw new Error('expected media-page.json to be an array');
+    }
+    const entry = body[0];
+    if (!isRecord(entry)) {
+      throw new Error('expected the media to be an object');
+    }
+    entry['o-module-romeka:access'] = {
+      state: 'ready',
+      url: 'http://localhost/files/access/abc.mp4',
+      media_type: 'video/mp4',
+    };
+
+    const media = parseMedia(entry);
+    expect(media.access).toEqual({
+      state: 'ready',
+      reason: null,
+      progress: null,
+      url: 'http://localhost/files/access/abc.mp4',
+      mediaType: 'video/mp4',
+    });
+    expect(media.values.has('o-module-romeka:access')).toBe(false);
+  });
+
+  it('media_without_an_access_member_reads_none', () => {
+    const media = parseMedia(loadFixture('media-951.json'));
+    expect(media.access).toBeNull();
+  });
+
   it('media_html_content_members_are_not_read_as_values', () => {
     // `Module::filterHtmlMediaJsonLd` adds `o-cnt:chars` and
     // `o-cnt:characterEncoding` to an html media beside the values, as strings.

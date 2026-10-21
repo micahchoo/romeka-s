@@ -48,6 +48,7 @@ const media: Media = {
   altText: null,
   originalUrl: `${BASE}/files/original/9.mp4`,
   preview: null,
+  access: null,
   thumbnailUrls: {},
 };
 

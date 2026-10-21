@@ -113,6 +113,7 @@ export const mr: ResourcesMessages = {
   'media.stage.embedOpen': '{host} वर उघडा',
   'media.stage.embedLoad': 'एम्बेड लोड करा',
   'media.stage.embedFrame': '{host} कडून एम्बेड',
+  'media.stage.embedPlaying': '{host} वरून वाजत आहे',
   'media.stage.embedSnippetHeading':
     'हे माध्यम HTML आहे जे सर्व्हर ते रेंडर करतो. जोपर्यंत तुम्ही ते उघडत नाही, तोपर्यंत काहीही लोड होत नाही.',
   'media.stage.embedSnippetFrame': 'रेंडर केलेले HTML',

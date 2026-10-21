@@ -306,6 +306,9 @@ export const taServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP விரிவுபடுத்தப்பட்டது: {count} கோப்புகள் சேர்க்கப்பட்டன.',
   'server.importSweepDone':
     '{imports} இறக்குமதிகளின் கோப்புகள் நீக்கப்பட்டன, {uploads} முழுமையடையாத பதிவேற்றங்கள்.',
+  'server.importAccessFailed': '{media}-க்கான இயக்கக்கூடிய நகல் எதுவும் வரிசைப்படுத்தப்படவில்லை: {reason}',
+  'server.importAccessUnread':
+    'இந்த இறக்குமதிக்கான இயக்கக்கூடிய நகல்கள் எதுவும் வரிசைப்படுத்தப்படவில்லை: {reason}',
   'server.mediaUploadNotFound':
     'இந்த கணக்கில் "{upload}" என்ற அடையாளத்துடன் கூடிய நிலுவையில் உள்ள பதிவேற்றம் எதுவும் இல்லை.',
   'server.mediaUploadBusy':

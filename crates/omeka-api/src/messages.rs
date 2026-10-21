@@ -566,6 +566,10 @@ messages! {
     fn import_zip_unpacked(count) = "The ZIP was unpacked: {count} files were added.";
     /// The staging sweep ended.
     fn import_sweep_done(imports, uploads) = "The files of {imports} imports were removed, and {uploads} unfinished uploads.";
+    /// A run's media whose playable-copy decision failed; the import stands.
+    fn import_access_failed(media, reason) = "No playable copy was queued for media {media}: {reason}";
+    /// A run whose ledger could not be read for its playable copies.
+    fn import_access_unread(reason) = "No playable copies were queued for this import: {reason}";
     /// A staged upload named by a media create that the caller's account does not hold.
     fn media_upload_not_found(upload) = "This account has no staged upload with the id \"{upload}\".";
     /// A media create naming a staged upload another create is adding right now.

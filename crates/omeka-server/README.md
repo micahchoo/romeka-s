@@ -444,11 +444,15 @@ this origin and the `http` and `https` origins the fragment's own `img` and
 
 The player route answers the provider's own player URL when the render is
 exactly one `https` `iframe` whose host is on the shipped oEmbed allow list, and
-`null` for every other media, which the stage reads as "keep the strict frame".
-The stage frames a URL directly with `allow-same-origin` beside
-`allow-scripts`; there it grants the provider's own origin, never this one.
-A provider player nested inside a sandboxed frame of ours would inherit an
-opaque origin and refuse to draw.
+for a YouTube media the no-cookie embed URL its renderer builds from the stored
+video id and the `start` and `end` the ingester kept. It answers `null` for
+every other media, which the stage reads as "keep the card". A YouTube media
+whose id is not one YouTube video id answers `null` too, and because the render
+route refuses that renderer the stage keeps the card and its link rather than
+open the 415 document in a frame. The stage frames a URL directly with
+`allow-same-origin` beside `allow-scripts`; there it grants the provider's own
+origin, never this one. A provider player nested inside a sandboxed frame of
+ours would inherit an opaque origin and refuse to draw.
 
 ## Live preview
 

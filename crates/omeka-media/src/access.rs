@@ -17,9 +17,9 @@
 //! once, when the media is created or by the backfill, and stored as an
 //! `access_copy` row in `romeka_media_derivative` (see
 //! `omeka_api::derivatives`): `none` with the words a reader sees, or
-//! `pending` with the tool that will make the copy. The worker that runs those
-//! tools lands with D3 (audio and video) and D4 (images), which read
-//! [`Access::Copy`] and [`crate::tool`]'s argument lists.
+//! `pending` with the tool that will make the copy. [`crate::transcode`] makes
+//! the MP4 and M4A copies and [`crate::tool`] carries their argument lists; the
+//! image master waits for its unit, which reads the same row.
 //!
 //! "A browser shows the original" covers the image path as well: a JPEG, PNG,
 //! GIF, WebP, AVIF or SVG is shown by the browser, and a TIFF or JPEG 2000 is
@@ -43,14 +43,16 @@ pub const LARGE_WAV_BYTES: u64 = 32 * 1024 * 1024;
 
 /// Video containers no current browser opens, whatever streams they hold. An
 /// H.264 track in an AVI still needs an MP4, because the player refuses the
-/// container before it reads the codec.
-const COPY_VIDEO_TYPES: [&str; 10] = [
+/// container before it reads the codec. Matroska is one: only its WebM subset is
+/// a container browsers open, and `video/webm` names that separately.
+const COPY_VIDEO_TYPES: [&str; 11] = [
     "video/3gpp",
     "video/divx",
     "video/dvd",
     "video/mpeg",
     "video/x-dv",
     "video/x-flv",
+    "video/x-matroska",
     "video/x-ms-asf",
     "video/x-ms-wmv",
     "video/x-ms-vob",
@@ -116,6 +118,16 @@ impl AccessTarget {
         }
     }
 
+    /// The media type a stored copy answers with.
+    #[must_use]
+    pub const fn media_type(self) -> &'static str {
+        match self {
+            Self::Mp4 => "video/mp4",
+            Self::M4a => "audio/mp4",
+            Self::Jpeg => "image/jpeg",
+        }
+    }
+
     /// The reason in words a reader sees, naming what the copy is.
     #[must_use]
     pub const fn reason(self) -> &'static str {
@@ -129,6 +141,39 @@ impl AccessTarget {
             }
         }
     }
+}
+
+/// The copy a stored media type gets from the audio or video worker, from the
+/// type alone: video becomes an MP4 and audio an M4A, and every other type is
+/// the image unit's. This is the target the `access_copy` row was queued for,
+/// which the row itself does not store.
+#[must_use]
+pub fn target_of(media_type: &str, extension: Option<&str>) -> Option<AccessTarget> {
+    if media_type == "application/ogg" {
+        let ogv = extension.is_some_and(|extension| extension.eq_ignore_ascii_case("ogv"));
+        return Some(if ogv {
+            AccessTarget::Mp4
+        } else {
+            AccessTarget::M4a
+        });
+    }
+    if media_type.starts_with("video/") {
+        return Some(AccessTarget::Mp4);
+    }
+    media_type
+        .starts_with("audio/")
+        .then_some(AccessTarget::M4a)
+}
+
+/// Where an access copy is stored: `access/<storage id>.<suffix>`, its own
+/// prefix so it is never mistaken for the original.
+#[must_use]
+pub fn copy_path(storage_id: &str, target: AccessTarget) -> String {
+    crate::store::storage_path(
+        crate::store::StorePrefix::Access,
+        storage_id,
+        Some(target.suffix()),
+    )
 }
 
 /// What a stored original needs for a browser to show it.
@@ -482,7 +527,7 @@ mod tests {
     /// The corpus, and what each file needs. The decision on a video or audio
     /// file comes from the codecs `ffprobe` reports, so those rows are skipped
     /// when the command is absent.
-    const CORPUS: [(&str, &str, &str, Option<Access>); 27] = [
+    const CORPUS: [(&str, &str, &str, Option<Access>); 30] = [
         ("image.jpg", "image/jpeg", "jpg", Some(Access::Original)),
         ("image.png", "image/png", "png", Some(Access::Original)),
         ("image.gif", "image/gif", "gif", Some(Access::Original)),
@@ -512,13 +557,11 @@ mod tests {
             "mov",
             Some(Access::Original),
         ),
-        (
-            "video.mkv",
-            "video/x-matroska",
-            "mkv",
-            Some(Access::Original),
-        ),
+        ("video.mkv", "video/x-matroska", "mkv", Some(MP4)),
         ("video.ogv", "video/ogg", "ogv", Some(MP4)),
+        ("mjpeg.avi", "video/x-msvideo", "avi", Some(MP4)),
+        ("mpeg2.mpg", "video/mpeg", "mpg", Some(MP4)),
+        ("wma.wma", "audio/x-ms-wma", "wma", Some(M4A)),
         ("doc.pdf", "application/pdf", "pdf", Some(Access::Original)),
         ("doc.docx", "DOCX", "docx", None),
         ("model.glb", "model/gltf-binary", "glb", None),
@@ -621,6 +664,11 @@ mod tests {
             Some(MP4)
         );
         assert_eq!(video("video/x-matroska", Some("mjpeg"), None), Some(MP4));
+        assert_eq!(
+            video("video/x-matroska", Some("h264"), Some("aac")),
+            Some(MP4),
+            "only the WebM subset of Matroska is a container browsers open"
+        );
         assert_eq!(video("video/avi", Some("mpeg4"), Some("mp3")), Some(MP4));
         assert_eq!(
             video("video/mp4", Some("h264"), Some("ac3")),
@@ -1156,5 +1204,33 @@ mod tests {
             made += 1;
         }
         assert!(made >= 12, "only {made} samples were made");
+    }
+
+    /// The copy a queued row is for follows the stored type, and its path is
+    /// under the access prefix with the target's own extension.
+    #[test]
+    fn the_copy_target_and_path_follow_the_type() {
+        assert_eq!(
+            target_of("video/x-msvideo", Some("avi")),
+            Some(AccessTarget::Mp4)
+        );
+        assert_eq!(
+            target_of("audio/x-ms-wma", Some("wma")),
+            Some(AccessTarget::M4a)
+        );
+        assert_eq!(
+            target_of("application/ogg", Some("ogv")),
+            Some(AccessTarget::Mp4)
+        );
+        assert_eq!(
+            target_of("application/ogg", Some("ogg")),
+            Some(AccessTarget::M4a)
+        );
+        assert_eq!(target_of("image/tiff", Some("tif")), None);
+        assert_eq!(target_of("application/pdf", Some("pdf")), None);
+        assert_eq!(copy_path("abc123", AccessTarget::Mp4), "access/abc123.mp4");
+        assert_eq!(copy_path("abc123", AccessTarget::M4a), "access/abc123.m4a");
+        assert_eq!(AccessTarget::Mp4.media_type(), "video/mp4");
+        assert_eq!(AccessTarget::M4a.media_type(), "audio/mp4");
     }
 }

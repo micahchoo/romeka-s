@@ -56,6 +56,14 @@ pub(crate) struct LocalImage {
     pub(crate) service: String,
 }
 
+/// The preservation original a canvas links through `rendering` when its body
+/// is an access copy.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Original {
+    pub(crate) url: String,
+    pub(crate) media_type: String,
+}
+
 /// What one canvas paints.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Painting {
@@ -72,11 +80,12 @@ pub(crate) enum Painting {
         /// The document itself, linked through `rendering`.
         pdf_url: String,
     },
-    /// An audio file.
+    /// An audio file. `original` is set when the body is an access copy.
     Sound {
         url: String,
         media_type: String,
         duration_s: f64,
+        original: Option<Original>,
     },
     /// A video file, with its frame size and poster when the extents name one.
     Video {
@@ -85,6 +94,7 @@ pub(crate) enum Painting {
         duration_s: f64,
         size: Option<Size>,
         poster: Option<String>,
+        original: Option<Original>,
     },
 }
 
@@ -323,6 +333,7 @@ fn painted(painting: &Painting) -> Option<Painted> {
             url,
             media_type,
             duration_s,
+            original,
         } => Some(Painted {
             canvas_size: SOUND_CANVAS,
             duration_s: Some(*duration_s),
@@ -333,7 +344,14 @@ fn painted(painting: &Painting) -> Option<Painted> {
                 "duration": duration_s,
             }),
             thumbnail: None,
-            rendering: None,
+            rendering: original.as_ref().map(|original| {
+                json!([{
+                    "id": original.url,
+                    "type": "Sound",
+                    "label": {"en": ["Original file"]},
+                    "format": original.media_type,
+                }])
+            }),
         }),
         Painting::Video {
             url,
@@ -341,6 +359,7 @@ fn painted(painting: &Painting) -> Option<Painted> {
             duration_s,
             size,
             poster,
+            original,
         } => {
             let canvas_size = size.unwrap_or(VIDEO_CANVAS);
             Some(Painted {
@@ -357,7 +376,14 @@ fn painted(painting: &Painting) -> Option<Painted> {
                 thumbnail: poster
                     .as_ref()
                     .map(|url| json!([{"id": url, "type": "Image", "format": "image/jpeg"}])),
-                rendering: None,
+                rendering: original.as_ref().map(|original| {
+                    json!([{
+                        "id": original.url,
+                        "type": "Video",
+                        "label": {"en": ["Original file"]},
+                        "format": original.media_type,
+                    }])
+                }),
             })
         }
     }

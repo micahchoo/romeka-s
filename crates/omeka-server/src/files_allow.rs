@@ -59,6 +59,13 @@ enum StoredFile<'a> {
         storage_id: &'a str,
         extension: Option<&'a str>,
     },
+    /// `access/<storage id>.<suffix>`, the playable copy of an original. It
+    /// belongs to the media its storage id names and is served with the type
+    /// its suffix states.
+    Access {
+        storage_id: &'a str,
+        extension: Option<&'a str>,
+    },
 }
 
 /// What a 204 tells the origin about the file.
@@ -132,6 +139,12 @@ async fn verdict(
         } => media_owner(state, storage_id)
             .await?
             .filter(|owner| owner.extension.as_deref() == extension),
+        StoredFile::Access {
+            storage_id,
+            extension,
+        } => media_owner(state, storage_id)
+            .await?
+            .filter(|_| access_media_type(extension).is_some()),
         StoredFile::Thumbnail {
             storage_id,
             extension,
@@ -169,12 +182,16 @@ async fn verdict(
         )
     });
     let served = match *file {
-        StoredFile::Thumbnail { .. } => Some(THUMBNAIL_MEDIA_TYPE),
-        _ => download.as_ref().and_then(Download::served_type),
+        StoredFile::Thumbnail { .. } => Some(THUMBNAIL_MEDIA_TYPE.to_string()),
+        StoredFile::Access { extension, .. } => access_media_type(extension),
+        _ => download
+            .as_ref()
+            .and_then(Download::served_type)
+            .map(str::to_string),
     };
     let answer = Answer {
         private: !(owner.media_is_public && owner.item_is_public),
-        content_type: header_media_type(served),
+        content_type: header_media_type(served.as_deref()),
         disposition: download.as_ref().map(Download::disposition),
     };
     if !answer.private {
@@ -199,6 +216,16 @@ fn forwarded_name(forwarded: &str) -> &str {
         .split_once('?')
         .map_or(forwarded, |(path, _query)| path);
     path.rsplit('/').next().unwrap_or_default()
+}
+
+/// The type an access copy with `extension` answers with. A copy is only an
+/// MP4 or an M4A in this build; any other suffix is no copy the store wrote.
+fn access_media_type(extension: Option<&str>) -> Option<String> {
+    match extension? {
+        "mp4" => Some("video/mp4".to_string()),
+        "m4a" => Some("audio/mp4".to_string()),
+        _ => None,
+    }
 }
 
 /// A stored media type, when a header can carry it unchanged: `type/subtype`
@@ -265,6 +292,10 @@ impl<'a> StoredFile<'a> {
                 extension,
             },
             StorePrefix::Thumbnail(_) => Self::Thumbnail {
+                storage_id,
+                extension,
+            },
+            StorePrefix::Access => Self::Access {
                 storage_id,
                 extension,
             },
@@ -341,5 +372,22 @@ mod tests {
         );
         assert_eq!(StoredFile::parse("original", ".png"), None);
         assert_eq!(StoredFile::parse("thumbnails", "abc.jpg"), None);
+    }
+
+    /// An access copy is a prefix the store writes, and its suffix names the
+    /// type the origin answers with. Any other suffix is no copy.
+    #[test]
+    fn an_access_copy_names_its_type_by_its_suffix() {
+        assert_eq!(
+            StoredFile::parse("access", "abc123.mp4"),
+            Some(StoredFile::Access {
+                storage_id: "abc123",
+                extension: Some("mp4"),
+            })
+        );
+        assert_eq!(access_media_type(Some("mp4")).as_deref(), Some("video/mp4"));
+        assert_eq!(access_media_type(Some("m4a")).as_deref(), Some("audio/mp4"));
+        assert_eq!(access_media_type(Some("avi")), None);
+        assert_eq!(access_media_type(None), None);
     }
 }

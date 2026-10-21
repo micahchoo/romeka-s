@@ -95,6 +95,11 @@ video video.webm -c:v libvpx-vp9 -b:v 40k -crf 50 -pix_fmt yuv420p -- -c:a libop
 video video.mov -c:v libx264 -preset ultrafast -crf 34 -pix_fmt yuv420p -f mov -- -c:a aac -b:a 16k
 video video.mkv -c:v libx264 -preset ultrafast -crf 34 -pix_fmt yuv420p -f matroska -- -c:a aac -b:a 16k
 video video.ogv -c:v libtheora -q:v 3 -pix_fmt yuv420p -f ogg -- -c:a libvorbis -q:a 0
+# The formats a browser does not play, which the access copy makes playable: a
+# motion JPEG AVI, an MPEG-2 program stream and WMA audio.
+video mjpeg.avi -c:v mjpeg -q:v 8 -pix_fmt yuvj420p -- -c:a pcm_s16le -f avi
+video mpeg2.mpg -c:v mpeg2video -q:v 12 -pix_fmt yuv420p -- -c:a mp2 -b:a 32k -f mpeg
+sound 587 wma.wma -c:a wmav2 -b:a 24k -f asf
 
 cat >"$out/captions.vtt" <<'VTT'
 WEBVTT

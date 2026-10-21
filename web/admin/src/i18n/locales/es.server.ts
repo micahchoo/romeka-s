@@ -263,6 +263,8 @@ export const esServer: ServerCatalogue = {
   'server.importZipUnreadable': 'Se rechazó el ZIP: no se pudo leer ({reason}). No se añadió nada de él.',
   'server.importZipUnpacked': 'Se descomprimió el ZIP: se añadieron {count} archivos.',
   'server.importSweepDone': 'Se quitaron los archivos de {imports} importaciones y {uploads} subidas sin terminar.',
+  'server.importAccessFailed': 'No se puso en cola ninguna copia reproducible del medio {media}: {reason}',
+  'server.importAccessUnread': 'No se puso en cola ninguna copia reproducible para esta importación: {reason}',
   'server.mediaUploadNotFound': 'Esta cuenta no tiene ninguna subida preparada con el id "{upload}".',
   'server.mediaUploadBusy': 'La subida "{upload}" se está añadiendo en este momento. Espere a que termine e inténtelo de nuevo.',
   'server.mediaUploadIncomplete': 'Esta subida tiene {received} de sus {length} bytes. Envíe el resto antes de añadirla.',
