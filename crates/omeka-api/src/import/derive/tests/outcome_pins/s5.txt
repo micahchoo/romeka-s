@@ -1,0 +1,59 @@
+item group:IMG_0001 create
+  file s1/DCIM/100CANON/IMG_0001.JPG
+  row shots/IMG_0001.JPG#1
+  media file:s1/DCIM/100CANON/IMG_0001.JPG
+  slot itemKey literal "IMG_0001"
+  slot dcterms:identifier literal "IMG_0001"
+  slot dcterms:title literal "Gate"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey IMG_0001
+item group:IMG_0002 create
+  file s1/DCIM/100CANON/IMG_0002.JPG
+  media file:s1/DCIM/100CANON/IMG_0002.JPG
+  slot itemKey literal "IMG_0002"
+  slot dcterms:identifier literal "IMG_0002"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey IMG_0002
+item group:IMG_0003 create
+  file s1/DCIM/100CANON/IMG_0003.JPG
+  row shots/IMG_0003.jpg#1
+  media file:s1/DCIM/100CANON/IMG_0003.JPG
+  slot itemKey literal "IMG_0003"
+  slot dcterms:identifier literal "IMG_0003"
+  slot dcterms:title literal "Harbour"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey IMG_0003
+item row:shots/IMG_0099.JPG#1 create
+  row shots/IMG_0099.JPG#1
+  slot itemKey literal "IMG_0099.JPG"
+  slot dcterms:identifier literal "IMG_0099.JPG"
+  slot dcterms:title literal "Lost"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey IMG_0099.JPG
+media file:s1/DCIM/100CANON/IMG_0001.JPG create
+  file s1/DCIM/100CANON/IMG_0001.JPG
+  parent group:IMG_0001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/DCIM/100CANON/IMG_0002.JPG create
+  file s1/DCIM/100CANON/IMG_0002.JPG
+  parent group:IMG_0002
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/DCIM/100CANON/IMG_0003.JPG create
+  file s1/DCIM/100CANON/IMG_0003.JPG
+  parent group:IMG_0003
+  template existing 1
+  owner is runner
+  visibility private
+flag no-file keep 1

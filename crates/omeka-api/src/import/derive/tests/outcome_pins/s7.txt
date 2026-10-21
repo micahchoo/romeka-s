@@ -1,0 +1,13 @@
+item row:r/L1#1 create
+  row r/L1#1
+  slot itemKey literal "L1"
+  slot dcterms:identifier literal "L1"
+  slot dcterms:subject literal "family"
+  slot dcterms:subject literal "travel"
+  slot dcterms:title literal "Letter" @en
+  slot dcterms:title literal "पत्र" @hi
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey L1
+flag no-file keep 1

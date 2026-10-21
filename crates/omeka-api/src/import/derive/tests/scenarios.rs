@@ -53,6 +53,49 @@ fn bhc_plan(pattern: &str, decisions: serde_json::Value) -> ImportPlanV2 {
     })
 }
 
+/// A scenario's evidence, plan and install, as the derive takes them.
+pub struct Scenario {
+    pub index: Index,
+    pub sheets: Sheets,
+    pub plan: ImportPlanV2,
+    pub catalog: Catalog,
+}
+
+impl Scenario {
+    fn new(index: Index, sheets: Sheets, plan: ImportPlanV2) -> Self {
+        Self {
+            index,
+            sheets,
+            plan,
+            catalog: catalog(),
+        }
+    }
+
+    pub fn derive(&self) -> Model {
+        derive(
+            &self.index,
+            &self.sheets,
+            &self.plan,
+            &self.catalog,
+            &NoTags,
+        )
+    }
+}
+
+pub type Build = fn() -> Scenario;
+
+/// S1 to S8 by name, for the outcome pins.
+pub const S1_TO_S8: [(&str, Build); 8] = [
+    ("s1", s1),
+    ("s2", s2),
+    ("s3", s3),
+    ("s4", s4),
+    ("s5", s5),
+    ("s6", s6),
+    ("s7", s7),
+    ("s8", s8),
+];
+
 fn items_in_set(model: &Model, title: &str) -> usize {
     let set = model
         .new_sets
@@ -65,10 +108,16 @@ fn items_in_set(model: &Model, title: &str) -> usize {
         .count()
 }
 
+fn s1() -> Scenario {
+    Scenario {
+        catalog: bhc_catalog(),
+        ..Scenario::new(bhc_index(), Sheets::new(), bhc_plan(BHC, json!([])))
+    }
+}
+
 #[test]
 fn s1_the_bhc_006_demo() {
-    let plan = bhc_plan(BHC, json!([]));
-    let model = derive(&bhc_index(), &Sheets::new(), &plan, &bhc_catalog(), &NoTags);
+    let model = s1().derive();
     assert_eq!(items_in_set(&model, "Artifacts"), 4);
     assert_eq!(items_in_set(&model, "Photographs"), 4);
     assert_eq!(items_in_set(&model, "Scans"), 1);
@@ -100,8 +149,7 @@ fn s1_the_bhc_006_demo() {
     );
 }
 
-#[test]
-fn s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself() {
+fn s2() -> Scenario {
     let files = [
         ("पत्र_001_आगे.jpg", JPEG),
         ("पत्र_001_पीछे.jpg", JPEG),
@@ -113,7 +161,12 @@ fn s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itsel
         plan["grouping"]["pattern"] =
             json!(r"^(?<identifier>[^_]+_[^_.]+)(?:_(?<part>[^.]+))?\.jpg$")
     });
-    let model = run(&index(&files), &Sheets::new(), &plan);
+    Scenario::new(index(&files), Sheets::new(), plan)
+}
+
+#[test]
+fn s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itself() {
+    let model = s2().derive();
     let keys: Vec<&str> = kept(&model, RecordKind::Item)
         .iter()
         .filter_map(|record| record.resolved.item_key.as_deref())
@@ -128,8 +181,7 @@ fn s2_names_in_any_script_make_one_item_per_object_and_the_example_matches_itsel
     assert!(!example.unmatched, "the example matches itself");
 }
 
-#[test]
-fn s3_template_and_set_come_from_a_name_part_in_a_flat_folder_with_a_register() {
+fn s3() -> Scenario {
     let files = [
         ("BHC_006_AF_001.jpg", JPEG),
         ("BHC_006_AF_002.jpg", JPEG),
@@ -160,13 +212,17 @@ fn s3_template_and_set_come_from_a_name_part_in_a_flat_folder_with_a_register() 
         label: "Photograph".into(),
         fields: Vec::new(),
     });
-    let model = derive(
-        &index(&files),
-        &read_sheets(&plan, &[("register", csv)]),
-        &plan,
-        &catalog,
-        &NoTags,
-    );
+    Scenario {
+        index: index(&files),
+        sheets: read_sheets(&plan, &[("register", csv)]),
+        plan,
+        catalog,
+    }
+}
+
+#[test]
+fn s3_template_and_set_come_from_a_name_part_in_a_flat_folder_with_a_register() {
+    let model = s3().derive();
     let lamp = item(&model, "BHC_006_AF_001");
     assert_eq!(lamp.resolved.template, Some(TemplateRef::Existing(7)));
     assert_eq!(texts(lamp, "dcterms:title"), ["Brass lamp"]);
@@ -178,8 +234,7 @@ fn s3_template_and_set_come_from_a_name_part_in_a_flat_folder_with_a_register() 
     assert_eq!(items_in_set(&model, "Photographs"), 1);
 }
 
-#[test]
-fn s4_one_item_per_folder_pair_media_in_page_order_first_page_primary() {
+fn s4() -> Scenario {
     let files = [
         ("Box 1/Folder 1/0002.tif", TIFF),
         ("Box 1/Folder 1/0010.tif", TIFF),
@@ -191,7 +246,12 @@ fn s4_one_item_per_folder_pair_media_in_page_order_first_page_primary() {
         plan["grouping"]["pattern"] =
             json!(r"^(?<identifier>Box \d+/Folder \d+)/(?<part>\d+)\.tif$")
     });
-    let model = run(&index(&files), &Sheets::new(), &plan);
+    Scenario::new(index(&files), Sheets::new(), plan)
+}
+
+#[test]
+fn s4_one_item_per_folder_pair_media_in_page_order_first_page_primary() {
+    let model = s4().derive();
     assert_eq!(kept(&model, RecordKind::Item).len(), 3);
     let folder = item(&model, "Box 1/Folder 1");
     assert_eq!(
@@ -204,8 +264,7 @@ fn s4_one_item_per_folder_pair_media_in_page_order_first_page_primary() {
     );
 }
 
-#[test]
-fn s5_a_camera_dump_joins_a_sheet_by_file_name() {
+fn s5() -> Scenario {
     let files = [
         ("DCIM/100CANON/IMG_0001.JPG", JPEG),
         ("DCIM/100CANON/IMG_0002.JPG", JPEG),
@@ -219,11 +278,13 @@ fn s5_a_camera_dump_joins_a_sheet_by_file_name() {
     });
     let csv: &[u8] =
         b"File name,Caption\nIMG_0003.jpg,Harbour\nIMG_0001.JPG,Gate\nIMG_0099.JPG,Lost\n";
-    let model = run(
-        &index(&files),
-        &read_sheets(&plan, &[("shots", csv)]),
-        &plan,
-    );
+    let sheets = read_sheets(&plan, &[("shots", csv)]);
+    Scenario::new(index(&files), sheets, plan)
+}
+
+#[test]
+fn s5_a_camera_dump_joins_a_sheet_by_file_name() {
+    let model = s5().derive();
     assert_eq!(texts(item(&model, "IMG_0001"), "dcterms:title"), ["Gate"]);
     assert_eq!(
         texts(item(&model, "IMG_0003"), "dcterms:title"),
@@ -237,8 +298,7 @@ fn s5_a_camera_dump_joins_a_sheet_by_file_name() {
     );
 }
 
-#[test]
-fn s6_a_register_with_one_row_per_image_attaches_media_by_item_key() {
+fn s6() -> Scenario {
     let files = [
         ("scans/s001.tif", TIFF),
         ("scans/s002.tif", TIFF),
@@ -260,11 +320,13 @@ fn s6_a_register_with_one_row_per_image_attaches_media_by_item_key() {
     });
     let objects: &[u8] = b"Id,Title\nO1,Diary\nO2,Map\n";
     let images: &[u8] = b"Object,File,Page\nO1,s002.tif,2\nO2,s003.tif,1\nO1,s001.tif,1\n";
-    let model = run(
-        &index(&files),
-        &read_sheets(&plan, &[("objects", objects), ("images", images)]),
-        &plan,
-    );
+    let sheets = read_sheets(&plan, &[("objects", objects), ("images", images)]);
+    Scenario::new(index(&files), sheets, plan)
+}
+
+#[test]
+fn s6_a_register_with_one_row_per_image_attaches_media_by_item_key() {
+    let model = s6().derive();
     assert_eq!(
         media_paths(&model, item(&model, "O1")),
         ["scans/s001.tif", "scans/s002.tif"]
@@ -273,8 +335,7 @@ fn s6_a_register_with_one_row_per_image_attaches_media_by_item_key() {
     assert_eq!(kept(&model, RecordKind::Media).len(), 3);
 }
 
-#[test]
-fn s7_a_utf16_tsv_splits_values_and_sets_languages() {
+fn s7() -> Scenario {
     let text = "Id\tTitle_en\tTitle_hi\tSubjects\r\nL1\tLetter\tपत्र\tfamily|travel\r\n";
     let mut bytes = vec![0xFF, 0xFE];
     bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
@@ -292,7 +353,13 @@ fn s7_a_utf16_tsv_splits_values_and_sets_languages() {
         );
         plan["slots"]["item"]["dcterms:subject"] = rule(json!([col("r", 3, "Subjects")]), "first");
     });
-    let model = run(&index(&[]), &read_sheets(&plan, &[("r", &bytes)]), &plan);
+    let sheets = read_sheets(&plan, &[("r", &bytes)]);
+    Scenario::new(index(&[]), sheets, plan)
+}
+
+#[test]
+fn s7_a_utf16_tsv_splits_values_and_sets_languages() {
+    let model = s7().derive();
     let letter = item(&model, "L1");
     assert_eq!(texts(letter, "dcterms:subject"), ["family", "travel"]);
     let titles =
@@ -304,8 +371,7 @@ fn s7_a_utf16_tsv_splits_values_and_sets_languages() {
     assert_eq!(pairs, [("Letter", Some("en")), ("पत्र", Some("hi"))]);
 }
 
-#[test]
-fn s8_a_mixed_sheet_makes_item_sets_items_and_media_linked_by_identifier() {
+fn s8() -> Scenario {
     let headers = ["Kind", "Id", "Title", "Set", "Item", "URL", "Related"];
     let plan = plan(|plan| {
         plan["sheets"] = json!([sheet_plan("mixed", &headers)]);
@@ -328,7 +394,13 @@ fn s8_a_mixed_sheet_makes_item_sets_items_and_media_linked_by_identifier() {
         item,L1,First letter,SET1,,,\n\
         item,L2,Reply,SET1,,,L1\n\
         media,,,,L1,https://example.org/1.jpg,\n";
-    let model = run(&index(&[]), &read_sheets(&plan, &[("mixed", csv)]), &plan);
+    let sheets = read_sheets(&plan, &[("mixed", csv)]);
+    Scenario::new(index(&[]), sheets, plan)
+}
+
+#[test]
+fn s8_a_mixed_sheet_makes_item_sets_items_and_media_linked_by_identifier() {
+    let model = s8().derive();
     let set = kept(&model, RecordKind::ItemSet);
     assert_eq!(set.len(), 1);
     assert_eq!(kept(&model, RecordKind::Item).len(), 2);

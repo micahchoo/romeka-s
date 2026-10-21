@@ -1,0 +1,58 @@
+item group:BHC_006_AF_001 create
+  file s1/BHC_006_AF_001.jpg
+  row register/BHC_006_AF_001#1
+  media file:s1/BHC_006_AF_001.jpg
+  slot sets literal "Artifacts"
+  slot template literal "Artifact"
+  slot itemKey literal "BHC_006_AF_001"
+  slot dcterms:identifier literal "BHC_006_AF_001"
+  slot dcterms:title literal "Brass lamp"
+  set new "Artifacts"
+  template existing 7
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_001
+item group:BHC_006_AF_002 create
+  file s1/BHC_006_AF_002.jpg
+  media file:s1/BHC_006_AF_002.jpg
+  slot sets literal "Artifacts"
+  slot template literal "Artifact"
+  slot itemKey literal "BHC_006_AF_002"
+  slot dcterms:identifier literal "BHC_006_AF_002"
+  set new "Artifacts"
+  template existing 7
+  owner is runner
+  visibility private
+  itemKey BHC_006_AF_002
+item group:BHC_006_PH_101 create
+  file s1/BHC_006_PH_101.jpg
+  row register/BHC_006_PH_101#1
+  media file:s1/BHC_006_PH_101.jpg
+  slot sets literal "Photographs"
+  slot template literal "Photograph"
+  slot itemKey literal "BHC_006_PH_101"
+  slot dcterms:identifier literal "BHC_006_PH_101"
+  slot dcterms:title literal "Wedding"
+  set new "Photographs"
+  template existing 8
+  owner is runner
+  visibility private
+  itemKey BHC_006_PH_101
+media file:s1/BHC_006_AF_001.jpg create
+  file s1/BHC_006_AF_001.jpg
+  parent group:BHC_006_AF_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/BHC_006_AF_002.jpg create
+  file s1/BHC_006_AF_002.jpg
+  parent group:BHC_006_AF_002
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/BHC_006_PH_101.jpg create
+  file s1/BHC_006_PH_101.jpg
+  parent group:BHC_006_PH_101
+  template existing 1
+  owner is runner
+  visibility private

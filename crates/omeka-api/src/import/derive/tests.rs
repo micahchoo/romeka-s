@@ -8,6 +8,7 @@ mod anomalies;
 mod answers;
 mod decide;
 mod matching;
+mod outcome_pins;
 mod perf;
 mod scenarios;
 mod slots;
