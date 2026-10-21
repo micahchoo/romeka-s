@@ -665,6 +665,7 @@ async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
         database: database.into(),
         store: Some(harness._dir.path().join("files")),
         retry: true,
+        redo: None,
         media: Some(media.0),
     })
     .await
@@ -1030,6 +1031,7 @@ async fn the_backfill_queues_and_makes_a_media_the_import_left_bare() {
         database: harness._dir.path().join("romeka.db").into(),
         store: Some(harness._dir.path().join("files")),
         retry: false,
+        redo: None,
         media: Some(media.0),
     })
     .await
@@ -1042,6 +1044,427 @@ async fn the_backfill_queues_and_makes_a_media_the_import_left_bare() {
         .find(|row| row.kind.is_preview())
         .expect("the poster row");
     assert_eq!(preview.state, DerivativeState::Ready, "{report:?}");
+}
+
+/// The demo's gap: a media whose only work is an access copy waited for the
+/// hourly sweep, because the command only ran a worker when it had queued a
+/// preview. The run makes the copy itself and its summary counts the access row.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_backfill_makes_an_access_copy_and_counts_its_row() {
+    if Tools::on_path().ffmpeg().is_none() || Tools::on_path().ffprobe().is_none() {
+        eprintln!("skipping: no ffmpeg or ffprobe on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let (media, storage_id) = insert_media(&harness, "video/x-msvideo", "avi", &avi()).await;
+
+    let report = derivatives::run(&DerivativeOptions {
+        database: harness._dir.path().join("romeka.db").into(),
+        store: Some(harness._dir.path().join("files")),
+        retry: false,
+        redo: None,
+        media: Some(media.0),
+    })
+    .await
+    .expect("the backfill ran");
+
+    assert_eq!(
+        report.queued, 2,
+        "the access copy and the poster: {report:?}"
+    );
+    let copy = report
+        .rows
+        .iter()
+        .find(|row| row.kind == DerivativeKind::AccessCopy)
+        .expect("the access row");
+    assert_eq!(copy.state, DerivativeState::Ready, "{report:?}");
+    assert!(
+        harness
+            .store
+            .exists(&format!("access/{storage_id}.mp4"))
+            .expect("the store answers"),
+        "the run made the copy, not the next sweep"
+    );
+}
+
+/// A row a build before the words named the reader stores "a browser shows the
+/// original" for a TIFF or JPEG 2000. The backfill re-decides and corrects the
+/// words without touching the state: the image server is what reads it.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_backfill_corrects_the_words_a_copy_row_was_given() {
+    if Tools::on_path().vips().is_none() {
+        eprintln!("skipping: no vips on PATH");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("tempdir");
+    let jp2 = dir.path().join("scan.jp2");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/image.png");
+    let status = std::process::Command::new("vips")
+        .args(["copy"])
+        .arg(source)
+        .arg(&jp2)
+        .status()
+        .expect("vips runs");
+    assert!(status.success(), "vips wrote the JPEG 2000");
+    let bytes = std::fs::read(&jp2).expect("the JPEG 2000");
+
+    let harness = harness().await;
+    let (media, _) = insert_media(&harness, "image/jp2", "jp2", &bytes).await;
+    // The words an older build stored for this original.
+    with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .plan(
+            &NewDerivative {
+                media_id: media,
+                kind: DerivativeKind::AccessCopy,
+            },
+            DerivativeState::None,
+            Some("a browser shows the original"),
+            None,
+        )
+        .await)
+    .expect("the old row");
+
+    let report = derivatives::run(&DerivativeOptions {
+        database: harness._dir.path().join("romeka.db").into(),
+        store: Some(harness._dir.path().join("files")),
+        retry: false,
+        redo: None,
+        media: Some(media.0),
+    })
+    .await
+    .expect("the backfill ran");
+
+    let copy = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(media, DerivativeKind::AccessCopy)
+        .await)
+    .expect("the row")
+    .expect("the access row");
+    assert_eq!(copy.state, DerivativeState::None, "{copy:?}");
+    assert_eq!(
+        copy.reason.as_deref(),
+        Some("the image server reads the original"),
+        "the words name what reads this original: {report:?}"
+    );
+}
+
+/// A ready copy can be made again: `--redo` queues it, the worker writes the
+/// new file over the same path, and the original is untouched. The old copy is
+/// never removed first, so a worker that fails leaves the copy that played.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_redo_makes_a_ready_copy_again_and_a_failed_redo_keeps_the_old_one() {
+    if Tools::on_path().ffmpeg().is_none() || Tools::on_path().ffprobe().is_none() {
+        eprintln!("skipping: no ffmpeg or ffprobe on PATH");
+        return;
+    }
+    use omeka_api::derivatives::settle_next_with;
+
+    let harness = harness().await;
+    let (media, storage_id) = insert_media(&harness, "video/x-msvideo", "avi", &avi()).await;
+    let copy = format!("access/{storage_id}.mp4");
+    let made = derivatives::run(&DerivativeOptions {
+        database: harness._dir.path().join("romeka.db").into(),
+        store: Some(harness._dir.path().join("files")),
+        retry: false,
+        redo: None,
+        media: Some(media.0),
+    })
+    .await
+    .expect("the first run");
+    assert_eq!(made.redone, 0, "{made:?}");
+    let first = harness.store.read(&copy).expect("the first copy");
+
+    // `--redo video` queues the ready copy and the worker replaces it.
+    let again = derivatives::run(&DerivativeOptions {
+        database: harness._dir.path().join("romeka.db").into(),
+        store: Some(harness._dir.path().join("files")),
+        retry: false,
+        redo: Some(derivatives::Redo::Kind(derivatives::RedoKind::Video)),
+        media: Some(media.0),
+    })
+    .await
+    .expect("the redo run");
+    assert_eq!(again.redone, 1, "{again:?}");
+    assert_eq!(
+        harness.store.read(&copy).expect("the new copy"),
+        first,
+        "the same source makes the same copy"
+    );
+
+    // The old file stays while the new one is made: a redo on its own leaves
+    // the copy where it is, and a worker that fails leaves it there too.
+    let before = harness
+        .store
+        .read(&copy)
+        .expect("the copy before the failure");
+    assert!(
+        with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+            .redo(media, DerivativeKind::AccessCopy)
+            .await)
+        .expect("the second redo")
+    );
+    assert_eq!(
+        harness.store.read(&copy).expect("the old copy"),
+        before,
+        "the old copy stays until the new one is written"
+    );
+    let dir = tempfile::tempdir().expect("tempdir");
+    let ffmpeg = dir.path().join("ffmpeg");
+    std::fs::write(&ffmpeg, "#!/bin/sh\nexit 1\n").expect("the stand-in ffmpeg");
+    let ffprobe = dir.path().join("ffprobe");
+    std::fs::write(
+        &ffprobe,
+        "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
+    )
+    .expect("the stand-in ffprobe");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        for tool in [&ffmpeg, &ffprobe] {
+            std::fs::set_permissions(tool, std::fs::Permissions::from_mode(0o755))
+                .expect("make it executable");
+        }
+    }
+    let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
+    settle_next_with(&harness.pool, &harness.store, &tools, None)
+        .await
+        .expect("the failing worker");
+    let row = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(media, DerivativeKind::AccessCopy)
+        .await)
+    .expect("the row")
+    .expect("the access row");
+    assert_eq!(row.state, DerivativeState::Failed, "{row:?}");
+    assert_eq!(
+        harness.store.read(&copy).expect("the old copy"),
+        before,
+        "a failed redo keeps the copy that played"
+    );
+    assert!(
+        harness
+            .store
+            .exists(&format!("original/{storage_id}.avi"))
+            .expect("the store answers"),
+        "the original is never changed"
+    );
+}
+
+/// An undo during a copy: the worker writes `access/<id>.mp4`, then finds the
+/// media row gone and removes its output rather than leaving a file nothing
+/// names.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_undo_during_a_copy_removes_the_copy_it_wrote() {
+    use omeka_api::derivatives::settle_next_with;
+
+    let harness = harness().await;
+    let (media, storage_id) = insert_media(&harness, "video/x-msvideo", "avi", &avi()).await;
+    let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
+        .expect("media")
+        .expect("the row");
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+        .await
+        .expect("queue");
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let ffmpeg = dir.path().join("ffmpeg");
+    std::fs::write(
+        &ffmpeg,
+        "#!/bin/sh\n\
+         for last in \"$@\"; do out=$last; done\n\
+         printf 'out_time_us=1000000\\nprogress=continue\\n'\n\
+         sleep 1\n\
+         printf 'a copy' > \"$out\"\n",
+    )
+    .expect("the stand-in ffmpeg");
+    let ffprobe = dir.path().join("ffprobe");
+    std::fs::write(
+        &ffprobe,
+        "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
+    )
+    .expect("the stand-in ffprobe");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        for tool in [&ffmpeg, &ffprobe] {
+            std::fs::set_permissions(tool, std::fs::Permissions::from_mode(0o755))
+                .expect("make it executable");
+        }
+    }
+    let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
+
+    let task = tokio::spawn({
+        let pool = harness.pool.clone();
+        let store = Arc::clone(&harness.store);
+        async move { settle_next_with(&pool, &store, &tools, None).await }
+    });
+    let started = Instant::now();
+    loop {
+        let running = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+            .get(media, DerivativeKind::AccessCopy)
+            .await)
+        .expect("the row");
+        if running
+            .as_ref()
+            .is_some_and(|row| row.state == DerivativeState::Running)
+        {
+            break;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "the copy did not start: {running:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    // The undo: the media row goes, and the derivative rows cascade with it.
+    with_db!(&harness.pool, |db| MediaRepo::new(db).delete(media).await)
+        .expect("the media was removed");
+    task.await
+        .expect("the worker task")
+        .expect("the worker ran");
+
+    assert!(
+        !harness
+            .store
+            .exists(&format!("access/{storage_id}.mp4"))
+            .expect("the store answers"),
+        "the copy nothing names was removed"
+    );
+}
+
+/// The first page a document's preview paints comes from its copy, so the copy
+/// is not announced `ready` until those thumbnails exist. The store below
+/// records the row's state every time the thumbnails read the copy.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_document_copy_settles_after_its_first_page_exists() {
+    if Tools::on_path().soffice().is_none() || Tools::on_path().pdftoppm().is_none() {
+        eprintln!("skipping: no soffice or pdftoppm on PATH");
+        return;
+    }
+    use omeka_api::derivatives::settle_next_with;
+
+    #[derive(Debug)]
+    struct WatchingStore {
+        inner: FileStore,
+        pool: DbPool,
+        media: MediaId,
+        handle: tokio::runtime::Handle,
+        seen: Arc<Mutex<Vec<DerivativeState>>>,
+    }
+
+    impl Store for WatchingStore {
+        fn put(
+            &self,
+            bytes: &[u8],
+            path: &str,
+            media_type: Option<&str>,
+        ) -> Result<(), StoreError> {
+            self.inner.put(bytes, path, media_type)
+        }
+        fn put_stream(
+            &self,
+            reader: &mut dyn std::io::Read,
+            size_hint: Option<u64>,
+            path: &str,
+            media_type: Option<&str>,
+        ) -> Result<u64, StoreError> {
+            self.inner.put_stream(reader, size_hint, path, media_type)
+        }
+        fn read(&self, path: &str) -> Result<Vec<u8>, StoreError> {
+            self.watch(path);
+            self.inner.read(path)
+        }
+        fn read_range(&self, path: &str, range: Range<u64>) -> Result<Vec<u8>, StoreError> {
+            self.watch(path);
+            self.inner.read_range(path, range)
+        }
+        fn delete(&self, path: &str) -> Result<bool, StoreError> {
+            self.inner.delete(path)
+        }
+        fn exists(&self, path: &str) -> Result<bool, StoreError> {
+            self.inner.exists(path)
+        }
+        fn size(&self, path: &str) -> Result<Option<u64>, StoreError> {
+            self.inner.size(path)
+        }
+        fn list(&self, prefix: &str) -> Result<Vec<ListedFile>, StoreError> {
+            self.inner.list(prefix)
+        }
+        fn url(&self, path: &str, access: Access) -> String {
+            self.inner.url(path, access)
+        }
+        fn url_ttl(&self) -> Duration {
+            self.inner.url_ttl()
+        }
+    }
+
+    impl WatchingStore {
+        /// Record the access row's state while its copy is read for thumbnails.
+        /// The read runs on a blocking thread, so it may wait on the database
+        /// here while the worker holds the row.
+        fn watch(&self, path: &str) {
+            if !path.starts_with("access/") {
+                return;
+            }
+            let pool = self.pool.clone();
+            let media = self.media;
+            let row = self.handle.block_on(async move {
+                with_db!(&pool, |db| MediaDerivativeRepo::new(db)
+                    .get(media, DerivativeKind::AccessCopy)
+                    .await)
+                .ok()
+                .flatten()
+            });
+            if let Some(row) = row {
+                self.seen.lock().unwrap().push(row.state);
+            }
+        }
+    }
+
+    let harness = harness().await;
+    let bytes = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/doc.docx"),
+    )
+    .expect("the document");
+    let (media, _) = insert_media(
+        &harness,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "docx",
+        &bytes,
+    )
+    .await;
+    let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
+        .expect("media")
+        .expect("the row");
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+        .await
+        .expect("queue");
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let watching: std::sync::Arc<dyn Store> = std::sync::Arc::new(WatchingStore {
+        inner: FileStore::new(harness._dir.path().join("files"), omeka_server::FILES_URI),
+        pool: harness.pool.clone(),
+        media,
+        handle: tokio::runtime::Handle::current(),
+        seen: Arc::clone(&seen),
+    });
+    settle_next_with(&harness.pool, &watching, Tools::on_path(), None)
+        .await
+        .expect("the worker");
+
+    let seen = seen.lock().unwrap().clone();
+    assert!(
+        !seen.is_empty(),
+        "the thumbnails read the copy, so the row was observed"
+    );
+    assert!(
+        seen.iter().all(|state| *state == DerivativeState::Running),
+        "the copy is not announced ready while its first page is made: {seen:?}"
+    );
+    let done = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(media, DerivativeKind::AccessCopy)
+        .await)
+    .expect("the row")
+    .expect("the access row");
+    assert_eq!(done.state, DerivativeState::Ready, "{done:?}");
 }
 
 #[test]

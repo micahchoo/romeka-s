@@ -175,10 +175,19 @@ pub async fn enqueue_access(
         media_id: row.id(),
         kind: DerivativeKind::AccessCopy,
     };
-    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+    let planned = with_db!(pool, |db| MediaDerivativeRepo::new(db)
         .plan(&new, state, reason.as_deref(), tool.as_deref())
         .await)
     .map_err(db_error)?;
+    // The row already existed, so it keeps its words. A row settled before the
+    // words named the reader of the original can still be corrected: the
+    // decision is about the same file, and only the words changed.
+    if !planned && let Access::Original(reader) = access {
+        with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .refresh_original_reason(row.id(), reader.reason())
+            .await)
+        .map_err(db_error)?;
+    }
     Ok(Some(AccessDecision {
         access,
         state,
@@ -194,7 +203,7 @@ fn recorded(access: Access, queue: Queue) -> (DerivativeState, Option<String>, O
         Queue::None { reason } => {
             let tool = match access {
                 Access::Copy { tools, .. } => tools.first().map(|tool| tool.command().to_string()),
-                Access::Original => None,
+                Access::Original(_) => None,
             };
             (DerivativeState::None, Some(reason), tool)
         }
@@ -243,6 +252,20 @@ fn decide(store: &dyn Store, source: &Source) -> Option<(Access, Queue)> {
     let facts = access::facts(store, tools, &source.file());
     let access = Access::of(&facts)?;
     Some((access, access.queue(tools)))
+}
+
+/// Re-queue one media's access copy after its tool failed, or after a tool a
+/// previous decision found missing was installed. `false` when the media has no
+/// access row, or its row is waiting, ready, or settled because the original is
+/// what the reader gets: there is nothing to make again.
+///
+/// # Errors
+/// A database error reading or writing the row.
+pub async fn retry_access(pool: &DbPool, media: omeka_db::ids::MediaId) -> Result<bool, ApiError> {
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .retry(media, DerivativeKind::AccessCopy)
+        .await)
+    .map_err(db_error)
 }
 
 /// Queue a worker run when rows are waiting and no worker holds the queue.
@@ -502,18 +525,27 @@ async fn settle_image_master(
         has_original: media.has_original,
         size: media.size.and_then(|size| u64::try_from(size).ok()),
     };
-    let store = Arc::clone(store);
+    let storage_id = source.storage_id.clone();
+    let worker_store = Arc::clone(store);
     let tools = tools.clone();
-    let work = tokio::task::spawn_blocking(move || make_master(store.as_ref(), &tools, &source))
-        .await
-        .map_err(|error| {
-            ApiError::internal(format!("the access master did not finish: {error}"))
-        })?;
+    let work =
+        tokio::task::spawn_blocking(move || make_master(worker_store.as_ref(), &tools, &source))
+            .await
+            .map_err(|error| {
+                ApiError::internal(format!("the access master did not finish: {error}"))
+            })?;
     let state = match &work {
         MasterWork::Ready { .. } => DerivativeState::Ready,
         MasterWork::Skipped { .. } => DerivativeState::None,
         MasterWork::Failed { .. } => DerivativeState::Failed,
     };
+    // The same undo race a copy has: the master and its thumbnails are written
+    // before the row is settled, and a media removed meanwhile leaves files
+    // nothing names.
+    if state == DerivativeState::Ready && media_gone(pool, row.media_id).await? {
+        remove_image_master(store, &storage_id);
+        return Ok(Some(Settled::Gone));
+    }
     with_db!(pool, |db| MediaDerivativeRepo::new(db)
         .finish(
             row.media_id,
@@ -597,7 +629,7 @@ async fn settle_copy(
         // D2's open item: the create-time probe may have failed on a file a
         // browser plays. Re-probing costs a bounded sample; a transcode costs
         // the length of the file.
-        let reason = access::ORIGINAL_REASON.to_string();
+        let reason = access::OriginalReader::Browser.reason().to_string();
         settle_row(pool, row, DerivativeState::None, Some(reason.clone()), None).await?;
         return Ok(Some(Settled::State {
             state: DerivativeState::None,
@@ -605,7 +637,7 @@ async fn settle_copy(
         }));
     }
     let source = TranscodeSource {
-        storage_id,
+        storage_id: storage_id.clone(),
         extension: media.extension.clone(),
         media_type: Some(media_type),
         has_original: media.has_original,
@@ -624,10 +656,20 @@ async fn settle_copy(
             }));
         }
     };
-    settle_row(pool, row, state, reason.clone(), work.tool()).await?;
     if state == DerivativeState::Ready {
+        // An undo can remove the media while the copy runs. The copy is
+        // written before this check, so a row that is gone leaves bytes that
+        // nothing names: remove them here rather than waiting for a sweep.
+        if media_gone(pool, row.media_id).await? {
+            remove_copy(store, &storage_id, target);
+            return Ok(Some(Settled::Gone));
+        }
+        // The first page a document's preview paints comes from this copy, so
+        // the row is settled after those thumbnails exist. A reader between
+        // the two then sees the copy running, not a media that reads `none`.
         poster_after_copy(pool, store, row, target).await?;
     }
+    settle_row(pool, row, state, reason.clone(), work.tool()).await?;
     Ok(Some(Settled::State { state, reason }))
 }
 
@@ -722,7 +764,7 @@ async fn replayed_as_original(
     })
     .await;
     match probed {
-        Ok(facts) => Access::of(&facts) == Some(Access::Original),
+        Ok(facts) => matches!(Access::of(&facts), Some(Access::Original(_))),
         Err(_) => false,
     }
 }
@@ -777,6 +819,32 @@ async fn poster_after_copy(
         mark_thumbnails(pool, row.media_id).await?;
     }
     Ok(())
+}
+
+/// Whether the media the row names is still there. An undo removes the media
+/// and the derivative rows cascade with it.
+async fn media_gone(pool: &DbPool, media: omeka_db::ids::MediaId) -> Result<bool, ApiError> {
+    Ok(with_db!(pool, |db| MediaRepo::new(db).get(media).await)
+        .map_err(db_error)?
+        .is_none())
+}
+
+/// Delete a copy whose media no longer exists. A missing file is already the
+/// state wanted.
+fn remove_copy(store: &Arc<dyn Store>, storage_id: &str, target: AccessTarget) {
+    let path = access::copy_path(storage_id, target);
+    // Nothing names the file any more, and no reader can reach it: a store that
+    // refuses the delete leaves bytes a later sweep reports, not a broken read.
+    let _ = store.delete(&path);
+}
+
+/// Delete the JPEG master and the three thumbnails whose media no longer
+/// exists. A missing file is already the state wanted.
+fn remove_image_master(store: &Arc<dyn Store>, storage_id: &str) {
+    let _ = store.delete(&access::copy_path(storage_id, AccessTarget::Jpeg));
+    for kind in ThumbnailType::ALL {
+        let _ = store.delete(&omeka_media::thumbnailer::thumbnail_path(storage_id, kind));
+    }
 }
 
 /// Put a claimed row back in the queue.
@@ -1043,8 +1111,10 @@ mod tests {
     /// The original stands, and the row says so in the words the admin shows.
     #[test]
     fn an_original_records_none_with_its_words() {
-        let (state, reason, tool) =
-            recorded(Access::Original, Access::Original.queue(&Tools::none()));
+        let (state, reason, tool) = recorded(
+            Access::Original(access::OriginalReader::Browser),
+            Access::Original(access::OriginalReader::Browser).queue(&Tools::none()),
+        );
         assert_eq!(state, DerivativeState::None);
         assert_eq!(reason.as_deref(), Some("a browser shows the original"));
         assert!(tool.is_none());

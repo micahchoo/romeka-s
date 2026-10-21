@@ -302,6 +302,7 @@ export const knServer: ServerCatalogue = {
     'ಈ ಅಪ್‌ಲೋಡ್ {length} ಬೈಟ್‌ಗಳಲ್ಲಿ {received} ಅನ್ನು ಹೊಂದಿದೆ. ಅದನ್ನು ಸೇರಿಸುವ ಮೊದಲು ಉಳಿದದ್ದನ್ನು ಕಳುಹಿಸಿ.',
   'server.mediaUploadIngester':
     'ಸ್ಟೇಜ್ ಮಾಡಿದ ಅಪ್‌ಲೋಡ್ ಅನ್ನು ಅಪ್‌ಲೋಡ್ ಇಂಗೆಸ್ಟರ್‌ನೊಂದಿಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ.',
+  'server.noDerivativeToRetry': 'ಈ ಮೀಡಿಯಾ ಯಾವುದೇ ವಿಫಲ ಪ್ರತಿಗಳನ್ನು ಮತ್ತೆ ಮಾಡಲು ಇಲ್ಲ.',
   'server.mediaUploadInline':
     'ಸ್ಟೇಜ್ ಮಾಡಿದ ಅಪ್‌ಲೋಡ್ ಅನ್ನು ಅದರದೇ ಆದ ಮೀಡಿಯಾ ಕ್ರಿಯೇಟ್‌ನೊಂದಿಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ, ಐಟಂನ ಒಳಗೆ ಅಲ್ಲ.',
   'server.uploadTooLarge':

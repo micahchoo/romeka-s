@@ -1,0 +1,68 @@
+item group:José_001 create
+  file s1/José_001.jpg
+  media file:s1/José_001.jpg
+  slot itemKey literal "José_001"
+  slot dcterms:identifier literal "José_001"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey José_001
+item group:Kraków_001 create
+  file s1/Kraków_001.jpg
+  media file:s1/Kraków_001.jpg
+  slot itemKey literal "Kraków_001"
+  slot dcterms:identifier literal "Kraków_001"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey Kraków_001
+item group:LT_௧௨ create
+  file s1/LT_௧௨.jpg
+  media file:s1/LT_௧௨.jpg
+  slot itemKey literal "LT_௧௨"
+  slot dcterms:identifier literal "LT_௧௨"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey LT_௧௨
+item group:पत्र_001 create
+  file s1/पत्र_001_आगे.jpg
+  file s1/पत्र_001_पीछे.jpg
+  media file:s1/पत्र_001_आगे.jpg
+  media file:s1/पत्र_001_पीछे.jpg
+  slot itemKey literal "पत्र_001"
+  slot dcterms:identifier literal "पत्र_001"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey पत्र_001
+media file:s1/José_001.jpg create
+  file s1/José_001.jpg
+  parent group:José_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Kraków_001.jpg create
+  file s1/Kraków_001.jpg
+  parent group:Kraków_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/LT_௧௨.jpg create
+  file s1/LT_௧௨.jpg
+  parent group:LT_௧௨
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/पत्र_001_आगे.jpg create
+  file s1/पत्र_001_आगे.jpg
+  parent group:पत्र_001
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/पत्र_001_पीछे.jpg create
+  file s1/पत्र_001_पीछे.jpg
+  parent group:पत्र_001
+  template existing 1
+  owner is runner
+  visibility private

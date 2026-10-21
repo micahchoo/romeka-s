@@ -292,6 +292,7 @@ export const hiServer: ServerCatalogue = {
   'server.mediaUploadIncomplete':
     'इस अपलोड में इसके {length} बाइट्स का {received} हिस्सा है। इसे जोड़ने से पहले बाकी हिस्सा भेजें।',
   'server.mediaUploadIngester': 'एक स्टेज्ड अपलोड अपलोड इनगेस्टर के साथ जोड़ा गया है।',
+  'server.noDerivativeToRetry': 'इस मीडिया की कोई विफल प्रति नहीं है जिसे फिर से बनाया जा सके।',
   'server.mediaUploadInline':
     'एक स्टेज्ड अपलोड अपनी मीडिया क्रिएशन के साथ जोड़ा गया है, न कि किसी आइटम के अंदर।',
   'server.uploadTooLarge':

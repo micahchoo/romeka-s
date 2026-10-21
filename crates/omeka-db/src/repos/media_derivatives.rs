@@ -110,11 +110,58 @@ where
              SET state = 'pending', reason = NULL, progress = NULL,
                  tool = CASE WHEN kind = 'access_copy' THEN tool ELSE NULL END,
                  queued = ?, started = NULL, finished = NULL
-             WHERE media_id = ? AND kind = ? AND state IN ('failed', 'none')",
+             WHERE media_id = ? AND kind = ?
+               AND (state = 'failed'
+                    OR (state = 'none'
+                        AND (kind <> 'access_copy' OR tool IS NOT NULL)))",
         )
         .bind(time::now())
         .bind(super::bind_id(media))
         .bind(kind.name())
+        .execute(self.pool)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Put a ready row back in the queue so a worker makes it again. The stored
+    /// copy is not removed: the worker writes the new one over the same path
+    /// only when its command succeeds, so a failed redo leaves the old copy
+    /// where it was. `false` when the row is not ready.
+    pub async fn redo(&self, media: MediaId, kind: DerivativeKind) -> Result<bool, DbError> {
+        let done = sqlx::query::<DB>(
+            "UPDATE romeka_media_derivative
+             SET state = 'pending', reason = NULL, progress = NULL,
+                 tool = CASE WHEN kind = 'access_copy' THEN tool ELSE NULL END,
+                 queued = ?, started = NULL, finished = NULL, attempts = 0
+             WHERE media_id = ? AND kind = ? AND state = 'ready'",
+        )
+        .bind(time::now())
+        .bind(super::bind_id(media))
+        .bind(kind.name())
+        .execute(self.pool)
+        .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
+    /// Correct the words a settled `none` access row shows, when a later
+    /// decision names a different reader for the same original: a row a build
+    /// before D5 wrote says a browser shows a TIFF, and the image server is what
+    /// reads it. A row waiting, running, ready or failed, and a row settled
+    /// because its tool is missing, keeps its words. `false` when no row
+    /// changed.
+    pub async fn refresh_original_reason(
+        &self,
+        media: MediaId,
+        reason: &str,
+    ) -> Result<bool, DbError> {
+        let done = sqlx::query::<DB>(
+            "UPDATE romeka_media_derivative SET reason = ?
+             WHERE media_id = ? AND kind = 'access_copy' AND state = 'none'
+               AND tool IS NULL AND (reason IS NULL OR reason <> ?)",
+        )
+        .bind(reason.to_string())
+        .bind(super::bind_id(media))
+        .bind(reason.to_string())
         .execute(self.pool)
         .await?;
         Ok(DB::rows_affected(&done) > 0)

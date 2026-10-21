@@ -1,0 +1,61 @@
+item group:Box 1/Folder 1 create
+  file s1/Box 1/Folder 1/0001.tif
+  file s1/Box 1/Folder 1/0002.tif
+  file s1/Box 1/Folder 1/0010.tif
+  media file:s1/Box 1/Folder 1/0001.tif
+  media file:s1/Box 1/Folder 1/0002.tif
+  media file:s1/Box 1/Folder 1/0010.tif
+  slot itemKey literal "Box 1/Folder 1"
+  slot dcterms:identifier literal "Box 1/Folder 1"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey Box 1/Folder 1
+item group:Box 1/Folder 2 create
+  file s1/Box 1/Folder 2/0001.tif
+  media file:s1/Box 1/Folder 2/0001.tif
+  slot itemKey literal "Box 1/Folder 2"
+  slot dcterms:identifier literal "Box 1/Folder 2"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey Box 1/Folder 2
+item group:Box 2/Folder 1 create
+  file s1/Box 2/Folder 1/0001.tif
+  media file:s1/Box 2/Folder 1/0001.tif
+  slot itemKey literal "Box 2/Folder 1"
+  slot dcterms:identifier literal "Box 2/Folder 1"
+  template existing 1
+  owner is runner
+  visibility private
+  itemKey Box 2/Folder 1
+media file:s1/Box 1/Folder 1/0001.tif create
+  file s1/Box 1/Folder 1/0001.tif
+  parent group:Box 1/Folder 1
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Box 1/Folder 1/0002.tif create
+  file s1/Box 1/Folder 1/0002.tif
+  parent group:Box 1/Folder 1
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Box 1/Folder 1/0010.tif create
+  file s1/Box 1/Folder 1/0010.tif
+  parent group:Box 1/Folder 1
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Box 1/Folder 2/0001.tif create
+  file s1/Box 1/Folder 2/0001.tif
+  parent group:Box 1/Folder 2
+  template existing 1
+  owner is runner
+  visibility private
+media file:s1/Box 2/Folder 1/0001.tif create
+  file s1/Box 2/Folder 1/0001.tif
+  parent group:Box 2/Folder 1
+  template existing 1
+  owner is runner
+  visibility private
