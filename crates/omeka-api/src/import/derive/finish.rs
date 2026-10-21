@@ -8,8 +8,8 @@ use super::super::flags::FlagBook;
 use super::super::grouping::Grouping;
 use super::super::join::{Joined, RowAt, SheetIn};
 use super::super::model::{
-    Anomaly, EntryState, Fate, Flag, LeftBy, Model, NewSet, NewTypeFields, Orphan, Parent, Record,
-    RecordId, Subject, TemplateRef,
+    Anomaly, EntryState, Fate, Flag, LeftBy, Model, NewSet, NewTypeFields, Orphan, Parent,
+    PatternState, Record, RecordId, Subject, TemplateRef,
 };
 use super::super::plan::{FlagKind, ImportPlan, RecordKind, RowKind, SlotName, Term};
 use super::super::sheet::{HeaderNote, SheetError};
@@ -178,7 +178,12 @@ pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
     orphans.sort_by_key(|orphan| orphan.decision);
     let new_types = new_type_fields(plan, &records);
     Model {
-        pattern: grouping.pattern.clone(),
+        pattern: grouping
+            .patterns
+            .first()
+            .cloned()
+            .unwrap_or(PatternState::Missing),
+        patterns: grouping.patterns.clone(),
         records,
         entries,
         new_sets,

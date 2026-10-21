@@ -62,7 +62,8 @@ pub(crate) struct Grouping<'i> {
     /// `move … leave` decision, or `identical: keepOne`. An unmatched file
     /// is not here.
     pub left_out: BTreeMap<usize, LeftBy>,
-    pub pattern: PatternState,
+    /// Each series' pattern state, by [`SeriesIx::index`].
+    pub patterns: Vec<PatternState>,
     pub orphans: Vec<Orphan>,
 }
 
@@ -82,12 +83,15 @@ pub(crate) fn group<'i>(
             .find(|(series, _)| *series == at)
             .map(|(_, compiled)| compiled)
     };
-    let pattern = match compiled.first().map(|(_, compiled)| compiled) {
-        Some(Ok(pattern)) => PatternState::Groups(pattern.group_names().to_vec()),
-        None | Some(Err(PatternError::Missing)) => PatternState::Missing,
-        Some(Err(PatternError::Syntax(message))) => PatternState::Syntax(message.clone()),
-        Some(Err(PatternError::NoIdentifier)) => PatternState::NoIdentifier,
-    };
+    let patterns = compiled
+        .iter()
+        .map(|(_, compiled)| match compiled {
+            Ok(pattern) => PatternState::Groups(pattern.group_names().to_vec()),
+            Err(PatternError::Missing) => PatternState::Missing,
+            Err(PatternError::Syntax(message)) => PatternState::Syntax(message.clone()),
+            Err(PatternError::NoIdentifier) => PatternState::NoIdentifier,
+        })
+        .collect();
     let mut files: Vec<File<'i>> = index
         .sources
         .iter()
@@ -215,7 +219,7 @@ pub(crate) fn group<'i>(
         by_ref,
         groups,
         left_out,
-        pattern,
+        patterns,
         orphans,
     }
 }

@@ -464,6 +464,10 @@ messages! {
     const IMPORT_LIST_TOO_LARGE = "The list is larger than 50 MB.";
     /// `POST …/sheets` with a list the sheet reader refuses.
     fn import_list_unread(reason) = "The list cannot be read: {reason}";
+    /// `template.csv` or `POST …/sheets` with no `?series=` on a plan of several series.
+    const IMPORT_LIST_SERIES_NEEDED = "This plan has several series. Choose the series the list is for.";
+    /// `template.csv` or `POST …/sheets` with a `?series=` the plan does not have.
+    fn import_list_series_unknown(series) = "The plan has no series \"{series}\".";
     /// `POST …/sheets` with a list whose header has no Identifier column.
     const IMPORT_LIST_NO_IDENTIFIER = "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.";
     /// `POST …/pairs` with a list that lacks the Row column or the Files column.

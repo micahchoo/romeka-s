@@ -210,6 +210,9 @@ export const knServer: ServerCatalogue = {
     '"{name}" ಎಂಬುದು .csv, .tsv, .xlsx, .xls ಅಥವಾ .ods ಫೈಲ್ ಅಲ್ಲ. ಪಟ್ಟಿಯನ್ನು ಇವುಗಳಲ್ಲಿ ಒಂದಾಗಿ ಉಳಿಸಿ, ನಂತರ ಅದನ್ನು ಮತ್ತೆ ಕಳುಹಿಸಿ.',
   'server.importListTooLarge': 'ಪಟ್ಟಿಯು 50 MB ಗಿಂತ ದೊಡ್ಡದಾಗಿದೆ.',
   'server.importListUnread': 'ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ: {reason}',
+  'server.importListSeriesNeeded':
+    'ಈ ಯೋಜನೆಯು ಹಲವಾರು ಸರಣಿಗಳನ್ನು ಹೊಂದಿದೆ. ಪಟ್ಟಿ ಯಾವ ಸರಣಿಗಾಗಿ ಎಂಬುದನ್ನು ಆರಿಸಿ.',
+  'server.importListSeriesUnknown': 'ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಸರಣಿ "{series}" ಇಲ್ಲ.',
   'server.importListNoIdentifier':
     'ಪಟ್ಟಿಯಲ್ಲಿ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಅದರ ಸಾಲುಗಳು ತಮ್ಮ ಐಟಂಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಿಲ್ಲ. ನೀವು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಪಟ್ಟಿಯ ಐಡೆಂಟಿಫೈಯರ್ ಕಾಲಮ್ ಅನ್ನು ಇರಿಸಿ.',
   'server.importPairsColumns':

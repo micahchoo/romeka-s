@@ -79,7 +79,7 @@ describe('the preview requests', () => {
   });
 
   it('name every unused reason the entries filter takes', () => {
-    expect(UNUSED_REASONS).toEqual(['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'identical', 'noRow', 'noRecord']);
+    expect(UNUSED_REASONS).toEqual(['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'identical', 'noRow', 'noRecord', 'outside']);
   });
 
   it('carry a plan to preview without saving it, exactly as the plan was read', async () => {

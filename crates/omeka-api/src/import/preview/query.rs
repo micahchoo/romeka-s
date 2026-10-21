@@ -10,12 +10,13 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::facts::{Bucket, Facts, ShapeFacts};
+use crate::import::catalog::Catalog;
 use crate::import::decisions::EntryRef;
 use crate::import::model::{
     EntryState, Fate, Flag, LeftBy, Model, Record, RecordId, SetRef, Subject, TemplateRef,
 };
-use crate::import::plan::{FlagKind, RecordKind, SheetId, SlotName};
-use crate::import::values::fold_title;
+use crate::import::plan::{FlagKind, LevelId, RecordKind, SheetId, SlotName, Structure};
+use crate::import::values::{ResourceBy, ValueType, fold_title};
 
 /// A page holds at most this many entries or records.
 pub const MAX_PER_PAGE: usize = 500;
@@ -192,6 +193,10 @@ pub struct RecordView {
     #[serde(flatten)]
     pub record: Record,
     pub flags: Vec<Flag>,
+    /// The series whose rules the record follows; only in a plan of
+    /// several series, as a record key names it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub series: Option<LevelId>,
 }
 
 /// What a flag is on, as a map key without cloning the entry.
@@ -232,11 +237,55 @@ impl<'m> FlagsBy<'m> {
     pub(super) fn cloned(&self, key: SubjectKey<'_>) -> Vec<Flag> {
         self.on(key).iter().map(|flag| (*flag).clone()).collect()
     }
+}
 
-    pub(super) fn record_view(&self, record: &Record) -> RecordView {
+/// What a record view shows besides the record: its flags, its series in a
+/// plan of several, and, as the label of each `sets` value that names an
+/// install set by id, that set's title.
+pub(super) struct Views<'d> {
+    pub(super) flags: FlagsBy<'d>,
+    series: Vec<Option<&'d LevelId>>,
+    set_titles: HashMap<i64, &'d str>,
+}
+
+impl<'d> Views<'d> {
+    pub(super) fn new(model: &'d Model, structure: &'d Structure, catalog: &'d Catalog) -> Self {
+        Self {
+            flags: FlagsBy::new(model),
+            series: structure.series_names(),
+            set_titles: catalog
+                .item_sets
+                .iter()
+                .map(|set| (set.id, set.title.as_str()))
+                .collect(),
+        }
+    }
+
+    pub(super) fn view(&self, record: &Record) -> RecordView {
+        let mut record = record.clone();
+        for value in record.slots.get_mut(&SlotName::Sets).into_iter().flatten() {
+            let value = &mut value.value;
+            if value.value_type == ValueType::Resource(ResourceBy::InternalId)
+                && value.label.is_none()
+                && let Some(title) = value
+                    .text
+                    .trim()
+                    .parse::<i64>()
+                    .ok()
+                    .and_then(|id| self.set_titles.get(&id))
+            {
+                value.label = Some((*title).to_string());
+            }
+        }
         RecordView {
-            record: record.clone(),
-            flags: self.cloned(SubjectKey::Record(record.id.0)),
+            flags: self.flags.cloned(SubjectKey::Record(record.id.0)),
+            series: self
+                .series
+                .get(record.series.index())
+                .copied()
+                .flatten()
+                .cloned(),
+            record,
         }
     }
 }
@@ -244,9 +293,10 @@ impl<'m> FlagsBy<'m> {
 pub(super) fn records(
     model: &Model,
     query: &RecordsQuery,
-    flags: &FlagsBy<'_>,
+    views: &Views<'_>,
     facts: Option<&Facts<'_>>,
 ) -> Page<RecordView> {
+    let flags = &views.flags;
     let kind = query.kind.unwrap_or(RecordKind::Item);
     let text = query.text.as_deref().map(fold_title);
     let matching = model.records.iter().filter(|record| {
@@ -282,7 +332,7 @@ pub(super) fn records(
                 .is_none_or(|left| matches!(record.fate, Fate::Left(_)) == left)
     });
     page(matching, query.page, query.per_page, |record| {
-        flags.record_view(record)
+        views.view(record)
     })
 }
 

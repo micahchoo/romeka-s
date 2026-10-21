@@ -378,4 +378,6 @@ export const ml: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'പട്ടിക മാറിയതിനാൽ, അത് നാമകരണം ചെയ്യുന്ന വരി മറ്റൊരു വരിയാകാം.',
   'adv.changes.orphan.noGroup': 'ഇത് സൂചിപ്പിക്കുന്ന ഫയൽ ഒരു ഇനത്തിലും ഇല്ല.',
+  'adv.changes.orphan.outside':
+    'ഇത് സൂചിപ്പിക്കുന്ന ഫയൽ നിങ്ങൾ ഇറക്കുമതി ചെയ്ത ഫോൾഡറുകളിലൊന്നിലുമില്ല.',
 };

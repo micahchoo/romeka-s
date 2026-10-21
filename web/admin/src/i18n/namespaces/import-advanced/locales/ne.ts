@@ -369,4 +369,5 @@ export const ne: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'सूची परिवर्तन भयो, त्यसैले यसले नाम दिने पङ्क्ति अर्को पङ्क्ति हुन सक्छ।',
   'adv.changes.orphan.noGroup': 'यसले नाम दिने फाइल कुनै पनि वस्तुमा छैन।',
+  'adv.changes.orphan.outside': 'यसले नाम दिने फाइल तपाईँले आयात गर्नुभएको फोल्डरमा छैन।',
 };

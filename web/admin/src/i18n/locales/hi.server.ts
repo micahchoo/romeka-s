@@ -205,6 +205,9 @@ export const hiServer: ServerCatalogue = {
     '"{name}" एक .csv, .tsv, .xlsx, .xls या .ods फ़ाइल नहीं है। सूची को इनमें से किसी एक के रूप में सहेजें, फिर इसे फिर से भेजें।',
   'server.importListTooLarge': 'सूची 50 MB से बड़ी है।',
   'server.importListUnread': 'सूची नहीं पढ़ी जा सकती: {reason}',
+  'server.importListSeriesNeeded':
+    'इस योजना में कई श्रृंखलाएं हैं। सूची जिस श्रृंखला के लिए है, उसे चुनें।',
+  'server.importListSeriesUnknown': 'योजना में कोई श्रृंखला "{series}" नहीं है।',
   'server.importListNoIdentifier':
     'सूची में आइडेंटिफ़ायर कॉलम नहीं है, इसलिए इसकी पंक्तियाँ अपने आइटम नहीं ढूंढ सकतीं। आपने जो सूची डाउनलोड की थी, उसका आइडेंटिफ़ायर कॉलम बनाए रखें।',
   'server.importPairsColumns':

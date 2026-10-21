@@ -377,4 +377,5 @@ export const kn: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'ಪಟ್ಟಿಯು ಬದಲಾಗಿದೆ, ಆದ್ದರಿಂದ ಅದು ಹೆಸರಿಸುವ ಸಾಲು ಮತ್ತೊಂದು ಸಾಲು ಆಗಿರಬಹುದು.',
   'adv.changes.orphan.noGroup': 'ಇದು ಹೆಸರಿಸುವ ಫೈಲ್ ಯಾವುದೇ ಐಟಂನಲ್ಲಿ ಇಲ್ಲ.',
+  'adv.changes.orphan.outside': 'ಇದು ಹೆಸರಿಸುವ ಫೈಲ್ ನೀವು ಆಮದು ಮಾಡಿಕೊಂಡ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ ಇಲ್ಲ.',
 };

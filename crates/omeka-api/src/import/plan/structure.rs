@@ -273,6 +273,16 @@ impl Structure {
         all.into_iter()
     }
 
+    /// Each series' id as the wire names it, by [`SeriesIx::index`]: `None`
+    /// for the one series of a plan of one, so the wire and the record keys
+    /// of a lifted v2 plan stay v2's.
+    #[must_use]
+    pub fn series_names(&self) -> Vec<Option<&LevelId>> {
+        let ids: Vec<&LevelId> = self.all_series().map(|(_, series)| &series.id).collect();
+        let several = ids.len() > 1;
+        ids.into_iter().map(|id| several.then_some(id)).collect()
+    }
+
     /// Every list with the series that holds it, in plan order.
     pub fn lists(&self) -> impl Iterator<Item = (SeriesIx, &SheetPlan)> {
         self.all_series()
@@ -330,6 +340,11 @@ impl Structure {
             SetSource::Each(EachValue { each }) => each,
             _ => unreachable!("the position found or made is a text set"),
         }
+    }
+
+    /// Add a free set after the others.
+    pub fn push_free_set(&mut self, set: SetSource) {
+        self.free_sets.push(set);
     }
 
     /// Add a list to the series, after its other lists.

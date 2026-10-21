@@ -1,7 +1,9 @@
 //! The list round trip (`docs/import-v2.md`, "The list round trip"):
-//! `GET …/template.csv?columns=` answers the list to fill in, and
-//! `POST …/sheets` stores a filled list (CSV, TSV, .xlsx, .xls or .ods) in
-//! the import's staging area and adds it to the draft's plan. The rules live in
+//! `GET …/template.csv?columns=&series=` answers the list of one series'
+//! items to fill in, and `POST …/sheets?series=` stores a filled list (CSV,
+//! TSV, .xlsx, .xls or .ods) in the import's staging area and adds it to
+//! that series of the draft's plan. A plan of one series may leave
+//! `series` out. The rules live in
 //! `omeka_api::import::template`; these handlers read the request, move
 //! the bytes through the store, and save the plan.
 
@@ -11,11 +13,11 @@ use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use omeka_api::import::catalog_load;
 use omeka_api::import::draft;
-use omeka_api::import::plan::{ReadOptions, RelPath};
+use omeka_api::import::plan::{ImportPlan, ReadOptions, RelPath, SeriesIx};
 use omeka_api::import::preview::staging_path;
 use omeka_api::import::sheet;
 use omeka_api::import::template::{
-    ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, template_csv,
+    ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, list_series, template_csv,
 };
 use omeka_api::messages;
 use omeka_db::rows::{ImportRow, ImportStatus};
@@ -28,7 +30,7 @@ use super::run::{derive, stored_plan};
 use super::wire::{ImportError, ImportView, admin, blocking, draft_error, json, load, owners};
 use crate::AppState;
 
-/// `GET /api/romeka/imports/{id}/template.csv?columns=<term>,<term>…`.
+/// `GET /api/romeka/imports/{id}/template.csv?columns=<term>,<term>…&series=<level id>`.
 pub(super) async fn template(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -40,6 +42,7 @@ pub(super) async fn template(
             let actor = admin(&state, &uri, &headers).await?;
             let row = load(&state, &id).await?;
             let plan = stored_plan(&row)?;
+            let series = series_of(&plan, &uri)?;
             let derived = derive(&state, &actor, row.id, plan).await?;
             let params = omeka_api::read::Params::parse(uri.query().unwrap_or(""));
             let columns = params
@@ -54,9 +57,15 @@ pub(super) async fn template(
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             let id = row.id.0;
-            let bytes =
-                blocking(move || Ok(template_csv(&derived.model, &derived.catalog, &columns)))
-                    .await?;
+            let bytes = blocking(move || {
+                Ok(template_csv(
+                    &derived.model,
+                    &derived.catalog,
+                    &columns,
+                    series,
+                ))
+            })
+            .await?;
             Ok(Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
@@ -71,9 +80,10 @@ pub(super) async fn template(
     )
 }
 
-/// `POST /api/romeka/imports/{id}/sheets` (multipart, one file): store a
-/// filled list in staging and add it to the draft's plan. Answers the
-/// import with its new plan and revision.
+/// `POST /api/romeka/imports/{id}/sheets?series=<level id>` (multipart,
+/// one file): store a filled list in staging and add it to that series of
+/// the draft's plan. Answers the import with its new plan and revision, in
+/// the version the plan was stored in.
 pub(super) async fn upload(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -90,6 +100,7 @@ pub(super) async fn upload(
             let (extension, read, bytes, list) =
                 (upload.extension, upload.read, upload.bytes, upload.list);
             let mut plan = stored_plan(&row)?;
+            let series = series_of(&plan, &uri)?;
             let files = omeka_api::settings::file_validation(&state.pool).await?;
             let catalog = with_db!(&state.pool, |db| catalog_load::load(
                 db,
@@ -123,7 +134,7 @@ pub(super) async fn upload(
                 Ok(file)
             })
             .await?;
-            let added = add_list(&mut plan, stored.clone(), read, &list, &catalog);
+            let added = add_list(&mut plan, series, stored.clone(), read, &list, &catalog);
             let saved = match added {
                 Ok(_) => {
                     let value: serde_json::Value = serde_json::from_str(&plan.to_json())
@@ -137,12 +148,7 @@ pub(super) async fn upload(
                     .await)
                     .map_err(|error| draft_error(error, row.id, false))
                 }
-                Err(ListError::NoIdentifier) => Err(ImportError::BadRequest(
-                    messages::IMPORT_LIST_NO_IDENTIFIER.into(),
-                )),
-                Err(ListError::UnknownColumn(column)) => Err(ImportError::BadRequest(
-                    messages::import_list_column_unknown(column),
-                )),
+                Err(error) => Err(list_error(error, &plan)),
             };
             if let Err(error) = saved {
                 let store = state.store.clone();
@@ -155,6 +161,42 @@ pub(super) async fn upload(
         }
         .await,
     )
+}
+
+/// The series `?series=` names, or the plan's only one.
+fn series_of(plan: &ImportPlan, uri: &Uri) -> Result<SeriesIx, ImportError> {
+    let params = omeka_api::read::Params::parse(uri.query().unwrap_or(""));
+    let named = params.get("series").filter(|named| !named.is_empty());
+    list_series(plan, named).map_err(|error| list_error(error, plan))
+}
+
+/// A refused list as the admin reads it. A series error is coded, with the
+/// plan's series ids, so the admin can ask which series the list is for.
+fn list_error(error: ListError, plan: &ImportPlan) -> ImportError {
+    let ids = || {
+        json!(
+            plan.structure
+                .all_series()
+                .map(|(_, series)| series.id().0.clone())
+                .collect::<Vec<_>>()
+        )
+    };
+    match error {
+        ListError::NoIdentifier => {
+            ImportError::BadRequest(messages::IMPORT_LIST_NO_IDENTIFIER.into())
+        }
+        ListError::UnknownColumn(column) => {
+            ImportError::BadRequest(messages::import_list_column_unknown(column))
+        }
+        ListError::SeriesNeeded => {
+            ImportError::refused("seriesNeeded", messages::IMPORT_LIST_SERIES_NEEDED)
+                .with("series", ids())
+        }
+        ListError::UnknownSeries(named) => {
+            ImportError::refused("unknownSeries", messages::import_list_series_unknown(named))
+                .with("series", ids())
+        }
+    }
 }
 
 /// A list a person sent, read and ready to use.

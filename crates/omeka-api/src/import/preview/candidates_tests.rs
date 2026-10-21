@@ -450,3 +450,56 @@ fn a_column_split_at_commas_gives_its_item_one_value_a_piece() {
         .collect();
     assert_eq!(subjects, ["Coral", "Natural History", "Fossil"]);
 }
+
+#[test]
+fn a_list_in_a_plan_of_several_series_names_the_series_that_holds_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let sheet = |id: &str, file: &str| {
+        json!({
+            "id": id, "source": "s1", "file": file, "hash": null,
+            "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"",
+                      "headerLine": 1, "trim": true },
+            "rowKind": "item", "join": null, "itemKey": null, "columns": []
+        })
+    };
+    let series = |id: &str, folder: &str, lists: Value| {
+        json!({
+            "kind": "series", "id": id, "set": null,
+            "scope": [{ "source": "s1", "folder": folder }],
+            "grouping": { "pattern": r"^(?<identifier>[A-Z]\d+)[a-z]\.jpg$", "caseFold": false },
+            "example": null, "lists": lists,
+            "slots": { "item": {}, "media": {}, "itemSet": {} }
+        })
+    };
+    let derived = derived(
+        &dir,
+        &[
+            ("lists/full.csv", FULL.as_bytes()),
+            ("lists/other.csv", OTHER.as_bytes()),
+            ("lists/stale.csv", STALE.as_bytes()),
+        ],
+        |plan| {
+            let mut v3: Value =
+                serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+            v3["structure"] = json!({
+                "levels": [
+                    series("views", "", json!([sheet("register", "lists/full.csv")])),
+                    series("empty", "Nothing", json!([sheet("older", "lists/stale.csv")])),
+                ],
+                "freeSets": []
+            });
+            *plan = v3;
+        },
+    );
+    let series_of = |file: &str| {
+        candidates(&derived)
+            .into_iter()
+            .find(|one| one["file"] == file)
+            .unwrap()
+            .get("series")
+            .cloned()
+    };
+    assert_eq!(series_of("lists/full.csv"), Some(json!("views")));
+    assert_eq!(series_of("lists/stale.csv"), Some(json!("empty")));
+    assert_eq!(series_of("lists/other.csv"), None, "no sheet reads it");
+}

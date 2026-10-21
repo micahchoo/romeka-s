@@ -350,6 +350,7 @@ export const en = {
   'adv.changes.orphan.wrongTarget': 'It names a record of another kind.',
   'adv.changes.orphan.lineKeyChanged': 'The list changed, so the line it names may be another row.',
   'adv.changes.orphan.noGroup': 'The file it names is in no item.',
+  'adv.changes.orphan.outside': 'The file it names is in no folder you import.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

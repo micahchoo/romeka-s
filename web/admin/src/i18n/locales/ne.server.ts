@@ -204,6 +204,9 @@ export const neServer: ServerCatalogue = {
     '"{name}" .csv, .tsv, .xlsx, .xls वा .ods फाइल होइन। यस सूचीलाई यी मध्ये कुनै एकको रूपमा सुरक्षित गर्नुहोस्, त्यसपछि यसलाई पुनः पठाउनुहोस्।',
   'server.importListTooLarge': 'सूची 50 MB भन्दा ठुलो छ।',
   'server.importListUnread': 'सूची पढ्न सकिएन: {reason}',
+  'server.importListSeriesNeeded':
+    'यो योजनामा धेरै शृङ्खलाहरू छन्। सूची जुन शृङ्खलाका लागि हो, त्यसलाई छान्नुहोस्।',
+  'server.importListSeriesUnknown': 'योजनामा कुनै शृङ्खला "{series}" छैन।',
   'server.importListNoIdentifier':
     'सूचीमा कुनै आइडेन्टिफायर कोलम छैन, त्यसैले यसका पङ्क्तिहरूले आफ्ना वस्तुहरू फेला पार्न सक्दैनन्। तपाईँले डाउनलोड गर्नुभएको सूचीको आइडेन्टिफायर कोलम सुरक्षित राख्नुहोस्।',
   'server.importPairsColumns':

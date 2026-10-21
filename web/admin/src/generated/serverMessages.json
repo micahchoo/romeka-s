@@ -157,6 +157,8 @@
     "server.importListType": "\"{name}\" is not a .csv, .tsv, .xlsx, .xls or .ods file. Save the list as one of these, then send it again.",
     "server.importListTooLarge": "The list is larger than 50 MB.",
     "server.importListUnread": "The list cannot be read: {reason}",
+    "server.importListSeriesNeeded": "This plan has several series. Choose the series the list is for.",
+    "server.importListSeriesUnknown": "The plan has no series \"{series}\".",
     "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.",
     "server.importPairsColumns": "The list needs the Row column and the Files column. Keep both columns of the list you downloaded.",
     "server.importFileUnreadable": "The file \"{path}\" could not be read: {reason}",

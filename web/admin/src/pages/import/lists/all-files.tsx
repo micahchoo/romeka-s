@@ -37,6 +37,7 @@ const REASON_WORDS: Readonly<Record<Unused, ListsMessageKey>> = {
   identical: 'lists.files.why.identical',
   noRow: 'lists.files.why.noRow',
   noRecord: 'lists.files.why.noRecord',
+  outside: 'lists.files.why.outside',
 };
 
 export const entriesQuery = (filter: FilterValue<FileFilter>): EntriesQuery => {

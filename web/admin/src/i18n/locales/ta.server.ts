@@ -218,6 +218,9 @@ export const taServer: ServerCatalogue = {
     '"{name}" என்பது .csv, .tsv, .xlsx, .xls அல்லது .ods கோப்பு அல்ல. பட்டியலை இவற்றுள் ஒன்றாகச் சேமித்து, பின்னர் மீண்டும் அனுப்பவும்.',
   'server.importListTooLarge': 'பட்டியல் 50 MB-க்கும் அதிகமாக உள்ளது.',
   'server.importListUnread': 'பட்டியலை வாசிக்க முடியவில்லை: {reason}',
+  'server.importListSeriesNeeded':
+    'இந்தத் திட்டத்தில் பல தொடர்கள் உள்ளன. பட்டியல் எந்தத் தொடருக்கானது என்பதைத் தேர்ந்தெடுக்கவும்.',
+  'server.importListSeriesUnknown': 'இந்தத் திட்டத்தில் "{series}" என்ற தொடர் இல்லை.',
   'server.importListNoIdentifier':
     'பட்டியலில் அடையாளங்காட்டி (Identifier) நெடுவரிசை இல்லை, எனவே அதன் வரிசைகள் அவற்றின் உருப்படிகளைக் கண்டறிய முடியாது. நீங்கள் பதிவிறக்கிய பட்டியலின் அடையாளங்காட்டி நெடுவரிசையை வைத்திருக்கவும்.',
   'server.importPairsColumns':

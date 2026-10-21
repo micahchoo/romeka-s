@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use super::*;
-use crate::import::catalog::Catalog;
+use crate::import::catalog::{Catalog, ExistingSet};
 use crate::import::derive::{Index, IndexedSource, NoTags};
 use crate::import::evidence::Walk;
 use crate::import::plan::{RelPath, SourcePlan, default_plan};
@@ -18,7 +18,12 @@ fn derived(paths: &[&str], edit: impl FnOnce(&mut serde_json::Value)) -> Derived
     let mut value = serde_json::to_value(plan).unwrap();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>[A-Z]\d+)\.jpg$");
     edit(&mut value);
-    let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());
+    derived_of(&value, paths, Catalog::default())
+}
+
+/// `plan` derived over `paths` of source `s1` against `catalog`.
+fn derived_of(plan: &serde_json::Value, paths: &[&str], catalog: Catalog) -> Derived {
+    let plan = Arc::new(ImportPlan::from_json(&plan.to_string()).unwrap());
     let index = Index {
         sources: vec![IndexedSource {
             id: SourceId("s1".into()),
@@ -37,7 +42,7 @@ fn derived(paths: &[&str], edit: impl FnOnce(&mut serde_json::Value)) -> Derived
             },
         }],
     };
-    let model = derive(&index, &Sheets::new(), &plan, &Catalog::default(), &NoTags);
+    let model = derive(&index, &Sheets::new(), &plan, &catalog, &NoTags);
     let stored = StoredIndex {
         index: Arc::new(index),
         sources: Vec::new(),
@@ -45,7 +50,7 @@ fn derived(paths: &[&str], edit: impl FnOnce(&mut serde_json::Value)) -> Derived
     Derived {
         plan,
         model,
-        catalog: Catalog::default(),
+        catalog,
         stored,
         sheets: BTreeMap::new(),
         tags: DiskTags {
@@ -185,4 +190,110 @@ fn an_orphan_names_its_entry_and_not_the_whole_decision() {
         orphans[0].get("detail").is_none(),
         "the decision is not cloned"
     );
+}
+
+/// A v3 plan on source `s1` with these levels and free sets.
+fn v3_plan(levels: serde_json::Value, free_sets: serde_json::Value) -> serde_json::Value {
+    let mut plan: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+    plan["structure"] = json!({ "levels": levels, "freeSets": free_sets });
+    plan
+}
+
+fn series(id: &str, folder: &str, pattern: Option<&str>) -> serde_json::Value {
+    json!({
+        "kind": "series", "id": id, "set": null,
+        "scope": [{ "source": "s1", "folder": folder }],
+        "grouping": { "pattern": pattern, "caseFold": false },
+        "example": null, "lists": [],
+        "slots": { "item": {}, "media": {}, "itemSet": {} }
+    })
+}
+
+#[test]
+fn a_plan_of_several_series_answers_each_pattern_state_and_names_each_records_series() {
+    let plan = v3_plan(
+        json!([
+            series(
+                "letters",
+                "Letters",
+                Some(r"^(?<identifier>[A-Z]\d+)(?:_(?<part>p\d+))?\.jpg$")
+            ),
+            series("photos", "Photos", None),
+        ]),
+        json!([]),
+    );
+    let derived = derived_of(
+        &plan,
+        &["Letters/A1_p1.jpg", "Letters/A1_p2.jpg", "Photos/B2.jpg"],
+        Catalog::default(),
+    );
+    let answer = serde_json::to_value(preview(
+        &derived,
+        &request(json!({ "include": ["records", "shapes"] })),
+    ))
+    .unwrap();
+    assert_eq!(
+        answer["pattern"],
+        json!({ "groups": ["identifier", "part"] }),
+        "pattern stays the first series' state"
+    );
+    assert_eq!(
+        answer["patterns"],
+        json!([
+            { "series": "letters", "pattern": { "groups": ["identifier", "part"] } },
+            { "series": "photos", "pattern": "missing" }
+        ])
+    );
+    let items = answer["records"]["items"].as_array().unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["series"], "letters");
+    assert_eq!(
+        answer["shapes"]["groups"]["items"][0]["facts"]["parts"],
+        json!(["p1", "p2"]),
+        "the parts are read from the path inside the series folder"
+    );
+}
+
+#[test]
+fn a_plan_of_one_series_answers_no_member_that_names_a_series() {
+    let derived = derived(&["A1.jpg"], |_| {});
+    let answer = serde_json::to_value(preview(
+        &derived,
+        &request(json!({ "include": ["records"] })),
+    ))
+    .unwrap();
+    assert!(answer.get("patterns").is_none());
+    assert!(answer["records"]["items"][0].get("series").is_none());
+}
+
+#[test]
+fn a_set_named_by_id_shows_the_install_sets_title_as_its_label() {
+    let plan = v3_plan(
+        json!([series(
+            "letters",
+            "",
+            Some(r"^(?<identifier>[A-Z]\d+)\.jpg$")
+        )]),
+        json!([{ "id": 42 }, { "id": 43 }]),
+    );
+    let catalog = Catalog {
+        item_sets: vec![ExistingSet {
+            id: 42,
+            title: "Letters of 1920".into(),
+            keys: Default::default(),
+        }],
+        ..Catalog::default()
+    };
+    let derived = derived_of(&plan, &["A1.jpg"], catalog);
+    let answer = serde_json::to_value(preview(
+        &derived,
+        &request(json!({ "include": ["records"] })),
+    ))
+    .unwrap();
+    let sets = &answer["records"]["items"][0]["slots"]["sets"];
+    assert_eq!(sets[0]["text"], "42", "the value stays the id");
+    assert_eq!(sets[0]["label"], "Letters of 1920");
+    assert_eq!(sets[1]["text"], "43");
+    assert_eq!(sets[1]["label"], json!(null), "no set #43 in the install");
 }

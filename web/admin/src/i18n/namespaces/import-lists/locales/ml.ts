@@ -50,6 +50,7 @@ export const ml: ImportListsMessages = {
   'lists.left.noFiles': 'അതിന്റെ എല്ലാ ഫയലുകളും ഒഴിവാക്കിയിരിക്കുന്നു.',
   'lists.left.identical': 'സൂക്ഷിച്ചിരിക്കുന്ന ഫയലിന്റെ അതേ ബൈറ്റുകൾ.',
   'lists.left.noRow': 'നിങ്ങളുടെ പട്ടികയിൽ ഒരു വരിയും ഇല്ല.',
+  'lists.left.outside': 'നിങ്ങൾ ഇറക്കുമതി ചെയ്യുന്ന ഒരു ഫോൾഡറിലും ഇത് ഇല്ല.',
   'lists.files.lede':
     'ഈ ഇറക്കുമതിയിലെ ഓരോ ഫയലും. ഫിൽട്ടർ ചെയ്ത ശേഷം, ഒന്ന് അല്ലെങ്കിൽ എല്ലാം മാറ്റുക.',
   'lists.files.filters': 'ഫയലുകൾ ഫിൽട്ടർ ചെയ്യുക',
@@ -67,6 +68,7 @@ export const ml: ImportListsMessages = {
   'lists.files.why.identical': 'സൂക്ഷിച്ച ഒരു ഫയലിന് സമാനമായ ബൈറ്റുകൾ',
   'lists.files.why.noRow': 'നിങ്ങളുടെ പട്ടികയിൽ അതിന്റെ ഐറ്റത്തിന് വരികളില്ല',
   'lists.files.why.noRecord': 'ഇത് ഐറ്റത്തിലില്ല',
+  'lists.files.why.outside': 'ഇത് നിങ്ങൾ ഇറക്കുമതി ചെയ്യുന്ന ഒരു ഫോൾഡറിലും ഇല്ല',
   'lists.files.count': '{count} ഫയലുകൾ',
   'lists.files.countOne': '1 ഫയൽ',
   'lists.files.table': 'എല്ലാ ഫയലുകൾ',

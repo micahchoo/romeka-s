@@ -595,3 +595,77 @@ async fn a_quote_the_template_put_before_a_formula_character_comes_off_on_upload
         "a quote before a letter stays"
     );
 }
+
+/// A scanned v3 draft of two series, `letters` over `Letters/` and
+/// `photos` over `Photos/`, one item each.
+async fn two_series(fixture: &Fixture) -> Value {
+    use imports_fixture::{v3_plan, v3_series};
+    fixture.write(&[("Letters/AF_001.jpg", JPEG), ("Photos/PH_001.jpg", JPEG)]);
+    let draft = fixture.draft().await;
+    let plan = v3_plan(
+        &draft["plan"],
+        json!([
+            v3_series("letters", "Letters"),
+            v3_series("photos", "Photos")
+        ]),
+    );
+    let saved = fixture.save(&draft, |stored| *stored = plan).await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+    let id = draft["id"].clone();
+    let scanned = fixture
+        .call("POST", &format!("/api/romeka/imports/{id}/scan"), None)
+        .await;
+    assert_eq!(scanned.status, StatusCode::OK, "{}", scanned.body);
+    id
+}
+
+#[tokio::test]
+async fn a_plan_of_several_series_needs_series_on_the_list_round_trip() {
+    let fixture = fixture().await;
+    let id = two_series(&fixture).await;
+    let template = |query: &str| {
+        let uri = format!("/api/romeka/imports/{id}/template.csv{query}");
+        let fixture = &fixture;
+        async move { fixture.call("GET", &uri, None).await }
+    };
+
+    let unnamed = template("").await;
+    assert_eq!(unnamed.status, StatusCode::BAD_REQUEST, "{}", unnamed.body);
+    assert_eq!(unnamed.json()["code"], "seriesNeeded");
+    assert_eq!(unnamed.json()["series"], json!(["letters", "photos"]));
+    let unknown = template("?series=maps").await;
+    assert_eq!(unknown.status, StatusCode::BAD_REQUEST, "{}", unknown.body);
+    assert_eq!(unknown.json()["code"], "unknownSeries");
+
+    let letters = template("?series=letters").await;
+    assert_eq!(letters.status, StatusCode::OK, "{}", letters.body);
+    let rows: Vec<&str> = letters.body.split("\r\n").skip(1).collect();
+    assert_eq!(rows, ["AF_001,AF_001.jpg", ""], "the letters' items only");
+
+    let list = "Identifier,Files,Item sets [sets]\r\nPH_001,,2018\r\n";
+    let refused = fixture.upload(&id, "list.csv", list.as_bytes()).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.body);
+    assert_eq!(refused.json()["code"], "seriesNeeded");
+    assert!(
+        !fixture
+            .files
+            .path()
+            .join(format!("staging/{id}/lists"))
+            .exists(),
+        "a refused list is never stored"
+    );
+
+    let added = fixture
+        .upload_to(&id, "sheets?series=photos", "list.csv", list.as_bytes())
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{}", added.body);
+    let plan = &added.json()["plan"];
+    assert_eq!(plan["version"], 3, "a v3 plan is answered as v3");
+    let levels = &plan["structure"]["levels"];
+    assert_eq!(levels[0]["lists"], json!([]));
+    assert_eq!(levels[1]["lists"][0]["file"], "lists/1.csv");
+    assert_eq!(
+        plan["structure"]["freeSets"][0]["each"]["names"], "title",
+        "a v3 list's sets column names sets by title"
+    );
+}

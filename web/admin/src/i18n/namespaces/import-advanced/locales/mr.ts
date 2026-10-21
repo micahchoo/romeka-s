@@ -372,4 +372,6 @@ export const mr: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'सूची बदलली, त्यामुळे ज्या ओळीचे नाव दिले आहे ती दुसरी ओळ असू शकते.',
   'adv.changes.orphan.noGroup': 'हे नाव दिलेली फाईल कोणत्याही नोंदीमध्ये नाही.',
+  'adv.changes.orphan.outside':
+    'हे नाव दिलेली फाईल तुम्ही आयात केलेल्या कोणत्याही फोल्डरमध्ये नाही.',
 };

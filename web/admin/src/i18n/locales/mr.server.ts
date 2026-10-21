@@ -207,6 +207,9 @@ export const mrServer: ServerCatalogue = {
     '"{name}" ही .csv, .tsv, .xlsx, .xls किंवा .ods फाईल नाही. ही सूची यांपैकी एका स्वरूपात जतन करा आणि नंतर ती पुन्हा पाठवा.',
   'server.importListTooLarge': 'सूची 50 MB पेक्षा मोठी आहे.',
   'server.importListUnread': 'सूची वाचता येत नाही: {reason}',
+  'server.importListSeriesNeeded':
+    'या योजनेत अनेक मालिका आहेत. ही सूची ज्या मालिकेसाठी आहे ती निवडा.',
+  'server.importListSeriesUnknown': 'या योजनेत "{series}" ही मालिका नाही.',
   'server.importListNoIdentifier':
     'सूचीमध्ये ओळखकर्ता (Identifier) स्तंभ नाही, त्यामुळे त्याच्या ओळी त्यांचे आयटम शोधू शकत नाहीत. तुम्ही डाउनलोड केलेल्या सूचीचा Identifier स्तंभ कायम ठेवा.',
   'server.importPairsColumns':

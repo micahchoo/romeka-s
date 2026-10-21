@@ -199,6 +199,8 @@ export const esServer: ServerCatalogue = {
     '"{name}" no es un archivo .csv, .tsv, .xlsx, .xls ni .ods. Guarda la lista en uno de estos formatos y vuelve a enviarla.',
   'server.importListTooLarge': 'La lista ocupa más de 50 MB.',
   'server.importListUnread': 'No se puede leer la lista: {reason}',
+  'server.importListSeriesNeeded': 'Este plan tiene varias series. Elige la serie a la que va la lista.',
+  'server.importListSeriesUnknown': 'El plan no tiene la serie "{series}".',
   'server.importListNoIdentifier':
     'La lista no tiene la columna Identifier, así que sus filas no encuentran sus elementos. Conserva la columna Identifier de la lista que descargaste.',
   'server.importPairsColumns':
