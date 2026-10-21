@@ -7,10 +7,11 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { brandId } from '../src/api/parse';
-import type { Media } from '../src/api/types';
+import type { Media, ServerMediaKind } from '../src/api/types';
 import {
   fileExtension,
   imagePreviewUrl,
+  kindOfFile,
   largeImageUrl,
   mediaKind,
   previewImageUrl,
@@ -29,6 +30,7 @@ interface FileFields {
   readonly source?: string | null;
   readonly originalUrl?: string | null;
   readonly thumbnails?: Readonly<Record<string, string>>;
+  readonly kind?: ServerMediaKind | null;
 }
 
 const ORIGINAL = 'http://localhost/files/original/7.jpg';
@@ -50,7 +52,7 @@ const media = (file: FileFields = {}): Media => ({
   values: new Map(),
   ingester: file.ingester ?? 'upload',
   renderer: file.renderer ?? 'file',
-  kind: null,
+  kind: file.kind === undefined ? null : file.kind,
   item: { id: brandId<'ItemId'>(1), apiUrl: 'http://localhost/api/items/1' },
   source: file.source === undefined ? null : file.source,
   mediaType: file.type === undefined ? null : file.type,
@@ -107,7 +109,7 @@ describe('the kind of a media', () => {
     expect(mediaKind(media({ renderer: 'html', ingester: 'html', type: null }))).toBe('embed');
     expect(
       mediaKind(media({ renderer: 'iiif_presentation', ingester: 'iiif_presentation', type: null })),
-    ).toBe('embed');
+    ).toBe('manifest');
     // A YouTube poster frame is a JPEG the player shows, not an image of the item.
     expect(mediaKind(media({ renderer: 'youtube', type: 'image/jpeg' }))).toBe('embed');
     expect(mediaKind(media({ renderer: 'iiif', type: 'image/jpeg' }))).toBe('image');
@@ -122,6 +124,39 @@ describe('the kind of a media', () => {
 
   it('ignores case in the type', () => {
     expect(mediaKind(media({ type: 'AUDIO/MPEG', filename: 'tone.MP3' }))).toBe('audio');
+  });
+});
+
+describe('a file the curator is about to send', () => {
+  it('names its kind from the extension, whatever case it uses', () => {
+    expect(kindOfFile('march.MOV', '')).toBe('video');
+    expect(kindOfFile('scan.PDF', '')).toBe('pdf');
+    expect(kindOfFile('captions.VTT', '')).toBe('captions');
+    expect(kindOfFile('chair.GLB', '')).toBe('model');
+    expect(kindOfFile('photo.JPG', '')).toBe('image');
+    expect(kindOfFile('notes.DOCX', '')).toBe('document');
+  });
+
+  it('reads the type when the name has no extension', () => {
+    expect(kindOfFile('captions', 'text/vtt')).toBe('captions');
+    expect(kindOfFile('tone', 'audio/mpeg; charset=binary')).toBe('audio');
+    expect(kindOfFile('thing', 'application/octet-stream')).toBe('other');
+    expect(kindOfFile('no-extension', '')).toBe('other');
+  });
+});
+
+describe('a IIIF manifest', () => {
+  it('reads the server kind and names it in its own word', () => {
+    const manifest = media({
+      kind: 'iiif-presentation',
+      renderer: 'iiif_presentation',
+      ingester: 'iiif_presentation',
+      type: null,
+    });
+    expect(mediaKind(manifest)).toBe('manifest');
+
+    render(<MediaImage media={manifest} url={null} className="media-card-image" />);
+    expect(screen.getByText('IIIF manifest')).toBeInTheDocument();
   });
 });
 
@@ -250,6 +285,36 @@ describe('a media with no picture', () => {
   });
 });
 
+describe('a picture of a media that is not an image', () => {
+  it('keeps the picture and marks the kind on it', () => {
+    render(
+      <MediaImage
+        media={media({ type: 'video/mp4', filename: 'clip.mp4' })}
+        url={THUMBNAIL}
+        className="media-card-image"
+      />,
+    );
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', THUMBNAIL);
+    expect(document.querySelector('[data-kind="video"]')).not.toBeNull();
+    expect(screen.getByText('Video')).toBeInTheDocument();
+  });
+
+  it('leaves a picture of an image unmarked', () => {
+    render(
+      <MediaImage
+        media={media({ type: 'image/jpeg', filename: 'photo.jpg' })}
+        url={THUMBNAIL}
+        className="media-card-image"
+      />,
+    );
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', THUMBNAIL);
+    expect(document.querySelector('.media-image-badge')).toBeNull();
+    expect(screen.queryByText('Image')).toBeNull();
+  });
+});
+
 describe('the media list', () => {
   const kindsHandler = route({
     '/api/media': () => listResponse(loadFixture('media-page-kinds.json'), 3),
@@ -264,15 +329,18 @@ describe('the media list', () => {
       'src',
       'http://localhost/files/original/photo.jpg',
     );
+    expect(within(photo).getAllByRole('cell')[1]).toHaveTextContent('Image');
 
     const audio = screen.getByRole('row', { name: /tone\.mp3/ });
     expect(within(audio).queryByRole('img')).toBeNull();
-    expect(within(audio).getByText('Audio')).toBeInTheDocument();
+    expect(within(audio).getAllByRole('cell')[0]).toHaveTextContent('Audio');
+    expect(within(audio).getAllByRole('cell')[1]).toHaveTextContent('Audio');
     expect(within(audio).getByText('MP3')).toBeInTheDocument();
 
     const pdf = screen.getByRole('row', { name: /report\.pdf/ });
     expect(within(pdf).queryByRole('img')).toBeNull();
-    expect(within(pdf).getByText('PDF')).toBeInTheDocument();
+    expect(within(pdf).getAllByRole('cell')[0]).toHaveTextContent('PDF');
+    expect(within(pdf).getAllByRole('cell')[1]).toHaveTextContent('PDF');
 
     expect(screen.getAllByRole('img')).toHaveLength(1);
   });

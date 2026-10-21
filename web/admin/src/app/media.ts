@@ -8,6 +8,8 @@
  * type for a file, and a known extension for a type too generic to say (a
  * speech recording detected as `application/octet-stream`).
  */
+import type { KeyOf } from '../i18n';
+import type { resources } from '../i18n/namespaces/resources';
 import type { Media, ServerMediaKind, ThumbnailType } from '../api/types';
 
 /** Order a browse cell prefers. Upstream shows the square thumbnail. */
@@ -26,6 +28,7 @@ export type MediaKind =
   | 'model'
   | 'captions'
   | 'embed'
+  | 'manifest'
   | 'other';
 
 /** Image types an `<img>` draws. A type outside this set keeps the placeholder. */
@@ -49,7 +52,7 @@ const RENDERER_KINDS: Readonly<Record<string, MediaKind>> = {
   html: 'embed',
   oembed: 'embed',
   youtube: 'embed',
-  iiif_presentation: 'embed',
+  iiif_presentation: 'manifest',
 };
 
 const CAPTION_TYPES: ReadonlySet<string> = new Set([
@@ -201,10 +204,9 @@ export const fileExtension = (media: Media): string | null => {
 
 /**
  * The server's kind in the admin's words, one row per `MediaKind` variant. A
- * variant the admin has no word for keeps the nearest one: an IIIF manifest is
- * an embed until the kind-words unit gives it its own word. `other-file` has no
- * word of its own, because the server's catch-all covers both a document and a
- * plain file, and its type is what tells them apart.
+ * IIIF manifest is its own word, because it is not an embed a curator can play.
+ * `other-file` has no word of its own, because the server's catch-all covers
+ * both a document and a plain file, and its type is what tells them apart.
  */
 const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>> = {
   'local-image': 'image',
@@ -215,7 +217,7 @@ const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>
   'model-3d': 'model',
   captions: 'captions',
   embed: 'embed',
-  'iiif-presentation': 'embed',
+  'iiif-presentation': 'manifest',
   'other-file': 'by-type',
 };
 
@@ -229,14 +231,8 @@ const documentOrOther = (media: Media): MediaKind => {
   return extension !== null && KIND_EXTENSIONS[extension] === 'document' ? 'document' : 'other';
 };
 
-/** What the media is, from the admin's own table. The fallback for an old server. */
-const kindFromTable = (media: Media): MediaKind => {
-  const rendered = RENDERER_KINDS[media.renderer] ?? RENDERER_KINDS[media.ingester];
-  if (rendered !== undefined) {
-    return rendered;
-  }
-  const type = bareType(media);
-  const extension = fileExtension(media)?.toLowerCase() ?? null;
+/** The kind a type and an extension name, before any renderer or server kind. */
+const kindOfFacts = (type: string | null, extension: string | null): MediaKind => {
   const byExtension = extension === null ? undefined : KIND_EXTENSIONS[extension];
   if (type === 'application/pdf' || byExtension === 'pdf') {
     return 'pdf';
@@ -257,6 +253,28 @@ const kindFromTable = (media: Media): MediaKind => {
   return byExtension ?? 'other';
 };
 
+/** What the media is, from the admin's own table. The fallback for an old server. */
+const kindFromTable = (media: Media): MediaKind => {
+  const rendered = RENDERER_KINDS[media.renderer] ?? RENDERER_KINDS[media.ingester];
+  if (rendered !== undefined) {
+    return rendered;
+  }
+  return kindOfFacts(bareType(media), fileExtension(media)?.toLowerCase() ?? null);
+};
+
+/**
+ * The kind a file the curator is about to send will be, from the same table the
+ * fallback uses. The server sniffs the bytes and its answer wins; this names a
+ * row before the upload starts.
+ */
+export const kindOfFile = (name: string, type: string | null): MediaKind => {
+  const bare =
+    type === null || type.trim() === ''
+      ? null
+      : (type.split(';')[0]?.trim().toLowerCase() ?? null);
+  return kindOfFacts(bare, extensionOf(name));
+};
+
 /**
  * What the media is. The one read every preview and picker derives from. The
  * server's kind wins when the document carries it; the table above is the
@@ -268,6 +286,22 @@ export const mediaKind = (media: Media): MediaKind => {
   }
   const word = SERVER_KIND_WORDS[media.kind];
   return word === 'by-type' ? documentOrOther(media) : word;
+};
+
+type ResourcesKey = KeyOf<typeof resources>;
+
+/** One word per kind, so a row, a filter and a badge never disagree. */
+export const KIND_LABEL: Readonly<Record<MediaKind, ResourcesKey>> = {
+  image: 'media.kind.image',
+  audio: 'media.kind.audio',
+  video: 'media.kind.video',
+  pdf: 'media.kind.pdf',
+  document: 'media.kind.document',
+  model: 'media.kind.model',
+  captions: 'media.kind.captions',
+  embed: 'media.kind.embed',
+  manifest: 'media.kind.manifest',
+  other: 'media.kind.other',
 };
 
 /**

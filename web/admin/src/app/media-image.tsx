@@ -1,8 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { Media } from '../api/types';
 import { useTranslator } from '../i18n';
-import type { KeyOf } from '../i18n';
-import { fileExtension, mediaKind, mediaName } from './media';
+import { KIND_LABEL, fileExtension, mediaKind, mediaName } from './media';
 import type { MediaKind } from './media';
 import { resources } from '../i18n/namespaces/resources';
 
@@ -55,26 +54,18 @@ const ICONS: Readonly<Record<MediaKind, ReactNode>> = {
     </>
   ),
   embed: <path d="m9 8-4 4 4 4M15 8l4 4-4 4" />,
+  manifest: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M7 9h4M7 12h4M7 15h4M14 9h3M14 12h3M14 15h3" />
+    </>
+  ),
   other: (
     <>
       <path d="M6 3h8l4 4v14H6z" />
       <path d="M14 3v4h4" />
     </>
   ),
-};
-
-type ResourcesKey = KeyOf<typeof resources>;
-
-const KIND_LABEL: Readonly<Record<MediaKind, ResourcesKey>> = {
-  image: 'media.kind.image',
-  audio: 'media.kind.audio',
-  video: 'media.kind.video',
-  pdf: 'media.kind.pdf',
-  document: 'media.kind.document',
-  model: 'media.kind.model',
-  captions: 'media.kind.captions',
-  embed: 'media.kind.embed',
-  other: 'media.kind.other',
 };
 
 const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => (
@@ -129,8 +120,8 @@ export const MediaImage = ({
   decorative = false,
 }: MediaImageProps): ReactElement => {
   const { t } = useTranslator(resources);
+  const kind = mediaKind(media);
   if (url === null) {
-    const kind = mediaKind(media);
     const label = t(KIND_LABEL[kind]);
     const extension = fileExtension(media);
     // A PDF file's extension repeats the kind's own name, so it earns no line.
@@ -148,12 +139,30 @@ export const MediaImage = ({
       </span>
     );
   }
-  return (
+  const picture = (
     <img
       className={`media-image ${className}`}
       src={url}
       alt={decorative ? '' : (mediaName(media) ?? t('media.altFallback', { id: media.id }))}
       loading={lazy ? 'lazy' : 'eager'}
     />
+  );
+  if (kind === 'image') {
+    return picture;
+  }
+  const label = t(KIND_LABEL[kind]);
+  // A poster or a PDF page is a picture of the media, not the media: the badge
+  // keeps it from reading as an image.
+  return (
+    <span
+      className={`media-image-frame${compact ? ' is-compact' : ''}`}
+      data-kind={kind}
+    >
+      {picture}
+      <span className="media-kind-badge media-image-badge" title={label}>
+        <MediaKindIcon kind={kind} />
+        <span className="media-image-badge-word">{label}</span>
+      </span>
+    </span>
   );
 };

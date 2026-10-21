@@ -61,7 +61,7 @@ describe('media list', () => {
 
     expect(await screen.findByText('Embed')).toBeInTheDocument();
     expect(screen.getAllByRole('img')).toHaveLength(2);
-    expect(screen.getAllByText('Embed')).toHaveLength(1);
+    expect(screen.getAllByText('Embed')).not.toHaveLength(0);
     expect(screen.getAllByRole('row')).toHaveLength(4);
     for (const image of screen.getAllByRole('img')) {
       expect(image.getAttribute('src')).not.toBe('');

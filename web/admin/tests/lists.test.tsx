@@ -3,7 +3,7 @@
  * runs through the real typed client, its parsers, and the shared ListPage.
  * No test touches the network.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { AssetsPage } from '../src/pages/assets/page';
@@ -136,7 +136,45 @@ describe('media page', () => {
     expect(screen.getByText('photo.jpg')).toBeInTheDocument();
     expect(screen.getByText('upload')).toBeInTheDocument();
     expect(screen.getByText('[Untitled]')).toBeInTheDocument();
-    expect(screen.getByText('Embed')).toBeInTheDocument();
+    expect(screen.getAllByText('Embed')).not.toHaveLength(0);
+  });
+
+  it('media_kind_filter_reads_the_server_kind_and_keeps_it_in_the_url', async () => {
+    const rows: unknown = loadFixture('media-page-kinds.json');
+    const fetchMock = installFetch((url) => {
+      const kinds = url.searchParams.getAll('romeka_kind');
+      const picked = kinds.includes('audio') && Array.isArray(rows) ? [rows[1]] : rows;
+      return listResponse(picked, Array.isArray(picked) ? picked.length : 0);
+    });
+    window.history.replaceState(null, '', '#/media');
+    render(<MediaPage param={null} />);
+
+    const audio = await screen.findByRole('row', { name: /tone\.mp3/ });
+    expect(within(audio).getAllByRole('cell')[1]).toHaveTextContent('Audio');
+    const photo = screen.getByRole('row', { name: /photo\.jpg/ });
+    expect(within(photo).getAllByRole('cell')[1]).toHaveTextContent('Image');
+    expect(screen.getByRole('option', { name: 'IIIF manifest' })).toBeInTheDocument();
+    expect(screen.queryByText('local-image')).toBeNull();
+
+    const select = screen.getByLabelText('Kind');
+    fireEvent.change(select, { target: { value: 'audio' } });
+    await waitFor(() => {
+      expect(urlsFor(fetchMock, '/api/media').at(-1)?.searchParams.getAll('romeka_kind')).toEqual([
+        'audio',
+      ]);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('row', { name: /photo\.jpg/ })).toBeNull();
+    });
+    expect(window.location.hash).toBe('#/media?kind=audio');
+
+    fireEvent.change(select, { target: { value: 'image' } });
+    await waitFor(() => {
+      expect(urlsFor(fetchMock, '/api/media').at(-1)?.searchParams.getAll('romeka_kind')).toEqual([
+        'local-image',
+        'iiif-image',
+      ]);
+    });
   });
 });
 
