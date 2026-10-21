@@ -39,7 +39,7 @@ use omeka_site::view::{
 use serde_json::Value;
 
 use super::load::{self, Access, BrowseScope, Loader, thumbnail_for_asset};
-use super::{Outcome, SiteError, route_slug};
+use super::{Outcome, SiteError, download, route_slug};
 use super::{provider, settings};
 
 use crate::AppState;
@@ -83,14 +83,18 @@ pub(crate) async fn dispatch(
 
     // Past `prepareSite` the site locale is set, so upstream's
     // `ExceptionListener` renders `error/404` in the site's locale and layout.
-    match route_to(&common, route).await {
+    match route_to(state, &common, route).await {
         Err(SiteError::NotFound) => Ok(Outcome::NotFound(not_found_page(&common))),
         outcome => outcome,
     }
 }
 
 /// The page or resource a route names under a resolved site.
-async fn route_to(common: &Common<'_>, route: PublicRoute) -> Result<Outcome, SiteError> {
+async fn route_to(
+    state: &AppState,
+    common: &Common<'_>,
+    route: PublicRoute,
+) -> Result<Outcome, SiteError> {
     match route {
         PublicRoute::Home { .. } => home(common),
         PublicRoute::Page { page_slug, .. } => show_page(common, &page_slug).await,
@@ -126,6 +130,14 @@ async fn route_to(common: &Common<'_>, route: PublicRoute) -> Result<Outcome, Si
             action,
             ..
         } if action == "show" => show(common, &controller, id).await,
+        PublicRoute::ResourceShowAction {
+            controller,
+            id,
+            action,
+            ..
+        } if controller == "media" && action == "download" => {
+            download::media(state, common, id).await
+        }
         PublicRoute::ResourceAction { .. } | PublicRoute::ResourceShowAction { .. } => {
             Err(SiteError::NotFound)
         }
@@ -198,7 +210,7 @@ impl SiteData {
 }
 
 /// The shared values one site render reads.
-struct Common<'a> {
+pub(crate) struct Common<'a> {
     site: &'a Site,
     pages: Vec<PageRef>,
     nav: Vec<NavItem>,
@@ -217,7 +229,7 @@ struct Common<'a> {
     favicon_url: Option<String>,
     viewer: Option<Viewer>,
     query: Vec<(String, String)>,
-    loader: &'a Loader<'a>,
+    pub(crate) loader: &'a Loader<'a>,
     current_path: String,
     /// Whether this render is an admin preview, which hides the admin bar.
     preview: bool,
@@ -295,8 +307,14 @@ impl<'a> Common<'a> {
             .await?;
         let after = query_i64(&self.query, "notes_after");
         let cited = query_i64(&self.query, "note");
-        if let Some(notes) = self.loader.media_notes(row, after, cited).await? {
-            self.loader.annotate_first(&mut view, &notes);
+        let notes = self.loader.media_notes(row, after, cited).await?;
+        if let Some(share) = view.share.as_mut() {
+            share.notes = notes
+                .is_some()
+                .then(|| self.loader.notes_container(row.id()));
+        }
+        if let Some(notes) = &notes {
+            self.loader.annotate_first(&mut view, notes);
         }
         Ok(view)
     }
