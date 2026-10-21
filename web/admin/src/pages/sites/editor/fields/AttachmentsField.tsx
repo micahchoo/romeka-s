@@ -7,11 +7,12 @@
  * Items are picked with the shared item picker (`LazyItemPicker`): picking an
  * item appends its row, unpicking removes it, and the tray's order is the rows'
  * order. Each row shows the item's thumbnail and title. The media choice is a row
- * of thumbnails limited to the item's media through `api.listMediaForItem`,
+ * of thumbnails limited to the item's media through `listMediaForItem`,
  * which the server reads as `item_id` (`MediaAdapter::buildQuery`).
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
+import { listMediaForItem } from '../../../../api/media';
 import type { Item, ItemId, Media, MediaId } from '../../../../api/types';
 import {
   ReorderButtons,
@@ -102,7 +103,7 @@ const MediaChoice = ({
     (): Promise<readonly Media[]> =>
       itemId === null
         ? Promise.resolve([])
-        : api.listMediaForItem(itemId, { perPage: 200 }).then((page) => page.items),
+        : listMediaForItem(api, itemId, { perPage: 200 }).then((page) => page.items),
     [itemId],
   );
   const media = state.status === 'ready' ? state.data : [];

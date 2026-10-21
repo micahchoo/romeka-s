@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../../api/client';
+import { listMedia } from '../../../api/media';
 import type { JsonValue, SiteId } from '../../../api/types';
 import { useAsync } from '../../../app/useAsync';
 import { useTranslator } from '../../../i18n';
@@ -34,7 +35,7 @@ const firstId = async (target: ResourceTarget, siteId: SiteId): Promise<number |
       ? await api.listItems(query)
       : target === 'item_sets'
         ? await api.listItemSets(query)
-        : await api.listMedia(query);
+        : await listMedia(api, query);
   return page.items[0]?.id ?? null;
 };
 

@@ -21,6 +21,7 @@
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '../../../../api/client';
+import { getMedia, listMediaForItem } from '../../../../api/media';
 import { brandId } from '../../../../api/parse';
 import type { ItemId, JsonValue, Media, MediaId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
@@ -87,7 +88,7 @@ const listingOf = async (item: ItemId | null): Promise<Listing> => {
     return { item, media: [], itemPublic: true };
   }
   const [media, record] = await Promise.all([
-    api.listMediaForItem(item, { perPage: 200 }).then((page) => page.items),
+    listMediaForItem(api, item, { perPage: 200 }).then((page) => page.items),
     api.getItem(item),
   ]);
   return { item, media, itemPublic: record.isPublic };
@@ -114,7 +115,7 @@ export const MediaRefField = ({
   const { t, number } = useTranslator(common, editor, resources);
   const chosenId = mediaIdOf(value);
   const chosen = useAsync(
-    (): Promise<Media | null> => (chosenId === null ? Promise.resolve(null) : api.getMedia(chosenId)),
+    (): Promise<Media | null> => (chosenId === null ? Promise.resolve(null) : getMedia(api, chosenId)),
     [chosenId],
   );
   const chosenMedia = chosen.status === 'ready' ? chosen.data : null;

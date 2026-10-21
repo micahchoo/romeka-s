@@ -11,6 +11,7 @@
  * description field's text.
  */
 import { api } from '../../../api/client';
+import { updateMedia } from '../../../api/media';
 import { StagedUploads, createMedia } from '../../../api/staged-uploads';
 import type { LimitsState } from '../../../api/staged-uploads';
 import type { Item, ItemId, Media, MediaWrite, ValueWrite, Value } from '../../../api/types';
@@ -340,7 +341,7 @@ export class AddStore {
     this.saved.set(key, { kind: 'saving' });
     this.publish();
     try {
-      const media = await api.updateMedia(state.media.id, mediaWriteOf(state.media, text));
+      const media = await updateMedia(api, state.media.id, mediaWriteOf(state.media, text));
       this.adds.set(key, { kind: 'added', media, sentAlt: text ?? '' });
       this.saved.set(key, { kind: 'saved' });
     } catch (error) {

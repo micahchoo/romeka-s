@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { listVocabularies } from '../../api/vocabularies';
 import type { ApiPage, Vocabulary } from '../../api/types';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
@@ -24,7 +25,7 @@ interface VocabularyRow {
  * `vocabulary_id` filter, two small reads per vocabulary on the page.
  */
 const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
-  const vocabularies = await api.listVocabularies({
+  const vocabularies = await listVocabularies(api, {
     page,
     perPage: PER_PAGE,
     sortBy: 'id',

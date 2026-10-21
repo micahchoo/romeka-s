@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
+import { deleteMedia, getMedia } from '../../api/media';
 import type { Media, MediaId, ThumbnailType } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { formatBytes, formatDateTime } from '../../app/format';
@@ -77,7 +78,7 @@ const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
 export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactElement => {
   const translator = useTranslator(common, resources);
   const { t, locale } = translator;
-  const state = useAsync(() => api.getMedia(mediaId), [mediaId]);
+  const state = useAsync(() => getMedia(api, mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);
   // One player for the page: the stage renders it, the notes panel seeks it.
   const [player, setPlayer] = useState<HTMLMediaElement | null>(null);
@@ -175,7 +176,7 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
         label={t('media.deleteLabel')}
         rowName={mediaName(media) ?? t('common.untitled')}
         onConfirm={async () => {
-          await api.deleteMedia(media.id);
+          await deleteMedia(api, media.id);
           window.location.hash = '#/media';
         }}
       />

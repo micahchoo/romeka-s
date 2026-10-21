@@ -18,8 +18,8 @@ import {
   parseProperty,
   parseResourceTemplate,
   parseSite,
-  parseVocabulary,
 } from '../src/api/parse';
+import { parseVocabulary } from '../src/api/vocabularies';
 import { loadFixture } from './loadFixture';
 
 const at = <T>(values: readonly T[], index: number): T => {

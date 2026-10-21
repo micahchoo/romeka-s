@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { mediaIdFromParam } from '../../api/parse';
+import { mediaIdFromParam } from '../../api/media';
 import type { PageProps } from '../../app/router';
 import { useTranslator } from '../../i18n';
 import { MediaDetail } from './detail';

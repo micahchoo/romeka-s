@@ -13,6 +13,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { listVocabularies } from '../../api/vocabularies';
 import type {
   Property,
   ResourceClass,
@@ -263,7 +264,7 @@ export const VocabularyMemberCreatePage = <MemberT extends VocabularyMemberRow>(
     readonly users: readonly User[];
   }> => {
     const [vocabularies, users] = await Promise.all([
-      api.listVocabularies({ perPage: 200, sortBy: 'label' }),
+      listVocabularies(api, { perPage: 200, sortBy: 'label' }),
       api.listUsers({ perPage: 200, sortBy: 'name' }),
     ]);
     return { vocabularies: vocabularies.items, users: users.items };

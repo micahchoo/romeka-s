@@ -11,6 +11,7 @@
 import type { ReactElement, SyntheticEvent } from "react";
 import { useState } from "react";
 import { api } from "../../api/client";
+import { applyVocabularyDiff, diffVocabulary } from "../../api/vocabularies";
 import type {
   Vocabulary,
   VocabularyDiff,
@@ -175,8 +176,7 @@ const Review = ({
   const changes = writes(diff.classes) + writes(diff.properties);
   const apply = (): void => {
     setBusy(true);
-    api
-      .applyVocabularyDiff(vocabulary.id, diff)
+    applyVocabularyDiff(api, vocabulary.id, diff)
       .then(onApplied, (error: unknown) => {
         setErrors(errorLines(toError(error), translator));
         setBusy(false);
@@ -264,7 +264,7 @@ const UpdateFlow = ({
       try {
         setStep({
           kind: "review",
-          diff: await api.diffVocabulary(vocabulary.id, read),
+          diff: await diffVocabulary(api, vocabulary.id, read),
         });
       } catch (error: unknown) {
         setErrors(errorLines(toError(error), translator));

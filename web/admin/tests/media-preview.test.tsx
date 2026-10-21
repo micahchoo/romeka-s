@@ -5,7 +5,8 @@
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { brandId, parseMedia } from '../src/api/parse';
+import { parseMedia } from '../src/api/media';
+import { brandId } from '../src/api/parse';
 import type { Media, MediaPreview } from '../src/api/types';
 import { MediaImage, MediaPreviewState } from '../src/app/media-image';
 
