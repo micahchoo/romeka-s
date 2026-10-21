@@ -18,7 +18,10 @@
 //!   plus the file renderer trait, a registry mirroring
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
-//!   decodes gif, jpeg, png, tiff and webp and stores the three derivatives.
+//!   decodes gif, jpeg, png, tiff, webp, JPEG 2000 and SVG and stores the three
+//!   derivatives.
+//! - [`svg`]: the SVG filter an upload runs before it is stored, and the
+//!   raster its thumbnail is made from.
 //! - [`iiif_image`]: the IIIF Image API at level 1 over a stored image.
 //! - [`image_metadata`]: the EXIF, IPTC and XMP tags and pixel size of an
 //!   image, for the archive import's tags.
@@ -55,6 +58,7 @@ pub mod media_type;
 pub mod oembed;
 pub mod render;
 pub mod store;
+pub mod svg;
 pub mod testing;
 pub mod text;
 pub mod thumbnailer;

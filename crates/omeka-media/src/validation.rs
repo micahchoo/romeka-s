@@ -4,14 +4,21 @@
 //! an allow list. The lists and the off switch are three global settings
 //! (`media_type_whitelist`, `extension_whitelist`, `disable_file_validation`),
 //! whose defaults are `SettingForm::MEDIA_TYPE_WHITELIST` and
-//! `SettingForm::EXTENSION_WHITELIST`. [`crate::ingest::ingest_file`] runs the
-//! check for every file it stores, as `TempFile::mediaIngestFile` does.
+//! `SettingForm::EXTENSION_WHITELIST`. This fork's defaults add the modern
+//! kinds ([`DEFAULT_MEDIA_TYPES`], [`DEFAULT_EXTENSIONS`]).
+//! [`crate::ingest::ingest_file`] runs the check for every file it stores, as
+//! `TempFile::mediaIngestFile` does.
 
 use std::fmt;
 
-/// `SettingForm::MEDIA_TYPE_WHITELIST` (`Form/SettingForm.php:22-83`),
-/// verbatim. The stray comma in `video/x-ms-asf,` is upstream's, so an ASF
-/// file is refused by default there too.
+/// `SettingForm::MEDIA_TYPE_WHITELIST` (`Form/SettingForm.php:22-83`), with
+/// this fork's additions. The stray comma in `video/x-ms-asf,` is upstream's,
+/// so an ASF file is refused by default there too.
+///
+/// The additions are the types `media_type` answers for the formats a modern
+/// collection holds: FLAC, Matroska, AVIF, HEIC, SVG, glTF (both forms),
+/// WebVTT and SubRip. Each is a deliberate difference from upstream's default
+/// and is listed in `docs/compat.md`.
 pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/msword",
     "application/ogg",
@@ -36,8 +43,10 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/x-ms-wmp",
     "application/x-msdownload",
     "application/x-shockwave-flash",
+    "application/x-subrip",
     "application/x-tar",
     "application/zip",
+    "audio/flac",
     "audio/midi",
     "audio/mp4",
     "audio/mpeg",
@@ -48,37 +57,47 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "audio/x-ms-wax",
     "audio/x-realaudio",
     "audio/x-wav",
+    "image/avif",
     "image/bmp",
     "image/gif",
+    "image/heic",
     "image/jp2",
     "image/jpeg",
     "image/pjpeg",
     "image/png",
+    "image/svg+xml",
     "image/tiff",
     "image/webp",
     "image/x-icon",
+    "model/gltf+json",
+    "model/gltf-binary",
     "text/css",
     "text/plain",
     "text/richtext",
+    "text/vtt",
     "video/divx",
     "video/mp4",
     "video/mpeg",
     "video/ogg",
     "video/quicktime",
     "video/webm",
+    "video/x-matroska",
     "video/x-ms-asf,",
     "video/x-msvideo",
     "video/x-ms-wmv",
 ];
 
-/// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), verbatim.
+/// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), with this
+/// fork's additions (`avif`, `flac`, `glb`, `gltf`, `heic`, `mkv`, `ogv`,
+/// `srt`, `svg`, `vtt`).
 pub const DEFAULT_EXTENSIONS: &[&str] = &[
-    "aac", "aif", "aiff", "asf", "asx", "avi", "bmp", "c", "cc", "class", "css", "divx", "doc",
-    "docx", "exe", "gif", "gz", "gzip", "h", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg", "m4a",
-    "m4v", "mdb", "mid", "midi", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp",
-    "odb", "odc", "odf", "odg", "odp", "ods", "odt", "ogg", "opus", "pdf", "png", "pot", "pps",
-    "ppt", "pptx", "qt", "ra", "ram", "rtf", "rtx", "swf", "tar", "tif", "tiff", "txt", "wav",
-    "wax", "webm", "webp", "wma", "wmv", "wmx", "wri", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
+    "aac", "aif", "aiff", "asf", "asx", "avi", "avif", "bmp", "c", "cc", "class", "css", "divx",
+    "doc", "docx", "exe", "flac", "gif", "glb", "gltf", "gz", "gzip", "h", "heic", "ico", "j2k",
+    "jp2", "jpe", "jpeg", "jpg", "m4a", "m4v", "mdb", "mid", "midi", "mkv", "mov", "mp2", "mp3",
+    "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp", "odb", "odc", "odf", "odg", "odp", "ods", "odt",
+    "ogg", "ogv", "opus", "pdf", "png", "pot", "pps", "ppt", "pptx", "qt", "ra", "ram", "rtf",
+    "rtx", "srt", "svg", "swf", "tar", "tif", "tiff", "txt", "vtt", "wav", "wax", "webm", "webp",
+    "wma", "wmv", "wmx", "wri", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
 ];
 
 /// What a store may accept, the state `Omeka\File\Validator` is built with.
@@ -264,5 +283,33 @@ mod tests {
             empty.refusals("photo.jpg", "image/jpeg", Some("jpg")).len(),
             2
         );
+    }
+
+    /// The kinds this fork adds pass the defaults under the type the byte read
+    /// answers and the extension the source carries. `audio.opus` is the Ogg
+    /// container, which the detector names `audio/ogg`.
+    #[test]
+    fn the_defaults_accept_the_widened_kinds() {
+        let defaults = FileValidation::default();
+        for (name, media_type, extension) in [
+            ("art.avif", "image/avif", "avif"),
+            ("photo.heic", "image/heic", "heic"),
+            ("drawing.svg", "image/svg+xml", "svg"),
+            ("talk.flac", "audio/flac", "flac"),
+            ("talk.opus", "audio/ogg", "opus"),
+            ("clip.mkv", "video/x-matroska", "mkv"),
+            ("clip.ogv", "video/ogg", "ogv"),
+            ("scene.glb", "model/gltf-binary", "glb"),
+            ("scene.gltf", "model/gltf+json", "gltf"),
+            ("talk.vtt", "text/vtt", "vtt"),
+            ("talk.srt", "application/x-subrip", "srt"),
+        ] {
+            assert!(
+                defaults
+                    .refusals(name, media_type, Some(extension))
+                    .is_empty(),
+                "{name} was refused"
+            );
+        }
     }
 }

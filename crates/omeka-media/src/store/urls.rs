@@ -33,9 +33,6 @@ pub struct Download {
     pub media_type: Option<String>,
     /// The name a "save as" offers, from the media's `o:source`.
     pub filename: Option<String>,
-    /// The original's stored extension, which tells apart the types the byte
-    /// detector misreads.
-    extension: Option<String>,
 }
 
 impl Download {
@@ -46,9 +43,6 @@ impl Download {
         Self {
             media_type: media_type.map(str::to_string),
             filename: Some(download_name(source, stored_name)),
-            extension: stored_name
-                .rsplit_once('.')
-                .map(|(_, extension)| extension.to_ascii_lowercase()),
         }
     }
 
@@ -58,24 +52,15 @@ impl Download {
         content_disposition(self.filename.as_deref().unwrap_or("download"))
     }
 
-    /// The type the download answers with: the media's stored type, except for
-    /// the formats the byte detector cannot distinguish from their container.
+    /// The type the download answers with: the media's stored type.
     ///
-    /// `detected_media_type` reads bytes, and a WebVTT or SRT file is plain
-    /// text to it, a glTF document is JSON, and a GLB is an unknown binary.
-    /// For those the stored type says "text" or "unknown", not what the file
-    /// is, so the extension is the better authority.
+    /// The ingest names a file the byte detector cannot tell from its
+    /// container (`omeka_media::media_type::detected_media_type_of`), so the
+    /// row is the one authority here. An SVG's stored type describes the
+    /// filtered bytes the row stores.
     #[must_use]
     pub fn served_type(&self) -> Option<&str> {
-        let stored = self.media_type.as_deref()?;
-        Some(match (stored, self.extension.as_deref()) {
-            ("text/plain", Some("vtt")) => "text/vtt",
-            ("text/plain", Some("srt")) => "application/x-subrip",
-            ("application/json", Some("gltf")) => "model/gltf+json",
-            ("application/octet-stream", Some("glb")) => "model/gltf-binary",
-            ("audio/ogg", Some("ogv")) => "video/ogg",
-            _ => stored,
-        })
+        self.media_type.as_deref()
     }
 }
 
@@ -372,29 +357,31 @@ mod tests {
     }
 
     #[test]
-    fn a_download_type_corrects_what_the_detector_cannot_tell() {
+    fn a_download_answers_with_the_stored_type() {
         let type_of = |stored: &str, name: &str| {
             Download::of(Some(stored), Some(name), name)
                 .served_type()
                 .map(str::to_string)
         };
-        assert_eq!(type_of("text/plain", "talk.vtt"), Some("text/vtt".into()));
+        // The ingest names these from the source extension, so the row says
+        // what the file is and the download does not second-guess it.
+        assert_eq!(type_of("text/vtt", "talk.vtt"), Some("text/vtt".into()));
         assert_eq!(
-            type_of("text/plain", "talk.srt"),
+            type_of("application/x-subrip", "talk.srt"),
             Some("application/x-subrip".into())
         );
         assert_eq!(
-            type_of("application/json", "scene.gltf"),
+            type_of("model/gltf+json", "scene.gltf"),
             Some("model/gltf+json".into())
         );
         assert_eq!(
-            type_of("application/octet-stream", "scene.GLB"),
+            type_of("model/gltf-binary", "scene.GLB"),
             Some("model/gltf-binary".into())
         );
-        assert_eq!(type_of("audio/ogg", "clip.ogv"), Some("video/ogg".into()));
+        assert_eq!(type_of("video/ogg", "clip.ogv"), Some("video/ogg".into()));
         assert_eq!(
-            type_of("video/webm", "talk.webm"),
-            Some("video/webm".into())
+            type_of("video/x-matroska", "talk.mkv"),
+            Some("video/x-matroska".into())
         );
         assert_eq!(
             type_of("text/plain", "notes.txt"),
