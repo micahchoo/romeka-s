@@ -17,9 +17,10 @@
 use omeka_core::resource::ResourceKind;
 
 use crate::html::escape_html;
+use crate::i18n::sprintf1;
 use crate::slug::controller_for;
 use crate::theme::choices::CardStyle;
-use crate::view::{RenderContext, ResourceView, Thumbnail, ValueRef};
+use crate::view::{MediaIcon, MediaKindCue, RenderContext, ResourceView, Thumbnail, ValueRef};
 
 /// The class a resource list carries for the card style it draws. It is not
 /// the root token's class (`cards-*`), which no element may repeat.
@@ -126,6 +127,115 @@ pub fn kind_icon(kind: ResourceKind) -> &'static str {
              <path d=\"M3.5 4.5h17v15h-17z M3.5 16l5-5 4 4 3-3 5 5\" fill=\"none\" \
              stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
         }
+    }
+}
+
+/// The glyph the theme draws for a media kind, in a tinted slot or a badge.
+/// Decorative; the kind's word is always beside it.
+#[must_use]
+pub fn media_icon(icon: MediaIcon) -> &'static str {
+    match icon {
+        MediaIcon::Image => kind_icon(ResourceKind::Media),
+        MediaIcon::Audio => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M4 10v4 M8 7v10 M12 4v16 M16 7v10 M20 10v4\" fill=\"none\" \
+             stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/></svg>"
+        }
+        MediaIcon::Video => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M3.5 5h17v14h-17z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" \
+             stroke-linejoin=\"round\"/><path d=\"M10 9.5v5l4.5-2.5z\" fill=\"currentColor\"/></svg>"
+        }
+        MediaIcon::Pdf => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M6 3.5h8l4 4v13H6z M14 3.5v4h4 M9 12h6 M9 15h6\" fill=\"none\" \
+             stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
+        }
+        MediaIcon::Model => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z M3.5 7.5 12 12l8.5-4.5M12 12v9\" \
+             fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
+        }
+        MediaIcon::Captions => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M3.5 5.5h17v11h-17z M7 9.5h4 M7 13h7 M14 9.5h3\" fill=\"none\" \
+             stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
+        }
+        MediaIcon::Embed => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M3.5 4.5h17v15h-17z M3.5 12h17 M12 4.5c-3 3-3 12 0 15 M12 4.5c3 3 3 12 0 15\" \
+             fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
+        }
+        MediaIcon::File => {
+            "<svg class=\"kind-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">\
+             <path d=\"M6 3.5h8l4 4v13H6z M14 3.5v4h4 M9 12h6 M9 15h6\" fill=\"none\" \
+             stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg>"
+        }
+    }
+}
+
+/// The inside of a kind placeholder: the icon and the kind's word, the one
+/// function the cards and the item page's file strip both draw.
+#[must_use]
+pub fn media_placeholder(cue: &MediaKindCue) -> String {
+    format!(
+        "{}<span class=\"resource-kind\">{}</span>",
+        media_icon(cue.icon),
+        escape_html(cue.label)
+    )
+}
+
+/// A media kind as a card's thumbnail slot when the file has no picture: a
+/// tinted surface with the kind's icon and word, plus the run time when an
+/// extent row records one.
+#[must_use]
+pub fn media_thumb(cue: &MediaKindCue, duration_ms: Option<u64>) -> String {
+    let duration = match duration_ms.filter(|_| is_recording(cue.icon)) {
+        Some(ms) => format!(
+            "<span class=\"resource-duration\"><span aria-hidden=\"true\">▶</span> {}</span>",
+            duration_label(ms)
+        ),
+        None => String::new(),
+    };
+    format!(
+        "<span class=\"resource-thumb resource-thumb-empty\" data-kind=\"media\" \
+         data-media-kind=\"{}\">{}{duration}</span>",
+        escape_html(cue.kind),
+        media_placeholder(cue)
+    )
+}
+
+/// The corner badge a card with a picture shows for a file that is not an
+/// image: the kind in words, the play glyph and the run time for a recording.
+/// An image card gets no badge, because its picture is the cue.
+fn media_badge(cue: &MediaKindCue, duration_ms: Option<u64>) -> String {
+    if cue.icon == MediaIcon::Image {
+        return String::new();
+    }
+    let mut text = String::new();
+    if is_recording(cue.icon) {
+        text.push_str("<span aria-hidden=\"true\">▶</span> ");
+    }
+    text.push_str(&escape_html(cue.label));
+    if let Some(ms) = duration_ms.filter(|_| is_recording(cue.icon)) {
+        text.push_str(&format!(" · {}", duration_label(ms)));
+    }
+    format!("<span class=\"resource-badge\">{text}</span>")
+}
+
+const fn is_recording(icon: MediaIcon) -> bool {
+    matches!(icon, MediaIcon::Audio | MediaIcon::Video)
+}
+
+/// A run time as a reader says it: `3:42`, and `1:02:03` past an hour.
+#[must_use]
+pub fn duration_label(ms: u64) -> String {
+    let seconds = ms / 1_000;
+    let (hours, minutes, seconds) = (seconds / 3_600, seconds / 60 % 60, seconds % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{seconds:02}")
+    } else {
+        format!("{minutes}:{seconds:02}")
     }
 }
 
@@ -256,22 +366,34 @@ pub fn resource_card(
 ) -> String {
     let (name, fallback) = display_name(resource, ctx);
     let type_label = type_label(resource);
+    let cue = resource.media_kind.as_ref();
     let (thumb, state) = match &resource.thumbnail {
         _ if !parts.thumbnail => (String::new(), "no-thumb"),
         Some(Thumbnail { url, alt }) => (
             format!(
-                "<span class=\"resource-thumb\"><img src=\"{}\" alt=\"{}\" loading=\"lazy\"></span>",
+                "<span class=\"resource-thumb\"><img src=\"{}\" alt=\"{}\" loading=\"lazy\">{}</span>",
                 escape_html(url),
-                escape_html(alt)
+                escape_html(alt),
+                cue.map_or_else(String::new, |cue| {
+                    media_badge(cue, resource.duration_ms)
+                })
             ),
             "has-thumb",
         ),
-        None => (
-            empty_thumb(kind, type_label.unwrap_or_else(|| kind_label(kind, ctx))),
-            "no-thumb",
-        ),
+        None => match cue {
+            Some(cue) => (media_thumb(cue, resource.duration_ms), "no-thumb"),
+            None => {
+                let label = match kind {
+                    ResourceKind::Item => ctx.translator().messages().no_file,
+                    ResourceKind::ItemSet | ResourceKind::Media => {
+                        type_label.unwrap_or_else(|| kind_label(kind, ctx))
+                    }
+                };
+                (empty_thumb(kind, label), "no-thumb")
+            }
+        },
     };
-    let meta: String = parts
+    let mut meta: String = parts
         .details
         .iter()
         .filter_map(|detail| {
@@ -284,6 +406,15 @@ pub fn resource_card(
             })
         })
         .collect();
+    if resource.file_count > 1 {
+        meta.push_str(&format!(
+            "<span class=\"resource-meta-files\">{}</span>",
+            escape_html(&sprintf1(
+                ctx.translator().messages().files_count,
+                &resource.file_count.to_string()
+            ))
+        ));
+    }
     let mut text = String::new();
     if parts.heading {
         text = format!(
@@ -300,8 +431,11 @@ pub fn resource_card(
         }
         text.push_str("</span>");
     }
+    let kind_attribute = cue.map_or_else(String::new, |cue| {
+        format!(" data-media-kind=\"{}\"", escape_html(cue.kind))
+    });
     let mut out = format!(
-        "<li class=\"{} resource {state}\">",
+        "<li class=\"{} resource {state}\"{kind_attribute}>",
         escape_html(controller_for(kind))
     );
     if !thumb.is_empty() || !text.is_empty() {
@@ -356,7 +490,128 @@ pub fn resource_header(resource: &ResourceView, ctx: &RenderContext<'_>) -> Stri
 
 #[cfg(test)]
 mod tests {
-    use super::strip_extension;
+    use super::{CardParts, duration_label, resource_card, strip_extension};
+    use crate::blocks::test_support::{TestResources, context, item, site};
+    use crate::theme::choices::CardStyle;
+    use crate::view::{MediaIcon, MediaKindCue, Thumbnail};
+    use omeka_core::resource::ResourceKind;
+
+    fn cue(kind: &'static str, label: &'static str, icon: MediaIcon) -> MediaKindCue {
+        MediaKindCue { kind, label, icon }
+    }
+
+    /// A card names the kind of its first file in words and in
+    /// `data-media-kind`, counts the item's files, and draws the kind's icon
+    /// instead of a generic placeholder.
+    #[test]
+    fn a_card_names_the_kind_of_its_first_file() {
+        let site = site();
+        let resources = TestResources::default();
+        let ctx = context(&site, &resources);
+        let mut audio = item(7, "Field recording", "/s/main/item/7");
+        audio.media_kind = Some(cue("audio", "Audio", MediaIcon::Audio));
+        audio.file_count = 3;
+        let card = resource_card(
+            ResourceKind::Item,
+            &audio,
+            &ctx,
+            CardParts::all(CardStyle::Caption),
+        );
+        assert!(
+            card.starts_with("<li class=\"item resource no-thumb\" data-media-kind=\"audio\">"),
+            "{card}"
+        );
+        assert!(
+            card.contains("<span class=\"resource-kind\">Audio</span>"),
+            "{card}"
+        );
+        assert!(
+            card.contains("<span class=\"resource-meta-files\">3 files</span>"),
+            "{card}"
+        );
+        assert!(
+            !card.contains("resource-badge"),
+            "an empty slot has no badge: {card}"
+        );
+    }
+
+    /// A picture of a non-image file carries the kind in a corner badge, with
+    /// the run time only when an extent row recorded one.
+    #[test]
+    fn a_card_with_a_picture_badges_its_kind_and_run_time() {
+        let site = site();
+        let resources = TestResources::default();
+        let ctx = context(&site, &resources);
+        let mut video = item(8, "Interview", "/s/main/item/8");
+        video.thumbnail = Some(Thumbnail::new("/files/square/8.jpg", ""));
+        video.media_kind = Some(cue("video", "Video", MediaIcon::Video));
+        video.duration_ms = Some(222_000);
+        let card = resource_card(
+            ResourceKind::Item,
+            &video,
+            &ctx,
+            CardParts::all(CardStyle::Caption),
+        );
+        assert!(card.contains("data-media-kind=\"video\""), "{card}");
+        assert!(
+            card.contains(
+                "<span class=\"resource-badge\"><span aria-hidden=\"true\">▶</span> \
+                 Video · 3:42</span>"
+            ),
+            "{card}"
+        );
+    }
+
+    /// An image card's picture is its cue: no badge, but the server's kind is
+    /// still on the card for the matrix and for a style hook.
+    #[test]
+    fn an_image_card_has_no_badge() {
+        let site = site();
+        let resources = TestResources::default();
+        let ctx = context(&site, &resources);
+        let mut image = item(9, "Portrait", "/s/main/item/9");
+        image.thumbnail = Some(Thumbnail::new("/files/square/9.jpg", ""));
+        image.media_kind = Some(cue("local-image", "Image", MediaIcon::Image));
+        let card = resource_card(
+            ResourceKind::Item,
+            &image,
+            &ctx,
+            CardParts::all(CardStyle::Caption),
+        );
+        assert!(card.contains("data-media-kind=\"local-image\""), "{card}");
+        assert!(!card.contains("resource-badge"), "{card}");
+    }
+
+    /// An item with no file says so where the kind would stand, so it cannot
+    /// be mistaken for a file of some other kind.
+    #[test]
+    fn an_item_with_no_file_says_no_file() {
+        let site = site();
+        let resources = TestResources::default();
+        let ctx = context(&site, &resources);
+        let bare = item(10, "Empty", "/s/main/item/10");
+        let card = resource_card(
+            ResourceKind::Item,
+            &bare,
+            &ctx,
+            CardParts::all(CardStyle::Caption),
+        );
+        assert!(
+            card.contains("<span class=\"resource-kind\">No file</span>"),
+            "{card}"
+        );
+        assert!(!card.contains("data-media-kind"), "{card}");
+    }
+
+    /// A run time reads as minutes and seconds, and grows an hours field only
+    /// past an hour.
+    #[test]
+    fn a_run_time_reads_as_minutes_and_seconds() {
+        assert_eq!(duration_label(222_000), "3:42");
+        assert_eq!(duration_label(0), "0:00");
+        assert_eq!(duration_label(59_999), "0:59");
+        assert_eq!(duration_label(3_723_000), "1:02:03");
+    }
 
     /// A file extension goes; a dot that belongs to the name stays.
     #[test]
