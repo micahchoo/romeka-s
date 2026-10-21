@@ -587,6 +587,7 @@ export const ne: EditorMessages = {
   'mediaRef.remove': 'हटाउनुहोस्',
   'mediaRef.changeItem': 'अर्को वस्तु छान्नुहोस्',
   'focal.noImage': 'पहिले पृष्ठभूमि छवि छान्नुहोस्।',
+  'focal.notAPicture': 'यस मिडियामा सेट गर्नका लागि कुनै छवि छैन।',
   'focal.frame':
     'केन्द्र बिन्दु: {x}% चौडा, {y}% तल। छविमा क्लिक गर्नुहोस् वा यसलाई सार्नका लागि एरो कुञ्जीहरू प्रयोग गर्नुहोस्।',
   'focal.center': 'केन्द्र',
@@ -604,7 +605,6 @@ export const ne: EditorMessages = {
   'region.pageGroup': 'हरेक पृष्ठमा',
   'region.pageHelp':
     'हेडर र फुटर सम्पूर्ण साइटका हुन्। प्रिव्युमा एउटामा क्लिक गर्नुहोस्, वा यहाँबाट छान्नुहोस्।',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'तिनवटा विशेषता प्राप्त वस्तुहरू',
   'sectionTemplate.featuredItems.description':
     'एउटा पङ्क्तिमा तिनवटा वस्तु कार्डहरू, जसमा प्रत्येकको छवि, शीर्षक र लिङ्क हुन्छ।',

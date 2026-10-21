@@ -57,6 +57,16 @@ impl OembedAllowList {
         &self.rules
     }
 
+    /// Every host the rules allow, with a leading dot removed, for the frame
+    /// check in [`render_oembed`].
+    #[must_use]
+    pub fn hosts(&self) -> Vec<&'static str> {
+        self.rules
+            .iter()
+            .flat_map(|rule| rule.hosts.iter().map(|host| host.trim_start_matches('.')))
+            .collect()
+    }
+
     /// The endpoint for a source URL.
     ///
     /// `Some(None)` means the URL is allowed and its endpoint must be
@@ -164,27 +174,37 @@ impl Oembed {
 
 /// Render oEmbed markup, matching `Oembed::renderOembed`.
 ///
-/// An `html` member is returned verbatim. A `photo` becomes an `img`. Anything
-/// else returns `None`, and `Media/Renderer/OEmbed.php:32` then falls back to a
-/// hyperlink.
+/// An `html` member passes through [`omeka_core::purify::purify_embed`] with
+/// `source` and `provider_hosts`: upstream returns it verbatim, so a provider
+/// could put a script or an event handler on the page. A `photo` becomes an
+/// `img` whose alt is the response title, else the media's resolved alt
+/// (`alt_text`), else empty. Anything else returns `None`, and
+/// `Media/Renderer/OEmbed.php:32` then falls back to a hyperlink.
 #[must_use]
-pub fn render_oembed(oembed: &OembedData) -> Option<String> {
+pub fn render_oembed(
+    oembed: &OembedData,
+    source: &str,
+    alt_text: Option<&str>,
+    provider_hosts: &[&str],
+) -> Option<String> {
     if let Some(html) = oembed.html() {
-        return Some(html.to_string());
+        let sanitized = omeka_core::purify::purify_embed(html, source, provider_hosts);
+        return (!sanitized.is_empty()).then_some(sanitized);
     }
     if oembed.kind() != Some("photo") {
         return None;
     }
     let url = oembed.field("url").unwrap_or_default();
+    let alt = oembed
+        .title()
+        .or_else(|| alt_text.filter(|text| !text.is_empty()).map(str::to_string))
+        .unwrap_or_default();
     Some(format!(
         "<img src=\"{}\" width=\"{}\" height=\"{}\" alt=\"{}\">",
         escape_html(&url),
         escape_html(&oembed.field("width").unwrap_or_default()),
         escape_html(&oembed.field("height").unwrap_or_default()),
-        // Upstream writes `$data['title'] ?? $url` inside renderOembed, where
-        // `$data` is out of scope, so the null coalescing operator always
-        // yields the URL (Stdlib/Oembed.php:113).
-        escape_html(&url),
+        escape_html(&alt),
     ))
 }
 
@@ -508,17 +528,27 @@ mod tests {
         );
     }
 
-    /// `renderOembed` returns an `html` member verbatim and builds the `photo`
-    /// markup (`Stdlib/Oembed.php:103`).
+    /// A provider's `html` passes the purifier with its frame kept and a
+    /// sandbox set, and its `photo` markup takes the title or the given alt.
     #[test]
-    fn render_oembed_matches_upstream() {
-        let raw = serde_json::json!({"html": "<blockquote>x</blockquote>"});
+    fn render_oembed_sanitizes_html_and_builds_a_photo() {
+        let raw =
+            serde_json::json!({"html": "<blockquote>x</blockquote><script>alert(1)</script>"});
         let data = OembedData {
             map: raw.as_object().expect("object").clone(),
         };
         assert_eq!(
-            render_oembed(&data).as_deref(),
+            render_oembed(&data, "", None, &[]).as_deref(),
             Some("<blockquote>x</blockquote>")
+        );
+
+        let raw = serde_json::json!({"type": "photo", "url": "https://x/y.jpg", "width": 640, "height": 480, "title": "A cat"});
+        let data = OembedData {
+            map: raw.as_object().expect("object").clone(),
+        };
+        assert_eq!(
+            render_oembed(&data, "", Some("unused"), &[]).as_deref(),
+            Some("<img src=\"https://x/y.jpg\" width=\"640\" height=\"480\" alt=\"A cat\">")
         );
 
         let raw = serde_json::json!({"type": "photo", "url": "https://x/y.jpg", "width": 640, "height": 480});
@@ -526,17 +556,43 @@ mod tests {
             map: raw.as_object().expect("object").clone(),
         };
         assert_eq!(
-            render_oembed(&data).as_deref(),
+            render_oembed(&data, "", Some("A photo of a cat"), &[]).as_deref(),
             Some(
-                "<img src=\"https://x/y.jpg\" width=\"640\" height=\"480\" alt=\"https://x/y.jpg\">"
+                "<img src=\"https://x/y.jpg\" width=\"640\" height=\"480\" alt=\"A photo of a cat\">"
             )
+        );
+        assert_eq!(
+            render_oembed(&data, "", None, &[]).as_deref(),
+            Some("<img src=\"https://x/y.jpg\" width=\"640\" height=\"480\" alt=\"\">")
         );
 
         let raw = serde_json::json!({"type": "link"});
         let data = OembedData {
             map: raw.as_object().expect("object").clone(),
         };
-        assert_eq!(render_oembed(&data), None);
+        assert_eq!(render_oembed(&data, "", None, &[]), None);
+    }
+
+    /// A provider frame from an allow-listed host survives the sanitizer, and
+    /// one from another host does not.
+    #[test]
+    fn render_oembed_keeps_only_provider_frames() {
+        let raw = serde_json::json!({
+            "html": "<iframe src=\"https://player.vimeo.com/video/1\"></iframe><iframe src=\"https://evil.example/1\"></iframe>",
+        });
+        let data = OembedData {
+            map: raw.as_object().expect("object").clone(),
+        };
+        let html = render_oembed(
+            &data,
+            "https://vimeo.com/1",
+            None,
+            &OembedAllowList::shipped().hosts(),
+        )
+        .expect("markup");
+        assert!(html.contains("player.vimeo.com"), "{html}");
+        assert!(html.contains("sandbox="), "{html}");
+        assert!(!html.contains("evil.example"), "{html}");
     }
 
     /// The discovery link is the one with an oEmbed rel and type

@@ -86,7 +86,9 @@ async fn deleting_an_asset_removes_the_stored_file() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), omeka_server::FILES_URI);
     let path = storage_path(StorePrefix::Asset, ASSET_STORAGE_ID, Some("png"));
-    store.put(b"png bytes", &path).expect("put asset");
+    store
+        .put(b"png bytes", &path, Some("image/png"))
+        .expect("put asset");
 
     let app = router_with_store(pool, store.clone());
     let before = send(

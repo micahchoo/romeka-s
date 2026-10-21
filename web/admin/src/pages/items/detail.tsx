@@ -6,7 +6,7 @@ import { DeleteControl } from '../../app/delete';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
-import { MediaImage } from '../../app/media-image';
+import { MediaImage, MediaKindBadge } from '../../app/media-image';
 import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
@@ -37,12 +37,11 @@ const NO_CLASSES: ReadonlyMap<ClassId, TermName> = new Map();
 const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
   const { t } = useTranslator(common, resources);
   const href = previewLinkUrl(media);
-  const image = (
-    <MediaImage media={media} url={previewImageUrl(media)} className="media-card-image" lazy />
-  );
+  const url = previewImageUrl(media);
+  const image = <MediaImage media={media} url={url} className="media-card-image" lazy />;
   return (
     <figure className="media-card">
-      {href === null ? (
+      {href === null || url === null ? (
         image
       ) : (
         <a href={href} target="_blank" rel="noreferrer">
@@ -51,9 +50,10 @@ const MediaCard = ({ media }: { readonly media: Media }): ReactElement => {
       )}
       <figcaption className="media-card-caption">
         {mediaName(media) ?? t('common.untitled')}
-        {media.mediaType === null ? null : (
-          <span className="media-card-meta">{media.mediaType}</span>
-        )}
+        <span className="media-card-meta">
+          <MediaKindBadge media={media} />
+          {media.mediaType === null ? null : <span>{media.mediaType}</span>}
+        </span>
       </figcaption>
     </figure>
   );

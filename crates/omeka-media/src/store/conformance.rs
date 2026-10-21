@@ -18,6 +18,7 @@ use super::{Access, Store, StoreError};
 /// Run every check except [`check_put_stream_memory`].
 pub fn check_store(store: &dyn Store) {
     put_then_read_round_trips(store);
+    typed_put_keeps_the_bytes(store);
     exists_and_delete_report_presence(store);
     read_range_clips_to_the_file(store);
     list_names_the_files_directly_in_a_folder(store);
@@ -29,9 +30,9 @@ pub fn check_store(store: &dyn Store) {
 /// `put` then `read` returns the bytes; a second `put` replaces them.
 pub fn put_then_read_round_trips(store: &dyn Store) {
     let path = "conformance-put/a.txt";
-    ok(store.put(b"first", path), "put");
+    ok(store.put(b"first", path, None), "put");
     assert_eq!(ok(store.read(path), "read"), b"first");
-    ok(store.put(b"second and longer", path), "overwrite");
+    ok(store.put(b"second and longer", path, None), "overwrite");
     assert_eq!(ok(store.read(path), "read"), b"second and longer");
     assert!(
         store.read("conformance-put/missing.txt").is_err(),
@@ -39,12 +40,30 @@ pub fn put_then_read_round_trips(store: &dyn Store) {
     );
 }
 
+/// A put that names a type stores the same bytes; whether the store keeps the
+/// type is the store's business, and an object store's wire test checks it.
+pub fn typed_put_keeps_the_bytes(store: &dyn Store) {
+    let path = "conformance-typed/clip.webm";
+    ok(
+        store.put(b"webm bytes", path, Some("video/webm")),
+        "typed put",
+    );
+    assert_eq!(ok(store.read(path), "read"), b"webm bytes");
+    let path = "conformance-typed/stream.webm";
+    let mut source: &[u8] = b"streamed";
+    ok(
+        store.put_stream(&mut source, Some(8), path, Some("video/webm")),
+        "typed stream",
+    );
+    assert_eq!(ok(store.read(path), "read"), b"streamed");
+}
+
 /// `exists` follows `put` and `delete`; deleting a missing file answers
 /// `false`, as upstream's `Local::delete` treats it as success.
 pub fn exists_and_delete_report_presence(store: &dyn Store) {
     let path = "conformance-delete/a.bin";
     assert!(!ok(store.exists(path), "exists before put"));
-    ok(store.put(b"x", path), "put");
+    ok(store.put(b"x", path, None), "put");
     assert!(ok(store.exists(path), "exists after put"));
     assert!(ok(store.delete(path), "delete"));
     assert!(!ok(store.exists(path), "exists after delete"));
@@ -55,7 +74,7 @@ pub fn exists_and_delete_report_presence(store: &dyn Store) {
 /// file, and nothing for a range that starts past it.
 pub fn read_range_clips_to_the_file(store: &dyn Store) {
     let path = "conformance-range/digits.txt";
-    ok(store.put(b"0123456789", path), "put");
+    ok(store.put(b"0123456789", path, None), "put");
     assert_eq!(ok(store.read_range(path, 2..5), "inside"), b"234");
     assert_eq!(ok(store.read_range(path, 7..100), "past the end"), b"789");
     assert_eq!(ok(store.read_range(path, 0..10), "whole"), b"0123456789");
@@ -77,7 +96,7 @@ pub fn list_names_the_files_directly_in_a_folder(store: &dyn Store) {
         "conformance-list/nested/c.jpg",
         "conformance-list-sibling/d.jpg",
     ] {
-        ok(store.put(b"x", path), "put");
+        ok(store.put(b"x", path, None), "put");
     }
     let listed: Vec<String> = ok(store.list("conformance-list"), "list")
         .into_iter()
@@ -91,12 +110,18 @@ pub fn list_names_the_files_directly_in_a_folder(store: &dyn Store) {
 pub fn put_stream_stores_every_byte(store: &dyn Store) {
     let path = "conformance-stream/small.bin";
     let mut source = Generated::new(300_000);
-    let written = ok(store.put_stream(&mut source, Some(300_000), path), "stream");
+    let written = ok(
+        store.put_stream(&mut source, Some(300_000), path, None),
+        "stream",
+    );
     assert_eq!(written, 300_000);
     assert_eq!(ok(store.read(path), "read"), Generated::bytes(300_000));
     let mut empty: &[u8] = &[];
     let path = "conformance-stream/empty.bin";
-    assert_eq!(ok(store.put_stream(&mut empty, None, path), "empty"), 0);
+    assert_eq!(
+        ok(store.put_stream(&mut empty, None, path, None), "empty"),
+        0
+    );
     assert!(ok(store.read(path), "read empty").is_empty());
 }
 
@@ -115,13 +140,15 @@ pub fn illegal_paths_are_refused(store: &dyn Store) {
                 "{call}({path:?}) must be refused, got {result:?}"
             );
         };
-        illegal(store.put(b"x", path), "put");
+        illegal(store.put(b"x", path, None), "put");
         illegal(store.read(path).map(drop), "read");
         illegal(store.read_range(path, 0..1).map(drop), "read_range");
         illegal(store.delete(path).map(drop), "delete");
         illegal(store.exists(path).map(drop), "exists");
         illegal(
-            store.put_stream(&mut &b"x"[..], Some(1), path).map(drop),
+            store
+                .put_stream(&mut &b"x"[..], Some(1), path, None)
+                .map(drop),
             "put_stream",
         );
     }
@@ -161,7 +188,10 @@ pub fn check_put_stream_memory(store: &dyn Store, len: u64, max_growth: u64) {
     let path = "conformance-memory/large.bin";
     let before = peak_resident_bytes();
     let mut source = Generated::new(len);
-    let written = ok(store.put_stream(&mut source, Some(len), path), "stream");
+    let written = ok(
+        store.put_stream(&mut source, Some(len), path, None),
+        "stream",
+    );
     let after = peak_resident_bytes();
     assert_eq!(written, len);
     if let (Some(before), Some(after)) = (before, after) {

@@ -585,6 +585,7 @@ export const hi: EditorMessages = {
   'mediaRef.remove': 'हटाएँ',
   'mediaRef.changeItem': 'एक अन्य वस्तु चुनें',
   'focal.noImage': 'पहले एक बैकग्राउंड इमेज चुनें।',
+  'focal.notAPicture': 'इस मीडिया में सेट करने के लिए कोई छवि नहीं है।',
   'focal.frame':
     'फोकल पॉइंट: {x}% चौड़ाई में, {y}% नीचे। इमेज पर क्लिक करें या इसे स्थानांतरित करने के लिए एरो कीज़ का उपयोग करें।',
   'focal.center': 'केंद्र',
@@ -601,7 +602,6 @@ export const hi: EditorMessages = {
   'region.pageGroup': 'प्रत्येक पृष्ठ पर',
   'region.pageHelp':
     'हेडर और फुटर पूरे साइट के हैं। पूर्वावलोकन में एक पर क्लिक करें, या यहाँ चुनें।',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'तीन प्रमुख मदें',
   'sectionTemplate.featuredItems.description':
     'एक पंक्ति में तीन मद कार्ड, जिनमें से प्रत्येक की अपनी छवि, शीर्षक और एक लिंक है।',

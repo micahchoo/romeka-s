@@ -214,7 +214,7 @@ fn cached_or_rendered(
     }
     let source = iiif_image::decode(&store.read(original).ok()?).ok()?;
     let bytes = iiif_image::render(&source, plan, format).ok()?;
-    if let Err(error) = store.put(&bytes, cached) {
+    if let Err(error) = store.put(&bytes, cached, Some(format.media_type())) {
         tracing::warn!(%error, cached, "the IIIF image cache could not keep an answer");
     }
     Some(bytes)

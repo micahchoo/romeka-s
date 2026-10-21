@@ -16,7 +16,151 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
+use url::Url;
+
 use super::{Access, FileStore, Store};
+
+/// What a downloaded original answers with: the media's stored type and the
+/// name it is saved under.
+///
+/// An object store signs both into the URL (`response-content-type` and
+/// `response-content-disposition`), so the bucket stops answering every
+/// original as `binary/octet-stream`. The local origin sets the same two
+/// headers itself, from its own lookup, so it ignores this.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Download {
+    /// The media's stored `o:media_type`.
+    pub media_type: Option<String>,
+    /// The name a "save as" offers, from the media's `o:source`.
+    pub filename: Option<String>,
+    /// The original's stored extension, which tells apart the types the byte
+    /// detector misreads.
+    extension: Option<String>,
+}
+
+impl Download {
+    /// The download facts of a media original. The name is the source's own
+    /// last path segment when it has one, else the stored file name.
+    #[must_use]
+    pub fn of(media_type: Option<&str>, source: Option<&str>, stored_name: &str) -> Self {
+        Self {
+            media_type: media_type.map(str::to_string),
+            filename: Some(download_name(source, stored_name)),
+            extension: stored_name
+                .rsplit_once('.')
+                .map(|(_, extension)| extension.to_ascii_lowercase()),
+        }
+    }
+
+    /// The `Content-Disposition` value for this download.
+    #[must_use]
+    pub fn disposition(&self) -> String {
+        content_disposition(self.filename.as_deref().unwrap_or("download"))
+    }
+
+    /// The type the download answers with: the media's stored type, except for
+    /// the formats the byte detector cannot distinguish from their container.
+    ///
+    /// `detected_media_type` reads bytes, and a WebVTT or SRT file is plain
+    /// text to it, a glTF document is JSON, and a GLB is an unknown binary.
+    /// For those the stored type says "text" or "unknown", not what the file
+    /// is, so the extension is the better authority.
+    #[must_use]
+    pub fn served_type(&self) -> Option<&str> {
+        let stored = self.media_type.as_deref()?;
+        Some(match (stored, self.extension.as_deref()) {
+            ("text/plain", Some("vtt")) => "text/vtt",
+            ("text/plain", Some("srt")) => "application/x-subrip",
+            ("application/json", Some("gltf")) => "model/gltf+json",
+            ("application/octet-stream", Some("glb")) => "model/gltf-binary",
+            ("audio/ogg", Some("ogv")) => "video/ogg",
+            _ => stored,
+        })
+    }
+}
+
+/// The name a client saves an original as: the last path segment of the source
+/// when the source names one, otherwise the stored file name.
+///
+/// A URL source is read as a URL, so a percent-encoded name arrives decoded.
+#[must_use]
+pub fn download_name(source: Option<&str>, stored_name: &str) -> String {
+    let Some(source) = source.map(str::trim).filter(|source| !source.is_empty()) else {
+        return stored_name.to_string();
+    };
+    if let Ok(url) = Url::parse(source)
+        && let Some(last) = url
+            .path_segments()
+            .and_then(|mut segments| segments.next_back())
+        && !last.is_empty()
+    {
+        return decode_percent(last);
+    }
+    let path = source.split(['?', '#']).next().unwrap_or_default();
+    match path.rsplit('/').next().map(str::trim) {
+        Some(name) if !name.is_empty() => name.to_string(),
+        _ => stored_name.to_string(),
+    }
+}
+
+/// Percent-decode one path segment. A broken escape stays as it was written.
+fn decode_percent(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%'
+            && let Some(hex) = text.get(index + 1..index + 3)
+            && let Ok(byte) = u8::from_str_radix(hex, 16)
+        {
+            out.push(byte);
+            index += 3;
+        } else {
+            out.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// `inline` and the name to save an original under, encoded as RFC 6266 asks:
+/// a quoted ASCII `filename` and, for a name that is not ASCII, a UTF-8
+/// `filename*`. Control characters are dropped, because no header may carry
+/// one.
+#[must_use]
+pub fn content_disposition(name: &str) -> String {
+    // A source is arbitrary text, and a header is bounded: 255 characters is
+    // the longest name a filesystem accepts anyway.
+    let name: String = name.chars().filter(|c| !c.is_control()).take(255).collect();
+    let name = name.trim();
+    let name = if name.is_empty() { "download" } else { name };
+    let fallback: String = name
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { '_' })
+        .collect();
+    let quoted = fallback.replace('\\', "\\\\").replace('"', "\\\"");
+    if name.is_ascii() {
+        format!("inline; filename=\"{quoted}\"")
+    } else {
+        format!(
+            "inline; filename=\"{quoted}\"; filename*=UTF-8''{}",
+            encode_attr(name)
+        )
+    }
+}
+
+/// RFC 5987 `attr-char`, everything else percent-encoded from the UTF-8 bytes.
+fn encode_attr(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        if byte.is_ascii_alphanumeric() || b"!#$&+-.^_`|~".contains(&byte) {
+            out.push(char::from(byte));
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
 
 /// What a stored file is to the resource that shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,9 +216,25 @@ impl FileUrls {
     /// The URL of the file at `storage_path`.
     #[must_use]
     pub fn url(&self, storage_path: &str, kind: FileKind) -> String {
-        let url = self
-            .store
-            .url(storage_path, kind.access(self.store.url_ttl()));
+        self.resolve(
+            self.store
+                .url(storage_path, kind.access(self.store.url_ttl())),
+        )
+    }
+
+    /// The URL of an original, which a reader plays or saves. An object store
+    /// signs the media's type and name into it; the local origin sets them from
+    /// its own lookup.
+    #[must_use]
+    pub fn original(&self, storage_path: &str, download: &Download) -> String {
+        self.resolve(self.store.download_url(
+            storage_path,
+            FileKind::Original.access(self.store.url_ttl()),
+            download,
+        ))
+    }
+
+    fn resolve(&self, url: String) -> String {
         if url.starts_with('/') {
             format!("{}{url}", self.origin)
         } else {
@@ -164,5 +324,107 @@ mod tests {
             urls.url("asset/logo.png", FileKind::Asset),
             "https://cdn.example.org/asset/logo.png"
         );
+    }
+
+    #[test]
+    fn a_download_name_comes_from_the_sources_last_segment() {
+        assert_eq!(
+            download_name(Some("My Video.mp4"), "abc.mp4"),
+            "My Video.mp4"
+        );
+        assert_eq!(
+            download_name(Some("https://example.org/a/My%20Video.mp4?x=1"), "abc.webm"),
+            "My Video.mp4"
+        );
+        assert_eq!(
+            download_name(Some("/tmp/clip.webm"), "abc.webm"),
+            "clip.webm"
+        );
+        assert_eq!(download_name(Some("   "), "abc.webm"), "abc.webm");
+        assert_eq!(download_name(None, "abc.webm"), "abc.webm");
+    }
+
+    #[test]
+    fn a_disposition_is_inline_with_rfc_6266_encoding() {
+        assert_eq!(
+            content_disposition("My Video.mp4"),
+            "inline; filename=\"My Video.mp4\""
+        );
+        assert_eq!(
+            content_disposition("say \"hi\".mp4"),
+            "inline; filename=\"say \\\"hi\\\".mp4\""
+        );
+        assert_eq!(
+            content_disposition("caf\u{e9}.mp4"),
+            "inline; filename=\"caf_.mp4\"; filename*=UTF-8''caf%C3%A9.mp4"
+        );
+        assert_eq!(
+            content_disposition("a\r\nb.mp4"),
+            "inline; filename=\"ab.mp4\""
+        );
+        assert_eq!(content_disposition(""), "inline; filename=\"download\"");
+        let long = content_disposition(&"a".repeat(300));
+        assert!(long.contains(&"a".repeat(255)), "{}", long.len());
+        assert!(
+            !long.contains(&"a".repeat(256)),
+            "truncated to a name a filesystem accepts"
+        );
+    }
+
+    #[test]
+    fn a_download_type_corrects_what_the_detector_cannot_tell() {
+        let type_of = |stored: &str, name: &str| {
+            Download::of(Some(stored), Some(name), name)
+                .served_type()
+                .map(str::to_string)
+        };
+        assert_eq!(type_of("text/plain", "talk.vtt"), Some("text/vtt".into()));
+        assert_eq!(
+            type_of("text/plain", "talk.srt"),
+            Some("application/x-subrip".into())
+        );
+        assert_eq!(
+            type_of("application/json", "scene.gltf"),
+            Some("model/gltf+json".into())
+        );
+        assert_eq!(
+            type_of("application/octet-stream", "scene.GLB"),
+            Some("model/gltf-binary".into())
+        );
+        assert_eq!(type_of("audio/ogg", "clip.ogv"), Some("video/ogg".into()));
+        assert_eq!(
+            type_of("video/webm", "talk.webm"),
+            Some("video/webm".into())
+        );
+        assert_eq!(
+            type_of("text/plain", "notes.txt"),
+            Some("text/plain".into())
+        );
+        assert_eq!(Download::default().served_type(), None);
+    }
+
+    #[test]
+    fn a_signed_download_signs_the_type_and_the_name() {
+        let store = S3Store::new(S3Config {
+            endpoint: "http://127.0.0.1:9000".parse().unwrap(),
+            bucket: "romeka".to_string(),
+            region: "us-east-1".to_string(),
+            access_key: "key".to_string(),
+            secret_key: "secret".to_string(),
+            public_base: None,
+            url_ttl: TTL,
+        })
+        .unwrap();
+        let urls = FileUrls::new(Arc::new(store), "https://example.org");
+        let download = Download::of(Some("video/webm"), Some("A Talk.webm"), "abc.webm");
+        let url = urls.original("original/abc.webm", &download);
+        assert!(url.contains("response-content-type=video%2Fwebm"), "{url}");
+        assert!(
+            url.contains("response-content-disposition=inline%3B%20filename%3D%22A%20Talk.webm%22"),
+            "{url}"
+        );
+        assert!(url.contains("X-Amz-Signature="), "{url}");
+        let local = FileUrls::local("https://example.org").original("original/abc.webm", &download);
+        assert_eq!(local, "https://example.org/files/original/abc.webm");
     }
 }

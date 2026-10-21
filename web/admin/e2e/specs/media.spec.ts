@@ -91,3 +91,50 @@ test('a media row opens its show page with the large thumbnail and the original'
 
   await expectClean(diagnostics, 'media show');
 });
+
+/** A 0.2 s silent MP3, so the upload is a file the browser could play. */
+const MP3_BASE64 =
+  'SUQzBAAAAAAAIlRTU0UAAAAOAAADTGF2ZjYyLjMuMTAwAAAAAAAAAAAAAAD/4zjAAAAAAAAAAAAASW5mbwAAAA8AAAAFAAACQACAgICAgICAgICAgICAgICAgICAoKCgoKCgoKCgoKCgoKCgoKCgoKDAwMDAwMDAwMDAwMDAwMDAwMDAwODg4ODg4ODg4ODg4ODg4ODg4ODg//////////////////////////8AAAAATGF2YzYyLjExAAAAAAAAAAAAAAAAJALAAAAAAAAAAkCzYEFYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4xjEAAAAA0gAAAAATEFNRTMuMTAxIChiZXRhIDMpVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMSAoYmV0YSAzKVX/4xjEOwAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/4xjEdgAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/4xjEsQAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/4xjExAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+
+test('a media list row for an mp3 shows the audio placeholder and no broken image', async ({
+  page,
+  diagnostics,
+}) => {
+  const created = await page.request.post('/api/items', {
+    multipart: {
+      data: JSON.stringify({
+        'o:is_public': true,
+        'o:media': [{ 'o:ingester': 'upload', file_index: 0, 'o:is_public': true }],
+      }),
+      file: { name: 'tone.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from(MP3_BASE64, 'base64') },
+    },
+  });
+  expect(created.status(), await created.text()).toBe(200);
+
+  await page.goto('/#/media');
+  const row = page.locator('tbody tr', { hasText: 'tone.mp3' });
+  await expect(row).toHaveCount(1);
+
+  // The row has no image at all, and its cell names the kind and the file.
+  await expect(row.locator('[data-kind="audio"]')).toBeVisible();
+  await expect(row.locator('img')).toHaveCount(0);
+  await expect(row).toContainText('Audio');
+  await expect(row).toContainText('MP3');
+
+  // Every image the table does show is a decoded picture.
+  await expect
+    .poll(
+      async () =>
+        page.locator('table img').evaluateAll(
+          (images) =>
+            images.filter(
+              (image) =>
+                !(image instanceof HTMLImageElement) || !image.complete || image.naturalWidth === 0,
+            ).length,
+        ),
+      { message: 'a media list cell shows an image the browser could not decode' },
+    )
+    .toBe(0);
+
+  await expectClean(diagnostics, 'media list with an mp3');
+});

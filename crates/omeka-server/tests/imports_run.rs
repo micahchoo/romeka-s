@@ -509,6 +509,7 @@ async fn left_csv_is_the_stored_file() {
         .put(
             b"#reason,path\nnot-media,_scratch/Thumbs.db\n",
             &format!("imports/{}/left.csv", draft["id"]),
+            Some("text/csv"),
         )
         .unwrap();
     let found = fixture.call("GET", &uri, None).await;

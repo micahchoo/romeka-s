@@ -49,8 +49,12 @@ async fn files_router() -> Router {
         private_item,
         owner,
         false,
-        "privatemedia",
-        Some("jpg"),
+        (
+            "privatemedia",
+            Some("jpg"),
+            Some("image/jpeg"),
+            Some("Private Photo.jpg"),
+        ),
     )
     .await;
     media(
@@ -58,13 +62,55 @@ async fn files_router() -> Router {
         private_item,
         owner,
         true,
-        "publiconprivate",
-        Some("jpg"),
+        (
+            "publiconprivate",
+            Some("jpg"),
+            Some("image/jpeg"),
+            Some("Public Photo.jpg"),
+        ),
     )
     .await;
     let public_item = item(&pool, owner, true).await;
-    media(&pool, public_item, owner, true, "publicmedia", Some("png")).await;
-    media(&pool, public_item, owner, true, "bare", None).await;
+    media(
+        &pool,
+        public_item,
+        owner,
+        true,
+        (
+            "publicmedia",
+            Some("png"),
+            Some("image/png"),
+            Some("Public Photo.png"),
+        ),
+    )
+    .await;
+    media(&pool, public_item, owner, true, ("bare", None, None, None)).await;
+    media(
+        &pool,
+        public_item,
+        owner,
+        true,
+        (
+            "talk",
+            Some("webm"),
+            Some("video/webm"),
+            Some("A Talk.webm"),
+        ),
+    )
+    .await;
+    media(
+        &pool,
+        public_item,
+        owner,
+        true,
+        (
+            "odd",
+            Some("webm"),
+            Some("video/webm"),
+            Some("say \"hi\" caf\u{e9}.webm"),
+        ),
+    )
+    .await;
     with_db!(&pool, |db| AssetRepo::new(db)
         .create(&NewAsset {
             owner_id: Some(owner),
@@ -114,9 +160,9 @@ async fn media(
     item: ItemId,
     owner: UserId,
     is_public: bool,
-    storage_id: &str,
-    extension: Option<&str>,
+    file: (&str, Option<&str>, Option<&str>, Option<&str>),
 ) {
+    let (storage_id, extension, media_type, source) = file;
     with_db!(pool, |db| MediaRepo::new(db)
         .create(&NewMedia {
             resource: NewResource {
@@ -129,6 +175,8 @@ async fn media(
             renderer: "file".to_string(),
             storage_id: Some(storage_id.to_string()),
             extension: extension.map(str::to_string),
+            media_type: media_type.map(str::to_string),
+            source: source.map(str::to_string),
             has_original: true,
             has_thumbnails: true,
             ..NewMedia::default()
@@ -240,6 +288,68 @@ async fn a_public_file_is_served_to_anyone_and_not_marked_private() {
         assert_eq!(answer.status, StatusCode::NO_CONTENT, "{path}");
         assert_eq!(common::header(&answer, "x-romeka-private"), None, "{path}");
     }
+}
+
+#[tokio::test]
+async fn a_204_names_the_stored_type_and_the_download_name() {
+    let app = files_router().await;
+    for (path, content_type, disposition) in [
+        (
+            "/files/original/publicmedia.png",
+            Some("image/png"),
+            Some("inline; filename=\"Public Photo.png\""),
+        ),
+        (
+            "/files/original/talk.webm",
+            Some("video/webm"),
+            Some("inline; filename=\"A Talk.webm\""),
+        ),
+        (
+            "/files/original/odd.webm",
+            Some("video/webm"),
+            Some(
+                "inline; filename=\"say \\\"hi\\\" caf_.webm\"; \
+                 filename*=UTF-8''say%20%22hi%22%20caf%C3%A9.webm",
+            ),
+        ),
+        ("/files/large/publicmedia.jpg", Some("image/jpeg"), None),
+        ("/files/asset/siteasset.png", Some("image/png"), None),
+        (
+            "/files/original/bare",
+            None,
+            Some("inline; filename=\"bare\""),
+        ),
+    ] {
+        let answer = common::send(app.clone(), allow(path, None)).await;
+        assert_eq!(answer.status, StatusCode::NO_CONTENT, "{path}");
+        assert_eq!(
+            common::header(&answer, "x-romeka-content-type"),
+            content_type,
+            "{path}"
+        );
+        assert_eq!(
+            common::header(&answer, "x-romeka-content-disposition"),
+            disposition,
+            "{path}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_private_files_answer_carries_the_type_too() {
+    let app = files_router().await;
+    let owner = common::login_cookie(app.clone(), OWNER_EMAIL, PASSWORD).await;
+    let answer = common::send(app, allow("/files/original/privatemedia.jpg", Some(&owner))).await;
+    assert_eq!(answer.status, StatusCode::NO_CONTENT);
+    assert_eq!(common::header(&answer, "x-romeka-private"), Some("1"));
+    assert_eq!(
+        common::header(&answer, "x-romeka-content-type"),
+        Some("image/jpeg")
+    );
+    assert_eq!(
+        common::header(&answer, "x-romeka-content-disposition"),
+        Some("inline; filename=\"Private Photo.jpg\"")
+    );
 }
 
 #[tokio::test]

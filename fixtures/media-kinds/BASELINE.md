@@ -12,7 +12,7 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 
 | kind | ingest | thumbnail | api | site-media-page | site-item-card | iiif | safe |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| image.jpg | pass | **fail** | pass | pass | pass | pass | n/a |
+| image.jpg | pass | pass | pass | pass | pass | pass | n/a |
 | image.png | pass | pass | pass | pass | pass | pass | n/a |
 | image.gif | pass | pass | pass | pass | pass | pass | n/a |
 | image.webp | pass | pass | pass | pass | pass | pass | n/a |
@@ -97,7 +97,6 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `image.heic` / site-item-card
 - `image.heic` / site-media-page
 - `image.heic` / thumbnail
-- `image.jpg` / thumbnail
 - `image.svg` / api
 - `image.svg` / iiif
 - `image.svg` / ingest
