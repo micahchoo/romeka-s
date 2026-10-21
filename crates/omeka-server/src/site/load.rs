@@ -525,11 +525,12 @@ impl<'a> Loader<'a> {
             None => self.first_media(row.id()).await?,
         };
         if let Some(media_row) = media {
-            let alt = view.title.clone();
             let media_id = media_row.id();
             let item_is_public = row.resource.is_public;
             if view.thumbnail.is_none() {
-                view.thumbnail = self.thumbnail_for(media_id, item_is_public, &alt).await?;
+                // The card shows the item's name as text beside this image, so
+                // the image is decorative and carries no alt.
+                view.thumbnail = self.thumbnail_for(media_id, item_is_public, "").await?;
             }
             let item_url = view.url.clone();
             view.primary_media = Some(

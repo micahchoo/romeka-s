@@ -7,7 +7,43 @@
  * SPA at all.
  */
 import { expect, test } from '../fixtures';
+import { isArray, numberField, record } from '../harness/json';
 import { SITE_SLUG, SITE_TITLE, WELCOME_SLUG } from '../harness/seed';
+
+test('a media page shows the whole file, never a 4:3 crop of it', async ({ page }) => {
+  // The seeded items are not attached to the site, so the browse list is empty;
+  // the item page still renders, and its media list is the reader's route to
+  // the file.
+  const items = await page.request.get('/api/items?per_page=1');
+  const listed: unknown = await items.json();
+  if (!isArray(listed) || listed.length === 0) {
+    throw new Error('/api/items returned no item');
+  }
+  const itemId = numberField(record(listed[0], 'item'), 'o:id', 'item');
+  await page.goto(`/s/${SITE_SLUG}/item/${String(itemId)}`);
+  const file = page.locator('.media-list a').first();
+  await expect(file).toBeVisible();
+  await file.click();
+  await expect(page).toHaveURL(/\/media\/\d+$/);
+
+  const image = page.locator('.media-page .media-render img').first();
+  await expect(image).toBeVisible();
+  const shown = await image.evaluate((node) => {
+    const computed = getComputedStyle(node);
+    return {
+      fit: computed.objectFit,
+      height: node.getBoundingClientRect().height,
+    };
+  });
+  // Contained rather than cover-cropped, and capped at 80% of the viewport so
+  // a tall file fits the screen whole.
+  expect(shown.fit).toBe('contain');
+  expect(shown.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 720) * 0.8 + 1);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
+});
 
 test('the public site renders the page the admin shows', async ({ page }) => {
   await page.goto('/#/sites');
