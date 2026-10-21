@@ -230,7 +230,8 @@ const fn is_recording(icon: MediaIcon) -> bool {
 /// A run time as a reader says it: `3:42`, and `1:02:03` past an hour.
 #[must_use]
 pub fn duration_label(ms: u64) -> String {
-    let seconds = ms / 1_000;
+    // A part second counts as a whole one, so a short recording never reads as 0:00.
+    let seconds = ms.div_ceil(1_000);
     let (hours, minutes, seconds) = (seconds / 3_600, seconds / 60 % 60, seconds % 60);
     if hours > 0 {
         format!("{hours}:{minutes:02}:{seconds:02}")
@@ -603,13 +604,14 @@ mod tests {
         assert!(!card.contains("data-media-kind"), "{card}");
     }
 
-    /// A run time reads as minutes and seconds, and grows an hours field only
-    /// past an hour.
+    /// A run time reads as minutes and seconds, rounds a part second up, and
+    /// grows an hours field only past an hour.
     #[test]
     fn a_run_time_reads_as_minutes_and_seconds() {
         assert_eq!(duration_label(222_000), "3:42");
         assert_eq!(duration_label(0), "0:00");
-        assert_eq!(duration_label(59_999), "0:59");
+        assert_eq!(duration_label(350), "0:01");
+        assert_eq!(duration_label(59_999), "1:00");
         assert_eq!(duration_label(3_723_000), "1:02:03");
     }
 

@@ -437,10 +437,6 @@ async fn a_card_names_its_kind_and_an_item_with_no_file_says_so() {
         audio_card.contains("<span class=\"resource-kind\">Audio</span>"),
         "{audio_card}"
     );
-    assert!(
-        !audio_card.contains("resource-duration"),
-        "no extent row means no run time: {audio_card}"
-    );
 
     let bare_card = card_for(&browse, bare).expect("the bare item's card");
     assert_eq!(card_media_kind(bare_card), None, "{bare_card}");
@@ -473,6 +469,12 @@ async fn a_card_shows_a_run_time_only_when_the_extent_row_exists() {
         .expect("the stored file's name")
         .to_string();
 
+    // `upload` reads the manifest, which probes the file and stores its extent; remove it so the card
+    // starts with no run time to show.
+    sqlx::query("DELETE FROM romeka_media_extent")
+        .execute(&pool)
+        .await
+        .expect("clear the probed extent");
     let before = send(
         app.clone(),
         get(&format!("{SITE}/item?per_page=200"), false),
