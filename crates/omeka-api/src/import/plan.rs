@@ -1,5 +1,8 @@
-//! The import v2 plan: the rule and the decisions, stored as JSON on the
-//! draft and sent by the admin (`docs/import-v2.md`, "The plan").
+//! The import plan: the rule and the decisions, stored as JSON on the
+//! draft and sent by the admin (`docs/import-v2.md`, "The plan"). It comes
+//! in as version 2 ([`v2`], lifted to one series) or version 3 ([`v3`], the
+//! tree of `briefs/import-plan-v3.md`), and is written back in the version
+//! it came in as.
 //!
 //! [`ImportPlan::from_json`] is the one parse boundary. Types refuse what
 //! serde can see (unknown members, closed string sets, path and term
@@ -17,6 +20,7 @@ mod check;
 mod flags;
 mod names;
 mod path;
+mod sets;
 mod slots;
 mod source;
 mod structure;
@@ -30,7 +34,7 @@ mod tests {
     ///
     /// ```compile_fail,E0616
     /// fn read(plan: &omeka_api::import::plan::ImportPlan) -> usize {
-    ///     plan.structure.series.lists.len()
+    ///     plan.structure.levels.len()
     /// }
     /// ```
     ///
@@ -52,6 +56,7 @@ mod tests {
     fn engine_reads_the_plan_through_the_structure() {}
 }
 mod v2;
+mod v3;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -62,6 +67,7 @@ pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, Unma
 pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};
+pub use sets::{EachSet, EachValue, SetById, SetByTitle, SetNames, SetSource};
 pub use slots::{
     Combine, EachFile, FileFact, FolderLevel, SlotRule, SlotRules, Slots, SourceRef, TagFiles,
     TagId, TagPart, WholePath,
@@ -70,17 +76,22 @@ pub use source::{
     Auto, ColumnOptions, ColumnPlan, ColumnRef, Delimiter, Encoding, EncodingChoice, Join,
     JoinNormalize, JoinOn, KindColumn, Quote, ReadOptions, RowKind, SheetPlan, SourcePlan,
 };
-pub use structure::{Placement, Series, SeriesIx, SetSource, Structure};
+pub use structure::{
+    AllFiles, FolderScope, Level, LevelId, Placement, Series, SeriesIx, SeriesScope, SetLevel,
+    Structure,
+};
 
 use super::decisions::Decision;
 use super::values::Visibility;
 
-/// The plan the engine reads. Its JSON is the v2 members ([`v2::PlanV2`]);
-/// its pattern, lists and slot rules sit in [`Structure`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(from = "v2::PlanV2", into = "v2::PlanV2")]
+/// The plan the engine reads. Its pattern, lists and slot rules sit in
+/// [`Structure`]; its JSON is [`v2::PlanV2`] or [`v3::PlanV3`], by
+/// [`Self::version`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportPlan {
-    pub version: Version2,
+    /// The version the plan came in as, which it is written back in, so a
+    /// v2 admin gets a v2 plan back. P4 deletes it with the lower.
+    pub version: PlanVersion,
     pub sources: Vec<SourcePlan>,
     pub structure: Structure,
     pub action: ActionPlan,
@@ -96,24 +107,44 @@ pub struct ImportPlan {
     pub simple: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// The member `version: 2`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Version2;
+/// The wire version a plan came in as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlanVersion {
+    V2,
+    V3,
+}
 
-impl Serialize for Version2 {
+/// The member `version: N` of a wire plan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct WireVersion<const N: u64>;
+
+impl<const N: u64> Serialize for WireVersion<N> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_u64(2)
+        serializer.serialize_u64(N)
     }
 }
 
-impl<'de> Deserialize<'de> for Version2 {
+impl<'de, const N: u64> Deserialize<'de> for WireVersion<N> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         match u64::deserialize(deserializer)? {
-            2 => Ok(Self),
+            n if n == N => Ok(Self),
             other => Err(serde::de::Error::custom(format!(
-                "version {other} is not 2"
+                "version {other} is not {N}"
             ))),
         }
+    }
+}
+
+/// Written in the version the plan came in as. A v2 plan the lower refuses
+/// holds more than v2 can say, so it is written as v3 rather than cut.
+impl Serialize for ImportPlan {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if self.version == PlanVersion::V2
+            && let Ok(wire) = v2::PlanV2::try_from(self.clone())
+        {
+            return wire.serialize(serializer);
+        }
+        v3::PlanV3::from(self.clone()).serialize(serializer)
     }
 }
 
@@ -230,8 +261,27 @@ pub enum PlanError {
     /// The caller answers 409 `v1Plan`.
     #[error("the plan is a v1 plan")]
     V1Plan,
-    #[error("the plan's version is {0}, not 2")]
+    #[error("the plan is not an import v3 plan: {0}")]
+    ShapeV3(serde_json::Error),
+    #[error("the plan's version is {0}, not 2 or 3")]
     Version(String),
+    #[error("the plan cannot be written as version 2: {0}")]
+    NotV2(&'static str),
+    #[error("two levels have the id {0:?}")]
+    DuplicateLevel(String),
+    #[error("series {second:?} takes the same files as series {first:?}")]
+    DuplicateScope { first: String, second: String },
+    #[error("series {series:?} takes a folder of source {missing:?}, which the plan does not have")]
+    ScopeSource { series: String, missing: String },
+    #[error("a slot of series {series:?} reads list {sheet:?}, which is a list of another series")]
+    ForeignList { series: String, sheet: String },
+    #[error("series {0:?} has an item.sets rule; sets are set levels and free sets")]
+    SeriesSets(String),
+    #[error("a set named by title has an empty title ({0})")]
+    EmptySetTitle(String),
+    /// The temporary rule: what the engine cannot run until U4 and U5.
+    #[error("this server cannot run this plan yet: {0}")]
+    NotYet(NotYet),
     #[error("two sources have the id {0:?}")]
     DuplicateSource(String),
     #[error("two sheets have the id {0:?}")]
@@ -274,30 +324,69 @@ pub enum PlanError {
     },
 }
 
+/// What a plan the types accept asks of the engine that it does not do yet.
+/// Each is a rule U4 (scopes and series) or U5 (sets) deletes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotYet {
+    SeveralSeries(usize),
+    SetLevel(String),
+    SeriesSet(String),
+    Scope(String),
+    FreeSets,
+}
+
+impl std::fmt::Display for NotYet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SeveralSeries(n) => write!(f, "it reads one series only, and this plan has {n}"),
+            Self::SetLevel(id) => write!(
+                f,
+                "it does not read set levels yet, and this plan has the set level {id:?}"
+            ),
+            Self::SeriesSet(id) => write!(
+                f,
+                "it does not read a series' own set yet, and series {id:?} has one"
+            ),
+            Self::Scope(id) => write!(
+                f,
+                "it reads only a series that takes every file, and series {id:?} takes some folders"
+            ),
+            Self::FreeSets => write!(f, "it reads free sets only as a version 2 plan's sets rule"),
+        }
+    }
+}
+
 impl ImportPlan {
     /// Parse a plan sent by the admin or read from the database.
     ///
     /// # Errors
     /// [`PlanError::V1Plan`] for a v1 plan, [`PlanError::Version`] for
-    /// another version, [`PlanError::Shape`] for anything the types refuse,
-    /// and the other variants for what the contract refuses across members.
+    /// another version, [`PlanError::Shape`] (v2) or [`PlanError::ShapeV3`]
+    /// for anything the types refuse, and the other variants for what the
+    /// contract refuses across members.
     pub fn from_json(text: &str) -> Result<Self, PlanError> {
         let value: serde_json::Value = serde_json::from_str(text)?;
-        match value.get("version") {
-            Some(version) if version.as_u64() == Some(2) => {}
-            Some(version) => return Err(PlanError::Version(version.to_string())),
+        // Each wire type parses the text again, so a shape error names its
+        // line and column.
+        let plan = match value.get("version") {
+            Some(version) if version.as_u64() == Some(3) => {
+                let wire: v3::PlanV3 = serde_json::from_str(text).map_err(PlanError::ShapeV3)?;
+                Self::try_from(wire)?
+            }
+            Some(version) if version.as_u64() != Some(2) => {
+                return Err(PlanError::Version(version.to_string()));
+            }
             // v1 plans have no version; `setLevel` is a member every v1 plan has.
             None if value.get("setLevel").is_some() => return Err(PlanError::V1Plan),
-            None => {}
-        }
-        // Parsed again from the text so a shape error names its line and column.
-        let plan: Self = serde_json::from_str(text)?;
+            _ => Self::from(serde_json::from_str::<v2::PlanV2>(text)?),
+        };
         check::plan(&plan)?;
         Ok(plan)
     }
 
-    /// The plan as stored JSON. Every map key is a string, so this cannot
-    /// fail; an empty string would mean serde_json broke that rule.
+    /// The plan as stored JSON, in the version it came in as. Every map key
+    /// is a string, so this cannot fail; an empty string would mean
+    /// serde_json broke that rule.
     #[must_use]
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
@@ -347,19 +436,17 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
         scope: Scope::Named(NamedScope::ImportSets),
     };
     let plan = ImportPlan {
-        version: Version2,
+        version: PlanVersion::V2,
         sources,
-        structure: Structure {
-            series: Series {
-                grouping: Grouping {
-                    pattern: Some(NAME_ALONE.to_owned()),
-                    case_fold: false,
-                },
-                example: None,
-                lists: Vec::new(),
-                slots: Slots::default(),
+        structure: Structure::lifted(
+            Grouping {
+                pattern: Some(NAME_ALONE.to_owned()),
+                case_fold: false,
             },
-        },
+            None,
+            Vec::new(),
+            Slots::default(),
+        ),
         action: ActionPlan {
             action: Action::Create,
             match_by: MatchPlan {

@@ -129,10 +129,18 @@ fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
         },
         "the pattern matches the path relative to its source"
     );
-    let item_rules = structure.series(sole).rules(RecordKind::Item);
+    let sets = &structure.series(sole).rules(RecordKind::Item)[&SlotName::Sets];
     assert_eq!(
-        structure.memberships(sole).collect::<Vec<_>>(),
-        [&item_rules[&SlotName::Sets]]
+        structure.memberships(sole),
+        [SetSource::Each(EachValue {
+            each: EachSet {
+                sources: sets.sources.clone(),
+                combine: sets.combine,
+                map: sets.map.clone(),
+                names: SetNames::Text,
+            }
+        })],
+        "the sets rule is one free set, read as v2 read it"
     );
     assert!(
         structure
@@ -205,7 +213,7 @@ fn a_v1_plan_is_refused_as_v1() {
 
 #[test]
 fn another_version_is_refused() {
-    for version in [json!(1), json!(3), json!("2"), json!(2.5)] {
+    for version in [json!(1), json!(4), json!("2"), json!(2.5)] {
         let error = refused(FULL, |plan| plan["version"] = version.clone());
         assert!(
             matches!(error, PlanError::Version(_)),
