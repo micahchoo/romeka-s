@@ -677,7 +677,7 @@ All need a signed-in global admin or site admin.
 | `GET /api/romeka/files/allow` | 204 or 403 |
 
 Preview sections (`include`): `entries` (paged; each with its record and flags), `sheets` (per sheet, `read.workbook =
-{ sheet, sheets } | null` for a workbook, lines = header and first rows tab-joined:
+{ sheet, sheets } | null` for a workbook, lines = the sheet's rows from line 1, one per line, as CSV lines in `read.delimiter`:
 encoding guess and confidence, delimiter, header line, raw lines, counts, column list), `tags`,
 `records` (paged by kind; filter by flag kind, slot, or text in any slot), `flags` (counts per kind
 and slot), `anomalies`, `orphans`, `check` (counts per action and kind, new sets, types, fields,

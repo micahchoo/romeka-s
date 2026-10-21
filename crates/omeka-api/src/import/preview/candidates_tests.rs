@@ -7,7 +7,7 @@ use crate::import::archive::SourceDir;
 use crate::import::catalog::Catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags};
 use crate::import::evidence::Walk;
-use crate::import::plan::{RelPath, SourcePlan, default_plan};
+use crate::import::plan::{RecordKind, RelPath, SourcePlan, default_plan};
 
 /// Four items of two views each: `A1a.jpg`, `A1b.jpg` … `A4b.jpg`.
 const FILES: [&str; 8] = [
@@ -307,4 +307,146 @@ fn grain_counts_in_how_many_items_each_column_varies_among_the_items_several_row
         ("Keywords".to_string(), of(2)),
         "a list no plan sheet reads has no split, so A3's cells differ as written"
     );
+}
+
+/// A register whose first column, `Sl No`, is empty in every row, and whose
+/// `Keywords` hold several values in one cell, mostly at commas.
+const SL_NO: [[&str; 4]; 5] = [
+    ["Sl No", "File", "Keywords", "Collection"],
+    [
+        "",
+        "A1a.jpg",
+        "Coral, Natural History, Fossil",
+        "Citizen Curators",
+    ],
+    ["", "A1b.jpg", "Lamp", "Citizen Curators"],
+    ["", "A2a.jpg", "Bowl; Front", "Citizen Curators"],
+    ["", "A2b.jpg", "Pot, Clay", "Citizen Curators"],
+];
+
+fn sl_no_csv() -> String {
+    SL_NO
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|cell| {
+                    if cell.contains([',', ';']) {
+                        format!("\"{cell}\"")
+                    } else {
+                        (*cell).to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn sl_no_xlsx() -> Vec<u8> {
+    let mut book = rust_xlsxwriter::Workbook::new();
+    let sheet = book.add_worksheet();
+    for (row, cells) in SL_NO.iter().enumerate() {
+        for (col, text) in cells.iter().enumerate() {
+            if !text.is_empty() {
+                sheet.write(row as u32, col as u16, *text).unwrap();
+            }
+        }
+    }
+    book.save_to_buffer().unwrap()
+}
+
+#[test]
+fn each_column_counts_its_most_common_separator_even_after_an_empty_first_column() {
+    let csv = sl_no_csv();
+    let xlsx = sl_no_xlsx();
+    let dir = tempfile::tempdir().unwrap();
+    let derived = derived(
+        &dir,
+        &[("AF.csv", csv.as_bytes()), ("AF.xlsx", xlsx.as_slice())],
+        |_| {},
+    );
+    let found = candidates(&derived);
+    for file in ["AF.csv", "AF.xlsx"] {
+        let list = found.iter().find(|one| one["file"] == file).unwrap();
+        assert_eq!(
+            list["cells"],
+            json!([
+                { "index": 0, "header": "Sl No", "separator": null },
+                { "index": 1, "header": "File", "separator": null },
+                { "index": 2, "header": "Keywords", "separator": { "text": ",", "cells": 2 } },
+                { "index": 3, "header": "Collection", "separator": null },
+            ]),
+            "{file}: an empty first cell keeps every later cell in its own column; \
+             two of four Keywords cells hold a comma, one a semicolon"
+        );
+    }
+}
+
+#[test]
+fn the_cells_are_read_as_the_plan_sheet_reads_the_list() {
+    let csv = format!("Register of the Gawan Museum Trust\n{}", sl_no_csv());
+    let dir = tempfile::tempdir().unwrap();
+    let derived = derived(&dir, &[("AF.csv", csv.as_bytes())], |plan| {
+        plan["sheets"] = json!([{
+            "id": "register", "source": "s1", "file": "AF.csv", "hash": null,
+            "read": { "encoding": "auto", "delimiter": ",", "quote": "\"",
+                      "headerLine": 2, "trim": true },
+            "rowKind": "item", "join": null, "itemKey": null, "columns": []
+        }]);
+    });
+    let found = candidates(&derived);
+    assert_eq!(
+        found[0]["cells"][2],
+        json!({ "index": 2, "header": "Keywords", "separator": { "text": ",", "cells": 2 } }),
+        "header line 2, as the plan reads it, not line 1"
+    );
+}
+
+#[test]
+fn a_column_split_at_commas_gives_its_item_one_value_a_piece() {
+    let csv = sl_no_csv();
+    let dir = tempfile::tempdir().unwrap();
+    let derived = derived(&dir, &[("AF.csv", csv.as_bytes())], |plan| {
+        let column = |index: u32, header: &str| json!({ "index": index, "header": header });
+        plan["sheets"] = json!([{
+            "id": "register", "source": "s1", "file": "AF.csv", "hash": null,
+            "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"",
+                      "headerLine": 1, "trim": true },
+            "rowKind": "media",
+            "join": { "on": "fileName", "column": column(1, "File"),
+                      "normalize": { "caseFold": false, "leadingZeros": false, "separators": false } },
+            "itemKey": null,
+            "columns": [{ "column": column(2, "Keywords"),
+                          "options": { "split": ",", "type": "literal", "lang": null, "private": false } }]
+        }]);
+        plan["slots"]["media"]["dcterms:subject"] = json!({
+            "sources": [{ "from": "column", "sheet": "register", "column": column(2, "Keywords") }],
+            "combine": "all"
+        });
+    });
+    let subjects: Vec<String> = derived
+        .model
+        .records
+        .iter()
+        .filter(|record| record.kind == RecordKind::Media)
+        .find(|record| {
+            record
+                .files
+                .iter()
+                .any(|file| file.path.as_str() == "A1a.jpg")
+        })
+        .expect("the media of A1a.jpg")
+        .slots
+        .get(&serde_json::from_value(json!("dcterms:subject")).unwrap())
+        .expect("subjects")
+        .iter()
+        .map(|value| {
+            serde_json::to_value(value).unwrap()["text"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+    assert_eq!(subjects, ["Coral", "Natural History", "Fossil"]);
 }

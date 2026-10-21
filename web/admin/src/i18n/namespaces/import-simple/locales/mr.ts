@@ -138,6 +138,8 @@ export const mr: ImportSimpleMessages = {
   'guided.list.levelOut': 'वगळा',
   'guided.list.varies': '{of} पैकी {count} वस्तूंमध्ये बदलते.',
   'guided.list.itemOnly': 'आयटमचा प्रकार किंवा आयटम सेट फक्त आयटमवरच जातो.',
+  'guided.list.split': 'एका सेलमध्ये अनेक मूल्ये, “{separator}” ने वेगळी केलेली',
+  'guided.list.splitCount': '{of} पैकी {count} सेल्समध्ये.',
   'guided.list.levelLede':
     'आयटमवर: त्याच्या सर्व ओळींची मूल्ये, प्रत्येक मूल्य एकदा. प्रत्येक फाईलवर: त्या फाईलच्या ओळीचे मूल्य. आम्ही सुचवतो की प्रत्येक फाईल जिथे काही आयटममध्ये मूल्ये भिन्न आहेत आणि जिथे ती कधीच भिन्न नसतात, अशा आयटमवर ती ठेवावी.',
   'guided.where.setsTitle': 'वस्तू संच',

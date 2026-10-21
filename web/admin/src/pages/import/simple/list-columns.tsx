@@ -4,7 +4,8 @@
  * the field with the same name; every other column says that no field has its
  * name, and stays out until the person chooses. When each row describes one
  * file, a column's values go on the item, on each file, or nowhere, with in
- * how many items they differ and the place that count suggests.
+ * how many items they differ and the place that count suggests. A column
+ * whose cells hold a separator offers to cut them into several values.
  */
 import type { ReactElement } from 'react';
 import type { ColumnRef, SheetPlan } from '../../../api/import-plan';
@@ -14,8 +15,8 @@ import { TableScroll } from '../../../app/table-scroll';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { loadProperties } from '../lists/catalog';
-import { asTarget, cellsOf, fileLevelAllowed, fold, levelOf, suggestedLevel, targetOf, variesOf, withColumnLevel, withTarget } from './list-plan';
-import type { Level } from './list-plan';
+import { asTarget, fileLevelAllowed, filledOf, firstRowOf, fold, levelOf, separatorOf, splitOf, suggestedLevel, targetOf, variesOf, withColumnLevel, withCountedTarget, withSplit } from './list-plan';
+import type { Level, ListCounts } from './list-plan';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
 
@@ -63,13 +64,40 @@ const LevelChoice = ({ sheet, column, grain }: { readonly sheet: SheetPlan; read
   );
 };
 
-export const ListColumns = ({ sheet, view, grain }: { readonly sheet: SheetPlan; readonly view: SheetView; readonly grain: Grain | null }): ReactElement => {
+const SplitChoice = ({ sheet, column, counts }: { readonly sheet: SheetPlan; readonly column: ColumnRef; readonly counts: ListCounts }): ReactElement | null => {
+  const { t, number } = useSimpleText();
+  const draft = useDraft();
+  const separator = separatorOf(counts, column.index);
+  const filled = filledOf(counts, column.index);
+  if (separator === null || filled === null) {
+    return null;
+  }
+  return (
+    <div>
+      <label>
+        <input
+          type="checkbox"
+          checked={splitOf(draft.plan, sheet.id, column.index) === separator.text}
+          disabled={!draft.editable}
+          onChange={(event) => {
+            const split = event.target.checked ? separator.text : null;
+            draft.change((plan) => withSplit(plan, sheet.id, column, split));
+          }}
+        />{' '}
+        {t('guided.list.split', { separator: separator.text })}
+      </label>
+      <div className="muted">{t('guided.list.splitCount', { count: number(separator.cells), of: number(filled) })}</div>
+    </div>
+  );
+};
+
+export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan; readonly view: SheetView; readonly counts: ListCounts }): ReactElement => {
   const { t } = useSimpleText();
+  const grain = counts.grain;
+  const firstRow = firstRowOf(view, sheet.read.headerLine);
   const draft = useDraft();
   const properties = useAsync(loadProperties, []);
   const fields = properties.status === 'ready' ? properties.data.filter((property) => property.term.startsWith(SHOWN_VOCABULARY)) : [];
-  const delimiter = view.read?.delimiter ?? ',';
-  const firstRow = cellsOf(view.lines[sheet.read.headerLine] ?? '', delimiter === 'auto' ? ',' : delimiter);
   const columns = sheet.columns.filter((column) => sheet.join === null || column.column.index !== sheet.join.column.index);
   const perFile = sheet.rowKind === 'media';
   return (
@@ -109,7 +137,7 @@ export const ListColumns = ({ sheet, view, grain }: { readonly sheet: SheetPlan;
                       onChange={(event) => {
                         const next = asTarget(event.target.value);
                         if (next !== null) {
-                          draft.change((plan) => withTarget(plan, sheet.id, column, next));
+                          draft.change((plan) => withCountedTarget(plan, sheet.id, column, next, counts));
                         }
                       }}
                     >
@@ -127,6 +155,7 @@ export const ListColumns = ({ sheet, view, grain }: { readonly sheet: SheetPlan;
                       <option value={`new:${column.header}`}>{t('guided.list.newField', { name: column.header })}</option>
                     </select>
                     {note === null ? null : <div className="muted">{note}</div>}
+                    {target === '' ? null : <SplitChoice sheet={sheet} column={column} counts={counts} />}
                   </td>
                   {perFile ? <LevelChoice sheet={sheet} column={column} grain={grain} /> : null}
                 </tr>

@@ -125,6 +125,8 @@ export const es: ImportSimpleMessages = {
   'guided.list.levelOut': 'Dejar fuera',
   'guided.list.varies': 'Cambia en {count} de {of} elementos.',
   'guided.list.itemOnly': 'Un tipo de elemento o un conjunto de elementos va solo en el elemento.',
+  'guided.list.split': 'Varios valores en una celda, separados por “{separator}”',
+  'guided.list.splitCount': 'En {count} de {of} celdas.',
   'guided.list.levelLede':
     'En el elemento: los valores de todas sus filas, cada valor una vez. En cada archivo: los valores de la fila de ese archivo. Sugerimos cada archivo donde los valores cambian dentro de algún elemento, y el elemento donde nunca cambian.',
   'guided.where.setsTitle': 'Conjuntos de elementos',
