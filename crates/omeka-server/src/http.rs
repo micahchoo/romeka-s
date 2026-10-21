@@ -53,6 +53,12 @@ pub(crate) async fn conditional_get(request: Request, next: Next) -> Response {
     if method != Method::GET || response.status() != StatusCode::OK {
         return response;
     }
+    // A route that wrote its own validator owns it: `/annotations` sends a
+    // strong per-row ETag that `If-Match` compares strongly, so a weak digest
+    // here would turn every conditional write into a 412.
+    if response.headers().contains_key(header::ETAG) {
+        return response;
+    }
     if !is_document(&response) {
         return response;
     }
@@ -94,9 +100,7 @@ pub(crate) async fn compress_response(request: Request, next: Next) -> Response 
     }
     if !accepts {
         let (mut parts, body) = response.into_parts();
-        parts
-            .headers
-            .insert(header::VARY, HeaderValue::from_static(VARY_VALUE));
+        add_vary(&mut parts.headers);
         return Response::from_parts(parts, body);
     }
     let (mut parts, body) = response.into_parts();
@@ -108,9 +112,7 @@ pub(crate) async fn compress_response(request: Request, next: Next) -> Response 
         .then(|| gzip(&bytes))
         .flatten()
         .filter(|encoded| encoded.len() < bytes.len());
-    parts
-        .headers
-        .insert(header::VARY, HeaderValue::from_static(VARY_VALUE));
+    add_vary(&mut parts.headers);
     match encoded {
         Some(encoded) => {
             parts.headers.remove(header::CONTENT_LENGTH);
@@ -129,6 +131,22 @@ fn is_document(response: &Response) -> bool {
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .is_some_and(document_media_type)
+}
+
+/// Add the compression dimension to whatever `Vary` the route wrote, so a
+/// route's own `Accept, Cookie, Prefer` survives beside it.
+fn add_vary(headers: &mut HeaderMap) {
+    let joined = match headers
+        .get(header::VARY)
+        .and_then(|value| value.to_str().ok())
+    {
+        Some(existing) if existing.to_ascii_lowercase().contains(VARY_VALUE) => return,
+        Some(existing) if !existing.trim().is_empty() => format!("{existing}, {VARY_VALUE}"),
+        _ => VARY_VALUE.to_string(),
+    };
+    if let Ok(value) = HeaderValue::from_str(&joined) {
+        headers.insert(header::VARY, value);
+    }
 }
 
 /// `W/"<sha256 of the body>"`.

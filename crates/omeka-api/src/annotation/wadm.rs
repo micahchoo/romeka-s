@@ -58,6 +58,13 @@ impl Iris {
         format!("{}/iiif/3/media/{}/manifest", self.base, media.0)
     }
 
+    /// `/iiif/image/3/{media}`: the Image API service an image canvas names,
+    /// and the one a `Romeka-Surface` header points the editor's zoom at.
+    #[must_use]
+    pub fn image(&self, media: MediaId) -> String {
+        format!("{}/iiif/image/3/{}", self.base, media.0)
+    }
+
     /// `/annotations/media/{media}/`: the WAP container.
     #[must_use]
     pub fn container(&self, media: MediaId) -> String {
