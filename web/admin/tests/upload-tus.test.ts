@@ -1,22 +1,24 @@
 /**
- * The upload client (`api/import-uploads.ts`): the listing parse, the
- * refusals it types, and the job a zip reports through.
+ * The shared tus wire (`app/upload/tus.ts`) and the import's job routes
+ * (`api/import-uploads.ts`): the listing parse, the refusals it types, and the
+ * job a zip reports through.
  */
 import { describe, expect, it } from 'vitest';
+import { ImportJobs } from '../src/api/import-uploads';
 import { ApiError } from '../src/api/client';
-import { UploadApi, UploadRefusedError, encodeFilename, refusalOf } from '../src/api/import-uploads';
-import { ParseError, brandId } from '../src/api/parse';
+import { ParseError } from '../src/api/parse';
+import { TusUploads, UploadRefusedError, encodeFilename, refusalOf } from '../src/app/upload/tus';
 
-const ID = brandId<'ImportId'>(3);
+const BASE = '/api/romeka/imports/3/uploads';
 
-const answering = (response: () => Response): UploadApi =>
-  new UploadApi({ baseUrl: '', fetchFn: () => Promise.resolve(response()) });
+const answering = (response: () => Response): TusUploads =>
+  new TusUploads({ basePath: BASE, baseUrl: '', fetchFn: () => Promise.resolve(response()) });
 
 const json = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status });
 
 const refusalFrom = async (status: number, body: unknown): Promise<unknown> => {
   try {
-    await answering(() => json(status, body)).create(ID, 'a.tif', 1);
+    await answering(() => json(status, body)).create('a.tif', 1);
   } catch (error) {
     return error;
   }
@@ -31,7 +33,7 @@ describe('the listing', () => {
       limit: { file: 100, total: 1000 },
       keepUntil: '2026-10-27T12:00:00+00:00',
     };
-    expect(await answering(() => json(200, body)).list(ID)).toEqual({
+    expect(await answering(() => json(200, body)).list()).toEqual({
       uploads: [{ id: '7', path: 'Box/a.tif', length: 30, received: 10 }],
       used: 30,
       limit: { file: 100, total: 1000 },
@@ -39,9 +41,19 @@ describe('the listing', () => {
     });
   });
 
+  it('reads a collection that states neither a total nor a limit', async () => {
+    const body = { uploads: [{ id: 'u1', path: 'a.jpg', mediaType: 'image/jpeg', itemId: 7, length: 3, received: 3, created: 'x', expires: 'y' }] };
+    expect(await answering(() => json(200, body)).list()).toEqual({
+      uploads: [{ id: 'u1', path: 'a.jpg', length: 3, received: 3 }],
+      used: null,
+      limit: null,
+      keepUntil: null,
+    });
+  });
+
   it('refuses a listing with a member it does not know', async () => {
     const body = { uploads: [], used: 0, limit: { file: 1, total: 1 }, extra: true };
-    await expect(answering(() => json(200, body)).list(ID)).rejects.toBeInstanceOf(ParseError);
+    await expect(answering(() => json(200, body)).list()).rejects.toBeInstanceOf(ParseError);
   });
 });
 
@@ -73,17 +85,27 @@ describe('the wire', () => {
     expect(encodeFilename('Caja ñ/0001.tif')).toBe(`filename ${Buffer.from('Caja ñ/0001.tif', 'utf8').toString('base64')}`);
   });
 
-  it('reads the upload id from Location and refuses a Location outside this import', async () => {
-    const at = (location: string): UploadApi => answering(() => new Response(null, { status: 201, headers: { Location: location } }));
-    expect(await at('/api/romeka/imports/3/uploads/u9').create(ID, 'a.tif', 1)).toBe('u9');
-    await expect(at('/api/romeka/imports/4/uploads/u9').create(ID, 'a.tif', 1)).rejects.toBeInstanceOf(ParseError);
+  it('reads the upload id from Location and refuses a Location outside this collection', async () => {
+    const at = (location: string): TusUploads => answering(() => new Response(null, { status: 201, headers: { Location: location } }));
+    expect(await at(`${BASE}/u9`).create('a.tif', 1)).toBe('u9');
+    await expect(at('/api/romeka/imports/4/uploads/u9').create('a.tif', 1)).rejects.toBeInstanceOf(ParseError);
   });
 
   it('reads the unzip job from the last PATCH and the reason from the last line of its log', async () => {
     const patched = answering(() => new Response(null, { status: 204, headers: { 'Upload-Offset': '15', 'Romeka-Unzip-Job': '12' } }));
-    expect(await patched.append(ID, 'u1', 10, new Blob(['12345']))).toEqual({ offset: 15, unzipJob: 12 });
-    const log = answering(() => new Response('Started.\nToo many files in the zip file.\n\n', { status: 200 }));
-    expect(await log.jobReason(12)).toBe('Too many files in the zip file.');
-    expect(await answering(() => json(200, { 'o:status': 'in_progress' })).jobStatus(12)).toBe('in_progress');
+    expect(await patched.append('u1', 10, new Blob(['12345']), undefined, 'Romeka-Unzip-Job')).toEqual({ offset: 15, extension: '12' });
+    const jobs = new ImportJobs({
+      baseUrl: '',
+      fetchFn: (input) => {
+        const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
+        return Promise.resolve(
+          path.startsWith('/api/jobs/')
+            ? json(200, { 'o:id': 12, 'o:status': 'in_progress' })
+            : new Response('Started.\nToo many files in the zip file.\n\n', { status: 200 }),
+        );
+      },
+    });
+    expect(await jobs.jobReason(12)).toBe('Too many files in the zip file.');
+    expect(await jobs.jobStatus(12)).toBe('in_progress');
   });
 });

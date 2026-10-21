@@ -26,6 +26,15 @@ export const mr: ResourcesMessages = {
   'items.empty': 'कोणतेही घटक आढळले नाहीत.',
   'items.mediaHeading': 'मीडिया ({count})',
   'items.noMedia': 'कोणतेही मीडिया नाहीत.',
+  'items.addMedia': 'मीडिया जोडा',
+  'items.closeAddMedia': 'बंद करा',
+  'items.noMediaYet':
+    'अद्याप मीडिया उपलब्ध नाही. येथे फाईल ड्रॅग करा, एक निवडा किंवा लिंक पेस्ट करा.',
+  'items.mayNotAdd':
+    'तुम्ही या मीडियाचे दर्शन घेऊ शकता. या आयटममध्ये बदल करू शकणाऱ्या व्यक्तीच मीडिया जोडू शकतात.',
+  'items.dropToAdd': 'या आयटममध्ये {count} फाईल्स जोडण्यासाठी खाली ड्रॅग करा',
+  'items.dropToAddOne': 'या आयटममध्ये 1 फाईल जोडण्यासाठी खाली ड्रॅग करा',
+  'items.addMediaNextPage': 'तुम्ही फाईल्स आणि लिंक्स पुढील पृष्ठावर जोडता.',
   'items.valuesHeading': 'मूल्ये',
   'items.rowName': 'घटक #{id}',
   'items.editLabel': 'या घटकाचे संपादन करा',

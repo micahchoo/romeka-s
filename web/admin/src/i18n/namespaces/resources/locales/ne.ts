@@ -26,6 +26,15 @@ export const ne: ResourcesMessages = {
   'items.empty': 'कुनै पनि वस्तु फेला परेन।',
   'items.mediaHeading': 'मिडिया ({count})',
   'items.noMedia': 'कुनै मिडिया छैन।',
+  'items.addMedia': 'मिडिया थप्नुहोस्',
+  'items.closeAddMedia': 'बन्द गर्नुहोस्',
+  'items.noMediaYet':
+    'अहिलेसम्म कुनै मिडिया छैन। यहाँ एउटा फाइल ड्रप गर्नुहोस्, एउटा छान्नुहोस्, वा लिङ्क टाँस्नुहोस्।',
+  'items.mayNotAdd':
+    'तपाईँ यी मिडियाहरू हेर्न सक्नुहुन्छ। यस वस्तुलाई सम्पादन गर्न सक्ने मानिसहरूले मात्र मिडिया थप्न सक्छन्।',
+  'items.dropToAdd': '{count} फाइलहरू थप्नका लागि यस वस्तुमा ड्रप गर्नुहोस्',
+  'items.dropToAddOne': 'यस वस्तुमा 1 फाइल थप्नका लागि ड्रप गर्नुहोस्',
+  'items.addMediaNextPage': 'तपाईँले अर्को पृष्ठमा फाइल र लिङ्कहरू थप्नुहुनेछ।',
   'items.valuesHeading': 'मानहरू',
   'items.rowName': 'वस्तु #{id}',
   'items.editLabel': 'यस वस्तुलाई सम्पादन गर्नुहोस्',

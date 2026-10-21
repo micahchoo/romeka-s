@@ -1,11 +1,10 @@
 /**
- * What a drop or a pick adds (`pages/import/upload/pick.ts`): paths relative
- * to what was added, folders read in batches, and dot files left out and
- * counted.
+ * What a drop or a pick adds (`app/upload/pick.ts`): paths relative to what
+ * was added, folders read in batches, and dot files left out and counted.
  */
 import { describe, expect, it } from 'vitest';
-import { fromDrop, fromInput } from '../src/pages/import/upload/pick';
-import type { DroppedEntry, DroppedFile, DroppedFolder } from '../src/pages/import/upload/pick';
+import { fromDrop, fromInput } from '../src/app/upload/pick';
+import type { DroppedEntry, DroppedFile, DroppedFolder } from '../src/app/upload/pick';
 
 const dropped = (name: string): DroppedFile => ({
   isFile: true,
