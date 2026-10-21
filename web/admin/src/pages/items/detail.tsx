@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from '../../api/client';
+import { listMediaForItem } from '../../api/media';
 import { currentUser, subscribeSession } from '../../api/session';
 import type { ClassId, Item, ItemId, Media, MediaId, User, UserId } from '../../api/types';
 import { fromBrowserEntry, fromDrop } from '../../app/upload/pick';
@@ -224,7 +225,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   // soon as it is known and these fill in when they answer.
   const readsState = useAsync(async (): Promise<ItemReads> => {
     const [media, users, classes] = await Promise.all([
-      api.listMediaForItem(itemId, { perPage: MEDIA_PER_PAGE }),
+      listMediaForItem(api, itemId, { perPage: MEDIA_PER_PAGE }),
       api.listUsers({ perPage: 100 }),
       api.listResourceClasses({ perPage: 100 }),
     ]);

@@ -19,6 +19,7 @@
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../api/client';
+import { listMediaForItem } from '../../../api/media';
 import type { Media, MediaId } from '../../../api/types';
 import { formatDateTime, formatError } from '../../../app/format';
 import { languageName } from '../../../app/language';
@@ -340,7 +341,7 @@ export const UseAsCaptions = ({ media }: UseAsCaptionsProps): ReactElement => {
       return;
     }
     let live = true;
-    api.listMediaForItem(itemId, { romeka_kind: ['audio', 'video'], perPage: 100 }).then(
+    listMediaForItem(api, itemId, { romeka_kind: ['audio', 'video'], perPage: 100 }).then(
       (page) => {
         if (live) {
           setTargets(page.items.filter((entry) => entry.id !== media.id));

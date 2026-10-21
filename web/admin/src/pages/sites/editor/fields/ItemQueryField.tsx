@@ -12,6 +12,7 @@
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
+import { listMedia } from '../../../../api/media';
 import type { ResourceQuery } from '../../../../api/client';
 import type { ApiPage, ItemSet, ResourceClass, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
@@ -83,7 +84,7 @@ const RESOURCES: Readonly<
     countMessage: () => ({ editor: 'query.itemSetCount' }),
   },
   media: {
-    list: (query) => api.listMedia(query),
+    list: (query) => listMedia(api, query),
     byItemSet: false,
     countMessage: () => ({ editor: 'query.mediaCount' }),
   },

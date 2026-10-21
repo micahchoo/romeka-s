@@ -8,6 +8,7 @@
  * one read per card.
  */
 import { api } from '../../../../api/client';
+import { listMedia } from '../../../../api/media';
 import type { JsonValue } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import type { BlockField, BlockRegistry } from '../../blockSchema';
@@ -101,7 +102,7 @@ const readUrls = async (
     kind === 'asset'
       ? (await api.listAssets(query)).items.map((asset) => [`asset:${String(asset.id)}`, asset.assetUrl])
       : kind === 'media'
-        ? (await api.listMedia(query)).items.map((media) => [
+        ? (await listMedia(api, query)).items.map((media) => [
             `media:${String(media.id)}`,
             media.thumbnailDisplayUrls.square,
           ])
