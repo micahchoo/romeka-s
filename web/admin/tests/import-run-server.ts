@@ -70,7 +70,8 @@ export const runRoutes = (id: number, routes: RunRoutes): Handler => {
       const check = fixture(routes.check ?? 'preview-check.json');
       const answer: Record<string, unknown> = { sources: check['sources'], pattern: check['pattern'] };
       for (const section of Array.isArray(include) ? include : []) {
-        answer[String(section)] = section === 'check' ? check['check'] : fixture(`preview-${String(section)}.json`)[String(section)];
+        // No item has several files here, so Simple's Add has no title to suggest and saves nothing by itself.
+        answer[String(section)] = section === 'check' ? check['check'] : section === 'histogram' ? [] : fixture(`preview-${String(section)}.json`)[String(section)];
       }
       return jsonResponse(answer);
     },
