@@ -19,8 +19,27 @@ import {
   mediaKind,
   mediaName,
   originalFileUrl,
-  playerUrl,
 } from '../../../app/media';
+
+const blankToNull = (text: string | null): string | null =>
+  text === null || text === '' ? null : text;
+
+/**
+ * The file a player opens: the access copy the server marked ready, the
+ * original otherwise. A WMA or an AVI is no container a browser opens, and the
+ * server made an M4A or an MP4 for it; the original stays the download and the
+ * link beside the player, never its source.
+ */
+const playerUrl = (media: Media): string | null => {
+  const copy = media.access;
+  if (copy !== null && copy.state === 'ready') {
+    const url = blankToNull(copy.url);
+    if (url !== null) {
+      return url;
+    }
+  }
+  return blankToNull(media.originalUrl);
+};
 
 /** The facts a file card states, and the link that takes the file. */
 export interface FileFacts {
