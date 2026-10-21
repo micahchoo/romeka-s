@@ -49,6 +49,10 @@ pub struct Media {
     pub source: Option<String>,
     #[serde(rename = "o:media_type")]
     pub media_type: Option<String>,
+    /// The port's per-kind name (`omeka_media::kind::MediaKind::name`). An
+    /// older client reads its absence as "derive the kind yourself".
+    #[serde(rename = "o:kind", default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
     #[serde(rename = "o:sha256")]
     pub sha256: Option<String>,
     #[serde(rename = "o:size")]

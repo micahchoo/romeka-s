@@ -50,6 +50,7 @@ const media = (file: FileFields = {}): Media => ({
   values: new Map(),
   ingester: file.ingester ?? 'upload',
   renderer: file.renderer ?? 'file',
+  kind: null,
   item: { id: brandId<'ItemId'>(1), apiUrl: 'http://localhost/api/items/1' },
   source: file.source === undefined ? null : file.source,
   mediaType: file.type === undefined ? null : file.type,
