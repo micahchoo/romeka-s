@@ -26,6 +26,7 @@ import type {
   Path,
   Parser,
   PasswordLink,
+  ServerMediaKind,
   SiteItemsChange,
   Property,
   PropertyId,
@@ -60,6 +61,7 @@ import type {
   VocabularyTerm,
   VocabularyTextChange,
 } from './types';
+import { SERVER_MEDIA_KINDS } from './types';
 
 /** The id parser a resource-entity core uses to brand its numeric `o:id`. */
 type Brand<IdT extends number> = (id: number) => IdT;
@@ -137,6 +139,7 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:item',
   'o:source',
   'o:media_type',
+  'o:kind',
   'o:sha256',
   'o:size',
   'o:filename',
@@ -239,8 +242,17 @@ const optionalJsonValue = (
   return asJsonValue(value, [...path, key]);
 };
 
-const parseTypes = (object: Record<string, unknown>, path: Path): readonly string[] => {
-  const value = field(object, '@type', path);
+/**
+ * The port's kind name from `o:kind`. A name this build does not know reads as
+ * absent, so a newer server's kind falls back to the admin's table instead of
+ * failing the whole document.
+ */
+const parseServerKind = (object: Record<string, unknown>, path: Path): ServerMediaKind | null => {
+  const value = optionalString(object, 'o:kind', path);
+  return SERVER_MEDIA_KINDS.find((kind) => kind === value) ?? null;
+};
+
+const parseTypes = (object: Record<string, unknown>, path: Path): readonly string[] => {  const value = field(object, '@type', path);
   if (typeof value === 'string') {
     return [value];
   }
@@ -499,6 +511,7 @@ export const parseMedia: Parser<Media> = (raw, path = []) => {
     ...parseEntityCore(object, path, brandId<'MediaId'>),
     ingester: asString(field(object, 'o:ingester', path), [...path, 'o:ingester']),
     renderer: asString(field(object, 'o:renderer', path), [...path, 'o:renderer']),
+    kind: parseServerKind(object, path),
     item: nullableField(object, 'o:item', path, (value, fieldPath) =>
       asRef(value, fieldPath, brandId<'ItemId'>),
     ),

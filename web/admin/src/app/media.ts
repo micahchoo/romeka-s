@@ -8,7 +8,7 @@
  * type for a file, and a known extension for a type too generic to say (a
  * speech recording detected as `application/octet-stream`).
  */
-import type { Media, ThumbnailType } from '../api/types';
+import type { Media, ServerMediaKind, ThumbnailType } from '../api/types';
 
 /** Order a browse cell prefers. Upstream shows the square thumbnail. */
 const CELL_ORDER: readonly ThumbnailType[] = ['square', 'medium', 'large'];
@@ -199,8 +199,38 @@ export const fileExtension = (media: Media): string | null => {
   return extension === null ? null : extension.toUpperCase();
 };
 
-/** What the media is. The one read every preview and picker derives from. */
-export const mediaKind = (media: Media): MediaKind => {
+/**
+ * The server's kind in the admin's words, one row per `MediaKind` variant. A
+ * variant the admin has no word for keeps the nearest one: an IIIF manifest is
+ * an embed until the kind-words unit gives it its own word. `other-file` has no
+ * word of its own, because the server's catch-all covers both a document and a
+ * plain file, and its type is what tells them apart.
+ */
+const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>> = {
+  'local-image': 'image',
+  'iiif-image': 'image',
+  audio: 'audio',
+  video: 'video',
+  pdf: 'pdf',
+  'model-3d': 'model',
+  captions: 'captions',
+  embed: 'embed',
+  'iiif-presentation': 'embed',
+  'other-file': 'by-type',
+};
+
+/** The admin's word for the server's `other-file`: a document, else a file. */
+const documentOrOther = (media: Media): MediaKind => {
+  const type = bareType(media);
+  const extension = fileExtension(media)?.toLowerCase() ?? null;
+  if (type !== null && DOCUMENT_TYPES.has(type)) {
+    return 'document';
+  }
+  return extension !== null && KIND_EXTENSIONS[extension] === 'document' ? 'document' : 'other';
+};
+
+/** What the media is, from the admin's own table. The fallback for an old server. */
+const kindFromTable = (media: Media): MediaKind => {
   const rendered = RENDERER_KINDS[media.renderer] ?? RENDERER_KINDS[media.ingester];
   if (rendered !== undefined) {
     return rendered;
@@ -225,6 +255,19 @@ export const mediaKind = (media: Media): MediaKind => {
     return 'document';
   }
   return byExtension ?? 'other';
+};
+
+/**
+ * What the media is. The one read every preview and picker derives from. The
+ * server's kind wins when the document carries it; the table above is the
+ * fallback for a server that predates `o:kind`.
+ */
+export const mediaKind = (media: Media): MediaKind => {
+  if (media.kind === null) {
+    return kindFromTable(media);
+  }
+  const word = SERVER_KIND_WORDS[media.kind];
+  return word === 'by-type' ? documentOrOther(media) : word;
 };
 
 /**

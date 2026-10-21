@@ -38,6 +38,35 @@ export interface ResourceRef<IdT extends number> {
 
 export type ThumbnailType = 'large' | 'medium' | 'square';
 
+/**
+ * The port's media kind names, one per `MediaKind` variant, as the server sends
+ * them in `o:kind` and accepts them in `romeka_kind` and `has_media_kind`.
+ */
+export type ServerMediaKind =
+  | 'local-image'
+  | 'iiif-image'
+  | 'audio'
+  | 'video'
+  | 'pdf'
+  | 'model-3d'
+  | 'captions'
+  | 'embed'
+  | 'iiif-presentation'
+  | 'other-file';
+
+export const SERVER_MEDIA_KINDS: readonly ServerMediaKind[] = [
+  'local-image',
+  'iiif-image',
+  'audio',
+  'video',
+  'pdf',
+  'model-3d',
+  'captions',
+  'embed',
+  'iiif-presentation',
+  'other-file',
+];
+
 export type ThumbnailUrls = Readonly<Partial<Record<ThumbnailType, string>>>;
 
 export type ResourceName = 'items' | 'item_sets' | 'media';
@@ -107,6 +136,12 @@ export interface Item extends ResourceEntity<ItemId> {
 export interface Media extends ResourceEntity<MediaId> {
   readonly ingester: string;
   readonly renderer: string;
+  /**
+   * The server's kind, from the port's `o:kind`: one stable name per
+   * `omeka_media::kind::MediaKind` variant. `null` on an older server that
+   * does not send it, which is when the admin falls back to its own table.
+   */
+  readonly kind: ServerMediaKind | null;
   readonly item: ResourceRef<ItemId> | null;
   readonly source: string | null;
   readonly mediaType: string | null;

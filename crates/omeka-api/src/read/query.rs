@@ -78,6 +78,7 @@ impl SearchQuery {
         filter.site_id = params.id::<SiteId>("site_id");
         filter.in_sites = params.bool("in_sites");
         filter.has_media = params.bool("has_media");
+        filter.has_media_kind = kind_names(params.list("has_media_kind"));
         filter.site_attachments_only = params.bool("site_attachments_only").unwrap_or(false);
         filter.media_visibility = visibility;
         filter.item_set_ids = ids(&params.list("item_set_id"));
@@ -98,6 +99,19 @@ impl SearchQuery {
     pub fn has_fulltext(&self) -> bool {
         self.fulltext.is_some()
     }
+}
+
+/// A repeated kind parameter (`romeka_kind`, `has_media_kind`), trimmed, with
+/// blank values dropped. `None` when the request named none, so no filter
+/// applies; a name the server does not know stays in the list and matches no
+/// row, the way an unknown `ingester` does.
+pub fn kind_names(values: Vec<String>) -> Option<Vec<String>> {
+    let values: Vec<String> = values
+        .into_iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect();
+    (!values.is_empty()).then_some(values)
 }
 
 /// `AbstractEntityAdapter::buildBaseQuery`'s `id` filter: the request's id

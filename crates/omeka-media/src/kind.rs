@@ -116,6 +116,45 @@ impl MediaKind {
         }
     }
 
+    /// The stable name the wire and the query parameters use for this kind, one
+    /// name per variant. `Pdf` carries its derivative state in `first_page`,
+    /// which is not part of the name.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::LocalImage => "local-image",
+            Self::IiifImage => "iiif-image",
+            Self::Audio => "audio",
+            Self::Video => "video",
+            Self::Pdf { .. } => "pdf",
+            Self::Model3d => "model-3d",
+            Self::Captions => "captions",
+            Self::Embed => "embed",
+            Self::IiifPresentation => "iiif-presentation",
+            Self::OtherFile => "other-file",
+        }
+    }
+
+    /// The kind a name from a query parameter or a client names, or `None` for a
+    /// name this server does not know. A value with no variant is not a guess:
+    /// it matches no row.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "local-image" => Self::LocalImage,
+            "iiif-image" => Self::IiifImage,
+            "audio" => Self::Audio,
+            "video" => Self::Video,
+            "pdf" => Self::Pdf { first_page: false },
+            "model-3d" => Self::Model3d,
+            "captions" => Self::Captions,
+            "embed" => Self::Embed,
+            "iiif-presentation" => Self::IiifPresentation,
+            "other-file" => Self::OtherFile,
+            _ => return None,
+        })
+    }
+
     /// What a selector on this kind may address. This is the v1 table of the
     /// annotation design's section 7, and its single source of truth.
     #[must_use]
@@ -152,5 +191,55 @@ impl MediaKind {
             | Self::IiifPresentation
             | Self::OtherFile => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use super::*;
+
+    /// Every variant's name comes back from `from_name` as the same kind, and no
+    /// two variants share a name.
+    #[test]
+    fn every_kind_has_one_stable_name() {
+        let kinds = [
+            MediaKind::LocalImage,
+            MediaKind::IiifImage,
+            MediaKind::Audio,
+            MediaKind::Video,
+            MediaKind::Pdf { first_page: false },
+            MediaKind::Pdf { first_page: true },
+            MediaKind::Model3d,
+            MediaKind::Captions,
+            MediaKind::Embed,
+            MediaKind::IiifPresentation,
+            MediaKind::OtherFile,
+        ];
+        let mut names = Vec::new();
+        for kind in kinds {
+            let name = kind.name();
+            assert_eq!(
+                MediaKind::from_name(name),
+                Some(match kind {
+                    MediaKind::Pdf { .. } => MediaKind::Pdf { first_page: false },
+                    other => other,
+                }),
+                "name {name}"
+            );
+            names.push(name);
+        }
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), 10, "names: {names:?}");
+    }
+
+    /// A name this server does not know matches no kind.
+    #[test]
+    fn an_unknown_name_is_no_kind() {
+        assert_eq!(MediaKind::from_name("AUDIO"), None);
+        assert_eq!(MediaKind::from_name("document"), None);
+        assert_eq!(MediaKind::from_name(""), None);
     }
 }
