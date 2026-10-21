@@ -280,7 +280,7 @@ fn walk(node: &Value) {
                     "Canvas" => &["id", "width", "height", "items"],
                     "AnnotationPage" => &["id", "items"],
                     "Annotation" => &["id", "motivation", "body", "target"],
-                    "Image" | "ImageService3" | "Dataset" => &["id"],
+                    "Image" | "ImageService3" | "Dataset" | "Sound" | "Video" | "Text" => &["id"],
                     other => panic!("an unknown type {other}: {node}"),
                 };
                 for property in required {

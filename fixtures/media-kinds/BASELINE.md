@@ -19,20 +19,20 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 | image.tif | pass | pass | pass | pass | pass | pass | n/a |
 | image.avif | pass | pass | pass | pass | pass | **fail** | n/a |
 | image.heic | pass | pass | pass | pass | pass | **fail** | n/a |
-| image.svg | pass | pass | pass | pass | pass | **fail** | n/a |
-| hostile.svg | pass | pass | pass | pass | pass | **fail** | pass |
-| audio.mp3 | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| audio.m4a | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| audio.ogg | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| audio.opus | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| audio.flac | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| audio.wav | pass | **fail** | pass | pass | pass | **fail** | n/a |
-| video.mp4 | pass | pass | pass | **fail** | pass | **fail** | n/a |
-| video.webm | pass | pass | pass | pass | pass | **fail** | n/a |
-| video.mov | pass | pass | pass | pass | pass | **fail** | n/a |
-| video.mkv | pass | pass | pass | pass | pass | **fail** | n/a |
-| video.ogv | pass | pass | pass | pass | pass | **fail** | n/a |
-| doc.pdf | pass | pass | pass | **fail** | pass | **fail** | n/a |
+| image.svg | pass | pass | pass | pass | pass | pass | n/a |
+| hostile.svg | pass | pass | pass | pass | pass | pass | pass |
+| audio.mp3 | pass | **fail** | pass | pass | pass | pass | n/a |
+| audio.m4a | pass | **fail** | pass | pass | pass | pass | n/a |
+| audio.ogg | pass | **fail** | pass | pass | pass | pass | n/a |
+| audio.opus | pass | **fail** | pass | pass | pass | pass | n/a |
+| audio.flac | pass | **fail** | pass | pass | pass | pass | n/a |
+| audio.wav | pass | **fail** | pass | pass | pass | pass | n/a |
+| video.mp4 | pass | pass | pass | **fail** | pass | pass | n/a |
+| video.webm | pass | pass | pass | pass | pass | pass | n/a |
+| video.mov | pass | pass | pass | pass | pass | pass | n/a |
+| video.mkv | pass | pass | pass | pass | pass | pass | n/a |
+| video.ogv | pass | pass | pass | pass | pass | pass | n/a |
+| doc.pdf | pass | pass | pass | **fail** | pass | pass | n/a |
 | doc.docx | pass | **fail** | pass | pass | pass | **fail** | n/a |
 | model.glb | pass | **fail** | pass | **fail** | pass | **fail** | n/a |
 | model.gltf | pass | **fail** | pass | **fail** | pass | **fail** | n/a |
@@ -41,17 +41,11 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 
 ## Known red
 
-- `audio.flac` / iiif
 - `audio.flac` / thumbnail
-- `audio.m4a` / iiif
 - `audio.m4a` / thumbnail
-- `audio.mp3` / iiif
 - `audio.mp3` / thumbnail
-- `audio.ogg` / iiif
 - `audio.ogg` / thumbnail
-- `audio.opus` / iiif
 - `audio.opus` / thumbnail
-- `audio.wav` / iiif
 - `audio.wav` / thumbnail
 - `captions.srt` / iiif
 - `captions.srt` / thumbnail
@@ -59,21 +53,13 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `captions.vtt` / thumbnail
 - `doc.docx` / iiif
 - `doc.docx` / thumbnail
-- `doc.pdf` / iiif
 - `doc.pdf` / site-media-page
-- `hostile.svg` / iiif
 - `image.avif` / iiif
 - `image.heic` / iiif
-- `image.svg` / iiif
 - `model.glb` / iiif
 - `model.glb` / site-media-page
 - `model.glb` / thumbnail
 - `model.gltf` / iiif
 - `model.gltf` / site-media-page
 - `model.gltf` / thumbnail
-- `video.mkv` / iiif
-- `video.mov` / iiif
-- `video.mp4` / iiif
 - `video.mp4` / site-media-page
-- `video.ogv` / iiif
-- `video.webm` / iiif

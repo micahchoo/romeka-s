@@ -1,9 +1,8 @@
 //! One test per row of the annotation design's per-kind table (section 7).
 //!
 //! Each row states what the media is, what a selector may point at, and what
-//! its canvas paints. The canvas answer is the phase-one table: the two image
-//! kinds paint a canvas, exactly as `iiif::paints_canvas` accepted before this
-//! module existed. The extents unit turns on the AV and still bodies.
+//! its canvas paints: an image service, a PDF's first page, sound, video, or
+//! nothing.
 
 use omeka_media::kind::{CanvasBody, KindInput, MediaKind, Surface};
 
@@ -66,7 +65,7 @@ fn a_remote_iiif_image_is_an_image_with_an_image_canvas() {
 }
 
 #[test]
-fn audio_takes_time_ranges_and_has_no_canvas_yet() {
+fn audio_takes_time_ranges_and_paints_sound() {
     assert_row(
         "file",
         "upload",
@@ -74,12 +73,12 @@ fn audio_takes_time_ranges_and_has_no_canvas_yet() {
         false,
         MediaKind::Audio,
         Surface::Time,
-        None,
+        Some(CanvasBody::Sound),
     );
 }
 
 #[test]
-fn video_takes_time_ranges_and_has_no_canvas_yet() {
+fn video_takes_time_ranges_and_paints_video() {
     assert_row(
         "file",
         "upload",
@@ -87,12 +86,12 @@ fn video_takes_time_ranges_and_has_no_canvas_yet() {
         false,
         MediaKind::Video,
         Surface::Time,
-        None,
+        Some(CanvasBody::Video),
     );
 }
 
 #[test]
-fn a_pdf_takes_whole_notes_and_its_first_page_derivative_is_remembered() {
+fn a_pdf_takes_whole_notes_and_paints_its_first_page_once_it_exists() {
     assert_row(
         "file",
         "upload",
@@ -109,7 +108,7 @@ fn a_pdf_takes_whole_notes_and_its_first_page_derivative_is_remembered() {
         true,
         MediaKind::Pdf { first_page: true },
         Surface::Whole,
-        None,
+        Some(CanvasBody::Still),
     );
 }
 
