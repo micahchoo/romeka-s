@@ -116,10 +116,12 @@ export const te: EditorMessages = {
   'manifest.fromItem': 'ఈ సైట్ నుండి ఒక అంశం',
   'manifest.pickItem': 'ఒక అంశాన్ని కనుగొనండి',
   'manifest.itemFallback': 'అంశం {id}',
-  'blockField.asset.attachments': 'చిత్రాలు',
-  'fieldHelp.asset.attachments': 'ప్రతి చిత్రాన్ని ఒక పేజీకి లింక్ చేయవచ్చు.',
-  'blockField.asset.id': 'చిత్రం',
-  'fieldHelp.asset.id': 'అప్‌లోడ్ చేసిన చిత్రం.',
+  'blockField.asset.attachments': 'ఫైళ్లు',
+  'fieldHelp.asset.attachments':
+    'ప్రతి ఫైల్ ఒక పేజీకి లింక్ చేయవచ్చు; చిత్రం కాని ఫైల్ తనకే లింక్ అవుతుంది.',
+  'blockField.asset.id': 'ఫైల్',
+  'fieldHelp.asset.id':
+    'అప్‌లోడ్ చేసిన ఫైల్: ఒక చిత్రం నేరుగా కనిపిస్తుంది, ఇతర ఫైల్స్ లింక్‌గా కనిపిస్తాయి.',
   'blockField.asset.alt_link_title': 'లింక్ టెక్స్ట్',
   'fieldHelp.asset.alt_link_title': 'చిత్రానికి కింద ఉండే శీర్షికను మారుస్తుంది.',
   'blockField.asset.caption': 'శీర్షిక',

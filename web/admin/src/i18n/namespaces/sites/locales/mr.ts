@@ -259,9 +259,6 @@ export const mr: SitesMessages = {
   'asset.loading': 'मालमत्ता लोड होत आहे...',
   'asset.fallback': 'मालमत्ता {id}',
   'asset.choose': 'मालमत्ता निवडा',
-  'asset.upload': 'अपलोड करा',
-  'asset.uploading': 'अपलोड होत आहे...',
-  'asset.error': 'अपलोड अयशस्वी झाले. {message}',
   'asset.empty': 'अद्याप कोणतीही मालमत्ता साठवलेली नाही. एक मालमत्ता अपलोड करा.',
   'query.fulltext': 'पूर्ण-मजकूर शोध',
   'query.itemSet': 'आयटम सेट',
@@ -349,7 +346,8 @@ export const mr: SitesMessages = {
   'layoutHelp.blockGroup': 'त्यानंतर येणाऱ्या ब्लॉक्सना एका गटात गुंडाळते.',
   'layoutHelp.iiifPresentation': 'IIIF मॅनिफेस्ट किंवा व्ह्यूअरमधील कलेक्शन.',
   'layoutHelp.iiifImage': 'झूम करण्यायोग्य व्ह्यूअरमधील एक IIIF प्रतिमा.',
-  'layoutHelp.asset': 'प्रत्येक पर्यायी लिंक आणि कॅप्शनसह अपलोड केलेल्या प्रतिमा.',
+  'layoutHelp.asset':
+    'अपलोड केलेल्या फाईल्स, ज्यामध्ये पर्यायी कॅप्शन असू शकते; एखादी प्रतिमा पृष्ठाशी जोडली जाऊ शकते.',
   'layoutHelp.html': 'फॉरमॅट केलेला मजकूर: शीर्षके, सूची, लिंक्स आणि अवतरणे.',
   'layoutHelp.listOfPages':
     'निवडलेल्या पृष्ठांची सूची, तुम्ही त्यांची मांडणी कशी करता त्यानुसार नेस्टेड.',

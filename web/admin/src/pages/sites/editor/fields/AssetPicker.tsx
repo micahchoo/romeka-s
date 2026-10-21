@@ -1,8 +1,8 @@
 /**
- * The `assetRef` field control: a picker over `/api/assets` with thumbnails and
- * names, plus an upload. `POST /api/assets` is multipart (a JSON `data` part and
- * a `file` part), which the browser's `FormData` builds; `api.createAsset` owns
- * the request, and this control owns the list and the error state.
+ * The `assetRef` field control: a picker over `/api/assets` with kind tiles and
+ * names, plus the shared upload control. The field says what it accepts, so an
+ * image slot offers only images and the asset block offers any file. A slot
+ * behind the block is decorative and asks for no description.
  *
  * The stored value is the asset id as a string, the shape upstream's asset form
  * writes, so an id the fetched page does not name still resolves by id.
@@ -12,11 +12,18 @@ import { useState } from 'react';
 import { api } from '../../../../api/client';
 import { assetIdFromParam } from '../../../../api/parse';
 import type { Asset } from '../../../../api/types';
-import { formatError } from '../../../../app/format';
-import { toError, useAsync } from '../../../../app/useAsync';
-import { useTranslator } from '../../../../i18n';
+import { useAsync } from '../../../../app/useAsync';import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
+import type { FieldAccepts } from '../../blockSchema';
+import { AssetTile, AssetUpload } from '../../../assets/upload';
+
+/** The file kinds an `<input type="file">` offers: images for a picture slot, all files otherwise. */
+const ACCEPT: Readonly<Record<FieldAccepts, string | null>> = {
+  image: 'image/*',
+  imageService: 'image/*',
+  any: null,
+};
 
 export interface AssetPickerProps {
   readonly id: string;
@@ -25,7 +32,9 @@ export interface AssetPickerProps {
   readonly description?: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
-  readonly required?: boolean;
+  readonly accepts: FieldAccepts;
+  /** Whether it sits behind the block, so it takes no description. */
+  readonly decorative: boolean;
 }
 
 export const AssetPicker = ({
@@ -34,14 +43,12 @@ export const AssetPicker = ({
   description,
   value,
   onChange,
-  required = false,
+  accepts,
+  decorative,
 }: AssetPickerProps): ReactElement => {
-  const translator = useTranslator(common, sites);
-  const { t } = translator;
+  const { t } = useTranslator(common, sites);
   const [open, setOpen] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // The grid loads on open, so a block with many asset slots makes no request
   // until someone looks at the list.
   const list = useAsync(
@@ -57,23 +64,6 @@ export const AssetPicker = ({
   );
   const assets = list.status === 'ready' && list.data !== null ? list.data.items : [];
 
-  const upload = (file: File, input: HTMLInputElement): void => {
-    input.value = '';
-    setBusy(true);
-    setError(null);
-    api.createAsset({ name: file.name, altText: null }, file).then(
-      (asset) => {
-        setBusy(false);
-        onChange(String(asset.id));
-        setRevision((current) => current + 1);
-      },
-      (cause: unknown) => {
-        setBusy(false);
-        setError(formatError(toError(cause), translator));
-      },
-    );
-  };
-
   return (
     <fieldset
       className="block-field asset-picker"
@@ -88,7 +78,7 @@ export const AssetPicker = ({
       <p className="asset-current">
         {selected.status === 'ready' && selected.data !== null ? (
           <>
-            <img src={selected.data.assetUrl} alt="" className="asset-thumb" />
+            <AssetTile asset={selected.data} className="asset-thumb" />
             <span>{selected.data.name}</span>
           </>
         ) : selected.status === 'error' ? (
@@ -97,6 +87,27 @@ export const AssetPicker = ({
           <span>{value === '' ? t('asset.none') : t('asset.loading')}</span>
         )}
       </p>
+      <AssetUpload
+        id={id}
+        accept={ACCEPT[accepts]}
+        describe={!decorative}
+        onAsset={(asset) => {
+          onChange(String(asset.id));
+          setRevision((current) => current + 1);
+        }}
+      />
+      {value === '' ? null : (
+        <p>
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+            }}
+          >
+            {t('action.remove')}
+          </button>
+        </p>
+      )}
       <p>
         <button
           type="button"
@@ -107,41 +118,7 @@ export const AssetPicker = ({
         >
           {t('asset.choose')}
         </button>
-        <label htmlFor={`${id}-upload`}>{t('asset.upload')}</label>
-        <input
-          id={`${id}-upload`}
-          type="file"
-          accept="image/*"
-          disabled={busy}
-          aria-required={required}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file !== undefined) {
-              upload(file, event.currentTarget);
-            }
-          }}
-        />
-        {value === '' ? null : (
-          <button
-            type="button"
-            onClick={() => {
-              onChange('');
-            }}
-          >
-            {t('action.remove')}
-          </button>
-        )}
       </p>
-      {busy ? (
-        <p className="asset-busy" role="status">
-          {t('asset.uploading')}
-        </p>
-      ) : null}
-      {error === null ? null : (
-        <p className="field-error" role="alert">
-          {t('asset.error', { message: error })}
-        </p>
-      )}
       {open ? (
         assets.length === 0 ? (
           <p className="asset-empty">{t('asset.empty')}</p>
@@ -157,7 +134,7 @@ export const AssetPicker = ({
                     setOpen(false);
                   }}
                 >
-                  <img src={asset.assetUrl} alt="" className="asset-thumb" />
+                  <AssetTile asset={asset} className="asset-thumb" />
                   <span>{asset.name}</span>
                 </button>
               </li>

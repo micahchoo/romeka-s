@@ -121,10 +121,12 @@ export const ta: EditorMessages = {
   'manifest.fromItem': 'இந்த தளத்திலிருந்து ஒரு உருப்படி',
   'manifest.pickItem': 'ஒரு உருப்படியைக் கண்டறியவும்',
   'manifest.itemFallback': 'உருப்படி {id}',
-  'blockField.asset.attachments': 'படங்கள்',
-  'fieldHelp.asset.attachments': 'ஒவ்வொரு படமும் ஒரு பக்கத்துடன் இணைக்கப்படலாம்.',
-  'blockField.asset.id': 'படம்',
-  'fieldHelp.asset.id': 'பதிவேற்றப்பட்ட படக் கோப்பு.',
+  'blockField.asset.attachments': 'கோப்புகள்',
+  'fieldHelp.asset.attachments':
+    'ஒவ்வொரு கோப்பும் ஒரு பக்கத்துடன் இணைக்கப்படலாம்; படமாக இல்லாத ஒரு கோப்பு தனக்குத்தானே இணைக்கிறது.',
+  'blockField.asset.id': 'கோப்பு',
+  'fieldHelp.asset.id':
+    'பதிவேற்றப்பட்ட கோப்பு: ஒரு படம் உள்ளே காட்டப்படும், மற்ற கோப்புகள் இணைப்பாகக் காட்டப்படும்.',
   'blockField.asset.alt_link_title': 'இணைப்பு உரை',
   'fieldHelp.asset.alt_link_title': 'படத்தின் கீழ் உள்ள பக்கத் தலைப்பை மாற்றுகிறது.',
   'blockField.asset.caption': 'தலைப்பு',

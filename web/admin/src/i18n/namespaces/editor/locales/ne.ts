@@ -112,10 +112,12 @@ export const ne: EditorMessages = {
   'manifest.fromItem': 'यस साइटबाट एउटा वस्तु',
   'manifest.pickItem': 'एउटा वस्तु खोज्नुहोस्',
   'manifest.itemFallback': 'वस्तु {id}',
-  'blockField.asset.attachments': 'छविहरू',
-  'fieldHelp.asset.attachments': 'प्रत्येक छविले एउटा पृष्ठमा लिङ्क गर्न सक्छ।',
-  'blockField.asset.id': 'छवि',
-  'fieldHelp.asset.id': 'अपलोड गरिएको छवि फाइल।',
+  'blockField.asset.attachments': 'फाइलहरू',
+  'fieldHelp.asset.attachments':
+    'प्रत्येक फाइलले एउटा पृष्ठसँग लिङ्क गर्न सक्छ; चित्र नभएको फाइल आफैँसँग लिङ्क हुन्छ।',
+  'blockField.asset.id': 'फाइल',
+  'fieldHelp.asset.id':
+    'अपलोड गरिएको फाइल: एउटा छवि इनलाइन देखिन्छ, अन्य कुनै पनि फाइल लिङ्कको रूपमा देखिन्छ।',
   'blockField.asset.alt_link_title': 'लिङ्क टेक्स्ट',
   'fieldHelp.asset.alt_link_title': 'छवि मुनिको पृष्ठको शीर्षकलाई प्रतिस्थापन गर्दछ।',
   'blockField.asset.caption': 'क्याप्सन',

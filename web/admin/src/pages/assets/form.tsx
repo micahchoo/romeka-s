@@ -13,6 +13,7 @@ import { useSave } from '../../app/save';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
+import { assetKind } from '../../app/media';
 
 const nullable = (text: string): string | null => (text.trim() === '' ? null : text);
 
@@ -24,6 +25,9 @@ export const AssetEditForm = ({
   readonly onSaved: (asset: Asset) => void;
 }): ReactElement => {
   const { t } = useTranslator(common, admin);
+  // A description of a file that is not a picture becomes the link text a
+  // visitor reads, so the field says so.
+  const altLabel = assetKind(asset) === 'image' ? t('column.altText') : t('assets.linkText');
   const [name, setName] = useState(asset.name);
   const [altText, setAltText] = useState(asset.altText ?? '');
   const [formError, setFormError] = useState<string | null>(null);
@@ -48,7 +52,7 @@ export const AssetEditForm = ({
         <legend>{t('assets.legend')}</legend>
         <TextField id="asset-name" label={t('column.name')} value={name} onChange={setName} />
         <p>
-          <label htmlFor="asset-alt-text">{t('column.altText')}</label>
+          <label htmlFor="asset-alt-text">{altLabel}</label>
           <textarea
             id="asset-alt-text"
             rows={2}
