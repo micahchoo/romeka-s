@@ -36,11 +36,7 @@ const SITE: &str = "/s/museum";
 /// The cells the current server fails, as `(corpus file, cell)`. Remove a pair
 /// when a unit turns that cell green.
 const KNOWN_RED: &[(&str, &str)] = &[
-    ("audio.flac", "api"),
     ("audio.flac", "iiif"),
-    ("audio.flac", "ingest"),
-    ("audio.flac", "site-item-card"),
-    ("audio.flac", "site-media-page"),
     ("audio.flac", "thumbnail"),
     ("audio.m4a", "iiif"),
     ("audio.m4a", "thumbnail"),
@@ -48,72 +44,34 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("audio.mp3", "thumbnail"),
     ("audio.ogg", "iiif"),
     ("audio.ogg", "thumbnail"),
-    ("audio.opus", "api"),
     ("audio.opus", "iiif"),
-    ("audio.opus", "ingest"),
-    ("audio.opus", "site-item-card"),
-    ("audio.opus", "site-media-page"),
     ("audio.opus", "thumbnail"),
     ("audio.wav", "iiif"),
     ("audio.wav", "thumbnail"),
-    ("captions.srt", "api"),
     ("captions.srt", "iiif"),
-    ("captions.srt", "ingest"),
-    ("captions.srt", "site-item-card"),
-    ("captions.srt", "site-media-page"),
     ("captions.srt", "thumbnail"),
-    ("captions.vtt", "api"),
     ("captions.vtt", "iiif"),
-    ("captions.vtt", "ingest"),
-    ("captions.vtt", "site-item-card"),
-    ("captions.vtt", "site-media-page"),
     ("captions.vtt", "thumbnail"),
     ("doc.docx", "iiif"),
     ("doc.docx", "thumbnail"),
     ("doc.pdf", "iiif"),
     ("doc.pdf", "site-media-page"),
     ("doc.pdf", "thumbnail"),
-    ("hostile.svg", "api"),
     ("hostile.svg", "iiif"),
-    ("hostile.svg", "ingest"),
-    ("hostile.svg", "safe"),
-    ("hostile.svg", "site-item-card"),
-    ("hostile.svg", "site-media-page"),
-    ("hostile.svg", "thumbnail"),
-    ("image.avif", "api"),
     ("image.avif", "iiif"),
-    ("image.avif", "ingest"),
-    ("image.avif", "site-item-card"),
     ("image.avif", "site-media-page"),
     ("image.avif", "thumbnail"),
-    ("image.heic", "api"),
     ("image.heic", "iiif"),
-    ("image.heic", "ingest"),
-    ("image.heic", "site-item-card"),
     ("image.heic", "site-media-page"),
     ("image.heic", "thumbnail"),
-    ("image.svg", "api"),
     ("image.svg", "iiif"),
-    ("image.svg", "ingest"),
-    ("image.svg", "site-item-card"),
-    ("image.svg", "site-media-page"),
-    ("image.svg", "thumbnail"),
-    ("model.glb", "api"),
     ("model.glb", "iiif"),
-    ("model.glb", "ingest"),
-    ("model.glb", "site-item-card"),
     ("model.glb", "site-media-page"),
     ("model.glb", "thumbnail"),
-    ("model.gltf", "api"),
     ("model.gltf", "iiif"),
-    ("model.gltf", "ingest"),
-    ("model.gltf", "site-item-card"),
     ("model.gltf", "site-media-page"),
     ("model.gltf", "thumbnail"),
-    ("video.mkv", "api"),
     ("video.mkv", "iiif"),
-    ("video.mkv", "ingest"),
-    ("video.mkv", "site-item-card"),
     ("video.mkv", "site-media-page"),
     ("video.mkv", "thumbnail"),
     ("video.mov", "iiif"),
@@ -122,10 +80,7 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("video.mp4", "iiif"),
     ("video.mp4", "site-media-page"),
     ("video.mp4", "thumbnail"),
-    ("video.ogv", "api"),
     ("video.ogv", "iiif"),
-    ("video.ogv", "ingest"),
-    ("video.ogv", "site-item-card"),
     ("video.ogv", "site-media-page"),
     ("video.ogv", "thumbnail"),
     ("video.webm", "iiif"),
@@ -281,7 +236,7 @@ const FIXTURES: &[Fixture] = &[
     },
     Fixture {
         file: "audio.opus",
-        media_type: "audio/opus",
+        media_type: "audio/ogg",
         kind: Kind::Audio,
         captions: false,
         upright: false,
@@ -458,6 +413,54 @@ async fn the_media_kind_matrix_matches_the_known_red_list() {
 
 fn corpus_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds")
+}
+
+/// An SVG the filter cannot parse is refused with the 422 document, under
+/// `file`, and no item is created. A filtered SVG is stored rewritten, so an
+/// unreadable one is never stored as it arrived.
+#[tokio::test]
+async fn an_svg_that_is_not_xml_is_refused_at_ingest() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, _seed) = seeded_pool().await;
+    let app = router_with_store(pool, store);
+    let before = send(app.clone(), get("/api/items", true)).await.json();
+    let data = json!({
+        "o:is_public": true,
+        "dcterms:title": [{"type": "literal", "@value": "Broken"}],
+        "o:media": [{
+            "o:ingester": "upload",
+            "o:is_public": true,
+            "file_index": 0,
+        }],
+    })
+    .to_string();
+    let answer = send(
+        app.clone(),
+        multipart_asset_request(
+            &append_key("/api/items"),
+            "broken.svg",
+            b"<svg xmlns=\"http://www.w3.org/2000/svg\"><rect",
+            &data,
+        ),
+    )
+    .await;
+    assert_eq!(
+        answer.status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "{}",
+        answer.body
+    );
+    let errors = answer.json();
+    let message = errors["errors"]["o:media"][0]["file"][0]
+        .as_str()
+        .unwrap_or_else(|| panic!("{}", errors));
+    assert!(message.contains("did not parse"), "{message}");
+    let after = send(app, get("/api/items", true)).await.json();
+    assert_eq!(
+        after["o:total_results"], before["o:total_results"],
+        "{after}"
+    );
 }
 
 /// The registry above is the corpus: a file added without a row, or a row
@@ -666,12 +669,15 @@ fn dimensions(bytes: &[u8]) -> Option<(u64, u64)> {
     Some((width, height))
 }
 
-/// The API carries the type and the byte size the ingester recorded.
+/// The API carries the type and the byte size the ingester recorded. A
+/// rewritten original (an SVG is filtered before it is stored) is measured as
+/// stored, not as uploaded.
 fn api_cell(seen: &Observed) -> bool {
     let Some(doc) = &seen.media_doc else {
         return false;
     };
-    doc["o:media_type"].is_string() && doc["o:size"].as_u64() == Some(seen.bytes.len() as u64)
+    let size = seen.original.as_ref().map_or(seen.bytes.len(), Vec::len);
+    doc["o:media_type"].is_string() && doc["o:size"].as_u64() == Some(size as u64)
 }
 
 /// The public media page renders the element the kind needs, and an image is

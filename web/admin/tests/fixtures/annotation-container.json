@@ -1,0 +1,41 @@
+{
+  "@context": ["http://www.w3.org/ns/anno.jsonld", "http://www.w3.org/ns/ldp.jsonld"],
+  "id": "https://archive.example/annotations/media/4127/",
+  "type": ["BasicContainer", "AnnotationCollection"],
+  "label": "Notes on Folio 12r",
+  "total": 12,
+  "first": {
+    "id": "https://archive.example/annotations/media/4127/page",
+    "type": "AnnotationPage",
+    "startIndex": 0,
+    "items": [
+      {
+        "id": "https://archive.example/annotations/90311",
+        "type": "Annotation",
+        "motivation": "commenting",
+        "created": "2026-10-20T09:12:44Z",
+        "modified": "2026-10-20T09:12:44Z",
+        "body": {
+          "type": "TextualBody",
+          "value": "Watermark: crowned shield",
+          "format": "text/plain",
+          "language": "en"
+        },
+        "target": {
+          "type": "SpecificResource",
+          "source": {
+            "id": "https://archive.example/iiif/3/item/812/canvas/4127",
+            "type": "Canvas",
+            "partOf": [{ "id": "https://archive.example/iiif/3/item/812/manifest", "type": "Manifest" }]
+          },
+          "selector": {
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "xywh=pixel:1200,340,410,388"
+          }
+        },
+        "dcterms:source": "Briquet 1442"
+      }
+    ]
+  }
+}

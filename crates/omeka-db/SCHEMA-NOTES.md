@@ -204,6 +204,30 @@ branch. The gap is safe: `Migrator::run` applies every version `_sqlx_migrations
 whatever its place (read in sqlx-core 0.8.6 `migrate/migrator.rs`), so 0006 applies when it lands
 after 0007. The gap itself is measured on MySQL 8 by `tests/mysql_page_versions.rs`.
 
+`0008_media_annotation.sql` adds the storage of media annotation and the extent of audio and video.
+Neither is an upstream table, and `media.data` and `value` stay upstream's.
+
+- `romeka_media_annotation`: one row per live Web Annotation on a media. The target IRI is not
+  stored, because it follows from `media.item_id` and `media_id` at render time, so a base-URL change
+  strands nothing. `selector_kind` and `selector` hold canonical geometry in upright original pixels
+  (`"x,y,w,h"` or a polygon's point list) and a time range lives only in `t_start_ms`/`t_end_ms`, so
+  a client's own selector text is never stored or echoed. `body_json` is the W3C body as JSON and
+  `body_text` is derived from it on every write for the index; `lang` is derived the same way.
+  `extensions` keeps unknown extension keys as JSON, at most 8 KiB. `revision` is the strong ETag
+  `"r<revision>"`; a replace and a delete compare it (`UPDATE … WHERE id = ? AND revision = ?`).
+  `UNIQUE (media_id, client_key)` lets both engines store many `NULL` keys, so an idempotent create
+  needs no partial index. `origin = 'track'` marks a caption import's row, which the next import of
+  the same language replaces. `CHECK`s refuse a caption with no time range, a track row that is not a
+  caption, a whole-object note with geometry, and a row with no geometry of a kind that needs one.
+- `romeka_media_annotation_fts`: the FTS5 external-content mirror of `body_text`, kept in step by
+  three triggers, as `fulltext_search_fts` is. The triggers also fire on the cascade delete, so a
+  deleted media leaves no hits. MySQL's `FULLTEXT` index on the column does the same job with no
+  triggers; its `innodb_ft_min_token_size` (three by default) leaves words of one or two letters
+  out, so `MediaAnnotationRepo::search` matches those with `LIKE` on `body_text`.
+- `romeka_media_extent`: one row per media, the extent a IIIF canvas needs. `storage_path` is the
+  original that was probed, so a row whose path no longer matches the media's is stale and is probed
+  again; `duration_ms`, `width` and `height` are each either positive or `NULL`.
+
 The MySQL directory has no `0004`: that migration only makes SQLite's term columns case-sensitive.
 
 ## Not translated

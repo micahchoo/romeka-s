@@ -65,6 +65,7 @@ async fn schema(pool: &SqlitePool) -> Vec<(String, String, Option<String>)> {
 async fn contents(pool: &SqlitePool) -> Vec<(String, Vec<String>)> {
     let tables: Vec<String> = sqlx::query_scalar(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name != '_sqlx_migrations'
+         AND name NOT LIKE 'romeka_media_annotation_fts%'
          AND sql NOT LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name",
     )
     .fetch_all(pool)

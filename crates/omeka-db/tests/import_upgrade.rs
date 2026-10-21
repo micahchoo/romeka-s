@@ -21,7 +21,11 @@ const V2_TABLES: [&str; 6] = [
 ];
 
 /// The tables migrations after 0006 add, empty on an upgrade.
-const LATER_TABLES: [&str; 1] = ["romeka_site_page_version"];
+const LATER_TABLES: [&str; 3] = [
+    "romeka_media_annotation",
+    "romeka_media_extent",
+    "romeka_site_page_version",
+];
 
 /// A folder holding the migrations of `dir` numbered below 0006, for a [`Migrator`] that stops at
 /// 0005.
@@ -60,7 +64,8 @@ const V1_ROWS: [&str; 7] = [
 async fn sqlite_contents(pool: &SqlitePool) -> Vec<(String, Vec<String>)> {
     let tables: Vec<String> = sqlx::query_scalar(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name != '_sqlx_migrations'
-         AND name NOT LIKE 'romeka_import%' AND sql NOT LIKE 'CREATE VIRTUAL TABLE%'
+         AND name NOT LIKE 'romeka_import%' AND name NOT LIKE 'romeka_media_annotation_fts%'
+         AND sql NOT LIKE 'CREATE VIRTUAL TABLE%'
          ORDER BY name",
     )
     .fetch_all(pool)

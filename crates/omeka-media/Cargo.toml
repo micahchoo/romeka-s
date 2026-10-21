@@ -35,6 +35,15 @@ image = { version = "0.25", default-features = false, features = [
 # Without its default features it has no dependencies; it decodes at a reduced
 # resolution, so a large master costs a fraction of its pixels.
 hayro-jpeg2000 = { version = "0.4", default-features = false, features = ["std"] }
+# An uploaded SVG is filtered to an allow list of SVG elements and attributes
+# (`svg.rs`, `File/Thumbnailer/Gd.php` has no SVG decoder). Parser-based, from
+# Cloudflare, Apache-2.0 OR MIT.
+svg-hush = "0.9"
+# The SVG rasterizer behind an SVG thumbnail (`svg.rs`). Pure Rust,
+# Apache-2.0 OR MIT. Its default features read text, embedded raster images and
+# gzip-compressed SVG; the thumbnail is drawn at the file's own size, capped at
+# the large derivative.
+resvg = "0.48"
 # A JPEG over 64 MB thumbnailed with IDCT scaling (`thumbnailer/large.rs`), so
 # only an eighth of each side is ever decoded. Pure Rust, MIT OR Apache-2.0;
 # `rayon` is off.
