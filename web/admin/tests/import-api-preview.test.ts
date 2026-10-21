@@ -28,7 +28,7 @@ describe('the sections', () => {
     expect([...SECTIONS].sort()).toEqual(
       [
         'anomalies', 'check', 'columnMatches', 'entries', 'flags', 'histogram', 'identical',
-        'nameWords', 'orphans', 'records', 'sheets', 'shapes', 'tags', 'unpaired', 'values',
+        'listCandidates', 'nameWords', 'orphans', 'records', 'sheets', 'shapes', 'tags', 'unpaired', 'values',
       ].sort(),
     );
   });
@@ -93,6 +93,34 @@ describe('what the sections say', () => {
     expect(register?.rows).toBeGreaterThan(0);
     const keyed = register?.columns.filter((column) => column.groupKeys > 0) ?? [];
     expect(keyed.map((column) => column.header)).toEqual(['Id']);
+  });
+
+  it('listCandidates names each list with its best column, and a list that did not read with its error', () => {
+    const { listCandidates } = parsePreview(['listCandidates'])(loadFixture('import/preview-list-candidates.json'));
+    expect(listCandidates.map((one) => [one.file, one.inPlan, one.read, one.best?.on, one.best?.header])).toEqual([
+      ['register.csv', 'register', 'ok', 'identifier', 'Id'],
+    ]);
+    const answer = {
+      sources: [],
+      pattern: { groups: [] },
+      listCandidates: [
+        {
+          source: 's1', file: 'AF.xlsx', inPlan: null, read: 'ok', rows: 8, columns: 2,
+          best: { index: 0, header: 'File', on: 'fileName', paired: 8, pairedNormalized: 8, empty: 0 },
+          grain: { groupsWithManyRows: 4, rowsNamingOtherFilesOfAGroup: 4 },
+          overlaps: [{ source: 's1', file: 'old/AF.csv', sharedTargets: 3 }],
+        },
+        {
+          source: 's1', file: 'broken.xlsx', inPlan: null, read: { error: 'the workbook cannot be read: no zip' },
+          rows: 0, columns: 0, best: null, grain: null, overlaps: [],
+        },
+      ],
+    };
+    const parsed = parsePreview(['listCandidates'])(answer).listCandidates;
+    expect(parsed[0]?.grain?.rowsNamingOtherFilesOfAGroup).toBe(4);
+    expect(parsed[1]?.read).toEqual({ error: 'the workbook cannot be read: no zip' });
+    expect(roundTrip(parsed)).toEqual(answer.listCandidates);
+    expect(() => parsePreview(['listCandidates'])({ ...answer, listCandidates: [{ ...answer.listCandidates[1], read: 'failed' }] })).toThrow(ParseError);
   });
 
   it('entries and records say why a file or an item is left out, copies and rowless items included', () => {

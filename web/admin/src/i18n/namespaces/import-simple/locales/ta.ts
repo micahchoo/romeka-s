@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const ta: ImportSimpleMessages = {
   'guided.files.none': 'இந்த இறக்குமதி இன்னும் கோப்புகளைக் கொண்டிருக்கவில்லை.',
@@ -244,13 +244,21 @@ export const ta: ImportSimpleMessages = {
   'guided.check.noTitle': '{count} உருப்படிகளில் உங்கள் பட்டியலில் தலைப்பு இல்லை.',
   'guided.check.noTitleOne': '1 உருப்படியில் உங்கள் பட்டியலில் தலைப்பு இல்லை.',
   'guided.check.noTitleKeep':
-    'அவற்றை தலைப்பு இன்றிச் சேர்க்கவும். ஓமெகா அடையாளங்காட்டியை (identifier) காட்டுகிறது',
+    'தலைப்பு இல்லாமல் அவற்றைச் சேர்க்கவும். நிர்வாகி அவற்றை “தலைப்பு இல்லை” எனப் பட்டியலிடுகிறார்',
+  'guided.check.noTitleCode': 'உருப்படியின் குறியீட்டைத் தலைப்பாகப் பயன்படுத்தவும்',
   'guided.check.noTitleName': 'கோப்புப் பெயரைத் தலைப்பாகப் பயன்படுத்தவும்',
   'guided.check.type': '{count} உருப்படிகளில் ஓமெகா இல்லாத ஒரு உருப்படி வகை உள்ளது.',
   'guided.check.typeOne': '1 உருப்படியில் ஓமெகா இல்லாத ஒரு உருப்படி வகை உள்ளது.',
   'guided.check.typeWhy':
     'இந்த மதிப்புகளில் ஒவ்வொன்றிற்கும் “அவை எங்கே செல்கின்றன” என்பதில் ஓமெகா உருப்படி வகையை நீங்கள் தேர்ந்தெடுக்கலாம்.',
   'guided.check.typeKeep': 'அவற்றை உருப்படி வகை இன்றிச் சேர்க்கவும்',
+  'guided.check.refused':
+    'உங்கள் பட்டியலில் உள்ள {count} கோப்புகள் Omeka ஏற்காத ஒரு வகையைச் சேர்ந்தவை.',
+  'guided.check.refusedOne': 'உங்கள் பட்டியலில் உள்ள 1 கோப்பு Omeka ஏற்காத ஒரு வகையைச் சேர்ந்தது.',
+  'guided.check.refusedWhy':
+    'இந்த ஓமெக்காவின் கோப்பு அமைப்புகள் இந்த வகைகளை நிராகரிக்கின்றன, எனவே அவற்றை நாங்கள் தவிர்க்கிறோம்.',
+  'guided.check.refusedExample': 'உதாரணமாக: {names}',
+  'guided.check.refusedSettings': 'அமைப்புகளில் அனுமதிக்கப்பட்ட கோப்பு வகைகளை மாற்றவும்',
   'guided.check.handled': 'நாங்கள் {count} சிறிய விஷயங்களைக் கவனித்துக்கொண்டோம்',
   'guided.check.handledOne': 'நாங்கள் 1 சிறிய விஷயத்தைக் கவனித்துக்கொண்டோம்',
   'guided.check.handledSpaces':
@@ -293,4 +301,7 @@ export const ta: ImportSimpleMessages = {
   'guided.add.private': 'உள்நுழைந்த பணியாளர்கள் மட்டுமே (தனியார்)',
   'guided.add.public': 'அனைவரும் (பொது)',
   'guided.add.undo': 'நீங்கள் முழு இறக்குமதியையும் பின்னர் ரத்து செய்யலாம்.',
+  'guided.add.titleCode':
+    'தலைப்பு இல்லாத உருப்படிகள் அவற்றின் உருப்படி குறியீட்டைத் தலைப்பாகப் பெறுகின்றன.',
+  'guided.add.titleChange': 'அதை மாற்றவும்',
 };

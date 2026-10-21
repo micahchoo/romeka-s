@@ -1,0 +1,40 @@
+{
+  "listCandidates": [
+    {
+      "best": {
+        "empty": 0,
+        "header": "Id",
+        "index": 0,
+        "on": "identifier",
+        "paired": 4,
+        "pairedNormalized": 4
+      },
+      "columns": 5,
+      "file": "register.csv",
+      "grain": null,
+      "inPlan": "register",
+      "overlaps": [],
+      "read": "ok",
+      "rows": 5,
+      "source": "s1"
+    }
+  ],
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

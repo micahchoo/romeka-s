@@ -172,10 +172,12 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   expect(await screen.findByText('Every question has an answer.')).toBeInTheDocument();
   await next(drive);
 
-  const add = await screen.findByRole('button', { name: /^Add [\d,]+ items? to Omeka$/ }, { timeout: 5000 });
+  // Add may save the suggested title first, which draws the button again: read it after.
+  await screen.findByRole('button', { name: /^Add [\d,]+ items? to Omeka$/ }, { timeout: 5000 });
   await waitFor(() => {
-    expect(add).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Add [\d,]+ items? to Omeka$/ })).toBeEnabled();
   }, { timeout: 3000 });
+  const add = screen.getByRole('button', { name: /^Add [\d,]+ items? to Omeka$/ });
   drive.look();
   drive.click(add);
   expect(await screen.findByText('Writing to Omeka...', {}, { timeout: 5000 })).toBeInTheDocument();

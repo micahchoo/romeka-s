@@ -6,10 +6,16 @@
 //! needs a separate pass over the rows that already exist. This command is that
 //! pass.
 //!
-//! It walks every `media` row and, for each, reads the original back from the
-//! store (`original/<storage_id>.<extension>`), derives the three sizes through
-//! [`generate_thumbnails`], and records the result. A row whose media type GD
-//! does not decode is skipped, not failed, matching `TempFile::storeThumbnails`.
+//! It walks every `media` row and reads the row's media type before it opens
+//! the original. An image type is read whole and decoded
+//! ([`generate_thumbnails`]). A type no decoder here reads (a video, a PDF, an
+//! AVIF, a HEIC) is streamed out of the store into a temporary file in
+//! [`COPY_CHUNK`] pieces and handed to `ffmpeg` or `pdftoppm`
+//! ([`generate_thumbnails_from_path`]), so a 2 GB video is never in memory. Any
+//! other type is skipped without a read. A type whose tool is absent is skipped
+//! with the tool's name in the message, matching `TempFile::storeThumbnails`:
+//! the tools are optional at runtime.
+//!
 //! A row with no original on disk fails; the run continues to the next row.
 //!
 //! Idempotent. The decision for each row is read from the store: when all three
@@ -17,6 +23,7 @@
 //! nothing is written, so a second run reports zero generated. `--force` removes
 //! the three files first and rebuilds them.
 
+use std::io::Write;
 use std::path::PathBuf;
 
 use omeka_db::DbPool;
@@ -25,10 +32,19 @@ use omeka_db::repos::{MediaFilter, MediaRepo, Paging};
 use omeka_db::rows::MediaRow;
 use omeka_db::with_db;
 use omeka_media::file_render::ThumbnailType;
-use omeka_media::store::{Store, StorePrefix, storage_path};
-use omeka_media::thumbnailer::{ThumbnailOutcome, generate_thumbnails, thumbnail_path};
+use omeka_media::store::{Store, StoreError, StorePrefix, storage_path};
+use omeka_media::thumbnailer::{
+    SOURCE_MEDIA_TYPES, ThumbnailOutcome, ThumbnailSkip, generate_thumbnails,
+    generate_thumbnails_from_path, thumbnail_path,
+};
+use omeka_media::tool::Still;
 
 use crate::error::CliError;
+
+/// How much of an original is copied out of the store at a time on its way to
+/// a temporary file. A video's poster reads the size of this buffer, not the
+/// size of the video.
+pub const COPY_CHUNK: u64 = 8 * 1024 * 1024;
 
 /// Input for `romeka media thumbnails`.
 #[derive(Debug, Clone)]
@@ -125,10 +141,54 @@ async fn backfill_row(
     let Some(storage_id) = row.storage_id.clone() else {
         return failed("the row has no storage id, so it has no original to read".to_string());
     };
+    let media_type = row.media_type.clone().unwrap_or_default();
+    let needs_tool = Still::of(&media_type).is_some();
+    let reads_whole = SOURCE_MEDIA_TYPES.contains(&media_type.as_str());
+    if !needs_tool && !reads_whole {
+        // The type decides before the store is touched: a .docx has no
+        // derivative and reading it would only cost time.
+        return ThumbnailResult {
+            media,
+            file,
+            status: ThumbnailStatus::Skipped,
+            message: Some(ThumbnailSkip::UnsupportedType(media_type).to_string()),
+        };
+    }
     let original_path = storage_path(StorePrefix::Original, &storage_id, row.extension.as_deref());
-    let original = match store.read(&original_path) {
-        Ok(bytes) => bytes,
-        Err(error) => return failed(format!("cannot read {original_path}: {error}")),
+
+    // A still's tool needs a file to open, and the original may be 2 GB and
+    // live in an object store. Copy it out in chunks instead of holding it.
+    let mut streamed = None;
+    let original: Vec<u8> = if needs_tool {
+        // An extension on the temporary file, because `ffmpeg`'s format probe
+        // reads AVIF by it (see `Still::make_from_bytes`).
+        let suffix = row
+            .extension
+            .clone()
+            .or_else(|| {
+                omeka_media::media_type::extension_for_media_type(&media_type).map(str::to_string)
+            })
+            .map(|extension| format!(".{extension}"))
+            .unwrap_or_default();
+        let mut file = match tempfile::Builder::new()
+            .prefix("romeka-thumbnails")
+            .suffix(&suffix)
+            .tempfile()
+        {
+            Ok(file) => file,
+            Err(error) => return failed(format!("cannot open a temporary file: {error}")),
+        };
+        match copy_to(store, &original_path, file.as_file_mut()) {
+            Ok(_) => {}
+            Err(error) => return failed(format!("cannot read {original_path}: {error}")),
+        }
+        streamed = Some(file);
+        Vec::new()
+    } else {
+        match store.read(&original_path) {
+            Ok(bytes) => bytes,
+            Err(error) => return failed(format!("cannot read {original_path}: {error}")),
+        }
     };
 
     if force {
@@ -139,7 +199,13 @@ async fn backfill_row(
         }
     }
 
-    match generate_thumbnails(store, &storage_id, &original, row.media_type.as_deref()) {
+    let outcome = match &streamed {
+        Some(file) => {
+            generate_thumbnails_from_path(store, &storage_id, file.path(), Some(&media_type))
+        }
+        None => generate_thumbnails(store, &storage_id, &original, Some(&media_type)),
+    };
+    match outcome {
         Ok(ThumbnailOutcome::Generated) => {
             if let Err(error) = mark_has_thumbnails(pool, row).await {
                 return failed(format!(
@@ -173,6 +239,23 @@ async fn backfill_row(
             message: Some(skip.to_string()),
         },
         Err(error) => failed(format!("cannot write a thumbnail: {error}")),
+    }
+}
+
+/// Copy a stored original into `file` in [`COPY_CHUNK`] pieces, so the caller
+/// holds one piece and never the whole file. Returns the byte count.
+fn copy_to(store: &dyn Store, path: &str, file: &mut std::fs::File) -> Result<u64, StoreError> {
+    let mut at = 0u64;
+    loop {
+        let chunk = store.read_range(path, at..at.saturating_add(COPY_CHUNK))?;
+        if chunk.is_empty() {
+            return Ok(at);
+        }
+        file.write_all(&chunk).map_err(|error| StoreError::Io {
+            path: PathBuf::from(path),
+            source: error,
+        })?;
+        at += chunk.len() as u64;
     }
 }
 
@@ -347,10 +430,10 @@ mod tests {
         assert_eq!(thumbnail_files(&store, "cccc3333"), vec![true, true, true]);
     }
 
-    /// A row whose bytes are not an image is skipped, not failed, and no file is
-    /// written.
+    /// A row whose type no decoder or tool reads is skipped, not failed, before
+    /// its original is read, and no file is written.
     #[tokio::test]
-    async fn a_non_image_is_skipped() {
+    async fn a_type_no_tool_reads_is_skipped() {
         let db = seeded_db().await;
         let store_dir = tempfile::tempdir().expect("store dir");
         let store = FileStore::new(store_dir.path(), "/files");
@@ -358,9 +441,9 @@ mod tests {
             &db,
             &store,
             "dddd4444",
-            "pdf",
-            "application/pdf",
-            b"%PDF-1.4 not an image",
+            "docx",
+            "application/msword",
+            b"not a thumbnail source",
         )
         .await;
 
@@ -371,10 +454,42 @@ mod tests {
         assert_eq!(report.skipped, 1, "{report:?}");
         assert_eq!(report.generated, 0);
         assert_eq!(report.failed, 0);
+        let message = report.results[0].message.as_deref().unwrap_or_default();
+        assert!(message.contains("application/msword"), "{message}");
         assert_eq!(
             thumbnail_files(&store, "dddd4444"),
             vec![false, false, false]
         );
+    }
+
+    /// A video row is streamed out of the store and its poster becomes the three
+    /// derivatives, so the flag flips as it does for an image.
+    #[tokio::test]
+    async fn a_video_row_gets_a_poster() {
+        let db = seeded_db().await;
+        let store_dir = tempfile::tempdir().expect("store dir");
+        let store = FileStore::new(store_dir.path(), "/files");
+        let video = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/media-kinds/video.mp4"
+        ))
+        .expect("the corpus video");
+        let media =
+            row_without_thumbnails(&db, &store, "gggg7777", "mp4", "video/mp4", &video).await;
+
+        let report = run(&options(&db, store_dir.path(), false))
+            .await
+            .expect("backfill");
+
+        assert_eq!(report.generated, 1, "{report:?}");
+        assert_eq!(report.failed, 0, "{report:?}");
+        assert_eq!(thumbnail_files(&store, "gggg7777"), vec![true, true, true]);
+        let row = MediaRepo::new(&db.pool)
+            .get(omeka_db::ids::MediaId::from(media))
+            .await
+            .expect("get")
+            .expect("row");
+        assert!(row.has_thumbnails);
     }
 
     /// A row whose original is missing fails, and the run still backfills the

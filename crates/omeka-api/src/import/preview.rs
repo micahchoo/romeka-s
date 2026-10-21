@@ -8,9 +8,12 @@
 //! read lazily through the shared [`TagCache`]. Only a tag a slot rule names
 //! opens a file. The derive runs on the blocking pool. [`preview`] then cuts
 //! the sections from the model; it is pure except for the `tags` section,
-//! which reads the tags of at most [`TAG_SAMPLES`] files. A section is
-//! computed only when the request names it.
+//! which reads the tags of at most [`TAG_SAMPLES`] files, and the
+//! `listCandidates` section, which reads every list file the scan found
+//! through [`SheetCache`]. A section is computed only when the request names
+//! it.
 
+mod candidates;
 mod causes;
 mod columns;
 mod counts;
@@ -35,6 +38,7 @@ use omeka_media::validation::FileValidation;
 use serde::{Deserialize, Serialize};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
+pub use candidates::{BestColumn, CandidateRead, Grain, ListCandidate, Overlap};
 pub use causes::{FlagCount, FlagSample};
 pub use columns::{ColumnMatches, SheetMatches};
 pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
@@ -94,6 +98,7 @@ pub enum Section {
     Values,
     NameWords,
     ColumnMatches,
+    ListCandidates,
 }
 
 /// `POST /api/romeka/imports/{id}/preview`.
@@ -171,6 +176,8 @@ pub struct Preview {
     pub name_words: Option<NameWords>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub column_matches: Option<Vec<SheetMatches>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_candidates: Option<Vec<ListCandidate>>,
 }
 
 /// File tags read from disk through the shared cache.
@@ -342,9 +349,13 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
             )
         }),
         column_matches: wants(Section::ColumnMatches).then(|| columns::column_matches(derived)),
+        list_candidates: wants(Section::ListCandidates)
+            .then(|| candidates::list_candidates(derived)),
     }
 }
 
+#[cfg(test)]
+mod candidates_tests;
 #[cfg(test)]
 mod facts_tests;
 #[cfg(test)]

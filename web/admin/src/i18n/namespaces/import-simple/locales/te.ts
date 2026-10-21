@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const te: ImportSimpleMessages = {
   'guided.files.none': 'ఈ ఇంపోర్ట్ ఇంకా ఎటువంటి ఫైళ్లను కలిగి లేదు.',
@@ -231,13 +231,21 @@ export const te: ImportSimpleMessages = {
   'guided.check.dateLeave': 'ఈ తేదీలను వదిలివేయండి',
   'guided.check.noTitle': '{count} అంశాలకు మీ జాబితాలో శీర్షిక లేదు.',
   'guided.check.noTitleOne': '1 అంశానికి మీ జాబితాలో శీర్షిక లేదు.',
-  'guided.check.noTitleKeep': 'శీర్షిక లేకుండా వాటిని జోడించండి. Omeka గుర్తింపు సంఖ్యను చూపుతుంది',
+  'guided.check.noTitleKeep':
+    'శీర్షిక లేకుండా వాటిని జోడించండి. అడ్మిన్ వాటిని “శీర్షిక లేదు” అని జాబితా చేస్తారు',
+  'guided.check.noTitleCode': 'ఐటమ్ కోడ్‌ను టైటిల్‌గా ఉపయోగించండి',
   'guided.check.noTitleName': 'ఫైల్ పేరును శీర్షికగా ఉపయోగించండి',
   'guided.check.type': '{count} అంశాలకు Omeka వద్ద లేని ఐటమ్ రకం ఉంది.',
   'guided.check.typeOne': '1 అంశానికి Omeka వద్ద లేని ఐటమ్ రకం ఉంది.',
   'guided.check.typeWhy':
     'ఈ విలువల కోసం “Where they go” లో ప్రతిదానికి ఒక ఐటమ్ రకాన్ని ఎంచుకోవచ్చు.',
   'guided.check.typeKeep': 'ఐటమ్ రకంతో సంబంధం లేకుండా వాటిని జోడించండి',
+  'guided.check.refused': 'మీ జాబితాలో ఉన్న {count} ఫైళ్లు Omeka అంగీకరించని రకానికి చెందినవి.',
+  'guided.check.refusedOne': 'మీ జాబితాలో ఉన్న 1 ఫైల్ Omeka అంగీకరించని రకానికి చెందినది.',
+  'guided.check.refusedWhy':
+    'ఈ Omeka యొక్క ఫైల్ సెట్టింగ్‌లు ఈ రకాలను తిరస్కరిస్తాయి, కాబట్టి మేము వాటిని వదిలివేస్తాము.',
+  'guided.check.refusedExample': 'ఉదాహరణకు: {names}',
+  'guided.check.refusedSettings': 'సెట్టింగ్‌లలో అనుమతించబడిన ఫైల్ రకాలను మార్చండి',
   'guided.check.handled': 'మేము {count} చిన్న విషయాలను చూసుకున్నాము',
   'guided.check.handledOne': 'మేము 1 చిన్న విషయాన్ని చూసుకున్నాము',
   'guided.check.handledSpaces':
@@ -279,4 +287,6 @@ export const te: ImportSimpleMessages = {
   'guided.add.private': 'కేవలం సైన్-ఇన్ చేసిన సిబ్బంది (ప్రైవేట్)',
   'guided.add.public': 'అందరూ (ప్రజా)',
   'guided.add.undo': 'మీరు తర్వాత మొత్తం ఇంపోర్ట్‌ను అన్‌డూ చేయవచ్చు.',
+  'guided.add.titleCode': 'టైటిల్ లేని అంశాలకు వాటి అంశ కోడ్‌ను టైటిల్‌గా తీసుకుంటాయి.',
+  'guided.add.titleChange': 'దానిని మార్చండి',
 };
